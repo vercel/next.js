@@ -1,0 +1,331 @@
+---
+title: How to fetch client-side data with SWR
+nav_title: SWR
+description: Seed SWR from a Server Component, scope data per segment, and coordinate the server and client caches on mutation.
+related:
+  description: Related guides and references.
+  links:
+    - app/guides/single-page-applications
+    - app/api-reference/file-conventions/route
+    - app/api-reference/functions/revalidateTag
+---
+
+[SWR](https://swr.vercel.app) is a React library for data fetching. This guide shows the SWR-specific setup for the patterns in [Single-Page Applications](/docs/app/guides/single-page-applications#client-side-data-fetching-libraries): seeding server data into the client cache, scoping data to a segment, and coordinating the server and client caches on mutation.
+
+## Seeding SWR from a Server Component
+
+With SWR 2.3.0 and React 19, you can add Server Component data to an existing SWR setup without moving all data fetching to the server. This abstracts the [`use()` pattern](/docs/app/guides/single-page-applications#using-reacts-use-within-a-context-provider), so the same Client Component can read data from the client, the server, or both.
+
+Use SWR when the Client Component needs client-side features, such as focus revalidation, interval revalidation, [`mutate`](https://swr.vercel.app/docs/mutation), or request deduplication across components. If a Client Component only needs to read server data once, pass a Promise to it and unwrap it with [`use()`](/docs/app/guides/single-page-applications#using-reacts-use-within-a-context-provider). That avoids adding a data-fetching library for data that never revalidates on the client.
+
+To provide server data to SWR on the first render, wrap your application in `<SWRConfig>` and provide a `fallback`:
+
+```tsx filename="app/layout.tsx" switcher
+import { SWRConfig } from 'swr'
+import { getUser } from './user' // some server-side function
+
+export default function RootLayout({ children }: LayoutProps<'/'>) {
+  return (
+    <SWRConfig
+      value={{
+        fallback: {
+          // Not awaited: only components that read this key suspend
+          '/api/user': getUser(),
+        },
+      }}
+    >
+      {children}
+    </SWRConfig>
+  )
+}
+```
+
+```js filename="app/layout.js" switcher
+import { SWRConfig } from 'swr'
+import { getUser } from './user' // some server-side function
+
+export default function RootLayout({ children }) {
+  return (
+    <SWRConfig
+      value={{
+        fallback: {
+          // Not awaited: only components that read this key suspend
+          '/api/user': getUser(),
+        },
+      }}
+    >
+      {children}
+    </SWRConfig>
+  )
+}
+```
+
+Because this is a Server Component, `getUser()` can read cookies, headers, or your database. Client Components below the `<SWRConfig>` read the seeded value by using the same key.
+
+The key is the client fetch URL. Point it at an [API route](/docs/app/api-reference/file-conventions/route), not a [Server Function](/docs/app/guides/server-actions). Server Functions are POST requests for mutations. An API route is a GET, so the client can call it to revalidate and poll. Have the route call the same `getUser` function that seeds the cache:
+
+```ts filename="app/api/user/route.ts" switcher
+import { getUser } from '../../user'
+
+export async function GET() {
+  return Response.json(await getUser())
+}
+```
+
+```js filename="app/api/user/route.js" switcher
+import { getUser } from '../../user'
+
+export async function GET() {
+  return Response.json(await getUser())
+}
+```
+
+```tsx filename="app/profile.tsx" switcher
+'use client'
+
+import useSWR from 'swr'
+
+export function Profile() {
+  const fetcher = (url: string) => fetch(url).then((res) => res.json())
+  const { data, error } = useSWR('/api/user', fetcher)
+
+  return '...'
+}
+```
+
+```jsx filename="app/profile.js" switcher
+'use client'
+
+import useSWR from 'swr'
+
+export function Profile() {
+  const fetcher = (url) => fetch(url).then((res) => res.json())
+  const { data, error } = useSWR('/api/user', fetcher)
+
+  return '...'
+}
+```
+
+The `fallback` data can be prerendered and included in the initial HTML response, then read by child components with `useSWR`. SWR's polling, revalidation, and caching still run on the client.
+
+Because the seeded data is available on first render, [`isLoading`](https://swr.vercel.app/docs/advanced/understanding#combining-with-isloading-and-isvalidating-for-better-ux) stays `false`. A client-side revalidation surfaces as `isValidating`.
+
+The `fallback` value seeds what the hook returns on first render, but it does not write to the SWR cache, so it acts as a display default until the first client fetch fills the entry. In SWR 2.5 beta, [`preload`](https://swr.vercel.app/docs/prefetching) with `cacheData` instead writes the server value into the cache under the key that `useSWR(key)` and `mutate(key)` use later:
+
+```tsx filename="app/layout.tsx" switcher
+import { preload, SWRConfig } from 'swr'
+import { getUser } from './user'
+
+export default function RootLayout({ children }: LayoutProps<'/'>) {
+  return (
+    <SWRConfig value={{ cacheData: preload('/api/user', () => getUser()) }}>
+      {children}
+    </SWRConfig>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+import { preload, SWRConfig } from 'swr'
+import { getUser } from './user'
+
+export default function RootLayout({ children }) {
+  return (
+    <SWRConfig value={{ cacheData: preload('/api/user', () => getUser()) }}>
+      {children}
+    </SWRConfig>
+  )
+}
+```
+
+Because the value is a real cache entry, `mutate(key)`, revalidation, and deduplication operate on it like any fetched data. The `fallback` option only sets the value the hook returns on first render, so use `preload` when the seeded value is later mutated or revalidated on the client.
+
+## Scoping server data to the components that use it
+
+A `<SWRConfig>` can live in any Server Component, not only the root layout. Placing it on the route segment that owns the data keeps the `fallback` close to where it is read, keeps unrelated keys out of a global config, and lets each segment start its own server-side requests.
+
+For dynamic keys, define a shared key helper so the server seed, Client Component, and mutations use the same string:
+
+```ts filename="app/projects/[id]/swr-keys.ts" switcher
+export function projectKey(id: string) {
+  return `/api/projects/${id}`
+}
+```
+
+```js filename="app/projects/[id]/swr-keys.js" switcher
+export function projectKey(id) {
+  return `/api/projects/${id}`
+}
+```
+
+```tsx filename="app/projects/[id]/page.tsx" switcher
+import { Suspense } from 'react'
+import { SWRConfig } from 'swr'
+import { getProject } from './data' // some server-side function
+import { projectKey } from './swr-keys'
+import { ProjectView } from './project-view'
+
+export default function Page({ params }: PageProps<'/projects/[id]'>) {
+  return (
+    <Suspense fallback={<p>Loading…</p>}>
+      {params.then(({ id }) => (
+        <ProjectData id={id} />
+      ))}
+    </Suspense>
+  )
+}
+
+function ProjectData({ id }: { id: string }) {
+  return (
+    <SWRConfig
+      value={{
+        fallback: {
+          // Not awaited: only components that read this key suspend
+          [projectKey(id)]: getProject(id),
+        },
+      }}
+    >
+      <ProjectView id={id} />
+    </SWRConfig>
+  )
+}
+```
+
+```jsx filename="app/projects/[id]/page.js" switcher
+import { Suspense } from 'react'
+import { SWRConfig } from 'swr'
+import { getProject } from './data' // some server-side function
+import { projectKey } from './swr-keys'
+import { ProjectView } from './project-view'
+
+export default function Page({ params }) {
+  return (
+    <Suspense fallback={<p>Loading…</p>}>
+      {params.then(({ id }) => (
+        <ProjectData id={id} />
+      ))}
+    </Suspense>
+  )
+}
+
+function ProjectData({ id }) {
+  return (
+    <SWRConfig
+      value={{
+        fallback: {
+          // Not awaited: only components that read this key suspend
+          [projectKey(id)]: getProject(id),
+        },
+      }}
+    >
+      <ProjectView id={id} />
+    </SWRConfig>
+  )
+}
+```
+
+Inside `<Suspense>`, `params.then()` resolves the `id` and passes it to `ProjectData`, which seeds the `fallback` with the `getProject(id)` promise. Only that subtree suspends while the data loads.
+
+The Client Component reads the data with `useSWR` using the same key:
+
+```tsx filename="app/projects/[id]/project-view.tsx" switcher
+'use client'
+
+import useSWR from 'swr'
+import { projectKey } from './swr-keys'
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json())
+
+export function ProjectView({ id }: { id: string }) {
+  const { data } = useSWR(projectKey(id), fetcher)
+
+  return <h1>{data?.name}</h1>
+}
+```
+
+```jsx filename="app/projects/[id]/project-view.js" switcher
+'use client'
+
+import useSWR from 'swr'
+import { projectKey } from './swr-keys'
+
+const fetcher = (url) => fetch(url).then((res) => res.json())
+
+export function ProjectView({ id }) {
+  const { data } = useSWR(projectKey(id), fetcher)
+
+  return <h1>{data?.name}</h1>
+}
+```
+
+> **Good to know:** The `fallback` key and the `useSWR` key must match exactly. If they drift, SWR ignores the seeded value and fetches on the client.
+
+## Coordinating the server and client caches on mutation
+
+The examples above seed the client cache from the server, so both caches hold the same data flowing in one direction. Some apps keep the two caches for different jobs instead, as described in [Single-Page Applications](/docs/app/guides/single-page-applications#client-side-data-fetching-libraries).
+
+With SWR, updating the client cache before the request resolves is its [optimistic update](https://swr.vercel.app/docs/mutation#optimistic-updates) pattern. Use [`mutate`](https://swr.vercel.app/docs/mutation) with `revalidate: false` to set the badge without triggering a client refetch, then send the write:
+
+```tsx filename="app/activity/mark-read.tsx" switcher
+'use client'
+
+import { useSWRConfig } from 'swr'
+
+export function useMarkActivityRead() {
+  const { mutate } = useSWRConfig()
+
+  return async () => {
+    // Update the badge immediately, without revalidating.
+    mutate('/api/activity/unread', { count: 0 }, { revalidate: false })
+    await fetch('/api/activity/read', { method: 'POST' })
+  }
+}
+```
+
+```jsx filename="app/activity/mark-read.js" switcher
+'use client'
+
+import { useSWRConfig } from 'swr'
+
+export function useMarkActivityRead() {
+  const { mutate } = useSWRConfig()
+
+  return async () => {
+    // Update the badge immediately, without revalidating.
+    mutate('/api/activity/unread', { count: 0 }, { revalidate: false })
+    await fetch('/api/activity/read', { method: 'POST' })
+  }
+}
+```
+
+The API route writes to the database and revalidates the tagged server data with `revalidateTag`. Tag the cached server query with [`cacheTag`](/docs/app/api-reference/functions/cacheTag) so the tag matches:
+
+```ts filename="app/api/activity/read/route.ts" switcher
+import { revalidateTag } from 'next/cache'
+import { markActivityRead, getCurrentUserId } from '../../../activity/data'
+
+export async function POST() {
+  const userId = await getCurrentUserId()
+  await markActivityRead(userId)
+  revalidateTag(`activity:${userId}`, 'max')
+  return new Response(null, { status: 204 })
+}
+```
+
+```js filename="app/api/activity/read/route.js" switcher
+import { revalidateTag } from 'next/cache'
+import { markActivityRead, getCurrentUserId } from '../../../activity/data'
+
+export async function POST() {
+  const userId = await getCurrentUserId()
+  await markActivityRead(userId)
+  revalidateTag(`activity:${userId}`, 'max')
+  return new Response(null, { status: 204 })
+}
+```
+
+The badge updates from the SWR cache, while `revalidateTag` marks the server cache stale without touching the current route. The screen holds steady after the write, and the next navigation to the route renders from fresh server data.
+
+> **Good to know:** To update the current route in place instead of waiting for the next navigation, call [`router.refresh()`](/docs/app/api-reference/functions/use-router) after the mutation.
+
+See the [live demo](https://next-spa-patterns.labs.vercel.dev/swr) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/swr), and the [SWR docs](https://swr.vercel.app/docs/getting-started) for more on fetching and mutations.

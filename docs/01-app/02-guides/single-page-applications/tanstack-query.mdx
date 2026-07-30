@@ -1,0 +1,333 @@
+---
+title: How to fetch client-side data with TanStack Query
+nav_title: TanStack Query
+description: Seed TanStack Query from a Server Component, cache the dehydrated payload with Cache Components, and coordinate the server and client caches on mutation.
+related:
+  description: Related guides and references.
+  links:
+    - app/guides/single-page-applications
+    - app/getting-started/caching
+    - app/api-reference/directives/use-cache
+---
+
+You can use [TanStack Query](https://tanstack.com/query) (formerly React Query) with Next.js on the client and the server. This guide shows the TanStack Query-specific setup for the patterns in [Single-Page Applications](/docs/app/guides/single-page-applications#client-side-data-fetching-libraries): seeding server data into the client cache, caching the dehydrated payload with Cache Components, and coordinating the server and client caches on mutation.
+
+## Seeding TanStack Query from a Server Component
+
+Seed the cache from a Server Component the same way as [SWR](/docs/app/guides/single-page-applications/swr): prefetch on the server, hand the cache to the client, and let it own revalidation from there.
+
+TanStack Query needs a one-time setup, including a `getQueryClient` (new per request on the server, a singleton in the browser), a `<QueryClientProvider>`, and a client configured to dehydrate pending queries. TanStack Query owns this integration, so follow [its Advanced SSR guide](https://tanstack.com/query/latest/docs/framework/react/guides/advanced-ssr) for the full setup and current APIs.
+
+Define the query key and query function in one shared helper. As with SWR, the query function fetches an [API route](/docs/app/api-reference/file-conventions/route) so it can run on the client to refetch and poll:
+
+```tsx filename="app/projects/[id]/project-query.ts" switcher
+import { queryOptions } from '@tanstack/react-query'
+import type { Project } from './data'
+
+export function projectQueryOptions(id: string) {
+  return queryOptions({
+    queryKey: ['project', id],
+    queryFn: async (): Promise<Project> => {
+      const res = await fetch(`/api/projects/${id}`)
+      return res.json()
+    },
+  })
+}
+```
+
+```js filename="app/projects/[id]/project-query.js" switcher
+import { queryOptions } from '@tanstack/react-query'
+
+export function projectQueryOptions(id) {
+  return queryOptions({
+    queryKey: ['project', id],
+    queryFn: async () => {
+      const res = await fetch(`/api/projects/${id}`)
+      return res.json()
+    },
+  })
+}
+```
+
+A Server Component starts the request with `prefetchQuery` **without awaiting it**, then serializes the cache into the streamed HTML with `<HydrationBoundary>`. On the server, override `queryFn` to call the data function directly, since the API route's relative URL only resolves in the browser:
+
+```tsx filename="app/projects/[id]/page.tsx" switcher
+import { Suspense } from 'react'
+import { dehydrate, HydrationBoundary } from '@tanstack/react-query'
+import { getQueryClient } from '@/app/get-query-client'
+import { getProject } from './data'
+import { projectQueryOptions } from './project-query'
+import { ProjectView } from './project-view'
+
+export default function Page({ params }: PageProps<'/projects/[id]'>) {
+  return (
+    <Suspense fallback={<p>Loading…</p>}>
+      {params.then(({ id }) => (
+        <ProjectData id={id} />
+      ))}
+    </Suspense>
+  )
+}
+
+function ProjectData({ id }: { id: string }) {
+  const queryClient = getQueryClient()
+
+  // Not awaited, so rendering is not blocked.
+  queryClient.prefetchQuery({
+    ...projectQueryOptions(id),
+    queryFn: () => getProject(id),
+  })
+
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <ProjectView id={id} />
+    </HydrationBoundary>
+  )
+}
+```
+
+```jsx filename="app/projects/[id]/page.js" switcher
+import { Suspense } from 'react'
+import { dehydrate, HydrationBoundary } from '@tanstack/react-query'
+import { getQueryClient } from '@/app/get-query-client'
+import { getProject } from './data'
+import { projectQueryOptions } from './project-query'
+import { ProjectView } from './project-view'
+
+export default function Page({ params }) {
+  return (
+    <Suspense fallback={<p>Loading…</p>}>
+      {params.then(({ id }) => (
+        <ProjectData id={id} />
+      ))}
+    </Suspense>
+  )
+}
+
+function ProjectData({ id }) {
+  const queryClient = getQueryClient()
+
+  // Not awaited, so rendering is not blocked.
+  queryClient.prefetchQuery({
+    ...projectQueryOptions(id),
+    queryFn: () => getProject(id),
+  })
+
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <ProjectView id={id} />
+    </HydrationBoundary>
+  )
+}
+```
+
+As with SWR, `params.then()` resolves the `id` inside `<Suspense>`, and `ProjectData` prefetches below the boundary.
+
+The Client Component reads the data with the same query key. Use `useSuspenseQuery` when a `<Suspense>` boundary handles loading and you want `data` to always be defined. Use `useQuery` when you would rather render its `isPending` and `error` states inline:
+
+```tsx filename="app/projects/[id]/project-view.tsx" switcher
+'use client'
+
+import { useSuspenseQuery } from '@tanstack/react-query'
+import { projectQueryOptions } from './project-query'
+
+export function ProjectView({ id }: { id: string }) {
+  const { data } = useSuspenseQuery(projectQueryOptions(id))
+
+  return <h1>{data.name}</h1>
+}
+```
+
+```jsx filename="app/projects/[id]/project-view.js" switcher
+'use client'
+
+import { useSuspenseQuery } from '@tanstack/react-query'
+import { projectQueryOptions } from './project-query'
+
+export function ProjectView({ id }) {
+  const { data } = useSuspenseQuery(projectQueryOptions(id))
+
+  return <h1>{data.name}</h1>
+}
+```
+
+The query key connects the server prefetch and client hook, the same way the matching `fallback` and `useSWR` keys do in the [SWR guide](/docs/app/guides/single-page-applications/swr).
+
+See the [live demo](https://next-spa-patterns.labs.vercel.dev/react-query) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/react-query).
+
+## With Cache Components
+
+The `prefetchQuery` shape above streams the query in without caching it. With [Cache Components](/docs/app/getting-started/caching), you can cache and [tag](/docs/app/api-reference/functions/cacheTag) the dehydrated payload so it revalidates like any other cache entry.
+
+The `dehydrate()` call records the current time (`Date.now()`) in its output. Reading the current time is not allowed while prerendering, so calling `dehydrate()` directly fails with a [current-time prerender error](/docs/messages/blocking-prerender-current-time).
+
+Cache only the timestamp that `dehydrate()` reads, and build the dehydrated state by hand. Wrap the time read in [`use cache`](/docs/app/api-reference/directives/use-cache) with a [`cacheLife`](/docs/app/api-reference/functions/cacheLife), then pass it as each query's `updatedAt`. Because only the timestamp is cached, the data stays fresh per request, and the `stale` value controls how long the client treats the hydrated data as fresh:
+
+```tsx filename="app/lib/hydrate.ts" switcher
+import 'server-only'
+
+import { cacheLife } from 'next/cache'
+import {
+  defaultShouldDehydrateQuery,
+  QueryClient,
+  type DehydratedState,
+  type QueryKey,
+} from '@tanstack/react-query'
+
+type HydratedQuery = {
+  queryKey: QueryKey
+  data: unknown
+}
+
+type HydrationOptions = {
+  stale?: number
+}
+
+async function getHydrationUpdatedAt(stale: number) {
+  'use cache'
+  cacheLife({ stale })
+  return Date.now()
+}
+
+export async function dehydrate(
+  queries: HydratedQuery[],
+  options: HydrationOptions = {}
+): Promise<DehydratedState> {
+  const updatedAt = await getHydrationUpdatedAt(options.stale ?? 30)
+
+  const queryClient = new QueryClient()
+
+  for (const query of queries) {
+    queryClient.setQueryData(query.queryKey, query.data, { updatedAt })
+  }
+
+  return {
+    mutations: [],
+    queries: queryClient
+      .getQueryCache()
+      .getAll()
+      .filter((query) => defaultShouldDehydrateQuery(query))
+      .map((query) => ({
+        dehydratedAt: updatedAt,
+        queryHash: query.queryHash,
+        queryKey: query.queryKey,
+        state: query.state,
+        ...(query.meta ? { meta: query.meta } : {}),
+      })),
+  }
+}
+```
+
+```js filename="app/lib/hydrate.js" switcher
+import 'server-only'
+
+import { cacheLife } from 'next/cache'
+import { defaultShouldDehydrateQuery, QueryClient } from '@tanstack/react-query'
+
+async function getHydrationUpdatedAt(stale) {
+  'use cache'
+  cacheLife({ stale })
+  return Date.now()
+}
+
+export async function dehydrate(queries, options = {}) {
+  const updatedAt = await getHydrationUpdatedAt(options.stale ?? 30)
+
+  const queryClient = new QueryClient()
+
+  for (const query of queries) {
+    queryClient.setQueryData(query.queryKey, query.data, { updatedAt })
+  }
+
+  return {
+    mutations: [],
+    queries: queryClient
+      .getQueryCache()
+      .getAll()
+      .filter((query) => defaultShouldDehydrateQuery(query))
+      .map((query) => ({
+        dehydratedAt: updatedAt,
+        queryHash: query.queryHash,
+        queryKey: query.queryKey,
+        state: query.state,
+        ...(query.meta ? { meta: query.meta } : {}),
+      })),
+  }
+}
+```
+
+Await the helper in the segment that owns the data, passing fresh data in, and hand the result to `<HydrationBoundary>`, the same `ProjectData` boundary shown above:
+
+```tsx filename="app/projects/[id]/page.tsx" switcher
+import { dehydrate } from '@/app/lib/hydrate'
+import { getProject } from './data'
+
+async function ProjectData({ id }: { id: string }) {
+  const project = await getProject(id)
+  const state = await dehydrate([{ queryKey: ['project', id], data: project }])
+
+  return (
+    <HydrationBoundary state={state}>
+      <ProjectView id={id} />
+    </HydrationBoundary>
+  )
+}
+```
+
+```jsx filename="app/projects/[id]/page.js" switcher
+import { dehydrate } from '@/app/lib/hydrate'
+import { getProject } from './data'
+
+async function ProjectData({ id }) {
+  const project = await getProject(id)
+  const state = await dehydrate([{ queryKey: ['project', id], data: project }])
+
+  return (
+    <HydrationBoundary state={state}>
+      <ProjectView id={id} />
+    </HydrationBoundary>
+  )
+}
+```
+
+## Coordinating the server and client caches on mutation
+
+TanStack Query coordinates the two caches on a mutation the same way as [SWR](/docs/app/guides/single-page-applications/swr#coordinating-the-server-and-client-caches-on-mutation): update the client cache for an instant change, then write through an API route that calls `revalidateTag` to refresh the server render for the next visit. Update the badge in `useMutation`'s [`onMutate`](https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates) callback, which runs before the request:
+
+```tsx filename="app/activity/mark-read.tsx" switcher
+'use client'
+
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+
+export function useMarkActivityRead() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: () => fetch('/api/activity/read', { method: 'POST' }),
+    // Update the badge immediately, before the request resolves.
+    onMutate: () =>
+      queryClient.setQueryData(['activity', 'unread'], { count: 0 }),
+  })
+}
+```
+
+```jsx filename="app/activity/mark-read.js" switcher
+'use client'
+
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+
+export function useMarkActivityRead() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: () => fetch('/api/activity/read', { method: 'POST' }),
+    // Update the badge immediately, before the request resolves.
+    onMutate: () =>
+      queryClient.setQueryData(['activity', 'unread'], { count: 0 }),
+  })
+}
+```
+
+> **Good to know:** For keys reused across a read, a mutation, and revalidation, extract them into a shared object (for example, `activityKeys.unread`) so the same key is defined once. Inline arrays are fine for one-off keys.
+
+See the [live demo](https://next-spa-patterns.labs.vercel.dev/react-query) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/react-query), and the [TanStack Query docs](https://tanstack.com/query/latest/docs/framework/react/overview) for more on fetching and mutations.
