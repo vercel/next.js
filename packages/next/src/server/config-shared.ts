@@ -548,6 +548,13 @@ export interface ExperimentalConfig {
   concurrentRouterQueue?: boolean
   instrumentationClientRouterTransitionEvents?: boolean
   varyParams?: boolean
+
+  /**
+   * Enables variants: values resolved per request (from cookies, headers, or a
+   * flags service) that a route can be prerendered against, in addition to its
+   * route params. Turbopack only.
+   */
+  variants?: boolean
   prefetchInlining?:
     | boolean
     | {
@@ -2495,6 +2502,7 @@ export interface NextConfigRuntime {
     | 'exposeTestingApiInProductionBuild'
     | 'instantInsights'
     | 'requestInsights'
+    | 'variants'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -2565,6 +2573,7 @@ export function getNextConfigRuntime(
     exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
     instantInsights: ex.instantInsights,
     requestInsights: ex.requestInsights,
+    variants: ex.variants,
 
     trustHostHeader: ex.trustHostHeader,
     isExperimentalCompile: ex.isExperimentalCompile,
