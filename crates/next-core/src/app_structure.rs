@@ -1078,7 +1078,8 @@ async fn directory_tree_to_loader_tree(
 
 /// Checks the current module if it needs to be updated with the default page.
 /// If the module is already set, update the parent module to the same value.
-/// If the parent module is set and module is not set, set the module to the parent module.
+/// If the module is not set and the parent module is set, only first layer group routes are
+/// updated, and only when the parent module is the built-in default page.
 /// If the module and the parent module are not set, set them to the default value.
 ///
 /// # Arguments

@@ -11,7 +11,7 @@ export default async function Page(props) {
 
   return (
     <>
-      <p>{`group-dynamic [id]`}</p>
+      <p id="page">{`group-dynamic [id]`}</p>
       <Link href="/group-dynamic/404" id="to-404">
         to 404
       </Link>

@@ -51,11 +51,11 @@ describe('app dir - forbidden with customized boundary', () => {
     // no forbidden boundary in the group route, escalate to the root boundary
     // instead of rendering it inside the group route's layout
     const browserForbidden = await next.browser('/group-dynamic/403')
-    expect(
-      await browserForbidden.hasElementByCssSelector('#group-layout')
-    ).toBe(false)
     expect(await browserForbidden.elementByCss('h1').text()).toBe(
       'Root Forbidden'
     )
+    expect(
+      await browserForbidden.hasElementByCssSelector('#group-layout')
+    ).toBe(false)
   })
 })

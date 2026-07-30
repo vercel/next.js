@@ -19,19 +19,21 @@ describe('app dir - group routes with root not-found', () => {
 
   it('should render root not found for group routes if hit 404', async () => {
     const browser = await next.browser('/group-dynamic/123')
-    expect(await browser.elementByCss('p').text()).toBe('Group layout')
-    expect(await browser.elementByCss('#group-layout > p + p').text()).toBe(
+    expect(await browser.elementByCss('#page').text()).toBe(
       'group-dynamic [id]'
     )
+    expect(await browser.hasElementByCssSelector('#group-layout')).toBe(true)
 
     await browser.loadPage(next.url + '/group-dynamic/404')
-    expect(await browser.hasElementByCssSelector('#group-layout')).toBe(false)
     expect(await browser.elementByCss('p').text()).toBe('Not found placeholder')
     expect(await browser.elementByCss('h1').text()).toBe('Root layout')
+    expect(await browser.hasElementByCssSelector('#group-layout')).toBe(false)
   })
 
   it('should render root not found for group routes when soft navigating to a 404', async () => {
     const browser = await next.browser('/group-dynamic/123')
+    expect(await browser.hasElementByCssSelector('#group-layout')).toBe(true)
+
     await browser.elementByCss('#to-404').click()
 
     await retry(async () => {
@@ -40,7 +42,7 @@ describe('app dir - group routes with root not-found', () => {
       )
     })
 
-    expect(await browser.hasElementByCssSelector('#group-layout')).toBe(false)
     expect(await browser.elementByCss('h1').text()).toBe('Root layout')
+    expect(await browser.hasElementByCssSelector('#group-layout')).toBe(false)
   })
 })
