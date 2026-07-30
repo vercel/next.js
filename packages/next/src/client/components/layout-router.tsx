@@ -33,6 +33,10 @@ import { ErrorBoundary } from './error-boundary'
 import { disableSmoothScrollDuringRouteTransition } from '../../shared/lib/router/utils/disable-smooth-scroll'
 import { RedirectBoundary } from './redirect-boundary'
 import { HTTPAccessFallbackBoundary } from './http-access-fallback/error-boundary'
+import {
+  InstantValidationBoundaryContext,
+  RenderValidationBoundaryAtThisLevel,
+} from './instant-validation/boundary'
 import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
 import {
   useRouterBFCache,
@@ -287,21 +291,8 @@ function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
       // Mark as scrolled so no other segment scrolls for this navigation.
       scrollRef.current = false
 
-      const activeElement = document.activeElement
-      if (
-        activeElement !== null &&
-        'blur' in activeElement &&
-        typeof activeElement.blur === 'function'
-      ) {
-        // Trying to match hard navigations.
-        // Ideally we'd move the internal focus cursor either to the top
-        // or at least before the segment. But there's no DOM API to do that,
-        // so we just blur.
-        // We could workaround this by moving focus to a temporary element in
-        // the body. But adding elements might trigger layout or other effects
-        // so it should be well motivated.
-        activeElement.blur()
-      }
+      // This handler intentionally leaves focus untouched; resetting focus on
+      // navigation is deferred.
 
       disableSmoothScrollDuringRouteTransition(
         () => {
@@ -670,8 +661,6 @@ export default function OuterLayoutRouter({
 
   let maybeValidationBoundaryId: string | null = null
   if (typeof window === 'undefined' && process.env.__NEXT_CACHE_COMPONENTS) {
-    const { InstantValidationBoundaryContext } =
-      require('./instant-validation/boundary') as typeof import('./instant-validation/boundary')
     maybeValidationBoundaryId = use(InstantValidationBoundaryContext)
   }
 
@@ -810,8 +799,6 @@ export default function OuterLayoutRouter({
       process.env.__NEXT_CACHE_COMPONENTS &&
       typeof maybeValidationBoundaryId === 'string'
     ) {
-      const { RenderValidationBoundaryAtThisLevel } =
-        require('./instant-validation/boundary') as typeof import('./instant-validation/boundary')
       templateValue = (
         <RenderValidationBoundaryAtThisLevel id={maybeValidationBoundaryId}>
           {templateValue}

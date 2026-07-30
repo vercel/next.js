@@ -8,7 +8,7 @@ import { getFlightDataPartsFromPath } from '../../flight-data-helpers'
 import { createInitialCacheNodeForHydration } from './ppr-navigations'
 import {
   convertRootFlightRouterStateToRouteTree,
-  getStaleAt,
+  resolveStaleAt,
   processRuntimePrefetchStream,
   writeDynamicRenderResponseIntoCache,
   writePrerenderResponseIntoCache,
@@ -44,6 +44,7 @@ export function createInitialRouterState({
     s: initialStaleTime,
     l: initialStaticStageByteLength,
     h: initialHeadVaryParams,
+    r: initialRootVaryParams,
     p: initialRuntimePrefetchStream,
     d: initialDynamicStaleTimeSeconds,
   } = initialRSCPayload
@@ -141,7 +142,7 @@ export function createInitialRouterState({
                 undefined
               )
             const now = Date.now()
-            const staleAt = await getStaleAt(now, staticStageResponse.s)
+            const staleAt = await resolveStaleAt(now, staticStageResponse.s)
 
             writePrerenderResponseIntoCache(
               now,
@@ -149,6 +150,7 @@ export function createInitialRouterState({
               staticStageResponse.f,
               undefined, // no build ID mismatch check for initial HTML
               staticStageResponse.h,
+              staticStageResponse.r ?? null,
               staleAt,
               initialTree,
               initialRenderedSearch,
@@ -167,7 +169,7 @@ export function createInitialRouterState({
         // hydration and write it into the cache directly.
         const now = Date.now()
 
-        getStaleAt(now, initialStaleTime)
+        resolveStaleAt(now, initialStaleTime)
           .then((staleAt) => {
             writePrerenderResponseIntoCache(
               now,
@@ -175,6 +177,7 @@ export function createInitialRouterState({
               initialFlightData,
               undefined, // buildId — not applicable for initial HTML
               initialHeadVaryParams,
+              initialRootVaryParams ?? null,
               staleAt,
               initialTree,
               initialRenderedSearch,
@@ -214,6 +217,7 @@ export function createInitialRouterState({
               processed.buildId,
               processed.isResponsePartial,
               processed.headVaryParams,
+              processed.rootVaryParamsIterable,
               processed.staleAt,
               processed.navigationSeed,
               null

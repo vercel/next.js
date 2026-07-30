@@ -285,7 +285,7 @@ const allPairs = getPairs(Object.keys(PAGES))
 type GraphCssChunkingObject = {
   type: 'graph'
   requestCost?: number
-  moduleFactorCost?: number
+  weightDistribution?: number
 }
 type CssChunkingValue =
   | boolean
@@ -302,7 +302,10 @@ const TURBO_MODES: readonly Mode[] = [
   ['graph', 'graph'],
   // Verifies the object form is accepted. We pass the algorithm's defaults so the chunk shape
   // matches the plain `'graph'` row, letting us reuse the same `requestsGraph` expectations.
-  ['graph-object', { type: 'graph', requestCost: 20_000, moduleFactorCost: 1 }],
+  [
+    'graph-object',
+    { type: 'graph', requestCost: 100_000, weightDistribution: 0.1 },
+  ],
 ]
 const WEBPACK_MODES_TRUE: readonly Mode[] = [
   ['strict', 'strict'],

@@ -170,6 +170,7 @@ describe.each(['', '/docs'])(
           // ensure direct port with mismatching port is blocked
           const browser = await next.browser('/about', {
             baseUrl: `http://127.0.0.1:${port}`,
+            permissions: ['local-network-access'],
           })
           await browser.eval(websocketSnippet)
           await retry(async () => {
@@ -306,6 +307,7 @@ describe.each(['', '/docs'])(
 
           const browser = await next.browser('/about', {
             baseUrl: `http://127.0.0.1:${port}`,
+            permissions: ['local-network-access'],
           })
           await browser.get(`https://example.vercel.sh/`)
           await browser.eval(websocketSnippet)
@@ -375,6 +377,7 @@ describe.each(['', '/docs'])(
           // ensure direct port with mismatching port is allowed when configured
           const browser = await next.browser('/about', {
             baseUrl: `http://127.0.0.1:${port}`,
+            permissions: ['local-network-access'],
           })
           await browser.eval(websocketSnippet)
           await retry(async () => {
@@ -454,6 +457,7 @@ describe.each(['', '/docs'])(
         try {
           const browser = await next.browser('/about', {
             baseUrl: `http://127.0.0.1:${port}`,
+            permissions: ['local-network-access'],
           })
 
           const imageSnippet = `(() => {
@@ -520,6 +524,7 @@ describe.each(['', '/docs'])(
         try {
           const browser = await next.browser('/', {
             baseUrl: `http://127.0.0.1:${port}`,
+            permissions: ['local-network-access'],
           })
 
           await retry(async () => {

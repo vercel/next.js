@@ -36,10 +36,10 @@ export default function handler(req, res) {
 Then, call the API Route from the client with an event handler:
 
 ```tsx filename="pages/index.tsx" switcher
-import { FormEvent } from 'react'
+import { SubmitEvent } from 'react'
 
 export default function Page() {
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+  async function onSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
 
     const formData = new FormData(event.currentTarget)
@@ -133,13 +133,13 @@ export default async function handler(req, res) {
 You can use React state to show an error message when a form submission fails:
 
 ```tsx filename="pages/index.tsx" switcher
-import React, { useState, FormEvent } from 'react'
+import React, { useState, SubmitEvent } from 'react'
 
 export default function Page() {
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+  async function onSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
     setIsLoading(true)
     setError(null) // Clear previous errors when a new request starts
@@ -235,12 +235,12 @@ export default function Page() {
 You can use React state to show a loading state when a form is submitting on the server:
 
 ```tsx filename="pages/index.tsx" switcher
-import React, { useState, FormEvent } from 'react'
+import React, { useState, SubmitEvent } from 'react'
 
 export default function Page() {
   const [isLoading, setIsLoading] = useState<boolean>(false)
 
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+  async function onSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
     setIsLoading(true) // Set loading to true when the request starts
 

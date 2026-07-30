@@ -16,13 +16,6 @@ runs:
         rustflags: ''
         cache: false
 
-    - name: 'Install LLD (LLVM Linker) for Linux'
-      if: runner.os == 'Linux'
-      shell: bash
-      run: |
-        sudo apt-get -y -o DPkg::Lock::Timeout=60 update
-        sudo apt-get -o DPkg::Lock::Timeout=60 -y install lld
-
     - name: 'Install cargo-binstall'
       uses: cargo-bins/cargo-binstall@dc19f1e48450eefe5a29b8da6c6b00a87d730b37 # v1.18.1
 

@@ -8,15 +8,16 @@ use std::{
 };
 
 use anyhow::Result;
+use async_trait::async_trait;
 use crossterm::style::{StyledContent, Stylize};
 use owo_colors::{OwoColorize as _, Style};
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{RawVc, TransientInstance, TransientValue, Vc};
+use turbo_tasks::{RawVc, ReadRef, TransientInstance, Vc};
 use turbo_tasks_fs::{FileLinesContent, source_context::get_source_context};
 use turbopack_core::issue::{
-    CollectibleIssuesExt, IssueFilter, IssueReporter, IssueSeverity, PlainIssue, PlainIssueSource,
-    PlainTraceItem, StyledString,
+    IssueReporter, IssueSeverity, PlainIssue, PlainIssueSource, PlainIssues, PlainTraceItem,
+    StyledString,
 };
 
 use crate::source_context::format_source_context_lines;
@@ -366,7 +367,7 @@ impl PartialEq for ConsoleUi {
 
 #[turbo_tasks::value_impl]
 impl ConsoleUi {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     pub fn new(options: TransientInstance<LogOptions>) -> Vc<Self> {
         ConsoleUi {
             options: (*options).clone(),
@@ -376,15 +377,15 @@ impl ConsoleUi {
     }
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl IssueReporter for ConsoleUi {
-    #[turbo_tasks::function]
     async fn report_issues(
         &self,
-        source: TransientValue<RawVc>,
+        issues: ReadRef<PlainIssues>,
+        source: RawVc,
         min_failing_severity: IssueSeverity,
-    ) -> Result<Vc<bool>> {
-        let issues = source.peek_issues();
+    ) -> Result<bool> {
         let LogOptions {
             ref current_dir,
             ref project_dir,
@@ -395,7 +396,7 @@ impl IssueReporter for ConsoleUi {
         } = self.options;
         let mut grouped_issues: GroupedIssues = FxHashMap::default();
 
-        let plain_issues = issues.get_plain_issues(&IssueFilter::everything()).await?;
+        let plain_issues = &issues.0;
         let issues = plain_issues
             .iter()
             .map(|plain_issue| {
@@ -405,11 +406,7 @@ impl IssueReporter for ConsoleUi {
             .collect::<Vec<_>>();
 
         let issue_ids = issues.iter().map(|(_, id)| *id).collect::<FxHashSet<_>>();
-        let mut new_ids = self
-            .seen
-            .lock()
-            .unwrap()
-            .new_ids(source.into_value(), issue_ids);
+        let mut new_ids = self.seen.lock().unwrap().new_ids(source, issue_ids);
 
         let mut has_fatal = false;
         for (plain_issue, id) in issues {
@@ -539,7 +536,7 @@ impl IssueReporter for ConsoleUi {
             }
         }
 
-        Ok(Vc::cell(has_fatal))
+        Ok(has_fatal)
     }
 }
 

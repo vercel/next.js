@@ -1,11 +1,12 @@
 import type { Instant } from 'next'
 import assert from 'node:assert/strict'
+import { Suspense } from 'react'
 
 export const instant: Instant = {
   level: 'experimental-error',
   unstable_samples: [{ params: { slug: 'hello' } }],
 }
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 export default async function Page({
   params,
@@ -14,9 +15,15 @@ export default async function Page({
 }) {
   return (
     <main>
-      <CachedChild params={await params} />
+      <Suspense>
+        <Inner params={params} />
+      </Suspense>
     </main>
   )
+}
+
+async function Inner({ params }: { params: Promise<Record<string, string>> }) {
+  return <CachedChild params={await params} />
 }
 
 async function CachedChild({ params }: { params: Record<string, string> }) {

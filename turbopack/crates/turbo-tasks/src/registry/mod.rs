@@ -118,6 +118,9 @@ trait Registerable: 'static + Eq + std::hash::Hash {
     type Id: Copy + From<NonZeroU16> + std::ops::Deref<Target = u16> + std::fmt::Display;
     const TYPE_NAME: &'static str;
 
+    /// The largest id that may be assigned to this registry item.
+    const MAX_ID: u16 = u16::MAX;
+
     /// Get the global registry type used for sorting and uniqueness validation
     fn ty(&self) -> &RegistryType;
 }
@@ -134,6 +137,7 @@ impl Registerable for NativeFunction {
 impl Registerable for ValueType {
     type Id = ValueTypeId;
     const TYPE_NAME: &'static str = "Value";
+    const MAX_ID: u16 = ValueTypeId::MAX.to_primitive();
     fn ty(&self) -> &RegistryType {
         &self.ty
     }
@@ -164,6 +168,12 @@ fn init_registry<T: Registerable>(mut items: Vec<&'static T>) -> Box<[&'static T
             );
         }
         prev_name = Some(global_name);
+        assert!(
+            u16::from(id) <= T::MAX_ID,
+            "too many {ty} items registered: id {id} exceeds the cap of {max}",
+            ty = T::TYPE_NAME,
+            max = T::MAX_ID,
+        );
         // SAFETY: Single-threaded during Lazy init; no concurrent readers yet.
         unsafe { std::ptr::write(SyncUnsafeCell::raw_get(&item.ty().id), u16::from(id)) };
         id = id.checked_add(1).expect("overflowing item ids");

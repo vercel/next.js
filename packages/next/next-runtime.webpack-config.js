@@ -116,6 +116,10 @@ const bundleTypes = {
       __dirname,
       'dist/esm/server/dev/use-cache-probe-worker.js'
     ),
+    'dev-validation-worker': path.join(
+      __dirname,
+      'dist/esm/server/dev/dev-validation-worker.js'
+    ),
   },
 }
 
@@ -142,6 +146,28 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
 
       if (request.match(/(server\/image-optimizer|experimental\/testmode)/)) {
         callback(null, 'commonjs ' + request)
+        return
+      }
+
+      // The dev validation worker calls `installBindings()` /
+      // `installCodeFrameSupport()` so its logged errors render source-mapped
+      // code frames. Those pull in the native SWC binding graph (`build/swc` →
+      // `trace` → `telemetry`), which isn't present under `dist/esm`. Resolve
+      // it from the installed `next/dist` tree at runtime instead of bundling
+      // it into the worker, exactly as the unbundled build worker loads it.
+      // Scoped to the `app-worker` bundle; the probe worker in the same group
+      // doesn't import it.
+      if (
+        bundleType === 'app-worker' &&
+        request.match(/[\\/]build[\\/]swc(?:[\\/]install-bindings)?(?:\.js)?$/)
+      ) {
+        const resolve = getResolve()
+        const resolved = await resolve(context, request)
+        const relative = path.relative(
+          path.join(__dirname, '..'),
+          resolved.replace('esm' + path.sep, '')
+        )
+        callback(null, `commonjs ${relative}`)
         return
       }
 
@@ -189,7 +215,9 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
       filename: `[name]${turbo ? '-turbo' : ''}${
         experimental ? '-experimental' : ''
       }.runtime.${dev ? 'dev' : 'prod'}.js`,
-      libraryTarget: 'commonjs2',
+      library: {
+        type: 'commonjs2',
+      },
     },
     devtool: 'source-map',
     optimization:
@@ -202,6 +230,12 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
             minimizer: [
               new webpack.SwcJsMinimizerRspackPlugin({
                 minimizerOptions: {
+                  compress: {
+                    defaults: true,
+                    // FIXME: compiler bug: wrongly merging two conditionals with different return values into one
+                    // (in `prepareValidationInputsInPartialPrefetching`)
+                    conditionals: false,
+                  },
                   mangle:
                     dev || process.env.NEXT_SERVER_NO_MANGLE ? false : true,
                 },

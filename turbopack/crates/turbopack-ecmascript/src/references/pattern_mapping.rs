@@ -2,6 +2,7 @@ use std::{borrow::Cow, collections::HashSet};
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
+use rustc_hash::FxHashSet;
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{
@@ -21,6 +22,8 @@ use turbopack_core::{
         IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue,
         module::emit_unknown_module_type_error,
     },
+    module::Module,
+    reference::ModuleReference,
     resolve::{
         ExternalType, ModuleResolveResult, ModuleResolveResultItem, origin::ResolveOrigin,
         parse::Request,
@@ -65,6 +68,8 @@ pub(crate) enum SinglePatternMapping {
     ModuleLoader(ModuleId),
     /// External reference with request and type
     External(RcStr, ExternalType),
+    /// The target was unused and dropped from the module graph, so nothing is loaded for it.
+    Dropped,
 }
 
 /// A mapping from a request pattern (e.g. "./module", `./images/${name}.png`)
@@ -105,7 +110,7 @@ impl SinglePatternMapping {
                 )
             }
             Self::Unresolvable(request) => throw_module_not_found_expr(request),
-            Self::Ignored => {
+            Self::Ignored | Self::Dropped => {
                 quote!("undefined" as Expr)
             }
             Self::Module(module_id) | Self::ModuleLoader(module_id) => module_id_to_lit(module_id),
@@ -118,6 +123,7 @@ impl SinglePatternMapping {
             Self::Invalid => self.create_id(key_expr),
             Self::Unresolvable(request) => throw_module_not_found_expr(request),
             Self::Ignored => quote!("{}" as Expr),
+            Self::Dropped => quote!("0" as Expr),
             Self::Module(_) | Self::ModuleLoader(_) => quote!(
                 "$turbopack_require($arg)" as Expr,
                 turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
@@ -204,7 +210,7 @@ impl SinglePatternMapping {
                     id: Expr = module_id_to_lit(module_id)
                 )
             }
-            Self::Ignored => {
+            Self::Ignored | Self::Dropped => {
                 quote!("Promise.resolve({})" as Expr)
             }
             Self::Module(_) => Expr::Call(CallExpr {
@@ -305,6 +311,7 @@ async fn to_single_pattern_mapping(
     resolve_item: &ModuleResolveResultItem,
     primary: &[(turbopack_core::resolve::RequestKey, ModuleResolveResultItem)],
     resolve_type: ResolveType,
+    dropped_targets: Option<&FxHashSet<ResolvedVc<Box<dyn Module>>>>,
 ) -> Result<SinglePatternMapping> {
     let module = match resolve_item {
         ModuleResolveResultItem::Module(module) => *module,
@@ -335,6 +342,7 @@ async fn to_single_pattern_mapping(
                 &primary[*first].1,
                 primary,
                 resolve_type,
+                dropped_targets,
             ))
             .await;
         }
@@ -362,6 +370,10 @@ async fn to_single_pattern_mapping(
             return Ok(SinglePatternMapping::Invalid);
         }
     };
+    // The module graph dropped the edge to this target, so it has no chunk item to point at.
+    if dropped_targets.is_some_and(|dropped| dropped.contains(&module)) {
+        return Ok(SinglePatternMapping::Dropped);
+    }
     if let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module) {
         match resolve_type {
             ResolveType::AsyncChunkLoader => {
@@ -406,8 +418,18 @@ impl PatternMapping {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         resolve_result: Vc<ModuleResolveResult>,
         resolve_type: ResolveType,
+        reference: Option<ResolvedVc<Box<dyn ModuleReference>>>,
     ) -> Result<Vc<PatternMapping>> {
         let result = resolve_result.await?;
+        // Targets of this reference that were dropped from the module graph as unused.
+        let unused_references;
+        let dropped_targets = match reference {
+            Some(reference) => {
+                unused_references = chunking_context.unused_references().await?;
+                unused_references.get(&reference)
+            }
+            None => None,
+        };
         match result.primary.len() {
             0 => Ok(PatternMapping::Single(SinglePatternMapping::Unresolvable(
                 request_to_string(request).await?.to_string(),
@@ -421,6 +443,7 @@ impl PatternMapping {
                     resolve_item,
                     &result.primary,
                     resolve_type,
+                    dropped_targets,
                 )
                 .await?;
                 Ok(PatternMapping::Single(single_pattern_mapping).cell())
@@ -444,6 +467,7 @@ impl PatternMapping {
                             v,
                             primary,
                             resolve_type,
+                            dropped_targets,
                         )
                         .await?;
                         Ok((k, single_pattern_mapping))

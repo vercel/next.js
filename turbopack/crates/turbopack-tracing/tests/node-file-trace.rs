@@ -182,6 +182,12 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[cfg_attr(
     target_os = "windows",
     should_panic(expected = "Something went wrong installing the \"sharp\" module"),
+    case::sharp034("integration/sharp034.js")
+)]
+#[cfg_attr(not(target_os = "windows"), case::sharp034("integration/sharp034.js"))]
+#[cfg_attr(
+    target_os = "windows",
+    should_panic(expected = "Something went wrong installing the \"sharp\" module"),
     case::sharp("integration/sharp.js")
 )]
 #[cfg_attr(not(target_os = "windows"), case::sharp("integration/sharp.js"))]
@@ -304,7 +310,11 @@ fn test_cases() {}
 fn node_file_trace_noop_backing_storage(#[case] input: CaseInput) {
     node_file_trace(input, "noop_backing_storage", 1, 120, |_| {
         TurboTasks::new(TurboTasksBackend::new(
-            turbo_tasks_backend::BackendOptions::default(),
+            turbo_tasks_backend::BackendOptions {
+                storage_mode: None,
+                dependency_tracking: false,
+                ..Default::default()
+            },
             turbo_tasks_backend::noop_backing_storage(),
         ))
     });
@@ -407,7 +417,8 @@ async fn node_file_trace_operation(
             analyze_mode: AnalyzeMode::Tracing,
             // Disable tree shaking. Even side-effect-free imports need to be traced, as they will
             // execute at runtime.
-            tree_shaking_mode: None,
+            follow_reexports: false,
+            module_fragments_enabled: false,
             ..Default::default()
         }
         .cell(),

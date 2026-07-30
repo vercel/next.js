@@ -26,6 +26,7 @@ import type {
   PrerenderStoreLegacy,
   PrerenderStoreModern,
   ValidationStoreClient,
+  PrerenderStoreModernServer,
 } from '../app-render/work-unit-async-storage.external'
 
 // Once postpone is in stable we should switch to importing the postpone export directly
@@ -43,7 +44,7 @@ import {
   ClientHookDynamicError,
   isClientHookDynamicError,
   makeClientHookHangingPromise,
-  ParamClientHookDynamicError,
+  trackRuntimeDataAccessed,
 } from '../dynamic-rendering-utils'
 import {
   METADATA_BOUNDARY_NAME,
@@ -66,6 +67,9 @@ import {
   createDynamicOrRuntimeViewportError,
   createDynamicOrRuntimeMetadataError,
   logBuildDebugHint,
+  createLinkBodyErrorInNavigation,
+  createLinkMetadataError,
+  createLinkViewportError,
 } from './blocking-route-messages'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
@@ -78,6 +82,7 @@ import {
   allRequiredBoundariesRendered,
 } from './instant-validation/boundary-tracking'
 import type { InstantValidationSampleTracking } from './instant-validation/instant-samples'
+import { createUnrenderedSegmentError } from '../../shared/lib/instant-messages'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
 
@@ -357,6 +362,15 @@ export function abortAndThrowOnSynchronousRequestDataAccess(
   errorWithStack: Error,
   prerenderStore: PrerenderStoreModern
 ): never {
+  // The synchronously accessed request data would have been available during
+  // a runtime prerender, which would have rendered past this point instead of
+  // aborting — so a runtime prefetch would produce more content than this
+  // render. Record that, same as when request data access creates a hanging
+  // promise (see makeRuntimeHangingPromise). Unlike
+  // `abortOnSynchronousPlatformIOAccess`, which aborts a runtime prerender
+  // all the same and therefore must not record anything.
+  trackRuntimeDataAccessed(prerenderStore)
+
   const prerenderSignal = prerenderStore.controller.signal
   if (prerenderSignal.aborted === false) {
     // TODO it would be better to move this aborted check into the callsite so we can avoid making
@@ -555,6 +569,12 @@ export function createRenderInBrowserAbortSignal(): AbortSignal {
  * case we need to abort the encoding of arguments since they'll never complete.
  */
 export function createHangingInputAbortSignal(
+  workUnitStore: PrerenderStoreModernServer
+): AbortSignal
+export function createHangingInputAbortSignal(
+  workUnitStore: WorkUnitStore
+): AbortSignal | undefined
+export function createHangingInputAbortSignal(
   workUnitStore: WorkUnitStore
 ): AbortSignal | undefined {
   switch (workUnitStore.type) {
@@ -639,7 +659,7 @@ export function useDynamicRouteParams(expression: string) {
           React.use(
             makeClientHookHangingPromise(
               workUnitStore.renderSignal,
-              new ParamClientHookDynamicError(workStore.route, expression)
+              new ClientHookDynamicError(workStore.route, expression)
             )
           )
         }
@@ -898,10 +918,12 @@ export function trackAllowedDynamicAccess(
 }
 
 export enum DynamicHoleKind {
+  /** We know that this hole is caused by link data. */
+  Link = 1,
   /** We know that this hole is caused by runtime data. */
-  Runtime = 1,
+  Runtime = 2,
   /** We know that this hole is caused by dynamic data. */
-  Dynamic = 2,
+  Dynamic = 3,
 }
 
 /** Stores dynamic reasons used during an SSR render in instant validation. */
@@ -960,9 +982,11 @@ export function trackDynamicHoleInNavigation(
 
   if (hasMetadataRegex.test(componentStack)) {
     const error = addErrorContext(
-      kind === DynamicHoleKind.Runtime
-        ? createRuntimeMetadataError(workStore.route)
-        : createDynamicMetadataError(workStore.route),
+      kind === DynamicHoleKind.Link
+        ? createLinkMetadataError(workStore.route)
+        : kind === DynamicHoleKind.Runtime
+          ? createRuntimeMetadataError(workStore.route)
+          : createDynamicMetadataError(workStore.route),
       componentStack,
       effectiveCreateInstantStack
     )
@@ -971,9 +995,11 @@ export function trackDynamicHoleInNavigation(
   }
   if (hasViewportRegex.test(componentStack)) {
     const error = addErrorContext(
-      kind === DynamicHoleKind.Runtime
-        ? createRuntimeViewportError(workStore.route)
-        : createDynamicViewportError(workStore.route),
+      kind === DynamicHoleKind.Link
+        ? createLinkViewportError(workStore.route)
+        : kind === DynamicHoleKind.Runtime
+          ? createRuntimeViewportError(workStore.route)
+          : createDynamicViewportError(workStore.route),
       componentStack,
       effectiveCreateInstantStack
     )
@@ -1065,9 +1091,11 @@ export function trackDynamicHoleInNavigation(
   }
 
   const error = addErrorContext(
-    kind === DynamicHoleKind.Runtime
-      ? createRuntimeBodyErrorInNavigation(workStore.route)
-      : createDynamicBodyErrorInNavigation(workStore.route),
+    kind === DynamicHoleKind.Link
+      ? createLinkBodyErrorInNavigation(workStore.route)
+      : kind === DynamicHoleKind.Runtime
+        ? createRuntimeBodyErrorInNavigation(workStore.route)
+        : createDynamicBodyErrorInNavigation(workStore.route),
     componentStack,
     effectiveCreateInstantStack
   )
@@ -1532,21 +1560,7 @@ export function getNavigationDisallowedDynamicReasons(
         }
       }
       missingFiles.sort()
-      let message = `Route "${workStore.route}": Could not validate that a segment in your UI has instant navigation.`
-      if (missingFiles.length > 0) {
-        const label =
-          missingFiles.length === 1 ? 'Dropped segment' : 'Dropped segments'
-        message +=
-          `\n\nThis segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.` +
-          `\n\n${label}:\n${missingFiles.map((p) => `  ${p}`).join('\n')}` +
-          `\n\nWays to fix this:` +
-          `\n  - [render] Render the dropped segment` +
-          `\n    https://nextjs.org/docs/messages/instant-unrendered-segment#render-the-dropped-segment` +
-          `\n  - [ignore] Set \`export const instant = false\` on the dropped segment to skip validation` +
-          `\n    https://nextjs.org/docs/messages/instant-unrendered-segment#skip-validation-on-the-segment`
-      }
-      const error = new Error(message)
-      return error
+      return createUnrenderedSegmentError(workStore.route, missingFiles)
     } else if (process.env.__NEXT_DEV_SERVER && devRenderDidError) {
       // Errors outside the boundary likely blocked it from rendering,
       // but they're already being reported to the user via the dev

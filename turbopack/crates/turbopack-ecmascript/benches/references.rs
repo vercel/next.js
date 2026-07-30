@@ -3,7 +3,9 @@ use std::{path::PathBuf, time::Duration};
 use anyhow::Result;
 use criterion::{BatchSize, Bencher, BenchmarkId, Criterion, criterion_group, criterion_main};
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, TurboTasks, Vc};
+use turbo_tasks::{
+    ResolvedVc, TurboTasks, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
+};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbopack_core::{
@@ -14,7 +16,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     AnalyzeMode, EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptOptions,
-    TreeShakingMode, references::analyze_ecmascript_module,
+    references::analyze_ecmascript_module,
 };
 use turbopack_test_utils::noop_asset_context::NoopAssetContext;
 
@@ -87,11 +89,8 @@ async fn setup(
         ResolvedVc::upcast(module_asset_context),
         EcmascriptInputTransforms::empty().to_resolved().await?,
         EcmascriptOptions {
-            tree_shaking_mode: if analyze_mode == AnalyzeMode::Tracing {
-                None
-            } else {
-                Some(TreeShakingMode::ReexportsOnly)
-            },
+            follow_reexports: analyze_mode != AnalyzeMode::Tracing,
+            module_fragments_enabled: false,
             analyze_mode,
             ..Default::default()
         }
@@ -136,6 +135,9 @@ fn bench_full(b: &mut Bencher, input: &BenchInput) {
             let module = tokio::task::block_in_place(|| {
                 tokio::runtime::Handle::current()
                     .block_on(tt.run_once(async move {
+                        // See note below: benchmarks may read eventually-consistent state at the
+                        // top level, which is fine here but trips the debug assertion otherwise.
+                        unmark_top_level_task_may_leak_eventually_consistent_state();
                         let module = setup(root_dir, file, analyze_mode).await?;
                         Ok(module)
                     }))
@@ -145,6 +147,10 @@ fn bench_full(b: &mut Bencher, input: &BenchInput) {
         },
         |(tt, module)| async move {
             tt.run_once(async move {
+                // `analyze_ecmascript_module` performs eventually-consistent Vc reads. Reading
+                // not-yet-settled state at the top level is fine for a throughput benchmark, but
+                // trips the top-level-task assertion under debug-assertions otherwise.
+                unmark_top_level_task_may_leak_eventually_consistent_state();
                 analyze_ecmascript_module(*module, None).await?;
                 Ok(())
             })

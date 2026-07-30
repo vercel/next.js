@@ -2,6 +2,7 @@
 #![feature(arbitrary_self_types_pointers)]
 #![feature(impl_trait_in_assoc_type)]
 
+mod aggregate_hmr;
 pub mod analyze;
 mod app;
 mod asset_hashes_manifest;
@@ -25,5 +26,6 @@ pub mod project_asset_hashes_manifest;
 pub mod route;
 pub mod routes_hashes_manifest;
 mod server_actions;
+mod service_worker;
 mod sri_manifest;
 mod versioned_content_map;

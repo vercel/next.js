@@ -24,7 +24,7 @@ use turbo_tasks_hash::HashAlgorithm;
 
 // This import is necessary for derive macros to work, as their expansion refers to the crate
 // name directly.
-use crate::{self as turbo_tasks, ReadRef};
+use crate::{self as turbo_tasks, OrdResolvedVc, ReadRef};
 use crate::{
     DynTaskInputs, ResolvedVc, TaskId, TransientInstance, TransientValue, ValueTypeId, Vc,
     trace::TraceRawVcs,
@@ -90,7 +90,12 @@ impl<'a, T> Unpin for CloneReady<'a, T> {}
 /// Structs or enums can be made into task inputs by deriving `TaskInput`:
 ///
 /// ```rust
+/// # use turbo_tasks::{
+/// #     macro_helpers::bincode::{Decode, Encode},
+/// #     trace::TraceRawVcs,
+/// # };
 /// #[turbo_tasks::task_input]
+/// #[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 /// struct MyStruct {
 ///     // Fields go here...
 /// }
@@ -294,6 +299,19 @@ where
 // `TaskInput` isn't needed/used for a bare `ResolvedVc`, as we'll expose `ResolvedVc` arguments as
 // `Vc`, but it is useful for structs that contain `ResolvedVc` and want to derive `TaskInput`.
 impl<T> TaskInput for ResolvedVc<T>
+where
+    T: Send + Sync + ?Sized,
+{
+    fn is_resolved(&self) -> bool {
+        true
+    }
+
+    fn is_transient(&self) -> bool {
+        self.node.is_transient()
+    }
+}
+
+impl<T> TaskInput for OrdResolvedVc<T>
 where
     T: Send + Sync + ?Sized,
 {

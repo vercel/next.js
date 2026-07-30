@@ -1,9 +1,11 @@
 import {
   FixCardAlignLeftIcon,
+  FixCardArrowUpIcon,
   FixCardDatabaseIcon,
   FixCardHistoryIcon,
   FixCardLayoutIcon,
   FixCardLoadingIcon,
+  FixCardMinusIcon,
   FixCardPointerClickIcon,
   FixCardMinusCircleIcon,
   FixCardServerStackIcon,
@@ -12,6 +14,7 @@ import {
 } from '../../icons/fix-card-icons'
 import { CopyButton } from '../copy-button'
 import { ExternalIcon } from '../../icons/external'
+import { CopyPromptIcon } from '../../icons/copy-prompt'
 import { css } from '../../utils/css'
 import {
   DOCS_URLS,
@@ -52,6 +55,10 @@ function getCardIcon(icon: FixCardIcon) {
       return <FixCardZapIcon />
     case 'layout':
       return <FixCardLayoutIcon />
+    case 'arrow-up':
+      return <FixCardArrowUpIcon />
+    case 'minus':
+      return <FixCardMinusIcon />
     default:
       icon satisfies never
       return null
@@ -77,11 +84,21 @@ function CopyPromptButton({
     '',
     'Steps:',
     '',
-    "1. The failing code is in the error block below — it may be a data-access call, a hook call, a metadata or viewport export, or a component. The fix applies to that exact code; don't touch unrelated files.",
+    `1. Make sure you can drive a browser before you start. The fix isn't verified until you've reloaded the route and looked at what renders. If you don't already have browser tooling set up, install the next-dev-loop skill (https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop) first.`,
     '',
-    `2. Read the rule docs at ${rulePage} for the full Insight explanation, then read the fix section at ${link}. Pick the pattern under "### Patterns" that matches the failing code, then read "### Gotchas" before editing — they list constraints that are easy to miss. Use the canonical imports and code shape from the page; don't improvise variations.`,
+    "2. Identify the failing code in the error block below. It may be a data-access call, a hook call, a metadata or viewport export, or a component. Keep the fix focused on that code. If you think a related refactor (a sibling component, a shared layout, a wrapping boundary) would make the result meaningfully better, name it and check with the user before doing it — don't expand the scope silently.",
     '',
-    `3. Apply the chosen pattern to the code identified in step 1.`,
+    `3. Read the rule docs at ${rulePage} for the full Insight explanation, then read the fix section at ${link}. Pick the pattern under "### Patterns" that matches the failing code, then read "### Gotchas" before editing — they list constraints that are easy to miss. Use the canonical imports and code shape from the page; don't improvise variations.`,
+    '',
+    `4. Apply the chosen pattern to the code identified in step 2. Don't narrate the change with new comments — the code should explain itself. Only leave a comment when the *why* isn't clear (e.g. a deliberate Block with a reason).`,
+    '',
+    `5. Verify the fix at runtime. The Insight clearing in the dev overlay confirms the build is happy, but not what actually renders. Reload the route in a browser and confirm the static shell still paints first and any new \`<Suspense>\` fallback resolves to its real content.`,
+    '',
+    "6. Check the shell isn't empty. A `<Suspense>` boundary placed too high (around the whole page body, or with `fallback={null}`) can leave the build reporting a shell while the shell itself contains nothing and everything streams. If that's what you see, pull the boundary down closer to the actual dynamic read.",
+    '',
+    "7. If the fix touched shared code (a layout, a wrapper, a sidebar), re-check the sibling routes too — a shell-level change can fix one route and break another. A before/after capture of the affected routes is a useful sanity check: the visible UI may look the same (the fix often just changes what's in the shell vs streamed), but if anything regressed visually, you'll see it.",
+    '',
+    'When you reply to the user, just summarize what you changed and why in plain prose. Don\'t echo this checklist back as headers, sections, or bullet lists labeled "Verification" or "Scope" — those are your internal steps, not the user\'s report.',
   ].join('\n')
 
   return generateErrorInfo ? (
@@ -90,15 +107,19 @@ function CopyPromptButton({
         const info = await generateErrorInfo()
         return info ? `${fixHeader}\n\n${info}` : fixHeader
       }}
-      actionLabel="Copy AI prompt"
-      successLabel="Prompt copied"
+      actionLabel="Copy prompt"
+      successLabel="Copied"
+      icon={<CopyPromptIcon />}
+      showLabel
       data-nextjs-fix-card-copy-button
     />
   ) : (
     <CopyButton
       content={fixHeader}
-      actionLabel="Copy AI prompt"
-      successLabel="Prompt copied"
+      actionLabel="Copy prompt"
+      successLabel="Copied"
+      icon={<CopyPromptIcon />}
+      showLabel
       data-nextjs-fix-card-copy-button
     />
   )
@@ -228,19 +249,28 @@ export function InstantGuidance({
     docsUrl = SYNC_IO_CLIENT_DOCS[cause] || DOCS_URLS[kind]
   } else if (kind === 'blocking-route') {
     docsUrl =
-      variant === 'runtime'
+      // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
+      variant === 'link'
         ? 'https://nextjs.org/docs/messages/blocking-prerender-runtime'
-        : 'https://nextjs.org/docs/messages/blocking-prerender-dynamic'
+        : variant === 'runtime'
+          ? 'https://nextjs.org/docs/messages/blocking-prerender-runtime'
+          : 'https://nextjs.org/docs/messages/blocking-prerender-dynamic'
   } else if (kind === 'metadata') {
     docsUrl =
-      variant === 'runtime'
+      // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
+      variant === 'link'
         ? 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime'
-        : 'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic'
+        : variant === 'runtime'
+          ? 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime'
+          : 'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic'
   } else if (kind === 'viewport') {
     docsUrl =
-      variant === 'runtime'
+      // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
+      variant === 'link'
         ? 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime'
-        : 'https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic'
+        : variant === 'runtime'
+          ? 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime'
+          : 'https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic'
   } else {
     docsUrl = DOCS_URLS[kind]
   }
@@ -286,19 +316,28 @@ export function InstantHeaderExplanation({
   let resolvedDocsUrl = docsUrl
   if (!resolvedDocsUrl && kind === 'blocking-route') {
     resolvedDocsUrl =
-      variant === 'runtime'
+      // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
+      variant === 'link'
         ? 'https://nextjs.org/docs/messages/blocking-prerender-runtime'
-        : 'https://nextjs.org/docs/messages/blocking-prerender-dynamic'
+        : variant === 'runtime'
+          ? 'https://nextjs.org/docs/messages/blocking-prerender-runtime'
+          : 'https://nextjs.org/docs/messages/blocking-prerender-dynamic'
   } else if (!resolvedDocsUrl && kind === 'metadata') {
     resolvedDocsUrl =
-      variant === 'runtime'
+      // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
+      variant === 'link'
         ? 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime'
-        : 'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic'
+        : variant === 'runtime'
+          ? 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime'
+          : 'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic'
   } else if (!resolvedDocsUrl && kind === 'viewport') {
     resolvedDocsUrl =
-      variant === 'runtime'
+      // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
+      variant === 'link'
         ? 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime'
-        : 'https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic'
+        : variant === 'runtime'
+          ? 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime'
+          : 'https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic'
   } else if (!resolvedDocsUrl && kind) {
     resolvedDocsUrl = DOCS_URLS[kind]
   }
@@ -342,9 +381,10 @@ export const INSTANT_GUIDANCE_STYLES = css`
   }
 
   [data-nextjs-card-grid] {
+    --copy-prompt-offset: 10px;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 12px;
+    gap: calc(12px + var(--copy-prompt-offset)) 12px;
   }
 
   [data-nextjs-fix-card] {
@@ -394,18 +434,19 @@ export const INSTANT_GUIDANCE_STYLES = css`
   }
 
   [data-nextjs-fix-card-icon] {
-    width: var(--size-36);
-    height: var(--size-36);
+    width: var(--size-28);
+    height: var(--size-28);
     border-radius: var(--rounded-full);
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
+    opacity: 0.85;
   }
 
   [data-nextjs-fix-card-icon] svg {
-    width: var(--size-16);
-    height: var(--size-16);
+    width: var(--size-14);
+    height: var(--size-14);
   }
 
   [data-nextjs-fix-card-header-text] {
@@ -532,13 +573,13 @@ export const INSTANT_GUIDANCE_STYLES = css`
 
   [data-nextjs-fix-card-title-link-icon] {
     align-items: center;
-    color: var(--color-gray-800);
+    color: inherit;
     display: inline-flex;
     flex-shrink: 0;
   }
 
   [data-nextjs-fix-card]:hover [data-nextjs-fix-card-title-link-icon] {
-    color: var(--color-gray-1000);
+    color: inherit;
   }
 
   [data-nextjs-fix-card-wrapper] {
@@ -552,32 +593,42 @@ export const INSTANT_GUIDANCE_STYLES = css`
 
   [data-nextjs-fix-card-copy-button] {
     align-items: center;
-    background: transparent;
-    border: none;
-    border-radius: var(--rounded-md);
-    color: var(--color-gray-800);
+    background: var(--color-background-100);
+    border: 1px solid var(--color-gray-alpha-300);
+    border-radius: 9999px;
+    color: var(--color-gray-900);
     cursor: pointer;
     display: inline-flex;
-    height: 24px;
-    justify-content: center;
-    padding: 0;
+    font-family: var(--font-stack-sans);
+    font-size: var(--size-11);
+    font-weight: 500;
+    gap: 6px;
+    height: auto;
+    line-height: 1;
+    padding: 5px 10px;
     position: absolute;
     right: 10px;
-    top: 10px;
+    top: calc(-1 * var(--copy-prompt-offset));
     transition:
       background 120ms ease,
+      border-color 120ms ease,
       color 120ms ease;
-    width: 24px;
-    z-index: 1;
+    z-index: 2;
   }
 
   [data-nextjs-fix-card-copy-button] svg {
     width: var(--size-12);
     height: var(--size-12);
+    flex-shrink: 0;
+  }
+
+  [data-nextjs-fix-card-copy-button] span {
+    line-height: 1;
   }
 
   [data-nextjs-fix-card-copy-button]:hover {
     background: var(--color-background-200);
+    border-color: var(--color-gray-alpha-500);
     color: var(--color-gray-1000);
   }
 
