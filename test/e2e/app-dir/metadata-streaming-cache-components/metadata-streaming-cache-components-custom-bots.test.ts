@@ -1,6 +1,8 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
-;(isNextDev ? describe.skip : describe)('html-limited-bots-ppr', () => {
+const describeCacheComponents = isNextDev ? describe.skip : describe
+
+describeCacheComponents('metadata streaming with a custom bot list', () => {
   const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
@@ -25,7 +27,7 @@ import cheerio from 'cheerio'
     expect($('#dynamic-fallback').length).toBe(0)
   })
 
-  it('should serve the partially prerendered shell with streamed metadata to regular user agents', async () => {
+  it('should serve the PPR shell with streamed metadata to regular user agents', async () => {
     const res = await next.fetch('/partial')
 
     expect(res.status).toBe(200)
@@ -82,4 +84,28 @@ import cheerio from 'cheerio'
       body?.destroy()
     }
   })
+
+  // A custom htmlLimitedBots pattern currently replaces the built-in pattern
+  // in the deployment manifest, so only assert built-in classifications in
+  // start mode until the deployment proxy receives the union of both.
+  if (!isNextDeploy) {
+    it.each(['Discordbot', 'Googlebot'])(
+      'should preserve fully buffered rendering for the built-in %s classification',
+      async (userAgent) => {
+        const res = await next.fetch('/partial?stream=delay', {
+          headers: {
+            'user-agent': userAgent,
+          },
+        })
+
+        expect(res.status).toBe(200)
+        expect(res.headers.get('x-nextjs-postponed')).toBeNull()
+
+        const $ = cheerio.load(await res.text())
+        expect($('head title').text()).toBe('dynamic title')
+        expect($('#dynamic-content').text()).toBe('dynamic content')
+        expect($('#dynamic-fallback').length).toBe(0)
+      }
+    )
+  }
 })

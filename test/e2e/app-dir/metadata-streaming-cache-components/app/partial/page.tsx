@@ -8,8 +8,11 @@ async function Dynamic({
 }) {
   await connection()
 
-  if ((await searchParams).stream === '1') {
+  const stream = (await searchParams).stream
+  if (stream === '1') {
     await new Promise<never>(() => {})
+  } else if (stream === 'delay') {
+    await new Promise((resolve) => setTimeout(resolve, 500))
   }
 
   return <p id="dynamic-content">dynamic content</p>
