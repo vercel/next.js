@@ -14,6 +14,11 @@ describe('app-dir - metadata-streaming-config-customized', () => {
   })
 
   it('should have the customized streaming metadata config output in routes-manifest.json', async () => {
+    const requiredServerFiles = JSON.parse(
+      await next.readFile('.next/required-server-files.json')
+    )
+    expect(requiredServerFiles.config.htmlLimitedBots).toBe('MyBot')
+
     const prerenderManifest = JSON.parse(
       await next.readFile('.next/prerender-manifest.json')
     )

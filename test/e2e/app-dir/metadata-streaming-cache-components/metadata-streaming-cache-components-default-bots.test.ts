@@ -33,23 +33,65 @@ function countSubstring(str: string, substr: string): number {
       expect($('#dynamic-content').text()).toBe('dynamic content')
     })
 
-    it('should serve a fully buffered dynamic render to a default HTML-limited bot', async () => {
+    it('should block metadata while continuing to stream the body for a default HTML-limited bot', async () => {
+      const abortController = new AbortController()
+      let body:
+        | (AsyncIterable<Uint8Array> & {
+            destroy: () => void
+          })
+        | undefined
+
+      try {
+        const res = await next.fetch('/partial?stream=1', {
+          headers: {
+            'user-agent': 'Discordbot',
+          },
+          signal: abortController.signal,
+        })
+
+        expect(res.status).toBe(200)
+        if (!isNextDeploy) {
+          expect(res.headers.get('x-nextjs-postponed')).toBeNull()
+        }
+        expect(res.body).not.toBeNull()
+
+        body = res.body! as unknown as AsyncIterable<Uint8Array> & {
+          destroy: () => void
+        }
+        let initialHtml = ''
+
+        for await (const chunk of body) {
+          initialHtml += Buffer.from(chunk).toString()
+          if (initialHtml.includes('dynamic-fallback')) {
+            break
+          }
+        }
+
+        expect(initialHtml).toContain('<title>dynamic title</title>')
+        expect(initialHtml).toContain('dynamic-fallback')
+        expect(initialHtml).not.toContain('dynamic-content')
+      } finally {
+        abortController.abort()
+        body?.destroy()
+      }
+    })
+
+    it('should use the PPR shell with streamed metadata for a DOM-capable bot', async () => {
       const res = await next.fetch('/partial?stream=delay', {
         headers: {
-          'user-agent': 'Discordbot',
+          'user-agent': 'Googlebot',
         },
       })
 
       expect(res.status).toBe(200)
       if (!isNextDeploy) {
-        expect(res.headers.get('x-nextjs-postponed')).toBeNull()
+        expect(res.headers.get('x-nextjs-postponed')).toBe('1')
       }
 
       const $ = cheerio.load(await res.text())
-      expect($('head title').text()).toBe('dynamic title')
-      expect($('body title').length).toBe(0)
+      expect($('head title').length).toBe(0)
+      expect($('body title').text()).toBe('dynamic title')
       expect($('#dynamic-content').text()).toBe('dynamic content')
-      expect($('#dynamic-fallback').length).toBe(0)
     })
 
     describe('Cache Components metadata streaming', () => {

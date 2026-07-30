@@ -14,44 +14,50 @@ import { isNextDev, nextTestSetup } from 'e2e-utils'
       },
     })
 
-    it('should block metadata while continuing to stream the body', async () => {
-      const abortController = new AbortController()
-      let body:
-        | (AsyncIterable<Uint8Array> & {
-            destroy: () => void
+    it.each(['MyBrowser', 'Googlebot'])(
+      'should block metadata while continuing to stream the body for %s',
+      async (userAgent) => {
+        const abortController = new AbortController()
+        let body:
+          | (AsyncIterable<Uint8Array> & {
+              destroy: () => void
+            })
+          | undefined
+
+        try {
+          const res = await next.fetch('/partial?stream=1', {
+            headers: {
+              'user-agent': userAgent,
+            },
+            signal: abortController.signal,
           })
-        | undefined
 
-      try {
-        const res = await next.fetch('/partial?stream=1', {
-          signal: abortController.signal,
-        })
-
-        expect(res.status).toBe(200)
-        if (!isNextDeploy) {
-          expect(res.headers.get('x-nextjs-postponed')).toBeNull()
-        }
-        expect(res.body).not.toBeNull()
-
-        body = res.body! as unknown as AsyncIterable<Uint8Array> & {
-          destroy: () => void
-        }
-        let initialHtml = ''
-
-        for await (const chunk of body) {
-          initialHtml += Buffer.from(chunk).toString()
-          if (initialHtml.includes('dynamic-fallback')) {
-            break
+          expect(res.status).toBe(200)
+          if (!isNextDeploy) {
+            expect(res.headers.get('x-nextjs-postponed')).toBeNull()
           }
-        }
+          expect(res.body).not.toBeNull()
 
-        expect(initialHtml).toContain('<title>dynamic title</title>')
-        expect(initialHtml).toContain('dynamic-fallback')
-        expect(initialHtml).not.toContain('dynamic-content')
-      } finally {
-        abortController.abort()
-        body?.destroy()
+          body = res.body! as unknown as AsyncIterable<Uint8Array> & {
+            destroy: () => void
+          }
+          let initialHtml = ''
+
+          for await (const chunk of body) {
+            initialHtml += Buffer.from(chunk).toString()
+            if (initialHtml.includes('dynamic-fallback')) {
+              break
+            }
+          }
+
+          expect(initialHtml).toContain('<title>dynamic title</title>')
+          expect(initialHtml).toContain('dynamic-fallback')
+          expect(initialHtml).not.toContain('dynamic-content')
+        } finally {
+          abortController.abort()
+          body?.destroy()
+        }
       }
-    })
+    )
   }
 )

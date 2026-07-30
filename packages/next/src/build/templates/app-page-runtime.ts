@@ -40,10 +40,7 @@ import {
   type OpaqueFallbackRouteParams,
 } from '../../server/request/fallback-params' with { 'turbopack-transition': 'next-server-utility' }
 import { setManifestsSingleton } from '../../server/app-render/manifests-singleton' with { 'turbopack-transition': 'next-server-utility' }
-import {
-  isHtmlBotRequest,
-  shouldServeStreamingMetadata,
-} from '../../server/lib/streaming-metadata' with { 'turbopack-transition': 'next-server-utility' }
+import { shouldServeStreamingMetadata } from '../../server/lib/streaming-metadata' with { 'turbopack-transition': 'next-server-utility' }
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths' with { 'turbopack-transition': 'next-server-utility' }
 import { getIsPossibleServerAction } from '../../server/lib/server-action-request-meta' with { 'turbopack-transition': 'next-server-utility' }
 import {
@@ -56,10 +53,7 @@ import {
   RSC_CONTENT_TYPE_HEADER,
   NEXT_HMR_REFRESH_HEADER,
 } from '../../client/components/app-router-headers' with { 'turbopack-transition': 'next-server-utility' }
-import {
-  getBotType,
-  isBot,
-} from '../../shared/lib/router/utils/is-bot' with { 'turbopack-transition': 'next-server-utility' }
+import { getBotType } from '../../shared/lib/router/utils/is-bot' with { 'turbopack-transition': 'next-server-utility' }
 import {
   CachedRouteKind,
   IncrementalCacheKind,
@@ -287,7 +281,6 @@ export function createAppPageEntrypoint({
 
     const userAgent = req.headers['user-agent'] || ''
     const botType = getBotType(userAgent)
-    const isHtmlBot = isHtmlBotRequest(req)
 
     /**
      * If true, this indicates that the request being made is for an app
@@ -539,12 +532,9 @@ export function createAppPageEntrypoint({
     // being true for a revalidate due to modifying the base-server this.renderOpts
     // when fixing this to correct logic it causes hydration issue since we set
     // serveStreamingMetadata to true during export
-    const serveStreamingMetadata =
-      botType && isRoutePPREnabled
-        ? false
-        : !userAgent
-          ? true
-          : shouldServeStreamingMetadata(userAgent, nextConfig.htmlLimitedBots)
+    const serveStreamingMetadata = !userAgent
+      ? true
+      : shouldServeStreamingMetadata(userAgent, nextConfig.htmlLimitedBots)
 
     // PPR shells are generated for streaming metadata. Requests that require
     // blocking metadata must bypass the shell so the prerender and dynamic
@@ -588,10 +578,6 @@ export function createAppPageEntrypoint({
         : // Otherwise, we can support dynamic responses if it's a dynamic RSC request.
           isDynamicRSCRequest)
 
-    // The fixed bot list historically waits for the entire PPR render. A bot
-    // configured only through htmlLimitedBots may stream after its metadata
-    // resolves.
-    const shouldWaitOnAllReady = Boolean(botType) && isRoutePPREnabled
     const remainingPrerenderableParams =
       prerenderInfo?.remainingPrerenderableParams ?? []
     // Concrete optional routes like `/optional-catchall` can still match their
@@ -884,7 +870,7 @@ export function createAppPageEntrypoint({
             page: srcPage,
             postponed,
             allowEmptyStaticShell,
-            shouldWaitOnAllReady,
+            shouldWaitOnAllReady: false,
             serveStreamingMetadata,
             supportsDynamicResponse:
               typeof postponed === 'string' || supportsDynamicResponse,
@@ -1140,13 +1126,14 @@ export function createAppPageEntrypoint({
             fallbackMode = FallbackMode.PRERENDER
           }
 
-          // When serving a HTML bot request, we want to serve a blocking render and
-          // not the prerendered page. This ensures that the correct content is served
-          // to the bot in the head.
-          if (fallbackMode === FallbackMode.PRERENDER && isBot(userAgent)) {
-            if (!isRoutePPREnabled || isHtmlBot) {
-              fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
-            }
+          // When serving a request that requires blocking metadata, we want to
+          // use a blocking render instead of the prerendered fallback. Without
+          // PPR, preserve the existing behavior for built-in bots.
+          if (
+            fallbackMode === FallbackMode.PRERENDER &&
+            (isRoutePPREnabled ? !serveStreamingMetadata : Boolean(botType))
+          ) {
+            fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
           }
 
           if (previousIncrementalCacheEntry?.isStale === -1) {
