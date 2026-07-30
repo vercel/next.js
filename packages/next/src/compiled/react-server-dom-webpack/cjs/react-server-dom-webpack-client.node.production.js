@@ -143,7 +143,7 @@ function getIteratorFn(maybeIterable) {
 var ASYNC_ITERATOR = Symbol.asyncIterator,
   isArrayImpl = Array.isArray,
   getPrototypeOf = Object.getPrototypeOf,
-  ObjectPrototype = Object.prototype,
+  ObjectPrototype$1 = Object.prototype,
   knownServerReferences = new WeakMap();
 function serializeNumber(number) {
   return Number.isFinite(number)
@@ -435,7 +435,7 @@ function processReply(
         return serializeAsyncIterable(value, key.call(value));
       key = getPrototypeOf(value);
       if (
-        key !== ObjectPrototype &&
+        key !== ObjectPrototype$1 &&
         (null === key || null !== getPrototypeOf(key))
       ) {
         if (void 0 === temporaryReferences)
@@ -703,6 +703,8 @@ function createServerReference$1(id, callServer, encodeFormAction) {
   registerBoundServerReference(action, id, null, encodeFormAction);
   return action;
 }
+var ObjectPrototype = Object.prototype,
+  ArrayPrototype = Array.prototype;
 function ReactPromise(status, value, reason) {
   this.status = status;
   this.value = value;
@@ -1250,7 +1252,16 @@ function getOutlinedModel(response, reference, parentObject, key, map) {
               );
           }
         }
-        value = value[reference[id]];
+        var name = reference[id];
+        if (
+          "object" !== typeof value ||
+          null === value ||
+          (getPrototypeOf(value) !== ObjectPrototype &&
+            getPrototypeOf(value) !== ArrayPrototype) ||
+          !hasOwnProperty.call(value, name)
+        )
+          throw Error("Invalid reference.");
+        value = value[name];
       }
       return map(response, value, parentObject, key);
     case "pending":
