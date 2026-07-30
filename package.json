@@ -308,8 +308,6 @@
   "packageManager": "pnpm@10.33.0",
   "pnpm": {
     "overrides": {
-      "@emnapi/core": "1.11.1",
-      "@emnapi/runtime": "1.11.1",
       "webpack": "5.98.0",
       "browserslist": "4.28.1",
       "caniuse-lite": "1.0.30001746",

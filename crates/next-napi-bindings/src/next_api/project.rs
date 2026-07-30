@@ -2135,7 +2135,7 @@ pub fn project_update_info_subscribe(
 
 #[napi(object, object_from_js = false)]
 pub struct NapiCompilationEvent {
-    pub type_name: String,
+    pub type_name: &'static str,
     pub severity: String,
     pub message: String,
     pub event_json: String,
@@ -2146,7 +2146,7 @@ pub struct NapiCompilationEvent {
 impl From<Arc<dyn CompilationEvent>> for NapiCompilationEvent {
     fn from(event: Arc<dyn CompilationEvent>) -> Self {
         NapiCompilationEvent {
-            type_name: event.type_name().to_string(),
+            type_name: event.type_name(),
             severity: event.severity().to_string(),
             message: event.message(),
             event_json: event.to_json(),
