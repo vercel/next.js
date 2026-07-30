@@ -95,6 +95,8 @@
     "patch-next": "tsx scripts/patch-next.ts",
     "unpack-next": "tsx scripts/unpack-next.ts",
     "swc-build-native": "tsx scripts/build-native.ts",
+    "swc-generate-hmr-types": "tsx scripts/generate-hmr-types.ts",
+    "swc-generate-hmr-types-check": "tsx scripts/generate-hmr-types.ts --check",
     "swc-build-wasm": "tsx scripts/build-wasm.cjs",
     "build-turbopack-cli": "cargo build -p turbopack-cli --release",
     "sweep": "tsx scripts/sweep.cjs",

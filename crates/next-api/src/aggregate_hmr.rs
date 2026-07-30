@@ -1,13 +1,16 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use rustc_hash::FxHashMap;
+use rustc_hash::FxHashSet;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TraitRef, TryJoinIterExt, Vc};
+use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TraitRef, TryJoinIterExt, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
 use turbopack_browser::ecmascript::list::content::EcmascriptDevChunkListContent;
 use turbopack_core::version::{PartialUpdate, Update, Version, VersionState, VersionedContent};
+use turbopack_ecmascript::chunk_list::update::{
+    ChunkListUpdate, ChunkUpdate, HmrUpdateInstruction,
+};
 use turbopack_nodejs::ecmascript::node::entry::chunk_list_content::EcmascriptBuildNodeChunkListContent;
 
 use crate::versioned_content_map::VersionedContentMap;
@@ -94,69 +97,64 @@ impl AggregateHmrVersion {
 }
 
 /// Aggregates per-entry HMR instructions into a single combined `ChunkListUpdate`.
+///
+/// Each per-entry instruction is deserialized into the strongly-typed
+/// [`HmrUpdateInstruction`] rather than being inspected as an untyped
+/// `serde_json::Value`, so the aggregation logic is compiler-checked and shares
+/// the exact wire-format definition produced by the ecmascript chunking
+/// contexts.
 #[derive(Default)]
 pub struct ChunkListUpdateBuilder {
-    chunks: FxHashMap<String, serde_json::Value>,
-    merged: FxIndexSet<serde_json::Value>,
+    chunks: FxIndexMap<RcStr, ChunkUpdate>,
+    merged: Vec<HmrUpdateInstruction>,
+    /// Tracks the serialized form of instructions already pushed into `merged`
+    /// so identical merged updates are only sent once (preserving the
+    /// deduplication the previous `FxIndexSet<Value>` implementation provided
+    /// while keeping insertion order).
+    seen_merged: FxHashSet<String>,
 }
 
 impl ChunkListUpdateBuilder {
-    pub fn add_instruction(&mut self, instruction: &serde_json::Value) {
-        let Some(obj) = instruction.as_object() else {
-            return;
-        };
-        match obj.get("type").and_then(|v| v.as_str()) {
-            Some("ChunkListUpdate") => {
-                if let Some(chunks) = obj.get("chunks").and_then(|v| v.as_object()) {
-                    for (k, v) in chunks {
-                        self.chunks.insert(k.clone(), v.clone());
-                    }
-                }
-                if let Some(merged) = obj.get("merged").and_then(|v| v.as_array()) {
-                    for update in merged {
-                        self.push_merged(update);
-                    }
+    pub fn add_instruction(&mut self, instruction: &serde_json::Value) -> Result<()> {
+        match serde_json::from_value::<HmrUpdateInstruction>(instruction.clone())? {
+            HmrUpdateInstruction::ChunkListUpdate(ChunkListUpdate { chunks, merged }) => {
+                self.chunks.extend(chunks);
+                for update in merged {
+                    self.push_merged(update)?;
                 }
             }
-            Some("EcmascriptMergedUpdate") => {
-                self.push_merged(instruction);
+            merged @ HmrUpdateInstruction::EcmascriptMergedUpdate(_) => {
+                self.push_merged(merged)?;
             }
-            // Unknown instruction shapes are ignored; the caller already
-            // escalates `Total`/`Missing` updates to a full restart.
-            _ => {}
         }
+        Ok(())
     }
 
-    fn push_merged(&mut self, update: &serde_json::Value) {
-        self.merged.insert(update.clone());
+    fn push_merged(&mut self, update: HmrUpdateInstruction) -> Result<()> {
+        let key = serde_json::to_string(&update)?;
+        if self.seen_merged.insert(key) {
+            self.merged.push(update);
+        }
+        Ok(())
     }
 
     pub fn is_empty(&self) -> bool {
         self.chunks.is_empty() && self.merged.is_empty()
     }
 
-    pub fn build(self, to: TraitRef<Box<dyn Version>>) -> Update {
-        let mut instruction = serde_json::Map::new();
-        instruction.insert(
-            "type".to_string(),
-            serde_json::Value::String("ChunkListUpdate".to_string()),
-        );
-        if !self.chunks.is_empty() {
-            instruction.insert(
-                "chunks".to_string(),
-                serde_json::Value::Object(self.chunks.into_iter().collect()),
-            );
-        }
-        if !self.merged.is_empty() {
-            instruction.insert(
-                "merged".to_string(),
-                serde_json::Value::Array(self.merged.into_iter().collect()),
-            );
-        }
-        Update::Partial(PartialUpdate {
-            to,
-            instruction: Arc::new(serde_json::Value::Object(instruction)),
+    /// Assembles the aggregated, typed [`HmrUpdateInstruction::ChunkListUpdate`].
+    fn into_instruction(self) -> HmrUpdateInstruction {
+        HmrUpdateInstruction::ChunkListUpdate(ChunkListUpdate {
+            chunks: self.chunks,
+            merged: self.merged,
         })
+    }
+
+    pub fn build(self, to: TraitRef<Box<dyn Version>>) -> Result<Update> {
+        Ok(Update::Partial(PartialUpdate {
+            to,
+            instruction: Arc::new(serde_json::to_value(&self.into_instruction())?),
+        }))
     }
 }
 
@@ -214,4 +212,59 @@ pub async fn diff_chunks_against(
         chunk_updates,
         has_new_chunks,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ChunkListUpdateBuilder;
+
+    /// The builder folds a `ChunkListUpdate` and a standalone
+    /// `EcmascriptMergedUpdate` into a single typed `ChunkListUpdate`, matching
+    /// the previous hand-built `serde_json::Value` output.
+    #[test]
+    fn aggregates_typed_instructions() {
+        let mut builder = ChunkListUpdateBuilder::default();
+
+        let chunk_list = serde_json::json!({
+            "type": "ChunkListUpdate",
+            "chunks": { "server/a.js": { "type": "total" } },
+            "merged": [{
+                "type": "EcmascriptMergedUpdate",
+                "chunks": { "server/a.js": { "type": "partial", "added": ["1"] } }
+            }]
+        });
+        let standalone_merged = serde_json::json!({
+            "type": "EcmascriptMergedUpdate",
+            "chunks": { "server/b.js": { "type": "added", "modules": ["2"] } }
+        });
+
+        builder.add_instruction(&chunk_list).unwrap();
+        builder.add_instruction(&standalone_merged).unwrap();
+        assert!(!builder.is_empty());
+
+        let instruction = serde_json::to_string(&builder.into_instruction()).unwrap();
+        assert_eq!(
+            instruction,
+            r#"{"type":"ChunkListUpdate","chunks":{"server/a.js":{"type":"total"}},"merged":[{"type":"EcmascriptMergedUpdate","chunks":{"server/a.js":{"type":"partial","added":["1"]}}},{"type":"EcmascriptMergedUpdate","chunks":{"server/b.js":{"type":"added","modules":["2"]}}}]}"#
+        );
+    }
+
+    /// Identical merged updates are only emitted once (dedup preserved from the
+    /// previous `FxIndexSet<Value>` implementation).
+    #[test]
+    fn deduplicates_identical_merged_updates() {
+        let mut builder = ChunkListUpdateBuilder::default();
+        let merged = serde_json::json!({
+            "type": "EcmascriptMergedUpdate",
+            "chunks": { "server/a.js": { "type": "added", "modules": ["1"] } }
+        });
+        builder.add_instruction(&merged).unwrap();
+        builder.add_instruction(&merged).unwrap();
+
+        let instruction = serde_json::to_string(&builder.into_instruction()).unwrap();
+        assert_eq!(
+            instruction,
+            r#"{"type":"ChunkListUpdate","merged":[{"type":"EcmascriptMergedUpdate","chunks":{"server/a.js":{"type":"added","modules":["1"]}}}]}"#
+        );
+    }
 }

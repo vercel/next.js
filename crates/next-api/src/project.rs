@@ -2661,7 +2661,7 @@ impl Project {
         // the *next* change produces a real diff; returning `Total` instead would
         // force a needless full re-evaluation.
         if chunk_updates.is_empty() && !has_new_chunks {
-            return Ok(ChunkListUpdateBuilder::default().build(to_ref).cell());
+            return Ok(ChunkListUpdateBuilder::default().build(to_ref)?.cell());
         }
 
         let mut builder = ChunkListUpdateBuilder::default();
@@ -2672,7 +2672,7 @@ impl Project {
                     return Ok(Update::Total(TotalUpdate { to: to_ref }).cell());
                 }
                 Update::Partial(PartialUpdate { instruction, .. }) => {
-                    builder.add_instruction(instruction);
+                    builder.add_instruction(instruction)?;
                 }
             }
         }
@@ -2681,7 +2681,7 @@ impl Project {
             return Ok(Update::None.cell());
         }
 
-        Ok(builder.build(to_ref).cell())
+        Ok(builder.build(to_ref)?.cell())
     }
 
     /// Gets a list of all HMR chunk names that can be subscribed to for the

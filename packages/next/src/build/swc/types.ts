@@ -1,5 +1,6 @@
 import type { NextConfigComplete } from '../../server/config-shared'
 import type { __ApiPreviewProps } from '../../server/api-utils'
+import type { HmrUpdateInstruction } from './generated-hmr-types'
 import type {
   ExternalObject,
   RefCell,
@@ -212,51 +213,16 @@ interface IssuesUpdate extends BaseUpdate {
   type: 'issues'
 }
 
-interface EcmascriptMergedUpdate {
-  type: 'EcmascriptMergedUpdate'
-  chunks: { [moduleName: string]: { type: 'partial' } }
-  entries: { [moduleName: string]: { code: string; map: string; url: string } }
-}
-
 interface PartialUpdate extends BaseUpdate {
   type: 'partial'
-  instruction: {
-    type: 'ChunkListUpdate'
-    merged: EcmascriptMergedUpdate[] | undefined
-  }
+  instruction: HmrUpdateInstruction
 }
 
 export type Update = IssuesUpdate | PartialUpdate
 
-/**
- * IMPORTANT: This type is duplicated in:
- * turbopack/crates/turbopack-ecmascript-runtime/js/src/nodejs/hmr-types.d.ts
- *
- * The runtime file cannot import from this ES module without triggering module semantics,
- * so we maintain a copy there. Please keep both definitions in sync.
- */
-export interface NodeJsEcmascriptMergedUpdate {
-  type: 'EcmascriptMergedUpdate'
-  entries?: Record<
-    string,
-    { code: string; url: string; map?: string | undefined }
-  >
-  chunks?: Record<
-    string,
-    | { type: 'added' | 'deleted'; modules?: string[] }
-    | { type: 'partial'; added?: string[]; deleted?: string[] }
-  >
-}
-
-export interface NodeJsChunkListUpdate {
-  type: 'ChunkListUpdate'
-  merged?: NodeJsEcmascriptMergedUpdate[]
-  chunks?: Record<string, { type: 'added' | 'deleted' | 'total' | 'partial' }>
-}
-
 export interface NodeJsPartialHmrUpdate extends BaseUpdate {
   type: 'partial'
-  instruction: NodeJsEcmascriptMergedUpdate | NodeJsChunkListUpdate
+  instruction: HmrUpdateInstruction
 }
 
 export interface NodeJsRestartHmrUpdate {

@@ -53,6 +53,7 @@ strsim = { workspace = true }
 thread_local = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+ts-rs = { workspace = true }
 turbo-bincode = { workspace = true }
 turbo-esregex = { workspace = true }
 turbo-frozenmap = { workspace = true }

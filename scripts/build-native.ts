@@ -5,6 +5,7 @@ import path from 'node:path'
 import url from 'node:url'
 import execa from 'execa'
 import { NEXT_DIR, logCommand } from './pack-util'
+import writeGeneratedHmrTypes from './generate-hmr-types'
 
 const nextSwcDir = path.join(NEXT_DIR, 'packages/next-swc')
 
@@ -26,6 +27,9 @@ export default async function buildNative(
   })
 
   await writeTypes()
+  // Keep the ts-rs-generated HMR wire-protocol types in sync with their Rust
+  // source of truth alongside the napi-generated bindings.
+  await writeGeneratedHmrTypes()
 }
 
 // Check if this file is being run directly

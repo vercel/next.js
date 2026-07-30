@@ -10,7 +10,10 @@ type NodeJsHmrPayload = {
   }
   issues: Issue[]
   type: 'partial'
-  instruction: NodeJsEcmascriptMergedUpdate | NodeJsChunkListUpdate
+  // These are the shared, ambient HMR wire-protocol types from
+  // `dev-protocol.d.ts` (generated on the Rust side from
+  // `turbopack-ecmascript`'s `chunk_list` instruction structs).
+  instruction: ChunkListUpdate | EcmascriptMergedUpdate
 }
 
 /**
@@ -114,7 +117,7 @@ function handleNodejsUpdate(
 }
 
 function applyEcmascriptMergedUpdate(
-  instruction: NodeJsEcmascriptMergedUpdate,
+  instruction: EcmascriptMergedUpdate,
   moduleFactories: ModuleFactories,
   devModuleCache: ModuleCache<HotModule>
 ): void {

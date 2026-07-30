@@ -452,7 +452,7 @@ impl<Context> Decode<Context> for Rope {
 impl_borrow_decode!(Rope);
 
 pub mod ser_as_string {
-    use serde::{Serializer, ser::Error};
+    use serde::{Deserialize, Deserializer, Serializer, ser::Error};
 
     use super::Rope;
 
@@ -461,10 +461,16 @@ pub mod ser_as_string {
         let s = rope.to_str().map_err(Error::custom)?;
         serializer.serialize_str(&s)
     }
+
+    /// Deserializes a Rope from a string (the inverse of [`serialize`]).
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Rope, D::Error> {
+        let s = String::deserialize(deserializer)?;
+        Ok(Rope::from(s))
+    }
 }
 
 pub mod ser_option_as_string {
-    use serde::{Serializer, ser::Error};
+    use serde::{Deserialize, Deserializer, Serializer, ser::Error};
 
     use super::Rope;
 
@@ -476,6 +482,15 @@ pub mod ser_option_as_string {
         } else {
             serializer.serialize_none()
         }
+    }
+
+    /// Deserializes an optional Rope from an optional string (the inverse of
+    /// [`serialize`]).
+    pub fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Option<Rope>, D::Error> {
+        let s = Option::<String>::deserialize(deserializer)?;
+        Ok(s.map(Rope::from))
     }
 }
 

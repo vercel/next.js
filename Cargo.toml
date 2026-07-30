@@ -357,6 +357,7 @@ tokio = "1.52.1"
 tokio-util = { version = "0.7.18", features = ["io", "rt"] }
 tracing = "0.1.44"
 tracing-subscriber = "0.3.16"
+ts-rs = "12.0.1"
 triomphe = { git = "https://github.com/sokra/triomphe", branch = "sokra/unstable" }
 xxhash-rust = { version = "0.8.12", features = ["xxh3"] }
 unsize = "1.1.0"

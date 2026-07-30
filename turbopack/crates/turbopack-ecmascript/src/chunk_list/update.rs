@@ -1,44 +1,66 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use ts_rs::TS;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, TraitRef, Vc};
 use turbopack_core::version::{
     MergeableVersionedContent, PartialUpdate, TotalUpdate, Update, Version, VersionedContent,
     VersionedContentMerger,
 };
 
-use super::version::ChunkListVersion;
+use super::{merged_update::EcmascriptMergedUpdate, version::ChunkListVersion};
+
+/// A single HMR update instruction as sent to the JS client.
+///
+/// This is the native, strongly-typed representation of the payload stored in
+/// [`turbopack_core::version::PartialUpdate::instruction`]. The turbo-tasks
+/// `Update`/`PartialUpdate` boundary is generic over arbitrary versioned
+/// content and therefore keeps carrying an opaque `serde_json::Value`, but
+/// everywhere the ecmascript HMR path produces or consumes an instruction it
+/// goes through this enum, so the code is compiler-checked instead of poking at
+/// untyped JSON.
+///
+/// The `type` tag (`"ChunkListUpdate"` / `"EcmascriptMergedUpdate"`) is owned by
+/// this enum, which is why the inner structs no longer carry their own serde
+/// tag. This keeps the wire format identical while giving a single place that
+/// enumerates the known instruction shapes.
+#[derive(Serialize, Deserialize, TS)]
+#[serde(tag = "type")]
+pub enum HmrUpdateInstruction {
+    ChunkListUpdate(ChunkListUpdate),
+    EcmascriptMergedUpdate(EcmascriptMergedUpdate),
+}
 
 /// Update of a chunk list from one version to another.
-#[derive(Serialize)]
-#[serde(tag = "type")]
+#[derive(Serialize, Deserialize, Default, TS)]
 #[serde(rename_all = "camelCase")]
-struct ChunkListUpdate<'a> {
+pub struct ChunkListUpdate {
     /// A map from chunk path to a corresponding update of that chunk.
-    #[serde(skip_serializing_if = "FxIndexMap::is_empty")]
-    chunks: FxIndexMap<&'a str, ChunkUpdate>,
+    #[serde(default, skip_serializing_if = "FxIndexMap::is_empty")]
+    #[ts(as = "std::collections::BTreeMap<String, ChunkUpdate>")]
+    pub chunks: FxIndexMap<RcStr, ChunkUpdate>,
     /// List of merged updates since the last version.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    merged: Vec<Arc<serde_json::Value>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub merged: Vec<HmrUpdateInstruction>,
 }
 
 /// Update of a chunk from one version to another.
-#[derive(Serialize)]
-#[serde(tag = "type")]
-#[serde(rename_all = "camelCase")]
-enum ChunkUpdate {
+#[derive(Serialize, Deserialize, TS)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum ChunkUpdate {
     /// The chunk was updated and must be reloaded.
     Total,
     /// The chunk was updated and can be merged with the previous version.
-    Partial { instruction: Arc<serde_json::Value> },
+    Partial { instruction: HmrUpdateInstruction },
     /// The chunk was added.
     Added,
     /// The chunk was deleted.
     Deleted,
 }
 
-impl ChunkListUpdate<'_> {
+impl ChunkListUpdate {
     /// Returns `true` if this update is empty.
     fn is_empty(&self) -> bool {
         let ChunkListUpdate { chunks, merged } = self;
@@ -95,7 +117,7 @@ pub async fn update_chunk_list(
         }
     }
 
-    let mut chunks = FxIndexMap::<_, _>::default();
+    let mut chunks = FxIndexMap::<RcStr, ChunkUpdate>::default();
 
     for (chunk_path, from_chunk_version) in &from.by_path {
         if let Some(chunk_content) = by_path.swap_remove(chunk_path) {
@@ -105,25 +127,27 @@ pub async fn update_chunk_list(
 
             match &*chunk_update {
                 Update::Total(_) => {
-                    chunks.insert(chunk_path.as_ref(), ChunkUpdate::Total);
+                    chunks.insert(chunk_path.as_str().into(), ChunkUpdate::Total);
                 }
                 Update::Partial(partial) => {
                     chunks.insert(
-                        chunk_path.as_ref(),
+                        chunk_path.as_str().into(),
                         ChunkUpdate::Partial {
-                            instruction: partial.instruction.clone(),
+                            instruction: serde_json::from_value(
+                                partial.instruction.as_ref().clone(),
+                            )?,
                         },
                     );
                 }
                 Update::Missing | Update::None => {}
             }
         } else {
-            chunks.insert(chunk_path.as_ref(), ChunkUpdate::Deleted);
+            chunks.insert(chunk_path.as_str().into(), ChunkUpdate::Deleted);
         }
     }
 
     for chunk_path in by_path.keys() {
-        chunks.insert(chunk_path.as_ref(), ChunkUpdate::Added);
+        chunks.insert(chunk_path.as_str().into(), ChunkUpdate::Added);
     }
 
     let mut merged = vec![];
@@ -147,7 +171,9 @@ pub async fn update_chunk_list(
                     .cell());
                 }
                 Update::Partial(partial) => {
-                    merged.push(partial.instruction.clone());
+                    merged.push(serde_json::from_value(
+                        partial.instruction.as_ref().clone(),
+                    )?);
                 }
                 Update::Missing | Update::None => {}
             }
@@ -162,9 +188,100 @@ pub async fn update_chunk_list(
             to: Vc::upcast::<Box<dyn Version>>(to_version)
                 .into_trait_ref()
                 .await?,
-            instruction: Arc::new(serde_json::to_value(&update)?),
+            instruction: Arc::new(serde_json::to_value(
+                &HmrUpdateInstruction::ChunkListUpdate(update),
+            )?),
         })
     };
 
     Ok(update.cell())
+}
+
+#[cfg(test)]
+mod tests {
+    use turbo_rcstr::RcStr;
+    use turbo_tasks::FxIndexMap;
+    use turbo_tasks_fs::rope::Rope;
+
+    use super::{ChunkListUpdate, ChunkUpdate, HmrUpdateInstruction};
+    use crate::chunk_list::merged_update::{
+        EcmascriptMergedChunkAdded, EcmascriptMergedChunkPartial, EcmascriptMergedChunkUpdate,
+        EcmascriptMergedUpdate, EcmascriptModuleEntry,
+    };
+
+    fn rc(s: &str) -> RcStr {
+        RcStr::from(s)
+    }
+
+    /// A single-chunk `EcmascriptMergedUpdate` must serialize to exactly the
+    /// wire shape the JS client expects, and round-trip through the typed
+    /// representation without changing a byte.
+    #[test]
+    fn ecmascript_merged_update_wire_format() {
+        let mut entries = FxIndexMap::default();
+        entries.insert(
+            rc("[project]/foo.js [test]"),
+            EcmascriptModuleEntry {
+                code: Rope::from("console.log(1)".to_string()),
+                url: "chunk.js?id=%5Bproject%5D%2Ffoo.js".to_string(),
+                map: None,
+            },
+        );
+        let mut chunks = FxIndexMap::default();
+        let mut partial = EcmascriptMergedChunkPartial::default();
+        partial.added.insert(rc("[project]/foo.js [test]"));
+        chunks.insert(
+            rc("chunk.js"),
+            EcmascriptMergedChunkUpdate::Partial(partial),
+        );
+
+        let update = HmrUpdateInstruction::EcmascriptMergedUpdate(EcmascriptMergedUpdate {
+            entries,
+            chunks,
+        });
+        let json = serde_json::to_string(&update).unwrap();
+        assert_eq!(
+            json,
+            r#"{"type":"EcmascriptMergedUpdate","entries":{"[project]/foo.js [test]":{"code":"console.log(1)","url":"chunk.js?id=%5Bproject%5D%2Ffoo.js","map":null}},"chunks":{"chunk.js":{"type":"partial","added":["[project]/foo.js [test]"]}}}"#
+        );
+
+        let roundtrip: HmrUpdateInstruction = serde_json::from_str(&json).unwrap();
+        assert_eq!(serde_json::to_string(&roundtrip).unwrap(), json);
+    }
+
+    /// A `ChunkListUpdate` nests a merged update inside `merged` (each carrying
+    /// its own `type` tag) and describes per-chunk updates in `chunks`.
+    #[test]
+    fn chunk_list_update_wire_format() {
+        let mut cl_chunks = FxIndexMap::default();
+        cl_chunks.insert(rc("server/chunk.js"), ChunkUpdate::Total);
+        cl_chunks.insert(rc("server/added.js"), ChunkUpdate::Added);
+
+        let mut added = EcmascriptMergedChunkAdded::default();
+        added.modules.insert(rc("42"));
+        let mut m_chunks = FxIndexMap::default();
+        m_chunks.insert(
+            rc("server/new.js"),
+            EcmascriptMergedChunkUpdate::Added(added),
+        );
+        let merged = vec![HmrUpdateInstruction::EcmascriptMergedUpdate(
+            EcmascriptMergedUpdate {
+                entries: FxIndexMap::default(),
+                chunks: m_chunks,
+            },
+        )];
+
+        let update = HmrUpdateInstruction::ChunkListUpdate(ChunkListUpdate {
+            chunks: cl_chunks,
+            merged,
+        });
+        let json = serde_json::to_string(&update).unwrap();
+        assert_eq!(
+            json,
+            r#"{"type":"ChunkListUpdate","chunks":{"server/chunk.js":{"type":"total"},"server/added.js":{"type":"added"}},"merged":[{"type":"EcmascriptMergedUpdate","chunks":{"server/new.js":{"type":"added","modules":["42"]}}}]}"#
+        );
+
+        let roundtrip: HmrUpdateInstruction = serde_json::from_str(&json).unwrap();
+        assert_eq!(serde_json::to_string(&roundtrip).unwrap(), json);
+    }
 }

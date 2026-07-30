@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::ModuleId,
@@ -10,9 +11,13 @@ use turbopack_core::{
 
 use crate::{
     chunk::EcmascriptChunkContentEntries,
-    chunk_list::merged_update::{
-        EcmascriptMergedChunkAdded, EcmascriptMergedChunkDeleted, EcmascriptMergedChunkPartial,
-        EcmascriptMergedChunkUpdate, EcmascriptMergedUpdate, EcmascriptModuleEntry,
+    chunk_list::{
+        merged_update::{
+            EcmascriptMergedChunkAdded, EcmascriptMergedChunkDeleted, EcmascriptMergedChunkPartial,
+            EcmascriptMergedChunkUpdate, EcmascriptMergedUpdate, EcmascriptModuleEntry,
+            module_id_key,
+        },
+        update::HmrUpdateInstruction,
     },
     hmr::{
         EcmascriptHmrChunkContent,
@@ -115,7 +120,7 @@ fn module_hash(versions: &[ReadRef<EcmascriptChunkVersion>], id: &ModuleId) -> O
 /// Code only has to be shipped once per update: skip any module another chunk in
 /// the group already provides at the same hash.
 async fn insert_entry_unless_shipped(
-    entries: &mut FxIndexMap<ModuleId, EcmascriptModuleEntry>,
+    entries: &mut FxIndexMap<RcStr, EcmascriptModuleEntry>,
     from_versions: &[ReadRef<EcmascriptChunkVersion>],
     id: ModuleId,
     hash: u128,
@@ -124,7 +129,7 @@ async fn insert_entry_unless_shipped(
 ) -> Result<()> {
     if module_hash(from_versions, &id) != Some(hash) {
         let entry = EcmascriptModuleEntry::from_code(&id, code, chunk_path).await?;
-        entries.insert(id, entry);
+        entries.insert(module_id_key(&id), entry);
     }
     Ok(())
 }
@@ -134,7 +139,7 @@ async fn partial_chunk_update(
     update: EcmascriptChunkUpdate,
     chunk_path: &str,
     from_versions: &[ReadRef<EcmascriptChunkVersion>],
-    entries: &mut FxIndexMap<ModuleId, EcmascriptModuleEntry>,
+    entries: &mut FxIndexMap<RcStr, EcmascriptModuleEntry>,
 ) -> Result<EcmascriptMergedChunkUpdate> {
     let EcmascriptChunkUpdate::Partial {
         added,
@@ -148,15 +153,17 @@ async fn partial_chunk_update(
     let mut partial = EcmascriptMergedChunkPartial::default();
 
     for (id, AddedModule { hash, code }) in added {
-        partial.added.insert(id.clone());
+        partial.added.insert(module_id_key(&id));
         insert_entry_unless_shipped(entries, from_versions, id, hash, *code, chunk_path).await?;
     }
 
-    partial.deleted.extend(deleted.into_keys());
+    partial
+        .deleted
+        .extend(deleted.into_keys().map(|id| module_id_key(&id)));
 
     for (id, code) in modified {
         let entry = EcmascriptModuleEntry::from_code(&id, *code, chunk_path).await?;
-        entries.insert(id, entry);
+        entries.insert(module_id_key(&id), entry);
     }
 
     Ok(EcmascriptMergedChunkUpdate::Partial(partial))
@@ -167,12 +174,12 @@ async fn added_chunk_update(
     chunk_entries: &ReadRef<EcmascriptChunkContentEntries>,
     chunk_path: &str,
     from_versions: &[ReadRef<EcmascriptChunkVersion>],
-    entries: &mut FxIndexMap<ModuleId, EcmascriptModuleEntry>,
+    entries: &mut FxIndexMap<RcStr, EcmascriptModuleEntry>,
 ) -> Result<EcmascriptMergedChunkUpdate> {
     let mut added = EcmascriptMergedChunkAdded::default();
 
     for (id, entry) in chunk_entries.iter() {
-        added.modules.insert(id.clone());
+        added.modules.insert(module_id_key(id));
         insert_entry_unless_shipped(
             entries,
             from_versions,
@@ -268,15 +275,15 @@ pub async fn update_ecmascript_merged_chunk(
             }
         };
 
-        merged_update.chunks.insert(chunk_path, chunk_update);
+        merged_update.chunks.insert(chunk_path.into(), chunk_update);
     }
 
     for (chunk_path, chunk_version) in from_versions_by_chunk_path {
         let hashes = &chunk_version.entries_hashes;
         merged_update.chunks.insert(
-            chunk_path,
+            chunk_path.into(),
             EcmascriptMergedChunkUpdate::Deleted(EcmascriptMergedChunkDeleted {
-                modules: hashes.keys().cloned().collect(),
+                modules: hashes.keys().map(module_id_key).collect(),
             }),
         );
     }
@@ -288,7 +295,9 @@ pub async fn update_ecmascript_merged_chunk(
             to: Vc::upcast::<Box<dyn Version>>(to_merged_version)
                 .into_trait_ref()
                 .await?,
-            instruction: Arc::new(serde_json::to_value(&merged_update)?),
+            instruction: Arc::new(serde_json::to_value(
+                &HmrUpdateInstruction::EcmascriptMergedUpdate(merged_update),
+            )?),
         })
     })
 }
