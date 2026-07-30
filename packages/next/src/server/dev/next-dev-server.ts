@@ -74,6 +74,7 @@ import { LRUCache } from '../lib/lru-cache'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import { DetachedPromise } from '../../lib/detached-promise'
 import { isPostpone } from '../lib/router-utils/is-postpone'
+import { isNodeHttpRequestAbortError } from '../pipe-readable'
 import { generateInterceptionRoutesRewrites } from '../../lib/generate-interception-routes-rewrites'
 import { buildCustomRoute } from '../../lib/build-custom-route'
 import { decorateServerError } from '../../shared/lib/error-source'
@@ -387,6 +388,10 @@ export default class DevServer extends Server {
       this.logErrorWithOriginalStack(reason, 'unhandledRejection')
     })
     process.on('uncaughtException', (err) => {
+      if (isNodeHttpRequestAbortError(err)) {
+        return
+      }
+
       this.logErrorWithOriginalStack(err, 'uncaughtException')
     })
   }

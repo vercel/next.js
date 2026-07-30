@@ -14,6 +14,14 @@ export function isAbortError(e: any): e is Error & { name: 'AbortError' } {
   return e?.name === 'AbortError' || e?.name === ResponseAbortedName
 }
 
+export function isNodeHttpRequestAbortError(
+  e: any
+): e is Error & { code: 'ECONNRESET' } {
+  // Node emits this when a client disconnects before the HTTP request has been
+  // fully consumed.
+  return e?.code === 'ECONNRESET' && e?.message === 'aborted'
+}
+
 const HAS_CLIENT_COMPONENT_METRICS_ENABLED =
   'performance' in globalThis && process.env.NEXT_OTEL_PERFORMANCE_PREFIX
 

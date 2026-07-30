@@ -18,7 +18,11 @@ import { DecodeError } from '../../shared/lib/utils'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
 import { proxyRequest } from './router-utils/proxy-request'
-import { isAbortError, pipeToNodeResponse } from '../pipe-readable'
+import {
+  isAbortError,
+  isNodeHttpRequestAbortError,
+  pipeToNodeResponse,
+} from '../pipe-readable'
 import { getResolveRoutes } from './router-utils/resolve-routes'
 import { addRequestMeta, getRequestMeta } from '../request-meta'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
@@ -878,9 +882,12 @@ export async function initialize(opts: {
     type: 'uncaughtException' | 'unhandledRejection',
     err: Error | undefined
   ) => {
-    if (isPostpone(err)) {
-      // React postpones that are unhandled might end up logged here but they're
-      // not really errors. They're just part of rendering.
+    if (
+      isPostpone(err) ||
+      (type === 'uncaughtException' && isNodeHttpRequestAbortError(err))
+    ) {
+      // These are expected control-flow errors and should not show up as
+      // application exceptions.
       return
     }
     if (type === 'unhandledRejection') {

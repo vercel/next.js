@@ -1,4 +1,5 @@
 import { isPostpone } from '../lib/router-utils/is-postpone'
+import { isNodeHttpRequestAbortError } from '../pipe-readable'
 
 let _global = globalThis as typeof globalThis & {
   nextInitializedProcessErrorHandlers?: boolean
@@ -81,7 +82,7 @@ export function installProcessErrorHandlers(
   // is unrelated to the late-awaiting pattern. However, for similar reasons,
   // we still shouldn't crash the process. Just log it.
   process.on('uncaughtException', (reason: unknown) => {
-    if (isPostpone(reason)) {
+    if (isPostpone(reason) || isNodeHttpRequestAbortError(reason)) {
       return
     }
     console.error(reason)
