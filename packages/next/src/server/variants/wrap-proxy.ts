@@ -80,7 +80,7 @@ async function resolveVariants(
     const key = getVariantKey(exported)
     const value = await getVariantDecide(exported)(request)
 
-    packed.push(`${key}=${assertValidVariantValue(key, value)}`)
+    packed.push(`${key}=${assertValidVariantValue(key, value, 'decide')}`)
   }
 
   if (packed.length === 0) return null
