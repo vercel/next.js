@@ -430,6 +430,40 @@ struct TaskExecutionCompletePrepareResult {
     pub is_session_dependent: bool,
 }
 
+fn lock_task_and_optional_reader<'e, C: ExecuteContext<'e>>(
+    ctx: &mut C,
+    task_id: TaskId,
+    reader_id: Option<TaskId>,
+) -> (C::TaskGuardImpl, Option<C::TaskGuardImpl>) {
+    let Some(reader_id) = reader_id else {
+        return (ctx.task(task_id, TaskDataCategory::All), None);
+    };
+
+    // Immutable tasks never need dependency edges and can never be invalidated. Avoid locking the
+    // reader too in that common case. When the task is still mutable, drop the speculative lock
+    // and reacquire both locks together to preserve the invalidation race guarantee.
+    let task = ctx.task(task_id, TaskDataCategory::All);
+    if task.immutable() && !cfg!(feature = "verify_immutable") {
+        (task, None)
+    } else {
+        drop(task);
+
+        // Having a task_pair here is not optimal, but locking the reader separately could lose an
+        // invalidation that races with dependency edge insertion.
+        // TODO(sokra): solve this more performantly for mutable tasks.
+        let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
+        // The task can become immutable between the speculative task lock and the pair lock.
+        // Recheck under the final lock so callers can rely on a reader guard only being returned
+        // when dependency edges may still be added.
+        if task.immutable() && !cfg!(feature = "verify_immutable") {
+            drop(reader);
+            (task, None)
+        } else {
+            (task, Some(reader))
+        }
+    }
+}
+
 // Operations
 impl TurboTasksBackend {
     fn try_read_task_output(
@@ -442,24 +476,14 @@ impl TurboTasksBackend {
         self.assert_not_persistent_calling_transient(reader, task_id, /* cell_id */ None);
 
         let mut ctx = self.execute_context(turbo_tasks);
-        let need_reader_task = if self.should_track_dependencies()
-            && !matches!(options.tracking, ReadTracking::Untracked)
-            && let Some(reader_id) = reader
-            && reader_id != task_id
-        {
-            Some(reader_id)
-        } else {
-            None
-        };
-        let (mut task, mut reader_task) = if let Some(reader_id) = need_reader_task {
-            // Having a task_pair here is not optimal, but otherwise this would lead to a race
-            // condition. See below.
-            // TODO(sokra): solve that in a more performant way.
-            let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
-            (task, Some(reader))
-        } else {
-            (ctx.task(task_id, TaskDataCategory::All), None)
-        };
+        let need_reader_task = reader.and_then(|reader_id| {
+            (self.should_track_dependencies()
+                && !matches!(options.tracking, ReadTracking::Untracked)
+                && reader_id != task_id)
+                .then_some(reader_id)
+        });
+        let (mut task, mut reader_task) =
+            lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task);
 
         fn listen_to_done_event(
             reader_description: Option<EventDescription>,
@@ -672,7 +696,12 @@ impl TurboTasksBackend {
 
         let reader_description = reader_task
             .as_ref()
-            .map(|r| EventDescription::new(|| r.get_task_desc_fn()));
+            .map(|r| EventDescription::new(|| r.get_task_desc_fn()))
+            .or_else(|| {
+                need_reader_task.map(|reader_id| {
+                    EventDescription::new(move || move || format!("{reader_id:?}"))
+                })
+            });
         if let Some(value) = check_in_progress(&task, reader_description.clone(), options.tracking)
         {
             return value;
@@ -686,7 +715,6 @@ impl TurboTasksBackend {
             };
             if let Some(mut reader_task) = reader_task.take()
                 && options.tracking.should_track(result.is_err())
-                && (!task.immutable() || cfg!(feature = "verify_immutable"))
             {
                 #[cfg(feature = "trace_task_output_dependencies")]
                 let _span = tracing::trace_span!(
@@ -780,9 +808,7 @@ impl TurboTasksBackend {
             cell: CellId,
             key: Option<u64>,
         ) {
-            if let Some(mut reader_task) = reader_task
-                && (!task.immutable() || cfg!(feature = "verify_immutable"))
-            {
+            if let Some(mut reader_task) = reader_task {
                 let reader = reader.unwrap();
                 let reverse = CellRef { task: reader, cell };
                 if let Some(k) = key {
@@ -818,19 +844,14 @@ impl TurboTasksBackend {
         } = options;
 
         let mut ctx = self.execute_context(turbo_tasks);
-        let (mut task, reader_task) = if self.should_track_dependencies()
-            && !matches!(tracking, ReadCellTracking::Untracked)
-            && let Some(reader_id) = reader
-            && reader_id != task_id
-        {
-            // Having a task_pair here is not optimal, but otherwise this would lead to a race
-            // condition. See below.
-            // TODO(sokra): solve that in a more performant way.
-            let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
-            (task, Some(reader))
-        } else {
-            (ctx.task(task_id, TaskDataCategory::All), None)
-        };
+        let need_reader_task = reader.and_then(|reader_id| {
+            (self.should_track_dependencies()
+                && !matches!(tracking, ReadCellTracking::Untracked)
+                && reader_id != task_id)
+                .then_some(reader_id)
+        });
+        let (mut task, reader_task) =
+            lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task);
 
         let content = if final_read_hint {
             task.remove_cell_data(&cell, &get_value_type(cell.type_id()).persistence)
@@ -853,7 +874,7 @@ impl TurboTasksBackend {
             Some(InProgressState::InProgress(..) | InProgressState::Scheduled { .. })
         ) {
             return Ok(Err(self
-                .listen_to_cell(&mut task, task_id, &reader_task, cell)
+                .listen_to_cell(&mut task, task_id, need_reader_task, &reader_task, cell)
                 .0));
         }
         let is_cancelled = matches!(in_progress, Some(InProgressState::Canceled));
@@ -887,7 +908,8 @@ impl TurboTasksBackend {
         }
 
         // Listen to the cell and potentially schedule the task
-        let (listener, new_listener) = self.listen_to_cell(&mut task, task_id, &reader_task, cell);
+        let (listener, new_listener) =
+            self.listen_to_cell(&mut task, task_id, need_reader_task, &reader_task, cell);
         drop(reader_task);
         if !new_listener {
             return Ok(Err(listener));
@@ -913,6 +935,7 @@ impl TurboTasksBackend {
         &self,
         task: &mut impl TaskGuard,
         task_id: TaskId,
+        reader: Option<TaskId>,
         reader_task: &Option<impl TaskGuard>,
         cell: CellId,
     ) -> (EventListener, bool) {
@@ -921,6 +944,8 @@ impl TurboTasksBackend {
             move || {
                 if let Some(reader_desc) = reader_desc.as_ref() {
                     format!("try_read_task_cell (in progress) from {}", (reader_desc)())
+                } else if let Some(reader_id) = reader {
+                    format!("try_read_task_cell (in progress) from {reader_id:?}")
                 } else {
                     "try_read_task_cell (in progress, untracked)".to_string()
                 }
