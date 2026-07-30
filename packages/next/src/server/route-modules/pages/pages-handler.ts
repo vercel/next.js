@@ -116,6 +116,15 @@ export const getHandler = ({
     const render404 = async () => {
       // TODO: should route-module itself handle rendering the 404
       if (routerServerContext?.render404) {
+        // When Pages Router and App Router apps coexist, a Pages Router 404
+        // renders the App Router not-found page. If that page suspends when
+        // Cache Components is enabled, the renderer needs postponed state to
+        // resume it, but that information does not exist on a Pages Router
+        // entry. Mark the postponed state as empty to signal that the renderer
+        // should perform a full render instead of attempting to resume.
+        if (nextConfig.adapterPath && nextConfig.cacheComponents) {
+          addRequestMeta(req, 'postponed', '')
+        }
         await routerServerContext.render404(req, res, parsedUrl, false)
       } else {
         res.end('This page could not be found')
