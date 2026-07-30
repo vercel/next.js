@@ -8,6 +8,7 @@ import {
   getVariantKey,
   isVariant,
 } from '../request/variants'
+import { canonicalizeVariants } from './hash'
 
 type ProxyResult = Response | undefined | null | void
 
@@ -61,34 +62,35 @@ export function wrapProxy(
 }
 
 /**
- * Resolves every variant exported by the module, returning them packed into a
- * single `URLSearchParams`-compatible string, or `null` when the module exports
- * no variants.
+ * Resolves every variant exported by the module into the canonical packed form,
+ * or `null` when the module exports no variants.
  *
  * Values are validated here, where they are produced, so that a rejected value
  * names the variant that produced it rather than failing later during routing.
+ *
+ * `canonicalizeVariants` owns the ordering because the build addresses the same
+ * combinations by the same form when it emits prerendered variant paths.
  */
 async function resolveVariants(
   variantsModule: Record<string, unknown>,
   request: NextRequest
 ): Promise<string | null> {
-  const packed: string[] = []
+  const values: Record<string, string> = {}
 
   for (const exported of Object.values(variantsModule)) {
-    if (!isVariant(exported)) continue
+    if (!isVariant(exported)) {
+      continue
+    }
 
     const key = getVariantKey(exported)
     const value = await getVariantDecide(exported)(request)
 
-    packed.push(`${key}=${assertValidVariantValue(key, value, 'decide')}`)
+    values[key] = assertValidVariantValue(key, value, 'decide')
   }
 
-  if (packed.length === 0) return null
+  if (Object.keys(values).length === 0) {
+    return null
+  }
 
-  // Built literally rather than with `URLSearchParams.toString()`, which would
-  // percent-encode the `:` in a variant identity and require decoding it back.
-  // Identities and values are validated against a charset that excludes `&`,
-  // `=`, `%`, `/`, and `+`, so the result needs no encoding and round-trips
-  // through `new URLSearchParams(segment)` unchanged.
-  return packed.join('&')
+  return canonicalizeVariants(values)
 }

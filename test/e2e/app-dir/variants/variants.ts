@@ -9,3 +9,10 @@ export const theme = variant(
     request.cookies.get('theme')?.value === 'dark' ? 'dark' : 'light',
   'theme@variants.ts'
 )
+
+// A second variant, so that a resolved combination packs more than one pair and
+// therefore exercises the `&` separator and the canonical ordering.
+export const locale = variant(
+  (request) => (request.cookies.get('locale')?.value === 'de' ? 'de' : 'en'),
+  'locale@variants.ts'
+)

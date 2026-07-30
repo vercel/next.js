@@ -1,11 +1,11 @@
 import { Suspense } from 'react'
 
-import { Theme } from '../theme'
+import { VariantValues } from '../variant-values'
 
 export default function Page() {
   return (
     <Suspense fallback={null}>
-      <Theme />
+      <VariantValues />
     </Suspense>
   )
 }

@@ -44,6 +44,7 @@ describe('variants', () => {
     const $ = await next.render$('/')
 
     expect($('#theme').text()).toBe('light')
+    expect($('#locale').text()).toBe('en')
   })
 
   it('should resolve a variant from the request', async () => {
@@ -52,6 +53,17 @@ describe('variants', () => {
     })
 
     expect($('#theme').text()).toBe('dark')
+  })
+
+  it('should resolve several variants from one request', async () => {
+    const $ = await next.render$('/', undefined, {
+      headers: { cookie: 'theme=dark; locale=de' },
+    })
+
+    // More than one resolved variant packs into a single path segment joined by
+    // `&`, so this covers that the segment round-trips through the router.
+    expect($('#theme').text()).toBe('dark')
+    expect($('#locale').text()).toBe('de')
   })
 
   it('should not expose the internal variants prefix to the client', async () => {
