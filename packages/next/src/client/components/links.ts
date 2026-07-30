@@ -143,6 +143,8 @@ function observeVisibility(element: Element, instance: PrefetchableInstance) {
 function coercePrefetchableUrl(href: string): URL | null {
   if (typeof window !== 'undefined') {
     const { createPrefetchURL } =
+      // TODO(browser-variant): migrate to a .ts/.browser.ts split so the browser bundle drops the server branch; see scripts/generate-browser-variant-aliases.mjs
+      // ast-grep-ignore: no-typeof-window-require
       require('./app-router-utils') as typeof import('./app-router-utils')
 
     try {
@@ -330,6 +332,8 @@ function rescheduleLinkPrefetch(
     }
 
     const { getCurrentAppRouterState } =
+      // TODO(browser-variant): migrate to a .ts/.browser.ts split so the browser bundle drops the server branch; see scripts/generate-browser-variant-aliases.mjs
+      // ast-grep-ignore: no-typeof-window-require
       require('./app-router-instance') as typeof import('./app-router-instance')
 
     const appRouterState = getCurrentAppRouterState()

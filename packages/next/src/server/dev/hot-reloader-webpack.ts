@@ -241,6 +241,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private serverError: Error | null = null
   private hmrServerError: Error | null = null
   private serverPrevDocumentHash: string | null
+  private serverComponentsHmrRefreshHash: string | undefined
   private serverChunkNames?: Set<string>
   private prevChunkNames?: Set<any>
   private onDemandEntries?: ReturnType<typeof onDemandEntryHandler>
@@ -431,12 +432,16 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   }
 
   protected async refreshServerComponents(hash: string): Promise<void> {
+    this.serverComponentsHmrRefreshHash = hash
     this.send({
       type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
-      hash,
       // TODO: granular reloading of changes
       // entrypoints: serverComponentChanges,
     })
+  }
+
+  public getServerComponentsHmrRefreshHash(): string | undefined {
+    return this.serverComponentsHmrRefreshHash
   }
 
   public onHMR(

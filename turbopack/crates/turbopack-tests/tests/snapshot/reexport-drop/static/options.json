@@ -1,0 +1,1 @@
+{ "removeUnusedImports": true, "removeUnusedExports": true, "scopeHoisting": true }

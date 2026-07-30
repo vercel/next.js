@@ -11,7 +11,7 @@ use anyhow::Result;
 use turbo_tasks::{
     ResolvedVc, State, TurboTasks, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
 };
-use turbo_tasks_backend::{BackendOptions, GitVersionInfo, TurboTasksBackend};
+use turbo_tasks_backend::{BackendOptions, EvictionMode, GitVersionInfo, TurboTasksBackend};
 
 /// Creates a fresh per-call persistence directory rooted under
 /// `CARGO_TARGET_TMPDIR/.cache/`, with the test `name` as a prefix so failed
@@ -43,7 +43,7 @@ fn create_tt_with_workers(
             // Avoid racing with the background snapshot loop; the test drives
             // snapshot_and_evict_for_testing manually.
             storage_mode: Some(turbo_tasks_backend::StorageMode::ReadWriteOnShutdown),
-            evict_after_snapshot: true,
+            eviction_mode: EvictionMode::Full,
             ..Default::default()
         },
         turbo_tasks_backend::turbo_backing_storage(

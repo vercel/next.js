@@ -13,7 +13,7 @@ import {
   type PrerenderStoreModernServer,
   type PrerenderStorePPR,
 } from '../app-render/work-unit-async-storage.external'
-import { makeHangingPromise } from '../dynamic-rendering-utils'
+import { makeFallbackParamsHangingPromise } from '../dynamic-rendering-utils'
 import type { ParamValue } from './params'
 import { describeStringPropertyAccess } from '../../shared/lib/utils/reflect-utils'
 import { actionAsyncStorage } from '../app-render/action-async-storage.external'
@@ -162,10 +162,11 @@ function createPrerenderRootParamPromise(
         prerenderStore.fallbackRouteParams &&
         prerenderStore.fallbackRouteParams.has(paramName)
       ) {
-        return makeHangingPromise<ParamValue>(
+        return makeFallbackParamsHangingPromise<ParamValue>(
           prerenderStore.renderSignal,
           workStore.route,
-          apiName
+          apiName,
+          prerenderStore
         )
       }
       break

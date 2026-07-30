@@ -113,6 +113,7 @@ export function pageBootstrap(assetPrefix: string) {
         case HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE:
         case HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE:
         case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES:
+        case HMR_MESSAGE_SENT_TO_BROWSER.STATIC_PARAMS_CHANGED:
         case HMR_MESSAGE_SENT_TO_BROWSER.SYNC:
         case HMR_MESSAGE_SENT_TO_BROWSER.BUILT:
         case HMR_MESSAGE_SENT_TO_BROWSER.BUILDING:
@@ -124,6 +125,7 @@ export function pageBootstrap(assetPrefix: string) {
         case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_CURRENT_ERROR_STATE:
         case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_PAGE_METADATA:
         case HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR:
+        case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE:
         case HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER:
           // Most of these action types are handled in
           // src/client/dev/hot-reloader/pages/hot-reloader-pages.ts and

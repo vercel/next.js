@@ -358,6 +358,8 @@ server {
 }
 ```
 
+To deploy to GitHub Pages, use our [template](https://github.com/nextjs/deploy-github-pages) to create a new project or as a reference for configuring an existing project.
+
 ## Version History
 
 | Version   | Changes                                                                                                              |

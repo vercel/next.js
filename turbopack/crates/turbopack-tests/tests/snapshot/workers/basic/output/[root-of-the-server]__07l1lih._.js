@@ -4,6 +4,13 @@
 var __TURBOPACK__import$2e$meta__ = {
     get url () {
         return __turbopack_context__.F("turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/index.js");
+    },
+    env: {
+        DEV: true,
+        PROD: false,
+        MODE: "development",
+        BASE_URL: "/",
+        SSR: false
     }
 };
 console.log('index.js');

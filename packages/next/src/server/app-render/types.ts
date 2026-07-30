@@ -111,9 +111,7 @@ export interface RenderOptsPartial {
   botType?: 'dom' | 'html' | undefined
   serveStreamingMetadata?: boolean
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
-  cacheLifeProfiles?: {
-    [profile: string]: import('../use-cache/cache-life').CacheLife
-  }
+  cacheLifeProfiles: import('../config-shared').ResolvedCacheLifeProfiles
   staticPageGenerationTimeout: number
   isOnDemandRevalidate?: boolean
   isPossibleServerAction?: boolean
@@ -169,9 +167,9 @@ export interface RenderOptsPartial {
     inlineCss: boolean
     prefetchInlining: PrefetchInliningConfig
     authInterrupts: boolean
+    serverComponentsHmrCancellation?: boolean
     useCacheTimeout: number
-    cachedNavigations: boolean | 'allow-runtime'
-    appShells: ExperimentalConfig['appShells']
+    cachedNavigations: boolean
 
     /**
      * The maximum size (in bytes) of the postponed state body for PPR resume

@@ -53,6 +53,7 @@ pub async fn make_style_production_chunks(
                     make_chunk(
                         vec![&ChunkItemOrBatchWithInfo::Batch { batch, size: 0 }],
                         vec![],
+                        vec![],
                         &mut String::new(),
                         &mut split_context,
                     )
@@ -66,6 +67,7 @@ pub async fn make_style_production_chunks(
                     size: 0,
                     asset_ident: rcstr!(""),
                 }],
+                vec![],
                 vec![],
                 &mut String::new(),
                 &mut split_context,

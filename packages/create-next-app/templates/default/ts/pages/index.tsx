@@ -35,7 +35,10 @@ export default function Home() {
             priority
           />
           <div className={styles.intro}>
-            <h1>To get started, edit the index.tsx file.</h1>
+            <h1>
+              To get started, edit the{" "}
+              <code className={styles.code}>index.tsx</code> file.
+            </h1>
             <p>
               Looking for a starting point or more instructions? Head over to{" "}
               <a

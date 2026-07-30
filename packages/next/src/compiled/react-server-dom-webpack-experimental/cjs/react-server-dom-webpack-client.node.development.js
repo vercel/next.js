@@ -667,7 +667,7 @@
             return serializeAsyncIterable(value, parentReference.call(value));
           parentReference = getPrototypeOf(value);
           if (
-            parentReference !== ObjectPrototype &&
+            parentReference !== ObjectPrototype$1 &&
             (null === parentReference ||
               null !== getPrototypeOf(parentReference))
           ) {
@@ -1179,24 +1179,26 @@
       return kind;
     }
     function addObjectToProperties(object, properties, indent, prefix) {
-      var addedProperties = 0,
-        key;
-      for (key in object)
-        if (
-          hasOwnProperty.call(object, key) &&
-          "_" !== key[0] &&
-          (addedProperties++,
-          addValueToProperties(key, object[key], properties, indent, prefix),
-          100 <= addedProperties)
-        ) {
-          properties.push([
-            prefix +
-              "\u00a0\u00a0".repeat(indent) +
-              "Only 100 properties are shown. React will not log more properties of this object.",
-            ""
-          ]);
-          break;
-        }
+      if (!ArrayBuffer.isView(object)) {
+        var addedProperties = 0,
+          key;
+        for (key in object)
+          if (
+            hasOwnProperty.call(object, key) &&
+            "_" !== key[0] &&
+            (addedProperties++,
+            addValueToProperties(key, object[key], properties, indent, prefix),
+            100 <= addedProperties)
+          ) {
+            properties.push([
+              prefix +
+                "\u00a0\u00a0".repeat(indent) +
+                "Only 100 properties are shown. React will not log more properties of this object.",
+              ""
+            ]);
+            break;
+          }
+      }
     }
     function addValueToProperties(
       propertyName,
@@ -1275,15 +1277,23 @@
               return;
             }
             typeName = Object.prototype.toString.call(value);
-            propKey = typeName.slice(8, typeName.length - 1);
-            if ("Array" === propKey)
+            typeName = typeName.slice(8, typeName.length - 1);
+            if (ArrayBuffer.isView(value)) {
+              value = value.length;
+              value =
+                "number" === typeof value
+                  ? typeName + "(" + value + ")"
+                  : typeName;
+              break;
+            }
+            if ("Array" === typeName)
               if (
-                ((typeName = 100 < value.length),
+                ((propKey = 100 < value.length),
                 (key = getArrayKind(value)),
                 2 === key || 0 === key)
               ) {
                 value = JSON.stringify(
-                  typeName ? value.slice(0, 100).concat("\u2026") : value
+                  propKey ? value.slice(0, 100).concat("\u2026") : value
                 );
                 break;
               } else if (3 === key) {
@@ -1296,15 +1306,15 @@
                   propertyName < value.length && 100 > propertyName;
                   propertyName++
                 )
-                  (propKey = value[propertyName]),
+                  (typeName = value[propertyName]),
                     addValueToProperties(
-                      propKey[0],
-                      propKey[1],
+                      typeName[0],
+                      typeName[1],
                       properties,
                       indent + 1,
                       prefix
                     );
-                typeName &&
+                propKey &&
                   addValueToProperties(
                     (100).toString(),
                     "\u2026",
@@ -1314,7 +1324,7 @@
                   );
                 return;
               }
-            if ("Promise" === propKey) {
+            if ("Promise" === typeName) {
               if ("fulfilled" === value.status) {
                 if (
                   ((typeName = properties.length),
@@ -1354,13 +1364,13 @@
               ]);
               return;
             }
-            "Object" === propKey &&
-              (typeName = Object.getPrototypeOf(value)) &&
-              "function" === typeof typeName.constructor &&
-              (propKey = typeName.constructor.name);
+            "Object" === typeName &&
+              (propKey = Object.getPrototypeOf(value)) &&
+              "function" === typeof propKey.constructor &&
+              (typeName = propKey.constructor.name);
             properties.push([
               prefix + "\u00a0\u00a0".repeat(indent) + propertyName,
-              "Object" === propKey ? (3 > indent ? "" : "\u2026") : propKey
+              "Object" === typeName ? (3 > indent ? "" : "\u2026") : typeName
             ]);
             3 > indent &&
               addObjectToProperties(value, properties, indent + 1, prefix);
@@ -2634,7 +2644,16 @@
                   );
               }
             }
-            value = value[path[i]];
+            var name = path[i];
+            if (
+              "object" !== typeof value ||
+              null === value ||
+              (getPrototypeOf(value) !== ObjectPrototype &&
+                getPrototypeOf(value) !== ArrayPrototype) ||
+              !hasOwnProperty.call(value, name)
+            )
+              throw Error("Invalid reference.");
+            value = value[name];
           }
           for (
             ;
@@ -3696,7 +3715,11 @@
       return (debugInfo.debugTask = response);
     }
     function fakeJSXCallSite() {
-      return Error("react-stack-top-frame");
+      var previousStackTraceLimit = Error.stackTraceLimit;
+      Error.stackTraceLimit = ownerStackTraceLimit;
+      var error = Error("react-stack-top-frame");
+      Error.stackTraceLimit = previousStackTraceLimit;
+      return error;
     }
     function initializeFakeStack(response, debugInfo) {
       if (void 0 === debugInfo.debugStack) {
@@ -4947,12 +4970,13 @@
         return value;
       }
       for (i in value)
-        "__proto__" === i
-          ? delete value[i]
-          : ((parentObject = reviveModel(response, value[i], value, i)),
-            void 0 !== parentObject
-              ? (value[i] = parentObject)
-              : delete value[i]);
+        hasOwnProperty.call(value, i) &&
+          ("__proto__" === i
+            ? delete value[i]
+            : ((parentObject = reviveModel(response, value[i], value, i)),
+              void 0 !== parentObject
+                ? (value[i] = parentObject)
+                : delete value[i]));
       return value;
     }
     function close(weakResponse) {
@@ -5162,7 +5186,7 @@
       jsxPropsParents = new WeakMap(),
       jsxChildrenParents = new WeakMap(),
       CLIENT_REFERENCE_TAG = Symbol.for("react.client.reference"),
-      ObjectPrototype = Object.prototype,
+      ObjectPrototype$1 = Object.prototype,
       knownServerReferences = new WeakMap(),
       boundCache = new WeakMap(),
       fakeServerFunctionIdx = 0,
@@ -5188,49 +5212,56 @@
         React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
       ReactSharedInternals =
         React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE ||
-        ReactSharedInteralsServer;
+        ReactSharedInteralsServer,
+      ObjectPrototype = Object.prototype,
+      ArrayPrototype = Array.prototype;
     ReactPromise.prototype = Object.create(Promise.prototype);
-    ReactPromise.prototype.then = function (resolve, reject) {
-      var _this = this;
-      switch (this.status) {
-        case "resolved_model":
-          initializeModelChunk(this);
-          break;
-        case "resolved_module":
-          initializeModuleChunk(this);
+    Object.defineProperty(ReactPromise.prototype, "then", {
+      writable: !0,
+      enumerable: !0,
+      configurable: !0,
+      value: function (resolve, reject) {
+        var _this = this;
+        switch (this.status) {
+          case "resolved_model":
+            initializeModelChunk(this);
+            break;
+          case "resolved_module":
+            initializeModuleChunk(this);
+        }
+        var resolveCallback = resolve,
+          rejectCallback = reject,
+          wrapperPromise = new Promise(function (res, rej) {
+            resolve = function (value) {
+              wrapperPromise._debugInfo = _this._debugInfo;
+              res(value);
+            };
+            reject = function (reason) {
+              wrapperPromise._debugInfo = _this._debugInfo;
+              rej(reason);
+            };
+          });
+        wrapperPromise.then(resolveCallback, rejectCallback);
+        switch (this.status) {
+          case "fulfilled":
+            "function" === typeof resolve && resolve(this.value);
+            break;
+          case "pending":
+          case "blocked":
+            "function" === typeof resolve &&
+              (null === this.value && (this.value = []),
+              this.value.push(resolve));
+            "function" === typeof reject &&
+              (null === this.reason && (this.reason = []),
+              this.reason.push(reject));
+            break;
+          case "halted":
+            break;
+          default:
+            "function" === typeof reject && reject(this.reason);
+        }
       }
-      var resolveCallback = resolve,
-        rejectCallback = reject,
-        wrapperPromise = new Promise(function (res, rej) {
-          resolve = function (value) {
-            wrapperPromise._debugInfo = _this._debugInfo;
-            res(value);
-          };
-          reject = function (reason) {
-            wrapperPromise._debugInfo = _this._debugInfo;
-            rej(reason);
-          };
-        });
-      wrapperPromise.then(resolveCallback, rejectCallback);
-      switch (this.status) {
-        case "fulfilled":
-          "function" === typeof resolve && resolve(this.value);
-          break;
-        case "pending":
-        case "blocked":
-          "function" === typeof resolve &&
-            (null === this.value && (this.value = []),
-            this.value.push(resolve));
-          "function" === typeof reject &&
-            (null === this.reason && (this.reason = []),
-            this.reason.push(reject));
-          break;
-        case "halted":
-          break;
-        default:
-          "function" === typeof reject && reject(this.reason);
-      }
-    };
+    });
     var debugChannelRegistry =
         "function" === typeof FinalizationRegistry
           ? new FinalizationRegistry(closeDebugChannel)
@@ -5258,6 +5289,7 @@
         createFakeJSXCallStack.react_stack_bottom_frame.bind(
           createFakeJSXCallStack
         ),
+      ownerStackTraceLimit = 10,
       currentOwnerInDEV = null,
       replayConsoleWithCallStack = {
         react_stack_bottom_frame: function (response, payload) {
