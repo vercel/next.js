@@ -402,6 +402,11 @@ pub async fn parse_css(
     .await
 }
 
+/// Strips a leading UTF-8 byte-order mark, if present.
+fn strip_bom(code: &str) -> &str {
+    code.strip_prefix('\u{feff}').unwrap_or(code)
+}
+
 /// Parse a CSS stylesheet and run CSS module validation.
 ///
 /// Does not handle parser warnings — the caller is responsible for configuring
@@ -412,6 +417,9 @@ fn parse_css_stylesheet<'a, 'o>(
     ty: CssModuleType,
     source: ResolvedVc<Box<dyn Source>>,
 ) -> Result<StyleSheet<'a, 'o>, lightningcss::error::Error<lightningcss::error::ParserError<'a>>> {
+    // Lightning CSS tokenizes a leading byte-order mark as content instead of
+    // skipping it, which misaligns the parser and rejects the first token.
+    let code = strip_bom(code);
     let mut ss = StyleSheet::parse(code, config)?;
 
     if matches!(ty, CssModuleType::Module) {
@@ -815,7 +823,7 @@ mod tests {
         visitor::Visit,
     };
 
-    use super::{CssError, CssValidator};
+    use super::{CssError, CssValidator, strip_bom};
 
     fn lint_lightningcss(code: &str) -> Vec<CssError> {
         let mut ss = StyleSheet::parse(
@@ -975,5 +983,14 @@ mod tests {
                 color: red;
             }",
         );
+    }
+
+    #[test]
+    fn strip_bom_lets_lightningcss_parse() {
+        let with_bom = "\u{feff}@layer a {}";
+
+        assert!(StyleSheet::parse(with_bom, ParserOptions::default()).is_err());
+        assert!(StyleSheet::parse(strip_bom(with_bom), ParserOptions::default()).is_ok());
+        assert_eq!(strip_bom("@layer a {}"), "@layer a {}");
     }
 }
