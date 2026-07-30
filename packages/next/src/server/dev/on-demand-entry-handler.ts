@@ -135,7 +135,7 @@ function getPageBundleType(pageBundlePath: string): PAGE_TYPES {
       : PAGE_TYPES.ROOT
 }
 
-function getEntrypointsFromTree(
+export function getEntrypointsFromTree(
   tree: FlightRouterState,
   isFirst: boolean,
   parentPath: string[] = []

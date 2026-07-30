@@ -340,6 +340,12 @@ export interface Project {
     target: import('./index').HmrTarget.Server
   ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
 
+  setHmrChunksActive(
+    chunkNames: string[],
+    target: import('./index').HmrTarget.Server,
+    active: boolean
+  ): Promise<void>
+
   hmrEvents(
     identifier: string,
     target: import('./index').HmrTarget.Client
@@ -408,6 +414,9 @@ export type Route =
 export interface Endpoint {
   /** Write files for the endpoint to disk. */
   writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>>
+
+  /** Invalidate cached endpoint output before writing it after inactivity. */
+  invalidateOutput(): Promise<void>
 
   /**
    * Listen to client-side changes to the endpoint.

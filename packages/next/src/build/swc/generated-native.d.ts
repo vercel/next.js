@@ -171,6 +171,9 @@ export interface NapiWrittenEndpoint {
 export declare function endpointWriteToDisk(endpoint: {
   __napiType: 'Endpoint'
 }): Promise<TurbopackResult>
+export declare function endpointInvalidateOutput(endpoint: {
+  __napiType: 'Endpoint'
+}): Promise<void>
 export declare function endpointServerChangedSubscribe(
   endpoint: { __napiType: 'Endpoint' },
   issues: boolean,
@@ -410,6 +413,12 @@ export declare function projectEntrypointsSubscribe(
   project: { __napiType: 'Project' },
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
+export declare function projectSetHmrChunksActive(
+  project: { __napiType: 'Project' },
+  chunkNames: Array<RcStr>,
+  target: string,
+  active: boolean
+): Promise<void>
 export declare function projectAllHmrEvents(
   project: { __napiType: 'Project' },
   target: string,

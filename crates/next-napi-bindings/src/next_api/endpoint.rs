@@ -10,6 +10,7 @@ use next_api::{
     route::{
         Endpoint, EndpointOutputPaths, endpoint_client_changed_operation,
         endpoint_server_changed_operation, endpoint_write_to_disk_operation,
+        invalidate_endpoint_output,
     },
 };
 use tracing::Instrument;
@@ -175,6 +176,25 @@ pub async fn endpoint_write_to_disk(
         result: NapiWrittenEndpoint::from(written.map(ReadRef::into_owned)),
         issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
     })
+}
+
+#[tracing::instrument(level = "info", name = "invalidate endpoint output", skip_all)]
+#[napi]
+pub async fn endpoint_invalidate_output(
+    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
+) -> napi::Result<()> {
+    let ctx = endpoint.turbopack_ctx();
+    let endpoint_op = ***endpoint;
+    endpoint
+        .turbopack_ctx()
+        .turbo_tasks()
+        .run(async move {
+            get_written_endpoint_with_issues_operation(endpoint_op).invalidate();
+            invalidate_endpoint_output(endpoint_op).await
+        })
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
+        .await?;
+    Ok(())
 }
 
 #[tracing::instrument(level = "info", name = "get server-side endpoint changes", skip_all)]

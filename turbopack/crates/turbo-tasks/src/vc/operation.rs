@@ -134,6 +134,14 @@ impl<T: ?Sized> OperationVc<T> {
         Self::into_raw(self).into()
     }
 
+    /// Invalidates this operation so its next connected read re-executes it.
+    ///
+    /// This is intended for operations that were deliberately disconnected from
+    /// external invalidations and need to catch up before being reactivated.
+    pub fn invalidate(self) {
+        turbo_tasks().invalidate(self.task);
+    }
+
     /// Returns the `RawVc` corresponding to this `OperationVc`.
     /// inverse of [`RawVc::as_task_output`]
     fn into_raw(vc: Self) -> RawVc {

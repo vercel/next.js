@@ -215,7 +215,7 @@ pub struct EndpointGroups(Vec<(EndpointGroupKey, EndpointGroup)>);
 #[turbo_tasks::value(transparent)]
 pub struct Endpoints(Vec<ResolvedVc<Box<dyn Endpoint>>>);
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(operation)]
 pub async fn endpoint_write_to_disk(
     endpoint: ResolvedVc<Box<dyn Endpoint>>,
 ) -> Result<Vc<EndpointOutputPaths>> {
@@ -251,10 +251,54 @@ pub async fn endpoint_write_to_disk_operation(
     endpoint: OperationVc<OptionEndpoint>,
 ) -> Result<Vc<EndpointOutputPaths>> {
     Ok(if let Some(endpoint) = *endpoint.connect().await? {
-        endpoint_write_to_disk(*endpoint)
+        endpoint_write_to_disk(endpoint).connect()
     } else {
         EndpointOutputPaths::NotFound.cell()
     })
+}
+
+#[turbo_tasks::value(cell = "new", eq = "manual")]
+struct EndpointInvalidationInfo {
+    endpoint: Option<ResolvedVc<Box<dyn Endpoint>>>,
+    output: Option<OperationVc<EndpointOutput>>,
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn endpoint_invalidation_info_operation(
+    endpoint: OperationVc<OptionEndpoint>,
+) -> Result<Vc<EndpointInvalidationInfo>> {
+    let Some(endpoint) = *endpoint.connect().await? else {
+        return Ok(EndpointInvalidationInfo {
+            endpoint: None,
+            output: None,
+        }
+        .cell());
+    };
+    let output = output_assets_operation(endpoint);
+    output.connect().await?;
+    Ok(EndpointInvalidationInfo {
+        endpoint: Some(endpoint),
+        output: Some(output),
+    }
+    .cell())
+}
+
+/// Invalidates the cached endpoint-output chain. This is used when an endpoint
+/// subscription was disconnected so the next write recomputes it from the
+/// current source tree.
+pub async fn invalidate_endpoint_output(endpoint: OperationVc<OptionEndpoint>) -> Result<()> {
+    let info = endpoint_invalidation_info_operation(endpoint)
+        .read_strongly_consistent()
+        .await?;
+    if let (Some(endpoint_value), Some(output)) = (info.endpoint, info.output) {
+        // Reconnecting under a strongly-consistent root makes watcher-invalidated
+        // dependencies current. Only the effectful output/write wrappers need an
+        // explicit rerun; the endpoint output operation itself may be immutable.
+        endpoint_output_assets_operation(output).invalidate();
+        endpoint_write_to_disk(endpoint_value).invalidate();
+    }
+    endpoint_write_to_disk_operation(endpoint).invalidate();
+    Ok(())
 }
 
 #[turbo_tasks::function(operation, root)]

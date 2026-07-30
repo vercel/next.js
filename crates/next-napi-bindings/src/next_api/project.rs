@@ -754,6 +754,35 @@ pub async fn project_update(
         .await
 }
 
+#[tracing::instrument(
+    level = "info",
+    name = "set aggregate HMR chunk activity",
+    skip_all,
+    fields(target = %target, active, chunk_count = chunk_names.len()),
+)]
+#[napi]
+pub async fn project_set_hmr_chunks_active(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    chunk_names: Vec<RcStr>,
+    target: String,
+    active: bool,
+) -> napi::Result<()> {
+    let hmr_target = target
+        .parse::<HmrTarget>()
+        .map_err(napi::Error::from_reason)?;
+    let ctx = &project.turbopack_ctx;
+    let container = project.container;
+
+    ctx.turbo_tasks()
+        .run(async move {
+            container
+                .set_hmr_chunks_active(chunk_names, hmr_target, active)
+                .await
+        })
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
+        .await
+}
+
 /// Invalidates the filesystem cache so that it will be deleted next time that a turbopack project
 /// is created with filesystem cache enabled.
 #[napi]

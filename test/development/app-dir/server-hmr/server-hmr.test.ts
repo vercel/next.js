@@ -606,10 +606,86 @@ describe('server-hmr', () => {
   })
 })
 
+describe('server-hmr route activity', () => {
+  const { next, isTurbopack, isNextDev } = nextTestSetup({
+    files: {
+      app: new FileRef(join(__dirname, 'app')),
+      shared: new FileRef(join(__dirname, 'shared')),
+    },
+    nextConfig: {
+      onDemandEntries: {
+        maxInactiveAge: 1000,
+        pagesBufferLength: 1,
+      },
+    },
+  })
+
+  const itTurbopackDev = isTurbopack && isNextDev ? it : it.skip
+
+  itTurbopackDev(
+    'keeps a connected route active and catches it up after inactivity',
+    async () => {
+      const routeFile = 'app/(activity-group)/route-activity/page.tsx'
+      const sharedFile = 'shared/route-activity-value.ts'
+      const browser = await next.browser('/route-activity')
+
+      // Exceed both maxInactiveAge and the cleanup interval. The route remains
+      // active because the connected App Router maps the public router tree back
+      // to its route-group-prefixed entry name.
+      await new Promise((resolve) => setTimeout(resolve, 5500))
+      await next.patchFile(routeFile, (content) =>
+        content.replace('route activity page', 'active route')
+      )
+      await retry(async () => {
+        expect(
+          await browser.elementByCss('#route-activity-greeting').text()
+        ).toBe('active route: route activity initial')
+      }, 10_000)
+
+      // Move the browser to another route, then let the original route leave
+      // both the connected router tree and the one-page recent buffer. Retiring
+      // its server graph must not make a still-subscribed client chunk disappear
+      // and hard-reload the page that is currently visible.
+      await browser.loadPage(`${next.url}/dynamic-import`)
+      await browser.eval(() => {
+        Reflect.set(window, '__routeActivityNoReload', true)
+      })
+      await new Promise((resolve) => setTimeout(resolve, 5500))
+      expect(
+        await browser.eval(() => Reflect.get(window, '__routeActivityNoReload'))
+      ).toBe(true)
+
+      // The retired endpoint may depend on files outside app/. Editing one must
+      // be reflected when the route is reactivated.
+      await next.patchFile(sharedFile, (content) =>
+        content.replace('route activity initial', 'inactive route update')
+      )
+
+      // Re-entering the route must use its current output, and HMR must continue
+      // to work after its aggregate entry and endpoint subscription reactivate.
+      await browser.loadPage(`${next.url}/route-activity`)
+      await retry(async () => {
+        expect(
+          await browser.elementByCss('#route-activity-greeting').text()
+        ).toBe('active route: inactive route update')
+      }, 10_000)
+      await next.patchFile(routeFile, (content) =>
+        content.replace('active route', 'reactivated route')
+      )
+      await retry(async () => {
+        expect(
+          await browser.elementByCss('#route-activity-greeting').text()
+        ).toBe('reactivated route: inactive route update')
+      }, 10_000)
+    }
+  )
+})
+
 describe('server-hmr config opt-out', () => {
   const { next, isTurbopack, isNextDev } = nextTestSetup({
     files: {
       app: new FileRef(join(__dirname, 'app')),
+      shared: new FileRef(join(__dirname, 'shared')),
     },
     nextConfig: {
       experimental: {
@@ -653,6 +729,7 @@ describe('server-hmr CLI/config conflict warning', () => {
   const { next, isNextDev } = nextTestSetup({
     files: {
       app: new FileRef(join(__dirname, 'app')),
+      shared: new FileRef(join(__dirname, 'shared')),
     },
     nextConfig: {
       experimental: {

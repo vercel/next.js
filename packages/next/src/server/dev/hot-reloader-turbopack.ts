@@ -69,7 +69,10 @@ import {
   type SetupOpts,
 } from '../lib/router-utils/setup-dev-bundler'
 import { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loader'
-import { findPagePathData } from './on-demand-entry-handler'
+import {
+  findPagePathData,
+  getEntrypointsFromTree,
+} from './on-demand-entry-handler'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import {
   type EntryKey,
@@ -157,6 +160,8 @@ const sessionId = Math.floor(Number.MAX_SAFE_INTEGER * Math.random())
 
 /** Output directory (relative to `distDir`) of server-HMR-managed chunks. */
 const SERVER_HMR_CHUNKS_DIR = join('server', 'chunks')
+/** Virtual output directory containing the App Router's server entry chunks. */
+const SERVER_HMR_APP_DIR = 'server/app'
 
 declare const __next__clear_chunk_cache__: (() => void) | null | undefined
 
@@ -546,6 +551,14 @@ export async function createHotReloaderTurbopack(
 
   // Dev specific
   const changeSubscriptions: ChangeSubscriptions = new Map()
+  // Route endpoint subscriptions keep Turbopack's dependency graph active. Bound
+  // App Router page subscriptions to routes that are still being viewed or were
+  // accessed recently, matching the lifetime used by webpack on-demand entries.
+  const routeChangeSubscriptionLastActive = new Map<EntryKey, number>()
+  const recentRouteChangeSubscriptions: EntryKey[] = []
+  const activeRouteSubscriptionsByClient = new Map<ws, Set<EntryKey>>()
+  const inactiveRouteChangeSubscriptions = new Set<EntryKey>()
+  const routeChangeSubscriptionsNeedingCatchUp = new Set<EntryKey>()
   const serverPathState = new Map<string, string>()
   const readyIds: ReadyIds = new Set()
   let currentEntriesHandlingResolve: ((value?: unknown) => void) | undefined
@@ -946,24 +959,187 @@ export async function createHotReloaderTurbopack(
         }
       }
     } catch (e) {
-      changeSubscriptions.delete(key)
+      if (changeSubscriptions.get(key) === changedPromise) {
+        changeSubscriptions.delete(key)
+      }
       const payload = await onError?.(e as Error)
       if (payload) {
         sendHmr(key, payload)
       }
       return
     }
-    changeSubscriptions.delete(key)
+    if (changeSubscriptions.get(key) === changedPromise) {
+      changeSubscriptions.delete(key)
+    }
   }
 
   async function unsubscribeFromClientChanges(key: EntryKey) {
-    const subscription = await changeSubscriptions.get(key)
-    if (subscription) {
-      await subscription.return?.()
+    const subscriptionPromise = changeSubscriptions.get(key)
+    if (subscriptionPromise) {
+      // Remove this before awaiting so a request that reactivates the route can
+      // install its replacement without racing the old iterator's shutdown.
       changeSubscriptions.delete(key)
+      const subscription = await subscriptionPromise
+      await subscription.return?.()
     }
     currentEntryIssues.delete(key)
   }
+
+  const maxInactiveAge = nextConfig.onDemandEntries?.maxInactiveAge ?? 60 * 1000
+  const pagesBufferLength = nextConfig.onDemandEntries?.pagesBufferLength ?? 5
+  const routeChangeSubscriptionDisposals = new Map<EntryKey, Promise<void>>()
+
+  function getServerHmrEntryChunkPath(key: EntryKey): string | undefined {
+    if (!serverFastRefresh || splitEntryKey(key).type !== 'app') {
+      return
+    }
+    const writtenEndpoint = currentWrittenEntrypoints.get(key)
+    if (!writtenEndpoint || writtenEndpoint.type !== 'nodejs') {
+      return
+    }
+
+    // entryPath comes from turbo-tasks' virtual filesystem and always uses
+    // forward slashes, including on Windows.
+    const appEntryPrefix = `${SERVER_HMR_APP_DIR}/`
+    return writtenEndpoint.entryPath.startsWith(appEntryPrefix) &&
+      writtenEndpoint.entryPath.endsWith('.js')
+      ? writtenEndpoint.entryPath
+      : undefined
+  }
+
+  async function setRouteHmrChunksActive(
+    keys: Iterable<EntryKey>,
+    active: boolean
+  ) {
+    const chunkPaths = Array.from(keys, getServerHmrEntryChunkPath).filter(
+      (path): path is string => path !== undefined
+    )
+    if (chunkPaths.length > 0) {
+      await project.setHmrChunksActive(chunkPaths, HmrTarget.Server, active)
+    }
+  }
+
+  async function markRouteChangeSubscriptionActive(key: EntryKey) {
+    routeChangeSubscriptionLastActive.set(key, Date.now())
+
+    const previousIndex = recentRouteChangeSubscriptions.indexOf(key)
+    if (previousIndex !== -1) {
+      recentRouteChangeSubscriptions.splice(previousIndex, 1)
+    }
+    recentRouteChangeSubscriptions.unshift(key)
+    if (recentRouteChangeSubscriptions.length > pagesBufferLength) {
+      recentRouteChangeSubscriptions.length = pagesBufferLength
+    }
+
+    // If cleanup raced with a request for this route, let the old iterator fully
+    // stop before handleRouteType installs its replacement.
+    await routeChangeSubscriptionDisposals.get(key)
+    const wasInactive = inactiveRouteChangeSubscriptions.has(key)
+    if (wasInactive) {
+      await setRouteHmrChunksActive([key], true)
+      inactiveRouteChangeSubscriptions.delete(key)
+      routeChangeSubscriptionsNeedingCatchUp.add(key)
+    }
+    return wasInactive
+  }
+
+  function getAppPageEntryKeysFromTree(
+    tree: Parameters<typeof getEntrypointsFromTree>[0]
+  ) {
+    const activePagePaths = new Set(
+      getEntrypointsFromTree(tree, true).map((page) =>
+        normalizeAppPath(`/${page}`)
+      )
+    )
+    const activeEntryKeys = new Set<EntryKey>()
+    // FlightRouterState contains URL segments, so route groups and parallel
+    // slots are absent. Map those public paths back to the original App entry
+    // names used by ensurePage and the endpoint subscription map.
+    for (const [name, route] of currentEntrypoints.app) {
+      if (
+        route.type === 'app-page' &&
+        activePagePaths.has(normalizeAppPath(name))
+      ) {
+        activeEntryKeys.add(getEntryKey('app', 'server', name))
+      }
+    }
+    return activeEntryKeys
+  }
+
+  async function disposeRouteChangeSubscriptions(keys: EntryKey[]) {
+    for (const key of keys) {
+      inactiveRouteChangeSubscriptions.add(key)
+    }
+
+    const disposal = (async () => {
+      // Removing the aggregate HMR dependency first prevents the endpoint
+      // iterator shutdown from waking a full all-routes scan. Keep the inactive
+      // marker if either step fails: the next request can safely retry an
+      // idempotent reactivation, while clearing it could leave a retired graph
+      // incorrectly recorded as active.
+      await setRouteHmrChunksActive(keys, false)
+      await Promise.all(keys.map(unsubscribeFromClientChanges))
+    })()
+    for (const key of keys) {
+      routeChangeSubscriptionDisposals.set(key, disposal)
+    }
+
+    try {
+      await disposal
+    } finally {
+      for (const key of keys) {
+        if (routeChangeSubscriptionDisposals.get(key) === disposal) {
+          routeChangeSubscriptionDisposals.delete(key)
+        }
+      }
+    }
+  }
+
+  const routeSubscriptionPingInterval = Math.max(
+    1000,
+    Math.min(5000, maxInactiveAge)
+  )
+  let disposingInactiveRouteSubscriptions = false
+  async function disposeInactiveRouteSubscriptions() {
+    if (disposingInactiveRouteSubscriptions) return
+    disposingInactiveRouteSubscriptions = true
+    try {
+      const activeRouteSubscriptions = new Set<EntryKey>()
+      for (const clientSubscriptions of activeRouteSubscriptionsByClient.values()) {
+        for (const key of clientSubscriptions) {
+          activeRouteSubscriptions.add(key)
+        }
+      }
+
+      const now = Date.now()
+      const keysToDispose: EntryKey[] = []
+      for (const [key, lastActiveTime] of routeChangeSubscriptionLastActive) {
+        if (
+          getServerHmrEntryChunkPath(key) === undefined ||
+          inactiveRouteChangeSubscriptions.has(key) ||
+          activeRouteSubscriptions.has(key) ||
+          recentRouteChangeSubscriptions.includes(key) ||
+          now - lastActiveTime <= maxInactiveAge
+        ) {
+          continue
+        }
+        keysToDispose.push(key)
+      }
+      if (keysToDispose.length > 0) {
+        await disposeRouteChangeSubscriptions(keysToDispose)
+      }
+    } finally {
+      disposingInactiveRouteSubscriptions = false
+    }
+  }
+
+  const disposeInactiveRouteSubscriptionsInterval = setInterval(() => {
+    void disposeInactiveRouteSubscriptions().catch(console.error)
+  }, routeSubscriptionPingInterval + 1000)
+  disposeInactiveRouteSubscriptionsInterval.unref()
+  opts.onDevServerCleanup?.(async () => {
+    clearInterval(disposeInactiveRouteSubscriptionsInterval)
+  })
 
   async function subscribeToClientHmrEvents(client: ws, id: string) {
     const key = getEntryKey('assets', 'client', id)
@@ -1432,6 +1608,7 @@ export async function createHotReloaderTurbopack(
             subscription.return?.()
           }
           clientStates.delete(client)
+          activeRouteSubscriptionsByClient.delete(client)
 
           if (htmlRequestId) {
             clientsByHtmlRequestId.delete(htmlRequestId)
@@ -1512,8 +1689,27 @@ export async function createHotReloaderTurbopack(
               break
             }
             case 'ping': {
-              // Handle ping events to keep WebSocket connections alive
-              // No-op - just acknowledge the ping
+              if (parsedData.appDirRoute && parsedData.tree) {
+                const activeEntryKeys = getAppPageEntryKeysFromTree(
+                  parsedData.tree
+                )
+                activeRouteSubscriptionsByClient.set(client, activeEntryKeys)
+                const reactivated = await Promise.all(
+                  Array.from(activeEntryKeys, (key) =>
+                    routeChangeSubscriptionLastActive.has(key)
+                      ? markRouteChangeSubscriptionActive(key)
+                      : undefined
+                  )
+                )
+                if (reactivated.some(Boolean)) {
+                  // A cached client navigation can update its router tree without
+                  // an RSC request. Refresh that client so ensurePage writes and
+                  // reconnects every output operation that was retired.
+                  sendToClient(client, {
+                    type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+                  })
+                }
+              }
               break
             }
 
@@ -1927,7 +2123,30 @@ export async function createHotReloaderTurbopack(
           }
 
           const finishBuilding = startBuilding(pathname, requestUrl, false)
+          let reactivatedRouteChangeSubscription = false
+          let routeChangeSubscriptionEntryKey: EntryKey | undefined
           try {
+            if (
+              serverFastRefresh &&
+              subscribeToChanges &&
+              route.type === 'app-page'
+            ) {
+              routeChangeSubscriptionEntryKey = getEntryKey(
+                'app',
+                'server',
+                page
+              )
+              await markRouteChangeSubscriptionActive(
+                routeChangeSubscriptionEntryKey
+              )
+              reactivatedRouteChangeSubscription =
+                routeChangeSubscriptionsNeedingCatchUp.has(
+                  routeChangeSubscriptionEntryKey
+                )
+              if (reactivatedRouteChangeSubscription) {
+                await route.htmlEndpoint.invalidateOutput()
+              }
+            }
             await handleRouteType({
               dev,
               page,
@@ -1951,13 +2170,35 @@ export async function createHotReloaderTurbopack(
                 handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                   currentWrittenEntrypoints.set(id, result)
                   assetMapper.setPathsForKey(id, result.clientPaths)
-                  return clearRequireCache(id, result, {
+                  const didChange = clearRequireCache(id, result, {
                     force: forceDeleteCache,
                   })
+                  if (
+                    didChange &&
+                    reactivatedRouteChangeSubscription &&
+                    !forceDeleteCache
+                  ) {
+                    // This route missed in-place server HMR while its graph was
+                    // disconnected. Only reload its runtime module cache when
+                    // Turbopack reports that the server output actually changed.
+                    clearRequireCache(id, result, { force: true })
+                  }
+                  // While this route was inactive there was no subscription to
+                  // advance the dev cache version. Do it when the route is next
+                  // requested and Turbopack reports changed server output.
+                  if (didChange && reactivatedRouteChangeSubscription) {
+                    hmrHash++
+                  }
+                  return didChange
                 },
                 serverFastRefresh,
               },
             })
+            if (routeChangeSubscriptionEntryKey) {
+              routeChangeSubscriptionsNeedingCatchUp.delete(
+                routeChangeSubscriptionEntryKey
+              )
+            }
           } finally {
             finishBuilding()
             // Remove non-deferred entry from building set
@@ -1980,6 +2221,9 @@ export async function createHotReloaderTurbopack(
       }
       clientsWithoutHtmlRequestId.clear()
       clientsByHtmlRequestId.clear()
+      activeRouteSubscriptionsByClient.clear()
+      routeChangeSubscriptionsNeedingCatchUp.clear()
+      clearInterval(disposeInactiveRouteSubscriptionsInterval)
     },
   }
 

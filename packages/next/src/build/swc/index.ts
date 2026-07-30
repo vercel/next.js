@@ -772,6 +772,19 @@ function bindingToApi(
       )
     }
 
+    setHmrChunksActive(
+      chunkNames: string[],
+      target: HmrTarget.Server,
+      active: boolean
+    ): Promise<void> {
+      return binding.projectSetHmrChunksActive(
+        this._nativeProject,
+        chunkNames,
+        target,
+        active
+      )
+    }
+
     hmrEvents(
       chunkName: string,
       target: HmrTarget.Client
@@ -878,6 +891,10 @@ function bindingToApi(
       return (await binding.endpointWriteToDisk(
         this._nativeEndpoint
       )) as TurbopackResult<WrittenEndpoint>
+    }
+
+    invalidateOutput(): Promise<void> {
+      return binding.endpointInvalidateOutput(this._nativeEndpoint)
     }
 
     async clientChanged(): Promise<AsyncIterableIterator<TurbopackResult>> {

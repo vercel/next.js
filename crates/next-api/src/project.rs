@@ -505,6 +505,21 @@ fn output_fs_operation(project: ResolvedVc<Project>) -> Vc<DiskFileSystem> {
     project.project_fs()
 }
 
+#[turbo_tasks::function(operation, root)]
+fn project_hmr_root_path_operation(
+    project: ResolvedVc<Project>,
+    target: HmrTarget,
+) -> Vc<FileSystemPath> {
+    project.hmr_root_path(target)
+}
+
+#[turbo_tasks::function(operation, root)]
+fn versioned_content_map_operation(
+    map: ResolvedVc<VersionedContentMap>,
+) -> Vc<VersionedContentMap> {
+    *map
+}
+
 enum EnvDiffType {
     Added,
     Removed,
@@ -795,6 +810,37 @@ impl ProjectContainer {
         }
         .instrument(span_clone)
         .await
+    }
+
+    /// Adds or removes output entry chunks from the aggregate HMR working set.
+    /// This method is intentionally not a `turbo_tasks::function`: route activity
+    /// can toggle repeatedly with the same arguments during one dev session.
+    pub async fn set_hmr_chunks_active(
+        self: ResolvedVc<Self>,
+        chunk_names: Vec<RcStr>,
+        target: HmrTarget,
+        active: bool,
+    ) -> Result<()> {
+        let project_op = project_operation(self);
+        let project = project_op.resolve().strongly_consistent().await?;
+        let project_ref = project_op.read_strongly_consistent().await?;
+        let Some(map) = project_ref.versioned_content_map else {
+            bail!("must be in dev mode to configure hmr chunks")
+        };
+        let root = project_hmr_root_path_operation(project, target)
+            .read_strongly_consistent()
+            .await?;
+        let paths = chunk_names
+            .into_iter()
+            .map(|chunk_name| root.join(&chunk_name))
+            .collect::<Result<Vec<_>>>()?;
+
+        versioned_content_map_operation(map)
+            .read_strongly_consistent()
+            .await?
+            .set_hmr_chunks_active(paths, active)
+            .await?;
+        Ok(())
     }
 }
 
@@ -2640,15 +2686,20 @@ impl Project {
             bail!("must be in dev mode to hmr")
         };
         let root = self.aggregate_hmr_root_path(target).owned().await?;
-        let chunks_versioned_content = map.hmr_chunks_in_path(&root).await?;
+        let chunk_snapshot = map.hmr_chunks_in_path(&root).await?;
 
         // No chunks to diff yet (e.g. before any endpoints have been written).
-        if chunks_versioned_content.is_empty() {
+        if chunk_snapshot.active.is_empty() {
             return Ok(Update::None.cell());
         }
 
         // Build `to` up front so we can return it on every escape hatch below.
-        let to_aggregate = AggregateHmrVersion::from_chunks(&chunks_versioned_content).await?;
+        let to_aggregate = AggregateHmrVersion::from_chunks_with_previous(
+            &chunk_snapshot.active,
+            &chunk_snapshot.inactive_paths,
+            from,
+        )
+        .await?;
         let to_ref = Vc::upcast::<Box<dyn Version>>(to_aggregate)
             .into_trait_ref()
             .await?;
@@ -2656,7 +2707,7 @@ impl Project {
         let DiffResult {
             chunk_updates,
             has_new_chunks,
-        } = diff_chunks_against(&chunks_versioned_content, from).await?;
+        } = diff_chunks_against(&chunk_snapshot.active, from).await?;
 
         // Nothing to apply, but `from` still needs to advance to `to`. Reaching
         // here means `from` held a version we couldn't diff against (it wasn't an

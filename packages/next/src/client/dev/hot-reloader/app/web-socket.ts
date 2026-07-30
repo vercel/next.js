@@ -215,14 +215,10 @@ export function useWebSocketPing(webSocket: WebSocket | undefined) {
       throw new InvariantError('Expected webSocket to be defined in dev mode.')
     }
 
-    // Never send pings when using Turbopack as it's not used.
-    // Pings were originally used to keep track of active routes in on-demand-entries with webpack.
-    if (process.env.TURBOPACK) {
-      return
-    }
-
-    // Taken from on-demand-entries-client.js
-    const interval = setInterval(() => {
+    // Taken from on-demand-entries-client.js. Send immediately after the socket
+    // opens as well: a short maxInactiveAge must not expire the route before the
+    // first interval tick records the connected router tree.
+    const sendPing = () => {
       if (webSocket.readyState === webSocket.OPEN) {
         webSocket.send(
           JSON.stringify({
@@ -232,8 +228,14 @@ export function useWebSocketPing(webSocket: WebSocket | undefined) {
           })
         )
       }
-    }, 2500)
-    return () => clearInterval(interval)
+    }
+    webSocket.addEventListener('open', sendPing, { once: true })
+    sendPing()
+    const interval = setInterval(sendPing, 2500)
+    return () => {
+      webSocket.removeEventListener('open', sendPing)
+      clearInterval(interval)
+    }
   }, [tree, webSocket])
 }
 

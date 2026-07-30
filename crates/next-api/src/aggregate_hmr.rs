@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TraitRef, TryJoinIterExt, Vc};
 use turbo_tasks_fs::FileSystemPath;
@@ -70,12 +70,54 @@ impl AggregateHmrVersion {
     ) -> Result<Vc<Box<dyn Version>>> {
         // An empty `versions` map behaves the same as `NotFoundVersion` would in
         // `diff_chunks_against`, so no special case is needed here.
-        let chunks = map.hmr_chunks_in_path(root).await?;
-        Ok(Vc::upcast(Self::from_chunks(&chunks).await?))
+        let snapshot = map.hmr_chunks_in_path(root).await?;
+        Ok(Vc::upcast(Self::from_chunks(&snapshot.active).await?))
     }
 
     pub async fn from_chunks(chunks: &[HmrChunkWithContent]) -> Result<Vc<Self>> {
-        let versions = chunks
+        let versions = Self::versions_from_chunks(chunks)
+            .await?
+            .into_iter()
+            .collect();
+        Ok(Self { versions }.cell())
+    }
+
+    /// Builds the next aggregate version while retaining the last version of
+    /// chunks outside the current working set. Inactive entries therefore do
+    /// not need to be evaluated on every update, but can still be diffed against
+    /// their last active version when they re-enter the working set.
+    pub async fn from_chunks_with_previous(
+        chunks: &[HmrChunkWithContent],
+        inactive_paths: &FxHashSet<RcStr>,
+        previous: Vc<VersionState>,
+    ) -> Result<Vc<Self>> {
+        let mut versions = Self::versions_from_chunks(chunks).await?;
+
+        let previous = previous.get().to_resolved().await?;
+        if let Some(previous) = ResolvedVc::try_downcast_type::<AggregateHmrVersion>(previous) {
+            versions.extend(
+                previous
+                    .await?
+                    .versions
+                    .iter()
+                    .filter(|(path, _)| inactive_paths.contains(*path))
+                    .map(|(path, version)| (path.clone(), version.clone())),
+            );
+        }
+
+        // Aggregate version IDs depend on iteration order. Keep the union sorted
+        // so merely activating or deactivating an unchanged entry is a no-op.
+        versions.sort_by(|(a, _), (b, _)| a.cmp(b));
+        Ok(Self {
+            versions: versions.into_iter().collect(),
+        }
+        .cell())
+    }
+
+    async fn versions_from_chunks(
+        chunks: &[HmrChunkWithContent],
+    ) -> Result<Vec<(RcStr, TraitRef<Box<dyn Version>>)>> {
+        let mut versions = chunks
             .iter()
             .map(|HmrChunkWithContent { path, content }| {
                 let path = path.clone();
@@ -86,10 +128,9 @@ impl AggregateHmrVersion {
                 }
             })
             .try_join()
-            .await?
-            .into_iter()
-            .collect();
-        Ok(Self { versions }.cell())
+            .await?;
+        versions.sort_by(|(a, _), (b, _)| a.cmp(b));
+        Ok(versions)
     }
 }
 
