@@ -45,7 +45,11 @@
 
 import type { DynamicParamTypesShort } from '../../../shared/lib/app-router-types'
 import { PrefetchHint } from '../../../shared/lib/app-router-types'
-import type { RouteTree, FulfilledRouteCacheEntry } from './cache'
+import type {
+  RouteTree,
+  RSCSegmentData,
+  FulfilledRouteCacheEntry,
+} from './cache'
 import {
   EntryStatus,
   writeRouteIntoCache,
@@ -206,7 +210,7 @@ export function discoverKnownRoute(
   search: NormalizedSearch,
   nextUrl: string | null,
   pendingEntry: PendingRouteCacheEntry | null,
-  routeTree: RouteTree,
+  routeTree: RouteTree<RSCSegmentData | null>,
   metadataVaryPath: PageVaryPath,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
@@ -287,7 +291,7 @@ function handleMismatchDueToRewrite(
   pathname: string,
   search: NormalizedSearch,
   nextUrl: string | null,
-  fullTree: RouteTree,
+  fullTree: RouteTree<RSCSegmentData | null>,
   metadataVaryPath: PageVaryPath,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
@@ -348,7 +352,7 @@ function discoverDynamicChild(
  */
 function discoverKnownRoutePart(
   parentKnownRoutePart: KnownRoutePart,
-  routeTree: RouteTree,
+  routeTree: RouteTree<RSCSegmentData | null>,
   pathnameParts: readonly string[],
   partIndex: number,
   existingEntry: FulfilledRouteCacheEntry | null,
@@ -357,7 +361,7 @@ function discoverKnownRoutePart(
   pathname: string,
   search: NormalizedSearch,
   nextUrl: string | null,
-  fullTree: RouteTree,
+  fullTree: RouteTree<RSCSegmentData | null>,
   metadataVaryPath: PageVaryPath,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
@@ -886,12 +890,12 @@ type ReifyAccumulator = {
  * produces a tree where segment [slug] has cacheKey "hello".
  */
 function reifyRouteTree(
-  pattern: RouteTree,
+  pattern: RouteTree<null>,
   resolvedParams: ResolvedParams,
   search: NormalizedSearch,
   parentPartialVaryPath: PartialSegmentVaryPath | null,
   acc: ReifyAccumulator
-): RouteTree {
+): RouteTree<null> {
   const originalSegment = pattern.segment
 
   // This segment's param (if any) is a root param iff the segment is at or
@@ -930,7 +934,7 @@ function reifyRouteTree(
   }
 
   // Recurse into children with the (possibly updated) partial vary path
-  let newSlots: Map<string, RouteTree> | null = null
+  let newSlots: Map<string, RouteTree<null>> | null = null
   const patternSlots = pattern.slots
   if (patternSlots !== null) {
     newSlots = new Map()
@@ -968,6 +972,9 @@ function reifyRouteTree(
       segment: newSegment,
       shellVaryPath: getShellSegmentVaryPath(newVaryPath),
       refreshState: pattern.refreshState,
+      // Route cache patterns never carry seed data (see
+      // stripDataFromRouteTree), so neither do trees reified from them.
+      data: null,
       varyPath: newVaryPath,
       isPage: true,
       slots: newSlots,
@@ -984,6 +991,7 @@ function reifyRouteTree(
       segment: newSegment,
       shellVaryPath: getShellSegmentVaryPath(newVaryPath),
       refreshState: pattern.refreshState,
+      data: null,
       varyPath: newVaryPath,
       isPage: false,
       slots: newSlots,

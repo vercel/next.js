@@ -85,6 +85,10 @@ export function createInitialRouterState({
   const acc = { metadataVaryPath: null }
   const initialRouteTree = convertRootFlightRouterStateToRouteTree(
     initialTree,
+    // Embed the initial payload's seed data directly into the RouteTree.
+    // (discoverKnownRoute below stores this tree in the route cache, which
+    // strips the data on write — see stripDataFromRouteTree.)
+    initialSeedData,
     initialRenderedSearch as NormalizedSearch,
     acc
   )
@@ -92,7 +96,6 @@ export function createInitialRouterState({
   const initialTask = createInitialCacheNodeForHydration(
     navigatedAt,
     initialRouteTree,
-    initialSeedData,
     initialHead,
     computeDynamicStaleAt(
       navigatedAt,
