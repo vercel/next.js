@@ -1,6 +1,8 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
-;(isNextDev ? describe.skip : describe)('html-limited-bots-ppr', () => {
+const describeCacheComponents = isNextDev ? describe.skip : describe
+
+describeCacheComponents('metadata streaming with a custom bot list', () => {
   const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
@@ -25,7 +27,7 @@ import cheerio from 'cheerio'
     expect($('#dynamic-fallback').length).toBe(0)
   })
 
-  it('should serve the partially prerendered shell with streamed metadata to regular user agents', async () => {
+  it('should serve the PPR shell with streamed metadata to regular user agents', async () => {
     const res = await next.fetch('/partial')
 
     expect(res.status).toBe(200)

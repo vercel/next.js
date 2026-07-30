@@ -1,6 +1,6 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
 ;(isNextDev ? describe.skip : describe)(
-  'html-limited-bots-ppr with a wildcard bot list',
+  'metadata streaming with Cache Components and a wildcard bot list',
   () => {
     const { next, isNextDeploy } = nextTestSetup({
       files: __dirname,
