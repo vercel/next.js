@@ -3290,7 +3290,6 @@ async function renderToStream(
     page,
     reactMaxHeadersLength,
     setReactDebugChannel,
-    shouldWaitOnAllReady,
     subresourceIntegrityManifest,
     supportsDynamicResponse,
     cacheComponents,
@@ -3887,8 +3886,7 @@ async function renderToStream(
           tracingMetadata: tracingMetadata,
         })
 
-        const generateStaticHTML =
-          supportsDynamicResponse !== true || !!shouldWaitOnAllReady
+        const generateStaticHTML = supportsDynamicResponse !== true
 
         const appElement = (
           <App
@@ -4031,8 +4029,7 @@ async function renderToStream(
           tracingMetadata: tracingMetadata,
         })
 
-        const generateStaticHTML =
-          supportsDynamicResponse !== true || !!shouldWaitOnAllReady
+        const generateStaticHTML = supportsDynamicResponse !== true
 
         const appElement = (
           <App
@@ -4209,8 +4206,7 @@ async function renderToStream(
         }
 
         try {
-          const generateStaticHTML =
-            supportsDynamicResponse !== true || !!shouldWaitOnAllReady
+          const generateStaticHTML = supportsDynamicResponse !== true
 
           const { stream: errorHtmlStream, allReady: errorAllReady } =
             await workUnitAsyncStorage.run(
@@ -4308,8 +4304,7 @@ async function renderToStream(
         }
 
         try {
-          const generateStaticHTML =
-            supportsDynamicResponse !== true || !!shouldWaitOnAllReady
+          const generateStaticHTML = supportsDynamicResponse !== true
 
           const { stream: errorHtmlStream, allReady: errorAllReady } =
             await workUnitAsyncStorage.run(
