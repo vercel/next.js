@@ -473,6 +473,10 @@ export const experimentalSchema = {
   deferredEntries: z.array(z.string()).optional(),
   onBeforeDeferredEntries: z.function().returns(z.promise(z.void())).optional(),
   reportSystemEnvInlining: z.enum(['warn', 'error']).optional(),
+  beforeDevRequest: z
+    .function()
+    .returns(z.union([z.void(), z.promise(z.void())]))
+    .optional(),
 }
 
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>

@@ -18,6 +18,7 @@ import type { MemoryEvictionMode } from '../build/swc/types'
 import type { CacheLife } from './use-cache/cache-life'
 import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import { isCI } from './ci-info'
+import type { IncomingMessage, ServerResponse } from 'http'
 
 /**
  * The `cacheLife` profiles after config normalization. `config.ts` always
@@ -1408,6 +1409,15 @@ export interface ExperimentalConfig {
    * Only supported for Turbopack.
    */
   reportSystemEnvInlining?: 'error' | 'warn'
+
+  /**
+   * Intercept requests in development before they are processed by Next.js. This executes just
+   * before any proxy.ts handler, so has the same semantics.
+   */
+  beforeDevRequest?(
+    req: IncomingMessage,
+    res: ServerResponse
+  ): Promise<void> | void
 }
 
 export type ExportPathMap = {

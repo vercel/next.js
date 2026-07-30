@@ -56,7 +56,11 @@ export function getResolveRoutes(
   opts: Parameters<typeof initialize>[0],
   renderServer: RenderServer,
   renderServerOpts: Parameters<RenderServer['initialize']>[0],
-  ensureMiddleware?: (url?: string) => Promise<void>
+  ensureMiddleware?: (url?: string) => Promise<void>,
+  beforeDevRequest?: (
+    req: IncomingMessage,
+    res: ServerResponse
+  ) => Promise<void> | void
 ) {
   let clientHashes: Record<string, string> | undefined = undefined
   if (process.env.__NEXT_TEST_MODE && process.env.IS_TURBOPACK_TEST) {
@@ -551,6 +555,17 @@ export function getResolveRoutes(
                 finished: true,
                 matchedOutput,
               }
+            }
+          }
+        }
+
+        if (beforeDevRequest && route.name === 'middleware') {
+          await beforeDevRequest(req, res)
+          if (res.closed || res.finished) {
+            return {
+              parsedUrl,
+              resHeaders,
+              finished: true,
             }
           }
         }
