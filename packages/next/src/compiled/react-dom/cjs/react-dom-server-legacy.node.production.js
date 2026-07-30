@@ -52,6 +52,7 @@ var React = require("next/dist/compiled/react"),
   REACT_LEGACY_HIDDEN_TYPE = Symbol.for("react.legacy_hidden"),
   REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
   REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
+  REACT_RECOVERABLE_TYPE = Symbol.for("react.recoverable"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 function getIteratorFn(maybeIterable) {
   if (null === maybeIterable || "object" !== typeof maybeIterable) return null;
@@ -2818,16 +2819,16 @@ function createRenderState(resumableState, generateStaticMarkup) {
       "\x3c/script>"
     ));
   bootstrapScriptContent = idPrefix + "P:";
-  var JSCompiler_object_inline_segmentPrefix_1712 = idPrefix + "S:";
+  var JSCompiler_object_inline_segmentPrefix_1720 = idPrefix + "S:";
   idPrefix += "B:";
-  var JSCompiler_object_inline_preconnects_1726 = new Set(),
-    JSCompiler_object_inline_fontPreloads_1727 = new Set(),
-    JSCompiler_object_inline_highImagePreloads_1728 = new Set(),
-    JSCompiler_object_inline_styles_1729 = new Map(),
-    JSCompiler_object_inline_bootstrapScripts_1730 = new Set(),
-    JSCompiler_object_inline_scripts_1731 = new Set(),
-    JSCompiler_object_inline_bulkPreloads_1732 = new Set(),
-    JSCompiler_object_inline_preloads_1733 = {
+  var JSCompiler_object_inline_preconnects_1734 = new Set(),
+    JSCompiler_object_inline_fontPreloads_1735 = new Set(),
+    JSCompiler_object_inline_highImagePreloads_1736 = new Set(),
+    JSCompiler_object_inline_styles_1737 = new Map(),
+    JSCompiler_object_inline_bootstrapScripts_1738 = new Set(),
+    JSCompiler_object_inline_scripts_1739 = new Set(),
+    JSCompiler_object_inline_bulkPreloads_1740 = new Set(),
+    JSCompiler_object_inline_preloads_1741 = {
       images: new Map(),
       stylesheets: new Map(),
       scripts: new Map(),
@@ -2864,7 +2865,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
       scriptConfig.moduleScriptResources[href] = null;
       scriptConfig = [];
       pushLinkImpl(scriptConfig, props);
-      JSCompiler_object_inline_bootstrapScripts_1730.add(scriptConfig);
+      JSCompiler_object_inline_bootstrapScripts_1738.add(scriptConfig);
       bootstrapChunks.push('<script src="', escapeTextForBrowser(src), '"');
       "string" === typeof integrity &&
         bootstrapChunks.push(
@@ -2911,7 +2912,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
         (props.moduleScriptResources[scriptConfig] = null),
         (props = []),
         pushLinkImpl(props, integrity),
-        JSCompiler_object_inline_bootstrapScripts_1730.add(props),
+        JSCompiler_object_inline_bootstrapScripts_1738.add(props),
         bootstrapChunks.push(
           '<script type="module" src="',
           escapeTextForBrowser(i),
@@ -2933,7 +2934,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
         bootstrapChunks.push(' async="">\x3c/script>');
   return {
     placeholderPrefix: bootstrapScriptContent,
-    segmentPrefix: JSCompiler_object_inline_segmentPrefix_1712,
+    segmentPrefix: JSCompiler_object_inline_segmentPrefix_1720,
     boundaryPrefix: idPrefix,
     startInlineScript: "<script",
     startInlineStyle: "<style",
@@ -2953,14 +2954,14 @@ function createRenderState(resumableState, generateStaticMarkup) {
     charsetChunks: [],
     viewportChunks: [],
     hoistableChunks: [],
-    preconnects: JSCompiler_object_inline_preconnects_1726,
-    fontPreloads: JSCompiler_object_inline_fontPreloads_1727,
-    highImagePreloads: JSCompiler_object_inline_highImagePreloads_1728,
-    styles: JSCompiler_object_inline_styles_1729,
-    bootstrapScripts: JSCompiler_object_inline_bootstrapScripts_1730,
-    scripts: JSCompiler_object_inline_scripts_1731,
-    bulkPreloads: JSCompiler_object_inline_bulkPreloads_1732,
-    preloads: JSCompiler_object_inline_preloads_1733,
+    preconnects: JSCompiler_object_inline_preconnects_1734,
+    fontPreloads: JSCompiler_object_inline_fontPreloads_1735,
+    highImagePreloads: JSCompiler_object_inline_highImagePreloads_1736,
+    styles: JSCompiler_object_inline_styles_1737,
+    bootstrapScripts: JSCompiler_object_inline_bootstrapScripts_1738,
+    scripts: JSCompiler_object_inline_scripts_1739,
+    bulkPreloads: JSCompiler_object_inline_bulkPreloads_1740,
+    preloads: JSCompiler_object_inline_preloads_1741,
     nonce: { script: void 0, style: void 0 },
     stylesToHoist: !1,
     generateStaticMarkup: generateStaticMarkup
@@ -3234,7 +3235,17 @@ var objectIs = "function" === typeof Object.is ? Object.is : is,
   actionStateMatchingIndex = -1,
   thenableIndexCounter = 0,
   thenableState = null,
-  renderPhaseUpdates = null,
+  RecoverableException = Error(
+    "Recoverable Exception: This is not a real error! It's an implementation detail of `use` to interrupt the current render so a downstream renderer can recover it. You must either rethrow it immediately, or move the `use` call outside of the `try/catch` block. Capturing without rethrowing will lead to unexpected behavior."
+  ),
+  suspendedRecoverableError = null;
+function createFatalRecoverableError(recoverable) {
+  return Error(
+    "The server render could not complete because client rendering was requested outside a Suspense boundary. See this error's cause for additional details.",
+    { cause: recoverable }
+  );
+}
+var renderPhaseUpdates = null,
   numberOfReRenders = 0;
 function resolveCurrentlyRenderingComponent() {
   if (null === currentlyRenderingComponent)
@@ -3447,6 +3458,11 @@ var HooksDispatcher = {
     use: function (usable) {
       if (null !== usable && "object" === typeof usable) {
         if ("function" === typeof usable.then) return unwrapThenable(usable);
+        if (usable.$$typeof === REACT_RECOVERABLE_TYPE)
+          throw (
+            ((suspendedRecoverableError = createFatalRecoverableError(usable)),
+            RecoverableException)
+          );
         if (usable.$$typeof === REACT_CONTEXT_TYPE)
           return usable._currentValue2;
       }
@@ -4107,9 +4123,12 @@ function getThrownInfo(node$jscomp$0) {
   return errorInfo;
 }
 function logRecoverableError(request, error, errorInfo) {
+  if (error === RecoverableException)
+    return (suspendedRecoverableError = null), "";
   request = request.onError;
   error = request(error, errorInfo);
-  if (null == error || "string" === typeof error) return error;
+  if (null == error || "string" === typeof error)
+    return "" === error ? void 0 : error;
 }
 function fatalError(request, error) {
   var onShellError = request.onShellError,
@@ -5736,19 +5755,31 @@ function finishAbortedTask(task, request, error) {
     var boundary = task.blockedBoundary,
       segment = task.blockedSegment;
     if (null === segment || 3 === segment.status) {
-      var errorInfo = getThrownInfo(task.componentStack);
+      var errorInfo = getThrownInfo(task.componentStack),
+        isRecoverableAbort =
+          "object" === typeof error &&
+          null !== error &&
+          error.$$typeof === REACT_RECOVERABLE_TYPE;
       if (null === boundary) {
         boundary = task.replay;
         if (null === boundary) {
-          null !== request.trackedPostpones && null !== segment
-            ? ((boundary = request.trackedPostpones),
+          isRecoverableAbort ||
+          null === request.trackedPostpones ||
+          null === segment
+            ? isRecoverableAbort
+              ? ((task = createFatalRecoverableError(error)),
+                logRecoverableError(request, task, errorInfo),
+                12 !== request.status &&
+                  13 !== request.status &&
+                  fatalError(request, task))
+              : (logRecoverableError(request, error, errorInfo),
+                12 !== request.status &&
+                  13 !== request.status &&
+                  fatalError(request, error))
+            : ((boundary = request.trackedPostpones),
               logRecoverableError(request, error, errorInfo),
               trackPostpone(request, boundary, task, segment),
-              finishedTask(request, null, task.row, segment))
-            : (logRecoverableError(request, error, errorInfo),
-              12 !== request.status &&
-                13 !== request.status &&
-                fatalError(request, error));
+              finishedTask(request, null, task.row, segment));
           return;
         }
         12 !== request.status &&
@@ -5756,21 +5787,28 @@ function finishAbortedTask(task, request, error) {
           (boundary.pendingTasks--,
           0 === boundary.pendingTasks &&
             0 < boundary.nodes.length &&
-            ((segment = logRecoverableError(request, error, errorInfo)),
+            (isRecoverableAbort
+              ? ((errorInfo = ""), (segment = RecoverableException))
+              : ((errorInfo = logRecoverableError(request, error, errorInfo)),
+                (segment = error)),
             abortRemainingReplayNodes(
               request,
               null,
               boundary.nodes,
               boundary.slots,
-              error,
-              segment
+              segment,
+              errorInfo
             )),
           request.pendingRootTasks--,
           0 === request.pendingRootTasks && completeShell(request));
       } else {
         var trackedPostpones$64 = request.trackedPostpones;
         if (4 !== boundary.status) {
-          if (null !== trackedPostpones$64 && null !== segment)
+          if (
+            !isRecoverableAbort &&
+            null !== trackedPostpones$64 &&
+            null !== segment
+          )
             return (
               logRecoverableError(request, error, errorInfo),
               trackPostpone(request, trackedPostpones$64, task, segment),
@@ -5781,18 +5819,19 @@ function finishAbortedTask(task, request, error) {
               finishedTask(request, boundary, task.row, segment)
             );
           boundary.status = 4;
-          segment = logRecoverableError(request, error, errorInfo);
-          boundary.status = 4;
-          boundary.errorDigest = segment;
+          errorInfo = isRecoverableAbort
+            ? ""
+            : logRecoverableError(request, error, errorInfo);
+          boundary.errorDigest = errorInfo;
           untrackBoundary(request, boundary);
           boundary.parentFlushed &&
             request.clientRenderedBoundaries.push(boundary);
         }
         boundary.pendingTasks--;
-        segment = boundary.row;
-        null !== segment &&
-          0 === --segment.pendingTasks &&
-          finishSuspenseListRow(request, segment);
+        errorInfo = boundary.row;
+        null !== errorInfo &&
+          0 === --errorInfo.pendingTasks &&
+          finishSuspenseListRow(request, errorInfo);
         boundary.fallbackAbortableTasks.forEach(function (fallbackTask) {
           return finishAbortedTask(fallbackTask, request, error);
         });
@@ -6180,13 +6219,30 @@ function performWork(request$jscomp$1) {
                   0 === --row.pendingTasks &&
                   finishSuspenseListRow(request, row);
                 request.allPendingTasks--;
-                var errorDigest$jscomp$0 = logRecoverableError(
-                  request,
-                  x$jscomp$0,
-                  errorInfo$jscomp$0
-                );
-                if (null === boundary$jscomp$0) fatalError(request, x$jscomp$0);
+                if (null === boundary$jscomp$0)
+                  if (x$jscomp$0 === RecoverableException) {
+                    if (null === suspendedRecoverableError)
+                      throw Error(
+                        "Expected a suspended recoverable. This is a bug in React. Please file an issue."
+                      );
+                    request$jscomp$0 = suspendedRecoverableError;
+                    suspendedRecoverableError = null;
+                    var useError = request$jscomp$0;
+                    logRecoverableError(request, useError, errorInfo$jscomp$0);
+                    fatalError(request, useError);
+                  } else
+                    logRecoverableError(
+                      request,
+                      x$jscomp$0,
+                      errorInfo$jscomp$0
+                    ),
+                      fatalError(request, x$jscomp$0);
                 else {
+                  var errorDigest$jscomp$0 = logRecoverableError(
+                    request,
+                    x$jscomp$0,
+                    errorInfo$jscomp$0
+                  );
                   boundary$jscomp$0.pendingTasks--;
                   if (4 !== boundary$jscomp$0.status) {
                     boundary$jscomp$0.status = 4;
@@ -6362,7 +6418,7 @@ function flushSegment(request, destination, segment, hoistableState) {
       ((boundary = boundary.errorDigest),
       destination.push("\x3c!--$!--\x3e"),
       destination.push("<template"),
-      boundary &&
+      null != boundary &&
         (destination.push(' data-dgst="'),
         (boundary = escapeTextForBrowser(boundary)),
         destination.push(boundary),
@@ -6473,7 +6529,7 @@ function flushCompletedBoundary(request, destination, boundary) {
     ? (0 === (completedSegments.instructions & 4) &&
         ((completedSegments.instructions |= 4),
         destination.push(
-          '$RX=function(b,c,d,e,f){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),f&&(a.cstck=f),b._reactRetry&&b._reactRetry())};'
+          '$RX=function(b,c,d,e,f){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,null!=c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),f&&(a.cstck=f),b._reactRetry&&b._reactRetry())};'
         )),
       0 === (completedSegments.instructions & 2) &&
         ((completedSegments.instructions |= 2),
@@ -6716,20 +6772,21 @@ function flushCompletedQueues(request, destination) {
         0 === (resumableState$jscomp$1.instructions & 4)
           ? ((resumableState$jscomp$1.instructions |= 4),
             renderState$jscomp$1.push(
-              '$RX=function(b,c,d,e,f){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),f&&(a.cstck=f),b._reactRetry&&b._reactRetry())};;$RX("'
+              '$RX=function(b,c,d,e,f){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,null!=c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),f&&(a.cstck=f),b._reactRetry&&b._reactRetry())};;$RX("'
             ))
           : renderState$jscomp$1.push('$RX("');
         renderState$jscomp$1.push(renderState$jscomp$2.boundaryPrefix);
         var chunk$jscomp$2 = id.toString(16);
         renderState$jscomp$1.push(chunk$jscomp$2);
         renderState$jscomp$1.push('"');
-        if (errorDigest) {
-          renderState$jscomp$1.push(",");
-          var chunk$jscomp$3 = escapeJSStringsForInstructionScripts(
-            errorDigest || ""
-          );
-          renderState$jscomp$1.push(chunk$jscomp$3);
-        }
+        if (null != errorDigest)
+          if ((renderState$jscomp$1.push(","), null == errorDigest))
+            renderState$jscomp$1.push("null");
+          else {
+            var chunk$jscomp$3 =
+              escapeJSStringsForInstructionScripts(errorDigest);
+            renderState$jscomp$1.push(chunk$jscomp$3);
+          }
         var JSCompiler_inline_result =
           renderState$jscomp$1.push(")\x3c/script>");
         if (!JSCompiler_inline_result) {
@@ -6969,4 +7026,4 @@ exports.renderToString = function (children, options) {
     'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToPipeableStream" which supports Suspense on the server'
   );
 };
-exports.version = "19.3.0-canary-6cb4322d-20260729";
+exports.version = "19.3.0-canary-0f42eac2-20260730";
