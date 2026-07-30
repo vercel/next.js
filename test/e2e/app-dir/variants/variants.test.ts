@@ -1,12 +1,19 @@
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 
-// Only the dynamic path is implemented so far. Reading a variant while
-// prerendering throws, so `next build` fails outright in start mode. Enable for
-// all modes once static generation supports variants.
-;(isNextDev ? describe : describe.skip)('variants', () => {
-  const { next } = nextTestSetup({
+describe('variants', () => {
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // The proxy rewrites to an internal `/__variants/<packed>` path, which the
+    // Next.js router strips before it matches a route. Deployments route at the
+    // CDN instead, and the build output declares nothing for that prefix, so
+    // the rewritten request resolves to the 404 route. Enable once the build
+    // output carries the prefix.
+    skipDeployment: true,
   })
+
+  if (skipped) {
+    return
+  }
 
   it('should resolve a variant to its default value', async () => {
     const $ = await next.render$('/')
