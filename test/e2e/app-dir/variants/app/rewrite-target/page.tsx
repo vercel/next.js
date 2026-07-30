@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 
-import { Theme } from './theme'
+import { Theme } from '../theme'
 
 export default function Page() {
   return (
