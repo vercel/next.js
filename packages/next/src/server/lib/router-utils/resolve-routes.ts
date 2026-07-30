@@ -31,6 +31,7 @@ import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-p
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
 import { NextDataPathnameNormalizer } from '../../normalizers/request/next-data'
 import { BasePathPathnameNormalizer } from '../../normalizers/request/base-path'
+import { VariantsPathnameNormalizer } from '../../normalizers/request/variants'
 
 import { addRequestMeta } from '../../request-meta'
 import { isRSCRequestHeader } from '../is-rsc-request'
@@ -358,6 +359,9 @@ export function getResolveRoutes(
           ? new BasePathPathnameNormalizer(config.basePath)
           : undefined,
       data: new NextDataPathnameNormalizer(fsChecker.buildId),
+      variants: config.experimental?.variants
+        ? new VariantsPathnameNormalizer()
+        : undefined,
     }
 
     async function handleRoute(
@@ -749,6 +753,20 @@ export function getResolveRoutes(
                   resHeaders,
                   finished: true,
                 }
+              }
+
+              // Strip the variants prefix the proxy added, and stash the values
+              // so that both the cache key and the render's work unit store
+              // read the same parse. This runs before locale detection because
+              // the prefix wraps the entire remaining public path, locale
+              // included.
+              const extractedVariants = normalizers.variants?.extract(
+                parsedUrl.pathname || ''
+              )
+
+              if (extractedVariants) {
+                parsedUrl.pathname = extractedVariants.originalPathname
+                addRequestMeta(req, 'variants', extractedVariants.variants)
               }
 
               if (config.i18n) {

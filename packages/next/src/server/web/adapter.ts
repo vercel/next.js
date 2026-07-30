@@ -37,6 +37,8 @@ import { CloseController } from './web-on-close'
 import { getEdgePreviewProps } from './get-edge-preview-props'
 import { getBuiltinRequestContext } from '../after/builtin-request-context'
 import { getImplicitTags } from '../lib/implicit-tags'
+import { NEXT_VARIANTS_DECORATION_HEADER } from '../../lib/constants'
+import { insertVariantsPrefix } from '../variants/prefix'
 import { isRSCRequestHeader } from '../lib/is-rsc-request'
 import { setRequestMeta } from '../request-meta'
 
@@ -472,6 +474,44 @@ export async function adapter(
     if (!rewriteURL.searchParams.has(NEXT_RSC_UNION_QUERY)) {
       rewriteURL.searchParams.set(NEXT_RSC_UNION_QUERY, rscHash)
       response.headers.set('x-middleware-rewrite', rewriteURL.toString())
+    }
+  }
+
+  /**
+   * Apply variant decoration last, deliberately: the client-facing rewrite
+   * headers above are computed against the *undecorated* destination, so the
+   * client never learns about the internal variants prefix. Were it applied
+   * earlier, the client router would see a rewrite to a different route
+   * structure, stop using the route for prediction, and mis-parse its params.
+   *
+   * The decoration header is consumed and deleted within the same invocation
+   * that produced it, so it never reaches the CDN or the browser.
+   */
+  if (response) {
+    const packedVariants = response.headers.get(NEXT_VARIANTS_DECORATION_HEADER)
+
+    if (packedVariants) {
+      response.headers.delete(NEXT_VARIANTS_DECORATION_HEADER)
+
+      // Decorate the existing rewrite target when the proxy rewrote, otherwise
+      // turn the request URL into a self-rewrite so the prefix has somewhere to
+      // live.
+      const existingRewrite = response.headers.get('x-middleware-rewrite')
+      const target = new URL(existingRewrite ?? requestURL.toString())
+
+      // An external rewrite is served by another origin, which knows nothing
+      // about the prefix and will not strip it, so leave it undecorated. The
+      // variant values are simply dropped: no route of ours renders this
+      // request.
+      if (target.origin === requestURL.origin) {
+        target.pathname = insertVariantsPrefix(
+          target.pathname,
+          packedVariants,
+          params.request.nextConfig?.basePath
+        )
+
+        response.headers.set('x-middleware-rewrite', target.toString())
+      }
     }
   }
 

@@ -72,6 +72,7 @@ export async function buildDevValidationSnapshot(
       urlPathname: requestStore.url.pathname,
       urlSearch: requestStore.url.search,
       rootParams: requestStore.rootParams,
+      variants: requestStore.variants,
       isDraftMode: requestStore.draftMode.isEnabled,
       isHmrRefresh: requestStore.isHmrRefresh ?? false,
       hmrRefreshHash: requestStore.hmrRefreshHash,

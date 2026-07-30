@@ -62,6 +62,18 @@ export interface RequestStore extends CommonWorkUnitStore {
   readonly rootParams: Params
 
   /**
+   * Resolved variant values for this request, keyed by variant identity (e.g.
+   * `theme@variants.ts`). Empty unless `experimental.variants` is enabled and
+   * the request carried variant values.
+   *
+   * A variant that is absent here was not resolved for this request, which the
+   * reader reports as an error rather than treating as a missing value.
+   * Contrast with `PrerenderStore`, where absence means the variant was not
+   * enumerated and so must postpone.
+   */
+  readonly variants: Record<string, string>
+
+  /**
    * The resume data cache for this request. Either a mutable
    * `PrerenderResumeDataCache` (e.g. during a dev warmup that fills caches) or
    * an immutable `RenderResumeDataCache` (e.g. when resuming from a postponed

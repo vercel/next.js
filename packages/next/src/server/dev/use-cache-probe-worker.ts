@@ -163,6 +163,9 @@ export async function probeUseCache(msg: ProbeMessage): Promise<boolean> {
       onUpdateCookies: undefined,
       url: { pathname: msg.request.urlPathname, search: msg.request.urlSearch },
       rootParams: msg.request.rootParams,
+      // The probe only exercises `'use cache'` scopes, where reading a variant
+      // throws regardless, so there is nothing to forward here.
+      variants: {},
       implicitTags: { tags: [], expirationsByCacheKind: new Map() },
       resumeDataCache: null,
       previewProps: undefined,

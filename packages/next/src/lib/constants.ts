@@ -19,6 +19,25 @@ export const NEXT_DATA_SUFFIX = '.json'
 export const NEXT_META_SUFFIX = '.meta'
 export const NEXT_BODY_SUFFIX = '.body'
 
+/**
+ * Marker segment introducing the packed variant values in an internal pathname,
+ * e.g. `/__variants/theme@variants.ts=dark/blog/my-post`. Produced by the proxy
+ * and stripped again before route resolution; never user-visible.
+ */
+export const VARIANTS_PATH_PREFIX = '__variants'
+
+/**
+ * Carries resolved variant values from the proxy wrapper to the edge adapter,
+ * which applies them to the rewrite target only *after* computing the
+ * client-facing rewrite headers. Deferring the decoration this way keeps the
+ * variants prefix invisible to the client router, which would otherwise treat it
+ * as a route-structure rewrite and stop using the route for prediction.
+ *
+ * Consumed and deleted within the same invocation that produced it, so it never
+ * reaches the CDN or the browser.
+ */
+export const NEXT_VARIANTS_DECORATION_HEADER = 'x-nextjs-variants-decoration'
+
 export const NEXT_NAV_DEPLOYMENT_ID_HEADER = 'x-nextjs-deployment-id'
 
 export const NEXT_CACHE_TAGS_HEADER = 'x-next-cache-tags'
