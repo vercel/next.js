@@ -870,7 +870,6 @@ export function createAppPageEntrypoint({
             page: srcPage,
             postponed,
             allowEmptyStaticShell,
-            shouldWaitOnAllReady: false,
             serveStreamingMetadata,
             supportsDynamicResponse:
               typeof postponed === 'string' || supportsDynamicResponse,
