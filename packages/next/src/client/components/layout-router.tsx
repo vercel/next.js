@@ -142,12 +142,62 @@ function getHashFragmentDomNode(hashFragment: string) {
     document.getElementsByName(hashFragment)[0]
   )
 }
+
+// When navigating to a hash, the target element may live inside a Suspense
+// boundary that hasn't resolved yet (e.g. streamed content). In that case it
+// isn't in the DOM when we'd normally scroll. Rather than giving up (and
+// resetting to the top of the page) we watch for it to appear and scroll to it
+// then. This mirrors the browser: it doesn't scroll for a fragment that isn't
+// present, and scrolls to it once it is. The watcher is cancelled when the
+// element is found, when a newer navigation supersedes the scroll, or on
+// unmount — so a genuinely absent fragment simply never scrolls.
+interface PendingHashFragmentScroll {
+  hashFragment: string
+  observer: MutationObserver
+}
+
+/**
+ * Watch `root`'s subtree for a hash fragment's target element to appear (e.g.
+ * when a Suspense boundary it lives in resolves), then invoke `onAppear`.
+ * Callers scope `root` to the segment's own subtree rather than the whole
+ * document, so the watcher does not react to unrelated DOM changes elsewhere on
+ * the page and does not outlive the segment. The caller is responsible for
+ * cancelling the returned watcher once it is no longer needed via
+ * `cancelPendingHashFragmentScroll`.
+ */
+function watchForHashFragment(
+  hashFragment: string,
+  root: Node,
+  onAppear: () => void
+): PendingHashFragmentScroll {
+  const observer = new MutationObserver(() => {
+    if (getHashFragmentDomNode(hashFragment)) {
+      onAppear()
+    }
+  })
+  observer.observe(root, { childList: true, subtree: true })
+  return { hashFragment, observer }
+}
+
+function cancelPendingHashFragmentScroll(
+  pending: PendingHashFragmentScroll | null
+): null {
+  if (pending !== null) {
+    pending.observer.disconnect()
+  }
+  return null
+}
+
 interface ScrollAndMaybeFocusHandlerProps {
   focusAndScrollRef: FocusAndScrollRef
   children: React.ReactNode
   cacheNode: CacheNode
 }
 class InnerScrollAndFocusHandlerOld extends React.Component<ScrollAndMaybeFocusHandlerProps> {
+  // Tracks a scroll deferred until a hash-fragment element appears in the DOM
+  // (e.g. once a Suspense boundary it lives in resolves).
+  pendingHashFragmentScroll: PendingHashFragmentScroll | null = null
+
   handlePotentialScroll = () => {
     // Handle scroll and focus, it's only applied once.
     const { focusAndScrollRef, cacheNode } = this.props
@@ -155,7 +205,14 @@ class InnerScrollAndFocusHandlerOld extends React.Component<ScrollAndMaybeFocusH
     const scrollRef = focusAndScrollRef.forceScroll
       ? focusAndScrollRef.scrollRef
       : cacheNode.scrollRef
-    if (scrollRef === null || !scrollRef.current) return
+    if (scrollRef === null || !scrollRef.current) {
+      // Scrolling is no longer wanted (already handled, or superseded by a
+      // newer navigation). Stop waiting for any deferred hash scroll.
+      this.pendingHashFragmentScroll = cancelPendingHashFragmentScroll(
+        this.pendingHashFragmentScroll
+      )
+      return
+    }
 
     let domNode:
       | ReturnType<typeof getHashFragmentDomNode>
@@ -164,6 +221,48 @@ class InnerScrollAndFocusHandlerOld extends React.Component<ScrollAndMaybeFocusH
 
     if (hashFragment) {
       domNode = getHashFragmentDomNode(hashFragment)
+
+      if (!domNode) {
+        // The target element isn't in the DOM yet — it's likely inside a
+        // Suspense boundary that hasn't resolved. Wait for it to appear and
+        // scroll then, instead of consuming the scroll and resetting to the
+        // top of the page. (If it never appears we simply don't scroll, which
+        // matches the browser's behavior for an absent fragment.)
+        if (this.pendingHashFragmentScroll?.hashFragment !== hashFragment) {
+          this.pendingHashFragmentScroll = cancelPendingHashFragmentScroll(
+            this.pendingHashFragmentScroll
+          )
+          // Scope the watch to this segment's subtree: the target lives inside a
+          // Suspense boundary within it, so there is no need to observe the
+          // whole document, and we won't react to unrelated DOM changes
+          // elsewhere on the page (nor keep watching after the segment is gone).
+          const container = findDOMNode(this)
+          const observeRoot =
+            (container instanceof Element && container.parentElement) ||
+            document.body
+          this.pendingHashFragmentScroll = watchForHashFragment(
+            hashFragment,
+            observeRoot,
+            () => {
+              this.pendingHashFragmentScroll = cancelPendingHashFragmentScroll(
+                this.pendingHashFragmentScroll
+              )
+              this.handlePotentialScroll()
+            }
+          )
+        }
+        return
+      }
+
+      // Found the element; cancel any pending wait from a previous attempt.
+      this.pendingHashFragmentScroll = cancelPendingHashFragmentScroll(
+        this.pendingHashFragmentScroll
+      )
+    } else {
+      // Not a hash navigation; cancel any pending hash wait.
+      this.pendingHashFragmentScroll = cancelPendingHashFragmentScroll(
+        this.pendingHashFragmentScroll
+      )
     }
 
     // `findDOMNode` is tricky because it returns just the first child if the component is a fragment.
@@ -251,6 +350,12 @@ class InnerScrollAndFocusHandlerOld extends React.Component<ScrollAndMaybeFocusH
     this.handlePotentialScroll()
   }
 
+  componentWillUnmount() {
+    this.pendingHashFragmentScroll = cancelPendingHashFragmentScroll(
+      this.pendingHashFragmentScroll
+    )
+  }
+
   render() {
     return this.props.children
   }
@@ -262,6 +367,13 @@ class InnerScrollAndFocusHandlerOld extends React.Component<ScrollAndMaybeFocusH
  */
 function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
   const childrenRef = React.useRef<FragmentInstance>(null)
+  // Tracks a scroll deferred until a hash-fragment element appears in the DOM
+  // (e.g. once a Suspense boundary it lives in resolves).
+  const pendingHashFragmentScrollRef =
+    React.useRef<PendingHashFragmentScroll | null>(null)
+  // Re-runs the (dependency-less) layout effect below once a watched hash
+  // fragment appears, so we can scroll to it then.
+  const [, forceUpdate] = React.useReducer((c: number) => c + 1, 0)
 
   useLayoutEffect(
     () => {
@@ -270,13 +382,61 @@ function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
       const scrollRef = focusAndScrollRef.forceScroll
         ? focusAndScrollRef.scrollRef
         : cacheNode.scrollRef
-      if (scrollRef === null || !scrollRef.current) return
+      if (scrollRef === null || !scrollRef.current) {
+        // Scrolling is no longer wanted (already handled, or superseded by a
+        // newer navigation). Stop waiting for any deferred hash scroll.
+        pendingHashFragmentScrollRef.current = cancelPendingHashFragmentScroll(
+          pendingHashFragmentScrollRef.current
+        )
+        return
+      }
 
       let instance: FragmentInstance | HTMLElement | null = null
       const hashFragment = focusAndScrollRef.hashFragment
 
       if (hashFragment) {
         instance = getHashFragmentDomNode(hashFragment)
+
+        if (!instance) {
+          // The target element isn't in the DOM yet — it's likely inside a
+          // Suspense boundary that hasn't resolved. Wait for it to appear and
+          // scroll then, instead of consuming the scroll and resetting to the
+          // top of the page. (If it never appears we simply don't scroll, which
+          // matches the browser's behavior for an absent fragment.)
+          if (
+            pendingHashFragmentScrollRef.current?.hashFragment !== hashFragment
+          ) {
+            pendingHashFragmentScrollRef.current =
+              cancelPendingHashFragmentScroll(
+                pendingHashFragmentScrollRef.current
+              )
+            pendingHashFragmentScrollRef.current = watchForHashFragment(
+              hashFragment,
+              // The Fragment-ref handler has no single container node to scope
+              // to, so fall back to observing document.body. This branch is
+              // behind the experimental `appNewScrollHandler` flag.
+              document.body,
+              () => {
+                pendingHashFragmentScrollRef.current =
+                  cancelPendingHashFragmentScroll(
+                    pendingHashFragmentScrollRef.current
+                  )
+                forceUpdate()
+              }
+            )
+          }
+          return
+        }
+
+        // Found the element; cancel any pending wait from a previous attempt.
+        pendingHashFragmentScrollRef.current = cancelPendingHashFragmentScroll(
+          pendingHashFragmentScrollRef.current
+        )
+      } else {
+        // Not a hash navigation; cancel any pending hash wait.
+        pendingHashFragmentScrollRef.current = cancelPendingHashFragmentScroll(
+          pendingHashFragmentScrollRef.current
+        )
       }
 
       if (!instance) {
@@ -338,6 +498,15 @@ function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
     // Used to run on every commit. We may be able to be smarter about this
     // but be prepared for lots of manual testing.
     undefined
+  )
+
+  useLayoutEffect(
+    () => () => {
+      pendingHashFragmentScrollRef.current = cancelPendingHashFragmentScroll(
+        pendingHashFragmentScrollRef.current
+      )
+    },
+    []
   )
 
   return <Fragment ref={childrenRef}>{props.children}</Fragment>
