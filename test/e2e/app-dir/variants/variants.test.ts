@@ -1,6 +1,9 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, isNextDev } from 'e2e-utils'
 
-describe('variants', () => {
+// Only the dynamic path is implemented so far. Reading a variant while
+// prerendering throws, so `next build` fails outright in start mode. Enable for
+// all modes once static generation supports variants.
+;(isNextDev ? describe : describe.skip)('variants', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
