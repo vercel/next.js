@@ -665,9 +665,16 @@ export async function createCombinedPayloadStream(
 }
 
 function getRootDataFromPayload(initialRSCPayload: InitialRSCPayload) {
-  // FlightDataPath is an unsound type, hence the additional checks.
+  // FlightDataPath is an unsound type, hence the additional checks. The
+  // valid shapes are a single root path with no segment prefix: 4 elements
+  // ([tree, seedData, head, isHeadPartial], per getRSCPayload) or 3 when
+  // reconstructed without the isHeadPartial flag (see the payload literals
+  // in this module).
   const flightDataPaths = initialRSCPayload.f
-  if (flightDataPaths.length !== 1 && flightDataPaths[0].length !== 3) {
+  if (
+    flightDataPaths.length !== 1 ||
+    (flightDataPaths[0].length !== 3 && flightDataPaths[0].length !== 4)
+  ) {
     throw new InvariantError(
       'InitialRSCPayload does not match the expected shape during instant validation.'
     )
