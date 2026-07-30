@@ -73,6 +73,30 @@ describe('loadConfig', () => {
     })
   })
 
+  describe('turbopack plugin runtime strategy', () => {
+    it('leaves the default strategy unresolved', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {},
+      })
+
+      expect(result.experimental.turbopackPluginRuntimeStrategy).toBeUndefined()
+    })
+
+    it('preserves an explicitly configured strategy', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          experimental: {
+            turbopackPluginRuntimeStrategy: 'childProcesses',
+          },
+        },
+      })
+
+      expect(result.experimental.turbopackPluginRuntimeStrategy).toBe(
+        'childProcesses'
+      )
+    })
+  })
+
   describe('canary-only features', () => {
     beforeAll(() => {
       process.env.__NEXT_VERSION = '14.2.0'

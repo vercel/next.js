@@ -1,3 +1,5 @@
+#[cfg(any(all(feature = "process_pool", feature = "worker_pool"), test))]
+use std::future::Future;
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
@@ -925,6 +927,45 @@ pub enum TurbopackPluginRuntimeStrategy {
     WorkerThreads,
     #[cfg(feature = "process_pool")]
     ChildProcesses,
+}
+
+#[cfg(any(all(feature = "process_pool", feature = "worker_pool"), test))]
+#[derive(Debug)]
+enum DefaultTurbopackPluginRuntimeStrategy {
+    ChildProcesses,
+    WorkerThreads,
+}
+
+#[cfg(any(all(feature = "process_pool", feature = "worker_pool"), test))]
+#[derive(Debug)]
+enum ResolvedTurbopackPluginRuntimeStrategy {
+    Configured(TurbopackPluginRuntimeStrategy),
+    Default(DefaultTurbopackPluginRuntimeStrategy),
+}
+
+#[cfg(any(all(feature = "process_pool", feature = "worker_pool"), test))]
+async fn resolve_turbopack_plugin_runtime_strategy<F, Fut>(
+    configured: Option<TurbopackPluginRuntimeStrategy>,
+    probe_loopback_listener: F,
+) -> ResolvedTurbopackPluginRuntimeStrategy
+where
+    F: FnOnce() -> Fut,
+    Fut: Future<Output = std::io::Result<()>>,
+{
+    if let Some(strategy) = configured {
+        return ResolvedTurbopackPluginRuntimeStrategy::Configured(strategy);
+    }
+
+    match probe_loopback_listener().await {
+        Err(error) if error.kind() == std::io::ErrorKind::PermissionDenied => {
+            ResolvedTurbopackPluginRuntimeStrategy::Default(
+                DefaultTurbopackPluginRuntimeStrategy::WorkerThreads,
+            )
+        }
+        Ok(()) | Err(_) => ResolvedTurbopackPluginRuntimeStrategy::Default(
+            DefaultTurbopackPluginRuntimeStrategy::ChildProcesses,
+        ),
+    }
 }
 
 #[derive(
@@ -2474,17 +2515,31 @@ impl NextConfig {
         )
     }
 
-    #[turbo_tasks::function]
-    pub fn turbopack_plugin_runtime_strategy(&self) -> Vc<TurbopackPluginRuntimeStrategy> {
-        #[cfg(feature = "process_pool")]
-        let default = TurbopackPluginRuntimeStrategy::ChildProcesses;
-        #[cfg(all(feature = "worker_pool", not(feature = "process_pool")))]
-        let default = TurbopackPluginRuntimeStrategy::WorkerThreads;
+    #[turbo_tasks::function(network, session_dependent)]
+    pub async fn turbopack_plugin_runtime_strategy(&self) -> Vc<TurbopackPluginRuntimeStrategy> {
+        let configured = self.experimental.turbopack_plugin_runtime_strategy;
 
-        self.experimental
-            .turbopack_plugin_runtime_strategy
-            .unwrap_or(default)
-            .cell()
+        #[cfg(all(feature = "process_pool", feature = "worker_pool"))]
+        let strategy = match resolve_turbopack_plugin_runtime_strategy(
+            configured,
+            turbopack_node::process_pool::probe_loopback_listener,
+        )
+        .await
+        {
+            ResolvedTurbopackPluginRuntimeStrategy::Configured(strategy) => strategy,
+            ResolvedTurbopackPluginRuntimeStrategy::Default(
+                DefaultTurbopackPluginRuntimeStrategy::ChildProcesses,
+            ) => TurbopackPluginRuntimeStrategy::ChildProcesses,
+            ResolvedTurbopackPluginRuntimeStrategy::Default(
+                DefaultTurbopackPluginRuntimeStrategy::WorkerThreads,
+            ) => TurbopackPluginRuntimeStrategy::WorkerThreads,
+        };
+        #[cfg(all(feature = "process_pool", not(feature = "worker_pool")))]
+        let strategy = configured.unwrap_or(TurbopackPluginRuntimeStrategy::ChildProcesses);
+        #[cfg(all(feature = "worker_pool", not(feature = "process_pool")))]
+        let strategy = configured.unwrap_or(TurbopackPluginRuntimeStrategy::WorkerThreads);
+
+        strategy.cell()
     }
 
     #[turbo_tasks::function]
@@ -2860,7 +2915,72 @@ pub fn lightningcss_feature_names_to_mask(
 
 #[cfg(test)]
 mod tests {
+    use std::cell::Cell;
+
     use super::*;
+
+    #[tokio::test]
+    async fn defaults_to_child_processes_when_loopback_binding_is_allowed() {
+        let strategy = resolve_turbopack_plugin_runtime_strategy(None, || async { Ok(()) }).await;
+
+        assert!(matches!(
+            strategy,
+            ResolvedTurbopackPluginRuntimeStrategy::Default(
+                DefaultTurbopackPluginRuntimeStrategy::ChildProcesses
+            )
+        ));
+    }
+
+    #[tokio::test]
+    async fn defaults_to_worker_threads_when_loopback_binding_is_denied() {
+        let strategy = resolve_turbopack_plugin_runtime_strategy(None, || async {
+            Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied))
+        })
+        .await;
+
+        assert!(matches!(
+            strategy,
+            ResolvedTurbopackPluginRuntimeStrategy::Default(
+                DefaultTurbopackPluginRuntimeStrategy::WorkerThreads
+            )
+        ));
+    }
+
+    #[tokio::test]
+    async fn explicit_plugin_runtime_strategy_skips_the_loopback_probe() {
+        let probed = Cell::new(false);
+        let strategy = resolve_turbopack_plugin_runtime_strategy(
+            Some(TurbopackPluginRuntimeStrategy::ChildProcesses),
+            || {
+                probed.set(true);
+                async { Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied)) }
+            },
+        )
+        .await;
+
+        assert!(!probed.get());
+        assert!(matches!(
+            strategy,
+            ResolvedTurbopackPluginRuntimeStrategy::Configured(
+                TurbopackPluginRuntimeStrategy::ChildProcesses
+            )
+        ));
+    }
+
+    #[tokio::test]
+    async fn keeps_the_child_process_default_for_unexpected_probe_errors() {
+        let strategy = resolve_turbopack_plugin_runtime_strategy(None, || async {
+            Err(std::io::Error::from(std::io::ErrorKind::AddrNotAvailable))
+        })
+        .await;
+
+        assert!(matches!(
+            strategy,
+            ResolvedTurbopackPluginRuntimeStrategy::Default(
+                DefaultTurbopackPluginRuntimeStrategy::ChildProcesses
+            )
+        ));
+    }
 
     #[test]
     fn test_serde_rule_config_item_options() {

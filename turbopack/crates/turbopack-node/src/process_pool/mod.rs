@@ -85,6 +85,20 @@ impl PartialEq for NodeJsPoolProcess {
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
 
+async fn bind_loopback_listener() -> std::io::Result<TcpListener> {
+    TcpListener::bind("127.0.0.1:0").await
+}
+
+/// Checks whether the child-process pool can create its loopback IPC listener.
+///
+/// The listener is closed immediately. This uses the same bind operation as
+/// child-process startup so callers can select another backend before emitting
+/// backend-specific runtime code.
+pub async fn probe_loopback_listener() -> std::io::Result<()> {
+    drop(bind_loopback_listener().await?);
+    Ok(())
+}
+
 #[derive(Clone, PartialEq, Eq, Hash)]
 struct OutputEntry {
     data: Arc<[u8]>,
@@ -312,7 +326,7 @@ impl NodeJsPoolProcess {
         debug: bool,
     ) -> Result<Self> {
         let guard = duration_span!("Node.js process startup");
-        let listener = TcpListener::bind("127.0.0.1:0")
+        let listener = bind_loopback_listener()
             .await
             .context("binding to a port")?;
         let port = listener.local_addr().context("getting port")?.port();

@@ -739,8 +739,9 @@ export interface ExperimentalConfig {
    * Selects the backend used by Turbopack for Node.js evaluation, e.g. webpack
    * loaders, Babel, or PostCSS.
    *
-   * This defaults to `'childProcesses'`, which creates a pool of child node.js
-   * processes and communciates with them over sockets.
+   * By default, Next.js creates a pool of child Node.js processes and
+   * communicates with them over loopback sockets. If the environment denies
+   * local socket binding, Next.js falls back to worker threads.
    *
    * `'workerThreads'` runs the same work in worker threads instead, which should
    * use less memory and CPU. It may become the default in a future version of
@@ -2234,7 +2235,7 @@ export const defaultConfig = Object.freeze({
     turbopackFileSystemCacheForDev: true,
     turbopackFileSystemCacheForBuild: turbopackFileSystemCacheForBuildDefault(),
     turbopackInferModuleSideEffects: true,
-    turbopackPluginRuntimeStrategy: 'childProcesses',
+    turbopackPluginRuntimeStrategy: undefined,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
