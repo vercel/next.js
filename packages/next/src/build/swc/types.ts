@@ -64,8 +64,6 @@ export interface Binding {
   teardownTraceSubscriber?(guardExternal: ExternalObject<RefCell>): void
   css: {
     lightning: {
-      // Synchronous in the native bindings; callers `await` the result, which
-      // also tolerates Promise-returning custom implementations.
       transform(transformOptions: any): any
       transformStyleAttr(transformAttrOptions: any): any
       featureNamesToMask(names: string[]): number

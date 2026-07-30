@@ -96,8 +96,7 @@ impl NextTurbopackContext {
         log_internal_error_and_inform(err);
 
         async move {
-            match this
-                .inner
+            this.inner
                 .napi_callbacks
                 .throw_turbopack_internal_error
                 .call_async(Ok(TurbopackInternalErrorOpts {
@@ -105,10 +104,7 @@ impl NextTurbopackContext {
                     anonymized_location: panic_location,
                 }))
                 .await
-            {
-                Ok(()) => panic!("throwTurbopackInternalError must throw an error"),
-                Err(err) => err,
-            }
+                .expect_err("throwTurbopackInternalError must throw an error")
         }
     }
 
@@ -179,10 +175,19 @@ pub struct NapiNextTurbopackCallbacks {
         (),
         TurbopackInternalErrorOpts,
         Status,
-        true,
-        true,
+        /* CalleeHandled */ true,
+        /* Weak */ true,
     >,
-    on_before_deferred_entries: Option<ThreadsafeFunction<(), Promise<()>, (), Status, true, true>>,
+    on_before_deferred_entries: Option<
+        ThreadsafeFunction<
+            (),
+            Promise<()>,
+            (),
+            Status,
+            /* CalleeHandled */ true,
+            /* Weak */ true,
+        >,
+    >,
 }
 
 /// Arguments for `NapiNextTurbopackCallbacks::throw_turbopack_internal_error`.
@@ -194,14 +199,7 @@ pub struct TurbopackInternalErrorOpts {
 
 impl NapiNextTurbopackCallbacks {
     pub fn from_js(env: &Env, obj: NapiNextTurbopackCallbacksJsObject) -> napi::Result<Self> {
-        let throw_turbopack_internal_error: ThreadsafeFunction<
-            TurbopackInternalErrorOpts,
-            (),
-            TurbopackInternalErrorOpts,
-            Status,
-            true,
-            true,
-        > = obj
+        let throw_turbopack_internal_error = obj
             .throw_turbopack_internal_error
             .borrow_back(env)?
             .build_threadsafe_function::<TurbopackInternalErrorOpts>()
@@ -217,7 +215,7 @@ impl NapiNextTurbopackCallbacks {
         let on_before_deferred_entries = obj
             .on_before_deferred_entries
             .map(|callback| {
-                let f: ThreadsafeFunction<(), Promise<()>, (), Status, true, true> = callback
+                let f = callback
                     .borrow_back(env)?
                     .build_threadsafe_function::<()>()
                     .callee_handled::<true>()
