@@ -2,6 +2,11 @@ import type { NextRequest } from '../web/spec-extension/request'
 import type { Params } from './params'
 
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { throwToInterruptStaticGeneration } from '../app-render/dynamic-rendering'
+import {
+  makeDynamicHangingPromise,
+  makeRuntimeHangingPromise,
+} from '../dynamic-rendering-utils'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 
@@ -238,7 +243,13 @@ export function withVariants(
   return { [VARIANT_PARAMS_BRAND]: true, params, variants: values }
 }
 
-async function readVariant(key: string): Promise<string> {
+/**
+ * Deliberately not `async`. A prerender that cannot supply a value interrupts
+ * by postponing or throwing, and both have to happen synchronously during the
+ * render to be recognized: wrapping them in a promise rejection would surface
+ * them as ordinary errors instead.
+ */
+function readVariant(key: string): Promise<string> {
   const apiName = `the variant \`${key}\``
 
   const workStore = workAsyncStorage.getStore()
@@ -255,7 +266,7 @@ async function readVariant(key: string): Promise<string> {
 
   switch (workUnitStore.type) {
     case 'request': {
-      const value = workUnitStore.variants[key]
+      const value = workUnitStore.variants?.[key]
       if (value === undefined) {
         // The proxy resolves variants, so an unresolved variant almost always
         // means this route is not covered by the proxy's matcher.
@@ -264,7 +275,7 @@ async function readVariant(key: string): Promise<string> {
         )
       }
 
-      return value
+      return Promise.resolve(value)
     }
     case 'cache':
     case 'unstable-cache':
@@ -284,16 +295,55 @@ async function readVariant(key: string): Promise<string> {
         `${apiName} must not be read within a Client Component. Next.js should be preventing variants from being included in Client Components, but did not in this case.`
       )
     }
-    case 'prerender':
-    case 'prerender-ppr':
-    case 'prerender-legacy':
-    case 'prerender-runtime': {
-      // TODO(variants): prerendering reads the value from `PrerenderStore`, and
-      // postpones (or defers to the appropriate render stage) when the variant
-      // was not enumerated. That arrives with the static-generation work.
-      throw new Error(
-        `Route ${workStore.route} read ${apiName} while prerendering, which is not supported yet.`
+    // A prerender that was generated for a combination fixing this variant can
+    // bake the value in. Otherwise there is no value this output could be
+    // correct for, so the variant behaves as a dynamic read: the prerender
+    // defers it and the value arrives at request time, which is how a route
+    // serves combinations that were never enumerated. Each kind of prerender
+    // interrupts differently, matching the other request APIs.
+    case 'prerender': {
+      const value = workUnitStore.variants?.[key]
+
+      if (value !== undefined) {
+        return Promise.resolve(value)
+      }
+
+      // Runtime rather than dynamic data: the proxy resolves variants from the
+      // request's cookies and headers, so a runtime prefetch can supply one
+      // even though a static prerender cannot. Going through the runtime helper
+      // also records the access, so the prefetch encoding knows a runtime
+      // prefetch yields more than the static response.
+      return makeRuntimeHangingPromise(
+        workUnitStore.renderSignal,
+        workStore.route,
+        apiName,
+        workUnitStore
       )
+    }
+    case 'prerender-runtime': {
+      const value = workUnitStore.variants?.[key]
+
+      if (value !== undefined) {
+        return Promise.resolve(value)
+      }
+
+      // This is already the runtime prerender, so a variant still missing here
+      // is not something a prefetch can fill in. Only a real request will
+      // resolve it.
+      return makeDynamicHangingPromise(
+        workUnitStore.renderSignal,
+        workStore.route,
+        apiName
+      )
+    }
+    case 'prerender-legacy': {
+      const value = workUnitStore.variants?.[key]
+
+      if (value !== undefined) {
+        return Promise.resolve(value)
+      }
+
+      return throwToInterruptStaticGeneration(apiName, workStore, workUnitStore)
     }
     default: {
       throw new InvariantError(

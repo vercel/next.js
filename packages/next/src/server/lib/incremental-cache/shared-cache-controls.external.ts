@@ -2,6 +2,8 @@ import type { PrerenderManifest } from '../../../build'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
 import type { CacheControl } from '../cache-control'
 
+import { removeVariantsPrefix } from '../../variants/prefix'
+
 /**
  * A shared cache of cache controls for routes. This cache is used so we don't
  * have to modify the prerender manifest when we want to update the cache
@@ -40,7 +42,18 @@ export class SharedCacheControls {
     let cacheControl = SharedCacheControls.cacheControls.get(route)
     if (cacheControl) return cacheControl
 
-    let prerenderData = this.prerenderManifest.routes[route]
+    // A variant combination is cached under its own key, so prefer a manifest
+    // entry for that exact combination and fall back to the one for its route.
+    //
+    // Combinations can genuinely differ here: a variant value passed into a
+    // `'use cache'` function can select a different `cacheLife`, which feeds
+    // the route's effective lifetime. The fallback is therefore a narrowing,
+    // and is only right while the manifest holds a single entry per route. It
+    // becomes exact once the manifest carries an entry per combination, at
+    // which point the first lookup wins and this stops being consulted.
+    const prerenderData =
+      this.prerenderManifest.routes[route] ??
+      this.prerenderManifest.routes[removeVariantsPrefix(route)]
 
     if (prerenderData) {
       const { initialRevalidateSeconds, initialExpireSeconds } = prerenderData
@@ -53,7 +66,9 @@ export class SharedCacheControls {
       }
     }
 
-    const dynamicPrerenderData = this.prerenderManifest.dynamicRoutes[route]
+    const dynamicPrerenderData =
+      this.prerenderManifest.dynamicRoutes[route] ??
+      this.prerenderManifest.dynamicRoutes[removeVariantsPrefix(route)]
 
     if (dynamicPrerenderData) {
       const { fallbackRevalidate, fallbackExpire } = dynamicPrerenderData

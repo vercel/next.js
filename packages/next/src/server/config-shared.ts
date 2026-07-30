@@ -1595,6 +1595,14 @@ export type ExportPathMap = {
     _fallbackRouteParams?: readonly FallbackRouteParam[]
 
     /**
+     * The variant combination this entry is prerendered against, keyed by
+     * variant identity. Absent when the entry has no variants.
+     *
+     * @internal
+     */
+    _variantValues?: Readonly<Record<string, string>>
+
+    /**
      * @internal
      */
     _isAppDir?: boolean

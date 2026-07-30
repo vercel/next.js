@@ -30,6 +30,7 @@ import {
 } from '../../server/base-http/node' with { 'turbopack-transition': 'next-server-utility' }
 import { isRSCRequestHeader } from '../../server/lib/is-rsc-request' with { 'turbopack-transition': 'next-server-utility' }
 import { isNonHtmlSecFetchDest } from '../../server/lib/is-non-html-sec-fetch-dest' with { 'turbopack-transition': 'next-server-utility' }
+import { getVariantOutputPath } from '../../server/variants/prefix' with { 'turbopack-transition': 'next-server-utility' }
 import { UNDERSCORE_NOT_FOUND_ROUTE } from '../../shared/lib/entry-constants' with { 'turbopack-transition': 'next-server-utility' }
 import {
   getFallbackRouteParams,
@@ -640,6 +641,20 @@ export function createAppPageEntrypoint({
       } else {
         ssgCacheKey = resolvedPathname
       }
+
+      // Variant combinations are prerendered to a path prefixed with the hash
+      // of the combination, and the cache key is what the incremental cache
+      // turns into that path, so the request's combination has to be folded in
+      // for its own artifact to be found. This applies to a completed shell key
+      // as much as to a resolved pathname: a shell prerendered against one
+      // combination must not be served for another. Requests without variants
+      // are unaffected, since the path is returned unchanged.
+      if (ssgCacheKey !== null) {
+        ssgCacheKey = getVariantOutputPath(
+          ssgCacheKey,
+          getRequestMeta(req, 'variants')
+        )
+      }
     }
 
     // the staticPathKey differs from ssgCacheKey since
@@ -858,6 +873,12 @@ export function createAppPageEntrypoint({
             Component: interopDefault(ComponentMod),
 
             params,
+            // The combination this request resolved to, so that a prerender
+            // generated on demand is generated *for* it. At build time this
+            // comes from the export task instead; here the proxy has already
+            // resolved it and the cache key is derived from the same values, so
+            // the entry produced lands at the key the request looked up.
+            variants: getRequestMeta(req, 'variants') ?? null,
             routeModule,
             page: srcPage,
             postponed,

@@ -97,6 +97,7 @@ import loadConfig from '../server/config'
 import type { BuildManifest } from '../server/get-page-files'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getPagePath } from '../server/require'
+import { getVariantOutputPath } from '../server/variants/prefix'
 import * as ciEnvironment from '../server/ci-info'
 import {
   turborepoTraceAccess,
@@ -3184,7 +3185,17 @@ export default async function build(
                     return
                   }
 
-                  defaultMap[route.pathname] = {
+                  // The export map is keyed by the path the artifact is written
+                  // to, while `_ssgPath` carries the path that is rendered. A
+                  // variant combination uses that split: it renders the same
+                  // route as every other combination, so only the written path
+                  // distinguishes them, by the hash of the combination.
+                  const outputPath = getVariantOutputPath(
+                    route.pathname,
+                    route.variantValues
+                  )
+
+                  defaultMap[outputPath] = {
                     page: originalAppPath,
                     _ssgPath: route.encodedPathname,
                     _fallbackRouteParams: route.fallbackRouteParams,
@@ -3192,6 +3203,7 @@ export default async function build(
                     _isAppDir: true,
                     _isRoutePPREnabled: isRoutePPREnabled,
                     _allowEmptyStaticShell: !route.throwOnEmptyStaticShell,
+                    _variantValues: route.variantValues,
                     // A fallback shell can only be upgraded if at least one of
                     // its fallback params is a `generateStaticParams` candidate,
                     // and only when Partial Prefetching is enabled. Otherwise
@@ -3494,7 +3506,11 @@ export default async function build(
               if (isDynamicRoute(page) && route.pathname === page) continue
 
               const pageInfo = pageInfos.get(page) as PageInfo
-              const routeResult = exportResult.byPath.get(route.pathname)
+              // Keyed by the path the artifact was written to, which for a
+              // variant combination is prefixed with its hash.
+              const routeResult = exportResult.byPath.get(
+                getVariantOutputPath(route.pathname, route.variantValues)
+              )
               const {
                 metadata = {},
                 hasEmptyStaticShell,

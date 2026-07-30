@@ -63,15 +63,16 @@ export interface RequestStore extends CommonWorkUnitStore {
 
   /**
    * Resolved variant values for this request, keyed by variant identity (e.g.
-   * `theme@variants.ts`). Empty unless `experimental.variants` is enabled and
-   * the request carried variant values.
+   * `theme@variants.ts`). Null unless `experimental.variants` is enabled and
+   * the request carried variant values, so that a render that has nothing to do
+   * with variants does not allocate for them.
    *
    * A variant that is absent here was not resolved for this request, which the
    * reader reports as an error rather than treating as a missing value.
    * Contrast with `PrerenderStore`, where absence means the variant was not
    * enumerated and so must postpone.
    */
-  readonly variants: Record<string, string>
+  readonly variants: Record<string, string> | null
 
   /**
    * The resume data cache for this request. Either a mutable
@@ -175,6 +176,18 @@ export interface PrerenderStoreModernServer
     StaticPrerenderStoreCommon {
   readonly type: 'prerender'
 
+  /**
+   * The variant combination this prerender is being generated for, keyed by
+   * variant identity. Null unless `experimental.variants` is enabled and the
+   * combination was enumerated by `generateStaticParams`.
+   *
+   * Deliberately not on `PrerenderStoreModernCommon`: the client stores extend
+   * that too, and a variant must never be read from a Client Component, so
+   * carrying the values there would suggest an access that is an invariant
+   * violation.
+   */
+  readonly variants: Record<string, string> | null
+
   readonly stagedRendering: StagedRenderingController | null
 
   /**
@@ -231,6 +244,13 @@ export interface PrerenderStoreModernServer
 export interface PrerenderStoreModernRuntime
   extends PrerenderStoreModernCommon {
   readonly type: 'prerender-runtime'
+
+  /**
+   * The variant combination this prerender is being generated for, keyed by
+   * variant identity. Null unless `experimental.variants` is enabled and the
+   * combination was enumerated by `generateStaticParams`.
+   */
+  readonly variants: Record<string, string> | null
 
   /**
    * The staged rendering controller for this prerender. Models stage
@@ -331,6 +351,13 @@ export interface PrerenderStoreLegacy
     RevalidateStore {
   readonly type: 'prerender-legacy'
   readonly rootParams: Params
+
+  /**
+   * The variant combination this prerender is being generated for, keyed by
+   * variant identity. Null unless `experimental.variants` is enabled and the
+   * combination was enumerated by `generateStaticParams`.
+   */
+  readonly variants: Record<string, string> | null
 }
 
 export type PrerenderStore = PrerenderStoreLegacy | PrerenderStoreModern

@@ -53,7 +53,7 @@ export interface DevValidationRequestSnapshot {
   /**
    * Resolved variant values, keyed by variant identity.
    */
-  variants: Record<string, string>
+  variants: Record<string, string> | null
   isDraftMode: boolean
   isHmrRefresh: boolean
   hmrRefreshHash: string | undefined

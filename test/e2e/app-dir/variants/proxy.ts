@@ -25,5 +25,5 @@ export const proxy = wrapProxy(variants, (request: NextRequest) => {
 })
 
 export const config = {
-  matcher: ['/', '/rewrite-source', '/external'],
+  matcher: ['/', '/rewrite-source', '/external', '/enumerated/:slug'],
 }

@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { isNextStart, nextTestSetup } from 'e2e-utils'
 import { findPort } from 'next-test-utils'
 
 import { startExternalServer } from './external-server.mjs'
@@ -86,6 +86,55 @@ describe('variants', () => {
 
     expect(await browser.elementByCss('#theme').text()).toBe('light')
     expect(await browser.eval('location.pathname')).toBe('/rewrite-source')
+  })
+
+  it('should resolve enumerated variants on a prerendered route', async () => {
+    const dark = await next.render$('/enumerated/a', undefined, {
+      headers: { cookie: 'theme=dark' },
+    })
+
+    expect(dark('#theme').text()).toBe('dark')
+    expect(dark('#locale').text()).toBe('en')
+
+    const light = await next.render$('/enumerated/a', undefined, {
+      headers: { cookie: 'theme=light' },
+    })
+
+    expect(light('#theme').text()).toBe('light')
+  })
+
+  if (isNextStart) {
+    it('should serve each combination from its own prerender', async () => {
+      // A cache hit is what distinguishes serving the artifact prerendered for
+      // this combination from rendering the route again, which would produce
+      // the same markup either way.
+      for (const theme of ['light', 'dark']) {
+        const response = await next.fetch('/enumerated/a', {
+          headers: { cookie: `theme=${theme}` },
+        })
+
+        expect(response.headers.get('x-nextjs-cache')).toBe('HIT')
+        expect(await response.text()).toContain(`<p id="theme">${theme}</p>`)
+      }
+    })
+  }
+
+  it('should resolve variants for a param that was never enumerated', async () => {
+    // `c` has no `generateStaticParams` row, so it is generated on demand. The
+    // proxy has still resolved a combination for the request, and generation
+    // specializes on it the same way it specializes on params, rather than
+    // finding no value and bailing out of the render.
+    const dark = await next.render$('/enumerated/on-demand', undefined, {
+      headers: { cookie: 'theme=dark' },
+    })
+
+    expect(dark('#theme').text()).toBe('dark')
+
+    const light = await next.render$('/enumerated/on-demand', undefined, {
+      headers: { cookie: 'theme=light' },
+    })
+
+    expect(light('#theme').text()).toBe('light')
   })
 
   it('should not decorate a rewrite to another origin', async () => {

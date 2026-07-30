@@ -208,6 +208,13 @@ export interface RenderOptsPartial {
   isDebugDynamicAccesses?: boolean
 
   /**
+   * The variant combination this prerender is being generated for, keyed by
+   * variant identity. Set from the export task's enumerated combination, and
+   * absent for every render that does not prerender against variants.
+   */
+  variants?: Record<string, string> | null
+
+  /**
   /**
    * The maximum length of the headers that are emitted by React and added to
    * the response.

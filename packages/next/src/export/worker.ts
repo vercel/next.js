@@ -102,6 +102,9 @@ async function exportPageImpl(
     // The parameters that are currently unknown.
     _fallbackRouteParams = [],
 
+    // The variant combination this export task prerenders against, if any.
+    _variantValues: variantValues = null,
+
     // Check if this is an `app/` page.
     _isAppDir: isAppDir = false,
 
@@ -279,6 +282,7 @@ async function exportPageImpl(
     allowEmptyStaticShell,
     runInstantValidation,
     isFallbackUpgradeable,
+    variants: variantValues,
     experimental: {
       ...commonRenderOpts.experimental,
       isRoutePPREnabled,
