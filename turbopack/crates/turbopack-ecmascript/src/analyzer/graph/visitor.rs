@@ -24,7 +24,7 @@ use crate::{
         Bump, BumpVec, ConstantValue, ImportMap, JsValue, WellKnownFunctionKind,
         cjs_ast::{
             as_exports_define_property, as_module_exports_object_literal,
-            define_property_sets_es_module, is_exports_object, is_global,
+            define_property_sets_es_module, is_exports_object, is_global, is_module_exports_chain,
         },
         graph::{ConditionalKind, Effect, EffectArg, EffectsBlock, EvalContext, VarGraph},
         is_unresolved_id,
@@ -105,6 +105,8 @@ struct CjsExportsCollector {
     writes: Vec<DroppableCjsExportAssignment>,
     /// Whether the `exports.__esModule = true` interop marker is set.
     has_es_module: bool,
+    /// Whether a `module.exports = { … }` literal has replaced the exports object.
+    exports_object_replaced: bool,
 }
 
 trait FunctionLike {
@@ -649,6 +651,21 @@ mod analyzer_state {
 
         pub(super) fn taint_cjs_exports(&mut self) {
             self.state.cjs_exports = None;
+        }
+
+        pub(super) fn cjs_exports_object_replaced(&self) -> bool {
+            self.state
+                .cjs_exports
+                .as_ref()
+                .is_some_and(|c| c.exports_object_replaced)
+        }
+
+        pub(super) fn replace_cjs_exports_object(&mut self) {
+            if let Some(c) = &mut self.state.cjs_exports {
+                c.writes.clear();
+                c.has_es_module = false;
+                c.exports_object_replaced = true;
+            }
         }
 
         /// Records the `exports.__esModule = true` interop marker.
@@ -1327,6 +1344,12 @@ impl<'a> Analyzer<'a, '_> {
         let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &n.left else {
             return;
         };
+        // After a replacement only `module.exports` still reaches the exports object.
+        if self.cjs_exports_object_replaced()
+            && !is_module_exports_chain(&member.obj, self.eval_context.unresolved_mark)
+        {
+            return;
+        }
         let MemberProp::Ident(name) = &member.prop else {
             return;
         };
@@ -1362,6 +1385,13 @@ impl<'a> Analyzer<'a, '_> {
             self.taint_cjs_exports();
             return;
         }
+        if self.cjs_exports_object_replaced()
+            && !n.args.first().is_some_and(|target| {
+                is_module_exports_chain(&target.expr, self.eval_context.unresolved_mark)
+            })
+        {
+            return;
+        }
         if name == "__esModule" {
             if define_property_sets_es_module(n) {
                 self.set_cjs_has_es_module();
@@ -1387,6 +1417,13 @@ impl<'a> Analyzer<'a, '_> {
         else {
             return;
         };
+        // Only a statement-position assignment definitely runs.
+        if matches!(
+            ast_path.len().checked_sub(2).and_then(|i| ast_path.get(i)),
+            Some(AstParentNodeRef::ExprStmt(_, ExprStmtField::Expr))
+        ) {
+            self.replace_cjs_exports_object();
+        }
         let mut names = Vec::new();
         for prop in &obj.props {
             // A spread makes the export set unknowable.
