@@ -228,12 +228,6 @@ pub async fn get_side_effect_free_declaration(
     path: FileSystemPath,
     side_effect_free_packages: Option<Vc<Glob>>,
 ) -> Result<Vc<SideEffectsDeclaration>> {
-    if let Some(side_effect_free_packages) = side_effect_free_packages
-        && side_effect_free_packages.await?.matches(&path.path)
-    {
-        return Ok(SideEffectsDeclaration::SideEffectFree.cell());
-    }
-
     let find_package_json = find_context_file(path.parent(), package_json(), false).await?;
 
     if let FindContextFileResult::Found(package_json, _) = &*find_package_json {
@@ -259,6 +253,12 @@ pub async fn get_side_effect_free_declaration(
                 }
             }
         }
+    }
+
+    if let Some(side_effect_free_packages) = side_effect_free_packages
+        && side_effect_free_packages.await?.matches(&path.path)
+    {
+        return Ok(SideEffectsDeclaration::SideEffectFree.cell());
     }
 
     Ok(SideEffectsDeclaration::None.cell())
