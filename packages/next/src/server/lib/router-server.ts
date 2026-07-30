@@ -14,7 +14,7 @@ import { finalizeBundlerFromConfig, getBundlerFromEnv } from '../../lib/bundler'
 import { serveStatic } from '../serve-static'
 import setupDebug from 'next/dist/compiled/debug'
 import * as Log from '../../build/output/log'
-import { DecodeError } from '../../shared/lib/utils'
+import { DecodeError, normalizeRepeatedSlashes } from '../../shared/lib/utils'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
 import { proxyRequest } from './router-utils/proxy-request'
@@ -316,8 +316,7 @@ export async function initialize(opts: {
 
       const { getLocaleRedirect } =
         require('../../shared/lib/i18n/get-locale-redirect') as typeof import('../../shared/lib/i18n/get-locale-redirect')
-
-      const parsedUrl = parseUrlUtil((req.url || '')?.replace(/^\/+/, '/'))
+      const parsedUrl = parseUrlUtil(normalizeRepeatedSlashes(req.url || ''))
 
       const redirect = getLocaleRedirect({
         defaultLocale,
