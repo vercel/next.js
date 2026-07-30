@@ -193,18 +193,8 @@ export class StagedRenderingController {
     return this.syncInterruptReason
   }
 
-  getStaticStageEndTime() {
-    // The Static stage ends when the stage after it began.
-    return (
-      this.triggers[getNextStage(RenderStage.Static)].triggeredAt ?? Infinity
-    )
-  }
-
-  getRuntimeStageEndTime() {
-    // The Runtime stage ended when the stage after it began.
-    return (
-      this.triggers[getNextStage(RenderStage.Runtime)].triggeredAt ?? Infinity
-    )
+  getStageEndTime(stage: Exclude<AdvanceableRenderStage, RenderStage.Dynamic>) {
+    return this.triggers[getNextStage(stage)].triggeredAt ?? Infinity
   }
 
   private abandonRender() {

@@ -4,6 +4,7 @@ import type { NextParsedUrlQuery } from '../request-meta'
 import type { PrefetchingMode } from './app-render'
 import type { NextConfigComplete, ValidationLevel } from '../config-shared'
 import type { ImageConfigComplete } from '../../shared/lib/image-config'
+import type { StageEndTimes } from './instant-validation/instant-validation'
 
 /**
  * Cross-module handoff for the dev validation worker (client-module warmup,
@@ -39,8 +40,7 @@ export interface SerializedValidationInputs {
   accumulatedChunks: SerializedAccumulatedChunks
   debugChunks: Uint8Array[] | null
   startTime: number
-  staticStageEndTime: number
-  runtimeStageEndTime: number
+  stageEndTimes: StageEndTimes
 }
 
 /**

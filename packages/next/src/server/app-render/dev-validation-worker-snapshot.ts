@@ -55,8 +55,7 @@ export async function buildDevValidationSnapshot(
     accumulatedChunks: inputs.accumulatedChunks,
     debugChunks: await getDebugChunksOnce(inputs.debugChannelClient),
     startTime: inputs.startTime,
-    staticStageEndTime: inputs.staticStageEndTime,
-    runtimeStageEndTime: inputs.runtimeStageEndTime,
+    stageEndTimes: inputs.stageEndTimes,
   })
 
   return {
