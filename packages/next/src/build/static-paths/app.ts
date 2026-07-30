@@ -33,6 +33,8 @@ import type { AppRouteModule } from '../../server/route-modules/app-route/module
 import type { NormalizedAppRoute } from '../../shared/lib/router/routes/app'
 import { interceptionPrefixFromParamType } from '../../shared/lib/router/utils/interception-prefix-from-param-type'
 import { isPlainObject } from '../../shared/lib/is-plain-object'
+import { isVariantParams } from '../../server/request/variants'
+import { hashVariants } from '../../server/variants/hash'
 import {
   type GenerateStaticParamsStore,
   workUnitAsyncStorage,
@@ -48,6 +50,49 @@ import { getImplicitTags } from '../../server/lib/implicit-tags'
  * @param routeParams - The list of parameter objects to filter.
  * @returns A new array containing only the unique parameter combinations.
  */
+/**
+ * Builds the string that identifies a parameter combination.
+ *
+ * Shared so that everything correlating on a combination agrees on what makes
+ * two of them the same. Variant combinations are collected against this key
+ * before deduplication and looked up again afterwards, which only works while
+ * both sides derive the key the same way.
+ *
+ * @param childrenRouteParams - The keys of the parameters. These should be sorted to ensure consistent key generation.
+ * @param params - The parameter combination to identify.
+ */
+export function getParamsKey(
+  childrenRouteParams: readonly { paramName: string }[],
+  params: Params
+): string {
+  let key = ''
+
+  // Iterate through the `routeParamKeys` (which are assumed to be sorted). This
+  // consistent order is crucial for generating a stable and unique key for each
+  // parameter combination.
+  for (const { paramName: paramKey } of childrenRouteParams) {
+    const value = params[paramKey]
+
+    // Construct a part of the key using the parameter key and its value. A type
+    // prefix (`A:` for Array, `S:` for String, `U:` for undefined) is added to
+    // the value to prevent collisions. For example, `['a', 'b']` and `'a,b'`
+    // would otherwise generate the same string representation, leading to
+    // incorrect deduplication. This ensures that different types with the same
+    // string representation are treated as distinct.
+    let valuePart: string
+    if (Array.isArray(value)) {
+      valuePart = `A:${value.join(',')}`
+    } else if (value === undefined) {
+      valuePart = `U:undefined`
+    } else {
+      valuePart = `S:${value}`
+    }
+    key += `${paramKey}:${valuePart}|`
+  }
+
+  return key
+}
+
 export function filterUniqueParams(
   childrenRouteParams: readonly { paramName: string }[],
   routeParams: readonly Params[]
@@ -59,30 +104,7 @@ export function filterUniqueParams(
 
   // Iterate over each parameter object in the input array.
   for (const params of routeParams) {
-    let key = '' // Initialize an empty string to build the unique key for the current `params` object.
-
-    // Iterate through the `routeParamKeys` (which are assumed to be sorted).
-    // This consistent order is crucial for generating a stable and unique key
-    // for each parameter combination.
-    for (const { paramName: paramKey } of childrenRouteParams) {
-      const value = params[paramKey]
-
-      // Construct a part of the key using the parameter key and its value.
-      // A type prefix (`A:` for Array, `S:` for String, `U:` for undefined) is added to the value
-      // to prevent collisions. For example, `['a', 'b']` and `'a,b'` would
-      // otherwise generate the same string representation, leading to incorrect
-      // deduplication. This ensures that different types with the same string
-      // representation are treated as distinct.
-      let valuePart: string
-      if (Array.isArray(value)) {
-        valuePart = `A:${value.join(',')}`
-      } else if (value === undefined) {
-        valuePart = `U:undefined`
-      } else {
-        valuePart = `S:${value}`
-      }
-      key += `${paramKey}:${valuePart}|`
-    }
+    const key = getParamsKey(childrenRouteParams, params)
 
     // If the generated key is not already in the `unique` Map, it means this
     // parameter combination is unique so far. Add it to the Map.
@@ -610,14 +632,47 @@ function getValueType(value: unknown): string {
  * Calls a single generateStaticParams function within a WorkUnitStore context,
  * making root param getters available during static param generation.
  */
+/**
+ * A row returned from `generateStaticParams`, split into the params it
+ * contributes and the variant combination it should be prerendered against.
+ *
+ * `variants` is only ever set on rows from the page segment. Layouts may not
+ * return variant rows, so a parent never contributes a combination for a child
+ * to expand on.
+ */
+type StaticParamsRow = {
+  readonly params: Params
+  readonly variants: Readonly<Record<string, string>> | undefined
+}
+
+/**
+ * Every parameter combination a route generates, and the variant combinations
+ * enumerated for each of them.
+ *
+ * The variants travel beside the params rather than inside them so that
+ * deduplication, combination generation and validation keep operating on plain
+ * `Params`, which remains the right identity for all three: a route's params
+ * are unique regardless of how many variants it is prerendered against. They
+ * are keyed by `getParamsKey` so that the combinations for a row can be found
+ * again once the params have been deduplicated.
+ */
+type RouteStaticParamsResult = {
+  readonly routeParams: Params[]
+  readonly variantsByParamsKey: ReadonlyMap<
+    string,
+    ReadonlyArray<Readonly<Record<string, string>>>
+  >
+}
+
 async function callGenerateStaticParams(
   page: string,
   generateStaticParams: NonNullable<AppSegment['generateStaticParams']>,
   parentParams: Params,
   rootParamKeys: readonly string[],
   implicitTags: ImplicitTags,
-  isStaticExport: boolean
-): Promise<Params[]> {
+  isStaticExport: boolean,
+  allowVariants: boolean
+): Promise<StaticParamsRow[]> {
   const rootParams: Params = {}
   for (const key of rootParamKeys) {
     if (key in parentParams) {
@@ -650,15 +705,37 @@ async function callGenerateStaticParams(
     )
   }
 
-  for (const [index, params] of generatedParams.entries()) {
-    if (!isPlainObject(params)) {
+  const rows: StaticParamsRow[] = []
+
+  for (const [index, generated] of generatedParams.entries()) {
+    if (isVariantParams(generated)) {
+      if (!allowVariants) {
+        throw new Error(
+          `Invalid value at index ${index} returned from generateStaticParams for "${page}". \`withVariants()\` may only be returned from a page's generateStaticParams, because the set of prerendered combinations is decided per page. Return plain params from this segment and enumerate the variants in the page beneath it.`
+        )
+      }
+
+      if (!isPlainObject(generated.params)) {
+        throw new Error(
+          `Invalid value at index ${index} returned from generateStaticParams for "${page}". Expected the first argument to withVariants() to be an object, but received type ${getValueType(generated.params)}. See more info here: https://nextjs.org/docs/messages/generate-static-params`
+        )
+      }
+
+      rows.push({ params: generated.params, variants: generated.variants })
+
+      continue
+    }
+
+    if (!isPlainObject(generated)) {
       throw new Error(
-        `Invalid value at index ${index} returned from generateStaticParams for "${page}". Expected an object, but received type ${getValueType(params)}. See more info here: https://nextjs.org/docs/messages/generate-static-params`
+        `Invalid value at index ${index} returned from generateStaticParams for "${page}". Expected an object, but received type ${getValueType(generated)}. See more info here: https://nextjs.org/docs/messages/generate-static-params`
       )
     }
+
+    rows.push({ params: generated, variants: undefined })
   }
 
-  return generatedParams
+  return rows
 }
 
 /**
@@ -672,7 +749,8 @@ async function callGenerateStaticParams(
  * @param isRoutePPREnabled - Whether PPR is enabled for this route
  * @param rootParamKeys - The keys identifying which params are root params
  * @param isStaticExport - Whether the route is built with output: export
- * @returns Promise that resolves to an array of all parameter combinations
+ * @param routeParamSegments - The param segments identifying a combination, used to key the collected variants
+ * @returns Promise that resolves to all parameter combinations, and the variant combinations enumerated for each
  */
 export async function generateRouteStaticParams(
   segments: ReadonlyArray<
@@ -686,21 +764,24 @@ export async function generateRouteStaticParams(
   store: Pick<WorkStore, 'fetchCache' | 'page'>,
   isRoutePPREnabled: boolean,
   rootParamKeys: readonly string[],
-  isStaticExport: boolean
-): Promise<Params[]> {
+  isStaticExport: boolean,
+  routeParamSegments: readonly { paramName: string }[] = []
+): Promise<RouteStaticParamsResult> {
   // Early return if no segments to process
-  if (segments.length === 0) return []
+  if (segments.length === 0) {
+    return { routeParams: [], variantsByParamsKey: new Map() }
+  }
 
   const implicitTags = await getImplicitTags(store.page, store.page, null)
 
   // Use iterative processing with a work queue to avoid recursion overhead
   interface WorkItem {
     segmentIndex: number
-    params: Params[]
+    params: StaticParamsRow[]
   }
 
   const queue: WorkItem[] = [{ segmentIndex: 0, params: [] }]
-  let currentParams: Params[] = []
+  let currentParams: StaticParamsRow[] = []
 
   while (queue.length > 0) {
     const { segmentIndex, params } = queue.shift()!
@@ -713,6 +794,11 @@ export async function generateRouteStaticParams(
 
     const current = segments[segmentIndex]
 
+    // Only the page may enumerate variant combinations. The route output is per
+    // page, so that is where the matrix belongs, and it keeps a layout from
+    // silently multiplying the output count of every page beneath it.
+    const allowVariants = segmentIndex === segments.length - 1
+
     // Skip segments without generateStaticParams and continue to next
     if (typeof current.generateStaticParams !== 'function') {
       queue.push({ segmentIndex: segmentIndex + 1, params })
@@ -724,31 +810,37 @@ export async function generateRouteStaticParams(
       store.fetchCache = current.config.fetchCache
     }
 
-    const nextParams: Params[] = []
+    const nextParams: StaticParamsRow[] = []
 
     // If there are parent params, we need to process them.
     if (params.length > 0) {
       // Process each parent parameter combination
-      for (const parentParams of params) {
+      for (const parentRow of params) {
         const result = await callGenerateStaticParams(
           store.page,
           current.generateStaticParams,
-          parentParams,
+          parentRow.params,
           rootParamKeys,
           implicitTags,
-          isStaticExport
+          isStaticExport,
+          allowVariants
         )
 
         if (result.length > 0) {
-          // Merge parent params with each result item
+          // Merge parent params with each result item. Only the row's own
+          // variants carry over, because a parent segment can never have
+          // contributed any.
           for (const item of result) {
-            nextParams.push({ ...parentParams, ...item })
+            nextParams.push({
+              params: { ...parentRow.params, ...item.params },
+              variants: item.variants,
+            })
           }
         } else if (isRoutePPREnabled) {
           throwEmptyGenerateStaticParamsError(current.createEmptyParamsError)
         } else {
           // No results, just pass through parent params
-          nextParams.push(parentParams)
+          nextParams.push(parentRow)
         }
       }
     } else {
@@ -759,7 +851,8 @@ export async function generateRouteStaticParams(
         {},
         rootParamKeys,
         implicitTags,
-        isStaticExport
+        isStaticExport,
+        allowVariants
       )
       if (result.length === 0 && isRoutePPREnabled) {
         throwEmptyGenerateStaticParamsError(current.createEmptyParamsError)
@@ -772,7 +865,45 @@ export async function generateRouteStaticParams(
     queue.push({ segmentIndex: segmentIndex + 1, params: nextParams })
   }
 
-  return currentParams
+  // Split the rows apart again. Downstream deduplication, combination
+  // generation and validation all operate on plain params, so the variants are
+  // handed back keyed by the combination they belong to, to be reattached once
+  // those steps have run.
+  const routeParams: Params[] = []
+  const variantsByParamsKey = new Map<
+    string,
+    Array<Readonly<Record<string, string>>>
+  >()
+
+  for (const row of currentParams) {
+    routeParams.push(row.params)
+
+    const variants = row.variants
+
+    if (!variants) {
+      continue
+    }
+
+    const key = getParamsKey(routeParamSegments, row.params)
+    const combinations = variantsByParamsKey.get(key)
+
+    if (!combinations) {
+      variantsByParamsKey.set(key, [variants])
+
+      continue
+    }
+
+    // The same combination can be enumerated more than once, whether by hand or
+    // because a parent segment yielded the same params twice. Prerendering it
+    // twice would write the same artifact twice.
+    const hash = hashVariants(variants)
+
+    if (!combinations.some((existing) => hashVariants(existing) === hash)) {
+      combinations.push(variants)
+    }
+  }
+
+  return { routeParams, variantsByParamsKey }
 }
 
 function createReplacements(
@@ -923,14 +1054,15 @@ export async function buildAppStaticPaths({
     previouslyRevalidatedTags: [],
   })
 
-  const routeParams = await workAsyncStorage.run(
+  const { routeParams, variantsByParamsKey } = await workAsyncStorage.run(
     store,
     generateRouteStaticParams,
     segments,
     store,
     isRoutePPREnabled,
     rootParamKeys,
-    nextConfigOutput === 'export'
+    nextConfigOutput === 'export',
+    pathnameRouteParamSegments
   )
   const generatedParamNames = new Set<string>()
   for (const params of routeParams) {
@@ -1152,7 +1284,7 @@ export async function buildAppStaticPaths({
 
       pathname = normalizePathname(pathname)
 
-      prerenderedRoutesByPathname.set(pathname, {
+      const prerenderedRoute = {
         params,
         pathname,
         encodedPathname: normalizePathname(encodedPathname),
@@ -1164,7 +1296,30 @@ export async function buildAppStaticPaths({
         ),
         fallbackRootParams,
         throwOnEmptyStaticShell: true,
-      })
+      }
+
+      // Reattach the variant combinations enumerated for these params. Each one
+      // is prerendered separately, so they cannot share a key: the pathname is
+      // identical across combinations, since the variants are carried by a
+      // prefix that is stripped before the route is matched. Combinations
+      // synthesized for fallback shells were never enumerated and correctly
+      // find nothing here.
+      const combinations = variantsByParamsKey.get(
+        getParamsKey(pathnameRouteParamSegments, params)
+      )
+
+      if (!combinations) {
+        prerenderedRoutesByPathname.set(pathname, prerenderedRoute)
+
+        return
+      }
+
+      for (const variantValues of combinations) {
+        prerenderedRoutesByPathname.set(
+          `${pathname}\0${hashVariants(variantValues)}`,
+          { ...prerenderedRoute, variantValues }
+        )
+      }
     })
   }
 

@@ -12,6 +12,17 @@ type StaticPrerenderedRoute = {
   remainingPrerenderableParams?: undefined
 
   /**
+   * The variant combination this route is prerendered against, keyed by variant
+   * identity, or undefined when it is prerendered without variants.
+   *
+   * Several routes can share a pathname and differ only by this, because the
+   * variant values reach the server as a path prefix that is stripped before
+   * the route is matched. It is the hash of this that separates their artifacts
+   * on disk.
+   */
+  readonly variantValues?: Readonly<Record<string, string>>
+
+  /**
    * When enabled, the route will be rendered with diagnostics enabled which
    * will error the build if the route that is generated is empty.
    */
@@ -44,6 +55,17 @@ type FallbackPrerenderedRoute = {
   readonly fallbackMode: FallbackMode | undefined
   readonly fallbackRootParams: readonly string[]
   remainingPrerenderableParams?: readonly FallbackRouteParam[]
+
+  /**
+   * The variant combination this route is prerendered against, keyed by variant
+   * identity, or undefined when it is prerendered without variants.
+   *
+   * Several routes can share a pathname and differ only by this, because the
+   * variant values reach the server as a path prefix that is stripped before
+   * the route is matched. It is the hash of this that separates their artifacts
+   * on disk.
+   */
+  readonly variantValues?: Readonly<Record<string, string>>
 
   /**
    * When enabled, the route will be rendered with diagnostics enabled which
