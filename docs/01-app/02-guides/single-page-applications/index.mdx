@@ -5,8 +5,6 @@ description: Next.js fully supports building Single-Page Applications (SPAs).
 related:
   description: Related guides and references.
   links:
-    - app/guides/single-page-applications/swr
-    - app/guides/single-page-applications/tanstack-query
     - app/guides/interactive-apps
     - app/guides/server-actions
     - app/guides/forms
@@ -19,14 +17,14 @@ Next.js fully supports building Single-Page Applications (SPAs).
 
 This includes fast route transitions with prefetching, client-side data fetching, using browser APIs, integrating with third-party client libraries, creating static routes, and more.
 
-If you have an existing SPA, you can migrate to Next.js without large changes to your code. Next.js then allows you to progressively add server features as needed.
+If you have an existing SPA, you can migrate to Next.js without large changes to your code. Next.js then lets you progressively add server features as needed.
 
 ## What is a Single-Page Application?
 
-The definition of a SPA varies. We’ll define a “strict SPA” as:
+The definition of a SPA varies. We'll define a "strict SPA" as:
 
 - **Client-side rendering (CSR)**: The app is served by one HTML file (e.g. `index.html`). Every route, page transition, and data fetch is handled by JavaScript in the browser.
-- **No full-page reloads**: Rather than requesting a new document for each route, client-side JavaScript manipulates the current page’s DOM and fetches data as needed.
+- **No full-page reloads**: Rather than requesting a new document for each route, client-side JavaScript manipulates the current page's DOM and fetches data as needed.
 
 Strict SPAs often require large amounts of JavaScript to load before the page can be interactive. Further, client data waterfalls can be challenging to manage. Building SPAs with Next.js can address these issues.
 
@@ -36,15 +34,15 @@ Next.js can automatically code split your JavaScript bundles, and generate multi
 
 The [`next/link`](/docs/app/api-reference/components/link) component automatically [prefetches](/docs/app/api-reference/components/link#prefetch) routes, giving you the fast page transitions of a strict SPA, but with the advantage of persisting application routing state to the URL for linking and sharing.
 
-Next.js can start as a static site or even a strict SPA where everything is rendered client-side. If your project grows, Next.js allows you to progressively add more server features (e.g. [React Server Components](/docs/app/getting-started/server-and-client-components), [Server Actions](/docs/app/guides/server-actions), and more) as needed.
+Next.js can start as a static site or even a strict SPA where everything is rendered client-side. If your project grows, you can progressively add more server features (e.g. [React Server Components](/docs/app/getting-started/server-and-client-components), [Server Actions](/docs/app/guides/server-actions), and more) as needed.
 
 ## Examples
 
 The following examples cover common patterns for building an SPA with Next.js. The companion [demo](https://next-spa-patterns.labs.vercel.dev) ([source](https://github.com/vercel-labs/next-spa-patterns)) shows each pattern in action.
 
-### Using React’s `use` within a Context Provider
+### Using React's `use` within a Context Provider
 
-You can use React’s [`use` API](https://react.dev/reference/react/use) to stream data from the server to a Client Component. Fetch the data in a Server Component (a parent or layout) and pass the Promise down. The Client Component unwraps it with `use()`, since it cannot `await` during render.
+You can use React's [`use` API](https://react.dev/reference/react/use) to stream data from the server to a Client Component. Fetch the data in a Server Component (a parent or layout) and pass the Promise down. The Client Component unwraps it with `use()`, since it cannot `await` during render.
 
 Starting the request on the server, before the rest of the app renders, lets the response stream immediately and avoids client-side request waterfalls.
 
@@ -226,7 +224,7 @@ See the [live demo](https://next-spa-patterns.labs.vercel.dev/browser-only) and 
 
 If you are migrating from a strict SPA like [Create React App](/docs/app/guides/migrating/from-create-react-app) or [Vite](/docs/app/guides/migrating/from-vite), you might have existing code which shallow routes to update the URL state. This can be useful for manual transitions between views in your application _without_ using the default Next.js file-system routing.
 
-Next.js allows you to use the native [`window.history.pushState`](https://developer.mozilla.org/en-US/docs/Web/API/History/pushState) and [`window.history.replaceState`](https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState) methods to update the browser's history stack without reloading the page.
+Next.js lets you use the native [`window.history.pushState`](https://developer.mozilla.org/en-US/docs/Web/API/History/pushState) and [`window.history.replaceState`](https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState) methods to update the browser's history stack without reloading the page.
 
 The `pushState` and `replaceState` calls integrate into the Next.js Router, allowing you to sync with [`usePathname`](/docs/app/api-reference/functions/use-pathname) and [`useSearchParams`](/docs/app/api-reference/functions/use-search-params).
 
@@ -543,13 +541,18 @@ To learn more about adding interactivity on top of server-rendered apps so they 
 
 The sections above use React, Server Actions, and the Next.js cache directly. You can also pair Next.js with a client data-fetching library such as [SWR](https://swr.vercel.app), [TanStack Query](https://tanstack.com/query), or [Apollo Client](https://www.apollographql.com/docs/react) when a Client Component needs client-side features such as focus revalidation, interval polling, or request deduplication.
 
-These libraries follow the same shape with Next.js, so the concepts are shared even though each library's API differs:
+You do not have to seed every client query from a Server Component. For interactions whose input is only known in the browser, such as autocomplete, you can fetch directly from a Client Component. The library still caches the result in the browser, but the initial result waits for client JavaScript and a client-side request instead of being included in the server-rendered response. The API route can still call a cached server function, so server seeding and server data caching are separate choices.
 
-- **Seed the client cache from a Server Component.** Fetch on the server and hand the result to the client on first render, so the library has data without a client-side waterfall. Point the client's fetch key at an [API route](/docs/app/api-reference/file-conventions/route) (a GET) so the library can revalidate and poll from the browser.
-- **Scope data to the segment that owns it.** Seed the data on the route segment that reads it, not a global config, so each segment starts its own server-side requests and unrelated keys stay separate.
-- **Coordinate the server and client caches on mutation.** When the Next.js cache and the client cache hold different state (for example, a server-rendered feed and a client-owned unread badge), a mutation updates the client cache for an instant change, then writes through an API route that calls [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) to refresh the server render for the next visit.
+Seed a client cache from a Server Component when you want the initial data to benefit from server rendering, streaming, and the Next.js cache while still using the library's client-side features. These libraries follow the same shape when server seeding is useful, even though each library's API differs:
 
-Seeding the client cache from a Server Component lets the same Client Component read data from the client, the server, or both. Server Components provide the first-render data, and the library owns revalidation and polling from there:
+- **Optionally seed the client cache from a Server Component**, so the library has first-render data without a client-side waterfall.
+- **Scope data to the segment that owns it**, not a global config, so unrelated keys stay separate.
+- **Define cache identities once**, so server tags, client keys, hydration, and mutations cannot drift apart.
+- **Coordinate the server and client caches on mutation**, updating the client cache for an instant change and refreshing the server data for the next render.
+
+The server value seeds the client cache's initial snapshot. After hydration, the client library owns its browser cache and revalidation. The two caches keep independent freshness policies and do not need matching durations; only their identities and mutation invalidation must stay coordinated, and an optimistic update should restore the previous value if the write fails.
+
+The same shape applies to any client cache, so a library not listed here follows it too. Seeding from a Server Component lets the same Client Component read data from the client, the server, or both:
 
 |                      | Client library      | RSC                 | RSC + client library |
 | -------------------- | ------------------- | ------------------- | -------------------- |
@@ -562,8 +565,6 @@ For the library-specific setup and code, see:
 
 - [Client-side data fetching with SWR](/docs/app/guides/single-page-applications/swr)
 - [Client-side data fetching with TanStack Query](/docs/app/guides/single-page-applications/tanstack-query)
-
-The same concepts apply to any client cache, so a library not listed here (such as Apollo Client) follows the same shape: seed from a Server Component, scope per segment, and coordinate caches on mutation.
 
 If a Client Component only needs to read server data once, pass a Promise to it and unwrap it with [`use()`](#using-reacts-use-within-a-context-provider) instead. That avoids adding a data-fetching library for data that never revalidates on the client.
 

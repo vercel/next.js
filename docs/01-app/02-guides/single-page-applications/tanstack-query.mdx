@@ -1,32 +1,74 @@
 ---
 title: How to fetch client-side data with TanStack Query
 nav_title: TanStack Query
-description: Seed TanStack Query from a Server Component, cache the dehydrated payload with Cache Components, and coordinate the server and client caches on mutation.
+description: Fetch client-side data with TanStack Query, optionally seed it from a Server Component, and coordinate server and client caches.
 related:
   description: Related guides and references.
   links:
     - app/guides/single-page-applications
     - app/getting-started/caching
     - app/api-reference/directives/use-cache
+    - app/api-reference/functions/revalidateTag
 ---
 
-You can use [TanStack Query](https://tanstack.com/query) (formerly React Query) with Next.js on the client and the server. This guide shows the TanStack Query-specific setup for the patterns in [Single-Page Applications](/docs/app/guides/single-page-applications#client-side-data-fetching-libraries): seeding server data into the client cache, caching the dehydrated payload with Cache Components, and coordinating the server and client caches on mutation.
+You can use [TanStack Query](https://tanstack.com/query) (formerly React Query) with Next.js on the client and the server. This guide shows the TanStack Query-specific setup for the patterns in [Single-Page Applications](/docs/app/guides/single-page-applications#client-side-data-fetching-libraries): fetching data only on the client, optionally seeding server data into the client cache, caching server data with Cache Components, and coordinating the server and client caches on mutation.
 
-## Seeding TanStack Query from a Server Component
+## Fetching data only on the client
 
-Seed the cache from a Server Component the same way as [SWR](/docs/app/guides/single-page-applications/swr): prefetch on the server, hand the cache to the client, and let it own revalidation from there.
+You do not have to seed a query from a Server Component. For data whose input is only known after an interaction, such as autocomplete, call `useQuery` directly from a Client Component with a key that includes the input:
+
+```tsx filename="app/project-autocomplete.tsx" switcher
+'use client'
+
+import { useQuery } from '@tanstack/react-query'
+
+export function ProjectAutocomplete({ query }: { query: string }) {
+  const { data = [] } = useQuery({
+    queryKey: ['project-search', query],
+    queryFn: () => fetch(`/api/projects?q=${query}`).then((res) => res.json()),
+    enabled: query.length > 0,
+  })
+
+  return data.map((project) => <p key={project.id}>{project.name}</p>)
+}
+```
+
+The result is not in the server-rendered response, so the first result waits for hydration and a client request. This is often the right tradeoff for interaction-driven data. The API route can still read through a server function that uses Cache Components.
+
+Learn more: [TanStack Query queries](https://tanstack.com/query/latest/docs/framework/react/guides/queries).
+
+## Seeding TanStack Query from a Server Component (optional)
+
+When the server already knows which data the first render needs, you can seed the cache from a Server Component the same way as [SWR](/docs/app/guides/single-page-applications/swr): prefetch on the server, hand the cache to the client, and let it own revalidation from there. This avoids the initial client-side request while preserving TanStack Query's client-side features.
 
 TanStack Query needs a one-time setup, including a `getQueryClient` (new per request on the server, a singleton in the browser), a `<QueryClientProvider>`, and a client configured to dehydrate pending queries. TanStack Query owns this integration, so follow [its Advanced SSR guide](https://tanstack.com/query/latest/docs/framework/react/guides/advanced-ssr) for the full setup and current APIs.
 
-Define the query key and query function in one shared helper. As with SWR, the query function fetches an [API route](/docs/app/api-reference/file-conventions/route) so it can run on the client to refetch and poll:
+Define the client query key and server cache tag together. They identify the same data in different caches: TanStack Query uses the key in the browser, while Next.js uses the tag to invalidate cached server data.
+
+```ts filename="app/projects/[id]/project-cache.ts" switcher
+export const projectCache = {
+  key: (id: string) => ['project', id] as const,
+  tag: (id: string) => `project:${id}`,
+}
+```
+
+```js filename="app/projects/[id]/project-cache.js" switcher
+export const projectCache = {
+  key: (id) => ['project', id],
+  tag: (id) => `project:${id}`,
+}
+```
+
+As with SWR, the query function fetches an [API route](/docs/app/api-reference/file-conventions/route) so it can run on the client to refetch:
 
 ```tsx filename="app/projects/[id]/project-query.ts" switcher
 import { queryOptions } from '@tanstack/react-query'
 import type { Project } from './data'
+import { projectCache } from './project-cache'
 
 export function projectQueryOptions(id: string) {
   return queryOptions({
-    queryKey: ['project', id],
+    queryKey: projectCache.key(id),
     queryFn: async (): Promise<Project> => {
       const res = await fetch(`/api/projects/${id}`)
       return res.json()
@@ -37,10 +79,11 @@ export function projectQueryOptions(id: string) {
 
 ```js filename="app/projects/[id]/project-query.js" switcher
 import { queryOptions } from '@tanstack/react-query'
+import { projectCache } from './project-cache'
 
 export function projectQueryOptions(id) {
   return queryOptions({
-    queryKey: ['project', id],
+    queryKey: projectCache.key(id),
     queryFn: async () => {
       const res = await fetch(`/api/projects/${id}`)
       return res.json()
@@ -123,7 +166,7 @@ function ProjectData({ id }) {
 
 As with SWR, `params.then()` resolves the `id` inside `<Suspense>`, and `ProjectData` prefetches below the boundary.
 
-The Client Component reads the data with the same query key. Use `useSuspenseQuery` when a `<Suspense>` boundary handles loading and you want `data` to always be defined. Use `useQuery` when you would rather render its `isPending` and `error` states inline:
+The Client Component reads the same query key with `useSuspenseQuery` (or `useQuery` to render `isPending` and `error` states inline):
 
 ```tsx filename="app/projects/[id]/project-view.tsx" switcher
 'use client'
@@ -151,22 +194,54 @@ export function ProjectView({ id }) {
 }
 ```
 
-The query key connects the server prefetch and client hook, the same way the matching `fallback` and `useSWR` keys do in the [SWR guide](/docs/app/guides/single-page-applications/swr).
-
 See the [live demo](https://next-spa-patterns.labs.vercel.dev/react-query) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/react-query).
 
-## With Cache Components
+Learn more: [TanStack Query Advanced SSR](https://tanstack.com/query/latest/docs/framework/react/guides/advanced-ssr).
 
-The `prefetchQuery` shape above streams the query in without caching it. With [Cache Components](/docs/app/getting-started/caching), you can cache and [tag](/docs/app/api-reference/functions/cacheTag) the dehydrated payload so it revalidates like any other cache entry.
+## Caching server data with Cache Components
 
-The `dehydrate()` call records the current time (`Date.now()`) in its output. Reading the current time is not allowed while prerendering, so calling `dehydrate()` directly fails with a [current-time prerender error](/docs/messages/blocking-prerender-current-time).
+Server seeding and server data caching are independent. With [Cache Components](/docs/app/getting-started/caching), the server function can cache the data whether it is called by the Server Component seed, the API route, or both. Add [`use cache`](/docs/app/api-reference/directives/use-cache), choose a [`cacheLife`](/docs/app/api-reference/functions/cacheLife) profile, and use the server tag defined beside the query key:
 
-Cache only the timestamp that `dehydrate()` reads, and build the dehydrated state by hand. Wrap the time read in [`use cache`](/docs/app/api-reference/directives/use-cache) with a [`cacheLife`](/docs/app/api-reference/functions/cacheLife), then pass it as each query's `updatedAt`. Because only the timestamp is cached, the data stays fresh per request, and the `stale` value controls how long the client treats the hydrated data as fresh:
+```ts filename="app/projects/[id]/data.ts" switcher
+import { cacheLife, cacheTag } from 'next/cache'
+import { projectCache } from './project-cache'
+
+export async function getProject(id: string) {
+  'use cache'
+  cacheLife('max')
+  cacheTag(projectCache.tag(id))
+
+  return db.project.findUnique({ where: { id } })
+}
+```
+
+```js filename="app/projects/[id]/data.js" switcher
+import { cacheLife, cacheTag } from 'next/cache'
+import { projectCache } from './project-cache'
+
+export async function getProject(id) {
+  'use cache'
+  cacheLife('max')
+  cacheTag(projectCache.tag(id))
+
+  return db.project.findUnique({ where: { id } })
+}
+```
+
+This example uses `cacheLife('max')` because writes invalidate the project tag. Choose a shorter profile when the server value should refresh with time instead. TanStack Query's `staleTime` and refetch options are separate browser policies and do not need to match `cacheLife`.
+
+Keep the cache contract free of server-only and client-only imports so every cache boundary can reuse it instead of duplicating raw keys and tags.
+
+### Prerendering the hydration state
+
+The `dehydrate()` call reads the current time (`Date.now()`), which is not allowed while prerendering, so calling it directly fails with a [current-time prerender error](/docs/messages/blocking-prerender-current-time).
+
+Instead, cache only that timestamp and build the dehydrated state by hand. Wrap the time read in [`use cache`](/docs/app/api-reference/directives/use-cache) with the same tags as the data reads. When a mutation invalidates those tags, the data and its timestamp advance together, so `<HydrationBoundary>` overwrites the client query on the next navigation:
 
 ```tsx filename="app/lib/hydrate.ts" switcher
 import 'server-only'
 
-import { cacheLife } from 'next/cache'
+import { cacheLife, cacheTag } from 'next/cache'
 import {
   defaultShouldDehydrateQuery,
   QueryClient,
@@ -180,20 +255,21 @@ type HydratedQuery = {
 }
 
 type HydrationOptions = {
-  stale?: number
+  tags: string[]
 }
 
-async function getHydrationUpdatedAt(stale: number) {
+async function getHydrationUpdatedAt(tags: string[]) {
   'use cache'
-  cacheLife({ stale })
+  cacheTag(...tags)
+  cacheLife('max')
   return Date.now()
 }
 
 export async function dehydrate(
   queries: HydratedQuery[],
-  options: HydrationOptions = {}
+  options: HydrationOptions
 ): Promise<DehydratedState> {
-  const updatedAt = await getHydrationUpdatedAt(options.stale ?? 30)
+  const updatedAt = await getHydrationUpdatedAt(options.tags)
 
   const queryClient = new QueryClient()
 
@@ -221,17 +297,18 @@ export async function dehydrate(
 ```js filename="app/lib/hydrate.js" switcher
 import 'server-only'
 
-import { cacheLife } from 'next/cache'
+import { cacheLife, cacheTag } from 'next/cache'
 import { defaultShouldDehydrateQuery, QueryClient } from '@tanstack/react-query'
 
-async function getHydrationUpdatedAt(stale) {
+async function getHydrationUpdatedAt(tags) {
   'use cache'
-  cacheLife({ stale })
+  cacheTag(...tags)
+  cacheLife('max')
   return Date.now()
 }
 
-export async function dehydrate(queries, options = {}) {
-  const updatedAt = await getHydrationUpdatedAt(options.stale ?? 30)
+export async function dehydrate(queries, options) {
+  const updatedAt = await getHydrationUpdatedAt(options.tags)
 
   const queryClient = new QueryClient()
 
@@ -256,15 +333,19 @@ export async function dehydrate(queries, options = {}) {
 }
 ```
 
-Await the helper in the segment that owns the data, passing fresh data in, and hand the result to `<HydrationBoundary>`, the same `ProjectData` boundary shown above:
+Await the helper in the segment that owns the data, passing the data and the same tags used on the underlying `getProject` read. Hand the result to `<HydrationBoundary>`, the same `ProjectData` boundary shown above:
 
 ```tsx filename="app/projects/[id]/page.tsx" switcher
 import { dehydrate } from '@/app/lib/hydrate'
 import { getProject } from './data'
+import { projectCache } from './project-cache'
 
 async function ProjectData({ id }: { id: string }) {
   const project = await getProject(id)
-  const state = await dehydrate([{ queryKey: ['project', id], data: project }])
+  const state = await dehydrate(
+    [{ queryKey: projectCache.key(id), data: project }],
+    { tags: [projectCache.tag(id)] }
+  )
 
   return (
     <HydrationBoundary state={state}>
@@ -277,10 +358,14 @@ async function ProjectData({ id }: { id: string }) {
 ```jsx filename="app/projects/[id]/page.js" switcher
 import { dehydrate } from '@/app/lib/hydrate'
 import { getProject } from './data'
+import { projectCache } from './project-cache'
 
 async function ProjectData({ id }) {
   const project = await getProject(id)
-  const state = await dehydrate([{ queryKey: ['project', id], data: project }])
+  const state = await dehydrate(
+    [{ queryKey: projectCache.key(id), data: project }],
+    { tags: [projectCache.tag(id)] }
+  )
 
   return (
     <HydrationBoundary state={state}>
@@ -290,23 +375,58 @@ async function ProjectData({ id }) {
 }
 ```
 
+> **Good to know:** The timestamp must advance whenever the seeded data advances. The helper above suits tag-driven server data because both use the same tags. For time-driven server data, derive the data and hydration timestamp from the same cached snapshot instead of maintaining unrelated time windows.
+
+Learn more: [`use cache`](/docs/app/api-reference/directives/use-cache) and [`cacheTag`](/docs/app/api-reference/functions/cacheTag).
+
 ## Coordinating the server and client caches on mutation
 
-TanStack Query coordinates the two caches on a mutation the same way as [SWR](/docs/app/guides/single-page-applications/swr#coordinating-the-server-and-client-caches-on-mutation): update the client cache for an instant change, then write through an API route that calls `revalidateTag` to refresh the server render for the next visit. Update the badge in `useMutation`'s [`onMutate`](https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates) callback, which runs before the request:
+The examples above seed the client cache from the server. After hydration, TanStack Query owns the browser copy and its revalidation. For reused data, keep the query key and server tag in the same cache contract:
+
+```ts filename="app/activity/activity-cache.ts" switcher
+export const activityCache = {
+  key: ['activity', 'unread'] as const,
+  tag: (userId: string) => `activity:${userId}`,
+}
+```
+
+```js filename="app/activity/activity-cache.js" switcher
+export const activityCache = {
+  key: ['activity', 'unread'],
+  tag: (userId) => `activity:${userId}`,
+}
+```
+
+On mutation, use `useMutation`'s [`onMutate`](https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates) callback to update the cache immediately, restore the previous value in `onError` if the write fails, and commit the value returned by the write:
 
 ```tsx filename="app/activity/mark-read.tsx" switcher
 'use client'
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { activityCache } from './activity-cache'
 
 export function useMarkActivityRead() {
   const queryClient = useQueryClient()
+  const queryKey = activityCache.key
 
   return useMutation({
-    mutationFn: () => fetch('/api/activity/read', { method: 'POST' }),
-    // Update the badge immediately, before the request resolves.
-    onMutate: () =>
-      queryClient.setQueryData(['activity', 'unread'], { count: 0 }),
+    mutationFn: async () => {
+      const response = await fetch('/api/activity/read', { method: 'POST' })
+      if (!response.ok) throw new Error('Failed to mark activity as read')
+      return response.json()
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey })
+      const previous = queryClient.getQueryData(queryKey)
+      queryClient.setQueryData(queryKey, { count: 0 })
+      return { previous }
+    },
+    onError: (_error, _variables, context) => {
+      queryClient.setQueryData(queryKey, context?.previous)
+    },
+    onSuccess: (activity) => {
+      queryClient.setQueryData(queryKey, activity)
+    },
   })
 }
 ```
@@ -315,19 +435,38 @@ export function useMarkActivityRead() {
 'use client'
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { activityCache } from './activity-cache'
 
 export function useMarkActivityRead() {
   const queryClient = useQueryClient()
+  const queryKey = activityCache.key
 
   return useMutation({
-    mutationFn: () => fetch('/api/activity/read', { method: 'POST' }),
-    // Update the badge immediately, before the request resolves.
-    onMutate: () =>
-      queryClient.setQueryData(['activity', 'unread'], { count: 0 }),
+    mutationFn: async () => {
+      const response = await fetch('/api/activity/read', { method: 'POST' })
+      if (!response.ok) throw new Error('Failed to mark activity as read')
+      return response.json()
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey })
+      const previous = queryClient.getQueryData(queryKey)
+      queryClient.setQueryData(queryKey, { count: 0 })
+      return { previous }
+    },
+    onError: (_error, _variables, context) => {
+      queryClient.setQueryData(queryKey, context?.previous)
+    },
+    onSuccess: (activity) => {
+      queryClient.setQueryData(queryKey, activity)
+    },
   })
 }
 ```
 
-> **Good to know:** For keys reused across a read, a mutation, and revalidation, extract them into a shared object (for example, `activityKeys.unread`) so the same key is defined once. Inline arrays are fine for one-off keys.
+The API route writes to the database, then refreshes the server seed with `revalidateTag`, the same route handler shown in the [SWR guide](/docs/app/guides/single-page-applications/swr#coordinating-the-server-and-client-caches-on-mutation).
+
+> **Good to know:** This assumes the server seed reads through [`use cache`](/docs/app/api-reference/directives/use-cache) and is tagged with `cacheTag`. If that read is uncached, drop `revalidateTag`: each refetch already returns fresh data, so the client only revalidates after the write. See [coordinating the server and client caches](/docs/app/guides/single-page-applications#client-side-data-fetching-libraries) for the invalidation choices.
+
+Learn more: [TanStack Query optimistic updates](https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates).
 
 See the [live demo](https://next-spa-patterns.labs.vercel.dev/react-query) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/react-query), and the [TanStack Query docs](https://tanstack.com/query/latest/docs/framework/react/overview) for more on fetching and mutations.
