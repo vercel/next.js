@@ -18,20 +18,20 @@ related:
 
 You do not have to seed data from a Server Component. For data whose input is only known after an interaction, such as autocomplete, call `useSWR` directly from a Client Component with a key that includes the input:
 
-```tsx filename="app/project-autocomplete.tsx" switcher
+```tsx filename="app/product-autocomplete.tsx" switcher
 'use client'
 
 import useSWR from 'swr'
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
-export function ProjectAutocomplete({ query }: { query: string }) {
+export function ProductAutocomplete({ query }: { query: string }) {
   const { data = [] } = useSWR(
-    query ? `/api/projects?q=${query}` : null,
+    query ? `/api/products?q=${query}` : null,
     fetcher
   )
 
-  return data.map((project) => <p key={project.id}>{project.name}</p>)
+  return data.map((product) => <p key={product.id}>{product.name}</p>)
 }
 ```
 
@@ -175,115 +175,115 @@ A `<SWRConfig>` can live in any Server Component, not only the root layout. Plac
 
 For dynamic data, define the client key and server cache tag together. They identify the same data in different caches: SWR uses the key in the browser, while Next.js uses the tag to invalidate cached server data.
 
-```ts filename="app/projects/[id]/project-cache.ts" switcher
-export const projectCache = {
-  key: (id: string) => `/api/projects/${id}`,
-  tag: (id: string) => `project:${id}`,
+```ts filename="app/products/[id]/product-cache.ts" switcher
+export const productCache = {
+  key: (id: string) => `/api/products/${id}`,
+  tag: (id: string) => `product:${id}`,
 }
 ```
 
-```js filename="app/projects/[id]/project-cache.js" switcher
-export const projectCache = {
-  key: (id) => `/api/projects/${id}`,
-  tag: (id) => `project:${id}`,
+```js filename="app/products/[id]/product-cache.js" switcher
+export const productCache = {
+  key: (id) => `/api/products/${id}`,
+  tag: (id) => `product:${id}`,
 }
 ```
 
-```tsx filename="app/projects/[id]/page.tsx" switcher
+```tsx filename="app/products/[id]/page.tsx" switcher
 import { Suspense } from 'react'
 import { SWRConfig } from 'swr'
-import { getProject } from './data' // some server-side function
-import { projectCache } from './project-cache'
-import { ProjectView } from './project-view'
+import { getProduct } from './data' // some server-side function
+import { productCache } from './product-cache'
+import { ProductView } from './product-view'
 
-export default function Page({ params }: PageProps<'/projects/[id]'>) {
+export default function Page({ params }: PageProps<'/products/[id]'>) {
   return (
     <Suspense fallback={<p>Loading…</p>}>
       {params.then(({ id }) => (
-        <ProjectData id={id} />
+        <ProductData id={id} />
       ))}
     </Suspense>
   )
 }
 
-function ProjectData({ id }: { id: string }) {
+function ProductData({ id }: { id: string }) {
   return (
     <SWRConfig
       value={{
         fallback: {
           // Not awaited: only components that read this key suspend
-          [projectCache.key(id)]: getProject(id),
+          [productCache.key(id)]: getProduct(id),
         },
       }}
     >
-      <ProjectView id={id} />
+      <ProductView id={id} />
     </SWRConfig>
   )
 }
 ```
 
-```jsx filename="app/projects/[id]/page.js" switcher
+```jsx filename="app/products/[id]/page.js" switcher
 import { Suspense } from 'react'
 import { SWRConfig } from 'swr'
-import { getProject } from './data' // some server-side function
-import { projectCache } from './project-cache'
-import { ProjectView } from './project-view'
+import { getProduct } from './data' // some server-side function
+import { productCache } from './product-cache'
+import { ProductView } from './product-view'
 
 export default function Page({ params }) {
   return (
     <Suspense fallback={<p>Loading…</p>}>
       {params.then(({ id }) => (
-        <ProjectData id={id} />
+        <ProductData id={id} />
       ))}
     </Suspense>
   )
 }
 
-function ProjectData({ id }) {
+function ProductData({ id }) {
   return (
     <SWRConfig
       value={{
         fallback: {
           // Not awaited: only components that read this key suspend
-          [projectCache.key(id)]: getProject(id),
+          [productCache.key(id)]: getProduct(id),
         },
       }}
     >
-      <ProjectView id={id} />
+      <ProductView id={id} />
     </SWRConfig>
   )
 }
 ```
 
-Inside `<Suspense>`, `params.then()` resolves the `id` and passes it to `ProjectData`, which seeds the `fallback` with the `getProject(id)` promise. Only that subtree suspends while the data loads.
+Inside `<Suspense>`, `params.then()` resolves the `id` and passes it to `ProductData`, which seeds the `fallback` with the `getProduct(id)` promise. Only that subtree suspends while the data loads.
 
 The Client Component reads the data with `useSWR` using the same key:
 
-```tsx filename="app/projects/[id]/project-view.tsx" switcher
+```tsx filename="app/products/[id]/product-view.tsx" switcher
 'use client'
 
 import useSWR from 'swr'
-import { projectCache } from './project-cache'
+import { productCache } from './product-cache'
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
-export function ProjectView({ id }: { id: string }) {
-  const { data } = useSWR(projectCache.key(id), fetcher)
+export function ProductView({ id }: { id: string }) {
+  const { data } = useSWR(productCache.key(id), fetcher)
 
   return <h1>{data?.name}</h1>
 }
 ```
 
-```jsx filename="app/projects/[id]/project-view.js" switcher
+```jsx filename="app/products/[id]/product-view.js" switcher
 'use client'
 
 import useSWR from 'swr'
-import { projectCache } from './project-cache'
+import { productCache } from './product-cache'
 
 const fetcher = (url) => fetch(url).then((res) => res.json())
 
-export function ProjectView({ id }) {
-  const { data } = useSWR(projectCache.key(id), fetcher)
+export function ProductView({ id }) {
+  const { data } = useSWR(productCache.key(id), fetcher)
 
   return <h1>{data?.name}</h1>
 }
@@ -297,33 +297,33 @@ Learn more: [SWR arguments and keys](https://swr.vercel.app/docs/arguments).
 
 Server seeding and server data caching are independent. A server function can use [Cache Components](/docs/app/getting-started/caching) whether it is called by the Server Component seed, the API route, or both. Add [`use cache`](/docs/app/api-reference/directives/use-cache), choose a [`cacheLife`](/docs/app/api-reference/functions/cacheLife) profile for the server data, and tag it with the server identity defined beside the SWR key:
 
-```ts filename="app/projects/[id]/data.ts" switcher
+```ts filename="app/products/[id]/data.ts" switcher
 import { cacheLife, cacheTag } from 'next/cache'
-import { projectCache } from './project-cache'
+import { productCache } from './product-cache'
 
-export async function getProject(id: string) {
+export async function getProduct(id: string) {
   'use cache'
   cacheLife('max')
-  cacheTag(projectCache.tag(id))
+  cacheTag(productCache.tag(id))
 
-  return db.project.findUnique({ where: { id } })
+  return db.product.findUnique({ where: { id } })
 }
 ```
 
-```js filename="app/projects/[id]/data.js" switcher
+```js filename="app/products/[id]/data.js" switcher
 import { cacheLife, cacheTag } from 'next/cache'
-import { projectCache } from './project-cache'
+import { productCache } from './product-cache'
 
-export async function getProject(id) {
+export async function getProduct(id) {
   'use cache'
   cacheLife('max')
-  cacheTag(projectCache.tag(id))
+  cacheTag(productCache.tag(id))
 
-  return db.project.findUnique({ where: { id } })
+  return db.product.findUnique({ where: { id } })
 }
 ```
 
-This example uses `cacheLife('max')` because writes invalidate the project tag. Choose a shorter profile when the server value should refresh with time instead. SWR's client options, such as focus revalidation or `dedupingInterval`, are a separate browser policy and do not need to match `cacheLife`.
+This example uses `cacheLife('max')` because writes invalidate the product tag. Choose a shorter profile when the server value should refresh with time instead. SWR's client options, such as focus revalidation or `dedupingInterval`, are a separate browser policy and do not need to match `cacheLife`.
 
 Keep the cache contract free of server-only and client-only imports so every cache boundary can reuse it instead of duplicating raw keys and tags.
 
