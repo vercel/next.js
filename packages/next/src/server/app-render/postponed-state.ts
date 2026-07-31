@@ -22,6 +22,15 @@ export enum DynamicState {
    * The dynamic access occurred during the HTML shell render phase.
    */
   HTML = 2,
+
+  /**
+   * The serialized postponed state could not be parsed (for example, the
+   * decompressed resume data cache exceeded the configured limit). We can no
+   * longer resume into the suspended React tree, so callers should surface this
+   * as a controlled failure with a known digest rather than silently degrading
+   * to a DATA-style render.
+   */
+  PARSE_FAILURE = 3,
 }
 
 /**
@@ -71,9 +80,30 @@ type ReactPostponed = NonNullable<
   import('react-dom/static').PrerenderResult['postponed']
 >
 
+/**
+ * The postponed state when parsing failed. The render path will surface a
+ * controlled error with a stable digest instead of attempting a resume.
+ */
+export type PostponedParseFailureState = {
+  readonly type: DynamicState.PARSE_FAILURE
+
+  /**
+   * The resume data cache. When the postponed string itself parsed but the
+   * resume data cache didn't, this is the recovered cache; otherwise it's an
+   * empty one.
+   *
+   * The original parse error is intentionally not carried here: it may embed
+   * sensitive serialized state, so it is logged with content-free diagnostics
+   * in `parsePostponedState` and never surfaced or re-logged by the render
+   * path (which throws a fresh, message-stable digest error instead).
+   */
+  readonly renderResumeDataCache: RenderResumeDataCache
+}
+
 export type PostponedState =
   | DynamicDataPostponedState
   | DynamicHTMLPostponedState
+  | PostponedParseFailureState
 
 export async function getDynamicHTMLPostponedState(
   postponed: ReactPostponed,
@@ -209,7 +239,10 @@ export function parsePostponedState(
         'Failed to parse postponed state',
         describePostponedStateParseFailure(state, err)
       )
-      return { type: DynamicState.DATA, renderResumeDataCache }
+      return {
+        type: DynamicState.PARSE_FAILURE,
+        renderResumeDataCache,
+      }
     }
   } catch (err) {
     console.error(
@@ -217,7 +250,7 @@ export function parsePostponedState(
       describePostponedStateParseFailure(state, err)
     )
     return {
-      type: DynamicState.DATA,
+      type: DynamicState.PARSE_FAILURE,
       renderResumeDataCache: createRenderResumeDataCache(
         createPrerenderResumeDataCache()
       ),
