@@ -346,7 +346,7 @@ This can lead to subtle rendering differences when migrating from webpack to Tur
 
 ### Build Caching
 
-Webpack supports [disk build caching](https://webpack.js.org/configuration/cache/#cache) to improve build performance. Turbopack provides a similar feature, currently in beta. Starting with Next 16, Turbopack's filesystem cache is controlled by the following experimental flags:
+Webpack supports [disk build caching](https://webpack.js.org/configuration/cache/#cache) to improve build performance. Turbopack provides a similar feature. Starting with Next 16, Turbopack's filesystem cache is controlled by the following experimental flags:
 
 - [`experimental.turbopackFileSystemCacheForDev`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache) is enabled by default
 - [`experimental.turbopackFileSystemCacheForBuild`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache) is enabled by default for local builds and on Vercel, where the build cache is likely to persist.
