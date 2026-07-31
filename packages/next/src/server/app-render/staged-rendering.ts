@@ -1,19 +1,11 @@
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
+import { RenderStage } from '../../shared/lib/render-stage'
 
-export enum RenderStage {
-  Before = 1,
-  //
-  ShellStatic = 11,
-  Static = 13,
-  //
-  ShellRuntime = 21,
-  Runtime = 23,
-  //
-  Dynamic = 30,
-  //
-  Abandoned = 40,
-}
+// The enum lives in `shared/lib/render-stage` because the client needs its
+// values too; re-export it here so server code can keep importing it from the
+// staged rendering module it belongs to conceptually.
+export { RenderStage }
 
 export type AdvanceableRenderStage = Exclude<
   RenderStage,

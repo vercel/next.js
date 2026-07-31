@@ -1867,7 +1867,10 @@ async function fetchMissingDynamicData(
           if (processed !== null) {
             writeDynamicRenderResponseIntoCache(
               now,
-              FetchStrategy.PPRRuntime,
+              // The effective fetch strategy: PPRRuntime, or PPRNavigation if
+              // the embedded prefetch render reported that nothing was
+              // deferred at the navigation gate.
+              processed.effectiveFetchStrategy,
               processed.flightDatas,
               processed.buildId,
               processed.isResponsePartial,

@@ -19,7 +19,7 @@ import type { Params } from '../request/params'
 import type { ImplicitTags } from '../lib/implicit-tags'
 import type { WorkStore } from './work-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import type { StagedRenderingController } from './staged-rendering'
+import type { RenderStage, StagedRenderingController } from './staged-rendering'
 import type { ValidationBoundaryTracking } from './instant-validation/boundary-tracking'
 import type { InstantValidationSampleTracking } from './instant-validation/instant-samples'
 
@@ -215,6 +215,28 @@ export interface PrerenderStoreModernRuntime
    */
   readonly stagedRendering: StagedRenderingController | null
   readonly isSessionShell: boolean
+
+  /**
+   * The deepest stage this runtime prerender is allowed to advance conceptual
+   * content through. Content belonging to a deeper stage is deferred — e.g.
+   * with a ceiling of `RenderStage.Runtime`, `unstable_navigation()` (which
+   * gates `RenderStage.Dynamic` content) hangs, while a ceiling of
+   * `RenderStage.Dynamic` renders through it. This is data on the store
+   * consulted via `checkAndRecordStageDeferral`; it deliberately does not affect
+   * the StagedRenderingController, which continues to gate dynamic APIs like
+   * `connection()` in all cases.
+   */
+  readonly allowedRenderStage: RenderStage
+
+  /**
+   * The earliest stage whose content was actually deferred during this
+   * render (e.g. `RenderStage.Dynamic` if at least one
+   * `unstable_navigation()` call hung), or null if nothing was deferred.
+   * Reported in the response so the client cache can record the entry's
+   * effective stage. Mutated via `checkAndRecordStageDeferral`, which records
+   * the minimum of the observed deferrals.
+   */
+  earliestDeferredRenderStage: RenderStage | null
 
   readonly headers: RequestStore['headers']
   readonly cookies: RequestStore['cookies']
@@ -606,6 +628,34 @@ export function getStagedRenderingController(
     default:
       return workUnitStore satisfies never
   }
+}
+
+/**
+ * Consults a runtime prerender's allowed render stage to decide whether
+ * content belonging to the given stage should be deferred to the actual
+ * navigation. If the stage is deeper than the allowed ceiling, the deferral
+ * is recorded on the store — so the response can report that the result
+ * stopped short of that stage — and this returns true. Otherwise the content
+ * should render and this returns false.
+ */
+export function checkAndRecordStageDeferral(
+  prerenderStore: PrerenderStoreModernRuntime,
+  stage: RenderStage
+): boolean {
+  if (stage <= prerenderStore.allowedRenderStage) {
+    return false
+  }
+  // Record the earliest stage whose content was deferred. A single render
+  // can defer at multiple stages (e.g. a future `prefetch()` API deferring at
+  // an earlier stage than `unstable_navigation()`), and the earliest one
+  // determines how deep the result actually rendered.
+  if (
+    prerenderStore.earliestDeferredRenderStage === null ||
+    stage < prerenderStore.earliestDeferredRenderStage
+  ) {
+    prerenderStore.earliestDeferredRenderStage = stage
+  }
+  return true
 }
 
 export function getCacheSignal(

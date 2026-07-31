@@ -714,6 +714,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/shared/lib/lazy-dynamic/bailout-to-csr.js",
            "/node_modules/next/dist/shared/lib/no-fallback-error.external.js",
            "/node_modules/next/dist/shared/lib/promise-with-resolvers.js",
+           "/node_modules/next/dist/shared/lib/render-stage.js",
            "/node_modules/next/dist/shared/lib/server-reference-info.js",
            "/node_modules/react/cjs/react.development.js",
            "/node_modules/react/cjs/react.production.js",

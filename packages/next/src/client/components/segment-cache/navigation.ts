@@ -39,7 +39,7 @@ import { discoverKnownRoute } from './optimistic-routes'
 import { createCacheKey, type NormalizedSearch } from './cache-key'
 import { schedulePrefetchTask } from './scheduler'
 import { PrefetchPriority, FetchStrategy } from './types'
-import { getLinkForCurrentNavigation } from '../links'
+import { getLinkForCurrentNavigation, type LinkInstance } from '../links'
 import type { PageVaryPath } from './vary-path'
 import type { AppRouterState } from '../router-reducer/router-reducer-types'
 import { ScrollBehavior } from '../router-reducer/router-reducer-types'
@@ -47,6 +47,54 @@ import { computeChangedPath } from '../router-reducer/compute-changed-path'
 import { isJavaScriptURLString } from '../../lib/javascript-url'
 import { UnknownDynamicStaleTime, computeDynamicStaleAt } from './bfcache'
 import { createLinkPrefetchPartialError } from '../../../shared/lib/instant-messages'
+
+// Dev only: warnings we've already fired for a degraded <Link> prefetch,
+// keyed by link prop + route, so each warning fires once per route.
+const warnedDegradedLinkPrefetches: Set<string> | null =
+  process.env.NODE_ENV !== 'production' ? new Set() : null
+
+/**
+ * Dev only: warns that a <Link>'s requested prefetch behavior was degraded
+ * for the target route. Replaces the error's stack with the Owner Stack
+ * captured when the <Link> rendered, so the dev overlay associates the
+ * warning with the JSX that created the link, not with navigation.ts.
+ *
+ * Deduped so each warning fires at most once per (link prop, route) pair —
+ * repeat navigations don't flood the console.
+ */
+function warnAboutDegradedLinkPrefetch(
+  link: LinkInstance,
+  // The offending prop as written in JSX, e.g. `prefetch={true}`. Used in
+  // log output and as part of the dedupe key.
+  linkProp: string,
+  pathname: string,
+  createError: (pathname: string) => Error
+): void {
+  if (warnedDegradedLinkPrefetches === null) {
+    // Unreachable in production; the callsites are dev-only.
+    return
+  }
+  const dedupeKey = `${linkProp} ${pathname}`
+  if (warnedDegradedLinkPrefetches.has(dedupeKey)) {
+    return
+  }
+  warnedDegradedLinkPrefetches.add(dedupeKey)
+
+  const error = createError(pathname)
+  const ownerStack = 'ownerStack' in link ? link.ownerStack : undefined
+  if (ownerStack === undefined) {
+    console.error(
+      `Cannot associate the "${linkProp}" warning with a specific <Link> making it harder to find the cause of the following warning. ` +
+        'This is a bug in Next.js.'
+    )
+  } else if (ownerStack !== null) {
+    // Replace the (useless) stack captured at the throw site — which points
+    // into router internals — with the Owner Stack captured when the <Link>
+    // rendered.
+    error.stack = `${error.name}: ${error.message}${ownerStack}`
+  }
+  console.error(error)
+}
 
 /**
  * Navigate to a new URL, using the Segment Cache to construct a response.
@@ -274,23 +322,12 @@ export function navigateToKnownRoute(
           PrefetchHint.SubtreeHasInstantFalse)) ===
         0
     ) {
-      const error = createLinkPrefetchPartialError(url.pathname)
-      const ownerStack = 'ownerStack' in link ? link.ownerStack : undefined
-      if (ownerStack === undefined) {
-        console.error(
-          '' +
-            'Cannot associate the "prefetch={true}" warning with a specific <Link> making it harder to find the cause of the following warning. ' +
-            'This is a bug in Next.js.'
-        )
-      } else if (ownerStack !== null) {
-        // Replace the (useless) stack captured at the throw site — which
-        // points into router internals — with the Owner Stack captured when
-        // the <Link> rendered. That way the dev overlay associates this
-        // warning with the JSX that created the link, not with
-        // navigation.ts.
-        error.stack = `${error.name}: ${error.message}${ownerStack}`
-      }
-      console.error(error)
+      warnAboutDegradedLinkPrefetch(
+        link,
+        'prefetch={true}',
+        url.pathname,
+        createLinkPrefetchPartialError
+      )
     }
   }
 
@@ -585,7 +622,10 @@ async function navigateToUnknownRoute(
           if (processed !== null) {
             writeDynamicRenderResponseIntoCache(
               now,
-              FetchStrategy.PPRRuntime,
+              // The effective fetch strategy: PPRRuntime, or PPRNavigation if
+              // the embedded prefetch render reported that nothing was
+              // deferred at the navigation gate.
+              processed.effectiveFetchStrategy,
               processed.flightDatas,
               processed.buildId,
               processed.isResponsePartial,

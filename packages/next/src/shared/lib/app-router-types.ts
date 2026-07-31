@@ -11,7 +11,8 @@ export type LoadingModuleData =
   | [React.JSX.Element, React.ReactNode, React.ReactNode]
   | null
 
-import type { VaryParamsIterable } from './segment-cache/vary-params-decoding'
+import type { VaryParamsIterable } from './segment-cache/response-decoding'
+import type { RenderStage } from './render-stage'
 
 /** viewport metadata node */
 export type HeadData = React.ReactNode
@@ -556,6 +557,15 @@ export type NavigationFlightResponse = {
    * where we have a proper session shell.
    * */
   u?: Promise<boolean>
+  /**
+   * earliestDeferredRenderStage - the earliest render stage whose content
+   * was deferred during the render (e.g. `RenderStage.Dynamic` if at least
+   * one `unstable_navigation()` call hung), or `null` if nothing was
+   * deferred. Lets the client cache record the entry's effective stage: a
+   * runtime prefetch response where this is `null` is navigation-complete.
+   * Only present in runtime prefetch responses.
+   */
+  n?: Promise<RenderStage | null>
   /** headVaryParams. Does not include root params (see `r`). */
   h: VaryParamsIterable | null
   /**

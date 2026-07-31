@@ -41,7 +41,7 @@ describe('next-link', () => {
       await expect(browser).toDisplayRedbox(`
        {
          "code": "E319",
-         "description": "Failed prop type: The prop \`prefetch\` expects a \`boolean | "auto"\` in \`<Link>\`, but got \`string\` instead.
+         "description": "Failed prop type: The prop \`prefetch\` expects a \`boolean | "auto" | "prefetch" | "navigation"\` in \`<Link>\`, but got \`string\` instead.
        Open your browser's console to view the Component stack trace.",
          "environmentLabel": null,
          "label": "Runtime Error",

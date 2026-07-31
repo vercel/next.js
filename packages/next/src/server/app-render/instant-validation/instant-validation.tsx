@@ -5,7 +5,7 @@ import type {
   InitialRSCPayload,
   Segment,
 } from '../../../shared/lib/app-router-types'
-import type { VaryParamsIterable } from '../../../shared/lib/segment-cache/vary-params-decoding'
+import type { VaryParamsIterable } from '../../../shared/lib/segment-cache/response-decoding'
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import { RenderStage } from '../staged-rendering'
 import { getServerModuleMap } from '../manifests-singleton'
