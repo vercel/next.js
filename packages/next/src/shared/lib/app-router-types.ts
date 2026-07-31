@@ -12,6 +12,7 @@ export type LoadingModuleData =
   | null
 
 import type { VaryParamsIterable } from './segment-cache/vary-params-decoding'
+import type { FullTransportData, PartialTransportData } from './rsc-transport'
 
 /** viewport metadata node */
 export type HeadData = React.ReactNode
@@ -455,19 +456,14 @@ export type InitialRSCPayload = {
   q: string
   /** couldBeIntercepted */
   i: boolean
-  /** initialFlightData */
-  f: FlightDataPath[]
+  /** initial transport data — the tree + head for hydration */
+  t: FullTransportData
   /** missingSlots */
   m: Set<string> | undefined
   /** GlobalError */
   G: [React.ComponentType<any>, React.ReactNode | undefined]
   /** supportsPerSegmentPrefetching */
   S: boolean
-  /**
-   * headVaryParams - vary params for the head (metadata) of the response.
-   * Does not include root params (see `r`).
-   */
-  h: VaryParamsIterable | null
   /**
    * rootVaryParams - the root params accessed anywhere in the response, emitted
    * once. The client unions these into the head and every segment's vary
@@ -532,8 +528,18 @@ export type InitialRSCPayload = {
 export type NavigationFlightResponse = {
   /** buildId, can be empty if the x-nextjs-build-id header is set */
   b?: string
-  /** flightData */
-  f: FlightData
+  /**
+   * transport data — present iff the response carries a SPA payload.
+   * Absent when the response renders nothing (see `n` for MPA navigations).
+   */
+  t?: PartialTransportData
+  /**
+   * MPA navigation URL — present iff the client should hard-navigate to
+   * this URL instead of applying a SPA payload. Reserved: no server path
+   * emits it today (hard navigations are signaled by non-RSC content types
+   * or a build-id mismatch), but the client honors it.
+   */
+  n?: string
   /** supportsPerSegmentPrefetching */
   S: boolean
   /** renderedSearch */
@@ -556,8 +562,6 @@ export type NavigationFlightResponse = {
    * where we have a proper session shell.
    * */
   u?: Promise<boolean>
-  /** headVaryParams. Does not include root params (see `r`). */
-  h: VaryParamsIterable | null
   /**
    * rootVaryParams - the root params accessed anywhere in the response, emitted
    * once. The client unions these into the head and every segment's vary
@@ -588,14 +592,23 @@ export type NavigationFlightResponse = {
   _revealAfter?: Promise<void>
 }
 
-// Response from `createFromFetch` for server actions. Action's flight data can be null
+// Response from `createFromFetch` for server actions.
 export type ActionFlightResponse = {
   /** actionResult */
   a: ActionResult
   /** buildId, can be empty if the x-nextjs-build-id header is set */
   b?: string
-  /** flightData */
-  f: FlightData
+  /**
+   * transport data — present iff the action response re-rendered the page.
+   * Absent when the action rendered nothing (see `n` for MPA navigations).
+   */
+  t?: PartialTransportData
+  /**
+   * MPA navigation URL — present iff the client should hard-navigate to
+   * this URL instead of applying a SPA payload. Reserved: no server path
+   * emits it today, but the client honors it.
+   */
+  n?: string
   /** renderedSearch */
   q: string
   /** couldBeIntercepted */

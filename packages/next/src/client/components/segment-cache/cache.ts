@@ -4,12 +4,9 @@ import type {
   RootTreePrefetch,
   SegmentPrefetchResponse,
 } from '../../../server/app-render/collect-segment-data'
-import type {
-  CacheNodeSeedData,
-  FlightData,
-  Segment as FlightRouterStateSegment,
-} from '../../../shared/lib/app-router-types'
+import type { Segment as FlightRouterStateSegment } from '../../../shared/lib/app-router-types'
 import { PrefetchHint } from '../../../shared/lib/app-router-types'
+import type { PartialTransportData } from '../../../shared/lib/rsc-transport'
 import {
   readVaryParams,
   type VaryParams,
@@ -101,19 +98,24 @@ import type {
   FlightRouterState,
   NavigationFlightResponse,
 } from '../../../shared/lib/app-router-types'
-import {
-  type NormalizedFlightData,
-  normalizeFlightData,
-  prepareFlightRouterStateForRequest,
-} from '../../flight-data-helpers'
+import { prepareFlightRouterStateForRequest } from '../../flight-data-helpers'
 import { STATIC_STALETIME_MS } from '../router-reducer/reducers/navigate-reducer'
 import { pingVisibleLinks } from '../links'
 import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
 import { FetchStrategy } from './types'
 import { createPromiseWithResolvers } from '../../../shared/lib/promise-with-resolvers'
-import { readFromBFCache, UnknownDynamicStaleTime } from './bfcache'
+import {
+  readFromBFCache,
+  UnknownDynamicStaleTime,
+  computeDynamicStaleAt,
+} from './bfcache'
 import { discoverKnownRoute, matchKnownRoute } from './optimistic-routes'
-import { convertServerPatchToFullTree, type NavigationSeed } from './navigation'
+import {
+  convertServerPatchToFullTree,
+  decodeTransportTreeIntoRouteTree,
+  createRouteTreeNode,
+  type NavigationSeed,
+} from './decode-server-response'
 import { getNavigationBuildId } from '../../navigation-build-id'
 import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
 
@@ -1694,7 +1696,7 @@ function rejectSegmentCacheEntry(
   pingBlockedTasks(entry)
 }
 
-type RouteTreeAccumulator = {
+export type RouteTreeAccumulator = {
   metadataVaryPath: PageVaryPath | null
 }
 
@@ -1883,16 +1885,11 @@ function convertTreePrefetchToRouteTree(
 
 export function convertRootFlightRouterStateToRouteTree(
   flightRouterState: FlightRouterState,
-  // Seed data from the same server response as the FlightRouterState, walked
-  // in parallel so each RouteTree node carries its own render output. Pass
-  // null when converting a structure-only tree (e.g. client-local state).
-  seedData: CacheNodeSeedData | null,
   renderedSearch: NormalizedSearch,
   acc: RouteTreeAccumulator
-): RouteTree<RSCSegmentData | null> {
+): RouteTree<null> {
   return convertFlightRouterStateToRouteTree(
     flightRouterState,
-    seedData,
     ROOT_SEGMENT_REQUEST_KEY,
     null,
     renderedSearch,
@@ -1927,9 +1924,6 @@ export function convertReusedFlightRouterStateToRouteTree(
   )
   return convertFlightRouterStateToRouteTree(
     flightRouterState,
-    // Reused slots come from client-local state; there's no server response
-    // data associated with them.
-    null,
     requestKey,
     parentPartialVaryPath,
     renderedSearch,
@@ -1937,14 +1931,13 @@ export function convertReusedFlightRouterStateToRouteTree(
   )
 }
 
-function convertFlightRouterStateToRouteTree(
+export function convertFlightRouterStateToRouteTree(
   flightRouterState: FlightRouterState,
-  seedData: CacheNodeSeedData | null,
   requestKey: SegmentRequestKey,
   parentPartialVaryPath: PartialSegmentVaryPath | null,
   parentRenderedSearch: NormalizedSearch,
   acc: RouteTreeAccumulator
-): RouteTree<RSCSegmentData | null> {
+): RouteTree<null> {
   const originalSegment = flightRouterState[0]
 
   // This segment's param (if any) is a root param iff the segment is at or
@@ -1967,77 +1960,25 @@ function convertFlightRouterStateToRouteTree(
   const renderedSearch =
     refreshState !== null ? refreshState.renderedSearch : parentRenderedSearch
 
-  let segment: FlightRouterStateSegment
-  let partialVaryPath: PartialSegmentVaryPath | null
-  let isPage: boolean
-  let varyPath: SegmentVaryPath
-  if (Array.isArray(originalSegment)) {
-    isPage = false
-    const paramCacheKey = originalSegment[1]
-    const paramName = originalSegment[0]
-    partialVaryPath = appendLayoutVaryPath(
-      parentPartialVaryPath,
-      paramCacheKey,
-      paramName,
-      isRootParam
-    )
-    varyPath = finalizeLayoutVaryPath(requestKey, partialVaryPath)
-    segment = originalSegment
-  } else {
-    // This segment does not have a param. Inherit the partial vary path of
-    // the parent.
-    partialVaryPath = parentPartialVaryPath
-    if (requestKey.endsWith(PAGE_SEGMENT_KEY)) {
-      // This is a page segment.
-      isPage = true
+  const tree = createRouteTreeNode<null>(
+    originalSegment,
+    isRootParam,
+    requestKey,
+    parentPartialVaryPath,
+    renderedSearch,
+    acc
+  )
+  tree.refreshState = refreshState
+  const partialVaryPath = tree.isPage
+    ? getPartialPageVaryPath(tree.varyPath)
+    : getPartialLayoutVaryPath(tree.varyPath)
 
-      // The navigation implementation expects the search params to be included
-      // in the segment. However, in the case of a static response, the search
-      // params are omitted. So the client needs to add them back in when reading
-      // from the Segment Cache.
-      //
-      // For consistency, we'll do this for dynamic responses, too.
-      //
-      // TODO: We should move search params out of FlightRouterState and handle
-      // them entirely on the client, similar to our plan for dynamic params.
-      segment = PAGE_SEGMENT_KEY
-      varyPath = finalizePageVaryPath(
-        requestKey,
-        renderedSearch,
-        partialVaryPath
-      )
-      // The metadata "segment" is not part the route tree, but it has the same
-      // conceptual params as a page segment. Write the vary path into the
-      // accumulator object. If there are multiple parallel pages, we use the
-      // first one. Which page we choose is arbitrary as long as it's
-      // consistently the same one every time every time. See
-      // finalizeMetadataVaryPath for more details.
-      if (acc.metadataVaryPath === null) {
-        acc.metadataVaryPath = finalizeMetadataVaryPath(
-          requestKey,
-          renderedSearch,
-          partialVaryPath
-        )
-      }
-    } else {
-      // This is a layout segment.
-      isPage = false
-      segment = originalSegment
-      varyPath = finalizeLayoutVaryPath(requestKey, partialVaryPath)
-    }
-  }
-
-  let slots: Map<string, RouteTree<RSCSegmentData | null>> | null = null
+  let slots: Map<string, RouteTree<null>> | null = null
 
   const parallelRoutes = flightRouterState[1]
-  const seedDataChildren = seedData !== null ? seedData[1] : null
   for (let parallelRouteKey in parallelRoutes) {
     const childRouterState = parallelRoutes[parallelRouteKey]
     const childSegment = childRouterState[0]
-    const childSeedData =
-      seedDataChildren !== null
-        ? (seedDataChildren[parallelRouteKey] ?? null)
-        : null
     // TODO: Eventually, the param values will not be included in the response
     // from the server. We'll instead fill them in on the client by parsing
     // the URL. This is where we'll do that.
@@ -2049,7 +1990,6 @@ function convertFlightRouterStateToRouteTree(
     )
     const childTree = convertFlightRouterStateToRouteTree(
       childRouterState,
-      childSeedData,
       childRequestKey,
       partialVaryPath,
       renderedSearch,
@@ -2061,39 +2001,9 @@ function convertFlightRouterStateToRouteTree(
     slots.set(parallelRouteKey, childTree)
   }
 
-  // `data: null` means the response carried no information for this segment
-  // at all, while a data object with `rsc: null` means the response covered
-  // this position without rendering it (e.g. the intermediate nodes on the
-  // path to a patched subtree, synthesized in convertServerPatchToFullTreeImpl).
-  // Consumers use the former to decide whether a segment was accounted for
-  // by the response, and the latter to decide whether there's output
-  // to write.
-  const data: RSCSegmentData | null =
-    seedData !== null
-      ? {
-          rsc: seedData[0],
-          isPartial: seedData[3],
-          varyParams: seedData[4],
-        }
-      : null
-
-  return {
-    requestKey,
-    segment,
-    shellVaryPath: getShellSegmentVaryPath(varyPath),
-    refreshState,
-    data,
-    // TODO: Cheating the type system here a bit because TypeScript can't tell
-    // that the type of isPage and varyPath are consistent. The fix would be to
-    // create separate constructors and call the appropriate one from each of
-    // the branches above. Just seems a bit overkill only for one field so I'll
-    // leave it as-is for now. If isPage were wrong it would break the behavior
-    // and we'd catch it quickly, anyway.
-    varyPath: varyPath as any,
-    isPage: isPage as boolean as any,
-    slots,
-    prefetchHints: flightRouterState[4] ?? 0,
-  }
+  tree.slots = slots
+  tree.prefetchHints = flightRouterState[4] ?? 0
+  return tree
 }
 
 export function convertRouteTreeToFlightRouterState(
@@ -2349,7 +2259,6 @@ export async function fetchRouteOnCacheMiss(
       // root params). Individual segments carry their own iterables in
       // CacheNodeSeedData; the root iterable is threaded down so each segment
       // unions it too.
-      const headVaryParams = readVaryParams(serverData.h, serverData.r)
       writeDynamicTreeResponseIntoCache(
         Date.now(),
         // The non-PPR response format is what we'd get if we prefetched these segments
@@ -2361,7 +2270,6 @@ export async function fetchRouteOnCacheMiss(
         couldBeIntercepted,
         canonicalUrl,
         routeIsPPREnabled,
-        headVaryParams,
         serverData.r ?? null,
         pathname,
         search,
@@ -3395,9 +3303,8 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
           writePrerenderResponseIntoCache(
             now,
             FetchStrategy.PPR,
-            serverData.f,
+            serverData.t ?? null,
             buildId,
-            serverData.h,
             serverData.r ?? null,
             staleAt,
             dynamicRequestTree,
@@ -3421,9 +3328,8 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
           writePrerenderResponseIntoCache(
             now,
             FetchStrategy.RuntimeShell,
-            shellStageData.f,
+            shellStageData.t ?? null,
             buildId,
-            shellStageData.h,
             shellStageData.r ?? null,
             shellStaleAt,
             dynamicRequestTree,
@@ -3434,16 +3340,10 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       }
     }
 
-    // Read head vary params synchronously (unioning in the response-level root
-    // params). Individual segments carry their own iterables in
-    // CacheNodeSeedData; the root iterable is threaded down so each segment
-    // unions it too.
+    // Root params are emitted once at the response level; the iterable is
+    // threaded down so each segment unions it too.
     const rootVaryParamsIterable =
       serverDataThatSatisfiesSpawnedEntries.r ?? null
-    const headVaryParams = readVaryParams(
-      serverDataThatSatisfiesSpawnedEntries.h,
-      rootVaryParamsIterable
-    )
 
     // PPRRuntime and RuntimeShell prefetches are partial when the server
     // marks the response as '~' (Partial). RuntimeShell additionally omits
@@ -3455,20 +3355,24 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       (fetchStrategy === FetchStrategy.PPRRuntime &&
         (cacheData?.isResponsePartial ?? false))
 
-    const flightDatas = normalizeFlightData(
-      serverDataThatSatisfiesSpawnedEntries.f
-    )
-    if (typeof flightDatas === 'string') {
+    const transportData = serverDataThatSatisfiesSpawnedEntries.t
+    if (transportData === undefined) {
       rejectSegmentEntriesIfStillPending(spawnedEntries, Date.now() + 10 * 1000)
       return null
     }
     const navigationSeed = convertServerPatchToFullTree(
       now,
       dynamicRequestTree,
-      flightDatas,
+      transportData,
       renderedSearch,
       // Not needed for prefetch responses; pass unknown to use the default.
       UnknownDynamicStaleTime
+    )
+    // Read head vary params synchronously, unioning in the response-level
+    // root params.
+    const headVaryParams = readVaryParams(
+      navigationSeed.headVaryParams,
+      rootVaryParamsIterable
     )
     // Aside from writing the data into the cache, this function also returns
     // the entries that were fulfilled, so we can streamingly update their sizes
@@ -3476,7 +3380,6 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     fulfilledEntries = writeDynamicRenderResponseIntoCache(
       now,
       fetchStrategy,
-      flightDatas,
       buildId,
       isResponsePartial,
       headVaryParams,
@@ -3532,7 +3435,6 @@ function writeDynamicTreeResponseIntoCache(
   couldBeIntercepted: boolean,
   canonicalUrl: string,
   routeIsPPREnabled: boolean,
-  headVaryParams: VaryParams | null,
   rootVaryParamsIterable: VaryParamsIterable | null,
   originalPathname: string,
   originalSearch: NormalizedSearch,
@@ -3540,41 +3442,36 @@ function writeDynamicTreeResponseIntoCache(
 ): void {
   const renderedSearch = getRenderedSearch(response)
 
-  const normalizedFlightDataResult = normalizeFlightData(serverData.f)
+  const transportData = serverData.t
   if (
-    // A string result means navigating to this route will result in an
-    // MPA navigation.
-    typeof normalizedFlightDataResult === 'string' ||
-    normalizedFlightDataResult.length !== 1
+    transportData === undefined ||
+    serverData.n !== undefined ||
+    // A covered root (data present without output) means the response's
+    // rendered content starts below the root — an unexpected format for this
+    // flow, which always requests a full render from the root.
+    (transportData.t.d !== undefined && transportData.t.d.r === null)
   ) {
-    rejectRouteCacheEntry(entry, now + 10 * 1000)
-    return
-  }
-  const flightData = normalizedFlightDataResult[0]
-  if (!flightData.isRootRender) {
-    // Unexpected response format.
+    // The response carries no root render (e.g. it's an MPA navigation), so
+    // there's nothing to cache.
     rejectRouteCacheEntry(entry, now + 10 * 1000)
     return
   }
 
-  const flightRouterState = flightData.tree
   // If the response was postponed, segments may contain dynamic holes.
-  // The head has its own partiality flag (flightDataEntry.isHeadPartial)
-  // which is handled separately in writeDynamicRenderResponseIntoCache.
+  // The head has its own partiality flag, handled separately in
+  // writeDynamicRenderResponseIntoCache.
   const isResponsePartial =
     response.headers.get(NEXT_DID_POSTPONE_HEADER) === '1'
 
-  // Convert the server-sent data into the RouteTree format used by the
-  // client cache.
+  // Decode the server-sent tree into the RouteTree format used by the
+  // client cache. There's no base to overlay onto: this response is always a
+  // full render from the root.
   //
   // During this traversal, we accumulate additional data into this
   // "accumulator" object.
   const acc: RouteTreeAccumulator = { metadataVaryPath: null }
-  const routeTree = convertRootFlightRouterStateToRouteTree(
-    flightRouterState,
-    // This tree is stored in the route cache, which must not retain seed
-    // data. The response's segment data is written into the segment cache
-    // separately, below.
+  const routeTree = decodeTransportTreeIntoRouteTree(
+    transportData.t,
     null,
     renderedSearch,
     acc
@@ -3604,19 +3501,27 @@ function writeDynamicTreeResponseIntoCache(
   // TODO: This is a leftover branch from before Client Segment Cache was
   // enabled everywhere. Tree prefetches should never include segment data.  We
   // can delete it. Leaving for a subsequent PR.
-  const navigationSeed = convertServerPatchToFullTree(
-    now,
-    flightRouterState,
-    normalizedFlightDataResult,
-    renderedSearch,
-    UnknownDynamicStaleTime
+  const transportHead = transportData.h
+  // Read head vary params synchronously, unioning in the response-level
+  // root params.
+  const headVaryParams = readVaryParams(
+    transportHead !== undefined ? transportHead.v : null,
+    rootVaryParamsIterable
   )
+  const navigationSeed: NavigationSeed = {
+    routeTree,
+    metadataVaryPath,
+    renderedSearch,
+    head: transportHead !== undefined ? transportHead.r : null,
+    isHeadPartial: transportHead !== undefined ? transportHead.p : true,
+    headVaryParams: transportHead !== undefined ? transportHead.v : null,
+    dynamicStaleAt: computeDynamicStaleAt(now, UnknownDynamicStaleTime),
+  }
   const buildId =
     response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b
   writeDynamicRenderResponseIntoCache(
     now,
     fetchStrategy,
-    normalizedFlightDataResult,
     buildId,
     isResponsePartial,
     headVaryParams,
@@ -3650,7 +3555,6 @@ export function writeDynamicRenderResponseIntoCache(
     | FetchStrategy.PPRRuntime
     | FetchStrategy.RuntimeShell
     | FetchStrategy.Full,
-  flightDatas: NormalizedFlightData[],
   buildId: string | undefined,
   isResponsePartial: boolean,
   headVaryParams: VaryParams | null,
@@ -3675,9 +3579,8 @@ export function writeDynamicRenderResponseIntoCache(
       : null
 
   // The route tree carries the render output of every segment the response
-  // included (the per-path patches were folded into a single tree when the
-  // response was converted to a NavigationSeed), so a single traversal from
-  // the root writes all of it into the cache.
+  // included, so a single traversal from the root writes all of it into
+  // the cache.
   writeSeedDataIntoCache(
     now,
     fetchStrategy,
@@ -3688,38 +3591,36 @@ export function writeDynamicRenderResponseIntoCache(
     spawnedEntries
   )
 
-  for (const flightDataEntry of flightDatas) {
-    const head = flightDataEntry.head
-    if (head !== null && metadataTree !== null) {
-      // When Cache Components is enabled, the server's `isHeadPartial` flag
-      // (isPossiblyPartialHead in app-render.tsx) is unreliable: it's computed
-      // before the head is serialized, so it's conservatively `true` for every
-      // statically-generated PPR page — even pages whose head is actually
-      // complete — and it's `false` for runtime/dynamic responses whose head is
-      // actually partial (e.g. a route with an async `generateMetadata`). So we
-      // ignore it and derive the head's partiality from whether the response
-      // itself was partial, exactly as we do for segments (see
-      // `writeSeedDataIntoCache`). A non-partial response carries a complete
-      // head; a partial (postponed) one does not.
-      //
-      // Without Cache Components, the server sends the correct isHeadPartial.
-      const isHeadPartial = process.env.__NEXT_CACHE_COMPONENTS
-        ? isResponsePartial
-        : flightDataEntry.isHeadPartial
+  const head = navigationSeed.head
+  if (head !== null && metadataTree !== null) {
+    // When Cache Components is enabled, the server's `isHeadPartial` flag
+    // (isPossiblyPartialHead in app-render.tsx) is unreliable: it's computed
+    // before the head is serialized, so it's conservatively `true` for every
+    // statically-generated PPR page — even pages whose head is actually
+    // complete — and it's `false` for runtime/dynamic responses whose head is
+    // actually partial (e.g. a route with an async `generateMetadata`). So we
+    // ignore it and derive the head's partiality from whether the response
+    // itself was partial, exactly as we do for segments (see
+    // `writeSeedDataIntoCache`). A non-partial response carries a complete
+    // head; a partial (postponed) one does not.
+    //
+    // Without Cache Components, the server sends the correct isHeadPartial.
+    const isHeadPartial = process.env.__NEXT_CACHE_COMPONENTS
+      ? isResponsePartial
+      : navigationSeed.isHeadPartial
 
-      fulfillEntrySpawnedByRuntimePrefetch(
-        now,
-        fetchStrategy,
-        head,
-        isHeadPartial,
-        staleAt,
-        // For head entries, use the head-specific vary params passed as
-        // parameter.
-        headVaryParams,
-        metadataTree,
-        spawnedEntries
-      )
-    }
+    fulfillEntrySpawnedByRuntimePrefetch(
+      now,
+      fetchStrategy,
+      head,
+      isHeadPartial,
+      staleAt,
+      // For head entries, use the head-specific vary params passed as
+      // parameter.
+      headVaryParams,
+      metadataTree,
+      spawnedEntries
+    )
   }
   // Any entry that's still pending was intentionally not rendered by the
   // server, because it was inside the loading boundary. Mark them as rejected
@@ -3762,6 +3663,8 @@ function writeSeedDataIntoCache(
   if (data === null) {
     // The response carried no information for this segment or anything
     // below it.
+    // TODO: This is where "skip a middle segment but render below it" would
+    // need to keep descending. No producer emits that shape yet.
     return
   }
   const rsc = data.rsc
@@ -4244,37 +4147,33 @@ export async function resolveStaleAt(
 export function writePrerenderResponseIntoCache(
   now: number,
   fetchStrategy: FetchStrategy.PPR | FetchStrategy.RuntimeShell,
-  flightData: FlightData,
+  transportData: PartialTransportData | null,
   buildId: string | undefined,
-  headVaryParamsIterable: VaryParamsIterable | null,
   rootVaryParamsIterable: VaryParamsIterable | null,
   staleAt: number,
   baseTree: FlightRouterState,
   renderedSearch: string,
   isResponsePartial: boolean
 ): void {
-  // Root params are emitted once at the top level; readVaryParams unions them
-  // into the head, and they're threaded down to each segment below.
-  const headVaryParams = readVaryParams(
-    headVaryParamsIterable,
-    rootVaryParamsIterable
-  )
-
-  const flightDatas = normalizeFlightData(flightData)
-  if (typeof flightDatas === 'string') {
+  if (transportData === null) {
     return
   }
   const navigationSeed = convertServerPatchToFullTree(
     now,
     baseTree,
-    flightDatas,
+    transportData,
     renderedSearch,
     UnknownDynamicStaleTime
+  )
+  // Root params are emitted once at the top level; readVaryParams unions them
+  // into the head, and they're threaded down to each segment below.
+  const headVaryParams = readVaryParams(
+    navigationSeed.headVaryParams,
+    rootVaryParamsIterable
   )
   writeDynamicRenderResponseIntoCache(
     now,
     fetchStrategy,
-    flightDatas,
     buildId,
     isResponsePartial,
     headVaryParams,
@@ -4297,7 +4196,6 @@ export async function processRuntimePrefetchStream(
   baseTree: FlightRouterState,
   renderedSearch: string
 ): Promise<{
-  flightDatas: NormalizedFlightData[]
   navigationSeed: NavigationSeed
   buildId: string | undefined
   isResponsePartial: boolean
@@ -4314,28 +4212,31 @@ export async function processRuntimePrefetchStream(
       { allowPartialStream: true }
     )
 
-  // Root params are emitted once at the top level; readVaryParams unions them
-  // into the head, and we return the iterable so the caller can union it into
-  // each segment too.
   const rootVaryParamsIterable = serverData.r ?? null
-  const headVaryParams = readVaryParams(serverData.h, rootVaryParamsIterable)
 
   const staleAt = await resolveStaleAt(now, serverData.s)
 
-  const flightDatas = normalizeFlightData(serverData.f)
-  if (typeof flightDatas === 'string') {
+  const transportData = serverData.t
+  if (transportData === undefined) {
     return null
   }
   const navigationSeed = convertServerPatchToFullTree(
     now,
     baseTree,
-    flightDatas,
+    transportData,
     renderedSearch,
     UnknownDynamicStaleTime
   )
 
+  // Root params are emitted once at the top level; readVaryParams unions them
+  // into the head, and we return the iterable so the caller can union it into
+  // each segment too.
+  const headVaryParams = readVaryParams(
+    navigationSeed.headVaryParams,
+    rootVaryParamsIterable
+  )
+
   return {
-    flightDatas,
     navigationSeed,
     buildId: serverData.b,
     isResponsePartial: isPartial,
