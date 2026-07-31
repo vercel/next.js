@@ -641,7 +641,7 @@
             return serializeAsyncIterable(value, parentReference.call(value));
           parentReference = getPrototypeOf(value);
           if (
-            parentReference !== ObjectPrototype &&
+            parentReference !== ObjectPrototype$1 &&
             (null === parentReference ||
               null !== getPrototypeOf(parentReference))
           ) {
@@ -2457,7 +2457,16 @@
                   );
               }
             }
-            value = value[path[i]];
+            var name = path[i];
+            if (
+              "object" !== typeof value ||
+              null === value ||
+              (getPrototypeOf(value) !== ObjectPrototype &&
+                getPrototypeOf(value) !== ArrayPrototype) ||
+              !hasOwnProperty.call(value, name)
+            )
+              throw Error("Invalid reference.");
+            value = value[name];
           }
           for (
             ;
@@ -4717,12 +4726,13 @@
         return value;
       }
       for (i in value)
-        "__proto__" === i
-          ? delete value[i]
-          : ((parentObject = reviveModel(response, value[i], value, i)),
-            void 0 !== parentObject
-              ? (value[i] = parentObject)
-              : delete value[i]);
+        hasOwnProperty.call(value, i) &&
+          ("__proto__" === i
+            ? delete value[i]
+            : ((parentObject = reviveModel(response, value[i], value, i)),
+              void 0 !== parentObject
+                ? (value[i] = parentObject)
+                : delete value[i]));
       return value;
     }
     function close(weakResponse) {
@@ -4979,7 +4989,7 @@
       jsxPropsParents = new WeakMap(),
       jsxChildrenParents = new WeakMap(),
       CLIENT_REFERENCE_TAG = Symbol.for("react.client.reference"),
-      ObjectPrototype = Object.prototype,
+      ObjectPrototype$1 = Object.prototype,
       knownServerReferences = new WeakMap(),
       fakeServerFunctionIdx = 0,
       v8FrameRegExp =
@@ -5002,7 +5012,9 @@
         React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
       ReactSharedInternals =
         React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE ||
-        ReactSharedInteralsServer;
+        ReactSharedInteralsServer,
+      ObjectPrototype = Object.prototype,
+      ArrayPrototype = Array.prototype;
     ReactPromise.prototype = Object.create(Promise.prototype);
     ReactPromise.prototype.then = function (resolve, reject) {
       var _this = this;
