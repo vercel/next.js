@@ -170,6 +170,185 @@ describe('request insights', () => {
     })
   })
 
+  it('records Server Actions without treating client cache calls as actions', async () => {
+    const actionIds: string[] = []
+    const browser = await next.browser('/server-actions', {
+      beforePageLoad(page) {
+        page.route('**/server-actions**', async (route) => {
+          const actionId = (await route.request().allHeaders())['next-action']
+          if (actionId) {
+            actionIds.push(actionId)
+          }
+          await route.continue()
+        })
+      },
+    })
+
+    await browser.elementById('run-tracked-server-action').click()
+    await retry(async () => {
+      expect(await browser.elementById('server-action-result').text()).toBe(
+        'server-action-complete'
+      )
+    })
+
+    let snapshotAfterAction: { requests: RequestInsight[] } = { requests: [] }
+    await retry(async () => {
+      snapshotAfterAction = (await next
+        .fetch('/_next/development/request-insights')
+        .then((response) => response.json())) as {
+        requests: RequestInsight[]
+      }
+      const actionRequests = snapshotAfterAction.requests.filter(
+        (request) =>
+          request.route === '/server-actions' &&
+          request.spans.some(
+            (span) =>
+              span.attributes?.['next.span_type'] ===
+              'AppRender.executeServerAction'
+          )
+      )
+      expect(actionRequests).toHaveLength(1)
+      expect(actionRequests[0].requestId).not.toBe(
+        actionRequests[0].htmlRequestId
+      )
+      expect(
+        snapshotAfterAction.requests.some(
+          (request) => request.requestId === actionRequests[0].htmlRequestId
+        )
+      ).toBe(true)
+
+      const actionSpans = actionRequests[0].spans.filter(
+        (span) =>
+          span.attributes?.['next.span_type'] ===
+          'AppRender.executeServerAction'
+      )
+      expect(actionSpans).toEqual([
+        expect.objectContaining({
+          name: 'AppRender.executeServerAction',
+          attributes: expect.objectContaining({
+            'next.span_category': 'application',
+            'next.span_name': 'run Server Action trackedServerAction',
+            'next.span_type': 'AppRender.executeServerAction',
+            'next.server_action.name': 'trackedServerAction',
+            'next.server_action.file': 'app/server-actions/actions.ts',
+          }),
+        }),
+      ])
+
+      const spansById = new Map(
+        actionRequests[0].spans
+          .filter((span) => span.spanId)
+          .map((span) => [span.spanId!, span])
+      )
+      let parentSpanId = actionSpans[0].parentSpanId
+      let hasRequestAncestor = false
+      while (parentSpanId) {
+        const parent = spansById.get(parentSpanId)
+        if (!parent) break
+        if (
+          parent.attributes?.['next.span_type'] === 'BaseServer.handleRequest'
+        ) {
+          hasRequestAncestor = true
+          break
+        }
+        parentSpanId = parent.parentSpanId
+      }
+      expect(hasRequestAncestor).toBe(true)
+
+      const serializedRequest = JSON.stringify(actionRequests[0])
+      expect(serializedRequest).not.toContain('private-server-action-argument')
+      expect(actionIds).toHaveLength(1)
+      expect(actionIds[0]).toMatch(/^[0-9a-f]{42}$/)
+      expect(serializedRequest).not.toContain(actionIds[0])
+    })
+
+    const actionRequest = snapshotAfterAction.requests.find(
+      (request) =>
+        request.route === '/server-actions' &&
+        request.spans.some(
+          (span) =>
+            span.attributes?.['next.server_action.name'] ===
+            'trackedServerAction'
+        )
+    )!
+    const existingRequestIds = new Set(
+      snapshotAfterAction.requests.map((request) => request.requestId)
+    )
+    await browser.elementById('run-client-cached-function').click()
+    await retry(async () => {
+      expect(await browser.elementById('server-action-result').text()).toBe(
+        'cached-function-complete'
+      )
+    })
+
+    await retry(async () => {
+      const snapshot = (await next
+        .fetch('/_next/development/request-insights')
+        .then((response) => response.json())) as {
+        requests: RequestInsight[]
+      }
+      const cacheRequests = snapshot.requests.filter(
+        (request) =>
+          !existingRequestIds.has(request.requestId) &&
+          request.route === '/server-actions' &&
+          request.spans.some(
+            (span) =>
+              span.attributes?.['next.span_type'] ===
+                'BaseServer.handleRequest' &&
+              span.attributes?.['http.method'] === 'POST'
+          )
+      )
+      expect(cacheRequests).toHaveLength(1)
+      expect(cacheRequests[0].htmlRequestId).toBe(actionRequest.htmlRequestId)
+      expect(
+        cacheRequests[0].spans.filter(
+          (span) =>
+            span.attributes?.['next.span_type'] ===
+            'AppRender.executeServerAction'
+        )
+      ).toHaveLength(0)
+      expect(actionIds).toHaveLength(2)
+      expect(actionIds[1]).toMatch(/^[0-9a-f]{42}$/)
+      expect(JSON.stringify(cacheRequests[0])).not.toContain(actionIds[1])
+    })
+
+    const panelBrowser = await next.browser('/server-actions')
+    await openRequestInsightsPanel(panelBrowser)
+    await retry(async () => {
+      const actionSpanVisible = await panelBrowser.eval(async () => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        const requestRows = Array.from(
+          root?.querySelectorAll<HTMLButtonElement>('.request-insights-row') ??
+            []
+        ).filter(
+          (row) =>
+            row.textContent?.includes('/server-actions') &&
+            !row.textContent.includes('Page load')
+        )
+
+        for (const requestRow of requestRows) {
+          requestRow.click()
+          await new Promise<void>((resolve) =>
+            requestAnimationFrame(() => resolve())
+          )
+
+          if (
+            Array.from(
+              root?.querySelectorAll('.request-insights-span-row') ?? []
+            ).some((row) =>
+              row.textContent?.includes('run Server Action trackedServerAction')
+            )
+          ) {
+            return true
+          }
+        }
+
+        return false
+      })
+      expect(actionSpanVisible).toBe(true)
+    })
+  })
+
   it('does not attribute Request Insights bookkeeping to the app', async () => {
     const outputIndex = next.cliOutput.length
     const browser = await next.browser('/safe-clock')

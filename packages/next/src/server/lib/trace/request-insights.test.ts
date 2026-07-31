@@ -401,4 +401,33 @@ describe('request insights', () => {
       })
     )
   })
+
+  it('retains safe Server Action metadata', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+
+    recordSpan({
+      name: 'AppRender.executeServerAction',
+      requestId: 'req_server_action',
+      route: '/account',
+      attributes: {
+        'next.span_category': 'application',
+        'next.span_name': 'run Server Action updateAccount',
+        'next.span_type': 'AppRender.executeServerAction',
+        'next.server_action.name': 'updateAccount',
+        'next.server_action.file': 'app/account/actions.ts',
+        'next.server_action.id': 'private-action-id',
+        'custom.argument': 'private-action-argument',
+      },
+    })
+
+    expect(
+      getRequestInsightsSnapshot().requests[0].spans[0].attributes
+    ).toEqual({
+      'next.span_category': 'application',
+      'next.span_name': 'run Server Action updateAccount',
+      'next.span_type': 'AppRender.executeServerAction',
+      'next.server_action.name': 'updateAccount',
+      'next.server_action.file': 'app/account/actions.ts',
+    })
+  })
 })

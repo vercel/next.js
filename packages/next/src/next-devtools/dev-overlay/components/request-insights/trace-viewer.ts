@@ -26,6 +26,7 @@ export type TraceRange = {
 type UnnestedTraceItem = Omit<TraceItem, 'depth'>
 
 const FETCH_SPAN_TYPE = 'AppRender.fetch'
+const SERVER_ACTION_SPAN_TYPE = 'AppRender.executeServerAction'
 const DEFAULT_VISIBLE_SPAN_TYPES = new Set([
   'BaseServer.handleRequest',
   'Middleware.execute',
@@ -36,6 +37,7 @@ const DEFAULT_VISIBLE_SPAN_TYPES = new Set([
   'AppRender.prepareAppPageResponse',
   'AppRender.initializeRender',
   'AppRender.getBodyResult',
+  SERVER_ACTION_SPAN_TYPE,
   'NextNodeServer.createComponentTree',
   'AppRender.startRSCStream',
   'AppRender.renderRSCResponse',
@@ -346,6 +348,11 @@ function getSpanLabel(span: RequestInsightSpan): string {
     typeof explicitName === 'string' && explicitName.trim().length > 0
       ? explicitName
       : span.name
+
+  if (span.attributes?.['next.span_type'] === SERVER_ACTION_SPAN_TYPE) {
+    return name
+  }
+
   const displayName = name
     .replace(FIZZ_WORD, 'HTML')
     .replace(FLIGHT_WORD, 'RSC')

@@ -422,6 +422,50 @@ describe('request insights trace viewer', () => {
     ])
   })
 
+  it('shows named Server Action spans in the default trace', () => {
+    const request = createRequest({
+      spans: [
+        {
+          name: 'POST /account',
+          spanId: 'root',
+          startTime: 100,
+          durationMs: 20,
+          attributes: {
+            'next.span_type': 'BaseServer.handleRequest',
+          },
+        },
+        {
+          name: 'AppRender.executeServerAction',
+          spanId: 'server-action',
+          parentSpanId: 'root',
+          startTime: 105,
+          durationMs: 5,
+          attributes: {
+            'next.span_category': 'application',
+            'next.span_name': 'run Server Action updateAccount',
+            'next.span_type': 'AppRender.executeServerAction',
+            'next.server_action.name': 'updateAccount',
+          },
+        },
+      ],
+    })
+
+    expect(
+      getTraceItems(request, false).map(({ label, category, depth }) => ({
+        label,
+        category,
+        depth,
+      }))
+    ).toEqual([
+      { label: 'POST /account', category: 'nextjs', depth: 0 },
+      {
+        label: 'run Server Action updateAccount',
+        category: 'application',
+        depth: 1,
+      },
+    ])
+  })
+
   it('gives every displayed span a human readable name', () => {
     const request = createRequest({
       spans: [
