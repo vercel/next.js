@@ -144,11 +144,9 @@ import { preload, SWRConfig } from 'swr'
 import { getUser } from './user'
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
-  return (
-    <SWRConfig value={{ cacheData: preload('/api/user', () => getUser()) }}>
-      {children}
-    </SWRConfig>
-  )
+  const userData = preload('/api/user', () => getUser())
+
+  return <SWRConfig value={{ cacheData: userData }}>{children}</SWRConfig>
 }
 ```
 
@@ -157,15 +155,17 @@ import { preload, SWRConfig } from 'swr'
 import { getUser } from './user'
 
 export default function RootLayout({ children }) {
-  return (
-    <SWRConfig value={{ cacheData: preload('/api/user', () => getUser()) }}>
-      {children}
-    </SWRConfig>
-  )
+  const userData = preload('/api/user', () => getUser())
+
+  return <SWRConfig value={{ cacheData: userData }}>{children}</SWRConfig>
 }
 ```
 
+Call `preload` before unrelated `await`s so requests begin as early as possible. When one boundary seeds multiple keys, start each preload and merge the returned cache maps into one `cacheData` object, such as `cacheData: { ...userData, ...messageData }`.
+
 Because the value is a real cache entry, `mutate(key)`, revalidation, and deduplication operate on it like any fetched data. The `fallback` option only sets the value the hook returns on first render, so use `preload` when the seeded value is later mutated or revalidated on the client.
+
+> **Good to know:** `unload()` clears the current provider cache and revalidates mounted hooks by default. When changing the authenticated identity while reusing SWR keys, call scoped `unload({ revalidate: false })` from `useSWRConfig()` before navigating. It clears every entry and discards in-flight requests so responses for the previous identity cannot refill the cache. An `unload` imported from `swr` clears the default cache instead. For partial identity changes, prefer identity-scoped keys or a narrower provider. `unload` requires SWR 2.5.0-beta.1 or later.
 
 Learn more: [SWR with Next.js App Router](https://swr.vercel.app/docs/with-nextjs).
 
