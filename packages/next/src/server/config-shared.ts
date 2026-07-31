@@ -764,13 +764,6 @@ export interface ExperimentalConfig {
   turbopackScopeHoisting?: boolean
 
   /**
-   * (`next --turbopack` only) Emit each merged production chunk's constituent component chunks
-   * alongside it, so the browser runtime can load only the ones it doesn't already have.
-   * Defaults to `false`. Only applies in build mode.
-   */
-  turbopackGenerateComponentChunks?: boolean
-
-  /**
    * Share the browser runtime across routes in a single `runtime.js` asset and inline the
    * per-route chunk-group bootstrap into the HTML, dropping the per-route runtime. Defaults to
    * false. Only applies to production builds; has no effect in development mode.
@@ -778,10 +771,10 @@ export interface ExperimentalConfig {
   turbopackSharedRuntime?: boolean
 
   /**
-   * (`next --turbopack` only) Traffic-related hints for the production chunker. These change the
-   * assumptions Turbopack makes when making chunk merging decisions.
+   * (`next --turbopack` only) These options change the assumptions Turbopack makes when
+   * making chunk merging decisions and the raw size thresholds it uses.
    */
-  turbopackChunkingHeuristics?: {
+  turbopackChunking?: {
     /**
      * This is a number between `0..1`, when higher, we weight the benefits of
      * merging chunks for a signal page load higher. If you don't know a good
@@ -808,6 +801,32 @@ export interface ExperimentalConfig {
      * is approximately 5x the size of compressed and minified code.
      */
     requestCost?: number
+    /**
+     * Avoid creating more than one chunk smaller than this size, in bytes. Smaller
+     * chunks are merged into bigger ones to avoid that. Defaults to `50000` (50 KB).
+     */
+    minChunkSize?: number
+    /**
+     * Avoid creating more than this number of chunks per chunk group. Chunks are
+     * merged into bigger ones to avoid that. Defaults to `40`.
+     */
+    maxChunkCountPerGroup?: number
+    /**
+     * Never merge chunks bigger than this size, in bytes, with other chunks. This keeps code
+     * in big chunks from being duplicated across multiple chunks. Defaults to `200000` (200 KB).
+     */
+    maxMergeChunkSize?: number
+    /**
+     * Emit each merged production chunk's constituent component chunks alongside it, so the
+     * browser runtime can load only the ones it doesn't already have. Defaults to `false`.
+     */
+    generateComponentChunks?: boolean
+    /**
+     * Minimum size, in bytes, for a component chunk to be emitted on its own when
+     * `generateComponentChunks` is enabled. Component chunks smaller than this are folded into a
+     * single remainder chunk. Defaults to `20000` (20 KB).
+     */
+    minComponentChunkSize?: number
   }
 
   /**
