@@ -231,9 +231,14 @@ export function useWebSocketPing(webSocket: WebSocket | undefined) {
     }
     webSocket.addEventListener('open', sendPing, { once: true })
     sendPing()
+    // The upgrade callback installs the server's message listener after accepting
+    // the socket. Retry once after that synchronous setup so the initial route
+    // tree isn't lost if the browser's open event wins the race.
+    const initialRetry = setTimeout(sendPing, 100)
     const interval = setInterval(sendPing, 2500)
     return () => {
       webSocket.removeEventListener('open', sendPing)
+      clearTimeout(initialRetry)
       clearInterval(interval)
     }
   }, [tree, webSocket])
