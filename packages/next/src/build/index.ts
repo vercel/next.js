@@ -2983,8 +2983,6 @@ export default async function build(
         !hasPages500 && !hasNonStaticErrorPage && !customAppGetInitialProps
 
       const combinedPages = [...staticPages, ...ssgPages]
-      const isApp404Static = staticPaths.has(UNDERSCORE_NOT_FOUND_ROUTE_ENTRY)
-      const hasStaticApp404 = hasApp404 && isApp404Static
       const isAppGlobalErrorStatic = staticPaths.has(
         UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY
       )
@@ -3960,7 +3958,14 @@ export default async function build(
               })
           }
 
-          // If there's /not-found inside app, we prefer it over the pages 404
+          // If there's a fully static /not-found inside app, we prefer it over
+          // the pages 404. A partially prerendered not-found is only a shell,
+          // so it must remain associated with its resumable prerender output.
+          const hasStaticApp404 =
+            hasApp404 &&
+            staticPaths.has(UNDERSCORE_NOT_FOUND_ROUTE_ENTRY) &&
+            !pageInfos.get(UNDERSCORE_NOT_FOUND_ROUTE)?.hasPostponed
+
           if (hasStaticApp404) {
             await moveExportedAppNotFoundTo404()
           } else {

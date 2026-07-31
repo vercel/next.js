@@ -1387,12 +1387,6 @@ export async function handleBuildComplete({
         const isAppPage =
           Boolean(appOutputMap[srcRoute]) || srcRoute === '/_not-found'
 
-        // if we already have 404.html favor that instead of
-        // _not-found prerender
-        if (srcRoute === '/_not-found' && hasStatic404) {
-          continue
-        }
-
         const isNotFoundTrue = prerenderManifest.notFoundRoutes.includes(route)
 
         let allowQuery: string[] | undefined
@@ -1457,6 +1451,13 @@ export async function handleBuildComplete({
         }
 
         const meta = await getAppRouteMeta(route, isAppPage)
+
+        // If we already have a complete 404.html, favor that instead of the
+        // _not-found prerender. A route with postponed state only produced a
+        // shell, so preserve its prerender output in order to resume it.
+        if (srcRoute === '/_not-found' && hasStatic404 && !meta.postponed) {
+          continue
+        }
 
         let htmlAllowQuery = allowQuery
         let dataAllowQuery = allowQuery
