@@ -713,6 +713,31 @@ Or run this command again without the --no-install flag to do both automatically
     })
     console.log('Created pull request %s', pullRequest.data.html_url)
 
+    // Enable GitHub auto-merge with the squash method so the PR merges
+    // automatically once required checks pass. GitHub has no REST field for
+    // this, so it must be enabled via the GraphQL mutation on the PR node id.
+    // The commit title is left to GitHub's default (the PR title with the PR
+    // number), while an explicit empty commitBody keeps the squash commit
+    // description empty regardless of the repo's squash message setting.
+    await octokit.graphql(
+      `mutation ($pullRequestId: ID!) {
+         enablePullRequestAutoMerge(
+           input: {
+             pullRequestId: $pullRequestId
+             mergeMethod: SQUASH
+             commitBody: ""
+           }
+         ) {
+           pullRequest {
+             autoMergeRequest {
+               enabledAt
+             }
+           }
+         }
+       }`,
+      { pullRequestId: pullRequest.data.node_id }
+    )
+
     await Promise.all([
       actor
         ? octokit.rest.issues.addAssignees({
