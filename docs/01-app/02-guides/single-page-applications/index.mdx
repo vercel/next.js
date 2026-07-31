@@ -5,11 +5,11 @@ description: Next.js fully supports building Single-Page Applications (SPAs).
 related:
   description: Related guides and references.
   links:
+    - app/guides/client-side-data-fetching
     - app/guides/interactive-apps
     - app/guides/server-actions
     - app/guides/forms
     - app/guides/streaming
-    - app/api-reference/components/link
     - app/guides/static-exports
 ---
 
@@ -42,7 +42,9 @@ You can use React's [`use` API](https://react.dev/reference/react/use) to stream
 
 Starting the request on the server, before the rest of the app renders, lets the response stream immediately and avoids client-side request waterfalls.
 
-You can pass a single Promise as a prop and unwrap it with `use()`, or pair it with a React context provider so any Client Component can read the value through a custom hook. For general client-side data fetching, a library like [SWR](/docs/app/guides/single-page-applications/swr) can help.
+You can pass a single Promise as a prop and unwrap it with `use()`, or pair it with a React context provider so any Client Component can read the value through a custom hook.
+
+When a Client Component needs focus revalidation, polling, mutations, or request deduplication, use a library such as SWR or TanStack Query. See [Client-side data fetching](/docs/app/guides/client-side-data-fetching) for direct browser fetching, optional Server Component seeding, and coordinating the library cache with the Next.js server and client caches.
 
 Start the request in a Server Component (here, the root layout) without awaiting it, and pass the Promise to the provider:
 
@@ -532,48 +534,6 @@ The optimistic update shows instantly, while `useActionState`'s pending flag let
 See the [live demo](https://next-spa-patterns.labs.vercel.dev/mutations) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/mutations).
 
 To learn more about adding interactivity on top of server-rendered apps so they feel like SPAs, see the [Building interactive apps](/docs/app/guides/interactive-apps) guide and its runnable demo.
-
-### Client-side data-fetching libraries
-
-The sections above use React, Server Actions, and the Next.js cache directly. You can also pair Next.js with a client data-fetching library such as [SWR](https://swr.vercel.app), [TanStack Query](https://tanstack.com/query), or [Apollo Client](https://www.apollographql.com/docs/react) when a Client Component needs client-side features such as focus revalidation, interval polling, or request deduplication.
-
-When you seed a client cache from a Server Component, three cache layers can hold related data:
-
-| Layer                        | What it stores                                             | Freshness control                                                                               |
-| ---------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Next.js server cache         | Cached data and Server Component output                    | `cacheLife` [`revalidate`](/docs/app/api-reference/functions/cacheLife#revalidate) and `expire` |
-| Next.js client cache         | React Server Component payloads for prefetched routes      | `cacheLife` [`stale`](/docs/app/api-reference/functions/cacheLife#stale)                        |
-| Client data-fetching library | Browser data stored under an SWR key or TanStack query key | The library's revalidation options and mutations                                                |
-
-[Prefetching](/docs/app/guides/prefetching) can place the next route's server-rendered view in the Next.js client cache before navigation. Seeding copies its initial data into the library cache, which then owns the browser value and its revalidation.
-
-With Cache Components, React Activity also [preserves recently visited route state](/docs/app/guides/preserving-ui-state). Effects restart when a route becomes visible, so the data-fetching library can apply its normal mount revalidation without adding another cache layer.
-
-You do not have to seed every client query from a Server Component. For browser-driven interactions such as autocomplete, fetch directly from a Client Component. The library caches the result after hydration and a client request. The Route Handler can still call a cached server function, so server seeding and server data caching are separate choices.
-
-Seed a client cache from a Server Component when you want the initial data to benefit from server rendering, streaming, and the Next.js cache while still using the library's client-side features. When server seeding is useful, keep three responsibilities separate:
-
-- **Server Components provide the initial data**, scoped to the segment that owns it.
-- **The data-fetching library owns the browser value**, using a shared cache identity for reads and hydration.
-- **Mutations coordinate both sides**, updating the browser cache immediately and refreshing the server data for the next render.
-
-The cache layers keep independent freshness policies and do not need matching durations. Only their identities and mutation invalidation must stay coordinated, and an optimistic update should restore the previous value if the write fails.
-
-The same shape applies to any client cache, so a library not listed here follows it too. Seeding from a Server Component lets the same Client Component read data from the client, the server, or both:
-
-|                      | Client library      | RSC                 | RSC + client library |
-| -------------------- | ------------------- | ------------------- | -------------------- |
-| SSR data             | <Cross size={18} /> | <Check size={18} /> | <Check size={18} />  |
-| Streaming while SSR  | <Cross size={18} /> | <Check size={18} /> | <Check size={18} />  |
-| Deduplicate requests | <Check size={18} /> | <Check size={18} /> | <Check size={18} />  |
-| Client-side features | <Check size={18} /> | <Cross size={18} /> | <Check size={18} />  |
-
-For the library-specific setup and code, see:
-
-- [Client-side data fetching with SWR](/docs/app/guides/single-page-applications/swr)
-- [Client-side data fetching with TanStack Query](/docs/app/guides/single-page-applications/tanstack-query)
-
-If a Client Component only needs to read server data once, pass a Promise to it and unwrap it with [`use()`](#using-reacts-use-within-a-context-provider) instead. That avoids adding a data-fetching library for data that never revalidates on the client.
 
 ## Static export (optional)
 

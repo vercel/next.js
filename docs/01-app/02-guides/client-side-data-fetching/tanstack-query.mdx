@@ -5,17 +5,19 @@ description: Fetch client-side data with TanStack Query, optionally seed it from
 related:
   description: Related guides and references.
   links:
-    - app/guides/single-page-applications
+    - app/getting-started/fetching-data
     - app/getting-started/caching
     - app/api-reference/directives/use-cache
     - app/api-reference/functions/revalidateTag
 ---
 
-Use [TanStack Query](https://tanstack.com/query) with Next.js to fetch browser-driven data or seed the query cache from a Server Component. TanStack Query owns client revalidation and mutations, while Next.js can cache the server-rendered view.
+Use [TanStack Query](https://tanstack.com/query) to fetch data in Client Components, seed its cache from Server Components, and coordinate browser mutations with cached server data. See [Client-side data fetching](/docs/app/guides/client-side-data-fetching) to choose a pattern.
 
-## Fetching data only on the client
+## Fetch data on the client
 
-You do not have to seed a query from a Server Component. For data whose input is only known after an interaction, such as autocomplete, call `useQuery` directly from a Client Component with a key that includes the input:
+TanStack Query can fetch entirely in the browser when the server-rendered response does not need the result. As described in [Choose a client fetching pattern](/docs/app/guides/client-side-data-fetching#choose-a-client-fetching-pattern), the component can render its own loading state or let a Suspense boundary handle it. Both work well for data whose input is only known after an interaction, such as autocomplete.
+
+Use `useQuery` when the component should render its own loading and error states. The `enabled` option delays the request until the interaction provides an input:
 
 ```tsx filename="app/product-autocomplete.tsx" switcher
 'use client'
@@ -55,109 +57,50 @@ export function ProductAutocomplete({ query }: { query: string }) {
 }
 ```
 
-The result is not in the server-rendered response, so the first result waits for hydration and a client request. This tradeoff suits interaction-driven data. The Route Handler can still read through a server function that uses Cache Components.
-
 Learn more: [TanStack Query queries](https://tanstack.com/query/latest/docs/framework/react/guides/queries).
 
-## Seeding TanStack Query from a Server Component (optional)
+## Use Suspense for client data
 
-When the server knows which data the first render needs, seed the query cache from a Server Component. This avoids the initial client request while preserving TanStack Query's client-side features.
+Use `useSuspenseQuery` when the nearest Suspense boundary should own the loading state. Keep the interactive shell outside the boundary so it remains available while the results load:
 
-### Configure the Query Client provider
-
-Create a new `QueryClient` for each server render and reuse one client in the browser. Provide it from a shared layout:
-
-```tsx filename="app/query-provider.tsx" switcher
+```tsx filename="app/product-autocomplete.tsx"
 'use client'
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { useSuspenseQuery } from '@tanstack/react-query'
+import { Suspense } from 'react'
+import { searchProducts } from './products'
 
-let browserQueryClient: QueryClient | undefined
-
-function getQueryClient() {
-  if (typeof window === 'undefined') return new QueryClient()
-  browserQueryClient ??= new QueryClient()
-  return browserQueryClient
-}
-
-export function QueryProvider({ children }: { children: React.ReactNode }) {
-  const queryClient = getQueryClient()
+export function ProductAutocomplete({ query }: { query: string }) {
+  if (!query) return null
 
   return (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <Suspense fallback={<p>Loading products...</p>}>
+      <ProductResults query={query} />
+    </Suspense>
   )
 }
-```
 
-```jsx filename="app/query-provider.js" switcher
-'use client'
+function ProductResults({ query }: { query: string }) {
+  const { data } = useSuspenseQuery({
+    queryKey: ['product-search', query],
+    queryFn: () => searchProducts(query),
+  })
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-
-let browserQueryClient
-
-function getQueryClient() {
-  if (typeof window === 'undefined') return new QueryClient()
-  browserQueryClient ??= new QueryClient()
-  return browserQueryClient
-}
-
-export function QueryProvider({ children }) {
-  const queryClient = getQueryClient()
-
-  return (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  )
+  return data.map((product) => <p key={product.id}>{product.name}</p>)
 }
 ```
 
-Render `<QueryProvider>` around the route tree that reads the query cache. See the [TanStack Query Advanced SSR guide](https://tanstack.com/query/latest/docs/framework/react/guides/advanced-ssr) for additional provider options.
+Suspense queries work well when the request starts after a client interaction. If the initial server render needs the data, seed the query as shown below.
 
-Define the client query key and server cache tag together. They identify the same data in different caches: TanStack Query uses the key in the browser, while Next.js uses the tag to invalidate cached server data.
+> **Good to know:** Multiple `useSuspenseQuery` calls in one component run sequentially. Put independent queries in sibling components, or use [`useSuspenseQueries`](https://tanstack.com/query/latest/docs/framework/react/reference/useSuspenseQueries). Learn more about [request waterfalls](https://tanstack.com/query/latest/docs/framework/react/guides/request-waterfalls).
 
-```ts filename="app/products/[id]/product-cache.ts" switcher
-import { queryOptions } from '@tanstack/react-query'
+## Seed data from a Server Component
 
-export type Product = { id: string; name: string }
+Use the [server-seeded pattern](/docs/app/guides/client-side-data-fetching#choose-a-client-fetching-pattern) when the initial render needs the data and TanStack Query should continue managing it in the browser. A Server Component can seed the query cache before the client takes over.
 
-export const productCache = {
-  key: (id: string) => ['product', id] as const,
-  tag: (id: string) => `product:${id}`,
-  options: (id: string) =>
-    queryOptions({
-      queryKey: productCache.key(id),
-      queryFn: async (): Promise<Product> => {
-        const res = await fetch(`/api/products/${id}`)
-        if (!res.ok) throw new Error('Failed to fetch product')
-        return res.json()
-      },
-    }),
-}
-```
+Configure a `QueryClientProvider` around the route tree before using queries or hydration. See the [TanStack Query Advanced SSR guide](https://tanstack.com/query/latest/docs/framework/react/guides/advanced-ssr) for the provider setup.
 
-```js filename="app/products/[id]/product-cache.js" switcher
-import { queryOptions } from '@tanstack/react-query'
-
-export const productCache = {
-  key: (id) => ['product', id],
-  tag: (id) => `product:${id}`,
-  options: (id) =>
-    queryOptions({
-      queryKey: productCache.key(id),
-      queryFn: async () => {
-        const res = await fetch(`/api/products/${id}`)
-        if (!res.ok) throw new Error('Failed to fetch product')
-        return res.json()
-      },
-    }),
-}
-```
-
-This example keeps the options with the key so callers use the same query identity. Larger features can place query options in a separate client-facing module as long as every caller imports the key from the same cache contract. The query function fetches a [Route Handler](/docs/app/api-reference/file-conventions/route) so it can run on the client.
-
-### Seed data without Cache Components
-
-Without Cache Components, a Server Component can start `prefetchQuery` without awaiting it and pass pending queries to `<HydrationBoundary>`. On the server, override `queryFn` to call the data function directly because the Route Handler's relative URL only resolves in the browser:
+A Server Component can start `prefetchQuery` without awaiting it, serialize the pending query as dehydrated state, and pass that state to `<HydrationBoundary>`. On the server, override `queryFn` to call the data function directly because the Route Handler's relative URL only resolves in the browser:
 
 ```tsx filename="app/products/[id]/page.tsx" switcher
 import { Suspense } from 'react'
@@ -249,6 +192,46 @@ function ProductData({ id }) {
 }
 ```
 
+The server seed and Client Component must use the same query key. Keep the key and query options together so both call sites share the same identity:
+
+```ts filename="app/products/[id]/product-cache.ts" switcher
+import { queryOptions } from '@tanstack/react-query'
+
+export type Product = { id: string; name: string }
+
+export const productCache = {
+  key: (id: string) => ['product', id] as const,
+  options: (id: string) =>
+    queryOptions({
+      queryKey: productCache.key(id),
+      queryFn: async (): Promise<Product> => {
+        const res = await fetch(`/api/products/${id}`)
+        if (!res.ok) throw new Error('Failed to fetch product')
+        return res.json()
+      },
+    }),
+}
+```
+
+```js filename="app/products/[id]/product-cache.js" switcher
+import { queryOptions } from '@tanstack/react-query'
+
+export const productCache = {
+  key: (id) => ['product', id],
+  options: (id) =>
+    queryOptions({
+      queryKey: productCache.key(id),
+      queryFn: async () => {
+        const res = await fetch(`/api/products/${id}`)
+        if (!res.ok) throw new Error('Failed to fetch product')
+        return res.json()
+      },
+    }),
+}
+```
+
+The query function fetches a [Route Handler](/docs/app/api-reference/file-conventions/route) so it can run on the client. Larger features can place query options in a separate client-facing module as long as every caller imports the key from the same cache contract.
+
 As with SWR, `params.then()` resolves the `id` inside `<Suspense>`, and `ProductData` prefetches below the boundary.
 
 The Client Component reads the same query key with `useSuspenseQuery` (or `useQuery` to render `isPending` and `error` states inline):
@@ -283,9 +266,27 @@ See the [live demo](https://next-spa-patterns.labs.vercel.dev/react-query) and i
 
 Learn more: [TanStack Query Advanced SSR](https://tanstack.com/query/latest/docs/framework/react/guides/advanced-ssr).
 
-## Caching server data with Cache Components
+## Seed and cache server data with Cache Components
 
-Server seeding and server data caching are independent. With [Cache Components](/docs/app/getting-started/caching), the server function can cache the data whether the Server Component seed, the Route Handler, or both call it. Add [`use cache`](/docs/app/api-reference/directives/use-cache), choose a [`cacheLife`](/docs/app/api-reference/functions/cacheLife) profile, and use the server tag defined beside the query key:
+With [Cache Components](/docs/app/getting-started/caching), you can also cache the server data that seeds TanStack Query. Add a server tag beside the query key so mutations can invalidate the cached data:
+
+```diff filename="app/products/[id]/product-cache.ts" switcher
+ export const productCache = {
+   key: (id: string) => ['product', id] as const,
++  tag: (id: string) => `product:${id}`,
+   // ...
+ }
+```
+
+```diff filename="app/products/[id]/product-cache.js" switcher
+ export const productCache = {
+   key: (id) => ['product', id],
++  tag: (id) => `product:${id}`,
+   // ...
+ }
+```
+
+Then add [`use cache`](/docs/app/api-reference/directives/use-cache), choose a [`cacheLife`](/docs/app/api-reference/functions/cacheLife) profile, and apply the tag to the server function. See [Cache server data with Cache Components](/docs/app/guides/client-side-data-fetching#cache-server-data-with-cache-components-optional) for how the cache layers relate.
 
 ```ts filename="app/products/[id]/data.ts" switcher
 import { cacheLife, cacheTag } from 'next/cache'
@@ -317,15 +318,15 @@ export async function getProduct(id) {
 }
 ```
 
-This example uses `cacheLife('max')` because writes invalidate the product tag. Within the profile, `stale` controls how long the Next.js client cache can reuse a prefetched view, while `revalidate` and `expire` control the server cache. Choose a shorter profile when the server value should refresh with time.
+This example uses `cacheLife('max')` because writes invalidate the product tag. Within the cache profile, `stale` controls how long the Next.js client cache can reuse a prefetched view, while `revalidate` and `expire` control the server cache. Choose a shorter profile when the server value should refresh with time.
 
-TanStack Query owns a separate browser cache. Its `staleTime` does not need to match `cacheLife`. When React Activity restores a preserved route, TanStack Query applies options such as `refetchOnMount` as its Effects restart.
+TanStack Query owns a separate browser cache. TanStack Query's `staleTime` does not need to match `cacheLife`. When React Activity restores a preserved route, TanStack Query applies options such as `refetchOnMount` as its Effects restart.
 
 Keep the cache contract free of server-only and client-only imports so every cache boundary can reuse it instead of duplicating raw keys and tags.
 
 ### Build a prerenderable hydration state
 
-With Cache Components, TanStack Query's `dehydrate()` reads the current time (`Date.now()`) while prerendering and causes a [current-time prerender error](/docs/messages/blocking-prerender-current-time).
+The seeding example above uses TanStack Query's `dehydrate()` to create the hydration state. With Cache Components, `dehydrate()` reads the current time (`Date.now()`) while prerendering and causes a [current-time prerender error](/docs/messages/blocking-prerender-current-time).
 
 Instead, cache only that timestamp and build the dehydrated state by hand. Wrap the time read in [`use cache`](/docs/app/api-reference/directives/use-cache) with the same tags as the data reads. When a mutation invalidates those tags, the data and its timestamp advance together, so `<HydrationBoundary>` overwrites the client query on the next navigation:
 
@@ -470,7 +471,7 @@ async function ProductData({ id }) {
 
 Learn more: [`use cache`](/docs/app/api-reference/directives/use-cache) and [`cacheTag`](/docs/app/api-reference/functions/cacheTag).
 
-## Coordinating the server and client caches on mutation
+## Coordinate server and client caches after mutations
 
 The examples above seed the client cache from the server. After hydration, TanStack Query owns the browser copy and its revalidation. For reused data, keep the query key and server tag in the same cache contract:
 
@@ -554,9 +555,9 @@ export function useMarkActivityRead() {
 }
 ```
 
-The Route Handler writes to the database, then refreshes the server seed with `revalidateTag`, using the same pattern shown in the [SWR guide](/docs/app/guides/single-page-applications/swr#coordinating-the-server-and-client-caches-on-mutation).
+The Route Handler writes to the database, then refreshes the server seed with `revalidateTag`, using the same pattern shown in the [SWR guide](/docs/app/guides/client-side-data-fetching/swr#coordinate-server-and-client-caches-after-mutations).
 
-> **Good to know:** This example assumes the server seed uses [`use cache`](/docs/app/api-reference/directives/use-cache) and `cacheTag`. Omit `revalidateTag` for an uncached read because each server render already reads fresh data. See [coordinating the server and client caches](/docs/app/guides/single-page-applications#client-side-data-fetching-libraries) for the invalidation choices.
+> **Good to know:** Use `revalidateTag` when the server seed uses [`use cache`](/docs/app/api-reference/directives/use-cache) and `cacheTag`. Omit `revalidateTag` for an uncached read because each server render already reads fresh data. See [Client-side data fetching](/docs/app/guides/client-side-data-fetching) for the invalidation choices.
 
 Learn more: [TanStack Query optimistic updates](https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates).
 
