@@ -795,7 +795,7 @@ export interface ExperimentalConfig {
     priorityBoost?: number
     /**
      * Estimated cost of an additional request, in bytes (uncompressed
-     * and unminfified bytes of code, default is 200 KB and the max is 1 MB), used by the chunker to
+     * and unminfified bytes of code, default is 200 KB), used by the chunker to
      * trade off request count against preventing double-fetching. Uncompressed and unminfified code
      * is approximately 5x the size of compressed and minified code.
      */
