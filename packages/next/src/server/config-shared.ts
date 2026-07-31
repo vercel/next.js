@@ -961,7 +961,7 @@ export interface ExperimentalConfig {
   /**
    * Enable tree shaking of unused exports from analyzable CommonJS modules in Turbopack.
    *
-   * Defaults to `false`
+   * Defaults to `true`
    */
   turbopackCjsTreeShaking?: boolean
 

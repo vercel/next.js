@@ -1429,7 +1429,7 @@ pub struct ExperimentalConfig {
     turbopack_remove_unused_exports: Option<bool>,
     /// Enable local analysis to infer side effect free modules. Defaults to true.
     turbopack_infer_module_side_effects: Option<bool>,
-    /// Enable tree shaking of unused exports from static CommonJS modules. Defaults to false.
+    /// Enable tree shaking of unused exports from static CommonJS modules. Defaults to true.
     turbopack_cjs_tree_shaking: Option<bool>,
     /// Enable scope hoisting of static CommonJS modules. Defaults to true.
     turbopack_cjs_scope_hoisting: Option<bool>,
@@ -2538,11 +2538,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn turbopack_cjs_tree_shaking(&self) -> Vc<bool> {
-        Vc::cell(
-            self.experimental
-                .turbopack_cjs_tree_shaking
-                .unwrap_or(false),
-        )
+        Vc::cell(self.experimental.turbopack_cjs_tree_shaking.unwrap_or(true))
     }
 
     #[turbo_tasks::function]
