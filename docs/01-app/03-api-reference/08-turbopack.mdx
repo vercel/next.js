@@ -346,10 +346,12 @@ This can lead to subtle rendering differences when migrating from webpack to Tur
 
 ### Build Caching
 
-Webpack supports [disk build caching](https://webpack.js.org/configuration/cache/#cache) to improve build performance. Turbopack provides a similar feature, currently in beta. Starting with Next 16, you can enable Turbopack’s filesystem cache by setting the following experimental flags:
+Webpack supports [disk build caching](https://webpack.js.org/configuration/cache/#cache) to improve build performance. Turbopack provides a similar feature. Starting with Next 16, Turbopack's filesystem cache is controlled by the following experimental flags:
 
 - [`experimental.turbopackFileSystemCacheForDev`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache) is enabled by default
-- [`experimental.turbopackFileSystemCacheForBuild`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache) is currently opt-in
+- [`experimental.turbopackFileSystemCacheForBuild`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache) is enabled by default for local builds and on Vercel, where the build cache is likely to persist.
+
+Other deployment providers can enable the build cache by default on their platform by setting `experimental.turbopackFileSystemCacheForBuild: true` from their adapter's [`modifyConfig`](/docs/app/api-reference/adapters/creating-an-adapter) hook, when their infrastructure preserves the `.next/cache` directory between builds.
 
 > **Good to know:** For this reason, when comparing webpack and Turbopack performance, make sure to delete the `.next` folder between builds to see a fair cold build comparison or enable the turbopack filesystem cache feature to compare warm builds.
 
@@ -402,7 +404,7 @@ Additionally, the following experimental options are available under `experiment
 | Option                                                                                                       | Description                                                                                                                                  | Default (dev) | Default (build)               |
 | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ----------------------------- |
 | [`turbopackFileSystemCacheForDev`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache)   | Enable filesystem cache for the dev server.                                                                                                  | `true`        | N/A                           |
-| [`turbopackFileSystemCacheForBuild`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache) | Enable filesystem cache for builds.                                                                                                          | N/A           | `false`                       |
+| [`turbopackFileSystemCacheForBuild`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache) | Enable filesystem cache for builds.                                                                                                          | N/A           | `true`<sup>1</sup>            |
 | `turbopackMinify`                                                                                            | Enable minification.                                                                                                                         | `false`       | `true`                        |
 | `turbopackSourceMaps`                                                                                        | Enable source maps.                                                                                                                          | `true`        | `productionBrowserSourceMaps` |
 | `turbopackInputSourceMaps`                                                                                   | Enable extraction of source maps from input files.                                                                                           | `true`        | `true`                        |
@@ -419,6 +421,10 @@ Additionally, the following experimental options are available under `experiment
 | `turbopackModuleIds`                                                                                         | Module ID strategy: `'named'` or `'deterministic'`.                                                                                          | `'named'`     | `'deterministic'`             |
 | [`turbopackLocalPostcssConfig`](/docs/app/api-reference/config/next-config-js/turbopackLocalPostcssConfig)   | Resolve `postcss.config.js` from the CSS file's directory first, then the project root.                                                      | `false`       | `false`                       |
 | `turbopackWorkerAssetPrefix`                                                                                 | Custom asset prefix for Web Worker URLs (entrypoint + module chunks), overriding `assetPrefix`. Mirrors webpack's `output.workerPublicPath`. | `undefined`   | `undefined`                   |
+
+<sup>1</sup> Enabled by default for local builds and on CI platforms (including
+Vercel) where the build cache is likely to persist. Disabled by default on CI
+platforms that have not yet opted into the feature.
 
 ```js filename="next.config.js"
 module.exports = {

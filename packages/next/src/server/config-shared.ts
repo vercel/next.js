@@ -16,7 +16,6 @@ import { INFINITE_CACHE } from '../lib/constants'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 import type { MemoryEvictionMode } from '../build/swc/types'
 import type { CacheLife } from './use-cache/cache-life'
-import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import { isCI } from './ci-info'
 
 /**
@@ -2260,12 +2259,9 @@ export const defaultConfig = Object.freeze({
 } satisfies NextConfig)
 
 function turbopackFileSystemCacheForBuildDefault() {
-  if (isStableBuild()) return false
-  if (isCI && process.env.NOW_BUILDER) {
-    // Assume caching is available on vercel
-    return true
-  }
-  return false
+  // Disable in most CI environments, because we don't know if the cache will persist across builds.
+  // Providers: Override the default behavior using `modifyConfig` in your adapter.
+  return !isCI || Boolean(process.env.NOW_BUILDER)
 }
 
 export async function normalizeConfig(phase: string, config: any) {
