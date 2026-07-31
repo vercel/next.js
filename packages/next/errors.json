@@ -1460,5 +1460,7 @@
   "1459": "[Server HMR] unreachable: unknown HMR instruction type %s",
   "1460": "[Server HMR] unreachable: unexpected update instruction type %s",
   "1461": "Expected segment cache to have data for stage '%s'",
-  "1462": "Unexpected chunk emitted in Before stage"
+  "1462": "Unexpected chunk emitted in Before stage",
+  "1463": "\\`experimental.turbopackGenerateComponentChunks\\` has been moved to \\`experimental.turbopackChunking.generateComponentChunks\\`. Please update your next.config.js file accordingly.",
+  "1464": "\\`experimental.turbopackChunkingHeuristics\\` has been renamed to \\`experimental.turbopackChunking\\`. Please update your next.config.js file accordingly."
 }

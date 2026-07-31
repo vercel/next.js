@@ -2210,13 +2210,13 @@ impl Endpoint for AppEndpoint {
     async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let this = self.await?;
         let app_entry = self.app_endpoint_entry().await?;
-        // The route's chunking heuristics from `experimental.turbopackChunkingHeuristics`. They are
+        // The route's chunking heuristics from `experimental.turbopackChunking`. They are
         // attached to the route's entry chunk group.
         let heuristics = this
             .app_project
             .project()
             .next_config()
-            .chunking_heuristics()
+            .turbopack_chunking()
             .await?
             .entry_heuristics_for(&app_entry.pathname);
         Ok(GraphEntries::from_chunk_groups(vec![
