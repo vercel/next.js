@@ -69,6 +69,7 @@ import {
   type ServerFields,
   type SetupOpts,
 } from '../lib/router-utils/setup-dev-bundler'
+import { deriveDevRouteState } from '../lib/router-utils/dev-route-state'
 import { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loader'
 import { findPagePathData } from './on-demand-entry-handler'
 import type { RouteDefinition } from '../route-definitions/route-definition'
@@ -1101,6 +1102,34 @@ export async function createHotReloaderTurbopack(
           },
         },
       })
+
+      // Turbopack knows about a route before the file watcher does, so the
+      // router takes its route table from here. Otherwise it would announce a
+      // route it can't serve yet, and the browser would refetch too early and
+      // get a 404.
+      const routeState = deriveDevRouteState(routes, {
+        useFileSystemPublicRoutes: opts.nextConfig.useFileSystemPublicRoutes,
+        i18n: opts.nextConfig.i18n,
+      })
+
+      const { appFiles, pageFiles, nextDataRoutes } = opts.fsChecker
+      appFiles.clear()
+      pageFiles.clear()
+      for (const pathname of routeState.appFiles) {
+        appFiles.add(pathname)
+      }
+      for (const pathname of routeState.pageFiles) {
+        pageFiles.add(pathname)
+        nextDataRoutes.add(pathname)
+      }
+      opts.fsChecker.dynamicRoutes = routeState.dynamicRoutes
+
+      serverFields.appPathRoutes = routeState.appPathRoutes
+      await propagateServerField(
+        opts,
+        'appPathRoutes',
+        routeState.appPathRoutes
+      )
 
       // Reload matchers when the files have been compiled
       await propagateServerField(opts, 'reloadMatchers', undefined)
