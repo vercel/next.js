@@ -1,10 +1,9 @@
 name: Automated Code Review
 
-# This privileged workflow runs from the protected canary branch. It never
-# checks out or executes pull-request code, installs dependencies, reads
-# Actions secrets, or interpolates pull-request text into a shell. Vercel only
-# computes an untrusted, bounded review; this workflow revalidates the PR and
-# owns the sole GitHub comment mutation.
+# This privileged workflow runs only from protected canary. It checks out the
+# base commit that triggered the workflow, never pull-request code. Vercel
+# computes an untrusted review; this workflow validates it and owns the sole
+# GitHub mutation.
 on:
   pull_request_target:
     types: [opened, ready_for_review]
@@ -24,207 +23,28 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 55
     permissions:
+      contents: read
       id-token: write
       pull-requests: read
     steps:
-      - name: Run automated review
+      - name: Checkout trusted workflow code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          sparse-checkout: .github/scripts/automated_code_review.js
+          sparse-checkout-cone-mode: false
+
+      - name: Prepare review comment
+        id: prepare
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
-            const fs = require("node:fs/promises");
-            const apiOrigin = "https://next-maintainer-pr-reviewer.playground-vercel.tools";
-            const audience = "next-maintainer-pr-reviewer";
-            const resultPath = `${process.env.RUNNER_TEMP}/automated-code-review-result.json`;
-            const deadline = Date.now() + 50 * 60 * 1000;
-            const wait = (milliseconds) =>
-              new Promise((resolve) => setTimeout(resolve, milliseconds));
-
-            let oidcToken;
-            let oidcExpiresAt = 0;
-
-            function tokenExpiry(token) {
-              const parts = token.split(".");
-              if (parts.length !== 3) throw new Error("GitHub returned a malformed OIDC token.");
-              const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
-              if (!Number.isSafeInteger(payload.exp)) {
-                throw new Error("GitHub returned an OIDC token without an expiry.");
-              }
-              return payload.exp * 1000;
-            }
-
-            async function authorization() {
-              if (!oidcToken || oidcExpiresAt < Date.now() + 90_000) {
-                oidcToken = await core.getIDToken(audience);
-                core.setSecret(oidcToken);
-                oidcExpiresAt = tokenExpiry(oidcToken);
-              }
-              return `Bearer ${oidcToken}`;
-            }
-
-            async function reviewerRequest(method, path, body) {
-              const response = await fetch(`${apiOrigin}${path}`, {
-                method,
-                headers: {
-                  Authorization: await authorization(),
-                  ...(body ? { "Content-Type": "application/json" } : {}),
-                },
-                body: body ? JSON.stringify(body) : undefined,
-              });
-              let data;
-              try {
-                data = await response.json();
-              } catch {
-                throw new Error(`Reviewer API ${method} returned malformed JSON.`);
-              }
-              return { data, status: response.status };
-            }
-
-            let started;
-            for (let attempt = 0; attempt < 15; attempt += 1) {
-              const response = await reviewerRequest("POST", "/api/github/pr-review", {
-                number: context.payload.pull_request.number,
-              });
-              if (response.status === 202) {
-                started = response.data;
-                break;
-              }
-              if (
-                response.status === 409 &&
-                response.data?.error === "review_starting"
-              ) {
-                await wait(2_000);
-                continue;
-              }
-              throw new Error(`Reviewer API POST returned status ${response.status}.`);
-            }
-            if (!started) throw new Error("The existing review did not finish starting.");
-            if (
-              typeof started.reviewId !== "string" ||
-              !/^wrun_[A-Za-z0-9]{10,80}$/.test(started.reviewId) ||
-              typeof started.headSha !== "string" ||
-              !/^[a-f0-9]{40}$/.test(started.headSha)
-            ) {
-              throw new Error("Reviewer API POST returned an invalid review handle.");
-            }
-
-            let consecutivePollFailures = 0;
-            while (Date.now() < deadline) {
-              let response;
-              try {
-                response = await reviewerRequest(
-                  "GET",
-                  `/api/github/pr-review/${started.reviewId}`,
-                );
-                if (response.status !== 200) {
-                  throw new Error(`Reviewer API GET returned status ${response.status}.`);
-                }
-                consecutivePollFailures = 0;
-              } catch (error) {
-                consecutivePollFailures += 1;
-                if (consecutivePollFailures >= 3) throw error;
-                await wait(30_000);
-                continue;
-              }
-              if (response.data?.status === "failed") {
-                throw new Error("Automated review failed.");
-              }
-              if (response.data?.status === "completed") {
-                await fs.writeFile(resultPath, JSON.stringify(response.data.result), {
-                  encoding: "utf8",
-                  mode: 0o600,
-                });
-                return;
-              }
-              if (response.data?.status !== "running") {
-                throw new Error("Reviewer API GET returned an invalid status.");
-              }
-              await wait(30_000);
-            }
-            throw new Error("Automated review timed out after 50 minutes.");
-
-      - name: Validate review and select comment
-        id: validate
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        with:
-          script: |
-            const fs = require("node:fs/promises");
-            const owner = "vercel";
-            const repo = "next.js";
-            const number = context.payload.pull_request.number;
-            const expectedBaseSha = context.payload.pull_request.base.sha;
-            const expectedHeadSha = context.payload.pull_request.head.sha;
-            const marker = `<!-- next-maintainer-pr-review:v2:vercel/next.js#${number} -->`;
-            const resultPath = `${process.env.RUNNER_TEMP}/automated-code-review-result.json`;
-            const bodyPath = `${process.env.RUNNER_TEMP}/automated-code-review-comment.md`;
-
-            const result = JSON.parse(await fs.readFile(resultPath, "utf8"));
-            if (
-              result?.repository !== "vercel/next.js" ||
-              result?.number !== number ||
-              result?.baseSha !== expectedBaseSha ||
-              result?.headSha !== expectedHeadSha ||
-              typeof result?.synthesis !== "string"
-            ) {
-              throw new Error("The review result does not match this pull request.");
-            }
-
-            const { data: pullRequest } = await github.rest.pulls.get({
-              owner,
-              repo,
-              pull_number: number,
-            });
-            if (
-              pullRequest.state !== "open" ||
-              pullRequest.draft ||
-              pullRequest.author_association !== "MEMBER" ||
-              pullRequest.base.sha !== result.baseSha ||
-              pullRequest.head.sha !== result.headSha
-            ) {
-              throw new Error("The pull request is no longer eligible for this review.");
-            }
-
-            const synthesis = result.synthesis
-              .replace(/<!--[\s\S]*?(?:-->|$)/g, "")
-              .replaceAll("<!--", "")
-              .replaceAll("-->", "")
-              .replaceAll("pr-review-gateway-placeholder", "[REDACTED]")
-              .replaceAll("pr-review-github-placeholder", "[REDACTED]")
-              .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]{8,}/giu, "Bearer [REDACTED]")
-              .replace(/\bgh[opsur]_[A-Za-z0-9_]{16,}\b/gu, "[REDACTED]")
-              .replace(/\bgithub_pat_[A-Za-z0-9_]{20,}\b/gu, "[REDACTED]")
-              .replace(/@(?=[A-Za-z0-9_])/gu, "@\u200b")
-              .trim();
-            if (!synthesis) throw new Error("The review result is empty.");
-            if (Buffer.byteLength(synthesis, "utf8") > 48_000) {
-              throw new Error("The review result exceeds 48 KB.");
-            }
-
-            const comments = await github.paginate(github.rest.issues.listComments, {
-              owner,
-              repo,
-              issue_number: number,
-              per_page: 100,
-            });
-            // These immutable IDs are the two GitHub Apps in gh-sts's
-            // "general" bucket. Never update a marker copied by another bot.
-            const generalAppIds = new Set([3623420, 3623469]);
-            const matchingComments = comments.filter(
-              (comment) =>
-                comment.user?.type === "Bot" &&
-                generalAppIds.has(Number(comment.performed_via_github_app?.id)) &&
-                comment.body?.startsWith(marker),
-            );
-            if (matchingComments.length > 1) {
-              throw new Error("Multiple authenticated review comments exist.");
-            }
-            const existing = matchingComments[0];
-            const body = `${marker}\n\n## Automated code review findings\n\n${synthesis}`;
-            await fs.writeFile(bodyPath, body, { encoding: "utf8", mode: 0o600 });
-            core.setOutput("comment-id", existing ? String(existing.id) : "");
-            core.setOutput("publish", "true");
+            const { prepareReviewComment } = require("./.github/scripts/automated_code_review.js");
+            await prepareReviewComment({ core, github, context });
 
       - name: Mint comment token
-        if: steps.validate.outputs.publish == 'true'
+        if: steps.prepare.outputs.publish == 'true'
         id: gh-sts
         uses: vercel/gh-sts-action@c30f0b7a16e0766c4ffbc0d210b54d0e75053fd2 # v1.0.2
         with:
@@ -232,87 +52,12 @@ jobs:
           permissions: '{"pull_requests":"write"}'
 
       - name: Publish one review comment
-        if: steps.validate.outputs.publish == 'true'
+        if: steps.prepare.outputs.publish == 'true'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          COMMENT_ID: ${{ steps.validate.outputs.comment-id }}
           READ_TOKEN: ${{ github.token }}
         with:
           github-token: ${{ steps.gh-sts.outputs.token }}
           script: |
-            const fs = require("node:fs/promises");
-            const number = context.payload.pull_request.number;
-            const result = JSON.parse(
-              await fs.readFile(
-                `${process.env.RUNNER_TEMP}/automated-code-review-result.json`,
-                "utf8",
-              ),
-            );
-            if (
-              !Number.isSafeInteger(number) ||
-              number <= 0 ||
-              result?.repository !== "vercel/next.js" ||
-              result?.number !== number ||
-              result?.baseSha !== context.payload.pull_request.base.sha ||
-              result?.headSha !== context.payload.pull_request.head.sha
-            ) {
-              throw new Error("The review result does not match this pull request.");
-            }
-
-            const readToken = process.env.READ_TOKEN;
-            if (!readToken) throw new Error("The read-only GitHub token is unavailable.");
-            core.setSecret(readToken);
-            const response = await fetch(
-              `https://api.github.com/repos/vercel/next.js/pulls/${number}`,
-              {
-                headers: {
-                  Accept: "application/vnd.github+json",
-                  Authorization: `Bearer ${readToken}`,
-                  "X-GitHub-Api-Version": "2022-11-28",
-                },
-              },
-            );
-            if (!response.ok) {
-              throw new Error(
-                `Final pull request validation returned status ${response.status}.`,
-              );
-            }
-            let pullRequest;
-            try {
-              pullRequest = await response.json();
-            } catch {
-              throw new Error("Final pull request validation returned malformed JSON.");
-            }
-            if (
-              pullRequest.state !== "open" ||
-              pullRequest.draft ||
-              pullRequest.author_association !== "MEMBER" ||
-              pullRequest.base?.sha !== result.baseSha ||
-              pullRequest.head?.sha !== result.headSha
-            ) {
-              throw new Error("The pull request is no longer eligible for this review.");
-            }
-
-            const body = await fs.readFile(
-              `${process.env.RUNNER_TEMP}/automated-code-review-comment.md`,
-              "utf8",
-            );
-            const commentId = process.env.COMMENT_ID;
-            if (commentId) {
-              if (!/^[1-9][0-9]*$/.test(commentId)) {
-                throw new Error("The selected comment ID is invalid.");
-              }
-              await github.rest.issues.updateComment({
-                owner: "vercel",
-                repo: "next.js",
-                comment_id: Number(commentId),
-                body,
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner: "vercel",
-                repo: "next.js",
-                issue_number: number,
-                body,
-              });
-            }
+            const { publishReviewComment } = require("./.github/scripts/automated_code_review.js");
+            await publishReviewComment({ core, github });
