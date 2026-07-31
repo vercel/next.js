@@ -346,6 +346,11 @@ export interface Project {
     active: boolean
   ): Promise<void>
 
+  removeHmrChunks(
+    chunkNames: string[],
+    target: import('./index').HmrTarget.Server
+  ): Promise<void>
+
   hmrEvents(
     identifier: string,
     target: import('./index').HmrTarget.Client

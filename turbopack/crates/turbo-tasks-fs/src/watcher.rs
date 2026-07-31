@@ -77,6 +77,22 @@ pub(crate) struct DiskWatcher {
     state: State,
 }
 
+/// Settles a watcher generation even if invalidation panics and unwinds the
+/// watcher thread. Without this guard, a recorded-but-unsettled generation
+/// would leave every later `settled_change_epoch` caller waiting forever.
+struct ChangeEpochGuard<'a> {
+    fs_inner: &'a DiskFileSystemInner,
+    epoch: Option<u64>,
+}
+
+impl Drop for ChangeEpochGuard<'_> {
+    fn drop(&mut self) {
+        if let Some(epoch) = self.epoch.take() {
+            self.fs_inner.settle_change(epoch);
+        }
+    }
+}
+
 enum State {
     // Note: Information about if we're a recursive or non-recursive watcher must live outside the
     // `RwLock` to allow us to quickly bail out on calls to `ensure_watched`.
@@ -502,6 +518,7 @@ impl DiskWatcher {
 
         'outer: loop {
             let mut deadline: Option<Instant> = None;
+            let mut batch_change_epoch = None;
             loop {
                 let event_result = match deadline {
                     None => rx.recv().map_err(|_| RecvTimeoutError::Disconnected),
@@ -510,7 +527,7 @@ impl DiskWatcher {
                     }
                 };
                 match event_result {
-                    Ok(Ok(event)) => {
+                    Ok(Ok(mut event)) => {
                         // TODO: We might benefit from some user-facing diagnostics if it rescans
                         // occur frequently (i.e. more than X times in Y minutes)
                         //
@@ -542,6 +559,9 @@ impl DiskWatcher {
                                 );
                             }
 
+                            let change_epoch = batch_change_epoch
+                                .take()
+                                .unwrap_or_else(|| fs_inner.record_change());
                             if report_invalidation_reason {
                                 fs_inner.invalidate_with_reason(|path| InvalidateRescan {
                                     // this path is just used for display purposes
@@ -550,6 +570,7 @@ impl DiskWatcher {
                             } else {
                                 fs_inner.invalidate();
                             }
+                            fs_inner.settle_change(change_epoch);
 
                             // no need to process the rest of the batch as we just
                             // invalidated everything
@@ -557,15 +578,30 @@ impl DiskWatcher {
                             break;
                         }
 
+                        // Recursive watchers also report writes under denied output
+                        // directories. Those paths cannot participate in project reads, so
+                        // ignore them both for invalidation and for the project-source
+                        // generation used by inactive route catch-up.
+                        event
+                            .paths
+                            .retain(|path| !fs_inner.is_watched_path_denied(path));
+
                         // Only an event that contributes to the batch keeps it open for another
                         // `BATCH_DELAY`.
                         if batch.add_event(event) {
+                            batch_change_epoch.get_or_insert_with(|| fs_inner.record_change());
                             deadline = Some(Instant::now() + BATCH_DELAY);
                         }
                     }
                     // Error raised by notify watcher itself
-                    Ok(Err(notify::Error { kind, paths })) => {
+                    Ok(Err(notify::Error { kind, mut paths })) => {
                         println!("watch error ({paths:?}): {kind:?} ");
+
+                        let had_paths = !paths.is_empty();
+                        paths.retain(|path| !fs_inner.is_watched_path_denied(path));
+                        if had_paths && paths.is_empty() {
+                            continue;
+                        }
 
                         let flags = InvalidationFlags::PATH_AND_CHILDREN
                             | InvalidationFlags::PATH_AND_CHILDREN_DIR;
@@ -576,6 +612,7 @@ impl DiskWatcher {
                                 batch.mark(path.into_boxed_path(), flags);
                             }
                         }
+                        batch_change_epoch.get_or_insert_with(|| fs_inner.record_change());
                         deadline = Some(Instant::now() + BATCH_DELAY);
                     }
                     Err(RecvTimeoutError::Timeout) => {
@@ -585,10 +622,21 @@ impl DiskWatcher {
                     Err(RecvTimeoutError::Disconnected) => {
                         // Sender has been disconnected, which means DiskFileSystem has been dropped
                         // exit thread
+                        if let Some(change_epoch) = batch_change_epoch.take() {
+                            fs_inner.settle_change(change_epoch);
+                        }
                         break 'outer;
                     }
                 }
             }
+
+            // Install the settlement guard before any fallible or blocking work
+            // below. It settles normally at the end of the loop iteration and on
+            // panic unwind from watcher restoration or invalidation.
+            let _change_epoch_guard = ChangeEpochGuard {
+                fs_inner: &fs_inner,
+                epoch: batch_change_epoch.take(),
+            };
 
             // We need to start watching first before invalidating the changed paths...
             // This is only needed on platforms we don't do recursive watching on.
@@ -605,9 +653,8 @@ impl DiskWatcher {
                             ));
                 }
             }
-
             let Some(turbo_tasks) = fs_inner.turbo_tasks.upgrade() else {
-                // TurboTasks was dropped, stop watching
+                // TurboTasks was dropped, stop watching.
                 break 'outer;
             };
             let _guard = fs_inner.tokio_handle.enter();
@@ -775,19 +822,37 @@ impl BatchedInvalidations {
             }
             // A single event emitted with both the `From` and `To` paths.
             EventKind::Modify(ModifyKind::Name(RenameMode::Both)) => {
-                let [source, destination] = <[PathBuf; 2]>::try_from(paths)
-                    .expect("RenameMode::Both event must contain exactly two paths");
-                self.mark_parent_dir(&source);
-                self.mark(
-                    source.into_boxed_path(),
-                    InvalidationFlags::PATH_AND_CHILDREN,
-                );
-                self.mark_parent_dir(&destination);
-                self.mark_new_path(&destination);
-                self.mark(
-                    destination.into_boxed_path(),
-                    InvalidationFlags::PATH_AND_CHILDREN,
-                );
+                match <[PathBuf; 2]>::try_from(paths) {
+                    Ok([source, destination]) => {
+                        self.mark_parent_dir(&source);
+                        self.mark(
+                            source.into_boxed_path(),
+                            InvalidationFlags::PATH_AND_CHILDREN,
+                        );
+                        self.mark_parent_dir(&destination);
+                        self.mark_new_path(&destination);
+                        self.mark(
+                            destination.into_boxed_path(),
+                            InvalidationFlags::PATH_AND_CHILDREN,
+                        );
+                    }
+                    Err(paths) => {
+                        // Denied-path filtering can remove one side of a rename that
+                        // crosses the project/output boundary. We no longer know if
+                        // each remaining path is the source or destination, so treat
+                        // it conservatively as both: invalidate it and its directory,
+                        // and restore its watch if it exists.
+                        for path in paths {
+                            self.mark_parent_dir(&path);
+                            self.mark_new_path(&path);
+                            self.mark(
+                                path.into_boxed_path(),
+                                InvalidationFlags::PATH_AND_CHILDREN
+                                    | InvalidationFlags::PATH_AND_CHILDREN_DIR,
+                            );
+                        }
+                    }
+                }
                 true
             }
             // We expect `RenameMode::Both` to cover most of the cases we need to invalidate,
@@ -926,5 +991,32 @@ impl InvalidationReasonKind for InvalidateRescanKind {
                 .unwrap()
                 .path
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn partial_both_rename_is_conservatively_invalidated() {
+        let source = PathBuf::from("/project/source.ts");
+        let parent = source.parent().unwrap().to_path_buf();
+        let event = notify::Event::new(EventKind::Modify(ModifyKind::Name(RenameMode::Both)))
+            .add_path(source.clone());
+        let mut batch = BatchedInvalidations::new(RecursiveMode::NonRecursive);
+
+        assert!(batch.add_event(event));
+        assert_eq!(
+            batch.paths.get(source.as_path()),
+            Some(
+                &(InvalidationFlags::PATH_AND_CHILDREN | InvalidationFlags::PATH_AND_CHILDREN_DIR)
+            )
+        );
+        assert_eq!(
+            batch.paths.get(parent.as_path()),
+            Some(&InvalidationFlags::PATH_DIR)
+        );
+        assert!(batch.new_paths.as_ref().unwrap().contains(source.as_path()));
     }
 }

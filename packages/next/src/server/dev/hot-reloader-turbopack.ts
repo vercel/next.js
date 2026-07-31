@@ -558,6 +558,10 @@ export async function createHotReloaderTurbopack(
   const recentRouteChangeSubscriptions: EntryKey[] = []
   const activeRouteSubscriptionsByClient = new Map<ws, Set<EntryKey>>()
   const inactiveRouteChangeSubscriptions = new Set<EntryKey>()
+  // Deletion prunes native output snapshots and path indexes, but Turbopack may
+  // reuse the same memoized operation if the route file is added again. Retain
+  // only its entry-chunk path so that later ensure can resurrect that operation.
+  const removedRouteHmrChunkPaths = new Map<EntryKey, string>()
   const routeChangeSubscriptionsNeedingCatchUp = new Set<EntryKey>()
   const serverPathState = new Map<string, string>()
   const readyIds: ReadyIds = new Set()
@@ -994,7 +998,10 @@ export async function createHotReloaderTurbopack(
       return
     }
     const writtenEndpoint = currentWrittenEntrypoints.get(key)
-    if (!writtenEndpoint || writtenEndpoint.type !== 'nodejs') {
+    if (!writtenEndpoint) {
+      return removedRouteHmrChunkPaths.get(key)
+    }
+    if (writtenEndpoint.type !== 'nodejs') {
       return
     }
 
@@ -1016,6 +1023,52 @@ export async function createHotReloaderTurbopack(
     )
     if (chunkPaths.length > 0) {
       await project.setHmrChunksActive(chunkPaths, HmrTarget.Server, active)
+    }
+  }
+
+  async function removeRouteChangeSubscriptionState(keys: EntryKey[]) {
+    // Stop interval cleanup from selecting a deleted route while this function
+    // awaits an already-started disposal. Any disposal that yielded control has
+    // installed its promise in the map, so the snapshot below covers it.
+    for (const key of keys) {
+      routeChangeSubscriptionLastActive.delete(key)
+      for (const activeSubscriptions of activeRouteSubscriptionsByClient.values()) {
+        activeSubscriptions.delete(key)
+      }
+      const recentIndex = recentRouteChangeSubscriptions.indexOf(key)
+      if (recentIndex !== -1) {
+        recentRouteChangeSubscriptions.splice(recentIndex, 1)
+      }
+    }
+    await Promise.allSettled(
+      keys.map((key) => routeChangeSubscriptionDisposals.get(key))
+    )
+
+    const chunkPathsByKey = new Map<EntryKey, string>()
+    for (const key of keys) {
+      const chunkPath = getServerHmrEntryChunkPath(key)
+      if (chunkPath) {
+        chunkPathsByKey.set(key, chunkPath)
+      }
+    }
+    if (chunkPathsByKey.size > 0) {
+      await project.removeHmrChunks(
+        Array.from(chunkPathsByKey.values()),
+        HmrTarget.Server
+      )
+    }
+
+    for (const key of keys) {
+      currentWrittenEntrypoints.delete(key)
+      inactiveRouteChangeSubscriptions.delete(key)
+      routeChangeSubscriptionsNeedingCatchUp.delete(key)
+      routeChangeSubscriptionDisposals.delete(key)
+      const removedChunkPath = chunkPathsByKey.get(key)
+      if (removedChunkPath) {
+        removedRouteHmrChunkPaths.set(key, removedChunkPath)
+      } else {
+        removedRouteHmrChunkPaths.delete(key)
+      }
     }
   }
 
@@ -1045,12 +1098,14 @@ export async function createHotReloaderTurbopack(
       console.error('Failed to retire route HMR subscription:', error)
     }
     const wasInactive = inactiveRouteChangeSubscriptions.has(key)
-    if (wasInactive) {
+    const wasRemoved = removedRouteHmrChunkPaths.has(key)
+    if (wasInactive || wasRemoved) {
       await setRouteHmrChunksActive([key], true)
       inactiveRouteChangeSubscriptions.delete(key)
+      removedRouteHmrChunkPaths.delete(key)
       routeChangeSubscriptionsNeedingCatchUp.add(key)
     }
-    return wasInactive
+    return wasInactive || wasRemoved
   }
 
   function getAppPageEntryKeysFromTree(
@@ -1239,6 +1294,20 @@ export async function createHotReloaderTurbopack(
           !currentEntrypoints.page.has(route)
       )
       const removedRoutes = existingRoutes.filter((route) => !routes.has(route))
+      const nextAppPageNames = new Set<string>()
+      for (const route of routes.values()) {
+        if (route.type === 'app-page') {
+          for (const page of route.pages) {
+            nextAppPageNames.add(page.originalName)
+          }
+        }
+      }
+      const removedAppPageEntryKeys = Array.from(currentEntrypoints.app)
+        .filter(
+          ([name, route]) =>
+            route.type === 'app-page' && !nextAppPageNames.has(name)
+        )
+        .map(([name]) => getEntryKey('app', 'server', name))
 
       await handleEntrypoints({
         entrypoints: entrypoints as any,
@@ -1275,6 +1344,10 @@ export async function createHotReloaderTurbopack(
           },
         },
       })
+
+      if (removedAppPageEntryKeys.length > 0) {
+        await removeRouteChangeSubscriptionState(removedAppPageEntryKeys)
+      }
 
       // Reload matchers when the files have been compiled
       await propagateServerField(opts, 'reloadMatchers', undefined)
@@ -2222,7 +2295,12 @@ export async function createHotReloaderTurbopack(
       clientsWithoutHtmlRequestId.clear()
       clientsByHtmlRequestId.clear()
       activeRouteSubscriptionsByClient.clear()
+      routeChangeSubscriptionLastActive.clear()
+      recentRouteChangeSubscriptions.length = 0
+      inactiveRouteChangeSubscriptions.clear()
+      removedRouteHmrChunkPaths.clear()
       routeChangeSubscriptionsNeedingCatchUp.clear()
+      routeChangeSubscriptionDisposals.clear()
       clearInterval(disposeInactiveRouteSubscriptionsInterval)
     },
   }

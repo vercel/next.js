@@ -627,6 +627,7 @@ describe('server-hmr route activity', () => {
     async () => {
       const routeFile = 'app/(activity-group)/route-activity/page.tsx'
       const sharedFile = 'shared/route-activity-value.ts'
+      const originalRouteSource = await next.readFile(routeFile)
       const browser = await next.browser('/route-activity')
 
       // Exceed both maxInactiveAge and the cleanup interval. The route remains
@@ -676,6 +677,51 @@ describe('server-hmr route activity', () => {
         expect(
           await browser.elementByCss('#route-activity-greeting').text()
         ).toBe('reactivated route: inactive route update')
+      }, 10_000)
+
+      // A second retirement without an intervening source edit must also
+      // reactivate cleanly. This takes the warm generation-matched path rather
+      // than conservatively invalidating every project filesystem read.
+      await browser.loadPage(`${next.url}/dynamic-import`)
+      const depEvalTimeBeforeWarmReactivation = await browser
+        .elementByCss('#dep-eval-time')
+        .text()
+      await new Promise((resolve) => setTimeout(resolve, 5500))
+      await browser.loadPage(`${next.url}/route-activity`)
+      expect(
+        await browser.elementByCss('#route-activity-greeting').text()
+      ).toBe('reactivated route: inactive route update')
+      await browser.loadPage(`${next.url}/dynamic-import`)
+      expect(await browser.elementByCss('#dep-eval-time').text()).toBe(
+        depEvalTimeBeforeWarmReactivation
+      )
+
+      // Deleting a retired route must prune its inactive operation snapshots and
+      // frozen aggregate version instead of retaining them for the session.
+      await new Promise((resolve) => setTimeout(resolve, 5500))
+      await next.deleteFile(routeFile)
+      await retry(async () => {
+        expect((await next.fetch('/route-activity')).status).toBe(404)
+      }, 10_000)
+
+      // Re-adding the same grouped route may reuse its memoized operation, but
+      // must rebuild from the current files and install a fresh HMR subscription
+      // rather than reviving the deleted output snapshot.
+      await next.patchFile(routeFile, originalRouteSource)
+      await retry(async () => {
+        expect((await next.fetch('/route-activity')).status).toBe(200)
+      }, 10_000)
+      await browser.loadPage(`${next.url}/route-activity`)
+      expect(
+        await browser.elementByCss('#route-activity-greeting').text()
+      ).toBe('route activity page: inactive route update')
+      await next.patchFile(routeFile, (content) =>
+        content.replace('route activity page', 're-added route')
+      )
+      await retry(async () => {
+        expect(
+          await browser.elementByCss('#route-activity-greeting').text()
+        ).toBe('re-added route: inactive route update')
       }, 10_000)
     }
   )

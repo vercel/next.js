@@ -337,6 +337,17 @@ export declare function projectUpdate(
   project: { __napiType: 'Project' },
   options: NapiPartialProjectOptions
 ): Promise<void>
+export declare function projectSetHmrChunksActive(
+  project: { __napiType: 'Project' },
+  chunkNames: Array<RcStr>,
+  target: string,
+  active: boolean
+): Promise<void>
+export declare function projectRemoveHmrChunks(
+  project: { __napiType: 'Project' },
+  chunkNames: Array<RcStr>,
+  target: string
+): Promise<void>
 /**
  * Invalidates the filesystem cache so that it will be deleted next time that a turbopack project
  * is created with filesystem cache enabled.
@@ -413,12 +424,6 @@ export declare function projectEntrypointsSubscribe(
   project: { __napiType: 'Project' },
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
-export declare function projectSetHmrChunksActive(
-  project: { __napiType: 'Project' },
-  chunkNames: Array<RcStr>,
-  target: string,
-  active: boolean
-): Promise<void>
 export declare function projectAllHmrEvents(
   project: { __napiType: 'Project' },
   target: string,

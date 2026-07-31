@@ -785,6 +785,17 @@ function bindingToApi(
       )
     }
 
+    removeHmrChunks(
+      chunkNames: string[],
+      target: HmrTarget.Server
+    ): Promise<void> {
+      return binding.projectRemoveHmrChunks(
+        this._nativeProject,
+        chunkNames,
+        target
+      )
+    }
+
     hmrEvents(
       chunkName: string,
       target: HmrTarget.Client

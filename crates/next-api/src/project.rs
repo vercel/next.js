@@ -845,6 +845,39 @@ impl ProjectContainer {
             .await?;
         Ok(())
     }
+
+    /// Permanently removes output entry chunks for routes deleted during a dev
+    /// session. This is distinct from temporary inactivity, which must retain
+    /// enough state for later reactivation.
+    pub async fn remove_hmr_chunks(
+        self: ResolvedVc<Self>,
+        chunk_names: Vec<RcStr>,
+        target: HmrTarget,
+    ) -> Result<()> {
+        let project_op = project_operation(self);
+        let project = project_op.resolve().strongly_consistent().await?;
+        let project_ref = project_op.read_strongly_consistent().await?;
+        let Some(map) = project_ref.versioned_content_map else {
+            bail!("must be in dev mode to remove hmr chunks")
+        };
+        let root = project_hmr_root_path_operation(project, target)
+            .read_strongly_consistent()
+            .await?;
+        let project_fs = project_fs_operation(project)
+            .read_strongly_consistent()
+            .await?;
+        let paths = chunk_names
+            .into_iter()
+            .map(|chunk_name| root.join(&chunk_name))
+            .collect::<Result<Vec<_>>>()?;
+
+        versioned_content_map_operation(map)
+            .read_strongly_consistent()
+            .await?
+            .remove_hmr_chunks(paths, &project_fs)
+            .await?;
+        Ok(())
+    }
 }
 
 #[turbo_tasks::value_impl]

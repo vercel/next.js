@@ -783,6 +783,30 @@ pub async fn project_set_hmr_chunks_active(
         .await
 }
 
+#[tracing::instrument(
+    level = "info",
+    name = "remove aggregate HMR chunks",
+    skip_all,
+    fields(target = %target, chunk_count = chunk_names.len()),
+)]
+#[napi]
+pub async fn project_remove_hmr_chunks(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    chunk_names: Vec<RcStr>,
+    target: String,
+) -> napi::Result<()> {
+    let hmr_target = target
+        .parse::<HmrTarget>()
+        .map_err(napi::Error::from_reason)?;
+    let ctx = &project.turbopack_ctx;
+    let container = project.container;
+
+    ctx.turbo_tasks()
+        .run(async move { container.remove_hmr_chunks(chunk_names, hmr_target).await })
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
+        .await
+}
+
 /// Invalidates the filesystem cache so that it will be deleted next time that a turbopack project
 /// is created with filesystem cache enabled.
 #[napi]
