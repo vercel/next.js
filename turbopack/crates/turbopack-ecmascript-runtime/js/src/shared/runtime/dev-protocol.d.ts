@@ -1,6 +1,17 @@
 /**
  * Definitions for the protocol that is used to communicate between the
  * Turbopack runtime and the Turbopack server for issue reporting and HMR.
+ *
+ * SOURCE OF TRUTH for the HMR update-instruction types below (`PartialUpdate`,
+ * `ChunkListUpdate`, `ChunkUpdate`, `MergedChunkUpdate`, `EcmascriptMergedUpdate`,
+ * `EcmascriptMergedChunkUpdate`, `EcmascriptModuleEntry`): the Rust structs in
+ * `turbopack/crates/turbopack-ecmascript/src/chunk_list`, generated to TypeScript
+ * at `packages/next/src/build/swc/generated-hmr-types.ts` (via
+ * `pnpm swc-generate-hmr-types`). These ambient runtime declarations use
+ * branded key types (`ChunkPath` / `ModuleId`) and a couple of runtime-only
+ * refinements, so they are kept as a hand-written mirror rather than replaced by
+ * the generated module; keep them consistent with the generated types when the
+ * wire format changes.
  */
 type PartialServerMessage = {
   resource: ResourceIdentifier
