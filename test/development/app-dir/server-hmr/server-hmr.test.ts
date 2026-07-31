@@ -1,7 +1,7 @@
 import type { Response } from 'node-fetch'
 import { join } from 'path'
 import { nextTestSetup, FileRef } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { retry, waitForRedbox } from 'next-test-utils'
 
 describe('server-hmr', () => {
   const { next, isTurbopack, isNextDev } = nextTestSetup({
@@ -626,6 +626,8 @@ describe('server-hmr route activity', () => {
     'keeps a connected route active and catches it up after inactivity',
     async () => {
       const routeFile = 'app/(activity-group)/route-activity/page.tsx'
+      const clientMarkerFile =
+        'app/(activity-group)/route-activity/client-marker.tsx'
       const sharedFile = 'shared/route-activity-value.ts'
       const originalRouteSource = await next.readFile(routeFile)
       const browser = await next.browser('/route-activity')
@@ -679,9 +681,8 @@ describe('server-hmr route activity', () => {
         ).toBe('reactivated route: inactive route update')
       }, 10_000)
 
-      // A second retirement without an intervening source edit must also
-      // reactivate cleanly. This takes the warm generation-matched path rather
-      // than conservatively invalidating every project filesystem read.
+      // A second retirement without an intervening source edit must reactivate
+      // cleanly without invalidating unrelated project filesystem reads.
       await browser.loadPage(`${next.url}/dynamic-import`)
       const depEvalTimeBeforeWarmReactivation = await browser
         .elementByCss('#dep-eval-time')
@@ -696,8 +697,82 @@ describe('server-hmr route activity', () => {
         depEvalTimeBeforeWarmReactivation
       )
 
-      // Deleting a retired route must prune its inactive operation snapshots and
-      // frozen aggregate version instead of retaining them for the session.
+      // A multi-file server/client edit after a second retirement must be visible
+      // in the first uncached HTTP response. Retrying at the test level would hide
+      // a stale first preview or an ownership-mismatched HMR wait.
+      await new Promise((resolve) => setTimeout(resolve, 5500))
+      await browser.eval(() => {
+        Reflect.set(window, '__siblingRouteNoReload', true)
+      })
+      await next.patchFile(routeFile, (content) =>
+        content.replace('reactivated route', 'inactive local update')
+      )
+      await next.patchFile(clientMarkerFile, (content) =>
+        content.replace('client marker', 'inactive client marker')
+      )
+      // Let the retained inactive endpoint subscription observe the watcher event
+      // and finish its recompile. The single request below must then perform the
+      // route's synchronous catch-up instead of relying on an HMR retry.
+      await new Promise((resolve) => setTimeout(resolve, 2000))
+      const firstReentryResponse = await next.fetch('/route-activity')
+      expect(firstReentryResponse.status).toBe(200)
+      const firstReentryHtml = await firstReentryResponse.text()
+      expect(firstReentryHtml).toContain('inactive local update: ')
+      expect(firstReentryHtml).toContain('inactive route update')
+      expect(firstReentryHtml).toContain('inactive client marker')
+
+      // Catch-up must preserve the currently rendered sibling route's runtime and
+      // HMR handler. Updating one of its server chunks should apply in place,
+      // without a reload, after the other route's first reentry response.
+      expect(
+        await browser.eval(() => Reflect.get(window, '__siblingRouteNoReload'))
+      ).toBe(true)
+      await next.patchFile('app/dynamic-import/lazy.ts', (content) =>
+        content.replace('lazy-v0', 'lazy-after-route-catch-up')
+      )
+      await retry(async () => {
+        expect(await browser.elementByCss('#lazy-value').text()).toBe(
+          'lazy-after-route-catch-up'
+        )
+      }, 10_000)
+      expect(
+        await browser.eval(() => Reflect.get(window, '__siblingRouteNoReload'))
+      ).toBe(true)
+
+      // Synchronous catch-up must not re-evaluate unrelated server modules.
+      await browser.loadPage(`${next.url}/dynamic-import`)
+      expect(await browser.elementByCss('#dep-eval-time').text()).toBe(
+        depEvalTimeBeforeWarmReactivation
+      )
+
+      // A failed compile during reentry must not leave the retained endpoint
+      // subscription suppressed. Fixing the source should clear the redbox and
+      // recover through HMR without another navigation or manual reload.
+      await new Promise((resolve) => setTimeout(resolve, 5500))
+      await next.patchFile(routeFile, (content) =>
+        content.replace(
+          'export default function Page()',
+          'export default function Page('
+        )
+      )
+      await new Promise((resolve) => setTimeout(resolve, 2000))
+      await browser.loadPage(`${next.url}/route-activity`)
+      await waitForRedbox(browser)
+      await next.patchFile(routeFile, (content) =>
+        content.replace(
+          'export default function Page(',
+          'export default function Page()'
+        )
+      )
+      await retry(async () => {
+        expect(
+          await browser.elementByCss('#route-activity-greeting').text()
+        ).toBe('inactive local update: inactive route update')
+      }, 10_000)
+
+      // Deleting a retired route must prune its emitted output mappings and frozen
+      // aggregate version instead of retaining them for the session.
+      await browser.loadPage(`${next.url}/dynamic-import`)
       await new Promise((resolve) => setTimeout(resolve, 5500))
       await next.deleteFile(routeFile)
       await retry(async () => {

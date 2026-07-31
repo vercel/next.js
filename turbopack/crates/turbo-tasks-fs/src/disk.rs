@@ -1,7 +1,6 @@
 //! The on-disk [`DiskFileSystem`] implementation and its supporting helpers.
 
 use std::{
-    collections::BTreeSet,
     env,
     ffi::OsString,
     fmt::{self, Debug, Formatter},
@@ -9,7 +8,7 @@ use std::{
     io::{self, ErrorKind, Write as _},
     mem::take,
     path::{MAIN_SEPARATOR, Path, PathBuf},
-    sync::{Arc, LazyLock, Mutex, Weak},
+    sync::{Arc, LazyLock, Weak},
     time::Duration,
 };
 
@@ -22,7 +21,7 @@ use rustc_hash::FxHashSet;
 use smallvec::SmallVec;
 use tokio::{
     runtime::Handle,
-    sync::{RwLock, RwLockReadGuard, watch},
+    sync::{RwLock, RwLockReadGuard},
 };
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
@@ -189,66 +188,6 @@ fn create_read_semaphore() -> tokio::sync::Semaphore {
     tokio::sync::Semaphore::new(*TURBO_ENGINE_READ_CONCURRENCY)
 }
 
-#[derive(Default)]
-struct ChangeEpochState {
-    observed: u64,
-    settled: u64,
-    completed: BTreeSet<u64>,
-}
-
-impl ChangeEpochState {
-    fn record(&mut self) -> u64 {
-        self.observed = self
-            .observed
-            .checked_add(1)
-            .expect("filesystem change generation overflowed");
-        self.observed
-    }
-
-    fn settle(&mut self, epoch: u64) -> Option<u64> {
-        if epoch == 0 || epoch > self.observed {
-            debug_assert!(false, "settled an unrecorded filesystem generation");
-            return None;
-        }
-        if epoch <= self.settled || !self.completed.insert(epoch) {
-            // Duplicate completion is harmless. In particular, never let a
-            // bookkeeping bug wrap a counter and wedge future waiters.
-            return None;
-        }
-        let previous_settled = self.settled;
-        loop {
-            let next = self.settled + 1;
-            if !self.completed.remove(&next) {
-                break;
-            }
-            self.settled = next;
-        }
-        (self.settled != previous_settled).then_some(self.settled)
-    }
-}
-
-fn is_relative_path_denied(denied_paths: &[RcStr], path: &str) -> bool {
-    denied_paths.iter().any(|denied_path| {
-        path.starts_with(denied_path.as_str())
-            && (path.len() == denied_path.len()
-                || path.as_bytes().get(denied_path.len()) == Some(&b'/'))
-    })
-}
-
-fn is_watched_path_denied(root_path: &Path, denied_paths: &[RcStr], path: &Path) -> bool {
-    let Ok(relative_path) = path.strip_prefix(root_path) else {
-        return false;
-    };
-    let Some(relative_path) = relative_path.to_str() else {
-        return false;
-    };
-    is_relative_path_denied(denied_paths, &sys_to_unix(relative_path))
-}
-
-fn create_settled_change_epoch() -> watch::Sender<u64> {
-    watch::channel(0).0
-}
-
 fn create_write_semaphore() -> tokio::sync::Semaphore {
     // the semaphore isn't serialized, and we assume the environment variable doesn't change during
     // runtime, so it's okay to access it in this untracked way.
@@ -287,16 +226,6 @@ pub(crate) struct DiskFileSystemInner {
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[bincode(skip)]
     pub(crate) invalidation_lock: RwLock<()>,
-    /// Observed and completed filesystem generations. Keeping both under one
-    /// lock lets waiters snapshot a target and lets out-of-order completions
-    /// advance only the contiguous settled prefix.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
-    #[bincode(skip)]
-    change_epochs: Mutex<ChangeEpochState>,
-    /// Latest contiguous generation whose debounced invalidations have completed.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
-    #[bincode(skip, default = "create_settled_change_epoch")]
-    settled_change_epoch: watch::Sender<u64>,
     /// Semaphore to limit the maximum number of concurrent file operations.
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[bincode(skip, default = "create_read_semaphore")]
@@ -330,24 +259,6 @@ impl DiskFileSystemInner {
         Path::new(&*self.root)
     }
 
-    pub(crate) fn record_change(&self) -> u64 {
-        self.change_epochs.lock().unwrap().record()
-    }
-
-    pub(crate) fn settle_change(&self, epoch: u64) {
-        let Some(settled) = self.change_epochs.lock().unwrap().settle(epoch) else {
-            return;
-        };
-
-        self.settled_change_epoch.send_if_modified(|published| {
-            if *published >= settled {
-                return false;
-            }
-            *published = settled;
-            true
-        });
-    }
-
     /// Checks if a path is within the denied path
     /// Returns true if the path should be treated as non-existent
     ///
@@ -357,20 +268,13 @@ impl DiskFileSystemInner {
     /// - relative to the fs root
     ///
     /// We can efficiently check using string operations
-    fn is_relative_path_denied(&self, path: &str) -> bool {
-        is_relative_path_denied(&self.denied_paths, path)
-    }
-
     fn is_path_denied(&self, path: &FileSystemPath) -> bool {
-        self.is_relative_path_denied(&path.path)
-    }
-
-    /// Returns whether an absolute path reported by the OS watcher belongs to a
-    /// denied subtree such as Next.js' output directory. Recursive watchers see
-    /// those writes even though project reads cannot access them, so they must
-    /// not advance the project-source generation used for route catch-up.
-    pub(crate) fn is_watched_path_denied(&self, path: &Path) -> bool {
-        is_watched_path_denied(self.root_path(), &self.denied_paths, path)
+        let path = &path.path;
+        self.denied_paths.iter().any(|denied_path| {
+            path.starts_with(denied_path.as_str())
+                && (path.len() == denied_path.len()
+                    || path.as_bytes().get(denied_path.len()) == Some(&b'/'))
+        })
     }
 
     /// registers the path as an invalidator for the current task,
@@ -389,11 +293,11 @@ impl DiskFileSystemInner {
     /// re-read the updated content. This is necessary because the file watcher may not be active
     /// (e.g., in tests or build-only scenarios).
     fn invalidate_from_write(&self, full_path: &Path) {
-        let change_epoch = self.record_change();
         let mut invalidator_map = self.invalidator_map.lock().unwrap();
-        if let Some(invalidators) = invalidator_map.remove(full_path)
-            && let Some(turbo_tasks) = self.turbo_tasks.upgrade()
-        {
+        if let Some(invalidators) = invalidator_map.remove(full_path) {
+            let Some(turbo_tasks) = self.turbo_tasks.upgrade() else {
+                return;
+            };
             let _guard = self.tokio_handle.enter();
             let reason = Write {
                 path: full_path.to_string_lossy().into_owned(),
@@ -402,7 +306,6 @@ impl DiskFileSystemInner {
                 invalidator.invalidate_with_reason(&*turbo_tasks, reason.clone());
             }
         }
-        self.settle_change(change_epoch);
     }
 
     /// registers the path as an invalidator for the current task,
@@ -582,22 +485,6 @@ impl DiskFileSystem {
 
     pub fn root(&self) -> &RcStr {
         &self.inner.root
-    }
-
-    /// Waits for filesystem changes already observed when this method starts to
-    /// finish their debounced invalidation batches, then returns the settled
-    /// generation. Later watcher traffic cannot extend this wait.
-    pub async fn settled_change_epoch(&self) -> u64 {
-        let mut settled_change_epoch = self.inner.settled_change_epoch.subscribe();
-        let target = self.inner.change_epochs.lock().unwrap().observed;
-        loop {
-            let settled = *settled_change_epoch.borrow_and_update();
-            if settled >= target {
-                return settled;
-            }
-            // The sender lives with `self.inner`, so this cannot close while we wait.
-            let _ = settled_change_epoch.changed().await;
-        }
     }
 
     pub fn invalidate(&self) {
@@ -878,8 +765,6 @@ impl DiskFileSystem {
                 root,
                 mutex_map: Default::default(),
                 invalidation_lock: Default::default(),
-                change_epochs: Default::default(),
-                settled_change_epoch: create_settled_change_epoch(),
                 invalidator_map: InvalidatorMap::new(),
                 dir_invalidator_map: InvalidatorMap::new(),
                 read_semaphore: create_read_semaphore(),
@@ -1649,45 +1534,6 @@ mod tests {
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
     use super::*;
-
-    #[test]
-    fn change_epochs_settle_only_contiguous_generations() {
-        let mut state = ChangeEpochState::default();
-        let first = state.record();
-        let second = state.record();
-        assert_eq!(state.settle(second), None);
-        assert_eq!(state.settle(second), None);
-        assert_eq!(state.settle(first), Some(second));
-        assert_eq!(state.settle(first), None);
-    }
-
-    #[test]
-    fn denied_path_matching_stays_within_the_subtree() {
-        let denied = [rcstr!("project/.next")];
-        assert!(is_relative_path_denied(&denied, "project/.next"));
-        assert!(is_relative_path_denied(
-            &denied,
-            "project/.next/server/app/page.js"
-        ));
-        assert!(!is_relative_path_denied(&denied, "project/.next-cache"));
-        assert!(!is_relative_path_denied(&denied, "project/app/page.tsx"));
-
-        let root = PathBuf::from(if cfg!(windows) {
-            r"C:\workspace"
-        } else {
-            "/workspace"
-        });
-        assert!(is_watched_path_denied(
-            &root,
-            &denied,
-            &root.join("project/.next/server/app/page.js")
-        ));
-        assert!(!is_watched_path_denied(
-            &root,
-            &denied,
-            &root.join("project/app/page.tsx")
-        ));
-    }
 
     #[turbo_tasks::function(operation, root)]
     async fn extract_effects_operation(op: OperationVc<()>) -> anyhow::Result<Vc<Effects>> {

@@ -160,8 +160,11 @@ const sessionId = Math.floor(Number.MAX_SAFE_INTEGER * Math.random())
 
 /** Output directory (relative to `distDir`) of server-HMR-managed chunks. */
 const SERVER_HMR_CHUNKS_DIR = join('server', 'chunks')
+/** Virtual output prefix; turbo-tasks paths always use forward slashes. */
+const SERVER_HMR_VIRTUAL_CHUNKS_PREFIX = 'server/chunks/'
 /** Virtual output directory containing the App Router's server entry chunks. */
 const SERVER_HMR_APP_DIR = 'server/app'
+const SERVER_HMR_REENTRY_WAIT_MS = 1000
 
 declare const __next__clear_chunk_cache__: (() => void) | null | undefined
 
@@ -207,6 +210,20 @@ function collectUpdatedChunkPaths(
   return Array.from(paths)
 }
 
+type ServerHmrUpdateWaiter = {
+  afterGeneration: number
+  chunkPaths: Set<string>
+  resolve: () => void
+}
+
+type ServerHmrUpdateTracker = {
+  captureGeneration: () => number
+  waitForChunkPathsAfter: (
+    afterGeneration: number,
+    chunkPaths: Iterable<string>
+  ) => Promise<void>
+}
+
 function setupServerHmr(
   project: Project,
   {
@@ -216,7 +233,55 @@ function setupServerHmr(
     reEvaluateAllModulesExpensive: () => void | Promise<void>
     onApplied: (chunkPaths: string[]) => void | Promise<void>
   }
-) {
+): ServerHmrUpdateTracker {
+  let appliedGeneration = 0
+  let fullReEvaluationGeneration = 0
+  const chunkPathGenerations = new Map<string, number>()
+  const updateWaiters = new Set<ServerHmrUpdateWaiter>()
+
+  function hasApplied(waiter: ServerHmrUpdateWaiter) {
+    return (
+      fullReEvaluationGeneration > waiter.afterGeneration ||
+      Array.from(waiter.chunkPaths).every(
+        (path) => (chunkPathGenerations.get(path) ?? 0) > waiter.afterGeneration
+      )
+    )
+  }
+
+  function recordAppliedUpdate(chunkPaths?: string[]) {
+    const generation = ++appliedGeneration
+    if (chunkPaths === undefined) {
+      fullReEvaluationGeneration = generation
+    } else {
+      for (const path of chunkPaths) {
+        chunkPathGenerations.set(path, generation)
+      }
+    }
+    for (const waiter of updateWaiters) {
+      if (hasApplied(waiter)) {
+        updateWaiters.delete(waiter)
+        waiter.resolve()
+      }
+    }
+  }
+
+  let fullReEvaluationPromise: Promise<void> | undefined
+  function runFullReEvaluation() {
+    if (fullReEvaluationPromise) {
+      return fullReEvaluationPromise
+    }
+    const promise = Promise.resolve()
+      .then(reEvaluateAllModulesExpensive)
+      .then(() => recordAppliedUpdate())
+      .finally(() => {
+        if (fullReEvaluationPromise === promise) {
+          fullReEvaluationPromise = undefined
+        }
+      })
+    fullReEvaluationPromise = promise
+    return promise
+  }
+
   async function runSubscription() {
     const subscription = project.allHmrEvents(HmrTarget.Server)
 
@@ -233,7 +298,7 @@ function setupServerHmr(
       // clears the module cache and notifies browsers to refetch RSC.
       const requiresFullReEvaluation = update.type === 'restart'
       if (requiresFullReEvaluation) {
-        await reEvaluateAllModulesExpensive()
+        await runFullReEvaluation()
         continue
       }
 
@@ -254,12 +319,15 @@ function setupServerHmr(
           `[Server HMR] unreachable: unexpected update instruction type ${(instruction as { type: string }).type}`
         )
       }
+      const updatedChunkPaths = collectUpdatedChunkPaths(instruction)
 
       // No handler registered yet (before first request, or right after
-      // reEvaluateAllModulesExpensive()) — nothing live to update, so skip
-      // until the next request.
+      // reEvaluateAllModulesExpensive()) — nothing live to update. Recording the
+      // paths still releases a reentry waiter because there is no live cache that
+      // could serve stale modules.
       const handlers = globalThis.__turbopack_server_hmr_handlers__
       if (!handlers || handlers.size === 0) {
+        recordAppliedUpdate(updatedChunkPaths)
         continue
       }
 
@@ -270,19 +338,19 @@ function setupServerHmr(
           // A matching runtime tried the apply and threw. Evict require.cache
           // so the next request loads fresh, then skip onApplied. (A no-match
           // update is a no-op and does not throw.)
-          await reEvaluateAllModulesExpensive()
+          await runFullReEvaluation()
           continue
         }
 
-        const updatedChunkPaths = collectUpdatedChunkPaths(instruction)
         // An empty partial only advances the version state (e.g. the seed
         // transition or a new endpoint); nothing changed on disk, so don't
         // invalidate manifests or ping browsers to refetch RSC.
         if (updatedChunkPaths.length > 0) {
           await onApplied(updatedChunkPaths)
         }
+        recordAppliedUpdate(updatedChunkPaths)
       } else {
-        await reEvaluateAllModulesExpensive()
+        await runFullReEvaluation()
       }
     }
   }
@@ -298,11 +366,51 @@ function setupServerHmr(
         return
       } catch (err) {
         console.error('[Server HMR] Subscription error, resubscribing:', err)
-        await reEvaluateAllModulesExpensive()
+        await runFullReEvaluation()
         await new Promise((resolve) => setTimeout(resolve, 1000))
       }
     }
   })()
+
+  return {
+    captureGeneration: () => appliedGeneration,
+    waitForChunkPathsAfter(afterGeneration, chunkPaths) {
+      const waiter: ServerHmrUpdateWaiter = {
+        afterGeneration,
+        chunkPaths: new Set(chunkPaths),
+        resolve: () => {},
+      }
+      if (waiter.chunkPaths.size === 0 || hasApplied(waiter)) {
+        return Promise.resolve()
+      }
+      let fallbackTimer: ReturnType<typeof setTimeout> | undefined
+      const updatePromise = new Promise<void>((resolve) => {
+        waiter.resolve = resolve
+        updateWaiters.add(waiter)
+        if (hasApplied(waiter)) {
+          updateWaiters.delete(waiter)
+          resolve()
+        }
+      })
+      const fallbackPromise = new Promise<void>((resolve, reject) => {
+        fallbackTimer = setTimeout(() => {
+          if (hasApplied(waiter)) {
+            resolve()
+            return
+          }
+          // Some endpoint output paths (notably client-component SSR chunks)
+          // are owned by a separate always-active aggregate entry and may have
+          // applied before this reentry began. Bound the route-specific wait and
+          // use the existing safe full-re-evaluation fallback rather than hanging.
+          runFullReEvaluation().then(resolve, reject)
+        }, SERVER_HMR_REENTRY_WAIT_MS)
+      })
+      return Promise.race([updatePromise, fallbackPromise]).finally(() => {
+        if (fallbackTimer) clearTimeout(fallbackTimer)
+        updateWaiters.delete(waiter)
+      })
+    },
+  }
 }
 
 function getSourceMapFromTurbopack(
@@ -551,9 +659,10 @@ export async function createHotReloaderTurbopack(
 
   // Dev specific
   const changeSubscriptions: ChangeSubscriptions = new Map()
-  // Route endpoint subscriptions keep Turbopack's dependency graph active. Bound
-  // App Router page subscriptions to routes that are still being viewed or were
-  // accessed recently, matching the lifetime used by webpack on-demand entries.
+  // Bound aggregate server-HMR versioning to App Router pages that are still
+  // being viewed or were accessed recently, matching the lifetime used by
+  // webpack on-demand entries. Endpoint subscriptions remain connected so an
+  // inactive route's output graph still observes source changes.
   const routeChangeSubscriptionLastActive = new Map<EntryKey, number>()
   const recentRouteChangeSubscriptions: EntryKey[] = []
   const activeRouteSubscriptionsByClient = new Map<ws, Set<EntryKey>>()
@@ -644,9 +753,11 @@ export async function createHotReloaderTurbopack(
     writtenEndpoint: WrittenEndpoint,
     {
       force,
+      onServerHmrChunkChanged,
     }: {
       // Always clear the cache, don't check if files have changed
       force?: boolean
+      onServerHmrChunkChanged?: (path: string) => void
     } = {}
   ): boolean {
     if (force) {
@@ -673,6 +784,9 @@ export async function createHotReloaderTurbopack(
           (globalHash && globalHash !== contentHash)
         ) {
           hasChange = true
+          if (path.startsWith(SERVER_HMR_VIRTUAL_CHUNKS_PREFIX)) {
+            onServerHmrChunkChanged?.(path)
+          }
           serverPathState.set(localKey, contentHash)
           serverPathState.set(path, contentHash)
         } else {
@@ -806,6 +920,7 @@ export async function createHotReloaderTurbopack(
   // advancing there would both churn the hash without an edit and fail to
   // advance it at all when no client is connected.
   let hmrHash = 0
+  let serverHmrUpdateTracker: ServerHmrUpdateTracker | undefined
 
   // HACK: Defer sending `building` messages. Turbopack emits a compile pass for every
   // foreground-job cycle, including empty no-op recompiles scheduled by
@@ -955,6 +1070,10 @@ export async function createHotReloaderTurbopack(
       const changed = await changedPromise
 
       for await (const change of changed) {
+        if (inactiveRouteChangeSubscriptions.has(key)) {
+          currentEntryIssues.delete(key)
+          continue
+        }
         processIssues(currentEntryIssues, key, change, false, true)
         // TODO: Get an actual content hash from Turbopack.
         const message = await createMessage(change, String(++hmrHash))
@@ -992,6 +1111,17 @@ export async function createHotReloaderTurbopack(
   const maxInactiveAge = nextConfig.onDemandEntries?.maxInactiveAge ?? 60 * 1000
   const pagesBufferLength = nextConfig.onDemandEntries?.pagesBufferLength ?? 5
   const routeChangeSubscriptionDisposals = new Map<EntryKey, Promise<void>>()
+  const routeChangeSubscriptionRetiredHmrGenerations = new Map<
+    EntryKey,
+    number
+  >()
+  const routeChangeSubscriptionReactivations = new Map<
+    EntryKey,
+    { promise: Promise<void>; resolve: () => void }
+  >()
+  // Multiple requests can concurrently ensure the same route (for example, an
+  // HTML request and an RSC prefetch), so this guard must be reference-counted.
+  const routeChangeSubscriptionsBeingHandled = new Map<EntryKey, number>()
 
   function getServerHmrEntryChunkPath(key: EntryKey): string | undefined {
     if (!serverFastRefresh || splitEntryKey(key).type !== 'app') {
@@ -1063,6 +1193,7 @@ export async function createHotReloaderTurbopack(
       inactiveRouteChangeSubscriptions.delete(key)
       routeChangeSubscriptionsNeedingCatchUp.delete(key)
       routeChangeSubscriptionDisposals.delete(key)
+      routeChangeSubscriptionRetiredHmrGenerations.delete(key)
       const removedChunkPath = chunkPathsByKey.get(key)
       if (removedChunkPath) {
         removedRouteHmrChunkPaths.set(key, removedChunkPath)
@@ -1088,24 +1219,64 @@ export async function createHotReloaderTurbopack(
   async function markRouteChangeSubscriptionActive(key: EntryKey) {
     markRouteChangeSubscriptionRecentlyActive(key)
 
-    // If cleanup raced with a request for this route, let the old iterator fully
-    // stop before handleRouteType installs its replacement. A failed iterator
-    // shutdown must not turn a later page request or ping into an unhandled
-    // rejection; reactivation is idempotent and can safely retry below.
+    // If cleanup raced with a request for this route, let its native aggregate
+    // transition finish before reactivation. A failed transition must not turn a
+    // later page request or ping into an unhandled rejection; reactivation is
+    // idempotent and can safely retry below.
     try {
       await routeChangeSubscriptionDisposals.get(key)
     } catch (error) {
       console.error('Failed to retire route HMR subscription:', error)
     }
+
+    // Serialize the catch-up write for overlapping HTML/RSC requests. The other
+    // callers keep the inactivity-cleanup refcount held while this promise waits.
+    const existingReactivation = routeChangeSubscriptionReactivations.get(key)
+    if (existingReactivation) {
+      await existingReactivation.promise
+      return { wasInactive: false, wasRemoved: false, ownsReactivation: false }
+    }
+
     const wasInactive = inactiveRouteChangeSubscriptions.has(key)
     const wasRemoved = removedRouteHmrChunkPaths.has(key)
-    if (wasInactive || wasRemoved) {
-      await setRouteHmrChunksActive([key], true)
-      inactiveRouteChangeSubscriptions.delete(key)
-      removedRouteHmrChunkPaths.delete(key)
-      routeChangeSubscriptionsNeedingCatchUp.add(key)
+    const ownsReactivation = wasInactive || wasRemoved
+    let ownedReactivation:
+      | { promise: Promise<void>; resolve: () => void }
+      | undefined
+    if (ownsReactivation) {
+      let resolve = () => {}
+      const promise = new Promise<void>((promiseResolve) => {
+        resolve = promiseResolve
+      })
+      ownedReactivation = { promise, resolve }
+      routeChangeSubscriptionReactivations.set(key, ownedReactivation)
     }
-    return wasInactive || wasRemoved
+
+    try {
+      if (ownsReactivation) {
+        // A deleted route's retained output operation must reconnect before it can
+        // be written. Ordinary inactive operations stay connected, so keep their
+        // aggregate path inactive until the catch-up write is complete.
+        if (wasRemoved) {
+          await setRouteHmrChunksActive([key], true)
+          removedRouteHmrChunkPaths.delete(key)
+        }
+        // Stop suppressing endpoint issues before compiling. If catch-up fails,
+        // its source-fix event must still clear the redbox without another request.
+        inactiveRouteChangeSubscriptions.delete(key)
+        routeChangeSubscriptionsNeedingCatchUp.add(key)
+      }
+      return { wasInactive, wasRemoved, ownsReactivation }
+    } catch (error) {
+      if (
+        ownedReactivation &&
+        routeChangeSubscriptionReactivations.get(key) === ownedReactivation
+      ) {
+        routeChangeSubscriptionReactivations.delete(key)
+        ownedReactivation.resolve()
+      }
+      throw error
+    }
   }
 
   function getAppPageEntryKeysFromTree(
@@ -1137,13 +1308,19 @@ export async function createHotReloaderTurbopack(
     }
 
     const disposal = (async () => {
-      // Removing the aggregate HMR dependency first prevents the endpoint
-      // iterator shutdown from waking a full all-routes scan. Keep the inactive
-      // marker if either step fails: the next request can safely retry an
-      // idempotent reactivation, while clearing it could leave a retired graph
-      // incorrectly recorded as active.
+      // Exclude inactive entry chunks from aggregate HMR while keeping their
+      // output and change roots connected so edits cannot leave a stale graph.
+      // The subscription loop suppresses refreshes and issues for inactive keys.
       await setRouteHmrChunksActive(keys, false)
-      await Promise.all(keys.map(unsubscribeFromClientChanges))
+      const retiredHmrGeneration =
+        serverHmrUpdateTracker?.captureGeneration() ?? 0
+      for (const key of keys) {
+        routeChangeSubscriptionRetiredHmrGenerations.set(
+          key,
+          retiredHmrGeneration
+        )
+        currentEntryIssues.delete(key)
+      }
     })()
     for (const key of keys) {
       routeChangeSubscriptionDisposals.set(key, disposal)
@@ -1182,6 +1359,7 @@ export async function createHotReloaderTurbopack(
         if (
           getServerHmrEntryChunkPath(key) === undefined ||
           inactiveRouteChangeSubscriptions.has(key) ||
+          routeChangeSubscriptionsBeingHandled.has(key) ||
           activeRouteSubscriptions.has(key) ||
           recentRouteChangeSubscriptions.includes(key) ||
           now - lastActiveTime <= maxInactiveAge
@@ -2207,6 +2385,9 @@ export async function createHotReloaderTurbopack(
 
           const finishBuilding = startBuilding(pathname, requestUrl, false)
           let reactivatedRouteChangeSubscription = false
+          let ownsRouteChangeSubscriptionReactivation = false
+          let pendingNativeRouteHmrReactivation = false
+          const reactivatedServerHmrChunkPaths = new Set<string>()
           let routeChangeSubscriptionEntryKey: EntryKey | undefined
           try {
             if (
@@ -2219,9 +2400,18 @@ export async function createHotReloaderTurbopack(
                 'server',
                 page
               )
-              await markRouteChangeSubscriptionActive(
+              routeChangeSubscriptionsBeingHandled.set(
+                routeChangeSubscriptionEntryKey,
+                (routeChangeSubscriptionsBeingHandled.get(
+                  routeChangeSubscriptionEntryKey
+                ) ?? 0) + 1
+              )
+              const reactivation = await markRouteChangeSubscriptionActive(
                 routeChangeSubscriptionEntryKey
               )
+              ownsRouteChangeSubscriptionReactivation =
+                reactivation.ownsReactivation
+              pendingNativeRouteHmrReactivation = reactivation.wasInactive
               reactivatedRouteChangeSubscription =
                 routeChangeSubscriptionsNeedingCatchUp.has(
                   routeChangeSubscriptionEntryKey
@@ -2255,11 +2445,16 @@ export async function createHotReloaderTurbopack(
                   assetMapper.setPathsForKey(id, result.clientPaths)
                   const didChange = clearRequireCache(id, result, {
                     force: forceDeleteCache,
+                    onServerHmrChunkChanged: (path) => {
+                      if (reactivatedRouteChangeSubscription) {
+                        reactivatedServerHmrChunkPaths.add(path)
+                      }
+                    },
                   })
-                  // While this route was inactive there was no subscription to
-                  // advance the dev cache version. Do it when the route is next
-                  // requested and Turbopack reports changed server output.
                   if (didChange && reactivatedRouteChangeSubscription) {
+                    // Advance the cache version in the same synchronous step that
+                    // consumes the changed output hashes. A later catch-up failure
+                    // must not permanently lose this edit's cache invalidation.
                     hmrHash++
                   }
                   return didChange
@@ -2267,16 +2462,92 @@ export async function createHotReloaderTurbopack(
                 serverFastRefresh,
               },
             })
+            if (
+              pendingNativeRouteHmrReactivation &&
+              routeChangeSubscriptionEntryKey
+            ) {
+              // Publish the route back into aggregate HMR only after its output is
+              // current. Wait for the existing runtime to apply the changed chunks
+              // before the request can render; force-evicting shared runtime chunks
+              // here would orphan sibling routes' server-HMR handlers.
+              const generation =
+                routeChangeSubscriptionRetiredHmrGenerations.get(
+                  routeChangeSubscriptionEntryKey
+                ) ??
+                serverHmrUpdateTracker?.captureGeneration() ??
+                0
+              await setRouteHmrChunksActive(
+                [routeChangeSubscriptionEntryKey],
+                true
+              )
+              pendingNativeRouteHmrReactivation = false
+              await serverHmrUpdateTracker?.waitForChunkPathsAfter(
+                generation,
+                reactivatedServerHmrChunkPaths
+              )
+            }
             if (routeChangeSubscriptionEntryKey) {
+              routeChangeSubscriptionRetiredHmrGenerations.delete(
+                routeChangeSubscriptionEntryKey
+              )
               routeChangeSubscriptionsNeedingCatchUp.delete(
                 routeChangeSubscriptionEntryKey
               )
             }
           } finally {
-            finishBuilding()
-            // Remove non-deferred entry from building set
-            if (hasDeferredEntriesConfig) {
-              nonDeferredBuildingEntries.delete(routeDef.page)
+            try {
+              // A failed catch-up compile still needs to rejoin aggregate HMR so
+              // the subsequent source fix can apply and clear the redbox.
+              if (
+                pendingNativeRouteHmrReactivation &&
+                routeChangeSubscriptionEntryKey
+              ) {
+                try {
+                  await setRouteHmrChunksActive(
+                    [routeChangeSubscriptionEntryKey],
+                    true
+                  )
+                  pendingNativeRouteHmrReactivation = false
+                } catch (error) {
+                  inactiveRouteChangeSubscriptions.add(
+                    routeChangeSubscriptionEntryKey
+                  )
+                  throw error
+                }
+              }
+            } finally {
+              if (
+                ownsRouteChangeSubscriptionReactivation &&
+                routeChangeSubscriptionEntryKey
+              ) {
+                const reactivation = routeChangeSubscriptionReactivations.get(
+                  routeChangeSubscriptionEntryKey
+                )
+                routeChangeSubscriptionReactivations.delete(
+                  routeChangeSubscriptionEntryKey
+                )
+                reactivation?.resolve()
+              }
+              if (routeChangeSubscriptionEntryKey) {
+                const handledCount = routeChangeSubscriptionsBeingHandled.get(
+                  routeChangeSubscriptionEntryKey
+                )
+                if (handledCount === 1) {
+                  routeChangeSubscriptionsBeingHandled.delete(
+                    routeChangeSubscriptionEntryKey
+                  )
+                } else if (handledCount !== undefined) {
+                  routeChangeSubscriptionsBeingHandled.set(
+                    routeChangeSubscriptionEntryKey,
+                    handledCount - 1
+                  )
+                }
+              }
+              finishBuilding()
+              // Remove non-deferred entry from building set
+              if (hasDeferredEntriesConfig) {
+                nonDeferredBuildingEntries.delete(routeDef.page)
+              }
             }
           }
         })
@@ -2301,6 +2572,12 @@ export async function createHotReloaderTurbopack(
       removedRouteHmrChunkPaths.clear()
       routeChangeSubscriptionsNeedingCatchUp.clear()
       routeChangeSubscriptionDisposals.clear()
+      routeChangeSubscriptionRetiredHmrGenerations.clear()
+      for (const reactivation of routeChangeSubscriptionReactivations.values()) {
+        reactivation.resolve()
+      }
+      routeChangeSubscriptionReactivations.clear()
+      routeChangeSubscriptionsBeingHandled.clear()
       clearInterval(disposeInactiveRouteSubscriptionsInterval)
     },
   }
@@ -2439,7 +2716,7 @@ export async function createHotReloaderTurbopack(
   }
 
   if (serverFastRefresh) {
-    setupServerHmr(project, {
+    serverHmrUpdateTracker = setupServerHmr(project, {
       reEvaluateAllModulesExpensive: async () => {
         // Evict every server-HMR-managed chunk from `require.cache`.
         // Trailing `sep` so e.g. `server/chunks-other/...` doesn't match.

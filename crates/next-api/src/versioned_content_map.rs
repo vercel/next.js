@@ -90,11 +90,6 @@ type OutputOperationToComputeEntry =
 )]
 struct InactiveOutputOperation {
     compute_entry: OperationVc<OptionMapEntry>,
-    /// Project filesystem generation when this operation was disconnected.
-    filesystem_epoch: u64,
-    /// A materialized lookup snapshot keeps existing client-chunk subscriptions
-    /// and source maps valid without reconnecting the endpoint's output graph.
-    path_to_asset: FxHashMap<FileSystemPath, ResolvedVc<Box<dyn OutputAsset>>>,
 }
 
 #[derive(
@@ -114,8 +109,8 @@ struct InactiveOutputOperations(
     FxHashMap<OperationVc<ExpandedOutputAssets>, InactiveOutputOperation>,
 );
 
-// The ignored trace is intentional: these operation and asset handles must be
-// available for lookup/reactivation without keeping their task graphs connected.
+// The ignored trace is intentional: these operation handles must remain
+// available for reactivation without keeping their task graphs connected.
 unsafe impl OperationValue for InactiveOutputOperations {}
 
 pub struct HmrChunkSnapshot {
@@ -237,10 +232,9 @@ impl VersionedContentMap {
 
     /// Adds or removes entry chunks from the aggregate HMR working set.
     ///
-    /// Retiring an entry disconnects every output operation that owns that entry
-    /// path. The operation handles and path index are retained without tracing
-    /// them, so reactivation can reconnect the exact cached operation without a
-    /// new endpoint write.
+    /// Retiring an entry keeps its output operations connected, but omits its
+    /// entry path from aggregate HMR versioning. Deleted entries use the separate
+    /// disconnected-operation path retained by [`Self::remove_hmr_chunks`].
     ///
     /// This is deliberately a direct state mutation rather than a cached
     /// `turbo_tasks::function`: the same path can transition between active and
@@ -262,10 +256,9 @@ impl VersionedContentMap {
         };
 
         if active {
-            // Deletion and re-addition can be coalesced into one watcher batch,
-            // leaving the filesystem generation unchanged. Removed routes still
-            // need conservative catch-up before reconnecting their retained
-            // operation, even when the epoch comparison alone cannot see it.
+            // A removed route may be re-added using its retained disconnected
+            // operation. Conservatively invalidate project filesystem reads before
+            // reconnecting that operation so it cannot reuse pre-deletion inputs.
             let was_removed = {
                 let removed = self.removed_hmr_paths.get_untracked();
                 paths.iter().any(|path| removed.0.contains(path))
@@ -278,7 +271,7 @@ impl VersionedContentMap {
                         inactive
                             .0
                             .get(operation)
-                            .map(|entry| (*operation, entry.compute_entry, entry.filesystem_epoch))
+                            .map(|entry| (*operation, entry.compute_entry))
                     })
                     .collect::<Vec<_>>()
             };
@@ -287,33 +280,28 @@ impl VersionedContentMap {
             // reader may briefly see both, but never sees the asset disappear.
             self.map_op_to_compute_entry.update_conditionally(|map| {
                 let mut changed = false;
-                for &(operation, compute_entry, _) in &reactivated {
+                for &(operation, compute_entry) in &reactivated {
                     changed |= map.insert(operation, compute_entry) != Some(compute_entry);
                 }
                 changed
             });
-            // Only routes that actually crossed a filesystem change need the
-            // conservative catch-up. Plain navigation after inactivity keeps the
-            // cached project graph warm.
-            let current_filesystem_epoch = project_fs.settled_change_epoch().await;
-            if was_removed
-                || reactivated
-                    .iter()
-                    .any(|(_, _, filesystem_epoch)| *filesystem_epoch < current_filesystem_epoch)
-            {
+            // Deleted routes need conservative catch-up because Turbopack may
+            // reuse the disconnected operation when the same file is added again.
+            // Ordinary inactive routes never disconnect their output graph.
+            if was_removed {
                 project_fs.invalidate_with_reason(|path| invalidation::Initialize {
                     path: RcStr::from(path.to_string_lossy()),
                 });
             }
-            // Reconnect and strongly read these output graphs after the conditional
-            // catch-up. The caller then refreshes the endpoint's effectful wrappers.
-            for &(_, compute_entry, _) in &reactivated {
+            // Reconnect and strongly read removed output graphs after catch-up.
+            // The caller then refreshes the endpoint's effectful wrappers.
+            for &(_, compute_entry) in &reactivated {
                 compute_entry.read_strongly_consistent().await?;
             }
             self.inactive_output_operations
                 .update_conditionally(|inactive| {
                     let mut changed = false;
-                    for (operation, _, _) in &reactivated {
+                    for (operation, _) in &reactivated {
                         changed |= inactive.0.remove(operation).is_some();
                     }
                     changed
@@ -336,45 +324,10 @@ impl VersionedContentMap {
                     changed
                 });
         } else {
-            // Materialize the last asset lookup before disconnecting. Existing
-            // client chunk subscriptions and source-map requests can use this
-            // snapshot without reconnecting the endpoint's aggregate graph.
-            let compute_entries = {
-                let map = self.map_op_to_compute_entry.get();
-                operations
-                    .iter()
-                    .filter_map(|operation| {
-                        map.get(operation)
-                            .map(|compute_entry| (*operation, *compute_entry))
-                    })
-                    .collect::<Vec<_>>()
-            };
-            let filesystem_epoch = project_fs.settled_change_epoch().await;
-            let snapshots = compute_entries
-                .into_iter()
-                .map(|(operation, compute_entry)| async move {
-                    let map_entry = compute_entry.read_strongly_consistent().await?;
-                    let path_to_asset = if let Some(entry) = &*map_entry {
-                        entry.path_to_asset.clone()
-                    } else {
-                        FxHashMap::default()
-                    };
-                    Ok::<_, anyhow::Error>((
-                        operation,
-                        InactiveOutputOperation {
-                            compute_entry,
-                            filesystem_epoch,
-                            path_to_asset,
-                        },
-                    ))
-                })
-                .try_join()
-                .await?
-                .into_iter()
-                .collect::<FxHashMap<_, _>>();
-
-            // Publish retirement before disconnecting its operations so a concurrent
-            // aggregate read preserves the previous versions.
+            // Keep the endpoint output operations connected so source changes
+            // continue to invalidate them while the route is inactive. Omitting
+            // the entry paths from aggregate HMR still avoids versioning every
+            // route on unrelated edits without risking a frozen output graph.
             self.inactive_hmr_paths
                 .update_conditionally(|inactive_hmr_paths| {
                     let mut changed = false;
@@ -383,29 +336,6 @@ impl VersionedContentMap {
                     }
                     changed
                 });
-
-            let snapshot_operations = snapshots.keys().copied().collect::<Vec<_>>();
-            // Publish the inactive fallback before dropping the live lookup. A
-            // reader may briefly prefer the live entry, but never observes a gap.
-            self.inactive_output_operations
-                .update_conditionally(|inactive| {
-                    if snapshots.is_empty() {
-                        return false;
-                    }
-                    for (operation, inactive_operation) in snapshots {
-                        inactive.0.insert(operation, inactive_operation);
-                    }
-                    true
-                });
-            // Drop the traced roots only after their lookup snapshots are visible.
-            // No compute task depends on this project-wide state transition.
-            self.map_op_to_compute_entry.update_conditionally(|map| {
-                let mut changed = false;
-                for operation in snapshot_operations {
-                    changed |= map.remove(&operation).is_some();
-                }
-                changed
-            });
         }
         Ok(())
     }
@@ -417,7 +347,6 @@ impl VersionedContentMap {
     pub async fn remove_hmr_chunks(
         &self,
         paths: impl IntoIterator<Item = FileSystemPath>,
-        project_fs: &DiskFileSystem,
     ) -> Result<()> {
         let paths = paths.into_iter().collect::<Vec<_>>();
         let operations = {
@@ -428,7 +357,6 @@ impl VersionedContentMap {
                 .flat_map(|operations| operations.0.iter().copied())
                 .collect::<FxHashSet<_>>()
         };
-        let current_filesystem_epoch = project_fs.settled_change_epoch().await;
         let retained_operations = {
             let active = self.map_op_to_compute_entry.get_untracked();
             let inactive = self.inactive_output_operations.get_untracked();
@@ -440,8 +368,6 @@ impl VersionedContentMap {
                             *operation,
                             InactiveOutputOperation {
                                 compute_entry: entry.compute_entry,
-                                filesystem_epoch: entry.filesystem_epoch,
-                                path_to_asset: FxHashMap::default(),
                             },
                         ))
                     } else {
@@ -450,8 +376,6 @@ impl VersionedContentMap {
                                 *operation,
                                 InactiveOutputOperation {
                                     compute_entry: *compute_entry,
-                                    filesystem_epoch: current_filesystem_epoch,
-                                    path_to_asset: FxHashMap::default(),
                                 },
                             )
                         })
@@ -559,9 +483,9 @@ impl VersionedContentMap {
             // Any error should result in an empty list, which removes all assets from the map
             .ok();
 
-        // Retirement strongly reads this materialized entry before disconnecting
-        // it, so an in-flight computation can finish without observing global
-        // activity state or becoming a dependency of every route transition.
+        // Ordinary inactive-route operations stay connected, so this publisher
+        // keeps their output-path ownership current across source changes. Deleted
+        // routes separately remove that ownership before disconnecting the graph.
         self.map_path_to_op.update_conditionally(|map| {
             let mut changed = false;
 
@@ -652,24 +576,7 @@ impl VersionedContentMap {
             return Ok(Vc::cell(Some(asset)));
         }
 
-        // A retired output operation is intentionally disconnected, but its
-        // last materialized assets remain valid lookup results. Returning only
-        // the requested asset avoids reconnecting the whole endpoint graph.
-        let inactive_asset = {
-            let this = self.await?;
-            let path_to_operations = &this.map_path_to_op.get().0;
-            let inactive_operations = this.inactive_output_operations.get();
-            path_to_operations.get(&path).and_then(|operations| {
-                operations.0.iter().find_map(|operation| {
-                    inactive_operations
-                        .0
-                        .get(operation)
-                        .and_then(|entry| entry.path_to_asset.get(&path))
-                        .copied()
-                })
-            })
-        };
-        Ok(Vc::cell(inactive_asset))
+        Ok(Vc::cell(None))
     }
 
     #[turbo_tasks::function]
