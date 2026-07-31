@@ -9,7 +9,6 @@ use std::{
     mem::take,
     path::{MAIN_SEPARATOR, Path, PathBuf},
     sync::{Arc, LazyLock, Weak},
-    time::Duration,
 };
 
 use anyhow::{Context, Result, anyhow, bail};
@@ -42,7 +41,7 @@ use crate::{
     mutex_map::MutexMap,
     path_map::OrderedPathMapExt,
     retry::{can_retry, retry_blocking, retry_blocking_custom},
-    watcher::DiskWatcher,
+    watcher::{DiskWatcher, DiskWatcherConfig},
 };
 
 /// Validate the path, returning the valid path, a modified-but-now-valid path, or bailing with an
@@ -445,11 +444,7 @@ impl DiskFileSystemInner {
     }
 
     #[tracing::instrument(level = "info", name = "start filesystem watching", skip_all, fields(path = %self.root))]
-    async fn start_watching_internal(
-        self: &Arc<Self>,
-        report_invalidation_reason: bool,
-        poll_interval: Option<Duration>,
-    ) -> Result<()> {
+    async fn start_watching_internal(self: &Arc<Self>) -> Result<()> {
         let root_path = self.root_path().to_path_buf();
 
         // create the directory for the filesystem on disk, if it doesn't exist
@@ -458,8 +453,7 @@ impl DiskFileSystemInner {
             .concurrency_limited(&self.write_semaphore)
             .await?;
 
-        DiskWatcher::start_watching(self.clone(), report_invalidation_reason, poll_interval)
-            .await?;
+        DiskWatcher::start_watching(self.clone()).await?;
 
         Ok(())
     }
@@ -506,19 +500,8 @@ impl DiskFileSystem {
             .invalidate_path_and_children_with_reason(paths, reason);
     }
 
-    pub async fn start_watching(&self, poll_interval: Option<Duration>) -> Result<()> {
-        self.inner
-            .start_watching_internal(false, poll_interval)
-            .await
-    }
-
-    pub async fn start_watching_with_invalidation_reason(
-        &self,
-        poll_interval: Option<Duration>,
-    ) -> Result<()> {
-        self.inner
-            .start_watching_internal(true, poll_interval)
-            .await
+    pub async fn start_watching(&self) -> Result<()> {
+        self.inner.start_watching_internal().await
     }
 
     pub async fn stop_watching(&self) {
@@ -719,24 +702,32 @@ pub(crate) fn format_absolute_fs_path(path: &Path, name: &str, root_path: &Path)
 }
 
 impl DiskFileSystem {
-    /// Create a new instance of `DiskFileSystem`. `name` is a display name for the filesystem. This
-    /// should be unique. `root` is the [canonicalized][std::fs::canonicalize] root of the
-    /// filesystem.
+    /// Create a new instance of `DiskFileSystem`.
+    ///
+    /// `name` is a display name for the filesystem. This should be unique. `root` is the
+    /// [canonicalized][std::fs::canonicalize] root of the filesystem.
     ///
     /// This API does not canonicalize itself, as that requires IO operations (e.g. symlink
     /// resolution) which should (ideally) not be cached.
     pub fn new(name: RcStr, root: Vc<RcStr>) -> Vc<Self> {
-        Self::new_internal(name, root, Vec::new())
+        Self::new_internal(name, root, Vec::new(), DiskWatcherConfig::default())
     }
 
-    /// Create a new instance of `DiskFileSystem`. This is the same as [`DiskFileSystem::new`], but
-    /// with the option to mark certain paths as not allowed to be accessed or navigated to.
+    /// Create a new instance of `DiskFileSystem`.
     ///
-    /// `denied_paths` must be normalized unix-style paths, non-empty and relative to the fs root.
-    pub fn new_with_denied_paths(
+    /// `name` is a display name for the filesystem. This should be unique. `root` is the
+    /// [canonicalized][std::fs::canonicalize] root of the filesystem.
+    ///
+    /// This API does not canonicalize itself, as that requires IO operations (e.g. symlink
+    /// resolution) which should (ideally) not be cached.
+    ///
+    /// `denied_paths` is a list of paths that are not allowed to be accessed or navigated to. These
+    /// must be normalized unix-style paths, non-empty and relative to the fs root.
+    pub fn new_with_options(
         name: RcStr,
         root: Vc<RcStr>,
         denied_paths: Vec<RcStr>,
+        watcher_config: DiskWatcherConfig,
     ) -> Vc<Self> {
         for denied_path in &denied_paths {
             debug_assert!(!denied_path.is_empty(), "denied_path must not be empty");
@@ -745,7 +736,7 @@ impl DiskFileSystem {
                 "denied_path must be normalized: {denied_path:?}"
             );
         }
-        Self::new_internal(name, root, denied_paths)
+        Self::new_internal(name, root, denied_paths, watcher_config)
     }
 }
 
@@ -756,6 +747,7 @@ impl DiskFileSystem {
         name: RcStr,
         root: Vc<RcStr>,
         denied_paths: Vec<RcStr>,
+        watcher_config: DiskWatcherConfig,
     ) -> Result<Vc<Self>> {
         let root = root.owned().await?;
         let instance = DiskFileSystem {
@@ -768,7 +760,7 @@ impl DiskFileSystem {
                 dir_invalidator_map: InvalidatorMap::new(),
                 read_semaphore: create_read_semaphore(),
                 write_semaphore: create_write_semaphore(),
-                watcher: DiskWatcher::new(),
+                watcher: DiskWatcher::new(watcher_config),
                 denied_paths,
                 turbo_tasks: turbo_tasks_weak(),
                 tokio_handle: Handle::current(),
@@ -2063,8 +2055,8 @@ mod tests {
         use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
         use crate::{
-            DirectoryContent, DiskFileSystem, File as TurboFile, FileContent, FileSystem,
-            FileSystemPath,
+            DirectoryContent, DiskFileSystem, DiskWatcherConfig, File as TurboFile, FileContent,
+            FileSystem, FileSystemPath,
             glob::{Glob, GlobOptions},
         };
 
@@ -2117,10 +2109,11 @@ mod tests {
         async fn test_denied_path_read() {
             #[turbo_tasks::function(operation, root)]
             async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
-                let fs = DiskFileSystem::new_with_denied_paths(
+                let fs = DiskFileSystem::new_with_options(
                     rcstr!("test"),
                     Vc::cell(root),
                     vec![denied_path],
+                    DiskWatcherConfig::default(),
                 );
                 let root_path = fs.root().await?;
 
@@ -2180,10 +2173,11 @@ mod tests {
         async fn test_denied_path_read_dir() {
             #[turbo_tasks::function(operation, root)]
             async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
-                let fs = DiskFileSystem::new_with_denied_paths(
+                let fs = DiskFileSystem::new_with_options(
                     rcstr!("test"),
                     Vc::cell(root),
                     vec![denied_path],
+                    DiskWatcherConfig::default(),
                 );
                 let root_path = fs.root().await?;
 
@@ -2242,10 +2236,11 @@ mod tests {
         async fn test_denied_path_read_glob() {
             #[turbo_tasks::function(operation, root)]
             async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
-                let fs = DiskFileSystem::new_with_denied_paths(
+                let fs = DiskFileSystem::new_with_options(
                     rcstr!("test"),
                     Vc::cell(root),
                     vec![denied_path],
+                    DiskWatcherConfig::default(),
                 );
                 let root_path = fs.root().await?;
 
@@ -2328,10 +2323,11 @@ mod tests {
                 file_path: RcStr,
                 contents: RcStr,
             ) -> anyhow::Result<Vc<Effects>> {
-                let fs = DiskFileSystem::new_with_denied_paths(
+                let fs = DiskFileSystem::new_with_options(
                     rcstr!("test"),
                     Vc::cell(root),
                     vec![denied_path],
+                    DiskWatcherConfig::default(),
                 );
                 let root_path = fs.root().await?;
                 let allowed_file = root_path.join(&file_path)?;
@@ -2347,10 +2343,11 @@ mod tests {
                 denied_file: RcStr,
                 nested_denied_file: RcStr,
             ) -> anyhow::Result<()> {
-                let fs = DiskFileSystem::new_with_denied_paths(
+                let fs = DiskFileSystem::new_with_options(
                     rcstr!("test"),
                     Vc::cell(root),
                     vec![denied_path],
+                    DiskWatcherConfig::default(),
                 );
                 let root_path = fs.root().await?;
 

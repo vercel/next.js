@@ -15,10 +15,15 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use bincode::{Decode, Encode};
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+};
 use bitflags::bitflags;
 use notify::{
-    Config, EventKind, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher,
+    Config, EventKind, PollWatcher, RecommendedWatcher, Watcher,
     event::{MetadataKind, ModifyKind, RenameMode},
 };
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -26,8 +31,8 @@ use tokio::sync::{RwLock, RwLockWriteGuard};
 use tracing::instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, InvalidationReason, InvalidationReasonKind, Invalidator, TurboTasksApi,
-    spawn_thread, util::StaticOrArc,
+    FxIndexSet, InvalidationReason, InvalidationReasonKind, Invalidator, NonLocalValue, TaskInput,
+    TurboTasksApi, spawn_thread, trace::TraceRawVcs, util::StaticOrArc,
 };
 
 use crate::{
@@ -38,33 +43,109 @@ use crate::{
     watcher::fs_api::DiskFileSystemWatcherApi,
 };
 
-static WATCH_RECURSIVE_MODE: LazyLock<RecursiveMode> = LazyLock::new(|| {
-    match env::var("TURBO_TASKS_FORCE_WATCH_MODE").as_deref() {
-        Ok("recursive") => {
-            return RecursiveMode::Recursive;
-        }
-        Ok("nonrecursive") => {
-            return RecursiveMode::NonRecursive;
-        }
+/// Overrides [`DiskWatcherConfig::recursive_mode`]. Users shouldn't need to set this, this is
+/// intended only for debugging purposes.
+static FORCED_WATCH_RECURSIVE_MODE: LazyLock<Option<DiskWatcherRecursiveMode>> = LazyLock::new(
+    || match env::var("TURBO_TASKS_FORCE_WATCH_MODE").as_deref() {
+        Ok("recursive") => Some(DiskWatcherRecursiveMode::Recursive),
+        Ok("nonrecursive") => Some(DiskWatcherRecursiveMode::NonRecursive),
         Ok(_) => {
             eprintln!(
                 "unsupported `TURBO_TASKS_FORCE_WATCH_MODE`, must be `recursive` or `nonrecursive`"
             );
+            None
         }
-        _ => {}
+        _ => None,
+    },
+);
+
+#[derive(
+    Clone, Copy, Debug, Default, Eq, PartialEq, Hash, TraceRawVcs, NonLocalValue, Encode, Decode,
+)]
+pub struct DiskWatcherConfig {
+    /// Whether to let the [`notify::Watcher`] recurse into subdirectories itself, or to track and
+    /// watch each directory we care about ourselves.
+    ///
+    /// [`None`] picks a default based on the platform and [`Self::poll_interval`], which is
+    /// normally what you want.
+    ///
+    /// The `TURBO_TASKS_FORCE_WATCH_MODE` environment variable will override this configuration
+    /// value (intended for debugging purposes).
+    pub recursive_mode: Option<DiskWatcherRecursiveMode>,
+    /// Poll the filesystem at this interval instead of using the platform's native file watching,
+    /// for cases where native watching doesn't work (e.g. some Docker setups). This is slow and
+    /// inefficient, it should only be used as a last resort.
+    ///
+    /// [`None`] disables polling, using the platform's native watcher ([`RecommendedWatcher`])
+    /// instead of [`PollWatcher`].
+    pub poll_interval: Option<Duration>,
+    /// Attach an [`InvalidationReason`] to every invalidation the watcher causes ([`WatchStart`],
+    /// [`WatchChange`], or [`InvalidateRescan`]), so that it can be reported to the user.
+    ///
+    /// This costs an extra allocation per invalidated path, so it's only worth enabling when
+    /// something actually consumes the reasons.
+    pub report_invalidation_reason: bool,
+}
+
+impl TaskInput for DiskWatcherConfig {
+    fn is_transient(&self) -> bool {
+        false
     }
-    if cfg!(any(target_os = "macos", target_os = "windows")) {
-        // these platforms have efficient recursive watchers, it's best to track the entire
-        // directory and filter events to the files we care about
-        RecursiveMode::Recursive
-    } else {
-        // inotify on linux is non-recursive, so notify-rs's implementation is inefficient, it's
-        // better for us to just track it ourselves and only watch the files we know we care about
+}
+
+/// Equivalent to [`notify::RecursiveMode`], but implements traits needed by [`turbo_tasks`].
+///
+/// When using [`Self::Recursive`], [`notify::Watcher`] will recursively track all contents
+/// of the filesystem root. This should only be used on platforms with efficient recursive watcher
+/// implementations (i.e. macOS and Windows).
+///
+/// When using [`Self::NonRecursive`], we only track previously read files and their parent
+/// directories.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, TraceRawVcs, NonLocalValue, Encode, Decode)]
+pub enum DiskWatcherRecursiveMode {
+    Recursive,
+    NonRecursive,
+}
+
+impl From<DiskWatcherRecursiveMode> for notify::RecursiveMode {
+    fn from(value: DiskWatcherRecursiveMode) -> Self {
+        match value {
+            DiskWatcherRecursiveMode::Recursive => notify::RecursiveMode::Recursive,
+            DiskWatcherRecursiveMode::NonRecursive => notify::RecursiveMode::NonRecursive,
+        }
+    }
+}
+
+impl DiskWatcherConfig {
+    /// Resolves [`Self::recursive_mode`], falling back to a default based on
+    /// [`Self::poll_interval`] and the platform.
+    fn resolve_recursive_mode(&self) -> DiskWatcherRecursiveMode {
+        // macOS and Windows have efficient recursive watchers, so it's best to track the entire
+        // directory and filter events to the files we care about. inotify on Linux is
+        // non-recursive, so notify-rs's implementation is inefficient; better for us to track it
+        // ourselves and only watch the directories we know we care about.
         //
-        // See: https://github.com/vercel/turborepo/pull/4100
-        RecursiveMode::NonRecursive
+        // See: <https://github.com/vercel/turborepo/pull/4100>
+        let platform_has_efficient_recursive_watcher =
+            cfg!(any(target_os = "macos", target_os = "windows"));
+
+        // the env var is a debugging escape hatch, so it wins over everything else
+        if let Some(forced) = *FORCED_WATCH_RECURSIVE_MODE {
+            forced
+        } else if let Some(recursive_mode) = self.recursive_mode {
+            recursive_mode
+        } else if self.poll_interval.is_some() {
+            // `PollWatcher` implements recursive watching by walking the entire subtree on every
+            // poll, so watching the fs root recursively would stat every file in the project each
+            // interval. Watching non-recursively keeps each poll to the directories we've read.
+            DiskWatcherRecursiveMode::NonRecursive
+        } else if platform_has_efficient_recursive_watcher {
+            DiskWatcherRecursiveMode::Recursive
+        } else {
+            DiskWatcherRecursiveMode::NonRecursive
+        }
     }
-});
+}
 
 /// How long to extend an invalidation batch by when receiving new events, before flushing. This
 /// reduces invalidations if the same file or directory is modified many times.
@@ -75,23 +156,31 @@ const BATCH_DELAY: Duration = Duration::from_millis(10);
 #[cfg(not(target_os = "linux"))]
 const BATCH_DELAY: Duration = Duration::from_millis(1);
 
-#[derive(Encode, Decode)]
 pub(crate) struct DiskWatcher {
-    #[bincode(skip)]
     state: State,
+    config: DiskWatcherConfig,
 }
+
+/// Only [`Self::config`] is serialized: a decoded [`DiskWatcher`] is always stopped.
+impl Encode for DiskWatcher {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        self.config.encode(encoder)
+    }
+}
+
+impl<Ctx> Decode<Ctx> for DiskWatcher {
+    fn decode<D: Decoder<Context = Ctx>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        Ok(Self::new(DiskWatcherConfig::decode(decoder)?))
+    }
+}
+bincode::impl_borrow_decode!(DiskWatcher);
 
 enum State {
     // Note: Information about if we're a recursive or non-recursive watcher must live outside the
-    // `RwLock` to allow us to quickly bail out on calls to `ensure_watched`.
+    // `RwLock` to allow us to quickly bail out before calling functions in
+    // `non_recursive_helpers`.
     Recursive(RwLock<RecursiveState>),
     NonRecursive(RwLock<NonRecursiveState>),
-}
-
-impl Default for State {
-    fn default() -> Self {
-        State::new_stopped()
-    }
 }
 
 enum StateWriteGuard<'a> {
@@ -100,10 +189,12 @@ enum StateWriteGuard<'a> {
 }
 
 impl State {
-    fn new_stopped() -> Self {
-        match *WATCH_RECURSIVE_MODE {
-            RecursiveMode::Recursive => Self::Recursive(RwLock::new(RecursiveState::Stopped)),
-            RecursiveMode::NonRecursive => {
+    fn new_stopped(recursive_mode: DiskWatcherRecursiveMode) -> Self {
+        match recursive_mode {
+            DiskWatcherRecursiveMode::Recursive => {
+                Self::Recursive(RwLock::new(RecursiveState::Stopped))
+            }
+            DiskWatcherRecursiveMode::NonRecursive => {
                 Self::NonRecursive(RwLock::new(NonRecursiveState::Stopped))
             }
         }
@@ -116,16 +207,16 @@ impl State {
         }
     }
 
-    fn recursive_mode(&self) -> RecursiveMode {
+    fn recursive_mode(&self) -> DiskWatcherRecursiveMode {
         match self {
-            Self::Recursive(_) => RecursiveMode::Recursive,
-            Self::NonRecursive(_) => RecursiveMode::NonRecursive,
+            Self::Recursive(_) => DiskWatcherRecursiveMode::Recursive,
+            Self::NonRecursive(_) => DiskWatcherRecursiveMode::NonRecursive,
         }
     }
 }
 
-/// Used by when [`WATCH_RECURSIVE_MODE`] is [`RecursiveMode::Recursive`] (default on macOS and
-/// Windows).
+/// Used when [`DiskWatcherConfig::recursive_mode`] returns [`RecursiveMode::Recursive`] (default on
+/// macOS and Windows when not polling).
 enum RecursiveState {
     /// Used when [`DiskWatcher::start_watching`] hasn't been called yet or after
     /// [`DiskWatcher::stop_watching`] is called.
@@ -136,7 +227,8 @@ enum RecursiveState {
     },
 }
 
-/// Used by when [`WATCH_RECURSIVE_MODE`] is [`RecursiveMode::NonRecursive`] (default on Linux).
+/// Used when [`DiskWatcherConfig::recursive_mode`] returns [`RecursiveMode::NonRecursive`] (default
+/// on Linux, and everywhere when polling).
 enum NonRecursiveState {
     /// Used when [`DiskWatcher::start_watching`] hasn't been called yet or after
     /// [`DiskWatcher::stop_watching`] is called.
@@ -164,7 +256,7 @@ enum NotifyWatcher {
 }
 
 impl NotifyWatcher {
-    fn watch(&mut self, path: &Path, recursive_mode: RecursiveMode) -> notify::Result<()> {
+    fn watch(&mut self, path: &Path, recursive_mode: notify::RecursiveMode) -> notify::Result<()> {
         match self {
             Self::Recommended(watcher) => watcher.watch(path, recursive_mode),
             Self::Polling(watcher) => watcher.watch(path, recursive_mode),
@@ -291,7 +383,7 @@ mod non_recursive_helpers {
     ) -> Result<()> {
         debug_assert_ne!(dir_path, root_path);
 
-        match notify_watcher.watch(dir_path, RecursiveMode::NonRecursive) {
+        match notify_watcher.watch(dir_path, notify::RecursiveMode::NonRecursive) {
             Ok(())
             | Err(notify::Error {
                 // The path was probably deleted before we could process the event, but the parent
@@ -358,17 +450,14 @@ mod non_recursive_helpers {
 }
 
 impl DiskWatcher {
-    pub fn new() -> Self {
+    pub fn new(config: DiskWatcherConfig) -> Self {
         Self {
-            state: State::new_stopped(),
+            state: State::new_stopped(config.resolve_recursive_mode()),
+            config,
         }
     }
 
-    pub async fn start_watching<FsApi: DiskFileSystemWatcherApi>(
-        fs: Arc<FsApi>,
-        report_invalidation_reason: bool,
-        poll_interval: Option<Duration>,
-    ) -> Result<()> {
+    pub async fn start_watching<FsApi: DiskFileSystemWatcherApi>(fs: Arc<FsApi>) -> Result<()> {
         let watcher: &Self = fs.watcher();
         let state_guard = watcher.state.write().await;
 
@@ -392,7 +481,7 @@ impl DiskWatcher {
         // turbo-tasks-fs
         let config = config.with_follow_symlinks(false);
 
-        let mut notify_watcher = if let Some(poll_interval) = poll_interval {
+        let mut notify_watcher = if let Some(poll_interval) = watcher.config.poll_interval {
             let config = config.with_poll_interval(poll_interval);
             NotifyWatcher::Polling(PollWatcher::new(tx, config)?)
         } else {
@@ -402,17 +491,16 @@ impl DiskWatcher {
         // TOCTOU: we must watch `root_path` before calling any invalidators and setting up the
         // watchers in their associated functions
         let root_path = fs.root_path();
-        let recursive_mode = match state_guard {
-            StateWriteGuard::Recursive(_) => RecursiveMode::Recursive,
-            StateWriteGuard::NonRecursive(_) => RecursiveMode::NonRecursive,
-        };
-        notify_watcher.watch(root_path, recursive_mode)?;
+        notify_watcher.watch(
+            root_path,
+            notify::RecursiveMode::from(watcher.state.recursive_mode()),
+        )?;
 
         // We need to invalidate all reads or writes that happened before watching. As a
         // side-effect, this will call `ensure_watched` again, setting up any watchers needed.
         //
         // Best is to start_watching before starting to read
-        if report_invalidation_reason {
+        if watcher.config.report_invalidation_reason {
             let name = fs.name().clone();
             fs.invalidate_all_with_reason(|path| WatchStart {
                 name: name.clone(),
@@ -425,7 +513,7 @@ impl DiskWatcher {
 
         spawn_thread({
             let fs = fs.clone();
-            move || Self::watch_thread(fs, rx, report_invalidation_reason)
+            move || Self::watch_thread(fs, rx)
         });
 
         // Updating `self.state` is done last. If we panic while setting up the watcher, it'll
@@ -463,10 +551,13 @@ impl DiskWatcher {
     fn watch_thread<FsApi: DiskFileSystemWatcherApi>(
         fs: Arc<FsApi>,
         rx: Receiver<notify::Result<notify::Event>>,
-        report_invalidation_reason: bool,
     ) {
         let watcher: &Self = fs.watcher();
-        let mut batch = BatchedInvalidations::new(watcher.state.recursive_mode());
+        let report_invalidation_reason = watcher.config.report_invalidation_reason;
+        let mut batch = BatchedInvalidations::new(
+            watcher.state.recursive_mode(),
+            watcher.config.poll_interval.is_some(),
+        );
 
         'outer: loop {
             let mut deadline: Option<Instant> = None;
@@ -644,16 +735,47 @@ struct BatchedInvalidations {
     paths: FxHashMap<Box<Path>, InvalidationFlags>,
     /// See [`Self::new_paths`]). Stored as [`None`] in non-recursive mode.
     new_paths: Option<FxHashSet<Box<Path>>>,
+    /// Whether events are coming from [`PollWatcher`] instead of [`RecommendedWatcher`], which
+    /// changes how a file content change is reported. See [`Self::is_content_change`].
+    polling: bool,
 }
 
 impl BatchedInvalidations {
-    fn new(recursive_mode: RecursiveMode) -> Self {
+    fn new(recursive_mode: DiskWatcherRecursiveMode, polling: bool) -> Self {
         Self {
             paths: FxHashMap::default(),
             new_paths: match recursive_mode {
-                RecursiveMode::NonRecursive => Some(FxHashSet::default()),
-                RecursiveMode::Recursive => None,
+                DiskWatcherRecursiveMode::NonRecursive => Some(FxHashSet::default()),
+                DiskWatcherRecursiveMode::Recursive => None,
             },
+            polling,
+        }
+    }
+
+    /// Whether a [`ModifyKind::Metadata`] event means the file's *contents* changed.
+    ///
+    /// Some backends don't report content changes as [`ModifyKind::Data`] at all, so we have to
+    /// treat one specific metadata change per backend as a content change. Accepting these
+    /// unconditionally would mean invalidating on every `chmod`/`touch` on the backends that do
+    /// report `Data` properly.
+    fn is_content_change(&self, kind: MetadataKind) -> bool {
+        match kind {
+            // `PollWatcher` detects changes by comparing mtimes, so a content change surfaces as a
+            // write-time change. It only emits `Data` when `Config::with_compare_contents` is
+            // enabled, which we don't do because hashing every watched file is too expensive.
+            MetadataKind::WriteTime => self.polling,
+            // fsevents does not always emit `kFSEventStreamEventFlagItemModified` for a content
+            // change; sometimes it only emits `kFSEventStreamEventFlagItemInodeMetaMod`, which
+            // notify maps to `MetadataKind::Any`. This causes redundant invalidations, but it's the
+            // only way to reliably detect content changes there. Fix for PACK-2437.
+            //
+            // libuv does the same thing to trigger `UV_CHANGES`:
+            // https://github.com/libuv/libuv/commit/73cf3600d75a5884b890a1a94048b8f3f9c66876
+            //
+            // inotify and ReadDirectoryChangesW both report content changes on their own, so
+            // `MetadataKind::Any` there only ever means an actual attribute change.
+            MetadataKind::Any => cfg!(target_os = "macos"),
+            _ => false,
         }
     }
 
@@ -700,18 +822,14 @@ impl BatchedInvalidations {
             return false;
         }
         match event.kind {
-            // [NOTE] Observing `ModifyKind::Metadata(MetadataKind::Any)` is not a mistake, fix for
-            // PACK-2437.
-            // In here explicitly subscribes to the `ModifyKind::Data` which indicates file content
-            // changes - in case of fsevents backend, this is `kFSEventStreamEventFlagItemModified`.
-            // Also meanwhile we subscribe to `ModifyKind::Metadata` as well.
-            // This is due to in some cases fsevents does not emit explicit
-            // `kFSEventStreamEventFlagItemModified` kernel events, but only emits
-            // `kFSEventStreamEventFlagItemInodeMetaMod`. While this could cause redundant
-            // invalidation, it's the way to reliably detect file content changes.
-            // ref other implementation, i.e libuv does same thing to trigger `UV_CHANGES`
-            // https://github.com/libuv/libuv/commit/73cf3600d75a5884b890a1a94048b8f3f9c66876
-            EventKind::Modify(ModifyKind::Data(_) | ModifyKind::Metadata(MetadataKind::Any)) => {
+            EventKind::Modify(ModifyKind::Data(_)) => {
+                for path in paths {
+                    self.mark(path.into_boxed_path(), InvalidationFlags::PATH);
+                }
+                true
+            }
+            // Some backends (fsevents, polling) can report metadata events for file content changes
+            EventKind::Modify(ModifyKind::Metadata(kind)) if self.is_content_change(kind) => {
                 for path in paths {
                     self.mark(path.into_boxed_path(), InvalidationFlags::PATH);
                 }
@@ -898,8 +1016,9 @@ impl InvalidationReasonKind for InvalidateRescanKind {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
+    use std::{fs, time::SystemTime};
 
+    use rstest::rstest;
     use turbo_tasks::TurboTasks;
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
@@ -923,25 +1042,50 @@ mod tests {
         }
     }
 
+    /// Backdates `path`'s mtime so that a [`PollWatcher`] can see the write that follows it to
+    /// avoid mtime truncation issues.
+    fn backdate(path: &Path) {
+        fs::File::options()
+            .write(true)
+            .open(path)
+            .unwrap()
+            .set_modified(SystemTime::now() - Duration::from_secs(10))
+            .unwrap();
+    }
+
+    /// `recursive_mode` is set explicitly rather than left to the platform default so that both
+    /// watching strategies are covered on every host. `TURBO_TASKS_FORCE_WATCH_MODE` still
+    /// overrides it, collapsing these into two cases.
+    #[rstest]
+    #[case::native_recursive(None, DiskWatcherRecursiveMode::Recursive)]
+    #[case::native_non_recursive(None, DiskWatcherRecursiveMode::NonRecursive)]
+    #[case::polling_recursive(Some(Duration::from_millis(20)), DiskWatcherRecursiveMode::Recursive)]
+    #[case::polling_non_recursive(
+        Some(Duration::from_millis(20)),
+        DiskWatcherRecursiveMode::NonRecursive
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn watches_file_and_directory_changes() {
+    async fn watches_file_and_directory_changes(
+        #[case] poll_interval: Option<Duration>,
+        #[case] recursive_mode: DiskWatcherRecursiveMode,
+    ) {
         let tt = TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),
             noop_backing_storage(),
         ));
         tt.run_once(async move {
-            let fs = MockFileSystem::new();
+            let fs = MockFileSystem::new(DiskWatcherConfig {
+                recursive_mode: Some(recursive_mode),
+                poll_interval,
+                report_invalidation_reason: true,
+            });
             let sub_dir = fs.root_path.join("sub");
             let file_path = sub_dir.join("file.txt");
             fs::create_dir(&sub_dir).unwrap();
             fs::write(&file_path, "initial").unwrap();
+            backdate(&file_path);
 
-            DiskWatcher::start_watching(
-                fs.clone(),
-                /* report_invalidation_reason */ true,
-                None,
-            )
-            .await?;
+            DiskWatcher::start_watching(fs.clone()).await?;
 
             // the initial reads register the invalidators that the watcher will later fire
             assert_eq!(fs.tracked_read_strongly_consistent(&file_path).await, 1);

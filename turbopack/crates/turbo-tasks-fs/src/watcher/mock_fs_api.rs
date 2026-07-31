@@ -15,7 +15,7 @@ use turbo_tasks::{
 
 use crate::{
     invalidator_map::InvalidatorMap,
-    watcher::{DiskFileSystemWatcherApi, DiskWatcher},
+    watcher::{DiskFileSystemWatcherApi, DiskWatcher, DiskWatcherConfig},
 };
 
 /// A stand-in for [`DiskFileSystemInner`], carrying only the state [`DiskWatcher`] touches.
@@ -41,13 +41,13 @@ impl TraceRawVcs for MockFsHandle {
 }
 
 impl MockFileSystem {
-    pub fn new() -> Arc<MockFileSystem> {
+    pub fn new(config: DiskWatcherConfig) -> Arc<MockFileSystem> {
         let temp_dir = TempDir::new().unwrap();
         let root_path = canonicalize(temp_dir.path()).unwrap();
         Arc::new_cyclic(|weak| MockFileSystem {
             name: rcstr!("mock"),
             root_path,
-            watcher: DiskWatcher::new(),
+            watcher: DiskWatcher::new(config),
             turbo_tasks: turbo_tasks::turbo_tasks_weak(),
             tokio_handle: Handle::current(),
             invalidator_map: InvalidatorMap::new(),
