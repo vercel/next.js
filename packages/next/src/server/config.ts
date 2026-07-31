@@ -1605,6 +1605,32 @@ function assignDefaultsAndValidate(
     result.experimental.ppr = true
   }
 
+  // `experimental.useCache` is deprecated in favor of the top-level
+  // `cacheComponents` option. A defined value means the user set the option
+  // explicitly, because it's only backfilled from `cacheComponents` below.
+  if (result.experimental.useCache !== undefined) {
+    // Disabling the directive that Cache Components is built around leaves the
+    // app in a state where every `"use cache"` fails to compile with an error
+    // that asks for the already-enabled `cacheComponents` option.
+    if (!result.experimental.useCache && result.cacheComponents) {
+      throw new Error(
+        `\`experimental.useCache\` cannot be disabled when \`cacheComponents\` is enabled, because Cache Components relies on the \`"use cache"\` directive. Please remove it from ${configFileName}.`
+      )
+    }
+
+    if (!silent) {
+      if (result.cacheComponents) {
+        Log.warnOnce(
+          `\`experimental.useCache\` is no longer needed, because \`cacheComponents\` already enables the \`"use cache"\` directive. You can remove it from ${configFileName}.`
+        )
+      } else {
+        Log.warnOnce(
+          `\`experimental.useCache\` is deprecated. Please use the top-level \`cacheComponents\` option instead in ${configFileName}.`
+        )
+      }
+    }
+  }
+
   // "use cache" was originally implicitly enabled with the cacheComponents flag, so
   // we transfer the value for cacheComponents to the explicit useCache flag to ensure
   // backwards compatibility.
