@@ -1,9 +1,9 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { DevToolsConfig } from '../dev-overlay/shared'
 
-import { existsSync } from 'fs'
-import { readFile, writeFile, mkdir } from 'fs/promises'
-import { dirname, join } from 'path'
+import * as fsPromises from 'fs/promises'
+import { randomUUID } from 'crypto'
+import { basename, dirname, join } from 'path'
 
 import { middlewareResponse } from './middleware-response'
 import { devToolsConfigSchema } from '../shared/devtools-config-schema'
@@ -11,6 +11,8 @@ import { deepMerge } from '../shared/deepmerge'
 
 const DEVTOOLS_CONFIG_FILENAME = 'next-devtools-config.json'
 const DEVTOOLS_CONFIG_MIDDLEWARE_ENDPOINT = '/__nextjs_devtools_config'
+const DEVTOOLS_CONFIG_BODY_LIMIT = 64 * 1024
+const configUpdateQueues = new Map<string, Promise<void>>()
 
 export function devToolsConfigMiddleware({
   distDir,
@@ -36,36 +38,63 @@ export function devToolsConfigMiddleware({
       return middlewareResponse.methodNotAllowed(res)
     }
 
-    const currentConfig = await getDevToolsConfig(distDir)
+    const previousUpdate = (
+      configUpdateQueues.get(configPath) ?? Promise.resolve()
+    ).catch(() => {})
+    let releaseUpdate!: () => void
+    const updateCompleted = new Promise<void>((resolve) => {
+      releaseUpdate = resolve
+    })
+    const queueTail = previousUpdate.then(() => updateCompleted)
+    configUpdateQueues.set(configPath, queueTail)
+    void queueTail.then(() => {
+      if (configUpdateQueues.get(configPath) === queueTail) {
+        configUpdateQueues.delete(configPath)
+      }
+    })
 
-    const chunks: Buffer[] = []
-    for await (const chunk of req) {
-      chunks.push(Buffer.from(chunk))
-    }
-
-    let body = Buffer.concat(chunks).toString('utf8')
     try {
-      body = JSON.parse(body)
-    } catch (error) {
-      console.error('[Next.js DevTools] Invalid config body passed:', error)
-      return middlewareResponse.badRequest(res)
-    }
+      const chunks: Buffer[] = []
+      let bodySize = 0
+      for await (const chunk of req) {
+        const buffer = Buffer.from(chunk)
+        bodySize += buffer.byteLength
+        if (bodySize > DEVTOOLS_CONFIG_BODY_LIMIT) {
+          return middlewareResponse.payloadTooLarge(res)
+        }
+        chunks.push(buffer)
+      }
 
-    const validation = devToolsConfigSchema.safeParse(body)
-    if (!validation.success) {
-      console.error(
-        '[Next.js DevTools] Invalid config passed:',
-        validation.error.message
+      let body = Buffer.concat(chunks).toString('utf8')
+      try {
+        body = JSON.parse(body)
+      } catch (error) {
+        console.error('[Next.js DevTools] Invalid config body passed:', error)
+        return middlewareResponse.badRequest(res)
+      }
+
+      const validation = devToolsConfigSchema.safeParse(body)
+      if (!validation.success) {
+        console.error(
+          '[Next.js DevTools] Invalid config passed:',
+          validation.error.message
+        )
+        return middlewareResponse.badRequest(res)
+      }
+
+      await previousUpdate
+      const currentConfig = await getDevToolsConfig(distDir)
+      const newConfig = deepMerge(currentConfig, validation.data)
+      await writeDevToolsConfigAtomically(
+        configPath,
+        JSON.stringify(newConfig, null, 2)
       )
-      return middlewareResponse.badRequest(res)
+      sendUpdateSignal(newConfig)
+
+      return middlewareResponse.noContent(res)
+    } finally {
+      releaseUpdate()
     }
-
-    const newConfig = deepMerge(currentConfig, validation.data)
-    await writeFile(configPath, JSON.stringify(newConfig, null, 2))
-
-    sendUpdateSignal(newConfig)
-
-    return middlewareResponse.noContent(res)
   }
 }
 
@@ -74,11 +103,41 @@ export async function getDevToolsConfig(
 ): Promise<DevToolsConfig> {
   const configPath = join(distDir, 'cache', DEVTOOLS_CONFIG_FILENAME)
 
-  if (!existsSync(configPath)) {
-    await mkdir(dirname(configPath), { recursive: true })
-    await writeFile(configPath, JSON.stringify({}))
-    return {}
+  try {
+    const parsed = JSON.parse(await fsPromises.readFile(configPath, 'utf8'))
+    const validation = devToolsConfigSchema.safeParse(parsed)
+    return validation.success ? validation.data : {}
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      return {}
+    }
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === 'ENOENT'
+    ) {
+      return {}
+    }
+    throw error
   }
+}
 
-  return JSON.parse(await readFile(configPath, 'utf8'))
+async function writeDevToolsConfigAtomically(
+  configPath: string,
+  contents: string
+): Promise<void> {
+  const temporaryPath = join(
+    dirname(configPath),
+    `.${basename(configPath)}.${process.pid}.${randomUUID()}.tmp`
+  )
+
+  try {
+    await fsPromises.mkdir(dirname(configPath), { recursive: true })
+    await fsPromises.writeFile(temporaryPath, contents)
+    await fsPromises.rename(temporaryPath, configPath)
+  } catch (error) {
+    await fsPromises.unlink(temporaryPath).catch(() => {})
+    throw error
+  }
 }

@@ -23,6 +23,10 @@ export const middlewareResponse = {
     res.statusCode = 405
     res.end('Method Not Allowed')
   },
+  payloadTooLarge(res: ServerResponse) {
+    res.statusCode = 413
+    res.end('Payload Too Large')
+  },
   internalServerError(res: ServerResponse, error?: unknown) {
     res.statusCode = 500
     res.setHeader('Content-Type', 'text/plain')
