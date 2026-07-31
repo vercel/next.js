@@ -150,7 +150,7 @@ export function Profile() {
   const userPromise = useUser()
   const user = use(userPromise)
 
-  return '...'
+  return <p>{user.name}</p>
 }
 ```
 
@@ -164,7 +164,7 @@ export function Profile() {
   const userPromise = useUser()
   const user = use(userPromise)
 
-  return '...'
+  return <p>{user.name}</p>
 }
 ```
 
@@ -549,14 +549,13 @@ When you seed a client cache from a Server Component, three cache layers can hol
 
 With Cache Components, React Activity also [preserves recently visited route state](/docs/app/guides/preserving-ui-state). Effects restart when a route becomes visible, so the data-fetching library can apply its normal mount revalidation without adding another cache layer.
 
-You do not have to seed every client query from a Server Component. For browser-driven interactions such as autocomplete, fetch directly from a Client Component. The library caches the result after hydration and a client request. The Route Handler can still call a cached server function, so server seeding and server data caching remain separate choices.
+You do not have to seed every client query from a Server Component. For browser-driven interactions such as autocomplete, fetch directly from a Client Component. The library caches the result after hydration and a client request. The Route Handler can still call a cached server function, so server seeding and server data caching are separate choices.
 
-Seed a client cache from a Server Component when you want the initial data to benefit from server rendering, streaming, and the Next.js cache while still using the library's client-side features. These libraries follow the same shape when server seeding is useful, even though each library's API differs:
+Seed a client cache from a Server Component when you want the initial data to benefit from server rendering, streaming, and the Next.js cache while still using the library's client-side features. When server seeding is useful, keep three responsibilities separate:
 
-- **Optionally seed the client cache from a Server Component**, so the library has first-render data without a client-side waterfall.
-- **Scope data to the segment that owns it**, not a global config, so unrelated keys stay separate.
-- **Define cache identities once**, so server tags, client keys, hydration, and mutations cannot drift apart.
-- **Coordinate the server and client caches on mutation**, updating the client cache for an instant change and refreshing the server data for the next render.
+- **Server Components provide the initial data**, scoped to the segment that owns it.
+- **The data-fetching library owns the browser value**, using a shared cache identity for reads and hydration.
+- **Mutations coordinate both sides**, updating the browser cache immediately and refreshing the server data for the next render.
 
 The cache layers keep independent freshness policies and do not need matching durations. Only their identities and mutation invalidation must stay coordinated, and an optimistic update should restore the previous value if the write fails.
 
@@ -581,7 +580,7 @@ If a Client Component only needs to read server data once, pass a Promise to it 
 Next.js also supports generating a fully [static site](/docs/app/guides/static-exports). This has some advantages over strict SPAs:
 
 - **Automatic code-splitting**: Instead of shipping a single `index.html`, Next.js will generate an HTML file per route, so your visitors get the content faster without waiting for the client JavaScript bundle.
-- **Improved user experience:** Instead of a minimal skeleton for all routes, you get fully rendered pages for each route. When users navigate client side, transitions remain instant and SPA-like.
+- **Improved user experience:** Instead of a minimal skeleton for all routes, you get fully rendered pages for each route. When users navigate client side, transitions are still instant and SPA-like.
 
 To enable a static export, update your configuration:
 

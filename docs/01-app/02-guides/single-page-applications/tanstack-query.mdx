@@ -41,6 +41,7 @@ export function ProductAutocomplete({ query }: { query: string }) {
     enabled: query.length > 0,
   })
 
+  if (!query) return null
   if (error) return <p>Failed to load products.</p>
   if (isPending) return <p>Loading products...</p>
 
@@ -64,16 +65,23 @@ When the server knows which data the first render needs, seed the query cache fr
 
 ### Configure the Query Client provider
 
-Create one `QueryClient` for the browser and provide it from a shared layout:
+Create a new `QueryClient` for each server render and reuse one client in the browser. Provide it from a shared layout:
 
 ```tsx filename="app/query-provider.tsx" switcher
 'use client'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useState } from 'react'
+
+let browserQueryClient: QueryClient | undefined
+
+function getQueryClient() {
+  if (typeof window === 'undefined') return new QueryClient()
+  browserQueryClient ??= new QueryClient()
+  return browserQueryClient
+}
 
 export function QueryProvider({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(() => new QueryClient())
+  const queryClient = getQueryClient()
 
   return (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
@@ -85,10 +93,17 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
 'use client'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useState } from 'react'
+
+let browserQueryClient
+
+function getQueryClient() {
+  if (typeof window === 'undefined') return new QueryClient()
+  browserQueryClient ??= new QueryClient()
+  return browserQueryClient
+}
 
 export function QueryProvider({ children }) {
-  const [queryClient] = useState(() => new QueryClient())
+  const queryClient = getQueryClient()
 
   return (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
@@ -102,14 +117,16 @@ Define the client query key and server cache tag together. They identify the sam
 
 ```ts filename="app/products/[id]/product-cache.ts" switcher
 import { queryOptions } from '@tanstack/react-query'
+
+export type Product = { id: string; name: string }
+
 export const productCache = {
-  type: {} as { id: string; name: string },
   key: (id: string) => ['product', id] as const,
   tag: (id: string) => `product:${id}`,
   options: (id: string) =>
     queryOptions({
       queryKey: productCache.key(id),
-      queryFn: async (): Promise<typeof productCache.type> => {
+      queryFn: async (): Promise<Product> => {
         const res = await fetch(`/api/products/${id}`)
         if (!res.ok) throw new Error('Failed to fetch product')
         return res.json()
@@ -136,7 +153,7 @@ export const productCache = {
 }
 ```
 
-The options live with the key so callers cannot accidentally use a different query identity. The query function fetches a [Route Handler](/docs/app/api-reference/file-conventions/route) so it can run on the client.
+This example keeps the options with the key so callers use the same query identity. Larger features can place query options in a separate client-facing module as long as every caller imports the key from the same cache contract. The query function fetches a [Route Handler](/docs/app/api-reference/file-conventions/route) so it can run on the client.
 
 ### Seed data without Cache Components
 
@@ -272,11 +289,9 @@ Server seeding and server data caching are independent. With [Cache Components](
 
 ```ts filename="app/products/[id]/data.ts" switcher
 import { cacheLife, cacheTag } from 'next/cache'
-import { productCache } from './product-cache'
+import { productCache, type Product } from './product-cache'
 
-export async function getProduct(
-  id: string
-): Promise<typeof productCache.type> {
+export async function getProduct(id: string): Promise<Product> {
   'use cache'
   cacheLife('max')
   cacheTag(productCache.tag(id))

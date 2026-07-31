@@ -199,11 +199,7 @@ Call `preload` before unrelated `await`s so requests begin as early as possible.
 
 Because `cacheData` creates a cache entry, `mutate(key)`, revalidation, and deduplication operate on it like fetched data. The `fallback` option only sets the value returned on first render. Use `preload` when the seeded value is later mutated or revalidated on the client.
 
-### Clear SWR data when identity changes
-
-When the authenticated identity changes while SWR keys stay the same, call `unload({ revalidate: false })` from `useSWRConfig()` before navigating. The scoped `unload` clears the current provider and discards in-flight requests, preventing responses for the previous identity from refilling the cache.
-
-An `unload` imported from `swr` targets the default cache. For partial identity changes, prefer identity-scoped keys or a narrower provider. `unload` requires SWR 2.5.0-beta.1 or later.
+When the authenticated identity changes while SWR keys stay the same, call `unload({ revalidate: false })` from `useSWRConfig()` before navigating. The scoped `unload` clears the current provider and discards in-flight requests. An `unload` imported from `swr` targets the default cache. `unload` requires SWR 2.5.0-beta.1 or later.
 
 Learn more: [SWR with Next.js App Router](https://swr.vercel.app/docs/with-nextjs).
 
