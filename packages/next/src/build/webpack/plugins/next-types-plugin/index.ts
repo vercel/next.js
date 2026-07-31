@@ -71,6 +71,7 @@ checkFields<Diff<{
   }
   config?: {}
   generateStaticParams?: Function
+  generateStaticVariants?: Function
   instant?: InstantConfigForTypeCheckInternal
   prefetch?: Prefetch
   unstable_dynamicStaleTime?: number

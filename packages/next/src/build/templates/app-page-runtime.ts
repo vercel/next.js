@@ -1199,10 +1199,17 @@ export function createAppPageEntrypoint({
                 ? !isDynamicRSCRequest
                 : !isRSCRequest)
             ) {
-              const cacheKey =
+              // A fallback shell is prerendered once per variant combination,
+              // so the shell's own cache key needs the request's combination
+              // folded in as well. Without it every combination resolves to the
+              // same shell and a request is served content prerendered for a
+              // combination other than its own.
+              const cacheKey = getVariantOutputPath(
                 isProduction && typeof prerenderInfo?.fallback === 'string'
                   ? prerenderInfo.fallback
-                  : normalizedSrcPage
+                  : normalizedSrcPage,
+                getRequestMeta(req, 'variants')
+              )
 
               let fallbackRouteParams: OpaqueFallbackRouteParams | null
               if (isProduction) {

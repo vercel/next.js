@@ -137,6 +137,28 @@ describe('variants', () => {
     expect(light('#theme').text()).toBe('light')
   })
 
+  it('should prerender a fallback shell per variant combination', async () => {
+    // `shell/[slug]` declares no static params, so the fallback shell is the
+    // only thing prerendered for it, and reading a variant above the boundary
+    // means that shell can only exist if the combination is known. The param
+    // itself stays a hole and resolves per request.
+    const dark = await next.render$('/shell/anything', undefined, {
+      headers: { cookie: 'theme=dark' },
+    })
+
+    expect(dark('#theme').text()).toBe('dark')
+    // The shell ships the boundary's fallback and the resolved param arrives
+    // after it, so both are present in the streamed HTML.
+    expect(dark('#slug').last().text()).toBe('anything')
+
+    const light = await next.render$('/shell/other', undefined, {
+      headers: { cookie: 'theme=light' },
+    })
+
+    expect(light('#theme').text()).toBe('light')
+    expect(light('#slug').last().text()).toBe('other')
+  })
+
   it('should not decorate a rewrite to another origin', async () => {
     const $ = await next.render$('/external')
 

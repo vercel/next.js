@@ -1,5 +1,4 @@
 import type { NextRequest } from '../web/spec-extension/request'
-import type { Params } from './params'
 
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { throwToInterruptStaticGeneration } from '../app-render/dynamic-rendering'
@@ -158,12 +157,6 @@ export function variant<T extends string = string>(
 }
 
 /**
- * Distinguishes a row produced by `withVariants` from a plain params object, so
- * that `generateStaticParams` can return a mix of both.
- */
-const VARIANT_PARAMS_BRAND = Symbol.for('next.variant.params')
-
-/**
  * Assigns one value to one variant. A tuple of the variant itself rather than
  * its name, because an object key would be a local identifier at the call site:
  * under `import { theme as t }` the framework could not map it back to the
@@ -175,49 +168,30 @@ export type VariantAssignment<T extends string = string> = readonly [
 ]
 
 /**
- * A `generateStaticParams` row that carries variant values in addition to
- * params. The values are normalized to a record keyed by variant identity, the
- * single form that feeds both the URL encoding and the prerender hash.
- */
-export interface VariantParams {
-  readonly [VARIANT_PARAMS_BRAND]: true
-  readonly params: Params
-  readonly variants: Readonly<Record<string, string>>
-}
-
-export function isVariantParams(value: unknown): value is VariantParams {
-  return (
-    typeof value === 'object' && value !== null && VARIANT_PARAMS_BRAND in value
-  )
-}
-
-/**
- * Declares that a route should be prerendered for the given params against the
- * given variant values, by returning the result from `generateStaticParams`.
+ * Normalizes one combination returned from `generateStaticVariants` into the
+ * record keyed by variant identity that feeds both the URL encoding and the
+ * prerender hash.
  *
- * Rows returned without it are prerendered once, with no variant values, and
- * every combination that is never enumerated resolves at request time instead.
- *
- * Assignments are validated here rather than later in the export pipeline so
- * that a bad value throws with a stack anchored at the call site that produced
- * it.
+ * Validated here, where the author's values enter the framework, so that a bad
+ * assignment names the route that declared it rather than failing later in the
+ * export pipeline with nothing to point at.
  */
-export function withVariants(
-  params: Params,
-  variants: Iterable<VariantAssignment>
-): VariantParams {
-  if (!process.env.__NEXT_VARIANTS) {
+export function normalizeVariantAssignments(
+  assignments: unknown,
+  route: string
+): Record<string, string> {
+  if (!Array.isArray(assignments)) {
     throw new Error(
-      'Variants require the `experimental.variants` option to be enabled in your Next.js config.'
+      `\`generateStaticVariants\` for ${route} returned a combination that is not an array. Each combination is a list of \`[variant, value]\` tuples.`
     )
   }
 
   const values: Record<string, string> = {}
 
-  for (const assignment of variants) {
+  for (const assignment of assignments) {
     if (!Array.isArray(assignment) || assignment.length !== 2) {
       throw new Error(
-        '`withVariants()` expects each variant assignment to be a `[variant, value]` tuple.'
+        `\`generateStaticVariants\` for ${route} returned a combination containing something that is not a \`[variant, value]\` tuple.`
       )
     }
 
@@ -225,7 +199,7 @@ export function withVariants(
 
     if (!isVariant(variantReader)) {
       throw new Error(
-        "`withVariants()` expects each assignment to start with a variant. Pass the value exported from a `'use variants'` module, for example `[theme, 'dark']`."
+        `\`generateStaticVariants\` for ${route} assigned a value to something that is not a variant. Use the value exported from a \`'use variants'\` module, for example \`[theme, 'dark']\`.`
       )
     }
 
@@ -233,14 +207,14 @@ export function withVariants(
 
     if (key in values) {
       throw new Error(
-        `\`withVariants()\` received the variant \`${key}\` more than once. A variant can only be assigned one value per prerendered combination.`
+        `\`generateStaticVariants\` for ${route} assigned the variant \`${key}\` more than once in one combination. A variant can only take one value per combination.`
       )
     }
 
     values[key] = assertValidVariantValue(key, value, 'assignment')
   }
 
-  return { [VARIANT_PARAMS_BRAND]: true, params, variants: values }
+  return values
 }
 
 /**

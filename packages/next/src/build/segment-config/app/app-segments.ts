@@ -1,4 +1,5 @@
 import type { Params } from '../../../server/request/params'
+import type { VariantAssignment } from '../../../server/request/variants'
 import type { AppPageRouteModule } from '../../../server/route-modules/app-page/module.compiled'
 import type { AppRouteRouteModule } from '../../../server/route-modules/app-route/module.compiled'
 import {
@@ -20,6 +21,18 @@ import {
 import type { DynamicParamTypes } from '../../../shared/lib/app-router-types'
 
 type GenerateStaticParams = (options: { params?: Params }) => Promise<Params[]>
+
+/**
+ * Declares the variant combinations a route should be prerendered against.
+ *
+ * Takes no arguments, deliberately: a combination applies to the whole route,
+ * including its fallback shell, which exists precisely where no params are
+ * known. Letting it depend on params would put it out of reach of the one
+ * output that needs it most.
+ */
+type GenerateStaticVariants = () =>
+  | Promise<readonly VariantAssignment[][]>
+  | readonly VariantAssignment[][]
 
 /**
  * Parses the app config and attaches it to the segment.
@@ -61,6 +74,20 @@ function attach(segment: AppSegment, userland: unknown, route: string) {
       )
     }
   }
+
+  if (
+    'generateStaticVariants' in userland &&
+    typeof userland.generateStaticVariants === 'function'
+  ) {
+    segment.generateStaticVariants =
+      userland.generateStaticVariants as GenerateStaticVariants
+
+    if (segment.config?.runtime === 'edge') {
+      throw new Error(
+        'Edge runtime is not supported with `generateStaticVariants`.'
+      )
+    }
+  }
 }
 
 export type AppSegment = {
@@ -70,6 +97,7 @@ export type AppSegment = {
   filePath: string | undefined
   config: AppSegmentConfig | undefined
   generateStaticParams: GenerateStaticParams | undefined
+  generateStaticVariants: GenerateStaticVariants | undefined
   createEmptyParamsError?: () => Error
 }
 
@@ -104,6 +132,7 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
       filePath,
       config: undefined,
       generateStaticParams: undefined,
+      generateStaticVariants: undefined,
     }
 
     // Only server components can have app segment configurations
@@ -165,6 +194,7 @@ async function collectAppRouteSegments(
       filePath: undefined,
       config: undefined,
       generateStaticParams: undefined,
+      generateStaticVariants: undefined,
     } satisfies AppSegment
   })
 
