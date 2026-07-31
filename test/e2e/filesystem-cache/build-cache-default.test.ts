@@ -3,9 +3,9 @@ import fs from 'fs/promises'
 import path from 'path'
 
 // `experimental.turbopackFileSystemCacheForBuild` is enabled by default, except
-// in non-Vercel CI environments (`isCI && !NOW_BUILDER`) where the cache is
-// unlikely to persist between builds. It can always be disabled explicitly with
-// `turbopackFileSystemCacheForBuild: false`.
+// in CI environments that haven't opted in (`isCI && !NOW_BUILDER`), where the
+// cache is unlikely to persist between builds. It can always be disabled
+// explicitly with `turbopackFileSystemCacheForBuild: false`.
 //
 // This is a Turbopack + build (start) mode test. It runs `next build` with a
 // controlled environment (the default depends on ambient `isCI`/`NOW_BUILDER`,
@@ -15,9 +15,9 @@ import path from 'path'
 // `next/dist/compiled/ci-info` computes
 //   isCI = !!(CI || CONTINUOUS_INTEGRATION || BUILD_NUMBER || RUN_ID || <vendor>)
 // so clearing those signals forces a non-CI environment, and setting `CI=1`
-// (with `NOW_BUILDER` unset) forces a non-Vercel CI environment.
+// (with `NOW_BUILDER` unset) forces a CI environment that hasn't opted in.
 ;(process.env.IS_TURBOPACK_TEST && isNextStart ? describe : describe.skip)(
-  'turbopack-fs-cache-build-default',
+  'filesystem-cache build default',
   () => {
     const { next, skipped } = nextTestSetup({
       files: __dirname,
@@ -38,6 +38,10 @@ import path from 'path'
       RUN_ID: '',
       GITHUB_ACTIONS: '',
       NOW_BUILDER: '',
+      // Persist even a tiny snapshot so the assertion doesn't depend on the
+      // minimum-compilation-time threshold.
+      TURBO_ENGINE_IGNORE_DIRTY: '1',
+      TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS: '0',
     }
 
     function cachePath() {
@@ -72,6 +76,8 @@ import path from 'path'
       })
     }
 
+    // The shared fixture's next.config.js sets the flag explicitly from
+    // `ENABLE_CACHING`; overwrite it so we exercise the *default* instead.
     async function setConfig(experimental: Record<string, unknown> = {}) {
       await next.patchFile(
         'next.config.js',
@@ -80,7 +86,6 @@ import path from 'path'
     }
 
     afterEach(async () => {
-      // Restore the default (empty) config for the next test.
       await setConfig()
     })
 
@@ -88,15 +93,7 @@ import path from 'path'
       await cleanBuildOutput()
       await setConfig()
 
-      const { exitCode } = await next.build({
-        env: {
-          ...NON_CI_ENV,
-          // Persist even a tiny snapshot so the assertion doesn't depend on
-          // the minimum-compilation-time threshold.
-          TURBO_ENGINE_IGNORE_DIRTY: '1',
-          TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS: '0',
-        },
-      })
+      const { exitCode } = await next.build({ env: NON_CI_ENV })
       expect(exitCode).toBe(0)
 
       expect(await getCacheSize()).toBeGreaterThan(0)
@@ -106,30 +103,19 @@ import path from 'path'
       await cleanBuildOutput()
       await setConfig({ turbopackFileSystemCacheForBuild: false })
 
-      const { exitCode } = await next.build({
-        env: {
-          ...NON_CI_ENV,
-          TURBO_ENGINE_IGNORE_DIRTY: '1',
-          TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS: '0',
-        },
-      })
+      const { exitCode } = await next.build({ env: NON_CI_ENV })
       expect(exitCode).toBe(0)
 
       expect(await getCacheSize()).toBe(0)
     })
 
-    it('writes nothing by default in non-Vercel CI', async () => {
+    it('writes nothing by default in CI that has not opted in', async () => {
       await cleanBuildOutput()
       await setConfig()
 
       const { exitCode } = await next.build({
-        env: {
-          ...NON_CI_ENV,
-          // Force a non-Vercel CI environment: `isCI` true, `NOW_BUILDER` unset.
-          CI: '1',
-          TURBO_ENGINE_IGNORE_DIRTY: '1',
-          TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS: '0',
-        },
+        // Force a CI environment that hasn't opted in: `isCI` true, `NOW_BUILDER` unset.
+        env: { ...NON_CI_ENV, CI: '1' },
       })
       expect(exitCode).toBe(0)
 

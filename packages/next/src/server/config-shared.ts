@@ -2240,13 +2240,9 @@ export const defaultConfig = Object.freeze({
 } satisfies NextConfig)
 
 function turbopackFileSystemCacheForBuildDefault() {
-  // Enabled by default, except in non-Vercel CI environments where the cache
-  // is unlikely to persist between builds (on Vercel, indicated by
-  // `NOW_BUILDER`, caching is available).
-  if (isCI && !process.env.NOW_BUILDER) {
-    return false
-  }
-  return true
+  // Disable in most CI environments, because we don't know if the cache will persist across builds.
+  // Providers: Override the default behavior using `modifyConfig` in your adapter.
+  return !isCI || Boolean(process.env.NOW_BUILDER)
 }
 
 export async function normalizeConfig(phase: string, config: any) {
