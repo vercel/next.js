@@ -759,15 +759,24 @@ describe('server-hmr route activity', () => {
       await browser.loadPage(`${next.url}/route-activity`)
       await waitForRedbox(browser)
       await next.patchFile(routeFile, (content) =>
-        content.replace(
-          'export default function Page(',
-          'export default function Page()'
-        )
+        content
+          .replace(
+            'export default function Page(',
+            'export default function Page()'
+          )
+          .replace('inactive local update', 'recovered route')
       )
+      // The request retry owns the catch-up left behind by the failed compile.
+      // Its first response must wait for the recovery update to reach the runtime.
+      const firstRecoveryResponse = await next.fetch('/route-activity')
+      expect(firstRecoveryResponse.status).toBe(200)
+      const firstRecoveryHtml = await firstRecoveryResponse.text()
+      expect(firstRecoveryHtml).toContain('recovered route')
+      expect(firstRecoveryHtml).toContain('inactive route update')
       await retry(async () => {
         expect(
           await browser.elementByCss('#route-activity-greeting').text()
-        ).toBe('inactive local update: inactive route update')
+        ).toBe('recovered route: inactive route update')
       }, 10_000)
 
       // Deleting a retired route must prune its emitted output mappings and frozen
@@ -783,9 +792,16 @@ describe('server-hmr route activity', () => {
       // must rebuild from the current files and install a fresh HMR subscription
       // rather than reviving the deleted output snapshot.
       await next.patchFile(routeFile, originalRouteSource)
+      let firstReaddedRouteHtml: string | undefined
       await retry(async () => {
-        expect((await next.fetch('/route-activity')).status).toBe(200)
+        const response = await next.fetch('/route-activity')
+        expect(response.status).toBe(200)
+        firstReaddedRouteHtml = await response.text()
       }, 10_000)
+      // Assert outside retry so a stale first successful response cannot be hidden
+      // by a later request after the aggregate HMR update has caught up.
+      expect(firstReaddedRouteHtml).toContain('route activity page')
+      expect(firstReaddedRouteHtml).toContain('inactive route update')
       await browser.loadPage(`${next.url}/route-activity`)
       expect(
         await browser.elementByCss('#route-activity-greeting').text()

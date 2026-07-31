@@ -376,11 +376,12 @@ impl DiskFileSystemInner {
     }
 
     /// Invalidates tracked files/directories for `paths` and their children.
-    /// Also invalidates tracked directory reads for all parent directories to
-    /// account for file creations/deletions under the deferred subtree.
+    /// Optionally invalidates tracked directory reads for all parent directories
+    /// to account for file creations/deletions under a subtree.
     fn invalidate_path_and_children_with_reason<R: InvalidationReason + Clone>(
         &self,
         paths: impl IntoIterator<Item = PathBuf>,
+        invalidate_parent_dirs: bool,
         reason: impl Fn(&Path) -> R + Sync,
     ) {
         let _span =
@@ -396,10 +397,12 @@ impl DiskFileSystemInner {
         let mut parent_dirs_to_invalidate = FxHashSet::default();
 
         for path in paths {
-            let mut current_parent = path.parent();
-            while let Some(parent) = current_parent {
-                parent_dirs_to_invalidate.insert(parent.to_path_buf());
-                current_parent = parent.parent();
+            if invalidate_parent_dirs {
+                let mut current_parent = path.parent();
+                while let Some(parent) = current_parent {
+                    parent_dirs_to_invalidate.insert(parent.to_path_buf());
+                    current_parent = parent.parent();
+                }
             }
 
             for (invalidated_path, path_invalidators) in
@@ -504,7 +507,18 @@ impl DiskFileSystem {
         reason: impl Fn(&Path) -> R + Sync,
     ) {
         self.inner
-            .invalidate_path_and_children_with_reason(paths, reason);
+            .invalidate_path_and_children_with_reason(paths, true, reason);
+    }
+
+    /// Invalidates tracked reads at `paths` without invalidating directory reads
+    /// for their ancestors. Use this when discovery has already observed the path.
+    pub fn invalidate_path_with_reason<R: InvalidationReason + Clone>(
+        &self,
+        paths: impl IntoIterator<Item = PathBuf>,
+        reason: impl Fn(&Path) -> R + Sync,
+    ) {
+        self.inner
+            .invalidate_path_and_children_with_reason(paths, false, reason);
     }
 
     pub async fn start_watching(&self, poll_interval: Option<Duration>) -> Result<()> {

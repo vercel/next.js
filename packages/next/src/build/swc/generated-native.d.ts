@@ -341,8 +341,10 @@ export declare function projectSetHmrChunksActive(
   project: { __napiType: 'Project' },
   chunkNames: Array<RcStr>,
   target: string,
-  active: boolean
-): Promise<void>
+  active: boolean,
+  reactivationSourcePaths?: Array<RcStr> | undefined | null,
+  advanceReactivationEpoch?: boolean | undefined | null
+): Promise<number>
 export declare function projectRemoveHmrChunks(
   project: { __napiType: 'Project' },
   chunkNames: Array<RcStr>,

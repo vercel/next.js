@@ -40,7 +40,7 @@ use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Completions, FxIndexMap, NonLocalValue, OperationValue, OperationVc, ReadRef,
-    ResolvedVc, State, TransientInstance, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    ResolvedVc, State, TraitRef, TransientInstance, TryFlatJoinIterExt, TryJoinIterExt, Vc,
     debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
@@ -209,6 +209,13 @@ impl std::str::FromStr for HmrTarget {
             )),
         }
     }
+}
+
+/// Extracts the route-reactivation acknowledgement carried by an aggregate HMR version.
+pub async fn aggregate_hmr_reactivation_epoch(
+    version: TraitRef<Box<dyn Version>>,
+) -> Result<Option<u32>> {
+    AggregateHmrVersion::reactivation_epoch_from_version(version).await
 }
 
 /// Pre-converted route keys from debug build paths for O(1) lookups.
@@ -820,7 +827,9 @@ impl ProjectContainer {
         chunk_names: Vec<RcStr>,
         target: HmrTarget,
         active: bool,
-    ) -> Result<()> {
+        reactivation_source_paths: Vec<RcStr>,
+        advance_reactivation_epoch: bool,
+    ) -> Result<u32> {
         let project_op = project_operation(self);
         let project = project_op.resolve().strongly_consistent().await?;
         let project_ref = project_op.read_strongly_consistent().await?;
@@ -830,20 +839,36 @@ impl ProjectContainer {
         let root = project_hmr_root_path_operation(project, target)
             .read_strongly_consistent()
             .await?;
-        let project_fs = project_fs_operation(project)
-            .read_strongly_consistent()
-            .await?;
+        let project_fs_op = project_fs_operation(project);
+        let project_fs_vc = project_fs_op.resolve().strongly_consistent().await?;
+        let project_fs = project_fs_op.read_strongly_consistent().await?;
         let paths = chunk_names
             .into_iter()
             .map(|chunk_name| root.join(&chunk_name))
+            .collect::<Result<Vec<_>>>()?;
+        let reactivation_source_paths = reactivation_source_paths
+            .into_iter()
+            .map(|path| {
+                project_fs
+                    .try_from_sys_path(project_fs_vc, Path::new(path.as_str()), None)
+                    .map(|path| project_fs.to_sys_path_raw(&path))
+                    .with_context(|| {
+                        format!("source path is outside the project filesystem: {path}")
+                    })
+            })
             .collect::<Result<Vec<_>>>()?;
 
         versioned_content_map_operation(map)
             .read_strongly_consistent()
             .await?
-            .set_hmr_chunks_active(paths, active, &project_fs)
-            .await?;
-        Ok(())
+            .set_hmr_chunks_active(
+                paths,
+                active,
+                &project_fs,
+                reactivation_source_paths,
+                advance_reactivation_epoch,
+            )
+            .await
     }
 
     /// Permanently removes output entry chunks for routes deleted during a dev
@@ -2721,15 +2746,16 @@ impl Project {
         let root = self.aggregate_hmr_root_path(target).owned().await?;
         let chunk_snapshot = map.hmr_chunks_in_path(&root).await?;
 
-        // No chunks to diff yet (e.g. before any endpoints have been written).
-        if chunk_snapshot.active.is_empty() {
-            return Ok(Update::None.cell());
-        }
-
-        // Build `to` up front so we can return it on every escape hatch below.
+        // Build `to` up front so even an empty active set can carry a route
+        // reactivation acknowledgement to the server runtime.
+        let from_reactivation_epoch =
+            AggregateHmrVersion::reactivation_epoch_from_state(from).await?;
+        let reactivation_epoch_changed =
+            from_reactivation_epoch != Some(chunk_snapshot.reactivation_epoch);
         let to_aggregate = AggregateHmrVersion::from_chunks_with_previous(
             &chunk_snapshot.active,
             &chunk_snapshot.inactive_paths,
+            chunk_snapshot.reactivation_epoch,
             from,
         )
         .await?;
@@ -2765,7 +2791,7 @@ impl Project {
             }
         }
 
-        if builder.is_empty() && !has_new_chunks {
+        if builder.is_empty() && !has_new_chunks && !reactivation_epoch_changed {
             return Ok(Update::None.cell());
         }
 

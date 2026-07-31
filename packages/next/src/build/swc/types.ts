@@ -343,8 +343,10 @@ export interface Project {
   setHmrChunksActive(
     chunkNames: string[],
     target: import('./index').HmrTarget.Server,
-    active: boolean
-  ): Promise<void>
+    active: boolean,
+    reactivationSourcePaths?: string[],
+    advanceReactivationEpoch?: boolean
+  ): Promise<number>
 
   removeHmrChunks(
     chunkNames: string[],

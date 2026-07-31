@@ -1,5 +1,6 @@
 use std::{
     borrow::Cow,
+    collections::BTreeMap,
     fs::{canonicalize, create_dir_all},
     io::Write,
     path::{Path, PathBuf},
@@ -27,7 +28,7 @@ use next_api::{
     },
     project::{
         DebugBuildPaths, DefineEnv, DraftModeOptions, HmrTarget, PartialProjectOptions, Project,
-        ProjectContainer, ProjectOptions, WatchOptions,
+        ProjectContainer, ProjectOptions, WatchOptions, aggregate_hmr_reactivation_epoch,
     },
     project_asset_hashes_manifest::immutable_hashes_manifest_asset_if_enabled,
     route::{Endpoint, EndpointGroupKey, Route},
@@ -766,7 +767,9 @@ pub async fn project_set_hmr_chunks_active(
     chunk_names: Vec<RcStr>,
     target: String,
     active: bool,
-) -> napi::Result<()> {
+    reactivation_source_paths: Option<Vec<RcStr>>,
+    advance_reactivation_epoch: Option<bool>,
+) -> napi::Result<u32> {
     let hmr_target = target
         .parse::<HmrTarget>()
         .map_err(napi::Error::from_reason)?;
@@ -776,7 +779,13 @@ pub async fn project_set_hmr_chunks_active(
     ctx.turbo_tasks()
         .run(async move {
             container
-                .set_hmr_chunks_active(chunk_names, hmr_target, active)
+                .set_hmr_chunks_active(
+                    chunk_names,
+                    hmr_target,
+                    active,
+                    reactivation_source_paths.unwrap_or_default(),
+                    advance_reactivation_epoch.unwrap_or_default(),
+                )
                 .await
         })
         .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
@@ -1979,19 +1988,23 @@ pub fn project_all_hmr_events(
             unmark_top_level_task_may_leak_eventually_consistent_state();
 
             let HmrUpdateWithIssues { update, issues, .. } = &*read;
-            match &**update {
-                Update::Missing | Update::None => {}
+            let reactivation_epoch = match &**update {
+                Update::Missing | Update::None => None,
                 Update::Total(TotalUpdate { to }) => {
+                    let epoch = aggregate_hmr_reactivation_epoch(to.clone()).await?;
                     state.set(to.clone()).await?;
+                    epoch
                 }
                 Update::Partial(PartialUpdate { to, .. }) => {
+                    let epoch = aggregate_hmr_reactivation_epoch(to.clone()).await?;
                     state.set(to.clone()).await?;
+                    epoch
                 }
-            }
-            Ok((Some(update.clone()), issues.clone()))
+            };
+            Ok((Some(update.clone()), issues.clone(), reactivation_epoch))
         },
         move |ctx| {
-            let (update, issues) = ctx.value;
+            let (update, issues, reactivation_epoch) = ctx.value;
 
             let napi_issues = issues
                 .iter()
@@ -2004,7 +2017,12 @@ pub fn project_all_hmr_events(
 
             let identifier = ResourceIdentifier {
                 path: identifier_path.clone(),
-                headers: None,
+                headers: reactivation_epoch.map(|epoch| {
+                    BTreeMap::from([(
+                        rcstr!("x-next-hmr-reactivation-epoch"),
+                        RcStr::from(epoch.to_string()),
+                    )])
+                }),
             };
             let update = match update.as_deref() {
                 None | Some(Update::Missing) | Some(Update::Total(_)) => {

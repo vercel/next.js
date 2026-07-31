@@ -1,4 +1,6 @@
-use anyhow::Result;
+use std::path::PathBuf;
+
+use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use next_core::emit_assets;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -116,6 +118,8 @@ unsafe impl OperationValue for InactiveOutputOperations {}
 pub struct HmrChunkSnapshot {
     pub active: Vec<HmrChunkWithContent>,
     pub inactive_paths: FxHashSet<RcStr>,
+    /// Monotonic acknowledgement token for aggregate-HMR route reactivation.
+    pub reactivation_epoch: u32,
 }
 
 // TODO: Ideally this structure is never persisted, so new sessions start from scratch and don't
@@ -137,6 +141,9 @@ pub struct VersionedContentMap {
     /// changes do not invalidate or rebuild the aggregate subscription until the
     /// entry becomes active again.
     inactive_hmr_paths: State<InactiveHmrPaths>,
+    /// Advances after a route rejoins the aggregate HMR working set. The token is
+    /// carried by the aggregate version so JS can wait for that exact transition.
+    reactivation_epoch: State<u32>,
 }
 
 impl VersionedContentMap {
@@ -149,6 +156,7 @@ impl VersionedContentMap {
             inactive_output_operations: State::new(InactiveOutputOperations::default()),
             removed_hmr_paths: State::new(InactiveHmrPaths::default()),
             inactive_hmr_paths: State::new(InactiveHmrPaths::default()),
+            reactivation_epoch: State::new(0),
         }
         .resolved_cell()
     }
@@ -174,7 +182,11 @@ impl VersionedContentMap {
         // awaits below, so snapshot the keys and release it. Keep the inactive
         // paths from the same snapshot: only those paths may retain their prior
         // aggregate version when absent from the active chunks below.
-        let (paths, inactive_paths): (Vec<FileSystemPath>, FxHashSet<RcStr>) = {
+        let (paths, inactive_paths, reactivation_epoch): (
+            Vec<FileSystemPath>,
+            FxHashSet<RcStr>,
+            u32,
+        ) = {
             let map = &this.map_path_to_op.get().0;
             let inactive_hmr_paths = &this.inactive_hmr_paths.get().0;
             let removed_hmr_paths = &this.removed_hmr_paths.get().0;
@@ -189,6 +201,7 @@ impl VersionedContentMap {
                     .iter()
                     .filter_map(|path| root.get_path_to(path).map(RcStr::from))
                     .collect(),
+                *this.reactivation_epoch.get(),
             )
         };
 
@@ -227,6 +240,7 @@ impl VersionedContentMap {
         Ok(HmrChunkSnapshot {
             active: chunks,
             inactive_paths,
+            reactivation_epoch,
         })
     }
 
@@ -244,7 +258,12 @@ impl VersionedContentMap {
         paths: impl IntoIterator<Item = FileSystemPath>,
         active: bool,
         project_fs: &DiskFileSystem,
-    ) -> Result<()> {
+        reactivation_source_paths: Vec<PathBuf>,
+        advance_reactivation_epoch: bool,
+    ) -> Result<u32> {
+        if advance_reactivation_epoch && !active {
+            bail!("cannot acknowledge an inactive HMR chunk");
+        }
         let paths = paths.into_iter().collect::<Vec<_>>();
         let operations = {
             let map = &self.map_path_to_op.get().0;
@@ -263,6 +282,9 @@ impl VersionedContentMap {
                 let removed = self.removed_hmr_paths.get_untracked();
                 paths.iter().any(|path| removed.0.contains(path))
             };
+            if was_removed && reactivation_source_paths.is_empty() {
+                bail!("re-adding an HMR chunk requires its source path");
+            }
             let reactivated = {
                 let inactive = self.inactive_output_operations.get_untracked();
                 operations
@@ -287,10 +309,15 @@ impl VersionedContentMap {
             });
             // Deleted routes need conservative catch-up because Turbopack may
             // reuse the disconnected operation when the same file is added again.
+            // Invalidate only the re-added source file. Route discovery already
+            // observed the file before this call, so invalidating ancestor directory
+            // reads here would needlessly invalidate unrelated route graphs.
             // Ordinary inactive routes never disconnect their output graph.
             if was_removed {
-                project_fs.invalidate_with_reason(|path| invalidation::Initialize {
-                    path: RcStr::from(path.to_string_lossy()),
+                project_fs.invalidate_path_with_reason(reactivation_source_paths, |path| {
+                    invalidation::Initialize {
+                        path: RcStr::from(path.to_string_lossy()),
+                    }
                 });
             }
             // Reconnect and strongly read removed output graphs after catch-up.
@@ -323,6 +350,12 @@ impl VersionedContentMap {
                     }
                     changed
                 });
+            if advance_reactivation_epoch {
+                let mut epoch = self.reactivation_epoch.get_untracked();
+                *epoch = epoch
+                    .checked_add(1)
+                    .expect("HMR reactivation epoch overflow");
+            }
         } else {
             // Keep the endpoint output operations connected so source changes
             // continue to invalidate them while the route is inactive. Omitting
@@ -337,7 +370,7 @@ impl VersionedContentMap {
                     changed
                 });
         }
-        Ok(())
+        Ok(*self.reactivation_epoch.get_untracked())
     }
 
     /// Removes deleted routes from aggregate HMR versions and drops their

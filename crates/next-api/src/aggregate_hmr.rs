@@ -33,6 +33,8 @@ pub fn is_entry_chunk_list_content(content: ResolvedVc<Box<dyn VersionedContent>
 pub struct AggregateHmrVersion {
     #[turbo_tasks(trace_ignore)]
     pub versions: FxIndexMap<RcStr, TraitRef<Box<dyn Version>>>,
+    /// Monotonic token identifying the active-route aggregate transition.
+    pub reactivation_epoch: u32,
 }
 
 #[turbo_tasks::value_impl]
@@ -54,6 +56,7 @@ impl Version for AggregateHmrVersion {
             .await?;
 
         let mut hasher = Xxh3Hash64Hasher::new();
+        hasher.write_value(self.reactivation_epoch);
         hasher.write_value(entries.len());
         for (path, id) in entries {
             hasher.write_value(path.as_str());
@@ -71,15 +74,24 @@ impl AggregateHmrVersion {
         // An empty `versions` map behaves the same as `NotFoundVersion` would in
         // `diff_chunks_against`, so no special case is needed here.
         let snapshot = map.hmr_chunks_in_path(root).await?;
-        Ok(Vc::upcast(Self::from_chunks(&snapshot.active).await?))
+        Ok(Vc::upcast(
+            Self::from_chunks(&snapshot.active, snapshot.reactivation_epoch).await?,
+        ))
     }
 
-    pub async fn from_chunks(chunks: &[HmrChunkWithContent]) -> Result<Vc<Self>> {
+    pub async fn from_chunks(
+        chunks: &[HmrChunkWithContent],
+        reactivation_epoch: u32,
+    ) -> Result<Vc<Self>> {
         let versions = Self::versions_from_chunks(chunks)
             .await?
             .into_iter()
             .collect();
-        Ok(Self { versions }.cell())
+        Ok(Self {
+            versions,
+            reactivation_epoch,
+        }
+        .cell())
     }
 
     /// Builds the next aggregate version while retaining the last version of
@@ -89,6 +101,7 @@ impl AggregateHmrVersion {
     pub async fn from_chunks_with_previous(
         chunks: &[HmrChunkWithContent],
         inactive_paths: &FxHashSet<RcStr>,
+        reactivation_epoch: u32,
         previous: Vc<VersionState>,
     ) -> Result<Vc<Self>> {
         let mut versions = Self::versions_from_chunks(chunks).await?;
@@ -110,8 +123,27 @@ impl AggregateHmrVersion {
         versions.sort_by(|(a, _), (b, _)| a.cmp(b));
         Ok(Self {
             versions: versions.into_iter().collect(),
+            reactivation_epoch,
         }
         .cell())
+    }
+
+    pub async fn reactivation_epoch_from_state(state: Vc<VersionState>) -> Result<Option<u32>> {
+        let version = state.get().to_resolved().await?;
+        let Some(version) = ResolvedVc::try_downcast_type::<AggregateHmrVersion>(version) else {
+            return Ok(None);
+        };
+        Ok(Some(version.await?.reactivation_epoch))
+    }
+
+    pub async fn reactivation_epoch_from_version(
+        version: TraitRef<Box<dyn Version>>,
+    ) -> Result<Option<u32>> {
+        let version = TraitRef::cell(version).to_resolved().await?;
+        let Some(version) = ResolvedVc::try_downcast_type::<AggregateHmrVersion>(version) else {
+            return Ok(None);
+        };
+        Ok(Some(version.await?.reactivation_epoch))
     }
 
     async fn versions_from_chunks(
