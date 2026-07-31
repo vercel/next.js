@@ -28,7 +28,7 @@ Use inline loading states when the component should stay rendered while it fetch
 
 For browser-driven interactions such as autocomplete, you can use either client-only pattern. The initial result waits for hydration and a browser request, which is often the right tradeoff for data that is not needed until an interaction.
 
-Seed the client cache from a Server Component when the server knows what the initial render needs. The library receives that value in the React Server Component payload and can continue managing it in the browser.
+Seed the client cache from a [Server Component](/docs/app/getting-started/server-and-client-components) when the server knows what the initial render needs. The library receives that value in the React Server Component payload and can continue managing it in the browser.
 
 If a Client Component only needs to read server data once, pass it a Promise and unwrap it with React's [`use()`](https://react.dev/reference/react/use). This avoids adding a data-fetching library for data that never revalidates on the client.
 
