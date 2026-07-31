@@ -26,9 +26,10 @@ export type TraceRange = {
 type UnnestedTraceItem = Omit<TraceItem, 'depth'>
 
 const FETCH_SPAN_TYPE = 'AppRender.fetch'
+const MIDDLEWARE_SPAN_TYPE = 'Middleware.execute'
 const DEFAULT_VISIBLE_SPAN_TYPES = new Set([
   'BaseServer.handleRequest',
-  'Middleware.execute',
+  MIDDLEWARE_SPAN_TYPE,
   'NextNodeServer.matchRoute',
   'DevRouteMatcherManager.ensureRoute',
   'DevRouteMatcherManager.reloadMatchers',
@@ -351,6 +352,13 @@ function getSpanLabel(span: RequestInsightSpan): string {
   const displayName = name
     .replace(FIZZ_WORD, 'HTML')
     .replace(FLIGHT_WORD, 'RSC')
+
+  if (span.attributes?.['next.span_type'] === MIDDLEWARE_SPAN_TYPE) {
+    const method = span.attributes['http.method']
+    return typeof method === 'string' && method.length > 0
+      ? `proxy ${method}`
+      : displayName.replace(/^middleware\b/i, 'proxy')
+  }
 
   if (displayName === 'resolve segment modules') {
     return 'resolve segment'
