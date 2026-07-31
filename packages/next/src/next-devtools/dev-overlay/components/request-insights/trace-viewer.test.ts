@@ -199,6 +199,31 @@ describe('request insights trace viewer', () => {
     ])
   })
 
+  it('uses Proxy terminology without changing the recorded OTel span', () => {
+    const middlewareSpan = {
+      name: 'middleware POST',
+      startTime: 100,
+      durationMs: 10,
+      attributes: {
+        'http.method': 'POST',
+        'next.span_name': 'middleware POST',
+        'next.span_type': 'Middleware.execute',
+      },
+    }
+    const request = createRequest({ spans: [middlewareSpan] })
+
+    expect(getTraceItems(request, false)[0]?.label).toBe('proxy POST')
+    expect(middlewareSpan).toEqual(
+      expect.objectContaining({
+        name: 'middleware POST',
+        attributes: expect.objectContaining({
+          'next.span_name': 'middleware POST',
+          'next.span_type': 'Middleware.execute',
+        }),
+      })
+    )
+  })
+
   it('orders spans by their recorded parent-child hierarchy', () => {
     const request = createRequest({
       spans: [
