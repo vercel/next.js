@@ -830,6 +830,9 @@ impl ProjectContainer {
         let root = project_hmr_root_path_operation(project, target)
             .read_strongly_consistent()
             .await?;
+        let project_fs = project_fs_operation(project)
+            .read_strongly_consistent()
+            .await?;
         let paths = chunk_names
             .into_iter()
             .map(|chunk_name| root.join(&chunk_name))
@@ -838,7 +841,7 @@ impl ProjectContainer {
         versioned_content_map_operation(map)
             .read_strongly_consistent()
             .await?
-            .set_hmr_chunks_active(paths, active)
+            .set_hmr_chunks_active(paths, active, &project_fs)
             .await?;
         Ok(())
     }

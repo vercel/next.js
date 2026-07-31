@@ -7,7 +7,7 @@ use turbo_tasks::{
     FxIndexSet, NonLocalValue, OperationValue, OperationVc, ResolvedVc, State, TryFlatJoinIterExt,
     TryJoinIterExt, Vc, debug::ValueDebugFormat, trace::TraceRawVcs, turbobail,
 };
-use turbo_tasks_fs::{FileContent, FileSystemPath};
+use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystemPath, invalidation};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     output::{ExpandedOutputAssets, OptionOutputAsset, OutputAsset},
@@ -239,6 +239,7 @@ impl VersionedContentMap {
         &self,
         paths: impl IntoIterator<Item = FileSystemPath>,
         active: bool,
+        project_fs: &DiskFileSystem,
     ) -> Result<()> {
         let paths = paths.into_iter().collect::<Vec<_>>();
         let operations = {
@@ -273,9 +274,16 @@ impl VersionedContentMap {
                 }
                 changed
             });
-            // Retirement materializes each compute entry before disconnecting,
-            // so a strongly-consistent read is sufficient to catch up only the
-            // operations being reactivated.
+            // A file may change while this operation is disconnected, when its
+            // filesystem invalidator is not live. Reconnect first, then
+            // invalidate the tracked project reads once so the strong read below
+            // cannot reuse a clean-but-stale graph. This cost is paid only when
+            // an inactive route is requested again, not by unrelated edits.
+            if !reactivated.is_empty() {
+                project_fs.invalidate_with_reason(|path| invalidation::Initialize {
+                    path: RcStr::from(path.to_string_lossy()),
+                });
+            }
             for &(_, compute_entry) in &reactivated {
                 compute_entry.read_strongly_consistent().await?;
             }
