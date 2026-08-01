@@ -366,7 +366,7 @@ The server function can then call `cacheTag(productCache.tag(id))`. Keep this co
 
 ## Coordinate server and client caches after mutations
 
-The examples above seed the client cache from the server. After hydration, TanStack Query owns the browser copy and its revalidation. For reused data, keep the query key and server tag in the same cache contract:
+Server seeding provides the initial client cache value. After hydration, TanStack Query owns the browser copy and its revalidation. For reused data, keep the query key and server tag in the same cache contract:
 
 ```ts filename="app/activity/activity-cache.ts" switcher
 export const activityCache = {
@@ -482,7 +482,7 @@ The optimistic query value updates the current screen. The `{ expire: 0 }` optio
 
 ## Build a prerenderable hydration state
 
-The seeding example above uses TanStack Query's `dehydrate()` to create the hydration state. With Cache Components, `dehydrate()` reads the current time (`Date.now()`) while prerendering and causes a [current-time prerender error](/docs/messages/blocking-prerender-current-time).
+The server-seeded TanStack Query pattern uses `dehydrate()` to create the hydration state. With Cache Components, `dehydrate()` reads the current time (`Date.now()`) while prerendering and causes a [current-time prerender error](/docs/messages/blocking-prerender-current-time).
 
 Instead, cache only that timestamp and build the dehydrated state by hand. Wrap the time read in [`use cache`](/docs/app/api-reference/directives/use-cache) with the same tags as the data reads. When a mutation invalidates those tags, the data and its timestamp advance together, so `<HydrationBoundary>` overwrites the client query on the next navigation:
 
@@ -581,7 +581,7 @@ export async function dehydrate(queries, options) {
 }
 ```
 
-Await the helper in the segment that owns the data, passing the data and the same tags used on the underlying `getProduct` read. Hand the result to `<HydrationBoundary>`, the same `ProductData` boundary shown above:
+Await the helper in the segment that owns the data, passing the data and the same tags used on the underlying `getProduct` read. Hand the result to `<HydrationBoundary>` inside `ProductData`:
 
 ```tsx filename="app/products/[id]/page.tsx" switcher
 import { dehydrate } from '@/app/lib/hydrate'
@@ -623,6 +623,6 @@ async function ProductData({ id }) {
 }
 ```
 
-> **Good to know:** The timestamp must advance whenever the seeded data advances. The helper above suits tag-driven server data because both use the same tags. For time-driven server data, derive the data and hydration timestamp from the same cached snapshot instead of maintaining unrelated time windows.
+> **Good to know:** The timestamp must advance whenever the seeded data advances. The helper suits tag-driven server data because both use the same tags. For time-driven server data, derive the data and hydration timestamp from the same cached snapshot instead of maintaining unrelated time windows.
 
 See the [live `next-spa-patterns` demo](https://next-spa-patterns.labs.vercel.dev/react-query) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/react-query). Learn more about [TanStack Query optimistic updates](https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates) and the [TanStack Query documentation](https://tanstack.com/query/latest/docs/framework/react/overview).

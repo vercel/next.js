@@ -67,10 +67,10 @@ An optimistic update should restore the previous browser value if the write fail
 
 After a mutation, invalidate any cached server read that produced the seed:
 
-| Method                              | Use when                             | Next server read                     |
-| ----------------------------------- | ------------------------------------ | ------------------------------------ |
-| `revalidateTag(tag, 'max')`         | Stale data can be served temporarily | Serves stale data while revalidating |
-| `revalidateTag(tag, { expire: 0 })` | The next read must return fresh data | Waits for fresh data                 |
+| Method                              | Use when                                          | Next server read                     |
+| ----------------------------------- | ------------------------------------------------- | ------------------------------------ |
+| `revalidateTag(tag, 'max')`         | The update is passive or stale data is acceptable | Serves stale data while revalidating |
+| `revalidateTag(tag, { expire: 0 })` | The next read must reflect the update             | Waits for fresh data                 |
 
 In a Server Action, use [`updateTag`](/docs/app/api-reference/functions/updateTag) when the current request must read its own writes. Call [`router.refresh()`](/docs/app/api-reference/functions/use-router) when the current route should request a new React Server Component payload immediately.
 

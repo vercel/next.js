@@ -190,7 +190,7 @@ export const productCache = {
 }
 ```
 
-The Suspense boundary contains the route parameters:
+Resolve the route parameters inside the Suspense boundary:
 
 ```tsx
 <Suspense fallback={<p>Loading...</p>}>
@@ -294,7 +294,7 @@ The server function can then call `cacheTag(productCache.tag(id))`. Keep this co
 
 ## Coordinate server and client caches after mutations
 
-The examples above seed the client cache from the server. After hydration, SWR owns the browser copy and its revalidation. For reused data, keep the SWR key and server tag in the same cache contract:
+Server seeding provides the initial client cache value. After hydration, SWR owns the browser copy and its revalidation. For reused data, keep the SWR key and server tag in the same cache contract:
 
 ```ts filename="app/activity/activity-cache.ts" switcher
 export const activityCache = {
