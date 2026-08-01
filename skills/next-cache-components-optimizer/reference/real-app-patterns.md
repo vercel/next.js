@@ -17,15 +17,24 @@ Instant validation treats every parallel-route slot below the shared layout as a
   └ @header   → default.tsx → null                  ← free
 ```
 
-## Client-rendered slot routing is not part of the soft-navigation re-render
+See: [Parallel Routes](https://nextjs.org/docs/app/api-reference/file-conventions/parallel-routes)
+and [what instant means](https://nextjs.org/docs/app/guides/instant-navigation#what-instant-means).
 
-A common pattern: a stable shared layout renders `@header`/`@sidebar` through a **client** component that swaps slot content based on `usePathname()`. On a soft navigation, Next.js only re-renders the **server** segments that changed below the shared layout; a client-component subtree is not part of that re-render. So that navigation UI neither blocks the navigation nor needs a server `<Suspense>` for it; only the server segments that actually change (e.g. `@content`) matter. It does participate in an initial load (see the caveat below).
+## Confirm which slots the navigation changes
+
+Parallel and intercepted routes can make the changed segment set difficult to
+infer from the filesystem. Use `test-template.md` to drive the real link
+interaction, then optimize only the slots that participate in that navigation.
 
 ## "Instant" is not "useful shell": the empty-shell failure mode
 
 Validation checks that a dynamic read is **guarded by a boundary**, not that the fallback is non-empty. A `<Suspense>` with no `fallback` (or `fallback={null}`) passes validation and commits instantly, but renders a **blank** shell. If a layout and its page both `await getSession()` (your auth library's request-time read) at the top under one empty-fallback boundary, the whole frame collapses to nothing while the user waits. "Validates as instant" and "good loading experience" are different goals.
 
-> Give every boundary a real loading skeleton, and place it low so the most real content stays in the shell. A `fallback={null}` directly above `<body>` is a deliberate empty-shell opt-out; an empty fallback lower in the tree is almost always a bug.
+Use meaningful loading UI for visual data regions and place boundaries low so
+more real content stays in the shell. Keep `fallback={null}` only when the
+deferred component intentionally has no visual output.
+
+See: [Iterate on loading states](https://nextjs.org/docs/app/guides/instant-navigation#iterate-on-loading-states).
 
 ## The responsive-skeleton mismatch: the shell must match every breakpoint
 
@@ -37,52 +46,40 @@ The fix is the same push-down as everywhere else: **share the real responsive la
 
 (Same hoist rule, responsive layout included.) Verify the shell at both desktop and mobile widths against the real render at the same width.
 
-## Deferring an auth gate / top-level `await` in a layout
+See: [`loading.tsx`](https://nextjs.org/docs/app/api-reference/file-conventions/loading).
 
-A top-level `await` in a layout blocks everything below it (the most common blocker; see [Runtime data during prerendering](https://nextjs.org/docs/messages/blocking-prerender-runtime)). Auth gates are the most common real instance:
+## Authorization gates: preserve the security boundary
 
-```tsx
-// ❌ Before: the await + redirect at the top blocks the whole settings frame
-export default async function SettingsLayout({ children }) {
-  const session = await getSession() // your auth library's request-time read; suspends during prerender → frame can't build
-  if (!session?.user) redirect(getLoginUrl())
-  return <Shell>{children}</Shell>
-}
-```
+Authorization belongs close to
+the data source, commonly in a Data Access Layer, and Server Actions need their
+own checks.
 
-```tsx
-// ✅ After: render children unconditionally; move the gate into a Suspense child
-import { Suspense } from 'react'
+Isolate presentation reads such as a user menu. Do not render protected
+children unconditionally merely to grow the shell. If authorization genuinely
+controls the whole subtree and no safe public shell exists, use the insight's
+blocking-route option and record that product/security decision.
 
-export default function SettingsLayout({ children }) {
-  return (
-    <Shell>
-      <Suspense fallback={null}>
-        <AuthGate />
-      </Suspense>
-      {children}
-    </Shell>
-  )
-}
-
-async function AuthGate() {
-  const session = await getSession() // the session read suspends during prerender…
-  if (!session?.user) redirect(getLoginUrl()) // …so redirect() never runs at build time
-  return null
-}
-```
-
-The shell prerenders as if authorized (the session read suspends before `redirect()` is reached, so the redirect only happens at request time), and `{children}` is now in the shell instead of behind the gate. (`fallback={null}` is correct here: `AuthGate` renders nothing on success.)
+See: [Authorization](https://nextjs.org/docs/app/guides/authentication#authorization)
+and [runtime data](https://nextjs.org/docs/messages/blocking-prerender-runtime).
 
 ## Initial-load shell vs soft-navigation shell
 
-The `test-template.md` specs drive a `<Link>` click for soft navigations and `page.goto()` for initial loads. The two shells can differ for the same route:
+The `test-template.md` specs drive a `<Link>` click for soft navigations and
+`page.goto()` for initial loads. The two shells can differ for the same route:
 
 > **The initial-load shell can show less than the soft-navigation shell when a layout above the shared boundary awaits un-enumerated `params`/`searchParams`.** An initial load re-runs every layout from the root; if a parent layout does `await props.params` and that segment has no `generateStaticParams`, the param suspends on the initial load and its whole subtree drops out of the shell. A soft navigation does not re-render that parent and already has the params. Symptom: an element present after a `<Link>` click is missing after `goto`.
 
-To assert the soft-navigation shell, drive a real `<Link>` click (through menus if necessary). Use `page.goto()` inside `instant()` to assert the initial-load shell, or when no parent above the shared boundary awaits un-enumerated params, in which case the two coincide.
+To assert the soft-navigation shell, drive a real `<Link>` click (through menus if necessary). Use `page.goto()` inside `instant()` to assert the initial-load shell, or when no parent above the shared boundary awaits un-enumerated params, in which case the two coincide. Test shape: `test-template.md`.
+
+See: [What instant means](https://nextjs.org/docs/app/guides/instant-navigation#what-instant-means).
 
 ## Edge cases
 
-- **A `React.cache` (or custom memoization) wrapper around `cookies()`/`headers()` still suspends.** Memoizing the call does not make it shell-safe: the underlying request read still returns a pending promise during prerender. Only the **`use cache`** directive, keyed on static or param inputs, puts data in the shell.
-- **Playwright cannot see a `display: contents` or fragment fallback.** Such a fallback reads as hidden, so `instant()` assertions cannot `toBeVisible()` it. Give fallbacks a real wrapper element with a `data-testid`.
+- **A memoization wrapper does not change a runtime read into static data.**
+  Use the [runtime-data insight](https://nextjs.org/docs/messages/blocking-prerender-runtime)
+  for `cookies()` or `headers()` rather than treating memoization as the fix.
+- **Visibility assertions need a visible element.** Playwright's
+  [visibility definition](https://playwright.dev/docs/actionability#visible)
+  excludes elements without a rendered box. Give a fragment or
+  `display: contents` fallback a real wrapper and stable `data-testid` when it
+  is the shell marker.

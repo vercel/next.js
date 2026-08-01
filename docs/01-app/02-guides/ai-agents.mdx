@@ -156,9 +156,15 @@ The `Learn more` link resolves to a per-error page under [`/docs/messages`](http
 
 Framework knowledge comes from the bundled docs, not from skills. [Benchmark results](https://nextjs.org/evals) show that always-available context outperforms on-demand retrieval. Skills cover the tasks that are workflows rather than lookups, such as adopting Cache Components or Partial Prefetching across an app. [Next.js skills](https://www.skills.sh/vercel/next.js) package these as structured instructions an agent installs and follows, sequencing the work and pointing at the relevant docs and [runtime tooling](#step-2-give-agents-runtime-visibility) at each step.
 
+The skills serve three different workflow types:
+
+- **Runtime foundations** such as `next-dev-loop` give any coding task a repeatable inspect, edit, and verify cycle.
+- **Adoption skills** are user-facing migrations tied to framework docs and development insights. They explain app-wide behavior changes, work through surfaced issues, and show the user the result.
+- **Optimizer skills** are unattended, test-driven loops. After the user sets the product goal, they use `instant()` to verify and guard the result.
+
 ### `next-dev-loop`
 
-The [`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop) skill verifies a change actually works at runtime against a running dev server, combining the [MCP server](/docs/app/guides/mcp)'s view with the browser's.
+The [`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop) runtime foundation verifies each change against a running dev server using the [MCP server](/docs/app/guides/mcp) and browser.
 
 ```bash filename="Terminal"
 npx skills add vercel/next.js --skill next-dev-loop
@@ -172,7 +178,7 @@ After every edit, verify the page still works at runtime using the next-dev-loop
 
 ### `next-cache-components-adoption`
 
-The [`next-cache-components-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-adoption) skill turns on [Cache Components](/docs/app/getting-started/caching) and walks the app to a passing build, resolving each blocking route the flag surfaces.
+The [`next-cache-components-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-adoption) adoption skill turns on [Cache Components](/docs/app/getting-started/caching) and resolves each blocking route until the app builds.
 
 ```bash filename="Terminal"
 npx skills add vercel/next.js --skill next-cache-components-adoption
@@ -186,7 +192,7 @@ Adopt Cache Components in this project using the next-cache-components-adoption 
 
 ### `next-cache-components-optimizer`
 
-The [`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer) skill drives a route to instant navigation with a failing `@next/playwright` `instant()` test worked to green, then shipped as a regression guard.
+The [`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer) optimizer maximizes the meaningful UI available on an exact navigation and guards it with an `@next/playwright` `instant()` test.
 
 ```bash filename="Terminal"
 npx skills add vercel/next.js --skill next-cache-components-optimizer
@@ -200,7 +206,7 @@ Make the navigation from the dashboard to settings instant using the next-cache-
 
 ### `next-partial-prefetching-adoption`
 
-The [`next-partial-prefetching-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-adoption) skill turns on [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) and works through the insights it surfaces until every link reuses a shared App Shell.
+The [`next-partial-prefetching-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-adoption) adoption skill turns on [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) and resolves its insights until every link reuses a shared App Shell.
 
 ```bash filename="Terminal"
 npx skills add vercel/next.js --skill next-partial-prefetching-adoption
@@ -210,4 +216,18 @@ Then give the agent this prompt:
 
 ```prompt
 Adopt Partial Prefetching in this project using the next-partial-prefetching-adoption skill.
+```
+
+### `next-partial-prefetching-optimizer` (experimental)
+
+The experimental [`next-partial-prefetching-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-optimizer) optimizer selects per-link UI and cost, then optimizes the exact `<Link>` navigation and guards it with an `@next/playwright` `instant()` test.
+
+```bash filename="Terminal"
+npx skills add vercel/next.js --skill next-partial-prefetching-optimizer
+```
+
+Then give the agent this prompt:
+
+```prompt
+Optimize Partial Prefetching in this project using the next-partial-prefetching-optimizer skill.
 ```
