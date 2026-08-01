@@ -1,22 +1,23 @@
 ---
 title: How to fetch client-side data with SWR
 nav_title: SWR
-description: Fetch client-side data with SWR, optionally seed it from a Server Component, and coordinate server and client caches.
+description: Fetch client-side data with SWR, optionally provide initial data from a Server Component, and coordinate server and client caches.
 related:
   description: Related guides and references.
   links:
     - app/getting-started/fetching-data
+    - app/guides/single-page-applications
     - app/getting-started/caching
     - app/api-reference/directives/use-cache
     - app/api-reference/file-conventions/route
     - app/api-reference/functions/revalidateTag
 ---
 
-Use [SWR](https://swr.vercel.app) to fetch data in Client Components, seed its cache from Server Components, and coordinate browser mutations with cached server data. See [Client-side data fetching](/docs/app/guides/client-side-data-fetching) to choose a pattern.
+Use [SWR](https://swr.vercel.app) to fetch data in Client Components, provide initial data from Server Components, and coordinate browser mutations with cached server data. See [Client-side data fetching](/docs/app/guides/client-side-data-fetching) to choose a pattern.
 
 ## Fetch data on the client
 
-SWR can fetch entirely in the browser when the server-rendered response does not need the result. As described in [Choose a client fetching pattern](/docs/app/guides/client-side-data-fetching#choose-a-client-fetching-pattern), the component can render its own loading state or let a Suspense boundary handle it. Both work well for data whose input is only known after an interaction, such as autocomplete.
+SWR can fetch entirely in the browser when the server-rendered response does not need the result. Choose an [inline or Suspense loading state](/docs/app/guides/client-side-data-fetching#choose-a-client-fetching-pattern) based on which UI should remain visible. In these examples, `query` starts empty and updates from client state after hydration.
 
 Use `useSWR` when the component should render its own loading and error states. A conditional key delays the request until the interaction provides an input:
 
@@ -47,7 +48,13 @@ export function ProductAutocomplete({ query }: { query: string }) {
   if (error) return <p>Failed to load products.</p>
   if (isLoading) return <p>Loading products...</p>
 
-  return data.map((product) => <p key={product.id}>{product.name}</p>)
+  return (
+    <ul>
+      {data.map((product) => (
+        <li key={product.id}>{product.name}</li>
+      ))}
+    </ul>
+  )
 }
 ```
 
@@ -86,8 +93,6 @@ function ProductResults({ query }: { query: string }) {
     { suspense: true }
   )
 
-  if (!data) return null
-
   return (
     <ul>
       {data.map((product) => (
@@ -98,6 +103,8 @@ function ProductResults({ query }: { query: string }) {
 }
 ```
 
+With an unconditional key, SWR defines `data` after Suspense resolves. Handle request errors with the nearest [error boundary](/docs/app/getting-started/error-handling#nested-error-boundaries).
+
 The `isLoading` value is `true` when a request is running and there is no loaded data to display. The `isValidating` value is `true` whenever a request is running, including background revalidation. With `suspense: true`, Suspense handles the no-data loading state, while `isValidating` can still provide background refresh feedback. Learn more about [SWR loading states](https://swr.vercel.app/docs/advanced/understanding#combining-with-isloading-and-isvalidating-for-better-ux).
 
 Learn more: [SWR data fetching](https://swr.vercel.app/docs/data-fetching).
@@ -106,7 +113,7 @@ Learn more: [SWR data fetching](https://swr.vercel.app/docs/data-fetching).
 
 ## Seed data from a Server Component
 
-Use the [server-seeded pattern](/docs/app/guides/client-side-data-fetching#choose-a-client-fetching-pattern) when the initial render needs the data and SWR should continue managing it in the browser. With SWR 2.3.0 and React 19, a Server Component can seed the SWR cache before the client takes over.
+Use the [server-seeded pattern](/docs/app/guides/client-side-data-fetching#choose-a-client-fetching-pattern) when the initial render needs the data and SWR should continue managing it in the browser. With SWR 2.3.0 and React 19, a Server Component can provide fallback data before the client takes over.
 
 Scope `<SWRConfig>` to the route segment that owns the data. The provider keeps the `fallback` close to its consumer and avoids adding feature data to a shared layout:
 
@@ -176,7 +183,7 @@ function ProductData({ id }) {
 }
 ```
 
-The server seed and Client Component must use the same SWR key. Define the key once so both call sites share the same identity:
+The fallback and Client Component must use the same SWR key. Define the key once so both call sites share the same identity:
 
 ```ts filename="app/products/[id]/product-cache.ts" switcher
 export const productCache = {
@@ -192,7 +199,7 @@ export const productCache = {
 
 Resolve the route parameters inside the Suspense boundary:
 
-```tsx
+```tsx filename="app/products/[id]/page.tsx"
 <Suspense fallback={<p>Loading...</p>}>
   {params.then(({ id }) => (
     <ProductData id={id} />
@@ -210,12 +217,16 @@ The Client Component reads the data with `useSWR` using the same key:
 import useSWR from 'swr'
 import { productCache } from './product-cache'
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json())
+type Product = { id: string; name: string }
+
+async function fetcher(url: string): Promise<Product> {
+  const response = await fetch(url)
+  if (!response.ok) throw new Error('Failed to fetch product')
+  return response.json()
+}
 
 export function ProductView({ id }: { id: string }) {
   const { data } = useSWR(productCache.key(id), fetcher, { suspense: true })
-
-  if (!data) return null
 
   return <h1>{data.name}</h1>
 }
@@ -227,12 +238,14 @@ export function ProductView({ id }: { id: string }) {
 import useSWR from 'swr'
 import { productCache } from './product-cache'
 
-const fetcher = (url) => fetch(url).then((res) => res.json())
+async function fetcher(url) {
+  const response = await fetch(url)
+  if (!response.ok) throw new Error('Failed to fetch product')
+  return response.json()
+}
 
 export function ProductView({ id }) {
   const { data } = useSWR(productCache.key(id), fetcher, { suspense: true })
-
-  if (!data) return null
 
   return <h1>{data.name}</h1>
 }
@@ -240,7 +253,9 @@ export function ProductView({ id }) {
 
 > **Good to know:** The `fallback` key and the `useSWR` key must match exactly. If they drift, SWR ignores the seeded value and fetches on the client.
 
-The SWR key points to a [Route Handler](/docs/app/api-reference/file-conventions/route) with a `GET` method. The Route Handler can call the same `getProduct` function that seeds the cache, while the browser uses the URL for revalidation and polling.
+The `fallback` provides the hook's initial value without populating SWR's browser cache. A later fetch or mutation for the same key updates the browser cache.
+
+The SWR key points to a [Route Handler](/docs/app/api-reference/file-conventions/route) with a `GET` method. The Route Handler can call the same `getProduct` function that provides the fallback, while the browser uses the URL for revalidation and polling.
 
 Learn more: [SWR arguments and keys](https://swr.vercel.app/docs/arguments) and [SWR with Next.js App Router](https://swr.vercel.app/docs/with-nextjs).
 
@@ -250,6 +265,7 @@ Enable [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheCo
 
 ```ts filename="app/products/[id]/data.ts" switcher
 import { cacheLife, cacheTag } from 'next/cache'
+
 export async function getProduct(id: string) {
   'use cache'
   cacheLife('max')
@@ -261,6 +277,7 @@ export async function getProduct(id: string) {
 
 ```js filename="app/products/[id]/data.js" switcher
 import { cacheLife, cacheTag } from 'next/cache'
+
 export async function getProduct(id) {
   'use cache'
   cacheLife('max')
@@ -294,7 +311,7 @@ The server function can then call `cacheTag(productCache.tag(id))`. Keep this co
 
 ## Coordinate server and client caches after mutations
 
-Server seeding provides the initial client cache value. After hydration, SWR owns the browser copy and its revalidation. For reused data, keep the SWR key and server tag in the same cache contract:
+The fallback provides the initial value. After hydration, SWR manages the browser cache and revalidation. For reused data, keep the SWR key and server tag in the same cache contract:
 
 ```ts filename="app/activity/activity-cache.ts" switcher
 export const activityCache = {
@@ -310,7 +327,7 @@ export const activityCache = {
 }
 ```
 
-Use the same key for the server seed, the Client Component read, and the mutation. With SWR, pass the write to [`mutate`](https://swr.vercel.app/docs/mutation) and provide `optimisticData`. SWR shows the optimistic value immediately, replaces it with the response, and rolls it back if the write fails:
+Use the same key for the fallback, the Client Component read, and the mutation. With SWR, pass the write to [`mutate`](https://swr.vercel.app/docs/mutation) and provide `optimisticData`. SWR shows the optimistic value immediately, replaces it with the response, and rolls it back if the write fails:
 
 ```tsx filename="app/activity/mark-read.tsx" switcher
 'use client'
@@ -364,7 +381,7 @@ export function useMarkActivityRead() {
 }
 ```
 
-The Route Handler writes to the database and revalidates the tagged server data with `revalidateTag`. Tag the cached server query with [`cacheTag`](/docs/app/api-reference/functions/cacheTag) so the tag matches:
+The Route Handler writes to the database and revalidates the tagged server data with [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag). Tag the cached server query with [`cacheTag`](/docs/app/api-reference/functions/cacheTag) so the tag matches:
 
 ```ts filename="app/api/activity/read/route.ts" switcher
 import { revalidateTag } from 'next/cache'

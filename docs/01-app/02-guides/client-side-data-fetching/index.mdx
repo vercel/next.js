@@ -1,6 +1,6 @@
 ---
 title: Client-side data fetching
-description: Fetch data in Client Components with a data-fetching library, optionally seed its cache from a Server Component, and coordinate server and client caches.
+description: Fetch data in Client Components with a data-fetching library, optionally provide initial data from a Server Component, and coordinate server and client caches.
 related:
   description: Related guides and references.
   links:
@@ -22,17 +22,17 @@ Client data-fetching libraries support three common patterns:
 | ----------------------- | ------------------------------ | --------------------- | ---------------------------------------------- |
 | Inline loading states   | `useSWR`                       | `useQuery`            | Fetched in the browser after hydration         |
 | Suspense loading states | `useSWR` with `suspense: true` | `useSuspenseQuery`    | Fetched in the browser after hydration         |
-| Seeded from the server  | `<SWRConfig fallback>`         | `<HydrationBoundary>` | Included in the React Server Component payload |
+| Provided by the server  | `<SWRConfig fallback>`         | `<HydrationBoundary>` | Included in the React Server Component payload |
 
 Use inline loading states when the component should stay rendered while it fetches, or when several independent queries in one component should start together. Use [Suspense](/docs/app/getting-started/fetching-data#streaming) when the surrounding UI has a suitable fallback and [error boundary](/docs/app/getting-started/error-handling#nested-error-boundaries).
 
 For browser-driven interactions such as autocomplete, you can use either client-only pattern. The initial result waits for hydration and a browser request, which is often the right tradeoff for data that is not needed until an interaction.
 
-Seed the client cache from a [Server Component](/docs/app/getting-started/server-and-client-components) when the server knows what the initial render needs. The library receives that value in the React Server Component payload and can continue managing it in the browser.
+Provide initial data from a [Server Component](/docs/app/getting-started/server-and-client-components) when the server knows what the initial render needs. The library receives that value in the React Server Component payload and can continue managing it in the browser.
 
 Choose a pattern based on whether the Client Component needs server-rendered data, streaming, or client-side cache features:
 
-| Capability            | Client library      | Server Component    | Server seed + client library |
+| Capability            | Client-only library | Server Component    | Server data + client library |
 | --------------------- | ------------------- | ------------------- | ---------------------------- |
 | Server-rendered data  | <Cross size={18} /> | <Check size={18} /> | <Check size={18} />          |
 | Streaming             | <Cross size={18} /> | <Check size={18} /> | <Check size={18} />          |
@@ -43,13 +43,13 @@ If a Client Component only needs to read server data once, pass it a Promise and
 
 ## Cache server data with Cache Components (optional)
 
-You can also cache the server data used for the initial seed. Server seeding and server caching are independent choices. Add Cache Components when the server read or rendered view should be reused. When both are enabled, three cache layers can hold related data:
+Providing initial data and caching it on the server are independent choices. Add Cache Components when the server read or rendered view should be reused. When both are enabled, three cache layers can hold related data:
 
-| Layer                        | What it stores                                                    | Freshness control                                                                               |
-| ---------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Next.js server cache         | Cached data and Server Component output                           | `cacheLife` [`revalidate`](/docs/app/api-reference/functions/cacheLife#revalidate) and `expire` |
-| Next.js client cache         | React Server Component payloads for visited and prefetched routes | `cacheLife` [`stale`](/docs/app/api-reference/functions/cacheLife#stale)                        |
-| Client data-fetching library | Browser data stored under an SWR key or TanStack query key        | The library's revalidation options and mutations                                                |
+| Layer                        | What it stores                                                    | Freshness control                                                                    |
+| ---------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Next.js server cache         | Cached data and Server Component output                           | [`cacheLife`](/docs/app/api-reference/functions/cacheLife) `revalidate` and `expire` |
+| Next.js client cache         | React Server Component payloads for visited and prefetched routes | [`cacheLife`](/docs/app/api-reference/functions/cacheLife) `stale`                   |
+| Client data-fetching library | Browser data stored under an SWR key or TanStack query key        | The library's revalidation options and mutations                                     |
 
 Next.js [prefetching](/docs/app/guides/prefetching) can place the next route's server-rendered view in the client cache before navigation.
 
@@ -65,13 +65,13 @@ Server Components, data-fetching libraries, and mutations manage different parts
 
 An optimistic update should restore the previous browser value if the write fails. If the server read is not cached, there is no server tag to invalidate.
 
-After a mutation, invalidate any cached server read that produced the seed:
+After a mutation, invalidate any cached server read that provided the initial data:
 
-| Method                                                                                 | Use when                                          | Next server read                     |
-| -------------------------------------------------------------------------------------- | ------------------------------------------------- | ------------------------------------ |
-| [`updateTag(tag)`](/docs/app/api-reference/functions/updateTag)                        | A Server Action must read its own write           | Waits for fresh data                 |
-| [`revalidateTag(tag, 'max')`](/docs/app/api-reference/functions/revalidateTag)         | The update is passive or stale data is acceptable | Serves stale data while revalidating |
-| [`revalidateTag(tag, { expire: 0 })`](/docs/app/api-reference/functions/revalidateTag) | The next read must reflect the update             | Waits for fresh data                 |
+| Method                                                                                 | Use when                                            | Next server read                     |
+| -------------------------------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------ |
+| [`updateTag(tag)`](/docs/app/api-reference/functions/updateTag)                        | A Server Action's next read must reflect its write  | Waits for fresh data                 |
+| [`revalidateTag(tag, 'max')`](/docs/app/api-reference/functions/revalidateTag)         | The update is passive or stale data is acceptable   | Serves stale data while revalidating |
+| [`revalidateTag(tag, { expire: 0 })`](/docs/app/api-reference/functions/revalidateTag) | A Route Handler must expire cached data immediately | Waits for fresh data                 |
 
 ## Apply these patterns with SWR or TanStack Query
 

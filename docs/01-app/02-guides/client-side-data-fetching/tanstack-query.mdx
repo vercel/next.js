@@ -1,17 +1,19 @@
 ---
 title: How to fetch client-side data with TanStack Query
 nav_title: TanStack Query
-description: Fetch client-side data with TanStack Query, optionally seed it from a Server Component, and coordinate server and client caches.
+description: Fetch client-side data with TanStack Query, optionally provide initial data from a Server Component, and coordinate server and client caches.
 related:
   description: Related guides and references.
   links:
     - app/getting-started/fetching-data
+    - app/guides/single-page-applications
     - app/getting-started/caching
     - app/api-reference/directives/use-cache
+    - app/api-reference/file-conventions/route
     - app/api-reference/functions/revalidateTag
 ---
 
-Use [TanStack Query](https://tanstack.com/query) to fetch data in Client Components, seed its cache from Server Components, and coordinate browser mutations with cached server data. See [Client-side data fetching](/docs/app/guides/client-side-data-fetching) to choose a pattern.
+Use [TanStack Query](https://tanstack.com/query) to fetch data in Client Components, provide initial data from Server Components, and coordinate browser mutations with cached server data. See [Client-side data fetching](/docs/app/guides/client-side-data-fetching) to choose a pattern.
 
 ## Set up the provider
 
@@ -55,7 +57,7 @@ See the [complete provider setup in the demo source](https://github.com/vercel-l
 
 ## Fetch data on the client
 
-TanStack Query can fetch entirely in the browser when the server-rendered response does not need the result. As described in [Choose a client fetching pattern](/docs/app/guides/client-side-data-fetching#choose-a-client-fetching-pattern), the component can render its own loading state or let a Suspense boundary handle it.
+TanStack Query can fetch entirely in the browser when the server-rendered response does not need the result. Choose an [inline or Suspense loading state](/docs/app/guides/client-side-data-fetching#choose-a-client-fetching-pattern) based on which UI should remain visible. In these examples, `query` starts empty and updates from client state after hydration.
 
 Use `useQuery` when the component should render its own loading and error states. The `enabled` option delays the request until the interaction provides an input:
 
@@ -110,7 +112,16 @@ Use `useSuspenseQuery` when the nearest Suspense boundary should own the loading
 
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { Suspense } from 'react'
-import { searchProducts } from './products'
+
+type Product = { id: string; name: string }
+
+async function searchProducts(query: string): Promise<Product[]> {
+  const response = await fetch(
+    `/api/products?query=${encodeURIComponent(query)}`
+  )
+  if (!response.ok) throw new Error('Failed to fetch products')
+  return response.json()
+}
 
 export function ProductAutocomplete({ query }: { query: string }) {
   if (!query) return null
@@ -128,9 +139,17 @@ function ProductResults({ query }: { query: string }) {
     queryFn: () => searchProducts(query),
   })
 
-  return data.map((product) => <p key={product.id}>{product.name}</p>)
+  return (
+    <ul>
+      {data.map((product) => (
+        <li key={product.id}>{product.name}</li>
+      ))}
+    </ul>
+  )
 }
 ```
+
+If the initial request fails, `useSuspenseQuery` propagates the error to the nearest [error boundary](/docs/app/getting-started/error-handling#nested-error-boundaries).
 
 Suspense queries work well when the request starts after a client interaction. If the initial server render needs the data, seed the query as shown below.
 
@@ -140,7 +159,7 @@ Suspense queries work well when the request starts after a client interaction. I
 
 Use the [server-seeded pattern](/docs/app/guides/client-side-data-fetching#choose-a-client-fetching-pattern) when the initial render needs the data and TanStack Query should continue managing it in the browser. A Server Component can seed the query cache before the client takes over.
 
-A Server Component can start `prefetchQuery` without awaiting it, serialize the pending query as dehydrated state, and pass that state to `<HydrationBoundary>`. On the server, override `queryFn` to call the data function directly because the Route Handler's relative URL only resolves in the browser:
+TanStack Query 5.40.0 or later can dehydrate pending queries. Start `prefetchQuery` without awaiting it, then pass the dehydrated state to `<HydrationBoundary>`. Override `queryFn` on the server because the Route Handler's relative URL only resolves in the browser:
 
 ```tsx filename="app/products/[id]/page.tsx" switcher
 import { Suspense } from 'react'
@@ -325,6 +344,7 @@ export async function getProduct(id: string): Promise<Product> {
 
 ```js filename="app/products/[id]/data.js" switcher
 import { cacheLife, cacheTag } from 'next/cache'
+
 export async function getProduct(id) {
   'use cache'
   cacheLife('max')
@@ -448,7 +468,7 @@ export function useMarkActivityRead() {
 }
 ```
 
-The Route Handler writes to the database and revalidates the tagged server data with `revalidateTag`. Tag the cached server query with [`cacheTag`](/docs/app/api-reference/functions/cacheTag) so the tag matches:
+The Route Handler writes to the database and revalidates the tagged server data with [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag). Tag the cached server query with [`cacheTag`](/docs/app/api-reference/functions/cacheTag) so the tag matches:
 
 ```ts filename="app/api/activity/read/route.ts" switcher
 import { revalidateTag } from 'next/cache'
@@ -584,9 +604,11 @@ export async function dehydrate(queries, options) {
 Await the helper in the segment that owns the data, passing the data and the same tags used on the underlying `getProduct` read. Hand the result to `<HydrationBoundary>` inside `ProductData`:
 
 ```tsx filename="app/products/[id]/page.tsx" switcher
+import { HydrationBoundary } from '@tanstack/react-query'
 import { dehydrate } from '@/app/lib/hydrate'
 import { getProduct } from './data'
 import { productCache } from './product-cache'
+import { ProductView } from './product-view'
 
 async function ProductData({ id }: { id: string }) {
   const product = await getProduct(id)
@@ -604,9 +626,11 @@ async function ProductData({ id }: { id: string }) {
 ```
 
 ```jsx filename="app/products/[id]/page.js" switcher
+import { HydrationBoundary } from '@tanstack/react-query'
 import { dehydrate } from '@/app/lib/hydrate'
 import { getProduct } from './data'
 import { productCache } from './product-cache'
+import { ProductView } from './product-view'
 
 async function ProductData({ id }) {
   const product = await getProduct(id)
