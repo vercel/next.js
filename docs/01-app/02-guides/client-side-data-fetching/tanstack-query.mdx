@@ -151,13 +151,13 @@ function ProductResults({ query }: { query: string }) {
 
 If the initial request fails, `useSuspenseQuery` propagates the error to the nearest [error boundary](/docs/app/getting-started/error-handling#nested-error-boundaries).
 
-Suspense queries work well when the request starts after a client interaction. If the initial server render needs the data, seed the query as shown below.
+Suspense queries work well when the request starts after a client interaction. If the initial server render needs the data, provide it from a Server Component as shown below.
 
 > **Good to know:** Multiple `useSuspenseQuery` calls in one component run sequentially. Put independent queries in sibling components, or use [`useSuspenseQueries`](https://tanstack.com/query/latest/docs/framework/react/reference/useSuspenseQueries). Learn more about [request waterfalls](https://tanstack.com/query/latest/docs/framework/react/guides/request-waterfalls).
 
-## Seed data from a Server Component
+## Provide initial data from a Server Component
 
-Use the [server-seeded pattern](/docs/app/guides/client-side-data-fetching#choose-a-client-fetching-pattern) when the initial render needs the data and TanStack Query should continue managing it in the browser. A Server Component can seed the query cache before the client takes over.
+Use the [server-provided data pattern](/docs/app/guides/client-side-data-fetching#choose-a-client-fetching-pattern) when the initial render needs the data and TanStack Query should continue managing it in the browser. A Server Component can provide initial query data before the client takes over.
 
 TanStack Query 5.40.0 or later can dehydrate pending queries. Start `prefetchQuery` without awaiting it, then pass the dehydrated state to `<HydrationBoundary>`. Override `queryFn` on the server because the Route Handler's relative URL only resolves in the browser:
 
@@ -251,7 +251,7 @@ function ProductData({ id }) {
 }
 ```
 
-The server seed and Client Component must use the same query key. Keep the key and query options together so both call sites share the same identity:
+The server and Client Component must use the same query key. Keep the key and query options together so both call sites share the same identity:
 
 ```ts filename="app/products/[id]/product-cache.ts" switcher
 import { queryOptions } from '@tanstack/react-query'
@@ -323,9 +323,9 @@ export function ProductView({ id }) {
 
 Learn more: [TanStack Query Advanced SSR](https://tanstack.com/query/latest/docs/framework/react/guides/advanced-ssr).
 
-## Seed and cache server data with Cache Components
+## Provide initial data and cache server data with Cache Components
 
-Enable [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) in `next.config.ts` before using this pattern. You can then cache the server data that seeds TanStack Query. Add [`use cache`](/docs/app/api-reference/directives/use-cache), choose a [`cacheLife`](/docs/app/api-reference/functions/cacheLife) profile, and apply [`cacheTag`](/docs/app/api-reference/functions/cacheTag) so mutations can invalidate it:
+Enable [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) in `next.config.ts` before using this pattern. You can then cache the server data provided to TanStack Query. Add [`use cache`](/docs/app/api-reference/directives/use-cache), choose a [`cacheLife`](/docs/app/api-reference/functions/cacheLife) profile, and apply [`cacheTag`](/docs/app/api-reference/functions/cacheTag) so mutations can invalidate it:
 
 ```ts filename="app/products/[id]/data.ts" switcher
 import { cacheLife, cacheTag } from 'next/cache'
@@ -382,11 +382,11 @@ When the same mutation updates the browser cache and invalidates cached server d
 
 The server function can then call `cacheTag(productCache.tag(id))`. Keep this contract free of server-only and client-only imports so both cache layers can reuse it.
 
-> **Good to know:** TanStack Query's `dehydrate()` reads the current time during Cache Components prerendering. Use the [prerenderable hydration helper](#build-a-prerenderable-hydration-state) for cached server seeds.
+> **Good to know:** TanStack Query's `dehydrate()` reads the current time during Cache Components prerendering. Use the [prerenderable hydration helper](#build-a-prerenderable-hydration-state) for cached initial data.
 
 ## Coordinate server and client caches after mutations
 
-Server seeding provides the initial client cache value. After hydration, TanStack Query owns the browser copy and its revalidation. For reused data, keep the query key and server tag in the same cache contract:
+Hydration provides the initial client cache value. After hydration, TanStack Query owns the browser copy and its revalidation. For reused data, keep the query key and server tag in the same cache contract:
 
 ```ts filename="app/activity/activity-cache.ts" switcher
 export const activityCache = {
@@ -498,11 +498,11 @@ export async function POST() {
 
 The optimistic query value updates the current screen. The `{ expire: 0 }` option ensures the next cached server read returns fresh activity.
 
-> **Good to know:** Use `revalidateTag` when the server seed uses [`use cache`](/docs/app/api-reference/directives/use-cache) and `cacheTag`. Omit `revalidateTag` for an uncached read because each server render already reads fresh data. See [Client-side data fetching](/docs/app/guides/client-side-data-fetching#coordinate-mutations) to choose an invalidation behavior.
+> **Good to know:** Use `revalidateTag` when the server read that provides the initial data uses [`use cache`](/docs/app/api-reference/directives/use-cache) and `cacheTag`. Omit `revalidateTag` for an uncached read because each server render already reads fresh data. See [Client-side data fetching](/docs/app/guides/client-side-data-fetching#coordinate-mutations) to choose an invalidation behavior.
 
 ## Build a prerenderable hydration state
 
-The server-seeded TanStack Query pattern uses `dehydrate()` to create the hydration state. With Cache Components, `dehydrate()` reads the current time (`Date.now()`) while prerendering and causes a [current-time prerender error](/docs/messages/blocking-prerender-current-time).
+The TanStack Query pattern above uses `dehydrate()` to create the hydration state. With Cache Components, `dehydrate()` reads the current time (`Date.now()`) while prerendering and causes a [current-time prerender error](/docs/messages/blocking-prerender-current-time).
 
 Instead, cache only that timestamp and build the dehydrated state by hand. Wrap the time read in [`use cache`](/docs/app/api-reference/directives/use-cache) with the same tags as the data reads. When a mutation invalidates those tags, the data and its timestamp advance together, so `<HydrationBoundary>` overwrites the client query on the next navigation:
 
@@ -647,6 +647,6 @@ async function ProductData({ id }) {
 }
 ```
 
-> **Good to know:** The timestamp must advance whenever the seeded data advances. The helper suits tag-driven server data because both use the same tags. For time-driven server data, derive the data and hydration timestamp from the same cached snapshot instead of maintaining unrelated time windows.
+> **Good to know:** The timestamp must advance whenever the hydrated data changes. The helper suits tag-driven server data because both use the same tags. For time-driven server data, derive the data and hydration timestamp from the same cached snapshot instead of maintaining unrelated time windows.
 
 See the [live `next-spa-patterns` demo](https://next-spa-patterns.labs.vercel.dev/react-query) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/react-query). Learn more about [TanStack Query optimistic updates](https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates) and the [TanStack Query documentation](https://tanstack.com/query/latest/docs/framework/react/overview).
