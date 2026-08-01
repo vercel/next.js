@@ -949,10 +949,47 @@ impl TaskStorage {
             && self.followers().is_none_or(|f| f.is_empty())
     }
 
-    // GC collectibility (`is_gc_collectible`) lives on the `TaskGuard` trait, so that the Meta
-    // fields it reads (`parent_count`/`upper`/`followers`) go through the guard's `check_access`
-    // machinery, which enforces that the task was opened with Meta restored. See
-    // `TaskGuard::is_gc_collectible`.
+    /// Whether this task is a durable GC *root* worth tracking in the roots map: `Meta` is
+    /// resident, it has **no persistent parent** (`parent_count == 0`), and it is **anchored
+    /// from outside the persistent graph** (`transient_ref_count > 0` — a `pin_task_for_gc`
+    /// pin, e.g. the pinned `ProjectContainer` op / a live endpoint, or a transient parent's
+    /// edge).
+    ///
+    /// The `transient_ref_count > 0` requirement is what distinguishes a root from ordinary
+    /// garbage: a `parent_count == 0` task with *no* anchor is not a root — it is exactly the
+    /// disconnected task the [`Self::gc_maybe_collectible`] candidate path collects this
+    /// session, so recording it as a root would be both meaningless and wrong (it would double
+    /// as a "root" and a collectible). A root, by contrast, escapes collection this session
+    /// precisely because of its anchor; the roots map exists to notice when that anchor is gone
+    /// across sessions and reclaim it.
+    ///
+    /// (An anchor also makes the task resident + unevictable, so a genuine root is always resident
+    /// to be discovered here; a root whose anchor later drops is aged out via the
+    /// carried-forward map in `gc_roots_refresh_and_age_out`, not re-discovered by this scan.)
+    ///
+    /// Why `transient_ref_count > 0` and not the broader `!gc_maybe_collectible` (parent-less but
+    /// non-collectible for *any* reason)? The other things that make a parent-less task
+    /// non-collectible — `activeness`, `in_progress`, lingering `upper`/`followers` — are
+    /// *transient session state that resolves*, not cross-session anchors: an
+    /// active/in-progress task finishes, and the conservative aggregation-edge back-off clears
+    /// as the disconnection cascade catches up. Only `transient_ref_count` represents a genuine
+    /// external reference whose disappearance across sessions is the orphaning signal the roots
+    /// map tracks. Keeping the membership predicate equal to the "anchored" test used by
+    /// `gc_roots_refresh_and_age_out` also means the two can't drift: a task is refreshed
+    /// while, and only while, it would still be admitted here.
+    ///
+    /// The `is_restored(Meta)` gate is load-bearing for the same reason as in
+    /// `gc_maybe_collectible` (an evicted-Meta task reads `parent_count` as 0 and would look
+    /// like a spurious root). Callers must also confirm `!task_id.is_transient()` (a
+    /// `TaskStorage` has no id). Used by [`Storage::gc_scan_candidates`] to seed the roots map.
+    ///
+    /// [`Storage::gc_scan_candidates`]: crate::backend::storage::Storage::gc_scan_candidates
+    pub fn gc_is_root(&self) -> bool {
+        self.flags.is_restored(TaskDataCategory::Meta)
+            && !self.flags.deleted()
+            && self.gc_parent_count() == 0
+            && self.gc_transient_ref_count() > 0
+    }
 }
 
 /// Counts for aggregation tree and collectibles fields.

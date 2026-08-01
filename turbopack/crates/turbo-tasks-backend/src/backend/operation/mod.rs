@@ -1457,7 +1457,7 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         // Transient-ness is a property of the id, not the storage; transient tasks are never
         // collected.
         !self.id().is_transient() && {
-            self.check_access(crate::backend::storage::SpecificTaskDataCategory::Meta);
+            self.check_access(SpecificTaskDataCategory::Meta);
             self.typed().gc_maybe_collectible()
         }
     }

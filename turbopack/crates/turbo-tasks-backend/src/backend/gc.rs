@@ -16,12 +16,15 @@
 use std::{
     ops::ControlFlow,
     sync::atomic::{AtomicUsize, Ordering},
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
+use parking_lot::Mutex;
+use rustc_hash::FxHashMap;
 use turbo_tasks::{TaskId, TurboTasks, scope::scope_unbounded};
 
 use crate::backend::{
-    TurboTasksBackend,
+    GC_ROOT_TTL, TurboTasksBackend,
     operation::{
         AggregationUpdateQueue, CleanupOldEdgesOperation, ExecuteContext, ExecuteContextImpl,
         TaskGuard, capture_all_outgoing_edges,
@@ -121,18 +124,48 @@ impl TurboTasksBackend {
     /// Returns [`GcStats`] for the pass. The on-disk tombstones are not produced here — collected
     /// tasks are left resident with their `deleted` flag set, and the next snapshot derives the
     /// tombstones from that flag (see `snapshot_and_persist`).
-    pub(crate) fn gc_collect(&self, turbo_tasks: &TurboTasks<TurboTasksBackend>) -> GcStats {
+    /// Runs a GC pass and returns its stats plus the reconciled GC roots map (task ->
+    /// last-anchored-ms) to persist in the same snapshot commit. The roots map is loaded from disk
+    /// at the start of the pass and lives only for its duration — it's per-pass state, not backend
+    /// state, so nothing is held resident between passes (and a backend that never GCs never reads
+    /// it).
+    pub(crate) fn gc_collect(
+        &self,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) -> (GcStats, Vec<(TaskId, u64)>) {
+        // A single wall-clock reading for the whole pass: every root touched here (scan-time
+        // resident roots, refreshed roots, and cascade-discovered roots) is stamped with the *same*
+        // `now`, so within one pass all timestamps are consistent (and it's one syscall, not
+        // three).
+        let now = Self::now_ms();
+
+        // Load the previous session's roots map (task id -> last-anchored millis; empty on a fresh
+        // or non-persistent database). Maintained locally through this pass and returned
+        // for persistence.
+        let mut roots = self
+            .backing_storage
+            .roots()
+            .unwrap_or_else(|err| {
+                // A corrupt/unreadable roots key shouldn't abort GC — treat it as empty and let the
+                // scan below re-discover the resident roots. Cross-session orphans of a genuinely
+                // unreadable set are collected once their (re-discovered) roots age out.
+                tracing::warn!("failed to read GC roots, treating as empty: {err:?}");
+                Vec::new()
+            })
+            .into_iter()
+            .collect::<FxHashMap<TaskId, u64>>();
+
         // Seed the pool with the resident-map scan, split one job per shard. Each shard job applies
         // the cheap `gc_maybe_collectible` pre-filter (a handful of field reads per task under a
         // shard read lock — the same shape as the eviction scan, which proved this is fast) and
-        // feeds its hits back as `Collect` jobs.
+        // feeds its hits back as `Collect` jobs, so the cascade starts before the scan finishes.
         //
         // We scan rather than maintain an incremental candidate set: correctness derives entirely
         // from each task's durable `parent_count`, so there's nothing to persist across sessions
-        // and nothing to keep in sync (a scan can't miss a task the way a hand-maintained
-        // side-set could). `Collect` re-validates each candidate authoritatively under a
-        // guard. The scan only sees resident tasks; disk-only garbage is collected after it
-        // is next restored.
+        // and nothing to keep in sync (a scan can't miss a task the way a hand-maintained side-set
+        // could). `Collect` re-validates each candidate authoritatively under a guard. The scan
+        // only sees resident tasks; disk-only garbage is collected after it is next
+        // restored.
         //
         // TODO(perf): recycle the task ids of collected tasks. `persisted_task_id_factory`
         // (`IdFactoryWithReuse`) can hand out freed ids, and the persisted `next_free_task_id`
@@ -147,16 +180,61 @@ impl TurboTasksBackend {
             .map(GcJob::ScanShard)
             .collect();
 
+        // Reconcile the carried-forward roots map and decide which roots have aged out (un-anchored
+        // past the TTL) and should be collected. This runs *before* the pool, but it does not need
+        // the shard scan's `resident_roots`: the retain classifies each carried-forward entry with
+        // the same `gc_is_root` predicate the scan uses, so a resident still-root is refreshed here
+        // regardless. Roots the scan newly discovers are folded into the map after the pool drains,
+        // which is what keeps the scan off the critical path.
+        let aged_out = self.gc_roots_refresh_and_age_out(&mut roots, Vec::new(), now);
+
+        // Aged-out roots are candidates for collection, but — unlike the pre-filtered resident
+        // candidates the scan produces — they are not guaranteed collectible: one may have been
+        // re-anchored, may still hold aggregation edges, or (once restored) may prove to have a
+        // live child. Re-validate each under a guard (restoring a non-resident root's Meta)
+        // and only seed the genuinely collectible ones; a non-collectible aged-out root is
+        // simply left un-collected this pass. Its entry **stays in the roots map** (the
+        // refresh above keeps every entry, and only an actual collect removes one below),
+        // so it is re-seeded next pass rather than being silently forgotten.
+        let mut aged_out_seeds = Vec::new();
+        {
+            let mut ctx = self.execute_context_gc(turbo_tasks);
+            // Bulk-fetch the aged-out roots' Meta in one batched restore rather than a `task` call
+            // (and per-task disk restore) each. `is_gc_collectible` only reads Meta fields.
+            ctx.for_each_task_meta(aged_out, "gc aged-out root revalidation", |task, _ctx| {
+                if task.is_gc_collectible() {
+                    aged_out_seeds.push(task.id());
+                }
+            });
+        }
+
+        // Newly-orphaned tasks discovered as the cascade decrements children to `parent_count == 0`
+        // but that are NOT collected this pass (e.g. still anchored by a pin) — they are new
+        // durable roots and must enter the map with a fresh timestamp, or they'd never be
+        // tracked/aged.
+        let discovered_roots = Mutex::new(Vec::<TaskId>::new());
+
+        // Tasks this pass actually marked deleted. `gc_roots_refresh_and_age_out` deliberately
+        // leaves every entry in `roots` (it only *seeds* aged-out roots), so this is what tells us
+        // which entries may now be dropped from the persisted map. Recorded at the `set_deleted`
+        // site below, i.e. only for tasks that really were collected — a seed that was re-validated
+        // non-collectible, or never reached, stays in the map and ages again next pass.
+        let collected_ids = Mutex::new(Vec::<TaskId>::new());
+
+        // Roots discovered by the shard scans, folded into the map after the pool drains.
+        let scanned_roots = Mutex::new(Vec::<TaskId>::new());
+
         // Written once per collected task (not per child/dep), so the atomics are not a hot path.
         let collected = AtomicUsize::new(0);
         let edges_deleted = AtomicUsize::new(0);
-        // Durable roots seen by the shard scans. Summed across scan jobs rather than returned by a
-        // whole-map call, since the scan is now spread over the pool.
-        let roots_found = AtomicUsize::new(0);
 
         // Each job builds its own GC `ExecuteContext`; see the doc above for the concurrency
         // argument. A job may spawn follow-up jobs (a shard's candidates, or children driven to
-        // `parent_count == 0`) that flow straight back into the same pool.
+        // `parent_count == 0`) that flow straight back into the same pool. The aged-out seeds ride
+        // in as `Collect` jobs alongside the per-shard scans.
+        let seeds = seeds
+            .into_iter()
+            .chain(aged_out_seeds.iter().copied().map(GcJob::Collect));
         scope_unbounded(seeds, |spawner, job| {
             let task_id = match job {
                 GcJob::ScanShard(index) => {
@@ -165,7 +243,9 @@ impl TurboTasksBackend {
                     let roots = self
                         .storage
                         .gc_scan_shard(index, |task_id| spawner.spawn(GcJob::Collect(task_id)));
-                    roots_found.fetch_add(roots, Ordering::Relaxed);
+                    if !roots.is_empty() {
+                        scanned_roots.lock().extend(roots);
+                    }
                     return ControlFlow::Continue(());
                 }
                 GcJob::Collect(task_id) => task_id,
@@ -207,6 +287,10 @@ impl TurboTasksBackend {
                 let _ = task.track_modification(SpecificTaskDataCategory::Meta, "gc_deleted");
             }
             collected.fetch_add(1, Ordering::Relaxed);
+            // Record the collect so the roots map can drop this entry (if it had one) after the
+            // pass. Touched once per collected task, not per child/dep, so the lock is not a
+            // contention hot spot — same argument as `discovered_roots`.
+            collected_ids.lock().push(task_id);
 
             // Capture all of this task's edges and hand them to the same `CleanupOldEdges`
             // operation a re-executing task uses. Besides dropping each child's `parent_count` and
@@ -241,16 +325,163 @@ impl TurboTasksBackend {
                 // resident.
                 if ctx.task(child, TaskDataCategory::Meta).is_gc_collectible() {
                     spawner.spawn(GcJob::Collect(child));
+                } else {
+                    // Dropped to `parent_count == 0` but not collectible — it's still anchored (a
+                    // pin / transient parent) or holds aggregation edges.
+                    // Either way it just became a durable root; record it so it
+                    // enters the roots map with a fresh timestamp and
+                    // starts aging. (The shard scan may not have caught this newly-orphaned child:
+                    // its shard may already have been scanned before this cascade ran.)
+                    discovered_roots.lock().push(child);
                 }
             }
             ControlFlow::Continue(())
         });
 
-        GcStats {
-            gc_roots: roots_found.into_inner(),
+        // Fold in the roots the shard scans found. Deferred to here (rather than passed into
+        // `gc_roots_refresh_and_age_out`) so the scan never blocks the cascade: `or_insert` leaves
+        // an already-tracked root's refreshed timestamp alone and only adds roots new to the map
+        // this session.
+        //
+        // Then fold in roots discovered during the cascade (orphaned-but-not-collected children),
+        // same rule: new to the map → `now`; already tracked → keep the existing timestamp, since a
+        // cascade re-orphaning doesn't reset an already-running clock.
+        {
+            let map: &mut FxHashMap<TaskId, u64> = &mut roots;
+            for id in scanned_roots.into_inner() {
+                map.entry(id).or_insert(now);
+            }
+            for id in discovered_roots.into_inner() {
+                map.entry(id).or_insert(now);
+            }
+        };
+
+        // Now drop the entries for tasks this pass actually collected.
+        // `gc_roots_refresh_and_age_out` kept every entry (it only seeds aged-out roots),
+        // so this is the *only* place a root leaves the map — which is what keeps the
+        // persisted set from losing a root that was seeded but not collected. A collected
+        // task is gone from the graph, so its entry would otherwise be a permanent stale
+        // key in the roots set.
+        //
+        // Runs after the fold-ins so the two can't fight over an id. They are in fact disjoint (a
+        // cascade child is recorded as *either* spawned-and-collected *or* a discovered root, and a
+        // collected task fails `gc_is_root` so the scan won't report it), but ordering it this way
+        // means a collect always wins, which is the safe direction: the task no longer exists.
+        {
+            let map: &mut FxHashMap<TaskId, u64> = &mut roots;
+            for id in collected_ids.into_inner() {
+                map.remove(&id);
+            }
+        };
+
+        let stats = GcStats {
+            gc_roots: roots.len(),
             collected: collected.into_inner(),
             edges_deleted: edges_deleted.into_inner(),
+        };
+        (stats, roots.into_iter().collect())
+    }
+
+    /// The GC root TTL for this pass. Precedence: the per-backend test override
+    /// (`set_gc_root_ttl_for_testing`, race-free across parallel tests) → the
+    /// `TURBO_ENGINE_GC_ROOT_TTL_MS` env (for the e2e dogfood, where a process-global is fine) →
+    /// [`GC_ROOT_TTL`]. Read each call — GC runs rarely, so this is negligible.
+    fn gc_root_ttl(&self) -> Duration {
+        let override_ms = self.gc_root_ttl_override_ms.load(Ordering::Relaxed);
+        if override_ms != u64::MAX {
+            return Duration::from_millis(override_ms);
         }
+        match std::env::var("TURBO_ENGINE_GC_ROOT_TTL_MS") {
+            Ok(v) => match v.parse::<u64>() {
+                Ok(ms) => Duration::from_millis(ms),
+                Err(_) => GC_ROOT_TTL,
+            },
+            Err(_) => GC_ROOT_TTL,
+        }
+    }
+
+    /// Wall-clock now as millis since the Unix epoch (saturating to 0 before the epoch, which can't
+    /// happen in practice). This is the backend layer, not a task-execution context, so
+    /// `SystemTime` is fine here (same as `snapshot_and_persist`).
+    fn now_ms() -> u64 {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0)
+    }
+
+    /// Reconcile the GC roots map against this pass's freshly-scanned resident roots, and return
+    /// the ids of roots that have aged out (gone un-anchored past the TTL) to seed collection.
+    ///
+    /// Order matters: the carried-forward map is reconciled by the `retain` **first**, then the
+    /// freshly-scanned `resident_roots` are `or_insert`ed. So a resident root already tracked is
+    /// refreshed once by the retain (the scan and retain share the `gc_is_root` predicate), and the
+    /// insert only *adds* roots new to the map this session — no entry is stamped twice.
+    ///
+    /// Each carried-forward entry is classified **without restoring** it (a non-inserting
+    /// `with_task`), which is both correct and the point — the roots we most want to age out are
+    /// the non-resident ones, and we must not pull them back into memory just to look:
+    /// - **resident and still a root** ([`TaskStorage::gc_is_root`]: `parent_count == 0 &&
+    ///   transient_ref_count > 0`) → refresh `last_anchored_ms = now`. Using the *full*
+    ///   `gc_is_root` predicate — not just `transient_ref_count > 0` — is what stops a resident
+    ///   task that regained a persistent parent from being refreshed forever as a stale "root" (it
+    ///   fails `gc_is_root`, so it ages out and is dropped).
+    /// - **resident but no longer a root**, or **not resident** → un-anchored: a non-resident task
+    ///   holds no `transient_ref_count` (transient state is in-memory only) and was not re-anchored
+    ///   this session (re-anchoring restores it), so it is correctly treated as orphaned. Keep its
+    ///   timestamp; if `now - last_anchored_ms > TTL`, drop from the map and return it as a
+    ///   collection seed (the aged-out path in `gc_collect` restores + re-validates it before
+    ///   collecting).
+    ///
+    /// Using `gc_is_root` here — the same predicate the scan admits roots with — keeps membership
+    /// and refresh from drifting. Runs under the GC phase (exclusion), so the counts don't race
+    /// pins.
+    fn gc_roots_refresh_and_age_out(
+        &self,
+        map: &mut FxHashMap<TaskId, u64>,
+        resident_roots: Vec<TaskId>,
+        now: u64,
+    ) -> Vec<TaskId> {
+        let ttl_ms = self.gc_root_ttl().as_millis() as u64;
+
+        // Reconcile the carried-forward map (prior-session entries) first. Every entry is
+        // re-classified by the *same* `gc_is_root` predicate the scan uses, so a resident root that
+        // is still a root is refreshed here — we don't need `resident_roots` to touch it.
+        let mut aged_out = Vec::new();
+        map.retain(|&id, last_anchored| {
+            // Non-inserting: a non-resident root reads as `None` → un-anchored → ages (which is
+            // what we want; we don't restore disk-only orphans just to check them). A
+            // resident task is a still-live root only if it passes the full
+            // `gc_is_root` (parent_count 0 AND anchored), so a re-parented resident
+            // task fails here and ages out of the map.
+            let still_root = self
+                .storage
+                .with_task(id, |t| t.gc_is_root())
+                .unwrap_or(false);
+            if still_root {
+                *last_anchored = now;
+                return true;
+            }
+            // Un-anchored: has it aged past the TTL? `now < last_anchored` (clock skew across
+            // sessions) is treated as not-yet-aged (saturating), never negative.
+            if now.saturating_sub(*last_anchored) > ttl_ms {
+                aged_out.push(id);
+                false
+            } else {
+                true
+            }
+        });
+
+        // Now fold in this pass's resident roots. `or_insert` (not `insert`) so that a root already
+        // carried forward keeps the timestamp the retain just refreshed — this only *adds* roots
+        // new to the map this session, stamped `now`. (A resident root already in the map was
+        // handled by the retain above, since the scan and the retain share the `gc_is_root`
+        // predicate; doing this after the retain avoids touching those entries twice.)
+        for id in resident_roots {
+            map.entry(id).or_insert(now);
+        }
+
+        aged_out
     }
 
     /// Body of [`Backend::pin_task_for_gc`](turbo_tasks::backend::Backend::pin_task_for_gc); the
@@ -315,6 +546,6 @@ impl TurboTasksBackend {
     pub fn gc_for_testing(&self, turbo_tasks: &TurboTasks<TurboTasksBackend>) -> usize {
         let _serialize = self.snapshot_in_progress.lock();
         let _gc_phase = self.snapshot_coord.begin_gc();
-        self.gc_collect(turbo_tasks).collected
+        self.gc_collect(turbo_tasks).0.collected
     }
 }

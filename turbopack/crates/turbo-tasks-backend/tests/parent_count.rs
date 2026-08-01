@@ -30,6 +30,9 @@ fn open_tt_at(path: &std::path::Path) -> Arc<TurboTasks<TurboTasksBackend>> {
             small_preallocation: true,
             storage_mode: Some(turbo_tasks_backend::StorageMode::ReadWriteOnShutdown),
             eviction_mode: EvictionMode::Full,
+            // Force GC on so the stop-time snapshot runs a GC pass and persists the roots map
+            // (deterministic, no dependence on the process-global TURBO_ENGINE_GC).
+            gc: Some(true),
             ..Default::default()
         },
         turbo_tasks_backend::turbo_backing_storage(
@@ -71,6 +74,22 @@ fn create_selector(initial: bool) -> Vc<Selector> {
 #[turbo_tasks::function]
 fn leaf(n: u32) -> Vc<u32> {
     Vc::cell(n)
+}
+
+/// A distinct leaf keyed by `n`, used as the child of a persisted root in the cross-session tests
+/// so its collection can be observed independently of the shared `leaf`.
+#[turbo_tasks::function]
+fn orphan_leaf(n: u32) -> Vc<u32> {
+    Vc::cell(n)
+}
+
+/// A `(operation, root)` op that reads `orphan_leaf(n)` — a small "root -> subtree" used to test
+/// cross-session orphan collection. Read at the top level of a `run` it has no persistent parent
+/// (`parent_count == 0`), so it is a durable root; its child `orphan_leaf(n)` gets `parent_count
+/// 1`.
+#[turbo_tasks::function(operation, root)]
+async fn root_with_child(n: u32) -> Result<Vc<u32>> {
+    Ok(Vc::cell(*orphan_leaf(n).await? + 1))
 }
 
 #[turbo_tasks::function]
@@ -773,4 +792,112 @@ async fn parent_count_not_double_counted_on_revalidation() {
     .await;
     tt.stop_and_wait().await;
     result.unwrap();
+}
+
+/// Cross-session orphan collection (Piece B). A root persisted in session 1 that is *not*
+/// re-requested in session 2 ages out of the persisted roots map and its subtree is collected — the
+/// disk-only garbage the resident-scan GC can't reach. With the TTL forced to 0, the first GC pass
+/// in session 2 (which never re-anchors the root) collects it.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn gc_collects_cross_session_orphan_root() {
+    let dir = create_test_persistence_dir("gc_collects_cross_session_orphan_root");
+
+    // Session 1: create the root + child, persist on shutdown.
+    let (root_id, child_id) = {
+        let tt = open_tt_at(dir.path());
+        let tt2 = tt.clone();
+        let ids = turbo_tasks::run_once(tt.clone(), async move {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+            let output = root_with_child(42);
+            assert_eq!(*output.read_strongly_consistent().await?, 43);
+            // `root_with_child` is `(operation, root)` -> `OperationVc`; its task is the root op.
+            let root_id = output.task_id();
+            let child_id = task_id_of(orphan_leaf(42).resolve().await?);
+            // The root has no persistent parent; the child hangs off it.
+            assert_eq!(tt2.backend().parent_count_for_testing(root_id), 0);
+            assert_eq!(tt2.backend().parent_count_for_testing(child_id), 1);
+            anyhow::Ok((root_id, child_id))
+        })
+        .await
+        .unwrap();
+        tt.stop_and_wait().await;
+        ids
+    };
+
+    // Session 2: reopen, but NEVER request `root_with_child(42)` — it's a cross-session orphan.
+    // With TTL 0 the first GC pass ages it out of the roots map and collects it + its subtree.
+    {
+        let tt = open_tt_at(dir.path());
+        tt.backend().set_gc_root_ttl_for_testing(0);
+        let tt2 = tt.clone();
+        turbo_tasks::run_once(tt.clone(), async move {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+            let collected = tt2.backend().gc_for_testing(&tt2);
+            assert!(
+                collected >= 2,
+                "the orphaned root and its child should be collected (got {collected})"
+            );
+            let _ = root_id;
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+        tt.stop_and_wait().await;
+    }
+
+    // Session 3: reopen and confirm re-requesting recomputes cleanly (no dangling refs from the
+    // cross-session collection).
+    {
+        let tt = open_tt_at(dir.path());
+        let result = turbo_tasks::run_once(tt.clone(), async move {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+            assert_eq!(*root_with_child(42).read_strongly_consistent().await?, 43);
+            let _ = (root_id, child_id);
+            anyhow::Ok(())
+        })
+        .await;
+        tt.stop_and_wait().await;
+        result.unwrap();
+    }
+}
+
+/// A root re-requested in the next session must NOT be collected: re-anchoring refreshes its
+/// last-anchored timestamp, resetting the TTL clock. Same setup as the orphan test, but session 2
+/// re-requests the root before GC.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn gc_keeps_reanchored_cross_session_root() {
+    let dir = create_test_persistence_dir("gc_keeps_reanchored_cross_session_root");
+
+    {
+        let tt = open_tt_at(dir.path());
+        turbo_tasks::run_once(tt.clone(), async move {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+            assert_eq!(*root_with_child(7).read_strongly_consistent().await?, 8);
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+        tt.stop_and_wait().await;
+    }
+
+    {
+        let tt = open_tt_at(dir.path());
+        tt.backend().set_gc_root_ttl_for_testing(0);
+        let tt2 = tt.clone();
+        turbo_tasks::run_once(tt.clone(), async move {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+            // Re-request the root: this re-anchors it (its transient Once reader gives it a
+            // transient_ref_count), so the GC pass must refresh its timestamp, not collect it.
+            assert_eq!(*root_with_child(7).read_strongly_consistent().await?, 8);
+            let collected = tt2.backend().gc_for_testing(&tt2);
+            assert_eq!(
+                collected, 0,
+                "a re-requested (re-anchored) root must not be collected even at TTL 0"
+            );
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+        tt.stop_and_wait().await;
+    }
 }

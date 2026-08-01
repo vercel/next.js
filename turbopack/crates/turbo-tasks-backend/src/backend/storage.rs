@@ -566,11 +566,18 @@ impl Storage {
         self.map.shards().len()
     }
 
-    /// Scans a **single** shard by index, invoking `on_candidate` for each resident, non-transient
-    /// task whose storage passes the cheap [`TaskStorage::gc_maybe_collectible`] pre-filter (a
-    /// handful of field reads, the same shape as the eviction scan). Returns the number of durable
-    /// GC **roots** seen in this shard — parent-less tasks that are *not* collectible because they
-    /// are anchored — which GC sums across shards for its stats.
+    /// Scans a **single** shard of the resident map by index, classifying its non-transient tasks:
+    ///
+    /// - **candidates** — tasks passing the cheap [`TaskStorage::gc_maybe_collectible`] pre-filter
+    ///   (no parent, no transient ref, quiescent) — are passed to `on_candidate`. GC enqueues each
+    ///   as a collect job and re-validates it authoritatively under a guard.
+    /// - **roots** — durable roots ([`TaskStorage::gc_is_root`]): `parent_count == 0` **and**
+    ///   anchored from outside the graph (`transient_ref_count > 0`), such as the pinned
+    ///   `ProjectContainer` op or a live endpoint — are returned. GC uses them to maintain the
+    ///   persisted roots map (refresh last-anchored timestamps / age out orphans).
+    ///
+    /// The two sets are **disjoint**: a `parent_count == 0` task either has an anchor (a root) or
+    /// does not (a collectible candidate — ordinary garbage). GC never treats one as both.
     ///
     /// GC drives one of these per shard as a job in its main pool, so discovered candidates flow
     /// straight into the same queue the collect jobs drain — the cascade starts while later shards
@@ -578,27 +585,32 @@ impl Storage {
     /// shard **read lock is held**, so it must be cheap and must not re-enter the map; GC only
     /// enqueues the id.
     ///
-    /// The scan only sees resident tasks; disk-only garbage is collected after it is next restored.
+    /// The scan sees only resident tasks; disk-only garbage is collected after it is next restored,
+    /// and disk-only roots ride the carried-forward roots map instead (which is where a root whose
+    /// anchor later drops is aged out).
     ///
     /// # Panics
     ///
     /// If `index >= self.shard_count()`.
-    pub fn gc_scan_shard(&self, index: usize, mut on_candidate: impl FnMut(TaskId)) -> usize {
+    pub fn gc_scan_shard(&self, index: usize, mut on_candidate: impl FnMut(TaskId)) -> Vec<TaskId> {
         let shard = self.map.shards()[index].read();
-        let mut roots_found = 0usize;
+        let mut roots = Vec::new();
         // SAFETY: we hold the shard read lock for the duration of iteration.
         for bucket in unsafe { shard.iter() } {
             // SAFETY: the read lock guard outlives the bucket reference.
             let (task_id, shared_value) = unsafe { bucket.as_ref() };
-            if !task_id.is_transient() {
-                if shared_value.get().gc_maybe_collectible() {
-                    on_candidate(*task_id);
-                } else if shared_value.get().flags.gc_root() {
-                    roots_found += 1;
-                }
+            if task_id.is_transient() {
+                continue;
+            }
+            let storage = shared_value.get();
+            if storage.gc_maybe_collectible() {
+                on_candidate(*task_id);
+            }
+            if storage.gc_is_root() {
+                roots.push(*task_id);
             }
         }
-        roots_found
+        roots
     }
 
     pub fn access_pair_mut(

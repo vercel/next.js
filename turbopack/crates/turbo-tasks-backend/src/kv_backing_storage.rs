@@ -34,8 +34,29 @@ use crate::{
     db_invalidation::invalidation_reasons,
 };
 
-const META_KEY_OPERATIONS: u32 = 0;
-const META_KEY_NEXT_FREE_TASK_ID: u32 = 1;
+/// The fixed keys in the [`KeySpace::Infra`] keyspace. Each is a distinct singleton (the task
+/// keyspaces are keyed by `TaskId` instead — see [`IntKey`]). The discriminant is the on-disk key
+/// byte value and MUST remain stable across versions; only append new variants.
+#[derive(Clone, Copy)]
+#[repr(u32)]
+enum InfraKey {
+    /// The suspended/uncompleted `AnyOperation` log (crash-recovery journal).
+    Operations = 0,
+    /// The high-water mark for allocating new persistent task ids.
+    NextFreeTaskId = 1,
+    /// The persisted GC roots set: `Vec<(TaskId, last_anchored_ms)>`. Each entry is a durable root
+    /// (a persisted task reachable only from outside the persistent graph) and the wall-clock time
+    /// (millis since the Unix epoch) it was last observed anchored. Maintained in the GC phase and
+    /// used to age out roots that have gone un-anchored past the TTL. See `TurboTasksBackend`'s
+    /// roots map.
+    GcRoots = 2,
+}
+
+impl InfraKey {
+    fn key(self) -> IntKey {
+        IntKey::new(self as u32)
+    }
+}
 
 struct IntKey([u8; 4]);
 
@@ -187,9 +208,9 @@ impl TurboBackingStorageInner {
     }
 
     /// Used to read the next free task ID from the database.
-    fn get_infra_u32(&self, key: u32) -> Result<Option<u32>> {
+    fn get_infra_u32(&self, key: InfraKey) -> Result<Option<u32>> {
         self.database
-            .get(KeySpace::Infra, IntKey::new(key).as_ref())?
+            .get(KeySpace::Infra, key.key().as_ref())?
             .map(as_u32)
             .transpose()
     }
@@ -210,7 +231,7 @@ impl TurboBackingStorage {
     pub(crate) fn next_free_task_id(&self) -> Result<TaskId> {
         Ok(self
             .inner
-            .get_infra_u32(META_KEY_NEXT_FREE_TASK_ID)
+            .get_infra_u32(InfraKey::NextFreeTaskId)
             .context("Unable to read next free task id from database")?
             .map_or(Ok(TaskId::MIN), TaskId::try_from)?)
     }
@@ -218,7 +239,7 @@ impl TurboBackingStorage {
     pub(crate) fn uncompleted_operations(&self) -> Result<Vec<AnyOperation>> {
         fn get(database: &TurboKeyValueDatabase) -> Result<Vec<AnyOperation>> {
             let Some(operations) =
-                database.get(KeySpace::Infra, IntKey::new(META_KEY_OPERATIONS).as_ref())?
+                database.get(KeySpace::Infra, InfraKey::Operations.key().as_ref())?
             else {
                 return Ok(Vec::new());
             };
@@ -228,9 +249,25 @@ impl TurboBackingStorage {
         get(&self.inner.database).context("Unable to read uncompleted operations from database")
     }
 
+    /// Reads the persisted GC roots set (see [`InfraKey::GcRoots`]): each durable root's `TaskId`
+    /// paired with the wall-clock millis-since-epoch at which it was last observed anchored.
+    /// Empty on a fresh database.
+    pub(crate) fn roots(&self) -> Result<Vec<(TaskId, u64)>> {
+        fn get(database: &TurboKeyValueDatabase) -> Result<Vec<(TaskId, u64)>> {
+            let Some(roots) = database.get(KeySpace::Infra, InfraKey::GcRoots.key().as_ref())?
+            else {
+                return Ok(Vec::new());
+            };
+            let roots = turbo_bincode_decode(roots.borrow())?;
+            Ok(roots)
+        }
+        get(&self.inner.database).context("Unable to read GC roots from database")
+    }
+
     pub(crate) fn save_snapshot<I>(
         &self,
         operations: Vec<Arc<AnyOperation>>,
+        roots: Option<Vec<(TaskId, u64)>>,
         snapshots: Vec<I>,
     ) -> Result<SnapshotMeta>
     where
@@ -362,7 +399,7 @@ impl TurboBackingStorage {
             let mut next_task_id = get_next_free_task_id(&batch)?;
             next_task_id = next_task_id.max(snapshot_meta.max_next_task_id + 1);
 
-            save_infra(&batch, next_task_id, operations)?;
+            save_infra(&batch, next_task_id, operations, roots)?;
             {
                 let _span = tracing::trace_span!("commit").entered();
                 // Byte totals are the physical on-disk bytes (post-compression, including .sst /
@@ -528,10 +565,7 @@ fn apply_task_cache_deletions(
 
 fn get_next_free_task_id(batch: &TurboWriteBatch<'_>) -> Result<u32, anyhow::Error> {
     Ok(
-        match batch.get(
-            KeySpace::Infra,
-            IntKey::new(META_KEY_NEXT_FREE_TASK_ID).as_ref(),
-        )? {
+        match batch.get(KeySpace::Infra, InfraKey::NextFreeTaskId.key().as_ref())? {
             Some(bytes) => u32::from_le_bytes(Borrow::<[u8]>::borrow(&bytes).try_into()?),
             None => 1,
         },
@@ -542,11 +576,12 @@ fn save_infra(
     batch: &TurboWriteBatch<'_>,
     next_task_id: u32,
     operations: Vec<Arc<AnyOperation>>,
+    roots: Option<Vec<(TaskId, u64)>>,
 ) -> Result<(), anyhow::Error> {
     batch
         .put(
             KeySpace::Infra,
-            WriteBuffer::Borrowed(IntKey::new(META_KEY_NEXT_FREE_TASK_ID).as_ref()),
+            WriteBuffer::Borrowed(InfraKey::NextFreeTaskId.key().as_ref()),
             WriteBuffer::Borrowed(&next_task_id.to_le_bytes()),
         )
         .context("Unable to write next free task id")?;
@@ -558,10 +593,23 @@ fn save_infra(
         batch
             .put(
                 KeySpace::Infra,
-                WriteBuffer::Borrowed(IntKey::new(META_KEY_OPERATIONS).as_ref()),
+                WriteBuffer::Borrowed(InfraKey::Operations.key().as_ref()),
                 WriteBuffer::SmallVec(operations),
             )
             .context("Unable to write operations")?;
+    }
+    // Only rewrite the roots key when the GC phase produced an updated set; `None` leaves the
+    // previously-persisted set untouched (e.g. GC disabled, or a snapshot with no GC pass).
+    if let Some(roots) = roots {
+        let _span = tracing::trace_span!("update roots", roots = roots.len()).entered();
+        let roots = turbo_bincode_encode(&roots).context("Unable to serialize GC roots")?;
+        batch
+            .put(
+                KeySpace::Infra,
+                WriteBuffer::Borrowed(InfraKey::GcRoots.key().as_ref()),
+                WriteBuffer::SmallVec(roots),
+            )
+            .context("Unable to write GC roots")?;
     }
     // Safety: save_infra is called after all concurrent writes to Infra are done.
     unsafe { batch.flush(KeySpace::Infra)? };
@@ -907,6 +955,7 @@ mod tests {
         // Snapshot with no task data, just the one deletion (carried inline as a delete item).
         storage.save_snapshot(
             Vec::new(),
+            None,
             vec![vec![SnapshotItem::Delete(TaskDeletion {
                 task_id: deleted_id,
                 task_type_hash: collision_hash.to_le_bytes(),
