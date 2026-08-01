@@ -20,7 +20,7 @@ use std::{
 };
 
 use parking_lot::Mutex;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_tasks::{TaskId, TurboTasks, scope::scope_unbounded};
 
 use crate::backend::{
@@ -60,6 +60,11 @@ pub(crate) struct GcStats {
     pub collected: usize,
     /// Edges torn down across all collected tasks (children + forward-dependency reverse edges).
     pub edges_deleted: usize,
+    /// Cross-session roots that aged out past the TTL and seeded collection this pass (a subset of
+    /// the seeds — the resident scan supplies the rest). Recorded on the `gc` span so the e2e
+    /// dogfood can confirm a deleted route's subtree is reclaimed on a *later* session rather than
+    /// in-session.
+    pub aged_out_roots: usize,
 }
 
 impl TurboTasksBackend {
@@ -196,14 +201,19 @@ impl TurboTasksBackend {
         // simply left un-collected this pass. Its entry **stays in the roots map** (the
         // refresh above keeps every entry, and only an actual collect removes one below),
         // so it is re-seeded next pass rather than being silently forgotten.
-        let mut aged_out_seeds = Vec::new();
+        //
+        // The set also drives observability: the collect-site trace below tags seeds that came from
+        // an aged-out cross-session root (as opposed to the resident scan), so the e2e dogfood can
+        // confirm a deleted route's subtree is reclaimed on a *later* session rather than
+        // in-session.
+        let mut aged_out_seeds = FxHashSet::default();
         {
             let mut ctx = self.execute_context_gc(turbo_tasks);
             // Bulk-fetch the aged-out roots' Meta in one batched restore rather than a `task` call
             // (and per-task disk restore) each. `is_gc_collectible` only reads Meta fields.
             ctx.for_each_task_meta(aged_out, "gc aged-out root revalidation", |task, _ctx| {
                 if task.is_gc_collectible() {
-                    aged_out_seeds.push(task.id());
+                    aged_out_seeds.insert(task.id());
                 }
             });
         }
@@ -291,6 +301,17 @@ impl TurboTasksBackend {
             // pass. Touched once per collected task, not per child/dep, so the lock is not a
             // contention hot spot — same argument as `discovered_roots`.
             collected_ids.lock().push(task_id);
+            // A span (not a free-standing event) so the collect shows up as a node in the trace
+            // tree under the `gc` span — the trace server / `next internal trace` MCP surface
+            // spans, and free events attached to no span are not queryable there.
+            // `cross_session_root` tags collects seeded from an aged-out root (the
+            // deleted-route path) vs the resident scan.
+            let _collect_span = tracing::info_span!(
+                "gc collect task",
+                task = %task_id,
+                cross_session_root = aged_out_seeds.contains(&task_id),
+            )
+            .entered();
 
             // Capture all of this task's edges and hand them to the same `CleanupOldEdges`
             // operation a re-executing task uses. Besides dropping each child's `parent_count` and
@@ -378,6 +399,7 @@ impl TurboTasksBackend {
             gc_roots: roots.len(),
             collected: collected.into_inner(),
             edges_deleted: edges_deleted.into_inner(),
+            aged_out_roots: aged_out_seeds.len(),
         };
         (stats, roots.into_iter().collect())
     }
