@@ -264,8 +264,6 @@ export function ProductView({ id }) {
 }
 ```
 
-See the [live demo](https://next-spa-patterns.labs.vercel.dev/react-query) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/react-query).
-
 Learn more: [TanStack Query Advanced SSR](https://tanstack.com/query/latest/docs/framework/react/guides/advanced-ssr).
 
 ## Seed and cache server data with Cache Components
@@ -474,6 +472,8 @@ async function ProductData({ id }) {
 > **Good to know:** The timestamp must advance whenever the seeded data advances. The helper above suits tag-driven server data because both use the same tags. For time-driven server data, derive the data and hydration timestamp from the same cached snapshot instead of maintaining unrelated time windows.
 
 Learn more: [`use cache`](/docs/app/api-reference/directives/use-cache) and [`cacheTag`](/docs/app/api-reference/functions/cacheTag).
+
+See the [live demo](https://next-spa-patterns.labs.vercel.dev/react-query) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/react-query).
 
 ## Coordinate server and client caches after mutations
 

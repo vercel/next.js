@@ -234,8 +234,6 @@ The SWR key points to a [Route Handler](/docs/app/api-reference/file-conventions
 
 Learn more: [SWR arguments and keys](https://swr.vercel.app/docs/arguments) and [SWR with Next.js App Router](https://swr.vercel.app/docs/with-nextjs).
 
-See the [live demo](https://next-spa-patterns.labs.vercel.dev/swr) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/swr).
-
 ## Seed and cache server data with Cache Components
 
 With [Cache Components](/docs/app/getting-started/caching), you can also cache the server data that seeds SWR. Add a server tag beside the SWR key so mutations can invalidate the cached data:
@@ -289,6 +287,8 @@ SWR owns a separate browser cache. SWR revalidation options do not need to match
 Keep the cache contract free of server-only and client-only imports so every cache boundary can reuse it instead of duplicating raw keys and tags.
 
 Learn more: [`use cache`](/docs/app/api-reference/directives/use-cache) and [`cacheTag`](/docs/app/api-reference/functions/cacheTag).
+
+See the [live demo](https://next-spa-patterns.labs.vercel.dev/swr) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/swr).
 
 ## Coordinate server and client caches after mutations
 
