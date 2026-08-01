@@ -87,7 +87,7 @@ export function ProductAutocomplete({ query }: { query: string }) {
 }
 
 function ProductResults({ query }: { query: string }) {
-  const { data } = useSWR<Product[]>(
+  const { data } = useSWR(
     `/api/products?query=${encodeURIComponent(query)}`,
     fetcher,
     { suspense: true }
