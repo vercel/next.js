@@ -81,6 +81,8 @@ function ProductResults({ query }: { query: string }) {
     suspense: true,
   })
 
+  if (!data) return null
+
   return (
     <ul>
       {data.map((product) => (
@@ -183,7 +185,7 @@ export const productCache = {
 }
 ```
 
-Inside `<Suspense>`, `params.then()` resolves the `id` and passes it to `ProductData`, which seeds the `fallback` with the `getProduct(id)` promise. Only that subtree suspends while the data loads.
+Inside `<Suspense>`, `params.then()` resolves the `id` and passes it to `ProductData`, which puts the unawaited `getProduct(id)` promise in `fallback`. React passes the Promise through the React Server Component payload, and the component that reads the matching key suspends while it resolves.
 
 The Client Component reads the data with `useSWR` using the same key:
 
@@ -197,6 +199,8 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
 export function ProductView({ id }: { id: string }) {
   const { data } = useSWR(productCache.key(id), fetcher, { suspense: true })
+
+  if (!data) return null
 
   return <h1>{data.name}</h1>
 }
@@ -212,6 +216,8 @@ const fetcher = (url) => fetch(url).then((res) => res.json())
 
 export function ProductView({ id }) {
   const { data } = useSWR(productCache.key(id), fetcher, { suspense: true })
+
+  if (!data) return null
 
   return <h1>{data.name}</h1>
 }

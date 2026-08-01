@@ -15,7 +15,7 @@ Use [TanStack Query](https://tanstack.com/query) to fetch data in Client Compone
 
 ## Fetch data on the client
 
-TanStack Query can fetch entirely in the browser when the server-rendered response does not need the result. As described in [Choose a client fetching pattern](/docs/app/guides/client-side-data-fetching#choose-a-client-fetching-pattern), the component can render its own loading state or let a Suspense boundary handle it. Both work well for data whose input is only known after an interaction, such as autocomplete.
+TanStack Query can fetch entirely in the browser when the server-rendered response does not need the result. As described in [Choose a client fetching pattern](/docs/app/guides/client-side-data-fetching#choose-a-client-fetching-pattern), the component can render its own loading state or let a Suspense boundary handle it.
 
 Use `useQuery` when the component should render its own loading and error states. The `enabled` option delays the request until the interaction provides an input:
 
@@ -269,6 +269,8 @@ Learn more: [TanStack Query Advanced SSR](https://tanstack.com/query/latest/docs
 ## Seed and cache server data with Cache Components
 
 With [Cache Components](/docs/app/getting-started/caching), you can also cache the server data that seeds TanStack Query. Add a server tag beside the query key so mutations can invalidate the cached data:
+
+> **Good to know:** With Cache Components, an active query can read the current time during prerendering. For data needed by the initial UI, use `useSuspenseQuery` and place the consumer behind [Suspense](/docs/app/getting-started/fetching-data#streaming). See [Choose a client fetching pattern](/docs/app/guides/client-side-data-fetching#choose-a-client-fetching-pattern) and [current-time prerender error](/docs/messages/blocking-prerender-current-time-client).
 
 ```diff filename="app/products/[id]/product-cache.ts" switcher
  export const productCache = {
@@ -555,7 +557,35 @@ export function useMarkActivityRead() {
 }
 ```
 
-The Route Handler writes to the database, then refreshes the server seed with `revalidateTag`, using the same pattern shown in the [SWR guide](/docs/app/guides/client-side-data-fetching/swr#coordinate-server-and-client-caches-after-mutations).
+The Route Handler writes to the database and revalidates the tagged server data:
+
+```ts filename="app/api/activity/read/route.ts" switcher
+import { revalidateTag } from 'next/cache'
+import { markActivityRead, getCurrentUserId } from '../../../activity/data'
+import { activityCache } from '../../../activity/activity-cache'
+
+export async function POST() {
+  const userId = await getCurrentUserId()
+  await markActivityRead(userId)
+  revalidateTag(activityCache.tag(userId), { expire: 0 })
+  return Response.json({ count: 0 })
+}
+```
+
+```js filename="app/api/activity/read/route.js" switcher
+import { revalidateTag } from 'next/cache'
+import { markActivityRead, getCurrentUserId } from '../../../activity/data'
+import { activityCache } from '../../../activity/activity-cache'
+
+export async function POST() {
+  const userId = await getCurrentUserId()
+  await markActivityRead(userId)
+  revalidateTag(activityCache.tag(userId), { expire: 0 })
+  return Response.json({ count: 0 })
+}
+```
+
+The optimistic query value updates the current screen. `{ expire: 0 }` ensures the next server render reads fresh activity. The hydration timestamp determines whether the client accepts that server seed, but it does not expire cached server data.
 
 > **Good to know:** Use `revalidateTag` when the server seed uses [`use cache`](/docs/app/api-reference/directives/use-cache) and `cacheTag`. Omit `revalidateTag` for an uncached read because each server render already reads fresh data. See [Client-side data fetching](/docs/app/guides/client-side-data-fetching) for the invalidation choices.
 
