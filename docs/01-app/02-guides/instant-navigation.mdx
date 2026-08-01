@@ -302,37 +302,37 @@ Test both ways users can reach a route:
 
 A `<Suspense>` boundary can make one navigation type instant without covering the other.
 
-```typescript filename="e2e/navigation.test.ts"
+```typescript filename="e2e/navigation.test.ts" highlight={9-17,23-28}
 import { test, expect } from '@playwright/test'
 import { instant } from '@next/playwright'
 
-// Initial page load: the document loads from the URL and renders from the root.
-test('product is instant on an initial page load', async ({
-  page,
-  baseURL,
-}) => {
-  await instant(
+test.describe('Product page (/store/[slug])', () => {
+  test('initial page load exposes the document shell', async ({
     page,
-    async () => {
-      await page.goto('/store/hats')
-      await expect(page.locator('h1')).toContainText('Baseball Cap') // in the shell
-      await expect(page.getByText('In stock')).toHaveCount(0) // held back
-    },
-    { baseURL }
-  )
-  await expect(page.getByText('In stock')).toBeVisible() // streamed in after
-})
-
-// Client navigation: the destination commits from its prefetched UI.
-test('product is instant on a client navigation', async ({ page }) => {
-  await page.goto('/store/shoes')
-  await instant(page, async () => {
-    await page.click('a[href="/store/hats"]')
-    await page.waitForURL((url) => url.pathname === '/store/hats')
-    await expect(page.locator('h1')).toContainText('Baseball Cap')
-    await expect(page.getByText('In stock')).toHaveCount(0)
+    baseURL,
+  }) => {
+    await instant(
+      page,
+      async () => {
+        await page.goto('/store/hats')
+        await expect(page.locator('h1')).toContainText('Baseball Cap')
+        await expect(page.getByText('In stock')).toHaveCount(0)
+      },
+      { baseURL }
+    )
+    await expect(page.getByText('In stock')).toBeVisible()
   })
-  await expect(page.getByText('In stock')).toBeVisible()
+
+  test('client navigation exposes the prefetched shell', async ({ page }) => {
+    await page.goto('/store/shoes')
+    await instant(page, async () => {
+      await page.click('a[href="/store/hats"]')
+      await page.waitForURL((url) => url.pathname === '/store/hats')
+      await expect(page.locator('h1')).toContainText('Baseball Cap')
+      await expect(page.getByText('In stock')).toHaveCount(0)
+    })
+    await expect(page.getByText('In stock')).toBeVisible()
+  })
 })
 ```
 
