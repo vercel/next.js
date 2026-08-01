@@ -30,11 +30,16 @@ For browser-driven interactions such as autocomplete, you can use either client-
 
 Seed the client cache from a [Server Component](/docs/app/getting-started/server-and-client-components) when the server knows what the initial render needs. The library receives that value in the React Server Component payload and can continue managing it in the browser.
 
+Choose a pattern based on whether the Client Component needs server-rendered data, streaming, or client-side cache features:
+
+| Capability            | Client library      | Server Component    | Server seed + client library |
+| --------------------- | ------------------- | ------------------- | ---------------------------- |
+| Server-rendered data  | <Cross size={18} /> | <Check size={18} /> | <Check size={18} />          |
+| Streaming             | <Cross size={18} /> | <Check size={18} /> | <Check size={18} />          |
+| Request deduplication | <Check size={18} /> | <Check size={18} /> | <Check size={18} />          |
+| Client cache features | <Check size={18} /> | <Cross size={18} /> | <Check size={18} />          |
+
 If a Client Component only needs to read server data once, pass it a Promise and unwrap it with React's [`use()`](https://react.dev/reference/react/use). This avoids adding a data-fetching library for data that never revalidates on the client.
-
-## Avoid client request waterfalls
-
-With Suspense, the first query can suspend before later hooks run. Put independent queries in sibling components and boundaries, or use TanStack Query's [`useSuspenseQueries`](https://tanstack.com/query/latest/docs/framework/react/reference/useSuspenseQueries). Dependent queries execute sequentially.
 
 ## Cache server data with Cache Components (optional)
 
@@ -56,18 +61,11 @@ Server Components, data-fetching libraries, and mutations manage different parts
 
 - **Server Components** provide the initial data, scoped to the segment that owns it.
 - **The data-fetching library** stores the browser value under a shared cache identity.
-- **Mutations** update the browser cache immediately and refresh cached server data for the next render.
+- **Mutations** can update the browser cache immediately and refresh cached server data for the next render.
 
 An optimistic update should restore the previous browser value if the write fails. If the server read is not cached, there is no server tag to invalidate.
 
-Choose a pattern based on whether the Client Component needs server-rendered data, streaming, or client-side cache features:
-
-| Capability            | Client library      | Server Component    | Server seed + client library |
-| --------------------- | ------------------- | ------------------- | ---------------------------- |
-| Server-rendered data  | <Cross size={18} /> | <Check size={18} /> | <Check size={18} />          |
-| Streaming             | <Cross size={18} /> | <Check size={18} /> | <Check size={18} />          |
-| Request deduplication | <Check size={18} /> | <Check size={18} /> | <Check size={18} />          |
-| Client cache features | <Check size={18} /> | <Cross size={18} /> | <Check size={18} />          |
+After a mutation, invalidate any cached server read that produced the seed. Use `revalidateTag(tag, 'max')` when a stale value can be served while the cache revalidates, or `revalidateTag(tag, { expire: 0 })` when the next server render must read fresh data. In a Server Action, use [`updateTag`](/docs/app/api-reference/functions/updateTag) when the current request must read its own writes. Call [`router.refresh()`](/docs/app/api-reference/functions/use-router) when the current route should request a new React Server Component payload immediately.
 
 ## Apply these patterns with SWR or TanStack Query
 
