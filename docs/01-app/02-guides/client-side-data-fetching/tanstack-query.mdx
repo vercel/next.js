@@ -57,7 +57,7 @@ See the [complete provider setup in the demo source](https://github.com/vercel-l
 
 ## Fetch data on the client
 
-TanStack Query can fetch entirely in the browser when the server-rendered response does not need the result. Choose an [inline or Suspense loading state](/docs/app/guides/client-side-data-fetching#choose-a-client-fetching-pattern) based on which UI should remain visible. In these examples, `query` starts empty and updates from client state after hydration.
+TanStack Query can fetch entirely in the browser when the server-rendered response does not need the result. Choose an [inline or Suspense loading state](/docs/app/guides/client-side-data-fetching#choose-a-client-fetching-pattern) based on which UI should stay visible. In these examples, `query` starts empty and updates from client state after hydration.
 
 Use `useQuery` when the component should render its own loading and error states. The `enabled` option delays the request until the interaction provides an input:
 

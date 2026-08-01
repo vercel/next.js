@@ -17,7 +17,7 @@ Use [SWR](https://swr.vercel.app) to fetch data in Client Components, provide in
 
 ## Fetch data on the client
 
-SWR can fetch entirely in the browser when the server-rendered response does not need the result. Choose an [inline or Suspense loading state](/docs/app/guides/client-side-data-fetching#choose-a-client-fetching-pattern) based on which UI should remain visible. In these examples, `query` starts empty and updates from client state after hydration.
+SWR can fetch entirely in the browser when the server-rendered response does not need the result. Choose an [inline or Suspense loading state](/docs/app/guides/client-side-data-fetching#choose-a-client-fetching-pattern) based on which UI should stay visible. In these examples, `query` starts empty and updates from client state after hydration.
 
 Use `useSWR` when the component should render its own loading and error states. A conditional key delays the request until the interaction provides an input:
 
