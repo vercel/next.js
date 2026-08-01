@@ -295,14 +295,22 @@ yarn add -D @next/playwright @playwright/test
 bun add -D @next/playwright @playwright/test
 ```
 
-Then use it in a test. A route is reached two ways: a **direct visit** that loads the page from a URL, and a **client navigation** from another route. A `<Suspense>` boundary that makes one instant may not cover the other. Test both:
+Test both ways users can reach a route:
+
+- **Initial page load**: Use `page.goto()` to test the static UI from the document response.
+- **Client navigation**: Click a `<Link>` to test the destination's prefetched UI. [Runtime prefetching](/docs/app/guides/runtime-prefetching) can add request-specific content to this UI.
+
+A `<Suspense>` boundary can make one navigation type instant without covering the other.
 
 ```typescript filename="e2e/navigation.test.ts"
 import { test, expect } from '@playwright/test'
 import { instant } from '@next/playwright'
 
-// Direct visit: the page loads from the URL and the whole tree renders from the root.
-test('product is instant on a direct visit', async ({ page, baseURL }) => {
+// Initial page load: the document loads from the URL and renders from the root.
+test('product is instant on an initial page load', async ({
+  page,
+  baseURL,
+}) => {
   await instant(
     page,
     async () => {
@@ -315,11 +323,12 @@ test('product is instant on a direct visit', async ({ page, baseURL }) => {
   await expect(page.getByText('In stock')).toBeVisible() // streamed in after
 })
 
-// Client navigation: only the tree below the shared /store layout re-renders.
+// Client navigation: the destination commits from its prefetched UI.
 test('product is instant on a client navigation', async ({ page }) => {
   await page.goto('/store/shoes')
   await instant(page, async () => {
     await page.click('a[href="/store/hats"]')
+    await page.waitForURL((url) => url.pathname === '/store/hats')
     await expect(page.locator('h1')).toContainText('Baseball Cap')
     await expect(page.getByText('In stock')).toHaveCount(0)
   })
@@ -327,7 +336,11 @@ test('product is instant on a client navigation', async ({ page }) => {
 })
 ```
 
-Inside the `instant()` callback, only the App Shell is visible: the heading is there, and the streamed content is still held back. After the callback exits, the dynamic content streams in and you can assert on the full page.
+Pass Playwright's `baseURL` to `instant()` when `page.goto()` is the first navigation. The helper needs the origin before requesting the document.
+
+The `instant()` callback exposes static UI for an initial page load and prefetched UI for a client navigation. Other dynamic content remains blocked until the callback returns.
+
+For client navigations, wait for the destination URL before asserting on its UI. Otherwise, a shared selector can match the source page before the destination commits. If the prefetched destination cannot commit, the URL wait times out and the test fails.
 
 Run these against `next dev`, where the testing API is enabled automatically. To run them in CI against a production build, set `exposeTestingApiInProductionBuild` so `next start` exposes the same API:
 
