@@ -308,8 +308,32 @@ export interface UpdateInfo {
   tasks: number
 }
 
+export interface EditTransactionEndResult {
+  accepted: boolean
+  flushed: boolean
+}
+
 export interface Project {
   update(options: Partial<ProjectOptions>): Promise<void>
+
+  /**
+   * Begin a source-edit transaction and wait until the filesystem watcher has acknowledged it.
+   * The returned token must be passed to `endEditTransaction`.
+   */
+  beginEditTransaction(): Promise<number>
+
+  /** Renew only this source-edit transaction's bounded lease. */
+  renewEditTransaction(token: number): Promise<boolean>
+
+  /**
+   * End a source-edit transaction and explicitly invalidate the controller-confirmed paths.
+   * The result distinguishes a rejected token, a token still held by another transaction, and the
+   * final token whose invalidations have been submitted.
+   */
+  endEditTransaction(
+    token: number,
+    changedPaths: string[]
+  ): Promise<EditTransactionEndResult>
 
   writeAnalyzeData(appDirOnly: boolean): Promise<TurbopackResult<void>>
 

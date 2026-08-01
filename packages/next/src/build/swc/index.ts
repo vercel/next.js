@@ -26,6 +26,7 @@ import type {
   CompilationEvent,
   DefineEnv,
   Endpoint,
+  EditTransactionEndResult,
   HmrChunkNames,
   Lockfile,
   NodeJsHmrUpdate,
@@ -683,6 +684,7 @@ function bindingToApi(
 
   class ProjectImpl implements Project {
     private readonly _nativeProject: { __napiType: 'Project' }
+    private _editTransactionControl: Promise<void> = Promise.resolve()
 
     constructor(nativeProject: { __napiType: 'Project' }) {
       this._nativeProject = nativeProject
@@ -696,6 +698,42 @@ function bindingToApi(
       await binding.projectUpdate(
         this._nativeProject,
         await rustifyPartialProjectOptions(options)
+      )
+    }
+
+    private _serializeEditTransactionControl<T>(
+      operation: () => Promise<T>
+    ): Promise<T> {
+      const result = this._editTransactionControl.then(operation, operation)
+      this._editTransactionControl = result.then(
+        () => undefined,
+        () => undefined
+      )
+      return result
+    }
+
+    beginEditTransaction(): Promise<number> {
+      return this._serializeEditTransactionControl(() =>
+        binding.projectBeginEditTransaction(this._nativeProject)
+      )
+    }
+
+    renewEditTransaction(token: number): Promise<boolean> {
+      return this._serializeEditTransactionControl(() =>
+        binding.projectRenewEditTransaction(this._nativeProject, token)
+      )
+    }
+
+    endEditTransaction(
+      token: number,
+      changedPaths: string[]
+    ): Promise<EditTransactionEndResult> {
+      return this._serializeEditTransactionControl(() =>
+        binding.projectEndEditTransaction(
+          this._nativeProject,
+          token,
+          changedPaths
+        )
       )
     }
 

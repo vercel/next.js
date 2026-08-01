@@ -1463,5 +1463,13 @@
   "1462": "Unexpected chunk emitted in Before stage",
   "1463": "\\`experimental.turbopackGenerateComponentChunks\\` has been moved to \\`experimental.turbopackChunking.generateComponentChunks\\`. Please update your next.config.js file accordingly.",
   "1464": "\\`experimental.turbopackChunkingHeuristics\\` has been renamed to \\`experimental.turbopackChunking\\`. Please update your next.config.js file accordingly.",
-  "1465": "\\`experimental.useCache\\` cannot be disabled when \\`cacheComponents\\` is enabled, because Cache Components relies on the \\`\"use cache\"\\` directive. Please remove it from %s."
+  "1465": "\\`experimental.useCache\\` cannot be disabled when \\`cacheComponents\\` is enabled, because Cache Components relies on the \\`\"use cache\"\\` directive. Please remove it from %s.",
+  "1466": "Turbopack project is not available. This tool requires the Turbopack bundler.",
+  "1467": "Changed path must be project-relative: %s",
+  "1468": "Changed path leaves the project root: %s",
+  "1469": "Too many active edit transactions (limit %s)",
+  "1470": "Changed path leaves the Turbopack filesystem root: %s",
+  "1471": "Edit transaction acknowledgement consumed its lease headroom; retry begin_edit_transaction",
+  "1472": "Changed path is watched outside the Turbopack source transaction: %s",
+  "1473": "Too much retained changed-path data (limit %s characters)"
 }

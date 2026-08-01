@@ -738,6 +738,86 @@ async fn benchmark_file_io(turbo_tasks: &NextTurboTasks, dir: &Path) -> Result<(
     Ok(())
 }
 
+#[turbo_tasks::function(operation, root)]
+fn project_fs_control_operation(container: ResolvedVc<ProjectContainer>) -> Vc<DiskFileSystem> {
+    container.project().project_fs()
+}
+
+/// Starts an explicitly acknowledged source-edit transaction. Filesystem invalidations are held
+/// until the matching token is ended or the watcher's safety timeout expires.
+#[napi]
+pub async fn project_begin_edit_transaction(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) -> napi::Result<u32> {
+    let ctx = &project.turbopack_ctx;
+    let container = project.container;
+
+    ctx.turbo_tasks()
+        .run(async move {
+            project_fs_control_operation(container)
+                .read_strongly_consistent()
+                .await?
+                .begin_edit_transaction()
+                .await
+        })
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
+        .await
+}
+
+/// Renews only the matching source-edit transaction's bounded lease.
+#[napi]
+pub async fn project_renew_edit_transaction(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    token: u32,
+) -> napi::Result<bool> {
+    let ctx = &project.turbopack_ctx;
+    let container = project.container;
+
+    ctx.turbo_tasks()
+        .run(async move {
+            project_fs_control_operation(container)
+                .read_strongly_consistent()
+                .await?
+                .renew_edit_transaction(token)
+                .await
+        })
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
+        .await
+}
+
+#[napi(object)]
+pub struct NapiEditTransactionEndResult {
+    pub accepted: bool,
+    pub flushed: bool,
+}
+
+/// Ends a source-edit transaction. The acknowledgement reports whether the token was accepted and
+/// whether this was the final active token whose invalidations were submitted before returning.
+#[napi]
+pub async fn project_end_edit_transaction(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    token: u32,
+    changed_paths: Vec<String>,
+) -> napi::Result<NapiEditTransactionEndResult> {
+    let ctx = &project.turbopack_ctx;
+    let container = project.container;
+    let changed_paths = changed_paths.into_iter().map(PathBuf::from).collect();
+
+    let (accepted, flushed) = ctx
+        .turbo_tasks()
+        .run(async move {
+            project_fs_control_operation(container)
+                .read_strongly_consistent()
+                .await?
+                .end_edit_transaction(token, changed_paths)
+                .await
+        })
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
+        .await?;
+
+    Ok(NapiEditTransactionEndResult { accepted, flushed })
+}
+
 #[tracing::instrument(level = "info", name = "update project", skip_all)]
 #[napi]
 pub async fn project_update(

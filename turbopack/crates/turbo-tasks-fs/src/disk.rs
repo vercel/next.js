@@ -522,6 +522,46 @@ impl DiskFileSystem {
             .await
     }
 
+    pub async fn begin_edit_transaction(&self) -> Result<u32> {
+        self.inner.watcher.begin_edit_transaction().await
+    }
+
+    pub async fn renew_edit_transaction(&self, token: u32) -> Result<bool> {
+        self.inner.watcher.renew_edit_transaction(token).await
+    }
+
+    pub async fn end_edit_transaction(
+        &self,
+        token: u32,
+        changed_paths: Vec<PathBuf>,
+    ) -> Result<(bool, bool)> {
+        let root = self.inner.root_path();
+        let mut absolute_changed_paths = Vec::with_capacity(changed_paths.len());
+        for path in changed_paths {
+            if path.is_absolute()
+                || path.components().any(|component| {
+                    matches!(
+                        component,
+                        std::path::Component::Prefix(_)
+                            | std::path::Component::RootDir
+                            | std::path::Component::CurDir
+                            | std::path::Component::ParentDir
+                    )
+                })
+            {
+                bail!(
+                    "edit transaction changed path {} is not filesystem-root-relative",
+                    path.display()
+                );
+            }
+            absolute_changed_paths.push(root.join(path));
+        }
+        self.inner
+            .watcher
+            .end_edit_transaction(token, absolute_changed_paths)
+            .await
+    }
+
     pub async fn stop_watching(&self) {
         self.inner.watcher.stop_watching().await;
     }

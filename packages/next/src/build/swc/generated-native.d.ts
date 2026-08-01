@@ -330,6 +330,31 @@ export declare function projectNew(
   turboEngineOptions: NapiTurboEngineOptions,
   napiCallbacks: NapiNextTurbopackCallbacksJsObject
 ): Promise<{ __napiType: 'Project' }>
+/**
+ * Starts an explicitly acknowledged source-edit transaction. Filesystem invalidations are held
+ * until the matching token is ended or the watcher's safety timeout expires.
+ */
+export declare function projectBeginEditTransaction(project: {
+  __napiType: 'Project'
+}): Promise<number>
+/** Renews only the matching source-edit transaction's bounded lease. */
+export declare function projectRenewEditTransaction(
+  project: { __napiType: 'Project' },
+  token: number
+): Promise<boolean>
+export interface NapiEditTransactionEndResult {
+  accepted: boolean
+  flushed: boolean
+}
+/**
+ * Ends a source-edit transaction. The acknowledgement reports whether the token was accepted and
+ * whether this was the final active token whose invalidations were submitted before returning.
+ */
+export declare function projectEndEditTransaction(
+  project: { __napiType: 'Project' },
+  token: number,
+  changedPaths: Array<string>
+): Promise<NapiEditTransactionEndResult>
 export declare function projectUpdate(
   project: { __napiType: 'Project' },
   options: NapiPartialProjectOptions
