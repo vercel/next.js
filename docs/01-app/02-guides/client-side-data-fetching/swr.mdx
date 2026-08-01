@@ -236,7 +236,35 @@ Learn more: [SWR arguments and keys](https://swr.vercel.app/docs/arguments) and 
 
 ## Seed and cache server data with Cache Components
 
-With [Cache Components](/docs/app/getting-started/caching), you can also cache the server data that seeds SWR. Add a server tag beside the SWR key so mutations can invalidate the cached data:
+With [Cache Components](/docs/app/getting-started/caching), you can also cache the server data that seeds SWR. Add [`use cache`](/docs/app/api-reference/directives/use-cache), choose a [`cacheLife`](/docs/app/api-reference/functions/cacheLife) profile, and apply [`cacheTag`](/docs/app/api-reference/functions/cacheTag) so mutations can invalidate it:
+
+```ts filename="app/products/[id]/data.ts" switcher
+import { cacheLife, cacheTag } from 'next/cache'
+export async function getProduct(id: string) {
+  'use cache'
+  cacheLife('max')
+  cacheTag(`product:${id}`)
+
+  return db.product.findUnique({ where: { id } })
+}
+```
+
+```js filename="app/products/[id]/data.js" switcher
+import { cacheLife, cacheTag } from 'next/cache'
+export async function getProduct(id) {
+  'use cache'
+  cacheLife('max')
+  cacheTag(`product:${id}`)
+
+  return db.product.findUnique({ where: { id } })
+}
+```
+
+This example uses `cacheLife('max')` because writes invalidate the product tag. Within the cache profile, `stale` controls how long the Next.js client cache can reuse a prefetched view, while `revalidate` and `expire` control the server cache. Choose a shorter profile when the server value should refresh with time.
+
+SWR owns a separate browser cache. SWR revalidation options do not need to match `cacheLife`. When React Activity restores a preserved route, SWR applies options such as `revalidateOnMount` and `revalidateIfStale` as its Effects restart.
+
+When the same mutation updates the browser cache and invalidates cached server data, you may define both identities in one shared contract:
 
 ```diff filename="app/products/[id]/product-cache.ts" switcher
  export const productCache = {
@@ -252,41 +280,7 @@ With [Cache Components](/docs/app/getting-started/caching), you can also cache t
  }
 ```
 
-Then add [`use cache`](/docs/app/api-reference/directives/use-cache), choose a [`cacheLife`](/docs/app/api-reference/functions/cacheLife) profile, and apply the tag to the server function. See [Cache server data with Cache Components](/docs/app/guides/client-side-data-fetching#cache-server-data-with-cache-components-optional) for how the cache layers relate.
-
-```ts filename="app/products/[id]/data.ts" switcher
-import { cacheLife, cacheTag } from 'next/cache'
-import { productCache } from './product-cache'
-
-export async function getProduct(id: string) {
-  'use cache'
-  cacheLife('max')
-  cacheTag(productCache.tag(id))
-
-  return db.product.findUnique({ where: { id } })
-}
-```
-
-```js filename="app/products/[id]/data.js" switcher
-import { cacheLife, cacheTag } from 'next/cache'
-import { productCache } from './product-cache'
-
-export async function getProduct(id) {
-  'use cache'
-  cacheLife('max')
-  cacheTag(productCache.tag(id))
-
-  return db.product.findUnique({ where: { id } })
-}
-```
-
-This example uses `cacheLife('max')` because writes invalidate the product tag. Within the cache profile, `stale` controls how long the Next.js client cache can reuse a prefetched view, while `revalidate` and `expire` control the server cache. Choose a shorter profile when the server value should refresh with time.
-
-SWR owns a separate browser cache. SWR revalidation options do not need to match `cacheLife`. When React Activity restores a preserved route, SWR applies options such as `revalidateOnMount` and `revalidateIfStale` as its Effects restart.
-
-Keep the cache contract free of server-only and client-only imports so every cache boundary can reuse it instead of duplicating raw keys and tags.
-
-Learn more: [`use cache`](/docs/app/api-reference/directives/use-cache) and [`cacheTag`](/docs/app/api-reference/functions/cacheTag).
+The server function can then call `cacheTag(productCache.tag(id))`. Keep this contract free of server-only and client-only imports so both cache layers can reuse it.
 
 See the [live demo](https://next-spa-patterns.labs.vercel.dev/swr) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/swr).
 
