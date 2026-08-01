@@ -31,6 +31,7 @@ use crate::{
 };
 
 pub(crate) mod source_map_asset;
+pub mod structured;
 pub mod utils;
 
 pub use source_map_asset::SourceMapAsset;

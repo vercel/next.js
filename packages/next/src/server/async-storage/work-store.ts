@@ -28,6 +28,12 @@ export type WorkStoreContext = {
     cacheLifeProfiles: ResolvedCacheLifeProfiles
     staticPageGenerationTimeout: number
     incrementalCache?: IncrementalCache
+    /**
+     * The hash of the most recent server component change (dev only). Included
+     * in `"use cache"` cache keys so that cached entries are revalidated after
+     * an edit, for every client, regardless of whether it runs the HMR client.
+     */
+    hmrRefreshHash?: string
     isOnDemandRevalidate?: boolean
     cacheComponents: boolean
     validationLevel: ValidationLevel
@@ -59,7 +65,6 @@ export type WorkStoreContext = {
     RenderOpts,
     | 'assetPrefix'
     | 'supportsDynamicResponse'
-    | 'shouldWaitOnAllReady'
     | 'isBuildTimePrerendering'
     | 'isDraftMode'
     | 'isDebugDynamicAccesses'
@@ -109,7 +114,6 @@ export function createWorkStore({
    * coalescing, and ISR continue working as intended.
    */
   const isStaticGeneration =
-    !renderOpts.shouldWaitOnAllReady &&
     !renderOpts.supportsDynamicResponse &&
     !renderOpts.isDraftMode &&
     !renderOpts.isPossibleServerAction

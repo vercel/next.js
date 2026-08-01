@@ -130,7 +130,6 @@ async function requestHandler(
       params,
       page: srcPage,
       postponed: undefined,
-      shouldWaitOnAllReady: false,
       serveStreamingMetadata: true,
       supportsDynamicResponse: true,
       buildManifest,
@@ -179,7 +178,6 @@ async function requestHandler(
         serverComponentsHmrCancellation: false,
         useCacheTimeout: nextConfig.experimental.useCacheTimeout,
         cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
-        appShells: nextConfig.experimental.appShells,
         clientTraceMetadata:
           nextConfig.experimental.clientTraceMetadata || ([] as any),
         clientParamParsingOrigins:

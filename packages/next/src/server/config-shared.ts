@@ -16,7 +16,6 @@ import { INFINITE_CACHE } from '../lib/constants'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 import type { MemoryEvictionMode } from '../build/swc/types'
 import type { CacheLife } from './use-cache/cache-life'
-import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import { isCI } from './ci-info'
 
 /**
@@ -467,13 +466,7 @@ export function resolveCssChunkingMode(
 
 export interface ExperimentalConfig {
   /**
-   * A string that is incorporated into content-addressed output filenames
-   * (chunks, assets) for both Webpack and Turbopack. Changing this value
-   * forces all output hashes to change, which is useful for invalidating
-   * cached assets across deployments without modifying source files.
-   *
-   * When `NEXT_HASH_SALT` environment variable is also set, the two values are
-   * concatenated (`outputHashSalt + NEXT_HASH_SALT`) to form the effective salt.
+   * @deprecated Use the top-level `outputHashSalt` option instead.
    */
   outputHashSalt?: string
 
@@ -502,24 +495,13 @@ export interface ExperimentalConfig {
   /**
    * Caches subsets of a route, seeded from actual navigations, so subsequent
    * navigations to the same or similar pages can be served instantly. Requires
-   * Cache Components. `true` caches the static stage only (the runtime stage is
-   * opted into per segment via `export const prefetch = 'allow-runtime'`).
-   * `'allow-runtime'` additionally treats every segment as runtime-cached,
-   * regardless of its per-segment `prefetch` config.
+   * Cache Components.
    */
-  cachedNavigations?: boolean | 'allow-runtime'
+  cachedNavigations?: boolean
   dynamicOnHover?: boolean
   useOffline?: boolean
   optimisticRouting?: boolean
   instrumentationClientRouterTransitionEvents?: boolean
-  /**
-   * Enables App Shell prefetching: a route's reusable, param-free loading
-   * state is prefetched once per session and served instantly for any
-   * concrete navigation. Routes marked as fully static (no per-request
-   * server work) are unaffected; the App Shell phase only runs for
-   * runtime-prefetchable routes.
-   */
-  appShells?: boolean
   varyParams?: boolean
   prefetchInlining?:
     | boolean
@@ -580,7 +562,6 @@ export interface ExperimentalConfig {
   imgOptTimeoutInSeconds?: number
   imgOptMaxInputPixels?: number
   imgOptSequentialRead?: boolean | null
-  imgOptSkipMetadata?: boolean | null
   optimisticClientCache?: boolean
   /**
    * @deprecated use config.expireTime instead
@@ -615,6 +596,11 @@ export interface ExperimentalConfig {
    *       styles at the expense of more requests overall.
    */
   cssChunking?: CssChunkingConfig
+  /**
+   * Controls whether the development server automatically restarts when its
+   * heap usage exceeds the memory threshold. Defaults to `true`.
+   */
+  devMemoryThresholdRestart?: boolean
   disablePostcssPresetEnv?: boolean
   cpus?: number
   memoryBasedWorkersCount?: boolean
@@ -777,10 +763,17 @@ export interface ExperimentalConfig {
   turbopackScopeHoisting?: boolean
 
   /**
-   * (`next --turbopack` only) Traffic-related hints for the production chunker. These change the
-   * assumptions Turbopack makes when making chunk merging decisions.
+   * Share the browser runtime across routes in a single `runtime.js` asset and inline the
+   * per-route chunk-group bootstrap into the HTML, dropping the per-route runtime. Defaults to
+   * false. Only applies to production builds; has no effect in development mode.
    */
-  turbopackChunkingHeuristics?: {
+  turbopackSharedRuntime?: boolean
+
+  /**
+   * (`next --turbopack` only) These options change the assumptions Turbopack makes when
+   * making chunk merging decisions and the raw size thresholds it uses.
+   */
+  turbopackChunking?: {
     /**
      * This is a number between `0..1`, when higher, we weight the benefits of
      * merging chunks for a signal page load higher. If you don't know a good
@@ -802,11 +795,37 @@ export interface ExperimentalConfig {
     priorityBoost?: number
     /**
      * Estimated cost of an additional request, in bytes (uncompressed
-     * and unminfified bytes of code, default is 200 KB and the max is 1 MB), used by the chunker to
+     * and unminfified bytes of code, default is 200 KB), used by the chunker to
      * trade off request count against preventing double-fetching. Uncompressed and unminfified code
      * is approximately 5x the size of compressed and minified code.
      */
     requestCost?: number
+    /**
+     * Avoid creating more than one chunk smaller than this size, in bytes. Smaller
+     * chunks are merged into bigger ones to avoid that. Defaults to `50000` (50 KB).
+     */
+    minChunkSize?: number
+    /**
+     * Avoid creating more than this number of chunks per chunk group. Chunks are
+     * merged into bigger ones to avoid that. Defaults to `40`.
+     */
+    maxChunkCountPerGroup?: number
+    /**
+     * Never merge chunks bigger than this size, in bytes, with other chunks. This keeps code
+     * in big chunks from being duplicated across multiple chunks. Defaults to `200000` (200 KB).
+     */
+    maxMergeChunkSize?: number
+    /**
+     * Emit each merged production chunk's constituent component chunks alongside it, so the
+     * browser runtime can load only the ones it doesn't already have. Defaults to `false`.
+     */
+    generateComponentChunks?: boolean
+    /**
+     * Minimum size, in bytes, for a component chunk to be emitted on its own when
+     * `generateComponentChunks` is enabled. Component chunks smaller than this are folded into a
+     * single remainder chunk. Defaults to `20000` (20 KB).
+     */
+    minComponentChunkSize?: number
   }
 
   /**
@@ -867,6 +886,15 @@ export interface ExperimentalConfig {
   turbopackFileSystemCacheForBuild?: boolean
 
   /**
+   * When running inside a git worktree, warm-start this worktree's Turbopack
+   * filesystem cache by seeding it from the main checkout's cache if the
+   * worktree doesn't have one yet. This is best-effort and never fails a build.
+   *
+   * Defaults to `false`.
+   */
+  turbopackSeedCacheFromWorktree?: boolean
+
+  /**
    * Enable source maps. Defaults to true.
    */
   turbopackSourceMaps?: boolean
@@ -877,9 +905,10 @@ export interface ExperimentalConfig {
   turbopackInputSourceMaps?: boolean
 
   /**
-   * Enable tree shaking for the turbopack dev server and build.
+   * Currently in active development. This splits modules into fragments and
+   * chunks only import the used fragments of the modules.
    */
-  turbopackTreeShaking?: boolean
+  turbopackModuleFragments?: boolean
 
   /**
    * Enable removing unused imports for turbopack dev server and build.
@@ -899,6 +928,13 @@ export interface ExperimentalConfig {
    * Defaults to `true`
    */
   turbopackInferModuleSideEffects?: boolean
+
+  /**
+   * Enable tree shaking of unused exports from analyzable CommonJS modules in Turbopack.
+   *
+   * Defaults to `false`
+   */
+  turbopackCjsTreeShaking?: boolean
 
   /**
    * Set this to `false` to disable the automatic configuration of the babel loader when a Babel
@@ -1129,11 +1165,6 @@ export interface ExperimentalConfig {
   lightningCssFeatures?: LightningCssFeatures
 
   /**
-   * Enables view transitions by using the {@link https://react.dev/reference/react/ViewTransition ViewTransition} Component.
-   */
-  viewTransition?: boolean
-
-  /**
    * Enables `fetch` requests to be proxied to the experimental test proxy server
    */
   testProxy?: boolean
@@ -1182,6 +1213,21 @@ export interface ExperimentalConfig {
      */
     validationLevel?: ValidationLevel
   }
+
+  /**
+   * Runs development Cache Components validation on a worker thread rather than
+   * the main thread, keeping the dev server's event loop responsive during
+   * rapid navigation. This covers static-shell validation (which runs on
+   * initial load and HMR refresh) as well as instant-navigation validation
+   * (when `instant` is configured). Enabled by default; set to `false` to run
+   * validation in-process, as an escape hatch to isolate a problem or fall back
+   * if the worker misbehaves.
+   *
+   * Has no effect with Webpack, where validation always runs in process. The
+   * worker's thread cannot reach Webpack's dev source maps, so validation
+   * errors would be reported without a source location.
+   */
+  devValidationWorker?: boolean
 
   /**
    * The number of times to retry static generation (per page) before giving up.
@@ -1358,9 +1404,7 @@ export interface ExperimentalConfig {
   runtimeServerDeploymentId?: boolean
 
   /**
-   * Whether the deployment environment supports immutable assets (assets deployed to
-   * `_next/static/immutable` don't need a `?dpl` parameter and can be safely requested across
-   * deployments.)
+   * @deprecated Use the top-level `supportsImmutableAssets` option instead.
    */
   supportsImmutableAssets?: boolean
 
@@ -1687,6 +1731,13 @@ export interface NextConfig {
   deploymentId?: string
 
   /**
+   * Whether the deployment environment supports immutable assets (assets deployed to
+   * `_next/static/immutable` don't need a `?dpl` parameter and can be safely requested across
+   * deployments.)
+   */
+  supportsImmutableAssets?: boolean
+
+  /**
    * Deploy a Next.js application under a sub-path of a domain
    *
    * @see [Base path configuration](https://nextjs.org/docs/app/api-reference/config/next-config-js/basePath)
@@ -1961,6 +2012,17 @@ export interface NextConfig {
    */
   outputFileTracingIncludes?: Record<string, string[]>
 
+  /**
+   * A string that is incorporated into content-addressed output filenames
+   * (chunks, assets) for both Webpack and Turbopack. Changing this value
+   * forces all output hashes to change, which is useful for invalidating
+   * cached assets across deployments without modifying source files.
+   *
+   * When `NEXT_HASH_SALT` environment variable is also set, the two values are
+   * concatenated (`outputHashSalt + NEXT_HASH_SALT`) to form the effective salt.
+   */
+  outputHashSalt?: string
+
   watchOptions?: {
     pollIntervalMs?: number
   }
@@ -2097,6 +2159,7 @@ export const defaultConfig = Object.freeze({
   experimental: {
     appNewScrollHandler: true,
     coldCacheBadge: false,
+    devValidationWorker: true,
     useSkewCookie: false,
     cssChunking: true,
     multiZoneDraftMode: false,
@@ -2131,7 +2194,6 @@ export const defaultConfig = Object.freeze({
     imgOptTimeoutInSeconds: 7,
     imgOptMaxInputPixels: 268_402_689, // https://sharp.pixelplumbing.com/api-constructor#:~:text=%5Boptions.limitInputPixels%5D
     imgOptSequentialRead: null,
-    imgOptSkipMetadata: null,
     isrFlushToDisk: true,
     workerThreads: false,
     proxyTimeout: undefined,
@@ -2139,6 +2201,7 @@ export const defaultConfig = Object.freeze({
     nextScriptWorkers: false,
     scrollRestoration: false,
     externalDir: false,
+    devMemoryThresholdRestart: true,
     disableOptimizedLoading: false,
     gzipSize: true,
     craCompat: false,
@@ -2162,7 +2225,6 @@ export const defaultConfig = Object.freeze({
     optimizeServerReact: true,
     strictRouteTypes: false,
     useTypeScriptCli: false,
-    viewTransition: false,
     removeUncaughtErrorAndRejectionListeners: false,
     validateRSCRequestHeaders: true,
     staleTimes: {
@@ -2197,12 +2259,9 @@ export const defaultConfig = Object.freeze({
 } satisfies NextConfig)
 
 function turbopackFileSystemCacheForBuildDefault() {
-  if (isStableBuild()) return false
-  if (isCI && process.env.NOW_BUILDER) {
-    // Assume caching is available on vercel
-    return true
-  }
-  return false
+  // Disable in most CI environments, because we don't know if the cache will persist across builds.
+  // Providers: Override the default behavior using `modifyConfig` in your adapter.
+  return !isCI || Boolean(process.env.NOW_BUILDER)
 }
 
 export async function normalizeConfig(phase: string, config: any) {
@@ -2229,6 +2288,7 @@ export async function normalizeConfig(phase: string, config: any) {
 export interface NextConfigRuntime {
   // Can be undefined, particularly when experimental.runtimeServerDeploymentId is true
   deploymentId?: NextConfigComplete['deploymentId']
+  supportsImmutableAssets?: NextConfigComplete['supportsImmutableAssets']
 
   configFileName?: string
   // Should only be included when using isExperimentalCompile
@@ -2272,7 +2332,6 @@ export interface NextConfigRuntime {
     | 'dynamicOnHover'
     | 'useOffline'
     | 'optimisticRouting'
-    | 'appShells'
     | 'inlineCss'
     | 'prefetchInlining'
     | 'authInterrupts'
@@ -2299,7 +2358,6 @@ export interface NextConfigRuntime {
     | 'imgOptOperationCache'
     | 'imgOptMaxInputPixels'
     | 'imgOptSequentialRead'
-    | 'imgOptSkipMetadata'
     | 'imgOptTimeoutInSeconds'
     | 'proxyClientMaxBodySize'
     | 'proxyTimeout'
@@ -2308,7 +2366,6 @@ export interface NextConfigRuntime {
     | 'maxPostponedStateSize'
     | 'cachedNavigations'
     | 'exposeTestingApiInProductionBuild'
-    | 'supportsImmutableAssets'
     | 'instantInsights'
     | 'requestInsights'
   > & {
@@ -2342,7 +2399,6 @@ export function getNextConfigRuntime(
     dynamicOnHover: ex.dynamicOnHover,
     useOffline: ex.useOffline,
     optimisticRouting: ex.optimisticRouting,
-    appShells: ex.appShells,
     inlineCss: ex.inlineCss,
     prefetchInlining: ex.prefetchInlining,
     authInterrupts: ex.authInterrupts,
@@ -2370,7 +2426,6 @@ export function getNextConfigRuntime(
     imgOptOperationCache: ex.imgOptOperationCache,
     imgOptMaxInputPixels: ex.imgOptMaxInputPixels,
     imgOptSequentialRead: ex.imgOptSequentialRead,
-    imgOptSkipMetadata: ex.imgOptSkipMetadata,
     imgOptTimeoutInSeconds: ex.imgOptTimeoutInSeconds,
     proxyClientMaxBodySize: ex.proxyClientMaxBodySize,
     proxyTimeout: ex.proxyTimeout,
@@ -2379,7 +2434,6 @@ export function getNextConfigRuntime(
     maxPostponedStateSize: ex.maxPostponedStateSize,
     cachedNavigations: ex.cachedNavigations,
     exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
-    supportsImmutableAssets: ex.supportsImmutableAssets,
     instantInsights: ex.instantInsights,
     requestInsights: ex.requestInsights,
 
@@ -2391,6 +2445,7 @@ export function getNextConfigRuntime(
     deploymentId: config.experimental.runtimeServerDeploymentId
       ? ''
       : config.deploymentId,
+    supportsImmutableAssets: config.supportsImmutableAssets,
 
     configFileName: undefined,
     env: undefined,

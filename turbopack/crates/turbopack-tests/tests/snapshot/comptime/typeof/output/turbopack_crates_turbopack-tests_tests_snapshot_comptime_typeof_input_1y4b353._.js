@@ -4,6 +4,13 @@
 var __TURBOPACK__import$2e$meta__ = {
     get url () {
         return __turbopack_context__.F("turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/cjs.js");
+    },
+    env: {
+        DEV: true,
+        PROD: false,
+        MODE: "development",
+        BASE_URL: "/",
+        SSR: false
     }
 };
 console.log('typeof require', ("TURBOPACK compile-time value", "function"));
@@ -25,6 +32,13 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 var __TURBOPACK__import$2e$meta__ = {
     get url () {
         return __turbopack_context__.F("turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/esm-automatic.js");
+    },
+    env: {
+        DEV: true,
+        PROD: false,
+        MODE: "development",
+        BASE_URL: "/",
+        SSR: false
     }
 };
 ;
@@ -43,6 +57,13 @@ __turbopack_context__.s([]);
 var __TURBOPACK__import$2e$meta__ = {
     get url () {
         return __turbopack_context__.F("turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/esm-specified.mjs");
+    },
+    env: {
+        DEV: true,
+        PROD: false,
+        MODE: "development",
+        BASE_URL: "/",
+        SSR: false
     }
 };
 console.log('typeof require', ("TURBOPACK compile-time value", "function"));

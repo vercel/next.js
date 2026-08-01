@@ -22,7 +22,7 @@ use turbopack_core::{
     module_graph::ModuleGraph,
     reference_type::ReferenceType,
     source::{OptionSource, Source},
-    source_map::GenerateSourceMap,
+    source_map::{GenerateSourceMap, structured::StructuredSourceMap},
 };
 use turbopack_ecmascript::{
     EcmascriptInputTransforms,
@@ -258,6 +258,9 @@ impl EcmascriptChunkPlaceable for RawEcmascriptModule {
                 None
             };
 
+            let source_map = source_map
+                .map(|map| StructuredSourceMap::from_json(&map))
+                .transpose()?;
             Ok(EcmascriptChunkItemContent {
                 source_map,
                 inner_code: code.into_source_code(),

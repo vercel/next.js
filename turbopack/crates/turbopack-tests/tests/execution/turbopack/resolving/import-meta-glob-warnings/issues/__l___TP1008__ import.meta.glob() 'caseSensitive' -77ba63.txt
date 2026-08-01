@@ -1,0 +1,22 @@
+warning - [analysis] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-warnings/input/index.js:15:30  TP1008 import.meta.glob() 'caseSensitive' option must be a constant boolean (true or false), defaulting to true
+  
+      11 |   exhaust: true,
+      12 | })
+      13 | 
+      14 | // Warning: non-constant caseSensitive — should default to case-sensitive matching
+         |                               v-----------------------------------
+      15 + const nonConstCaseSensitive = import.meta.glob('./casedir/*.js', {
+      16 +   caseSensitive: 'false',
+      17 + })
+         +--^
+      18 | 
+      19 | it('should still produce a lazy glob when "as" option is used', () => {
+      20 |   const keys = Object.keys(withAs).sort()
+      21 |   expect(keys).toEqual(['./dir/bar.js', './dir/foo.js'])
+  
+  
+  
+  Import trace:
+    test:
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-warnings/input/index.js
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-warnings/input/index.js

@@ -477,7 +477,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 }
 ```
 
-See [Sharing data with context and React.cache](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache) for the full pattern including the provider and consumer components.
+See [Using React's `use` within a Context Provider](/docs/app/guides/single-page-applications#using-reacts-use-within-a-context-provider) for the full pattern.
 
 ## Streaming in Route Handlers
 
@@ -668,15 +668,15 @@ export default async function PostPage({ params }) {
 
 ### Bots and crawlers
 
-Bots and crawlers consume a complete, fully formed HTML document rather than rendering chunks as they arrive. Next.js detects them by their user agent and waits for the render to finish, then sends the whole document in a single response instead of streaming it progressively. [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) resolves before the response is sent for bots that only scrape static HTML (such as Twitterbot or Slackbot), so metadata is present in the `<head>` of that HTML. Full browsers and capable crawlers can instead receive [streaming metadata](/docs/app/api-reference/functions/generate-metadata#streaming-metadata) alongside the page content.
+HTML-limited bots and crawlers need metadata to be available in the `<head>` of the initial HTML. Next.js detects them by their user agent and waits for [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) to resolve before streaming the page content. Full browsers and DOM-capable crawlers can instead receive [streaming metadata](/docs/app/api-reference/functions/generate-metadata#streaming-metadata) alongside the page content.
 
 You can customize which bots receive blocking metadata with the [`htmlLimitedBots`](/docs/app/api-reference/config/next-config-js/htmlLimitedBots) configuration option. See the [`loading.js` SEO section](/docs/app/api-reference/file-conventions/loading#seo) for more details.
 
 #### Cache Components
 
-With [Cache Components](/docs/app/getting-started/caching), a visitor receives the prerendered shell immediately and dynamic content streams in as it resolves. A bot is served differently: because it needs a complete document, Next.js skips the prerendered shell and renders the entire page dynamically at request time, waiting for the full render to complete before sending the finished HTML.
+With [Cache Components](/docs/app/getting-started/caching), visitors and DOM-capable crawlers receive the prerendered shell immediately, and dynamic content streams in as it resolves. HTML-limited bots skip the prerendered shell and render the page dynamically so metadata can be placed in the `<head>`. Once the metadata resolves, the remaining page content can still stream.
 
-Keep this in mind when your prerendered shell depends on inputs that only exist while prerendering, such as build-time data or values that are not reachable in the request-time environment. A visitor receives the shell without re-running that code, but a bot re-renders it dynamically, so a page that loads for a person can fail to render for a crawler. Make sure any data the shell relies on is also available at request time.
+Keep this in mind when your prerendered shell depends on inputs that only exist while prerendering, such as build-time data or values that are not reachable in the request-time environment. Visitors and DOM-capable crawlers receive the shell without re-running that code, but an HTML-limited bot re-renders it dynamically, so a page that loads for a person can fail to render for a crawler. Make sure any data the shell relies on is also available at request time.
 
 ## What can affect streaming
 

@@ -1,29 +1,11 @@
 import { retry } from '../next-test-utils'
 import { getDeterministicOutput } from '../../e2e/app-dir/cache-components-errors/utils'
 import { inspect } from 'util'
-
-export type ValidationEvent =
-  | ValidationStartEvent
-  | ValidationEndEvent
-  | ValidationAbortedEvent
-
-type ValidationStartEvent = {
-  type: 'validation_start'
-  requestId: string
-  url: string
-}
-type ValidationEndEvent = {
-  type: 'validation_end'
-  requestId: string
-  url: string
-}
-// Emitted instead of a start/end pair when a request is aborted before its
-// detached validation runs (e.g. Server Components HMR cancellation).
-type ValidationAbortedEvent = {
-  type: 'validation_aborted'
-  requestId: string
-  url: string
-}
+import type {
+  ValidationEvent,
+  ValidationStartEvent,
+  ValidationEndEvent,
+} from 'next/dist/server/app-render/dev-validation-events'
 
 export function parseValidationMessages(output: string): ValidationEvent[] {
   const messageRe = /<VALIDATION_MESSAGE>(.*?)<\/VALIDATION_MESSAGE>/g

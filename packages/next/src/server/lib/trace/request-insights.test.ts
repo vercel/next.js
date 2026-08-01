@@ -42,6 +42,7 @@ describe('request insights', () => {
       htmlRequestId: 'html_1',
       route: '/products/[id]',
       attributes: {
+        'next.span_category': 'nextjs',
         'next.span_type': 'AppRender.getBodyResult',
       },
       events: [
@@ -67,6 +68,7 @@ describe('request insights', () => {
       htmlRequestId: 'html_1',
       route: '/products/[id]',
       attributes: {
+        'next.span_category': 'application',
         'next.span_type': 'AppRender.fetch',
         'http.url': 'https://example.vercel.sh/',
         'http.method': 'GET',
@@ -88,10 +90,16 @@ describe('request insights', () => {
           spans: expect.arrayContaining([
             expect.objectContaining({
               name: 'fetch GET https://example.vercel.sh/',
+              attributes: expect.objectContaining({
+                'next.span_category': 'application',
+              }),
             }),
             expect.objectContaining({
               traceId: 'trace_1',
               spanId: 'span_1',
+              attributes: expect.objectContaining({
+                'next.span_category': 'nextjs',
+              }),
               events: [
                 {
                   name: 'metadata ready',
@@ -144,6 +152,127 @@ describe('request insights', () => {
     )
 
     unsubscribe()
+  })
+
+  it('uses the HTTP request span as the end-to-end request timing', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+
+    recordSpan({
+      name: 'render route (app) /dashboard',
+      requestId: 'req_timing',
+      startTime: 100,
+      durationMs: 60,
+    })
+    recordSpan({
+      name: 'GET /dashboard',
+      requestId: 'req_timing',
+      startTime: 100,
+      durationMs: 50,
+      attributes: {
+        'next.span_type': 'BaseServer.handleRequest',
+      },
+    })
+    recordRequestInsightFetch(
+      { requestId: 'req_timing' },
+      { url: 'https://example.com/late', startTime: 145, durationMs: 20 }
+    )
+
+    expect(getRequestInsightsSnapshot().requests[0]).toEqual(
+      expect.objectContaining({
+        startTime: 100,
+        durationMs: 50,
+      })
+    )
+  })
+
+  it('keeps request and Instant Insights data separate for the same request ID', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const listener = jest.fn()
+    const unsubscribe = subscribeRequestInsights(listener)
+
+    recordSpan({
+      name: 'GET /dashboard',
+      requestId: 'req_shared',
+      htmlRequestId: 'html_shared',
+      route: '/dashboard',
+      startTime: 100,
+      durationMs: 40,
+      status: 'ok',
+      attributes: {
+        'next.span_type': 'BaseServer.handleRequest',
+      },
+    })
+    recordSpan({
+      name: 'Instant Insights',
+      requestId: 'req_shared',
+      requestInsightKind: 'instant-insights',
+      htmlRequestId: 'html_shared',
+      route: '/dashboard',
+      startTime: 150,
+      durationMs: 75,
+      status: 'ok',
+      attributes: {
+        'next.span_type': 'AppRender.instantInsights',
+      },
+    })
+    recordRequestInsightFetch(
+      {
+        requestId: 'req_shared',
+        kind: 'instant-insights',
+        htmlRequestId: 'html_shared',
+        route: '/dashboard',
+      },
+      {
+        url: 'https://example.com/validation-data',
+        startTime: 175,
+        durationMs: 10,
+      }
+    )
+
+    expect(getRequestInsightsSnapshot().requests).toEqual([
+      expect.objectContaining({
+        requestId: 'req_shared',
+        kind: 'request',
+        startTime: 100,
+        durationMs: 40,
+        fetches: [],
+      }),
+      expect.objectContaining({
+        requestId: 'req_shared',
+        kind: 'instant-insights',
+        startTime: 150,
+        durationMs: 75,
+        fetches: [
+          expect.objectContaining({
+            url: 'https://example.com/validation-data',
+          }),
+        ],
+      }),
+    ])
+    expect(listener).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'request' })
+    )
+    expect(listener).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'instant-insights' })
+    )
+
+    unsubscribe()
+  })
+
+  it('does not treat aggregate client component loading as a trace span', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+
+    recordSpan({
+      name: 'NextNodeServer.clientComponentLoading',
+      requestId: 'req_client_loading',
+      startTime: 100,
+      durationMs: 50,
+      attributes: {
+        'next.span_type': 'NextNodeServer.clientComponentLoading',
+      },
+    })
+
+    expect(getRequestInsightsSnapshot().requests).toEqual([])
   })
 
   it('records request fetch metrics when the OTel fetch span does not complete locally', () => {

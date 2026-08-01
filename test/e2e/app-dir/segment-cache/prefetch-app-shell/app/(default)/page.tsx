@@ -6,7 +6,7 @@ export default function Page() {
     <main>
       <h1>Home</h1>
 
-      <h2>Dynamic posts (allow-runtime)</h2>
+      <h2>Dynamic posts (partial)</h2>
       <p>
         These posts read request-time data (cookies). Their App Shell is the
         part of the page that doesn&apos;t depend on the URL params, so it can
@@ -50,6 +50,45 @@ export default function Page() {
         <li>
           <Link href="/static-posts/124" prefetch={false}>
             Unprefetched static post
+          </Link>
+        </li>
+      </ul>
+
+      <h2>Short-stale posts (partial)</h2>
+      <p>
+        These posts render cached content with a stale time below the App Shell
+        threshold (5 minutes). The short-lived content is excluded from the App
+        Shell so the shell can be reused on the client for longer than the
+        content&apos;s stale time.
+      </p>
+      <ul>
+        <li>
+          <LinkAccordion href="/short-stale/1">
+            Short-stale post 1
+          </LinkAccordion>
+        </li>
+        <li>
+          <Link href="/short-stale/124" prefetch={false}>
+            Unprefetched short-stale post
+          </Link>
+        </li>
+      </ul>
+
+      <h2>Static short-stale posts</h2>
+      <p>
+        Fully prerendered posts that render cached content with a stale time
+        below the App Shell threshold. The short-lived content is part of the
+        static prerender, but excluded from the extracted App Shell.
+      </p>
+      <ul>
+        <li>
+          <LinkAccordion href="/static-short-stale/1">
+            Static short-stale post 1
+          </LinkAccordion>
+        </li>
+        <li>
+          <Link href="/static-short-stale/124" prefetch={false}>
+            Unprefetched static short-stale post
           </Link>
         </li>
       </ul>

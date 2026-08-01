@@ -193,18 +193,8 @@ export class StagedRenderingController {
     return this.syncInterruptReason
   }
 
-  getStaticStageEndTime() {
-    // The Static stage ends when the stage after it began.
-    return (
-      this.triggers[getNextStage(RenderStage.Static)].triggeredAt ?? Infinity
-    )
-  }
-
-  getRuntimeStageEndTime() {
-    // The Runtime stage ended when the stage after it began.
-    return (
-      this.triggers[getNextStage(RenderStage.Runtime)].triggeredAt ?? Infinity
-    )
+  getStageEndTime(stage: Exclude<AdvanceableRenderStage, RenderStage.Dynamic>) {
+    return this.triggers[getNextStage(stage)].triggeredAt ?? Infinity
   }
 
   private abandonRender() {
@@ -307,7 +297,7 @@ export class StagedRenderingController {
           )
         : stagePromise.then(() => resolvedValue)
 
-    // Analogously to `makeHangingPromise`, we might reject this promise if the signal is invoked.
+    // Analogously to `makeDynamicHangingPromise`, we might reject this promise if the signal is invoked.
     // (e.g. in the case where we don't want want the render to proceed to the dynamic stage and abort it).
     // We shouldn't consider this an unhandled rejection, so we attach a noop catch handler here to suppress this warning.
     if (this.abortSignal) {
