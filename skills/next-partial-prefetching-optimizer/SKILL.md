@@ -17,7 +17,7 @@ description: >
 # next-partial-prefetching-optimizer
 
 Set up an experimental agentic optimization loop that makes selected
-selected UI eligible for an exact client navigation's prefetched result. The
+UI eligible for an exact client navigation's prefetched result. The
 loop is test-driven: encode one exact source-link/destination pair as a failing
 `@next/playwright` `instant()` test, work it to green, and ship the test as the
 regression guard. Run the phases P -> G in order; each ends in a gate.
@@ -58,6 +58,8 @@ Keep this skill inside the fourth boundary:
   only when the exact-link differential proves a full prefetch adds UI and the
   user accepts that link's cost. Leave must-be-fresh content streaming.
 - Do **not** add full prefetching to every link as a generic performance fix.
+- Do **not** add `prefetch={false}`. A link this optimizer changes ends with
+  automatic prefetching (no prop) or `prefetch={true}`.
 
 This skill may reuse the shell test produced by the Cache Components optimizer
 and extend it with the selected target assertion. It must not weaken, replace,
@@ -349,6 +351,9 @@ This two-marker RED proves both prerequisites at once:
 - shell and target present -> this navigation is already optimized; do not
   change it.
 
+Make this comparison against the exact link's existing policy. Do not set
+`prefetch={false}` to manufacture a RED.
+
 > **C-gate:** do not optimize until the unlocked baseline passes and the locked
 > run proves the shell/target split for the exact link. Read
 > `reference/red-test-robustness.md` now.
@@ -449,7 +454,9 @@ and, where necessary, its cache boundary) and rerun the locked test:
 Reapply the optimization and require both GREEN. This is stronger than a
 generic before/after: it proves Partial Prefetching still supplies the common
 floor while this exact link supplies the selected upgrade. For a remote rig,
-confirm deployment liveness before each verdict.
+confirm deployment liveness before each verdict. The link-policy differential
+is automatic prefetching (no prop) versus `prefetch={true}`; never add
+`prefetch={false}` as a test control.
 
 ## G. REVIEW
 

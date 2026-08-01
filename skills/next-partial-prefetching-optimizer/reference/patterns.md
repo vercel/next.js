@@ -105,9 +105,12 @@ fallback as the App Shell. The change would add server work without adding UI.
 Likewise, skip rare links and targets whose expected compute time is longer
 than the user's likely hover-to-click interval.
 
+Use automatic prefetching with no prop as the link-policy baseline. Do not add
+`prefetch={false}` to make the target disappear under test.
+
 The strongest successful differential is:
 
 ```text
-default/optimization removed: shell visible, target absent
-full prefetch restored:        shell visible, target visible
+automatic (no prop):  shell visible, target absent
+prefetch={true}:      shell visible, target visible
 ```

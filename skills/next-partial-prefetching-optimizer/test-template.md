@@ -102,6 +102,11 @@ timeouts, retries, network-idle waits, or a pre-test hover. The lock uses a
 clean set of entries and the clicked link's strategy; warming the same URL from
 another link is not a substitute.
 
+Run this first with the exact link unchanged. If the target already passes
+under lock, stop: the existing policy already commits it. Never add
+`prefetch={false}` as a test control. Compare automatic prefetching with no prop
+against `prefetch={true}`.
+
 For an intent policy, use `trigger.focus()` instead of `hover()` in a separate
 test when keyboard focus is part of the promised behavior. Touch normally falls
 back to the App Shell unless the product defines and budgets another trigger.
@@ -123,7 +128,8 @@ await expect(page.locator(TARGET_MARKER)).toHaveText(EXPECTED_TARGET_TEXT)
 ```
 
 This proves the target exists but is withheld by the prefetched result. Restore
-the positive assertion for the shipped test.
+the positive assertion for the shipped test. If the target is already visible
+under the unchanged link policy, there is no optimization gap to guard.
 
 ## Optional initial-load contrast
 

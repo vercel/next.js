@@ -19,7 +19,9 @@ Ask only for product or infrastructure facts the repository cannot answer.
 
 ## Required fields
 
-1. **BUILD**: command or platform producing the measured production build.
+1. **BUILD**: command or platform producing the measured production build. Use
+   the [Building guide](https://nextjs.org/docs/app/guides/building) to
+   interpret the build output and route table.
 2. **EXPOSE**: condition enabling
    `experimental.exposeTestingApiInProductionBuild` for measured builds and
    never live production.
@@ -28,7 +30,9 @@ Ask only for product or infrastructure facts the repository cannot answer.
 5. **DRIFT**: flags, roles, plans, locale, experiments, and data differences
    between the author's browser and test user.
 6. **LOOP**: local build -> start -> e2e, or push -> deploy -> e2e; include
-   anything the agent cannot do unattended.
+   anything the agent cannot do unattended. For a local loop, record the port,
+   stop the previous server, fail on `EADDRINUSE`, and verify the new process
+   owns the port before testing.
 7. **LIVENESS**: commit-SHA probe for remote builds; `n/a` for a freshly built
    local artifact.
 8. **WALLS**: credentials, services, build issues, and known workarounds.
@@ -59,7 +63,9 @@ Ask only for product or infrastructure facts the repository cannot answer.
 ## Production-like examples
 
 **Local.** `EXPOSE_TESTING_API=1 next build`, then `next start`; Playwright
-runs against localhost. The artifact was freshly built, so LIVENESS is `n/a`.
+runs against localhost. Stop the prior server, treat `EADDRINUSE` as a failed
+start, and verify the new process owns the chosen port before testing. The
+artifact was freshly built, so LIVENESS is `n/a`.
 
 **Preview/staging.** Enable the testing API from a preview/staging-only env
 condition, deploy, poll an endpoint/header that exposes the deployed commit,

@@ -33,7 +33,9 @@ build/run obstacles, accumulated as you first hit them).
 
 1. **BUILD**: how is a production build of this app produced and served?
    A per-push preview deploy, a staging container, or bare
-   `next build && next start`. Anything but `next dev`.
+   `next build && next start`. Anything but `next dev`. Use the
+   [Building guide](https://nextjs.org/docs/app/guides/building) to interpret
+   the build output and route table.
 2. **EXPOSE**: what condition turns on
    `experimental.exposeTestingApiInProductionBuild` for every measured build,
    and never for real production? Spellings: an explicit
@@ -62,7 +64,9 @@ build/run obstacles, accumulated as you first hit them).
    `/healthz` route or a response header, or fall back to polling the deploy
    platform's API for the deployment whose `commitSha === HEAD`. Record the
    chosen mechanism. For a local `build && start` rig the artifact is the one
-   freshly built, so no probe is needed.
+   freshly built, so no SHA probe is needed. Record the port, stop the previous
+   server before starting, fail the loop on `EADDRINUSE`, and verify the newly
+   started process owns the port before running the test.
 
 ## The file: copy, fill, commit as `instant-nav.rig.md`
 
@@ -90,7 +94,9 @@ cannot capture.
 **No CI / local-only.** BUILD: `EXPOSE_TESTING_API=1 next build && next
 start`. EXPOSE: that env var. RUN: `BASE_URL=http://localhost:3000 playwright
 test`. LOOP: build → start → test on one machine; fully agent-drivable, with
-nothing to push, no secrets, and no deploy wait.
+nothing to push, no secrets, and no deploy wait. Stop the prior server, treat
+`EADDRINUSE` as a failed start, and verify the new process owns port 3000 before
+testing.
 
 **Generic CI + container.** BUILD: the pipeline builds an image and deploys it
 to a staging namespace. EXPOSE: `process.env.DEPLOY_ENV === 'staging'`. RUN: a

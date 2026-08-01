@@ -53,6 +53,16 @@ do not hover: the test should prove the link's declared eager strategy.
 - The pathname matches but the query or parameter-derived content is wrong.
 - The production build does not have the testing API exposed.
 - A remote test ran against a stale deployment.
+- A local start failed with `EADDRINUSE` and the test hit the previous build.
+
+## Target already GREEN
+
+Run the locked diagnostic against the exact link as it exists. If the shell and
+target are both visible and the lock is engaged, the current link policy already
+commits the target. It is not an optimizer candidate, even if setting
+`prefetch={false}` would make it RED. Never add that prop as a test control; the
+optimizer compares automatic prefetching with no prop against
+`prefetch={true}`.
 
 ## Lock engagement
 
@@ -78,12 +88,12 @@ It does not accept a requested stage such as `shell` or `max`, and a failed
 test does not produce a framework stack locating the data read where the
 prefetch stopped. The exact-link comparison is the supported control:
 
-- default Partial Prefetching link -> App Shell;
-- `prefetch={true}` or an eager subtree -> concrete whole-route prefetch may
-  commit.
+- existing exact-link policy -> current committed UI;
+- accepted policy change -> additional URL-specific UI may commit.
 
 When GREEN does not advance, inspect params/searchParams usage, Suspense, cache
-directives, and the Runtime Prefetching guide. Do not compensate with timing.
+directives, and the [Runtime Prefetching guide](https://nextjs.org/docs/app/guides/runtime-prefetching).
+Do not compensate with timing.
 
 ## Differential
 
@@ -99,4 +109,5 @@ After GREEN:
 If removing the optimization also removes the shell, the change mixed Cache
 Components work into this loop. Split it. If the target remains GREEN, it was
 already in the shell or another policy still controls the clicked link; the
-test does not guard the intended optimization.
+test does not guard the intended optimization. Do not replace the unchanged
+automatic policy with `prefetch={false}` to force this step RED.
