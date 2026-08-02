@@ -92,6 +92,58 @@ async fn root_with_child(n: u32) -> Result<Vc<u32>> {
     Ok(Vc::cell(*orphan_leaf(n).await? + 1))
 }
 
+// --- Diamond fixture for the cross-session disk-only forward-dep scrub test ---
+//
+// A "diamond": a reader `A` (`diamond_reader`) holds a **forward cell-dependency** on a target `B`
+// (`diamond_target`) that is *not* its child — `B` is called by the root and its resolved `Vc` is
+// passed into `A`, so reading it records a dep edge without a child edge. Both `A` and `B` are
+// children of the diamond root. This is the shape that, cross-session under GC, can require
+// scrubbing a **disk-only** forward-dep target: when the orphaned root is collected, `A` and `B`
+// cascade together, and `A`'s `CleanupOldEdges` may open `B` to remove the stale reverse edge while
+// `B` has not yet been restored from disk this session.
+//
+// The target must be **mutable** to record dependents at all (an immutable constant records none),
+// so it reads a long-lived `State` whose value never changes.
+
+#[turbo_tasks::value(transparent)]
+struct Constant(State<u32>);
+
+#[turbo_tasks::function(operation, root)]
+fn create_constant() -> Vc<Constant> {
+    Constant(State::new(0)).cell()
+}
+
+/// The forward-dependency *target* `B`. Reading `constant`'s `State` makes it mutable so a reader
+/// records a real `cell_dependents` reverse edge on it.
+#[turbo_tasks::function]
+async fn diamond_target(constant: ResolvedVc<Constant>, index: u32) -> Result<Vc<u32>> {
+    let base = *constant.await?.get();
+    Ok(Vc::cell(base.wrapping_add(index).wrapping_mul(7)))
+}
+
+/// The diamond *reader* `A`: reads the cell of a `diamond_target` (`B`) passed in as an
+/// already-resolved `Vc`, so `A` forward-deps on `B` without parenting it.
+#[turbo_tasks::function]
+async fn diamond_reader(target: ResolvedVc<u32>) -> Result<Vc<u32>> {
+    Ok(Vc::cell(1 + *target.await?))
+}
+
+const DIAMOND_FANOUT: u32 = 64;
+
+/// The diamond root: for each index, calls `diamond_target(index)` (`B`, the root's child) and
+/// `diamond_reader(B)` (`A`, the root's child that forward-deps on `B`). `FANOUT` distinct A/B
+/// pairs give many chances for the racing interleaving where an `A` scrubs a not-yet-restored `B`.
+#[turbo_tasks::function(operation, root)]
+async fn diamond_root(constant: ResolvedVc<Constant>) -> Result<Vc<u32>> {
+    let mut sum = 0u32;
+    for index in 0..DIAMOND_FANOUT {
+        let target = diamond_target(*constant, index).to_resolved().await?;
+        sum = sum.wrapping_add(*target.await?);
+        sum = sum.wrapping_add(*diamond_reader(*target).await?);
+    }
+    Ok(Vc::cell(sum))
+}
+
 #[turbo_tasks::function]
 async fn branch_a() -> Result<Vc<u32>> {
     Ok(Vc::cell(1 + *leaf(10).await?))
@@ -899,5 +951,77 @@ async fn gc_keeps_reanchored_cross_session_root() {
         .await
         .unwrap();
         tt.stop_and_wait().await;
+    }
+}
+
+/// Regression for the cross-session cascade panic found by the gc-04 dogfood: collecting an
+/// orphaned root whose subtree contains a **forward cell-dependency** to a target that is
+/// **disk-only** (not restored this session) must scrub that stale reverse edge by restoring the
+/// live target — not panic on a "target not resident, would resurrect a collected task" guard.
+///
+/// Setup (see the diamond fixture): each `diamond_reader` `A` holds a forward cell-dep on a
+/// `diamond_target` `B` that is *not* its child; both are children of `diamond_root`. In session 1
+/// we build and persist the whole diamond. In session 2 we reopen (nothing re-requests the root, so
+/// with TTL 0 it ages out) and run one GC pass: the root is collected and its `A`/`B` children
+/// cascade concurrently. When an `A`'s `CleanupOldEdges` opens its target `B` to remove the stale
+/// `cell_dependents` edge, `B` may not yet have been restored from disk — the disk-only case the
+/// old `gc_target_resident` debug_assert wrongly rejected. The whole pass completing without a
+/// panic is the assertion; session 3 confirms a clean recompute (no dangling reverse edge
+/// survived).
+#[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+async fn gc_collect_scrubs_disk_only_forward_dep_target() {
+    let dir = create_test_persistence_dir("gc_collect_scrubs_disk_only_forward_dep_target");
+
+    // Session 1: build the diamond and persist it.
+    {
+        let tt = open_tt_at(dir.path());
+        turbo_tasks::run_once(tt.clone(), async move {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+            let constant_op = create_constant();
+            let constant_vc = constant_op.resolve().strongly_consistent().await?;
+            // Read the root so the whole diamond is built and persisted.
+            diamond_root(constant_vc).read_strongly_consistent().await?;
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+        tt.stop_and_wait().await;
+    }
+
+    // Session 2: reopen, TTL 0, run one GC pass. The diamond root is never re-requested, so it ages
+    // out; collecting it cascades to every A/B pair. B targets are disk-only until the cascade
+    // restores them — an A that scrubs its target before that must restore it, not panic.
+    {
+        let tt = open_tt_at(dir.path());
+        tt.backend().set_gc_root_ttl_for_testing(0);
+        let tt2 = tt.clone();
+        turbo_tasks::run_once(tt.clone(), async move {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+            // No panic in this pass is the assertion (the old guard fired inside CleanupOldEdges).
+            let collected = tt2.backend().gc_for_testing(&tt2);
+            assert!(
+                collected >= 1,
+                "the orphaned diamond root subtree should be collected (got {collected})"
+            );
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+        tt.stop_and_wait().await;
+    }
+
+    // Session 3: a clean recompute must still work — no dangling reverse edge left on any target.
+    {
+        let tt = open_tt_at(dir.path());
+        let result = turbo_tasks::run_once(tt.clone(), async move {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+            let constant_op = create_constant();
+            let constant_vc = constant_op.resolve().strongly_consistent().await?;
+            diamond_root(constant_vc).read_strongly_consistent().await?;
+            anyhow::Ok(())
+        })
+        .await;
+        tt.stop_and_wait().await;
+        result.unwrap();
     }
 }

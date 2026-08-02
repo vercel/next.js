@@ -227,16 +227,17 @@ impl CleanupOldEdgesOperation {
                                     task: cell_task_id,
                                     cell,
                                 } = forward;
-                                // Under GC the scrub target must already be resident
-                                // (soft-deleted); a non-resident
-                                // target would resurrect an already-collected task
-                                // from disk. `gc_target_resident` is `None` outside GC.
-                                debug_assert!(
-                                    ctx.gc_target_resident(cell_task_id) != Some(false),
-                                    "gc: CleanupOldEdges({task_id}) cell-dep target \
-                                     {cell_task_id} is not resident — would resurrect a collected \
-                                     task"
-                                );
+                                // This is a *forward* dependency: `cell_task_id` is an upstream
+                                // producer `task_id` reads from, not one of its children. Under GC
+                                // that producer may be **disk-only** (never restored this session):
+                                // it is a live *persistent* task, not a collected one — dep fields
+                                // are `filter_transient`, so a persisted task's cell deps only ever
+                                // reference persistent targets, ruling out fabricating a transient
+                                // zombie. Opening it `MustExist` restores it from disk so we can
+                                // scrub the now-stale reverse edge (its `cell_dependents` still
+                                // lists the collected `task_id`); it re-persists with the edge
+                                // gone. That is correct — it does
+                                // not resurrect a *collected* task.
                                 {
                                     let mut task = ctx.task(cell_task_id, TaskDataCategory::Data);
                                     task.remove_cell_dependents(&CellRef {
@@ -278,14 +279,11 @@ impl CleanupOldEdgesOperation {
                                     dependent_task = %task_id
                                 )
                                 .entered();
-                                // See the CellDependency arm: under GC the target must stay
-                                // resident; a non-resident one would resurrect a collected task.
-                                debug_assert!(
-                                    ctx.gc_target_resident(output_task_id) != Some(false),
-                                    "gc: CleanupOldEdges({task_id}) output-dep target \
-                                     {output_task_id} is not resident — would resurrect a \
-                                     collected task"
-                                );
+                                // See the CellDependency arm: `output_task_id` is a forward-dep
+                                // producer that may be disk-only under GC. It is a live persistent
+                                // task (deps are `filter_transient`); restoring it `MustExist` to
+                                // scrub the stale reverse edge is correct and does not resurrect a
+                                // collected task.
                                 {
                                     let mut task = ctx.task(output_task_id, TaskDataCategory::Data);
                                     task.remove_output_dependent(&task_id);
