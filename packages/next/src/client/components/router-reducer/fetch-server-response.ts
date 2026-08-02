@@ -545,14 +545,30 @@ export async function decodeStageUntilBoundary<T>(
   byteLength: number,
   headers: RequestHeaders | undefined
 ): Promise<T> {
-  // Buffer the truncated stream into a single chunk before passing it to
-  // Flight. This ensures all model data is available synchronously, which is
-  // required for readVaryParams to synchronously read the thenable status.
-  const { stream } = await createNonTaskyPrefetchResponseStream(
+  const { buffer } = await createNonTaskyPrefetchResponseStream(
     responseBodyClone,
     byteLength
   )
+  return decodeBufferedStage<T>(buffer, headers)
+}
 
+/**
+ * Decodes already-buffered Flight response bytes as a stage payload. The
+ * bytes are delivered to Flight as a single chunk so all rows are processed
+ * synchronously in one call — required for the thenable-status reads that
+ * scope a response's late-resolving metadata (vary params, isPartial, ...)
+ * to this decode.
+ */
+export function decodeBufferedStage<T>(
+  buffer: Uint8Array,
+  headers: RequestHeaders | undefined
+): Promise<T> {
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(buffer)
+      controller.close()
+    },
+  })
   return createFromNextReadableStream<T>(stream, headers, {
     allowPartialStream: true,
   })

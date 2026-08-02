@@ -58,6 +58,7 @@ export interface Binding {
   parse(src: string, options: any): Promise<string>
 
   getTargetTriple(): string | undefined
+  turbopackCacheVersion(nextVersion: string): string | undefined
 
   initCustomTraceSubscriber?(traceOutFilePath?: string): ExternalObject<RefCell>
   teardownTraceSubscriber?(guardExternal: ExternalObject<RefCell>): void
@@ -234,16 +235,28 @@ export type Update = IssuesUpdate | PartialUpdate
  * The runtime file cannot import from this ES module without triggering module semantics,
  * so we maintain a copy there. Please keep both definitions in sync.
  */
+export interface NodeJsEcmascriptMergedUpdate {
+  type: 'EcmascriptMergedUpdate'
+  entries?: Record<
+    string,
+    { code: string; url: string; map?: string | undefined }
+  >
+  chunks?: Record<
+    string,
+    | { type: 'added' | 'deleted'; modules?: string[] }
+    | { type: 'partial'; added?: string[]; deleted?: string[] }
+  >
+}
+
+export interface NodeJsChunkListUpdate {
+  type: 'ChunkListUpdate'
+  merged?: NodeJsEcmascriptMergedUpdate[]
+  chunks?: Record<string, { type: 'added' | 'deleted' | 'total' | 'partial' }>
+}
+
 export interface NodeJsPartialHmrUpdate extends BaseUpdate {
   type: 'partial'
-  instruction: {
-    type: 'EcmascriptMergedUpdate'
-    entries: Record<
-      string,
-      { code: string; url: string; map?: string | undefined }
-    >
-    chunks?: Record<string, { type: 'partial' }>
-  }
+  instruction: NodeJsEcmascriptMergedUpdate | NodeJsChunkListUpdate
 }
 
 export interface NodeJsRestartHmrUpdate {
@@ -320,6 +333,12 @@ export interface Project {
   entrypointsSubscribe(): AsyncIterableIterator<
     TurbopackResult<RawEntrypoints | {}>
   >
+
+  // Note: only the Server target is implemented in the native binding;
+  // add a Client overload once `all_hmr_update` supports it.
+  allHmrEvents(
+    target: import('./index').HmrTarget.Server
+  ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
 
   hmrEvents(
     identifier: string,

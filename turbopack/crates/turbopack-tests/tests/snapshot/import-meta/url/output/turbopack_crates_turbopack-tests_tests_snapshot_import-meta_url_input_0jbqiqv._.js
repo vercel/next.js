@@ -16,6 +16,13 @@ __turbopack_context__.s([]);
 var __TURBOPACK__import$2e$meta__ = {
     get url () {
         return __turbopack_context__.F("turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url/input/mod.mjs");
+    },
+    env: {
+        DEV: true,
+        PROD: false,
+        MODE: "development",
+        BASE_URL: "/",
+        SSR: false
     }
 };
 const assetUrl = new __turbopack_context__.U(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url/input/asset.txt (static in ecmascript)"));

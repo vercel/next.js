@@ -106,6 +106,7 @@ pub async fn get_client_compile_time_info(
     define_env: Vc<OptionEnvMap>,
     report_system_env_inlining: Vc<IssueSeverity>,
     hot_module_replacement_enabled: bool,
+    import_meta_env_base_url: RcStr,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
         Environment::new(ExecutionEnvironment::Browser(
@@ -127,6 +128,7 @@ pub async fn get_client_compile_time_info(
             .await?,
     )
     .hot_module_replacement_enabled(hot_module_replacement_enabled)
+    .import_meta_env_base_url(import_meta_env_base_url)
     .cell()
     .await
 }
@@ -497,6 +499,10 @@ pub struct ClientChunkingContextOptions {
     pub chunking_first_page_load_priority: Option<u32>,
     pub chunking_priority_boost_percent: Option<u32>,
     pub chunking_request_cost: Option<u64>,
+    pub chunking_min_chunk_size: Option<usize>,
+    pub chunking_max_chunk_count_per_group: Option<usize>,
+    pub chunking_max_merge_chunk_size: Option<usize>,
+    pub chunking_min_component_chunk_size: Option<usize>,
     pub generate_component_chunks: Vc<bool>,
 }
 
@@ -541,6 +547,10 @@ pub async fn get_client_chunking_context(
         chunking_first_page_load_priority,
         chunking_priority_boost_percent,
         chunking_request_cost,
+        chunking_min_chunk_size,
+        chunking_max_chunk_count_per_group,
+        chunking_max_merge_chunk_size,
+        chunking_min_component_chunk_size,
         generate_component_chunks,
     } = options;
 
@@ -605,16 +615,16 @@ pub async fn get_client_chunking_context(
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
-                    min_chunk_size: 50_000,
-                    max_chunk_count_per_group: 40,
-                    max_merge_chunk_size: 200_000,
+                    min_chunk_size: chunking_min_chunk_size.unwrap_or(50_000),
+                    max_chunk_count_per_group: chunking_max_chunk_count_per_group.unwrap_or(40),
+                    max_merge_chunk_size: chunking_max_merge_chunk_size.unwrap_or(200_000),
                     first_page_load_priority: chunking_first_page_load_priority,
                     priority_boost_percent: chunking_priority_boost_percent,
                     request_cost: chunking_request_cost,
                     // Generate component chunks alongside the merged chunk so that the browser
                     // runtime can fetch an already-cached one instead of the whole merged chunk.
                     generate_component_chunks: *generate_component_chunks.await?,
-                    min_component_chunk_size: 20_000,
+                    min_component_chunk_size: chunking_min_component_chunk_size.unwrap_or(20_000),
                     ..Default::default()
                 },
             )

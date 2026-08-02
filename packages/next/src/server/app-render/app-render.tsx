@@ -23,6 +23,7 @@ import type {
   InstantValidationSamples,
   PrerenderStoreModernClient,
   PrerenderStoreModernRuntime,
+  PrerenderStoreModernServer,
   RequestStore,
   ValidationStoreClient,
   WorkUnitStore,
@@ -107,8 +108,13 @@ import {
 import { isRedirectError } from '../../client/components/redirect-error'
 import { getImplicitTags, type ImplicitTags } from '../lib/implicit-tags'
 import { AppRenderSpan, NextNodeServerSpan } from '../lib/trace/constants'
-import { getRequestInsightsIdentity } from '../lib/trace/request-insights-identity'
+import {
+  getRequestInsightsIdentity,
+  runWithRequestInsightsIdentity,
+} from '../lib/trace/request-insights-identity'
 import { getTracer, SpanStatusCode } from '../lib/trace/tracer'
+import { traceLocalSpan } from '../lib/trace/local-span-recorder'
+import { isRequestInsightsEnabled } from '../lib/trace/request-insights'
 import { FlightRenderResult } from './flight-render-result'
 import {
   createReactServerErrorHandler,
@@ -125,7 +131,11 @@ import { createFlightRouterStateFromLoaderTree } from './create-flight-router-st
 import { handleAction } from './action-handler'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { warn, error } from '../../build/output/log'
-import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
+import {
+  appendMutableCookies,
+  RequestCookiesAdapter,
+} from '../web/spec-extension/adapters/request-cookies'
+import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
 import { createServerInsertedHTML } from './server-inserted-html'
 import { getRequiredScripts } from './required-scripts'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
@@ -287,7 +297,6 @@ import {
   type AdvanceableRenderStage,
 } from './staged-rendering'
 import {
-  anySegmentHasRuntimePrefetchEnabled,
   anySegmentHasPartialPrefetchingEnabled,
   isPageAllowedToBlock,
   anySegmentNeedsInstantValidationInDev,
@@ -318,7 +327,7 @@ import { ResponseCookies } from '../web/spec-extension/cookies'
 import { isInstantValidationError } from './instant-validation/instant-validation-error'
 import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import { RENDER_STAGES_BY_DATA_KIND } from '../dynamic-rendering-utils'
-import type { ValidationPrefetchKind } from './instant-validation/instant-validation'
+import type { StageEndTimes } from './instant-validation/instant-validation'
 import { hasNonRootStaticParams } from '../lib/params-utils'
 
 export type GetDynamicParamFromSegment = (
@@ -1030,14 +1039,12 @@ async function generateStagedDynamicFlightRenderResultNode(
 
   // Check if this route should runtime-cache its navigation. This happens when
   // Partial Prefetching is enabled for the route, either per segment (a
-  // `prefetch` of 'partial', 'unstable_eager', or 'allow-runtime') or globally
-  // (the `partialPrefetching` config), or when the `cachedNavigations:
-  // 'allow-runtime'` flag forces it for every route. If so, we piggyback on the
-  // dynamic render to fill caches and then spawn a final runtime prerender
-  // whose result stream is embedded in the RSC payload. This is gated because
-  // it adds extra server processing and increases the response payload size.
+  // `prefetch` of 'partial' or 'unstable_eager') or globally (the
+  // `partialPrefetching` config). If so, we piggyback on the dynamic render to
+  // fill caches and then spawn a final runtime prerender whose result stream
+  // is embedded in the RSC payload. This is gated because it adds extra server
+  // processing and increases the response payload size.
   if (
-    experimental.cachedNavigations === 'allow-runtime' ||
     Boolean(renderOpts.partialPrefetching) ||
     (await anySegmentHasPartialPrefetchingEnabled(loaderTree))
   ) {
@@ -1384,7 +1391,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
 
     const prefetchMode = await getPrefetchingModeForPage(renderOpts, loaderTree)
 
-    // A client navigation into a runtime-prefetch route extends the shell
+    // A client navigation into a Partial Prefetching route extends the shell
     // through the runtime-prefetchable content: it has already settled on the
     // client (via the prefetch) by the time it navigates, so it belongs in this
     // response's shell. Everything else uses the static shell, like an initial
@@ -1403,9 +1410,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
         // (which can have more data than the app shell)
         prefetchStage = RenderStage.ShellRuntime
       } else {
-        prefetchStage = (await anySegmentHasRuntimePrefetchEnabled(loaderTree))
-          ? RenderStage.Runtime
-          : RenderStage.Static
+        prefetchStage = RenderStage.Static
       }
     }
 
@@ -1644,9 +1649,12 @@ async function prospectiveRuntimeServerPrerender(
     // No stage sequencing needed for prospective renders.
     stagedRendering: null,
     isSessionShell: isShellPrefetch,
-    // These are not present in regular prerenders, but allowed in a runtime prerender.
-    headers,
-    cookies,
+    // These are not present in regular prerenders, but allowed in a runtime
+    // prerender.
+    // Any cache keyed on headers() or cookies() needs to be invalidated.
+    // Otherwise some Next.js API semantics leak across render passes.
+    headers: HeadersAdapter.fresh(headers),
+    cookies: RequestCookiesAdapter.fresh(cookies),
     draftMode,
   }
 
@@ -1820,9 +1828,10 @@ async function finalRuntimeServerPrerender(
     varyParamsAccumulator,
     stagedRendering: finalStageController,
     isSessionShell: mode.type === 'session-shell-only',
-    // These are not present in regular prerenders, but allowed in a runtime prerender.
-    headers,
-    cookies,
+    // These are not present in regular prerenders, but allowed in a runtime
+    // prerender.
+    headers: HeadersAdapter.fresh(headers),
+    cookies: RequestCookiesAdapter.fresh(cookies),
     draftMode,
   }
 
@@ -3281,7 +3290,6 @@ async function renderToStream(
     page,
     reactMaxHeadersLength,
     setReactDebugChannel,
-    shouldWaitOnAllReady,
     subresourceIntegrityManifest,
     supportsDynamicResponse,
     cacheComponents,
@@ -3606,11 +3614,9 @@ async function renderToStream(
         // embedded in the initial RSC payload so the client can cache
         // runtime-prefetchable content during hydration. This is enabled when
         // Partial Prefetching is on for the route, either per segment (a
-        // `prefetch` of 'partial', 'unstable_eager', or 'allow-runtime') or
-        // globally (the `partialPrefetching` config), or when the
-        // `cachedNavigations: 'allow-runtime'` flag forces it for every route.
+        // `prefetch` of 'partial' or 'unstable_eager') or globally (the
+        // `partialPrefetching` config).
         if (
-          cachedNavigations === 'allow-runtime' ||
           Boolean(renderOpts.partialPrefetching) ||
           (await anySegmentHasPartialPrefetchingEnabled(tree))
         ) {
@@ -3880,8 +3886,7 @@ async function renderToStream(
           tracingMetadata: tracingMetadata,
         })
 
-        const generateStaticHTML =
-          supportsDynamicResponse !== true || !!shouldWaitOnAllReady
+        const generateStaticHTML = supportsDynamicResponse !== true
 
         const appElement = (
           <App
@@ -4024,8 +4029,7 @@ async function renderToStream(
           tracingMetadata: tracingMetadata,
         })
 
-        const generateStaticHTML =
-          supportsDynamicResponse !== true || !!shouldWaitOnAllReady
+        const generateStaticHTML = supportsDynamicResponse !== true
 
         const appElement = (
           <App
@@ -4202,8 +4206,7 @@ async function renderToStream(
         }
 
         try {
-          const generateStaticHTML =
-            supportsDynamicResponse !== true || !!shouldWaitOnAllReady
+          const generateStaticHTML = supportsDynamicResponse !== true
 
           const { stream: errorHtmlStream, allReady: errorAllReady } =
             await workUnitAsyncStorage.run(
@@ -4301,8 +4304,7 @@ async function renderToStream(
         }
 
         try {
-          const generateStaticHTML =
-            supportsDynamicResponse !== true || !!shouldWaitOnAllReady
+          const generateStaticHTML = supportsDynamicResponse !== true
 
           const { stream: errorHtmlStream, allReady: errorAllReady } =
             await workUnitAsyncStorage.run(
@@ -4383,8 +4385,7 @@ interface SyncInterruptedStagedDevRender {
 interface StagedDevRenderArtifacts {
   readonly accumulatedChunks: AccumulatedStreamChunks
   readonly startTime: number
-  readonly staticStageEndTime: number
-  readonly runtimeStageEndTime: number
+  readonly stageEndTimes: StageEndTimes
 }
 
 /**
@@ -4519,118 +4520,137 @@ function runDevValidationInBackground(
         return
       }
 
-      // Read whether the streamed render errored only now that it has fully
-      // settled.
-      const devRenderDidError = getDevRenderDidError()
+      return runInstantInsightsWithTracing(ctx, async (runSpan) => {
+        // Read whether the streamed render errored only now that it has fully
+        // settled.
+        const devRenderDidError = getDevRenderDidError()
 
-      const lazyInputs = await prepareValidationInputs(
-        prefetchMode,
-        navigationKind,
-        result,
-        requestStore,
-        validationDebugChannel,
-        ctx,
-        prerenderResumeDataCache,
-        createRequestStore,
-        getPayload,
-        onError,
-        validationAbortSignal
-      )
-
-      // If we need to do multiple renders, do them in parallel.
-      // `runValidationInDev` currently needs `instantInputs` eagerly
-      // right before using `staticInputs` for static shell validation,
-      // so there's no point delaying one of the renders.
-      // We bail out (after logging an error during `resolveLazyDevValidationInputs`)
-      // if sync IO or invalid dynamic errors happen in either.
-      const [instantInputs, staticInputs] = await Promise.all([
-        lazyInputs.instantInputs
-          ? resolveLazyDevValidationInputs(lazyInputs.instantInputs, ctx)
-          : null,
-        resolveLazyDevValidationInputs(lazyInputs.staticInputs, ctx),
-      ])
-      if (
-        instantInputs === VALIDATION_BAILOUT ||
-        staticInputs === VALIDATION_BAILOUT
-      ) {
-        return
-      }
-
-      // A newer render may have superseded this work while we prepared the
-      // validation inputs above (which can itself render).
-      if (validationAbortSignal.aborted) {
-        logValidationAborted(ctx)
-        return
-      }
-
-      // Hand the whole validation to the worker when one is installed. It runs
-      // on a worker thread (off the main thread), emits its own lifecycle
-      // markers, logs code frames on its piped stdio, and returns the overlay
-      // Flight bytes for the main thread to forward. The worker is absent when
-      // `experimental.devValidationWorker` is false, and validation runs
-      // in-process instead.
-      const devValidationWorker = getDevValidationWorker()
-
-      if (devValidationWorker) {
-        const snapshot = await buildDevValidationSnapshot(
-          ctx,
-          instantInputs,
-          staticInputs,
-          prefetchMode,
-          fallbackRouteParams,
-          devRenderDidError
-        )
-
-        const chunks = await devValidationWorker(
-          snapshot,
-          validationAbortSignal
-        )
-
-        // A newer navigation may have superseded this validation while the
-        // worker ran; don't surface stale insights for a page the user left.
-        if (chunks && !validationAbortSignal.aborted) {
-          const { sendErrorsToBrowser } = ctx.renderOpts
-          if (!sendErrorsToBrowser) {
-            throw new InvariantError(
-              'Expected `sendErrorsToBrowser` to be defined in renderOpts.'
-            )
-          }
-          sendErrorsToBrowser(
-            createNodeStreamFromChunks(chunks),
-            ctx.htmlRequestId
-          )
-        }
-      } else {
-        // In-process path, taken when `experimental.devValidationWorker` is
-        // false or no worker is installed (e.g. during a build). Validation
-        // computes the errors; the caller delivers them to the dev overlay.
-        // `runWithDevValidationLogging` encloses both the render and the
-        // delivery in the test-mode lifecycle markers so tests that assert the
-        // delivered error between `validation_start` and `validation_end`
-        // capture it.
-        await runWithDevValidationLogging(
-          ctx,
-          validationAbortSignal,
+        const [instantInputs, staticInputs] = await runSpan(
+          AppRenderSpan.instantInsightsPrepareValidation,
+          'Prepare validation inputs',
           async () => {
-            const validationErrors = await runValidationInDev(
+            const lazyInputs = await prepareValidationInputs(
               prefetchMode,
-              instantInputs,
-              staticInputs,
-              toValidationRenderContext(ctx),
-              fallbackRouteParams,
-              devRenderDidError,
+              navigationKind,
+              result,
+              requestStore,
+              validationDebugChannel,
+              ctx,
+              prerenderResumeDataCache,
+              createRequestStore,
+              getPayload,
+              onError,
               validationAbortSignal
             )
 
-            if (
-              validationErrors !== undefined &&
-              !validationAbortSignal.aborted
-            ) {
-              await logMessagesAndSendErrorsToBrowser(validationErrors, ctx)
+            // If we need to do multiple renders, do them in parallel.
+            // `runValidationInDev` currently needs `instantInputs` eagerly
+            // right before using `staticInputs` for static shell validation,
+            // so there's no point delaying one of the renders.
+            // We bail out (after logging an error during
+            // `resolveLazyDevValidationInputs`) if sync IO or invalid dynamic
+            // errors happen in either.
+            return Promise.all([
+              lazyInputs.instantInputs
+                ? resolveLazyDevValidationInputs(lazyInputs.instantInputs, ctx)
+                : null,
+              resolveLazyDevValidationInputs(lazyInputs.staticInputs, ctx),
+            ])
+          }
+        )
+        if (
+          instantInputs === VALIDATION_BAILOUT ||
+          staticInputs === VALIDATION_BAILOUT
+        ) {
+          return
+        }
+
+        // A newer render may have superseded this work while we prepared the
+        // validation inputs above (which can itself render).
+        if (validationAbortSignal.aborted) {
+          logValidationAborted(ctx)
+          return
+        }
+
+        return runSpan(
+          AppRenderSpan.instantInsightsRunValidation,
+          'Run validation',
+          async () => {
+            // Hand the whole validation to the worker when one is installed. It
+            // runs on a worker thread (off the main thread), emits its own
+            // lifecycle markers, logs code frames on its piped stdio, and
+            // returns the overlay Flight bytes for the main thread to forward.
+            // The worker is absent when `experimental.devValidationWorker` is
+            // false, and validation runs in-process instead.
+            const devValidationWorker = getDevValidationWorker()
+
+            if (devValidationWorker) {
+              const snapshot = await buildDevValidationSnapshot(
+                ctx,
+                instantInputs,
+                staticInputs,
+                prefetchMode,
+                fallbackRouteParams,
+                devRenderDidError
+              )
+
+              const chunks = await devValidationWorker(
+                snapshot,
+                validationAbortSignal
+              )
+
+              // A newer navigation may have superseded this validation while
+              // the worker ran; don't surface stale insights for a page the user
+              // left.
+              if (chunks && !validationAbortSignal.aborted) {
+                const { sendErrorsToBrowser } = ctx.renderOpts
+                if (!sendErrorsToBrowser) {
+                  throw new InvariantError(
+                    'Expected `sendErrorsToBrowser` to be defined in renderOpts.'
+                  )
+                }
+                sendErrorsToBrowser(
+                  createNodeStreamFromChunks(chunks),
+                  ctx.htmlRequestId
+                )
+              }
+            } else {
+              // In-process path, taken when `experimental.devValidationWorker`
+              // is false or no worker is installed (e.g. during a build).
+              // Validation computes the errors; the caller delivers them to the
+              // dev overlay. `runWithDevValidationLogging` encloses both the
+              // render and the delivery in the test-mode lifecycle markers so
+              // tests that assert the delivered error between
+              // `validation_start` and `validation_end` capture it.
+              await runWithDevValidationLogging(
+                ctx,
+                validationAbortSignal,
+                async () => {
+                  const validationErrors = await runValidationInDev(
+                    prefetchMode,
+                    instantInputs,
+                    staticInputs,
+                    toValidationRenderContext(ctx),
+                    fallbackRouteParams,
+                    devRenderDidError,
+                    validationAbortSignal
+                  )
+
+                  if (
+                    validationErrors !== undefined &&
+                    !validationAbortSignal.aborted
+                  ) {
+                    await logMessagesAndSendErrorsToBrowser(
+                      validationErrors,
+                      ctx
+                    )
+                  }
+                }
+              )
             }
           }
         )
-      }
+      })
     })
     // The catch keeps a failed render, or anything thrown inside validation,
     // from surfacing as an unhandled rejection.
@@ -4647,6 +4667,70 @@ function runDevValidationInBackground(
       )
     })
     .finally(() => validationGeneration.finish())
+}
+
+type RunInstantInsightsSpan = <T>(
+  spanType: AppRenderSpan,
+  spanName: string,
+  fn: () => Promise<T>
+) => Promise<T>
+
+function runInstantInsightsSpan<T>(
+  spanType: AppRenderSpan,
+  spanName: string,
+  fn: () => Promise<T>
+): Promise<T> {
+  return traceLocalSpan(
+    {
+      name: spanName,
+      attributes: {
+        'next.span_category': 'nextjs',
+        'next.span_name': spanName,
+        'next.span_type': spanType,
+      },
+    },
+    fn
+  )
+}
+
+function runWithoutInstantInsightsSpan<T>(
+  _spanType: AppRenderSpan,
+  _spanName: string,
+  fn: () => Promise<T>
+): Promise<T> {
+  return fn()
+}
+
+async function runInstantInsightsWithTracing<T>(
+  ctx: AppRenderContext,
+  fn: (runSpan: RunInstantInsightsSpan) => Promise<T>
+): Promise<T> {
+  if (!isRequestInsightsEnabled()) {
+    return fn(runWithoutInstantInsightsSpan)
+  }
+
+  return runWithRequestInsightsIdentity(
+    {
+      requestId: ctx.requestId,
+      kind: 'instant-insights',
+      htmlRequestId: ctx.htmlRequestId,
+      url: ctx.url.href,
+    },
+    () =>
+      traceLocalSpan(
+        {
+          name: 'Instant Insights',
+          parentSpan: null,
+          attributes: {
+            'next.span_category': 'nextjs',
+            'next.span_name': 'Instant Insights',
+            'next.span_type': AppRenderSpan.instantInsights,
+            'next.route': ctx.pagePath,
+          },
+        },
+        () => fn(runInstantInsightsSpan)
+      )
+  )
 }
 
 /**
@@ -4713,8 +4797,7 @@ async function prepareValidationInputs(
     inputsFromNavigation = {
       accumulatedChunks: result.outcome.accumulatedChunks,
       startTime: result.outcome.startTime,
-      staticStageEndTime: result.outcome.staticStageEndTime,
-      runtimeStageEndTime: result.outcome.runtimeStageEndTime,
+      stageEndTimes: result.outcome.stageEndTimes,
       requestStore,
       debugChannelClient: validationDebugChannel,
     }
@@ -5339,14 +5422,25 @@ async function streamStagedRenderInDev({
         ? { syncInterruptReason }
         : {
             startTime,
-            staticStageEndTime: stageController.getStaticStageEndTime(),
-            runtimeStageEndTime: stageController.getRuntimeStageEndTime(),
+            stageEndTimes: getStageEndTimes(stageController),
             accumulatedChunks,
           },
     }
   })
 
   return { stream, resultPromise }
+}
+
+function getStageEndTimes(
+  stageController: StagedRenderingController
+): StageEndTimes {
+  return {
+    [RenderStage.Static]: stageController.getStageEndTime(RenderStage.Static),
+    [RenderStage.ShellRuntime]: stageController.getStageEndTime(
+      RenderStage.ShellRuntime
+    ),
+    [RenderStage.Runtime]: stageController.getStageEndTime(RenderStage.Runtime),
+  }
 }
 
 async function renderWithWarmCachesForValidationInDev(
@@ -5435,8 +5529,7 @@ async function renderWithWarmCachesForValidationInDev(
   return {
     accumulatedChunks,
     startTime,
-    staticStageEndTime: stageController.getStaticStageEndTime(),
-    runtimeStageEndTime: stageController.getRuntimeStageEndTime(),
+    stageEndTimes: getStageEndTimes(stageController),
     requestStore,
     debugChannelClient: debugChannel?.clientSide.readable,
   }
@@ -5568,8 +5661,7 @@ async function prerenderWithWarmCachesForStaticValidationInDev(
   return {
     accumulatedChunks: collectedChunksByStage,
     startTime,
-    staticStageEndTime: stageController.getStaticStageEndTime(),
-    runtimeStageEndTime: stageController.getRuntimeStageEndTime(),
+    stageEndTimes: getStageEndTimes(stageController),
     requestStore,
     debugChannelClient: debugChannel?.clientSide.readable,
   }
@@ -6270,8 +6362,7 @@ function toDevValidationInputs(
   return {
     accumulatedChunks: serialized.accumulatedChunks,
     startTime: serialized.startTime,
-    staticStageEndTime: serialized.staticStageEndTime,
-    runtimeStageEndTime: serialized.runtimeStageEndTime,
+    stageEndTimes: serialized.stageEndTimes,
     requestStore,
     debugChannelClient: serialized.debugChunks
       ? createNodeStreamFromChunks(serialized.debugChunks)
@@ -6510,6 +6601,7 @@ async function runValidationInDev(
       inputs.accumulatedChunks,
       debugChunks,
       inputs.startTime,
+      inputs.stageEndTimes,
       rootParams,
       fallbackRouteParams,
       ctx,
@@ -6559,7 +6651,7 @@ async function validateStaticShell(
 
   const loaderTree = ComponentMod.routeModule.userland.loaderTree
 
-  const { accumulatedChunks, staticStageEndTime, runtimeStageEndTime } = inputs
+  const { accumulatedChunks, stageEndTimes } = inputs
   const { staticChunks, runtimeChunks, dynamicChunks } = accumulatedChunks
 
   const allowEmptyStaticShell =
@@ -6570,7 +6662,7 @@ async function validateStaticShell(
     runtimeChunks,
     dynamicChunks,
     debugChunks,
-    runtimeStageEndTime,
+    stageEndTimes[RenderStage.Runtime],
     rootParams,
     fallbackRouteParams,
     allowEmptyStaticShell,
@@ -6595,7 +6687,7 @@ async function validateStaticShell(
     staticChunks,
     dynamicChunks,
     debugChunks,
-    staticStageEndTime,
+    stageEndTimes[RenderStage.Static],
     rootParams,
     fallbackRouteParams,
     allowEmptyStaticShell,
@@ -6972,6 +7064,7 @@ async function validateInstantConfigs(
   accumulatedChunks: AccumulatedStreamChunks,
   debugChunks: null | Array<Uint8Array>,
   startTime: number,
+  stageEndTimes: StageEndTimes,
   rootParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   ctx: ValidationRenderContext,
@@ -6996,6 +7089,11 @@ async function validateInstantConfigs(
 
   debug?.('\nStarting depth-based instant validation...')
 
+  const prefetchKind =
+    prefetchMode === PrefetchingMode.Partial
+      ? ValidationPrefetchKind.Shell
+      : ValidationPrefetchKind.LegacySpeculative
+
   const loaderTree = ctx.componentMod.routeModule.userland.loaderTree
 
   const clientReferenceManifest = getClientReferenceManifest()
@@ -7007,11 +7105,8 @@ async function validateInstantConfigs(
     ? createNodeDebugChannel
     : createWebDebugChannel
 
-  const {
-    cache,
-    payload: initialRscPayload,
-    stageEndTimes,
-  } = await collectStagedSegmentData(
+  const { cache, payload: initialRscPayload } = await collectStagedSegmentData(
+    prefetchKind,
     ctx.componentMod,
     renderFlightStream,
     {
@@ -7022,6 +7117,7 @@ async function validateInstantConfigs(
     },
     debugChunks,
     startTime,
+    stageEndTimes,
     clientReferenceManifest,
     createDebugChannel
   )
@@ -7029,20 +7125,13 @@ async function validateInstantConfigs(
   const { implicitTags, nonce, workStore, isDebugChannelEnabled } = ctx
 
   async function validateAtDepth(
-    prefetchKind: ValidationPrefetchKind,
     depth: number,
     groupDepthForValidation: number
   ): Promise<null | NavigationValidationResult> {
-    return validateAtDepthImpl(
-      prefetchKind,
-      depth,
-      groupDepthForValidation,
-      null
-    )
+    return validateAtDepthImpl(depth, groupDepthForValidation, null)
   }
 
   async function validateAtDepthImpl(
-    prefetchKind: ValidationPrefetchKind,
     depth: number,
     groupDepthForValidation: number,
     previousBoundaryState: null | ValidationBoundaryTracking
@@ -7079,7 +7168,6 @@ async function validateInstantConfigs(
       extraChunksSignal,
       boundaryState,
       clientReferenceManifest,
-      stageEndTimes,
       useRuntimeStageForPartialSegments
     )
 
@@ -7290,7 +7378,6 @@ async function validateInstantConfigs(
       }
 
       const dynamicOnlyResult = await validateAtDepthImpl(
-        prefetchKind,
         depth,
         groupDepthForValidation,
         boundaryState
@@ -7313,11 +7400,6 @@ async function validateInstantConfigs(
   const maxDepth = groupDepthsByUrlDepth.length
 
   let impairedValidation: null | Error | AggregateError = null
-
-  const prefetchKind =
-    prefetchMode === PrefetchingMode.Partial
-      ? ValidationPrefetchKind.Shell
-      : ValidationPrefetchKind.LegacySpeculative
 
   for (let depth = maxDepth - 1; depth >= 0; depth--) {
     const maxGroupDepth = groupDepthsByUrlDepth[depth]
@@ -7342,11 +7424,7 @@ async function validateInstantConfigs(
         return []
       }
 
-      const result = await validateAtDepth(
-        prefetchKind,
-        depth,
-        currentGroupDepth
-      )
+      const result = await validateAtDepth(depth, currentGroupDepth)
 
       if (Array.isArray(result)) {
         const errors: Array<Error> = result
@@ -7989,6 +8067,7 @@ async function validateInstantConfigInBuildWithSample(
     )
 
     const accumulatedChunks = await accumulatedChunksPromise
+    const endTimes = getStageEndTimes(stageController)
     const debugChunks = null // TODO(instant-validation-build): support debugChannel
 
     // Missing sample errors take priority over everything else,
@@ -8042,6 +8121,7 @@ async function validateInstantConfigInBuildWithSample(
       accumulatedChunks,
       debugChunks,
       startTime,
+      endTimes,
       sampleRootParams,
       fallbackRouteParams,
       validationRenderCtx,
@@ -8420,6 +8500,9 @@ async function prerenderToStream(
         hmrRefreshHash: undefined,
         // We don't track vary params during initial prerender, only the final one
         varyParamsAccumulator: null,
+        runtimeDataAccessed: null,
+        shouldAttemptStaticPrefetch: null,
+        isFallbackUpgradeable: renderOpts.isFallbackUpgradeable === true,
       }
 
       // We're not going to use the result of this render because the only time it could be used
@@ -8454,6 +8537,9 @@ async function prerenderToStream(
         hmrRefreshHash: undefined,
         // We don't track vary params during initial prerender, only the final one
         varyParamsAccumulator: null,
+        runtimeDataAccessed: null,
+        shouldAttemptStaticPrefetch: null,
+        isFallbackUpgradeable: renderOpts.isFallbackUpgradeable === true,
       })
 
       const initialPrerenderOptions = {
@@ -8678,7 +8764,27 @@ async function prerenderToStream(
         finalStage: RenderStage.Static,
       })
 
-      const finalServerPayloadPrerenderStore: PrerenderStore = {
+      // Records runtime data accesses from the payload and render stores
+      // below into the RSC payload (as `u`), resolved `true` at the moment
+      // of first access so the fulfillment row is serialized at the stream
+      // position where it happened. Used when generating per-segment
+      // prefetch responses. Request data props (params, searchParams) are
+      // created while the RSC payload is constructed, under the payload
+      // store; both stores share the same promise so it observes accesses
+      // from both.
+      const runtimeDataAccessed = createPromiseWithResolvers<boolean>()
+
+      // Companion cell holding this prerender's static-prefetch measurement
+      // directly — the value that becomes the route's build-constant hint:
+      // starts true, and a disqualifying runtime-data access flips it false
+      // — fallback-param accesses on an upgradeable route don't (see
+      // trackRuntimeDataAccessed, which applies the rule at access time).
+      // Read after the prerender settles by
+      // collectSegmentData below. Shared between both stores for the same
+      // reason as the promise.
+      const shouldAttemptStaticPrefetch = { current: true }
+
+      const finalServerPayloadPrerenderStore: PrerenderStoreModernServer = {
         type: 'prerender',
         phase: 'render',
         rootParams,
@@ -8704,6 +8810,9 @@ async function prerenderToStream(
         resumeDataCache,
         hmrRefreshHash: undefined,
         varyParamsAccumulator,
+        runtimeDataAccessed,
+        shouldAttemptStaticPrefetch,
+        isFallbackUpgradeable: renderOpts.isFallbackUpgradeable === true,
       }
 
       const shellByteLengthDeferred = createPromiseWithResolvers<
@@ -8725,6 +8834,13 @@ async function prerenderToStream(
       if (cachedNavigations) {
         staleTimeIterable = new StaleTimeIterable()
         finalServerPayload.s = staleTimeIterable
+      }
+
+      if (shouldGenerateStaticFlightData(workStore)) {
+        // Embed the runtime data access tracking in the payload so
+        // collectSegmentData can replay it per stage. Only needed when the
+        // Flight data will be decomposed into segment prefetches below.
+        finalServerPayload.u = runtimeDataAccessed.promise
       }
 
       const serverDynamicTracking = createDynamicTrackingState(
@@ -8751,6 +8867,9 @@ async function prerenderToStream(
         resumeDataCache,
         hmrRefreshHash: undefined,
         varyParamsAccumulator,
+        runtimeDataAccessed,
+        shouldAttemptStaticPrefetch,
+        isFallbackUpgradeable: renderOpts.isFallbackUpgradeable === true,
       })
 
       if (staleTimeIterable !== undefined) {
@@ -8801,11 +8920,12 @@ async function prerenderToStream(
 
         // FIXME(NAR-810): If we're already aborted due to Sync IO, there should be no need to
         // finish the accumulators. However, it seems like in `--debug-prerender`
-        // the stream will stay open if we don't close the iterables here.
+        // the stream will stay open if we don't settle these here.
         if (process.env.NODE_ENV === 'development') {
           if (staleTimeIterable !== undefined) {
             staleTimeIterable.close()
           }
+          runtimeDataAccessed.resolve(false)
           finishAccumulatingVaryParams(varyParamsAccumulator)
         }
       }
@@ -8893,6 +9013,9 @@ async function prerenderToStream(
           if (staleTimeIterable !== undefined) {
             staleTimeIterable.close()
           }
+          // Idempotent: a no-op if a runtime data access already resolved it
+          // `true`. The `false` row lands here, after all stage content.
+          runtimeDataAccessed.resolve(false)
           finishAccumulatingVaryParams(varyParamsAccumulator)
 
           shellByteLengthDeferred.resolve(
@@ -8955,22 +9078,6 @@ async function prerenderToStream(
           renderOpts,
           ctx.pagePath,
           metadata
-        )
-        // If link data (static params) unblocked new content, then the shell has to be partial.
-        // If not, then the shell prerender and the static prerender are the same except for staleTime/varyParams.
-        const shellIsPartial = didLinkDataUnblockNewContent
-          ? true
-          : resultIsPartial
-
-        metadata.segmentData ??= new Map()
-        metadata.segmentData.set(
-          '/_shell',
-          Buffer.concat(
-            prependIsPartialByteToChunks(
-              collectedChunksByStage.shellStaticChunks,
-              shellIsPartial
-            )
-          )
         )
       }
 
@@ -9704,6 +9811,9 @@ async function prerenderToStream(
         resumeDataCache: originalResumeDataCache,
         hmrRefreshHash: undefined,
         varyParamsAccumulator: null,
+        runtimeDataAccessed: null,
+        shouldAttemptStaticPrefetch: null,
+        isFallbackUpgradeable: renderOpts.isFallbackUpgradeable === true,
       }
 
       const errorRSCPayload = await workUnitAsyncStorage.run(
@@ -10343,33 +10453,69 @@ async function collectSegmentData(
 
   // Resolve prefetch hints. At runtime (next start / ISR), the precomputed
   // hints are already loaded from the prefetch-hints.json manifest. During
-  // build, compute them by measuring segment gzip sizes and write them to
-  // metadata so the build pipeline can persist them to the manifest.
+  // build, compute them and write them to metadata so the build pipeline
+  // can persist them to the manifest. Like every other hint bit, the
+  // static-prefetch-attempt hint is computed once here and stays constant
+  // for the entire build — it must reach every response that carries
+  // prefetch hints (dynamic navigations included), which only the manifest
+  // flow can guarantee.
+  //
+  // The manifest isn't just a cache of this work — for some responses it's
+  // the only possible source. A response's FlightRouterState is built early
+  // in its render, before the runtime-data tracking has settled, so it can't
+  // read a finished measurement even when one is coming; and a dynamic
+  // navigation has no prerender to measure in the first place. Recomputing
+  // per render would therefore leave those responses with no hint at all,
+  // which is worse than an occasionally-stale one: the client would deopt
+  // straight to runtime prefetches instead of attempting static.
   let hints: PrefetchHints | null
   const prefetchInlining = renderOpts.experimental.prefetchInlining
-  if (!prefetchInlining) {
-    hints = null
-  } else if (renderOpts.isBuildTimePrerendering) {
-    // Build time: compute fresh hints and store in metadata for the manifest.
-    hints = await ComponentMod.collectPrefetchHints(
-      fullPageDataBuffer,
-      staleTime,
-      clientModules,
-      serverConsumerManifest,
-      prefetchInlining.maxSize,
-      prefetchInlining.maxBundleSize
-    )
-    metadata.prefetchHints = hints
+  if (renderOpts.isBuildTimePrerendering) {
+    // Whether the client should attempt a static prefetch for this route
+    // (PrefetchHint.ShouldAttemptStaticPrefetch): the prerender store's
+    // cell holds the hint value directly — true iff the build-time
+    // prerender accessed no runtime data that disqualifies a static
+    // attempt. The fallback-param upgradeability rule is applied at access
+    // time — see trackRuntimeDataAccessed — so only the settled value is
+    // read here. Only the modern (cacheComponents) prerender tracks
+    // accesses; legacy prerenders conservatively never set the hint.
+    const hintCell =
+      prerenderStore.type === 'prerender'
+        ? prerenderStore.shouldAttemptStaticPrefetch
+        : null
+    const shouldAttemptStaticPrefetch = hintCell !== null && hintCell.current
+    if (prefetchInlining || shouldAttemptStaticPrefetch) {
+      // Build time: compute fresh hints and store in metadata for the
+      // manifest. When prefetch inlining is disabled there are no sizes to
+      // measure, but the static-prefetch hint still rides the manifest —
+      // collectPrefetchHints then only builds the tree shape carrying it.
+      hints = await ComponentMod.collectPrefetchHints(
+        fullPageDataBuffer,
+        staleTime,
+        clientModules,
+        serverConsumerManifest,
+        prefetchInlining,
+        shouldAttemptStaticPrefetch
+      )
+      metadata.prefetchHints = hints
+    } else {
+      // Inlining is disabled and the hint didn't qualify — there's nothing
+      // to record, so don't write a manifest entry for this route.
+      hints = null
+    }
   } else {
     // Runtime: use hints from the manifest. Never compute fresh hints
     // during ISR/revalidation.
     const manifestHints = renderOpts.prefetchHints?.[pagePath]
     if (manifestHints === undefined) {
-      if (!renderOpts.cacheComponents) {
+      if (!prefetchInlining || !renderOpts.cacheComponents) {
         // Without cacheComponents, dynamic pages have no static shell
-        // and therefore no prerender pass to compute hints. This is
-        // expected — just skip the hint system for this route and let
-        // prefetching proceed normally without inlining decisions.
+        // and therefore no prerender pass to compute hints; and with
+        // inlining disabled, a missing entry just means the route didn't
+        // qualify for the static-prefetch hint at build. Either way this
+        // is expected — skip the hint system for this route and let
+        // prefetching proceed normally without inlining decisions (the
+        // client goes straight to runtime prefetches where it matters).
         hints = null
       } else {
         // TODO(#91407): No hints found for this route. This currently
@@ -10378,9 +10524,12 @@ async function collectSegmentData(
         // manifest to be unavailable at runtime.
         //
         // Fall back to a hint tree that marks everything as
-        // unprefetchable. Once the instant:false bug is fixed, this
-        // should become an error — the manifest should always have an
-        // entry for every route that reaches collectSegmentData.
+        // unprefetchable. This also swallows the static-prefetch-attempt
+        // hint — such routes never carry it, so the client goes straight
+        // to a runtime prefetch, which is safe (just less cacheable).
+        // Once the instant:false bug is fixed, this should become an
+        // error — the manifest should always have an entry for every
+        // route that reaches collectSegmentData.
         hints = {
           hints: PrefetchHint.PrefetchDisabled,
           slots: null,
