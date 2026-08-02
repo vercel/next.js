@@ -150,7 +150,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
 
 In `next dev` the stack frame resolves to your source, in both the dev overlay and the terminal. A production build minifies server code, so when the build error alone isn't enough, [`next build --debug-prerender`](/docs/app/guides/building#debugging-build-errors) turns on server source maps and continues past the first failure.
 
-The `Learn more` link resolves to a per-error page under [`/docs/messages`](https://nextjs.org/docs/messages/blocking-prerender-dynamic) written for agents to read. Each page follows the same shape, with the canonical patterns for every fix, the trade-offs against the other fixes, and the gotchas an agent is likely to miss on a first attempt. The [Instant navigation guide](/docs/app/guides/instant-navigation#ai-workflow) shows the full observe-fix-iterate loop an agent runs on these errors, from reading the insight to asserting on the result with an `instant()` test.
+The `Learn more` link resolves to a per-error page under [`/docs/messages`](https://nextjs.org/docs/messages/blocking-prerender-dynamic) written for agents to read. Each page follows the same shape, with the canonical patterns for every fix, the trade-offs against the other fixes, and the gotchas an agent is likely to miss on a first attempt. The [Instant navigation guide](/docs/app/guides/instant-navigation#ai-workflow) walks through the full loop an agent runs on these errors, from reading the insight to writing an `instant()` test that fails before the fix and passes once it's in place.
 
 ## Step 4: Hand multi-step workflows to Skills
 
