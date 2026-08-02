@@ -53,6 +53,7 @@ describe('TypeScript CLI backend', () => {
       expect(result.cliOutput).toContain('"typeCheckMode": "typescript-cli"')
       expect(result.cliOutput).not.toContain('"inputFilesCount"')
       expect(result.cliOutput).not.toContain('"totalFilesCount"')
+      expect(await next.hasFile('typescript-cli.test.ts')).toBe(true)
       expect(await next.hasFile('.next/cache/.tsbuildinfo')).toBe(true)
     })
 
@@ -143,7 +144,7 @@ describe('TypeScript CLI backend', () => {
         'TypeScript 7.0.2 does not provide the compiler API required by Next.js'
       )
       expect(result.cliOutput).toContain(
-        'Set experimental.useTypeScriptCli to true'
+        'Set experimental.useTypeScriptCli back to true'
       )
       expect(result.cliOutput).toContain('install TypeScript 6 instead')
     })
