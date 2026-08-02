@@ -1,4 +1,5 @@
-import { isNextDeploy, nextTestSetup } from 'e2e-utils'
+import { isNextDeploy, isNextStart, nextTestSetup } from 'e2e-utils'
+import type { NextAdapter } from 'next'
 
 describe('not-found-non-document-dynamic', () => {
   const { next } = nextTestSetup({
@@ -48,7 +49,9 @@ describe('not-found-non-document-dynamic', () => {
     })
     expect(res.status).toBe(404)
     expect(res.headers.get('content-type')).toContain('text/html')
-    expect(await res.text()).toContain('custom not found page')
+    const html = await res.text()
+    expect(html).toContain('custom not found page')
+    expect(html).toContain('dynamic layout content')
   })
 
   it('renders the not-found page for fetch requests to unknown paths', async () => {
@@ -61,6 +64,49 @@ describe('not-found-non-document-dynamic', () => {
     })
     expect(res.status).toBe(404)
     expect(res.headers.get('content-type')).toContain('text/html')
-    expect(await res.text()).toContain('custom not found page')
+    const html = await res.text()
+    expect(html).toContain('custom not found page')
+    expect(html).toContain('dynamic layout content')
   })
+
+  it('renders dynamic not-found content when selected by a rewrite', async () => {
+    const res = await next.fetch('/rewritten-not-found')
+    const html = await res.text()
+
+    expect(res.status).toBe(404)
+    expect(res.headers.get('content-type')).toContain('text/html')
+    expect(html).toContain('custom not found page')
+    expect(html).toContain('dynamic layout content')
+  })
+
+  if (isNextStart && process.env.__NEXT_CACHE_COMPONENTS) {
+    it('publishes the partial not-found shell as a resumable prerender', async () => {
+      expect(await next.hasFile('.next/server/pages/404.html')).toBe(false)
+
+      const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
+        await next.readJSON('build-complete.json')
+      const notFoundPrerender = outputs.prerenders.find(
+        (output) => output.pathname === '/_not-found'
+      )
+
+      expect(notFoundPrerender).toMatchObject({
+        route: '/_not-found',
+        routeType: 'page',
+        response: 'initial',
+        compute: 'resuming',
+        pprChain: {
+          headers: {
+            'next-resume': '1',
+          },
+        },
+        config: {
+          renderingMode: 'PARTIALLY_STATIC',
+        },
+        fallback: {
+          postponedState: expect.any(String),
+          initialStatus: 404,
+        },
+      })
+    })
+  }
 })
