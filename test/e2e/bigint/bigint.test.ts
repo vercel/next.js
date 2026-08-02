@@ -3,7 +3,6 @@ import { nextTestSetup } from 'e2e-utils'
 describe('bigint API route support', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   it('should return 200', async () => {
