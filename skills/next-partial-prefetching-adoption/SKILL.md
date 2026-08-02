@@ -72,7 +72,7 @@ Then, for each one:
 
    ```tsx
    // TODO(runtime-prefetch): assess with the user whether URL data should resolve before click.
-   // See: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
+   // See: https://nextjs.org/docs/app/guides/runtime-prefetching
    export const prefetch = 'partial'
    ```
 
@@ -87,7 +87,7 @@ Then, for each one:
 Once every audited destination has `prefetch = 'partial'`, finish in two moves.
 
 1. **Enable the flag globally.** Set `partialPrefetching: true` in `next.config.ts` (alongside `cacheComponents: true`). Every route is adopted now, so every link is good.
-2. **Strip the redundant `prefetch = 'partial'` exports.** Run the first-party `remove-partial-prefetch` codemod rather than a text find-and-replace. It removes only `export const prefetch = 'partial'` and its generated `// See:` comment. It leaves other values such as `prefetch = 'force-disabled'` in place, along with your `TODO(runtime-prefetch)` markers, which wait for step 5.
+2. **Strip the redundant `prefetch = 'partial'` exports.** Run the first-party `remove-partial-prefetch` codemod rather than a text find-and-replace. It removes only `export const prefetch = 'partial'` and its generated Partial Prefetching guide comment. It leaves other values such as `prefetch = 'force-disabled'` in place, along with your `TODO(runtime-prefetch)` markers and their Runtime Prefetching guide links, which wait for step 5.
 
    Use the `@canary` channel, not `@latest`. The `remove-partial-prefetch` transform isn't in the stable `@next/codemod` release yet, and `@next/codemod@latest` errors with `Invalid transform choice`.
 
@@ -95,7 +95,7 @@ Once every audited destination has `prefetch = 'partial'`, finish in two moves.
    npx @next/codemod@canary remove-partial-prefetch ./app
    ```
 
-   The codemod refuses to run on a dirty working tree. Commit or stash unrelated work first, or pass `--force` to let its edits land alongside your WIP. If the codemod isn't available (older `@next/codemod`, sandboxed environment, offline run), reproduce it by hand by removing `export const prefetch = 'partial'` and its generated `// See:` comment from every `app/**/{page,layout}.{js,jsx,ts,tsx}` — leave other `prefetch` values in place, and leave the `TODO(runtime-prefetch)` markers where they are. Don't hand-edit when the codemod can run.
+   The codemod refuses to run on a dirty working tree. Commit or stash unrelated work first, or pass `--force` to let its edits land alongside your WIP. If the codemod isn't available (older `@next/codemod`, sandboxed environment, offline run), reproduce it by hand by removing `export const prefetch = 'partial'` and its generated Partial Prefetching guide comment from every `app/**/{page,layout}.{js,jsx,ts,tsx}` — leave other `prefetch` values in place, and leave the `TODO(runtime-prefetch)` markers and Runtime Prefetching guide links where they are. Don't hand-edit when the codemod can run.
 
 ## step 3: sweep for URL-data insights (after enabling)
 
