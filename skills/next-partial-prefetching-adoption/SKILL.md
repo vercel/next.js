@@ -35,7 +35,11 @@ Talk to the user in terms of what they'll see — PRs, features, and how the app
 
 ## background
 
-Adopting Partial Prefetching means every route still delivers what its links prefetched before, now split between the shared App Shell and any extra per-link data a link explicitly asks for. The [guide](https://nextjs.org/docs/app/guides/adopting-partial-prefetching) is the canonical reference for what a prefetch contains and how to decide each case; this skill sequences that work against a running app.
+Partial Prefetching splits a link's prefetch between the shared App Shell and
+any extra per-link data it asks for. The
+[guide](https://nextjs.org/docs/app/guides/adopting-partial-prefetching) is the
+canonical reference for what a prefetch contains and how to decide each case;
+this skill sequences that work against a running app.
 
 The catch that decides most of the sweep: a default link warms only the shared App Shell. A route keyed by `params` or `searchParams` can prefetch more only after it has adopted Partial Prefetching and a specific link uses [`<Link prefetch={true}>`](https://nextjs.org/docs/app/api-reference/components/link#prefetch); then Next.js resolves the URL data and any cached content behind it before the click (the guide's [URL data](https://nextjs.org/docs/app/guides/adopting-partial-prefetching#url-data) section).
 
@@ -78,7 +82,7 @@ Then, for each one:
 
    Use that exact prefix so step 5 can grep them back. Don't cache or decide anything for these routes now.
 
-3. **Preserve what that prefetch delivered.** The guide's [audit table](https://nextjs.org/docs/app/guides/adopting-partial-prefetching#auditing-link-prefetchtrue-calls) is the canonical decision — fetch it and apply the matching row rather than re-deriving it. Caching uncached content is the judgment call in that table: trace where the data comes from and what freshness and revalidation it needs, per the [`use cache`](https://nextjs.org/docs/app/api-reference/directives/use-cache) docs, and ask the user when the answer isn't clear-cut. The URL-data routes you marked in the previous item wait for step 5.
+3. **Restore the behavior the link relied on.** Apply the matching row from the guide's [audit table](https://nextjs.org/docs/app/guides/adopting-partial-prefetching#auditing-link-prefetchtrue-calls). Cache dynamic content only when it needs to remain ready at click; otherwise leave it uncached. Follow the [`use cache`](https://nextjs.org/docs/app/api-reference/directives/use-cache) docs and ask the user when the freshness requirement is unclear. The URL-data routes you marked in the previous item wait for step 5.
 
 > **If you add `use cache`, verify under `next start`, not only the build.** A `cookies()`/`headers()`/session read anywhere in the cached call tree throws at request time while `next build` passes clean. See [`use cache`](https://nextjs.org/docs/app/api-reference/directives/use-cache).
 
@@ -89,10 +93,8 @@ Once every audited destination has `prefetch = 'partial'`, finish in two moves.
 1. **Enable the flag globally.** Set `partialPrefetching: true` in `next.config.ts` (alongside `cacheComponents: true`). Every route is adopted now, so every link is good.
 2. **Strip the redundant `prefetch = 'partial'` exports.** Run the first-party `remove-partial-prefetch` codemod rather than a text find-and-replace. It removes only `export const prefetch = 'partial'` and its generated Partial Prefetching guide comment. It leaves other values such as `prefetch = 'force-disabled'` in place, along with your `TODO(runtime-prefetch)` markers and their Runtime Prefetching guide links, which wait for step 5.
 
-   Use the `@canary` channel, not `@latest`. The `remove-partial-prefetch` transform isn't in the stable `@next/codemod` release yet, and `@next/codemod@latest` errors with `Invalid transform choice`.
-
    ```bash
-   npx @next/codemod@canary remove-partial-prefetch ./app
+   npx @next/codemod@latest remove-partial-prefetch ./app
    ```
 
    The codemod refuses to run on a dirty working tree. Commit or stash unrelated work first, or pass `--force` to let its edits land alongside your WIP. If the codemod isn't available (older `@next/codemod`, sandboxed environment, offline run), reproduce it by hand by removing `export const prefetch = 'partial'` and its generated Partial Prefetching guide comment from every `app/**/{page,layout}.{js,jsx,ts,tsx}` — leave other `prefetch` values in place, and leave the `TODO(runtime-prefetch)` markers and Runtime Prefetching guide links where they are. Don't hand-edit when the codemod can run.
