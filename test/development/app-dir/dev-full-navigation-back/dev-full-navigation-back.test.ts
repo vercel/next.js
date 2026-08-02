@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry, waitFor } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import { readFile, writeFile } from 'fs/promises'
 import { join } from 'path'
 
@@ -24,10 +24,10 @@ describe('dev-full-navigation-back', () => {
     const valueFile = join(next.testDir, 'app/value.ts')
     const content = await readFile(valueFile, 'utf8')
     await writeFile(valueFile, content.replace('Value A', 'Value B'))
-    // Wait for the HMR update to finish while this page is inactive. Going
-    // back too quickly lets the restored page receive the update, causing the
-    // test to pass unexpectedly instead of reproducing the stale page.
-    await waitFor(3000)
+    await retry(async () => {
+      const $ = await next.render$('/')
+      expect($('#value').text()).toBe('Value B')
+    })
 
     await browser.back({ waitUntil: 'commit' })
     await retry(async () => {
