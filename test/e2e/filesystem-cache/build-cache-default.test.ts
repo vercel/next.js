@@ -2,20 +2,13 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
 import fs from 'fs/promises'
 import path from 'path'
 
-// `experimental.turbopackFileSystemCacheForBuild` is enabled by default, except
-// in CI environments that haven't opted in (`isCI && !NOW_BUILDER`), where the
-// cache is unlikely to persist between builds. It can always be disabled
-// explicitly with `turbopackFileSystemCacheForBuild: false`.
+// `experimental.turbopackFileSystemCacheForBuild` is enabled by default in all
+// environments. It can be disabled explicitly with
+// `turbopackFileSystemCacheForBuild: false`.
 //
-// This is a Turbopack + build (start) mode test. It runs `next build` with a
-// controlled environment (the default depends on ambient `isCI`/`NOW_BUILDER`,
-// and the test runner itself runs in CI) and checks whether anything is written
+// This is a Turbopack + build (start) mode test. It runs `next build` with
+// controlled local and CI environments and checks whether anything is written
 // to `.next/cache/turbopack`.
-//
-// `next/dist/compiled/ci-info` computes
-//   isCI = !!(CI || CONTINUOUS_INTEGRATION || BUILD_NUMBER || RUN_ID || <vendor>)
-// so clearing those signals forces a non-CI environment, and setting `CI=1`
-// (with `NOW_BUILDER` unset) forces a CI environment that hasn't opted in.
 ;(process.env.IS_TURBOPACK_TEST && isNextStart ? describe : describe.skip)(
   'filesystem-cache build default',
   () => {
@@ -29,8 +22,7 @@ import path from 'path'
       return
     }
 
-    // Simulate a non-CI (local) environment by clearing every CI signal that
-    // `ci-info` looks at.
+    // Simulate a non-CI (local) environment by clearing the common CI signals.
     const NON_CI_ENV = {
       CI: '',
       CONTINUOUS_INTEGRATION: '',
@@ -89,7 +81,7 @@ import path from 'path'
       await setConfig()
     })
 
-    it('writes the cache by default (no config, non-CI environment)', async () => {
+    it('writes the cache by default (no config, local environment)', async () => {
       await cleanBuildOutput()
       await setConfig()
 
@@ -109,17 +101,17 @@ import path from 'path'
       expect(await getCacheSize()).toBe(0)
     })
 
-    it('writes nothing by default in CI that has not opted in', async () => {
+    it('writes the cache by default in CI', async () => {
       await cleanBuildOutput()
       await setConfig()
 
       const { exitCode } = await next.build({
-        // Force a CI environment that hasn't opted in: `isCI` true, `NOW_BUILDER` unset.
+        // Force a generic CI environment.
         env: { ...NON_CI_ENV, CI: '1' },
       })
       expect(exitCode).toBe(0)
 
-      expect(await getCacheSize()).toBe(0)
+      expect(await getCacheSize()).toBeGreaterThan(0)
     })
   }
 )
