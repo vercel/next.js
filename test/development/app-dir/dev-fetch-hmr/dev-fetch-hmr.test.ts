@@ -43,4 +43,22 @@ describe('dev-fetch-hmr', () => {
       expect(magicNumber3).not.toEqual(magicNumber)
     })
   })
+
+  it('should retain pre-instrumented fetch wrappers after HMR', async () => {
+    // This test verifies that fetch instrumentation applied before Next.js
+    // patches fetch (e.g. OTel) is preserved across HMR resets.
+    const html = await next.render('/otel')
+    expect(html).toContain('otel-patched')
+
+    await next.patchFile('app/otel/page.tsx', (content) =>
+      content.replace('touch to trigger HMR', 'touch to trigger HMR 2')
+    )
+
+    await retry(async () => {
+      const html2 = await next.render('/otel')
+      expect(html2).toContain('touch to trigger HMR 2')
+      // The OTel wrapper should still be active after HMR
+      expect(html2).toContain('otel-patched')
+    })
+  })
 })
