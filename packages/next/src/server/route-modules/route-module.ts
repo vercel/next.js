@@ -391,7 +391,9 @@ export abstract class RouteModule<
         loadManifestFromRelativePath<any>({
           projectDir,
           distDir: this.distDir,
-          manifest: DYNAMIC_CSS_MANIFEST,
+          // Emitted as `dynamic-css-manifest.json` (constant omits the extension
+          // because the edge runtime also emits `server/dynamic-css-manifest.js`).
+          manifest: `${DYNAMIC_CSS_MANIFEST}.json`,
           shouldCache: !this.isDev,
           handleMissing: true,
         }),
@@ -419,7 +421,11 @@ export abstract class RouteModule<
           ?.__RSC_MANIFEST?.[srcPage.replace(/%5F/g, '_')],
         serverActionsManifest,
         subresourceIntegrityManifest,
-        dynamicCssManifest,
+        // `handleMissing` returns `{}` when the file is absent (e.g. Turbopack).
+        // Normalize to `undefined` so callers can safely do `new Set(...)`.
+        dynamicCssManifest: Array.isArray(dynamicCssManifest)
+          ? dynamicCssManifest
+          : undefined,
         prefetchHintsManifest,
         interceptionRoutePatterns: routesManifest.rewrites.beforeFiles
           .filter(isInterceptionRouteRewrite)
