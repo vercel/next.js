@@ -88,10 +88,10 @@ trustworthy.
 ## Reporting to the user
 
 This loop is meant to run unattended — ideally across many navigations in one
-pass — so it doesn't stop to ask after each route. Scope follows the ask: one
-named route means finish that route and stop; "make the app (or its navigations)
-instant" means work the whole route queue without pausing to confirm between
-routes. What matters is how you word and present the results, not how often you
+pass — so it doesn't stop to ask after each route. If the user names one route,
+finish it and stop. If they ask to make the app or its navigations instant, work
+the whole route queue without pausing between routes. What matters is how you
+word and present the results, not how often you
 interrupt. The mechanics below — the rig, RED, GREEN, the gates — are your
 scaffolding; the user never needs to hear those words.
 
@@ -104,8 +104,8 @@ scaffolding; the user never needs to hear those words.
   the data stream in, rather than reading a claim. Identical before and after
   means the fix did nothing — roll it back.
 - **Present a run as a list of results the user can click through** — one line
-  per navigation: the route (or its trigger link and destination), what now
-  commits instantly, and what streams in — not a transcript of the loop.
+  per navigation: the route, what commits instantly, and what streams in — not a
+  transcript of the loop.
 - **Only surface a question for a genuine fork:** a fix that would change
   behavior, a security-sensitive read, or a route that's dynamic by design (a
   runtime-prefetch candidate, not a shell to grow). A clean instant fix is not a
