@@ -139,9 +139,6 @@ export function loadEnvConfig(
   if (combinedEnv && !forceReload) {
     return { combinedEnv, parsedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
   }
-  replaceProcessEnv(initialEnv)
-  previousLoadedEnvFiles = cachedLoadedEnvFiles
-  cachedLoadedEnvFiles = []
 
   const isTest = process.env.NODE_ENV === 'test'
   const mode = isTest ? 'test' : dev ? 'development' : 'production'
@@ -155,6 +152,7 @@ export function loadEnvConfig(
     '.env',
   ].filter(Boolean) as string[]
 
+  const newLoadedEnvFiles: LoadedEnvFiles = []
   for (const envFile of dotenvFiles) {
     // only load .env if the user provided has an env config file
     const dotEnvPath = path.join(dir, envFile)
@@ -168,7 +166,7 @@ export function loadEnvConfig(
       }
 
       const contents = fs.readFileSync(dotEnvPath, 'utf8')
-      cachedLoadedEnvFiles.push({
+      newLoadedEnvFiles.push({
         path: envFile,
         contents,
         env: {}, // This will be populated in processEnv
@@ -179,6 +177,22 @@ export function loadEnvConfig(
       }
     }
   }
+
+  // A FIFO-mounted `.env` (used by secret managers) can only be consumed once,
+  // so a forced reload re-reads it as empty. When a reload finds no content but
+  // a previous load did, keep the already-loaded env instead of wiping it.
+  if (
+    forceReload &&
+    combinedEnv &&
+    newLoadedEnvFiles.every((envFile) => envFile.contents.trim() === '') &&
+    cachedLoadedEnvFiles.some((envFile) => envFile.contents.trim() !== '')
+  ) {
+    return { combinedEnv, parsedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
+  }
+
+  replaceProcessEnv(initialEnv)
+  previousLoadedEnvFiles = cachedLoadedEnvFiles
+  cachedLoadedEnvFiles = newLoadedEnvFiles
   ;[combinedEnv, parsedEnv] = processEnv(
     cachedLoadedEnvFiles,
     dir,
