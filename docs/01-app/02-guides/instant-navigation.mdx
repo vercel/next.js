@@ -295,22 +295,17 @@ yarn add -D @next/playwright @playwright/test
 bun add -D @next/playwright @playwright/test
 ```
 
-Test both ways users can reach a route:
+A route can be reached two ways, and a `<Suspense>` boundary can cover one without covering the other:
 
 - **Initial page load**: Use `page.goto()` to test the static UI from the document response.
 - **Client navigation**: Click a `<Link>` to test the destination's prefetched UI. [Runtime prefetching](/docs/app/guides/runtime-prefetching) can add request-specific content to this UI.
 
-A `<Suspense>` boundary can make one navigation type instant without covering the other.
-
-```typescript filename="e2e/navigation.test.ts" highlight={9-17,23-28}
+```typescript filename="e2e/navigation.test.ts" highlight={6-14,20-25}
 import { test, expect } from '@playwright/test'
 import { instant } from '@next/playwright'
 
 test.describe('Product page (/store/[slug])', () => {
-  test('initial page load exposes the document shell', async ({
-    page,
-    baseURL,
-  }) => {
+  test('is instant on an initial page load', async ({ page, baseURL }) => {
     await instant(
       page,
       async () => {
@@ -323,7 +318,7 @@ test.describe('Product page (/store/[slug])', () => {
     await expect(page.getByText('In stock')).toBeVisible()
   })
 
-  test('client navigation exposes the prefetched shell', async ({ page }) => {
+  test('is instant on a client navigation', async ({ page }) => {
     await page.goto('/store/shoes')
     await instant(page, async () => {
       await page.click('a[href="/store/hats"]')
@@ -338,7 +333,9 @@ test.describe('Product page (/store/[slug])', () => {
 
 Pass Playwright's `baseURL` to `instant()` when `page.goto()` is the first navigation. The helper needs the origin before requesting the document.
 
-The `instant()` callback exposes static UI for an initial page load and prefetched UI for a client navigation. Other dynamic content remains blocked until the callback returns.
+Inside the callback, an initial page load shows the static UI and a client navigation shows the destination's prefetched UI. Other dynamic content remains blocked until the callback finishes.
+
+> **Good to know:** The start of the `instant()` scope is the same as turning on **Pause on navigations** in the Navigation Inspector, and the end of the scope releases the pause the way **Resume** does.
 
 For client navigations, wait for the destination URL before asserting on its UI. Otherwise, a shared selector can match the source page before the destination commits. If the prefetched destination cannot commit, the URL wait times out and the test fails.
 
