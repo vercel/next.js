@@ -51,6 +51,7 @@ import type {
   HmrMessageSentToBrowser,
   ReloadPageMessage,
   RemovedPageMessage,
+  SyncMessage,
   TurbopackMessageSentToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
 import {
@@ -252,6 +253,79 @@ function handleAvailableHash(hash: string) {
   mostRecentCompilationHash = hash
 }
 
+/**
+ * The server-components generation the code this document is executing belongs
+ * to. Seeded from the value the server embedded in the document (carried in
+ * `__NEXT_DATA__`), then kept current as the page applies updates in place:
+ * `built` and `server-component-changes` both report the generation they left
+ * the server on.
+ *
+ * When the socket (re)connects, `sync` reports the server's current generation.
+ * If it differs from this one, the page is executing code that has since been
+ * recompiled and can only recover with a full reload — see
+ * `isRunningOutdatedCode`.
+ *
+ * Read lazily: this module is evaluated by the dev entry before
+ * `window.__NEXT_DATA__` is assigned, so it cannot be seeded at module scope.
+ */
+let currentRefreshHash: string | undefined
+let hasReadDocumentRefreshHash = false
+
+function getCurrentRefreshHash(): string | undefined {
+  if (!hasReadDocumentRefreshHash) {
+    hasReadDocumentRefreshHash = true
+    currentRefreshHash = window.__NEXT_DATA__?.hmrRefreshHash
+  }
+
+  return currentRefreshHash
+}
+
+function setCurrentRefreshHash(hash: string) {
+  hasReadDocumentRefreshHash = true
+  currentRefreshHash = hash
+}
+
+let reloadingForOutdatedCode = false
+
+/**
+ * Whether the code this page is executing predates what the server has now.
+ *
+ * The browser restores a document from its HTTP cache on a back/forward
+ * navigation without consulting the server, re-running the cached scripts. HMR
+ * can't repair that: it only pushes the edits made while a page was connected,
+ * so edits made while this document was away are never replayed. Comparing what
+ * the page is running against what the server has is what detects it.
+ *
+ * Two signals, because neither covers both bundlers. The server-components
+ * generation is authoritative when present, but webpack only advances it on a
+ * server-components recompile, so a Pages Router edit never moves it; there the
+ * loaded bundle's own compilation hash answers instead. The bundle hash is only
+ * meaningful when the compilation succeeded — a failing compile reports the
+ * *server* compiler's stats on `sync`, whose hash never matches the client
+ * bundle. Turbopack has no `__webpack_hash__` equivalent and relies on the
+ * generation.
+ *
+ * Where neither side has a generation and there is no bundle hash to compare,
+ * the page is left alone rather than reloaded on a guess.
+ */
+function isRunningOutdatedCode(message: SyncMessage): boolean {
+  const documentRefreshHash = getCurrentRefreshHash()
+
+  if (
+    documentRefreshHash !== undefined &&
+    message.hmrRefreshHash !== undefined &&
+    message.hmrRefreshHash !== documentRefreshHash
+  ) {
+    return true
+  }
+
+  if (process.env.TURBOPACK) {
+    return false
+  }
+
+  return message.errors.length === 0 && message.hash !== __webpack_hash__
+}
+
 export function handleStaticIndicator() {
   if (process.env.__NEXT_DEV_INDICATOR) {
     const routeInfo = window.next.router.components[window.next.router.pathname]
@@ -273,6 +347,10 @@ export function handleStaticIndicator() {
 
 /** Handles messages from the server for the Pages Router. */
 function processMessage(message: HmrMessageSentToBrowser) {
+  if (reloadingForOutdatedCode) {
+    return
+  }
+
   switch (message.type) {
     case HMR_MESSAGE_SENT_TO_BROWSER.ISR_MANIFEST: {
       isrManifest = message.data
@@ -293,6 +371,23 @@ function processMessage(message: HmrMessageSentToBrowser) {
     case HMR_MESSAGE_SENT_TO_BROWSER.BUILT:
     case HMR_MESSAGE_SENT_TO_BROWSER.SYNC: {
       dispatcher.buildingIndicatorHide()
+
+      if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.SYNC) {
+        // The page may be executing code that the server has already
+        // recompiled, most commonly because the browser restored this document
+        // from its HTTP cache on a back/forward navigation. Only a full reload
+        // can bring it up to date.
+        if (isRunningOutdatedCode(message)) {
+          reloadingForOutdatedCode = true
+          window.location.reload()
+          return
+        }
+      } else if (message.hmrRefreshHash !== undefined) {
+        // The page is being brought up to date in place, so record the
+        // generation it is moving to. Without this, the next `sync` would see a
+        // newer server generation and reload a page that is already current.
+        setCurrentRefreshHash(message.hmrRefreshHash)
+      }
 
       if (message.hash) handleAvailableHash(message.hash)
 
@@ -340,6 +435,11 @@ function processMessage(message: HmrMessageSentToBrowser) {
       return handleSuccess()
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES: {
+      // The page is about to refresh in place, so record the generation it is
+      // moving to (see the `built` case above).
+      if (message.hmrRefreshHash !== undefined) {
+        setCurrentRefreshHash(message.hmrRefreshHash)
+      }
       turbopackHmr?.onServerComponentChanges()
       if (hasCompileErrors || RuntimeErrorHandler.hadRuntimeError) {
         window.location.reload()

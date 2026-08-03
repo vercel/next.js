@@ -33,7 +33,7 @@ import {
 } from '../../server/lib/trace/tracer'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { HTML_CONTENT_TYPE_HEADER } from '../../lib/constants'
-import type { RequestMeta } from '../../server/request-meta'
+import { addRequestMeta, type RequestMeta } from '../../server/request-meta'
 import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
 
 // injected by the loader afterwards.
@@ -100,6 +100,18 @@ async function requestHandler(
 
   const relativeUrl = `${req.nextUrl.pathname}${req.nextUrl.search}`
   const baseReq = new WebNextRequest(req)
+
+  // The edge request is rebuilt from HTTP data alone, so the dev server's
+  // server-components generation arrives as a sandbox global rather than as
+  // request metadata (see `server/web/sandbox/sandbox.ts`). Put it back on the
+  // request so the render embeds it in the document like a Node render does.
+  if (process.env.NODE_ENV === 'development') {
+    const hmrRefreshHash = (globalThis as any).__hmrRefreshHash
+    if (typeof hmrRefreshHash === 'string') {
+      addRequestMeta(baseReq, 'hmrRefreshHash', hmrRefreshHash)
+    }
+  }
+
   const pageRouteModule = pageMod.routeModule as RouteModule
   const prepareResult = await pageRouteModule.prepare(baseReq, null, {
     srcPage,

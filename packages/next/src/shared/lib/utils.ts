@@ -113,6 +113,15 @@ export type NEXT_DATA = {
   scriptLoader?: any[]
   isPreview?: boolean
   notFoundSrcPage?: string
+  /**
+   * The server-components generation this document was rendered against
+   * (dev only). The HMR client compares it against the server's current
+   * generation when the socket (re)connects and reloads if the document is
+   * executing code that has since been recompiled — which is how a document the
+   * browser restored from its HTTP cache on a back/forward navigation recovers.
+   * See `client/dev/hot-reloader/pages/hot-reloader-pages.ts`.
+   */
+  hmrRefreshHash?: string
 }
 
 /**

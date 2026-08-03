@@ -1520,6 +1520,9 @@ export async function renderToHTMLImpl(
         notFoundSrcPage && process.env.__NEXT_DEV_SERVER
           ? notFoundSrcPage
           : undefined,
+      hmrRefreshHash: process.env.__NEXT_DEV_SERVER
+        ? getRequestMeta(req, 'hmrRefreshHash')
+        : undefined,
     },
     nonce,
     buildManifest: filteredBuildManifest,
