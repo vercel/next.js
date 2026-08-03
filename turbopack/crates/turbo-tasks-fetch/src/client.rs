@@ -193,6 +193,18 @@ struct FetchInnerResult {
     deadline_secs: Option<u64>,
 }
 
+/// Which arm of the soft-deadline race in [`FetchClientConfig::fetch`] won. `fetch` sends this to
+/// the background driver so the driver invalidates exactly when `fetch` returned the sentinel — see
+/// the `decision` channel there.
+enum FetchRaceOutcome {
+    /// `fetch` was woken by the driver before the deadline and read the real result itself. No
+    /// invalidation needed.
+    Consumed,
+    /// `fetch` hit the soft deadline and returned the fallback sentinel. The driver must invalidate
+    /// so `fetch` re-runs and picks up the real result.
+    SentinelReturned,
+}
+
 #[turbo_tasks::value_impl]
 impl FetchClientConfig {
     /// Performs the actual HTTP request. This task is `network` but NOT `session_dependent`, so
@@ -345,10 +357,13 @@ impl FetchClientConfig {
             let invalidator =
                 turbo_tasks::get_invalidator().expect("get_invalidator is Some inside a task");
 
-            // The background driver signals this channel when the real request completes, so a
-            // fast fetch returns its real result immediately rather than always paying
-            // `soft_deadline`.
-            let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+            // Two one-shot channels coordinate `fetch` and the background driver:
+            // - `wake` (driver -> fetch): wakes a waiting `fetch` when the request completes, so a
+            //   fast fetch returns immediately instead of always paying `soft_deadline`.
+            // - `decision` (fetch -> driver): tells the driver which arm `fetch` took, so it
+            //   invalidates iff `fetch` returned the sentinel.
+            let (wake_tx, wake_rx) = tokio::sync::oneshot::channel::<()>();
+            let (decision_tx, decision_rx) = tokio::sync::oneshot::channel::<FetchRaceOutcome>();
 
             // Drive `fetch_inner` to completion in a detached top-level task. `start_once_process`
             // (unlike `turbo_tasks::spawn`) runs as a real task with task state, and it releases
@@ -384,31 +399,33 @@ impl FetchClientConfig {
                     let _ = drive_fetch_inner(client, url, user_agent)
                         .read_strongly_consistent()
                         .await;
-                    // `tx.send` tells us which branch of `fetch`'s race won, so we only invalidate
-                    // when we actually need to:
-                    // - `Ok(())`: the receiver is still alive, i.e. the soft deadline has NOT fired
-                    //   and `fetch` is still waiting. Our send wakes it; it reads the now-cached
-                    //   result on the current execution. No invalidation needed (invalidating here
-                    //   would force a redundant re-run for a value `fetch` already returned).
-                    // - `Err(())`: the receiver was dropped, i.e. the soft deadline fired first and
-                    //   `fetch` already returned the fallback sentinel. Invalidate so `fetch`
-                    //   re-runs and picks up the now-cached real result.
-                    if tx.send(()).is_err() {
-                        invalidator.invalidate_with_reason(&*tt, SoftFetchTimeout {});
+                    // Wake a waiting `fetch`; a no-op if it already timed out.
+                    let _ = wake_tx.send(());
+                    // Invalidate iff `fetch` returned the sentinel. Waiting for its decision
+                    // (rather than guessing from the wake result) is what makes
+                    // this race-free. `Err` means `fetch` was dropped before
+                    // deciding (shutdown); invalidate defensively.
+                    match decision_rx.await {
+                        Ok(FetchRaceOutcome::Consumed) => {}
+                        Ok(FetchRaceOutcome::SentinelReturned) | Err(_) => {
+                            invalidator.invalidate_with_reason(&*tt, SoftFetchTimeout {});
+                        }
                     }
                 }));
             }
 
-            // Race the completion signal against the soft deadline. Both are plain futures (not
-            // `Vc` reads), so dropping the loser cannot lose a dependency edge.
+            // Race the driver's wake against the soft deadline. Both are plain futures (not `Vc`
+            // reads), so dropping the loser cannot lose a dependency edge. Each arm reports its
+            // outcome to the driver before acting, keeping the driver's invalidation in sync.
             tokio::select! {
-                _ = rx => {
-                    // The request finished within the deadline; fall through to read the (now
-                    // cached) `fetch_inner` result normally and arm the TTL timer.
+                _ = wake_rx => {
+                    // Finished in time: fall through to read the now-cached result and arm the TTL.
+                    let _ = decision_tx.send(FetchRaceOutcome::Consumed);
                 }
                 _ = tokio::time::sleep(soft_deadline) => {
-                    // Soft timeout: return a sentinel so the caller uses a fallback now. The driver
-                    // keeps running and will invalidate `fetch` when the request lands.
+                    // Soft timeout: return a sentinel so the caller uses a fallback now; the driver
+                    // will invalidate `fetch` once the request lands.
+                    let _ = decision_tx.send(FetchRaceOutcome::SentinelReturned);
                     return Ok(Vc::cell(Err(FetchError::soft_timeout(&url).resolved_cell())));
                 }
             }

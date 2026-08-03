@@ -746,13 +746,11 @@ async fn soft_timeout_then_real_result() {
     // `expect_at_least`).
     mock.assert_async().await;
 
-    // NOTE: we intentionally do NOT call `tt.stop_and_wait()` here. The soft-deadline driver runs
-    // as a detached `start_once_process` task that un-counts itself from the foreground gate while
-    // it awaits the request, so `stop_and_wait` does not wait for it. `stop_and_wait` then drops
-    // the backend storage, and if the still-settling driver touches it afterwards the process
-    // aborts. This is a test-harness teardown race only (production uses a single long-lived
-    // instance that never drops storage mid-driver). Letting `tt` drop without an explicit stop
-    // avoids it.
+    // `stop_and_wait` must wait for the detached soft-deadline driver before dropping backend
+    // storage. `start_once_process` counts the driver as a background job, so this is safe;
+    // without that accounting the still-settling driver would touch freed storage and abort the
+    // process (this call is the regression test for that fix).
+    tt.stop_and_wait().await;
 }
 
 /// Short tag for a `SoftFetchOutcome`, for readable assertion messages.
@@ -797,9 +795,9 @@ async fn fast_fetch_under_soft_deadline() {
         "a fast fetch should return the real body without a soft timeout"
     );
     // The fast path produces exactly one outcome — the real body — with no soft-timeout sentinel.
-    // Exactly one (not more) also proves the completion signal suppressed the redundant
-    // invalidation: when the fetch beats the deadline the driver's `tx.send` succeeds, so it does
-    // NOT invalidate `fetch`, so `soft_fetch` is not re-run.
+    // Exactly one (not more) also proves the redundant invalidation is suppressed: when the fetch
+    // beats the deadline, `fetch` reports `Consumed` to the driver, so the driver does NOT
+    // invalidate `fetch`, so `soft_fetch` is not re-run.
     let recorded = log.lock().unwrap().clone();
     let tags: Vec<_> = recorded.iter().map(outcome_tag).collect();
     assert!(
