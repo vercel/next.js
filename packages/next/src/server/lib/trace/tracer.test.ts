@@ -703,7 +703,7 @@ describe('local span recording', () => {
           require('./tracer') as typeof import('./tracer')
 
         const workStore = {
-          isStaticGeneration: false,
+          executionMode: 'request',
           page: '/products/[id]/page',
           route: '/products/[id]',
           cacheComponentsEnabled: true,

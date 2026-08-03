@@ -65,7 +65,7 @@ export async function walkTreeWithFlightRouterState({
   const prefetchInliningEnabled = Boolean(experimental.prefetchInlining)
   const cacheComponents = ctx.renderOpts.cacheComponents
   const partialPrefetching = ctx.renderOpts.partialPrefetching
-  const isStaticGeneration = workStore.isStaticGeneration
+  const isStaticGeneration = workStore.executionMode === 'prerender'
   const isBuildTimePrerendering =
     ctx.renderOpts.isBuildTimePrerendering ?? false
 
@@ -387,7 +387,7 @@ export async function createFullTreeFlightDataForNavigation({
     Boolean(experimental.prefetchInlining),
     ctx.renderOpts.cacheComponents,
     ctx.renderOpts.partialPrefetching,
-    workStoreForInitialRender.isStaticGeneration,
+    workStoreForInitialRender.executionMode === 'prerender',
     ctx.renderOpts.isBuildTimePrerendering ?? false,
     getDynamicParamFromSegment,
     query

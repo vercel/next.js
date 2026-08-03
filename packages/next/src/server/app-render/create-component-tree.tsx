@@ -273,7 +273,10 @@ async function createComponentTreeInternal(
       workStore.forceDynamic = true
 
       // TODO: (PPR) remove this bailout once PPR is the default
-      if (workStore.isStaticGeneration && !experimental.isRoutePPREnabled) {
+      if (
+        workStore.executionMode === 'prerender' &&
+        !experimental.isRoutePPREnabled
+      ) {
         // If the postpone API isn't available, we can't postpone the render and
         // therefore we can't use the dynamic API.
         const err = new DynamicServerError(
@@ -330,7 +333,7 @@ async function createComponentTreeInternal(
 
     if (
       !workStore.forceStatic &&
-      workStore.isStaticGeneration &&
+      workStore.executionMode === 'prerender' &&
       defaultRevalidate === 0 &&
       // If the postpone API isn't available, we can't postpone the render and
       // therefore we can't use the dynamic API.
@@ -385,7 +388,7 @@ async function createComponentTreeInternal(
     }
   }
 
-  const isStaticGeneration = workStore.isStaticGeneration
+  const isStaticGeneration = workStore.executionMode === 'prerender'
 
   // Assume the segment we're rendering contains only partial data if PPR is
   // enabled and this is a statically generated response. This is used by the
@@ -768,7 +771,7 @@ async function createComponentTreeInternal(
   // render force-dynamic. We should refactor this function so that we can correctly track which segments
   // need to be dynamic
   if (
-    workStore.isStaticGeneration &&
+    workStore.executionMode === 'prerender' &&
     workStore.forceDynamic &&
     experimental.isRoutePPREnabled
   ) {

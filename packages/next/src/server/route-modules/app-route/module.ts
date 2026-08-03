@@ -378,7 +378,7 @@ export class AppRouteRouteModule extends RouteModule<
     request: NextRequest,
     context: AppRouteRouteHandlerContext
   ) {
-    const isStaticGeneration = workStore.isStaticGeneration
+    const isStaticGeneration = workStore.executionMode === 'prerender'
     const cacheComponentsEnabled = !!context.renderOpts.cacheComponents
 
     // Patch the global fetch.
@@ -832,7 +832,7 @@ export class AppRouteRouteModule extends RouteModule<
               ? hasNonStaticMethods(liveUserland)
               : this._hasNonStaticMethods
             if (hasNonStatic) {
-              if (workStore.isStaticGeneration) {
+              if (workStore.executionMode === 'prerender') {
                 const err = new DynamicServerError(
                   'Route is configured with methods that cannot be statically generated.'
                 )
@@ -855,7 +855,7 @@ export class AppRouteRouteModule extends RouteModule<
               case 'force-dynamic': {
                 // Routes of generated paths should be dynamic
                 workStore.forceDynamic = true
-                if (workStore.isStaticGeneration) {
+                if (workStore.executionMode === 'prerender') {
                   const err = new DynamicServerError(
                     'Route is configured with dynamic = error which cannot be statically generated.'
                   )
@@ -877,7 +877,7 @@ export class AppRouteRouteModule extends RouteModule<
                 // The dynamic property is set to error, so we should throw an
                 // error if the page is being statically generated.
                 workStore.dynamicShouldError = true
-                if (workStore.isStaticGeneration)
+                if (workStore.executionMode === 'prerender')
                   request = new Proxy(req, requireStaticRequestHandlers)
                 break
               case undefined:
