@@ -180,6 +180,21 @@ const modules = import.meta.glob('./dir/*.js')
 
 > **Good to know:** `import.meta.glob` requires Turbopack. It is not available when using webpack.
 
+Every match is imported as a module. Turbopack can process JavaScript, TypeScript and image files as-is; anything else, such as `.md`, needs a [loader](/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders).
+
+Patterns resolve relative to the file that calls `import.meta.glob()`. To reach a directory elsewhere, such as content kept outside `app/`, pass `base`:
+
+```js filename="app/blog/page.js"
+// Matches the .md files in content/posts/ at the root of the project
+const posts = import.meta.glob('*.md', { base: '../../content/posts' })
+```
+
+Files above the Turbopack filesystem root are not matched. The root defaults to the directory holding your `next.config.js` and is configurable with [`turbopack.root`](/docs/app/api-reference/config/next-config-js/turbopack#root-directory).
+
+Avoid broad patterns. The `node_modules` directory is included in matching and something like `**/*.md` at the project root walks every installed package.
+
+Keys are the matched file paths, and their order is stable: the same on every build and in both development and production. They are compared character by character, so `'./10-post.md'` sorts before `'./2-post.md'`, uppercase before lowercase, and nested files interleave with their siblings. Sort the keys before rendering if the order is user-facing.
+
 ### Lazy loading (default)
 
 By default, each value in the result object is a thunk — a function that returns a `Promise` for the module. This enables lazy loading:
@@ -219,11 +234,10 @@ const setups = import.meta.glob('./dir/*.js', { import: 'setup', eager: true })
 
 ### Query strings
 
-Use the `query` option to append a query string to every import request. This is useful for loading files as raw strings or URLs:
+Use the `query` option to append a query string to every import request. Match it with a loader [`condition`](/docs/app/api-reference/config/next-config-js/turbopack#advanced-webpack-loader-conditions) to process globbed files differently from the same files imported directly:
 
 ```js
-const rawFiles = import.meta.glob('./dir/*.txt', { query: '?raw' })
-const urls = import.meta.glob('./dir/*.png', { query: '?url' })
+const modules = import.meta.glob('./dir/*.svg', { query: '?svgr' })
 ```
 
 The `query` option also accepts an object. Keys and values are URL-encoded and joined into a query string:
@@ -263,15 +277,15 @@ const eager = import.meta.glob('./dir/*.ts', { eager: true })
 
 ### Options reference
 
-| Option          | Type                                          | Default     | Description                                                                |
-| --------------- | --------------------------------------------- | ----------- | -------------------------------------------------------------------------- |
-| `eager`         | `boolean`                                     | `false`     | Import modules synchronously instead of returning thunks.                  |
-| `import`        | `string`                                      | `undefined` | Named export to select from each matched module (e.g. `'default'`).        |
-| `query`         | `string \| Record<string, string \| boolean>` | `undefined` | Query string (or object) to append to each import.                         |
-| `base`          | `string`                                      | `undefined` | Override the base path used for resolving patterns and keying results.     |
-| `caseSensitive` | `boolean`                                     | `true`      | Match glob patterns case-sensitively. Set to `false` to ignore ASCII case. |
+| Option          | Type                                          | Default     | Description                                                                    |
+| --------------- | --------------------------------------------- | ----------- | ------------------------------------------------------------------------------ |
+| `eager`         | `boolean`                                     | `false`     | Import modules synchronously instead of returning thunks.                      |
+| `import`        | `string`                                      | `undefined` | Named export to select from each matched module (e.g. `'default'`).            |
+| `query`         | `string \| Record<string, string \| boolean>` | `undefined` | Query string (or object) to append to each import.                             |
+| `base`          | `string`                                      | `undefined` | Directory to resolve patterns against. Keys stay relative to the calling file. |
+| `caseSensitive` | `boolean`                                     | `true`      | Match glob patterns case-sensitively. Set to `false` to ignore ASCII case.     |
 
-> **Note:** The `as` option (deprecated in Vite 5) is not supported. Use `query: '?raw'` or `query: '?url'` instead. The legacy `import.meta.globEager()` API is also not supported — use `import.meta.glob('...', { eager: true })` instead.
+> **Note:** The `as` option (deprecated in Vite 5) is not supported. To load matched files as strings, register a [loader](/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders) for the extension. The legacy `import.meta.globEager()` API is also not supported — use `import.meta.glob('...', { eager: true })` instead.
 
 ## Known gaps with webpack
 
