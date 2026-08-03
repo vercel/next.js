@@ -99,6 +99,7 @@ import type { BuildManifest } from '../server/get-page-files'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getPagePath } from '../server/require'
 import { getVariantOutputPath } from '../server/variants/prefix'
+import type { VariantCombinationGroups } from '../server/variants/combinations'
 import * as ciEnvironment from '../server/ci-info'
 import {
   turborepoTraceAccess,
@@ -396,6 +397,16 @@ export interface DynamicPrerenderManifestRoute
    * are used internally by Next.js to revalidate routes.
    */
   allowHeader: string[]
+
+  /**
+   * The variant combinations this route declared, grouped by which variants
+   * they assign. A request is matched against these to find the combination it
+   * was prerendered against, which decides both which artifact serves it and
+   * which of its variants are baked in rather than dynamic holes.
+   *
+   * Undefined unless the route declared combinations.
+   */
+  variantCombinationGroups?: VariantCombinationGroups
 }
 
 /**
@@ -2203,6 +2214,10 @@ export default async function build(
       const prerenderRouteMatchers = new Map<string, PrerenderRouteMatcher[]>()
       const appNormalizedPaths = new Map<string, string>()
       const fallbackModes = new Map<string, FallbackMode>()
+      const variantCombinationGroupsByPage = new Map<
+        string,
+        VariantCombinationGroups
+      >()
       const appDefaultConfigs = new Map<string, AppSegmentConfig>()
       const pageInfos: PageInfos = new Map<string, PageInfo>()
       let pagesManifest = await readManifest<PagesManifest>(pagesManifestPath)
@@ -2676,6 +2691,13 @@ export default async function build(
                             fallbackModes.set(
                               originalAppPath,
                               workerResult.prerenderFallbackMode
+                            )
+                          }
+
+                          if (workerResult.variantCombinationGroups?.length) {
+                            variantCombinationGroupsByPage.set(
+                              originalAppPath,
+                              workerResult.variantCombinationGroups
                             )
                           }
 
@@ -4019,6 +4041,8 @@ export default async function build(
                       ? page
                       : undefined,
                   fallbackRouteParams: route.fallbackRouteParams,
+                  variantCombinationGroups:
+                    variantCombinationGroupsByPage.get(originalAppPath),
                   dataRouteRegex: !dataRoute
                     ? null
                     : normalizeRouteRegex(

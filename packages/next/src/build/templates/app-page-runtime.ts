@@ -30,7 +30,8 @@ import {
 } from '../../server/base-http/node' with { 'turbopack-transition': 'next-server-utility' }
 import { isRSCRequestHeader } from '../../server/lib/is-rsc-request' with { 'turbopack-transition': 'next-server-utility' }
 import { isNonHtmlSecFetchDest } from '../../server/lib/is-non-html-sec-fetch-dest' with { 'turbopack-transition': 'next-server-utility' }
-import { getVariantOutputPath } from '../../server/variants/prefix' with { 'turbopack-transition': 'next-server-utility' }
+import { insertVariantsPrefix } from '../../server/variants/prefix' with { 'turbopack-transition': 'next-server-utility' }
+import { findMatchingVariantCombination } from '../../server/variants/combinations' with { 'turbopack-transition': 'next-server-utility' }
 import { UNDERSCORE_NOT_FOUND_ROUTE } from '../../shared/lib/entry-constants' with { 'turbopack-transition': 'next-server-utility' }
 import {
   getFallbackRouteParams,
@@ -274,6 +275,30 @@ export function createAppPageEntrypoint({
     const prerenderInfo = prerenderMatch?.route ?? null
 
     const isPrerendered = !!prerenderManifest.routes[resolvedPathname]
+
+    // The combination this request was prerendered against, or null when it was
+    // prerendered against none. A request carries every variant the proxy
+    // resolved, but only those a combination declared are baked into an
+    // artifact, so this is what separates the two: its values name the artifact
+    // and are fixed for it, while every other resolved variant is a dynamic
+    // hole.
+    //
+    // Computed once because three things need the same answer: the cache key,
+    // the fallback shell's cache key, and the render itself.
+    //
+    // Behind the flag so a project without variants compiles none of this away
+    // rather than matching against an empty list on every request.
+    const variantCombinationGroups = process.env.__NEXT_VARIANTS
+      ? prerenderManifest.dynamicRoutes[normalizedSrcPage]
+          ?.variantCombinationGroups
+      : undefined
+
+    const matchedVariants = variantCombinationGroups?.length
+      ? findMatchingVariantCombination(
+          variantCombinationGroups,
+          getRequestMeta(req, 'variants') ?? {}
+        )
+      : null
 
     const userAgent = req.headers['user-agent'] || ''
     const botType = getBotType(userAgent)
@@ -642,18 +667,19 @@ export function createAppPageEntrypoint({
         ssgCacheKey = resolvedPathname
       }
 
-      // Variant combinations are prerendered to a path prefixed with the hash
-      // of the combination, and the cache key is what the incremental cache
-      // turns into that path, so the request's combination has to be folded in
-      // for its own artifact to be found. This applies to a completed shell key
-      // as much as to a resolved pathname: a shell prerendered against one
-      // combination must not be served for another. Requests without variants
-      // are unaffected, since the path is returned unchanged.
-      if (ssgCacheKey !== null) {
-        ssgCacheKey = getVariantOutputPath(
-          ssgCacheKey,
-          getRequestMeta(req, 'variants')
-        )
+      // A declared combination is prerendered to a path prefixed with its hash,
+      // and the cache key is what the incremental cache turns into that path,
+      // so the combination this request matched has to be folded in for its own
+      // artifact to be found. This applies to a completed shell key as much as
+      // to a resolved pathname: a shell prerendered against one combination
+      // must not be served for another.
+      //
+      // A request that matched nothing keeps the unprefixed key, which is the
+      // artifact that bakes no variant at all. That is what keeps a variant
+      // nobody declared from partitioning the cache: it changes what the render
+      // reads, never where the entry lives.
+      if (ssgCacheKey !== null && matchedVariants) {
+        ssgCacheKey = insertVariantsPrefix(ssgCacheKey, matchedVariants.hash)
       }
     }
 
@@ -1199,17 +1225,19 @@ export function createAppPageEntrypoint({
                 ? !isDynamicRSCRequest
                 : !isRSCRequest)
             ) {
-              // A fallback shell is prerendered once per variant combination,
-              // so the shell's own cache key needs the request's combination
-              // folded in as well. Without it every combination resolves to the
-              // same shell and a request is served content prerendered for a
-              // combination other than its own.
-              const cacheKey = getVariantOutputPath(
+              // A fallback shell is prerendered once per declared combination,
+              // so the shell's own cache key needs the combination this request
+              // matched folded in as well. Without it every combination
+              // resolves to the same shell and a request is served content
+              // prerendered for a combination other than its own.
+              const fallbackCacheKey =
                 isProduction && typeof prerenderInfo?.fallback === 'string'
                   ? prerenderInfo.fallback
-                  : normalizedSrcPage,
-                getRequestMeta(req, 'variants')
-              )
+                  : normalizedSrcPage
+
+              const cacheKey = matchedVariants
+                ? insertVariantsPrefix(fallbackCacheKey, matchedVariants.hash)
+                : fallbackCacheKey
 
               let fallbackRouteParams: OpaqueFallbackRouteParams | null
               if (isProduction) {

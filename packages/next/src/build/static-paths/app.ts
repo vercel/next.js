@@ -35,6 +35,7 @@ import { interceptionPrefixFromParamType } from '../../shared/lib/router/utils/i
 import { isPlainObject } from '../../shared/lib/is-plain-object'
 import { normalizeVariantAssignments } from '../../server/request/variants'
 import { hashVariants } from '../../server/variants/hash'
+import { groupVariantCombinations } from '../../server/variants/combinations'
 import {
   type GenerateStaticParamsStore,
   workUnitAsyncStorage,
@@ -839,6 +840,13 @@ async function collectVariantCombinations(
 
   for (const assignments of declared) {
     const values = normalizeVariantAssignments(assignments, route)
+
+    if (Object.keys(values).length === 0) {
+      throw new Error(
+        `\`generateStaticVariants\` for ${route} returned an empty combination. A combination assigns at least one variant; a prerender with every variant left dynamic is produced for the route anyway.`
+      )
+    }
+
     const hash = hashVariants(values)
 
     // Declaring the same combination twice would prerender the same artifact
@@ -849,7 +857,49 @@ async function collectVariantCombinations(
     }
   }
 
+  assertUnambiguousVariantCombinations(combinations, route)
+
   return combinations
+}
+
+/**
+ * Rejects two combinations that one request could match without either being
+ * the more specific answer.
+ *
+ * Combinations may assign different variants, and one assigning a superset of
+ * another's is the intended way to prerender a route both broadly and narrowly:
+ * a request matching both is served the larger one, which leaves fewer holes.
+ * Two that merely overlap have no such ordering, so a request matching both
+ * would be served whichever came first, and reordering the declarations would
+ * silently change which prerender a user gets.
+ *
+ * Combinations that disagree on a shared variant are fine, because no single
+ * request can match both.
+ */
+function assertUnambiguousVariantCombinations(
+  combinations: ReadonlyArray<Record<string, string>>,
+  route: string
+): void {
+  for (let i = 0; i < combinations.length; i++) {
+    for (let j = i + 1; j < combinations.length; j++) {
+      const a = combinations[i]
+      const b = combinations[j]
+      const aKeys = Object.keys(a)
+      const bKeys = Object.keys(b)
+
+      if (aKeys.every((key) => key in b) || bKeys.every((key) => key in a)) {
+        continue
+      }
+
+      const sharedKeys = aKeys.filter((key) => key in b)
+
+      if (sharedKeys.every((key) => a[key] === b[key])) {
+        throw new Error(
+          `\`generateStaticVariants\` for ${route} declared two combinations that a single request can match, neither of which is more specific than the other: ${JSON.stringify(a)} and ${JSON.stringify(b)}. Give one of them the other's variants as well, so that it is the more specific match, or give them different values for a variant they share so that no request matches both.`
+        )
+      }
+    }
+  }
 }
 
 function createReplacements(
@@ -1302,5 +1352,17 @@ export async function buildAppStaticPaths({
       ? [...prerenderRouteMatchersByPathname.values()]
       : undefined
 
-  return { fallbackMode, prerenderedRoutes, prerenderRouteMatchers }
+  // The combinations are returned as well as applied, because the runtime has
+  // to recognize a request's combination as one that was declared, and it can
+  // only do that against the declared list. Deriving that list back out of the
+  // prerendered routes would be inferring an input from its outputs, which
+  // stops being possible the moment a route also has a prerender that declares
+  // nothing. They are grouped here rather than at the runtime, which would
+  // otherwise regroup them on every request.
+  return {
+    fallbackMode,
+    prerenderedRoutes,
+    prerenderRouteMatchers,
+    variantCombinationGroups: groupVariantCombinations(variantCombinations),
+  }
 }

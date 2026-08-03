@@ -73,6 +73,7 @@ import type {
   PrerenderRouteMatcher,
   PrerenderedRoute,
 } from './static-paths/types'
+import type { VariantCombinationGroups } from '../server/variants/combinations'
 import type { CacheControl } from '../server/lib/cache-control'
 import { formatExpire, formatRevalidate } from './output/format'
 import type {
@@ -677,6 +678,13 @@ type PageIsStaticResult = {
   prerenderedRoutes: PrerenderedRoute[] | undefined
   prerenderRouteMatchers: PrerenderRouteMatcher[] | undefined
   prerenderFallbackMode: FallbackMode | undefined
+  /**
+   * The variant combinations the page declared, which the runtime needs in
+   * order to tell a combination it prerendered from one it did not. Only app
+   * pages with dynamic segments reach the collection, so this is undefined
+   * elsewhere.
+   */
+  variantCombinationGroups: VariantCombinationGroups | undefined
   rootParamKeys: readonly string[] | undefined
   isNextImageImported?: boolean
   traceIncludes?: string[]
@@ -749,6 +757,7 @@ export async function isPageStatic({
       prerenderFallbackMode: undefined,
       prerenderedRoutes: undefined,
       prerenderRouteMatchers: undefined,
+      variantCombinationGroups: undefined,
       rootParamKeys: undefined,
       hasStaticProps: false,
       hasServerProps: false,
@@ -777,6 +786,7 @@ export async function isPageStatic({
       let prerenderedRoutes: PrerenderedRoute[] | undefined
       let prerenderRouteMatchers: PrerenderRouteMatcher[] | undefined
       let prerenderFallbackMode: FallbackMode | undefined
+      let variantCombinationGroups: VariantCombinationGroups | undefined
       let appConfig: AppSegmentConfig = {}
       let rootParamKeys: readonly string[] | undefined
       const pathIsEdgeRuntime = isEdgeRuntime(pageRuntime)
@@ -899,6 +909,7 @@ export async function isPageStatic({
               prerenderedRoutes,
               prerenderRouteMatchers,
               fallbackMode: prerenderFallbackMode,
+              variantCombinationGroups,
             } = await buildAppStaticPaths({
               dir,
               page,
@@ -995,6 +1006,7 @@ export async function isPageStatic({
         prerenderFallbackMode,
         prerenderedRoutes,
         prerenderRouteMatchers,
+        variantCombinationGroups,
         rootParamKeys,
         hasStaticProps,
         hasServerProps,

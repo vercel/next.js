@@ -159,6 +159,28 @@ describe('variants', () => {
     expect(light('#slug').last().text()).toBe('other')
   })
 
+  it('should read a variant no combination declared without partitioning on it', async () => {
+    // `banner` is named by no route's `generateStaticVariants`, so no prerender
+    // exists per banner value and it must not select one. Both requests are
+    // served the shell declared for `theme=dark`, which bakes the theme and
+    // leaves the banner a hole that each request fills for itself. Were the
+    // banner part of the cache key instead, neither request would find a
+    // prerender at all.
+    const a = await next.render$('/shell/x', undefined, {
+      headers: { cookie: 'theme=dark; banner=a' },
+    })
+
+    expect(a('#theme').text()).toBe('dark')
+    expect(a('#banner').last().text()).toBe('a')
+
+    const b = await next.render$('/shell/x', undefined, {
+      headers: { cookie: 'theme=dark; banner=b' },
+    })
+
+    expect(b('#theme').text()).toBe('dark')
+    expect(b('#banner').last().text()).toBe('b')
+  })
+
   it('should resolve a combination that was never declared', async () => {
     // `shell/[slug]` declares only `locale=en`, so this combination has no
     // prerender from the build. The proxy still resolved it, so a shell for it
