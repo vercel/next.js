@@ -1,67 +1,83 @@
----
-title: Next.js Docs
-description: Welcome to the Next.js Documentation.
-related:
-  title: Next Steps
-  description: Create your first application and learn the core Next.js features.
-  links:
-    - app/getting-started
----
+CONTENT MANAGEMENT SYSTEM (VERY IMPORTANT)
 
-Welcome to the Next.js documentation!
+The website must be fully editable after deployment without requiring programming knowledge.
 
-## What is Next.js?
+Implement a modern CMS with a visual editing experience.
 
-Next.js is a React framework for building full-stack web applications. You use React Components to build user interfaces, and Next.js for additional features and optimizations.
+Requirements:
 
-It also automatically configures lower-level tools like bundlers and compilers. You can instead focus on building your product and shipping quickly.
+• All texts must be editable.
+• Headlines must be editable.
+• Images must be replaceable.
+• Hero images must be editable.
+• Products can be added, removed and updated.
+• Prices can be changed easily.
+• Product descriptions are editable.
+• Blog/Journal articles can be created and published.
+• Homepage sections can be reordered.
+• Future products (Rising Sun, Daylight, Sundowner, Night) can be activated later without rebuilding the website.
+• Contact information must be editable.
+• Footer links must be editable.
+• Legal pages must be editable.
+• SEO titles and meta descriptions must be editable.
+• Open Graph images must be editable.
+• Favicon and Logo can be replaced easily.
 
-Whether you're an individual developer or part of a larger team, Next.js can help you build interactive, dynamic, and fast React applications.
+Use reusable components throughout the website.
 
-## How to use the docs
+All sections should be built as modular blocks.
 
-The docs are organized into 3 sections:
+The website must support future expansion without redesigning the structure.
 
-- [Getting Started](/docs/app/getting-started): Step-by-step tutorials to help you create a new application and learn the core Next.js features.
-- [Guides](/docs/app/guides): Tutorials on specific use cases, choose what's relevant to you.
-- [API Reference](/docs/app/api-reference): Detailed technical reference for every feature.
+The online shop must allow adding new products, categories and limited editions.
 
-Use the sidebar to navigate through the sections, or search (`Ctrl+K` or `Cmd+K`) to quickly find a page.
+Provide a clean admin interface for content management.
 
-## App Router and Pages Router
+The website should be maintainable by the owner without developer support.
+TECH STACK
 
-Next.js has two different routers:
+Build the project using:
 
-- **App Router**: The newer router that supports new React features like Server Components.
-- **Pages Router**: The original router, still supported and being improved.
+• Next.js
+• React
+• TypeScript
+• Tailwind CSS
+• shadcn/ui
+• Framer Motion
 
-At the top of the sidebar, you'll notice a dropdown menu that allows you to switch between the [App Router](/docs/app) and the [Pages Router](/docs/pages) docs.
+CMS
 
-### React version handling
+Use Sanity CMS or Payload CMS for content management.
 
-The App Router and Pages Router handle React versions differently:
+E-Commerce
 
-- **App Router**: Uses [React canary releases](https://react.dev/blog/2023/05/03/react-canaries) built-in, which include all the stable React 19 changes, as well as newer features being validated in frameworks, prior to a new React release.
+Use Shopify Headless or MedusaJS.
 
-- **Pages Router**: Uses the React version installed in your project's `package.json`.
+Payments
 
-This approach ensures new React features work reliably in the App Router while maintaining backwards compatibility for existing Pages Router applications.
+Stripe
+PayPal
 
-## Pre-requisite knowledge
+SEO
 
-Our documentation assumes some familiarity with web development. Before getting started, it'll help if you're comfortable with:
+Dynamic metadata
+Open Graph
+Structured Data
+XML Sitemap
+Robots.txt
 
-- HTML
-- CSS
-- JavaScript
-- React
+Performance
 
-If you're new to React or need a refresher, we recommend starting with our [React Foundations course](/learn/react-foundations), and the [Next.js Foundations course](/learn/dashboard-app) that has you building an application as you learn.
+Google Lighthouse Score 95+
+Image Optimization
+Lazy Loading
 
-## Accessibility
+Accessibility
 
-For the best experience when using a screen reader, we recommend using Firefox and NVDA, or Safari and VoiceOver.
+WCAG 2.2 AA
 
-## Join our Community
+Hosting
 
-If you have questions about anything related to Next.js, you're always welcome to ask our community on [GitHub Discussions](https://github.com/vercel/next.js/discussions), [Discord](https://discord.com/invite/bUG2bvbtHy), [X (Twitter)](https://x.com/nextjs), and [Reddit](https://www.reddit.com/r/nextjs).
+Deploy on Vercel.
+
+Code must be clean, modular and production ready.
