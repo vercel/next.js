@@ -31,15 +31,40 @@ export class APIClient {
     this.client = getClient(preview);
   }
 
-  async getAllPosts(take) {
-    const data = await this.client.getContentList({
-      referenceName: `posts`,
-      languageCode: CMS_LANG,
-      contentLinkDepth: 1,
-      take: take, // TODO: Implement pagination
-    });
+  async getAllPosts(take?: number) {
+    let allItems: any[] = [];
+    let skip = 0;
+    const batchSize = 50;
+    const takeAmount = take && take < batchSize ? take : batchSize;
 
-    return data.items;
+    while (true) {
+      const data = await this.client.getContentList({
+        referenceName: `posts`,
+        languageCode: CMS_LANG,
+        contentLinkDepth: 1,
+        take: takeAmount,
+        skip: skip,
+      });
+
+      if (!data || !data.items || data.items.length === 0) {
+        break;
+      }
+
+      allItems = allItems.concat(data.items);
+
+      if (take && allItems.length >= take) {
+        allItems = allItems.slice(0, take);
+        break;
+      }
+
+      if (data.items.length < takeAmount) {
+        break;
+      }
+
+      skip += takeAmount;
+    }
+
+    return allItems;
   }
 
   async getLatestPost() {
