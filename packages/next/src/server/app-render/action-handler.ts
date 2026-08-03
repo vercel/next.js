@@ -48,6 +48,10 @@ import {
 import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
 import { isCsrfOriginAllowed } from './csrf-protection'
 import { warn } from '../../build/output/log'
+import {
+  ACTION_FORWARDED_HEADER,
+  getForwardedHostValue,
+} from './action-forwarding'
 import { RequestCookies, ResponseCookies } from '../web/spec-extension/cookies'
 import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
 import { fromNodeOutgoingHttpHeaders } from '../web/utils'
@@ -225,7 +229,7 @@ async function createForwardedActionResponse(
   // indicate that this action request was forwarded from another worker
   // we use this to skip rendering the flight tree so that we don't update the UI
   // with the response from the forwarded worker
-  forwardedHeaders.set('x-action-forwarded', '1')
+  forwardedHeaders.set(ACTION_FORWARDED_HEADER, '1')
 
   // TODO: Remove __NEXT_PRIVATE_ORIGIN
   let origin: string | undefined = process.env.__NEXT_PRIVATE_ORIGIN
@@ -512,11 +516,7 @@ export function parseHostHeader(
   headers: IncomingHttpHeaders,
   originDomain?: string
 ) {
-  const forwardedHostHeader = headers['x-forwarded-host']
-  const forwardedHostHeaderValue =
-    forwardedHostHeader && Array.isArray(forwardedHostHeader)
-      ? forwardedHostHeader[0]
-      : forwardedHostHeader?.split(',')?.[0]?.trim()
+  const forwardedHostHeaderValue = getForwardedHostValue(headers)
   const hostHeader = headers['host']
 
   if (originDomain) {
@@ -754,7 +754,7 @@ export async function handleAction({
     'no-cache, no-store, max-age=0, must-revalidate'
   )
 
-  const actionWasForwarded = Boolean(req.headers['x-action-forwarded'])
+  const actionWasForwarded = Boolean(req.headers[ACTION_FORWARDED_HEADER])
   // A fetch action targeting a fallback route has no concrete params with
   // which to resume the destination page.
   const isActionOnlyFallbackRequest =

@@ -130,6 +130,7 @@ import { matchNextDataPathname } from './lib/match-next-data-pathname'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { RSCPathnameNormalizer } from './normalizers/request/rsc'
 import { stripFlightHeaders } from './app-render/strip-flight-headers'
+import { restoreForwardedActionHost } from './app-render/action-forwarding'
 import {
   isAppPageRouteModule,
   isAppRouteRouteModule,
@@ -1088,6 +1089,8 @@ export default abstract class Server<
           : '80'
       req.headers['x-forwarded-proto'] ??= isHttps ? 'https' : 'http'
       req.headers['x-forwarded-for'] ??= originalRequest?.socket?.remoteAddress
+
+      restoreForwardedActionHost(req.headers)
 
       // This should be done before any normalization of the pathname happens as
       // it captures the initial URL.
