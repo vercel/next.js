@@ -171,8 +171,7 @@ export type TurbopackRuleCondition =
  * - `'css-module'` - Process as CSS module
  * - `'json'` - Parse as JSON and export it
  * - `'wasm'` - Process as WebAssembly module
- * - `'raw'` - Include the file as an opaque module without exports. It can only be imported
- *   for its side effects — use `'text'` for the contents as a string, or `'asset'` for a URL
+ * - `'raw'` - Export file contents as a string (an alias of `'text'`)
  * - `'node'` - Process as native Node.js addon
  * - `'bytes'` - Export file contents as a `Uint8Array`
  * - `'text'` - Export file contents as a string

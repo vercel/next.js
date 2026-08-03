@@ -193,6 +193,7 @@ pub enum ConfiguredModuleType {
     /// Implemented as a source transform, not a ModuleType.
     Json,
     Wasm,
+    /// An alias of [`ConfiguredModuleType::Text`].
     Raw,
     Node,
     /// Converts any file to an ES module exporting its contents as a Uint8Array.
@@ -200,6 +201,8 @@ pub enum ConfiguredModuleType {
     Bytes,
     /// Converts any file to an ES module exporting its contents as a string.
     /// Implemented as a source transform, not a ModuleType.
+    ///
+    /// `Raw` is an alias of this.
     Text,
 }
 
@@ -246,7 +249,9 @@ impl ConfiguredModuleType {
                     BytesSourceTransform::new().to_resolved().await?,
                 )]))
             }
-            ConfiguredModuleType::Text => {
+            // `raw` has always been documented as returning the contents as a string, so it
+            // is an alias of `text` rather than a way to get an opaque module.
+            ConfiguredModuleType::Text | ConfiguredModuleType::Raw => {
                 // Same as `Bytes`: a source transform that produces .mjs, which is then
                 // picked up by the standard Ecmascript rules.
                 ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![ResolvedVc::upcast(
@@ -289,7 +294,6 @@ impl ConfiguredModuleType {
             ConfiguredModuleType::Wasm => ModuleRuleEffect::ModuleType(ModuleType::WebAssembly {
                 source_ty: WebAssemblySourceType::Binary,
             }),
-            ConfiguredModuleType::Raw => ModuleRuleEffect::ModuleType(ModuleType::Raw),
             ConfiguredModuleType::Node => ModuleRuleEffect::ModuleType(ModuleType::NodeAddon),
         })
     }

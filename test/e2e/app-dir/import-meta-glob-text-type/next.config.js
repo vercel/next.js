@@ -4,11 +4,12 @@
 const nextConfig = {
   turbopack: {
     rules: {
-      // Only files imported with `?raw` are loaded as strings. Turbopack has no
-      // built-in `?raw` handling, the query is matched by this rule.
+      // Turbopack has no built-in `?raw` handling, the query is matched by a
+      // rule. `raw` and `text` are aliases, both load the file as a string.
       '*.txt': { condition: { query: '?raw' }, type: 'text' },
-      // `raw` is an opaque module without exports.
+      '*.log': { condition: { query: '?raw' }, type: 'raw' },
       '*.md': { type: 'raw' },
+      '*.mdx': { type: 'text' },
     },
   },
 }

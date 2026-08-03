@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('import.meta.glob - query matched by a module type rule', () => {
+describe('turbopack `text` / `raw` module types', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
@@ -15,5 +15,24 @@ describe('import.meta.glob - query matched by a module type rule', () => {
       './content/delta.txt: delta contents',
       './content/gamma.txt: gamma contents',
     ])
+  })
+
+  it('should treat `raw` and `text` the same in a `?raw` rule', async () => {
+    const $ = await next.render$('/raw-alias')
+    const items = $('li')
+      .map((_, el) => $(el).text())
+      .get()
+
+    expect(items).toEqual([
+      './content/delta.log: delta contents',
+      './content/gamma.log: gamma contents',
+    ])
+  })
+
+  it('should treat `raw` and `text` the same for a plain import', async () => {
+    const $ = await next.render$('/alias')
+
+    expect(JSON.parse($('#raw').text())).toBe('# alpha\n\nsome markdown\n')
+    expect($('#equal').text()).toBe('true')
   })
 })
