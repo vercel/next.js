@@ -921,7 +921,6 @@ export function createAppPageEntrypoint({
               ? {
                   isBuildTimePrerendering: true,
                   supportsDynamicResponse: false,
-                  isStaticGeneration: true,
                   isDebugDynamicAccesses: isDebugDynamicAccesses,
                 }
               : {}),
