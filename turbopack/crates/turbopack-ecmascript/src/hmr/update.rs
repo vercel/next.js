@@ -1,18 +1,21 @@
-use std::sync::Arc;
-
 use anyhow::Result;
-use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_frozenmap::{FrozenMap, FrozenSet};
+use turbo_tasks::{FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::ModuleId,
     code_builder::Code,
+    update_instruction::UpdateInstruction,
     version::{PartialUpdate, TotalUpdate, Update, Version},
 };
 
 use crate::{
     chunk::EcmascriptChunkContentEntries,
-    chunk_list::merged_update::{
-        EcmascriptMergedChunkAdded, EcmascriptMergedChunkDeleted, EcmascriptMergedChunkPartial,
-        EcmascriptMergedChunkUpdate, EcmascriptMergedUpdate, EcmascriptModuleEntry,
+    chunk_list::{
+        merged_update::{
+            EcmascriptMergedChunkAdded, EcmascriptMergedChunkDeleted, EcmascriptMergedChunkPartial,
+            EcmascriptMergedChunkUpdate, EcmascriptMergedUpdate, EcmascriptModuleEntry,
+        },
+        update::EcmascriptUpdateInstruction,
     },
     hmr::{
         EcmascriptHmrChunkContent,
@@ -145,21 +148,24 @@ async fn partial_chunk_update(
         unreachable!("caller filters out EcmascriptChunkUpdate::None");
     };
 
-    let mut partial = EcmascriptMergedChunkPartial::default();
+    let mut added_modules = FxIndexSet::default();
 
     for (id, AddedModule { hash, code }) in added {
-        partial.added.insert(id.clone());
+        added_modules.insert(id.clone());
         insert_entry_unless_shipped(entries, from_versions, id, hash, *code, chunk_path).await?;
     }
-
-    partial.deleted.extend(deleted.into_keys());
 
     for (id, code) in modified {
         let entry = EcmascriptModuleEntry::from_code(&id, *code, chunk_path).await?;
         entries.insert(id, entry);
     }
 
-    Ok(EcmascriptMergedChunkUpdate::Partial(partial))
+    Ok(EcmascriptMergedChunkUpdate::Partial(
+        EcmascriptMergedChunkPartial {
+            added: FrozenSet::from(added_modules),
+            deleted: deleted.into_keys().collect(),
+        },
+    ))
 }
 
 /// Builds the payload for a chunk that wasn't present in the previous version.
@@ -169,10 +175,10 @@ async fn added_chunk_update(
     from_versions: &[ReadRef<EcmascriptChunkVersion>],
     entries: &mut FxIndexMap<ModuleId, EcmascriptModuleEntry>,
 ) -> Result<EcmascriptMergedChunkUpdate> {
-    let mut added = EcmascriptMergedChunkAdded::default();
+    let mut modules = FxIndexSet::default();
 
     for (id, entry) in chunk_entries.iter() {
-        added.modules.insert(id.clone());
+        modules.insert(id.clone());
         insert_entry_unless_shipped(
             entries,
             from_versions,
@@ -184,7 +190,11 @@ async fn added_chunk_update(
         .await?;
     }
 
-    Ok(EcmascriptMergedChunkUpdate::Added(added))
+    Ok(EcmascriptMergedChunkUpdate::Added(
+        EcmascriptMergedChunkAdded {
+            modules: FrozenSet::from(modules),
+        },
+    ))
 }
 
 /// Computes a single [`Update`] covering every chunk in a merged chunk content.
@@ -235,7 +245,8 @@ pub async fn update_ecmascript_merged_chunk(
         .try_join()
         .await?;
 
-    let mut merged_update = EcmascriptMergedUpdate::default();
+    let mut merged_entries = FxIndexMap::default();
+    let mut chunks = FxIndexMap::default();
 
     for (content, entries, to_version) in &to_contents {
         let chunk_path = to_version.chunk_path.as_str();
@@ -247,39 +258,33 @@ pub async fn update_ecmascript_merged_chunk(
                 {
                     EcmascriptChunkUpdate::None => continue,
                     update => {
-                        partial_chunk_update(
-                            update,
-                            chunk_path,
-                            from_versions,
-                            &mut merged_update.entries,
-                        )
-                        .await?
+                        partial_chunk_update(update, chunk_path, from_versions, &mut merged_entries)
+                            .await?
                     }
                 }
             }
             None => {
-                added_chunk_update(
-                    entries,
-                    chunk_path,
-                    from_versions,
-                    &mut merged_update.entries,
-                )
-                .await?
+                added_chunk_update(entries, chunk_path, from_versions, &mut merged_entries).await?
             }
         };
 
-        merged_update.chunks.insert(chunk_path, chunk_update);
+        chunks.insert(to_version.chunk_path.clone(), chunk_update);
     }
 
-    for (chunk_path, chunk_version) in from_versions_by_chunk_path {
+    for chunk_version in from_versions_by_chunk_path.into_values() {
         let hashes = &chunk_version.entries_hashes;
-        merged_update.chunks.insert(
-            chunk_path,
+        chunks.insert(
+            chunk_version.chunk_path.clone(),
             EcmascriptMergedChunkUpdate::Deleted(EcmascriptMergedChunkDeleted {
                 modules: hashes.keys().cloned().collect(),
             }),
         );
     }
+
+    let merged_update = EcmascriptMergedUpdate {
+        entries: FrozenMap::from(merged_entries),
+        chunks: FrozenMap::from(chunks),
+    };
 
     Ok(if merged_update.is_empty() {
         Update::None
@@ -288,7 +293,7 @@ pub async fn update_ecmascript_merged_chunk(
             to: Vc::upcast::<Box<dyn Version>>(to_merged_version)
                 .into_trait_ref()
                 .await?,
-            instruction: Arc::new(serde_json::to_value(&merged_update)?),
+            instruction: UpdateInstruction::new(EcmascriptUpdateInstruction::Merged(merged_update)),
         })
     })
 }
