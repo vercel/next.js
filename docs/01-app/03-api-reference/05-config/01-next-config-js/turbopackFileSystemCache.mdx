@@ -6,7 +6,7 @@ description: Learn how to enable and configure FileSystem Caching for Turbopack 
 
 ## Usage
 
-Turbopack FileSystem Cache enables Turbopack to reduce work across `next dev` or `next build` commands. When enabled, Turbopack will save and restore data to the `.next/cache` directory between builds, which can greatly speed up subsequent builds and dev sessions.
+Turbopack FileSystem Cache enables Turbopack to reduce work across `next dev` or `next build` commands. When enabled, Turbopack will save and restore data under the `.next` directory between runs, which can greatly speed up subsequent builds and dev sessions.
 
 Two options control the cache, one for `next dev` and one for `next build`. Both are enabled by default:
 
@@ -37,8 +37,8 @@ module.exports = nextConfig
 
 ## Options
 
-- **`turbopackFileSystemCacheForDev`** (default: `true`): caches Turbopack's work for `next dev`. Restarting the dev server reuses the previous compilation.
-- **`turbopackFileSystemCacheForBuild`** (default: `true`): caches Turbopack's work for `next build`. Subsequent builds start warm. See [Build environments](#build-environments).
+- **`turbopackFileSystemCacheForDev`** (default: `true`): caches Turbopack's work for `next dev` in `.next/dev/cache/turbopack`. Restarting the dev server reuses the previous compilation.
+- **`turbopackFileSystemCacheForBuild`** (default: `true`): caches Turbopack's work for `next build` in `.next/cache/turbopack`. Subsequent builds start warm. See [Build environments](#build-environments).
 
 Set either option to `false` to opt out.
 

@@ -13,7 +13,7 @@ We built Turbopack to push the performance of Next.js, including:
 
 - **Unified Graph:** Next.js supports multiple output environments (e.g., client and server). Managing multiple compilers and stitching bundles together can be tedious. Turbopack uses a **single, unified graph** for all environments.
 - **Bundling vs Native ESM:** Some tools skip bundling in development and rely on the browser's native ESM. This works well for small apps but can slow down large apps due to excessive network requests. Turbopack **bundles** in dev, but in an optimized way to keep large apps fast.
-- **Incremental Computation:** Turbopack parallelizes work across cores and **caches** results down to the function level. Once a piece of work is done, Turbopack won’t repeat it.
+- **Incremental Computation:** Turbopack parallelizes work across cores and **caches** results down to the function level. Once a piece of work is done, Turbopack won’t repeat it. Results persist to disk between runs.
 - **Lazy Bundling:** Turbopack only bundles what is actually requested by the dev server. This lazy approach can reduce initial compile times and memory usage.
 
 ## Supported platforms
@@ -119,10 +119,11 @@ Turbopack in Next.js has **zero-configuration** for the common use cases. Below 
 
 ### Performance and Fast Refresh
 
-| Feature                  | Status        | Notes                                                                                    |
-| ------------------------ | ------------- | ---------------------------------------------------------------------------------------- |
-| **Fast Refresh**         | **Supported** | Updates JavaScript, TypeScript, and CSS without a full refresh.                          |
-| **Incremental Bundling** | **Supported** | Turbopack lazily builds only what's requested by the dev server, speeding up large apps. |
+| Feature                  | Status        | Notes                                                                                                                                                       |
+| ------------------------ | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Fast Refresh**         | **Supported** | Updates JavaScript, TypeScript, and CSS without a full refresh.                                                                                             |
+| **Incremental Bundling** | **Supported** | Turbopack lazily builds only what's requested by the dev server, speeding up large apps.                                                                    |
+| **FileSystem Cache**     | **Supported** | Persists compiler artifacts to disk between runs. See [`turbopackFileSystemCache`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache). |
 
 ### Magic Comments
 
@@ -343,15 +344,6 @@ Turbopack uses [Lightning CSS](https://lightningcss.dev/) to compile CSS. Lightn
 - **Turbopack:** `line-height: 1.47059` (5 digits)
 
 This can lead to subtle rendering differences when migrating from webpack to Turbopack, especially for properties like `line-height`, `letter-spacing`, or other calculated values where high precision matters.
-
-### Build Caching
-
-Webpack supports [disk build caching](https://webpack.js.org/configuration/cache/#cache) to improve build performance. Turbopack provides a similar feature, with separate options for `next dev` and `next build`. **Both are enabled by default**:
-
-- [`experimental.turbopackFileSystemCacheForDev`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache) for the dev server.
-- [`experimental.turbopackFileSystemCacheForBuild`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache) for builds. Builds only get faster in [environments that preserve `.next/cache`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache#build-environments).
-
-> **Good to know:** Both bundlers write their build cache under `.next/cache`. A second build in the same directory is warm. When comparing webpack and Turbopack cold build performance, delete the `.next` folder between builds.
 
 ### Webpack plugins
 
