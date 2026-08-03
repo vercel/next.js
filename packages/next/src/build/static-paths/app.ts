@@ -35,7 +35,6 @@ import { interceptionPrefixFromParamType } from '../../shared/lib/router/utils/i
 import { isPlainObject } from '../../shared/lib/is-plain-object'
 import { normalizeVariantAssignments } from '../../server/request/variants'
 import { hashVariants } from '../../server/variants/hash'
-import { groupVariantCombinations } from '../../server/variants/combinations'
 import {
   type GenerateStaticParamsStore,
   workUnitAsyncStorage,
@@ -806,7 +805,57 @@ export async function generateRouteStaticParams(
  * applies to the whole route including its fallback shell, and a shell exists
  * precisely where no params are known.
  */
-async function collectVariantCombinations(
+/**
+ * Multiplies the routes a page prerenders by the variant combinations it
+ * declared, in place.
+ *
+ * A combination belongs to the route, so it applies to the concrete routes and
+ * the fallback shell alike. They cannot share a key, because combinations of one
+ * route share a pathname, the variant values being carried by a prefix that is
+ * stripped before the route is matched.
+ *
+ * The un-multiplied route is kept as well, marked as omitting variants. It is
+ * what a combination nobody declared resolves to, so that such a request is
+ * served from one shared entry instead of seeding an entry per value it happens
+ * to carry. Without it a high-cardinality variant would grow the cache in
+ * proportion to traffic rather than to what the route declared.
+ *
+ * Only where the route can postpone, though. Omitting a variant leaves a hole
+ * that something has to fill, and without partial prerendering there is no
+ * resume to fill it: whatever were prerendered would bake one combination and
+ * then be served for every other. Such a route gets no shared entry, so an
+ * undeclared combination renders per request instead, which is correct if
+ * slower.
+ */
+export function expandPrerenderedRoutesByVariants(
+  prerenderedRoutesByPathname: Map<string, PrerenderedRoute>,
+  variantCombinations: ReadonlyArray<Record<string, string>>,
+  isRoutePPREnabled: boolean
+): void {
+  if (variantCombinations.length === 0) {
+    return
+  }
+
+  for (const [key, prerenderedRoute] of [...prerenderedRoutesByPathname]) {
+    if (isRoutePPREnabled) {
+      prerenderedRoutesByPathname.set(key, {
+        ...prerenderedRoute,
+        omitsVariants: true,
+      })
+    } else {
+      prerenderedRoutesByPathname.delete(key)
+    }
+
+    for (const variantValues of variantCombinations) {
+      prerenderedRoutesByPathname.set(
+        `${key}\0${hashVariants(variantValues)}`,
+        { ...prerenderedRoute, variantValues }
+      )
+    }
+  }
+}
+
+export async function collectVariantCombinations(
   segments: ReadonlyArray<Readonly<Pick<AppSegment, 'generateStaticVariants'>>>,
   route: string
 ): Promise<Array<Record<string, string>>> {
@@ -966,6 +1015,7 @@ export async function buildAppStaticPaths({
   buildId,
   deploymentId,
   rootParamKeys,
+  variantCombinations,
 }: {
   dir: string
   page: string
@@ -990,6 +1040,11 @@ export async function buildAppStaticPaths({
   buildId: string
   deploymentId: string
   rootParamKeys: readonly string[]
+  /**
+   * The combinations the page declared, collected by the caller because a page
+   * without dynamic segments never reaches here and still needs them applied.
+   */
+  variantCombinations: ReadonlyArray<Record<string, string>>
 }): Promise<StaticPathsResult> {
   if (
     segments.some((generate) => generate.config?.dynamicParams === true) &&
@@ -1049,11 +1104,6 @@ export async function buildAppStaticPaths({
     deploymentId,
     previouslyRevalidatedTags: [],
   })
-
-  const variantCombinations = await collectVariantCombinations(
-    segments,
-    store.route
-  )
 
   const routeParams = await workAsyncStorage.run(
     store,
@@ -1300,43 +1350,11 @@ export async function buildAppStaticPaths({
     })
   }
 
-  // Expand every route the matrix applies to, which is all of them: a variant
-  // combination belongs to the route, so it multiplies the concrete routes and
-  // the fallback shell alike. They cannot share a key, because combinations of
-  // one route share a pathname, the variant values being carried by a prefix
-  // that is stripped before the route is matched.
-  //
-  // The un-multiplied route is kept as well, marked as omitting variants. It is
-  // what a combination nobody declared resolves to, so that such a request is
-  // served from one shared entry instead of seeding an entry per value it
-  // happens to carry. Without it a high-cardinality variant would grow the
-  // cache in proportion to traffic rather than to what the route declared.
-  //
-  // Only where the route can postpone, though. Omitting a variant leaves a hole
-  // that something has to fill, and without partial prerendering there is no
-  // resume to fill it: whatever were prerendered would bake one combination and
-  // then be served for every other. Such a route gets no shared entry, so an
-  // undeclared combination renders per request instead, which is correct if
-  // slower.
-  if (variantCombinations.length > 0) {
-    for (const [key, prerenderedRoute] of [...prerenderedRoutesByPathname]) {
-      if (isRoutePPREnabled) {
-        prerenderedRoutesByPathname.set(key, {
-          ...prerenderedRoute,
-          omitsVariants: true,
-        })
-      } else {
-        prerenderedRoutesByPathname.delete(key)
-      }
-
-      for (const variantValues of variantCombinations) {
-        prerenderedRoutesByPathname.set(
-          `${key}\0${hashVariants(variantValues)}`,
-          { ...prerenderedRoute, variantValues }
-        )
-      }
-    }
-  }
+  expandPrerenderedRoutesByVariants(
+    prerenderedRoutesByPathname,
+    variantCombinations,
+    isRoutePPREnabled
+  )
 
   const prerenderedRoutes =
     prerenderedRoutesByPathname.size > 0 ||
@@ -1379,10 +1397,5 @@ export async function buildAppStaticPaths({
   // stops being possible the moment a route also has a prerender that declares
   // nothing. They are grouped here rather than at the runtime, which would
   // otherwise regroup them on every request.
-  return {
-    fallbackMode,
-    prerenderedRoutes,
-    prerenderRouteMatchers,
-    variantCombinationGroups: groupVariantCombinations(variantCombinations),
-  }
+  return { fallbackMode, prerenderedRoutes, prerenderRouteMatchers }
 }

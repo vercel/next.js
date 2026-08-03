@@ -1,7 +1,6 @@
 import type { FallbackMode } from '../../lib/fallback'
 import type { Params } from '../../server/request/params'
 import type { DynamicParamTypes } from '../../shared/lib/app-router-types'
-import type { VariantCombinationGroups } from '../../server/variants/combinations'
 
 type StaticPrerenderedRoute = {
   readonly params: Params
@@ -137,12 +136,4 @@ export type StaticPathsResult = {
 
   /** Logical request matchers, independent of the artifacts rendered for them. */
   prerenderRouteMatchers?: PrerenderRouteMatcher[]
-  /**
-   * The variant combinations the page declared, grouped by which variants they
-   * assign. Already applied to `prerenderedRoutes`, and carried here as well
-   * because the runtime has to recognize a request's combination as one that
-   * was declared. Absent for the pages router, and empty for a page that
-   * declares none.
-   */
-  variantCombinationGroups?: VariantCombinationGroups
 }

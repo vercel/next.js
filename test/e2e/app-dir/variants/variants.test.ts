@@ -103,7 +103,37 @@ describe('variants', () => {
     expect(light('#theme').text()).toBe('light')
   })
 
+  it('should prerender a route without dynamic segments per combination', async () => {
+    // The route declares combinations but has no params, so it builds no static
+    // paths and the combinations are the only axis it is prerendered against.
+    // Reading a variant above a boundary is only possible because of them: the
+    // value is baked, so there is nothing to postpone.
+    const dark = await next.render$('/paramless', undefined, {
+      headers: { cookie: 'theme=dark' },
+    })
+
+    expect(dark('#theme').text()).toBe('dark')
+    expect(dark('#locale').text()).toBe('en')
+
+    const light = await next.render$('/paramless', undefined, {
+      headers: { cookie: 'theme=light' },
+    })
+
+    expect(light('#theme').text()).toBe('light')
+  })
+
   if (isNextStart) {
+    it('should serve a route without dynamic segments from its own prerender', async () => {
+      for (const theme of ['light', 'dark']) {
+        const response = await next.fetch('/paramless', {
+          headers: { cookie: `theme=${theme}` },
+        })
+
+        expect(response.headers.get('x-nextjs-cache')).toBe('HIT')
+        expect(await response.text()).toContain(`<p id="theme">${theme}</p>`)
+      }
+    })
+
     it('should serve each combination from its own prerender', async () => {
       // A cache hit is what distinguishes serving the artifact prerendered for
       // this combination from rendering the route again, which would produce

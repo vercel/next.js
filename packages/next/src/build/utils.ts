@@ -67,13 +67,18 @@ import type { AppSegment } from './segment-config/app/app-segments'
 import { collectSegments } from './segment-config/app/app-segments'
 import { createIncrementalCache } from '../export/helpers/create-incremental-cache'
 import { collectRootParamKeys } from './segment-config/app/collect-root-param-keys'
-import { buildAppStaticPaths } from './static-paths/app'
+import {
+  buildAppStaticPaths,
+  collectVariantCombinations,
+  expandPrerenderedRoutesByVariants,
+} from './static-paths/app'
 import { buildPagesStaticPaths } from './static-paths/pages'
 import type {
   PrerenderRouteMatcher,
   PrerenderedRoute,
 } from './static-paths/types'
 import type { VariantCombinationGroups } from '../server/variants/combinations'
+import { groupVariantCombinations } from '../server/variants/combinations'
 import type { CacheControl } from '../server/lib/cache-control'
 import { formatExpire, formatRevalidate } from './output/format'
 import type {
@@ -889,15 +894,28 @@ export async function isPageStatic({
 
         const route = parseNormalizedAppRoute(page)
 
+        // Collected here rather than while building static paths, because a page
+        // with no dynamic segments never builds any and still declares
+        // combinations that have to be applied.
+        const variantCombinations = await collectVariantCombinations(
+          segments,
+          page
+        )
+
+        if (variantCombinations.length > 0) {
+          variantCombinationGroups =
+            groupVariantCombinations(variantCombinations)
+        }
+
         // If the page is dynamic and we're not in edge runtime, then we need to
         // build the static paths. The edge runtime doesn't support static
         // paths.
-        if (route.dynamicSegments.length > 0 && !pathIsEdgeRuntime) {
-          let pathname = normalizeAppPath(page)
-          if (pathname.endsWith('/route')) {
-            pathname = pathname.slice(0, -'/route'.length)
-          }
+        let pathname = normalizeAppPath(page)
+        if (pathname.endsWith('/route')) {
+          pathname = pathname.slice(0, -'/route'.length)
+        }
 
+        if (route.dynamicSegments.length > 0 && !pathIsEdgeRuntime) {
           if (
             routeModule.definition.kind === RouteKind.APP_ROUTE &&
             isStaticMetadataFile(pathname)
@@ -909,11 +927,11 @@ export async function isPageStatic({
               prerenderedRoutes,
               prerenderRouteMatchers,
               fallbackMode: prerenderFallbackMode,
-              variantCombinationGroups,
             } = await buildAppStaticPaths({
               dir,
               page,
               route,
+              variantCombinations,
               cacheComponents,
               authInterrupts,
               useCacheTimeout,
@@ -934,6 +952,36 @@ export async function isPageStatic({
               rootParamKeys,
             }))
           }
+        } else if (variantCombinations.length > 0) {
+          // A page with no dynamic segments builds no static paths, but a
+          // combination it declared still has to be prerendered against. Its one
+          // route stands in for the params matrix a dynamic page would have, and
+          // is expanded the same way, so a declared combination gets an artifact
+          // here too instead of the declaration being ignored.
+          const prerenderedRoutesByPathname = new Map<string, PrerenderedRoute>(
+            [
+              [
+                pathname,
+                {
+                  params: {},
+                  pathname,
+                  encodedPathname: pathname,
+                  fallbackRouteParams: undefined,
+                  fallbackMode: undefined,
+                  fallbackRootParams: undefined,
+                  throwOnEmptyStaticShell: undefined,
+                },
+              ],
+            ]
+          )
+
+          expandPrerenderedRoutesByVariants(
+            prerenderedRoutesByPathname,
+            variantCombinations,
+            isRoutePPREnabled
+          )
+
+          prerenderedRoutes = [...prerenderedRoutesByPathname.values()]
         }
       } else {
         if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {

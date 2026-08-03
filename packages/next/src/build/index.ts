@@ -2667,7 +2667,14 @@ export default async function build(
                             // - It has no dynamic param
                             // - It doesn't have generateStaticParams but `dynamic` is set to
                             //   `error` or `force-static`
-                            if (!isDynamic) {
+                            //
+                            // A route with no dynamic params is prerendered once
+                            // and needs the one route synthesized for it here,
+                            // unless it declared variant combinations: then the
+                            // worker already expanded it into a route per
+                            // combination, and replacing those with a single one
+                            // would drop every combination it declared.
+                            if (!isDynamic && !workerResult.prerenderedRoutes) {
                               staticPaths.set(originalAppPath, [
                                 {
                                   params: {},
