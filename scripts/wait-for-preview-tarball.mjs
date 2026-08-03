@@ -85,6 +85,63 @@ async function probeTarball(url, headers) {
 }
 
 /**
+ * @param {string | undefined} readToken
+ * @returns {Record<string, string> | undefined}
+ */
+function requestHeaders(readToken) {
+  return readToken ? { Authorization: `Bearer ${readToken}` } : undefined
+}
+
+/**
+ * @param {object} options
+ * @param {string} options.commitSha
+ * @param {string} options.lastResponse
+ * @param {number} [options.timeoutMs] Omitted when nothing was waited out.
+ * @returns {Error}
+ */
+function notPublishedError({ commitSha, lastResponse, timeoutMs }) {
+  const checksUrl = commitChecksUrl(commitSha)
+  return new Error(
+    `Preview tarball for commit ${commitSha} was not published` +
+      (timeoutMs === undefined ? '' : ` within ${formatDuration(timeoutMs)}`) +
+      ` (last response: ${lastResponse}). ` +
+      `The tarball is published by the "upload-preview-tarballs" workflow ` +
+      `once "build-and-deploy" has completed for this commit, so check ` +
+      `whether that run failed or is still in progress.` +
+      (checksUrl ? ` See ${checksUrl}` : '')
+  )
+}
+
+/**
+ * Checks once whether the `next` preview tarball for `commitSha` is
+ * downloadable, and throws if it is not. For callers that only need the
+ * assertion because something else has already done the waiting.
+ *
+ * @param {object} options
+ * @param {string} options.commitSha
+ * @param {string} [options.previewBuildsBaseUrl]
+ * @param {string} [options.readToken]
+ * @returns {Promise<void>}
+ */
+export async function assertPreviewTarballPublished({
+  commitSha,
+  previewBuildsBaseUrl,
+  readToken,
+}) {
+  const url = previewTarballUrl(previewBuildsBaseUrl, commitSha)
+  const { published, lastResponse } = await probeTarball(
+    url,
+    requestHeaders(readToken)
+  )
+
+  if (!published) {
+    throw notPublishedError({ commitSha, lastResponse })
+  }
+
+  console.info(`Preview tarball for commit ${commitSha} is available at ${url}`)
+}
+
+/**
  * Polls until the `next` preview tarball for `commitSha` is downloadable.
  * Rejects when `timeoutMs` elapses before that happens. Every response other
  * than a success is treated as "not ready", so a transient blob or edge error
@@ -106,9 +163,7 @@ export async function waitForPreviewTarball({
   pollIntervalMs = POLL_INTERVAL_MS,
 }) {
   const url = previewTarballUrl(previewBuildsBaseUrl, commitSha)
-  const headers = readToken
-    ? { Authorization: `Bearer ${readToken}` }
-    : undefined
+  const headers = requestHeaders(readToken)
   const startedAt = Date.now()
   const deadline = startedAt + timeoutMs
   let lastProgressLogAt = startedAt
@@ -129,15 +184,7 @@ export async function waitForPreviewTarball({
     }
 
     if (now >= deadline) {
-      const checksUrl = commitChecksUrl(commitSha)
-      throw new Error(
-        `Preview tarball for commit ${commitSha} was not published within ` +
-          `${formatDuration(timeoutMs)} (last response: ${lastResponse}). ` +
-          `The tarball is published by the "upload-preview-tarballs" workflow ` +
-          `once "build-and-deploy" has completed for this commit, so check ` +
-          `whether that run failed or is still in progress.` +
-          (checksUrl ? ` See ${checksUrl}` : '')
-      )
+      throw notPublishedError({ commitSha, lastResponse, timeoutMs })
     }
 
     if (now - lastProgressLogAt >= PROGRESS_LOG_INTERVAL_MS) {

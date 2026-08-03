@@ -3,8 +3,8 @@ import execa from 'execa'
 import yargs from 'yargs'
 import getChangedTests from './get-changed-tests.mjs'
 import {
+  assertPreviewTarballPublished,
   previewTarballUrl,
-  waitForPreviewTarball,
 } from './wait-for-preview-tarball.mjs'
 
 /**
@@ -104,15 +104,14 @@ async function main() {
       : undefined
 
   if (nextTestVersion) {
-    // The `wait-for-preview-tarball` job in build_and_test.yml already blocks
-    // this job until the tarballs are published, so this only covers the short
-    // window where the blob is not yet readable from this runner.
-    await waitForPreviewTarball({
+    // The `wait-for-preview-tarball` job in build_and_test.yml does the
+    // waiting, so this only asserts. It keeps a missing tarball reported as a
+    // missing tarball, rather than as an install failure from run-tests.js
+    // resolving NEXT_TEST_VERSION.
+    await assertPreviewTarballPublished({
       commitSha,
       previewBuildsBaseUrl,
-      timeoutMs: 2 * 60_000,
       readToken: process.env.PREVIEW_BUILDS_READ_TOKEN,
-      pollIntervalMs: 5_000,
     })
   }
 
