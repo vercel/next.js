@@ -432,7 +432,10 @@ describe('app dir - rsc basics', () => {
       let gotInlinedData = false
 
       await resolveStreamResponse(response, (_, result) => {
-        gotInlinedData = result.includes('self.__next_f=')
+        gotInlinedData =
+          // Inlined flight data, in either the legacy queue form or the
+          // React inline data channel form.
+          result.includes('self.__next_f=') || result.includes('self.$RF=')
         gotData = result.includes('next_streaming_data')
         if (!gotFallback) {
           gotFallback = result.includes('next_streaming_fallback')

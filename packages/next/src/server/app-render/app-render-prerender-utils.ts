@@ -86,7 +86,7 @@ export class ReactServerResult {
 }
 
 type ReplayableStreamSubscriber = {
-  onChunk: (chunk: Uint8Array) => void
+  onChunk: (chunk: Uint8Array | string) => void
   onEnd: () => void
   onError: (err: Error) => void
 }
@@ -97,19 +97,27 @@ type ReplayableStreamSubscriber = {
  * from the source. Multiple replay streams can be created independently.
  */
 export class ReplayableNodeStream {
-  private _chunks: Array<Uint8Array> | null
+  private _chunks: Array<Uint8Array | string> | null
   private _done: boolean
   private _error: Error | null
   private _subscribers: Set<ReplayableStreamSubscriber>
+
+  private _objectMode: boolean
 
   constructor(stream: Readable) {
     this._chunks = []
     this._done = false
     this._error = null
     this._subscribers = new Set()
+    // An object-mode source carries the Flight rows door's strings (and raw
+    // views for binary rows); replay streams must preserve them as-is.
+    this._objectMode = (stream as any).readableObjectMode === true
 
-    stream.on('data', (chunk: Buffer | Uint8Array) => {
-      const buf = chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk)
+    stream.on('data', (chunk: Buffer | Uint8Array | string) => {
+      const buf =
+        typeof chunk === 'string' || chunk instanceof Uint8Array
+          ? chunk
+          : new Uint8Array(chunk)
       if (this._chunks !== null) {
         this._chunks.push(buf)
       }
@@ -179,7 +187,9 @@ export class ReplayableNodeStream {
     const isDone = this._done
     const sourceError = this._error
 
+    const objectMode = this._objectMode
     const stream = new ReadableCtor({
+      objectMode,
       read() {
         if (!bufferDrained) {
           bufferDrained = true

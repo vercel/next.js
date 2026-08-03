@@ -9,6 +9,7 @@
  */
 export type {
   AnyStream,
+  FlightRenderHandle,
   ContinueFizzStreamOptions,
   ContinueStaticPrerenderOptions,
   ContinueStreamSharedOptions,
@@ -48,6 +49,7 @@ export const createOnHeadersCallback = _m.createOnHeadersCallback
 export const resumeAndAbort = _m.resumeAndAbort
 export const renderToWebFlightStream = _m.renderToWebFlightStream
 export const renderToNodeFlightStream = _m.renderToNodeFlightStream
+export const renderToNodeFlightRenderResult = _m.renderToNodeFlightRenderResult
 export const streamToString = _m.streamToString
 export const renderToWebFizzStream = _m.renderToWebFizzStream
 export const renderToNodeFizzStream = _m.renderToNodeFizzStream

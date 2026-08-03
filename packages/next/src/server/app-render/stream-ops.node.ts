@@ -41,6 +41,7 @@ import {
   ReplayableNodeStream,
   type AnyStream as AnyStreamType,
 } from './app-render-prerender-utils'
+import type { FlightRenderHandle } from './stream-ops.web'
 import { DetachedPromise } from '../../lib/detached-promise'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
@@ -59,6 +60,7 @@ import type {
 // ---------------------------------------------------------------------------
 
 export type {
+  FlightRenderHandle,
   ContinueStreamSharedOptions,
   ContinueFizzStreamOptions,
   ContinueStaticPrerenderOptions,
@@ -91,6 +93,11 @@ export type FlightComponentMod = {
     ): Writable
     abort(reason?: unknown): void
   }
+  renderFlight?: (
+    model: any,
+    webpackMap: any,
+    options?: any
+  ) => FlightRenderHandle
 }
 
 export type FizzStreamResult = {
@@ -577,6 +584,49 @@ export function renderToNodeFlightStream(
   return pt
 }
 
+/**
+ * Renders the Flight payload without deciding how it will be consumed. The
+ * returned result is consumed in-process for SSR (createFromRender must be
+ * called synchronously, before the render starts emitting) while the byte
+ * stream serves hydration data inlining from the same render.
+ */
+export function renderToNodeFlightRenderResult(
+  ComponentMod: FlightComponentMod,
+  payload: any,
+  clientModules: any,
+  opts: any
+): {
+  result: FlightRenderHandle
+  stream: AnyStream
+} {
+  if (!ComponentMod.renderFlight) {
+    throw new Error('renderFlight is not implemented')
+  }
+
+  const result = ComponentMod.renderFlight(payload, clientModules, opts)
+  if (typeof (result as any)._subscribeRows === 'function') {
+    // The byte stream only feeds hydration data inlining, which re-encodes
+    // the payload into the HTML document; the rows door hands over the wire
+    // text before it is ever encoded, so the inliner skips a decode and the
+    // render skips the encode. The object-mode stream carries strings (and
+    // raw views for binary rows), which the inliner handles natively.
+    const rows = new Readable({ objectMode: true, read() {} })
+    ;(result as any)._subscribeRows({
+      string: (chunk: string) => rows.push(chunk),
+      bytes: (chunk: Uint8Array) =>
+        rows.push(
+          Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength)
+        ),
+      close: () => rows.push(null),
+      error: (err: unknown) => rows.destroy(err as Error),
+    })
+    return { result, stream: rows }
+  }
+  const pt = new PassThrough()
+  result.pipe(pt)
+  return { result, stream: pt }
+}
+
 export { renderToWebFizzStream } from './stream-ops.web'
 
 export async function renderToNodeFizzStream(
@@ -996,10 +1046,16 @@ async function pullFlightData(
 
   try {
     while (true) {
-      const chunk: Buffer | null = dataStream.read()
+      const chunk: Buffer | string | null = dataStream.read()
       if (chunk !== null) {
         let htmlInlinedData: string
-        if (isUtf8(chunk)) {
+        if (typeof chunk === 'string') {
+          // Wire text from the Flight render's rows door: already a string,
+          // nothing to decode.
+          htmlInlinedData = htmlEscapeJsonString(
+            JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, chunk])
+          )
+        } else if (isUtf8(chunk)) {
           const decodedString = chunk.toString('utf-8')
           htmlInlinedData = htmlEscapeJsonString(
             JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, decodedString])

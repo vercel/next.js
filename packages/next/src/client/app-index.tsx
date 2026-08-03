@@ -6,6 +6,8 @@ import React from 'react'
 import {
   createFromReadableStream as createFromReadableStreamBrowser,
   createFromFetch as createFromFetchBrowser,
+  // $FlowFixMe / present in the vendored build
+  createFromInlineData as createFromInlineDataBrowser,
 } from 'react-server-dom-webpack/client'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import { onRecoverableError } from './react-client-callbacks/on-recoverable-error'
@@ -34,6 +36,11 @@ import { initializeRouterTransitionModules } from './components/router-transitio
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
+// The vendored React emits the hydration data through its own inline data
+// channel; the channel-init script in the shell defines the global the
+// receiver reads.
+const createFromInlineData: ((options?: any) => Promise<unknown>) | undefined =
+  createFromInlineDataBrowser as any
 const createFromFetch =
   createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
 
@@ -265,6 +272,20 @@ if (instantTestStaticFetch) {
       fallbackInitialRSCPayload
     )
   )
+} else if (
+  // The channel-init script in the shell defines the $RF receiver before
+  // any bundle can execute, so its presence is a race-free signal that the
+  // document carries the hydration data through React's inline data
+  // channel.
+  typeof (self as any).$RF === 'function' &&
+  typeof createFromInlineData === 'function'
+) {
+  initialServerResponse = createFromInlineData({
+    callServer,
+    findSourceMapURL,
+    debugChannel,
+    startTime: 0,
+  }) as Promise<InitialRSCPayload>
 } else {
   initialServerResponse = createFromReadableStream<InitialRSCPayload>(
     readable,
