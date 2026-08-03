@@ -1,12 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
 
-const cliConfig = `module.exports = {
-  experimental: { useTypeScriptCli: true },
+const defaultConfig = `module.exports = {
   typescript: { tsconfigPath: 'tsconfig.build.json' },
 }
 `
 
 const apiConfig = `module.exports = {
+  experimental: { useTypeScriptCli: false },
   typescript: { tsconfigPath: 'tsconfig.build.json' },
 }
 `
@@ -14,7 +14,7 @@ const apiConfig = `module.exports = {
 const typeError = `export const invalidValue: number = 'not a number'
 `
 
-describe('experimental TypeScript CLI backend', () => {
+describe('TypeScript CLI backend', () => {
   describe('TypeScript 7', () => {
     const { next, skipped } = nextTestSetup({
       files: __dirname,
@@ -34,7 +34,7 @@ describe('experimental TypeScript CLI backend', () => {
     })
 
     afterEach(async () => {
-      await next.patchFile('next.config.js', cliConfig)
+      await next.patchFile('next.config.js', defaultConfig)
       await next.patchFile('tsconfig.build.json', originalTsConfig)
       await next.deleteFile('src/type-error.ts').catch(() => {})
       await next
@@ -53,6 +53,7 @@ describe('experimental TypeScript CLI backend', () => {
       expect(result.cliOutput).toContain('"typeCheckMode": "typescript-cli"')
       expect(result.cliOutput).not.toContain('"inputFilesCount"')
       expect(result.cliOutput).not.toContain('"totalFilesCount"')
+      expect(await next.hasFile('typescript-cli.test.ts')).toBe(true)
       expect(await next.hasFile('.next/cache/.tsbuildinfo')).toBe(true)
     })
 
@@ -86,7 +87,6 @@ describe('experimental TypeScript CLI backend', () => {
       await next.patchFile(
         'next.config.js',
         `module.exports = {
-  experimental: { useTypeScriptCli: true },
   typescript: {
     ignoreBuildErrors: true,
     tsconfigPath: 'tsconfig.build.json',
@@ -122,7 +122,7 @@ describe('experimental TypeScript CLI backend', () => {
     })
   })
 
-  describe('TypeScript 7 without the opt-in', () => {
+  describe('TypeScript 7 with the CLI disabled', () => {
     const { next, skipped } = nextTestSetup({
       files: __dirname,
       skipStart: true,
@@ -134,7 +134,7 @@ describe('experimental TypeScript CLI backend', () => {
 
     if (skipped) return
 
-    it('fails with actionable migration guidance', async () => {
+    it('fails with actionable API compatibility guidance', async () => {
       await next.patchFile('next.config.js', apiConfig)
 
       const result = await next.build()
@@ -143,7 +143,9 @@ describe('experimental TypeScript CLI backend', () => {
       expect(result.cliOutput).toContain(
         'TypeScript 7.0.2 does not provide the compiler API required by Next.js'
       )
-      expect(result.cliOutput).toContain('experimental.useTypeScriptCli')
+      expect(result.cliOutput).toContain(
+        'Set experimental.useTypeScriptCli back to true'
+      )
       expect(result.cliOutput).toContain('install TypeScript 6 instead')
     })
   })
