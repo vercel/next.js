@@ -455,10 +455,9 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
 
     let span = span_outer.clone();
     async move {
-        #[allow(clippy::type_complexity)]
         let mut chunk_groups_map: FxIndexMap<
             ChunkGroupKey,
-            (ChunkGroupId, FxIndexSet<ResolvedVc<Box<dyn Module>>>),
+            FxIndexSet<ResolvedVc<Box<dyn Module>>>,
         > = FxIndexMap::default();
 
         // For each module, the indices in the bitmap store which chunk groups in `chunk_groups_map`
@@ -502,12 +501,11 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
 
         // ----
 
-        #[allow(clippy::type_complexity)]
         fn entry_to_chunk_group_id(
             entry: ChunkGroupEntry,
             chunk_groups_map: &mut FxIndexMap<
                 ChunkGroupKey,
-                (ChunkGroupId, FxIndexSet<ResolvedVc<Box<dyn Module>>>),
+                FxIndexSet<ResolvedVc<Box<dyn Module>>>,
             >,
         ) -> ChunkGroupKey {
             match entry {
@@ -522,14 +520,12 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                     entries: _,
                 } => {
                     let parent = entry_to_chunk_group_id(*parent, chunk_groups_map);
-                    let len = chunk_groups_map.len();
-                    let parent = chunk_groups_map
-                        .entry(parent)
-                        .or_insert_with(|| (ChunkGroupId(len as u32), FxIndexSet::default()))
-                        .0;
+                    let parent_entry = chunk_groups_map.entry(parent);
+                    let parent_id = parent_entry.index();
+                    parent_entry.or_default();
 
                     ChunkGroupKey::IsolatedMerged {
-                        parent: ChunkGroupId(*parent),
+                        parent: ChunkGroupId::from(parent_id),
                         merge_tag,
                     }
                 }
@@ -539,14 +535,12 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                     entries: _,
                 } => {
                     let parent = entry_to_chunk_group_id(*parent, chunk_groups_map);
-                    let len = chunk_groups_map.len();
-                    let parent = chunk_groups_map
-                        .entry(parent)
-                        .or_insert_with(|| (ChunkGroupId(len as u32), FxIndexSet::default()))
-                        .0;
+                    let parent_entry = chunk_groups_map.entry(parent);
+                    let parent_id = parent_entry.index();
+                    parent_entry.or_default();
 
                     ChunkGroupKey::SharedMerged {
-                        parent: ChunkGroupId(*parent),
+                        parent: ChunkGroupId::from(parent_id),
                         merge_tag,
                     }
                 }
@@ -660,7 +654,6 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                     ChunkGroupInheritance::ChunkGroup(chunk_groups) => {
                         // Start of a new chunk group, don't inherit anything from parent
                         let chunk_group_ids = chunk_groups.map(|chunk_group| {
-                            let len = chunk_groups_map.len();
                             // For merged groups, the parent group id whose heuristics they inherit.
                             let merged_parent = match &chunk_group {
                                 ChunkGroupKey::IsolatedMerged { parent, .. }
@@ -669,20 +662,20 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                             };
                             let id = match chunk_groups_map.entry(chunk_group) {
                                 Entry::Occupied(mut e) => {
-                                    let (id, merged_entries) = e.get_mut();
+                                    let id = e.index() as u32;
                                     if merged_parent.is_some() {
-                                        merged_entries.insert(node);
+                                        e.get_mut().insert(node);
                                     }
-                                    **id
+                                    id
                                 }
                                 Entry::Vacant(e) => {
-                                    let chunk_group_id = len as u32;
+                                    let id = e.index() as u32;
                                     let mut set = FxIndexSet::default();
                                     if merged_parent.is_some() {
                                         set.insert(node);
                                     }
-                                    e.insert((ChunkGroupId(chunk_group_id), set));
-                                    chunk_group_id
+                                    e.insert(set);
+                                    id
                                 }
                             };
                             // Record heuristics-inheritance edges into this chunk group: merged
@@ -871,7 +864,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             },
             chunk_groups: chunk_groups_map
                 .into_iter()
-                .map(|(k, (_, merged_entries))| match k {
+                .map(|(k, merged_entries)| match k {
                     ChunkGroupKey::Entry(entries) => ChunkGroup::Entry(entries),
                     ChunkGroupKey::Async(module) => ChunkGroup::Async(module),
                     ChunkGroupKey::Isolated(module) => ChunkGroup::Isolated(module),

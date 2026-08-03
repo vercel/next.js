@@ -118,6 +118,14 @@ export interface WorkStore {
   isPrefetchRequest?: boolean
 
   /**
+   * Dev-only request identity used by local request insights. requestId
+   * identifies one server request, while htmlRequestId groups requests that
+   * originated from the same browser page.
+   */
+  requestId?: string
+  htmlRequestId?: string
+
+  /**
    * This only exists because it's needed in use-cache-wrapper
    */
   deploymentId: string
@@ -134,6 +142,17 @@ export interface WorkStore {
 
   cacheComponentsEnabled: boolean
   validationLevel: ValidationLevel
+
+  /**
+   * Pages, other than the one being rendered, whose client reference manifest
+   * supplied a client reference for this render. Only populated by the dev
+   * server, where React's I/O tracking can carry a reference from another page
+   * into this render, which `createProxiedClientReferenceManifest` resolves by
+   * searching the other pages' manifests. The dev validation worker rebuilds
+   * that registry in its own thread from the route it validates, so it relies
+   * on this to know which other manifests to register.
+   */
+  additionalClientReferenceManifestPages?: Set<string>
 
   /**
    * Run the given function inside a clean AsyncLocalStorage snapshot. This is

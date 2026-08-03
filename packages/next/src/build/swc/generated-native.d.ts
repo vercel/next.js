@@ -364,7 +364,7 @@ export interface AppPageNapiRoute {
   /** The relative path from project_path to the route file */
   originalName?: RcStr
   htmlEndpoint?: ExternalObject<ExternalEndpoint>
-  rscEndpoint?: ExternalObject<ExternalEndpoint>
+  rscHmrEndpoint?: ExternalObject<ExternalEndpoint>
 }
 export interface NapiRoute {
   /** The router path */
@@ -376,7 +376,7 @@ export interface NapiRoute {
   pages?: Array<AppPageNapiRoute>
   endpoint?: ExternalObject<ExternalEndpoint>
   htmlEndpoint?: ExternalObject<ExternalEndpoint>
-  rscEndpoint?: ExternalObject<ExternalEndpoint>
+  rscHmrEndpoint?: ExternalObject<ExternalEndpoint>
   dataEndpoint?: ExternalObject<ExternalEndpoint>
 }
 export interface NapiMiddleware {
@@ -408,6 +408,11 @@ export declare function projectEntrypoints(project: {
 }): Promise<TurbopackResult>
 export declare function projectEntrypointsSubscribe(
   project: { __napiType: 'Project' },
+  func: (...args: any[]) => any
+): { __napiType: 'RootTask' }
+export declare function projectAllHmrEvents(
+  project: { __napiType: 'Project' },
+  target: string,
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
 export declare function projectHmrEvents(
@@ -478,7 +483,7 @@ export declare function projectGetSourceForAsset(
 ): Promise<string | null>
 export declare function projectGetSourceMap(
   project: { __napiType: 'Project' },
-  filePath: RcStr
+  sourceMapUrl: RcStr
 ): Promise<string | null>
 export declare function projectGetSourceMapSync(
   project: { __napiType: 'Project' },
@@ -538,13 +543,23 @@ export interface TurbopackInternalErrorOpts {
   message: string
   anonymizedLocation?: string
 }
+export declare function turbopackCacheVersion(nextVersion: string): string
 /**
  * Turbopack's memory eviction strategy for the persistent cache, mirroring the
  * `experimental.turbopackMemoryEviction` config option.
+ *
+ * This is a napi-facing mirror of [`EvictionMode`] (the backend crate can't
+ * depend on napi). Keep the variants in sync; the `From` impl below is
+ * exhaustive, so adding a variant to one enum forces updating the other.
  */
 export const enum MemoryEvictionMode {
   /** Never evict. */
   Off = 'off',
+  /**
+   * Evict after a snapshot only once enough memory has been allocated since
+   * the last eviction to justify the cost of restoring evicted tasks.
+   */
+  Auto = 'auto',
   /**
    * After every snapshot, evict all evictable tasks from memory, reloading
    * them from disk on demand.

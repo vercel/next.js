@@ -25,7 +25,7 @@ kind: insight
 
 During [prerendering](https://preview.nextjs.org/docs/app/glossary#prerendering), a Client Component called a navigation hook ([`usePathname`](https://preview.nextjs.org/docs/app/api-reference/functions/use-pathname), [`useParams`](https://preview.nextjs.org/docs/app/api-reference/functions/use-params), [`useSearchParams`](https://preview.nextjs.org/docs/app/api-reference/functions/use-search-params#prerendering), [`useSelectedLayoutSegment`](https://preview.nextjs.org/docs/app/api-reference/functions/use-selected-layout-segment), or [`useSelectedLayoutSegments`](https://preview.nextjs.org/docs/app/api-reference/functions/use-selected-layout-segments)) outside of a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary. With [Cache Components](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js prerenders as much of a route as possible before a request arrives. These hooks read URL data that is not available during prerendering, so the component needs a fallback to include in the [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell).
 
-`useSearchParams` triggers this error on any prerendered route because search params come from the request URL. The other four hooks trigger it when the route has dynamic params and is rendered per-request.
+The `useSearchParams` hook triggers this error on any prerendered route because search params come from the request URL. The other four hooks trigger it when the route has dynamic params and is rendered per-request.
 
 Server-side request-bound reads ([`cookies()`](https://preview.nextjs.org/docs/app/api-reference/functions/cookies), [`headers()`](https://preview.nextjs.org/docs/app/api-reference/functions/headers)) have different fixes. See [Next.js encountered runtime data during prerendering](/docs/messages/blocking-prerender-runtime). For unstable values like [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) in Client Components, see [Next.js encountered the unstable value Math.random() in a Client Component](/docs/messages/blocking-prerender-random-client).
 
@@ -193,7 +193,7 @@ The sibling renders nothing visible, so an empty fallback is correct. There is n
 
 ### Trade-off
 
-The user sees the fallback on the first paint of the suspended region, then it swaps to the real value once the hook resolves after hydration. Choose a fallback shape that matches the final layout so the swap doesn't shift surrounding content.
+The user sees the fallback on the first paint of the suspended region, then it swaps to the real value once the hook resolves after hydration. Choose a fallback shape that matches the final layout so the swap doesn't cause a layout shift. See [minimizing layout shift](https://preview.nextjs.org/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 ### Gotchas
 
@@ -252,13 +252,13 @@ Navigations to this route are not instant. The user waits for the full server re
 ### Gotchas
 
 - Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` opts only the segment that exports it out. Descendant segments are still validated by the global default.
-- This export does not disable [prerendering](https://preview.nextjs.org/docs/app/glossary#prerendering). The route still prerenders if it can. It only silences the instant-navigation validation error.
+- This export does not disable [prerendering](https://preview.nextjs.org/docs/app/glossary#prerendering). The route still prerenders if it can. It only disables instant-navigation validation for the route.
 
 ## Verifying the fix
 
-After applying a fix, reload the route to confirm the [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell) renders real content. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
+After applying a fix, reload the route and confirm the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
 
-In [`next dev`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated; run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
+In [`next dev`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated. Run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
 ## Don't want this validation?
 
@@ -283,5 +283,6 @@ See [Ensuring instant navigations](https://preview.nextjs.org/docs/app/guides/in
 - [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
 - [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
 - [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
-- [Partial Prefetch link with dynamic data](/docs/messages/instant-link-prefetch-partial)
+- [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial)
+- [URL data outside of Suspense](/docs/messages/instant-shell-url-data)
 - [Unrendered segment](/docs/messages/instant-unrendered-segment)

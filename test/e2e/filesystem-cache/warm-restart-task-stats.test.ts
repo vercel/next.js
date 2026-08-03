@@ -32,6 +32,9 @@ const STATS_RELATIVE_PATH = '.next/warm-restart-task-stats.json'
       'ENABLE_CACHING=1',
       'TURBO_ENGINE_IGNORE_DIRTY=1',
       'TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS=1000',
+      // Persist even tiny snapshots so the test doesn't depend on the
+      // minimum-compilation-time threshold.
+      'TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS=0',
       `NEXT_TURBOPACK_TASK_STATISTICS=${STATS_RELATIVE_PATH}`,
       // The task-statistics file is written by an `on_exit` handler in the
       // napi binding. In dev that handler only runs if the child process
@@ -120,9 +123,7 @@ const STATS_RELATIVE_PATH = '.next/warm-restart-task-stats.json'
         const missed = await readMissedTaskNames()
         expect(missed).toMatchInlineSnapshot(`
          [
-           "<dyn turbopack_core::version::VersionedContent>::update",
            "<turbopack_browser::ecmascript::list::content::EcmascriptDevChunkListContent as dyn turbopack_core::version::VersionedContent>::update",
-           "<turbopack_nodejs::ecmascript::node::content::EcmascriptBuildNodeChunkContent as dyn turbopack_core::version::VersionedContent>::update",
            "next_api::project::Project::hmr_update",
            "next_api::project::Project::hmr_version_state",
            "next_napi_bindings::next_api::project::hmr_update_with_issues_operation",

@@ -62,6 +62,30 @@ describe('config', () => {
     expect(config.onDemandEntries.maxInactiveAge).toBeDefined()
   })
 
+  it('Should configure the development memory threshold opt-out', async () => {
+    const defaultConfig = await loadConfig(
+      PHASE_DEVELOPMENT_SERVER,
+      '<rootDir>-memory-threshold-default',
+      {
+        customConfig: {},
+      }
+    )
+    expect(defaultConfig.experimental.devMemoryThresholdRestart).toBe(true)
+
+    const disabledConfig = await loadConfig(
+      PHASE_DEVELOPMENT_SERVER,
+      '<rootDir>-memory-threshold-disabled',
+      {
+        customConfig: {
+          experimental: {
+            devMemoryThresholdRestart: false,
+          },
+        },
+      }
+    )
+    expect(disabledConfig.experimental.devMemoryThresholdRestart).toBe(false)
+  })
+
   it('Should allow setting objects which do not have defaults', async () => {
     const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
       customConfig: {
@@ -249,6 +273,47 @@ describe('config', () => {
         }
       )
       expect(config.partialPrefetching).toBe(true)
+    })
+  })
+
+  describe('experimental.useCache config', () => {
+    it('Should throw when `useCache` is disabled while `cacheComponents` is enabled', async () => {
+      await expect(async () => {
+        await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>-uc-conflict', {
+          customConfig: {
+            cacheComponents: true,
+            experimental: { useCache: false },
+          },
+        })
+      }).rejects.toThrow(
+        /`experimental.useCache` cannot be disabled when `cacheComponents` is enabled/
+      )
+    })
+
+    it('Should accept `useCache: false` when `cacheComponents` is not enabled', async () => {
+      const config = await loadConfig(
+        PHASE_DEVELOPMENT_SERVER,
+        '<rootDir>-uc-off',
+        {
+          customConfig: {
+            experimental: { useCache: false },
+          },
+        }
+      )
+      expect(config.experimental.useCache).toBe(false)
+    })
+
+    it('Should backfill `useCache` from `cacheComponents` when it is not set', async () => {
+      const config = await loadConfig(
+        PHASE_DEVELOPMENT_SERVER,
+        '<rootDir>-uc-backfill',
+        {
+          customConfig: {
+            cacheComponents: true,
+          },
+        }
+      )
+      expect(config.experimental.useCache).toBe(true)
     })
   })
 })

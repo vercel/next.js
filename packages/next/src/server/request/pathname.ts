@@ -16,14 +16,14 @@ import {
   type PrerenderStorePPR,
 } from '../app-render/work-unit-async-storage.external'
 import {
-  makeHangingPromise,
+  makeDynamicHangingPromise,
+  makeFallbackParamsHangingPromise,
   RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
 export function createServerPathnameForMetadata(
-  underlyingPathname: string,
-  isRuntimePrefetchable: boolean
+  underlyingPathname: string
 ): Promise<string> {
   const workStore = workAsyncStorage.getStore()
   if (!workStore) {
@@ -65,17 +65,22 @@ export function createServerPathnameForMetadata(
         // (i.e. assuming that we have non-static params in the pathname)
         const { stagedRendering } = workUnitStore
         if (stagedRendering) {
-          const pathnameStages = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
-          const stage = isRuntimePrefetchable
-            ? pathnameStages.early
-            : pathnameStages.late
+          const pathnameStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
           return stagedRendering.delayUntilStage(
-            stage,
+            pathnameStage,
             undefined,
             underlyingPathname
           )
         } else {
-          return createRenderPathname(underlyingPathname)
+          if (workUnitStore.isSessionShell) {
+            return makeDynamicHangingPromise<string>(
+              workUnitStore.renderSignal,
+              workStore.route,
+              '`pathname`'
+            )
+          } else {
+            return createRenderPathname(underlyingPathname)
+          }
         }
       }
       case 'request':
@@ -100,10 +105,14 @@ function createPrerenderPathname(
     case 'prerender': {
       const fallbackParams = prerenderStore.fallbackRouteParams
       if (fallbackParams && fallbackParams.size > 0) {
-        return makeHangingPromise<string>(
+        // The pathname only hangs when there are fallback params, and a
+        // concrete (ISR-upgraded) prerender resolves it — so this access is
+        // fallback-param data for the static-prefetch hint.
+        return makeFallbackParamsHangingPromise<string>(
           prerenderStore.renderSignal,
           workStore.route,
-          '`pathname`'
+          '`pathname`',
+          prerenderStore
         )
       }
       break

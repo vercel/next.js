@@ -1197,6 +1197,8 @@ describe('Production Usage', () => {
     for (const script of $('script').toArray()) {
       // application/json doesn't need async
       if (
+        // Inline scripts (no `src`) can't be deferred.
+        !script.attribs.src ||
         script.attribs.type === 'application/json' ||
         script.attribs.src.includes('polyfills')
       ) {

@@ -1,0 +1,214 @@
+---
+title: Next.js encountered URL data outside of Suspense
+kind: insight
+---
+
+<div
+  style={{
+    padding: '1.25rem 1.5rem',
+    border: '1px solid var(--ds-gray-400)',
+    borderRadius: '12px',
+    background: 'var(--ds-background-200)',
+    margin: '1.5rem 0 2rem',
+    fontSize: '0.95rem',
+    lineHeight: '1.6',
+  }}
+>
+  This Insight is part of the [Instant
+  Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
+  introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
+  instant
+  navigations](https://preview.nextjs.org/docs/app/guides/instant-navigation)
+  guide for an overview of what instant navigations are and how Next.js
+  validates them, then come back here for the specific fix.
+</div>
+
+During a [client-side navigation](https://preview.nextjs.org/docs/app/glossary#client-side-navigation), a Server Component read [`params`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#params-optional) or [`searchParams`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#searchparams-optional) outside of a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary. With [Partial Prefetching](https://preview.nextjs.org/docs/app/glossary#partial-prefetching) enabled, Next.js extracts one [App Shell](https://preview.nextjs.org/docs/app/glossary#app-shell) from the route ahead of the click, so every link to it reuses the same prefetch instead of fetching a fresh one per URL.
+
+The `params` and `searchParams` props are [URL data](https://preview.nextjs.org/docs/app/glossary#url-data): they're specific to a single URL, so reading them outside a `<Suspense>` boundary ties the App Shell to one link. Next.js can no longer reuse it across links, and navigations to this route may not be instant.
+
+The check runs when you load the route and when you navigate to it. The App Shell itself is only used for client-side navigations: the initial load has its own validation against the route's [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell), where the same read surfaces as [runtime data during prerendering](/docs/messages/blocking-prerender-runtime). For URL data read through client hooks like [`useSearchParams`](https://preview.nextjs.org/docs/app/api-reference/functions/use-search-params), see [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook).
+
+## Ways to fix this
+
+<FixCardGrid>
+  <FixCard
+    group="stream"
+    title="Wrap in or move into Suspense"
+    href="#wrap-in-or-move-into-suspense"
+    snippets={[
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <Details params={params} />' },
+      { text: '</Suspense>', highlight: true },
+    ]}
+  />
+  <FixCard
+    group="block"
+    title="Allow blocking route"
+    href="#allow-blocking-route"
+    snippets={[
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'export const instant = false', highlight: true },
+    ]}
+  />
+</FixCardGrid>
+
+## Wrap in or move into Suspense
+
+Choose this fix when the URL-specific content can render after the navigation. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary keeps the read out of the App Shell, so every link still shares the same prefetch and only the wrapped region [streams](https://preview.nextjs.org/docs/app/glossary#streaming) in after the navigation.
+
+### Patterns
+
+#### Pass `searchParams` to a suspended child
+
+Don't await `params` or `searchParams` at the top of the route. Pass the promise to a child that reads it inside its own boundary, so the rest of the route stays in the shared prefetch.
+
+```jsx filename="app/dashboard/page.js"
+import { Suspense } from 'react'
+import { Results } from './results'
+
+export default function Page({ searchParams }) {
+  return (
+    <DashboardShell>
+      <DashboardHeader />
+      <Suspense fallback={<ResultsSkeleton />}>
+        <Results searchParams={searchParams} />
+      </Suspense>
+    </DashboardShell>
+  )
+}
+```
+
+```jsx filename="app/dashboard/results.js"
+export async function Results({ searchParams }) {
+  const { q } = await searchParams
+  const widgets = await searchWidgets(q)
+  return <WidgetList widgets={widgets} />
+}
+```
+
+Learn more: [`searchParams`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#searchparams-optional).
+
+#### Read `params` in the leaf that needs it
+
+When only a small piece of UI depends on the route param, move the read down to that leaf and wrap it. Everything above stays in the shared prefetch.
+
+```jsx filename="app/product/[id]/page.js"
+import { Suspense } from 'react'
+import { ProductDetails } from './product-details'
+
+export default function Page({ params }) {
+  return (
+    <ProductLayout>
+      <Suspense fallback={<DetailsSkeleton />}>
+        <ProductDetails params={params} />
+      </Suspense>
+    </ProductLayout>
+  )
+}
+```
+
+```jsx filename="app/product/[id]/product-details.js"
+export async function ProductDetails({ params }) {
+  const { id } = await params
+  const product = await getProduct(id)
+  return <Details product={product} />
+}
+```
+
+Learn more: [Streaming](https://preview.nextjs.org/docs/app/guides/streaming).
+
+### Trade-off
+
+The shared parts of the route are prefetched, and the URL-dependent region streams in after navigation, so the user sees a fallback for that region. Design the fallback so it approximates the final layout. A generic spinner causes a layout shift when content arrives. See [minimizing layout shift](https://preview.nextjs.org/docs/app/guides/streaming#cls-cumulative-layout-shift).
+
+### Gotchas
+
+- [`cookies()`](https://preview.nextjs.org/docs/app/api-reference/functions/cookies) and [`headers()`](https://preview.nextjs.org/docs/app/api-reference/functions/headers) don't trigger this error, even outside `<Suspense>`. They vary per session, not per link, so the App Shell stays reusable across links. The initial load's [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell) may still need them behind `<Suspense>`, and that requirement surfaces separately as [runtime data during prerendering](/docs/messages/blocking-prerender-runtime).
+- Making the route static with [`generateStaticParams`](https://preview.nextjs.org/docs/app/api-reference/functions/generate-static-params) does not resolve this error. A static param is still specific to one URL, so it can't be part of a prefetch shared across links.
+- The `params` and `searchParams` props are promises. Passing the promise down without awaiting it keeps the rest of the route in the shared prefetch. Awaiting it above the boundary pulls the URL data back in.
+
+## Allow blocking route
+
+Choose this fix when the route genuinely can't provide a shared App Shell — it needs the URL data high in the tree to decide what to render — and you accept that navigations to it won't be instant. Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` marks the segment as allowed to block: it renders per navigation instead of reusing a shared prefetch.
+
+### Patterns
+
+#### Opt the page out
+
+Add the export to the page that reads the URL data. Only that route blocks.
+
+```jsx filename="app/dashboard/page.js"
+export const instant = false
+
+export default async function Page({ searchParams }) {
+  const { q } = await searchParams
+  return <Results query={q} />
+}
+```
+
+Learn more: [Ensuring instant navigations](https://preview.nextjs.org/docs/app/guides/instant-navigation).
+
+#### Opt the layout out
+
+When a shared layout reads the URL data, set [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` on the layout. This allows that layout segment to block while descendant segments remain independently validated.
+
+```jsx filename="app/dashboard/layout.js"
+export const instant = false
+
+export default function DashboardLayout({ children }) {
+  return <DashboardShell>{children}</DashboardShell>
+}
+```
+
+Learn more: [Route segment `instant` config](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant).
+
+Use either pattern when:
+
+- The route genuinely needs the URL data high in the tree to decide what to render, so there's no shared part worth prefetching.
+- You're adopting Partial Prefetching incrementally and want to defer this route without changing how it renders today.
+
+For this error, allowing the route to block is rarely the right answer. The route reads a small piece of URL data, and a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary around that read keeps the rest of the route in the shared prefetch. Choose [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) when feasible.
+
+### Trade-off
+
+Navigations to this route are not instant. Without an App Shell, it renders per navigation instead of reusing a shared prefetch. Use this only when the route genuinely can't provide one.
+
+### Gotchas
+
+- Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` opts only the segment that exports it out. Descendant segments are still validated by the global default.
+- Allowing the route to block does not disable [Partial Prefetching](https://preview.nextjs.org/docs/app/glossary#partial-prefetching) or prefetching. It only exempts the segment from instant-navigation validation.
+- `instant = false` allows the route to block for all instant-navigation checks, not only this one. That includes [runtime data during prerendering](/docs/messages/blocking-prerender-runtime) errors and [unrendered segment](/docs/messages/instant-unrendered-segment) warnings for the route.
+
+## Verifying the fix
+
+After applying a fix, navigate to the route and confirm the insight no longer appears in the dev overlay and the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation. Depending on your [validation level](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults), the insight may only surface in development.
+
+In [`next dev`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated. Run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
+
+## Don't want this validation?
+
+Instant-navigation validation runs by default in [Cache Components](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
+
+- **One segment**: add [`export const instant = false`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
+- **Entire app**: set [`experimental.instantInsights.validationLevel`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
+
+See [Ensuring instant navigations](https://preview.nextjs.org/docs/app/guides/instant-navigation) for the full model.
+
+## Related Insights
+
+- [Runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
+- [Uncached data during prerendering](/docs/messages/blocking-prerender-dynamic)
+- [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook)
+- [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime)
+- [Uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic)
+- [Runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime)
+- [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic)
+- [`Math.random()` while prerendering](/docs/messages/blocking-prerender-random)
+- [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client)
+- [`Date.now()` while prerendering](/docs/messages/blocking-prerender-current-time)
+- [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
+- [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
+- [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
+- [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial)
+- [Unrendered segment](/docs/messages/instant-unrendered-segment)

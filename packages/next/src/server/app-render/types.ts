@@ -169,8 +169,7 @@ export interface RenderOptsPartial {
     authInterrupts: boolean
     serverComponentsHmrCancellation?: boolean
     useCacheTimeout: number
-    cachedNavigations: boolean | 'allow-runtime'
-    appShells: ExperimentalConfig['appShells']
+    cachedNavigations: boolean
 
     /**
      * The maximum size (in bytes) of the postponed state body for PPR resume
@@ -187,12 +186,6 @@ export interface RenderOptsPartial {
     exposeTestingApi: boolean
   }
   postponed?: string
-
-  /**
-   * Should wait for react stream allReady to resolve all suspense boundaries,
-   * in order to perform a full page render.
-   */
-  shouldWaitOnAllReady?: boolean
 
   /**
    * A prefilled resume data cache. This was either generated for this page

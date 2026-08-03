@@ -21,6 +21,9 @@ declare const _TURBOPACK_WORKER_BASE_PATH_: string | null
 
 type WorkerConstructor = new (url: URL, options?: object) => Worker
 
+// Mirrors the runtime's `ChunkData`.
+type WorkerChunkData = string | { path: string }
+
 /**
  * Creates a web worker by instantiating the given WorkerConstructor with the
  * appropriate URL and options.
@@ -39,7 +42,7 @@ type WorkerConstructor = new (url: URL, options?: object) => Worker
 function createWorker(
   WorkerConstructor: WorkerConstructor,
   entrypoint: string,
-  moduleChunks: string[],
+  moduleChunks: WorkerChunkData[],
   workerOptions?: object
 ): Worker {
   const isSharedWorker = WorkerConstructor.name === 'SharedWorker'
@@ -52,7 +55,12 @@ function createWorker(
     _TURBOPACK_WORKER_BASE_PATH_ ?? __turbopack_chunk_base_path__
 
   const chunkUrls = moduleChunks
-    .map((chunk) => __turbopack_chunk_relative_url__(chunk, workerBasePath))
+    .map((chunk) =>
+      __turbopack_chunk_relative_url__(
+        typeof chunk === 'string' ? chunk : chunk.path,
+        workerBasePath
+      )
+    )
     .reverse()
   const params: unknown[] = [chunkUrls, __turbopack_chunk_asset_suffix__]
   const globals = _TURBOPACK_WORKER_FORWARDED_GLOBALS_
@@ -85,7 +93,7 @@ function createWorker(
  */
 export default function generateCreateWorker(
   entrypoint: string,
-  moduleChunks: string[]
+  moduleChunks: WorkerChunkData[]
 ) {
   return (
     WorkerConstructor: { new (url: URL, options?: object): Worker },
