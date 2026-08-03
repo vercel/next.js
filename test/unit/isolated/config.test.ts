@@ -275,4 +275,45 @@ describe('config', () => {
       expect(config.partialPrefetching).toBe(true)
     })
   })
+
+  describe('experimental.useCache config', () => {
+    it('Should throw when `useCache` is disabled while `cacheComponents` is enabled', async () => {
+      await expect(async () => {
+        await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>-uc-conflict', {
+          customConfig: {
+            cacheComponents: true,
+            experimental: { useCache: false },
+          },
+        })
+      }).rejects.toThrow(
+        /`experimental.useCache` cannot be disabled when `cacheComponents` is enabled/
+      )
+    })
+
+    it('Should accept `useCache: false` when `cacheComponents` is not enabled', async () => {
+      const config = await loadConfig(
+        PHASE_DEVELOPMENT_SERVER,
+        '<rootDir>-uc-off',
+        {
+          customConfig: {
+            experimental: { useCache: false },
+          },
+        }
+      )
+      expect(config.experimental.useCache).toBe(false)
+    })
+
+    it('Should backfill `useCache` from `cacheComponents` when it is not set', async () => {
+      const config = await loadConfig(
+        PHASE_DEVELOPMENT_SERVER,
+        '<rootDir>-uc-backfill',
+        {
+          customConfig: {
+            cacheComponents: true,
+          },
+        }
+      )
+      expect(config.experimental.useCache).toBe(true)
+    })
+  })
 })

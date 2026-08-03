@@ -44,6 +44,20 @@ describe('use-cache', () => {
     )
   })
 
+  it('should warn that the `experimental.useCache` config option is deprecated', async () => {
+    // The fixture enables `experimental.useCache`, so the warning is emitted
+    // when the server loads the config, shortly after it reports readiness.
+    // Which of the two variants is printed depends on whether `cacheComponents`
+    // already enables the directive.
+    await retry(async () => {
+      expect(stripAnsi(next.cliOutput)).toContain(
+        withCacheComponents
+          ? '`experimental.useCache` is no longer needed, because `cacheComponents` already enables the `"use cache"` directive. You can remove it from next.config.js.'
+          : '`experimental.useCache` is deprecated. Please use the top-level `cacheComponents` option instead in next.config.js.'
+      )
+    })
+  })
+
   it('should cache results', async () => {
     const browser = await next.browser(`/?n=1`)
     expect(await browser.waitForElementByCss('#x').text()).toBe('1')
