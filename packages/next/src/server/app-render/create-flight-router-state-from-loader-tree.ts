@@ -9,14 +9,41 @@ import type { GetDynamicParamFromSegment } from './app-render'
 import { addSearchParamsIfPageSegment } from '../../shared/lib/segment'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 
+export type MissingPrefetchHintPolicy =
+  | 'mark-stale'
+  | 'disable-prefetching'
+  | 'none'
+
+/**
+ * Selects the client fallback when prefetch inlining is enabled but no hint
+ * tree is available.
+ */
+export function getMissingPrefetchHintPolicy(
+  isBuildTimePrerendering: boolean,
+  isPrerendering: boolean,
+  cacheComponents: boolean
+): MissingPrefetchHintPolicy {
+  if (isBuildTimePrerendering) {
+    return 'mark-stale'
+  }
+
+  if (isPrerendering || cacheComponents) {
+    // TODO(#91407): Runtime prerenders should always have hints from the
+    // manifest. Until that is guaranteed, disable prefetching when they are
+    // missing. Fully dynamic Cache Components routes have no manifest entry,
+    // so disabling prefetching is their permanent fallback.
+    return 'disable-prefetching'
+  }
+
+  return 'none'
+}
+
 async function createFlightRouterStateFromLoaderTreeImpl(
   loaderTree: LoaderTree,
   hintTree: PrefetchHints | null,
   prefetchInliningEnabled: boolean,
-  cacheComponents: boolean,
+  missingPrefetchHintPolicy: MissingPrefetchHintPolicy,
   partialPrefetching: boolean | 'unstable_eager' | undefined,
-  isStaticGeneration: boolean,
-  isBuildTimePrerendering: boolean,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   searchParams: any,
   didFindRootLayout: boolean
@@ -58,34 +85,25 @@ async function createFlightRouterStateFromLoaderTreeImpl(
   if (hintTree !== null) {
     prefetchHints |= hintTree.hints
   } else if (prefetchInliningEnabled) {
-    if (isBuildTimePrerendering) {
+    if (missingPrefetchHintPolicy === 'mark-stale') {
       // Prefetch inlining is enabled but no hint tree was provided during a
       // build-time prerender. This happens for the initial RSC payload
       // generated before collectPrefetchHints has run. Mark so the client
       // can expire the route cache entry and re-fetch the tree with correct
       // hints.
       prefetchHints |= PrefetchHint.InliningHintsStale
-    } else if (isStaticGeneration) {
-      // TODO(#91407): Temporary mitigation: when hints are missing during
-      // runtime static generation, fall back to treating every segment as
-      // unprefetchable. This currently happens for routes with
-      // `instant = false` at the root segment, which causes the prerender
-      // to run per-request instead of being cached, and the prefetch hints
-      // manifest is not available.
-      //
-      // Once that bug is fixed, this branch should become an error again —
-      // hints should always be available from the manifest during ISR.
-      prefetchHints |= PrefetchHint.PrefetchDisabled
-    } else if (cacheComponents) {
-      // At runtime with no hint tree, this is a fully dynamic route with no
-      // manifest entry. Treat every segment as unprefetchable. Do NOT set
-      // InliningHintsStale — that would cause the client to enter an
-      // infinite re-fetch loop trying to get hints that will never exist.
+    } else if (missingPrefetchHintPolicy === 'disable-prefetching') {
+      // At runtime with no hint tree, treat every segment as unprefetchable.
+      // This covers both runtime static generation, where a manifest entry
+      // should exist but may be missing, and fully dynamic Cache Components
+      // routes, which never have a manifest entry. Do NOT set
+      // InliningHintsStale because the latter would enter an infinite
+      // re-fetch loop trying to get hints that will never exist.
       prefetchHints |= PrefetchHint.PrefetchDisabled
     } else {
-      // Without cacheComponents, dynamic pages have no static shell so
-      // hints are never computed. Don't disable prefetching — just skip
-      // the inlining hint system and let prefetching proceed normally.
+      // Dynamic pages without Cache Components have no static shell, so hints
+      // are never computed. Don't disable prefetching — just skip the inlining
+      // hint system and let prefetching proceed normally.
     }
   }
 
@@ -142,10 +160,8 @@ async function createFlightRouterStateFromLoaderTreeImpl(
       parallelRoutes[parallelRouteKey],
       childHintNode,
       prefetchInliningEnabled,
-      cacheComponents,
+      missingPrefetchHintPolicy,
       partialPrefetching,
-      isStaticGeneration,
-      isBuildTimePrerendering,
       getDynamicParamFromSegment,
       searchParams,
       didFindRootLayout
@@ -169,10 +185,8 @@ export async function createFlightRouterStateFromLoaderTree(
   loaderTree: LoaderTree,
   hintTree: PrefetchHints | null,
   prefetchInliningEnabled: boolean,
-  cacheComponents: boolean,
+  missingPrefetchHintPolicy: MissingPrefetchHintPolicy,
   partialPrefetching: boolean | 'unstable_eager' | undefined,
-  isStaticGeneration: boolean,
-  isBuildTimePrerendering: boolean,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   searchParams: any,
   // Whether a root layout was already found above this loader tree slice, so a
@@ -184,10 +198,8 @@ export async function createFlightRouterStateFromLoaderTree(
     loaderTree,
     hintTree,
     prefetchInliningEnabled,
-    cacheComponents,
+    missingPrefetchHintPolicy,
     partialPrefetching,
-    isStaticGeneration,
-    isBuildTimePrerendering,
     getDynamicParamFromSegment,
     searchParams,
     didFindRootLayout
@@ -198,10 +210,8 @@ export async function createRouteTreePrefetch(
   loaderTree: LoaderTree,
   hintTree: PrefetchHints | null,
   prefetchInliningEnabled: boolean,
-  cacheComponents: boolean,
+  missingPrefetchHintPolicy: MissingPrefetchHintPolicy,
   partialPrefetching: boolean | 'unstable_eager' | undefined,
-  isStaticGeneration: boolean,
-  isBuildTimePrerendering: boolean,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   // See note on createFlightRouterStateFromLoaderTree's didFindRootLayout.
   didFindRootLayout: boolean = false
@@ -214,10 +224,8 @@ export async function createRouteTreePrefetch(
     loaderTree,
     hintTree,
     prefetchInliningEnabled,
-    cacheComponents,
+    missingPrefetchHintPolicy,
     partialPrefetching,
-    isStaticGeneration,
-    isBuildTimePrerendering,
     getDynamicParamFromSegment,
     searchParams,
     didFindRootLayout

@@ -127,7 +127,11 @@ import { dynamicParamTypes } from './get-short-dynamic-param-type'
 import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param'
 import { getScriptNonceFromHeader } from './get-script-nonce-from-header'
 import { parseAndValidateFlightRouterState } from './parse-and-validate-flight-router-state'
-import { createFlightRouterStateFromLoaderTree } from './create-flight-router-state-from-loader-tree'
+import {
+  createFlightRouterStateFromLoaderTree,
+  getMissingPrefetchHintPolicy,
+  type MissingPrefetchHintPolicy,
+} from './create-flight-router-state-from-loader-tree'
 import { handleAction } from './action-handler'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { warn, error } from '../../build/output/log'
@@ -353,6 +357,7 @@ export type AppSharedContext = {
 export type AppRenderContext = {
   sharedContext: AppSharedContext
   workStore: WorkStore
+  missingPrefetchHintPolicy: MissingPrefetchHintPolicy
   url: ReturnType<typeof parseRelativeUrl>
   componentMod: AppPageModule
   renderOpts: RenderOpts
@@ -2098,10 +2103,8 @@ async function getRSCPayload(
     tree,
     hints,
     prefetchInliningEnabled,
-    ctx.renderOpts.cacheComponents,
+    ctx.missingPrefetchHintPolicy,
     ctx.renderOpts.partialPrefetching,
-    workStore.executionMode === 'prerender',
-    ctx.renderOpts.isBuildTimePrerendering ?? false,
     getDynamicParamFromSegment,
     query
   )
@@ -2302,10 +2305,8 @@ async function getErrorRSCPayload(
     tree,
     errorHints,
     errorPrefetchInliningEnabled,
-    ctx.renderOpts.cacheComponents,
+    ctx.missingPrefetchHintPolicy,
     ctx.renderOpts.partialPrefetching,
-    workStore.executionMode === 'prerender',
-    ctx.renderOpts.isBuildTimePrerendering ?? false,
     getDynamicParamFromSegment,
     query
   )
@@ -2773,6 +2774,11 @@ async function renderToHTMLOrFlightImpl(
     url,
     renderOpts,
     workStore,
+    missingPrefetchHintPolicy: getMissingPrefetchHintPolicy(
+      renderOpts.isBuildTimePrerendering ?? false,
+      isStaticGeneration,
+      renderOpts.cacheComponents
+    ),
     parsedRequestHeaders,
     getDynamicParamFromSegment,
     interpolatedParams,
@@ -7963,6 +7969,11 @@ async function validateInstantConfigInBuildWithSample(
       url: sampleUrlWithoutQuery,
       renderOpts: outerCtx.renderOpts,
       workStore,
+      missingPrefetchHintPolicy: getMissingPrefetchHintPolicy(
+        outerCtx.renderOpts.isBuildTimePrerendering ?? false,
+        false,
+        outerCtx.renderOpts.cacheComponents
+      ),
       parsedRequestHeaders: outerCtx.parsedRequestHeaders,
       getDynamicParamFromSegment,
       interpolatedParams: sampleParams,
