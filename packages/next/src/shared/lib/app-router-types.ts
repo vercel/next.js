@@ -187,10 +187,10 @@ export const enum PrefetchHint {
   // considering caches populated by older builds.
 
   // This segment or one of its descendants opts into Partial Prefetching, i.e.
-  // uses the two-phase (Shell then Speculative) prefetch flow. Set when a
-  // truthy instant config is present, or `prefetch` is 'partial' or
-  // 'unstable_eager'. Propagates upward so the root segment reflects the
-  // entire subtree.
+  // uses the two-phase (Shell then Speculative) prefetch flow. Set when
+  // `prefetch` is 'partial' or 'unstable_eager' (including the defaults
+  // implied by the global `partialPrefetching` config). Propagates upward so
+  // the root segment reflects the entire subtree.
   //
   // Partial Prefetching segments require RUNTIME COMPLETENESS: a prefetch
   // isn't considered done for such a segment until an entry at least as
