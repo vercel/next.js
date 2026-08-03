@@ -695,7 +695,7 @@ export async function continueFizzStream(
   {
     suffix,
     inlinedDataStream,
-    isStaticGeneration,
+    waitForAllReady,
     allReady,
     deploymentId,
     getServerInsertedHTML,
@@ -706,7 +706,7 @@ export async function continueFizzStream(
   // Suffix itself might contain close tags at the end, so we need to split it.
   const suffixUnclosed = suffix ? suffix.split(CLOSE_TAG, 1)[0] : null
 
-  if (isStaticGeneration) {
+  if (waitForAllReady) {
     if (allReady) {
       await allReady
     }

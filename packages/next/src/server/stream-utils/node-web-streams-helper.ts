@@ -910,7 +910,7 @@ export function chainTransformers<T>(
 
 export type ContinueStreamOptions = {
   inlinedDataStream: ReadableStream<Uint8Array> | undefined
-  isStaticGeneration: boolean
+  waitForAllReady: boolean
   deploymentId: string | undefined
   getServerInsertedHTML: () => Promise<string>
   getServerInsertedMetadata: () => Promise<string>
@@ -926,7 +926,7 @@ export async function continueFizzStream(
   {
     suffix,
     inlinedDataStream,
-    isStaticGeneration,
+    waitForAllReady,
     deploymentId,
     getServerInsertedHTML,
     getServerInsertedMetadata,
@@ -936,8 +936,8 @@ export async function continueFizzStream(
   // Suffix itself might contain close tags at the end, so we need to split it.
   const suffixUnclosed = suffix ? suffix.split(CLOSE_TAG, 1)[0] : null
 
-  if (isStaticGeneration) {
-    // If we're generating static HTML we need to wait for it to resolve before continuing.
+  if (waitForAllReady) {
+    // Wait for all Suspense boundaries to resolve before continuing.
     await renderStream.allReady
   } else {
     // Otherwise, we want to make sure Fizz is done with all microtasky work
