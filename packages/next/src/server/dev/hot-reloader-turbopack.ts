@@ -816,6 +816,7 @@ export async function createHotReloaderTurbopack(
   function sendServerComponentChanges() {
     sendHmr('server-component-changes', {
       type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+      hmrRefreshHash: String(hmrHash),
     })
   }
 
@@ -1592,6 +1593,9 @@ export async function createHotReloaderTurbopack(
             errors,
             warnings: [],
             hash: '',
+            // The generation the connecting document must be on to be running
+            // current code. See `SyncMessage.hmrRefreshHash`.
+            hmrRefreshHash: String(hmrHash),
             versionInfo,
             debug: {
               devtoolsFrontendUrl,
@@ -1777,6 +1781,7 @@ export async function createHotReloaderTurbopack(
         await clearAllModuleContexts()
         this.send({
           type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+          hmrRefreshHash: String(hmrHash),
         })
       }
     },
@@ -2073,6 +2078,10 @@ export async function createHotReloaderTurbopack(
               // compilation is not itself an edit, and this hash is not
               // consumed by the Turbopack client.
               hash: String(hmrHash),
+              // The generation this compilation left the server on, so a
+              // browser that applied the update in place stays in sync and
+              // isn't later told its code is stale.
+              hmrRefreshHash: String(hmrHash),
               errors: [...clientErrors.values()],
               warnings: [],
             })
@@ -2113,6 +2122,7 @@ export async function createHotReloaderTurbopack(
     if (hasCompilationErrors()) return
     hotReloader.send({
       type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+      hmrRefreshHash: String(hmrHash),
     })
   }
 

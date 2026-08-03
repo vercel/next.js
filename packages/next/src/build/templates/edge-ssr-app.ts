@@ -33,7 +33,7 @@ import { checkIsOnDemandRevalidate } from '../../server/api-utils'
 import { CloseController } from '../../server/web/web-on-close'
 import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit'
 import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
-import type { RequestMeta } from '../../server/request-meta'
+import { addRequestMeta, type RequestMeta } from '../../server/request-meta'
 
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:incrementalCacheHandler
@@ -64,6 +64,17 @@ async function requestHandler(
   const relativeUrl = `${req.nextUrl.pathname}${req.nextUrl.search}`
   const baseReq = new WebNextRequest(req)
   const baseRes = new WebNextResponse(undefined)
+
+  // The edge request is rebuilt from HTTP data alone, so the dev server's
+  // server-components generation arrives as a sandbox global rather than as
+  // request metadata (see `server/web/sandbox/sandbox.ts`). Put it back on the
+  // request so the render embeds it in the document like a Node render does.
+  if (process.env.NODE_ENV === 'development') {
+    const hmrRefreshHash = (globalThis as any).__hmrRefreshHash
+    if (typeof hmrRefreshHash === 'string') {
+      addRequestMeta(baseReq, 'hmrRefreshHash', hmrRefreshHash)
+    }
+  }
 
   const pageRouteModule = pageMod.routeModule as AppPageRouteModule
   const prepareResult = await pageRouteModule.prepare(baseReq, null, {

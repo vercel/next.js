@@ -4,10 +4,12 @@ import { getSocketUrl } from '../get-socket-url'
 import {
   HMR_MESSAGE_SENT_TO_BROWSER,
   type HmrMessageSentToBrowser,
+  type SyncMessage,
   type TurbopackMessageSentToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
 import { reportInvalidHmrMessage } from '../shared'
 import {
+  isClientBundleOutdated,
   performFullReload,
   processMessage,
   type StaticIndicatorState,
@@ -20,6 +22,21 @@ let reconnections = 0
 let reloading = false
 let serverSessionId: number | null = null
 let mostRecentCompilationHash: string | null = null
+
+/**
+ * The server-components generation the code this document is executing belongs
+ * to. Seeded from the value the server embedded in the document
+ * (`self.__next_hmr_refresh_hash`), then kept current as the page applies
+ * updates in place: `built` and `server-component-changes` both report the
+ * generation they left the server on.
+ *
+ * When the socket (re)connects, `sync` reports the server's current generation.
+ * If it differs from this one, the page is executing code that has since been
+ * recompiled and can only recover with a full reload — see
+ * `isRunningOutdatedCode`.
+ */
+let currentRefreshHash: string | undefined =
+  typeof self === 'undefined' ? undefined : self.__next_hmr_refresh_hash
 
 export function createWebSocket(
   assetPrefix: string,
@@ -104,6 +121,32 @@ export function createWebSocket(
           mostRecentCompilationHash = message.hash
         }
 
+        // The page may be executing code that the server has already
+        // recompiled — most commonly because the browser restored this document
+        // from its HTTP cache (or from the bfcache) on a back/forward
+        // navigation, which re-runs the cached scripts without consulting the
+        // server. HMR can't repair that: it only pushes the edits made while a
+        // page was connected, so edits made while this document was away are
+        // never replayed. Reload instead.
+        if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.SYNC) {
+          if (isRunningOutdatedCode(message)) {
+            window.location.reload()
+            reloading = true
+            return
+          }
+        } else if (
+          message.type === HMR_MESSAGE_SENT_TO_BROWSER.BUILT ||
+          message.type === HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES
+        ) {
+          // The page is being brought up to date in place, so record the
+          // generation it is moving to. Without this, the next `sync` would see
+          // a newer server generation and reload a page that is already
+          // current.
+          if (message.hmrRefreshHash !== undefined) {
+            currentRefreshHash = message.hmrRefreshHash
+          }
+        }
+
         processMessage(
           message,
           sendMessage,
@@ -165,6 +208,36 @@ export function createWebSocket(
   window.addEventListener('online', handleOnlineEvent)
 
   return init()
+}
+
+/**
+ * Whether the code this page is executing predates what the server has now.
+ *
+ * The authoritative signal is the server-components generation: the server
+ * embeds the current one in every document it renders, and reports the current
+ * one on `sync`. A restored document re-runs cached scripts, so it carries the
+ * generation from whenever it was first rendered — if that no longer matches,
+ * the module graph the page is running has been recompiled since.
+ *
+ * Either side can be missing a generation — webpack has none until its first
+ * server-components recompile. Absent a generation there is nothing to compare,
+ * so the page is left alone rather than reloaded on a guess.
+ *
+ * That leaves webpack's client-only edits, which never advance the generation.
+ * The loaded bundle's own compilation hash covers those. It is only meaningful
+ * when the compilation succeeded — a failing compile reports the *server*
+ * compiler's stats on `sync`, whose hash never matches the client bundle.
+ */
+function isRunningOutdatedCode(message: SyncMessage): boolean {
+  if (
+    currentRefreshHash !== undefined &&
+    message.hmrRefreshHash !== undefined &&
+    message.hmrRefreshHash !== currentRefreshHash
+  ) {
+    return true
+  }
+
+  return message.errors.length === 0 && isClientBundleOutdated(message.hash)
 }
 
 export function createProcessTurbopackMessage(

@@ -74,6 +74,12 @@ declare global {
      * request ID, dev-only
      */
     __next_r?: string
+    /**
+     * The server-components generation this document was rendered against,
+     * dev-only. Compared against the server's current generation when the HMR
+     * socket (re)connects; see `client/dev/hot-reloader/app/web-socket.ts`.
+     */
+    __next_hmr_refresh_hash?: string
     __next_f: NextFlight
   }
 }

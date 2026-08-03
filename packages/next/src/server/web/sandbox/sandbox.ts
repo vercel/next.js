@@ -37,6 +37,12 @@ interface RunnerFnParams {
   distDir: string
   incrementalCache?: any
   serverComponentsHmrCache?: ServerComponentsHmrCache
+  /**
+   * The dev server's current server-components generation. Request metadata
+   * doesn't cross into the sandbox — the edge request is rebuilt from HTTP data
+   * alone — so it is handed over as a global, like `serverComponentsHmrCache`.
+   */
+  hmrRefreshHash?: string
   clientAssetToken: string
 }
 
@@ -95,6 +101,10 @@ export async function getRuntimeContext(
   if (params.serverComponentsHmrCache) {
     runtime.context.globalThis.__serverComponentsHmrCache =
       params.serverComponentsHmrCache
+  }
+
+  if (params.hmrRefreshHash !== undefined) {
+    runtime.context.globalThis.__hmrRefreshHash = params.hmrRefreshHash
   }
 
   if (params.clientAssetToken) {

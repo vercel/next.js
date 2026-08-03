@@ -82,6 +82,15 @@ export interface CompilationError {
 export interface SyncMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.SYNC
   hash: string
+  /**
+   * The server-components generation the server is currently on, i.e. the value
+   * `getServerComponentsHmrRefreshHash()` returns. The browser compares it
+   * against the generation embedded in its document
+   * (`self.__next_hmr_refresh_hash`) to find out whether the code it is
+   * executing has since been recompiled. Undefined when the bundler has no
+   * generation yet.
+   */
+  hmrRefreshHash: string | undefined
   errors: ReadonlyArray<CompilationError>
   warnings: ReadonlyArray<CompilationError>
   versionInfo: VersionInfo
@@ -95,6 +104,12 @@ export interface SyncMessage {
 export interface BuiltMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.BUILT
   hash: string
+  /**
+   * The server-components generation reached by this compilation. See
+   * `SyncMessage.hmrRefreshHash`; the browser tracks it so an update it applied
+   * in place isn't later mistaken for stale code.
+   */
+  hmrRefreshHash: string | undefined
   errors: ReadonlyArray<CompilationError>
   warnings: ReadonlyArray<CompilationError>
   updatedModules?: ReadonlyArray<string>
@@ -117,6 +132,12 @@ export interface ReloadPageMessage {
 
 export interface ServerComponentChangesMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES
+  /**
+   * The server-components generation this change advanced the server to. See
+   * `SyncMessage.hmrRefreshHash`; the browser tracks it so the refresh it is
+   * about to perform isn't later mistaken for stale code.
+   */
+  hmrRefreshHash: string | undefined
 }
 
 /**

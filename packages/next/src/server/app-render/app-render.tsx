@@ -3255,6 +3255,41 @@ type RSCInitialPayloadPartialDev = {
   c?: InitialRSCPayload['c']
 }
 
+/**
+ * The globals a development document must carry for the HMR client, evaluated
+ * before the bootstrap script:
+ *
+ * - `self.__next_r` — this document's request ID, read during hydration to
+ *   attach the debug channel to the matching HMR stream. For MPA navigations
+ *   (page reload, direct URL entry) there is no request ID header, so we
+ *   generate a random one.
+ * - `self.__next_hmr_refresh_hash` — the server-components generation this
+ *   document was rendered against. The HMR client compares it against the
+ *   server's current generation when the socket (re)connects; a mismatch means
+ *   the document is executing code that has since been recompiled, so it
+ *   recovers with a single reload. This is how a document the browser restored
+ *   from its HTTP cache (or from the bfcache) on a back/forward navigation
+ *   notices that it is stale — such a restore re-runs the cached scripts
+ *   without asking the server for anything. Omitted when no generation is
+ *   available — webpack reports one only from the first server-components
+ *   recompile onwards — in which case the client skips the comparison rather
+ *   than reloading on a guess.
+ */
+function getDevBootstrapScriptContent(
+  requestId: string | undefined,
+  hmrRefreshHash: string | undefined
+): string {
+  let content = `self.__next_r=${JSON.stringify(
+    requestId ?? crypto.randomUUID()
+  )}`
+
+  if (hmrRefreshHash !== undefined) {
+    content += `;self.__next_hmr_refresh_hash=${JSON.stringify(hmrRefreshHash)}`
+  }
+
+  return content
+}
+
 async function renderToStream(
   requestStore: RequestStore,
   req: BaseNextRequest,
@@ -3335,15 +3370,15 @@ async function renderToStream(
     page
   )
 
-  // In development mode, set the request ID as a global variable, before the
-  // bootstrap script is executed, which depends on it during hydration.
-  // For MPA navigations (page reload, direct URL entry), the request ID
-  // header is not present, so we generate a random one.
+  // In development mode, set the request ID and the server-components
+  // generation as global variables, before the bootstrap script is executed,
+  // which depends on the request ID during hydration.
   let bootstrapScriptContent: string | undefined
   if (process.env.__NEXT_DEV_SERVER) {
-    bootstrapScriptContent = `self.__next_r=${JSON.stringify(
-      requestId ?? crypto.randomUUID()
-    )}`
+    bootstrapScriptContent = getDevBootstrapScriptContent(
+      requestId,
+      getRequestMeta(req, 'hmrRefreshHash')
+    )
   } else if (
     buildManifest.pagesChunkGroupBootstrapParams &&
     buildManifest.chunkLoadingGlobal
@@ -8339,13 +8374,18 @@ async function prerenderToStream(
   }
 
   // In development the static shell is served without a dynamic resume, so it
-  // must carry the debug-channel request id (self.__next_r) itself for
-  // app-index to initialize the HMR/debug channel. renderToStream provides this
-  // for dynamic renders; prepend it here so it runs before the bootstrap
-  // module.
+  // must carry the debug-channel request id (self.__next_r) and the
+  // server-components generation (self.__next_hmr_refresh_hash) itself for
+  // app-index to initialize the HMR/debug channel. renderToStream provides
+  // these for dynamic renders; prepend them here so they run before the
+  // bootstrap module.
   if (process.env.__NEXT_DEV_SERVER && bootstrapScriptContent) {
     bootstrapScriptContent =
-      `self.__next_r=${JSON.stringify(ctx.requestId ?? crypto.randomUUID())};` +
+      getDevBootstrapScriptContent(
+        ctx.requestId,
+        getRequestMeta(req, 'hmrRefreshHash')
+      ) +
+      ';' +
       bootstrapScriptContent
   }
 

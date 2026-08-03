@@ -435,6 +435,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.serverComponentsHmrRefreshHash = hash
     this.send({
       type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+      // The generation this change advanced the server to, so a browser that
+      // refreshes in place stays in sync and isn't later told its code is
+      // stale.
+      hmrRefreshHash: hash,
       // TODO: granular reloading of changes
       // entrypoints: serverComponentChanges,
     })
@@ -1614,7 +1618,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       this.versionInfo,
       this.devtoolsFrontendUrl,
       this.config,
-      initialDevToolsConfig
+      initialDevToolsConfig,
+      () => this.getServerComponentsHmrRefreshHash()
     )
 
     let booted = false

@@ -88,7 +88,13 @@ export class WebpackHotMiddleware {
     private versionInfo: VersionInfo,
     private devtoolsFrontendUrl: string | undefined,
     private config: NextConfigComplete,
-    private devToolsConfig: DevToolsConfig
+    private devToolsConfig: DevToolsConfig,
+    /**
+     * Reads the hot reloader's current server-components generation, forwarded
+     * to the browser on the `sync` event so a document can tell whether the
+     * code it is executing has since been recompiled.
+     */
+    private getServerComponentsHmrRefreshHash: () => string | undefined
   ) {
     compilers[0].hooks.invalid.tap(
       'webpack-hot-middleware',
@@ -200,6 +206,9 @@ export class WebpackHotMiddleware {
       this.publish({
         type: HMR_MESSAGE_SENT_TO_BROWSER.SYNC,
         hash: stats.hash!,
+        // The generation the connecting document must be on to be running
+        // current code. See `SyncMessage.hmrRefreshHash`.
+        hmrRefreshHash: this.getServerComponentsHmrRefreshHash(),
         errors: [...(stats.errors || []), ...(middlewareStats.errors || [])],
         warnings: [
           ...(stats.warnings || []),
@@ -231,6 +240,12 @@ export class WebpackHotMiddleware {
     this.publish({
       type: HMR_MESSAGE_SENT_TO_BROWSER.BUILT,
       hash: stats.hash!,
+      // A server-components recompile updates the generation from the
+      // multi-compiler's `done` hook, which runs after this one, so the value
+      // here can lag by a compilation. `server-component-changes`, sent at the
+      // moment the generation actually advances, is what keeps the browser in
+      // sync; this is only a best-effort snapshot.
+      hmrRefreshHash: this.getServerComponentsHmrRefreshHash(),
       warnings: stats.warnings || [],
       errors: stats.errors || [],
     })

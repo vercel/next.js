@@ -2093,6 +2093,7 @@ export default class NextNodeServer extends BaseServer<
         params.req,
         'serverComponentsHmrCache'
       ),
+      hmrRefreshHash: getRequestMeta(params.req, 'hmrRefreshHash'),
       clientAssetToken: this.nextConfig.supportsImmutableAssets
         ? ''
         : this.deploymentId,
