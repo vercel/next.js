@@ -171,6 +171,7 @@ impl Task for TransformTask {
                             options.swc.unresolved_mark = Some(unresolved_mark);
                             options.swc.runtime_options =
                                 RuntimeOptions::default().plugin_runtime(Arc::new(WasmtimeRuntime));
+
                             let cm = self.c.cm.clone();
                             let file = fm.clone();
 
