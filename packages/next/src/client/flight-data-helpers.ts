@@ -112,7 +112,10 @@ export function createInitialRSCPayloadFromFallbackPrerender(
         ),
         originalFlightDataPath[1],
         originalFlightDataPath[2],
-        originalFlightDataPath[2],
+        // isHeadPartial. Previously this incorrectly passed the head itself
+        // (index 2), which is truthy, so the head was always treated
+        // as partial.
+        originalFlightDataPath[3],
       ],
     ],
     m: fallbackInitialRSCPayload.m,

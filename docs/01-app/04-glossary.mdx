@@ -12,7 +12,7 @@ The Next.js router introduced in version 13, built on top of React Server Compon
 
 ## App Shell
 
-A per-route prerender containing the parts of a page that don't depend on URL data. Routes that read `cookies()` or `headers()` produce one that also includes session data, cached per session on the client. Used as the prefetch payload during client navigations, the loading state during [runtime prefetching](/docs/app/guides/runtime-prefetching), and the fallback for [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components).
+A per-route prerender containing the parts of a page that don't depend on URL data. Cached content is included when its [`stale`](/docs/app/api-reference/functions/cacheLife#stale) time is at least 5 minutes, since the shell is reused for longer than shorter-lived content stays fresh. Routes that read `cookies()` or `headers()` produce one that also includes session data, cached per session on the client. Used as the prefetch payload during client navigations, the loading state during [runtime prefetching](/docs/app/guides/runtime-prefetching), and the fallback for [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components).
 
 # B
 

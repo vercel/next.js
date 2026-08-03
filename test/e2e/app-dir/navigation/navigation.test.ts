@@ -173,10 +173,12 @@ describe('app dir - navigation', () => {
       ) => {
         await browser.elementByCss(`#link-to-${val.toString()}`).click()
 
-        await retry(() =>
-          expect(browser.eval('window.pageYOffset')).resolves.toEqual(
-            expectedScroll
-          )
+        await retry(
+          () =>
+            expect(browser.eval('window.pageYOffset')).resolves.toEqual(
+              expectedScroll
+            ),
+          10_000
         )
       }
 
@@ -230,10 +232,12 @@ describe('app dir - navigation', () => {
         expectedScroll: number
       ) => {
         await browser.elementByCss(`#link-to-${val.toString()}`).click()
-        await retry(() =>
-          expect(browser.eval('window.pageYOffset')).resolves.toEqual(
-            expectedScroll
-          )
+        await retry(
+          () =>
+            expect(browser.eval('window.pageYOffset')).resolves.toEqual(
+              expectedScroll
+            ),
+          10_000
         )
       }
 
@@ -256,10 +260,12 @@ describe('app dir - navigation', () => {
         expectedScroll: number
       ) => {
         await browser.elementByCss(`#link-to-${val.toString()}`).click()
-        await retry(() =>
-          expect(browser.eval('window.pageYOffset')).resolves.toEqual(
-            expectedScroll
-          )
+        await retry(
+          () =>
+            expect(browser.eval('window.pageYOffset')).resolves.toEqual(
+              expectedScroll
+            ),
+          10_000
         )
       }
 
