@@ -986,6 +986,17 @@ impl TaskStorage {
             && self.gc_parent_count() == 0
             && self.gc_transient_ref_count() > 0
     }
+
+    /// Whether this task has already been collected by a GC pass this session: soft-`deleted`, but
+    /// still resident until the snapshot writes its tombstone and eviction drops it.
+    ///
+    /// Used by `gc_roots_refresh_and_age_out` to evict such a task's entry from the roots map. It
+    /// fails both [`Self::gc_is_root`] and [`Self::gc_maybe_collectible`] (both check
+    /// `!deleted()`), so without this it would land on the "un-anchored, aged out" branch and be
+    /// re-seeded every pass forever while the revalidation kept rejecting it.
+    pub fn gc_is_deleted(&self) -> bool {
+        self.flags.deleted()
+    }
 }
 
 /// Counts for aggregation tree and collectibles fields.

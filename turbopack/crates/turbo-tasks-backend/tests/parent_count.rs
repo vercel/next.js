@@ -913,6 +913,186 @@ async fn gc_collects_cross_session_orphan_root() {
     }
 }
 
+/// The persisted roots map must be **monotone**: a root that ages out and is seeded for collection
+/// but then proves *non-collectible* has to stay in the map, so a later pass re-seeds it.
+///
+/// Regression for a leak in `gc_roots_refresh_and_age_out`, which used to drop the aged-out entry
+/// eagerly (in the `retain`) before anything was collected. Because the returned map is persisted
+/// as a whole-key rewrite of the roots set, a seed that wasn't collected vanished from the map
+/// while still existing on disk — and nothing could re-add it: the resident scan only admits
+/// `gc_is_root` tasks (`transient_ref_count > 0`), which an aged-out root by definition fails, and
+/// a **disk-only** task isn't scanned at all. It became unreachable from every GC enumeration path:
+/// permanently untracked garbage.
+///
+/// Two persisted roots let one pass exercise both outcomes:
+/// - `root_with_child(1)` is never touched in session 2, so it ages out and *is* collected. Its
+///   entry must leave the map. Collecting it is also what gives the snapshot modifications to write
+///   — with an empty pass, `snapshot_and_persist` short-circuits before `save_snapshot` and the
+///   roots key is never rewritten at all.
+/// - `root_with_child(2)` is re-requested in session 2. Read at the top level of a `run_once` it is
+///   left `parent_count == 0` *and* `transient_ref_count == 0`, so it fails `gc_is_root`, ages out
+///   and is seeded — but the revalidation rejects it (the reading `Once` task keeps it active), so
+///   it is **not** collected. Its entry must survive.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn gc_keeps_uncollected_aged_out_root_in_roots_map() {
+    let dir = create_test_persistence_dir("gc_keeps_uncollected_aged_out_root_in_roots_map");
+
+    // Session 1: persist both roots.
+    let (collected_root, kept_root) = {
+        let tt = open_tt_at(dir.path());
+        let tt2 = tt.clone();
+        let ids = turbo_tasks::run_once(tt.clone(), async move {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+            let a = root_with_child(1);
+            let b = root_with_child(2);
+            assert_eq!(*a.read_strongly_consistent().await?, 2);
+            assert_eq!(*b.read_strongly_consistent().await?, 3);
+            assert_eq!(tt2.backend().parent_count_for_testing(a.task_id()), 0);
+            assert_eq!(tt2.backend().parent_count_for_testing(b.task_id()), 0);
+            anyhow::Ok((a.task_id(), b.task_id()))
+        })
+        .await
+        .unwrap();
+        tt.stop_and_wait().await;
+        let roots = tt.backend().persisted_gc_roots_for_testing();
+        for id in [ids.0, ids.1] {
+            assert!(
+                roots.iter().any(|(r, _)| *r == id),
+                "session 1 should persist {id} as a durable root; got {roots:?}"
+            );
+        }
+        ids
+    };
+
+    // Session 2: re-request only `kept_root`, then snapshot — which runs one GC pass and persists
+    // the roots map that pass produced.
+    {
+        let tt = open_tt_at(dir.path());
+        // TTL 0 so both carried-forward entries age out immediately and are seeded.
+        tt.backend().set_gc_root_ttl_for_testing(0);
+        turbo_tasks::run_once(tt.clone(), async move {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+            assert_eq!(*root_with_child(2).read_strongly_consistent().await?, 3);
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+
+        // Outside the `run_once`, so this is the only GC pass between here and the assertions.
+        tt.backend().snapshot_and_evict_for_testing(&tt);
+
+        let roots = tt.backend().persisted_gc_roots_for_testing();
+        assert!(
+            roots.iter().any(|(id, _)| *id == kept_root),
+            "an aged-out root that was seeded but NOT collected must stay in the persisted roots \
+             map — otherwise nothing can re-discover it (the resident scan only admits anchored \
+             roots, and a disk-only task isn't scanned at all), so it becomes permanently \
+             untracked garbage. persisted roots: {roots:?}"
+        );
+        assert!(
+            !roots.iter().any(|(id, _)| *id == collected_root),
+            "a root that WAS collected must be dropped from the map, not left as a dead id. \
+             persisted roots: {roots:?}"
+        );
+
+        tt.stop_and_wait().await;
+    }
+}
+
+/// A root that is restored and observed **live** must have its refreshed timestamp persisted, even
+/// when the session modified nothing.
+///
+/// Restoring a task from disk does not dirty it, so a perfectly cached graph can be reopened,
+/// re-read (cache hit, no recompute), and observed anchored while leaving `has_modifications`
+/// false. `snapshot_and_persist` used to return early in that case *before* handing the roots map
+/// to `save_snapshot`, silently dropping every refresh the pass computed.
+///
+/// That is a correctness bug, not a missed optimization: a rarely-changing route (an API route that
+/// is restored every session but never modified) would keep its original timestamp forever and
+/// eventually age out of the roots map — collected as a "cross-session orphan" even though every
+/// session had seen it alive. This test pins the sequence: session 2 refreshes-without-modifying,
+/// and session 3 must find the root still live rather than aged out.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn gc_persists_root_refresh_when_nothing_was_modified() {
+    let dir = create_test_persistence_dir("gc_persists_root_refresh_clean_pass");
+
+    // Session 1: create the root and persist it, capturing its initial timestamp.
+    let (root_id, first_ts) = {
+        let tt = open_tt_at(dir.path());
+        let root_id = turbo_tasks::run_once(tt.clone(), async move {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+            let output = root_with_child(11);
+            assert_eq!(*output.read_strongly_consistent().await?, 12);
+            anyhow::Ok(output.task_id())
+        })
+        .await
+        .unwrap();
+        tt.stop_and_wait().await;
+        let roots = tt.backend().persisted_gc_roots_for_testing();
+        let ts = roots
+            .iter()
+            .find(|(id, _)| *id == root_id)
+            .map(|(_, ts)| *ts)
+            .expect("session 1 should persist the root");
+        (root_id, ts)
+    };
+
+    // The stored timestamp is wall-clock millis, so make sure a later refresh is distinguishable
+    // from the original. This is the only place the test depends on real time passing.
+    std::thread::sleep(std::time::Duration::from_millis(5));
+
+    // Session 2: reopen and re-read the *same* value. The graph is fully cached, so the root is
+    // restored and reused without being modified — `has_modifications` is false. The GC pass must
+    // still persist the refreshed timestamp.
+    {
+        let tt = open_tt_at(dir.path());
+        turbo_tasks::run_once(tt.clone(), async move {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+            // Identical read: a cache hit, no recompute, nothing dirtied.
+            assert_eq!(*root_with_child(11).read_strongly_consistent().await?, 12);
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+        tt.backend().snapshot_and_evict_for_testing(&tt);
+        tt.stop_and_wait().await;
+
+        let roots = tt.backend().persisted_gc_roots_for_testing();
+        let ts = roots
+            .iter()
+            .find(|(id, _)| *id == root_id)
+            .map(|(_, ts)| *ts)
+            .expect("the live root must still be tracked after a clean session");
+        assert!(
+            ts > first_ts,
+            "a restored, still-live root must have its refreshed timestamp persisted even when \
+             the session modified nothing (was {first_ts}, still {ts}); otherwise its TTL clock \
+             never restarts and it eventually ages out despite being alive every session"
+        );
+    }
+
+    // Session 3: with a zero TTL, an un-refreshed root would age out and be collected here. The
+    // refresh from session 2 is what keeps it alive — and re-reading it refreshes it again.
+    {
+        let tt = open_tt_at(dir.path());
+        tt.backend().set_gc_root_ttl_for_testing(0);
+        let tt2 = tt.clone();
+        turbo_tasks::run_once(tt.clone(), async move {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+            assert_eq!(*root_with_child(11).read_strongly_consistent().await?, 12);
+            let collected = tt2.backend().gc_for_testing(&tt2);
+            assert_eq!(
+                collected, 0,
+                "a root that is live in this session must not be collected (got {collected})"
+            );
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+        tt.stop_and_wait().await;
+    }
+}
+
 /// A root re-requested in the next session must NOT be collected: re-anchoring refreshes its
 /// last-anchored timestamp, resetting the TTL clock. Same setup as the orphan test, but session 2
 /// re-requests the root before GC.

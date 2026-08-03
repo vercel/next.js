@@ -417,6 +417,15 @@ impl TurboTasksBackend {
             .store(ttl_ms, Ordering::Relaxed);
     }
 
+    /// The GC roots set as currently persisted on disk (task id -> last-anchored millis). Reads the
+    /// `GcRoots` infra key directly, so it reflects the last committed snapshot — not any in-flight
+    /// pass. Test-only hook for asserting that a root seeded for collection but *not* collected
+    /// stays tracked (see `gc_roots_refresh_and_age_out`'s monotonicity note).
+    #[doc(hidden)]
+    pub fn persisted_gc_roots_for_testing(&self) -> Vec<(TaskId, u64)> {
+        self.backing_storage.roots().unwrap_or_default()
+    }
+
     /// Opens `task` with must-exist access and drops the guard. Test-only hook to exercise
     /// the non-fabricating existence guarantee: this panics (debug builds) if `task` exists in
     /// neither memory nor persistent storage (rather than fabricating a blank).
@@ -1142,9 +1151,27 @@ impl TurboTasksBackend {
         drop(snapshot_phase);
 
         if !has_modifications {
-            // No tasks modified since the last snapshot — drop the guard (which
-            // calls end_snapshot) and skip the expensive O(N) scan.
+            // No tasks modified since the last snapshot — drop the guard (which calls
+            // end_snapshot) and skip the expensive O(N) scan.
             drop(snapshot_guard);
+            // ...but a GC pass still produced a roots map, and it must be written even though no
+            // task changed. Restoring a task does *not* dirty it, so a perfectly cached graph can
+            // be restored, observed live and anchored, and leave nothing modified — exactly the
+            // case where the refreshed `last_anchored` timestamps matter. Dropping them here let a
+            // rarely-changing route (an API route restored but never modified) keep a stale
+            // timestamp and age out of the roots map, even though every session had seen it alive.
+            //
+            // `save_snapshot` handles an empty task list as a no-op scan, so this writes just the
+            // small `GcRoots` infra key — the O(N) work is still skipped.
+            if let Some(roots) = gc_roots_to_persist {
+                let _span =
+                    tracing::info_span!("persist gc roots only", roots = roots.len()).entered();
+                self.backing_storage.save_snapshot(
+                    suspended_operations,
+                    Some(roots),
+                    Vec::<Vec<SnapshotItem>>::new(),
+                )?;
+            }
             return Ok((start, false));
         }
 
@@ -1429,9 +1456,13 @@ impl TurboTasksBackend {
         let snapshot_duration = start.elapsed();
         let task_count = task_snapshots.len();
 
-        if task_snapshots.is_empty() {
+        if task_snapshots.is_empty() && gc_roots_to_persist.is_none() {
             // This should be impossible — if we got here, modified_count was nonzero, and every
-            // modification that increments the count also failed during encoding.
+            // modification that increments the count also failed during encoding. (With a roots map
+            // to persist we fall through instead: `save_snapshot` treats an empty task list as a
+            // no-op scan, so the `GcRoots` key is still written. See the `!has_modifications` path
+            // above for why dropping a refresh is a correctness problem, not just a missed
+            // optimization.)
             std::hint::cold_path();
             return Ok((snapshot_time, false));
         }

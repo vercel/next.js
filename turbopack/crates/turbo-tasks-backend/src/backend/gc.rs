@@ -191,7 +191,7 @@ impl TurboTasksBackend {
         // the same `gc_is_root` predicate the scan uses, so a resident still-root is refreshed here
         // regardless. Roots the scan newly discovers are folded into the map after the pool drains,
         // which is what keeps the scan off the critical path.
-        let aged_out = self.gc_roots_refresh_and_age_out(&mut roots, Vec::new(), now);
+        let aged_out = self.gc_roots_refresh_and_age_out(&mut roots, now);
 
         // Aged-out roots are candidates for collection, but — unlike the pre-filtered resident
         // candidates the scan produces — they are not guaranteed collectible: one may have been
@@ -229,6 +229,10 @@ impl TurboTasksBackend {
         // which entries may now be dropped from the persisted map. Recorded at the `set_deleted`
         // site below, i.e. only for tasks that really were collected — a seed that was re-validated
         // non-collectible, or never reached, stays in the map and ages again next pass.
+        //
+        // Only collected *roots* can matter here (a non-root collect was never in the map), but
+        // recording every collect and intersecting at the end is cheaper than checking map
+        // membership under the pass's shared lock on the hot path.
         let collected_ids = Mutex::new(Vec::<TaskId>::new());
 
         // Roots discovered by the shard scans, folded into the map after the pool drains.
@@ -435,13 +439,17 @@ impl TurboTasksBackend {
             .unwrap_or(0)
     }
 
-    /// Reconcile the GC roots map against this pass's freshly-scanned resident roots, and return
-    /// the ids of roots that have aged out (gone un-anchored past the TTL) to seed collection.
+    /// Reconcile the carried-forward GC roots map, and return the ids of roots that have aged out
+    /// (gone un-anchored past the TTL) to seed collection.
     ///
-    /// Order matters: the carried-forward map is reconciled by the `retain` **first**, then the
-    /// freshly-scanned `resident_roots` are `or_insert`ed. So a resident root already tracked is
-    /// refreshed once by the retain (the scan and retain share the `gc_is_root` predicate), and the
-    /// insert only *adds* roots new to the map this session — no entry is stamped twice.
+    /// This only reclassifies entries already in the map; it deliberately does **not** take the
+    /// shard scan's freshly-discovered roots. It runs before the job pool, and making it wait for a
+    /// complete scan would put the scan back on the critical path — the thing interleaving exists
+    /// to avoid. It doesn't need them: the retain classifies each entry with the *same*
+    /// `gc_is_root` predicate the scan uses, so a resident still-root is refreshed here regardless
+    /// of whether the scan has reached its shard yet. `gc_collect` folds the scan's roots in with
+    /// `or_insert` after the pool drains, which only *adds* roots new to the map this session and
+    /// leaves the timestamps this retain refreshed alone.
     ///
     /// Each carried-forward entry is classified **without restoring** it (a non-inserting
     /// `with_task`), which is both correct and the point — the roots we most want to age out are
@@ -454,9 +462,18 @@ impl TurboTasksBackend {
     /// - **resident but no longer a root**, or **not resident** → un-anchored: a non-resident task
     ///   holds no `transient_ref_count` (transient state is in-memory only) and was not re-anchored
     ///   this session (re-anchoring restores it), so it is correctly treated as orphaned. Keep its
-    ///   timestamp; if `now - last_anchored_ms > TTL`, drop from the map and return it as a
-    ///   collection seed (the aged-out path in `gc_collect` restores + re-validates it before
-    ///   collecting).
+    ///   timestamp; if `now - last_anchored_ms > TTL`, return it as a collection seed (the aged-out
+    ///   path in `gc_collect` restores + re-validates it before collecting).
+    ///
+    /// **The map is monotone: this function never removes an entry.** An aged-out root is only
+    /// *seeded*; `gc_collect` removes it from the map after the collect job actually marked it
+    /// deleted. Removing it here instead would leak: the returned map is persisted as a whole-key
+    /// rewrite of the roots set, and a seed that is not collected (re-validated non-collectible, or
+    /// — once GC is interruptible — never reached) would be gone from the map while still existing
+    /// on disk. Nothing would ever re-add it: the resident scan only admits `gc_is_root` tasks
+    /// (`transient_ref_count > 0`), which an aged-out root by definition fails, and a **disk-only**
+    /// task isn't scanned at all. It would become unreachable from every GC enumeration path —
+    /// permanently untracked garbage.
     ///
     /// Using `gc_is_root` here — the same predicate the scan admits roots with — keeps membership
     /// and refresh from drifting. Runs under the GC phase (exclusion), so the counts don't race
@@ -464,7 +481,6 @@ impl TurboTasksBackend {
     fn gc_roots_refresh_and_age_out(
         &self,
         map: &mut FxHashMap<TaskId, u64>,
-        resident_roots: Vec<TaskId>,
         now: u64,
     ) -> Vec<TaskId> {
         let ttl_ms = self.gc_root_ttl().as_millis() as u64;
@@ -479,32 +495,42 @@ impl TurboTasksBackend {
             // resident task is a still-live root only if it passes the full
             // `gc_is_root` (parent_count 0 AND anchored), so a re-parented resident
             // task fails here and ages out of the map.
-            let still_root = self
+            match self
                 .storage
-                .with_task(id, |t| t.gc_is_root())
-                .unwrap_or(false);
-            if still_root {
-                *last_anchored = now;
-                return true;
+                .with_task(id, |t| (t.gc_is_root(), t.gc_is_deleted()))
+            {
+                // Already collected (soft-deleted, resident until the tombstone commit + hard
+                // delete). It is not a root any more and there is nothing left to collect, so drop
+                // the entry outright rather than letting it fall through to the aged-out branch —
+                // which would re-seed it every pass forever (the revalidation always rejects a
+                // deleted task) and keep a dead id in the persisted set. This is the one case where
+                // an entry leaves the map *here* rather than via the collected-ids removal in
+                // `gc_collect`: that removal only sees tasks **this** pass collected, and a task
+                // collected by an earlier pass in the same session is still resident when the next
+                // pass reads the map.
+                Some((_, true)) => return false,
+                // Still a live durable root: refresh its clock.
+                Some((true, false)) => {
+                    *last_anchored = now;
+                    return true;
+                }
+                // Resident but no longer a root, or not resident at all: fall through to the
+                // age-out check below.
+                Some((false, false)) | None => {}
             }
             // Un-anchored: has it aged past the TTL? `now < last_anchored` (clock skew across
             // sessions) is treated as not-yet-aged (saturating), never negative.
             if now.saturating_sub(*last_anchored) > ttl_ms {
                 aged_out.push(id);
-                false
-            } else {
-                true
             }
+            // Keep the entry either way — see the "monotone map" note in the doc comment. An
+            // aged-out root is only *seeded* for collection here; the entry is removed by
+            // `gc_collect` after the task is actually marked deleted. Keeping its existing
+            // timestamp (rather than refreshing to `now`) means a root that repeatedly fails to be
+            // collected stays aged-out and is re-seeded every pass, instead of restarting its TTL
+            // clock.
+            true
         });
-
-        // Now fold in this pass's resident roots. `or_insert` (not `insert`) so that a root already
-        // carried forward keeps the timestamp the retain just refreshed — this only *adds* roots
-        // new to the map this session, stamped `now`. (A resident root already in the map was
-        // handled by the retain above, since the scan and the retain share the `gc_is_root`
-        // predicate; doing this after the retain avoids touching those entries twice.)
-        for id in resident_roots {
-            map.entry(id).or_insert(now);
-        }
 
         aged_out
     }
