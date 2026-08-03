@@ -99,9 +99,8 @@ export default function InvalidLinks() {
       await next.deleteFile('app/invalid-links.tsx')
 
       expect(exitCode).toBe(1)
-      expect(cliOutput).toContain(
-        `Type error: "/invalid-route" is not an existing route. If it is intentional, please type it explicitly with \`as Route\`.`
-      )
+      expect(cliOutput).toContain('error TS2322')
+      expect(cliOutput).toContain('"/invalid-route"')
     })
 
     it('should pass type checking with valid redirect routes', async () => {
@@ -185,11 +184,12 @@ export default function InvalidRedirects() {
       await next.deleteFile('app/invalid-redirects.tsx')
 
       expect(exitCode).toBe(1)
+      expect(cliOutput).toContain('error TS2345')
       expect(cliOutput).toContain(
-        `Type error: Argument of type '"/invalid-route"' is not assignable to parameter of type 'RouteImpl<"/invalid-route">'.`
+        `Argument of type '"/invalid-route"' is not assignable to parameter of type 'RouteImpl<"/invalid-route">'.`
       )
       expect(cliOutput).toContain(
-        `Type error: Argument of type '"/another-invalid-route"' is not assignable to parameter of type 'RouteImpl<"/another-invalid-route">'.`
+        `Argument of type '"/another-invalid-route"' is not assignable to parameter of type 'RouteImpl<"/another-invalid-route">'.`
       )
     })
   }

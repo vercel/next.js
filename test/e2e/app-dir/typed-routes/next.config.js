@@ -6,9 +6,6 @@ setInterval(() => {}, 250)
  */
 const nextConfig = {
   typedRoutes: true,
-  experimental: {
-    useTypeScriptCli: false,
-  },
   async redirects() {
     return [
       {
