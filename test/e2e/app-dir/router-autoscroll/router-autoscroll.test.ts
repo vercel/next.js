@@ -35,6 +35,21 @@ describe('router autoscrolling on navigation', () => {
     await waitForScrollToComplete(browser, options)
   }
 
+  const setScrollPaddingTop = async (
+    browser: Playwright,
+    scrollPaddingTop: string
+  ) => {
+    const rule = `html { scroll-padding-top: ${scrollPaddingTop}; }`
+
+    // Avoid mutating the root style attribute, which React owns and validates
+    // during client navigations.
+    await browser.eval(`
+      const sheet = new CSSStyleSheet()
+      sheet.replaceSync(${JSON.stringify(rule)})
+      document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet]
+    `)
+  }
+
   describe('vertical scroll', () => {
     it('should scroll to top of document when navigating between to pages without layout', async () => {
       const browser = await next.browser('/0/0/100/10000/page1')
@@ -79,6 +94,29 @@ describe('router autoscrolling on navigation', () => {
 
       await browser.eval(`window.router.push("/10/100/100/1000/page2")`)
       await waitForScrollToComplete(browser, { x: 0, y: 50 })
+    })
+
+    it.each(['100px', '50%'])(
+      'should scroll when the page top is obscured by scroll padding (%s)',
+      async (scrollPaddingTop) => {
+        const browser = await next.browser('/10/100/100/1000/page1')
+
+        await setScrollPaddingTop(browser, scrollPaddingTop)
+        await scrollTo(browser, { x: 0, y: 50 })
+
+        await browser.eval(`window.router.push("/10/100/100/1000/page2")`)
+        await waitForScrollToComplete(browser, { x: 0, y: 0 })
+      }
+    )
+
+    it('should maintain scroll when the page top is below the scroll padding boundary', async () => {
+      const browser = await next.browser('/10/1000/100/1000/page1')
+
+      await setScrollPaddingTop(browser, '100px')
+      await scrollTo(browser, { x: 0, y: 800 })
+
+      await browser.eval(`window.router.push("/10/1000/100/1000/page2")`)
+      await waitForScrollToComplete(browser, { x: 0, y: 800 })
     })
 
     it('should scroll to top of document if possible while giving focus to page', async () => {

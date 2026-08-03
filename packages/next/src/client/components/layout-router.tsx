@@ -108,11 +108,45 @@ const enum ScrollTargetState {
 }
 
 /**
- * Check where the top corner of the HTMLElement is relative to the viewport.
+ * Resolve the root scroll padding used by the viewport check.
+ *
+ * Computed lengths serialize as pixels, but percentages remain relative to
+ * the scrollport. Preserve the existing behavior for values that still
+ * contain unresolved CSS math.
+ */
+function getScrollPaddingTopInPixels(
+  htmlElement: HTMLElement,
+  viewportHeight: number
+): number {
+  const scrollPaddingTop = getComputedStyle(htmlElement).scrollPaddingTop
+  const value = Number.parseFloat(scrollPaddingTop)
+
+  if (!Number.isFinite(value) || value < 0) {
+    return 0
+  }
+
+  if (scrollPaddingTop.endsWith('px')) {
+    return value
+  }
+
+  if (scrollPaddingTop.endsWith('%')) {
+    return (value / 100) * viewportHeight
+  }
+
+  return 0
+}
+
+/**
+ * Check where the top corner of the HTMLElement is relative to the usable
+ * viewport.
+ *
+ * Scroll padding is resolved lazily so an empty Fragment does not trigger a
+ * computed style read. The caller caches the value for the second check.
  */
 function getScrollTargetState(
   instance: HTMLElement | FragmentInstance,
-  viewportHeight: number
+  viewportHeight: number,
+  getScrollPaddingTop: () => number
 ): ScrollTargetState {
   const rects = instance.getClientRects()
   if (rects.length === 0) {
@@ -125,7 +159,7 @@ function getScrollTargetState(
       elementTop = rect.top
     }
   }
-  return elementTop >= 0 && elementTop <= viewportHeight
+  return elementTop >= getScrollPaddingTop() && elementTop <= viewportHeight
     ? ScrollTargetState.InViewport
     : ScrollTargetState.OutOfViewport
 }
@@ -226,10 +260,21 @@ class InnerScrollAndFocusHandlerOld extends React.Component<ScrollAndMaybeFocusH
         // and it won't change during this function.
         const htmlElement = document.documentElement
         const viewportHeight = htmlElement.clientHeight
+        let scrollPaddingTop: number | null = null
+        const getScrollPaddingTop = () => {
+          if (scrollPaddingTop === null) {
+            // Reuse the style and layout update from the geometry read above.
+            scrollPaddingTop = getScrollPaddingTopInPixels(
+              htmlElement,
+              viewportHeight
+            )
+          }
+          return scrollPaddingTop
+        }
 
         // If the element's top edge is already in the viewport, exit early.
         if (
-          getScrollTargetState(domNode, viewportHeight) ===
+          getScrollTargetState(domNode, viewportHeight, getScrollPaddingTop) ===
           ScrollTargetState.InViewport
         ) {
           return
@@ -243,7 +288,7 @@ class InnerScrollAndFocusHandlerOld extends React.Component<ScrollAndMaybeFocusH
 
         // Scroll to domNode if domNode is not in viewport when scrolled to top of document
         if (
-          getScrollTargetState(domNode, viewportHeight) !==
+          getScrollTargetState(domNode, viewportHeight, getScrollPaddingTop) !==
           ScrollTargetState.InViewport
         ) {
           // Scroll into view doesn't scroll horizontally by default when not needed
@@ -323,12 +368,27 @@ function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
           const htmlElement = document.documentElement
           let viewportHeight: number | null = null
           let initialTargetState: ScrollTargetState | null = null
+          let scrollPaddingTop: number | null = null
+          const getScrollPaddingTop = () => {
+            if (scrollPaddingTop === null) {
+              // Reuse the style and layout update from the geometry read.
+              scrollPaddingTop = getScrollPaddingTopInPixels(
+                htmlElement,
+                viewportHeight!
+              )
+            }
+            return scrollPaddingTop
+          }
 
           if (!hashFragment) {
             // Store the current viewport height because reading `clientHeight` causes a reflow,
             // and it won't change during this function.
             viewportHeight = htmlElement.clientHeight
-            initialTargetState = getScrollTargetState(instance, viewportHeight)
+            initialTargetState = getScrollTargetState(
+              instance,
+              viewportHeight,
+              getScrollPaddingTop
+            )
 
             // An empty Fragment is not a scroll target. In particular, avoid
             // React's sibling fallback and leave the scroll signal available
@@ -366,8 +426,11 @@ function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
 
           // Scroll to domNode if domNode is not in viewport when scrolled to top of document
           if (
-            getScrollTargetState(instance, viewportHeight!) ===
-            ScrollTargetState.OutOfViewport
+            getScrollTargetState(
+              instance,
+              viewportHeight!,
+              getScrollPaddingTop
+            ) === ScrollTargetState.OutOfViewport
           ) {
             // Scroll into view doesn't scroll horizontally by default when not needed
             instance.scrollIntoView()
