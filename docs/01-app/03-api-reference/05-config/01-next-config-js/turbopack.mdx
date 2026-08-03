@@ -286,16 +286,19 @@ The `type` option can be combined with `loaders` - loaders run first, then the r
 
 Available module types:
 
-| Type         | Description                                              |
-| ------------ | -------------------------------------------------------- |
-| `asset`      | Emit file and return URL (like webpack `asset/resource`) |
-| `ecmascript` | Process as JavaScript                                    |
-| `typescript` | Process as TypeScript                                    |
-| `css`        | Process as CSS                                           |
-| `css-module` | Process as CSS module                                    |
-| `wasm`       | Process as WebAssembly                                   |
-| `raw`        | Return raw contents as string                            |
-| `bytes`      | Inline contents as bytes                                 |
+| Type         | Description                                                                                                                                  |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `asset`      | Emit file and return URL (like webpack `asset/resource`)                                                                                     |
+| `ecmascript` | Process as JavaScript                                                                                                                        |
+| `typescript` | Process as TypeScript                                                                                                                        |
+| `css`        | Process as CSS                                                                                                                               |
+| `css-module` | Process as CSS module                                                                                                                        |
+| `json`       | Parse as JSON and export it                                                                                                                  |
+| `wasm`       | Process as WebAssembly                                                                                                                       |
+| `node`       | Process as a native Node.js addon                                                                                                            |
+| `raw`        | Include the file as an opaque module without exports. It can only be imported for its side effects — use `text` for its contents as a string |
+| `text`       | Export the contents as a string                                                                                                              |
+| `bytes`      | Export the contents as a `Uint8Array`                                                                                                        |
 
 ### Inline loader configuration with import attributes
 
