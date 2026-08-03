@@ -9,6 +9,7 @@
 #     [--bundler=<webpack|turbo|rspack>] \
 #     [--experimental] \
 #     [--headless] \
+#     [--local-packages] \
 #     -- [jest args...]
 #
 # All arguments after `--` are forwarded verbatim to jest.
@@ -16,6 +17,7 @@
 set -eo pipefail
 
 experimental=false
+use_local_packages=false
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -47,6 +49,9 @@ while [ $# -gt 0 ]; do
     --headless)
       export HEADLESS=true
       ;;
+    --local-packages)
+      use_local_packages=true
+      ;;
     --)
       shift
       break
@@ -65,6 +70,20 @@ done
 # value in the environment is respected either way.
 if [ "$experimental" != true ]; then
   export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER="${__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER:-false}"
+fi
+
+if [ "$use_local_packages" = true ]; then
+  if [ "${NEXT_TEST_MODE:-}" != "deploy" ]; then
+    echo "run-jest.sh: --local-packages requires --mode=deploy" >&2
+    exit 1
+  fi
+
+  repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  (
+    cd "$repo_root"
+    pnpm pack-next --tar
+  )
+  export NEXT_TEST_DEPLOY_TARBALLS_DIR="$repo_root/tarballs"
 fi
 
 # Resolves to `node_modules/.bin/jest` via `$PATH`. This relies on being

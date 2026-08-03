@@ -152,6 +152,26 @@ and point it at your branch (this requires passing a custom tarball).
 
 #### Running Deploy Tests Locally
 
+To test changes in your local checkout, use `test-deploy-local` with a focused test path:
+
+```sh
+pnpm test-deploy-local test/e2e/app-dir/actions/
+```
+
+This builds and packages the local Next.js checkout once, copies the resulting tarballs into each
+isolated test project, deploys the project to Vercel, and runs its deploy-mode assertions. Turbopack
+is used by default. Use `test-deploy-local-webpack` to run the deployment with webpack instead.
+
+To package once and reuse the tarballs across multiple test commands, set
+`NEXT_TEST_DEPLOY_TARBALLS_DIR` explicitly:
+
+```sh
+pnpm pack-next --tar
+NEXT_TEST_DEPLOY_TARBALLS_DIR="$PWD/tarballs" pnpm test-deploy-turbo test/e2e/app-dir/actions/
+```
+
+The Vercel CLI must be authenticated before using either workflow.
+
 You can run deploy tests locally against a specific commit using the `NEXT_TEST_VERSION` environment variable:
 
 ```sh

@@ -38,30 +38,31 @@ export default async function patchPackageJson(
 ): Promise<string> {
   try {
     const packageJsonPath = await findPackageJsonPath(targetProjectPath)
-    const workspaceRoot = path.dirname(packageJsonPath)
-    const packageJsonValue = await readJsonValue(packageJsonPath)
-    const overrides = await patchWorkspacePackageJsonMap(
-      paths,
-      packageJsonValue
-    )
-    await writeJsonValue(packageJsonPath, packageJsonValue)
-    // Also mirror overrides into pnpm-workspace.yaml so pnpm v11+ picks them
-    // up. We don't try to detect the pnpm version — pnpm v10 reads
-    // `pnpm.overrides` (written above) and pnpm v11+ reads
-    // `pnpm-workspace.yaml#overrides`. To avoid dropping a pnpm-workspace.yaml
-    // into non-pnpm projects, we only write the file if it already exists or
-    // if a `pnpm-lock.yaml` indicates this is a pnpm project. See
-    // https://pnpm.io/settings and https://github.com/pnpm/pnpm/issues/11536.
-    if (await shouldWritePnpmWorkspace(workspaceRoot)) {
-      await mergePnpmWorkspaceOverrides(
-        workspaceRoot,
-        Object.fromEntries(overrides)
-      )
-    }
-
+    await patchPackageJsonFile(packageJsonPath, paths)
     return packageJsonPath
   } catch (error) {
     throw new Error('Error patching package.json', { cause: error })
+  }
+}
+
+export async function patchPackageJsonFile(
+  packageJsonPath: string,
+  paths: DependencyPaths
+): Promise<void> {
+  const packageJsonValue = await readJsonValue(packageJsonPath)
+  const overrides = await patchWorkspacePackageJsonMap(paths, packageJsonValue)
+  await writeJsonValue(packageJsonPath, packageJsonValue)
+
+  const workspaceRoot = path.dirname(packageJsonPath)
+  // Also mirror overrides into pnpm-workspace.yaml so pnpm v11+ picks them up.
+  // We don't try to detect the pnpm version: pnpm v10 reads
+  // `pnpm.overrides` (written above), and pnpm v11+ reads
+  // `pnpm-workspace.yaml#overrides`.
+  if (await shouldWritePnpmWorkspace(workspaceRoot)) {
+    await mergePnpmWorkspaceOverrides(
+      workspaceRoot,
+      Object.fromEntries(overrides)
+    )
   }
 }
 
