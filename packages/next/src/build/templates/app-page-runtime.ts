@@ -272,7 +272,6 @@ export function createAppPageEntrypoint({
       resolvedPathname,
       prerenderManifest
     )
-    const prerenderInfo = prerenderMatch?.route ?? null
 
     const isPrerendered = !!prerenderManifest.routes[resolvedPathname]
 
@@ -289,8 +288,7 @@ export function createAppPageEntrypoint({
     // Behind the flag so a project without variants compiles none of this away
     // rather than matching against an empty list on every request.
     const variantCombinationGroups = process.env.__NEXT_VARIANTS
-      ? prerenderManifest.dynamicRoutes[normalizedSrcPage]
-          ?.variantCombinationGroups
+      ? prerenderManifest.variantCombinationGroups[normalizedSrcPage]
       : undefined
 
     const matchedVariants = variantCombinationGroups?.length
@@ -299,6 +297,25 @@ export function createAppPageEntrypoint({
           getRequestMeta(req, 'variants') ?? {}
         )
       : null
+
+    // Each combination has a fallback shell of its own, and they do not agree:
+    // one can be empty where another is not, which decides whether a request is
+    // served a shell or rendered blocking. So the entry describing the matched
+    // combination is the one this request has to be answered from.
+    //
+    // It is found by key rather than by matching, because its route regex
+    // covers the prefixed path while route matching runs against the pathname
+    // with the prefix already stripped. That is deliberate: a regex over the
+    // bare route would let a combination's entry match a request that resolved
+    // to another.
+    const matchedVariantsPrerenderInfo = matchedVariants
+      ? prerenderManifest.dynamicRoutes[
+          insertVariantsPrefix(normalizedSrcPage, matchedVariants.hash)
+        ]
+      : undefined
+
+    const prerenderInfo =
+      matchedVariantsPrerenderInfo ?? prerenderMatch?.route ?? null
 
     const userAgent = req.headers['user-agent'] || ''
     const botType = getBotType(userAgent)
@@ -680,6 +697,17 @@ export function createAppPageEntrypoint({
       // reads, never where the entry lives.
       if (ssgCacheKey !== null && matchedVariants) {
         ssgCacheKey = insertVariantsPrefix(ssgCacheKey, matchedVariants.hash)
+      } else if (
+        ssgCacheKey !== null &&
+        !isRoutePPREnabled &&
+        variantCombinationGroups?.length
+      ) {
+        // Unless the route cannot postpone. The unprefixed entry only works
+        // because the variants it omits are holes a resume fills; without one,
+        // this render would bake the values this request happens to carry and
+        // every other combination would then be served them. Rendering per
+        // request is slower and correct.
+        ssgCacheKey = null
       }
     }
 

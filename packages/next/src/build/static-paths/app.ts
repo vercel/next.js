@@ -1305,9 +1305,29 @@ export async function buildAppStaticPaths({
   // the fallback shell alike. They cannot share a key, because combinations of
   // one route share a pathname, the variant values being carried by a prefix
   // that is stripped before the route is matched.
+  //
+  // The un-multiplied route is kept as well, marked as omitting variants. It is
+  // what a combination nobody declared resolves to, so that such a request is
+  // served from one shared entry instead of seeding an entry per value it
+  // happens to carry. Without it a high-cardinality variant would grow the
+  // cache in proportion to traffic rather than to what the route declared.
+  //
+  // Only where the route can postpone, though. Omitting a variant leaves a hole
+  // that something has to fill, and without partial prerendering there is no
+  // resume to fill it: whatever were prerendered would bake one combination and
+  // then be served for every other. Such a route gets no shared entry, so an
+  // undeclared combination renders per request instead, which is correct if
+  // slower.
   if (variantCombinations.length > 0) {
     for (const [key, prerenderedRoute] of [...prerenderedRoutesByPathname]) {
-      prerenderedRoutesByPathname.delete(key)
+      if (isRoutePPREnabled) {
+        prerenderedRoutesByPathname.set(key, {
+          ...prerenderedRoute,
+          omitsVariants: true,
+        })
+      } else {
+        prerenderedRoutesByPathname.delete(key)
+      }
 
       for (const variantValues of variantCombinations) {
         prerenderedRoutesByPathname.set(

@@ -296,6 +296,7 @@ export async function adapter(
         routes: {},
         dynamicRoutes: {},
         notFoundRoutes: [],
+        variantCombinationGroups: {},
         preview: getEdgePreviewProps(),
       },
     })

@@ -194,24 +194,12 @@ describe('variants', () => {
     expect($('#slug').last().text()).toBe('undeclared')
   })
 
-  // An undeclared combination is hashed into the path as though it had been
-  // declared, so it finds no prerender and the route is generated on demand.
-  // `enumerated/[slug]` awaits its param at the top level with no boundary
-  // above it, and that generation supplies the param as runtime data, which
-  // such a read cannot survive: the request fails with "uncached or runtime
-  // data during prerendering". The fix is for an undeclared variant to stop
-  // partitioning the cache, so a combination like this one resolves to a
-  // variant-agnostic prerender instead of looking for one of its own.
-  //
-  // Only prerendering under Cache Components reaches that state. Without Cache
-  // Components the read interrupts static generation and the route falls back
-  // to rendering dynamically, and in dev nothing is prerendered to begin with.
-  // `shell/[slug]` is this same case with a boundary above the read, and passes
-  // everywhere, which is why the gap went unnoticed.
-  const undeclaredCombinationTitle =
-    'should resolve an undeclared combination when the param is read without a boundary'
-
-  const undeclaredCombination = async () => {
+  it('should resolve an undeclared combination when the param is read without a boundary', async () => {
+    // No prerender exists for this combination, and `enumerated/[slug]` awaits
+    // its param at the top level with no boundary above it, so there is nothing
+    // static to serve. The request resolves to the prerender that omits every
+    // variant, whose shell is empty for exactly that reason, and the resume
+    // renders the page against the values the request carries.
     const $ = await next.render$('/enumerated/a', undefined, {
       headers: { cookie: 'theme=dark; locale=de' },
     })
@@ -219,13 +207,7 @@ describe('variants', () => {
     expect($('#theme').text()).toBe('dark')
     expect($('#locale').text()).toBe('de')
     expect($('#slug').text()).toBe('a')
-  }
-
-  if (isNextStart && process.env.__NEXT_CACHE_COMPONENTS) {
-    it.failing(undeclaredCombinationTitle, undeclaredCombination)
-  } else {
-    it(undeclaredCombinationTitle, undeclaredCombination)
-  }
+  })
 
   it('should not decorate a rewrite to another origin', async () => {
     const $ = await next.render$('/external')

@@ -24,6 +24,19 @@ type StaticPrerenderedRoute = {
   readonly variantValues?: Readonly<Record<string, string>>
 
   /**
+   * Whether this route is the one prerendered with every variant omitted, which
+   * is what a request whose combination was never declared falls back to.
+   *
+   * It exists so that such a request costs no cache entry of its own, however
+   * many distinct values it carries. That also makes an empty result expected
+   * rather than a mistake: a route reading a variant above a boundary has
+   * nothing static left once the variants are gone, and must not be turned into
+   * a blocking render, which would bake an undeclared value into an entry keyed
+   * without it.
+   */
+  readonly omitsVariants?: boolean
+
+  /**
    * When enabled, the route will be rendered with diagnostics enabled which
    * will error the build if the route that is generated is empty.
    */
@@ -67,6 +80,19 @@ type FallbackPrerenderedRoute = {
    * on disk.
    */
   readonly variantValues?: Readonly<Record<string, string>>
+
+  /**
+   * Whether this route is the one prerendered with every variant omitted, which
+   * is what a request whose combination was never declared falls back to.
+   *
+   * It exists so that such a request costs no cache entry of its own, however
+   * many distinct values it carries. That also makes an empty result expected
+   * rather than a mistake: a route reading a variant above a boundary has
+   * nothing static left once the variants are gone, and must not be turned into
+   * a blocking render, which would bake an undeclared value into an entry keyed
+   * without it.
+   */
+  readonly omitsVariants?: boolean
 
   /**
    * When enabled, the route will be rendered with diagnostics enabled which
