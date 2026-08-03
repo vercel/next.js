@@ -1,7 +1,7 @@
 import type { Response } from 'node-fetch'
 import { join } from 'path'
 import { nextTestSetup, FileRef } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { retry, waitFor } from 'next-test-utils'
 
 describe('server-hmr', () => {
   const { next, isTurbopack, isNextDev } = nextTestSetup({
@@ -13,10 +13,8 @@ describe('server-hmr', () => {
 
   describe('module preservation', () => {
     itTurbopackDev(
-      'does not compile a changed server module until the next request',
+      'does not evaluate a changed server module until the next request',
       async () => {
-        await next.deleteFile('lazy-rebuild-probe.log').catch(() => {})
-
         const browser = await next.browser('/lazy-rebuild')
         await retry(async () => {
           expect(await browser.elementByCss('#value').text()).toBe('initial')
@@ -27,13 +25,15 @@ describe('server-hmr', () => {
           window.fetch = (input, init) => {
             const headers = new Headers(init?.headers)
             if (headers.get('next-hmr-refresh') === '1') {
+              ;(window as any).__didBlockHmrRequest = true
               return new Promise(() => {})
             }
             return originalFetch(input, init)
           }
         })
 
-        const initialCompileLog = await next.readFile('lazy-rebuild-probe.log')
+        const evaluationMarker = 'lazy-rebuild-probe evaluated'
+        const outputLengthBeforePatch = next.cliOutput.length
 
         await next.patchFile('app/lazy-rebuild/probe.js', (content) =>
           content.replace(
@@ -43,17 +43,59 @@ describe('server-hmr', () => {
         )
 
         await retry(async () => {
-          expect(await next.readFile('lazy-rebuild-probe.log')).toBe(
-            initialCompileLog
+          expect(
+            await browser.eval(() => (window as any).__didBlockHmrRequest)
+          ).toBe(true)
+        })
+        expect(next.cliOutput.slice(outputLengthBeforePatch)).not.toContain(
+          evaluationMarker
+        )
+
+        const response = await next.fetch('/lazy-rebuild')
+        expect(await response.text()).toContain('updated')
+        await retry(async () => {
+          expect(next.cliOutput.slice(outputLengthBeforePatch)).toContain(
+            evaluationMarker
           )
         })
+      }
+    )
 
-        expect(await (await next.fetch('/lazy-rebuild')).text()).toContain(
-          'updated'
+    itTurbopackDev(
+      'only evaluates the last visited page when a shared module changes',
+      async () => {
+        const browser = await next.browser('/lazy-pages/0')
+        for (let page = 1; page < 3; page++) {
+          await browser.loadPage(`${next.url}/lazy-pages/${page}`)
+        }
+        expect(await browser.elementByCss('#value').text()).toBe('2: rev-0')
+
+        const outputLengthBeforePatch = next.cliOutput.length
+        await next.patchFile('app/lazy-pages/shared.ts', (content) =>
+          content.replace(
+            "export const revision = 'rev-0'",
+            "export const revision = 'rev-1'"
+          )
         )
-        expect(await next.readFile('lazy-rebuild-probe.log')).not.toBe(
-          initialCompileLog
+
+        await retry(async () => {
+          expect(await browser.elementByCss('#value').text()).toBe('2: rev-1')
+        })
+        await waitFor(1000)
+
+        const outputAfterPatch = next.cliOutput.slice(outputLengthBeforePatch)
+        const evaluatedPages = Array.from(
+          outputAfterPatch.matchAll(/lazy-server-hmr-page-(\d+) evaluated/g),
+          (match) => Number(match[1])
         )
+        expect(new Set(evaluatedPages)).toEqual(new Set([2]))
+        const diffedPages = Array.from(
+          outputAfterPatch.matchAll(
+            /Diffing server HMR entry lazy-pages\/(\d+)\/page/g
+          ),
+          (match) => Number(match[1])
+        )
+        expect(new Set(diffedPages)).toEqual(new Set([2]))
       }
     )
 

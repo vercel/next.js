@@ -52,6 +52,7 @@ impl From<AssetPath> for NapiAssetPath {
 pub struct NapiWrittenEndpoint {
     pub r#type: String,
     pub entry_path: Option<String>,
+    pub server_hmr_entry_paths: Vec<String>,
     pub client_paths: Vec<String>,
     pub server_paths: Vec<NapiAssetPath>,
     pub config: NapiEndpointConfig,
@@ -62,11 +63,16 @@ impl From<Option<EndpointOutputPaths>> for NapiWrittenEndpoint {
         match written_endpoint {
             Some(EndpointOutputPaths::NodeJs {
                 server_entry_path,
+                server_hmr_entry_paths,
                 server_paths,
                 client_paths,
             }) => Self {
                 r#type: "nodejs".to_string(),
                 entry_path: Some(server_entry_path.into_owned()),
+                server_hmr_entry_paths: server_hmr_entry_paths
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
                 client_paths: client_paths.into_iter().map(From::from).collect(),
                 server_paths: server_paths.into_iter().map(From::from).collect(),
                 ..Default::default()

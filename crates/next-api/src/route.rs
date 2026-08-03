@@ -293,6 +293,7 @@ pub enum EndpointOutputPaths {
     NodeJs {
         /// Relative to the root_path
         server_entry_path: RcStr,
+        server_hmr_entry_paths: Vec<RcStr>,
         server_paths: Vec<AssetPath>,
         client_paths: Vec<RcStr>,
     },
