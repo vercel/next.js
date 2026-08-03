@@ -179,39 +179,6 @@ pub struct DebugBuildPaths {
     pub pages: Vec<RcStr>,
 }
 
-/// Target for HMR operations - client-side (browser) or server-side (Node.js).
-#[turbo_tasks::task_input]
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
-pub enum HmrTarget {
-    #[default]
-    Client,
-    Server,
-}
-
-impl std::fmt::Display for HmrTarget {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            HmrTarget::Client => write!(f, "client"),
-            HmrTarget::Server => write!(f, "server"),
-        }
-    }
-}
-
-impl std::str::FromStr for HmrTarget {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "client" => Ok(HmrTarget::Client),
-            "server" => Ok(HmrTarget::Server),
-            _ => Err(format!(
-                "Invalid HMR target: '{}'. Expected 'client' or 'server'",
-                s
-            )),
-        }
-    }
-}
-
 /// Pre-converted route keys from debug build paths for O(1) lookups.
 struct DebugBuildPathsRouteKeys {
     app: FxHashSet<RcStr>,
@@ -892,8 +859,8 @@ impl ProjectContainer {
 
     /// See [`Project::hmr_chunk_names`].
     #[turbo_tasks::function]
-    pub fn hmr_chunk_names(self: Vc<Self>, target: HmrTarget) -> Vc<Vec<RcStr>> {
-        self.project().hmr_chunk_names(target)
+    pub fn hmr_chunk_names(self: Vc<Self>) -> Vc<Vec<RcStr>> {
+        self.project().hmr_chunk_names()
     }
 
     /// Gets a source map for a particular `file_path`. If `dev` mode is disabled, this will always
@@ -2480,36 +2447,16 @@ impl Project {
         .await
     }
 
-    /// Returns the root path for HMR content based on the target.
-    /// Client uses client_relative_path, Server uses node_root.
     #[turbo_tasks::function]
-    async fn hmr_root_path(self: Vc<Self>, target: HmrTarget) -> Result<Vc<FileSystemPath>> {
-        Ok(match target {
-            HmrTarget::Client => self.client_relative_path(),
-            HmrTarget::Server => self.node_root(),
-        })
+    async fn server_hmr_root_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        Ok(self.node_root().await?.join("server/app")?.cell())
     }
 
+    /// Get client HMR content by chunk_name.
     #[turbo_tasks::function]
-    async fn aggregate_hmr_root_path(
-        self: Vc<Self>,
-        target: HmrTarget,
-    ) -> Result<Vc<FileSystemPath>> {
-        match target {
-            HmrTarget::Client => bail!("aggregate HMR is not implemented for the client"),
-            HmrTarget::Server => Ok(self.node_root().await?.join("server/app")?.cell()),
-        }
-    }
-
-    /// Get HMR content by chunk_name for the specified target.
-    #[turbo_tasks::function]
-    async fn hmr_content(
-        self: Vc<Self>,
-        chunk_name: RcStr,
-        target: HmrTarget,
-    ) -> Result<Vc<OptionVersionedContent>> {
+    async fn hmr_content(self: Vc<Self>, chunk_name: RcStr) -> Result<Vc<OptionVersionedContent>> {
         if let Some(map) = self.await?.versioned_content_map {
-            let content = map.get(self.hmr_root_path(target).await?.join(&chunk_name)?);
+            let content = map.get(self.client_relative_path().await?.join(&chunk_name)?);
             Ok(content)
         } else {
             bail!("must be in dev mode to hmr")
@@ -2522,7 +2469,6 @@ impl Project {
     pub async fn hmr_version_state(
         self: ResolvedVc<Self>,
         chunk_name: RcStr,
-        target: HmrTarget,
         session: TransientInstance<()>,
     ) -> Result<Vc<VersionState>> {
         // The session argument is important to avoid caching this function between
@@ -2533,23 +2479,22 @@ impl Project {
             level = "info",
             name = "get HMR version",
             skip_all,
-            fields(chunk_name = %chunk_name, target = %target),
+            fields(chunk_name = %chunk_name),
         )]
         #[turbo_tasks::function(operation, root)]
         async fn hmr_version_operation(
             this: ResolvedVc<Project>,
             chunk_name: RcStr,
-            target: HmrTarget,
         ) -> Result<Vc<Box<dyn Version>>> {
-            tracing::info!(chunk_name = %chunk_name, target = %target, "hmr subscription");
-            let content = this.hmr_content(chunk_name, target).await?;
+            tracing::info!(chunk_name = %chunk_name, "hmr subscription");
+            let content = this.hmr_content(chunk_name).await?;
             if let Some(content) = &*content {
                 Ok(content.version())
             } else {
                 Ok(Vc::upcast(NotFoundVersion::new()))
             }
         }
-        let version_op = hmr_version_operation(self, chunk_name, target);
+        let version_op = hmr_version_operation(self, chunk_name);
 
         // INVALIDATION: This is intentionally untracked to avoid invalidating this
         // function completely. We want to initialize the VersionState with the
@@ -2565,16 +2510,15 @@ impl Project {
     }
 
     /// Emits opaque HMR events whenever a change is detected in the chunk group
-    /// internally known as `chunk_name` for the specified target.
+    /// internally known as `chunk_name`.
     #[turbo_tasks::function]
     pub async fn hmr_update(
         self: Vc<Self>,
         chunk_name: RcStr,
-        target: HmrTarget,
         from: Vc<VersionState>,
     ) -> Result<Vc<Update>> {
         let from = from.get();
-        let content = self.hmr_content(chunk_name, target).await?;
+        let content = self.hmr_content(chunk_name).await?;
         if let Some(content) = *content {
             Ok(content.update(from))
         } else {
@@ -2582,38 +2526,24 @@ impl Project {
         }
     }
 
-    /// Aggregate counterpart to [`Self::hmr_version_state`]: one [`VersionState`]
-    /// covering every HMR-eligible chunk under `target`'s root. See
-    /// [`Self::all_hmr_update`].
+    /// One [`VersionState`] covering every server HMR-eligible chunk. See
+    /// [`Self::server_hmr_update`].
     #[turbo_tasks::function(session_dependent)]
-    pub async fn all_hmr_version_state(
-        self: ResolvedVc<Self>,
-        target: HmrTarget,
-    ) -> Result<Vc<VersionState>> {
-        if target == HmrTarget::Client {
-            bail!("all_hmr_version_state is not yet implemented for the client target");
-        }
-
-        #[tracing::instrument(
-            level = "info",
-            name = "get aggregate HMR version",
-            skip_all,
-            fields(target = %target),
-        )]
+    pub async fn server_hmr_version_state(self: ResolvedVc<Self>) -> Result<Vc<VersionState>> {
+        #[tracing::instrument(level = "info", name = "get server HMR version", skip_all)]
         #[turbo_tasks::function(operation, root)]
-        async fn aggregate_hmr_version_operation(
+        async fn server_hmr_version_operation(
             this: ResolvedVc<Project>,
-            target: HmrTarget,
         ) -> Result<Vc<Box<dyn Version>>> {
             let Some(map) = this.await?.versioned_content_map else {
                 bail!("must be in dev mode to hmr")
             };
-            let root = this.aggregate_hmr_root_path(target).owned().await?;
+            let root = this.server_hmr_root_path().owned().await?;
             AggregateHmrVersion::from_map(*map, &root).await
         }
-        let version_op = aggregate_hmr_version_operation(self, target);
+        let version_op = server_hmr_version_operation(self);
 
-        // INVALIDATION: untracked initial read; the subscription drives invalidation.
+        // INVALIDATION: untracked initial read; each pull computes from this state.
         let state = VersionState::new(
             version_op
                 .read_trait_strongly_consistent()
@@ -2624,9 +2554,8 @@ impl Project {
         Ok(state)
     }
 
-    /// Aggregate counterpart to [`Self::hmr_update`]: a single `Update` whose
-    /// combined `ChunkListUpdate` is the union of the per-entry-chunk diffs
-    /// under `target`'s root.
+    /// A single `Update` whose combined `ChunkListUpdate` is the union of the
+    /// server entry chunk diffs.
     ///
     /// Each tracked entry chunk's own update is a `ChunkListUpdate` (carrying
     /// the module deltas for its shared chunks via the merger) or a bare
@@ -2638,19 +2567,11 @@ impl Project {
     /// chunks absent from `from` are skipped; the runtime require()s them on
     /// demand.
     #[turbo_tasks::function]
-    pub async fn all_hmr_update(
-        self: Vc<Self>,
-        target: HmrTarget,
-        from: Vc<VersionState>,
-    ) -> Result<Vc<Update>> {
-        if target == HmrTarget::Client {
-            bail!("all_hmr_update is not yet implemented for the client target");
-        }
-
+    pub async fn server_hmr_update(self: Vc<Self>, from: Vc<VersionState>) -> Result<Vc<Update>> {
         let Some(map) = self.await?.versioned_content_map else {
             bail!("must be in dev mode to hmr")
         };
-        let root = self.aggregate_hmr_root_path(target).owned().await?;
+        let root = self.server_hmr_root_path().owned().await?;
         let chunks_versioned_content = map.hmr_chunks_in_path(&root).await?;
 
         // No chunks to diff yet (e.g. before any endpoints have been written).
@@ -2672,7 +2593,7 @@ impl Project {
         // Nothing to apply, but `from` still needs to advance to `to`. Reaching
         // here means `from` held a version we couldn't diff against (it wasn't an
         // `AggregateHmrVersion`), so `diff_chunks_against` gave up and returned
-        // nothing. An empty `Partial` moves the subscription's state forward so
+        // nothing. An empty `Partial` moves the session state forward so
         // the *next* change produces a real diff; returning `Total` instead would
         // force a needless full re-evaluation.
         if chunk_updates.is_empty() && !has_new_chunks {
@@ -2699,14 +2620,11 @@ impl Project {
         Ok(builder.build(to_ref).cell())
     }
 
-    /// Gets a list of all HMR chunk names that can be subscribed to for the
-    /// specified target. Used by the dev server to set up server-side HMR
-    /// subscriptions for all Node.js App Router entries (pages and route
-    /// handlers).
+    /// Gets a list of all client HMR chunk names that can be subscribed to.
     #[turbo_tasks::function]
-    pub async fn hmr_chunk_names(self: Vc<Self>, target: HmrTarget) -> Result<Vc<Vec<RcStr>>> {
+    pub async fn hmr_chunk_names(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
         if let Some(map) = self.await?.versioned_content_map {
-            Ok(map.keys_in_path(self.hmr_root_path(target).owned().await?))
+            Ok(map.keys_in_path(self.client_relative_path().owned().await?))
         } else {
             bail!("must be in dev mode to hmr")
         }

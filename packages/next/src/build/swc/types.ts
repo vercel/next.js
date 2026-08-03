@@ -331,27 +331,21 @@ export interface Project {
   featureUsage(): Promise<BuildFeatureUsage[]>
 
   entrypointsSubscribe(): AsyncIterableIterator<
-    TurbopackResult<RawEntrypoints | {}>
+    | TurbopackResult<RawEntrypoints>
+    | import('./index').TurbopackEntrypointsError
   >
 
-  // Note: only the Server target is implemented in the native binding;
-  // add a Client overload once `all_hmr_update` supports it.
-  allHmrEvents(
-    target: import('./index').HmrTarget.Server
-  ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
+  entrypoints(): Promise<TurbopackResult<RawEntrypoints>>
 
-  hmrEvents(
-    identifier: string,
-    target: import('./index').HmrTarget.Client
+  getServerHmrUpdate(): Promise<TurbopackResult<NodeJsHmrUpdate>>
+
+  clientHmrEvents(
+    identifier: string
   ): AsyncIterableIterator<TurbopackResult<Update>>
-  hmrEvents(
-    identifier: string,
-    target: import('./index').HmrTarget.Server
-  ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
 
-  hmrChunkNamesSubscribe(
-    target: import('./index').HmrTarget
-  ): AsyncIterableIterator<TurbopackResult<HmrChunkNames>>
+  clientHmrChunkNamesSubscribe(): AsyncIterableIterator<
+    TurbopackResult<HmrChunkNames>
+  >
 
   getSourceForAsset(filePath: string): Promise<string | null>
 

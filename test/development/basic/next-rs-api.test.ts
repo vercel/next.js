@@ -1,11 +1,14 @@
 import { nextTestSetup } from 'e2e-utils'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
-import { createDefineEnv, loadBindings, HmrTarget } from 'next/dist/build/swc'
+import {
+  createDefineEnv,
+  loadBindings,
+  TurbopackEntrypointsError,
+} from 'next/dist/build/swc'
 import type {
   Issue,
   MemoryEvictionMode,
   Project,
-  RawEntrypoints,
   StyledString,
   TurbopackResult,
   UpdateInfo,
@@ -371,8 +374,8 @@ describe('next.rs api', () => {
     const entrypointsSubscription = project.entrypointsSubscribe()
     const entrypoints = await entrypointsSubscription.next()
     expect(entrypoints.done).toBe(false)
-    if (!('routes' in entrypoints.value)) {
-      throw new Error('Entrypoints not available due to compilation errors')
+    if (entrypoints.value instanceof TurbopackEntrypointsError) {
+      throw entrypoints.value
     }
 
     expect(Array.from(entrypoints.value.routes.keys()).sort()).toEqual([
@@ -461,11 +464,9 @@ describe('next.rs api', () => {
     // eslint-disable-next-line no-loop-func
     it(`should allow to write ${name} to disk`, async () => {
       const entrypointsSubscribtion = project.entrypointsSubscribe()
-      const entrypoints: TurbopackResult<RawEntrypoints | {}> = (
-        await entrypointsSubscribtion.next()
-      ).value
-      if (!('routes' in entrypoints)) {
-        throw new Error('Entrypoints not available due to compilation errors')
+      const entrypoints = (await entrypointsSubscribtion.next()).value
+      if (entrypoints instanceof TurbopackEntrypointsError) {
+        throw entrypoints
       }
 
       const route = entrypoints.routes.get(path)
@@ -585,11 +586,9 @@ describe('next.rs api', () => {
         console.log('start')
         await new Promise((r) => setTimeout(r, 1000))
         const entrypointsSubscribtion = project.entrypointsSubscribe()
-        const entrypoints: TurbopackResult<RawEntrypoints | {}> = (
-          await entrypointsSubscribtion.next()
-        ).value
-        if (!('routes' in entrypoints)) {
-          throw new Error('Entrypoints not available due to compilation errors')
+        const entrypoints = (await entrypointsSubscribtion.next()).value
+        if (entrypoints instanceof TurbopackEntrypointsError) {
+          throw entrypoints
         }
 
         const route = entrypoints.routes.get(path)
@@ -618,15 +617,13 @@ describe('next.rs api', () => {
           }
         }
 
-        const result = await project
-          .hmrChunkNamesSubscribe(HmrTarget.Client)
-          .next()
+        const result = await project.clientHmrChunkNamesSubscribe().next()
         expect(result.done).toBe(false)
         const chunkNames = result.value.chunkNames
         expect(chunkNames).toHaveProperty('length', expect.toBePositive())
 
         const subscriptions = chunkNames.map((chunkName) =>
-          project.hmrEvents(chunkName, HmrTarget.Client)
+          project.clientHmrEvents(chunkName)
         )
         await Promise.all(
           subscriptions.map(async (subscription) => {
@@ -727,11 +724,9 @@ describe('next.rs api', () => {
     console.log('start')
     await new Promise((r) => setTimeout(r, 1000))
     const entrypointsSubscribtion = project.entrypointsSubscribe()
-    const entrypoints: TurbopackResult<RawEntrypoints | {}> = (
-      await entrypointsSubscribtion.next()
-    ).value
-    if (!('routes' in entrypoints)) {
-      throw new Error('Entrypoints not available due to compilation errors')
+    const entrypoints = (await entrypointsSubscribtion.next()).value
+    if (entrypoints instanceof TurbopackEntrypointsError) {
+      throw entrypoints
     }
 
     const route = entrypoints.routes.get('/')
@@ -740,12 +735,12 @@ describe('next.rs api', () => {
     if (route.type !== 'page') throw new Error('unknown route type')
     await route.htmlEndpoint.writeToDisk()
 
-    const result = await project.hmrChunkNamesSubscribe(HmrTarget.Client).next()
+    const result = await project.clientHmrChunkNamesSubscribe().next()
     expect(result.done).toBe(false)
     const chunkNames = result.value.chunkNames
 
     const subscriptions = chunkNames.map((chunkName) =>
-      project.hmrEvents(chunkName, HmrTarget.Client)
+      project.clientHmrEvents(chunkName)
     )
     await Promise.all(
       subscriptions.map(async (subscription) => {

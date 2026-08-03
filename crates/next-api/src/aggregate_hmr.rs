@@ -22,11 +22,11 @@ pub struct HmrChunkWithContent {
 }
 
 /// Whether `content` is a chunk list, i.e. an entry point of the chunk graph that
-/// an HMR subscription can be anchored on.
+/// an aggregate HMR session can be anchored on.
 ///
 /// Note this must enumerate every chunk list content type. A new chunking context
 /// that introduces one has to be added here, otherwise its chunks silently drop
-/// out of the HMR subscription.
+/// out of aggregate HMR updates.
 pub fn is_entry_chunk_list_content(content: ResolvedVc<Box<dyn VersionedContent>>) -> bool {
     ResolvedVc::try_downcast_type::<EcmascriptBuildNodeChunkListContent>(content).is_some()
         || ResolvedVc::try_downcast_type::<EcmascriptDevChunkListContent>(content).is_some()

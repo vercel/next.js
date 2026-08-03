@@ -403,30 +403,26 @@ export declare function projectWriteAllEntrypointsToDisk(
   project: { __napiType: 'Project' },
   appDirOnly: boolean
 ): Promise<TurbopackResult>
-export declare function projectEntrypoints(project: {
+export declare function projectEntrypointsWithIssues(project: {
   __napiType: 'Project'
 }): Promise<TurbopackResult>
 export declare function projectEntrypointsSubscribe(
   project: { __napiType: 'Project' },
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
-export declare function projectAllHmrEvents(
-  project: { __napiType: 'Project' },
-  target: string,
-  func: (...args: any[]) => any
-): { __napiType: 'RootTask' }
-export declare function projectHmrEvents(
+export declare function projectGetServerHmrUpdate(project: {
+  __napiType: 'Project'
+}): Promise<TurbopackResult>
+export declare function projectClientHmrEvents(
   project: { __napiType: 'Project' },
   chunkName: RcStr,
-  target: string,
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
 export interface HmrChunkNames {
   chunkNames: Array<RcStr>
 }
-export declare function projectHmrChunkNamesSubscribe(
+export declare function projectClientHmrChunkNamesSubscribe(
   project: { __napiType: 'Project' },
-  target: string,
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
 export interface NapiUpdateMessage {

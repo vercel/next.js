@@ -27,6 +27,7 @@ import type {
   DefineEnv,
   Endpoint,
   HmrChunkNames,
+  Issue,
   Lockfile,
   NodeJsHmrUpdate,
   PartialProjectOptions,
@@ -43,9 +44,11 @@ import type {
 } from './types'
 import { runLoaderWorkerPool } from './loaderWorkerPool'
 
-export enum HmrTarget {
-  Client = 'client',
-  Server = 'server',
+export class TurbopackEntrypointsError extends Error {
+  constructor(readonly issues: Issue[]) {
+    super('Entrypoints could not be constructed due to compilation errors')
+    this.name = 'TurbopackEntrypointsError'
+  }
 }
 
 type RawBindings = typeof import('./generated-native')
@@ -754,55 +757,43 @@ function bindingToApi(
               entrypoints as TurbopackResult<NapiEntrypoints>
             )
           } else {
-            yield {
-              issues: entrypoints.issues,
-            } as TurbopackResult<{}>
+            yield new TurbopackEntrypointsError(entrypoints.issues)
           }
         }
       })()
     }
 
-    // Note: only the Server target is implemented in the native binding;
-    // add a Client overload once `all_hmr_update` supports it.
-    allHmrEvents(
-      target: HmrTarget.Server
-    ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>> {
+    async entrypoints(): Promise<TurbopackResult<RawEntrypoints>> {
+      const entrypoints = (await binding.projectEntrypointsWithIssues(
+        this._nativeProject
+      )) as TurbopackResult<NapiEntrypoints | {}>
+      if (!('routes' in entrypoints)) {
+        throw new TurbopackEntrypointsError(entrypoints.issues)
+      }
+      return napiEntrypointsToRawEntrypoints(entrypoints)
+    }
+
+    async getServerHmrUpdate(): Promise<TurbopackResult<NodeJsHmrUpdate>> {
+      return binding.projectGetServerHmrUpdate(this._nativeProject) as Promise<
+        TurbopackResult<NodeJsHmrUpdate>
+      >
+    }
+
+    clientHmrEvents(
+      chunkName: string
+    ): AsyncIterableIterator<TurbopackResult<Update>> {
       return subscribe(true, async (callback) =>
-        binding.projectAllHmrEvents(this._nativeProject, target, callback)
+        binding.projectClientHmrEvents(this._nativeProject, chunkName, callback)
       )
     }
 
-    hmrEvents(
-      chunkName: string,
-      target: HmrTarget.Client
-    ): AsyncIterableIterator<TurbopackResult<Update>>
-    hmrEvents(
-      chunkName: string,
-      target: HmrTarget.Server
-    ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
-    hmrEvents(chunkName: string, target: HmrTarget.Client | HmrTarget.Server) {
-      return subscribe(true, async (callback) =>
-        binding.projectHmrEvents(
-          this._nativeProject,
-          chunkName,
-          target,
-          callback
-        )
-      )
-    }
-
-    /**
-     * Subscribe to the list of output chunk paths that can receive HMR updates.
-     * Chunk paths are output file paths like "server/chunks/ssr/..._.js" for server
-     * or "_next/static/chunks/app/page.js" for client.
-     */
-    hmrChunkNamesSubscribe(target: HmrTarget) {
+    /** Subscribe to client output chunk paths that can receive HMR updates. */
+    clientHmrChunkNamesSubscribe() {
       return subscribe<TurbopackResult<HmrChunkNames>>(
         false,
         async (callback) =>
-          binding.projectHmrChunkNamesSubscribe(
+          binding.projectClientHmrChunkNamesSubscribe(
             this._nativeProject,
-            target,
             callback
           )
       )
