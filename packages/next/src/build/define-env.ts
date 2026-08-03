@@ -23,6 +23,10 @@ export interface DefineEnvOptions {
     staticFilter: BloomFilter
     dynamicFilter: BloomFilter
   }
+  pagesRouterFilters?: {
+    staticFilter: BloomFilter
+    dynamicFilter: BloomFilter
+  }
   config: NextConfigComplete
   dev: boolean
   distDir: string
@@ -106,6 +110,7 @@ function getImageConfig(
 export function getDefineEnv({
   isTurbopack,
   clientRouterFilters,
+  pagesRouterFilters,
   config,
   dev,
   distDir,
@@ -247,6 +252,13 @@ export function getDefineEnv({
       clientRouterFilters?.staticFilter ?? false,
     'process.env.__NEXT_CLIENT_ROUTER_D_FILTER':
       clientRouterFilters?.dynamicFilter ?? false,
+    // Bloom filters of Pages Router routes, consumed by the App Router's
+    // optimistic route matcher: a URL that may belong to the Pages Router
+    // must never be optimistically predicted from an App Router pattern.
+    'process.env.__NEXT_PAGES_ROUTER_S_FILTER':
+      pagesRouterFilters?.staticFilter ?? false,
+    'process.env.__NEXT_PAGES_ROUTER_D_FILTER':
+      pagesRouterFilters?.dynamicFilter ?? false,
     'process.env.__NEXT_CLIENT_VALIDATE_RSC_REQUEST_HEADERS': Boolean(
       config.experimental.validateRSCRequestHeaders
     ),
