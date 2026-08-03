@@ -2223,7 +2223,7 @@ export const defaultConfig = Object.freeze({
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
     strictRouteTypes: false,
-    useTypeScriptCli: false,
+    useTypeScriptCli: true,
     removeUncaughtErrorAndRejectionListeners: false,
     validateRSCRequestHeaders: true,
     staleTimes: {

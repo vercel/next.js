@@ -73,7 +73,7 @@ export function hasNativeTypeScriptPreview(baseDir: string): boolean {
 export function getTypeScriptApiMissingError(version: string): Error {
   return new Error(
     `TypeScript ${version} does not provide the compiler API required by Next.js. ` +
-      `Enable ${bold('experimental.useTypeScriptCli')} in your Next.js config to use the TypeScript CLI, ` +
+      `Set ${bold('experimental.useTypeScriptCli')} back to true in your Next.js config to use the TypeScript CLI, ` +
       `or install TypeScript 6 instead.`
   )
 }
