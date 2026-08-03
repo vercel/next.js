@@ -42,15 +42,17 @@ export class SharedCacheControls {
     let cacheControl = SharedCacheControls.cacheControls.get(route)
     if (cacheControl) return cacheControl
 
-    // A variant combination is cached under its own key, so prefer a manifest
-    // entry for that exact combination and fall back to the one for its route.
+    // A variant combination is cached under its own key, so prefer the manifest
+    // entry for that exact combination. Combinations of one route genuinely do
+    // differ here: a variant value read outside a cache scope and passed into
+    // one can select a different `cacheLife`, which then describes the whole
+    // prerender, so the entries must not be shared.
     //
-    // Combinations can genuinely differ here: a variant value passed into a
-    // `'use cache'` function can select a different `cacheLife`, which feeds
-    // the route's effective lifetime. The fallback is therefore a narrowing,
-    // and is only right while the manifest holds a single entry per route. It
-    // becomes exact once the manifest carries an entry per combination, at
-    // which point the first lookup wins and this stops being consulted.
+    // The fallback to the route's own entry is provisional, for a combination
+    // that has none — currently only an undeclared one, which is hashed into
+    // the path as though it had been declared. It disappears once an undeclared
+    // variant no longer partitions the cache and the route has a real
+    // variant-agnostic entry to answer with.
     const prerenderData =
       this.prerenderManifest.routes[route] ??
       this.prerenderManifest.routes[removeVariantsPrefix(route)]

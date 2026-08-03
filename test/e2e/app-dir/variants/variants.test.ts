@@ -5,7 +5,7 @@ import { startExternalServer } from './external-server.mjs'
 
 describe('variants', () => {
   const { next, skipped } = nextTestSetup({
-    files: __dirname,
+    files: __dirname + '/fixtures/default',
     // The proxy rewrites to an internal `/__variants/<packed>` path, which the
     // Next.js router strips before it matches a route. Deployments route at the
     // CDN instead, and the build output declares nothing for that prefix, so
@@ -158,6 +158,52 @@ describe('variants', () => {
     expect(light('#theme').text()).toBe('light')
     expect(light('#slug').last().text()).toBe('other')
   })
+
+  it('should resolve a combination that was never declared', async () => {
+    // `shell/[slug]` declares only `locale=en`, so this combination has no
+    // prerender from the build. The proxy still resolved it, so a shell for it
+    // is generated on demand rather than another combination's being served.
+    const $ = await next.render$('/shell/undeclared', undefined, {
+      headers: { cookie: 'theme=dark; locale=de' },
+    })
+
+    expect($('#theme').text()).toBe('dark')
+    expect($('#locale').text()).toBe('de')
+    expect($('#slug').last().text()).toBe('undeclared')
+  })
+
+  // An undeclared combination is hashed into the path as though it had been
+  // declared, so it finds no prerender and the route is generated on demand.
+  // `enumerated/[slug]` awaits its param at the top level with no boundary
+  // above it, and that generation supplies the param as runtime data, which
+  // such a read cannot survive: the request fails with "uncached or runtime
+  // data during prerendering". The fix is for an undeclared variant to stop
+  // partitioning the cache, so a combination like this one resolves to a
+  // variant-agnostic prerender instead of looking for one of its own.
+  //
+  // Only prerendering under Cache Components reaches that state. Without Cache
+  // Components the read interrupts static generation and the route falls back
+  // to rendering dynamically, and in dev nothing is prerendered to begin with.
+  // `shell/[slug]` is this same case with a boundary above the read, and passes
+  // everywhere, which is why the gap went unnoticed.
+  const undeclaredCombinationTitle =
+    'should resolve an undeclared combination when the param is read without a boundary'
+
+  const undeclaredCombination = async () => {
+    const $ = await next.render$('/enumerated/a', undefined, {
+      headers: { cookie: 'theme=dark; locale=de' },
+    })
+
+    expect($('#theme').text()).toBe('dark')
+    expect($('#locale').text()).toBe('de')
+    expect($('#slug').text()).toBe('a')
+  }
+
+  if (isNextStart && process.env.__NEXT_CACHE_COMPONENTS) {
+    it.failing(undeclaredCombinationTitle, undeclaredCombination)
+  } else {
+    it(undeclaredCombinationTitle, undeclaredCombination)
+  }
 
   it('should not decorate a rewrite to another origin', async () => {
     const $ = await next.render$('/external')

@@ -10,8 +10,8 @@ export const theme = variant(
   'theme@variants.ts'
 )
 
-// A second variant, so that a resolved combination packs more than one pair and
-// therefore exercises the `&` separator and the canonical ordering.
+// A second variant, so that a resolved combination holds more than one pair and
+// therefore exercises the canonical ordering.
 export const locale = variant(
   (request) => (request.cookies.get('locale')?.value === 'de' ? 'de' : 'en'),
   'locale@variants.ts'

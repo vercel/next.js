@@ -37,7 +37,8 @@ import { CloseController } from './web-on-close'
 import { getEdgePreviewProps } from './get-edge-preview-props'
 import { getBuiltinRequestContext } from '../after/builtin-request-context'
 import { getImplicitTags } from '../lib/implicit-tags'
-import { NEXT_VARIANTS_DECORATION_HEADER } from '../../lib/constants'
+import { NEXT_VARIANTS_HEADER } from '../../lib/constants'
+import { hashEncodedVariants } from '../variants/hash'
 import { insertVariantsPrefix } from '../variants/prefix'
 import { isRSCRequestHeader } from '../lib/is-rsc-request'
 import { setRequestMeta } from '../request-meta'
@@ -124,6 +125,50 @@ function ensureTestApisIntercepted() {
       propagator = wrapRequestHandler(propagator)
     }
   }
+}
+
+/**
+ * Adds one request header override to a middleware response, keeping whatever
+ * the user's proxy already overrode.
+ *
+ * `x-middleware-override-headers` is not a list of additions: it names the
+ * complete set of request headers the origin should see, and anything unnamed
+ * is dropped. So when the proxy overrode nothing, every incoming header has to
+ * be named here to survive, which is exactly what `NextResponse.next({ request
+ * })` does when user code takes this path.
+ */
+function setRequestHeaderOverride(
+  response: Response,
+  requestHeaders: Headers,
+  name: string,
+  value: string
+): void {
+  const existingOverrides = response.headers.get(
+    'x-middleware-override-headers'
+  )
+
+  if (existingOverrides) {
+    response.headers.set(
+      'x-middleware-override-headers',
+      `${existingOverrides},${name}`
+    )
+  } else {
+    const names: string[] = []
+
+    for (const [key, headerValue] of requestHeaders) {
+      response.headers.set(`x-middleware-request-${key}`, headerValue)
+      names.push(key)
+    }
+
+    response.headers.set(
+      'x-middleware-override-headers',
+      [...names, name].join(',')
+    )
+  }
+
+  // Written last so that this value wins over an incoming header of the same
+  // name, whichever branch above enumerated it.
+  response.headers.set(`x-middleware-request-${name}`, value)
 }
 
 export async function adapter(
@@ -478,20 +523,30 @@ export async function adapter(
   }
 
   /**
-   * Apply variant decoration last, deliberately: the client-facing rewrite
-   * headers above are computed against the *undecorated* destination, so the
-   * client never learns about the internal variants prefix. Were it applied
-   * earlier, the client router would see a rewrite to a different route
-   * structure, stop using the route for prediction, and mis-parse its params.
+   * Apply variant decoration last, deliberately: the rewrite headers the client
+   * router reads are computed above against the *undecorated* destination, so
+   * it still sees the real route. Were the prefix applied earlier, the router
+   * would see a rewrite to a different route structure, stop using the route
+   * for prediction, and mis-parse its params.
    *
-   * The decoration header is consumed and deleted within the same invocation
-   * that produced it, so it never reaches the CDN or the browser.
+   * `x-middleware-rewrite` does end up carrying the prefix, because it is the
+   * internal protocol header that tells routing which path to serve. Nothing on
+   * the client reads it.
+   *
+   * The path receives only the combination's hash, which is what selects the
+   * prerender to serve. The values themselves continue to the origin as a
+   * request header, because a hash cannot be read back and a render needs the
+   * values: it is what lets a combination nobody enumerated still render.
+   *
+   * The wrapper hands them over as a *response* header, which is dropped here
+   * in favour of the request header override, so that the values reach the
+   * origin without also reaching the CDN or the browser.
    */
   if (response) {
-    const packedVariants = response.headers.get(NEXT_VARIANTS_DECORATION_HEADER)
+    const encodedVariants = response.headers.get(NEXT_VARIANTS_HEADER)
 
-    if (packedVariants) {
-      response.headers.delete(NEXT_VARIANTS_DECORATION_HEADER)
+    if (encodedVariants) {
+      response.headers.delete(NEXT_VARIANTS_HEADER)
 
       // Decorate the existing rewrite target when the proxy rewrote, otherwise
       // turn the request URL into a self-rewrite so the prefix has somewhere to
@@ -506,11 +561,18 @@ export async function adapter(
       if (target.origin === requestURL.origin) {
         target.pathname = insertVariantsPrefix(
           target.pathname,
-          packedVariants,
+          hashEncodedVariants(encodedVariants),
           params.request.nextConfig?.basePath
         )
 
         response.headers.set('x-middleware-rewrite', target.toString())
+
+        setRequestHeaderOverride(
+          response,
+          requestHeaders,
+          NEXT_VARIANTS_HEADER,
+          encodedVariants
+        )
       }
     }
   }

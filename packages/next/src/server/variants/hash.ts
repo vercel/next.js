@@ -1,47 +1,119 @@
 import { djb2Hash } from '../../shared/lib/hash'
 
 /**
- * Renders a resolved variant combination in its canonical form: `key=value`
- * pairs joined by `&`, sorted by variant identity.
+ * Serializes a variant combination canonically, as its entries sorted by
+ * variant identity and rendered as JSON.
  *
- * One form serves both the packed URL segment and the input to the prerender
- * hash, so that the proxy (which packs a combination per request) and the build
- * (which emits prerendered combinations) cannot order the same combination
- * differently and address two different paths for it.
+ * JSON rather than `key=value&…` because values are no longer restricted to a
+ * charset that excludes the delimiters: they travel in a header now, not in a
+ * path segment. A pair-array form stays unambiguous for any string, so two
+ * different combinations cannot serialize alike and collide onto one prerender.
  *
  * Sorting by identity rather than accepting the order the values arrive in
  * matters because a module namespace orders its exports by export name, and
  * that is not the same order once each name is qualified with its module path:
  * `theme2@b.ts` sorts before `theme@a.ts`, while `theme` sorts before `theme2`.
- *
- * The pairs are joined literally rather than through
- * `URLSearchParams.toString()`, which would percent-encode the `:` in a variant
- * identity and require decoding it back. Identities and values are validated
- * against a charset excluding `&`, `=`, `%`, `/`, and `+`, so the result needs
- * no encoding and round-trips through `new URLSearchParams(segment)` unchanged.
  */
 export function canonicalizeVariants(variants: Record<string, string>): string {
-  return Object.keys(variants)
-    .sort()
-    .map((key) => `${key}=${variants[key]}`)
-    .join('&')
+  return JSON.stringify(
+    Object.keys(variants)
+      .sort()
+      .map((key) => [key, variants[key]])
+  )
 }
 
 /**
- * Hashes a variant combination into the segment that identifies its prerender
- * on disk, under `.next/server/app/__variants/<hash>/`.
+ * Hashes a combination's canonical form. Every hash goes through here so that
+ * the callers below cannot drift apart: the build names files by hashing
+ * values, the adapter names paths by hashing the transport form, and a
+ * disagreement would mean a request looking up a prerender that exists under
+ * another name.
  *
- * The values cannot be used directly the way they are in the URL: the allowed
- * value charset includes characters that are illegal in Windows filenames, and
- * a combination's length is unbounded, whereas a path segment is not. The
- * digest is never reversed. Every consumer goes values → hash → path, and asks
- * the prerender manifest when it needs to go the other way.
+ * `djb2Hash` rather than a `node:crypto` digest because it is pure JavaScript
+ * and therefore available wherever a cache key is composed, including the edge
+ * runtime. It returns an unsigned 32-bit integer, so base 36 yields `[0-9a-z]+`
+ * with no sign, which is what lets the prefix be recognized by shape.
+ */
+function hashCanonicalVariants(canonical: string): string {
+  return djb2Hash(canonical).toString(36)
+}
+
+/**
+ * Hashes a variant combination into the segment that identifies it, used both
+ * in the request path and in the prerender's path on disk.
  *
- * The build (naming files) and the runtime (finding them) compute this
- * independently, so both must agree exactly. `djb2Hash` is used rather than a
- * `node:crypto` digest because it is pure JavaScript and therefore available
- * wherever a cache key is composed, including the edge runtime.
+ * The values themselves cannot be used: a combination's length is unbounded
+ * whereas a path segment is not, and the value charset would have to exclude
+ * everything illegal in a filename on every platform. The digest is never
+ * reversed — the values reach the origin through `NEXT_VARIANTS_HEADER`
+ * instead, which is what allows a combination nobody enumerated to still
+ * render.
  */
 export function hashVariants(variants: Record<string, string>): string {
-  return djb2Hash(canonicalizeVariants(variants)).toString(36)
+  return hashCanonicalVariants(canonicalizeVariants(variants))
+}
+
+/**
+ * Hashes a combination that is already in its transport encoding.
+ *
+ * This exists for the edge adapter, which needs the path segment but never the
+ * values: it receives them encoded and passes them on encoded. Going through
+ * the canonical form directly rather than `hashVariants(decodeVariants(…))`
+ * keeps it exact — the encoding *is* the canonical form, percent-escaped — and
+ * avoids introducing a parse failure the adapter would have no sensible way to
+ * handle, given it produced the value itself moments earlier.
+ */
+export function hashEncodedVariants(encoded: string): string {
+  return hashCanonicalVariants(decodeURIComponent(encoded))
+}
+
+/**
+ * Encodes a combination for transport in `NEXT_VARIANTS_HEADER`.
+ *
+ * Percent-encoding rather than base64 so the result is ASCII-safe for a header
+ * value without needing `Buffer`, which is unavailable on the edge runtime
+ * where the proxy runs.
+ */
+export function encodeVariants(variants: Record<string, string>): string {
+  return encodeURIComponent(canonicalizeVariants(variants))
+}
+
+/**
+ * Reverses `encodeVariants`.
+ *
+ * Returns null rather than throwing for anything malformed. The header is
+ * internal and unforgeable from outside, so a bad value means a bug on our side
+ * rather than hostile input, and a reader that reports the variant as
+ * unresolved gives a better error than a parse failure deep in the request
+ * pipeline.
+ */
+export function decodeVariants(encoded: string): Record<string, string> | null {
+  let parsed: unknown
+
+  try {
+    parsed = JSON.parse(decodeURIComponent(encoded))
+  } catch {
+    return null
+  }
+
+  if (!Array.isArray(parsed)) {
+    return null
+  }
+
+  const variants: Record<string, string> = {}
+
+  for (const entry of parsed) {
+    if (
+      !Array.isArray(entry) ||
+      entry.length !== 2 ||
+      typeof entry[0] !== 'string' ||
+      typeof entry[1] !== 'string'
+    ) {
+      return null
+    }
+
+    variants[entry[0]] = entry[1]
+  }
+
+  return variants
 }

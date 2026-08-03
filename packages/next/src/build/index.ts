@@ -37,6 +37,7 @@ import {
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   MATCHED_PATH_HEADER,
+  NEXT_VARIANTS_HEADER,
   type RSC_SEGMENTS_DIR_SUFFIX,
   type RSC_SEGMENT_SUFFIX,
 } from '../lib/constants'
@@ -408,6 +409,10 @@ const ALLOWED_HEADERS: string[] = [
   PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
+  // Carries the resolved variant values. The path only holds their hash, so
+  // without this a prerender generated on demand, or a revalidation, would have
+  // no values to render against.
+  NEXT_VARIANTS_HEADER,
 ]
 
 export type PrerenderManifest = {
@@ -461,6 +466,28 @@ function getPprAppPageClassification(
       : 'static',
     htmlSize: result.htmlSize,
   }
+}
+
+/**
+ * Whether `candidate` expires sooner than `current`, treating a missing value
+ * and `false` (never revalidate) as the longest lifetime there is.
+ *
+ * Provisional, and used for one thing: choosing the safest lifetime for the
+ * shared entry a route with variant combinations gets. See its only call site.
+ */
+function revalidatesSooner(
+  candidate: Revalidate,
+  current: Revalidate | undefined
+): boolean {
+  if (candidate === false) {
+    return false
+  }
+
+  if (current === undefined || current === false) {
+    return true
+  }
+
+  return candidate < current
 }
 
 function getStaticAppPageClassification(
@@ -3519,7 +3546,10 @@ export default async function build(
               } = routeResult ?? {}
 
               const cacheControl = getCacheControl(
-                route.pathname,
+                // Keyed by the written path, so a variant combination finds the
+                // cache control its own render produced instead of missing the
+                // lookup and silently defaulting to never revalidating.
+                getVariantOutputPath(route.pathname, route.variantValues),
                 appConfig.revalidate
               )
 
@@ -3598,7 +3628,7 @@ export default async function build(
                   }
                 }
 
-                prerenderManifest.routes[route.pathname] = {
+                const manifestRoute = {
                   initialStatus: status,
                   initialHeaders: meta.headers,
                   renderingMode: isAppPPREnabled
@@ -3615,6 +3645,44 @@ export default async function build(
                   dataRoute,
                   prefetchDataRoute,
                   allowHeader: ALLOWED_HEADERS,
+                }
+
+                if (route.variantValues) {
+                  // A combination is looked up at runtime by the path its
+                  // artifact was written to, so it needs an entry of its own.
+                  // Without one it resolves to the entry below and inherits
+                  // another combination's cache control.
+                  prerenderManifest.routes[
+                    getVariantOutputPath(route.pathname, route.variantValues)
+                  ] = manifestRoute
+                }
+
+                // PROVISIONAL. This entry exists only because an *undeclared*
+                // combination is currently hashed into the path like a declared
+                // one, so it finds no entry of its own and needs something to
+                // fall back to. The route it describes has no artifact of its
+                // own: every combination was written under a hash.
+                //
+                // Since it stands for no particular combination, no
+                // combination's lifetime is the right value, and the shortest
+                // is merely the safe one: falling back can then only revalidate
+                // more often than a declared combination would, never less.
+                // Taking whichever combination was written last would instead
+                // make the value depend on `generateStaticVariants` order.
+                //
+                // Once an undeclared variant stops partitioning the cache, the
+                // route gets a real variant-agnostic render with a cache
+                // control of its own, and this, `revalidatesSooner`, and the
+                // fallback in `SharedCacheControls.get` all go away together.
+                if (
+                  !prerenderManifest.routes[route.pathname] ||
+                  revalidatesSooner(
+                    cacheControl.revalidate,
+                    prerenderManifest.routes[route.pathname]
+                      .initialRevalidateSeconds
+                  )
+                ) {
+                  prerenderManifest.routes[route.pathname] = manifestRoute
                 }
               } else {
                 hasRevalidateZero = true

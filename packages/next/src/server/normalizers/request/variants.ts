@@ -1,67 +1,22 @@
 import type { PathnameNormalizer } from './pathname-normalizer'
 
-import { VARIANTS_PATH_PREFIX } from '../../../lib/constants'
-import { escapeStringRegexp } from '../../../shared/lib/escape-regexp'
+import { hasVariantsPrefix, removeVariantsPrefix } from '../../variants/prefix'
 
 /**
- * Matches an internal variant pathname and captures the packed values segment
- * plus the remaining route pathname, e.g. for
- * `/__variants/theme@variants.ts=dark/blog/my-post` the captures are
- * `theme@variants.ts=dark` and `/blog/my-post`.
+ * Strips the internal variants prefix that the edge adapter adds, recovering
+ * the route pathname before route resolution.
  *
- * The values segment is a single path segment so that this normalizer stays
- * route-agnostic: it runs before route resolution and therefore cannot know how
- * many segments belong to the route.
- */
-const PATTERN = new RegExp(
-  `^/${escapeStringRegexp(VARIANTS_PATH_PREFIX)}/([^/]+)(/.*)?$`
-)
-
-export interface ExtractedVariants {
-  /**
-   * The pathname with the variants prefix removed.
-   */
-  originalPathname: string
-  /**
-   * Resolved variant values, keyed by variant identity.
-   */
-  variants: Record<string, string>
-}
-
-/**
- * Strips the variants prefix that the proxy adds to encode resolved variant
- * values, and recovers those values.
- *
- * Variant values are restricted to a charset that excludes `/`, `&`, `=`, and
- * `%`, so the packed segment never needs percent-encoding. That keeps it immune
- * to path normalization elsewhere in the stack decoding a `%2F` and splitting
- * the segment.
+ * Only the prefix is removed here, because it is all the path carries: the
+ * segment is a hash of the combination, which names the prerender to serve but
+ * cannot be read back into values. The values arrive separately, in
+ * `NEXT_VARIANTS_HEADER`, and are picked up by whoever needs them.
  */
 export class VariantsPathnameNormalizer implements PathnameNormalizer {
   public match(pathname: string): boolean {
-    return PATTERN.test(pathname)
-  }
-
-  public extract(pathname: string): ExtractedVariants | null {
-    const match = pathname.match(PATTERN)
-    if (!match) return null
-
-    const variants: Record<string, string> = {}
-    for (const [key, value] of new URLSearchParams(match[1])) {
-      variants[key] = value
-    }
-
-    return {
-      // A route at the root has no remaining pathname.
-      originalPathname: match[2] ?? '/',
-      variants,
-    }
+    return hasVariantsPrefix(pathname)
   }
 
   public normalize(pathname: string): string {
-    const extracted = this.extract(pathname)
-    if (!extracted) return pathname
-
-    return extracted.originalPathname
+    return removeVariantsPrefix(pathname)
   }
 }

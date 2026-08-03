@@ -10,29 +10,15 @@ import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 
 /**
- * Characters a variant identity or value may contain.
- *
- * Excludes `/`, `&`, `=`, and `%` so that values can be packed into a single
- * URL path segment literally, with no percent-encoding. That keeps the packed
- * segment immune to path normalization elsewhere in the stack decoding a `%2F`
- * and splitting it.
- *
- * Also excludes `+` and whitespace, because the packed segment is parsed with
- * `URLSearchParams`, which decodes `+` to a space and would therefore not
- * round-trip a value containing one.
- */
-const ALLOWED_CHARS_PATTERN = /^[A-Za-z0-9._~:@!$'()*,;-]*$/
-
-/**
  * Carries the variant's identity: `<exportName>@<modulePath>`, with `/` in the
  * module path written as `~` (and a literal `~` doubled) so that the identity
- * fits in a single URL path segment.
+ * is a single flat token.
  *
  * e.g. `theme@variants.ts`, `newNav@src~lib~flags.ts`.
  *
  * The escaping is write-only: nothing reverses it, so the identity is an opaque
- * string to every consumer and is used verbatim in the URL, the store, the emit
- * data, and the manifest. That is what avoids needing a mapping table anywhere.
+ * string to every consumer and is used verbatim in the store, the emit data,
+ * and the manifest. That is what avoids needing a mapping table anywhere.
  */
 const VARIANT_KEY = Symbol.for('next.variant.key')
 
@@ -74,7 +60,12 @@ export function isVariant(value: unknown): value is Variant<string> {
 type VariantValueOrigin = 'decide' | 'assignment'
 
 /**
- * Asserts that a variant value can be transported in a URL path segment.
+ * Asserts that a variant value is a string.
+ *
+ * Strings are the only requirement: a value is transported percent-encoded in a
+ * header and identified by a hash of it, so no character needs excluding. What
+ * cannot be allowed is a non-string, which would serialize into a combination
+ * that no longer round-trips.
  *
  * Called where the value enters the framework rather than where it is consumed,
  * so that the error names both the variant and the code that supplied the
@@ -93,12 +84,6 @@ export function assertValidVariantValue(
   if (typeof value !== 'string') {
     throw new Error(
       `${describe} a ${typeof value} value. Variant values must be strings.`
-    )
-  }
-
-  if (!ALLOWED_CHARS_PATTERN.test(value)) {
-    throw new Error(
-      `${describe} ${JSON.stringify(value)}, which contains characters that cannot be used in a variant value. Variant values may not contain \`/\`, \`&\`, \`=\`, \`%\`, \`+\`, or whitespace.`
     )
   }
 
@@ -136,15 +121,6 @@ export function variant<T extends string = string>(
   if (!key) {
     throw new InvariantError(
       "A variant was defined without an identity. Variants must be declared in a module with the `'use variants'` directive so that the transform can assign one."
-    )
-  }
-
-  if (!ALLOWED_CHARS_PATTERN.test(key)) {
-    // The identity is derived from the module path and export name, so a module
-    // path containing these characters would otherwise corrupt the packed
-    // segment rather than fail here.
-    throw new InvariantError(
-      `The variant identity \`${key}\` contains characters that cannot be used in a variant identity.`
     )
   }
 
@@ -281,6 +257,8 @@ function readVariant(key: string): Promise<string> {
       if (value !== undefined) {
         return Promise.resolve(value)
       }
+
+      // TODO: Check if this only getting the statically define ones!
 
       // Runtime rather than dynamic data: the proxy resolves variants from the
       // request's cookies and headers, so a runtime prefetch can supply one

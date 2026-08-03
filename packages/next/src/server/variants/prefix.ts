@@ -9,7 +9,20 @@ import { hashVariants } from './hash'
  * derive the path the same way, which is why this exists rather than the prefix
  * being applied at each site.
  */
-const VARIANTS_PREFIX_PATTERN = new RegExp(`^/${VARIANTS_PATH_PREFIX}/[^/]+`)
+const VARIANTS_PREFIX_PATTERN = new RegExp(
+  `^/${VARIANTS_PATH_PREFIX}/[0-9a-z]+`
+)
+
+/**
+ * Whether a pathname carries a variant prefix.
+ *
+ * The segment is matched by shape rather than against the set of combinations
+ * that were prerendered, because a combination nobody enumerated is still valid
+ * and still has to be recognized here.
+ */
+export function hasVariantsPrefix(pathname: string): boolean {
+  return VARIANTS_PREFIX_PATTERN.test(pathname)
+}
 
 /**
  * Removes a variant prefix, yielding the route the path belongs to.
@@ -40,13 +53,12 @@ export function getVariantOutputPath(
  * prefix wraps the entire remaining path (including any locale segment) and the
  * transform stays uniform regardless of i18n.
  *
- * `segment` identifies the combination, and which form it takes depends on
- * which path is being built. A request URL carries the packed values, because
- * the server has to read them back to serve the request, and the result is an
- * internal pathname stripped again by `VariantsPathnameNormalizer` before route
- * resolution, never visible to the client. A path on disk carries the hash
- * instead, because values may contain characters that are illegal in filenames
- * and nothing needs to read them back from there.
+ * `segment` is the combination's hash, in request paths and paths on disk
+ * alike: a request has to arrive at the artifact the build wrote, so both are
+ * named the same way. In a request URL the result is an internal pathname,
+ * stripped again by `VariantsPathnameNormalizer` before route resolution and
+ * never visible to the client. Because a hash cannot be read back into values,
+ * the values travel beside it in `NEXT_VARIANTS_HEADER`.
  */
 export function insertVariantsPrefix(
   pathname: string,

@@ -32,6 +32,8 @@ import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-p
 import { NextDataPathnameNormalizer } from '../../normalizers/request/next-data'
 import { BasePathPathnameNormalizer } from '../../normalizers/request/base-path'
 import { VariantsPathnameNormalizer } from '../../normalizers/request/variants'
+import { NEXT_VARIANTS_HEADER } from '../../../lib/constants'
+import { decodeVariants } from '../../variants/hash'
 
 import { addRequestMeta } from '../../request-meta'
 import { isRSCRequestHeader } from '../is-rsc-request'
@@ -755,18 +757,32 @@ export function getResolveRoutes(
                 }
               }
 
-              // Strip the variants prefix the proxy added, and stash the values
-              // so that both the cache key and the render's work unit store
-              // read the same parse. This runs before locale detection because
-              // the prefix wraps the entire remaining public path, locale
-              // included.
-              const extractedVariants = normalizers.variants?.extract(
-                parsedUrl.pathname || ''
-              )
+              // Strip the variants prefix the adapter added, and stash the
+              // values it stands for so that both the cache key and the
+              // render's work unit store read the same combination. The prefix
+              // is removed before locale detection because it wraps the entire
+              // remaining public path, locale included.
+              //
+              // The values come from the internal header rather than from the
+              // prefix, which carries only their hash. The two are read
+              // independently because they will not always accompany each
+              // other: only variants a route declared partition its cache and
+              // therefore appear in the path, while every resolved value is
+              // still needed by the render.
+              if (normalizers.variants) {
+                parsedUrl.pathname = normalizers.variants.normalize(
+                  parsedUrl.pathname || ''
+                )
 
-              if (extractedVariants) {
-                parsedUrl.pathname = extractedVariants.originalPathname
-                addRequestMeta(req, 'variants', extractedVariants.variants)
+                const encodedVariants = req.headers[NEXT_VARIANTS_HEADER]
+
+                if (typeof encodedVariants === 'string') {
+                  const variants = decodeVariants(encodedVariants)
+
+                  if (variants) {
+                    addRequestMeta(req, 'variants', variants)
+                  }
+                }
               }
 
               if (config.i18n) {

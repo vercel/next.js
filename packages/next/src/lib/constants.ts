@@ -20,23 +20,34 @@ export const NEXT_META_SUFFIX = '.meta'
 export const NEXT_BODY_SUFFIX = '.body'
 
 /**
- * Marker segment introducing the packed variant values in an internal pathname,
- * e.g. `/__variants/theme@variants.ts=dark/blog/my-post`. Produced by the proxy
- * and stripped again before route resolution; never user-visible.
+ * Marker segment introducing a variant combination's hash in an internal
+ * pathname, e.g. `/__variants/1u0zqp3/blog/my-post`. Produced by the edge
+ * adapter and stripped again before route resolution; never user-visible.
  */
 export const VARIANTS_PATH_PREFIX = '__variants'
 
 /**
- * Carries resolved variant values from the proxy wrapper to the edge adapter,
- * which applies them to the rewrite target only *after* computing the
- * client-facing rewrite headers. Deferring the decoration this way keeps the
- * variants prefix invisible to the client router, which would otherwise treat it
- * as a route-structure rewrite and stop using the route for prediction.
+ * Carries the resolved variant values, encoded, so that the path only has to
+ * carry a hash of them. A hash cannot be read back, and a render needs the
+ * values: this is what lets a combination nobody enumerated still render.
  *
- * Consumed and deleted within the same invocation that produced it, so it never
- * reaches the CDN or the browser.
+ * It takes two hops under one name, because it is one value with one meaning.
+ * The proxy wrapper sets it on its response, and the edge adapter re-emits it
+ * as a request header override on the way to the origin. The adapter is also
+ * where the hash enters the path, and it has to be the adapter rather than the
+ * wrapper: the client-facing rewrite headers are computed from the undecorated
+ * destination, so decorating any earlier would show the client a rewrite to a
+ * different route structure and stop it using the route for prediction.
+ *
+ * The `x-next-internal-` prefix is what makes this safe to trust on arrival.
+ * Headers carrying it are reserved for the deployment's own routing layer:
+ * whatever sits in front of the origin is expected to strip them from incoming
+ * client requests before routing, so that a client cannot present itself as
+ * having resolved a variant. `filterInternalHeaders` does the same when
+ * self-hosting. Forwarding it onward is opt-in, which is what listing it in a
+ * route's `allowHeader` asks for.
  */
-export const NEXT_VARIANTS_DECORATION_HEADER = 'x-nextjs-variants-decoration'
+export const NEXT_VARIANTS_HEADER = 'x-next-internal-variants'
 
 export const NEXT_NAV_DEPLOYMENT_ID_HEADER = 'x-nextjs-deployment-id'
 
