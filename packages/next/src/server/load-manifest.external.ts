@@ -137,15 +137,13 @@ export function evalManifest<T extends object>(
   return contextObject as T
 }
 
-export function loadManifestFromRelativePath<T extends object>({
+export function evalManifestFromRelativePath<T extends object>({
   projectDir,
   distDir,
   manifest,
   shouldCache,
   cache,
-  skipParse,
   handleMissing,
-  useEval,
 }: {
   projectDir: string
   distDir: string
@@ -154,17 +152,37 @@ export function loadManifestFromRelativePath<T extends object>({
   cache?: Map<string, unknown>
   skipParse?: boolean
   handleMissing?: boolean
-  useEval?: boolean
 }): DeepReadonly<T> {
   const manifestPath = join(
     /* turbopackIgnore: true */ projectDir,
     distDir,
     manifest
   )
+  return evalManifest<T>(manifestPath, shouldCache, cache, handleMissing)
+}
 
-  if (useEval) {
-    return evalManifest<T>(manifestPath, shouldCache, cache, handleMissing)
-  }
+export function loadManifestFromRelativePath<T extends object>({
+  projectDir,
+  distDir,
+  manifest,
+  shouldCache,
+  cache,
+  skipParse,
+  handleMissing,
+}: {
+  projectDir: string
+  distDir: string
+  manifest: string
+  shouldCache: boolean
+  cache?: Map<string, unknown>
+  skipParse?: boolean
+  handleMissing?: boolean
+}): DeepReadonly<T> {
+  const manifestPath = join(
+    /* turbopackIgnore: true */ projectDir,
+    distDir,
+    manifest
+  )
   return loadManifest<T>(
     manifestPath,
     shouldCache,
