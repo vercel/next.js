@@ -6,7 +6,7 @@ import { lang } from 'next/root-params'
 export const instant = {
   unstable_samples: [{ params: { lang: 'en' } }],
 }
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 export default async function Page() {
   return (

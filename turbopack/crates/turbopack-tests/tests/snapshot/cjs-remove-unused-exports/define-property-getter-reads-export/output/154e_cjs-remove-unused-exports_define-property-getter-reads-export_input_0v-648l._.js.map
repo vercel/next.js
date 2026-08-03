@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/define-property-getter-reads-export/input/index.js"],"sourcesContent":["import { b } from './lib.js'\n\nconsole.log(b)\n"],"names":["console","log"],"mappings":"AAAA;;AAEAA,QAAQC,GAAG,CAAC,sQAAC"}},
+    {"offset": {"line": 11, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/define-property-getter-reads-export/input/lib.js"],"sourcesContent":["// `b`'s getter reads `exports.a`, so `a` is reachable through `b`. That read must\n// taint the module (nothing dropped), even though only `b` is imported.\nObject.defineProperty(exports, '__esModule', { value: true })\nObject.defineProperty(exports, 'a', {\n  enumerable: true,\n  get: function () {\n    return 'a-value'\n  },\n})\nObject.defineProperty(exports, 'b', {\n  enumerable: true,\n  get: function () {\n    return exports.a\n  },\n})\n"],"names":["Object","defineProperty","exports","value","enumerable","get","a"],"mappings":"AAAA,kFAAkF;AAClF,wEAAwE;AACxEA,OAAOC,cAAc,CAACC,SAAS,cAAc;IAAEC,OAAO;AAAK;AAC3DH,OAAOC,cAAc,CAACC,SAAS,KAAK;IAClCE,YAAY;IACZC,KAAK;QACH,OAAO;IACT;AACF;AACAL,OAAOC,cAAc,CAACC,SAAS,KAAK;IAClCE,YAAY;IACZC,KAAK;QACH,OAAOH,QAAQI,CAAC;IAClB;AACF"}}]
+}

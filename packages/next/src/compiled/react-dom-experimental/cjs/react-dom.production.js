@@ -44,6 +44,7 @@ var Internals = {
     findDOMNode: null
   },
   REACT_PORTAL_TYPE = Symbol.for("react.portal"),
+  REACT_RECOVERABLE_TYPE = Symbol.for("react.recoverable"),
   REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key");
 function createPortal$1(children, containerInfo, implementation) {
   var key =
@@ -70,6 +71,13 @@ function getCrossOriginStringAs(as, input) {
 }
 exports.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
   Internals;
+exports.browser = function () {
+  var recoverable = Error(formatProdErrorMessage(603));
+  Object.defineProperty(recoverable, "$$typeof", {
+    value: REACT_RECOVERABLE_TYPE
+  });
+  return recoverable;
+};
 exports.createPortal = function (children, container) {
   var key =
     2 < arguments.length && void 0 !== arguments[2] ? arguments[2] : null;
@@ -222,4 +230,4 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.3.0-experimental-7023f501-20260714";
+exports.version = "19.3.0-experimental-cbb046ab-20260731";

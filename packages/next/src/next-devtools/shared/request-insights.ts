@@ -1,3 +1,12 @@
+import type { RequestInsightKind } from '../../shared/lib/request-insights'
+
+export {
+  getRequestInsightKey,
+  getRequestInsightKind,
+  type RequestInsightIdentity,
+  type RequestInsightKind,
+} from '../../shared/lib/request-insights'
+
 type RequestInsightAttributeValue =
   | string
   | number
@@ -44,6 +53,7 @@ export type RequestInsightFetch = {
 
 export type RequestInsight = {
   requestId: string
+  kind?: RequestInsightKind
   htmlRequestId: string
   route?: string
   url?: string

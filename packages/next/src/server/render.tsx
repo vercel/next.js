@@ -308,7 +308,7 @@ export type PagesSharedContext = {
   deploymentId: string | undefined
 
   /**
-   * NextConfig.deploymentId if experimental.supportsImmutableAssets is not true, otherwise undefined.
+   * NextConfig.deploymentId if supportsImmutableAssets is not true, otherwise undefined.
    */
   clientAssetToken: string | undefined
 

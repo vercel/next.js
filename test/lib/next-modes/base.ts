@@ -57,6 +57,12 @@ export interface NextInstanceOpts {
   patchFileDelay?: number
   startServerTimeout?: number
   disableAutoSkewProtection?: boolean
+  /**
+   * Delete the `pnpm-workspace.yaml` that `createNextInstall` writes for
+   * supply-chain gating of installs. For tests that assert on Next.js
+   * workspace-root detection, which the file affects.
+   */
+  deleteWorkspaceFile?: boolean
 }
 
 /**
@@ -71,7 +77,7 @@ type OmitFirstArgument<F> = F extends (
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.7";
+const nextjsReactPeerVersion = "19.2.8";
 
 const ROOT_PACKAGE_MANAGER: string =
   require('../../../package.json').packageManager
@@ -103,6 +109,7 @@ export class NextInstance {
   public startServerTimeout: number = 10_000 // 10 seconds
   public serverReadyPattern: RegExp = /✓ Ready in /
   patchFileDelay: number = 0
+  public deleteWorkspaceFile: boolean = false
 
   constructor(opts: NextInstanceOpts) {
     this.env = {}
@@ -361,6 +368,12 @@ export class NextInstance {
               },
             })
           }
+        }
+
+        if (this.deleteWorkspaceFile) {
+          await fs.rm(path.join(this.testDir, 'pnpm-workspace.yaml'), {
+            force: true,
+          })
         }
 
         const testDirFiles = await fs.readdir(this.testDir)

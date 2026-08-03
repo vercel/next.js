@@ -1,0 +1,22 @@
+warning - [analysis] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-warnings/input/index.js:10:16  TP1008 import.meta.glob() unsupported option 'exhaust'. Supported options are: eager, import, query, base, caseSensitive
+  
+       6 |   eager: Math.random() > -1,
+       7 | })
+       8 | 
+       9 | // Warning: unknown option — should be ignored, glob still works
+         |                 v------------------------------------------------
+      10 + const unknown = import.meta.glob(['./dir/*.js', './dir2/*.js'], {
+      11 +   exhaust: true,
+      12 + })
+         +--^
+      13 | 
+      14 | // Warning: non-constant caseSensitive — should default to case-sensitive matching
+      15 | const nonConstCaseSensitive = import.meta.glob('./casedir/*.js', {
+      16 |   caseSensitive: 'false',
+  
+  
+  
+  Import trace:
+    test:
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-warnings/input/index.js
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-warnings/input/index.js

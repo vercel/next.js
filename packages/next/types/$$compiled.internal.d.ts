@@ -682,8 +682,8 @@ declare module 'next/dist/compiled/gzip-size' {
   import m from 'gzip-size'
   export = m
 }
-declare module 'next/dist/compiled/http-proxy' {
-  import m from 'http-proxy'
+declare module 'next/dist/compiled/httpxy' {
+  import * as m from 'httpxy'
   export = m
 }
 declare module 'next/dist/compiled/is-docker' {

@@ -5,6 +5,7 @@ import type {
   RequestInsight,
   RequestInsightsSnapshot,
 } from '../next-devtools/shared/request-insights'
+import { getRequestInsightKind } from '../next-devtools/shared/request-insights'
 import loadConfig from '../server/config'
 import { printAndExit } from '../server/lib/utils'
 import {
@@ -77,10 +78,13 @@ export async function nextRequestInsights(
 
   for (const request of visibleRequests) {
     const route = request.route ?? request.url ?? request.requestId
+    const kind = getRequestInsightKind(request)
     const duration = formatDuration(request.durationMs)
-    console.log(`${route} ${duration} ${request.status ?? 'pending'}`)
     console.log(
-      `  request ${shortId(request.requestId)} page ${shortId(request.htmlRequestId)}`
+      `${kind === 'instant-insights' ? `Instant Insights · ${route}` : route} ${duration} ${request.status ?? 'pending'}`
+    )
+    console.log(
+      `  kind ${kind} request ${shortId(request.requestId)} page ${shortId(request.htmlRequestId)}`
     )
 
     const visibleFetches = request.fetches.slice(0, DEFAULT_FETCH_LIMIT)

@@ -16,7 +16,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     AnalyzeMode, EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptOptions,
-    TreeShakingMode, references::analyze_ecmascript_module,
+    references::analyze_ecmascript_module,
 };
 use turbopack_test_utils::noop_asset_context::NoopAssetContext;
 
@@ -89,11 +89,8 @@ async fn setup(
         ResolvedVc::upcast(module_asset_context),
         EcmascriptInputTransforms::empty().to_resolved().await?,
         EcmascriptOptions {
-            tree_shaking_mode: if analyze_mode == AnalyzeMode::Tracing {
-                None
-            } else {
-                Some(TreeShakingMode::ReexportsOnly)
-            },
+            follow_reexports: analyze_mode != AnalyzeMode::Tracing,
+            module_fragments_enabled: false,
             analyze_mode,
             ..Default::default()
         }

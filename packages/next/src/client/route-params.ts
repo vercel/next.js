@@ -10,6 +10,8 @@ import {
   NEXT_REWRITTEN_QUERY_HEADER,
   NEXT_RSC_UNION_QUERY,
 } from './components/app-router-headers'
+import { hasBasePath } from './has-base-path'
+import { removeBasePath } from './remove-base-path'
 import type {
   NormalizedPathname,
   NormalizedSearch,
@@ -44,9 +46,14 @@ export function getRenderedPathname(
   // page will be different from the pathname in the request URL. In this case,
   // the response will include a header that gives the rewritten pathname.
   const rewrittenPath = response.headers.get(NEXT_REWRITTEN_PATH_HEADER)
-  return (rewrittenPath ??
-    urlToUrlWithoutFlightMarker(new URL(response.url))
-      .pathname) as NormalizedPathname
+  if (rewrittenPath !== null) {
+    return rewrittenPath as NormalizedPathname
+  }
+
+  const pathname = urlToUrlWithoutFlightMarker(new URL(response.url)).pathname
+  return (
+    hasBasePath(pathname) ? removeBasePath(pathname) : pathname
+  ) as NormalizedPathname
 }
 
 // Pathname parts come from `URL.pathname.split('/')`, so they are already

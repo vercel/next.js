@@ -5,7 +5,7 @@ export const instant = {
   level: 'experimental-error',
   unstable_samples: [{ cookies: [], searchParams: { foo: 'bar' } }],
 }
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 export default async function Page({
   searchParams,
@@ -16,8 +16,8 @@ export default async function Page({
     <main>
       <div>
         <p>
-          Search Params need a suspense boundary even with allow-runtime because
-          we need a valid App Shell
+          Search Params need a suspense boundary even on a runtime-prefetchable
+          route because we need a valid App Shell
         </p>
         <LinkData searchParams={searchParams} />
       </div>

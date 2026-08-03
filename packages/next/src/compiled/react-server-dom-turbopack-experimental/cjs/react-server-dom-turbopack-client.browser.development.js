@@ -634,7 +634,7 @@
             return serializeAsyncIterable(value, parentReference.call(value));
           parentReference = getPrototypeOf(value);
           if (
-            parentReference !== ObjectPrototype &&
+            parentReference !== ObjectPrototype$1 &&
             (null === parentReference ||
               null !== getPrototypeOf(parentReference))
           ) {
@@ -1732,25 +1732,29 @@
           ));
       }
     }
-    function resolveModuleChunk(response, chunk, value) {
-      if ("pending" === chunk.status || "blocked" === chunk.status) {
-        releasePendingChunk(response, chunk);
-        var resolveListeners = chunk.value,
-          rejectListeners = chunk.reason;
-        chunk.status = "resolved_module";
-        chunk.value = value;
-        chunk.reason = null;
+    function resolveModuleChunk(response, chunk$jscomp$0, value) {
+      if (
+        "pending" === chunk$jscomp$0.status ||
+        "blocked" === chunk$jscomp$0.status
+      ) {
+        releasePendingChunk(response, chunk$jscomp$0);
+        var resolveListeners = chunk$jscomp$0.value,
+          rejectListeners = chunk$jscomp$0.reason;
+        chunk$jscomp$0.status = "resolved_module";
+        chunk$jscomp$0.value = value;
+        chunk$jscomp$0.reason = null;
         value = value[1];
         for (var debugInfo = [], i = 0; i < value.length; ) {
-          var chunkFilename = value[i++],
+          var chunk = value[i++],
             href = void 0,
-            target = debugInfo,
-            ioInfo = chunkIOInfoCache.get(chunkFilename);
+            target = debugInfo;
+          chunk = "string" === typeof chunk ? chunk : chunk[0];
+          var ioInfo = chunkIOInfoCache.get(chunk);
           if (void 0 === ioInfo) {
             try {
-              href = new URL(chunkFilename, document.baseURI).href;
+              href = new URL(chunk, document.baseURI).href;
             } catch (_) {
-              href = chunkFilename;
+              href = chunk;
             }
             var end = (ioInfo = -1),
               byteSize = 0;
@@ -1792,17 +1796,20 @@
               debugStack: i$jscomp$0
             };
             0 < byteSize && (ioInfo.byteSize = byteSize);
-            chunkIOInfoCache.set(chunkFilename, ioInfo);
+            chunkIOInfoCache.set(chunk, ioInfo);
           }
           target.push({ awaited: ioInfo });
         }
         null !== debugInfo &&
-          chunk._debugInfo.push.apply(chunk._debugInfo, debugInfo);
+          chunk$jscomp$0._debugInfo.push.apply(
+            chunk$jscomp$0._debugInfo,
+            debugInfo
+          );
         null !== resolveListeners &&
-          (initializeModuleChunk(chunk),
+          (initializeModuleChunk(chunk$jscomp$0),
           wakeChunkIfInitialized(
             response,
-            chunk,
+            chunk$jscomp$0,
             resolveListeners,
             rejectListeners
           ));
@@ -2474,7 +2481,16 @@
                   );
               }
             }
-            value = value[path[i]];
+            var name = path[i];
+            if (
+              "object" !== typeof value ||
+              null === value ||
+              (getPrototypeOf(value) !== ObjectPrototype &&
+                getPrototypeOf(value) !== ArrayPrototype) ||
+              !hasOwnProperty.call(value, name)
+            )
+              throw Error("Invalid reference.");
+            value = value[name];
           }
           for (
             ;
@@ -3496,7 +3512,11 @@
       return (debugInfo.debugTask = response);
     }
     function fakeJSXCallSite() {
-      return Error("react-stack-top-frame");
+      var previousStackTraceLimit = Error.stackTraceLimit;
+      Error.stackTraceLimit = ownerStackTraceLimit;
+      var error = Error("react-stack-top-frame");
+      Error.stackTraceLimit = previousStackTraceLimit;
+      return error;
     }
     function initializeFakeStack(response, debugInfo) {
       if (void 0 === debugInfo.debugStack) {
@@ -4747,12 +4767,13 @@
         return value;
       }
       for (i in value)
-        "__proto__" === i
-          ? delete value[i]
-          : ((parentObject = reviveModel(response, value[i], value, i)),
-            void 0 !== parentObject
-              ? (value[i] = parentObject)
-              : delete value[i]);
+        hasOwnProperty.call(value, i) &&
+          ("__proto__" === i
+            ? delete value[i]
+            : ((parentObject = reviveModel(response, value[i], value, i)),
+              void 0 !== parentObject
+                ? (value[i] = parentObject)
+                : delete value[i]));
       return value;
     }
     function close(weakResponse) {
@@ -5002,7 +5023,7 @@
       jsxPropsParents = new WeakMap(),
       jsxChildrenParents = new WeakMap(),
       CLIENT_REFERENCE_TAG = Symbol.for("react.client.reference"),
-      ObjectPrototype = Object.prototype,
+      ObjectPrototype$1 = Object.prototype,
       knownServerReferences = new WeakMap(),
       fakeServerFunctionIdx = 0,
       v8FrameRegExp =
@@ -5025,49 +5046,56 @@
         React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
       ReactSharedInternals =
         React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE ||
-        ReactSharedInteralsServer;
+        ReactSharedInteralsServer,
+      ObjectPrototype = Object.prototype,
+      ArrayPrototype = Array.prototype;
     ReactPromise.prototype = Object.create(Promise.prototype);
-    ReactPromise.prototype.then = function (resolve, reject) {
-      var _this = this;
-      switch (this.status) {
-        case "resolved_model":
-          initializeModelChunk(this);
-          break;
-        case "resolved_module":
-          initializeModuleChunk(this);
+    Object.defineProperty(ReactPromise.prototype, "then", {
+      writable: !0,
+      enumerable: !0,
+      configurable: !0,
+      value: function (resolve, reject) {
+        var _this = this;
+        switch (this.status) {
+          case "resolved_model":
+            initializeModelChunk(this);
+            break;
+          case "resolved_module":
+            initializeModuleChunk(this);
+        }
+        var resolveCallback = resolve,
+          rejectCallback = reject,
+          wrapperPromise = new Promise(function (res, rej) {
+            resolve = function (value) {
+              wrapperPromise._debugInfo = _this._debugInfo;
+              res(value);
+            };
+            reject = function (reason) {
+              wrapperPromise._debugInfo = _this._debugInfo;
+              rej(reason);
+            };
+          });
+        wrapperPromise.then(resolveCallback, rejectCallback);
+        switch (this.status) {
+          case "fulfilled":
+            "function" === typeof resolve && resolve(this.value);
+            break;
+          case "pending":
+          case "blocked":
+            "function" === typeof resolve &&
+              (null === this.value && (this.value = []),
+              this.value.push(resolve));
+            "function" === typeof reject &&
+              (null === this.reason && (this.reason = []),
+              this.reason.push(reject));
+            break;
+          case "halted":
+            break;
+          default:
+            "function" === typeof reject && reject(this.reason);
+        }
       }
-      var resolveCallback = resolve,
-        rejectCallback = reject,
-        wrapperPromise = new Promise(function (res, rej) {
-          resolve = function (value) {
-            wrapperPromise._debugInfo = _this._debugInfo;
-            res(value);
-          };
-          reject = function (reason) {
-            wrapperPromise._debugInfo = _this._debugInfo;
-            rej(reason);
-          };
-        });
-      wrapperPromise.then(resolveCallback, rejectCallback);
-      switch (this.status) {
-        case "fulfilled":
-          "function" === typeof resolve && resolve(this.value);
-          break;
-        case "pending":
-        case "blocked":
-          "function" === typeof resolve &&
-            (null === this.value && (this.value = []),
-            this.value.push(resolve));
-          "function" === typeof reject &&
-            (null === this.reason && (this.reason = []),
-            this.reason.push(reject));
-          break;
-        case "halted":
-          break;
-        default:
-          "function" === typeof reject && reject(this.reason);
-      }
-    };
+    });
     var debugChannelRegistry =
         "function" === typeof FinalizationRegistry
           ? new FinalizationRegistry(closeDebugChannel)
@@ -5095,6 +5123,7 @@
         createFakeJSXCallStack.react_stack_bottom_frame.bind(
           createFakeJSXCallStack
         ),
+      ownerStackTraceLimit = 10,
       currentOwnerInDEV = null,
       replayConsoleWithCallStack = {
         react_stack_bottom_frame: function (response, payload) {
@@ -5185,10 +5214,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.3.0-experimental-7023f501-20260714",
+      version: "19.3.0-experimental-cbb046ab-20260731",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.3.0-experimental-7023f501-20260714",
+      reconcilerVersion: "19.3.0-experimental-cbb046ab-20260731",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

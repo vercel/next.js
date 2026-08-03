@@ -8,6 +8,13 @@ var __TURBOPACK__url__external__node$3a$fs__ = __turbopack_context__.x("node:fs"
 var __TURBOPACK__import$2e$meta__ = {
     get url () {
         return __turbopack_context__.F("turbopack/crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js");
+    },
+    env: {
+        DEV: true,
+        PROD: false,
+        MODE: "development",
+        BASE_URL: "/",
+        SSR: true
     }
 };
 ;

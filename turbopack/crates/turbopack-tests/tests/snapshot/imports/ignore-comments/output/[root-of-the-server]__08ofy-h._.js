@@ -12,6 +12,13 @@ __turbopack_context__.s([
 var __TURBOPACK__import$2e$meta__ = {
     get url () {
         return __turbopack_context__.F("turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/index.js");
+    },
+    env: {
+        DEV: true,
+        PROD: false,
+        MODE: "development",
+        BASE_URL: "/",
+        SSR: false
     }
 };
 __turbopack_context__.A("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.mjs [test] (ecmascript, async loader)").then(console.log);
@@ -79,7 +86,7 @@ __turbopack_context__.s([
     // other when `CHUNK_BASE_PATH` (= `assetPrefix`) is a cross-origin CDN.
     // `null` falls back; an empty string is treated as a literal empty prefix.
     const workerBasePath = null ?? /*TURBOPACK member replacement*/ __turbopack_context__.b;
-    const chunkUrls = moduleChunks.map((chunk)=>/*TURBOPACK member replacement*/ __turbopack_context__.h(chunk, workerBasePath)).reverse();
+    const chunkUrls = moduleChunks.map((chunk)=>/*TURBOPACK member replacement*/ __turbopack_context__.h(typeof chunk === 'string' ? chunk : chunk.path, workerBasePath)).reverse();
     const params = [
         chunkUrls,
         /*TURBOPACK member replacement*/ __turbopack_context__.X
