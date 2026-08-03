@@ -2,7 +2,8 @@ use std::{
     any::Any,
     collections::BTreeSet,
     env, fmt,
-    mem::take,
+    io::{ErrorKind, Read},
+    mem::{replace, take},
     path::{Path, PathBuf},
     sync::{
         Arc, LazyLock,
@@ -26,9 +27,10 @@ use turbo_tasks::{
     FxIndexSet, InvalidationReason, InvalidationReasonKind, Invalidator, TurboTasksApi, parallel,
     spawn_thread, util::StaticOrArc,
 };
+use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, Xxh3Hash64Hasher};
 
 use crate::{
-    DiskFileSystemInner, format_absolute_fs_path,
+    DiskFileSystemInner, FileMeta, format_absolute_fs_path,
     invalidation::{WatchChange, WatchStart},
     invalidator_map::InvalidatorMap,
     path_map::OrderedPathMapExt,
@@ -60,6 +62,22 @@ static WATCH_RECURSIVE_MODE: LazyLock<RecursiveMode> = LazyLock::new(|| {
         // See: https://github.com/vercel/turborepo/pull/4100
         RecursiveMode::NonRecursive
     }
+});
+
+/// Whether a write that leaves a file's bytes unchanged should skip invalidation, instead of
+/// invalidating everything that read the file and rediscovering that nothing downstream changed.
+///
+/// Tools produce these writes constantly: a formatter that reformatted nothing, a code generator
+/// that reran, a `git checkout` that restored identical bytes, or an editor that saves on focus
+/// loss. The filesystem reports each one, because the mtime really did move.
+///
+/// Off by default. Enabling it trades one read and one hash of each changed file for the chance to
+/// skip the work an invalidation would have caused.
+static SUPPRESS_UNCHANGED_WRITES: LazyLock<bool> = LazyLock::new(|| {
+    matches!(
+        env::var("TURBO_TASKS_SUPPRESS_UNCHANGED_WRITES").as_deref(),
+        Ok("1" | "true")
+    )
 });
 
 /// How long to extend an invalidation batch by when receiving new events, before flushing. This
@@ -499,6 +517,7 @@ impl DiskWatcher {
         report_invalidation_reason: bool,
     ) {
         let mut batch = BatchedInvalidations::new(self.state.recursive_mode());
+        let mut fingerprints = SUPPRESS_UNCHANGED_WRITES.then(ContentFingerprints::new);
 
         'outer: loop {
             let mut deadline: Option<Instant> = None;
@@ -603,6 +622,15 @@ impl DiskWatcher {
                                 path,
                                 fs_inner.root_path(),
                             ));
+                }
+            }
+
+            // Done before taking the invalidation lock below: this reads and hashes each changed
+            // file, and holding the lock across that would stall every other filesystem operation.
+            if let Some(fingerprints) = &mut fingerprints {
+                let dropped = batch.drop_unchanged_writes(fingerprints);
+                if dropped > 0 {
+                    tracing::debug!(dropped, "skipped invalidation of unchanged file contents");
                 }
             }
 
@@ -813,6 +841,39 @@ impl BatchedInvalidations {
         }
     }
 
+    /// Drops the invalidation for every path in this batch whose contents are unchanged since the
+    /// last batch that invalidated it, and returns how many were dropped.
+    ///
+    /// Only a path carrying exactly [`InvalidationFlags::PATH`] is eligible, which is what a
+    /// content modification produces on its own. A create, removal, or rename also changes a
+    /// directory listing and whether the path exists, and no amount of identical bytes makes those
+    /// safe to skip, so such a path is forgotten instead: the bytes it held beforehand are never
+    /// compared against the bytes it holds after. The exact-flag test is deliberately redundant
+    /// with that forgetting, so that removing either one cannot quietly make a path eligible.
+    ///
+    /// A dropped path keeps its entry in the batch with no flags set, which leaves its readers
+    /// registered in the invalidator map rather than consuming them, so the next real change to
+    /// that path still reaches them.
+    fn drop_unchanged_writes(&mut self, fingerprints: &mut ContentFingerprints) -> usize {
+        const RECURSIVE: InvalidationFlags =
+            InvalidationFlags::PATH_AND_CHILDREN.union(InvalidationFlags::PATH_AND_CHILDREN_DIR);
+
+        for (path, flags) in &self.paths {
+            if flags.intersects(RECURSIVE) {
+                fingerprints.forget(path);
+            }
+        }
+
+        let mut dropped = 0;
+        for (path, flags) in &mut self.paths {
+            if *flags == InvalidationFlags::PATH && fingerprints.is_unchanged(path) {
+                *flags = InvalidationFlags::empty();
+                dropped += 1;
+            }
+        }
+        dropped
+    }
+
     /// Performs all batched invalidations, calling `invalidate` once for each `(path, invalidator)`
     /// pair that needs to be invalidated, then clears the batch.
     ///
@@ -858,6 +919,84 @@ impl BatchedInvalidations {
             }
         }
         self.clear();
+    }
+}
+
+/// Size of the buffer [`ContentFingerprints`] streams a file through. Files are hashed
+/// incrementally so a large one doesn't have to be held in memory all at once.
+const FINGERPRINT_CHUNK_SIZE: usize = 64 * 1024;
+
+/// What each path's contents hashed to when we last invalidated for it, so a write that restores
+/// identical bytes can be recognized as one.
+///
+/// Only paths that a content-modification event has been seen for are recorded, so this grows with
+/// the files edited during a session rather than with the files read by the build. It is owned by
+/// the single watch thread, so it needs no synchronization.
+struct ContentFingerprints {
+    seen: FxHashMap<Box<Path>, u64>,
+    /// Reused across files, so hashing a batch of changes doesn't allocate per file.
+    buffer: Box<[u8]>,
+}
+
+impl ContentFingerprints {
+    fn new() -> Self {
+        Self {
+            seen: FxHashMap::default(),
+            buffer: vec![0; FINGERPRINT_CHUNK_SIZE].into_boxed_slice(),
+        }
+    }
+
+    /// Hashes the length, permissions, and contents of `path`, or returns [`None`] if `path` is not
+    /// a regular file or could not be read.
+    fn fingerprint(&mut self, path: &Path) -> Option<u64> {
+        // Regular files only. `read_link` registers symlinks in the same invalidator map and
+        // resolves the link itself, so hashing what a link points at could hide a retarget; and a
+        // directory's listing is not its bytes.
+        let meta = std::fs::symlink_metadata(path).ok()?;
+        if !meta.is_file() {
+            return None;
+        }
+
+        let mut hasher = Xxh3Hash64Hasher::new();
+        hasher.write_value(meta.len());
+        // `metadata()` tasks are registered in the same invalidator map, and fsevents reports some
+        // content writes as `Metadata(Any)`, so permissions have to be part of the fingerprint or a
+        // `chmod` could be mistaken for a write of identical bytes.
+        FileMeta::from(meta).deterministic_hash(&mut hasher);
+
+        let mut file = std::fs::File::open(path).ok()?;
+        loop {
+            match file.read(&mut self.buffer) {
+                Ok(0) => return Some(hasher.finish()),
+                Ok(read) => hasher.write_bytes(&self.buffer[..read]),
+                Err(err) if err.kind() == ErrorKind::Interrupted => {}
+                Err(_) => return None,
+            }
+        }
+    }
+
+    /// Records the current fingerprint of `path` and reports whether it matches the one recorded
+    /// before.
+    ///
+    /// A path we have no fingerprint for, or cannot read, is always reported as changed. That is
+    /// the safe direction: a missing fingerprint can only ever cost an invalidation we didn't
+    /// need, and never skip one we did.
+    fn is_unchanged(&mut self, path: &Path) -> bool {
+        let Some(next) = self.fingerprint(path) else {
+            self.seen.remove(path);
+            return false;
+        };
+        if let Some(previous) = self.seen.get_mut(path) {
+            return replace(previous, next) == next;
+        }
+        self.seen.insert(Box::from(path), next);
+        false
+    }
+
+    /// Forgets `path` and everything beneath it, so bytes recorded before a path was created,
+    /// removed, or renamed are never compared against bytes written after it.
+    fn forget(&mut self, path: &Path) {
+        self.seen.retain(|seen, _| !seen.starts_with(path));
     }
 }
 
@@ -926,5 +1065,200 @@ impl InvalidationReasonKind for InvalidateRescanKind {
                 .unwrap()
                 .path
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use notify::event::{CreateKind, DataChange, RemoveKind};
+    use tempfile::TempDir;
+
+    use super::*;
+
+    const CONTENTS: &[u8] = b"export default function Page() { return null }";
+
+    fn modified(path: &Path) -> notify::Event {
+        notify::Event::new(EventKind::Modify(ModifyKind::Data(DataChange::Any)))
+            .add_path(path.to_path_buf())
+    }
+
+    /// The event a `chmod` produces, and the one fsevents also reports some content writes as.
+    fn metadata_changed(path: &Path) -> notify::Event {
+        notify::Event::new(EventKind::Modify(ModifyKind::Metadata(MetadataKind::Any)))
+            .add_path(path.to_path_buf())
+    }
+
+    /// Runs a single watch batch containing `events`, returning how many invalidations were dropped
+    /// and what invalidation is left for `path`.
+    fn batch(
+        fingerprints: &mut ContentFingerprints,
+        events: impl IntoIterator<Item = notify::Event>,
+        path: &Path,
+    ) -> (usize, InvalidationFlags) {
+        let mut batch = BatchedInvalidations::new(RecursiveMode::Recursive);
+        for event in events {
+            assert!(
+                batch.add_event(event),
+                "event should have entered the batch"
+            );
+        }
+        let dropped = batch.drop_unchanged_writes(fingerprints);
+        let remaining = batch
+            .paths
+            .get(path)
+            .copied()
+            .unwrap_or_else(InvalidationFlags::empty);
+        (dropped, remaining)
+    }
+
+    /// A file with `CONTENTS` written to it, plus a fingerprint store that has already seen one
+    /// write of it, which is the state a second save arrives in.
+    fn fingerprinted_file() -> (TempDir, PathBuf, ContentFingerprints) {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("page.tsx");
+        std::fs::write(&file, CONTENTS).unwrap();
+
+        let mut fingerprints = ContentFingerprints::new();
+        // The first write has nothing to be compared against, so it must still invalidate.
+        let (dropped, remaining) = batch(&mut fingerprints, [modified(&file)], &file);
+        assert_eq!(
+            dropped, 0,
+            "the first write cannot be recognized as a no-op"
+        );
+        assert_eq!(remaining, InvalidationFlags::PATH);
+
+        (dir, file, fingerprints)
+    }
+
+    #[test]
+    fn a_write_of_identical_bytes_is_skipped() {
+        let (_dir, file, mut fingerprints) = fingerprinted_file();
+
+        // Rewriting the same bytes moves the mtime, so the filesystem reports a change, but there
+        // is nothing downstream to rebuild.
+        std::fs::write(&file, CONTENTS).unwrap();
+        let (dropped, remaining) = batch(&mut fingerprints, [modified(&file)], &file);
+        assert_eq!(dropped, 1);
+        assert!(
+            remaining.is_empty(),
+            "an unchanged file should have no invalidation left"
+        );
+    }
+
+    #[test]
+    fn a_write_that_changes_bytes_is_never_skipped() {
+        let (_dir, file, mut fingerprints) = fingerprinted_file();
+
+        std::fs::write(&file, b"export default function Page() { return <main /> }").unwrap();
+        let (dropped, remaining) = batch(&mut fingerprints, [modified(&file)], &file);
+        assert_eq!(dropped, 0);
+        assert_eq!(remaining, InvalidationFlags::PATH);
+
+        // And the new bytes become the baseline, so the file stays editable indefinitely rather
+        // than being compared against whatever it held first.
+        std::fs::write(&file, b"export default function Page() { return <main /> }").unwrap();
+        let (dropped, _) = batch(&mut fingerprints, [modified(&file)], &file);
+        assert_eq!(dropped, 1);
+    }
+
+    #[test]
+    fn creates_and_removals_are_never_skipped() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("page.tsx");
+        std::fs::write(&file, CONTENTS).unwrap();
+        let mut fingerprints = ContentFingerprints::new();
+
+        // These change a directory listing and a path's existence, which identical bytes say
+        // nothing about, so they are ineligible however often they repeat.
+        for _ in 0..2 {
+            let event = notify::Event::new(EventKind::Create(CreateKind::File))
+                .add_path(file.to_path_buf());
+            let (dropped, remaining) = batch(&mut fingerprints, [event], &file);
+            assert_eq!(dropped, 0);
+            assert!(remaining.contains(InvalidationFlags::PATH_AND_CHILDREN));
+        }
+    }
+
+    #[test]
+    fn an_atomic_save_is_never_skipped() {
+        let (_dir, file, mut fingerprints) = fingerprinted_file();
+
+        // Editors that save by writing a temp file and renaming it over the target land a create
+        // and a modification for the same path in one batch. The bytes may well be identical, but
+        // the create still has a directory listing to invalidate, so the path is ineligible even
+        // though it carries `PATH`.
+        std::fs::write(&file, CONTENTS).unwrap();
+        let create =
+            notify::Event::new(EventKind::Create(CreateKind::File)).add_path(file.to_path_buf());
+        let (dropped, remaining) = batch(&mut fingerprints, [modified(&file), create], &file);
+        assert_eq!(dropped, 0);
+        assert!(remaining.contains(InvalidationFlags::PATH));
+        assert!(remaining.contains(InvalidationFlags::PATH_AND_CHILDREN));
+    }
+
+    #[test]
+    fn bytes_from_before_a_removal_are_forgotten() {
+        let (_dir, file, mut fingerprints) = fingerprinted_file();
+
+        std::fs::remove_file(&file).unwrap();
+        let removal =
+            notify::Event::new(EventKind::Remove(RemoveKind::File)).add_path(file.to_path_buf());
+        let (dropped, _) = batch(&mut fingerprints, [removal], &file);
+        assert_eq!(dropped, 0);
+
+        // Recreated with the same bytes it had before the removal. The path existed, stopped
+        // existing, and exists again: everything that read it has to be told.
+        std::fs::write(&file, CONTENTS).unwrap();
+        let (dropped, remaining) = batch(&mut fingerprints, [modified(&file)], &file);
+        assert_eq!(dropped, 0);
+        assert_eq!(remaining, InvalidationFlags::PATH);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_permission_change_is_never_skipped() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let (_dir, file, mut fingerprints) = fingerprinted_file();
+
+        // The bytes are untouched, but `FileMeta` is part of what a read of this path resolves to,
+        // so a `metadata()` task would observe this.
+        std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let (dropped, remaining) = batch(&mut fingerprints, [metadata_changed(&file)], &file);
+        assert_eq!(dropped, 0);
+        assert_eq!(remaining, InvalidationFlags::PATH);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_symlink_is_never_skipped() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("target.tsx");
+        let link = dir.path().join("link.tsx");
+        std::fs::write(&target, CONTENTS).unwrap();
+        std::os::unix::fs::symlink(&target, &link).unwrap();
+
+        let mut fingerprints = ContentFingerprints::new();
+
+        // `read_link` registers the link in the same invalidator map and resolves the link itself,
+        // so a link retargeted between two files with identical contents must still invalidate.
+        for _ in 0..2 {
+            let (dropped, remaining) = batch(&mut fingerprints, [modified(&link)], &link);
+            assert_eq!(dropped, 0);
+            assert_eq!(remaining, InvalidationFlags::PATH);
+        }
+    }
+
+    #[test]
+    fn an_unreadable_path_is_never_skipped() {
+        let dir = tempfile::tempdir().unwrap();
+        let missing = dir.path().join("deleted.tsx");
+        let mut fingerprints = ContentFingerprints::new();
+
+        for _ in 0..2 {
+            let (dropped, remaining) = batch(&mut fingerprints, [modified(&missing)], &missing);
+            assert_eq!(dropped, 0);
+            assert_eq!(remaining, InvalidationFlags::PATH);
+        }
     }
 }
