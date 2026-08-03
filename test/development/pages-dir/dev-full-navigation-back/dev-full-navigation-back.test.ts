@@ -5,7 +5,7 @@ import { join } from 'path'
 import type { Page } from 'playwright'
 
 describe('pages dev-full-navigation-back', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -56,6 +56,21 @@ describe('pages dev-full-navigation-back', () => {
     expect(unexpected).toEqual([])
   }
 
+  /**
+   * How the two bundlers recover differs, so the tests pin each shape rather
+   * than accepting either.
+   *
+   * Turbopack has no staleness check of its own, so recovery is the reload this
+   * change adds: the HTTP-cache restore plus one reload.
+   *
+   * webpack never advances the server-components generation for a Pages Router
+   * edit, so that reload never fires. Its existing `handleSuccess` path notices
+   * the loaded bundle is behind on the first `sync` and Fast Refreshes the
+   * module in place instead, which is strictly nicer — the restore's own load is
+   * the only one.
+   */
+  const expectedLoadsAfterStaleBack = isTurbopack ? 2 : 1
+
   it('shows an edit after full navigation and back navigation', async () => {
     const loads = countLoads('/')
     const browser = await next.browser('/', {
@@ -79,13 +94,15 @@ describe('pages dev-full-navigation-back', () => {
       expect(await browser.elementByCss('#value').text()).toBe('Value B')
     })
 
-    // The back navigation restored the document from the browser's HTTP cache
-    // (one load) and the recovery reloaded it once more, and it stays there —
-    // the reloaded document is rendered with the current generation, so it must
-    // not reload again.
-    expect(loads.state.count - loadsBeforeBack).toBe(2)
+    // Whatever the recovery shape, it settles: a reloaded document is rendered
+    // with the current generation, so it must not reload again.
+    expect(loads.state.count - loadsBeforeBack).toBe(
+      expectedLoadsAfterStaleBack
+    )
     await new Promise((resolve) => setTimeout(resolve, 2000))
-    expect(loads.state.count - loadsBeforeBack).toBe(2)
+    expect(loads.state.count - loadsBeforeBack).toBe(
+      expectedLoadsAfterStaleBack
+    )
 
     await assertNoUnexpectedConsoleOutput(browser)
   })
@@ -158,7 +175,9 @@ describe('pages dev-full-navigation-back', () => {
       expect(await browser.elementByCss('#edge-value').text()).toBe('Edge B')
     })
 
-    expect(loads.state.count - loadsBeforeBack).toBe(2)
+    expect(loads.state.count - loadsBeforeBack).toBe(
+      expectedLoadsAfterStaleBack
+    )
 
     await assertNoUnexpectedConsoleOutput(browser)
   })

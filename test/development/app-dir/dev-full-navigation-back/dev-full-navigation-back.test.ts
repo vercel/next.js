@@ -195,38 +195,49 @@ describe('dev-full-navigation-back', () => {
 
   // A render in the edge runtime is rebuilt from HTTP data alone, so the
   // generation reaches it through a sandbox global rather than request metadata.
-  it('shows an edit to a page rendered in the edge runtime after full navigation and back navigation', async () => {
-    const loads = countLoads('/edge')
-    const browser = await next.browser('/edge', {
-      beforePageLoad: loads.beforePageLoad,
-    })
-    expect(await browser.elementByCss('#edge-value').text()).toBe('Edge A')
+  //
+  // Skipped with Cache Components: `export const runtime = 'edge'` is rejected
+  // outright there ("Route segment config \"runtime\" is not compatible with
+  // `nextConfig.cacheComponents`"), so the fixture page cannot even compile.
+  ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
+    'edge runtime',
+    () => {
+      it('shows an edit to an edge page after full navigation and back navigation', async () => {
+        const loads = countLoads('/edge')
+        const browser = await next.browser('/edge', {
+          beforePageLoad: loads.beforePageLoad,
+        })
+        expect(await browser.elementByCss('#edge-value').text()).toBe('Edge A')
 
-    // The debug channel isn't persisted for an edge render, so there is no
-    // `__NEXT_DEBUG_CHANNEL_PERSISTED` flag to await here. Recovery doesn't
-    // depend on it — it is driven by the HMR socket — so just let the page
-    // settle before navigating away.
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    expect(await browser.eval('typeof self.__next_r')).toBe('string')
+        // The debug channel isn't persisted for an edge render, so there is no
+        // `__NEXT_DEBUG_CHANNEL_PERSISTED` flag to await here. Recovery doesn't
+        // depend on it — it is driven by the HMR socket — so just let the page
+        // settle before navigating away.
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+        expect(await browser.eval('typeof self.__next_r')).toBe('string')
 
-    await browser.elementByCss('#to-about').click()
-    await browser.waitForElementByCss('#about')
+        await browser.elementByCss('#to-about').click()
+        await browser.waitForElementByCss('#about')
 
-    await editFile('app/edge-value.ts', 'Edge A', 'Edge B')
-    await retry(async () => {
-      const $ = await next.render$('/edge')
-      expect($('#edge-value').text()).toBe('Edge B')
-    })
+        await editFile('app/edge-value.ts', 'Edge A', 'Edge B')
+        await retry(async () => {
+          const $ = await next.render$('/edge')
+          expect($('#edge-value').text()).toBe('Edge B')
+        })
 
-    const loadsBeforeBack = loads.state.count
+        const loadsBeforeBack = loads.state.count
 
-    await browser.back({ waitUntil: 'commit' })
-    await retry(async () => {
-      expect(await browser.elementByCss('#edge-value').text()).toBe('Edge B')
-    })
+        await browser.back({ waitUntil: 'commit' })
+        await retry(async () => {
+          expect(await browser.elementByCss('#edge-value').text()).toBe(
+            'Edge B'
+          )
+        })
 
-    expect(loads.state.count - loadsBeforeBack).toBe(2)
+        expect(loads.state.count - loadsBeforeBack).toBe(2)
 
-    await assertNoUnexpectedConsoleOutput(browser)
-  })
+        await assertNoUnexpectedConsoleOutput(browser)
+      })
+    }
+  )
 })

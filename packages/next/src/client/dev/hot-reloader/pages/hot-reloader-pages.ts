@@ -51,7 +51,6 @@ import type {
   HmrMessageSentToBrowser,
   ReloadPageMessage,
   RemovedPageMessage,
-  SyncMessage,
   TurbopackMessageSentToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
 import {
@@ -293,37 +292,30 @@ let reloadingForOutdatedCode = false
  * The browser restores a document from its HTTP cache on a back/forward
  * navigation without consulting the server, re-running the cached scripts. HMR
  * can't repair that: it only pushes the edits made while a page was connected,
- * so edits made while this document was away are never replayed. Comparing what
- * the page is running against what the server has is what detects it.
+ * so edits made while this document was away are never replayed. Comparing the
+ * generation the document was rendered against with the server's current one is
+ * what detects it.
  *
- * Two signals, because neither covers both bundlers. The server-components
- * generation is authoritative when present, but webpack only advances it on a
- * server-components recompile, so a Pages Router edit never moves it; there the
- * loaded bundle's own compilation hash answers instead. The bundle hash is only
- * meaningful when the compilation succeeded — a failing compile reports the
- * *server* compiler's stats on `sync`, whose hash never matches the client
- * bundle. Turbopack has no `__webpack_hash__` equivalent and relies on the
- * generation.
+ * Either side can be missing a generation — a document rendered before the
+ * bundler had one carries none. Absent a generation there is nothing to
+ * compare, so the page is left alone rather than reloaded on a guess.
  *
- * Where neither side has a generation and there is no bundle hash to compare,
- * the page is left alone rather than reloaded on a guess.
+ * Deliberately *not* also comparing webpack's client compilation hash: it
+ * advances for on-demand compiles of other routes and for updates this page has
+ * already applied, so a mismatch does not mean the running document is stale,
+ * and reloading on it wipes redboxes and console output from healthy pages.
+ * webpack never advances the generation for a Pages Router edit either, so on
+ * webpack this check simply does not fire and recovery is left to the Fast
+ * Refresh path in `handleSuccess`, which repairs the page in place.
  */
-function isRunningOutdatedCode(message: SyncMessage): boolean {
+function isRunningOutdatedCode(hmrRefreshHash: string | undefined): boolean {
   const documentRefreshHash = getCurrentRefreshHash()
 
-  if (
+  return (
     documentRefreshHash !== undefined &&
-    message.hmrRefreshHash !== undefined &&
-    message.hmrRefreshHash !== documentRefreshHash
-  ) {
-    return true
-  }
-
-  if (process.env.TURBOPACK) {
-    return false
-  }
-
-  return message.errors.length === 0 && message.hash !== __webpack_hash__
+    hmrRefreshHash !== undefined &&
+    hmrRefreshHash !== documentRefreshHash
+  )
 }
 
 export function handleStaticIndicator() {
@@ -377,7 +369,7 @@ function processMessage(message: HmrMessageSentToBrowser) {
         // recompiled, most commonly because the browser restored this document
         // from its HTTP cache on a back/forward navigation. Only a full reload
         // can bring it up to date.
-        if (isRunningOutdatedCode(message)) {
+        if (isRunningOutdatedCode(message.hmrRefreshHash)) {
           reloadingForOutdatedCode = true
           window.location.reload()
           return

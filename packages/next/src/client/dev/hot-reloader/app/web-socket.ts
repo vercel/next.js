@@ -4,12 +4,10 @@ import { getSocketUrl } from '../get-socket-url'
 import {
   HMR_MESSAGE_SENT_TO_BROWSER,
   type HmrMessageSentToBrowser,
-  type SyncMessage,
   type TurbopackMessageSentToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
 import { reportInvalidHmrMessage } from '../shared'
 import {
-  isClientBundleOutdated,
   performFullReload,
   processMessage,
   type StaticIndicatorState,
@@ -129,7 +127,7 @@ export function createWebSocket(
         // page was connected, so edits made while this document was away are
         // never replayed. Reload instead.
         if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.SYNC) {
-          if (isRunningOutdatedCode(message)) {
+          if (isRunningOutdatedCode(message.hmrRefreshHash)) {
             window.location.reload()
             reloading = true
             return
@@ -213,31 +211,30 @@ export function createWebSocket(
 /**
  * Whether the code this page is executing predates what the server has now.
  *
- * The authoritative signal is the server-components generation: the server
- * embeds the current one in every document it renders, and reports the current
- * one on `sync`. A restored document re-runs cached scripts, so it carries the
- * generation from whenever it was first rendered — if that no longer matches,
- * the module graph the page is running has been recompiled since.
+ * The signal is the server-components generation: the server embeds the current
+ * one in every document it renders, and reports the current one on `sync`. A
+ * restored document re-runs cached scripts, so it carries the generation from
+ * whenever it was first rendered — if that no longer matches, the module graph
+ * the page is running has been recompiled since.
  *
  * Either side can be missing a generation — webpack has none until its first
  * server-components recompile. Absent a generation there is nothing to compare,
  * so the page is left alone rather than reloaded on a guess.
  *
- * That leaves webpack's client-only edits, which never advance the generation.
- * The loaded bundle's own compilation hash covers those. It is only meaningful
- * when the compilation succeeded — a failing compile reports the *server*
- * compiler's stats on `sync`, whose hash never matches the client bundle.
+ * Deliberately *not* also comparing webpack's client compilation hash: it
+ * advances for on-demand compiles of other routes and for updates this page has
+ * already applied, so a mismatch does not mean the running document is stale.
+ * `isUpdateAvailable()` can use it because it only triggers Fast Refresh;
+ * reloading on it wipes redboxes and console output from healthy pages. The cost
+ * is that a webpack edit touching only client code never advances the generation
+ * and so is not recovered.
  */
-function isRunningOutdatedCode(message: SyncMessage): boolean {
-  if (
+function isRunningOutdatedCode(hmrRefreshHash: string | undefined): boolean {
+  return (
     currentRefreshHash !== undefined &&
-    message.hmrRefreshHash !== undefined &&
-    message.hmrRefreshHash !== currentRefreshHash
-  ) {
-    return true
-  }
-
-  return message.errors.length === 0 && isClientBundleOutdated(message.hash)
+    hmrRefreshHash !== undefined &&
+    hmrRefreshHash !== currentRefreshHash
+  )
 }
 
 export function createProcessTurbopackMessage(

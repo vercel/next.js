@@ -102,19 +102,6 @@ function isUpdateAvailable() {
   return mostRecentCompilationHash !== __webpack_hash__
 }
 
-/**
- * Whether the client bundle this page loaded belongs to an older compilation
- * than `hash`. Turbopack has no `__webpack_hash__` equivalent, so this can only
- * answer the question for webpack and reports `false` otherwise.
- */
-export function isClientBundleOutdated(hash: string) {
-  if (process.env.TURBOPACK) {
-    return false
-  }
-
-  return hash !== __webpack_hash__
-}
-
 // Webpack disallows updates in other states.
 function canApplyUpdates() {
   return module.hot.status() === 'idle'
