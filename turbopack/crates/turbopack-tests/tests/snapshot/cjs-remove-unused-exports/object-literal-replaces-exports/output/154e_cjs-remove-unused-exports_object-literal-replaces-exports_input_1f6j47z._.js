@@ -10,17 +10,15 @@ __turbopack_context__.s([]);
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/object-literal-replaces-exports/input/lib.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 
 // Discarded by the literal below, so not an export.
-exports.early = 'early-value';
+'early-value';
 module.exports = {
     used: 'used-value',
     ...void 'unused-value'
 };
 // Not exports: `exports` and top-level `this` hold the object the literal discarded.
-exports.deadExports = 'dead-exports';
-/*TURBOPACK member replacement*/ __turbopack_context__.e.deadThis = 'dead-this';
-Object.defineProperty(exports, 'deadDefined', {
-    value: 'dead-defined'
-});
+'dead-exports';
+'dead-this';
+'dead-defined';
 // Exports: `module.exports` is the live object.
 module.exports.usedLate = 'used-late';
 'unused-late';
