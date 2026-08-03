@@ -376,20 +376,25 @@ export const experimentalSchema = {
   turbopackMinify: z.boolean().optional(),
   turbopackFileSystemCacheForDev: z.boolean().optional(),
   turbopackFileSystemCacheForBuild: z.boolean().optional(),
+  turbopackSeedCacheFromWorktree: z.boolean().optional(),
   turbopackSourceMaps: z.boolean().optional(),
   turbopackInputSourceMaps: z.boolean().optional(),
   turbopackModuleFragments: z.boolean().optional(),
   turbopackRemoveUnusedImports: z.boolean().optional(),
   turbopackRemoveUnusedExports: z.boolean().optional(),
   turbopackScopeHoisting: z.boolean().optional(),
-  turbopackGenerateComponentChunks: z.boolean().optional(),
   turbopackSharedRuntime: z.boolean().optional(),
-  turbopackChunkingHeuristics: z
+  turbopackChunking: z
     .object({
       firstPageLoadPriority: z.number().min(0).max(1).optional(),
       priorityRoutes: z.array(z.instanceof(RegExp)).optional(),
       priorityBoost: z.number().min(1).optional(),
-      requestCost: z.number().min(0).max(1_000_000).optional(),
+      requestCost: z.number().min(0).finite().optional(),
+      minChunkSize: z.number().min(0).optional(),
+      maxChunkCountPerGroup: z.number().min(0).optional(),
+      maxMergeChunkSize: z.number().min(0).optional(),
+      minComponentChunkSize: z.number().min(0).optional(),
+      generateComponentChunks: z.boolean().optional(),
     })
     .optional(),
   turbopackWorkerAssetPrefix: z.string().optional(),

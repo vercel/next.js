@@ -246,7 +246,9 @@ function onSegmentPrerenderError(error: unknown) {
 /**
  * Extract the FlightRouterState, seed data, and head from a prerendered
  * InitialRSCPayload. Returns null if the payload doesn't match the expected
- * shape (single path with 3 elements).
+ * shape: a single root path with no segment prefix, which has 4 elements
+ * ([tree, seedData, head, isHeadPartial], per getRSCPayload) or 3 when
+ * reconstructed without the isHeadPartial flag (per instant-validation).
  */
 function extractFlightData(initialRSCPayload: InitialRSCPayload): {
   buildId: string | undefined
@@ -256,7 +258,10 @@ function extractFlightData(initialRSCPayload: InitialRSCPayload): {
 } | null {
   const flightDataPaths = initialRSCPayload.f
   // FlightDataPath is an unsound type, hence the additional checks.
-  if (flightDataPaths.length !== 1 && flightDataPaths[0].length !== 3) {
+  if (
+    flightDataPaths.length !== 1 ||
+    (flightDataPaths[0].length !== 3 && flightDataPaths[0].length !== 4)
+  ) {
     console.error(
       'Internal Next.js error: InitialRSCPayload does not match the expected ' +
         'shape for a prerendered page during segment prefetch generation.'
