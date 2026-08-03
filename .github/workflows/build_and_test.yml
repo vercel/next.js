@@ -721,9 +721,50 @@ jobs:
       timeout_minutes: 120 # Increase the default timeout as tests are intentionally run multiple times to detect flakes
     secrets: inherit
 
+  # The deploy tests install Next.js from the preview tarballs for this commit.
+  # Those are published by `upload-preview-tarballs`, which runs on
+  # `workflow_run` after `build-and-deploy` finishes, and for non-fork pull
+  # requests `build-and-deploy` itself runs on the `push` event rather than
+  # `pull_request`. The tarballs are therefore produced by a different workflow
+  # and a different event, which `needs` cannot express, so poll for them here
+  # instead. Keeping the wait in this cheap job means the deploy test matrices
+  # do not occupy large runners while the tarballs are still being built.
+  wait-for-preview-tarball:
+    name: Wait for preview tarball
+    needs: ['optimize-ci', 'changes']
+    # `docs-only` and `is-release` mirror the cases where `build-and-deploy`
+    # resolves its deploy target to `skipped` and never publishes a tarball.
+    # test-new-tests-if
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.is-release == 'false' }}
+    # test-new-tests-end-if
+    runs-on: ubuntu-latest
+    # Outer bound only. The script gives up first, so a tarball that never
+    # arrives is reported by it rather than by the runner killing the job.
+    timeout-minutes: 35
+    permissions: {}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            scripts/git-info.mjs
+            scripts/wait-for-preview-tarball.mjs
+          sparse-checkout-cone-mode: false
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Wait for preview tarball
+        env:
+          PREVIEW_BUILDS_BASE_URL: ${{ vars.PREVIEW_BUILDS_BASE_URL }}
+          PREVIEW_BUILDS_READ_TOKEN: ${{ secrets.PREVIEW_BUILDS_READ_TOKEN }}
+        run: |
+          set -euo pipefail
+          node scripts/wait-for-preview-tarball.mjs \
+            --preview-builds-base-url "$PREVIEW_BUILDS_BASE_URL" \
+            --timeout-minutes 30
+
   test-new-tests-deploy:
     name: Test new and changed tests when deployed
-    needs: ['optimize-ci', 'changes']
+    needs: ['optimize-ci', 'changes', 'wait-for-preview-tarball']
     # test-new-tests-if
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
     # test-new-tests-end-if
@@ -752,15 +793,9 @@ jobs:
 
   test-new-tests-deploy-cache-components:
     name: Test new and changed tests when deployed (cache components)
-    needs:
-      [
-        'optimize-ci',
-        'test-cache-components-prod',
-        'test-new-tests-dev',
-        'test-new-tests-start',
-      ]
+    needs: ['optimize-ci', 'changes', 'wait-for-preview-tarball']
     # test-new-tests-if
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' }}
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
     # test-new-tests-end-if
 
     strategy:
@@ -1074,6 +1109,7 @@ jobs:
       - test-turbopack-dev
       - test-new-tests-dev
       - test-new-tests-start
+      - wait-for-preview-tarball
       - test-new-tests-deploy
       - test-new-tests-deploy-cache-components
       - test-turbopack-production
