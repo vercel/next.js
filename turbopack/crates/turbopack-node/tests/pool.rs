@@ -2,7 +2,7 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 
-use std::path::PathBuf;
+use std::{path::PathBuf, time::Duration};
 
 use anyhow::Result;
 use bytes::Bytes;
@@ -257,6 +257,129 @@ async fn test_pool_concurrent_operations() {
             stats.warm_operation_count, 2,
             "both concurrent ops should be warm"
         );
+    })
+    .await;
+}
+
+#[cfg(all(feature = "process_pool", not(feature = "worker_pool")))]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_pool_scales_down_after_idle() {
+    run_once_without_cache_check(&REGISTRATION, async {
+        let pool = create_test_pool(3).await.unwrap();
+        let mut op1 = pool.operation().await.unwrap();
+        let mut op2 = pool.operation().await.unwrap();
+        let mut op3 = pool.operation().await.unwrap();
+
+        let pid1 = send_recv(&mut op1, serde_json::json!({"worker": 1}))
+            .await
+            .pid;
+        let pid2 = send_recv(&mut op2, serde_json::json!({"worker": 2}))
+            .await
+            .pid;
+        let pid3 = send_recv(&mut op3, serde_json::json!({"worker": 3}))
+            .await
+            .pid;
+        drop((op1, op2, op3));
+
+        assert_eq!(pool.stats().workers, 3);
+
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
+        while pool.stats().workers != 1 {
+            assert!(
+                tokio::time::Instant::now() < deadline,
+                "idle process pool did not scale down within timeout"
+            );
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+
+        let mut op = pool.operation().await.unwrap();
+        let reused_pid = send_recv(&mut op, serde_json::json!({"after_idle": true}))
+            .await
+            .pid;
+        assert!(
+            [pid1, pid2, pid3].contains(&reused_pid),
+            "scale down should retain one warm process"
+        );
+        assert_eq!(pool.stats().bootup_count, 3);
+    })
+    .await;
+}
+
+#[cfg(all(feature = "process_pool", not(feature = "worker_pool")))]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_pool_scales_down_after_non_reusable_operation() {
+    run_once_without_cache_check(&REGISTRATION, async {
+        let pool = create_test_pool(3).await.unwrap();
+        let mut operations = vec![
+            pool.operation().await.unwrap(),
+            pool.operation().await.unwrap(),
+            pool.operation().await.unwrap(),
+        ];
+
+        for (index, operation) in operations.iter_mut().enumerate() {
+            send_recv(operation, serde_json::json!({ "worker": index })).await;
+        }
+        drop(operations);
+        assert_eq!(pool.stats().workers, 3);
+
+        let mut failed_operation = pool.operation().await.unwrap();
+        failed_operation.disallow_reuse();
+        drop(failed_operation);
+
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
+        while pool.stats().workers != 1 {
+            assert!(
+                tokio::time::Instant::now() < deadline,
+                "pool did not scale down after a non-reusable operation"
+            );
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+        assert_eq!(pool.stats().bootup_count, 3);
+    })
+    .await;
+}
+
+#[cfg(all(feature = "process_pool", not(feature = "worker_pool")))]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_pool_does_not_scale_down_during_an_operation() {
+    run_once_without_cache_check(&REGISTRATION, async {
+        let pool = create_test_pool(3).await.unwrap();
+        let mut operations = vec![
+            pool.operation().await.unwrap(),
+            pool.operation().await.unwrap(),
+            pool.operation().await.unwrap(),
+        ];
+
+        for (index, operation) in operations.iter_mut().enumerate() {
+            send_recv(operation, serde_json::json!({ "worker": index })).await;
+        }
+        drop(operations);
+        assert_eq!(pool.stats().workers, 3);
+
+        let mut active_operation = pool.operation().await.unwrap();
+        send_recv(
+            &mut active_operation,
+            serde_json::json!({ "while_active": true }),
+        )
+        .await;
+
+        tokio::time::sleep(Duration::from_millis(2500)).await;
+        assert_eq!(
+            pool.stats().workers,
+            3,
+            "starting an operation should cancel the pending scale down"
+        );
+
+        drop(active_operation);
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
+        while pool.stats().workers != 1 {
+            assert!(
+                tokio::time::Instant::now() < deadline,
+                "pool did not scale down after the active operation completed"
+            );
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+        assert_eq!(pool.stats().bootup_count, 3);
     })
     .await;
 }

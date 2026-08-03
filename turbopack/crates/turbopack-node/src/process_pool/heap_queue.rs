@@ -46,12 +46,16 @@ impl<T: Ord> HeapQueue<T> {
         Ok(item)
     }
 
-    pub fn reduce_to_one(&self) {
+    pub fn has_multiple(&self) -> bool {
+        self.semaphore.available_permits() > 1
+    }
+
+    pub fn reduce_to_one(&self) -> usize {
         // Drain the semaphore permits
         let mut n = self.semaphore.forget_permits(usize::MAX);
         if n <= 1 {
             self.semaphore.add_permits(n);
-            return;
+            return 0;
         }
         let mut heap: parking_lot::lock_api::MutexGuard<'_, parking_lot::RawMutex, BinaryHeap<T>> =
             self.heap.lock();
@@ -63,6 +67,7 @@ impl<T: Ord> HeapQueue<T> {
         }
         heap.push(top);
         self.semaphore.add_permits(1);
+        n
     }
 
     pub fn reduce_to_zero(self: &Arc<Self>, active_queues: &Mutex<Vec<Arc<Self>>>) {

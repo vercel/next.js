@@ -23,6 +23,7 @@ use tokio::{
     process::{Child, ChildStderr, ChildStdout, Command},
     select,
     sync::Semaphore,
+    task::JoinHandle,
     time::{sleep, timeout},
 };
 use turbo_rcstr::{RcStr, rcstr};
@@ -84,6 +85,7 @@ impl PartialEq for NodeJsPoolProcess {
 }
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
+const IDLE_PROCESS_SCALE_DOWN_DELAY: Duration = Duration::from_secs(2);
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 struct OutputEntry {
@@ -627,6 +629,8 @@ pub struct ChildProcessPool {
     pub project_dir: FileSystemPath,
     #[turbo_tasks(trace_ignore, debug_ignore)]
     idle_processes: Arc<HeapQueue<NodeJsPoolProcess>>,
+    #[turbo_tasks(trace_ignore, debug_ignore)]
+    idle_scale_down_task: Arc<Mutex<Option<JoinHandle<()>>>>,
     /// Semaphore to limit the number of concurrent operations in general
     #[turbo_tasks(trace_ignore, debug_ignore)]
     concurrency_semaphore: Arc<Semaphore>,
@@ -671,6 +675,7 @@ impl ChildProcessPool {
                 })),
                 bootup_semaphore: Arc::new(Semaphore::new(1)),
                 idle_processes: Arc::new(HeapQueue::new()),
+                idle_scale_down_task: Default::default(),
                 shared_stdout: Arc::new(Mutex::new(FxIndexSet::default())),
                 shared_stderr: Arc::new(Mutex::new(FxIndexSet::default())),
                 debug,
@@ -737,14 +742,22 @@ impl NodeBackend for ChildProcessesBackend {
 impl EvaluateOperation for ChildProcessPool {
     async fn operation(&self) -> Result<Box<dyn Operation>> {
         // Acquire a running process (handles concurrency limits, boots up the process)
-
         let operation = {
             let _guard = duration_span!("Node.js operation");
             let (process, permits) = self.acquire_process().await?;
+
+            // Keep the expanded pool alive while operations are still arriving. Only
+            // cancel after acquisition succeeds so errors or cancellation cannot
+            // leave the pool without a pending scale down.
+            if let Some(task) = self.idle_scale_down_task.lock().take() {
+                task.abort();
+            }
+
             ChildProcessOperation {
                 process: Some(process),
                 permits,
                 idle_processes: self.idle_processes.clone(),
+                idle_scale_down_task: self.idle_scale_down_task.clone(),
                 start: Instant::now(),
                 stats: self.stats.clone(),
                 allow_process_reuse: true,
@@ -877,6 +890,7 @@ pub struct ChildProcessOperation {
     #[allow(dead_code)]
     permits: AcquiredPermits,
     idle_processes: Arc<HeapQueue<NodeJsPoolProcess>>,
+    idle_scale_down_task: Arc<Mutex<Option<JoinHandle<()>>>>,
     start: Instant,
     stats: Arc<Mutex<NodeJsPoolStats>>,
     allow_process_reuse: bool,
@@ -975,6 +989,23 @@ impl Drop for ChildProcessOperation {
                 process.cpu_time_invested += elapsed;
                 self.idle_processes.push(process, &ACTIVE_POOLS);
             }
+        }
+
+        let mut scale_down_task = self.idle_scale_down_task.lock();
+        if let Some(task) = scale_down_task.take() {
+            task.abort();
+        }
+        if self.idle_processes.has_multiple() {
+            let idle_processes = self.idle_processes.clone();
+            let stats = self.stats.clone();
+            *scale_down_task = Some(tokio::spawn(async move {
+                sleep(IDLE_PROCESS_SCALE_DOWN_DELAY).await;
+                let removed = idle_processes.reduce_to_one();
+                let mut stats = stats.lock();
+                for _ in 0..removed {
+                    stats.remove_worker();
+                }
+            }));
         }
     }
 }
