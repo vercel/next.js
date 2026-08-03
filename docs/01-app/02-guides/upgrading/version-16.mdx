@@ -276,32 +276,7 @@ export default nextConfig
 
 ### Turbopack File System Caching
 
-Turbopack stores compiler artifacts on disk between runs, for significantly faster compile times across restarts. Starting with 16.3, filesystem caching is enabled by default for both `next dev` and `next build`. See [`turbopackFileSystemCache`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache) to configure or disable it.
-
-On 16.0 through 16.2, filesystem caching was in beta and opt-in:
-
-```ts filename="next.config.ts" switcher
-import type { NextConfig } from 'next'
-
-const nextConfig: NextConfig = {
-  experimental: {
-    turbopackFileSystemCacheForDev: true,
-  },
-}
-
-export default nextConfig
-```
-
-```js filename="next.config.js" switcher
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  experimental: {
-    turbopackFileSystemCacheForDev: true,
-  },
-}
-
-module.exports = nextConfig
-```
+Turbopack stores compiler artifacts on disk between runs, for significantly faster compile times across restarts. Filesystem caching is enabled by default for both `next dev` and `next build`. See [`turbopackFileSystemCache`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache) to configure or disable it.
 
 ## Async Request APIs (Breaking change)
 
