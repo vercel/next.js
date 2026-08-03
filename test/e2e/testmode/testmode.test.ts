@@ -56,6 +56,11 @@ describe('testmode', () => {
       expect(html).not.toContain('<pre>test1</pre>')
     })
 
+    it('should pass http.get through to the real server when Next-Test-* headers are not present', async () => {
+      const html = await (await next.fetch('/app/rsc-httpget')).text()
+      expect(html).toContain('Example Domain')
+    })
+
     it('should handle RSC with fetch in serverless function', async () => {
       const html = await (await fetchForTest('/app/rsc-fetch')).text()
       expect(html).toContain('<pre>test1</pre>')
