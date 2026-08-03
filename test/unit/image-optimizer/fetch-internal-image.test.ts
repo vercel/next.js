@@ -3,7 +3,12 @@ import {
   fetchInternalImage,
   ImageError,
 } from 'next/dist/server/image-optimizer'
+import { serveStatic } from 'next/dist/server/serve-static'
 import type { IncomingMessage, ServerResponse } from 'http'
+import { EventEmitter } from 'events'
+import { promises as fs } from 'fs'
+import { tmpdir } from 'os'
+import { join } from 'path'
 
 describe('fetchInternalImage', () => {
   describe('response size limit', () => {
@@ -147,6 +152,38 @@ describe('fetchInternalImage', () => {
 
       expect(result.buffer).toBeInstanceOf(Buffer)
       expect(result.buffer.length).toBe(maximumResponseBody)
+    })
+  })
+
+  describe('requester disconnect', () => {
+    it('should still complete when the requester socket is already gone', async () => {
+      const size = 4 * 1024 * 1024
+      const filePath = join(tmpdir(), `fetch-internal-image-${Date.now()}.bin`)
+      await fs.writeFile(filePath, Buffer.alloc(size, 1))
+
+      // A disconnected client's socket reports `writable: false`, which is what
+      // `send` reads to decide the response is done and destroy the stream.
+      const socket = Object.assign(new EventEmitter(), { writable: false })
+      const mockReq = { method: 'GET', socket } as unknown as IncomingMessage
+      const mockRes = {} as ServerResponse
+
+      try {
+        const result = await Promise.race([
+          fetchInternalImage(
+            '/test-image.jpg',
+            mockReq,
+            mockRes,
+            50_000_000,
+            (req, res) => serveStatic(req, res, filePath)
+          ),
+          new Promise((resolve) => setTimeout(() => resolve('timeout'), 5_000)),
+        ])
+
+        expect(result).not.toBe('timeout')
+        expect((result as { buffer: Buffer }).buffer.length).toBe(size)
+      } finally {
+        await fs.unlink(filePath).catch(() => {})
+      }
     })
   })
 })

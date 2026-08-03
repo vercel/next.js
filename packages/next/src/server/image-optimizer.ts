@@ -978,10 +978,12 @@ export async function fetchInternalImage(
     // Coerce HEAD to GET to avoid issues with the image optimizer
     const method = !_req.method || _req.method === 'HEAD' ? 'GET' : _req.method
 
+    // Don't wire the requester's socket into the coalesced internal request:
+    // one client aborting would tear down the shared stream and wedge the
+    // cache entry for every other waiter.
     const mocked = createRequestResponseMocks({
       url: href,
       method,
-      socket: _req.socket,
       maximumResponseBody,
     })
 
