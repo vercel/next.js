@@ -2,6 +2,10 @@
 import execa from 'execa'
 import yargs from 'yargs'
 import getChangedTests from './get-changed-tests.mjs'
+import {
+  previewTarballUrl,
+  waitForPreviewTarball,
+} from './wait-for-preview-tarball.mjs'
 
 /**
  * Run tests for added/changed tests in the current branch
@@ -20,8 +24,9 @@ async function main() {
   const testMode = argv.mode
   const isFlakeDetectionMode = argv['flake-detection']
   const attempts = isFlakeDetectionMode ? 3 : 1
-  const previewBuildsBaseUrl =
-    argv['preview-builds-base-url'] || 'https://vercel-packages.vercel.app/next'
+  // Left unset when the workflow passes an empty value, so that
+  // wait-for-preview-tarball.mjs owns the default.
+  const previewBuildsBaseUrl = argv['preview-builds-base-url']
 
   if (testMode && !['dev', 'deploy', 'start'].includes(testMode)) {
     throw new Error(
@@ -95,50 +100,20 @@ async function main() {
   // PR number endpoint (which resolves the PR to a SHA on every request).
   const nextTestVersion =
     testMode === 'deploy'
-      ? `${previewBuildsBaseUrl}/commits/${commitSha}/next`
+      ? previewTarballUrl(previewBuildsBaseUrl, commitSha)
       : undefined
-
-  const previewBuildsReadToken = process.env.PREVIEW_BUILDS_READ_TOKEN
 
   if (nextTestVersion) {
-    console.log(`Verifying artifacts for commit ${commitSha}`)
-    // Attempt to fetch the deploy artifacts for the commit
-    // These might take a moment to become available, so we'll retry a few times
-    const fetchHeaders = previewBuildsReadToken
-      ? { Authorization: `Bearer ${previewBuildsReadToken}` }
-      : undefined
-    const fetchWithRetry = async (url, retries = 5, timeout = 5000) => {
-      for (let i = 0; i < retries; i++) {
-        const res = await fetch(url, { headers: fetchHeaders })
-        if (res.ok) {
-          return res
-        } else if (i < retries - 1) {
-          console.log(
-            `Attempt ${i + 1} failed. Retrying in ${timeout / 1000} seconds...`
-          )
-          await new Promise((resolve) => setTimeout(resolve, timeout))
-        } else {
-          if (res.status === 404) {
-            throw new Error(
-              `Artifacts not found for commit ${commitSha}. ` +
-                `This can happen if the preview builds either failed or didn't succeed yet. ` +
-                `Once the "Deploy Preview tarball" job has finished, a retry should fix this error.`
-            )
-          }
-          throw new Error(
-            `Failed to verify artifacts for commit ${commitSha}: ${res.status}`
-          )
-        }
-      }
-    }
-
-    try {
-      await fetchWithRetry(nextTestVersion)
-      console.log(`Artifacts verified for commit ${commitSha}`)
-    } catch (error) {
-      console.error(error.message)
-      throw error
-    }
+    // The `wait-for-preview-tarball` job in build_and_test.yml already blocks
+    // this job until the tarballs are published, so this only covers the short
+    // window where the blob is not yet readable from this runner.
+    await waitForPreviewTarball({
+      commitSha,
+      previewBuildsBaseUrl,
+      timeoutMs: 2 * 60_000,
+      readToken: process.env.PREVIEW_BUILDS_READ_TOKEN,
+      pollIntervalMs: 5_000,
+    })
   }
 
   // We apply the external tests filter before the process.env so that if
