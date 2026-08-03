@@ -325,7 +325,7 @@ export function createPrerenderParamsForClientSegment(
   // We're prerendering in a mode that does not abort. We resolve the promise without
   // any tracking because we're just transporting a value from server to client where the tracking
   // will be applied.
-  return Promise.resolve(underlyingParams)
+  return workStore.runInCleanSnapshot(() => Promise.resolve(underlyingParams))
 }
 
 function createStaticPrerenderParams(
@@ -662,7 +662,7 @@ function createClientParamsInInstantValidation(
     declaredParams,
     workStore.route
   )
-  return Promise.resolve(proxiedUnderlying)
+  return workStore.runInCleanSnapshot(() => Promise.resolve(proxiedUnderlying))
 }
 
 function createRenderParamsInProd(userspaceParams: Params): Promise<Params> {
@@ -764,11 +764,15 @@ function makeErroringParams(
   }
 
   const augmentedUnderlying = { ...underlyingParams }
+  const workStoreRef = new WeakRef(workStore)
+  const prerenderStoreRef = new WeakRef(prerenderStore)
 
   // We don't use makeResolvedReactPromise here because params
   // supports copying with spread and we don't want to unnecessarily
   // instrument the promise with spreadable properties of ReactPromise.
-  const promise = Promise.resolve(augmentedUnderlying)
+  const promise = workStore.runInCleanSnapshot(() =>
+    Promise.resolve(augmentedUnderlying)
+  )
   CachedParams.set(underlyingParams, promise)
 
   Object.keys(underlyingParams).forEach((prop) => {
@@ -780,25 +784,33 @@ function makeErroringParams(
         Object.defineProperty(augmentedUnderlying, prop, {
           get() {
             const expression = describeStringPropertyAccess('params', prop)
+            const liveWorkStore = workStoreRef.deref()
+            const livePrerenderStore = prerenderStoreRef.deref()
+            if (!liveWorkStore || !livePrerenderStore) {
+              throw new InvariantError(
+                'Expected workStore and prerenderStore to still be available when accessing fallback params'
+              )
+            }
+
             // In most dynamic APIs we also throw if `dynamic = "error"` however
             // for params is only dynamic when we're generating a fallback shell
             // and even when `dynamic = "error"` we still support generating dynamic
             // fallback shells
             // TODO remove this comment when cacheComponents is the default since there
             // will be no `dynamic = "error"`
-            if (prerenderStore.type === 'prerender-ppr') {
+            if (livePrerenderStore.type === 'prerender-ppr') {
               // PPR Prerender (no cacheComponents)
               postponeWithTracking(
-                workStore.route,
+                liveWorkStore.route,
                 expression,
-                prerenderStore.dynamicTracking
+                livePrerenderStore.dynamicTracking
               )
             } else {
               // Legacy Prerender
               throwToInterruptStaticGeneration(
                 expression,
-                workStore,
-                prerenderStore
+                liveWorkStore,
+                livePrerenderStore
               )
             }
           },
@@ -817,7 +829,13 @@ function makeUntrackedParams(underlyingParams: Params): Promise<Params> {
     return cachedParams
   }
 
-  const promise = Promise.resolve(underlyingParams)
+  const workStore = workAsyncStorage.getStore()
+  if (!workStore) {
+    throw new InvariantError('Expected workStore to be initialized')
+  }
+  const promise = workStore.runInCleanSnapshot(() =>
+    Promise.resolve(underlyingParams)
+  )
   CachedParams.set(underlyingParams, promise)
 
   return promise
