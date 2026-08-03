@@ -3296,6 +3296,7 @@ async function renderToStream(
   } = renderOpts
 
   const { cachedNavigations } = renderOpts.experimental
+  const waitForAllReady = supportsDynamicResponse !== true
 
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
     createServerInsertedHTML()
@@ -3886,8 +3887,6 @@ async function renderToStream(
           tracingMetadata: tracingMetadata,
         })
 
-        const generateStaticHTML = supportsDynamicResponse !== true
-
         const appElement = (
           <App
             reactServerStream={reactServerResult.tee()}
@@ -3923,7 +3922,7 @@ async function renderToStream(
               renderToNodeFizzStream,
               appElement,
               fizzOptions,
-              { waitForAllReady: generateStaticHTML }
+              { waitForAllReady }
             )
         )
 
@@ -3938,7 +3937,7 @@ async function renderToStream(
             nonce,
             formState
           ),
-          isStaticGeneration: generateStaticHTML,
+          waitForAllReady,
           allReady,
           deploymentId: ctx.sharedContext.deploymentId,
           getServerInsertedHTML,
@@ -4029,8 +4028,6 @@ async function renderToStream(
           tracingMetadata: tracingMetadata,
         })
 
-        const generateStaticHTML = supportsDynamicResponse !== true
-
         const appElement = (
           <App
             reactServerStream={reactServerResult.tee()}
@@ -4075,7 +4072,7 @@ async function renderToStream(
             nonce,
             formState
           ),
-          isStaticGeneration: generateStaticHTML,
+          waitForAllReady,
           allReady,
           deploymentId: ctx.sharedContext.deploymentId,
           getServerInsertedHTML,
@@ -4206,8 +4203,6 @@ async function renderToStream(
         }
 
         try {
-          const generateStaticHTML = supportsDynamicResponse !== true
-
           const { stream: errorHtmlStream, allReady: errorAllReady } =
             await workUnitAsyncStorage.run(
               requestStore,
@@ -4225,7 +4220,7 @@ async function renderToStream(
                 bootstrapScripts: [errorBootstrapScript],
                 formState,
               },
-              { waitForAllReady: generateStaticHTML }
+              { waitForAllReady }
             )
 
           errorAllReady.finally(() => {
@@ -4241,7 +4236,7 @@ async function renderToStream(
               nonce,
               formState
             ),
-            isStaticGeneration: generateStaticHTML,
+            waitForAllReady,
             deploymentId: ctx.sharedContext.deploymentId,
             getServerInsertedHTML: makeGetServerInsertedHTML({
               polyfills,
@@ -4304,8 +4299,6 @@ async function renderToStream(
         }
 
         try {
-          const generateStaticHTML = supportsDynamicResponse !== true
-
           const { stream: errorHtmlStream, allReady: errorAllReady } =
             await workUnitAsyncStorage.run(
               requestStore,
@@ -4338,7 +4331,7 @@ async function renderToStream(
               nonce,
               formState
             ),
-            isStaticGeneration: generateStaticHTML,
+            waitForAllReady,
             deploymentId: ctx.sharedContext.deploymentId,
             getServerInsertedHTML: makeGetServerInsertedHTML({
               polyfills,
@@ -9628,7 +9621,7 @@ async function prerenderToStream(
             nonce,
             formState
           ),
-          isStaticGeneration: true,
+          waitForAllReady: true,
           getServerInsertedHTML,
           getServerInsertedMetadata,
           deploymentId: ctx.sharedContext.deploymentId,
@@ -10167,7 +10160,7 @@ async function prerenderToStream(
             nonce,
             formState
           ),
-          isStaticGeneration: true,
+          waitForAllReady: true,
           getServerInsertedHTML: makeGetServerInsertedHTML({
             polyfills,
             renderServerInsertedHTML,
