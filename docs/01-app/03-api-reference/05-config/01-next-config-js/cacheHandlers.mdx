@@ -88,7 +88,9 @@ get(cacheKey: string, softTags: string[]): Promise<CacheEntry | undefined>
 
 Returns a `CacheEntry` object if found, or `undefined` if not found or expired.
 
-Your `get` method should retrieve the cache entry from storage, check if it has expired based on the `revalidate` time, and return `undefined` for missing or expired entries.
+Your `get` method should retrieve the cache entry from storage, check if it has expired based on the `expire` time, and return `undefined` for missing or expired entries.
+
+Return the entry even when it is past its `revalidate` time. `revalidate` marks the entry as stale, not expired: Next.js serves the stale entry and schedules a background refresh. Only `expire` means the entry can no longer be used.
 
 ```js
 const cacheHandler = {
@@ -96,9 +98,11 @@ const cacheHandler = {
     const entry = cache.get(cacheKey)
     if (!entry) return undefined
 
-    // Check if expired
+    // Only `expire` means the entry is unusable. An entry past its
+    // `revalidate` time is stale, not expired: return it so Next.js can
+    // serve it while refreshing in the background.
     const now = Date.now()
-    if (now > entry.timestamp + entry.revalidate * 1000) {
+    if (now > entry.timestamp + entry.expire * 1000) {
       return undefined
     }
 
@@ -277,9 +281,10 @@ module.exports = {
       return undefined
     }
 
-    // Check if entry has expired
+    // Only drop the entry once it is past `expire`. Past `revalidate` it is
+    // stale, and returning it lets Next.js serve it while it refreshes.
     const now = Date.now()
-    if (now > entry.timestamp + entry.revalidate * 1000) {
+    if (now > entry.timestamp + entry.expire * 1000) {
       return undefined
     }
 
@@ -391,7 +396,12 @@ module.exports = {
         expire: entry.expire,
         revalidate: entry.revalidate,
       }),
-      { EX: entry.expire } // Use Redis TTL for automatic expiration
+      // Use Redis TTL for automatic expiration. `EX` requires a positive
+      // integer, while `expire` can be fractional or `Infinity` (the
+      // never-expire sentinel), so clamp before passing it through.
+      Number.isFinite(entry.expire)
+        ? { EX: Math.max(1, Math.ceil(entry.expire)) }
+        : {}
     )
   },
 
