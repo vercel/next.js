@@ -16,6 +16,7 @@ pub mod chunk_list;
 pub mod code_gen;
 pub mod embed_js;
 mod errors;
+pub mod hmr;
 pub mod json_source_transform;
 pub mod magic_identifier;
 pub mod manifest;

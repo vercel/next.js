@@ -54,21 +54,31 @@ with `--isolate-routes`, which restarts the server between routes.
 
 ## A/A validation
 
-Before claiming anything on a new team/config, run an A/A cell (same
-ref as both arms) at default allocation:
+Before claiming anything on a new team/config/suite, run an A/A cell
+(same ref as both arms) at default allocation:
 
 ```sh
 node scripts/sandbox-e2e.mjs --arms base=<ref>,cand=<ref> --label aa
+node scripts/sandbox-ssr.mjs --arms base=<ref>,cand=<ref> --label ssr-aa
 ```
 
-The A/A validates the inference itself: with identical arms, no
-route/phase/metric cell should reach p < 0.01 (beyond the nominal
-false-positive rate). Cells that do mean boots are sharing conditions
-and the CIs are too narrow — fix the allocation (more spread-out
-boots) before claiming; a magnitude gate is not a substitute. The A/A
-CIs also tell you what effect sizes this config can resolve. Re-run
-the A/A when the platform changes (VM hardware generation, node
-version, bench app changes).
+The A/A validates the inference itself. With identical arms, expect
+about (number of metric-cells x 0.01) cells at p < 0.01 by chance —
+under 1 for the e2e suite's ~24 cells, roughly 1 for the ssr suite's
+~88. The pass criterion is therefore two runs: a suite fails its A/A
+when any cell reaches p < 0.01 with the same sign in both (a bias
+tied to the arm label recurs; chance does not), or when any single
+cell lands beyond the familywise bar (p < 0.01 / number of
+independent variant-x-phase cells). A failing cell means boots are
+sharing label-correlated conditions and the CIs are too narrow — find
+the mechanism before claiming; a magnitude gate is not a substitute.
+The A/A CIs also tell you what effect sizes this config can resolve.
+Re-run the A/A when the platform changes (VM hardware generation,
+node version, bench app or fixture changes).
+
+Validated so far: e2e (twice, 0/24 cells), ssr (two-run criterion:
+one chance cell at p=0.0024 in run 1 dissolved to p=0.86 in run 2,
+nothing recurred; runs ssr-aa2/ssr-aa3 in the results db).
 
 ## Interim progress display
 

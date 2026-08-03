@@ -3,11 +3,10 @@
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
+import { buildTestReport } from './test-report.js'
 
 const TEST_COMMENT_MARKER = '<!-- __NEXT_TEST_REPORT_COMMENT__ -->'
 const STATS_COMMENT_MARKER = '<!-- __NEXT_STATS_COMMENT__ -->'
-const CONTRIBUTING_URL =
-  'https://github.com/vercel/next.js/blob/canary/contributing.md'
 const MAX_COMMENT_LENGTH = 62_000
 const MAX_RESULT_MESSAGE_LENGTH = 12_000
 
@@ -634,11 +633,7 @@ async function handleBuildAndTestWorkflow({
       return
     }
 
-    const parsedSuites = parseFailedSuitesFromLogs(logs, job, {
-      owner,
-      repo,
-      sha: pr.headSha || workflowRun.head_sha,
-    })
+    const parsedSuites = parseFailedSuitesFromLogs(logs, job)
 
     if (parsedSuites.length === 0) {
       otherFailures.push({ job })
@@ -650,6 +645,8 @@ async function handleBuildAndTestWorkflow({
   const body = buildTestReportComment({
     failedSuites,
     otherFailures,
+    owner,
+    repo,
     sha: pr.headSha || workflowRun.head_sha,
   })
 
@@ -659,7 +656,7 @@ async function handleBuildAndTestWorkflow({
   ])
 }
 
-function parseFailedSuitesFromLogs(logs, job, { owner, repo, sha }) {
+function parseFailedSuitesFromLogs(logs, job) {
   const blocks = extractJsonBlocks(logs)
   const failedSuites = []
 
@@ -696,9 +693,6 @@ function parseFailedSuitesFromLogs(logs, job, { owner, repo, sha }) {
           MAX_RESULT_MESSAGE_LENGTH
         ),
         groups: groupedFails,
-        owner,
-        repo,
-        sha,
       })
     }
   }
@@ -737,137 +731,57 @@ function extractDelimitedBlock(logs, start, end) {
   return logs.slice(contentStart, endIndex).trim()
 }
 
-function buildTestReportComment({ failedSuites, otherFailures, sha }) {
-  const heading =
-    failedSuites.length > 0 ? '## Failing test suites' : '## Failing CI jobs'
-  const lines = [
-    TEST_COMMENT_MARKER,
-    heading,
-    '',
-    `Commit: ${sha} | [About building and testing Next.js](${CONTRIBUTING_URL})`,
-    '',
-  ]
-
-  for (const suite of failedSuites.sort((a, b) =>
-    `${a.job.name}:${a.testPath}`.localeCompare(`${b.job.name}:${b.testPath}`)
-  )) {
-    const jobMarker = getJobMarker(suite.job.name)
-    lines.push(jobMarker.start)
-    lines.push(
-      `\`${getTestCommand(suite)}\`${getJobTags(suite.job.name)} ([job](${suite.job.html_url}))`
+function buildTestReportComment({
+  failedSuites,
+  otherFailures,
+  owner,
+  repo,
+  sha,
+}) {
+  const suites = failedSuites
+    .sort((a, b) =>
+      `${a.job.name}:${a.testPath}`.localeCompare(`${b.job.name}:${b.testPath}`)
     )
+    .map((suite) => {
+      // Unlike `run-tests.js`, which reads them from its environment, the
+      // suite properties have to be derived from the CI job name here.
+      const jobName = suite.job.name.toLowerCase()
+      const isCacheComponents = jobName.includes('cache components')
 
-    const sortedGroups = [...suite.groups.keys()].sort()
-    for (const group of sortedGroups) {
-      const fails = suite.groups.get(group)
-      lines.push(
-        `- ${fails
-          .map((fail) => formatFailureLine(suite, group, fail))
-          .join('\n- ')}`
-      )
-    }
-
-    if (suite.resultMessage) {
-      lines.push('')
-      lines.push('<details>')
-      lines.push('<summary>Expand output</summary>')
-      lines.push('')
-      lines.push(suite.resultMessage)
-      lines.push('</details>')
-    }
-
-    lines.push(jobMarker.end)
-    lines.push('')
-  }
-
-  if (otherFailures.length > 0) {
-    if (failedSuites.length > 0) {
-      lines.push('### Other failing CI jobs')
-      lines.push('')
-    }
-
-    for (const { job, reason } of otherFailures.sort((a, b) =>
-      a.job.name.localeCompare(b.job.name)
-    )) {
-      lines.push(
-        `- [${job.name}](${job.html_url})${reason ? `: ${reason}` : ''}`
-      )
-    }
-  }
-
-  return lines.join('\n')
-}
-
-function formatFailureLine(suite, group, fail) {
-  const testName = `${group ? `${group} > ` : ''}${fail.title}`
-  const jobName = suite.job.name.toLowerCase()
-  if (jobName.includes('rspack')) {
-    return testName
-  }
-
-  const query = datadogSearchQuery({
-    '@git.repository.id': `github.com/${suite.owner}/${suite.repo}`,
-    '@git.commit.head_sha': suite.sha,
-    '@test.name': testName.replace(/ > /g, ' '),
-    '@test.type': jobName.includes('turbopack') ? 'turbopack' : 'nextjs',
-    '@test.status': 'fail',
-  })
-  const linkUrl = new URL('https://app.datadoghq.com/ci/test/runs')
-  linkUrl.searchParams.set('query', query)
-  return `${testName} ([DD](${linkUrl.href}))`
-}
-
-function datadogSearchQuery(values) {
-  return Object.entries(values)
-    .map(([key, value]) => {
-      const escapedValue = value.replace(/"/g, '\\"')
-      return `${key}:"${escapedValue}"`
+      return {
+        jobName: suite.job.name,
+        jobUrl: suite.job.html_url,
+        mode: suite.mode,
+        testPath: suite.testPath,
+        isTurbopack: jobName.includes('turbopack') || isCacheComponents,
+        isRspack: jobName.includes('rspack'),
+        isExperimental: jobName.includes('experimental') || isCacheComponents,
+        isPPR: jobName.includes('ppr'),
+        failedCases: [...suite.groups.keys()]
+          .sort()
+          .flatMap((group) =>
+            suite.groups
+              .get(group)
+              .map((fail) => `${group ? `${group} > ` : ''}${fail.title}`)
+          ),
+        resultMessage: suite.resultMessage,
+      }
     })
-    .join(' ')
-}
 
-function getTestCommand(suite) {
-  const jobName = suite.job.name.toLowerCase()
-  const isCacheComponents = jobName.includes('cache components')
-  const isTurbopack = jobName.includes('turbopack') || isCacheComponents
-  const isRspack = jobName.includes('rspack')
-  const isExperimental = jobName.includes('experimental') || isCacheComponents
-  const isPPR = jobName.includes('ppr')
-  const script = suite.mode
-    ? `test-${suite.mode}${isExperimental ? '-experimental' : ''}${
-        isTurbopack ? '-turbo' : isRspack ? '-rspack' : ''
-      }`
-    : 'test'
-  const commandPrefix = isPPR ? '__NEXT_EXPERIMENTAL_PPR=true ' : ''
-
-  return `${commandPrefix}pnpm ${script} ${suite.testPath}`
-}
-
-function getJobTags(jobName) {
-  const lowerJobName = jobName.toLowerCase()
-  let tags = ''
-
-  if (lowerJobName.includes('turbopack')) {
-    tags += ' (turbopack)'
-  } else if (lowerJobName.includes('rspack')) {
-    tags += ' (rspack)'
-  }
-
-  if (lowerJobName.includes('experimental')) {
-    tags += ' (Experimental)'
-  } else if (lowerJobName.includes('ppr')) {
-    tags += ' (PPR)'
-  }
-
-  return tags
-}
-
-function getJobMarker(jobName) {
-  const safeName = jobName.replaceAll('-->', '')
-  return {
-    start: `<!-- J"${safeName}" -->`,
-    end: `<!-- /J"${safeName}" -->`,
-  }
+  return buildTestReport({
+    marker: TEST_COMMENT_MARKER,
+    owner,
+    repo,
+    sha,
+    suites,
+    otherFailures: otherFailures
+      .sort((a, b) => a.job.name.localeCompare(b.job.name))
+      .map(({ job, reason }) => ({
+        name: job.name,
+        url: job.html_url,
+        reason,
+      })),
+  })
 }
 
 function normalizeTestPath(testName) {

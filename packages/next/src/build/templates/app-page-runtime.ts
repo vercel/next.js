@@ -40,10 +40,7 @@ import {
   type OpaqueFallbackRouteParams,
 } from '../../server/request/fallback-params' with { 'turbopack-transition': 'next-server-utility' }
 import { setManifestsSingleton } from '../../server/app-render/manifests-singleton' with { 'turbopack-transition': 'next-server-utility' }
-import {
-  isHtmlBotRequest,
-  shouldServeStreamingMetadata,
-} from '../../server/lib/streaming-metadata' with { 'turbopack-transition': 'next-server-utility' }
+import { shouldServeStreamingMetadata } from '../../server/lib/streaming-metadata' with { 'turbopack-transition': 'next-server-utility' }
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths' with { 'turbopack-transition': 'next-server-utility' }
 import { getIsPossibleServerAction } from '../../server/lib/server-action-request-meta' with { 'turbopack-transition': 'next-server-utility' }
 import {
@@ -56,10 +53,7 @@ import {
   RSC_CONTENT_TYPE_HEADER,
   NEXT_HMR_REFRESH_HEADER,
 } from '../../client/components/app-router-headers' with { 'turbopack-transition': 'next-server-utility' }
-import {
-  getBotType,
-  isBot,
-} from '../../shared/lib/router/utils/is-bot' with { 'turbopack-transition': 'next-server-utility' }
+import { getBotType } from '../../shared/lib/router/utils/is-bot' with { 'turbopack-transition': 'next-server-utility' }
 import {
   CachedRouteKind,
   IncrementalCacheKind,
@@ -287,7 +281,6 @@ export function createAppPageEntrypoint({
 
     const userAgent = req.headers['user-agent'] || ''
     const botType = getBotType(userAgent)
-    const isHtmlBot = isHtmlBotRequest(req)
 
     /**
      * If true, this indicates that the request being made is for an app
@@ -539,21 +532,21 @@ export function createAppPageEntrypoint({
     // being true for a revalidate due to modifying the base-server this.renderOpts
     // when fixing this to correct logic it causes hydration issue since we set
     // serveStreamingMetadata to true during export
-    const serveStreamingMetadata =
-      botType && isRoutePPREnabled
-        ? false
-        : !userAgent
-          ? true
-          : shouldServeStreamingMetadata(userAgent, nextConfig.htmlLimitedBots)
+    const serveStreamingMetadata = !userAgent
+      ? true
+      : shouldServeStreamingMetadata(userAgent, nextConfig.htmlLimitedBots)
+
+    // PPR shells are generated for streaming metadata. Requests that require
+    // blocking metadata must bypass the shell so the prerender and dynamic
+    // render use the same metadata tree.
+    const shouldForceDynamicPPRRender =
+      isRoutePPREnabled && !serveStreamingMetadata
 
     const isSSG = Boolean(
       (prerenderInfo ||
         isPrerendered ||
         prerenderManifest.routes[normalizedSrcPage]) &&
-        // If this is a bot request and PPR is enabled, then we don't want
-        // to serve a static response. This applies to both DOM bots (like Googlebot)
-        // and HTML-limited bots.
-        !(botType && isRoutePPREnabled)
+        !shouldForceDynamicPPRRender
     )
 
     // When a page supports cacheComponents, we can support RDC for Navigations
@@ -585,9 +578,6 @@ export function createAppPageEntrypoint({
         : // Otherwise, we can support dynamic responses if it's a dynamic RSC request.
           isDynamicRSCRequest)
 
-    // When bots request PPR page, perform the full dynamic rendering.
-    // This applies to both DOM bots (like Googlebot) and HTML-limited bots.
-    const shouldWaitOnAllReady = Boolean(botType) && isRoutePPREnabled
     const remainingPrerenderableParams =
       prerenderInfo?.remainingPrerenderableParams ?? []
     // Concrete optional routes like `/optional-catchall` can still match their
@@ -629,7 +619,17 @@ export function createAppPageEntrypoint({
           : prerenderMatch.source
         : null
 
-      if (fallbackPathname && prerenderInfo?.fallbackRouteParams?.length) {
+      if (
+        // Partial fallback shells are only specialized per request when Partial
+        // Prefetching is enabled, mirroring the `partialFallback` flag the
+        // adapter emits for deployments. When it's disabled we fall through to
+        // the normal ISR cache key (`resolvedPathname`) so the shell stays
+        // shared, matching the behavior before the `partialFallbacks` config
+        // flag was removed.
+        nextConfig.partialPrefetching &&
+        fallbackPathname &&
+        prerenderInfo?.fallbackRouteParams?.length
+      ) {
         if (remainingPrerenderableParams.length > 0) {
           const completedShellCacheKey = buildCompletedShellCacheKey(
             fallbackPathname,
@@ -710,7 +710,7 @@ export function createAppPageEntrypoint({
       routerServerContext?.isWrappedByNextServer
     )
     const remainingFallbackRouteParams =
-      remainingPrerenderableParams.length > 0
+      nextConfig.partialPrefetching && remainingPrerenderableParams.length > 0
         ? (prerenderInfo?.fallbackRouteParams?.filter(
             (param) =>
               !remainingPrerenderableParams.some(
@@ -870,7 +870,6 @@ export function createAppPageEntrypoint({
             page: srcPage,
             postponed,
             allowEmptyStaticShell,
-            shouldWaitOnAllReady,
             serveStreamingMetadata,
             supportsDynamicResponse:
               typeof postponed === 'string' || supportsDynamicResponse,
@@ -930,9 +929,14 @@ export function createAppPageEntrypoint({
             partialPrefetching: nextConfig.partialPrefetching,
             // A fallback shell can only be upgraded to a concrete version if at
             // least one of its fallback params is a `generateStaticParams`
-            // candidate (`remainingPrerenderableParams`). This gates whether the
-            // per-segment prefetch responses are flagged `isUpgradeableISRFallback`.
-            isFallbackUpgradeable: remainingPrerenderableParams.length > 0,
+            // candidate (`remainingPrerenderableParams`), and only when Partial
+            // Prefetching is enabled (the upgrade itself is gated on it above).
+            // This gates whether the per-segment prefetch responses are flagged
+            // `isUpgradeableISRFallback`; without an upgrade to wait for, the
+            // client should not retry the prefetch.
+            isFallbackUpgradeable:
+              Boolean(nextConfig.partialPrefetching) &&
+              remainingPrerenderableParams.length > 0,
             validationLevel:
               nextConfig.experimental.instantInsights.validationLevel,
             experimental: {
@@ -1105,6 +1109,7 @@ export function createAppPageEntrypoint({
           }
 
           if (
+            nextConfig.partialPrefetching &&
             prerenderInfo?.fallback === null &&
             !hasOmittedConcreteFallbackParam &&
             !hasUnresolvedRootFallbackParams &&
@@ -1120,13 +1125,14 @@ export function createAppPageEntrypoint({
             fallbackMode = FallbackMode.PRERENDER
           }
 
-          // When serving a HTML bot request, we want to serve a blocking render and
-          // not the prerendered page. This ensures that the correct content is served
-          // to the bot in the head.
-          if (fallbackMode === FallbackMode.PRERENDER && isBot(userAgent)) {
-            if (!isRoutePPREnabled || isHtmlBot) {
-              fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
-            }
+          // When serving a request that requires blocking metadata, we want to
+          // use a blocking render instead of the prerendered fallback. Without
+          // PPR, preserve the existing behavior for built-in bots.
+          if (
+            fallbackMode === FallbackMode.PRERENDER &&
+            (isRoutePPREnabled ? !serveStreamingMetadata : Boolean(botType))
+          ) {
+            fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
           }
 
           if (previousIncrementalCacheEntry?.isStale === -1) {
@@ -1277,6 +1283,10 @@ export function createAppPageEntrypoint({
                 if (
                   !isMinimalMode &&
                   isRoutePPREnabled &&
+                  // Upgrading a fallback shell into a more specific ISR entry is
+                  // only done when Partial Prefetching is enabled, mirroring the
+                  // `partialFallback` flag the adapter emits for deployments.
+                  nextConfig.partialPrefetching &&
                   // Match the build-time contract: only fallback shells that can
                   // still be completed with prerenderable params should upgrade.
                   remainingPrerenderableParams.length > 0 &&

@@ -16,53 +16,38 @@
 //   Common: [--blocks 1] [--runs 2] [--vms 16] [--routes /blog,/dashboard,/docs]
 //     [--warmup 200] [--serial 800] [--load-requests 8] [--load-concurrency 8]
 //     [--isolate-routes] [--bench-env K=V] [--profile] [--keep] [--dry-run]
-import { execFile, spawn } from 'child_process'
-import { promisify } from 'util'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import crypto from 'crypto'
 import { analyzeE2eRows, tTestP } from './bench-stats.mjs'
 import { openDb, importRun, loadRows, verify as verifyDb } from './bench-db.mjs'
 import {
-  loadConfig,
-  sandboxScope,
-  ensureNextRepo,
-  ensureReactRepo,
-} from './config.mjs'
+  execFileP,
+  CONFIG,
+  NEXT_REPO_LAZY,
+  REACT_REPO_LAZY,
+  CACHE,
+  SETUP_VERSION,
+  REACT_GH_REPO,
+  NEXT_GH_REPO,
+  status,
+  writeStatus,
+  sb,
+  sbCpToVm,
+  sbExec,
+  rmVm,
+  runDetached,
+  resolvePrArms,
+  assertCiGreen,
+  commitTitle,
+  printRunContext,
+  makeLive,
+  sha256,
+  snapshotIdFor,
+  takeSnapshot,
+  ensureRefArm,
+} from './bench-common.mjs'
 
-const execFileP = promisify(execFile)
-
-const DRY_RUN = process.argv.includes('--dry-run')
-const CONFIG = loadConfig({ requireScope: !DRY_RUN })
-// Clones happen on first use: the react one only when a react ref is
-// benched or pinned (pure Next A/B uses each ref's vendored React).
-let nextRepoResolved
-function NEXT_REPO_LAZY() {
-  if (!nextRepoResolved) nextRepoResolved = ensureNextRepo(CONFIG)
-  return nextRepoResolved
-}
-let reactRepoResolved
-function REACT_REPO_LAZY() {
-  if (!reactRepoResolved) reactRepoResolved = ensureReactRepo(CONFIG)
-  return reactRepoResolved
-}
-const VERCEL = CONFIG.vercelBin
-const SCOPE = CONFIG.team ? sandboxScope(CONFIG) : []
-const CACHE = path.join(CONFIG.cacheDir, 'e2e')
-const REACT_SNAP_CACHE = path.join(CONFIG.cacheDir, 'react-snap')
-const SETUP_VERSION = 'v1-al2023-node24-jdk21'
-// Targets build-all-release-channels needs for a sync-react-able arm
-// (both channels, oss-stable + oss-experimental).
-const E2E_BUILD_TARGETS =
-  'react/,react.react-server,react-dom/,react-dom.,react-dom-server,scheduler/,react-is,react-server-dom-turbopack,react-server-dom-webpack'
-// owner/repo for CI-artifact lookup, from the configured clone URL.
-const REACT_GH_REPO =
-  CONFIG.reactRepoUrl.match(/github\.com[:/]+([^/]+\/[^/.]+)/)?.[1] ??
-  'react/react'
-const NEXT_GH_REPO =
-  CONFIG.nextRepoUrl.match(/github\.com[:/]+([^/]+\/.+?)(?:\.git)?$/)?.[1] ??
-  'vercel/next.js'
 // Runtime provenance: the compiled server files prod app-page runtimes
 // are bundled from — BOTH bundlers, so changes touching only one still
 // move the fingerprint.
@@ -145,233 +130,8 @@ function parseArgs() {
   }
 }
 
-// Recovery record for bench-collect.mjs: if this launcher dies, the
-// remote VMs keep executing their detached loops, and this file names
-// them so the results can still be collected.
-let statusFile = null
-let statusState = {}
-function writeStatus(patch) {
-  if (!statusFile) return
-  statusState = {
-    ...statusState,
-    ...patch,
-    updatedAt: new Date().toISOString(),
-  }
-  try {
-    fs.writeFileSync(statusFile, JSON.stringify(statusState, null, 2))
-  } catch {}
-}
-
-async function sb(args, opts = {}) {
-  const scoped = ['sandbox', ...args]
-  const sep = scoped.indexOf('--')
-  scoped.splice(sep < 0 ? scoped.length : sep, 0, ...SCOPE)
-  const { stdout, stderr } = await execFileP(VERCEL, scoped, {
-    maxBuffer: 64 * 1024 * 1024,
-    ...opts,
-  })
-  // The CLI prints some results (e.g. snapshot ids) on stderr.
-  return `${stdout}\n${stderr}`
-}
-
-// The platform rejects single `sandbox cp` uploads somewhere above ~128MB
-// ("Request Entity Too Large", observed 2026-07-20; 645MB tree tarballs that
-// uploaded fine hours earlier started failing). Upload large files in parts
-// and reassemble on the VM, verifying the sha256 end to end.
-const CP_CHUNK_BYTES = 128 * 1024 * 1024
-async function sbCpToVm(vm, localPath, vmDest) {
-  const size = fs.statSync(localPath).size
-  if (size <= CP_CHUNK_BYTES) {
-    await sb(['cp', localPath, `${vm}:${vmDest}`])
-    return
-  }
-  const partDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sbcp-'))
-  try {
-    await execFileP('split', [
-      '-b',
-      String(CP_CHUNK_BYTES),
-      localPath,
-      path.join(partDir, 'part-'),
-    ])
-    const parts = fs.readdirSync(partDir).sort()
-    for (const p of parts) {
-      await sb(['cp', path.join(partDir, p), `${vm}:${vmDest}.${p}`])
-    }
-    const localSha = (
-      await execFileP('shasum', ['-a', '256', localPath])
-    ).stdout.split(' ')[0]
-    const catList = parts.map((p) => `'${vmDest}.${p}'`).join(' ')
-    const out = await sbExec(
-      vm,
-      '10m',
-      `cat ${catList} > '${vmDest}' && rm -f ${catList} && sha256sum '${vmDest}' | cut -d' ' -f1`,
-      `cp:${path.basename(vmDest)}`
-    )
-    // sbExec output interleaves stderr (CLI banners); take the last
-    // sha-shaped token rather than the last line.
-    const shaTokens = out.match(/\b[0-9a-f]{64}\b/g)
-    const remoteSha = shaTokens ? shaTokens[shaTokens.length - 1] : ''
-    if (remoteSha !== localSha) {
-      throw new Error(
-        `chunked upload of ${localPath} corrupt: local ${localSha} != remote ${remoteSha}`
-      )
-    }
-  } finally {
-    fs.rmSync(partDir, { recursive: true, force: true })
-  }
-}
-
-// PR spec ("37023" or a github PR URL) -> arms: base = merge-base of the
-// PR head with upstream main, cand = PR head. Fetched into local refs so
-// git archive / yarn.lock reads work as for any other sha.
-async function resolvePrArms(pr, repo, repoUrl, defaultBranch) {
-  const num = String(pr).match(/(\d+)\/?$/)?.[1]
-  if (!num) throw new Error(`cannot parse PR number from "${pr}"`)
-  console.error(`fetching ${repoUrl} PR #${num} + ${defaultBranch}...`)
-  // The clone is shared: concurrent launchers fetching the same ref
-  // race the ref lock. Namespace the temp refs by pid and retry the
-  // fetch (pack files still contend occasionally).
-  const ns = `refs/bench-tmp/${process.pid}`
-  for (let attempt = 1; ; attempt++) {
-    try {
-      await execFileP('git', [
-        '-C',
-        repo,
-        'fetch',
-        '-q',
-        repoUrl,
-        `+refs/pull/${num}/head:${ns}/pr-${num}`,
-        `+refs/heads/${defaultBranch}:${ns}/upstream-${defaultBranch}`,
-      ])
-      break
-    } catch (e) {
-      if (attempt >= 3) throw e
-      console.error(
-        `fetch attempt ${attempt} failed (${e.message.split('\n')[0].slice(0, 80)}); retrying...`
-      )
-      await new Promise((r) =>
-        setTimeout(r, 5000 * attempt + Math.random() * 5000)
-      )
-    }
-  }
-  const cand = (
-    await execFileP('git', ['-C', repo, 'rev-parse', `${ns}/pr-${num}`])
-  ).stdout.trim()
-  const base = (
-    await execFileP('git', [
-      '-C',
-      repo,
-      'merge-base',
-      `${ns}/upstream-${defaultBranch}`,
-      cand,
-    ])
-  ).stdout.trim()
-  await execFileP('git', [
-    '-C',
-    repo,
-    'update-ref',
-    '-d',
-    `${ns}/pr-${num}`,
-  ]).catch(() => {})
-  await execFileP('git', [
-    '-C',
-    repo,
-    'update-ref',
-    '-d',
-    `${ns}/upstream-${defaultBranch}`,
-  ]).catch(() => {})
-  console.error(
-    `PR #${num}: cand=${cand.slice(0, 12)} base=${base.slice(0, 12)} (merge-base with ${defaultBranch})`
-  )
-  return [
-    { name: 'base', ref: base },
-    { name: `pr${num}`, ref: cand },
-  ]
-}
-
 // Normalize every mode into two arms of {name, ref (react), nextRef};
 // exactly one side differs between the arms.
-// Green CI on the react repo is the correctness gate for react arms: a
-// perf number from a broken build is worse than no number. Local or
-// unpushed refs have no CI — --allow-ungated skips the check, and
-// sandbox-gate.mjs exists to gate such refs on a VM instead.
-const ciVerdicts = new Map()
-async function assertCiGreen(sha, armName, allowUngated) {
-  if (!ciVerdicts.has(sha)) {
-    let verdict
-    try {
-      const out = (
-        await execFileP(
-          'gh',
-          [
-            'api',
-            '--paginate',
-            `repos/${REACT_GH_REPO}/commits/${sha}/check-runs?per_page=100`,
-            '--jq',
-            '[.check_runs[] | {name, conclusion}]',
-          ],
-          { maxBuffer: 1 << 24 }
-        )
-      ).stdout
-      const checks = out
-        .trim()
-        .split('\n')
-        .filter(Boolean)
-        .flatMap((page) => JSON.parse(page))
-      if (checks.length === 0) {
-        verdict = 'no CI runs found (unpushed or unbuilt commit)'
-      } else if (checks.some((c) => c.conclusion === null)) {
-        verdict = 'CI still running — retry when it finishes'
-      } else {
-        // Policy: all tests (including build), flow, and lint must be
-        // green. DevTools suites and repo-infra jobs (artifact syncs,
-        // cleanup, staleness) don't gate benching. Ignore-by-name, so
-        // any NEW job blocks by default instead of being skipped.
-        const IGNORED =
-          /devtools|^cleanup$|^stale$|_artifacts$|^sizebot|^dependabot/i
-        const relevant = checks.filter((c) => !IGNORED.test(c.name))
-        const bad = relevant.filter(
-          (c) =>
-            c.conclusion !== 'success' &&
-            c.conclusion !== 'neutral' &&
-            c.conclusion !== 'skipped'
-        )
-        // Name the offenders: the human deciding whether to proceed
-        // ungated needs to see what failed at a glance, not re-query CI.
-        verdict =
-          bad.length === 0
-            ? 'green'
-            : `CI not green (${bad.length}/${relevant.length} relevant checks): ` +
-              [...new Set(bad.map((c) => `${c.name} (${c.conclusion})`))]
-                .slice(0, 8)
-                .join('; ')
-      }
-    } catch (e) {
-      verdict = `could not query CI (${e.message.split('\n')[0].slice(0, 80)})`
-    }
-    ciVerdicts.set(sha, verdict)
-  }
-  const verdict = ciVerdicts.get(sha)
-  if (verdict === 'green') {
-    console.error(`arm ${armName}: react ${sha.slice(0, 12)} CI green`)
-    return
-  }
-  if (allowUngated) {
-    console.error(
-      `arm ${armName}: react ${sha.slice(0, 12)} UNGATED (${verdict}) — proceeding per --allow-ungated`
-    )
-    return
-  }
-  throw new Error(
-    `arm ${armName}: react ${sha.slice(0, 12)}: ${verdict}.\n` +
-      'Benching an unverified build produces untrustworthy numbers. Either wait for/fix CI, ' +
-      'gate the ref yourself (node sandbox-gate.mjs --arms ' +
-      armName +
-      '=<ref>), and then ' +
-      're-run with --allow-ungated, or pass --allow-ungated if you accept the risk.'
-  )
-}
-
 // The react commit a Next ref ships: sync-react records it in the root
 // package.json ("react-builtin": "npm:react@19.x.y-canary-<sha>-<date>").
 async function syncedReactSha(nextRef) {
@@ -518,15 +278,6 @@ async function resolveArms(cfg) {
 // Human context for reports: PR title/URL and the varying side's
 // commit titles, recorded in meta.json and printed with the analysis
 // so verdicts can link what was measured.
-async function commitTitle(repo, ref) {
-  try {
-    return (
-      await execFileP('git', ['-C', repo, 'log', '-1', '--format=%s', ref])
-    ).stdout.trim()
-  } catch {
-    return undefined
-  }
-}
 async function describeRun(cfg) {
   const reactVaries = !(cfg.nextPr || cfg.nextArms.length)
   let pr
@@ -556,295 +307,7 @@ async function describeRun(cfg) {
   }
   return { pr, arms }
 }
-function printRunContext(out, d) {
-  if (!d) return
-  if (d.pr) out(`PR: ${d.pr.title ? `"${d.pr.title}" — ` : ''}${d.pr.url}`)
-  for (const a of d.arms ?? []) if (a.title) out(`  ${a.name}: "${a.title}"`)
-}
-
-// Live running estimate, printed as pairs complete across all VMs.
-const T95 = [
-  12.71, 4.3, 3.18, 2.78, 2.57, 2.45, 2.36, 2.31, 2.26, 2.23, 2.2, 2.18, 2.16,
-  2.14, 2.13,
-]
-function makeLive(baseName, metrics, keyOf) {
-  const rows = []
-  return (vm, row) => {
-    rows.push({ vmIdx: vm, ...row })
-    const key = keyOf(row)
-    const other = rows.find(
-      (r) =>
-        r.vmIdx === vm &&
-        keyOf(r) === key &&
-        r.block === row.block &&
-        r.run === row.run &&
-        r.arm !== row.arm
-    )
-    if (!other) return
-    const cands = rows.filter((r) => keyOf(r) === key && r.arm !== baseName)
-    const parts = []
-    let n = 0
-    for (const metric of metrics) {
-      const deltas = []
-      for (const c of cands) {
-        const b = rows.find(
-          (r) =>
-            r.vmIdx === c.vmIdx &&
-            keyOf(r) === key &&
-            r.block === c.block &&
-            r.run === c.run &&
-            r.arm === baseName
-        )
-        if (b && b[metric] > 0) deltas.push((c[metric] - b[metric]) / b[metric])
-      }
-      n = deltas.length
-      if (n < 2) return
-      const mean = deltas.reduce((a, b2) => a + b2, 0) / n
-      const sd = Math.sqrt(
-        deltas.reduce((a, b2) => a + (b2 - mean) ** 2, 0) / (n - 1)
-      )
-      const ci = ((T95[n - 2] ?? 2.0) * sd) / Math.sqrt(n)
-      const p = pairedP(deltas)
-      parts.push(
-        `${metric} ${(mean * 100).toFixed(1)}%±${(ci * 100).toFixed(1)} p=${p.toFixed(3)}`
-      )
-    }
-    console.error(`live ${key} n=${n}: ${parts.join('  ')}`)
-  }
-}
-
-function sbExec(vm, timeout, script, tag, onRow) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(
-      VERCEL,
-      [
-        'sandbox',
-        'exec',
-        vm,
-        ...SCOPE,
-        '--timeout',
-        timeout,
-        '--',
-        'bash',
-        '-c',
-        script,
-      ],
-      { stdio: ['ignore', 'pipe', 'pipe'] }
-    )
-    let out = ''
-    let buf = ''
-    child.stdout.on('data', (c) => {
-      out += c
-      buf += c
-      const lines = buf.split('\n')
-      buf = lines.pop()
-      for (const l of lines) {
-        if (!l) continue
-        if (l.startsWith('ROW ') && onRow) {
-          try {
-            onRow(JSON.parse(l.slice(4)))
-          } catch {}
-        } else {
-          process.stderr.write(`[${tag}] ${l}\n`)
-        }
-      }
-    })
-    child.stderr.on('data', (c) => {
-      out += c
-      process.stderr.write(
-        String(c)
-          .split('\n')
-          .filter(Boolean)
-          .map((l) => `[${tag}!] ${l}\n`)
-          .join('')
-      )
-    })
-    child.on('exit', (code) =>
-      code === 0
-        ? resolve(out)
-        : reject(new Error(`${tag}: exit ${code}\n${out.slice(-2000)}`))
-    )
-  })
-}
-
-async function rmVm(name) {
-  try {
-    await sb(['rm', name])
-  } catch (e) {
-    process.stderr.write(`warning: could not remove ${name}: ${e.message}\n`)
-  }
-}
-
-// Long-running remote work detached from the exec stream (streams drop
-// flakily on multi-minute silences): nohup the script on the VM, then
-// poll its log with short execs. Immune to transport hiccups.
-async function runDetached(vm, tag, script, onLine, deadlineMin) {
-  let transcript = ''
-  const local = path.join(os.tmpdir(), `loop-${vm}.sh`)
-  // EXIT trap, not ERR: the ERR trap does not fire for several failure
-  // shapes (e.g. `cmd || (tail; exit 1)`), which left loop.done unwritten
-  // and the poll waiting on heartbeats forever.
-  fs.writeFileSync(
-    local,
-    `trap 'code=$?; if [ $code -eq 0 ]; then echo LOOPOK; else echo LOOPFAIL; fi > /vercel/sandbox/loop.done' EXIT\nset -e\n${script}\n`
-  )
-  await sb(['cp', local, `${vm}:/vercel/sandbox/loop.sh`])
-  fs.rmSync(local, { force: true })
-  await sb([
-    'exec',
-    vm,
-    '--timeout',
-    '2m',
-    '--',
-    'bash',
-    '-c',
-    'rm -f /vercel/sandbox/loop.done /vercel/sandbox/loop.log; nohup bash /vercel/sandbox/loop.sh >/vercel/sandbox/loop.log 2>&1 & echo kicked',
-  ])
-  let offset = 0
-  let failures = 0
-  const deadline = Date.now() + deadlineMin * 60_000
-  while (true) {
-    await new Promise((r) => setTimeout(r, 45_000))
-    if (Date.now() > deadline)
-      throw new Error(`${tag}: detached loop deadline exceeded`)
-    let out
-    try {
-      out = await sb([
-        'exec',
-        vm,
-        '--timeout',
-        '2m',
-        '--',
-        'bash',
-        '-c',
-        `tail -c +${offset + 1} /vercel/sandbox/loop.log | head -c 200000; printf '\\n@@SIZE %s @@DONE %s\\n' "$(stat -c %s /vercel/sandbox/loop.log 2>/dev/null || echo 0)" "$(cat /vercel/sandbox/loop.done 2>/dev/null || echo no)"`,
-      ])
-      failures = 0
-    } catch (e) {
-      if (++failures >= 6)
-        throw new Error(
-          `${tag}: ${failures} consecutive poll failures: ${e.message.slice(0, 200)}`
-        )
-      continue
-    }
-    const m = out.match(/@@SIZE (\d+) @@DONE (\S+)/)
-    const body = out.slice(0, out.lastIndexOf('\n@@SIZE'))
-    transcript += body
-    for (const l of body.split('\n')) {
-      if (!l) continue
-      if (l.startsWith('ROW ') && onLine) {
-        try {
-          onLine(JSON.parse(l.slice(4)))
-        } catch {}
-      } else {
-        process.stderr.write(`[${tag}] ${l}\n`)
-      }
-    }
-    if (m) {
-      offset = Math.min(Number(m[1]), offset + 200000)
-      if (m[2] === 'LOOPOK') return transcript
-      if (m[2] === 'LOOPFAIL')
-        throw new Error(
-          `${tag}: remote loop failed; tail:\n${body.slice(-1500)}`
-        )
-    }
-  }
-}
-
 // ------------------------------------------------------------ snapshots
-
-async function sha256(text) {
-  return crypto.createHash('sha256').update(text).digest('hex').slice(0, 16)
-}
-
-async function snapshotIdFor(cacheDir, key) {
-  const file = path.join(cacheDir, `snap-${key}`)
-  if (!fs.existsSync(file)) return undefined
-  const id = fs.readFileSync(file, 'utf8').trim()
-  try {
-    await sb(['snapshots', 'get', id])
-    return id
-  } catch {
-    return undefined
-  }
-}
-
-async function takeSnapshot(vm, cacheDir, key) {
-  const out = await sb(['snapshot', vm, '--stop', '--expiration', '30d'])
-  const id = out.match(/snap_[A-Za-z0-9]+/)?.[0]
-  if (!id)
-    throw new Error(`could not parse snapshot id from: ${out.slice(-500)}`)
-  fs.mkdirSync(cacheDir, { recursive: true })
-  fs.writeFileSync(path.join(cacheDir, `snap-${key}`), `${id}\n`)
-  console.error(`snapshot ${id} cached (${key})`)
-  return id
-}
-
-// React build environment (repo + node_modules + JDK), shared with
-// sandbox-ab.mjs. Keyed on the arm's yarn.lock.
-async function ensureReactBuildSnapshot(refSha) {
-  const lock = await execFileP(
-    'git',
-    ['-C', REACT_REPO_LAZY(), 'show', `${refSha}:yarn.lock`],
-    { maxBuffer: 1 << 28 }
-  )
-  const key = await sha256(SETUP_VERSION + lock.stdout)
-  let id = await snapshotIdFor(REACT_SNAP_CACHE, key)
-  if (id) return id
-  const vm = `react-snap-build-${Date.now().toString(36)}`
-  console.error(
-    `creating react build-env snapshot (one-time for this yarn.lock)...`
-  )
-  await sb([
-    'create',
-    '--name',
-    vm,
-    '--runtime',
-    'node24',
-    '--vcpus',
-    '8',
-    '--timeout',
-    '45m',
-    '--non-persistent',
-    '--network-policy',
-    'allow-all',
-    '--tag',
-    'purpose=sandbox-bench',
-    '--silent',
-  ])
-  try {
-    const src = path.join(os.tmpdir(), `react-snap-src-${key}.tgz`)
-    await execFileP('bash', [
-      '-c',
-      `git -C ${REACT_REPO_LAZY()} archive ${refSha} | gzip -1 > ${src}`,
-    ])
-    await sb(['cp', src, `${vm}:/vercel/sandbox/src.tgz`])
-    fs.rmSync(src, { force: true })
-    await sb([
-      'exec',
-      vm,
-      '--timeout',
-      '10m',
-      '--sudo',
-      '--',
-      'dnf',
-      'install',
-      '-y',
-      '-q',
-      'java-21-amazon-corretto-headless',
-    ])
-    await sbExec(
-      vm,
-      '20m',
-      `set -e; mkdir -p /vercel/sandbox/react && cd /vercel/sandbox/react && tar -xzf ../src.tgz && rm -f ../src.tgz && ` +
-        `npm i -g yarn >/dev/null 2>&1 && yarn install --frozen-lockfile --ignore-engines >/dev/null 2>&1 && echo react env ready`,
-      'react-snap'
-    )
-    return await takeSnapshot(vm, REACT_SNAP_CACHE, key)
-  } finally {
-    await rmVm(vm)
-  }
-}
 
 // Experiment snapshot: both arms fully vendored + built as SEPARATE repo
 // trees (/vercel/sandbox/next-<arm>), app .next included, so run VMs
@@ -1045,190 +508,6 @@ echo "tree ${a.name} ready"`
 
 // ---------------------------------------------------------------- stage
 
-// React CI builds every upstream commit and PR; reuse those artifacts
-// instead of building. Requires gh auth. Returns false -> build remotely.
-async function tryCiArtifactArm(sha, cached, pack) {
-  try {
-    const runs = JSON.parse(
-      (
-        await execFileP(
-          'gh',
-          [
-            'api',
-            `repos/${REACT_GH_REPO}/actions/workflows/runtime_build_and_test.yml/runs?head_sha=${sha}&per_page=5`,
-          ],
-          { maxBuffer: 1 << 24 }
-        )
-      ).stdout
-    )
-    const id = runs.workflow_runs?.find((r) => r.head_sha === sha)?.id
-    if (!id) return false
-    const arts = JSON.parse(
-      (
-        await execFileP(
-          'gh',
-          [
-            'api',
-            `repos/${REACT_GH_REPO}/actions/runs/${id}/artifacts?name=artifacts_combined`,
-          ],
-          { maxBuffer: 1 << 24 }
-        )
-      ).stdout
-    )
-    const art = arts.artifacts?.find(
-      (a) => a.name === 'artifacts_combined' && !a.expired
-    )
-    if (!art) return false
-    console.error(
-      `downloading CI artifacts for ${sha.slice(0, 12)} (run ${id})...`
-    )
-    const work = fs.mkdtempSync(path.join(os.tmpdir(), 'ci-arm-'))
-    try {
-      await execFileP(
-        'bash',
-        [
-          '-c',
-          `cd ${work} && gh api repos/${REACT_GH_REPO}/actions/artifacts/${art.id}/zip > a.zip && ` +
-            `unzip -q a.zip && tar -xzf build.tgz && ${pack}`,
-        ],
-        { maxBuffer: 1 << 24 }
-      )
-    } finally {
-      fs.rmSync(work, { recursive: true, force: true })
-    }
-    return fs.existsSync(cached) && fs.statSync(cached).size > 1 << 20
-  } catch (e) {
-    console.error(
-      `CI artifact lookup failed (${e.message.slice(0, 100)}); building remotely`
-    )
-    return false
-  }
-}
-
-// Ref arms build remotely (dual-channel yarn build) and cache by sha.
-async function ensureRefArm(arm) {
-  const sha = (
-    await execFileP('git', ['-C', REACT_REPO_LAZY(), 'rev-parse', arm.ref])
-  ).stdout.trim()
-  arm.sha = sha
-  // Key on the build recipe too: a changed target list must not serve
-  // stale artifacts from the shared cache.
-  const recipe = crypto
-    .createHash('sha256')
-    .update(E2E_BUILD_TARGETS)
-    .digest('hex')
-    .slice(0, 6)
-  const cached = path.join(CACHE, `arm-${sha.slice(0, 12)}-${recipe}.tgz`)
-  arm.tgz = cached
-  if (fs.existsSync(cached)) {
-    console.error(`arm ${arm.name}=${sha.slice(0, 12)} (cached build)`)
-    return
-  }
-  fs.mkdirSync(CACHE, { recursive: true })
-  if (
-    await tryCiArtifactArm(
-      sha,
-      cached,
-      `tar -czf ${cached} build/oss-stable build/oss-experimental`
-    )
-  ) {
-    console.error(`arm ${arm.name}=${sha.slice(0, 12)} from CI artifacts`)
-    return
-  }
-  const snap = await ensureReactBuildSnapshot(sha)
-  const vm = `sbench-armbuild-${Date.now().toString(36)}`
-  console.error(`building e2e arm ${arm.name}=${sha.slice(0, 12)} remotely...`)
-  await sb([
-    'create',
-    '--name',
-    vm,
-    '--snapshot',
-    snap,
-    '--vcpus',
-    '8',
-    '--timeout',
-    '45m',
-    '--non-persistent',
-    '--network-policy',
-    'allow-all',
-    '--tag',
-    'purpose=sandbox-bench',
-    '--silent',
-  ])
-  try {
-    // build-all-release-channels stamps versions from git (sha + commit
-    // date), so the upload must be a real shallow checkout, not a bare
-    // archive.
-    const src = path.join(os.tmpdir(), `arm-src-${sha.slice(0, 12)}.tgz`)
-    const work = fs.mkdtempSync(path.join(os.tmpdir(), 'arm-git-'))
-    const tmpRef = `refs/bench-tmp/${sha.slice(0, 12)}`
-    await execFileP('git', ['-C', REACT_REPO_LAZY(), 'update-ref', tmpRef, sha])
-    try {
-      await execFileP('git', ['init', '-q', work])
-      await execFileP('git', [
-        '-C',
-        work,
-        'fetch',
-        '-q',
-        '--depth',
-        '1',
-        REACT_REPO_LAZY(),
-        tmpRef,
-      ])
-      await execFileP('git', ['-C', work, 'checkout', '-q', 'FETCH_HEAD'])
-      await execFileP('bash', [
-        '-c',
-        `cd ${work} && COPYFILE_DISABLE=1 tar --no-xattrs -czf ${src} .`,
-      ])
-    } finally {
-      await execFileP('git', [
-        '-C',
-        REACT_REPO_LAZY(),
-        'update-ref',
-        '-d',
-        tmpRef,
-      ])
-      fs.rmSync(work, { recursive: true, force: true })
-    }
-    await sb(['cp', src, `${vm}:/vercel/sandbox/src.tgz`])
-    fs.rmSync(src, { force: true })
-    // The exec stream drops on long silent commands; heartbeat keeps it
-    // alive during the ~10min dual-channel build. Newline before the
-    // backgrounded heartbeat: a trailing & after && backgrounds the
-    // whole chain.
-    await sbExec(
-      vm,
-      '40m',
-      `set -e
-ls /vercel/sandbox/react/node_modules >/dev/null
-cd /vercel/sandbox/react
-find . -mindepth 1 -maxdepth 1 ! -name node_modules -exec rm -rf {} +
-tar -xzf ../src.tgz
-git rev-parse HEAD
-(while true; do echo "hb mem=$(free -m | awk '/^Mem/{print $3}')MB $(tail -1 /tmp/build.log 2>/dev/null | cut -c1-60)"; sleep 30; done) & HB=$!
-yarn build "${E2E_BUILD_TARGETS}" >/tmp/build.log 2>&1 || (kill $HB; tail -20 /tmp/build.log; exit 1)
-kill $HB
-tar -czf /vercel/sandbox/arm.tgz build/oss-stable build/oss-experimental
-echo arm built`,
-      `armbuild:${arm.name}`
-    )
-    fs.mkdirSync(CACHE, { recursive: true })
-    const armTmp = `${cached}.tmp-${process.pid}`
-    await sb(['cp', `${vm}:/vercel/sandbox/arm.tgz`, armTmp])
-    if (fs.existsSync(armTmp)) fs.renameSync(armTmp, cached)
-    // sandbox cp does not reliably fail on missing remote files.
-    if (!fs.existsSync(cached) || fs.statSync(cached).size < 1 << 20) {
-      fs.rmSync(cached, { force: true })
-      throw new Error(
-        `arm ${arm.name}: downloaded artifact missing or too small`
-      )
-    }
-    console.error(`cached ${cached}`)
-  } finally {
-    await rmVm(vm)
-  }
-}
-
 async function stage(cfg, tmp) {
   const nextTgzBySha = new Map()
   for (const arm of cfg.arms) {
@@ -1258,7 +537,7 @@ async function runVm(index, cfg, expSnap, outDir) {
   const tag = `vm${index}`
   console.error(`${tag}: creating ${vm} from experiment snapshot`)
   writeStatus({
-    vms: { ...statusState.vms, [vm]: { state: 'booting', rows: 0 } },
+    vms: { ...status.state.vms, [vm]: { state: 'booting', rows: 0 } },
   })
   await sb([
     'create',
@@ -1355,7 +634,7 @@ wc -l /vercel/sandbox/results.jsonl`
         interimRows.push({ vm: index, ...row })
         writeStatus({
           vms: {
-            ...statusState.vms,
+            ...status.state.vms,
             [vm]: { state: 'measuring', rows: vmRows },
           },
         })
@@ -1365,8 +644,8 @@ wc -l /vercel/sandbox/results.jsonl`
     )
     writeStatus({
       vms: {
-        ...statusState.vms,
-        [vm]: { ...statusState.vms[vm], state: 'collecting' },
+        ...status.state.vms,
+        [vm]: { ...status.state.vms[vm], state: 'collecting' },
       },
     })
     const local = path.join(outDir, `results-vm${index}.jsonl`)
@@ -1388,8 +667,8 @@ wc -l /vercel/sandbox/results.jsonl`
     if (cfg.profile) {
       writeStatus({
         vms: {
-          ...statusState.vms,
-          [vm]: { ...statusState.vms[vm], state: 'profiling' },
+          ...status.state.vms,
+          [vm]: { ...status.state.vms[vm], state: 'profiling' },
         },
       })
       // Profiled passes run strictly AFTER the timed runs — profiling
@@ -1427,8 +706,8 @@ cd /vercel/sandbox && tar -czf profiles.tgz prof-*`
     }
     writeStatus({
       vms: {
-        ...statusState.vms,
-        [vm]: { ...statusState.vms[vm], state: 'done' },
+        ...status.state.vms,
+        [vm]: { ...status.state.vms[vm], state: 'done' },
       },
     })
     return local
@@ -1439,25 +718,6 @@ cd /vercel/sandbox && tar -czf profiles.tgz prof-*`
 }
 
 // -------------------------------------------------------------- analyze
-
-function pairedP(deltas) {
-  const n = deltas.length
-  if (n < 2) return 1
-  const mean = deltas.reduce((a, b) => a + b, 0) / n
-  const sd = Math.sqrt(
-    deltas.reduce((a, b) => a + (b - mean) ** 2, 0) / (n - 1)
-  )
-  if (sd === 0) return mean === 0 ? 1 : 0
-  const t = Math.abs(mean / (sd / Math.sqrt(n)))
-  const df = n - 1
-  const pdf = (x) => Math.exp(-((df + 1) / 2) * Math.log(1 + (x * x) / df))
-  let integral = 0
-  const STEP = 0.001
-  for (let x = t; x < t + 60; x += STEP) integral += pdf(x + STEP / 2) * STEP
-  let norm = 0
-  for (let x = 0; x < 80; x += STEP) norm += pdf(x + STEP / 2) * STEP
-  return Math.min(1, integral / norm)
-}
 
 function analyze(cfg) {
   // Collected JSONL + profiles land in the results db first; the stats
@@ -1576,7 +836,7 @@ fs.mkdirSync(outDir, { recursive: true })
 // stdout, not stderr: task UIs preview stdout, and these are the lines
 // a human watching the task needs.
 console.log(`run dir: ${outDir}`)
-statusFile = path.join(outDir, 'status.json')
+status.file = path.join(outDir, 'status.json')
 // Long phases (remote builds, snapshot assembly) are otherwise silent
 // on stdout, which reads as a hung task in any UI that previews output.
 // A periodic one-line digest keeps the task legible without spam.
@@ -1587,7 +847,7 @@ const interimRows = []
 // Display only; runs complete their allocation and claims come from
 // the final analysis.
 function interimSummary() {
-  if (interimRows.length === 0 || !statusState.arms) return ''
+  if (interimRows.length === 0 || !status.state.arms) return ''
   const [base, cand] = cfg.arms.map((a) => a.name)
   const cells = []
   for (const route of cfg.routes.split(',')) {
@@ -1632,7 +892,7 @@ function interimSummary() {
   return `\n  interim vs base (${boots} boots):\n` + cells.join('\n')
 }
 const digest = setInterval(() => {
-  const vms = Object.values(statusState.vms ?? {})
+  const vms = Object.values(status.state.vms ?? {})
   const rows = vms.reduce((a, v) => a + (v.rows ?? 0), 0)
   const states = {}
   for (const v of vms) states[v.state] = (states[v.state] ?? 0) + 1
@@ -1640,9 +900,9 @@ const digest = setInterval(() => {
     .map(([k, n]) => `${n} ${k}`)
     .join(', ')
   console.log(
-    `progress: ${statusState.phase}` +
-      (statusState.rowsExpected
-        ? ` — rows ${rows}/${statusState.rowsExpected}`
+    `progress: ${status.state.phase}` +
+      (status.state.rowsExpected
+        ? ` — rows ${rows}/${status.state.rowsExpected}`
         : '') +
       (vmSummary ? ` (${vmSummary})` : '') +
       interimSummary()

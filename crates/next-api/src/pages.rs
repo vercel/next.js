@@ -1758,7 +1758,7 @@ impl Endpoint for PageEndpoint {
             .pages_project
             .project()
             .next_config()
-            .chunking_heuristics()
+            .turbopack_chunking()
             .await?
             .entry_heuristics_for(&this.pathname);
 
