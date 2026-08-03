@@ -20,6 +20,7 @@ import cheerio from 'cheerio'
 import { once } from 'events'
 import type { Playwright } from '../browsers/playwright'
 import escapeStringRegexp from 'escape-string-regexp'
+import * as JSON5 from 'json5'
 import { Page, Response } from 'playwright'
 
 type Event = 'stdout' | 'stderr' | 'error' | 'destroy'
@@ -448,10 +449,24 @@ export class NextInstance {
           require('console').log(
             'tsconfig.test.json found, using it for this test'
           )
-          await fs.copyFile(
-            path.join(this.testDir, 'tsconfig.test.json'),
-            path.join(this.testDir, 'tsconfig.json')
-          )
+          const tsConfigTestPath = path.join(this.testDir, 'tsconfig.test.json')
+          const tsConfigPath = path.join(this.testDir, 'tsconfig.json')
+
+          if (this.env.NEXT_PRIVATE_LOCAL_DEV) {
+            const tsConfig = JSON5.parse(
+              await fs.readFile(tsConfigTestPath, 'utf8')
+            )
+            const exclude = new Set<string>(tsConfig.exclude ?? [])
+            exclude.add('**/*.test.ts')
+            exclude.add('**/*.test.tsx')
+            tsConfig.exclude = Array.from(exclude)
+            await fs.writeFile(
+              tsConfigPath,
+              JSON.stringify(tsConfig, null, 2) + os.EOL
+            )
+          } else {
+            await fs.copyFile(tsConfigTestPath, tsConfigPath)
+          }
         }
 
         if (isNextDeploy) {
