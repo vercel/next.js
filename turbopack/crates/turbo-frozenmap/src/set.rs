@@ -37,13 +37,30 @@ use crate::map::{self, FrozenMap};
 /// [`Vec`] or boxed slice. Because of limitations of the internal representation and Rust's memory
 /// layout rules, the most efficient way to convert from these data structures is via an
 /// [`Iterator`].
-#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Encode, Decode, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Encode, Decode)]
 #[bincode(
     decode_bounds = "T: Decode<__Context> + 'static",
     borrow_decode_bounds = "T: BorrowDecode<'__de, __Context> + '__de"
 )]
 pub struct FrozenSet<T> {
     map: FrozenMap<T, ()>,
+}
+
+impl<T: Serialize> Serialize for FrozenSet<T> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_seq(self.iter())
+    }
+}
+
+impl<'de, T> Deserialize<'de> for FrozenSet<T>
+where
+    T: Deserialize<'de> + Ord,
+{
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        // Reuse BTreeSet's sequence visitor; its sorted representation converts without another
+        // sort.
+        BTreeSet::deserialize(deserializer).map(Into::into)
+    }
 }
 
 impl<T> FrozenSet<T> {
@@ -354,6 +371,15 @@ impl<T> Clone for Range<'_, T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn serde_uses_sequence_shape() {
+        let set = FrozenSet::from([2, 1]);
+        let json = serde_json::to_string(&set).unwrap();
+
+        assert_eq!(json, "[1,2]");
+        assert_eq!(serde_json::from_str::<FrozenSet<i32>>(&json).unwrap(), set);
+    }
 
     #[test]
     fn test_empty() {
