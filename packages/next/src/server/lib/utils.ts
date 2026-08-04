@@ -11,10 +11,32 @@ export function printAndExit(message: string, code = 1) {
   return process.exit(code)
 }
 
-export type NodeOptions = Record<string, string | boolean | undefined>
+export type NodeOptions = Record<
+  string,
+  string | string[] | boolean | undefined
+>
+
+/**
+ * Node.js CLI flags that can be repeated. Node runs every occurrence of these
+ * flags, so they need to be preserved individually rather than collapsed into
+ * a single value keyed by option name.
+ * https://nodejs.org/api/cli.html#--requiremodule
+ * https://nodejs.org/api/cli.html#--importmodule
+ */
+const REPEATABLE_OPTIONS: Record<string, { type: 'string'; multiple: true }> = {
+  require: { type: 'string', multiple: true },
+  import: { type: 'string', multiple: true },
+}
 
 const parseNodeArgs = (args: string[]): NodeOptions => {
-  const { values, tokens } = parseArgs({ args, strict: false, tokens: true })
+  const parsed = parseArgs({
+    args,
+    strict: false,
+    tokens: true,
+    options: REPEATABLE_OPTIONS,
+  })
+  const values: NodeOptions = parsed.values
+  const tokens = parsed.tokens
 
   // For the `NODE_OPTIONS`, we support arguments with values without the `=`
   // sign. We need to parse them manually.
@@ -46,12 +68,27 @@ const parseNodeArgs = (args: string[]): NodeOptions => {
       continue
     }
 
+    const name = orphan.name
+
+    // If the option is repeatable, accumulate each occurrence instead of
+    // collapsing them into a single value.
+    if (name in REPEATABLE_OPTIONS) {
+      if (Array.isArray(values[name])) {
+        values[name].push(token.value)
+      } else if (typeof values[name] === 'string') {
+        values[name] = [values[name], token.value]
+      } else {
+        values[name] = token.value
+      }
+      continue
+    }
+
     // If the token is a positional one, and it has a value, so add it to the
     // values object. If it already exists, append it with a space.
-    if (orphan.name in values && typeof values[orphan.name] === 'string') {
-      values[orphan.name] += ` ${token.value}`
+    if (name in values && typeof values[name] === 'string') {
+      values[name] += ` ${token.value}`
     } else {
-      values[orphan.name] = token.value
+      values[name] = token.value
     }
   }
 
@@ -150,7 +187,7 @@ export const formatDebugAddress = ({ host, port }: DebugAddress): string => {
  * @returns An object with the host and port of the debug address.
  */
 export const getParsedDebugAddress = (
-  address: string | boolean | undefined
+  address: string | string[] | boolean | undefined
 ): DebugAddress => {
   if (!address || typeof address !== 'string') {
     return { host: undefined, port: 9229 }
@@ -183,10 +220,21 @@ const EXEC_ARGV_ONLY_OPTIONS = new Set([
 
 function formatArg(
   key: string,
-  value: string | boolean | undefined
+  value: string | string[] | boolean | undefined
 ): string | null {
   if (value === true) {
     return `--${key}`
+  }
+
+  if (Array.isArray(value)) {
+    const formatted: string[] = []
+    for (const item of value) {
+      const formattedItem = formatArg(key, item)
+      if (formattedItem !== null) {
+        formatted.push(formattedItem)
+      }
+    }
+    return formatted.length > 0 ? formatted.join(' ') : null
   }
 
   if (value) {
@@ -210,9 +258,10 @@ function formatArg(
  * @param args The arguments to be stringified.
  * @returns An object with `nodeOptions` string and `execArgv` array.
  */
-export function formatNodeOptions(
-  args: Record<string, string | boolean | undefined>
-): { nodeOptions: string; execArgv: string[] } {
+export function formatNodeOptions(args: NodeOptions): {
+  nodeOptions: string
+  execArgv: string[]
+} {
   const nodeOptionsParts: string[] = []
   const execArgv: string[] = []
 
@@ -230,10 +279,7 @@ export function formatNodeOptions(
   return { nodeOptions: nodeOptionsParts.join(' '), execArgv }
 }
 
-export function getParsedNodeOptions(): Record<
-  string,
-  string | boolean | undefined
-> {
+export function getParsedNodeOptions(): NodeOptions {
   const args = [...process.execArgv, ...getNodeOptionsArgs()]
   if (args.length === 0) return {}
 
