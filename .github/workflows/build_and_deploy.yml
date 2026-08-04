@@ -110,7 +110,7 @@ jobs:
               fi
               echo "release_environment=$RELEASE_ENVIRONMENT" >> $GITHUB_OUTPUT
             fi
-          elif [ ''"${GIT_REF}"'' == 'refs/heads/canary' ]
+          elif [ ''"${GIT_REF}"'' == 'refs/heads/next-16-3' ]
           then
             echo "value=staging" >> $GITHUB_OUTPUT
           elif [ '${{ github.event_name }}' == 'workflow_dispatch' ]

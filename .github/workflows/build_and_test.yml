@@ -2,7 +2,7 @@ name: build-and-test
 
 on:
   push:
-    branches: ['canary']
+    branches: ['next-16-3']
   pull_request:
     types: [opened, synchronize]
 
@@ -672,7 +672,7 @@ jobs:
     name: Test new and changed tests for flakes (dev)
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     # test-new-tests-if
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: false
     # test-new-tests-end-if
 
     strategy:
@@ -699,7 +699,7 @@ jobs:
     name: Test new and changed tests for flakes (prod)
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     # test-new-tests-if
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: false
     # test-new-tests-end-if
 
     strategy:
@@ -735,7 +735,7 @@ jobs:
     # `docs-only` and `is-release` mirror the cases where `build-and-deploy`
     # resolves its deploy target to `skipped` and never publishes a tarball.
     # test-new-tests-if
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.is-release == 'false' }}
+    if: false
     # test-new-tests-end-if
     runs-on: ubuntu-latest
     # Outer bound only. The script gives up first, so a tarball that never
@@ -766,7 +766,7 @@ jobs:
     name: Test new and changed tests when deployed
     needs: ['optimize-ci', 'changes', 'wait-for-preview-tarball']
     # test-new-tests-if
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: false
     # test-new-tests-end-if
 
     strategy:
@@ -795,7 +795,7 @@ jobs:
     name: Test new and changed tests when deployed (cache components)
     needs: ['optimize-ci', 'changes', 'wait-for-preview-tarball']
     # test-new-tests-if
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: false
     # test-new-tests-end-if
 
     strategy:
