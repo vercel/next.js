@@ -590,9 +590,15 @@ export async function generateStaticParams() {
 
 Paths you don't return are still served. Next.js serves the App Shell instantly, then upgrades it in the background once the params are known. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) for the full prerender-a-subset workflow.
 
-### `dynamicParams` no longer blocks the first visit
+### `dynamicParams` is not supported
 
-**`dynamicParams: true` (the default) now serves an App Shell instead of blocking.** Previously, visiting a param not returned by `generateStaticParams` blocked the response while the page rendered. With Cache Components, Next.js serves the App Shell instantly, then upgrades it in the background with the now-known params. `dynamicParams: false` is unchanged: unspecified paths still 404.
+**Delete the export.** With Cache Components enabled, `export const dynamicParams` fails the build with `Route segment config "dynamicParams" is not compatible with nextConfig.cacheComponents`.
+
+Every dynamic route now behaves the way `dynamicParams: true` used to, with one difference: a param not returned by `generateStaticParams` no longer blocks the response while the page renders. Next.js serves the App Shell instantly, then upgrades it in the background with the now-known params.
+
+If you used `dynamicParams: false`, unspecified paths are now served rather than returning a 404.
+
+### Await `params` inside `<Suspense>`
 
 To produce the App Shell, pass the `params` promise into a [`<Suspense>`](/docs/app/api-reference/file-conventions/loading) boundary instead of awaiting it at the top of the component, so unknown params can still prerender.
 
