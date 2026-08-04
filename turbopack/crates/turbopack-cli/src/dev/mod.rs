@@ -295,6 +295,9 @@ async fn source(
         node_build_environment().to_resolved().await?,
         RuntimeType::Development,
     )
+    // Shared by every build-time JS evaluation, each with its own module graph but all emitting
+    // the same runtime chunk.
+    .shared_runtime_chunk(true)
     .build();
 
     let node_backend = child_process_backend();

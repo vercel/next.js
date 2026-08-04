@@ -594,7 +594,7 @@ function processQueueInMicrotask() {
           // Finished prefetching the route tree. The two-phase (Shell then
           // Speculative) flow only applies to routes that have opted into
           // Partial Prefetching — either globally via the `partialPrefetching`
-          // config or per segment (`instant`, `prefetch: 'partial'`, or
+          // config or per segment (`prefetch: 'partial'` or
           // `'unstable_eager'`), all surfaced as the
           // `SubtreeHasPartialPrefetching` hint on the route tree. Every other
           // route skips the Shell phase and goes straight to Speculative.
@@ -839,18 +839,19 @@ function pingRootRouteTree(
       // `cacheComponents`, where every route is PPR.
       let fetchStrategy: FetchStrategy
       if (tree.prefetchHints & PrefetchHint.SubtreeHasPartialPrefetching) {
-        // If `instant` is defined anywhere on the target route, ignore the
-        // fetch strategy and switch to unified strategy used by Cache
-        // Components (called `PPR` for now, will likely be renamed).
+        // If Partial Prefetching is enabled anywhere on the target route,
+        // ignore the fetch strategy and switch to unified strategy used by
+        // Cache Components (called `PPR` for now, will likely be renamed).
         //
         // In practice, this just means that a "full" prefetch (<Link
         // prefetch={true}>) has no effect. You're meant to use Runtime
         // Prefetching instead — that's the new pattern that replaces
         // prefetch={true}.
         //
-        // The reason we check for `instant` rather than the `cacheComponents`
-        // flag is to support incremental adoption. `prefetch={true}` will
-        // continue to work until you opt into `instant`.
+        // The reason we check for the Partial Prefetching opt-in rather than
+        // the `cacheComponents` flag is to support incremental adoption.
+        // `prefetch={true}` will continue to work until you opt into
+        // Partial Prefetching.
         fetchStrategy = FetchStrategy.PPR
       } else if (task.fetchStrategy === FetchStrategy.PPR) {
         fetchStrategy = route.supportsPerSegmentPrefetching
