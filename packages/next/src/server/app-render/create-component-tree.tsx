@@ -22,7 +22,10 @@ import { getTracer } from '../lib/trace/tracer'
 import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import type { Params } from '../request/params'
-import { workUnitAsyncStorage } from './work-unit-async-storage.external'
+import {
+  workUnitAsyncStorage,
+  type WorkUnitStore,
+} from './work-unit-async-storage.external'
 import {
   createVaryParamsAccumulator,
   emptyVaryParamsAccumulator,
@@ -60,12 +63,14 @@ export function createComponentTree(props: {
   authInterrupts: boolean
   MetadataOutlet: ComponentType
 }): Promise<CacheNodeSeedData> {
+  const workUnitStore = workUnitAsyncStorage.getStore()
+
   return getTracer().trace(
     NextNodeServerSpan.createComponentTree,
     {
       spanName: 'build component tree',
     },
-    () => createComponentTreeInternal(props, true)
+    () => createComponentTreeInternal(props, true, workUnitStore)
   )
 }
 
@@ -80,6 +85,33 @@ function errorMissingDefaultExport(
 }
 
 const cacheNodeKey = 'c'
+
+function isPrerenderWorkUnit(
+  workUnitStore: WorkUnitStore | undefined
+): boolean {
+  if (!workUnitStore) {
+    return false
+  }
+
+  switch (workUnitStore.type) {
+    case 'prerender':
+    case 'prerender-runtime':
+    case 'prerender-client':
+    case 'prerender-ppr':
+    case 'prerender-legacy':
+      return true
+    case 'request':
+    case 'validation-client':
+    case 'cache':
+    case 'private-cache':
+    case 'unstable-cache':
+    case 'generate-static-params':
+      return false
+    default:
+      workUnitStore satisfies never
+      return false
+  }
+}
 
 async function createComponentTreeInternal(
   {
@@ -109,7 +141,8 @@ async function createComponentTreeInternal(
     authInterrupts: boolean
     MetadataOutlet: ComponentType | null
   },
-  isRoot: boolean
+  isRoot: boolean,
+  workUnitStore: WorkUnitStore | undefined
 ): Promise<CacheNodeSeedData> {
   const {
     renderOpts: { nextConfigOutput, experimental, cacheComponents },
@@ -137,7 +170,9 @@ async function createComponentTreeInternal(
     query,
   } = ctx
 
-  const { executionMode } = workStore
+  // A WorkStore can span several request and prerender work units during
+  // staged rendering, so component-tree behavior follows the active work unit.
+  const isPrerendering = isPrerenderWorkUnit(workUnitStore)
   const { canPostpone, isPossiblyPartialResponse } = renderCapabilities
 
   const { page, conventionPath, segment, modules, parallelRoutes } =
@@ -277,7 +312,7 @@ async function createComponentTreeInternal(
       workStore.forceDynamic = true
 
       // TODO: (PPR) remove this bailout once PPR is the default
-      if (executionMode === 'prerender' && !canPostpone) {
+      if (isPrerendering && !canPostpone) {
         // If the postpone API isn't available, we can't postpone the render and
         // therefore we can't use the dynamic API.
         const err = new DynamicServerError(
@@ -303,8 +338,6 @@ async function createComponentTreeInternal(
 
   if (typeof layoutOrPageMod?.revalidate === 'number') {
     const defaultRevalidate = layoutOrPageMod.revalidate as number
-
-    const workUnitStore = workUnitAsyncStorage.getStore()
 
     if (workUnitStore) {
       switch (workUnitStore.type) {
@@ -334,7 +367,7 @@ async function createComponentTreeInternal(
 
     if (
       !workStore.forceStatic &&
-      executionMode === 'prerender' &&
+      isPrerendering &&
       defaultRevalidate === 0 &&
       // If the postpone API isn't available, we can't postpone the render and
       // therefore we can't use the dynamic API.
@@ -355,8 +388,6 @@ async function createComponentTreeInternal(
     typeof layoutOrPageMod?.unstable_dynamicStaleTime === 'number'
   ) {
     const pageStaleTime = layoutOrPageMod.unstable_dynamicStaleTime
-    const workUnitStore = workUnitAsyncStorage.getStore()
-
     if (workUnitStore) {
       switch (workUnitStore.type) {
         case 'prerender':
@@ -398,7 +429,7 @@ async function createComponentTreeInternal(
    */
   let MaybeComponent = LayoutOrPage
 
-  if (process.env.NODE_ENV === 'development' || executionMode === 'prerender') {
+  if (process.env.NODE_ENV === 'development' || isPrerendering) {
     const { isValidElementType } =
       require('next/dist/compiled/react-is') as typeof import('next/dist/compiled/react-is')
     if (
@@ -586,7 +617,8 @@ async function createComponentTreeInternal(
                 // but we only want to throw on the first one.
                 MetadataOutlet: isChildrenRouteKey ? MetadataOutlet : null,
               },
-              false
+              false,
+              workUnitStore
             )
 
             childCacheNodeSeedData = seedData
@@ -808,7 +840,7 @@ async function createComponentTreeInternal(
           Component: PageComponent,
           serverProvidedParams: null,
         })
-      } else if (executionMode === 'prerender') {
+      } else if (isPrerendering) {
         const promiseOfParams =
           createPrerenderParamsForClientSegment(currentParams)
         const promiseOfSearchParams = createPrerenderSearchParamsForClientPage()
@@ -917,7 +949,7 @@ async function createComponentTreeInternal(
           slots: parallelRouteProps,
           serverProvidedParams: null,
         })
-      } else if (executionMode === 'prerender') {
+      } else if (isPrerendering) {
         const promiseOfParams =
           createPrerenderParamsForClientSegment(currentParams)
 
