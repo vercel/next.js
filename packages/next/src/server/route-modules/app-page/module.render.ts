@@ -1,25 +1,19 @@
 import type { AppPageRender } from '../../app-render/app-render'
 
-export const lazyRenderAppPage: AppPageRender = (...args) => {
+function getAppPageModule(): typeof import('./module.compiled') {
   if (process.env.NEXT_MINIMAL) {
     throw new Error("Can't use lazyRenderAppPage in minimal mode")
   } else {
-    const render: AppPageRender = (
-      require('./module.compiled') as typeof import('./module.compiled')
-    ).renderToHTMLOrFlight
-
-    return render(...args)
+    return require('./module.compiled') as typeof import('./module.compiled')
   }
 }
 
-export const lazyPrerenderAppPage: AppPageRender = (...args) => {
-  if (process.env.NEXT_MINIMAL) {
-    throw new Error("Can't use lazyPrerenderAppPage in minimal mode")
-  } else {
-    const prerender: AppPageRender = (
-      require('./module.compiled') as typeof import('./module.compiled')
-    ).prerenderToHTMLOrFlight
+export const lazyRenderAppPage: AppPageRender = (...args) => {
+  const render: AppPageRender = getAppPageModule().renderToHTMLOrFlight
+  return render(...args)
+}
 
-    return prerender(...args)
-  }
+export const lazyPrerenderAppPage: AppPageRender = (...args) => {
+  const prerender: AppPageRender = getAppPageModule().prerenderToHTMLOrFlight
+  return prerender(...args)
 }
