@@ -787,7 +787,7 @@ async function generateDynamicRSCPayload(
       f: flightData,
       q: getRenderedSearch(query),
       i: !!couldBeIntercepted,
-      S: workStore.isStaticGeneration,
+      S: workStore.isStaticGeneration || ctx.renderOpts.cacheComponents,
       h: getMetadataVaryParamsAccumulator(),
       r: getRootParamsVaryParamsAccumulator() ?? undefined,
     }
