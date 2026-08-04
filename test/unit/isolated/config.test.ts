@@ -62,6 +62,28 @@ describe('config', () => {
     expect(config.onDemandEntries.maxInactiveAge).toBeDefined()
   })
 
+  it('Should enable the TypeScript CLI by default and allow opting out', async () => {
+    const defaultConfig = await loadConfig(
+      PHASE_DEVELOPMENT_SERVER,
+      '<rootDir>-typescript-cli-default',
+      { customConfig: {} }
+    )
+    expect(defaultConfig.experimental.useTypeScriptCli).toBe(true)
+
+    const apiConfig = await loadConfig(
+      PHASE_DEVELOPMENT_SERVER,
+      '<rootDir>-typescript-api',
+      {
+        customConfig: {
+          experimental: {
+            useTypeScriptCli: false,
+          },
+        },
+      }
+    )
+    expect(apiConfig.experimental.useTypeScriptCli).toBe(false)
+  })
+
   it('Should configure the development memory threshold opt-out', async () => {
     const defaultConfig = await loadConfig(
       PHASE_DEVELOPMENT_SERVER,
