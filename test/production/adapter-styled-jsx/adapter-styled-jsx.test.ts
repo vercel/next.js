@@ -35,17 +35,20 @@ describe('adapter output - styled-jsx', () => {
     }
     expect(declaredAssets.size).toBeGreaterThan(0)
 
-    // Ask the require hook of the Next.js version that built the app which files
-    // it maps `styled-jsx` to - those are the ones the deployment has to contain.
-    // Note that requiring it installs the hook in this process, which is what
-    // Next.js itself does at runtime as well.
+    // Resolve the same way next/dist/server/require-hook does at runtime, i.e. the
+    // aliases it registers (`defaultOverrides`) resolved from Next.js' own location
+    // inside the app that was built. Those are the files the deployment has to
+    // contain for the hook to be able to register them. Note that requiring the hook
+    // installs it in this process, which is what Next.js does at runtime as well.
     const appRequire = createRequire(path.join(next.testDir, 'noop.js'))
-    const { requireHookEntries } = appRequire(
-      'next/dist/server/require-hook'
+    const requireHookPath = appRequire.resolve('next/dist/server/require-hook')
+    const { defaultOverrides } = appRequire(
+      requireHookPath
     ) as typeof import('next/dist/server/require-hook')
+    const hookRequire = createRequire(requireHookPath)
 
-    const requiredFiles = requireHookEntries().map((file) =>
-      path.relative(repoRoot, file)
+    const requiredFiles = Object.keys(defaultOverrides).map((request) =>
+      path.relative(repoRoot, hookRequire.resolve(request))
     )
     expect(requiredFiles.length).toBeGreaterThan(0)
 

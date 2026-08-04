@@ -17,15 +17,6 @@ let resolve: typeof require.resolve = process.env.NEXT_MINIMAL
 
 export const hookPropertyMap = new Map()
 
-/**
- * Aliases that make every `styled-jsx` request resolve to Next.js' own copy. The
- * Pages Router renderer (`next/dist/server/render.js`) creates the styled-jsx
- * style registry and hands it to user code through a React context owned by the
- * styled-jsx module instance, so user code importing a *different* copy (which
- * happens as soon as the app depends on another styled-jsx version) silently
- * renders no styles at all during SSR. Whatever assembles a deployment has to
- * ship the files these resolve to - see `requireHookEntries()`.
- */
 export const defaultOverrides: Record<string, string> = {}
 
 try {
@@ -34,40 +25,7 @@ try {
     'styled-jsx/style': resolve('styled-jsx/style'),
     'styled-jsx/style.js': resolve('styled-jsx/style'),
   })
-} catch (cause) {
-  // Not being able to register these aliases is not fatal - an app that doesn't
-  // use styled-jsx doesn't care - but it silently breaks styled-jsx SSR when the
-  // app has its own copy of styled-jsx, so make it diagnosable instead of
-  // swallowing the error.
-  console.warn(
-    'Warning: Next.js could not resolve its own copy of `styled-jsx`, so ' +
-      '`styled-jsx` was not deduplicated. If this app uses styled-jsx in the ' +
-      'Pages Router, its styles will be missing from the server-rendered HTML ' +
-      'and only applied after hydration.' +
-      `\nReason: ${(cause as Error)?.message ?? cause}`
-  )
-}
-
-/**
- * The files the aliases above resolve to (currently all of styled-jsx), resolved
- * from Next.js' own location. The Pages Router renderer needs them at runtime,
- * but no module graph references them directly (user code references the app's
- * own copy), so build output tracing has to add them explicitly - otherwise the
- * hook cannot register its aliases in the deployment and styled-jsx styles
- * silently disappear from the server-rendered HTML.
- */
-export function requireHookEntries(): string[] {
-  const entries = new Set<string>()
-
-  for (const request of Object.keys(defaultOverrides)) {
-    try {
-      entries.add(resolve(request, { paths: [__filename] }))
-    } catch {
-      // styled-jsx is not resolvable, which is warned about above.
-    }
-  }
-  return [...entries]
-}
+} catch (_) {}
 
 const toResolveMap = (map: Record<string, string>): [string, string][] => {
   const resolveMap: [string, string][] = []
