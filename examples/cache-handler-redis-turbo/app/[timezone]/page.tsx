@@ -44,9 +44,40 @@ async function getTimeData(timezone: string): Promise<TimeData> {
   };
 }
 
-export default async function Page({ params: { timezone } }) {
+/**
+ * Async content component rendered inside <Suspense> so that uncached data
+ * access (the `await params` + `'use cache'` fetch) doesn't block the
+ * entire route from prerendering.
+ */
+async function TimeContent({
+  params,
+}: {
+  params: Promise<{ timezone: string }>;
+}) {
+  const { timezone } = await params;
   const timeData = await getTimeData(timezone);
 
+  return (
+    <>
+      <div className="pre-rendered-at">
+        {timeData.timezone} Time {timeData.datetime}
+      </div>
+      <Suspense fallback={null}>
+        <CacheStateWatcher
+          revalidateAfter={60 * 1000}
+          time={timeData.unixtime * 1000}
+        />
+      </Suspense>
+      <RevalidateFrom />
+    </>
+  );
+}
+
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ timezone: string }>;
+}) {
   return (
     <>
       <header className="header">
@@ -60,16 +91,9 @@ export default async function Page({ params: { timezone } }) {
         </Link>
       </header>
       <main className="widget">
-        <div className="pre-rendered-at">
-          {timeData.timezone} Time {timeData.datetime}
-        </div>
-        <Suspense fallback={null}>
-          <CacheStateWatcher
-            revalidateAfter={60 * 1000}
-            time={timeData.unixtime * 1000}
-          />
+        <Suspense fallback={<div className="pre-rendered-at">Loading…</div>}>
+          <TimeContent params={params} />
         </Suspense>
-        <RevalidateFrom />
       </main>
       <footer className="footer">
         <Link
