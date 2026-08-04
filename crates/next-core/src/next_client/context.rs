@@ -607,7 +607,9 @@ pub async fn get_client_chunking_context(
         builder = builder.chunk_loading_global(g.clone());
     }
 
-    builder = builder.per_page_module_graph(*per_page_module_graph.await?);
+    // Per-page graphs each see only one page, so none of them can decide what the shared runtime
+    // chunk may leave out.
+    builder = builder.shared_runtime_chunk(*per_page_module_graph.await?);
 
     if next_mode.is_development() {
         builder = builder
