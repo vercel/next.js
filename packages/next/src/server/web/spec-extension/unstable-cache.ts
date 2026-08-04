@@ -9,6 +9,7 @@ import {
 import {
   getCacheSignal,
   getDraftModeProviderForCacheScope,
+  shouldRevalidateStaleCacheEntryInForeground,
   workUnitAsyncStorage,
 } from '../../app-render/work-unit-async-storage.external'
 import {
@@ -146,6 +147,8 @@ export function unstable_cache<T extends Callback>(
       const innerCacheStore: UnstableCacheStore = {
         type: 'unstable-cache',
         phase: 'render',
+        shouldRevalidateStaleCacheEntryInForeground:
+          shouldRevalidateStaleCacheEntryInForeground(workUnitStore),
         implicitTags,
         draftMode:
           workUnitStore &&
@@ -280,7 +283,9 @@ export function unstable_cache<T extends Callback>(
 
                   // Attach the empty catch here so we don't get a "unhandled promise
                   // rejection" warning. (Behavior is matched with patch-fetch)
-                  if (workStore.executionMode === 'prerender') {
+                  if (
+                    shouldRevalidateStaleCacheEntryInForeground(workUnitStore)
+                  ) {
                     revalidationPromise.catch(() => {})
                   }
 
@@ -289,7 +294,9 @@ export function unstable_cache<T extends Callback>(
                 }
 
                 // Check if we need to do foreground revalidation
-                if (workStore.executionMode === 'prerender') {
+                if (
+                  shouldRevalidateStaleCacheEntryInForeground(workUnitStore)
+                ) {
                   // When the page is revalidating and the cache entry is stale,
                   // we need to wait for fresh data (blocking revalidate). The
                   // `await` here keeps `cacheSignal.endRead` (in the outer
