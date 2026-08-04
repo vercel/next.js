@@ -592,7 +592,9 @@ Paths you don't return are still served. Next.js prerenders a static shell for t
 
 ### `dynamicParams` is not supported
 
-**Delete the export.** With Cache Components enabled, `export const dynamicParams` fails the build with `Route segment config "dynamicParams" is not compatible with nextConfig.cacheComponents`.
+**Delete the export.** With Cache Components enabled, exporting `dynamicParams` fails the build with this error message:
+
+> Route segment config "dynamicParams" is not compatible with `nextConfig.cacheComponents`.
 
 Params not returned by `generateStaticParams` are rendered on request. If you used `dynamicParams: false` to reject them, call [`notFound()`](/docs/app/api-reference/functions/not-found) in the page when the param doesn't resolve to real data.
 
