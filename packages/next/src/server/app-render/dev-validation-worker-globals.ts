@@ -51,9 +51,12 @@ export interface DevValidationRequestSnapshot {
   urlSearch: string
   rootParams: Params
   /**
-   * Resolved variant values, keyed by variant identity.
+   * The variants a prerender for this request fixes, and the ones it cannot,
+   * keyed by variant identity. Carried apart so the worker's store reproduces
+   * the tier split rather than flattening it.
    */
-  variants: Record<string, string> | null
+  staticVariants: Record<string, string> | null
+  runtimeVariants: Record<string, string> | null
   isDraftMode: boolean
   isHmrRefresh: boolean
   hmrRefreshHash: string | undefined

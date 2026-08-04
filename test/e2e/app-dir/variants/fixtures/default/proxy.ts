@@ -31,6 +31,7 @@ export const config = {
     '/external',
     '/enumerated/:slug',
     '/shell/:slug',
+    '/on-demand/:slug',
     '/paramless',
   ],
 }

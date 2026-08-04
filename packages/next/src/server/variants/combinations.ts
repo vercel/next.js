@@ -135,3 +135,40 @@ export function findMatchingVariantCombination(
 
   return null
 }
+
+/**
+ * Separates the variants a request resolved into the ones a prerender for it
+ * fixes and the ones no prerender can.
+ *
+ * The split is what stores are seeded from, so that a render is given only what
+ * it may bake: a static prerender receives the first half and nothing else, and
+ * a variant it must not bake becomes one it does not have.
+ */
+export function splitVariantsByTier(
+  resolved: Readonly<Record<string, string>> | undefined,
+  matched: { values: Record<string, string> } | null
+): {
+  staticVariants: Record<string, string> | null
+  runtimeVariants: Record<string, string> | null
+} {
+  if (!resolved) {
+    return { staticVariants: null, runtimeVariants: null }
+  }
+
+  const runtimeVariants: Record<string, string> = {}
+  let hasRuntimeVariants = false
+
+  for (const key of Object.keys(resolved)) {
+    if (matched && key in matched.values) {
+      continue
+    }
+
+    runtimeVariants[key] = resolved[key]
+    hasRuntimeVariants = true
+  }
+
+  return {
+    staticVariants: matched?.values ?? null,
+    runtimeVariants: hasRuntimeVariants ? runtimeVariants : null,
+  }
+}

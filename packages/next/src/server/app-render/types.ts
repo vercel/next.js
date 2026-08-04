@@ -208,11 +208,19 @@ export interface RenderOptsPartial {
   isDebugDynamicAccesses?: boolean
 
   /**
-   * The variant combination this prerender is being generated for, keyed by
-   * variant identity. Set from the export task's enumerated combination, and
-   * absent for every render that does not prerender against variants.
+   * The variant combination this render may treat as fixed, keyed by variant
+   * identity. At build time this is the export task's declared combination; at
+   * request time it is the combination the request matched. Absent for every
+   * render that has nothing to do with variants.
    */
-  variants?: Record<string, string> | null
+  staticVariants?: Record<string, string> | null
+
+  /**
+   * The variants this request resolved that no declared combination fixes, and
+   * which therefore no output may bake. Absent at build time, where there is no
+   * request to resolve them from.
+   */
+  runtimeVariants?: Record<string, string> | null
 
   /**
   /**

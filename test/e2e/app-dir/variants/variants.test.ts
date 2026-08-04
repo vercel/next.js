@@ -150,10 +150,10 @@ describe('variants', () => {
   }
 
   it('should resolve variants for a param that was never enumerated', async () => {
-    // `c` has no `generateStaticParams` row, so it is generated on demand. The
-    // proxy has still resolved a combination for the request, and generation
-    // specializes on it the same way it specializes on params, rather than
-    // finding no value and bailing out of the render.
+    // `on-demand` has no `generateStaticParams` row, so it is generated on
+    // demand. The proxy has still resolved a combination for the request, and
+    // generation specializes on it the same way it specializes on params,
+    // rather than finding no value and bailing out of the render.
     const dark = await next.render$('/enumerated/on-demand', undefined, {
       headers: { cookie: 'theme=dark' },
     })
@@ -209,6 +209,27 @@ describe('variants', () => {
 
     expect(b('#theme').text()).toBe('dark')
     expect(b('#banner').last().text()).toBe('b')
+  })
+
+  it('should not bake a variant no combination declared into a prerender generated on demand', async () => {
+    // `fresh` has no `generateStaticParams` row and the route's fallback shell is
+    // empty, so the first request prerenders it on demand and caches the result.
+    // That entry's key covers the param and the declared combination, but not
+    // `banner`, so baking the banner would serve this request's value to every
+    // later one.
+    const first = await next.render$('/on-demand/fresh', undefined, {
+      headers: { cookie: 'theme=dark; banner=first' },
+    })
+
+    expect(first('#theme').text()).toBe('dark')
+    expect(first('#banner').last().text()).toBe('first')
+
+    const second = await next.render$('/on-demand/fresh', undefined, {
+      headers: { cookie: 'theme=dark; banner=second' },
+    })
+
+    expect(second('#theme').text()).toBe('dark')
+    expect(second('#banner').last().text()).toBe('second')
   })
 
   it('should resolve a combination that was never declared', async () => {

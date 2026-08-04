@@ -5,9 +5,15 @@ import { throwToInterruptStaticGeneration } from '../app-render/dynamic-renderin
 import {
   makeDynamicHangingPromise,
   makeRuntimeHangingPromise,
+  RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
+import type { AdvanceableRenderStage } from '../app-render/staged-rendering'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
+import type { WorkUnitStore } from '../app-render/work-unit-async-storage.external'
+import {
+  getStagedRenderingController,
+  workUnitAsyncStorage,
+} from '../app-render/work-unit-async-storage.external'
 
 /**
  * Carries the variant's identity: `<exportName>@<modulePath>`, with `/` in the
@@ -194,11 +200,32 @@ export function normalizeVariantAssignments(
 }
 
 /**
- * Deliberately not `async`. A prerender that cannot supply a value interrupts
- * by postponing or throwing, and both have to happen synchronously during the
- * render to be recognized: wrapping them in a promise rejection would surface
- * them as ordinary errors instead.
+ * Resolves a variant value at the render stage it belongs to.
+ *
+ * A variant resolves late enough to stay out of the shells a render can yield,
+ * which are shared across a route's params, because a variant can be derived
+ * from one. It still reaches the output belonging to its own combination. This
+ * is conservative: `decide` receives the request, so any variant might read the
+ * URL, and nothing yet tells apart the ones that do not.
+ *
+ * A render with no staged rendering has no shell to stay out of, so the value
+ * resolves immediately.
  */
+function resolveInStage(
+  workUnitStore: WorkUnitStore,
+  stage: AdvanceableRenderStage,
+  apiName: string,
+  value: string
+): Promise<string> {
+  const stagedRendering = getStagedRenderingController(workUnitStore)
+
+  if (!stagedRendering) {
+    return Promise.resolve(value)
+  }
+
+  return stagedRendering.delayUntilStage(stage, apiName, value)
+}
+
 function readVariant(key: string): Promise<string> {
   const apiName = `the variant \`${key}\``
 
@@ -216,16 +243,46 @@ function readVariant(key: string): Promise<string> {
 
   switch (workUnitStore.type) {
     case 'request': {
-      const value = workUnitStore.variants?.[key]
-      if (value === undefined) {
-        // The proxy resolves variants, so an unresolved variant almost always
-        // means this route is not covered by the proxy's matcher.
-        throw new Error(
-          `Route ${workStore.route} read ${apiName}, but no value was resolved for this request. This usually means the route is not covered by your \`proxy.ts\` matcher.`
+      const staticValue = workUnitStore.staticVariants?.[key]
+
+      if (staticValue !== undefined) {
+        return resolveInStage(
+          workUnitStore,
+          // A variant can be derived from a param, so it must not land in a
+          // shell, which is shared across a route's params. The static stage
+          // is past the app shell, so resolving there keeps it out of that one
+          // while still baking it into this combination's own output. A
+          // session shell is taken after the static stage, though, so when dev
+          // needs to recover one the value waits for the runtime stage
+          // instead. Static params are delayed by the same rule.
+          workUnitStore.needsAppShell
+            ? RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+            : RENDER_STAGES_BY_DATA_KIND.staticLinkData,
+          apiName,
+          staticValue
         )
       }
 
-      return Promise.resolve(value)
+      const runtimeValue = workUnitStore.runtimeVariants?.[key]
+
+      if (runtimeValue !== undefined) {
+        // No combination fixes this one, so nothing cached may contain it, not
+        // just the shells: no prerender's key mentions it. The runtime stage is
+        // past every one of them, so there is no `needsAppShell` case to
+        // distinguish here.
+        return resolveInStage(
+          workUnitStore,
+          RENDER_STAGES_BY_DATA_KIND.runtimeLinkData,
+          apiName,
+          runtimeValue
+        )
+      }
+
+      // The proxy resolves variants, so a variant in neither map almost always
+      // means this route is not covered by the proxy's matcher.
+      throw new Error(
+        `Route ${workStore.route} read ${apiName}, but no value was resolved for this request. This usually means the route is not covered by your \`proxy.ts\` matcher.`
+      )
     }
     case 'cache':
     case 'unstable-cache':
@@ -252,13 +309,16 @@ function readVariant(key: string): Promise<string> {
     // serves combinations that were never enumerated. Each kind of prerender
     // interrupts differently, matching the other request APIs.
     case 'prerender': {
-      const value = workUnitStore.variants?.[key]
+      const value = workUnitStore.staticVariants?.[key]
 
       if (value !== undefined) {
-        return Promise.resolve(value)
+        return resolveInStage(
+          workUnitStore,
+          RENDER_STAGES_BY_DATA_KIND.staticLinkData,
+          apiName,
+          value
+        )
       }
-
-      // TODO: Check if this only getting the statically define ones!
 
       // Runtime rather than dynamic data: the proxy resolves variants from the
       // request's cookies and headers, so a runtime prefetch can supply one
@@ -273,10 +333,26 @@ function readVariant(key: string): Promise<string> {
       )
     }
     case 'prerender-runtime': {
-      const value = workUnitStore.variants?.[key]
+      const staticValue = workUnitStore.staticVariants?.[key]
 
-      if (value !== undefined) {
-        return Promise.resolve(value)
+      if (staticValue !== undefined) {
+        return resolveInStage(
+          workUnitStore,
+          RENDER_STAGES_BY_DATA_KIND.staticLinkData,
+          apiName,
+          staticValue
+        )
+      }
+
+      const runtimeValue = workUnitStore.runtimeVariants?.[key]
+
+      if (runtimeValue !== undefined) {
+        return resolveInStage(
+          workUnitStore,
+          RENDER_STAGES_BY_DATA_KIND.runtimeLinkData,
+          apiName,
+          runtimeValue
+        )
       }
 
       // This is already the runtime prerender, so a variant still missing here
@@ -289,7 +365,7 @@ function readVariant(key: string): Promise<string> {
       )
     }
     case 'prerender-legacy': {
-      const value = workUnitStore.variants?.[key]
+      const value = workUnitStore.staticVariants?.[key]
 
       if (value !== undefined) {
         return Promise.resolve(value)

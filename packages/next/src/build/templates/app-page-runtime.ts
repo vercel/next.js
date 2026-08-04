@@ -31,7 +31,10 @@ import {
 import { isRSCRequestHeader } from '../../server/lib/is-rsc-request' with { 'turbopack-transition': 'next-server-utility' }
 import { isNonHtmlSecFetchDest } from '../../server/lib/is-non-html-sec-fetch-dest' with { 'turbopack-transition': 'next-server-utility' }
 import { insertVariantsPrefix } from '../../server/variants/prefix' with { 'turbopack-transition': 'next-server-utility' }
-import { findMatchingVariantCombination } from '../../server/variants/combinations' with { 'turbopack-transition': 'next-server-utility' }
+import {
+  findMatchingVariantCombination,
+  splitVariantsByTier,
+} from '../../server/variants/combinations' with { 'turbopack-transition': 'next-server-utility' }
 import { UNDERSCORE_NOT_FOUND_ROUTE } from '../../shared/lib/entry-constants' with { 'turbopack-transition': 'next-server-utility' }
 import {
   getFallbackRouteParams,
@@ -317,6 +320,14 @@ export function createAppPageEntrypoint({
     const prerenderInfo =
       matchedVariantsPrerenderInfo ?? prerenderMatch?.route ?? null
 
+    // Split so that a render is handed only what it may treat as fixed: the
+    // matched combination is bakeable, everything else the proxy resolved is
+    // not, and a store that must not bake a value simply does not receive it.
+    const variantsByTier = splitVariantsByTier(
+      getRequestMeta(req, 'variants'),
+      matchedVariants
+    )
+
     const userAgent = req.headers['user-agent'] || ''
     const botType = getBotType(userAgent)
 
@@ -588,6 +599,15 @@ export function createAppPageEntrypoint({
     const supportsRDCForNavigations =
       isRoutePPREnabled && nextConfig.cacheComponents === true
 
+    // A combination nobody declared is served from the prerender that omits
+    // variants, and a route that cannot postpone has no such prerender: omitting
+    // a variant leaves a hole only a resume can fill. So the request is rendered
+    // for itself instead. Without this it would take the static path, where a
+    // variant read has no value to find and interrupts static generation.
+    const requiresDynamicResponseForVariants = Boolean(
+      !isRoutePPREnabled && variantCombinationGroups?.length && !matchedVariants
+    )
+
     // In development, we always want to generate dynamic HTML.
     const supportsDynamicResponse: boolean =
       // If we're in development, we always support dynamic HTML, unless it's
@@ -598,6 +618,7 @@ export function createAppPageEntrypoint({
       // If this is not SSG or does not have static paths, then it supports
       // dynamic HTML.
       !isSSG ||
+      requiresDynamicResponseForVariants ||
       // If this request has provided postponed data, it supports dynamic
       // HTML.
       hasPostponedState ||
@@ -697,17 +718,6 @@ export function createAppPageEntrypoint({
       // reads, never where the entry lives.
       if (ssgCacheKey !== null && matchedVariants) {
         ssgCacheKey = insertVariantsPrefix(ssgCacheKey, matchedVariants.hash)
-      } else if (
-        ssgCacheKey !== null &&
-        !isRoutePPREnabled &&
-        variantCombinationGroups?.length
-      ) {
-        // Unless the route cannot postpone. The unprefixed entry only works
-        // because the variants it omits are holes a resume fills; without one,
-        // this render would bake the values this request happens to carry and
-        // every other combination would then be served them. Rendering per
-        // request is slower and correct.
-        ssgCacheKey = null
       }
     }
 
@@ -932,7 +942,7 @@ export function createAppPageEntrypoint({
             // comes from the export task instead; here the proxy has already
             // resolved it and the cache key is derived from the same values, so
             // the entry produced lands at the key the request looked up.
-            variants: getRequestMeta(req, 'variants') ?? null,
+            ...variantsByTier,
             routeModule,
             page: srcPage,
             postponed,

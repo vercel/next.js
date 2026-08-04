@@ -136,10 +136,13 @@ export type RequestStoreInputs = {
   url: { pathname: string; search?: string }
   rootParams: Params
   /**
-   * Resolved variant values, keyed by variant identity. Parsed once from the
-   * request (see `RequestMeta['variants']`) rather than re-derived here.
+   * The variants a prerender for this request fixes, and the ones it cannot,
+   * keyed by variant identity. Split once by the caller from the values the
+   * request resolved (see `RequestMeta['variants']`) rather than re-derived
+   * here, so that a render is only ever handed what it may treat as known.
    */
-  variants: Record<string, string> | null
+  staticVariants: Record<string, string> | null
+  runtimeVariants: Record<string, string> | null
   implicitTags: ImplicitTags
   resumeDataCache: ResumeDataCache | null
   previewProps: WrapperRenderOpts['previewProps']
@@ -192,7 +195,8 @@ export function createRequestStoreForRender(
   res: RequestContext['res'],
   url: RequestContext['url'],
   rootParams: Params,
-  variants: Record<string, string> | null,
+  staticVariants: Record<string, string> | null,
+  runtimeVariants: Record<string, string> | null,
   implicitTags: RequestContext['implicitTags'],
   onUpdateCookies: RenderOpts['onUpdateCookies'],
   previewProps: WrapperRenderOpts['previewProps'],
@@ -215,7 +219,8 @@ export function createRequestStoreForRender(
         : undefined),
     url,
     rootParams,
-    variants,
+    staticVariants,
+    runtimeVariants,
     implicitTags,
     resumeDataCache,
     previewProps,
@@ -242,7 +247,8 @@ export function createRequestStoreForAPI(
     url,
     rootParams: {},
     // Variants are not supported in Route Handlers yet, matching root params.
-    variants: null,
+    staticVariants: null,
+    runtimeVariants: null,
     implicitTags,
     resumeDataCache: null,
     previewProps,
@@ -267,7 +273,8 @@ export function createRequestStore(inputs: RequestStoreInputs): RequestStore {
     onUpdateCookies,
     url,
     rootParams,
-    variants,
+    staticVariants,
+    runtimeVariants,
     implicitTags,
     resumeDataCache,
     previewProps,
@@ -294,7 +301,8 @@ export function createRequestStore(inputs: RequestStoreInputs): RequestStore {
     // lets us avoid requiring an empty string for `search` in the type.
     url: { pathname: url.pathname, search: url.search ?? '' },
     rootParams,
-    variants,
+    staticVariants,
+    runtimeVariants,
     get headers() {
       if (!cache.headers) {
         // Seal the headers object that'll freeze out any methods that could

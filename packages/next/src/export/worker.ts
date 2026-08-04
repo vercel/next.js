@@ -282,7 +282,9 @@ async function exportPageImpl(
     allowEmptyStaticShell,
     runInstantValidation,
     isFallbackUpgradeable,
-    variants: variantValues,
+    // A build-time prerender has only its declared combination; there is no
+    // request to resolve anything else from.
+    staticVariants: variantValues,
     experimental: {
       ...commonRenderOpts.experimental,
       isRoutePPREnabled,
