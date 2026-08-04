@@ -143,7 +143,16 @@ export function Draggable({
   }
 
   return (
-    <div {...props} {...drag} ref={ref}>
+    <div
+      {...props}
+      {...drag}
+      ref={ref}
+      style={{
+        ...props.style,
+        // prevent touch gestures from being treated as viewport panning, which would cancel drag
+        touchAction: 'none',
+      }}
+    >
       {children}
     </div>
   )
