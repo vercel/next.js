@@ -7,11 +7,13 @@ import { startExternalServer } from './external-server.mjs'
 describe('variants', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/default',
-    // The proxy rewrites to an internal `/__variants/<packed>` path, which the
-    // Next.js router strips before it matches a route. Deployments route at the
-    // CDN instead, and the build output declares nothing for that prefix, so
-    // the rewritten request resolves to the 404 route. Enable once the build
-    // output carries the prefix.
+    // The build output is right: a deployment declares a routable output per
+    // combination, and requesting one directly serves the artifact it was
+    // prerendered for. The proxy is what misses it, hashing every value it
+    // resolved into the path prefix while the build names an artifact by the
+    // declared subset alone, so the rewrite target has no output and resolves
+    // to the 404 route. Enable once the proxy projects onto the declared
+    // combination before hashing.
     skipDeployment: true,
     // The proxy rewrites `/external` to a port that only exists once the
     // external server is listening, so Next.js is started by hand below.
@@ -151,6 +153,34 @@ describe('variants', () => {
   }
 
   if (isNextStart) {
+    it('should derive every data route from the entry it belongs to', async () => {
+      // An entry is keyed by the path its artifacts were written to, so its
+      // `dataRoute` has to be derived from that same path. Deriving it from the
+      // bare pathname instead gives every combination of a route the same data
+      // route, naming a file nobody wrote.
+      //
+      // Nothing self-hosted opens that path, which is what let it pass five
+      // green suites: a deployment's build output assembly reads it, and fails
+      // with an ENOENT naming a file rather than anything pointing at variants.
+      const prerenderManifest = JSON.parse(
+        await next.readFile('.next/prerender-manifest.json')
+      )
+
+      const mismatched = Object.entries(
+        prerenderManifest.routes as Record<string, { dataRoute: string | null }>
+      )
+        .filter(([, { dataRoute }]) => dataRoute !== null)
+        .map(([route, { dataRoute }]) => ({
+          route,
+          dataRoute,
+          // What the key implies, `/` being written as `/index`.
+          expected: `${route === '/' ? '/index' : route}.rsc`,
+        }))
+        .filter(({ dataRoute, expected }) => dataRoute !== expected)
+
+      expect(mismatched).toEqual([])
+    })
+
     it('should write one prerender manifest entry per declared combination', async () => {
       const prerenderManifest = JSON.parse(
         await next.readFile('.next/prerender-manifest.json')
