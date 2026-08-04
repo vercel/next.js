@@ -1,12 +1,17 @@
 import {
   unstable_doesMiddlewareMatch,
-  type MiddlewareSourceConfig,
+  unstable_doesProxyMatch,
+  type ProxySourceConfig,
 } from './middleware-testing-utils'
 
-describe('unstable_doesMiddlewareMatch', () => {
+describe('unstable_doesProxyMatch', () => {
+  it('keeps unstable_doesMiddlewareMatch as a deprecated alias', () => {
+    expect(unstable_doesMiddlewareMatch).toBe(unstable_doesProxyMatch)
+  })
+
   it('matches everything when no matcher is provided', () => {
     expect(
-      unstable_doesMiddlewareMatch({
+      unstable_doesProxyMatch({
         config: {
           matcher: undefined,
         },
@@ -20,19 +25,19 @@ describe('unstable_doesMiddlewareMatch', () => {
       matcher: '/test',
     }
     expect(
-      unstable_doesMiddlewareMatch({
+      unstable_doesProxyMatch({
         config,
         url: '/test',
       })
     ).toEqual(true)
     expect(
-      unstable_doesMiddlewareMatch({
+      unstable_doesProxyMatch({
         config,
         url: '/test?q=1',
       })
     ).toEqual(true)
     expect(
-      unstable_doesMiddlewareMatch({
+      unstable_doesProxyMatch({
         config,
         url: '/other-path',
       })
@@ -44,25 +49,25 @@ describe('unstable_doesMiddlewareMatch', () => {
       matcher: ['/test', '/test/(.*)', '/test2/:path+'],
     }
     expect(
-      unstable_doesMiddlewareMatch({
+      unstable_doesProxyMatch({
         config,
         url: '/test',
       })
     ).toEqual(true)
     expect(
-      unstable_doesMiddlewareMatch({
+      unstable_doesProxyMatch({
         config,
         url: '/test/slug',
       })
     ).toEqual(true)
     expect(
-      unstable_doesMiddlewareMatch({
+      unstable_doesProxyMatch({
         config,
         url: '/test2/slug',
       })
     ).toEqual(true)
     expect(
-      unstable_doesMiddlewareMatch({
+      unstable_doesProxyMatch({
         config,
         url: '/test?q=1',
       })
@@ -72,7 +77,7 @@ describe('unstable_doesMiddlewareMatch', () => {
   describe('has condition', () => {
     describe('header', () => {
       it('matches only when the header is present', () => {
-        const config: MiddlewareSourceConfig = {
+        const config: ProxySourceConfig = {
           matcher: [
             {
               source: '/test',
@@ -87,13 +92,13 @@ describe('unstable_doesMiddlewareMatch', () => {
           ],
         }
         expect(
-          unstable_doesMiddlewareMatch({
+          unstable_doesProxyMatch({
             config,
             url: '/test',
           })
         ).toEqual(false)
         expect(
-          unstable_doesMiddlewareMatch({
+          unstable_doesProxyMatch({
             config,
             url: '/test',
             headers: {
@@ -106,7 +111,7 @@ describe('unstable_doesMiddlewareMatch', () => {
 
     describe('cookies', () => {
       it('matches only when the cookie is present', () => {
-        const config: MiddlewareSourceConfig = {
+        const config: ProxySourceConfig = {
           matcher: [
             {
               source: '/test',
@@ -121,13 +126,13 @@ describe('unstable_doesMiddlewareMatch', () => {
           ],
         }
         expect(
-          unstable_doesMiddlewareMatch({
+          unstable_doesProxyMatch({
             config,
             url: '/test',
           })
         ).toEqual(false)
         expect(
-          unstable_doesMiddlewareMatch({
+          unstable_doesProxyMatch({
             config,
             url: '/test',
             headers: {
@@ -136,7 +141,7 @@ describe('unstable_doesMiddlewareMatch', () => {
           })
         ).toEqual(false)
         expect(
-          unstable_doesMiddlewareMatch({
+          unstable_doesProxyMatch({
             config,
             url: '/test',
             cookies: {
@@ -149,7 +154,7 @@ describe('unstable_doesMiddlewareMatch', () => {
 
     describe('query params', () => {
       it('matches only when the query parameter is present', () => {
-        const config: MiddlewareSourceConfig = {
+        const config: ProxySourceConfig = {
           matcher: [
             {
               source: '/test',
@@ -164,13 +169,13 @@ describe('unstable_doesMiddlewareMatch', () => {
           ],
         }
         expect(
-          unstable_doesMiddlewareMatch({
+          unstable_doesProxyMatch({
             config,
             url: '/test',
           })
         ).toEqual(false)
         expect(
-          unstable_doesMiddlewareMatch({
+          unstable_doesProxyMatch({
             config,
             url: '/test?q=1',
           })
@@ -182,7 +187,7 @@ describe('unstable_doesMiddlewareMatch', () => {
   describe('missing condition', () => {
     describe('header', () => {
       it('matches only when the header is missing', () => {
-        const config: MiddlewareSourceConfig = {
+        const config: ProxySourceConfig = {
           matcher: [
             {
               source: '/test',
@@ -196,13 +201,13 @@ describe('unstable_doesMiddlewareMatch', () => {
           ],
         }
         expect(
-          unstable_doesMiddlewareMatch({
+          unstable_doesProxyMatch({
             config,
             url: '/test',
           })
         ).toEqual(true)
         expect(
-          unstable_doesMiddlewareMatch({
+          unstable_doesProxyMatch({
             config,
             url: '/test',
             headers: {
@@ -215,7 +220,7 @@ describe('unstable_doesMiddlewareMatch', () => {
 
     describe('cookies', () => {
       it('matches only when the cookie is missing', () => {
-        const config: MiddlewareSourceConfig = {
+        const config: ProxySourceConfig = {
           matcher: [
             {
               source: '/test',
@@ -229,13 +234,13 @@ describe('unstable_doesMiddlewareMatch', () => {
           ],
         }
         expect(
-          unstable_doesMiddlewareMatch({
+          unstable_doesProxyMatch({
             config,
             url: '/test',
           })
         ).toEqual(true)
         expect(
-          unstable_doesMiddlewareMatch({
+          unstable_doesProxyMatch({
             config,
             url: '/test',
             headers: {
@@ -244,7 +249,7 @@ describe('unstable_doesMiddlewareMatch', () => {
           })
         ).toEqual(true)
         expect(
-          unstable_doesMiddlewareMatch({
+          unstable_doesProxyMatch({
             config,
             url: '/test',
             cookies: {
@@ -257,7 +262,7 @@ describe('unstable_doesMiddlewareMatch', () => {
 
     describe('query params', () => {
       it('matches only when the query parameter is missing', () => {
-        const config: MiddlewareSourceConfig = {
+        const config: ProxySourceConfig = {
           matcher: [
             {
               source: '/test',
@@ -271,13 +276,13 @@ describe('unstable_doesMiddlewareMatch', () => {
           ],
         }
         expect(
-          unstable_doesMiddlewareMatch({
+          unstable_doesProxyMatch({
             config,
             url: '/test',
           })
         ).toEqual(true)
         expect(
-          unstable_doesMiddlewareMatch({
+          unstable_doesProxyMatch({
             config,
             url: '/test?q=1',
           })
@@ -291,18 +296,18 @@ describe('unstable_doesMiddlewareMatch', () => {
       const nextConfig = {
         basePath: '/base',
       }
-      const config: MiddlewareSourceConfig = {
+      const config: ProxySourceConfig = {
         matcher: ['/test'],
       }
       expect(
-        unstable_doesMiddlewareMatch({
+        unstable_doesProxyMatch({
           config,
           url: '/test',
           nextConfig,
         })
       ).toEqual(false)
       expect(
-        unstable_doesMiddlewareMatch({
+        unstable_doesProxyMatch({
           config,
           url: '/base/test',
           nextConfig,
