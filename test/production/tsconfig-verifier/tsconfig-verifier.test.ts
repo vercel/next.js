@@ -554,7 +554,7 @@ describe('tsconfig.json verifier', () => {
            "compilerOptions": {
              "esModuleInterop": true,
              "module": "node20",
-             "moduleResolution": "bundler",
+             "moduleResolution": "node16",
              "target": "ES2017",
              "lib": [
                "dom",
@@ -594,7 +594,7 @@ describe('tsconfig.json verifier', () => {
            "compilerOptions": {
              "esModuleInterop": true,
              "module": "node20",
-             "moduleResolution": "bundler",
+             "moduleResolution": "node16",
              "target": "ES2017",
              "lib": [
                "dom",
