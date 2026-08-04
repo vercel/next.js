@@ -169,7 +169,11 @@ export async function tryNextDev({
       })
     })
 
-    if (tailwind) {
+    // The webpack test matrix forces generated apps to build with webpack,
+    // but create-next-app only exposes Turbopack and Rspack as bundler choices.
+    // Only assert rendered Tailwind styles when the generated bundler matches
+    // the test bundler.
+    if (tailwind && !process.env.IS_WEBPACK_TEST) {
       browser = await webdriver(port, '/')
       expect(await browser.elementByCss('main').getComputedCss('display')).toBe(
         'flex'
