@@ -166,6 +166,18 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
+    /// Marks this context as being shared by multiple independent module graphs, each of which
+    /// only sees part of what is written to `chunk_root_path`.
+    ///
+    /// The runtime chunk is emitted to a fixed path (`[turbopack]_runtime.js`), so every graph
+    /// sharing this context writes the same file. Optional runtime features must therefore not be
+    /// decided from a single graph: one graph would omit a helper that another graph's chunks
+    /// call, and which variant lands on disk depends on emission order.
+    pub fn shared_runtime_chunk(mut self, shared_runtime_chunk: bool) -> Self {
+        self.chunking_context.shared_runtime_chunk = shared_runtime_chunk;
+        self
+    }
+
     /// Builds the chunking context.
     pub fn build(self) -> Vc<NodeJsChunkingContext> {
         NodeJsChunkingContext::cell(self.chunking_context)
@@ -238,6 +250,9 @@ pub struct NodeJsChunkingContext {
     asset_content_hashing: ContentHashing,
     /// Salt mixed into chunk and asset content hashes. Empty string means no salt.
     hash_salt: ResolvedVc<RcStr>,
+    /// Whether the runtime chunk is shared with other module graphs using this context.
+    /// See [`NodeJsChunkingContextBuilder::shared_runtime_chunk`].
+    shared_runtime_chunk: bool,
 }
 
 impl NodeJsChunkingContext {
@@ -283,6 +298,7 @@ impl NodeJsChunkingContext {
                 worker_forwarded_globals: vec![],
                 asset_content_hashing: ContentHashing::Direct { length: 13 },
                 hash_salt: ResolvedVc::cell(RcStr::default()),
+                shared_runtime_chunk: false,
             },
         }
     }
@@ -338,6 +354,14 @@ impl NodeJsChunkingContext {
         Ok(Vc::upcast(EcmascriptBuildNodeChunkList::new(
             *self, path, chunks,
         )))
+    }
+
+    /// Whether the runtime chunk is shared with other module graphs using this context, meaning no
+    /// single graph may decide which optional runtime features to omit.
+    /// See [`NodeJsChunkingContextBuilder::shared_runtime_chunk`].
+    #[turbo_tasks::function]
+    pub fn shared_runtime_chunk(&self) -> Vc<bool> {
+        Vc::cell(self.shared_runtime_chunk)
     }
 }
 
