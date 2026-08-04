@@ -9,10 +9,7 @@ use std::{
 
 use bincode::{BorrowDecode, Decode, Encode};
 use indexmap::IndexSet;
-use serde::{
-    Deserialize, Serialize,
-    de::{SeqAccess, Visitor},
-};
+use serde::{Deserialize, Serialize};
 
 use crate::map::{self, FrozenMap};
 
