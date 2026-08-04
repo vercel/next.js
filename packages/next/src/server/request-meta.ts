@@ -95,18 +95,6 @@ export interface RequestMeta {
   resolvedPathname?: string
 
   /**
-   * Resolved variant values for this request, keyed by variant identity (e.g.
-   * `theme@variants.ts`). Parsed once from the internal variants pathname
-   * prefix that the proxy adds, so that both the cache key computation and the
-   * render's work unit store read the same values rather than parsing
-   * independently.
-   *
-   * Only set when `experimental.variants` is enabled and the request carried
-   * variant values.
-   */
-  variants?: Record<string, string>
-
-  /**
    * The cookies that were added by middleware and were added to the response.
    */
   middlewareCookie?: string[]

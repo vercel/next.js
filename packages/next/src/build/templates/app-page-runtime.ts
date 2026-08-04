@@ -31,6 +31,7 @@ import {
 import { isRSCRequestHeader } from '../../server/lib/is-rsc-request' with { 'turbopack-transition': 'next-server-utility' }
 import { isNonHtmlSecFetchDest } from '../../server/lib/is-non-html-sec-fetch-dest' with { 'turbopack-transition': 'next-server-utility' }
 import { insertVariantsPrefix } from '../../server/variants/prefix' with { 'turbopack-transition': 'next-server-utility' }
+import { decodeVariants } from '../../server/variants/hash' with { 'turbopack-transition': 'next-server-utility' }
 import {
   findMatchingVariantCombination,
   splitVariantsByTier,
@@ -76,6 +77,7 @@ import {
   NEXT_NAV_DEPLOYMENT_ID_HEADER,
   NEXT_RESUME_HEADER,
   NEXT_RESUME_STATE_LENGTH_HEADER,
+  NEXT_VARIANTS_HEADER,
 } from '../../lib/constants' with { 'turbopack-transition': 'next-server-utility' }
 import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags' with { 'turbopack-transition': 'next-server-utility' }
@@ -292,10 +294,34 @@ export function createAppPageEntrypoint({
       ? prerenderManifest.variantCombinationGroups[normalizedSrcPage]
       : undefined
 
+    // The values a proxy resolved for this request, decoded from the header
+    // they travelled in.
+    //
+    // Read here rather than recovered upstream and handed down, because this is
+    // the only site a self-hosted and a deployed request are certain to share:
+    // self-hosted the proxy runs in the router server, deployed it runs at the
+    // CDN and the origin's first sight of the request is the route module that
+    // answers it. Reading the header where it is consumed also keeps the two in
+    // one place instead of leaving a value to be produced by one server and
+    // trusted by another.
+    //
+    // The header carries the values while the pathname carries only their hash,
+    // which names a prerender but cannot be read back. Both are needed and
+    // neither implies the other: a variant nobody declared a combination for
+    // never reaches the path, and the render still has to resolve it.
+    const encodedVariants = process.env.__NEXT_VARIANTS
+      ? req.headers[NEXT_VARIANTS_HEADER]
+      : undefined
+
+    const resolvedVariants =
+      typeof encodedVariants === 'string'
+        ? (decodeVariants(encodedVariants) ?? undefined)
+        : undefined
+
     const matchedVariants = variantCombinationGroups?.length
       ? findMatchingVariantCombination(
           variantCombinationGroups,
-          getRequestMeta(req, 'variants') ?? {}
+          resolvedVariants ?? {}
         )
       : null
 
@@ -340,7 +366,7 @@ export function createAppPageEntrypoint({
     // matched combination is bakeable, everything else the proxy resolved is
     // not, and a store that must not bake a value simply does not receive it.
     const variantsByTier = splitVariantsByTier(
-      getRequestMeta(req, 'variants'),
+      resolvedVariants,
       matchedVariants
     )
 
