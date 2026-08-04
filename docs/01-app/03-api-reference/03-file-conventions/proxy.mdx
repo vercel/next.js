@@ -160,7 +160,7 @@ export function proxy(request) {
 
 ### `event`
 
-The second parameter is an instance of `NextFetchEvent`, which extends the native [`FetchEvent`](https://developer.mozilla.org/docs/Web/API/FetchEvent). It exposes a single method, `waitUntil(promise)`, which keeps the Proxy invocation alive until the promise settles, so background work like logging or analytics can finish after the response is sent. See [`waitUntil` and `NextFetchEvent`](#waituntil-and-nextfetchevent) for a full example.
+The second parameter is an instance of `NextFetchEvent`. It exposes a single method, `waitUntil(promise)`, which keeps the Proxy invocation alive until the promise settles, so background work like logging or analytics can finish after the response is sent. See [`waitUntil` and `NextFetchEvent`](#waituntil-and-nextfetchevent) for a full example.
 
 ```tsx filename="proxy.ts" switcher
 import type { NextFetchEvent, NextRequest } from 'next/server'
