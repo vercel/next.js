@@ -9,7 +9,10 @@ use std::{
 
 use bincode::{BorrowDecode, Decode, Encode};
 use indexmap::IndexMap;
-use serde::{Deserialize, Serialize};
+use serde::{
+    Deserialize, Serialize,
+    de::{MapAccess, Visitor},
+};
 
 /// A compact frozen (immutable) ordered map backed by a sorted boxed slice.
 ///
