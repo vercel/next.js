@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::version::{VersionedContent, VersionedContentMerger, VersionedContents};
 
 use super::{
@@ -28,20 +28,17 @@ impl VersionedContentMerger for EcmascriptBrowserChunkContentMerger {
         &self,
         contents: Vc<VersionedContents>,
     ) -> Result<Vc<Box<dyn VersionedContent>>> {
-        let contents = contents
-            .await?
-            .iter()
-            .map(|content| async move {
-                if let Some(content) =
-                    ResolvedVc::try_downcast_type::<EcmascriptBrowserChunkContent>(*content)
-                {
-                    Ok(content)
-                } else {
-                    bail!("expected Vc<EcmascriptBrowserChunkContent>")
-                }
-            })
-            .try_join()
-            .await?;
+        let read_contents = turbo_tasks::read!(contents)?;
+        let mut contents = Vec::with_capacity(read_contents.len());
+        for content in read_contents.iter() {
+            if let Some(content) =
+                ResolvedVc::try_downcast_type::<EcmascriptBrowserChunkContent>(*content)
+            {
+                contents.push(content);
+            } else {
+                bail!("expected Vc<EcmascriptBrowserChunkContent>")
+            }
+        }
 
         Ok(Vc::upcast(
             EcmascriptBrowserMergedChunkContent { contents }.cell(),

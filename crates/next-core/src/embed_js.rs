@@ -13,5 +13,5 @@ pub(crate) fn next_js_fs() -> Vc<Box<dyn FileSystem>> {
 
 #[turbo_tasks::function]
 pub(crate) async fn next_js_file_path(path: RcStr) -> Result<Vc<FileSystemPath>> {
-    Ok(next_js_fs().root().await?.join(&path)?.cell())
+    Ok(turbo_tasks::read!(next_js_fs().root())?.join(&path)?.cell())
 }

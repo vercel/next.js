@@ -6,10 +6,9 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::rcstr;
-use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
-    trace::TraceRawVcs,
-};
+use turbo_tasks::{FxIndexSet, NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::{TryFlatJoinIterExt, TryJoinIterExt};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType},
     reference::{ModuleReference, ModuleReferences},
@@ -85,25 +84,93 @@ struct AsyncModuleIdents(
     #[bincode(with = "turbo_bincode::indexset")] FxIndexSet<(String, AstSyntaxContext)>,
 );
 
-async fn get_inherit_async_referenced_asset(
-    r: ResolvedVc<Box<dyn ModuleReference>>,
-) -> Result<Option<ReferencedAsset>> {
-    let trait_ref = r.into_trait_ref().await?;
-    let Some(ty) = &trait_ref.chunking_type() else {
-        return Ok(None);
-    };
-    if !matches!(
-        ty,
-        ChunkingType::Parallel {
-            inherit_async: true,
-            ..
-        }
-    ) {
-        return Ok(None);
-    };
-    let referenced_asset: ReferencedAsset =
-        ReferencedAsset::from_resolve_result(r.resolve_reference()).await?;
-    Ok(Some(referenced_asset))
+turbo_tasks::dual_fn! {
+    fn get_inherit_async_referenced_asset(
+        r: ResolvedVc<Box<dyn ModuleReference>>,
+    ) -> Result<Option<ReferencedAsset>> {
+        let trait_ref = turbo_tasks::read!(r.into_trait_ref())?;
+        let Some(ty) = &trait_ref.chunking_type() else {
+            return Ok(None);
+        };
+        if !matches!(
+            ty,
+            ChunkingType::Parallel {
+                inherit_async: true,
+                ..
+            }
+        ) {
+            return Ok(None);
+        };
+        let referenced_asset: ReferencedAsset =
+            turbo_tasks::read!(ReferencedAsset::from_resolve_result(r.resolve_reference()))?;
+        Ok(Some(referenced_asset))
+    }
+}
+
+turbo_tasks::dual_fn! {
+    /// Computes the async-dependency ident for one module reference (the per-item body of
+    /// [`AsyncModule::get_async_idents`]'s fan-out).
+    fn async_ident_for_reference(
+        r: ResolvedVc<Box<dyn ModuleReference>>,
+        import_externals: bool,
+        async_module_info: &AsyncModuleInfo,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<Option<(String, AstSyntaxContext)>> {
+        let Some(referenced_asset) =
+            turbo_tasks::read!(get_inherit_async_referenced_asset(r))?
+        else {
+            return Ok(None);
+        };
+        Ok(match &referenced_asset {
+            ReferencedAsset::External(_, ExternalType::EcmaScriptModule) => {
+                if import_externals {
+                    turbo_tasks::read!(referenced_asset.get_ident(
+                        chunking_context,
+                        None,
+                        ScopeHoistingContext::None
+                    ))?
+                    .map(|i| i.into_module_namespace_ident().unwrap())
+                    .map(|(i, ctx)| (i, ctx.unwrap_or_default().into()))
+                } else {
+                    None
+                }
+            }
+            ReferencedAsset::Some(placeable) => {
+                if async_module_info
+                    .referenced_async_modules
+                    .contains(&ResolvedVc::upcast(*placeable))
+                {
+                    turbo_tasks::read!(referenced_asset.get_ident(
+                        chunking_context,
+                        None,
+                        ScopeHoistingContext::None
+                    ))?
+                    .map(|i| i.into_module_namespace_ident().unwrap())
+                    .map(|(i, ctx)| (i, ctx.unwrap_or_default().into()))
+                } else {
+                    None
+                }
+            }
+            ReferencedAsset::External(..) => None,
+            ReferencedAsset::None | ReferencedAsset::Unresolvable => None,
+        })
+    }
+}
+
+turbo_tasks::dual_fn! {
+    /// Whether the reference (with inherit-async chunking) points at an external ESM module
+    /// (the per-item body of [`AsyncModule::is_self_async`]'s fan-out).
+    fn is_reference_external_esm(r: ResolvedVc<Box<dyn ModuleReference>>) -> Result<bool> {
+        let Some(referenced_asset) =
+            turbo_tasks::read!(get_inherit_async_referenced_asset(r))?
+        else {
+            return Ok(false);
+        };
+        Ok(matches!(
+            &referenced_asset,
+            ReferencedAsset::External(_, ExternalType::EcmaScriptModule)
+        ))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -115,47 +182,37 @@ impl AsyncModule {
         references: Vc<ModuleReferences>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<AsyncModuleIdents>> {
-        let async_module_info = async_module_info.await?;
+        let async_module_info = turbo_tasks::read!(async_module_info)?;
+        let references = turbo_tasks::read!(references)?;
 
+        #[cfg(not(feature = "sync"))]
         let reference_idents = references
-            .await?
             .iter()
-            .map(|r| async {
-                let Some(referenced_asset) = get_inherit_async_referenced_asset(*r).await? else {
-                    return Ok(None);
-                };
-                Ok(match &referenced_asset {
-                    ReferencedAsset::External(_, ExternalType::EcmaScriptModule) => {
-                        if self.import_externals {
-                            referenced_asset
-                                .get_ident(chunking_context, None, ScopeHoistingContext::None)
-                                .await?
-                                .map(|i| i.into_module_namespace_ident().unwrap())
-                                .map(|(i, ctx)| (i, ctx.unwrap_or_default().into()))
-                        } else {
-                            None
-                        }
-                    }
-                    ReferencedAsset::Some(placeable) => {
-                        if async_module_info
-                            .referenced_async_modules
-                            .contains(&ResolvedVc::upcast(*placeable))
-                        {
-                            referenced_asset
-                                .get_ident(chunking_context, None, ScopeHoistingContext::None)
-                                .await?
-                                .map(|i| i.into_module_namespace_ident().unwrap())
-                                .map(|(i, ctx)| (i, ctx.unwrap_or_default().into()))
-                        } else {
-                            None
-                        }
-                    }
-                    ReferencedAsset::External(..) => None,
-                    ReferencedAsset::None | ReferencedAsset::Unresolvable => None,
-                })
+            .map(|r| {
+                async_ident_for_reference(
+                    *r,
+                    self.import_externals,
+                    &async_module_info,
+                    chunking_context,
+                )
             })
             .try_flat_join()
             .await?;
+        #[cfg(feature = "sync")]
+        let reference_idents = {
+            let mut reference_idents = Vec::new();
+            for r in references.iter() {
+                if let Some(ident) = async_ident_for_reference(
+                    *r,
+                    self.import_externals,
+                    &async_module_info,
+                    chunking_context,
+                )? {
+                    reference_idents.push(ident);
+                }
+            }
+            reference_idents
+        };
 
         Ok(Vc::cell(FxIndexSet::from_iter(reference_idents)))
     }
@@ -166,26 +223,34 @@ impl AsyncModule {
             return Ok(Vc::cell(true));
         }
 
-        Ok(Vc::cell(
-            self.import_externals
-                && references
-                    .await?
-                    .iter()
-                    .map(|r| async {
-                        let Some(referenced_asset) = get_inherit_async_referenced_asset(*r).await?
-                        else {
-                            return Ok(false);
-                        };
-                        Ok(matches!(
-                            &referenced_asset,
-                            ReferencedAsset::External(_, ExternalType::EcmaScriptModule)
-                        ))
-                    })
-                    .try_join()
-                    .await?
-                    .iter()
-                    .any(|&b| b),
-        ))
+        if !self.import_externals {
+            return Ok(Vc::cell(false));
+        }
+
+        let references = turbo_tasks::read!(references)?;
+
+        #[cfg(not(feature = "sync"))]
+        let any_external_esm = references
+            .iter()
+            .map(|r| is_reference_external_esm(*r))
+            .try_join()
+            .await?
+            .iter()
+            .any(|&b| b);
+        #[cfg(feature = "sync")]
+        let any_external_esm = {
+            // Evaluate every item (no short-circuit) to keep the same error surface as the
+            // async build's `try_join`.
+            let mut any_external_esm = false;
+            for r in references.iter() {
+                if is_reference_external_esm(*r)? {
+                    any_external_esm = true;
+                }
+            }
+            any_external_esm
+        };
+
+        Ok(Vc::cell(any_external_esm))
     }
 
     /// Returns
@@ -205,16 +270,17 @@ impl AsyncModule {
 }
 
 impl AsyncModule {
-    pub async fn code_generation(
+    turbo_tasks::dual_fn! {
+    pub fn code_generation(
         self: Vc<Self>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
         references: Vc<ModuleReferences>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         if let Some(async_module_info) = async_module_info {
-            let async_idents = self
-                .get_async_idents(async_module_info, references, chunking_context)
-                .await?;
+            let async_idents = turbo_tasks::read!(self
+                .get_async_idents(async_module_info, references, chunking_context))
+                ?;
 
             if !async_idents.is_empty() {
                 let idents = async_idents
@@ -255,5 +321,6 @@ impl AsyncModule {
         }
 
         Ok(CodeGeneration::empty())
+    }
     }
 }

@@ -32,20 +32,17 @@ impl OutputAssetsReference for SingleItemCssChunkSourceMapAsset {}
 impl OutputAsset for SingleItemCssChunkSourceMapAsset {
     #[turbo_tasks::function]
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        let this = self.await?;
-        Ok(this
-            .chunk
-            .await?
-            .chunking_context
-            .chunk_path(
+        let this = turbo_tasks::read!(self)?;
+        Ok(
+            turbo_tasks::read!(turbo_tasks::read!(this.chunk)?.chunking_context.chunk_path(
                 Some(Vc::upcast(self)),
                 this.chunk.ident_for_path(),
                 None,
                 rcstr!(".single.css"),
-            )
-            .await?
+            ))?
             .append(".map")?
-            .cell())
+            .cell(),
+        )
     }
 }
 
@@ -54,7 +51,7 @@ impl Asset for SingleItemCssChunkSourceMapAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
         let content = self.chunk.generate_source_map();
-        if content.await?.is_content() {
+        if turbo_tasks::read!(content)?.is_content() {
             Ok(AssetContent::file(content))
         } else {
             Ok(AssetContent::file(

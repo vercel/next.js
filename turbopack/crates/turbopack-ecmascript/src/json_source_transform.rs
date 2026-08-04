@@ -57,12 +57,12 @@ impl SourceTransform for JsonSourceTransform {
         source: Vc<Box<dyn Source>>,
         _asset_context: Vc<Box<dyn AssetContext>>,
     ) -> Result<Vc<Box<dyn Source>>> {
-        let this = self.await?;
-        let ident = source.ident().owned().await?;
+        let this = turbo_tasks::read!(self)?;
+        let ident = turbo_tasks::read!(source.ident().owned())?;
         let content = source.content().file_content();
 
         // Parse the JSON to validate it and get the data
-        let data = content.parse_json().await?;
+        let data = turbo_tasks::read!(content.parse_json())?;
         let (code, rename_pattern) = match &*data {
             FileJsonContent::Content(data) => {
                 let data_str = data.to_string();
@@ -99,7 +99,7 @@ impl SourceTransform for JsonSourceTransform {
                 (code, rename_pattern)
             }
             FileJsonContent::Unparsable(e) => {
-                let resolved_source = source.to_resolved().await?;
+                let resolved_source = turbo_tasks::read!(source.to_resolved())?;
                 let issue_source = IssueSource::from_unparsable_json(resolved_source, e);
 
                 CodeGenerationIssue {

@@ -1,3 +1,7 @@
+// These are integration tests of the tokio-based child-process pool backend.
+// They are compiled out entirely without `process_pool` (in particular in the
+// `sync` build, which has no pool backend yet).
+#![cfg(feature = "process_pool")]
 #![allow(unused_imports)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]

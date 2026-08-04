@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use turbo_tasks::{NonLocalValue, Vc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, Vc, read, trace::TraceRawVcs};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
@@ -24,7 +24,7 @@ struct TaskSpec {
 #[turbo_tasks::value(transparent)]
 struct TasksSpec(Vec<TaskSpec>);
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_graph_bug() {
     let mut nonce = 0;
     run_once(&REGISTRATION, move || async move {
@@ -185,22 +185,22 @@ async fn test_graph_bug_operation(nonce: u32) -> Result<Vc<()>> {
         TaskSpec { references: vec![] },
     ];
     let spec: Vc<TasksSpec> = Vc::cell(spec);
-    run_task(spec, 0).await?;
+    read!(run_task(spec, 0))?;
 
     Ok(Vc::cell(()))
 }
 
 #[turbo_tasks::function(root)]
 async fn run_task(spec: Vc<TasksSpec>, task: u16) -> Result<Vc<()>> {
-    let spec_ref = spec.await?;
+    let spec_ref = read!(spec)?;
     let task = &spec_ref[task as usize];
     for reference in &task.references {
         let call = run_task(spec, reference.task);
         if reference.read {
-            call.await?;
+            read!(call)?;
         }
         if reference.read_strongly_consistent {
-            call.strongly_consistent().await?;
+            read!(call.strongly_consistent())?;
         }
     }
     Ok(Vc::cell(()))

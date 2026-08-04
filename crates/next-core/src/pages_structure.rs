@@ -48,9 +48,9 @@ impl PagesStructureItem {
     pub async fn file_path(&self) -> Result<Vc<FileSystemPath>> {
         // Check if the file path + extension exists in the filesystem, if so use that. If not fall
         // back to the base path.
-        for ext in self.extensions.await?.into_iter() {
+        for ext in turbo_tasks::read!(self.extensions)?.into_iter() {
             let file_path = self.base_path.append(&format!(".{ext}"))?;
-            let ty = *file_path.get_type().await?;
+            let ty = *turbo_tasks::read!(file_path.get_type())?;
             if matches!(ty, FileSystemEntryType::File | FileSystemEntryType::Symlink) {
                 return Ok(file_path.cell());
             }
@@ -106,20 +106,21 @@ pub async fn find_pages_structure(
     page_extensions: Vc<Vec<RcStr>>,
     next_mode: Vc<crate::mode::NextMode>,
 ) -> Result<Vc<PagesStructure>> {
-    let pages_root = project_root.join("pages")?.realpath().await?;
-    let pages_root = if *pages_root.get_type().await? == FileSystemEntryType::Directory {
-        Some(pages_root)
-    } else {
-        let src_pages_root = project_root.join("src/pages")?.realpath().await?;
-        if *src_pages_root.get_type().await? == FileSystemEntryType::Directory {
-            Some(src_pages_root)
+    let pages_root = turbo_tasks::read!(project_root.join("pages")?.realpath())?;
+    let pages_root =
+        if *turbo_tasks::read!(pages_root.get_type())? == FileSystemEntryType::Directory {
+            Some(pages_root)
         } else {
-            // If neither pages nor src/pages exists, we still want to generate
-            // the pages structure, but with no pages and default values for
-            // _app, _document and _error.
-            None
-        }
-    };
+            let src_pages_root = turbo_tasks::read!(project_root.join("src/pages")?.realpath())?;
+            if *turbo_tasks::read!(src_pages_root.get_type())? == FileSystemEntryType::Directory {
+                Some(src_pages_root)
+            } else {
+                // If neither pages nor src/pages exists, we still want to generate
+                // the pages structure, but with no pages and default values for
+                // _app, _document and _error.
+                None
+            }
+        };
 
     Ok(get_pages_structure_for_root_directory(
         project_root,
@@ -139,20 +140,20 @@ async fn get_pages_structure_for_root_directory(
     page_extensions: Vc<Vec<RcStr>>,
     next_mode: Vc<crate::mode::NextMode>,
 ) -> Result<Vc<PagesStructure>> {
-    let page_extensions_raw = &*page_extensions.await?;
+    let page_extensions_raw = &*turbo_tasks::read!(page_extensions)?;
 
     let mut api_directory = None;
     let mut error_500_item = None;
 
-    let project_path = project_path.await?;
+    let project_path = turbo_tasks::read!(project_path)?;
     let pages_directory = if let Some(project_path) = &*project_path {
         let mut children = vec![];
         let mut items = vec![];
 
-        let dir_content = project_path.read_dir().await?;
+        let dir_content = turbo_tasks::read!(project_path.read_dir())?;
         if let DirectoryContent::Entries(entries) = &*dir_content {
             for (name, entry) in entries.iter() {
-                let entry = entry.clone().resolve_symlink().await?;
+                let entry = turbo_tasks::read!(entry.clone().resolve_symlink())?;
                 match entry {
                     DirectoryEntry::File(_) => {
                         // Do not process .d.ts files as routes
@@ -205,15 +206,14 @@ async fn get_pages_structure_for_root_directory(
                     }
                     DirectoryEntry::Directory(dir_project_path) => match name.as_str() {
                         "api" => {
-                            api_directory = Some(
+                            api_directory = Some(turbo_tasks::read!(
                                 get_pages_structure_for_directory(
                                     dir_project_path.clone(),
                                     next_router_path.join(name)?,
                                     page_extensions,
                                 )
                                 .to_resolved()
-                                .await?,
-                            );
+                            )?);
                         }
                         _ => {
                             children.push((
@@ -239,16 +239,36 @@ async fn get_pages_structure_for_root_directory(
             PagesDirectoryStructure {
                 project_path: project_path.clone(),
                 next_router_path: next_router_path.clone(),
-                items: items
-                    .into_iter()
-                    .map(|(_, v)| async move { v.to_resolved().await })
-                    .try_join()
-                    .await?,
-                children: children
-                    .into_iter()
-                    .map(|(_, v)| async move { v.to_resolved().await })
-                    .try_join()
-                    .await?,
+                #[cfg(not(feature = "sync"))]
+                items: turbo_tasks::read!(
+                    items
+                        .into_iter()
+                        .map(|(_, v)| async move { turbo_tasks::read!(v.to_resolved()) })
+                        .try_join()
+                )?,
+                #[cfg(feature = "sync")]
+                items: {
+                    let mut items_out = Vec::new();
+                    for (_, v) in items.into_iter() {
+                        items_out.push({ turbo_tasks::read!(v.to_resolved()) }?);
+                    }
+                    items_out
+                },
+                #[cfg(not(feature = "sync"))]
+                children: turbo_tasks::read!(
+                    children
+                        .into_iter()
+                        .map(|(_, v)| async move { turbo_tasks::read!(v.to_resolved()) })
+                        .try_join()
+                )?,
+                #[cfg(feature = "sync")]
+                children: {
+                    let mut children_out = Vec::new();
+                    for (_, v) in children.into_iter() {
+                        children_out.push({ turbo_tasks::read!(v.to_resolved()) }?);
+                    }
+                    children_out
+                },
             }
             .resolved_cell(),
         )
@@ -268,8 +288,9 @@ async fn get_pages_structure_for_root_directory(
     let has_user_pages = pages_directory.is_some() || api_directory.is_some();
 
     // Only skip user pages routes during build mode when there are no user pages
-    let should_create_pages_entries = has_user_pages || next_mode.await?.is_development();
-    let next_package = get_next_package(project_root.clone()).await?;
+    let should_create_pages_entries =
+        has_user_pages || turbo_tasks::read!(next_mode)?.is_development();
+    let next_package = turbo_tasks::read!(get_next_package(project_root.clone()))?;
 
     let app_item = {
         let app_router_path = next_router_path.join("_app")?;
@@ -305,10 +326,10 @@ async fn get_pages_structure_for_root_directory(
     };
 
     Ok(PagesStructure {
-        app: app_item.to_resolved().await?,
-        document: document_item.to_resolved().await?,
-        error: error_item.to_resolved().await?,
-        error_500: error_500_item.to_resolved().await?,
+        app: turbo_tasks::read!(app_item.to_resolved())?,
+        document: turbo_tasks::read!(document_item.to_resolved())?,
+        error: turbo_tasks::read!(error_item.to_resolved())?,
+        error_500: turbo_tasks::read!(error_500_item.to_resolved())?,
         api: api_directory,
         pages: pages_directory,
         has_user_pages,
@@ -327,14 +348,94 @@ async fn get_pages_structure_for_directory(
 ) -> Result<Vc<PagesDirectoryStructure>> {
     let span = tracing::info_span!(
         "analyze pages structure",
-        name = display(project_path.to_string_ref().await?)
+        name = display(turbo_tasks::read!(project_path.to_string_ref())?)
     );
-    async move {
-        let page_extensions_raw = &*page_extensions.await?;
+    #[cfg(not(feature = "sync"))]
+    {
+        turbo_tasks::read!(
+            async move {
+                let page_extensions_raw = &*turbo_tasks::read!(page_extensions)?;
+
+                let mut children = vec![];
+                let mut items = vec![];
+                let dir_content = turbo_tasks::read!(project_path.read_dir())?;
+                if let DirectoryContent::Entries(entries) = &*dir_content {
+                    for (name, entry) in entries.iter() {
+                        match entry {
+                            DirectoryEntry::File(_) => {
+                                let Some(basename) = page_basename(name, page_extensions_raw)
+                                else {
+                                    continue;
+                                };
+                                let item_next_router_path = match basename {
+                                    "index" => next_router_path.clone(),
+                                    _ => next_router_path.join(basename)?,
+                                };
+                                let base_path = project_path.join(name)?;
+                                let item_original_name = next_router_path.join(basename)?;
+                                items.push((
+                                    basename,
+                                    PagesStructureItem::new(
+                                        base_path,
+                                        page_extensions,
+                                        None,
+                                        item_next_router_path,
+                                        item_original_name,
+                                    ),
+                                ));
+                            }
+                            DirectoryEntry::Directory(dir_project_path) => {
+                                children.push((
+                                    name,
+                                    get_pages_structure_for_directory(
+                                        dir_project_path.clone(),
+                                        next_router_path.join(name)?,
+                                        page_extensions,
+                                    ),
+                                ));
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+
+                // Ensure deterministic order since read_dir is not deterministic
+                items.sort_by_key(|(k, _)| *k);
+
+                // Ensure deterministic order since read_dir is not deterministic
+                children.sort_by_key(|(k, _)| *k);
+
+                Ok(PagesDirectoryStructure {
+                    project_path: project_path.clone(),
+                    next_router_path: next_router_path.clone(),
+                    items: turbo_tasks::read!(
+                        items
+                            .into_iter()
+                            .map(|(_, v)| v)
+                            .map(|v| async move { turbo_tasks::read!(v.to_resolved()) })
+                            .try_join()
+                    )?,
+                    children: turbo_tasks::read!(
+                        children
+                            .into_iter()
+                            .map(|(_, v)| v)
+                            .map(|v| async move { turbo_tasks::read!(v.to_resolved()) })
+                            .try_join()
+                    )?,
+                }
+                .cell())
+            }
+            .instrument(span)
+        )
+    }
+    #[cfg(feature = "sync")]
+    {
+        let _g = span.entered();
+        let page_extensions_raw = &*turbo_tasks::read!(page_extensions)?;
 
         let mut children = vec![];
         let mut items = vec![];
-        let dir_content = project_path.read_dir().await?;
+        let dir_content = turbo_tasks::read!(project_path.read_dir())?;
         if let DirectoryContent::Entries(entries) = &*dir_content {
             for (name, entry) in entries.iter() {
                 match entry {
@@ -383,23 +484,23 @@ async fn get_pages_structure_for_directory(
         Ok(PagesDirectoryStructure {
             project_path: project_path.clone(),
             next_router_path: next_router_path.clone(),
-            items: items
-                .into_iter()
-                .map(|(_, v)| v)
-                .map(|v| async move { v.to_resolved().await })
-                .try_join()
-                .await?,
-            children: children
-                .into_iter()
-                .map(|(_, v)| v)
-                .map(|v| async move { v.to_resolved().await })
-                .try_join()
-                .await?,
+            items: {
+                let mut items_out = Vec::new();
+                for v in items.into_iter().map(|(_, v)| v) {
+                    items_out.push({ turbo_tasks::read!(v.to_resolved()) }?);
+                }
+                items_out
+            },
+            children: {
+                let mut children_out = Vec::new();
+                for v in children.into_iter().map(|(_, v)| v) {
+                    children_out.push({ turbo_tasks::read!(v.to_resolved()) }?);
+                }
+                children_out
+            },
         }
         .cell())
     }
-    .instrument(span)
-    .await
 }
 
 fn page_basename<'a>(name: &'a str, page_extensions: &'a [RcStr]) -> Option<&'a str> {

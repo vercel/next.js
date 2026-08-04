@@ -44,7 +44,7 @@ impl PersistedCode {
     #[turbo_tasks::function]
     pub async fn to_code(self: Vc<Self>) -> Result<Vc<Code>> {
         // PersistedCode is transparent over Code; owned() yields Code directly.
-        Ok(self.owned().await?.cell())
+        Ok(turbo_tasks::read!(self.owned())?.cell())
     }
 }
 
@@ -74,15 +74,16 @@ impl Code {
     }
 
     // Formats the code with the source map and debug id comments as
-    pub async fn to_rope_with_magic_comments(
+    turbo_tasks::dual_fn! {
+    pub fn to_rope_with_magic_comments(
         self: Vc<Self>,
         source_map_path_fn: impl FnOnce() -> Vc<SourceMapAsset>,
     ) -> Result<Rope> {
-        let code = self.await?;
+        let code = turbo_tasks::read!(self)?;
         Ok(
             if code.has_source_map() || code.should_generate_debug_id() {
                 let mut rope_builder = RopeBuilder::default();
-                let debug_id = self.debug_id().await?;
+                let debug_id = turbo_tasks::read!(self.debug_id())?;
                 // hand minified version of
                 // ```javascript
                 //  !() => {
@@ -114,7 +115,7 @@ impl Code {
                 }
 
                 if code.has_source_map() {
-                    let source_map_path = source_map_path_fn().path().await?;
+                    let source_map_path = turbo_tasks::read!(source_map_path_fn().path())?;
                     write!(
                         rope_builder,
                         "\n//# sourceMappingURL={}",
@@ -126,6 +127,7 @@ impl Code {
                 code.code.clone()
             },
         )
+    }
     }
 }
 
@@ -280,8 +282,11 @@ impl GenerateSourceMap for Code {
     /// chunk items into a single map file.
     #[turbo_tasks::function]
     pub async fn generate_source_map(self: ResolvedVc<Self>) -> Result<Vc<FileContent>> {
-        let debug_id = self.debug_id().owned().await?;
-        Ok(FileContent::Content(File::from(self.await?.generate_source_map_ref(debug_id))).cell())
+        let debug_id = turbo_tasks::read!(self.debug_id().owned())?;
+        Ok(FileContent::Content(File::from(
+            turbo_tasks::read!(self)?.generate_source_map_ref(debug_id),
+        ))
+        .cell())
     }
 }
 

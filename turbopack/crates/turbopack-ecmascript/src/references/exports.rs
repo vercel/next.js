@@ -3,19 +3,25 @@ use swc_core::{
     common::source_map::SmallPos,
     ecma::ast::{Expr, Ident, ImportDecl, MemberProp, Program, Stmt},
 };
+#[cfg(not(feature = "sync"))]
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{ReadRef, ResolvedVc, Vc};
 use turbopack_core::{
     issue::{IssueExt, IssueSource},
     reference::ModuleReference,
+    reference_type::InnerAssets,
     resolve::ModulePart,
+    source::Source,
 };
 
 use crate::{
-    EcmascriptModuleAsset, EcmascriptParsable, ModuleTypeResult, SpecifiedModuleType,
-    TreeShakingMode,
-    analyzer::imports::{ImportAnnotations, ImportedSymbol},
+    EcmascriptModuleAsset, EcmascriptOptions, EcmascriptParsable, ModuleTypeResult,
+    SpecifiedModuleType, TreeShakingMode,
+    analyzer::{
+        graph::EvalContext,
+        imports::{ImportAnnotations, ImportedSymbol},
+    },
     chunk::EcmascriptExports,
     parse::ParseResult,
     references::{
@@ -40,9 +46,9 @@ pub async fn compute_ecmascript_module_exports(
     module: ResolvedVc<EcmascriptModuleAsset>,
     part: Option<ModulePart>,
 ) -> Result<Vc<EcmascriptExportsAnalysis>> {
-    let raw_module = module.await?;
+    let raw_module = turbo_tasks::read!(module)?;
     let source = raw_module.source;
-    let options = raw_module.options.await?;
+    let options = turbo_tasks::read!(raw_module.options)?;
     let import_externals = options.import_externals;
 
     let parsed = if let Some(part) = part {
@@ -52,7 +58,7 @@ pub async fn compute_ecmascript_module_exports(
         module.failsafe_parse()
     };
 
-    let parsed = parsed.await?;
+    let parsed = turbo_tasks::read!(parsed)?;
     let ParseResult::Ok {
         program,
         eval_context,
@@ -71,10 +77,10 @@ pub async fn compute_ecmascript_module_exports(
     let ModuleTypeResult {
         module_type: specified_type,
         ..
-    } = *module.determine_module_type().await?;
+    } = *turbo_tasks::read!(module.determine_module_type())?;
 
     let inner_assets = if let Some(assets) = raw_module.inner_assets {
-        Some(assets.await?)
+        Some(turbo_tasks::read!(assets)?)
     } else {
         None
     };
@@ -83,165 +89,56 @@ pub async fn compute_ecmascript_module_exports(
     let mut esm_evaluation_reference_idxs: Vec<usize> = vec![];
 
     let span = tracing::trace_span!("esm import references");
-    let import_references = async {
-        let mut import_references = Vec::with_capacity(eval_context.imports.references().len());
-        for (i, r) in eval_context.imports.references().enumerate() {
-            let mut should_add_evaluation = false;
-
-            let resolve_override = if let Some(inner_assets) = &inner_assets
-                && let Some(req) = r.module_path.as_str()
-                && let Some(a) = inner_assets.get(req)
-            {
-                Some(*a)
-            } else {
-                None
-            };
-
-            let reference = EsmAssetReference::new(
-                module,
-                ResolvedVc::upcast(module),
-                RcStr::from(&*r.module_path.to_string_lossy()),
-                IssueSource::from_swc_offsets(source, r.span.lo.to_u32(), r.span.hi.to_u32()),
-                r.annotations.as_ref().map(|a| (**a).clone()),
-                match &r.imported_symbol {
-                    &ImportedSymbol::ModuleEvaluation => {
-                        should_add_evaluation = true;
-                        Some(ModulePart::evaluation())
-                    }
-                    ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
-                    ImportedSymbol::PartEvaluation(part_id) | ImportedSymbol::Part(part_id) => {
-                        if !matches!(
-                            options.tree_shaking_mode,
-                            Some(TreeShakingMode::ModuleFragments)
-                        ) {
-                            bail!(
-                                "Internal imports only exist in reexports only mode when \
-                                 importing {:?} from {}",
-                                r.imported_symbol,
-                                r.module_path.to_string_lossy()
-                            );
-                        }
-                        if matches!(&r.imported_symbol, ImportedSymbol::PartEvaluation(_)) {
-                            should_add_evaluation = true;
-                        }
-                        Some(ModulePart::internal(*part_id))
-                    }
-                    ImportedSymbol::Exports => matches!(
-                        options.tree_shaking_mode,
-                        Some(TreeShakingMode::ModuleFragments)
-                    )
-                    .then(ModulePart::exports),
-                },
-                eval_context
-                    .imports
-                    .import_usage
-                    .get(&i)
-                    .cloned()
-                    .unwrap_or_default(),
-                import_externals,
-                options.tree_shaking_mode,
-                resolve_override,
-            )
-            .await?
-            .resolved_cell();
-
-            import_references.push(reference);
-            if should_add_evaluation {
-                esm_evaluation_reference_idxs.push(i);
-            }
-        }
-        anyhow::Ok(import_references)
-    }
+    #[cfg(not(feature = "sync"))]
+    let import_references = compute_import_references(
+        module,
+        source,
+        &options,
+        inner_assets.as_ref(),
+        eval_context,
+        import_externals,
+        &mut esm_evaluation_reference_idxs,
+    )
     .instrument(span)
     .await?;
+    #[cfg(feature = "sync")]
+    let import_references = {
+        let _enter = span.entered();
+        compute_import_references(
+            module,
+            source,
+            &options,
+            inner_assets.as_ref(),
+            eval_context,
+            import_externals,
+            &mut esm_evaluation_reference_idxs,
+        )?
+    };
 
     let span = tracing::trace_span!("exports");
-    let exports = async {
-        let esm_star_exports: Vec<ResolvedVc<Box<dyn ModuleReference>>> = eval_context
-            .imports
-            .reexport_namespaces()
-            .map(|i| ResolvedVc::upcast(import_references[i]))
-            .collect();
-        let esm_exports = eval_context
-            .imports
-            .as_esm_exports(&import_references, eval_context)?;
-
-        for idx in eval_context.imports.reexports_reference_idxs() {
-            esm_reexport_reference_idxs.push(idx);
-        }
-
-        anyhow::Ok(
-            if !esm_exports.is_empty() || !esm_star_exports.is_empty() {
-                if specified_type == SpecifiedModuleType::CommonJs {
-                    SpecifiedModuleTypeIssue {
-                        // TODO(PACK-4879): this should point at one of the exports
-                        source: IssueSource::from_source_only(source),
-                        specified_type,
-                    }
-                    .resolved_cell()
-                    .emit();
-                }
-
-                let esm_exports = EsmExports {
-                    exports: esm_exports,
-                    star_exports: esm_star_exports,
-                }
-                .cell();
-
-                EcmascriptExports::EsmExports(esm_exports.to_resolved().await?)
-            } else if specified_type == SpecifiedModuleType::EcmaScript {
-                match detect_dynamic_export(program) {
-                    DetectedDynamicExportType::CommonJs => {
-                        SpecifiedModuleTypeIssue {
-                            // TODO(PACK-4879): this should point at the source location of the
-                            // commonjs export
-                            source: IssueSource::from_source_only(source),
-                            specified_type,
-                        }
-                        .resolved_cell()
-                        .emit();
-
-                        EcmascriptExports::EsmExports(
-                            EsmExports {
-                                exports: Default::default(),
-                                star_exports: Default::default(),
-                            }
-                            .resolved_cell(),
-                        )
-                    }
-                    DetectedDynamicExportType::Namespace => EcmascriptExports::DynamicNamespace,
-                    DetectedDynamicExportType::Value => EcmascriptExports::Value,
-                    DetectedDynamicExportType::UsingModuleDeclarations
-                    | DetectedDynamicExportType::None => EcmascriptExports::EsmExports(
-                        EsmExports {
-                            exports: Default::default(),
-                            star_exports: Default::default(),
-                        }
-                        .resolved_cell(),
-                    ),
-                }
-            } else {
-                match detect_dynamic_export(program) {
-                    DetectedDynamicExportType::CommonJs => EcmascriptExports::CommonJs,
-                    DetectedDynamicExportType::Namespace => EcmascriptExports::DynamicNamespace,
-                    DetectedDynamicExportType::Value => EcmascriptExports::Value,
-                    DetectedDynamicExportType::UsingModuleDeclarations => {
-                        EcmascriptExports::EsmExports(
-                            EsmExports {
-                                exports: Default::default(),
-                                star_exports: Default::default(),
-                            }
-                            .resolved_cell(),
-                        )
-                    }
-                    DetectedDynamicExportType::None => EcmascriptExports::EmptyCommonJs,
-                }
-            }
-            .resolved_cell(),
-        )
-    }
+    #[cfg(not(feature = "sync"))]
+    let exports = compute_exports_value(
+        eval_context,
+        &import_references,
+        &mut esm_reexport_reference_idxs,
+        specified_type,
+        source,
+        program,
+    )
     .instrument(span)
     .await?;
+    #[cfg(feature = "sync")]
+    let exports = {
+        let _enter = span.entered();
+        compute_exports_value(
+            eval_context,
+            &import_references,
+            &mut esm_reexport_reference_idxs,
+            specified_type,
+            source,
+            program,
+        )?
+    };
 
     Ok(EcmascriptExportsAnalysis {
         exports,
@@ -250,6 +147,185 @@ pub async fn compute_ecmascript_module_exports(
         esm_evaluation_reference_idxs: esm_evaluation_reference_idxs.into_boxed_slice(),
     }
     .cell())
+}
+
+turbo_tasks::dual_fn! {
+/// The uninstrumented "esm import references" section of
+/// [`compute_ecmascript_module_exports`] (split out so both modes can wrap it in the
+/// tracing span).
+fn compute_import_references(
+    module: ResolvedVc<EcmascriptModuleAsset>,
+    source: ResolvedVc<Box<dyn Source>>,
+    options: &EcmascriptOptions,
+    inner_assets: Option<&ReadRef<InnerAssets>>,
+    eval_context: &EvalContext,
+    import_externals: bool,
+    esm_evaluation_reference_idxs: &mut Vec<usize>,
+) -> Result<Vec<ResolvedVc<EsmAssetReference>>> {
+    let mut import_references = Vec::with_capacity(eval_context.imports.references().len());
+    for (i, r) in eval_context.imports.references().enumerate() {
+        let mut should_add_evaluation = false;
+
+        let resolve_override = if let Some(inner_assets) = inner_assets
+            && let Some(req) = r.module_path.as_str()
+            && let Some(a) = inner_assets.get(req)
+        {
+            Some(*a)
+        } else {
+            None
+        };
+
+        let reference = turbo_tasks::read!(EsmAssetReference::new(
+            module,
+            ResolvedVc::upcast(module),
+            RcStr::from(&*r.module_path.to_string_lossy()),
+            IssueSource::from_swc_offsets(source, r.span.lo.to_u32(), r.span.hi.to_u32()),
+            r.annotations.as_ref().map(|a| (**a).clone()),
+            match &r.imported_symbol {
+                &ImportedSymbol::ModuleEvaluation => {
+                    should_add_evaluation = true;
+                    Some(ModulePart::evaluation())
+                }
+                ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
+                ImportedSymbol::PartEvaluation(part_id) | ImportedSymbol::Part(part_id) => {
+                    if !matches!(
+                        options.tree_shaking_mode,
+                        Some(TreeShakingMode::ModuleFragments)
+                    ) {
+                        bail!(
+                            "Internal imports only exist in reexports only mode when \
+                             importing {:?} from {}",
+                            r.imported_symbol,
+                            r.module_path.to_string_lossy()
+                        );
+                    }
+                    if matches!(&r.imported_symbol, ImportedSymbol::PartEvaluation(_)) {
+                        should_add_evaluation = true;
+                    }
+                    Some(ModulePart::internal(*part_id))
+                }
+                ImportedSymbol::Exports => matches!(
+                    options.tree_shaking_mode,
+                    Some(TreeShakingMode::ModuleFragments)
+                )
+                .then(ModulePart::exports),
+            },
+            eval_context
+                .imports
+                .import_usage
+                .get(&i)
+                .cloned()
+                .unwrap_or_default(),
+            import_externals,
+            options.tree_shaking_mode,
+            resolve_override,
+        ))
+        ?
+        .resolved_cell();
+
+        import_references.push(reference);
+        if should_add_evaluation {
+            esm_evaluation_reference_idxs.push(i);
+        }
+    }
+    Ok(import_references)
+}
+}
+
+turbo_tasks::dual_fn! {
+/// The uninstrumented "exports" section of [`compute_ecmascript_module_exports`]
+/// (split out so both modes can wrap it in the tracing span).
+fn compute_exports_value(
+    eval_context: &EvalContext,
+    import_references: &[ResolvedVc<EsmAssetReference>],
+    esm_reexport_reference_idxs: &mut Vec<usize>,
+    specified_type: SpecifiedModuleType,
+    source: ResolvedVc<Box<dyn Source>>,
+    program: &Program,
+) -> Result<ResolvedVc<EcmascriptExports>> {
+    let esm_star_exports: Vec<ResolvedVc<Box<dyn ModuleReference>>> = eval_context
+        .imports
+        .reexport_namespaces()
+        .map(|i| ResolvedVc::upcast(import_references[i]))
+        .collect();
+    let esm_exports = eval_context
+        .imports
+        .as_esm_exports(import_references, eval_context)?;
+
+    for idx in eval_context.imports.reexports_reference_idxs() {
+        esm_reexport_reference_idxs.push(idx);
+    }
+
+    Ok(
+        if !esm_exports.is_empty() || !esm_star_exports.is_empty() {
+            if specified_type == SpecifiedModuleType::CommonJs {
+                SpecifiedModuleTypeIssue {
+                    // TODO(PACK-4879): this should point at one of the exports
+                    source: IssueSource::from_source_only(source),
+                    specified_type,
+                }
+                .resolved_cell()
+                .emit();
+            }
+
+            let esm_exports = EsmExports {
+                exports: esm_exports,
+                star_exports: esm_star_exports,
+            }
+            .cell();
+
+            EcmascriptExports::EsmExports(turbo_tasks::read!(esm_exports.to_resolved())?)
+        } else if specified_type == SpecifiedModuleType::EcmaScript {
+            match detect_dynamic_export(program) {
+                DetectedDynamicExportType::CommonJs => {
+                    SpecifiedModuleTypeIssue {
+                        // TODO(PACK-4879): this should point at the source location of the
+                        // commonjs export
+                        source: IssueSource::from_source_only(source),
+                        specified_type,
+                    }
+                    .resolved_cell()
+                    .emit();
+
+                    EcmascriptExports::EsmExports(
+                        EsmExports {
+                            exports: Default::default(),
+                            star_exports: Default::default(),
+                        }
+                        .resolved_cell(),
+                    )
+                }
+                DetectedDynamicExportType::Namespace => EcmascriptExports::DynamicNamespace,
+                DetectedDynamicExportType::Value => EcmascriptExports::Value,
+                DetectedDynamicExportType::UsingModuleDeclarations
+                | DetectedDynamicExportType::None => EcmascriptExports::EsmExports(
+                    EsmExports {
+                        exports: Default::default(),
+                        star_exports: Default::default(),
+                    }
+                    .resolved_cell(),
+                ),
+            }
+        } else {
+            match detect_dynamic_export(program) {
+                DetectedDynamicExportType::CommonJs => EcmascriptExports::CommonJs,
+                DetectedDynamicExportType::Namespace => EcmascriptExports::DynamicNamespace,
+                DetectedDynamicExportType::Value => EcmascriptExports::Value,
+                DetectedDynamicExportType::UsingModuleDeclarations => {
+                    EcmascriptExports::EsmExports(
+                        EsmExports {
+                            exports: Default::default(),
+                            star_exports: Default::default(),
+                        }
+                        .resolved_cell(),
+                    )
+                }
+                DetectedDynamicExportType::None => EcmascriptExports::EmptyCommonJs,
+            }
+        }
+        .resolved_cell(),
+    )
+}
 }
 
 #[derive(Debug)]

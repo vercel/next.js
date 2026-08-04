@@ -11,7 +11,9 @@ use std::fmt::Write;
 
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::TryJoinIterExt;
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbopack_core::{
     chunk::{Chunk, ChunkItem, ChunkItems, ChunkingContext, ModuleIds},
@@ -75,20 +77,37 @@ impl EcmascriptChunk {
 impl OutputAssetsReference for EcmascriptChunk {
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
-        let content = self.content.await?;
+        let content = turbo_tasks::read!(self.content)?;
+        // The sync `parallel!` only fans out plain `Vc` reads, so the multi-step
+        // per-item reads run concurrently in the async build (as before) and
+        // sequentially under `sync`.
+        #[cfg(not(feature = "sync"))]
         let references = content
             .chunk_items
             .iter()
             .map(async |with_info| {
-                let r = with_info.references().await?;
+                let r = turbo_tasks::read!(with_info.references())?;
                 Ok((
-                    r.assets.await?,
-                    r.referenced_assets.await?,
-                    r.references.await?,
+                    turbo_tasks::read!(r.assets)?,
+                    turbo_tasks::read!(r.referenced_assets)?,
+                    turbo_tasks::read!(r.references)?,
                 ))
             })
             .try_join()
             .await?;
+        #[cfg(feature = "sync")]
+        let references = {
+            let mut references = Vec::with_capacity(content.chunk_items.len());
+            for with_info in content.chunk_items.iter() {
+                let r = turbo_tasks::read!(with_info.references())?;
+                references.push((
+                    turbo_tasks::read!(r.assets)?,
+                    turbo_tasks::read!(r.referenced_assets)?,
+                    turbo_tasks::read!(r.references)?,
+                ));
+            }
+            references
+        };
         Ok(OutputAssetsWithReferenced {
             assets: ResolvedVc::cell(
                 references
@@ -117,9 +136,9 @@ impl OutputAssetsReference for EcmascriptChunk {
 impl Chunk for EcmascriptChunk {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let chunk_items = &*self.content.included_chunk_items().await?;
+        let chunk_items = &*turbo_tasks::read!(self.content.included_chunk_items())?;
         let mut common_path = if let Some(chunk_item) = chunk_items.first() {
-            let path = chunk_item.asset_ident().await?.path.clone();
+            let path = turbo_tasks::read!(chunk_item.asset_ident())?.path.clone();
             Some(path)
         } else {
             None
@@ -128,7 +147,7 @@ impl Chunk for EcmascriptChunk {
         // The included chunk items describe the chunk uniquely
         for &chunk_item in chunk_items.iter() {
             if let Some(common_path_ref) = common_path.as_mut() {
-                let path = &chunk_item.asset_ident().await?.path;
+                let path = &turbo_tasks::read!(chunk_item.asset_ident())?.path;
                 while !path.is_inside_or_equal_ref(common_path_ref) {
                     let parent = common_path_ref.parent();
                     if parent == *common_path_ref {
@@ -140,21 +159,36 @@ impl Chunk for EcmascriptChunk {
             }
         }
 
+        // `.to_resolved()` futures cannot fan out through the sync `parallel!`; keep
+        // the concurrent `try_join` in the async build and resolve sequentially under
+        // `sync`.
+        #[cfg(not(feature = "sync"))]
         let assets = chunk_items
             .iter()
             .map(|&chunk_item| async move {
                 Ok((
                     rcstr!("chunk item"),
-                    chunk_item.content_ident().to_resolved().await?,
+                    turbo_tasks::read!(chunk_item.content_ident().to_resolved())?,
                 ))
             })
             .try_join()
             .await?;
+        #[cfg(feature = "sync")]
+        let assets = {
+            let mut assets = Vec::with_capacity(chunk_items.len());
+            for &chunk_item in chunk_items.iter() {
+                assets.push((
+                    rcstr!("chunk item"),
+                    turbo_tasks::read!(chunk_item.content_ident().to_resolved())?,
+                ));
+            }
+            assets
+        };
 
         let path = if let Some(common_path) = common_path {
             common_path
         } else {
-            ServerFileSystem::new().root().owned().await?
+            turbo_tasks::read!(ServerFileSystem::new().root().owned())?
         };
         let mut ident = AssetIdent::from_path(path);
         ident.assets.extend(assets);
@@ -197,23 +231,26 @@ impl Introspectable for EcmascriptChunk {
     async fn details(&self) -> Result<Vc<RcStr>> {
         let mut details = String::new();
         details += "Chunk items:\n\n";
-        for chunk_item in self.content.included_chunk_items().await? {
-            writeln!(details, "- {}", chunk_item.asset_ident().to_string().await?)?;
+        for chunk_item in turbo_tasks::read!(self.content.included_chunk_items())? {
+            writeln!(
+                details,
+                "- {}",
+                turbo_tasks::read!(chunk_item.asset_ident().to_string())?
+            )?;
         }
         Ok(Vc::cell(details.into()))
     }
 
     #[turbo_tasks::function]
     async fn children(self: Vc<Self>) -> Result<Vc<IntrospectableChildren>> {
-        let mut children = children_from_output_assets(self.references())
-            .owned()
-            .await?;
-        for chunk_item in self.await?.content.included_chunk_items().await? {
+        let mut children =
+            turbo_tasks::read!(children_from_output_assets(self.references()).owned())?;
+        for chunk_item in
+            turbo_tasks::read!(turbo_tasks::read!(self)?.content.included_chunk_items())?
+        {
             children.insert((
                 rcstr!("module"),
-                IntrospectableModule::new(chunk_item.module())
-                    .to_resolved()
-                    .await?,
+                turbo_tasks::read!(IntrospectableModule::new(chunk_item.module()).to_resolved())?,
             ));
         }
         Ok(Vc::cell(children))

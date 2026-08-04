@@ -1,7 +1,7 @@
 use anyhow::{Result, bail};
 use indoc::formatdoc;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbopack_core::{
     chunk::{
@@ -62,14 +62,10 @@ impl WorkerLoaderModule {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         module_graph: Vc<ModuleGraph>,
     ) -> Result<Vc<OutputAssetsWithReferenced>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         Ok(match this.worker_type {
             WorkerType::WebWorker | WorkerType::SharedWebWorker => {
-                let ident = this
-                    .inner
-                    .ident()
-                    .owned()
-                    .await?
+                let ident = turbo_tasks::read!(this.inner.ident().owned())?
                     .with_modifier(this.worker_type.chunk_modifier_str())
                     .into_vc();
                 chunking_context.evaluated_chunk_group_assets(
@@ -89,25 +85,24 @@ impl WorkerLoaderModule {
                     bail!("Worker module must be evaluatable");
                 };
 
-                let worker_path = chunking_context
-                    .chunk_path(
-                        None,
-                        this.inner.ident(),
-                        Some(rcstr!("[worker thread]")),
-                        rcstr!(".js"),
-                    )
-                    .owned()
-                    .await?;
+                let worker_path = turbo_tasks::read!(
+                    chunking_context
+                        .chunk_path(
+                            None,
+                            this.inner.ident(),
+                            Some(rcstr!("[worker thread]")),
+                            rcstr!(".js"),
+                        )
+                        .owned()
+                )?;
 
-                let entry_result = chunking_context
-                    .root_entry_chunk_group(
-                        worker_path,
-                        ChunkGroup::Isolated(ResolvedVc::upcast(evaluatable)),
-                        module_graph,
-                        OutputAssets::empty(),
-                        OutputAssets::empty(),
-                    )
-                    .await?;
+                let entry_result = turbo_tasks::read!(chunking_context.root_entry_chunk_group(
+                    worker_path,
+                    ChunkGroup::Isolated(ResolvedVc::upcast(evaluatable)),
+                    module_graph,
+                    OutputAssets::empty(),
+                    OutputAssets::empty(),
+                ))?;
 
                 OutputAssetsWithReferenced {
                     assets: ResolvedVc::cell(vec![entry_result.asset]),
@@ -126,11 +121,8 @@ impl WorkerLoaderModule {
         module_graph: Vc<ModuleGraph>,
     ) -> Result<Vc<ChunksData>> {
         Ok(ChunkData::from_assets(
-            chunking_context.output_root().owned().await?,
-            *self
-                .chunk_group(chunking_context, module_graph)
-                .await?
-                .assets,
+            turbo_tasks::read!(chunking_context.output_root().owned())?,
+            *turbo_tasks::read!(self.chunk_group(chunking_context, module_graph))?.assets,
         ))
     }
 
@@ -138,7 +130,7 @@ impl WorkerLoaderModule {
     /// load, we require this module and then use it.
     #[turbo_tasks::function]
     async fn create_worker_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         let helper = match this.worker_type {
             WorkerType::WebWorker | WorkerType::SharedWebWorker => {
                 rcstr!("worker/browser/createWorker.ts")
@@ -148,7 +140,9 @@ impl WorkerLoaderModule {
         Ok(this
             .asset_context
             .process(
-                Vc::upcast(FileSource::new(embed_fs().root().await?.join(&helper)?)),
+                Vc::upcast(FileSource::new(
+                    turbo_tasks::read!(embed_fs().root())?.join(&helper)?,
+                )),
                 ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Import),
             )
             .module())
@@ -161,7 +155,7 @@ impl WorkerLoaderModule {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         module_graph: Vc<ModuleGraph>,
     ) -> Result<Vc<OutputAssetsWithReferenced>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         Ok(match this.worker_type {
             WorkerType::WebWorker | WorkerType::SharedWebWorker => self
                 .chunk_group(chunking_context, module_graph)
@@ -178,11 +172,7 @@ impl WorkerLoaderModule {
 impl Module for WorkerLoaderModule {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self
-            .inner
-            .ident()
-            .owned()
-            .await?
+        Ok(turbo_tasks::read!(self.inner.ident().owned())?
             .with_modifier(self.worker_type.modifier_str())
             .into_vc())
     }
@@ -194,22 +184,20 @@ impl Module for WorkerLoaderModule {
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         Ok(Vc::cell(vec![
-            ResolvedVc::upcast(
+            ResolvedVc::upcast(turbo_tasks::read!(
                 WorkerModuleReference::new(*ResolvedVc::upcast(this.inner), this.worker_type)
                     .to_resolved()
-                    .await?,
-            ),
-            ResolvedVc::upcast(
+            )?),
+            ResolvedVc::upcast(turbo_tasks::read!(
                 SingleChunkableModuleReference::new(
                     self.create_worker_module(),
                     rcstr!("createWorker"),
                     ExportUsage::named(rcstr!("default")),
                 )
                 .to_resolved()
-                .await?,
-            ),
+            )?),
         ]))
     }
 
@@ -246,13 +234,14 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
         estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         let options = EcmascriptChunkItemOptions {
-            supports_arrow_functions: *chunking_context
-                .environment()
-                .runtime_versions()
-                .supports_arrow_functions()
-                .await?,
+            supports_arrow_functions: *turbo_tasks::read!(
+                chunking_context
+                    .environment()
+                    .runtime_versions()
+                    .supports_arrow_functions()
+            )?,
             ..Default::default()
         };
 
@@ -277,28 +266,28 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
             .cell());
         }
 
-        let create_worker_id = self
-            .create_worker_module()
-            .chunk_item_id(chunking_context)
-            .await?;
+        let create_worker_id =
+            turbo_tasks::read!(self.create_worker_module().chunk_item_id(chunking_context))?;
 
         let code = match this.worker_type {
             WorkerType::WebWorker | WorkerType::SharedWebWorker => {
                 // For web workers, generate code that exports a function to create the worker.
                 // The function takes (WorkerConstructor, workerOptions) and calls createWorker
                 // with the entrypoint and chunks baked in.
-                let entrypoint_full_path = chunking_context.worker_entrypoint().path().await?;
+                let entrypoint_full_path =
+                    turbo_tasks::read!(chunking_context.worker_entrypoint().path())?;
 
                 // Get the entrypoint path relative to output root
-                let output_root = chunking_context.output_root().owned().await?;
+                let output_root = turbo_tasks::read!(chunking_context.output_root().owned())?;
                 let entrypoint_path = output_root
                     .get_path_to(&entrypoint_full_path)
                     .map(|s| s.to_string())
                     .unwrap_or_else(|| entrypoint_full_path.path.to_string());
 
                 // Get the chunk data for the worker module
-                let chunks_data = self.chunks_data(chunking_context, module_graph).await?;
-                let chunks_data = chunks_data.iter().try_join().await?;
+                let chunks_data =
+                    turbo_tasks::read!(self.chunks_data(chunking_context, module_graph))?;
+                let chunks_data = turbo_tasks::parallel!(chunks_data.iter())?;
                 let chunks_data: Vec<_> = chunks_data
                     .iter()
                     .map(|chunk_data| EcmascriptChunkData::new(chunk_data))
@@ -317,8 +306,9 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
                 // For Node.js workers, export a function to create the worker.
                 // The function takes (WorkerConstructor, workerOptions) and calls createWorker
                 // with the worker path baked in.
-                let chunk_group = self.chunk_group(chunking_context, module_graph).await?;
-                let assets = chunk_group.assets.await?;
+                let chunk_group =
+                    turbo_tasks::read!(self.chunk_group(chunking_context, module_graph))?;
+                let assets = turbo_tasks::read!(chunk_group.assets)?;
 
                 // The last asset is the evaluate chunk (entry point) for the worker.
                 // The evaluated_chunk_group adds regular chunks first, then pushes the
@@ -329,7 +319,7 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
                 let Some(entry_asset) = assets.last() else {
                     bail!("cannot find worker entry point asset");
                 };
-                let entry_path = entry_asset.path().await?;
+                let entry_path = turbo_tasks::read!(entry_asset.path())?;
 
                 // Get the filename of the worker entry chunk
                 // We use just the filename because both the loader module and the worker

@@ -1,6 +1,8 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, TryJoinIterExt, Vc, turbobail};
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::TryJoinIterExt;
+use turbo_tasks::{FxIndexMap, Vc, turbobail};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
 use turbopack_core::{chunk::ModuleId, version::Version};
@@ -27,14 +29,26 @@ impl EcmascriptBrowserChunkVersion {
         } else {
             turbobail!("chunk path {chunk_path} is not in client root {output_root}");
         };
-        let entries_hashes = EcmascriptChunkContentEntries::new(content)
-            .await?
+        let entries = turbo_tasks::read!(EcmascriptChunkContentEntries::new(content))?;
+        // The sync `parallel!` only fans out plain `Vc` reads, so the multi-step
+        // per-item work runs concurrently in the async build (as before) and
+        // sequentially under `sync`.
+        #[cfg(not(feature = "sync"))]
+        let entries_hashes: FxIndexMap<ModuleId, u64> = entries
             .iter()
-            .map(async |(id, entry)| Ok((id.clone(), *entry.hash.await?)))
+            .map(async |(id, entry)| Ok((id.clone(), *turbo_tasks::read!(entry.hash)?)))
             .try_join()
             .await?
             .into_iter()
             .collect();
+        #[cfg(feature = "sync")]
+        let entries_hashes: FxIndexMap<ModuleId, u64> = {
+            let mut entries_hashes = FxIndexMap::default();
+            for (id, entry) in entries.iter() {
+                entries_hashes.insert(id.clone(), *turbo_tasks::read!(entry.hash)?);
+            }
+            entries_hashes
+        };
         Ok(EcmascriptBrowserChunkVersion {
             chunk_path: chunk_path.to_string(),
             entries_hashes,

@@ -42,8 +42,7 @@ use crate::{
     turbo_tasks,
 };
 
-pub type TransientTaskRoot =
-    Box<dyn Fn() -> Pin<Box<dyn Future<Output = Result<RawVc>> + Send>> + Send + Sync>;
+pub type TransientTaskRoot = Box<dyn Fn() -> crate::task::function::NativeTaskFuture + Send + Sync>;
 
 pub enum TransientTaskType {
     /// A root task that will track dependencies and re-execute when
@@ -62,7 +61,7 @@ pub enum TransientTaskType {
     /// applied.
     ///
     /// Active until done. Automatically scheduled.
-    Once(Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'static>>),
+    Once(crate::task::function::NativeTaskFuture),
 }
 
 impl Debug for TransientTaskType {
@@ -274,7 +273,12 @@ impl CachedTaskType {
 }
 
 pub struct TaskExecutionSpec<'a> {
+    /// The task body. Async mode boxes a future the executor polls; the no-async
+    /// sync engine boxes a closure `execute_task_inline` calls directly.
+    #[cfg(not(feature = "sync"))]
     pub future: Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'a>>,
+    #[cfg(feature = "sync")]
+    pub future: Box<dyn FnOnce() -> Result<RawVc> + Send + 'a>,
     pub span: Span,
 }
 
@@ -594,6 +598,14 @@ pub enum VerificationMode {
 }
 
 pub trait Backend: Sized + Sync + Send {
+    /// A human-readable description of a task (type + id), for diagnostics. Default returns
+    /// just the id; backends that track task types override it. Used by the sync engine's
+    /// deadlock dump to name the tasks each stalled worker owns / waits on.
+    #[allow(unused_variables)]
+    fn debug_description(&self, task: TaskId) -> String {
+        format!("{task:?}")
+    }
+
     #[allow(unused_variables)]
     fn startup(&self, turbo_tasks: &TurboTasks<Self>) {}
 

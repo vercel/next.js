@@ -55,12 +55,13 @@ impl ExternalCjsModulesResolvePlugin {
         predicate: ResolvedVc<ExternalPredicate>,
         import_externals: bool,
     ) -> Result<Vc<Self>> {
-        let condition = AfterResolvePluginCondition::new_with_glob(
-            root,
-            Glob::new(rcstr!("**/node_modules/**"), GlobOptions::default()),
-        )
-        .to_resolved()
-        .await?;
+        let condition = turbo_tasks::read!(
+            AfterResolvePluginCondition::new_with_glob(
+                root,
+                Glob::new(rcstr!("**/node_modules/**"), GlobOptions::default()),
+            )
+            .to_resolved()
+        )?;
         Ok(ExternalCjsModulesResolvePlugin {
             predicate,
             import_externals,
@@ -84,7 +85,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         reference_type: ReferenceType,
         request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
-        let request_value = &*request.await?;
+        let request_value = &*turbo_tasks::read!(request)?;
         let Request::Module {
             module: package,
             path: package_subpath,
@@ -106,22 +107,22 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
 
         let raw_fs_path = fs_path.clone();
 
-        let predicate = self.predicate.await?;
+        let predicate = turbo_tasks::read!(self.predicate)?;
         let must_be_external = match &*predicate {
             ExternalPredicate::AllExcept(exceptions) => {
-                if self.condition.await?.matches(&lookup_path) {
+                if turbo_tasks::read!(self.condition)?.matches(&lookup_path) {
                     return Ok(ResolveResultOption::none());
                 }
 
-                let exception_glob = packages_glob(**exceptions).await?;
+                let exception_glob = turbo_tasks::read!(packages_glob(**exceptions))?;
 
                 if let Some(PackagesGlobs {
                     path_glob,
                     request_glob,
                 }) = *exception_glob
                 {
-                    let path_match = path_glob.await?.matches(&raw_fs_path.path);
-                    let request_match = request_glob.await?.matches(&request_str);
+                    let path_match = turbo_tasks::read!(path_glob)?.matches(&raw_fs_path.path);
+                    let request_match = turbo_tasks::read!(request_glob)?.matches(&request_str);
                     if path_match || request_match {
                         return Ok(ResolveResultOption::none());
                     }
@@ -129,15 +130,15 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 false
             }
             ExternalPredicate::Only(externals) => {
-                let external_glob = packages_glob(**externals).await?;
+                let external_glob = turbo_tasks::read!(packages_glob(**externals))?;
 
                 if let Some(PackagesGlobs {
                     path_glob,
                     request_glob,
                 }) = *external_glob
                 {
-                    let path_match = path_glob.await?.matches(&raw_fs_path.path);
-                    let request_match = request_glob.await?.matches(&request_str);
+                    let path_match = turbo_tasks::read!(path_glob)?.matches(&raw_fs_path.path);
+                    let request_match = turbo_tasks::read!(request_glob)?.matches(&request_str);
 
                     if !path_match && !request_match {
                         return Ok(ResolveResultOption::none());
@@ -160,7 +161,8 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             InvalidPackageJson,
         }
 
-        async fn get_file_type(
+        turbo_tasks::dual_fn! {
+        fn get_file_type(
             fs_path: &FileSystemPath,
             raw_fs_path: &FileSystemPath,
         ) -> Result<FileType> {
@@ -173,12 +175,12 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     // for .js extension in cjs context, we need to check the actual module type via
                     // package.json
                     let FindContextFileResult::Found(package_json, _) =
-                        &*find_context_file(fs_path.parent(), package_json(), false).await?
+                        &*turbo_tasks::read!(find_context_file(fs_path.parent(), package_json(), false))?
                     else {
                         // can't find package.json
                         return Ok(FileType::CommonJs);
                     };
-                    let FileJsonContent::Content(package) = &*package_json.read_json().await?
+                    let FileJsonContent::Content(package) = &*turbo_tasks::read!(package_json.read_json())?
                     else {
                         // can't parse package.json
                         return Ok(FileType::InvalidPackageJson);
@@ -192,6 +194,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 }
                 _ => FileType::UnsupportedExtension,
             })
+        }
         }
 
         let unable_to_externalize = |reason: Vec<StyledString>| {
@@ -212,9 +215,9 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         let mut request_str = request_str.to_string();
 
         let node_resolve_options = if is_esm {
-            node_esm_resolve_options(lookup_path.root().owned().await?)
+            node_esm_resolve_options(turbo_tasks::read!(lookup_path.root().owned())?)
         } else {
-            node_cjs_resolve_options(lookup_path.root().owned().await?)
+            node_cjs_resolve_options(turbo_tasks::read!(lookup_path.root().owned())?)
         };
         let result_from_original_location = loop {
             let node_resolved_from_original_location = resolve(
@@ -224,7 +227,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 node_resolve_options,
             );
             let Some(result_from_original_location) =
-                node_resolved_from_original_location.await?.first_source()
+                turbo_tasks::read!(node_resolved_from_original_location)?.first_source()
             else {
                 if is_esm
                     && !package_subpath.is_empty()
@@ -235,7 +238,8 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     // have an extension in the request we try to append ".js"
                     // automatically
                     request_str.push_str(".js");
-                    request = *request.append_path(rcstr!(".js")).to_resolved().await?;
+                    request =
+                        *turbo_tasks::read!(request.append_path(rcstr!(".js")).to_resolved())?;
                     continue;
                 }
                 // this can't resolve with node.js from the original location, so bundle it
@@ -251,9 +255,9 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             break result_from_original_location;
         };
 
-        let ident = result_from_original_location.ident().await?;
+        let ident = turbo_tasks::read!(result_from_original_location.ident())?;
         let path = &ident.path;
-        let file_type = get_file_type(path, path).await?;
+        let file_type = turbo_tasks::read!(get_file_type(path, path))?;
 
         let external_type = match (file_type, is_esm) {
             (FileType::UnsupportedExtension, _) => {
@@ -275,20 +279,21 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 // but we need to verify if that would be correct (as in resolves to the same
                 // file).
                 let node_resolve_options =
-                    node_cjs_resolve_options(lookup_path.root().owned().await?);
+                    node_cjs_resolve_options(turbo_tasks::read!(lookup_path.root().owned())?);
                 let node_resolved = resolve(
                     lookup_path.clone(),
                     reference_type.clone(),
                     request,
                     node_resolve_options,
                 );
-                let resolves_equal = if let Some(result) = node_resolved.await?.first_source() {
-                    let ident = result.ident().await?;
-                    let cjs_path = &ident.path;
-                    cjs_path == path
-                } else {
-                    false
-                };
+                let resolves_equal =
+                    if let Some(result) = turbo_tasks::read!(node_resolved)?.first_source() {
+                        let ident = turbo_tasks::read!(result.ident())?;
+                        let cjs_path = &ident.path;
+                        cjs_path == path
+                    } else {
+                        false
+                    };
 
                 // When resolves_equal is set this is weird edge case. There are different
                 // results for CJS and ESM resolving, but ESM resolving points to a CJS file.
@@ -316,7 +321,9 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             }
         };
 
-        let target = result_from_original_location.ident().await?.path.clone();
+        let target = turbo_tasks::read!(result_from_original_location.ident())?
+            .path
+            .clone();
 
         Ok(ResolveResultOption::some(
             ResolveResult::primary(ResolveResultItem::External {
@@ -341,7 +348,7 @@ pub struct OptionPackagesGlobs(Option<PackagesGlobs>);
 
 #[turbo_tasks::function]
 async fn packages_glob(packages: Vc<Vec<RcStr>>) -> Result<Vc<OptionPackagesGlobs>> {
-    let packages = packages.await?;
+    let packages = turbo_tasks::read!(packages)?;
     if packages.is_empty() {
         return Ok(Vc::cell(None));
     }
@@ -354,8 +361,8 @@ async fn packages_glob(packages: Vc<Vec<RcStr>>) -> Result<Vc<OptionPackagesGlob
         GlobOptions::default(),
     );
     Ok(Vc::cell(Some(PackagesGlobs {
-        path_glob: path_glob.to_resolved().await?,
-        request_glob: request_glob.to_resolved().await?,
+        path_glob: turbo_tasks::read!(path_glob.to_resolved())?,
+        request_glob: turbo_tasks::read!(request_glob.to_resolved())?,
     })))
 }
 
@@ -369,6 +376,7 @@ struct ExternalizeIssue {
     reason: Vec<StyledString>,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for ExternalizeIssue {
@@ -393,6 +401,43 @@ impl Issue for ExternalizeIssue {
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Stack(vec![
+            StyledString::Line(vec![
+                StyledString::Text(rcstr!("The request ")),
+                StyledString::Code(self.request_str.clone()),
+                StyledString::Text(rcstr!(" matches ")),
+                StyledString::Code(rcstr!("serverExternalPackages")),
+                StyledString::Text(rcstr!(" (or the default list).")),
+            ]),
+            StyledString::Line(self.reason.clone()),
+        ])))
+    }
+}
+
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for ExternalizeIssue {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Warning
+    }
+
+    fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Line(vec![
+            StyledString::Text(rcstr!("Package ")),
+            StyledString::Code(self.package.clone()),
+            StyledString::Text(rcstr!(" can't be external")),
+        ]))
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Config
+    }
+
+    fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.file_path.clone())
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
         Ok(Some(StyledString::Stack(vec![
             StyledString::Line(vec![
                 StyledString::Text(rcstr!("The request ")),

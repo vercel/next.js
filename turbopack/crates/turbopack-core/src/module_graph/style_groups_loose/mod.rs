@@ -4,7 +4,9 @@ use anyhow::Result;
 use indexmap::map::Entry;
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::TryJoinIterExt;
+use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, ValueToString, Vc};
 
 use crate::{
     chunk::{
@@ -62,17 +64,79 @@ struct StyleCollection {
     chunk_group_state: Vec<ChunkGroupState>,
 }
 
+turbo_tasks::dual_fn! {
+/// Registers one chunkable module for the current chunk group, classifying it as a style
+/// module (and initializing its `ModuleInfo`) on first sight.
+fn handle_style_module(
+    module: ResolvedVc<Box<dyn ChunkableModule>>,
+    module_info_map: &mut FxIndexMap<ResolvedVc<Box<dyn ChunkableModule>>, Option<ModuleInfo>>,
+    styles: &mut FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
+    idx: usize,
+) -> Result<()> {
+    match module_info_map.entry(module) {
+        Entry::Occupied(mut e) => {
+            if let Some(info) = e.get_mut() {
+                info.chunk_group_indices.insert(idx, styles.len());
+                info.index_sum += styles.len();
+                styles.insert(module);
+            }
+        }
+        Entry::Vacant(e) => {
+            if let Some(style_module) =
+                ResolvedVc::try_sidecast::<Box<dyn StyleModule>>(module)
+            {
+                let style_type = *turbo_tasks::read!(style_module.style_type())?;
+                let mut info = ModuleInfo::new(
+                    style_type,
+                    turbo_tasks::read!(module.ident().to_string().owned())?,
+                );
+                info.chunk_group_indices.insert(idx, styles.len());
+                info.index_sum += styles.len();
+                styles.insert(module);
+                e.insert(Some(info));
+            } else {
+                e.insert(None);
+            }
+        }
+    }
+    Ok(())
+}
+}
+
+turbo_tasks::dual_fn! {
+/// Resolves the chunk item and byte size for one style module.
+fn chunk_item_and_size(
+    module: ResolvedVc<Box<dyn ChunkableModule>>,
+    async_module_info: Vc<crate::module_graph::async_module_info::AsyncModulesInfo>,
+    module_graph: Vc<ModuleGraph>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
+) -> Result<(ChunkItemWithAsyncModuleInfo, usize)> {
+    let chunk_item = turbo_tasks::read!(attach_async_info_to_chunkable_module(
+        module,
+        async_module_info,
+        module_graph,
+        chunking_context,
+    ))?;
+    let size = *turbo_tasks::read!(chunk_item.chunk_type.chunk_item_size(
+        chunking_context,
+        *chunk_item.chunk_item,
+        None
+    ))?;
+    Ok((chunk_item, size))
+}
+}
+
+turbo_tasks::dual_fn! {
 /// Walk every chunk group in `module_graph` post-order, collecting:
 ///  * the ordered list of CSS modules each chunk group loads,
 ///  * per-module metadata (style type, ident, size, chunk item, and per-group position).
-async fn collect_style_modules_per_chunk_group(
+fn collect_style_modules_per_chunk_group(
     module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<StyleCollection> {
-    let chunk_group_info = module_graph.chunk_group_info().await?;
-    let batches_graph = module_graph
-        .module_batches(chunking_context.batching_config())
-        .await?;
+    let chunk_group_info = turbo_tasks::read!(module_graph.chunk_group_info())?;
+    let batches_graph =
+        turbo_tasks::read!(module_graph.module_batches(chunking_context.batching_config()))?;
     let async_module_info = module_graph.async_module_info();
     let mut module_info_map: FxIndexMap<ResolvedVc<Box<dyn ChunkableModule>>, Option<ModuleInfo>> =
         FxIndexMap::default();
@@ -84,7 +148,7 @@ async fn collect_style_modules_per_chunk_group(
         let ordered_entries = batches_graph.get_ordered_entries(&chunk_group_info, i);
         let mut entries = Vec::with_capacity(chunk_group.entries_count());
         for entry in ordered_entries {
-            entries.push(batches_graph.get_entry_index(entry).await?);
+            entries.push(turbo_tasks::read!(batches_graph.get_entry_index(entry))?);
         }
         let mut visited = FxHashSet::default();
         let mut items_in_postorder = FxIndexSet::default();
@@ -114,44 +178,27 @@ async fn collect_style_modules_per_chunk_group(
         )?;
 
         let mut styles = FxIndexSet::default();
-        let mut handle_module = async |module| {
-            match module_info_map.entry(module) {
-                Entry::Occupied(mut e) => {
-                    if let Some(info) = e.get_mut() {
-                        info.chunk_group_indices.insert(idx, styles.len());
-                        info.index_sum += styles.len();
-                        styles.insert(module);
-                    }
-                }
-                Entry::Vacant(e) => {
-                    if let Some(style_module) =
-                        ResolvedVc::try_sidecast::<Box<dyn StyleModule>>(module)
-                    {
-                        let style_type = *style_module.style_type().await?;
-                        let mut info =
-                            ModuleInfo::new(style_type, module.ident().to_string().owned().await?);
-                        info.chunk_group_indices.insert(idx, styles.len());
-                        info.index_sum += styles.len();
-                        styles.insert(module);
-                        e.insert(Some(info));
-                    } else {
-                        e.insert(None);
-                    }
-                }
-            }
-            anyhow::Ok(())
-        };
 
         for item in items_in_postorder {
             match item {
                 ModuleOrBatch::Batch(batch) => {
-                    for &module in &batch.await?.modules {
-                        handle_module(module).await?;
+                    for &module in &turbo_tasks::read!(batch)?.modules {
+                        turbo_tasks::read!(handle_style_module(
+                            module,
+                            &mut module_info_map,
+                            &mut styles,
+                            idx
+                        ))?;
                     }
                 }
                 ModuleOrBatch::Module(module) => {
                     if let Some(chunkable_module) = ResolvedVc::try_downcast(module) {
-                        handle_module(chunkable_module).await?;
+                        turbo_tasks::read!(handle_style_module(
+                            chunkable_module,
+                            &mut module_info_map,
+                            &mut styles,
+                            idx
+                        ))?;
                     }
                 }
                 ModuleOrBatch::None(_) => {}
@@ -178,24 +225,21 @@ async fn collect_style_modules_per_chunk_group(
     });
 
     // Compute the chunk item and size of each module
+    #[cfg(not(feature = "sync"))]
     let chunk_item_and_sizes = module_info_map
         .keys()
-        .map(async |&module| {
-            let chunk_item = attach_async_info_to_chunkable_module(
-                module,
-                async_module_info,
-                module_graph,
-                chunking_context,
-            )
-            .await?;
-            let size = *chunk_item
-                .chunk_type
-                .chunk_item_size(chunking_context, *chunk_item.chunk_item, None)
-                .await?;
-            Ok((chunk_item, size))
+        .map(|&module| {
+            chunk_item_and_size(module, async_module_info, module_graph, chunking_context)
         })
         .try_join()
         .await?;
+    #[cfg(feature = "sync")]
+    let chunk_item_and_sizes = module_info_map
+        .keys()
+        .map(|&module| {
+            chunk_item_and_size(module, async_module_info, module_graph, chunking_context)
+        })
+        .collect::<Result<Vec<_>>>()?;
     module_info_map
         .iter_mut()
         .zip(chunk_item_and_sizes)
@@ -210,8 +254,10 @@ async fn collect_style_modules_per_chunk_group(
         chunk_group_state,
     })
 }
+}
 
-pub async fn compute_style_groups(
+turbo_tasks::dual_fn! {
+pub fn compute_style_groups(
     module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     config: &StyleGroupsConfig,
@@ -219,7 +265,10 @@ pub async fn compute_style_groups(
     let StyleCollection {
         module_info_map,
         mut chunk_group_state,
-    } = collect_style_modules_per_chunk_group(module_graph, chunking_context).await?;
+    } = turbo_tasks::read!(collect_style_modules_per_chunk_group(
+        module_graph,
+        chunking_context
+    ))?;
 
     // Compute the dependents of each module
     let mut module_dependents: FxHashMap<_, Vec<_>> = FxHashMap::default();
@@ -393,9 +442,9 @@ pub async fn compute_style_groups(
         }
 
         if new_chunk_items.len() > 1 {
-            let style_group = ChunkItemBatchWithAsyncModuleInfo::new(new_chunk_items.clone())
-                .to_resolved()
-                .await?;
+            let style_group = turbo_tasks::read!(
+                ChunkItemBatchWithAsyncModuleInfo::new(new_chunk_items.clone()).to_resolved()
+            )?;
             for chunk_item in new_chunk_items {
                 shared_chunk_items.insert(
                     chunk_item,
@@ -409,4 +458,5 @@ pub async fn compute_style_groups(
     }
 
     Ok(StyleGroups { shared_chunk_items }.cell())
+}
 }

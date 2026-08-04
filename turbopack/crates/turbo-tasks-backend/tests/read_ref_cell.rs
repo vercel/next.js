@@ -13,7 +13,7 @@ use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_read_ref() {
     run_once(&REGISTRATION, || async {
         unmark_top_level_task_may_leak_eventually_consistent_state();

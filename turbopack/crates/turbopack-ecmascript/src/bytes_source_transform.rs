@@ -36,8 +36,8 @@ impl SourceTransform for BytesSourceTransform {
         source: Vc<Box<dyn Source>>,
         _asset_context: Vc<Box<dyn AssetContext>>,
     ) -> Result<Vc<Box<dyn Source>>> {
-        let ident = source.ident().owned().await?;
-        let content = source.content().file_content().await?;
+        let ident = turbo_tasks::read!(source.ident().owned())?;
+        let content = turbo_tasks::read!(source.content().file_content())?;
         let bytes = match &*content {
             FileContent::Content(data) => {
                 data.read().bytes().collect::<std::io::Result<Vec<u8>>>()?

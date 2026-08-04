@@ -12,6 +12,7 @@ pub(crate) struct NextFontIssue {
     pub(crate) severity: IssueSeverity,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for NextFontIssue {
@@ -28,10 +29,34 @@ impl Issue for NextFontIssue {
     }
 
     async fn title(&self) -> Result<StyledString> {
-        self.title.owned().await
+        turbo_tasks::read!(self.title.owned())
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
-        Ok(Some(self.description.owned().await?))
+        Ok(Some(turbo_tasks::read!(self.description.owned())?))
+    }
+}
+
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for NextFontIssue {
+    fn stage(&self) -> IssueStage {
+        IssueStage::Resolve
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        self.severity
+    }
+
+    fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.path.clone())
+    }
+
+    fn title(&self) -> Result<StyledString> {
+        turbo_tasks::read!(self.title.owned())
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(turbo_tasks::read!(self.description.owned())?))
     }
 }

@@ -921,6 +921,10 @@ pub enum TurbopackPluginRuntimeStrategy {
     WorkerThreads,
     #[cfg(feature = "process_pool")]
     ChildProcesses,
+    // The async-free `sync` build enables neither pool feature; plugins run inline on the
+    // calling thread. This variant keeps the enum inhabited so the config still type-checks.
+    #[cfg(not(any(feature = "worker_pool", feature = "process_pool")))]
+    Inline,
 }
 
 #[derive(
@@ -1624,6 +1628,7 @@ struct InvalidLoaderRuleRenameAsIssue {
     config_file_path: FileSystemPath,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for InvalidLoaderRuleRenameAsIssue {
@@ -1653,6 +1658,35 @@ impl Issue for InvalidLoaderRuleRenameAsIssue {
     }
 }
 
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for InvalidLoaderRuleRenameAsIssue {
+    fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.config_file_path.clone())
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Config
+    }
+
+    fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(
+            format!("Invalid loader rule for extension: {}", self.glob).into(),
+        ))
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(RcStr::from(format!(
+            "The extension {} contains a wildcard, but the `as` option does not: {}",
+            self.glob, self.rename_as,
+        )))))
+    }
+
+    fn documentation_link(&self) -> RcStr {
+        turbopack_config_documentation_link()
+    }
+}
+
 #[turbo_tasks::value(shared)]
 struct InvalidLoaderRuleConditionIssue {
     error_string: RcStr,
@@ -1660,6 +1694,7 @@ struct InvalidLoaderRuleConditionIssue {
     config_file_path: FileSystemPath,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for InvalidLoaderRuleConditionIssue {
@@ -1693,12 +1728,46 @@ impl Issue for InvalidLoaderRuleConditionIssue {
     }
 }
 
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for InvalidLoaderRuleConditionIssue {
+    fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.config_file_path.clone())
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Config
+    }
+
+    fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Invalid condition for Turbopack loader rule"
+        )))
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Stack(vec![
+            StyledString::Line(vec![
+                StyledString::Text(rcstr!("Encountered the following error: ")),
+                StyledString::Code(self.error_string.clone()),
+            ]),
+            StyledString::Text(rcstr!("While processing the condition:")),
+            StyledString::Code(RcStr::from(format!("{:#?}", self.condition))),
+        ])))
+    }
+
+    fn documentation_link(&self) -> RcStr {
+        turbopack_config_documentation_link()
+    }
+}
+
 #[turbo_tasks::value(transparent)]
 pub struct OutputFileTracingIncludesExcludes(
     #[bincode(with = "turbo_bincode::indexmap")]
     FxIndexMap<ResolvedVc<Glob>, Vec<(RcStr, FileSystemPath)>>,
 );
 
+#[cfg(not(feature = "sync"))]
 impl OutputFileTracingIncludesExcludes {
     pub async fn parse(
         project_path: FileSystemPath,
@@ -1708,32 +1777,82 @@ impl OutputFileTracingIncludesExcludes {
             && let Some(map) = value.as_object()
         {
             Ok(OutputFileTracingIncludesExcludes(
-                map.iter()
-                    .map(async |(route_pattern, file_patterns)| {
-                        let route_pattern = Glob::new(
-                            RcStr::from(route_pattern.clone()),
-                            GlobOptions { contains: true },
-                        )
-                        .to_resolved()
-                        .await?;
-                        let file_patterns = file_patterns
-                            .as_array()
-                            .iter()
-                            .flat_map(|pattern| pattern.iter())
-                            .filter_map(|pattern| pattern.as_str())
-                            .map(async |pattern_str| {
-                                let (glob, root) = relativize_glob(pattern_str, &project_path)?;
-                                Ok((RcStr::from(glob), root))
-                            })
-                            .try_join()
-                            .await?;
-                        Ok((route_pattern, file_patterns))
-                    })
-                    .try_join()
-                    .await?
-                    .into_iter()
-                    .collect(),
+                turbo_tasks::read!(
+                    map.iter()
+                        .map(async |(route_pattern, file_patterns)| {
+                            let route_pattern = turbo_tasks::read!(
+                                Glob::new(
+                                    RcStr::from(route_pattern.clone()),
+                                    GlobOptions { contains: true },
+                                )
+                                .to_resolved()
+                            )?;
+                            let file_patterns = turbo_tasks::read!(
+                                file_patterns
+                                    .as_array()
+                                    .iter()
+                                    .flat_map(|pattern| pattern.iter())
+                                    .filter_map(|pattern| pattern.as_str())
+                                    .map(async |pattern_str| {
+                                        let (glob, root) =
+                                            relativize_glob(pattern_str, &project_path)?;
+                                        Ok((RcStr::from(glob), root))
+                                    })
+                                    .try_join()
+                            )?;
+                            Ok((route_pattern, file_patterns))
+                        })
+                        .try_join()
+                )?
+                .into_iter()
+                .collect(),
             ))
+        } else {
+            Ok(OutputFileTracingIncludesExcludes(FxIndexMap::default()))
+        }
+    }
+}
+
+#[cfg(feature = "sync")]
+impl OutputFileTracingIncludesExcludes {
+    pub fn parse(
+        project_path: FileSystemPath,
+        value: &Option<serde_json::Value>,
+    ) -> Result<OutputFileTracingIncludesExcludes> {
+        if let Some(value) = value
+            && let Some(map) = value.as_object()
+        {
+            Ok(OutputFileTracingIncludesExcludes({
+                let mut entries = Vec::new();
+                for (route_pattern, file_patterns) in map.iter() {
+                    entries.push({
+                        let route_pattern = turbo_tasks::read!(
+                            Glob::new(
+                                RcStr::from(route_pattern.clone()),
+                                GlobOptions { contains: true },
+                            )
+                            .to_resolved()
+                        )?;
+                        let file_patterns = {
+                            let mut file_patterns_out = Vec::new();
+                            for pattern_str in file_patterns
+                                .as_array()
+                                .iter()
+                                .flat_map(|pattern| pattern.iter())
+                                .filter_map(|pattern| pattern.as_str())
+                            {
+                                file_patterns_out.push({
+                                    let (glob, root) = relativize_glob(pattern_str, &project_path)?;
+                                    Ok::<_, anyhow::Error>((RcStr::from(glob), root))
+                                }?);
+                            }
+                            file_patterns_out
+                        };
+                        Ok::<_, anyhow::Error>((route_pattern, file_patterns))
+                    }?);
+                }
+                entries.into_iter().collect()
+            }))
         } else {
             Ok(OutputFileTracingIncludesExcludes(FxIndexMap::default()))
         }
@@ -1744,7 +1863,7 @@ impl OutputFileTracingIncludesExcludes {
 impl NextConfig {
     #[turbo_tasks::function]
     pub async fn from_string(string: Vc<RcStr>) -> Result<Vc<Self>> {
-        let string = string.await?;
+        let string = turbo_tasks::read!(string)?;
         let mut jdeserializer = serde_json::Deserializer::from_str(&string);
         let config: NextConfig = serde_path_to_error::deserialize(&mut jdeserializer)
             .with_context(|| format!("failed to parse next.config.js: {string}"))?;
@@ -1866,7 +1985,7 @@ impl NextConfig {
         self: Vc<Self>,
         project_path: FileSystemPath,
     ) -> Result<Vc<WebpackRules>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         let Some(turbo_rules) = this.turbopack.as_ref().map(|t| &t.rules) else {
             return Ok(Vc::cell(Vec::new()));
         };
@@ -1918,10 +2037,9 @@ impl NextConfig {
                         {
                             InvalidLoaderRuleRenameAsIssue {
                                 glob: glob.clone(),
-                                config_file_path: self
-                                    .config_file_path(project_path.clone())
-                                    .owned()
-                                    .await?,
+                                config_file_path: turbo_tasks::read!(
+                                    self.config_file_path(project_path.clone()).owned()
+                                )?,
                                 rename_as: rename_as.clone(),
                             }
                             .resolved_cell()
@@ -1937,10 +2055,9 @@ impl NextConfig {
                                     InvalidLoaderRuleConditionIssue {
                                         error_string: RcStr::from(err.to_string()),
                                         condition: condition.clone(),
-                                        config_file_path: self
-                                            .config_file_path(project_path.clone())
-                                            .owned()
-                                            .await?,
+                                        config_file_path: turbo_tasks::read!(
+                                            self.config_file_path(project_path.clone()).owned()
+                                        )?,
                                     }
                                     .resolved_cell()
                                     .emit();
@@ -2161,7 +2278,7 @@ impl NextConfig {
     /// Otherwise, the basePath is used.
     #[turbo_tasks::function]
     pub async fn computed_asset_prefix(self: Vc<Self>) -> Result<Vc<RcStr>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
 
         Ok(Vc::cell(
             format!(
@@ -2319,13 +2436,14 @@ impl NextConfig {
         self: Vc<Self>,
         mode: Vc<NextMode>,
     ) -> Result<Vc<bool>> {
-        let remove_unused_imports = self
-            .await?
+        let remove_unused_imports = turbo_tasks::read!(self)?
             .experimental
             .turbopack_remove_unused_imports
-            .unwrap_or(matches!(*mode.await?, NextMode::Build));
+            .unwrap_or(matches!(*turbo_tasks::read!(mode)?, NextMode::Build));
 
-        if remove_unused_imports && !*self.turbopack_remove_unused_exports(mode).await? {
+        if remove_unused_imports
+            && !*turbo_tasks::read!(self.turbopack_remove_unused_exports(mode))?
+        {
             bail!(
                 "`experimental.turbopackRemoveUnusedImports` cannot be enabled without also \
                  enabling `experimental.turbopackRemoveUnusedExports`"
@@ -2340,7 +2458,7 @@ impl NextConfig {
         Ok(Vc::cell(
             self.experimental
                 .turbopack_remove_unused_exports
-                .unwrap_or(matches!(*mode.await?, NextMode::Build)),
+                .unwrap_or(matches!(*turbo_tasks::read!(mode)?, NextMode::Build)),
         ))
     }
 
@@ -2359,6 +2477,8 @@ impl NextConfig {
         let default = TurbopackPluginRuntimeStrategy::ChildProcesses;
         #[cfg(all(feature = "worker_pool", not(feature = "process_pool")))]
         let default = TurbopackPluginRuntimeStrategy::WorkerThreads;
+        #[cfg(not(any(feature = "worker_pool", feature = "process_pool")))]
+        let default = TurbopackPluginRuntimeStrategy::Inline;
 
         self.experimental
             .turbopack_plugin_runtime_strategy
@@ -2368,7 +2488,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub async fn module_ids(&self, mode: Vc<NextMode>) -> Result<Vc<ModuleIds>> {
-        Ok(match *mode.await? {
+        Ok(match *turbo_tasks::read!(mode)? {
             // Ignore configuration in development mode, HMR only works with `named`
             NextMode::Development => ModuleIds::Named.cell(),
             NextMode::Build => self
@@ -2382,14 +2502,15 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub async fn turbo_minify(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
         let minify = self.experimental.turbopack_minify;
-        Ok(Vc::cell(
-            minify.unwrap_or(matches!(*mode.await?, NextMode::Build)),
-        ))
+        Ok(Vc::cell(minify.unwrap_or(matches!(
+            *turbo_tasks::read!(mode)?,
+            NextMode::Build
+        ))))
     }
 
     #[turbo_tasks::function]
     pub async fn turbo_scope_hoisting(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(match *mode.await? {
+        Ok(Vc::cell(match *turbo_tasks::read!(mode)? {
             // Ignore configuration in development mode to not break HMR
             NextMode::Development => false,
             NextMode::Build => self.experimental.turbopack_scope_hoisting.unwrap_or(true),
@@ -2412,7 +2533,7 @@ impl NextConfig {
         Ok(Vc::cell(if let Some(value) = option {
             value
         } else {
-            match *mode.await? {
+            match *turbo_tasks::read!(mode)? {
                 NextMode::Development => false,
                 NextMode::Build => client_side,
             }
@@ -2460,13 +2581,13 @@ impl NextConfig {
             .experimental
             .turbopack_input_source_maps
             .unwrap_or(true);
-        let source_maps = self
-            .experimental
-            .turbopack_source_maps
-            .unwrap_or(match &*mode.await? {
-                NextMode::Development => true,
-                NextMode::Build => self.production_browser_source_maps,
-            });
+        let source_maps =
+            self.experimental
+                .turbopack_source_maps
+                .unwrap_or(match &*turbo_tasks::read!(mode)? {
+                    NextMode::Development => true,
+                    NextMode::Build => self.production_browser_source_maps,
+                });
         Ok(match (source_maps, input_source_maps) {
             (true, true) => SourceMapsType::Full,
             (true, false) => SourceMapsType::Partial,
@@ -2555,11 +2676,10 @@ impl NextConfig {
         &self,
         project_path: FileSystemPath,
     ) -> Result<Vc<OutputFileTracingIncludesExcludes>> {
-        Ok(OutputFileTracingIncludesExcludes::parse(
+        Ok(turbo_tasks::read!(OutputFileTracingIncludesExcludes::parse(
             project_path,
             &self.output_file_tracing_includes,
-        )
-        .await?
+        ))?
         .cell())
     }
 
@@ -2568,11 +2688,10 @@ impl NextConfig {
         &self,
         project_path: FileSystemPath,
     ) -> Result<Vc<OutputFileTracingIncludesExcludes>> {
-        Ok(OutputFileTracingIncludesExcludes::parse(
+        Ok(turbo_tasks::read!(OutputFileTracingIncludesExcludes::parse(
             project_path,
             &self.output_file_tracing_excludes,
-        )
-        .await?
+        ))?
         .cell())
     }
 
@@ -2647,7 +2766,7 @@ pub struct JsConfig {
 impl JsConfig {
     #[turbo_tasks::function]
     pub async fn from_string(string: Vc<RcStr>) -> Result<Vc<Self>> {
-        let string = string.await?;
+        let string = turbo_tasks::read!(string)?;
         let config: JsConfig = serde_json::from_str(&string)
             .with_context(|| format!("failed to parse next.config.js: {string}"))?;
 

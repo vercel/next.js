@@ -89,7 +89,7 @@ pub struct ResolveOptionsContext {
 impl ResolveOptionsContext {
     #[turbo_tasks::function]
     pub async fn with_types_enabled(self: Vc<Self>) -> Result<Vc<Self>> {
-        let mut clone = self.owned().await?;
+        let mut clone = turbo_tasks::read!(self.owned())?;
         clone.enable_types = true;
         clone.enable_typescript = true;
         Ok(Self::cell(clone))
@@ -102,15 +102,14 @@ impl ResolveOptionsContext {
         self: Vc<Self>,
         import_map: Vc<ImportMap>,
     ) -> Result<Vc<Self>> {
-        let mut resolve_options_context = self.owned().await?;
-        resolve_options_context.import_map = Some(
+        let mut resolve_options_context = turbo_tasks::read!(self.owned())?;
+        resolve_options_context.import_map = Some(turbo_tasks::read!(
             resolve_options_context
                 .import_map
                 .map(|current_import_map| current_import_map.extend(import_map))
                 .unwrap_or(import_map)
                 .to_resolved()
-                .await?,
-        );
+        )?);
         Ok(resolve_options_context.cell())
     }
 
@@ -121,8 +120,8 @@ impl ResolveOptionsContext {
         self: Vc<Self>,
         fallback_import_map: Vc<ImportMap>,
     ) -> Result<Vc<Self>> {
-        let mut resolve_options_context = self.owned().await?;
-        resolve_options_context.fallback_import_map = Some(
+        let mut resolve_options_context = turbo_tasks::read!(self.owned())?;
+        resolve_options_context.fallback_import_map = Some(turbo_tasks::read!(
             resolve_options_context
                 .fallback_import_map
                 .map(|current_fallback_import_map| {
@@ -130,8 +129,7 @@ impl ResolveOptionsContext {
                 })
                 .unwrap_or(fallback_import_map)
                 .to_resolved()
-                .await?,
-        );
+        )?);
         Ok(resolve_options_context.cell())
     }
 }

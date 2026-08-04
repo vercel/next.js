@@ -1,11 +1,13 @@
-use std::{collections::BTreeMap, future::Future, pin::Pin};
+use std::collections::BTreeMap;
+#[cfg(not(feature = "sync"))]
+use std::{future::Future, pin::Pin};
 
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
-    debug::ValueDebugFormat, trace::TraceRawVcs, turbofmt,
+    FxIndexSet, NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat,
+    trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 
@@ -13,7 +15,7 @@ use crate::{
     issue::Issue,
     resolve::{
         AliasPattern, ExternalTraced, ExternalType, ResolveResult, ResolveResultItem,
-        alias_map::{AliasMap, AliasTemplate},
+        alias_map::{AliasMap, AliasMatch, AliasTemplate},
         parse::Request,
         pattern::Pattern,
         plugin::{AfterResolvePlugin, BeforeResolvePlugin},
@@ -183,129 +185,161 @@ impl AliasTemplate for ResolvedVc<ImportMapping> {
     }
 }
 
+/// In the async build the [`AliasTemplate`] output is a boxed future; under `sync`
+/// it is the computed result itself. Both delegate to the dual-mode
+/// [`import_mapping_convert`]/[`import_mapping_replace`] helpers below.
+#[cfg(not(feature = "sync"))]
 impl AliasTemplate for Vc<ImportMapping> {
     type Output<'a> =
         Pin<Box<dyn Future<Output = Result<ResolvedVc<ReplacedImportMapping>>> + Send + 'a>>;
 
     fn convert(&self) -> Self::Output<'_> {
-        Box::pin(async move {
-            let this = &*self.await?;
-            Ok(match this {
-                ImportMapping::External(name, ty, traced) => ReplacedImportMapping::External {
-                    name_override: name.clone(),
-                    ty: *ty,
-                    traced: *traced,
-                    // TODO
-                    target: None,
-                },
-                ImportMapping::PrimaryAlternativeExternal {
-                    name,
-                    ty,
-                    traced,
-                    lookup_dir,
-                } => ReplacedImportMapping::PrimaryAlternativeExternal {
-                    name: name.clone(),
-                    ty: *ty,
-                    traced: *traced,
-                    lookup_dir: lookup_dir.clone(),
-                },
-                ImportMapping::PrimaryAlternative(name, lookup_dir) => {
-                    ReplacedImportMapping::PrimaryAlternative(
-                        (*name).clone().into(),
-                        lookup_dir.clone(),
-                    )
-                }
-                ImportMapping::Direct(v) => ReplacedImportMapping::Direct(*v),
-                ImportMapping::Ignore => ReplacedImportMapping::Ignore,
-                ImportMapping::Empty => ReplacedImportMapping::Empty,
-                ImportMapping::Alternatives(alternatives) => ReplacedImportMapping::Alternatives(
-                    alternatives
-                        .iter()
-                        .map(|mapping| mapping.convert())
-                        .try_join()
-                        .await?,
-                ),
-                ImportMapping::Dynamic(replacement) => ReplacedImportMapping::Dynamic(*replacement),
-                ImportMapping::Error(issue) => ReplacedImportMapping::Error(*issue),
-            }
-            .resolved_cell())
-        })
+        Box::pin(import_mapping_convert(*self))
     }
 
     fn replace<'a>(&'a self, capture: &Pattern) -> Self::Output<'a> {
-        let capture = capture.clone();
-        Box::pin(async move {
-            let this = &*self.await?;
-            Ok(match this {
-                ImportMapping::External(name, ty, traced) => {
-                    if let Some(name) = name {
-                        ReplacedImportMapping::External {
-                            name_override: capture
-                                .spread_into_star(name)
-                                .as_constant_string()
-                                .cloned(),
-                            ty: *ty,
-                            traced: *traced,
-                            target: None,
-                        }
-                    } else {
-                        ReplacedImportMapping::External {
-                            name_override: None,
-                            ty: *ty,
-                            traced: *traced,
-                            target: None,
-                        }
-                    }
-                }
-                ImportMapping::PrimaryAlternativeExternal {
-                    name,
-                    ty,
-                    traced,
-                    lookup_dir,
-                } => {
-                    if let Some(name) = name {
-                        ReplacedImportMapping::PrimaryAlternativeExternal {
-                            name: capture.spread_into_star(name).as_constant_string().cloned(),
-                            ty: *ty,
-                            traced: *traced,
-                            lookup_dir: lookup_dir.clone(),
-                        }
-                    } else {
-                        ReplacedImportMapping::PrimaryAlternativeExternal {
-                            name: None,
-                            ty: *ty,
-                            traced: *traced,
-                            lookup_dir: lookup_dir.clone(),
-                        }
-                    }
-                }
-                ImportMapping::PrimaryAlternative(name, lookup_dir) => {
-                    ReplacedImportMapping::PrimaryAlternative(
-                        capture.spread_into_star(name),
-                        lookup_dir.clone(),
-                    )
-                }
-                ImportMapping::Direct(v) => ReplacedImportMapping::Direct(*v),
-                ImportMapping::Ignore => ReplacedImportMapping::Ignore,
-                ImportMapping::Empty => ReplacedImportMapping::Empty,
-                ImportMapping::Alternatives(alternatives) => ReplacedImportMapping::Alternatives(
-                    alternatives
-                        .iter()
-                        .map(|mapping| mapping.replace(&capture))
-                        .try_join()
-                        .await?,
-                ),
-                ImportMapping::Dynamic(replacement) => {
-                    replacement
-                        .replace(Pattern::new(capture.clone()))
-                        .owned()
-                        .await?
-                }
-                ImportMapping::Error(issue) => ReplacedImportMapping::Error(*issue),
-            }
-            .resolved_cell())
-        })
+        Box::pin(import_mapping_replace(*self, capture.clone()))
     }
+}
+
+/// See the async impl above.
+#[cfg(feature = "sync")]
+impl AliasTemplate for Vc<ImportMapping> {
+    type Output<'a> = Result<ResolvedVc<ReplacedImportMapping>>;
+
+    fn convert(&self) -> Self::Output<'_> {
+        import_mapping_convert(*self)
+    }
+
+    fn replace<'a>(&'a self, capture: &Pattern) -> Self::Output<'a> {
+        import_mapping_replace(*self, capture.clone())
+    }
+}
+
+turbo_tasks::dual_fn! {
+/// Body of `<Vc<ImportMapping> as AliasTemplate>::convert`.
+fn import_mapping_convert(mapping: Vc<ImportMapping>) -> Result<ResolvedVc<ReplacedImportMapping>> {
+    let this = &*turbo_tasks::read!(mapping)?;
+    Ok(match this {
+        ImportMapping::External(name, ty, traced) => ReplacedImportMapping::External {
+            name_override: name.clone(),
+            ty: *ty,
+            traced: *traced,
+            // TODO
+            target: None,
+        },
+        ImportMapping::PrimaryAlternativeExternal {
+            name,
+            ty,
+            traced,
+            lookup_dir,
+        } => ReplacedImportMapping::PrimaryAlternativeExternal {
+            name: name.clone(),
+            ty: *ty,
+            traced: *traced,
+            lookup_dir: lookup_dir.clone(),
+        },
+        ImportMapping::PrimaryAlternative(name, lookup_dir) => {
+            ReplacedImportMapping::PrimaryAlternative(
+                (*name).clone().into(),
+                lookup_dir.clone(),
+            )
+        }
+        ImportMapping::Direct(v) => ReplacedImportMapping::Direct(*v),
+        ImportMapping::Ignore => ReplacedImportMapping::Ignore,
+        ImportMapping::Empty => ReplacedImportMapping::Empty,
+        ImportMapping::Alternatives(alternatives) => ReplacedImportMapping::Alternatives({
+            // Sequential in both modes: alternatives lists are small and the
+            // `AliasTemplate` output cannot fan out through `parallel!` under sync.
+            let mut converted = Vec::with_capacity(alternatives.len());
+            for mapping in alternatives.iter() {
+                converted.push(turbo_tasks::read!(mapping.convert())?);
+            }
+            converted
+        }),
+        ImportMapping::Dynamic(replacement) => ReplacedImportMapping::Dynamic(*replacement),
+        ImportMapping::Error(issue) => ReplacedImportMapping::Error(*issue),
+    }
+    .resolved_cell())
+}
+}
+
+turbo_tasks::dual_fn! {
+/// Body of `<Vc<ImportMapping> as AliasTemplate>::replace`.
+fn import_mapping_replace(
+    mapping: Vc<ImportMapping>,
+    capture: Pattern,
+) -> Result<ResolvedVc<ReplacedImportMapping>> {
+    let this = &*turbo_tasks::read!(mapping)?;
+    Ok(match this {
+        ImportMapping::External(name, ty, traced) => {
+            if let Some(name) = name {
+                ReplacedImportMapping::External {
+                    name_override: capture
+                        .spread_into_star(name)
+                        .as_constant_string()
+                        .cloned(),
+                    ty: *ty,
+                    traced: *traced,
+                    target: None,
+                }
+            } else {
+                ReplacedImportMapping::External {
+                    name_override: None,
+                    ty: *ty,
+                    traced: *traced,
+                    target: None,
+                }
+            }
+        }
+        ImportMapping::PrimaryAlternativeExternal {
+            name,
+            ty,
+            traced,
+            lookup_dir,
+        } => {
+            if let Some(name) = name {
+                ReplacedImportMapping::PrimaryAlternativeExternal {
+                    name: capture.spread_into_star(name).as_constant_string().cloned(),
+                    ty: *ty,
+                    traced: *traced,
+                    lookup_dir: lookup_dir.clone(),
+                }
+            } else {
+                ReplacedImportMapping::PrimaryAlternativeExternal {
+                    name: None,
+                    ty: *ty,
+                    traced: *traced,
+                    lookup_dir: lookup_dir.clone(),
+                }
+            }
+        }
+        ImportMapping::PrimaryAlternative(name, lookup_dir) => {
+            ReplacedImportMapping::PrimaryAlternative(
+                capture.spread_into_star(name),
+                lookup_dir.clone(),
+            )
+        }
+        ImportMapping::Direct(v) => ReplacedImportMapping::Direct(*v),
+        ImportMapping::Ignore => ReplacedImportMapping::Ignore,
+        ImportMapping::Empty => ReplacedImportMapping::Empty,
+        ImportMapping::Alternatives(alternatives) => ReplacedImportMapping::Alternatives({
+            // Sequential in both modes (see `import_mapping_convert`).
+            let mut replaced = Vec::with_capacity(alternatives.len());
+            for mapping in alternatives.iter() {
+                replaced.push(turbo_tasks::read!(mapping.replace(&capture))?);
+            }
+            replaced
+        }),
+        ImportMapping::Dynamic(replacement) => {
+            turbo_tasks::read!(replacement
+                .replace(Pattern::new(capture.clone()))
+                .owned())?
+        }
+        ImportMapping::Error(issue) => ReplacedImportMapping::Error(*issue),
+    }
+    .resolved_cell())
+}
 }
 
 #[turbo_tasks::value(shared)]
@@ -393,8 +427,8 @@ impl ImportMap {
     /// Extends the underlying [ImportMap] with another [ImportMap].
     #[turbo_tasks::function]
     pub async fn extend(self: Vc<Self>, other: ResolvedVc<ImportMap>) -> Result<Vc<Self>> {
-        let mut import_map = self.owned().await?;
-        import_map.extend_ref(&*other.await?);
+        let mut import_map = turbo_tasks::read!(self.owned())?;
+        import_map.extend_ref(&*turbo_tasks::read!(other)?);
         Ok(import_map.cell())
     }
 }
@@ -427,12 +461,13 @@ pub enum ImportMapResult {
     Error(ResolvedVc<Box<dyn Issue>>),
 }
 
-async fn import_mapping_to_result(
+turbo_tasks::dual_fn! {
+fn import_mapping_to_result(
     mapping: Vc<ReplacedImportMapping>,
     lookup_path: FileSystemPath,
     request: Vc<Request>,
 ) -> Result<ImportMapResult> {
-    Ok(match &*mapping.await? {
+    Ok(match &*turbo_tasks::read!(mapping)? {
         ReplacedImportMapping::Direct(result) => ImportMapResult::Result(*result),
         ReplacedImportMapping::External {
             name_override,
@@ -442,12 +477,12 @@ async fn import_mapping_to_result(
         } => ImportMapResult::External {
             name: if let Some(name) = name_override {
                 name.clone()
-            } else if let Some(request) = request.await?.request() {
+            } else if let Some(request) = turbo_tasks::read!(request)?.request() {
                 request
             } else {
                 bail!(
                     "Cannot resolve external reference with dynamic request {:?}",
-                    request.request_pattern().await?.describe_as_string()
+                    turbo_tasks::read!(request.request_pattern())?.describe_as_string()
                 )
             },
             ty: *ty,
@@ -462,12 +497,12 @@ async fn import_mapping_to_result(
         } => ImportMapResult::AliasExternal {
             name: if let Some(name) = name {
                 name.clone()
-            } else if let Some(request) = request.await?.request() {
+            } else if let Some(request) = turbo_tasks::read!(request)?.request() {
                 request
             } else {
                 bail!(
                     "Cannot resolve external reference with dynamic request {:?}",
-                    request.request_pattern().await?.describe_as_string()
+                    turbo_tasks::read!(request.request_pattern())?.describe_as_string()
                 )
             },
             ty: *ty,
@@ -481,26 +516,40 @@ async fn import_mapping_to_result(
             ResolveResult::primary(ResolveResultItem::Empty).resolved_cell(),
         ),
         ReplacedImportMapping::PrimaryAlternative(name, context) => {
-            let request = Request::parse(name.clone()).to_resolved().await?;
+            let request = turbo_tasks::read!(Request::parse(name.clone()).to_resolved())?;
             ImportMapResult::Alias(request, context.clone())
         }
-        ReplacedImportMapping::Alternatives(list) => ImportMapResult::Alternatives(
-            list.iter()
-                .map(|mapping| {
+        ReplacedImportMapping::Alternatives(list) => ImportMapResult::Alternatives({
+            // Sequential in both modes: alternatives lists are small and the recursive
+            // dual helper cannot fan out through `parallel!` under sync. The async
+            // build must box the recursive call (async fns cannot recurse unboxed);
+            // under `sync` it is a plain recursive call.
+            let mut results = Vec::with_capacity(list.len());
+            for mapping in list.iter() {
+                #[cfg(not(feature = "sync"))]
+                results.push(
                     Box::pin(import_mapping_to_result(
                         **mapping,
                         lookup_path.clone(),
                         request,
                     ))
-                })
-                .try_join()
-                .await?,
-        ),
+                    .await?,
+                );
+                #[cfg(feature = "sync")]
+                results.push(import_mapping_to_result(
+                    **mapping,
+                    lookup_path.clone(),
+                    request,
+                )?);
+            }
+            results
+        }),
         ReplacedImportMapping::Dynamic(replacement) => {
-            replacement.result(lookup_path, request).owned().await?
+            turbo_tasks::read!(replacement.result(lookup_path, request).owned())?
         }
         ReplacedImportMapping::Error(issue) => ImportMapResult::Error(*issue),
     })
+}
 }
 
 #[turbo_tasks::value_impl]
@@ -513,9 +562,9 @@ impl ValueToString for ImportMapResult {
             ImportMapResult::AliasExternal { .. } => Ok(Vc::cell(rcstr!("TODO external"))),
             ImportMapResult::Alias(request, context) => {
                 let s = if let Some(path) = context {
-                    turbofmt!("aliased to {} inside of {path}", *request).await?
+                    turbo_tasks::read!(turbofmt!("aliased to {} inside of {path}", *request))?
                 } else {
-                    turbofmt!("aliased to {}", *request).await?
+                    turbo_tasks::read!(turbofmt!("aliased to {}", *request))?
                 };
                 Ok(Vc::cell(s))
             }
@@ -523,11 +572,11 @@ impl ValueToString for ImportMapResult {
                 // The .cell() calls happen synchronously during iteration, before try_join()
                 // runs the futures. This is safe because cells are created in deterministic
                 // order (the order of alternatives in the Vec).
-                let strings = alternatives
-                    .iter()
-                    .map(|alternative| alternative.clone().cell().to_string())
-                    .try_join()
-                    .await?;
+                let strings = turbo_tasks::parallel!(
+                    alternatives
+                        .iter()
+                        .map(|alternative| alternative.clone().cell().to_string())
+                )?;
                 let strings = strings
                     .iter()
                     .map(|string| string.as_str())
@@ -538,11 +587,7 @@ impl ValueToString for ImportMapResult {
             ImportMapResult::Error(issue) => Ok(Vc::cell(
                 format!(
                     "error: {}",
-                    issue
-                        .into_trait_ref()
-                        .await?
-                        .title()
-                        .await?
+                    turbo_tasks::read!(turbo_tasks::read!(issue.into_trait_ref())?.title())?
                         .to_unstyled_string()
                 )
                 .into(),
@@ -551,17 +596,31 @@ impl ValueToString for ImportMapResult {
     }
 }
 
+turbo_tasks::dual_fn! {
+/// Per-match step of [`ImportMap::lookup`]: applies the alias template output and
+/// converts it into an [`ImportMapResult`].
+fn import_map_result_from_lookup(
+    result: Result<AliasMatch<'_, ResolvedVc<ImportMapping>>>,
+    lookup_path: FileSystemPath,
+    request: Vc<Request>,
+) -> Result<ImportMapResult> {
+    let mapping = turbo_tasks::read!(result?.output)?;
+    turbo_tasks::read!(import_mapping_to_result(*mapping, lookup_path, request))
+}
+}
+
 impl ImportMap {
+    turbo_tasks::dual_fn! {
     // Not a turbo-tasks function: the map lookup should be cheaper than the cache
     // lookup
-    pub async fn lookup(
+    pub fn lookup(
         &self,
         lookup_path: FileSystemPath,
         request: Vc<Request>,
     ) -> Result<ImportMapResult> {
         // relative requests must not match global wildcard aliases.
 
-        let request_pattern = request.request_pattern().await?;
+        let request_pattern = turbo_tasks::read!(request.request_pattern())?;
         if matches!(*request_pattern, Pattern::Dynamic | Pattern::DynamicNoSlash) {
             // You could probably conceive of cases where this isn't correct. But the dynamic will
             // just match every single entry in the import map, which is not what we want.
@@ -586,21 +645,23 @@ impl ImportMap {
             .as_ref()
             .and_then(|req| self.map.lookup(req).next());
 
-        let results = lookup_rel
-            .into_iter()
-            .chain(lookup_rel_parent)
-            .chain(lookup)
-            .map(async |result| {
-                import_mapping_to_result(*result?.output.await?, lookup_path.clone(), request).await
-            })
-            .try_join()
-            .await?;
+        // Sequential in both modes: at most three matches, and the per-match dual
+        // helper cannot fan out through `parallel!` under sync.
+        let mut results = Vec::new();
+        for result in lookup_rel.into_iter().chain(lookup_rel_parent).chain(lookup) {
+            results.push(turbo_tasks::read!(import_map_result_from_lookup(
+                result,
+                lookup_path.clone(),
+                request
+            ))?);
+        }
 
         Ok(match results.len() {
             0 => ImportMapResult::NoEntry,
             1 => results.into_iter().next().unwrap(),
             2.. => ImportMapResult::Alternatives(results),
         })
+    }
     }
 }
 
@@ -615,14 +676,13 @@ impl ResolvedMap {
     ) -> Result<Vc<ImportMapResult>> {
         for (root, glob, mapping) in self.by_glob.iter() {
             if let Some(path) = root.get_path_to(&resolved)
-                && glob.await?.matches(path)
+                && turbo_tasks::read!(glob)?.matches(path)
             {
-                return Ok(import_mapping_to_result(
-                    *mapping.convert().await?,
+                return Ok(turbo_tasks::read!(import_mapping_to_result(
+                    *turbo_tasks::read!(mapping.convert())?,
                     lookup_path,
                     request,
-                )
-                .await?
+                ))?
                 .cell());
             }
         }
@@ -677,15 +737,14 @@ impl ResolveOptions {
         self: Vc<Self>,
         import_map: Vc<ImportMap>,
     ) -> Result<Vc<Self>> {
-        let mut resolve_options = self.owned().await?;
-        resolve_options.import_map = Some(
+        let mut resolve_options = turbo_tasks::read!(self.owned())?;
+        resolve_options.import_map = Some(turbo_tasks::read!(
             resolve_options
                 .import_map
                 .map(|current_import_map| current_import_map.extend(import_map))
                 .unwrap_or(import_map)
                 .to_resolved()
-                .await?,
-        );
+        )?);
         Ok(resolve_options.cell())
     }
 
@@ -696,15 +755,12 @@ impl ResolveOptions {
         self: Vc<Self>,
         extended_import_map: ResolvedVc<ImportMap>,
     ) -> Result<Vc<Self>> {
-        let mut resolve_options = self.owned().await?;
+        let mut resolve_options = turbo_tasks::read!(self.owned())?;
         resolve_options.fallback_import_map =
             if let Some(current_fallback) = resolve_options.fallback_import_map {
-                Some(
-                    current_fallback
-                        .extend(*extended_import_map)
-                        .to_resolved()
-                        .await?,
-                )
+                Some(turbo_tasks::read!(
+                    current_fallback.extend(*extended_import_map).to_resolved()
+                )?)
             } else {
                 Some(extended_import_map)
             };
@@ -714,7 +770,7 @@ impl ResolveOptions {
     /// Overrides the extensions used for resolving
     #[turbo_tasks::function]
     pub async fn with_extensions(self: Vc<Self>, extensions: Vec<RcStr>) -> Result<Vc<Self>> {
-        let mut resolve_options = self.owned().await?;
+        let mut resolve_options = turbo_tasks::read!(self.owned())?;
         resolve_options.extensions = extensions;
         Ok(resolve_options.cell())
     }
@@ -722,7 +778,7 @@ impl ResolveOptions {
     /// Overrides the fully_specified flag for resolving
     #[turbo_tasks::function]
     pub async fn with_fully_specified(self: Vc<Self>, fully_specified: bool) -> Result<Vc<Self>> {
-        let mut resolve_options = self.owned().await?;
+        let mut resolve_options = turbo_tasks::read!(self.owned())?;
         if resolve_options.fully_specified == fully_specified {
             return Ok(self);
         }
@@ -742,7 +798,7 @@ pub struct ResolveModulesOptions {
 pub async fn resolve_modules_options(
     options: Vc<ResolveOptions>,
 ) -> Result<Vc<ResolveModulesOptions>> {
-    let options = options.await?;
+    let options = turbo_tasks::read!(options)?;
     Ok(ResolveModulesOptions {
         modules: options.modules.clone(),
         extensions: options.extensions.clone(),

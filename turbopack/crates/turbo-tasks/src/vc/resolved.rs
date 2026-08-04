@@ -89,12 +89,24 @@ where
     /// This function exists to intercept calls to Vc::to_resolved through dereferencing
     /// a ResolvedVc. Converting to Vc and re-resolving it puts unnecessary stress on
     /// the turbo tasks engine.
+    #[cfg(not(feature = "sync"))]
     #[deprecated(note = "No point in resolving a vc that is already resolved")]
     pub async fn to_resolved(self) -> Result<Self> {
         Ok(self)
     }
+    #[cfg(feature = "sync")]
+    #[deprecated(note = "No point in resolving a vc that is already resolved")]
+    pub fn to_resolved(self) -> Result<Self> {
+        Ok(self)
+    }
+    #[cfg(not(feature = "sync"))]
     #[deprecated(note = "No point in resolving a vc that is already resolved")]
     pub async fn resolve(self) -> Result<Vc<T>> {
+        Ok(self.node)
+    }
+    #[cfg(feature = "sync")]
+    #[deprecated(note = "No point in resolving a vc that is already resolved")]
+    pub fn resolve(self) -> Result<Vc<T>> {
         Ok(self.node)
     }
 }
@@ -154,6 +166,40 @@ where
 into_future!(ResolvedVc<T>, |this| (*this).into_future());
 into_future!(&ResolvedVc<T>, |this| (*this).into_future());
 into_future!(&mut ResolvedVc<T>, |this| (*this).into_future());
+
+#[cfg(feature = "sync")]
+impl<T> crate::macro_helpers::SyncRead for ResolvedVc<T>
+where
+    T: crate::VcValueType,
+{
+    type Output = <crate::ReadVcFuture<T> as ::std::future::Future>::Output;
+    fn sync_read(self) -> Self::Output {
+        // A resolved `Vc` reads exactly like its inner `Vc` (see `into_future!` above).
+        crate::macro_helpers::SyncRead::sync_read(*self)
+    }
+}
+
+#[cfg(feature = "sync")]
+impl<T> crate::macro_helpers::SyncRead for &ResolvedVc<T>
+where
+    T: crate::VcValueType,
+{
+    type Output = <crate::ReadVcFuture<T> as ::std::future::Future>::Output;
+    fn sync_read(self) -> Self::Output {
+        crate::macro_helpers::SyncRead::sync_read(**self)
+    }
+}
+
+#[cfg(feature = "sync")]
+impl<T> crate::macro_helpers::SyncRead for &mut ResolvedVc<T>
+where
+    T: crate::VcValueType,
+{
+    type Output = <crate::ReadVcFuture<T> as ::std::future::Future>::Output;
+    fn sync_read(self) -> Self::Output {
+        crate::macro_helpers::SyncRead::sync_read(**self)
+    }
+}
 
 impl<T> ResolvedVc<T>
 where

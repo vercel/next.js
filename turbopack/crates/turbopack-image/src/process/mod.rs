@@ -3,6 +3,7 @@ pub mod svg;
 use std::{io::Cursor, str::FromStr};
 
 use anyhow::{Context, Result, bail};
+#[cfg(not(feature = "sync"))]
 use async_trait::async_trait;
 use base64::{display::Base64Display, engine::general_purpose::STANDARD};
 use bincode::{Decode, Encode};
@@ -342,11 +343,11 @@ pub async fn get_meta_data(
     content: Vc<FileContent>,
     blur_placeholder: Option<Vc<BlurPlaceholderOptions>>,
 ) -> Result<Vc<ImageMetaData>> {
-    let FileContent::Content(content) = &*content.await? else {
+    let FileContent::Content(content) = &*turbo_tasks::read!(content)? else {
         bail!("Input image not found");
     };
     let bytes = content.content().to_bytes();
-    let ident = image.ident().await?;
+    let ident = turbo_tasks::read!(image.ident())?;
     let extension = ident.path.extension();
 
     if extension == Some("svg") {
@@ -393,7 +394,7 @@ pub async fn get_meta_data(
                         image,
                         image_data,
                         format.unwrap(),
-                        &*blur_placeholder.await?,
+                        &*turbo_tasks::read!(blur_placeholder)?,
                     )
                 } else {
                     None
@@ -425,11 +426,11 @@ pub async fn optimize(
     max_height: u32,
     quality: u8,
 ) -> Result<Vc<FileContent>> {
-    let FileContent::Content(content) = &*content.await? else {
+    let FileContent::Content(content) = &*turbo_tasks::read!(content)? else {
         return Ok(FileContent::NotFound.cell());
     };
     let bytes = content.content().to_bytes();
-    let ident = source.ident().await?;
+    let ident = turbo_tasks::read!(source.ident())?;
     let extension = ident.path.extension();
 
     let Some((image, format)) = load_image(source, &bytes, extension) else {
@@ -490,6 +491,30 @@ struct ImageProcessingIssue {
     source: IssueSource,
 }
 
+impl ImageProcessingIssue {
+    turbo_tasks::dual_fn! {
+        fn file_path_impl(&self) -> anyhow::Result<FileSystemPath> {
+            turbo_tasks::read!(self.source.file_path())
+        }
+    }
+
+    turbo_tasks::dual_fn! {
+        fn title_impl(&self) -> anyhow::Result<StyledString> {
+            Ok(match self.title {
+                Some(t) => (*turbo_tasks::read!(t)?).clone(),
+                None => StyledString::Text(rcstr!("Processing image failed")),
+            })
+        }
+    }
+
+    turbo_tasks::dual_fn! {
+        fn description_impl(&self) -> anyhow::Result<Option<StyledString>> {
+            Ok(Some((*turbo_tasks::read!(self.message)?).clone()))
+        }
+    }
+}
+
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for ImageProcessingIssue {
@@ -498,7 +523,7 @@ impl Issue for ImageProcessingIssue {
     }
 
     async fn file_path(&self) -> anyhow::Result<FileSystemPath> {
-        self.source.file_path().await
+        self.file_path_impl().await
     }
 
     fn stage(&self) -> IssueStage {
@@ -506,14 +531,39 @@ impl Issue for ImageProcessingIssue {
     }
 
     async fn title(&self) -> anyhow::Result<StyledString> {
-        Ok(match self.title {
-            Some(t) => (*t.await?).clone(),
-            None => StyledString::Text(rcstr!("Processing image failed")),
-        })
+        self.title_impl().await
     }
 
     async fn description(&self) -> anyhow::Result<Option<StyledString>> {
-        Ok(Some((*self.message.await?).clone()))
+        self.description_impl().await
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
+    }
+}
+
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for ImageProcessingIssue {
+    fn severity(&self) -> IssueSeverity {
+        self.issue_severity.unwrap_or(IssueSeverity::Error)
+    }
+
+    fn file_path(&self) -> anyhow::Result<FileSystemPath> {
+        self.file_path_impl()
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
+    }
+
+    fn title(&self) -> anyhow::Result<StyledString> {
+        self.title_impl()
+    }
+
+    fn description(&self) -> anyhow::Result<Option<StyledString>> {
+        self.description_impl()
     }
 
     fn source(&self) -> Option<IssueSource> {

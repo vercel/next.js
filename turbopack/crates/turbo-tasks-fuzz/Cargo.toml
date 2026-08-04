@@ -15,7 +15,12 @@ rand = { workspace = true, features = ["thread_rng"] }
 rustc-hash = { workspace = true }
 tokio = { workspace = true }
 turbo-rcstr = { workspace = true }
-turbo-tasks = { workspace = true }
-turbo-tasks-backend = { workspace = true }
-turbo-tasks-fs = { workspace = true }
+turbo-tasks = { path = "../turbo-tasks", default-features = false }
+turbo-tasks-backend = { path = "../turbo-tasks-backend", default-features = false }
+turbo-tasks-fs = { path = "../turbo-tasks-fs", default-features = false }
+
+[features]
+default = ["tokio_runtime"]
+tokio_runtime = ["turbo-tasks/tokio_runtime", "turbo-tasks-backend/tokio_runtime", "turbo-tasks-fs/tokio_runtime"]
+sync = ["turbo-tasks/sync", "turbo-tasks-backend/sync", "turbo-tasks-fs/sync"]
 

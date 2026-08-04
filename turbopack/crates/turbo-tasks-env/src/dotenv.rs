@@ -36,9 +36,9 @@ impl DotenvProcessEnv {
         &self,
         prior: Vc<TransientEnvMap>,
     ) -> Result<Vc<TransientEnvMap>> {
-        let prior = prior.await?;
+        let prior = turbo_tasks::read!(prior)?;
 
-        let file = self.path.read().await?;
+        let file = turbo_tasks::read!(self.path.read())?;
         if let FileContent::Content(f) = &*file {
             let res;
             let vars;
@@ -63,8 +63,10 @@ impl DotenvProcessEnv {
 
             if let Err(e) = res {
                 // ast-grep-ignore: no-context-turbofmt
-                return Err(e)
-                    .context(turbofmt!("unable to read {} for env vars", self.path).await?);
+                return Err(e).context(turbo_tasks::read!(turbofmt!(
+                    "unable to read {} for env vars",
+                    self.path
+                ))?);
             }
 
             Ok(Vc::cell(vars))

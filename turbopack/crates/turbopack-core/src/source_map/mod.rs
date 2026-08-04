@@ -18,7 +18,7 @@ use ref_cast::RefCast;
 use regex::Regex;
 use swc_sourcemap::{DecodedMap, SourceMap as RegularMap, SourceMapBuilder, SourceMapIndex};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToStringRef, Vc};
+use turbo_tasks::{ResolvedVc, ValueToStringRef, Vc};
 use turbo_tasks_fs::{
     File, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
     rope::{Rope, RopeBuilder},
@@ -256,7 +256,7 @@ impl SourceMap {
     /// (issue resolving, etc).
     #[turbo_tasks::function]
     pub async fn new_from_rope_cached(content: Vc<FileContent>) -> Result<Vc<OptionSourceMap>> {
-        let content = content.await?;
+        let content = turbo_tasks::read!(content)?;
         let Some(content) = content.as_content() else {
             return Ok(OptionSourceMap::none());
         };
@@ -363,32 +363,36 @@ impl SourceMap {
         token
     }
 
+    turbo_tasks::dual_fn! {
     /// Traces a generated line/column into an mapping token representing either
     /// synthetic code or user-authored original code.
-    pub async fn lookup_token_and_source(&self, line: u32, column: u32) -> Result<TokenWithSource> {
+    pub fn lookup_token_and_source(&self, line: u32, column: u32) -> Result<TokenWithSource> {
         let (token, content) = self.lookup_token_and_source_internal(line, column, true);
         Ok(TokenWithSource {
             token,
             source_content: match content {
-                Some(v) => Some(v.to_resolved().await?),
+                Some(v) => Some(turbo_tasks::read!(v.to_resolved())?),
                 None => None,
             },
         })
     }
+    }
 
-    pub async fn with_resolved_sources(&self, origin: FileSystemPath) -> Result<Self> {
-        async fn resolve_source(
+    turbo_tasks::dual_fn! {
+    pub fn with_resolved_sources(&self, origin: FileSystemPath) -> Result<Self> {
+        turbo_tasks::dual_fn! {
+        fn resolve_source(
             source_request: BytesStr,
             source_content: Option<BytesStr>,
             origin: FileSystemPath,
         ) -> Result<(BytesStr, BytesStr)> {
             Ok(
                 if let Some(path) = origin.parent().try_join(&source_request) {
-                    let path_str = path.to_string_ref().await?;
+                    let path_str = turbo_tasks::read!(path.to_string_ref())?;
                     let source = format!("{SOURCE_URL_PROTOCOL}///{path_str}");
                     let source_content = if let Some(source_content) = source_content {
                         source_content
-                    } else if let FileContent::Content(file) = &*path.read().await? {
+                    } else if let FileContent::Content(file) = &*turbo_tasks::read!(path.read())? {
                         let text = file.content().to_str()?;
                         text.to_string().into()
                     } else {
@@ -396,7 +400,7 @@ impl SourceMap {
                     };
                     (source.into(), source_content)
                 } else {
-                    let origin_str = origin.to_string_ref().await?;
+                    let origin_str = turbo_tasks::read!(origin.to_string_ref())?;
                     static INVALID_REGEX: LazyLock<Regex> =
                         LazyLock::new(|| Regex::new(r#"(?:^|/)(?:\.\.?(?:/|$))+"#).unwrap());
                     let source = INVALID_REGEX
@@ -415,7 +419,9 @@ impl SourceMap {
                 },
             )
         }
-        async fn regular_map_with_resolved_sources(
+        }
+        turbo_tasks::dual_fn! {
+        fn regular_map_with_resolved_sources(
             map: &RegularMapWrapper,
             origin: FileSystemPath,
         ) -> Result<RegularMap> {
@@ -433,7 +439,7 @@ impl SourceMap {
             let mut new_source_contents = Vec::with_capacity(count);
             for (source, source_content) in sources.into_iter().zip(source_contents) {
                 let (source, source_content) =
-                    resolve_source(source, source_content, origin.clone()).await?;
+                    turbo_tasks::read!(resolve_source(source, source_content, origin.clone()))?;
                 new_sources.push(source);
                 new_source_contents.push(Some(source_content));
             }
@@ -444,14 +450,38 @@ impl SourceMap {
 
             Ok(map)
         }
-        async fn decoded_map_with_resolved_sources(
+        }
+        turbo_tasks::dual_fn! {
+        /// Per-section step: resolves a nested section map. The recursion into
+        /// `decoded_map_with_resolved_sources` is boxed in the async build (async fns
+        /// cannot recurse unboxed) and a plain call under `sync`.
+        fn resolved_section(
+            offset: (u32, u32),
+            map: &CrateMapWrapper,
+            origin: FileSystemPath,
+        ) -> Result<((u32, u32), CrateMapWrapper)> {
+            #[cfg(not(feature = "sync"))]
+            {
+                Ok((
+                    offset,
+                    Box::pin(decoded_map_with_resolved_sources(map, origin)).await?,
+                ))
+            }
+            #[cfg(feature = "sync")]
+            {
+                Ok((offset, decoded_map_with_resolved_sources(map, origin)?))
+            }
+        }
+        }
+        turbo_tasks::dual_fn! {
+        fn decoded_map_with_resolved_sources(
             map: &CrateMapWrapper,
             origin: FileSystemPath,
         ) -> Result<CrateMapWrapper> {
             Ok(CrateMapWrapper(match &map.0 {
                 DecodedMap::Regular(map) => {
                     let map = RegularMapWrapper::ref_cast(map);
-                    DecodedMap::Regular(regular_map_with_resolved_sources(map, origin).await?)
+                    DecodedMap::Regular(turbo_tasks::read!(regular_map_with_resolved_sources(map, origin))?)
                 }
                 DecodedMap::Index(map) => {
                     let count = map.get_section_count() as usize;
@@ -464,25 +494,19 @@ impl SourceMap {
                                 .map(|s| (section.get_offset(), CrateMapWrapper::ref_cast(s)))
                         })
                         .collect::<Vec<_>>();
-                    let sections = sections
-                        .into_iter()
-                        .map(|(offset, map)| {
-                            let origin = origin.clone();
-                            async move {
-                                Ok((
-                                    offset,
-                                    Box::pin(decoded_map_with_resolved_sources(
-                                        map,
-                                        origin.clone(),
-                                    ))
-                                    .await?,
-                                ))
-                            }
-                        })
-                        .try_join()
-                        .await?;
-                    let mut new_sections = Vec::with_capacity(count);
+                    // Sequential in both modes: section lists are small, and the
+                    // per-section dual helper cannot fan out through `parallel!`
+                    // under sync.
+                    let mut resolved_sections = Vec::with_capacity(sections.len());
                     for (offset, map) in sections {
+                        resolved_sections.push(turbo_tasks::read!(resolved_section(
+                            offset,
+                            map,
+                            origin.clone()
+                        ))?);
+                    }
+                    let mut new_sections = Vec::with_capacity(count);
+                    for (offset, map) in resolved_sections {
                         new_sections.push(swc_sourcemap::SourceMapSection::new(
                             offset,
                             // Urls are deprecated and we don't accept them
@@ -497,9 +521,15 @@ impl SourceMap {
                 }
             }))
         }
+        }
 
-        let map = Box::pin(decoded_map_with_resolved_sources(&self.map, origin)).await?;
+        #[cfg(not(feature = "sync"))]
+        let map =
+            turbo_tasks::read!(Box::pin(decoded_map_with_resolved_sources(&self.map, origin)))?;
+        #[cfg(feature = "sync")]
+        let map = decoded_map_with_resolved_sources(&self.map, origin)?;
         Ok(Self::new_decoded(map.0))
+    }
     }
 }
 
@@ -510,7 +540,7 @@ fn sourcemap_content_fs_root() -> Vc<FileSystemPath> {
 
 #[turbo_tasks::function]
 async fn sourcemap_content_source(path: RcStr, content: RcStr) -> Result<Vc<Box<dyn Source>>> {
-    let path = sourcemap_content_fs_root().await?.join(&path)?;
+    let path = turbo_tasks::read!(sourcemap_content_fs_root())?.join(&path)?;
     let content = AssetContent::file(FileContent::new(File::from(content)).cell());
     Ok(Vc::upcast(VirtualSource::new(path, content)))
 }

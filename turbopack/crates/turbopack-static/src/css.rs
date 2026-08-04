@@ -39,12 +39,8 @@ impl StaticUrlCssModule {
 impl Module for StaticUrlCssModule {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let mut ident = self
-            .source
-            .ident()
-            .owned()
-            .await?
-            .with_modifier(rcstr!("static in css"));
+        let mut ident =
+            turbo_tasks::read!(self.source.ident().owned())?.with_modifier(rcstr!("static in css"));
         if let Some(tag) = &self.tag {
             ident = ident.with_modifier(format!("tag {}", tag).into());
         }

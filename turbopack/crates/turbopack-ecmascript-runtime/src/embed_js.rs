@@ -16,12 +16,12 @@ pub fn embed_fs() -> Vc<Box<dyn FileSystem>> {
 
 #[turbo_tasks::function]
 pub async fn embed_file(path: RcStr) -> Result<Vc<FileContent>> {
-    Ok(embed_fs().root().await?.join(&path)?.read())
+    Ok(turbo_tasks::read!(embed_fs().root())?.join(&path)?.read())
 }
 
 #[turbo_tasks::function]
 pub async fn embed_file_path(path: RcStr) -> Result<Vc<FileSystemPath>> {
-    Ok(embed_fs().root().await?.join(&path)?.cell())
+    Ok(turbo_tasks::read!(embed_fs().root())?.join(&path)?.cell())
 }
 
 #[turbo_tasks::function]
@@ -32,7 +32,7 @@ pub async fn embed_static_code(
 ) -> Result<Vc<Code>> {
     Ok(StaticEcmascriptCode::new(
         asset_context,
-        embed_file_path(path).owned().await?,
+        turbo_tasks::read!(embed_file_path(path).owned())?,
         generate_source_map,
     )
     .code())
@@ -51,7 +51,7 @@ pub async fn embed_static_code(
 /// modules they should be added here.
 #[turbo_tasks::function]
 pub async fn turbopack_runtime_import_map() -> Result<Vc<ImportMap>> {
-    let embed_root = embed_fs().root().owned().await?;
+    let embed_root = turbo_tasks::read!(embed_fs().root().owned())?;
 
     let mut import_map = ImportMap::default();
 

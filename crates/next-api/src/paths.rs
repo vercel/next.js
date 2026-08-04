@@ -35,20 +35,17 @@ async fn asset_path(
     should_content_hash: Option<HashAlgorithm>,
 ) -> Result<Vc<OptionAssetPath>> {
     Ok(Vc::cell(
-        if let Some(path) = node_root.get_path_to(&*asset.path().await?) {
+        if let Some(path) = node_root.get_path_to(&*turbo_tasks::read!(asset.path())?) {
             let hash = if let Some(algorithm) = should_content_hash {
-                asset
-                    .content()
-                    .content_hash(no_hash_salt(), algorithm)
-                    .owned()
-                    .await?
-                    .context("asset content not found")?
+                turbo_tasks::read!(
+                    asset
+                        .content()
+                        .content_hash(no_hash_salt(), algorithm)
+                        .owned()
+                )?
+                .context("asset content not found")?
             } else {
-                asset
-                    .content()
-                    .hash(HashAlgorithm::Xxh3Hash128Hex)
-                    .owned()
-                    .await?
+                turbo_tasks::read!(asset.content().hash(HashAlgorithm::Xxh3Hash128Hex).owned())?
             };
             Some(AssetPath {
                 path: RcStr::from(path),
@@ -73,20 +70,45 @@ pub async fn all_asset_paths(
         assets_count = tracing::field::Empty,
         asset_paths_count = tracing::field::Empty
     );
-    let span_clone = span.clone();
-    async move {
-        let all_assets = all_assets_from_entries(assets).await?;
+    #[cfg(not(feature = "sync"))]
+    {
+        let span_clone = span.clone();
+        turbo_tasks::read!(
+            async move {
+                let all_assets = turbo_tasks::read!(all_assets_from_entries(assets))?;
+                span.record("assets_count", all_assets.len());
+                let asset_paths = turbo_tasks::read!(
+                    all_assets
+                        .iter()
+                        .map(
+                            |&asset| asset_path(*asset, node_root.clone(), should_content_hash)
+                                .owned()
+                        )
+                        .try_flat_join()
+                )?;
+                span.record("asset_paths_count", asset_paths.len());
+                Ok(Vc::cell(asset_paths))
+            }
+            .instrument(span_clone)
+        )
+    }
+    #[cfg(feature = "sync")]
+    {
+        let _g = span.enter();
+        let all_assets = turbo_tasks::read!(all_assets_from_entries(assets))?;
         span.record("assets_count", all_assets.len());
-        let asset_paths = all_assets
-            .iter()
-            .map(|&asset| asset_path(*asset, node_root.clone(), should_content_hash).owned())
-            .try_flat_join()
-            .await?;
+        let asset_paths = {
+            let mut asset_paths = Vec::new();
+            for &asset in all_assets.iter() {
+                asset_paths.extend(turbo_tasks::read!(
+                    asset_path(*asset, node_root.clone(), should_content_hash).owned()
+                )?);
+            }
+            asset_paths
+        };
         span.record("asset_paths_count", asset_paths.len());
         Ok(Vc::cell(asset_paths))
     }
-    .instrument(span_clone)
-    .await
 }
 
 /// Return a list of relative paths to `root` for all output assets references
@@ -96,102 +118,161 @@ pub async fn all_paths_in_root(
     assets: Vc<OutputAssets>,
     root: FileSystemPath,
 ) -> Result<Vc<Vec<RcStr>>> {
-    let all_assets = all_assets_from_entries(assets).await?;
+    let all_assets = turbo_tasks::read!(all_assets_from_entries(assets))?;
 
-    Ok(Vc::cell(
-        get_paths_from_root(&root, all_assets, |_| true).await?,
-    ))
+    Ok(Vc::cell(turbo_tasks::read!(get_paths_from_root(
+        &root,
+        all_assets,
+        |_| true
+    ))?))
 }
 
-pub(crate) async fn get_paths_from_root(
+turbo_tasks::dual_fn! {
+pub(crate) fn get_paths_from_root(
     root: &FileSystemPath,
     output_assets: impl IntoIterator<Item = ResolvedVc<Box<dyn OutputAsset>>>,
     filter: impl FnOnce(&str) -> bool + Copy,
 ) -> Result<Vec<RcStr>> {
-    output_assets
-        .into_iter()
-        .map(move |file| async move {
-            let path = &*file.path().await?;
-            let Some(relative) = root.get_path_to(path) else {
-                return Ok(None);
-            };
+    #[cfg(not(feature = "sync"))]
+    {
+        turbo_tasks::read!(output_assets
+            .into_iter()
+            .map(move |file| async move {
+                let path = &*turbo_tasks::read!(file.path())?;
+                let Some(relative) = root.get_path_to(path) else {
+                    return Ok(None);
+                };
 
-            Ok(if filter(relative) {
-                Some(relative.into())
-            } else {
-                None
+                Ok(if filter(relative) {
+                    Some(relative.into())
+                } else {
+                    None
+                })
             })
-        })
-        .try_flat_join()
-        .await
+            .try_flat_join())
+    }
+    #[cfg(feature = "sync")]
+    {
+        let mut result = Vec::new();
+        for file in output_assets.into_iter() {
+            let path = &*turbo_tasks::read!(file.path())?;
+            let Some(relative) = root.get_path_to(path) else {
+                continue;
+            };
+            if filter(relative) {
+                result.push(relative.into());
+            }
+        }
+        Ok(result)
+    }
+}
 }
 
-pub(crate) async fn get_js_paths_from_root(
+turbo_tasks::dual_fn! {
+pub(crate) fn get_js_paths_from_root(
     root: &FileSystemPath,
     output_assets: impl IntoIterator<Item = ResolvedVc<Box<dyn OutputAsset>>>,
 ) -> Result<Vec<RcStr>> {
-    get_paths_from_root(root, output_assets, |path| path.ends_with(".js")).await
+    turbo_tasks::read!(get_paths_from_root(root, output_assets, |path| path.ends_with(".js")))
+}
 }
 
-pub(crate) async fn get_wasm_paths_from_root(
+turbo_tasks::dual_fn! {
+pub(crate) fn get_wasm_paths_from_root(
     root: &FileSystemPath,
     output_assets: impl IntoIterator<Item = ResolvedVc<Box<dyn OutputAsset>>>,
 ) -> Result<Vec<(RcStr, ResolvedVc<Box<dyn OutputAsset>>)>> {
-    output_assets
-        .into_iter()
-        .map(move |file| async move {
-            let path = &*file.path().await?;
-            let Some(relative) = root.get_path_to(path) else {
-                return Ok(None);
-            };
+    #[cfg(not(feature = "sync"))]
+    {
+        turbo_tasks::read!(output_assets
+            .into_iter()
+            .map(move |file| async move {
+                let path = &*turbo_tasks::read!(file.path())?;
+                let Some(relative) = root.get_path_to(path) else {
+                    return Ok(None);
+                };
 
-            Ok(if relative.ends_with(".wasm") {
-                Some((relative.into(), file))
-            } else {
-                None
+                Ok(if relative.ends_with(".wasm") {
+                    Some((relative.into(), file))
+                } else {
+                    None
+                })
             })
-        })
-        .try_flat_join()
-        .await
+            .try_flat_join())
+    }
+    #[cfg(feature = "sync")]
+    {
+        let mut result = Vec::new();
+        for file in output_assets.into_iter() {
+            let path = &*turbo_tasks::read!(file.path())?;
+            let Some(relative) = root.get_path_to(path) else {
+                continue;
+            };
+            if relative.ends_with(".wasm") {
+                result.push((relative.into(), file));
+            }
+        }
+        Ok(result)
+    }
+}
 }
 
-pub(crate) async fn get_asset_paths_from_root(
+turbo_tasks::dual_fn! {
+pub(crate) fn get_asset_paths_from_root(
     root: &FileSystemPath,
     output_assets: impl IntoIterator<Item = ResolvedVc<Box<dyn OutputAsset>>>,
 ) -> Result<Vec<RcStr>> {
-    get_paths_from_root(root, output_assets, |path| {
+    turbo_tasks::read!(get_paths_from_root(root, output_assets, |path| {
         !path.ends_with(".js") && !path.ends_with(".map") && !path.ends_with(".wasm")
-    })
-    .await
+    }))
+
+}
 }
 
-pub(crate) async fn get_font_paths_from_root(
+turbo_tasks::dual_fn! {
+pub(crate) fn get_font_paths_from_root(
     root: &FileSystemPath,
     output_assets: impl IntoIterator<Item = ResolvedVc<Box<dyn OutputAsset>>>,
 ) -> Result<Vec<RcStr>> {
-    get_paths_from_root(root, output_assets, |path| {
+    turbo_tasks::read!(get_paths_from_root(root, output_assets, |path| {
         path.ends_with(".woff")
             || path.ends_with(".woff2")
             || path.ends_with(".eot")
             || path.ends_with(".ttf")
             || path.ends_with(".otf")
-    })
-    .await
+    }))
+
+}
 }
 
-pub(crate) async fn wasm_paths_to_bindings(
+turbo_tasks::dual_fn! {
+pub(crate) fn wasm_paths_to_bindings(
     paths: impl IntoIterator<Item = (RcStr, ResolvedVc<Box<dyn OutputAsset>>)>,
 ) -> Result<Vec<AssetBinding>> {
-    paths
-        .into_iter()
-        .map(async |(path, asset)| {
-            Ok(AssetBinding {
-                name: wasm_edge_var_name(Vc::upcast(*asset)).owned().await?,
-                file_path: path,
+    #[cfg(not(feature = "sync"))]
+    {
+        turbo_tasks::read!(paths
+            .into_iter()
+            .map(async |(path, asset)| {
+                Ok(AssetBinding {
+                    name: turbo_tasks::read!(wasm_edge_var_name(Vc::upcast(*asset)).owned())?,
+                    file_path: path,
+                })
             })
-        })
-        .try_join()
-        .await
+            .try_join())
+    }
+    #[cfg(feature = "sync")]
+    {
+        let mut result = Vec::new();
+        for (path, asset) in paths.into_iter() {
+            result.push(AssetBinding {
+                name: turbo_tasks::read!(wasm_edge_var_name(Vc::upcast(*asset)).owned())?,
+                file_path: path,
+            });
+        }
+        Ok(result)
+    }
+}
 }
 
 pub(crate) fn paths_to_bindings(paths: Vec<RcStr>) -> Vec<AssetBinding> {

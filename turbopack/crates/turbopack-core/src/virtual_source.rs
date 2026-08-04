@@ -21,7 +21,7 @@ impl VirtualSource {
     #[turbo_tasks::function]
     pub async fn new(path: FileSystemPath, content: ResolvedVc<AssetContent>) -> Result<Vc<Self>> {
         Ok(Self::cell(VirtualSource {
-            ident: AssetIdent::from_path(path).into_vc().to_resolved().await?,
+            ident: turbo_tasks::read!(AssetIdent::from_path(path).into_vc().to_resolved())?,
             content,
         }))
     }
@@ -44,7 +44,7 @@ impl Source for VirtualSource {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<Vc<RcStr>> {
-        let ident = self.ident.to_string().await?;
+        let ident = turbo_tasks::read!(self.ident.to_string())?;
         Ok(Vc::cell(format!("virtual source {}", ident).into()))
     }
 }

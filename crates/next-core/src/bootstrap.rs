@@ -33,7 +33,7 @@ pub async fn bootstrap(
     inner_assets: Vc<InnerAssets>,
     config: Vc<BootstrapConfig>,
 ) -> Result<Vc<Box<dyn EvaluatableAsset>>> {
-    let asset_ident = asset.ident().await?;
+    let asset_ident = turbo_tasks::read!(asset.ident())?;
     let Some(path) = base_path.get_path_to(&asset_ident.path) else {
         turbobail!("asset {} is not in base path {base_path}", asset.ident())
     };
@@ -45,43 +45,45 @@ pub async fn bootstrap(
 
     let pathname = normalize_app_page_to_pathname(path);
 
-    let mut config = config.owned().await?;
+    let mut config = turbo_tasks::read!(config.owned())?;
     config.insert("PAGE".to_string(), path.to_string());
     config.insert("PATHNAME".to_string(), pathname);
 
-    let config_asset = asset_context
-        .process(
-            Vc::upcast(VirtualSource::new(
-                asset_ident.path.join("bootstrap-config.ts")?,
-                AssetContent::file(
-                    FileContent::Content(File::from(
-                        config
-                            .iter()
-                            .map(|(k, v)| format!("export const {} = {};\n", k, StringifyJs(v)))
-                            .collect::<Vec<_>>()
-                            .join(""),
-                    ))
-                    .cell(),
-                ),
-            )),
-            ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
-        )
-        .module()
-        .to_resolved()
-        .await?;
+    let config_asset = turbo_tasks::read!(
+        asset_context
+            .process(
+                Vc::upcast(VirtualSource::new(
+                    asset_ident.path.join("bootstrap-config.ts")?,
+                    AssetContent::file(
+                        FileContent::Content(File::from(
+                            config
+                                .iter()
+                                .map(|(k, v)| format!("export const {} = {};\n", k, StringifyJs(v)))
+                                .collect::<Vec<_>>()
+                                .join(""),
+                        ))
+                        .cell(),
+                    ),
+                )),
+                ReferenceType::Internal(turbo_tasks::read!(InnerAssets::empty().to_resolved())?),
+            )
+            .module()
+            .to_resolved()
+    )?;
 
-    let mut inner_assets = inner_assets.owned().await?;
+    let mut inner_assets = turbo_tasks::read!(inner_assets.owned())?;
     inner_assets.insert(rcstr!("ENTRY"), asset);
     inner_assets.insert(rcstr!("BOOTSTRAP_CONFIG"), config_asset);
 
-    let asset = asset_context
-        .process(
-            bootstrap_asset,
-            ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
-        )
-        .module()
-        .to_resolved()
-        .await?;
+    let asset = turbo_tasks::read!(
+        asset_context
+            .process(
+                bootstrap_asset,
+                ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
+            )
+            .module()
+            .to_resolved()
+    )?;
 
     let asset = ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(asset)
         .context("internal module must be evaluatable")?;

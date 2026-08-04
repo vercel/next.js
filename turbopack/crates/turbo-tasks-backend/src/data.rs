@@ -1,17 +1,15 @@
 use std::{
     fmt::{self, Debug, Display},
-    pin::Pin,
     sync::Arc,
 };
 
-use anyhow::Result;
 use bincode::{Decode, Encode};
 use parking_lot::Mutex;
 use rustc_hash::FxHashSet;
 #[cfg(feature = "task_dirty_cause")]
 use turbo_tasks::TaskDirtyCause;
 use turbo_tasks::{
-    CellId, RawVc, TaskExecutionReason, TaskId, TaskPriority, TraitTypeId,
+    CellId, TaskExecutionReason, TaskId, TaskPriority, TraitTypeId,
     backend::TransientTaskRoot,
     event::{Event, EventDescription, EventListener},
 };
@@ -172,8 +170,7 @@ impl ActivenessState {
 
 transient_traits!(ActivenessState);
 
-type TransientTaskOnce =
-    Mutex<Option<Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'static>>>>;
+type TransientTaskOnce = Mutex<Option<turbo_tasks::task::NativeTaskFuture>>;
 
 pub enum TransientTask {
     /// A root task that will track dependencies and re-execute when

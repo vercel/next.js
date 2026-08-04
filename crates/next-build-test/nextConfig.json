@@ -138,5 +138,6 @@
     "fallback": []
   },
   "_originalRedirects": [],
-  "exportPathMap": {}
+  "exportPathMap": {},
+  "distDirRoot": ".next"
 }

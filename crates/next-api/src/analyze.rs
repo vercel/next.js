@@ -384,8 +384,8 @@ pub async fn combine_output_assets(
     extra: Vc<OutputAssets>,
 ) -> Result<Vc<OutputAssets>> {
     let mut combined: Vec<ResolvedVc<Box<dyn OutputAsset>>> =
-        primary.await?.iter().copied().collect();
-    combined.extend(extra.await?.iter().copied());
+        turbo_tasks::read!(primary)?.iter().copied().collect();
+    combined.extend(turbo_tasks::read!(extra)?.iter().copied());
     Ok(Vc::cell(combined))
 }
 
@@ -396,8 +396,8 @@ pub async fn combine_traced_files(
     primary: Vc<FileSystemPathVec>,
     extra: Vc<FileSystemPathVec>,
 ) -> Result<Vc<FileSystemPathVec>> {
-    let mut combined: Vec<FileSystemPath> = primary.await?.iter().cloned().collect();
-    combined.extend(extra.await?.iter().cloned());
+    let mut combined: Vec<FileSystemPath> = turbo_tasks::read!(primary)?.iter().cloned().collect();
+    combined.extend(turbo_tasks::read!(extra)?.iter().cloned());
     Ok(Vc::cell(combined))
 }
 
@@ -414,15 +414,19 @@ pub async fn analyze_output_assets(
 
     // Process the output assets and extract chunk parts.
     // Also creates sources for the chunk parts.
-    for asset in output_assets
-        .await?
+    for asset in turbo_tasks::read!(output_assets)?
         .iter()
         .copied()
         .map(Either::Left)
-        .chain(traced_files.await?.iter().cloned().map(Either::Right))
+        .chain(
+            turbo_tasks::read!(traced_files)?
+                .iter()
+                .cloned()
+                .map(Either::Right),
+        )
     {
         let file_system_path = match &asset {
-            Either::Left(asset) => Either::Left(asset.path().await?),
+            Either::Left(asset) => Either::Left(turbo_tasks::read!(asset.path())?),
             Either::Right(path) => Either::Right(path),
         };
         let path = match &file_system_path {
@@ -435,16 +439,16 @@ pub async fn analyze_output_assets(
         }
 
         let filename = match &file_system_path {
-            Either::Left(path) => path.to_string_ref().await?,
-            Either::Right(path) => path.to_string_ref().await?,
+            Either::Left(path) => turbo_tasks::read!(path.to_string_ref())?,
+            Either::Right(path) => turbo_tasks::read!(path.to_string_ref())?,
         };
 
         let output_file_index = builder.add_output_file(AnalyzeOutputFile {
             filename: filename.clone(),
         });
         let chunk_parts = match asset {
-            Either::Left(asset) => split_output_asset_into_parts(*asset).await?,
-            Either::Right(path) => split_traced_file_into_parts(path).await?,
+            Either::Left(asset) => turbo_tasks::read!(split_output_asset_into_parts(*asset))?,
+            Either::Right(path) => turbo_tasks::read!(split_traced_file_into_parts(path))?,
         };
         for chunk_part in &chunk_parts {
             let decoded_source = urlencoding::decode(&chunk_part.source)?;
@@ -464,7 +468,8 @@ pub async fn analyze_output_assets(
                 source_index,
                 output_file_index,
                 size,
-                compressed_size: chunk_part.get_compressed_size().await?.unwrap_or(size),
+                compressed_size: turbo_tasks::read!(chunk_part.get_compressed_size())?
+                    .unwrap_or(size),
             });
             builder.add_chunk_part_to_output_file(output_file_index, chunk_part_index);
             builder.add_chunk_part_to_source(source_index, chunk_part_index);
@@ -506,7 +511,7 @@ pub async fn analyze_module_graphs(module_graph: Vc<ModuleGraph>) -> Result<Vc<F
     let mut all_traced_edges = FxIndexSet::default();
     let mut traced_modules = FxHashSet::default();
 
-    let module_graph = module_graph.await?;
+    let module_graph = turbo_tasks::read!(module_graph)?;
     module_graph.traverse_edges_dfs(
         module_graph.all_entry_modules(),
         &mut (),
@@ -546,48 +551,80 @@ pub async fn analyze_module_graphs(module_graph: Vc<ModuleGraph>) -> Result<Vc<F
     )?;
 
     type ModulePair = (ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>);
-    async fn mapper((from, to): ModulePair) -> Result<Option<(RcStr, RcStr)>> {
+    turbo_tasks::dual_fn! {
+    fn mapper((from, to): ModulePair) -> Result<Option<(RcStr, RcStr)>> {
         if from == to {
             return Ok(None);
         }
-        let from_ident = from.ident().to_string().owned().await?;
-        let to_ident = to.ident().to_string().owned().await?;
+        let from_ident = turbo_tasks::read!(from.ident().to_string().owned())?;
+        let to_ident = turbo_tasks::read!(to.ident().to_string().owned())?;
         Ok(Some((from_ident, to_ident)))
     }
+    }
 
-    let all_modules = all_modules
-        .iter()
-        .copied()
-        .map(async |module| {
-            let ident = module.ident().to_string().owned().await?;
-            let path = module.ident().await?.path.to_string_ref().await?;
-            Ok((ident, path))
-        })
-        .try_join()
-        .await?;
+    #[cfg(not(feature = "sync"))]
+    let all_modules = turbo_tasks::read!(
+        all_modules
+            .iter()
+            .copied()
+            .map(async |module| {
+                let ident = turbo_tasks::read!(module.ident().to_string().owned())?;
+                let path =
+                    turbo_tasks::read!(turbo_tasks::read!(module.ident())?.path.to_string_ref())?;
+                Ok((ident, path))
+            })
+            .try_join()
+    )?;
+    #[cfg(feature = "sync")]
+    let all_modules = {
+        let mut all_modules_out = Vec::new();
+        for module in all_modules.iter().copied() {
+            all_modules_out.push({
+                let ident = turbo_tasks::read!(module.ident().to_string().owned())?;
+                let path =
+                    turbo_tasks::read!(turbo_tasks::read!(module.ident())?.path.to_string_ref())?;
+                Ok::<_, anyhow::Error>((ident, path))
+            }?);
+        }
+        all_modules_out
+    };
 
     for (ident, path) in &all_modules {
         builder.ensure_module(ident, path);
     }
 
-    let all_edges = all_edges
-        .iter()
-        .copied()
-        .map(mapper)
-        .try_flat_join()
-        .await?;
-    let all_async_edges = all_async_edges
-        .iter()
-        .copied()
-        .map(mapper)
-        .try_flat_join()
-        .await?;
-    let all_traced_edges = all_traced_edges
-        .iter()
-        .copied()
-        .map(mapper)
-        .try_flat_join()
-        .await?;
+    #[cfg(not(feature = "sync"))]
+    let all_edges = turbo_tasks::read!(all_edges.iter().copied().map(mapper).try_flat_join())?;
+    #[cfg(feature = "sync")]
+    let all_edges = {
+        let mut all_edges_out = Vec::new();
+        for edge in all_edges.iter().copied() {
+            all_edges_out.extend(mapper(edge)?);
+        }
+        all_edges_out
+    };
+    #[cfg(not(feature = "sync"))]
+    let all_async_edges =
+        turbo_tasks::read!(all_async_edges.iter().copied().map(mapper).try_flat_join())?;
+    #[cfg(feature = "sync")]
+    let all_async_edges = {
+        let mut all_async_edges_out = Vec::new();
+        for edge in all_async_edges.iter().copied() {
+            all_async_edges_out.extend(mapper(edge)?);
+        }
+        all_async_edges_out
+    };
+    #[cfg(not(feature = "sync"))]
+    let all_traced_edges =
+        turbo_tasks::read!(all_traced_edges.iter().copied().map(mapper).try_flat_join())?;
+    #[cfg(feature = "sync")]
+    let all_traced_edges = {
+        let mut all_traced_edges_out = Vec::new();
+        for edge in all_traced_edges.iter().copied() {
+            all_traced_edges_out.extend(mapper(edge)?);
+        }
+        all_traced_edges_out
+    };
     for (from_ident, to_ident) in all_edges {
         let from_index = builder.get_module(&from_ident).1;
         let to_index = builder.get_module(&to_ident).1;

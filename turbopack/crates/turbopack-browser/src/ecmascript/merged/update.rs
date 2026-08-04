@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use serde::Serialize;
-use turbo_tasks::{FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TryJoinIterExt, Vc};
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::TryJoinIterExt;
+use turbo_tasks::{FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, Vc};
 use turbo_tasks_fs::rope::Rope;
 use turbopack_core::{
     chunk::{ChunkingContext, ModuleId},
@@ -82,8 +84,9 @@ struct EcmascriptModuleEntry {
 }
 
 impl EcmascriptModuleEntry {
-    async fn from_code(id: &ModuleId, code: Vc<Code>, chunk_path: &str) -> Result<Self> {
-        let map = &*code.generate_source_map().await?;
+    turbo_tasks::dual_fn! {
+    fn from_code(id: &ModuleId, code: Vc<Code>, chunk_path: &str) -> Result<Self> {
+        let map = &*turbo_tasks::read!(code.generate_source_map())?;
         let map = map.as_content().map(|f| f.content().clone());
 
         /// serde_qs can't serialize a lone enum when it's [serde::untagged].
@@ -95,10 +98,11 @@ impl EcmascriptModuleEntry {
 
         Ok(EcmascriptModuleEntry {
             // Cloning a rope is cheap.
-            code: code.await?.source_code().clone(),
+            code: turbo_tasks::read!(code)?.source_code().clone(),
             url: format!("{}?{}", chunk_path, id),
             map,
         })
+    }
     }
 }
 
@@ -127,7 +131,8 @@ impl MergedModuleMap {
     }
 }
 
-pub(super) async fn update_ecmascript_merged_chunk(
+turbo_tasks::dual_fn! {
+pub(super) fn update_ecmascript_merged_chunk(
     content: Vc<EcmascriptBrowserMergedChunkContent>,
     from_version: ResolvedVc<Box<dyn Version>>,
 ) -> Result<Update> {
@@ -139,14 +144,14 @@ pub(super) async fn update_ecmascript_merged_chunk(
     } else {
         // It's likely `from_version` is `NotFoundVersion`.
         return Ok(Update::Total(TotalUpdate {
-            to: Vc::upcast::<Box<dyn Version>>(to_merged_version)
-                .into_trait_ref()
-                .await?,
+            to: turbo_tasks::read!(Vc::upcast::<Box<dyn Version>>(to_merged_version)
+                .into_trait_ref())
+                ?,
         }));
     };
 
-    let to = to_merged_version.await?;
-    let from = from_merged_version.await?;
+    let to = turbo_tasks::read!(to_merged_version)?;
+    let from = turbo_tasks::read!(from_merged_version)?;
 
     // When to and from point to the same value we can skip comparing them. This will happen since
     // `TraitRef::<Box<dyn Version>>::cell` will not clone the value, but only make the cell point
@@ -163,19 +168,35 @@ pub(super) async fn update_ecmascript_merged_chunk(
 
     let merged_module_map = MergedModuleMap::new(from.versions.to_vec());
 
-    let content = content.await?;
+    let content = turbo_tasks::read!(content)?;
+    // The sync `parallel!` only fans out plain `Vc` reads, so the multi-step
+    // per-item work runs concurrently in the async build (as before) and
+    // sequentially under `sync`.
+    #[cfg(not(feature = "sync"))]
     let to_contents = content
         .contents
         .iter()
         .map(|content| async move {
-            let entries = content.entries().await?;
-            let content_ref = content.await?;
-            let output_root = content_ref.chunking_context.output_root().await?;
-            let path = content_ref.chunk.path().await?;
+            let entries = turbo_tasks::read!(content.entries())?;
+            let content_ref = turbo_tasks::read!(content)?;
+            let output_root = turbo_tasks::read!(content_ref.chunking_context.output_root())?;
+            let path = turbo_tasks::read!(content_ref.chunk.path())?;
             Ok((*content, entries, output_root, path))
         })
         .try_join()
         .await?;
+    #[cfg(feature = "sync")]
+    let to_contents = {
+        let mut to_contents = Vec::with_capacity(content.contents.len());
+        for content in content.contents.iter() {
+            let entries = turbo_tasks::read!(content.entries())?;
+            let content_ref = turbo_tasks::read!(content)?;
+            let output_root = turbo_tasks::read!(content_ref.chunking_context.output_root())?;
+            let path = turbo_tasks::read!(content_ref.chunk.path())?;
+            to_contents.push((*content, entries, output_root, path));
+        }
+        to_contents
+    };
 
     let mut merged_update = EcmascriptMergedUpdate::default();
 
@@ -188,7 +209,7 @@ pub(super) async fn update_ecmascript_merged_chunk(
             from_versions_by_chunk_path.swap_remove(chunk_path)
         {
             // The chunk was present in the previous version, so we must update it.
-            let update = update_ecmascript_chunk(**content, from_version).await?;
+            let update = turbo_tasks::read!(update_ecmascript_chunk(**content, from_version))?;
 
             match update {
                 EcmascriptChunkUpdate::None => {
@@ -203,12 +224,12 @@ pub(super) async fn update_ecmascript_merged_chunk(
                         partial.added.insert(module_id.clone());
 
                         if merged_module_map.get(&module_id) != Some(module_hash) {
-                            let entry = EcmascriptModuleEntry::from_code(
+                            let entry = turbo_tasks::read!(EcmascriptModuleEntry::from_code(
                                 &module_id,
                                 *module_code,
                                 chunk_path,
-                            )
-                            .await?;
+                            ))
+                            ?;
                             merged_update.entries.insert(module_id, entry);
                         }
                     }
@@ -217,8 +238,8 @@ pub(super) async fn update_ecmascript_merged_chunk(
 
                     for (module_id, module_code) in chunk_partial.modified {
                         let entry =
-                            EcmascriptModuleEntry::from_code(&module_id, *module_code, chunk_path)
-                                .await?;
+                            turbo_tasks::read!(EcmascriptModuleEntry::from_code(&module_id, *module_code, chunk_path))
+                                ?;
                         merged_update.entries.insert(module_id, entry);
                     }
 
@@ -230,12 +251,12 @@ pub(super) async fn update_ecmascript_merged_chunk(
             let mut added = EcmascriptMergedChunkAdded::default();
 
             for (id, entry) in entries {
-                let hash = *entry.hash.await?;
+                let hash = *turbo_tasks::read!(entry.hash)?;
                 added.modules.insert(id.clone());
 
                 if merged_module_map.get(id) != Some(hash) {
                     let entry =
-                        EcmascriptModuleEntry::from_code(id, *entry.code, chunk_path).await?;
+                        turbo_tasks::read!(EcmascriptModuleEntry::from_code(id, *entry.code, chunk_path))?;
                     merged_update.entries.insert(id.clone(), entry);
                 }
             }
@@ -261,12 +282,13 @@ pub(super) async fn update_ecmascript_merged_chunk(
         Update::None
     } else {
         Update::Partial(PartialUpdate {
-            to: Vc::upcast::<Box<dyn Version>>(to_merged_version)
-                .into_trait_ref()
-                .await?,
+            to: turbo_tasks::read!(Vc::upcast::<Box<dyn Version>>(to_merged_version)
+                .into_trait_ref())
+                ?,
             instruction: Arc::new(serde_json::to_value(&merged_update)?),
         })
     };
 
     Ok(update)
+}
 }

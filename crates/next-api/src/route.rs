@@ -174,11 +174,23 @@ impl EndpointGroup {
 
 #[turbo_tasks::function]
 async fn output_of_endpoints(endpoints: Vec<Vc<Box<dyn Endpoint>>>) -> Result<Vc<OutputAssets>> {
-    let assets = endpoints
-        .iter()
-        .map(async |endpoint| Ok(*endpoint.output().await?.output_assets))
-        .try_join()
-        .await?;
+    #[cfg(not(feature = "sync"))]
+    let assets = turbo_tasks::read!(
+        endpoints
+            .iter()
+            .map(async |endpoint| Ok(*turbo_tasks::read!(endpoint.output())?.output_assets))
+            .try_join()
+    )?;
+    #[cfg(feature = "sync")]
+    let assets = {
+        let mut assets = Vec::new();
+        for endpoint in endpoints.iter() {
+            assets.push({
+                Ok::<_, anyhow::Error>(*turbo_tasks::read!(endpoint.output())?.output_assets)
+            }?);
+        }
+        assets
+    };
     Ok(OutputAssets::concat(assets))
 }
 
@@ -186,15 +198,29 @@ async fn output_of_endpoints(endpoints: Vec<Vc<Box<dyn Endpoint>>>) -> Result<Vc
 async fn module_graphs_of_endpoints(
     endpoints: Vec<Vc<Box<dyn Endpoint>>>,
 ) -> Result<Vc<ModuleGraphs>> {
-    let module_graphs = endpoints
-        .iter()
-        .map(async |endpoint| Ok(endpoint.module_graphs().await?.into_iter()))
-        .try_flat_join()
-        .await?
-        .into_iter()
-        .collect::<FxIndexSet<_>>()
-        .into_iter()
-        .collect::<Vec<_>>();
+    #[cfg(not(feature = "sync"))]
+    let module_graphs = turbo_tasks::read!(
+        endpoints
+            .iter()
+            .map(async |endpoint| Ok(turbo_tasks::read!(endpoint.module_graphs())?.into_iter()))
+            .try_flat_join()
+    )?
+    .into_iter()
+    .collect::<FxIndexSet<_>>()
+    .into_iter()
+    .collect::<Vec<_>>();
+    #[cfg(feature = "sync")]
+    let module_graphs = {
+        let mut module_graphs = Vec::new();
+        for endpoint in endpoints.iter() {
+            module_graphs.extend(turbo_tasks::read!(endpoint.module_graphs())?.into_iter());
+        }
+        module_graphs
+            .into_iter()
+            .collect::<FxIndexSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>()
+    };
     Ok(Vc::cell(module_graphs))
 }
 
@@ -204,7 +230,7 @@ async fn traced_files_of_endpoints(
 ) -> Result<Vc<FileSystemPathVec>> {
     let mut modules: FxIndexSet<_> = FxIndexSet::default();
     for endpoint in endpoints {
-        modules.extend(endpoint.traced_files().await?.iter().cloned());
+        modules.extend(turbo_tasks::read!(endpoint.traced_files())?.iter().cloned());
     }
     Ok(Vc::cell(modules.into_iter().collect()))
 }
@@ -224,12 +250,13 @@ pub async fn endpoint_write_to_disk(
         project,
         output_paths,
         ..
-    } = *output_op.connect().await?;
+    } = *turbo_tasks::read!(output_op.connect())?;
 
-    project
-        .emit_all_output_assets(endpoint_output_assets_operation(output_op))
-        .as_side_effect()
-        .await?;
+    turbo_tasks::read!(
+        project
+            .emit_all_output_assets(endpoint_output_assets_operation(output_op))
+            .as_side_effect()
+    )?;
 
     Ok(*output_paths)
 }
@@ -243,40 +270,46 @@ fn output_assets_operation(endpoint: ResolvedVc<Box<dyn Endpoint>>) -> Vc<Endpoi
 async fn endpoint_output_assets_operation(
     output: OperationVc<EndpointOutput>,
 ) -> Result<Vc<OutputAssets>> {
-    Ok(*output.connect().await?.output_assets)
+    Ok(*turbo_tasks::read!(output.connect())?.output_assets)
 }
 
 #[turbo_tasks::function(operation, root)]
 pub async fn endpoint_write_to_disk_operation(
     endpoint: OperationVc<OptionEndpoint>,
 ) -> Result<Vc<EndpointOutputPaths>> {
-    Ok(if let Some(endpoint) = *endpoint.connect().await? {
-        endpoint_write_to_disk(*endpoint)
-    } else {
-        EndpointOutputPaths::NotFound.cell()
-    })
+    Ok(
+        if let Some(endpoint) = *turbo_tasks::read!(endpoint.connect())? {
+            endpoint_write_to_disk(*endpoint)
+        } else {
+            EndpointOutputPaths::NotFound.cell()
+        },
+    )
 }
 
 #[turbo_tasks::function(operation, root)]
 pub async fn endpoint_server_changed_operation(
     endpoint: OperationVc<OptionEndpoint>,
 ) -> Result<Vc<Completion>> {
-    Ok(if let Some(endpoint) = *endpoint.connect().await? {
-        endpoint.server_changed()
-    } else {
-        Completion::new()
-    })
+    Ok(
+        if let Some(endpoint) = *turbo_tasks::read!(endpoint.connect())? {
+            endpoint.server_changed()
+        } else {
+            Completion::new()
+        },
+    )
 }
 
 #[turbo_tasks::function(operation, root)]
 pub async fn endpoint_client_changed_operation(
     endpoint: OperationVc<OptionEndpoint>,
 ) -> Result<Vc<Completion>> {
-    Ok(if let Some(endpoint) = *endpoint.connect().await? {
-        endpoint.client_changed()
-    } else {
-        Completion::new()
-    })
+    Ok(
+        if let Some(endpoint) = *turbo_tasks::read!(endpoint.connect())? {
+            endpoint.client_changed()
+        } else {
+            Completion::new()
+        },
+    )
 }
 
 #[turbo_tasks::value(shared)]

@@ -1,6 +1,7 @@
 use std::ops::Deref;
 
 use anyhow::Result;
+#[cfg(not(feature = "sync"))]
 use async_trait::async_trait;
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
@@ -39,7 +40,7 @@ pub struct OptionPackageJson(Option<PackageJson>);
 /// emits a useful [Issue] pointing to the invalid location.
 #[turbo_tasks::function]
 pub async fn read_package_json(path: ResolvedVc<Box<dyn Source>>) -> Result<Vc<OptionPackageJson>> {
-    let read = path.content().parse_json().await?;
+    let read = turbo_tasks::read!(path.content().parse_json())?;
     match &*read {
         FileJsonContent::Content(_) => Ok(OptionPackageJson(Some(PackageJson(read))).cell()),
         FileJsonContent::NotFound => Ok(OptionPackageJson(None).cell()),
@@ -68,6 +69,7 @@ pub struct PackageJsonIssue {
     pub source: IssueSource,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for PackageJsonIssue {
@@ -82,10 +84,37 @@ impl Issue for PackageJsonIssue {
     }
 
     async fn file_path(&self) -> Result<FileSystemPath> {
-        self.source.file_path().await
+        turbo_tasks::read!(self.source.file_path())
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(self.error_message.clone())))
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
+    }
+}
+
+/// See the async impl above; the sync engine drops `async`/`#[async_trait]`.
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for PackageJsonIssue {
+    fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Error parsing package.json file"
+        )))
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Parse
+    }
+
+    fn file_path(&self) -> Result<FileSystemPath> {
+        turbo_tasks::read!(self.source.file_path())
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
         Ok(Some(StyledString::Text(self.error_message.clone())))
     }
 

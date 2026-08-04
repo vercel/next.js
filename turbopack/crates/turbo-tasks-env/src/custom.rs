@@ -24,8 +24,8 @@ impl CustomProcessEnv {
 impl ProcessEnv for CustomProcessEnv {
     #[turbo_tasks::function]
     async fn read_all(&self) -> Result<Vc<TransientEnvMap>> {
-        let prior = self.prior.read_all().owned().await?;
-        let custom = self.custom.owned().await?;
+        let prior = turbo_tasks::read!(self.prior.read_all().owned())?;
+        let custom = turbo_tasks::read!(self.custom.owned())?;
 
         let mut extended = prior;
         extended.extend(custom);
@@ -34,9 +34,10 @@ impl ProcessEnv for CustomProcessEnv {
 
     #[turbo_tasks::function]
     async fn read(&self, name: RcStr) -> Result<Vc<Option<RcStr>>> {
-        let custom_transient: Vc<TransientEnvMap> = Vc::cell((*self.custom.await?).clone());
+        let custom_transient: Vc<TransientEnvMap> =
+            Vc::cell((*turbo_tasks::read!(self.custom)?).clone());
         let custom = case_insensitive_read(custom_transient, name.clone());
-        match &*custom.await? {
+        match &*turbo_tasks::read!(custom)? {
             Some(_) => Ok(custom),
             None => Ok(self.prior.read(name)),
         }

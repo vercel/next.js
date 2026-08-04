@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use turbo_tasks::{State, Vc, trace::TraceRawVcs};
+use turbo_tasks::{State, Vc, read, trace::TraceRawVcs};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
@@ -31,7 +31,7 @@ pub struct TaskSpec {
 #[turbo_tasks::value(transparent)]
 struct Iteration(State<usize>);
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_graph_bug() {
     let mut nonce = 0;
     run_once(&REGISTRATION, move || {
@@ -78,14 +78,14 @@ async fn test_graph_bug_operation(nonce: u32) -> Result<Vc<()>> {
         },
     ];
 
-    let it = *create_iteration().to_resolved().await?;
-    it.await?.set(0);
+    let it = *read!(create_iteration().to_resolved())?;
+    read!(it)?.set(0);
     println!("🚀 Initial");
     let task = run_task(Arc::new(spec), it, 0);
-    task.strongly_consistent().await?;
+    read!(task.strongly_consistent())?;
     println!("🚀 Set iteration to 1");
-    it.await?.set(1);
-    task.strongly_consistent().await?;
+    read!(it)?.set(1);
+    read!(task.strongly_consistent())?;
     println!("🚀 Finished strongly consistent wait");
 
     Ok(Vc::cell(()))
@@ -107,9 +107,16 @@ async fn run_task_chain(
 ) -> Result<Vc<()>> {
     println!("run_task_chain(from: {from}, ref_index: {ref_index}, to: {to}, chain: {chain})");
     if chain > 0 {
-        run_task_chain(spec, iteration, from, ref_index, to, chain - 1).await?;
+        read!(run_task_chain(
+            spec,
+            iteration,
+            from,
+            ref_index,
+            to,
+            chain - 1
+        ))?;
     } else {
-        run_task(spec, iteration, to).await?;
+        read!(run_task(spec, iteration, to))?;
     }
     Ok(Vc::cell(()))
 }
@@ -123,7 +130,7 @@ async fn run_task(
     println!("run_task(task_index: {task_index})");
     let mut task = &spec[task_index as usize];
     if task.change.is_some() {
-        let iteration = iteration.await?;
+        let iteration = read!(iteration)?;
         let it = *iteration.get();
         for _ in 0..it {
             task = if let Some(change) = &task.change {
@@ -134,7 +141,7 @@ async fn run_task(
         }
     }
     for i in 0..task.children {
-        run_task_child(task_index, i).await?;
+        read!(run_task_child(task_index, i))?;
     }
     for (i, reference) in task.references.iter().enumerate() {
         let call = if reference.chain > 0 {
@@ -150,10 +157,10 @@ async fn run_task(
             run_task(spec.clone(), iteration, reference.task)
         };
         if reference.read {
-            call.await?;
+            read!(call)?;
         }
         if reference.read_strongly_consistent {
-            call.strongly_consistent().await?;
+            read!(call.strongly_consistent())?;
         }
     }
     Ok(Vc::cell(()))

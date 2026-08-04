@@ -4,13 +4,13 @@
 
 use anyhow::Result;
 use turbo_tasks::{
-    ResolvedVc, State, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
+    ResolvedVc, State, Vc, read, unmark_top_level_task_may_leak_eventually_consistent_state,
 };
 use turbo_tasks_testing::{Registration, register, run, run_once};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn recompute() {
     run_once(&REGISTRATION, || async {
         unmark_top_level_task_may_leak_eventually_consistent_state();
@@ -61,7 +61,7 @@ async fn recompute() {
     .unwrap()
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn immutable_analysis() {
     run_once(&REGISTRATION, || async {
         unmark_top_level_task_may_leak_eventually_consistent_state();
@@ -118,9 +118,9 @@ struct Output {
 
 #[turbo_tasks::function(root)]
 async fn compute(input: Vc<ChangingInput>, input2: Vc<ChangingInput>) -> Result<Vc<Output>> {
-    let state_value = *input.await?.state.get();
+    let state_value = *read!(input)?.state.get();
     let state_value2 = if state_value < 5 {
-        *compute2(input2).await?
+        *read!(compute2(input2))?
     } else {
         42
     };
@@ -136,7 +136,7 @@ async fn compute(input: Vc<ChangingInput>, input2: Vc<ChangingInput>) -> Result<
 
 #[turbo_tasks::function]
 async fn compute2(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
-    let state_value = *input.await?.state.get();
+    let state_value = *read!(input)?.state.get();
     Ok(Vc::cell(state_value))
 }
 
@@ -147,7 +147,7 @@ async fn compute2(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
 /// Tests that when a task's dependency changes, both the inner and outer
 /// tasks re-execute correctly and return updated values.
 /// This tests the basic dependency propagation through a simple two-task chain.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn recompute_dependency() {
     run(&REGISTRATION, || async {
         unmark_top_level_task_may_leak_eventually_consistent_state();
@@ -220,7 +220,7 @@ struct DependencyOutput {
 #[turbo_tasks::function]
 async fn inner_compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
     println!("inner_compute()");
-    let value = *input.await?.state.get();
+    let value = *read!(input)?.state.get();
     // Combine value with random to detect re-execution
     // Value in lower 16 bits, random in upper 16 bits
     Ok(Vc::cell(value | (rand::random::<u32>() << 16)))
@@ -230,7 +230,7 @@ async fn inner_compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
 #[turbo_tasks::function(root)]
 async fn outer_compute(input: Vc<ChangingInput>) -> Result<Vc<DependencyOutput>> {
     println!("outer_compute()");
-    let inner_result = *inner_compute(input).await?;
+    let inner_result = *read!(inner_compute(input))?;
     let value = inner_result & 0xFFFF;
     let inner_random = inner_result >> 16;
     Ok(DependencyOutput {

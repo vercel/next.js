@@ -134,12 +134,12 @@ impl AppProject {
 
     #[turbo_tasks::function]
     async fn rsc_ty(self: Vc<Self>) -> Result<Vc<ServerContextType>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         Ok(ServerContextType::AppRSC {
             app_dir: this.app_dir.clone(),
-            client_transition: Some(ResolvedVc::upcast(
-                self.client_transition().to_resolved().await?,
-            )),
+            client_transition: Some(ResolvedVc::upcast(turbo_tasks::read!(
+                self.client_transition().to_resolved()
+            )?)),
             ecmascript_client_reference_transition_name: Some(Self::client_transition_name()),
         }
         .cell())
@@ -147,7 +147,7 @@ impl AppProject {
 
     #[turbo_tasks::function]
     async fn route_ty(self: Vc<Self>) -> Result<Vc<ServerContextType>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         Ok(ServerContextType::AppRoute {
             app_dir: this.app_dir.clone(),
             ecmascript_client_reference_transition_name: Some(Self::client_transition_name()),
@@ -182,10 +182,10 @@ impl AppProject {
     #[turbo_tasks::function]
     async fn client_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
         Ok(get_client_module_options_context(
-            self.project().project_path().owned().await?,
+            turbo_tasks::read!(self.project().project_path().owned())?,
             self.project().execution_context(),
             self.project().client_compile_time_info().environment(),
-            self.client_ty().owned().await?,
+            turbo_tasks::read!(self.client_ty().owned())?,
             self.project().next_mode(),
             self.project().next_config(),
             self.project().encryption_key(),
@@ -195,8 +195,8 @@ impl AppProject {
     #[turbo_tasks::function]
     async fn client_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_client_resolve_options_context(
-            self.project().project_path().owned().await?,
-            self.client_ty().owned().await?,
+            turbo_tasks::read!(self.project().project_path().owned())?,
+            turbo_tasks::read!(self.client_ty().owned())?,
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
@@ -212,25 +212,25 @@ impl AppProject {
     #[turbo_tasks::function]
     async fn rsc_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
         Ok(get_server_module_options_context(
-            self.project().project_path().owned().await?,
+            turbo_tasks::read!(self.project().project_path().owned())?,
             self.project().execution_context(),
-            self.rsc_ty().owned().await?,
+            turbo_tasks::read!(self.rsc_ty().owned())?,
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::NodeJs,
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
-            *self.project().should_write_nft_manifests().await?,
+            *turbo_tasks::read!(self.project().should_write_nft_manifests())?,
         ))
     }
 
     #[turbo_tasks::function]
     async fn edge_rsc_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
         Ok(get_server_module_options_context(
-            self.project().project_path().owned().await?,
+            turbo_tasks::read!(self.project().project_path().owned())?,
             self.project().execution_context(),
-            self.rsc_ty().owned().await?,
+            turbo_tasks::read!(self.rsc_ty().owned())?,
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::Edge,
@@ -245,25 +245,25 @@ impl AppProject {
     #[turbo_tasks::function]
     async fn route_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
         Ok(get_server_module_options_context(
-            self.project().project_path().owned().await?,
+            turbo_tasks::read!(self.project().project_path().owned())?,
             self.project().execution_context(),
-            self.route_ty().owned().await?,
+            turbo_tasks::read!(self.route_ty().owned())?,
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::NodeJs,
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
-            *self.project().should_write_nft_manifests().await?,
+            *turbo_tasks::read!(self.project().should_write_nft_manifests())?,
         ))
     }
 
     #[turbo_tasks::function]
     async fn edge_route_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
         Ok(get_server_module_options_context(
-            self.project().project_path().owned().await?,
+            turbo_tasks::read!(self.project().project_path().owned())?,
             self.project().execution_context(),
-            self.route_ty().owned().await?,
+            turbo_tasks::read!(self.route_ty().owned())?,
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::Edge,
@@ -278,8 +278,8 @@ impl AppProject {
     #[turbo_tasks::function]
     async fn rsc_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_server_resolve_options_context(
-            self.project().project_path().owned().await?,
-            self.rsc_ty().owned().await?,
+            turbo_tasks::read!(self.project().project_path().owned())?,
+            turbo_tasks::read!(self.rsc_ty().owned())?,
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
@@ -290,8 +290,8 @@ impl AppProject {
     #[turbo_tasks::function]
     async fn edge_rsc_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_edge_resolve_options_context(
-            self.project().project_path().owned().await?,
-            self.rsc_ty().owned().await?,
+            turbo_tasks::read!(self.project().project_path().owned())?,
+            turbo_tasks::read!(self.rsc_ty().owned())?,
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
@@ -302,8 +302,8 @@ impl AppProject {
     #[turbo_tasks::function]
     async fn route_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_server_resolve_options_context(
-            self.project().project_path().owned().await?,
-            self.route_ty().owned().await?,
+            turbo_tasks::read!(self.project().project_path().owned())?,
+            turbo_tasks::read!(self.route_ty().owned())?,
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
@@ -316,8 +316,8 @@ impl AppProject {
         self: Vc<Self>,
     ) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_edge_resolve_options_context(
-            self.project().project_path().owned().await?,
-            self.route_ty().owned().await?,
+            turbo_tasks::read!(self.project().project_path().owned())?,
+            turbo_tasks::read!(self.route_ty().owned())?,
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
@@ -359,32 +359,40 @@ impl AppProject {
             named_transitions: [
                 (
                     AppProject::client_transition_name(),
-                    ecmascript_client_reference_transition.to_resolved().await?,
+                    turbo_tasks::read!(ecmascript_client_reference_transition.to_resolved())?,
                 ),
                 (
                     rcstr!("next-dynamic"),
-                    ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
+                    ResolvedVc::upcast(turbo_tasks::read!(
+                        NextDynamicTransition::new_marker().to_resolved()
+                    )?),
                 ),
                 (
                     rcstr!("next-dynamic-client"),
-                    ResolvedVc::upcast(
+                    ResolvedVc::upcast(turbo_tasks::read!(
                         NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
                             .to_resolved()
-                            .await?,
-                    ),
+                    )?),
                 ),
-                (rcstr!("next-ssr"), ssr_transition.to_resolved().await?),
+                (
+                    rcstr!("next-ssr"),
+                    turbo_tasks::read!(ssr_transition.to_resolved())?,
+                ),
                 (
                     rcstr!("next-shared"),
-                    shared_transition.to_resolved().await?,
+                    turbo_tasks::read!(shared_transition.to_resolved())?,
                 ),
                 (
                     rcstr!("next-server-utility"),
-                    ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
+                    ResolvedVc::upcast(turbo_tasks::read!(
+                        NextServerUtilityTransition::new().to_resolved()
+                    )?),
                 ),
                 (
                     rcstr!("next-server-component"),
-                    ResolvedVc::upcast(NextServerComponentTransition::new().to_resolved().await?),
+                    ResolvedVc::upcast(turbo_tasks::read!(
+                        NextServerComponentTransition::new().to_resolved()
+                    )?),
                 ),
             ]
             .into_iter()
@@ -399,7 +407,7 @@ impl AppProject {
                         ))),
                         module_styles_rule_condition(),
                     ]),
-                    self.css_client_reference_transition().to_resolved().await?,
+                    turbo_tasks::read!(self.css_client_reference_transition().to_resolved())?,
                 ),
                 // Don't wrap in marker module but change context, this is used to determine
                 // the list of CSS module classes.
@@ -410,12 +418,12 @@ impl AppProject {
                         ))),
                         module_styles_rule_condition(),
                     ]),
-                    ResolvedVc::upcast(self.client_transition().to_resolved().await?),
+                    ResolvedVc::upcast(turbo_tasks::read!(self.client_transition().to_resolved())?),
                 ),
                 // Mark as client reference all regular CSS imports
                 TransitionRule::new(
                     styles_rule_condition(),
-                    self.css_client_reference_transition().to_resolved().await?,
+                    turbo_tasks::read!(self.css_client_reference_transition().to_resolved())?,
                 ),
             ],
             ..Default::default()
@@ -461,33 +469,34 @@ impl AppProject {
         let transitions = [
             (
                 AppProject::client_transition_name(),
-                self.ecmascript_client_reference_transition()
-                    .to_resolved()
-                    .await?,
+                turbo_tasks::read!(self.ecmascript_client_reference_transition().to_resolved())?,
             ),
             (
                 rcstr!("next-dynamic"),
-                ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
+                ResolvedVc::upcast(turbo_tasks::read!(
+                    NextDynamicTransition::new_marker().to_resolved()
+                )?),
             ),
             (
                 rcstr!("next-dynamic-client"),
-                ResolvedVc::upcast(
+                ResolvedVc::upcast(turbo_tasks::read!(
                     NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
                         .to_resolved()
-                        .await?,
-                ),
+                )?),
             ),
             (
                 rcstr!("next-ssr"),
-                ResolvedVc::upcast(self.ssr_transition().to_resolved().await?),
+                ResolvedVc::upcast(turbo_tasks::read!(self.ssr_transition().to_resolved())?),
             ),
             (
                 rcstr!("next-shared"),
-                self.shared_transition().to_resolved().await?,
+                turbo_tasks::read!(self.shared_transition().to_resolved())?,
             ),
             (
                 rcstr!("next-server-utility"),
-                ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
+                ResolvedVc::upcast(turbo_tasks::read!(
+                    NextServerUtilityTransition::new().to_resolved()
+                )?),
             ),
         ]
         .into_iter()
@@ -512,33 +521,39 @@ impl AppProject {
         let transitions = [
             (
                 AppProject::client_transition_name(),
-                self.edge_ecmascript_client_reference_transition()
-                    .to_resolved()
-                    .await?,
+                turbo_tasks::read!(
+                    self.edge_ecmascript_client_reference_transition()
+                        .to_resolved()
+                )?,
             ),
             (
                 rcstr!("next-dynamic"),
-                ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
+                ResolvedVc::upcast(turbo_tasks::read!(
+                    NextDynamicTransition::new_marker().to_resolved()
+                )?),
             ),
             (
                 rcstr!("next-dynamic-client"),
-                ResolvedVc::upcast(
+                ResolvedVc::upcast(turbo_tasks::read!(
                     NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
                         .to_resolved()
-                        .await?,
-                ),
+                )?),
             ),
             (
                 rcstr!("next-ssr"),
-                ResolvedVc::upcast(self.edge_ssr_transition().to_resolved().await?),
+                ResolvedVc::upcast(turbo_tasks::read!(
+                    self.edge_ssr_transition().to_resolved()
+                )?),
             ),
             (
                 rcstr!("next-shared"),
-                self.edge_shared_transition().to_resolved().await?,
+                turbo_tasks::read!(self.edge_shared_transition().to_resolved())?,
             ),
             (
                 rcstr!("next-server-utility"),
-                ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
+                ResolvedVc::upcast(turbo_tasks::read!(
+                    NextServerUtilityTransition::new().to_resolved()
+                )?),
             ),
         ]
         .into_iter()
@@ -562,11 +577,15 @@ impl AppProject {
         let transitions = [
             (
                 rcstr!("next-dynamic"),
-                ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
+                ResolvedVc::upcast(turbo_tasks::read!(
+                    NextDynamicTransition::new_marker().to_resolved()
+                )?),
             ),
             (
                 rcstr!("next-dynamic-client"),
-                ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
+                ResolvedVc::upcast(turbo_tasks::read!(
+                    NextDynamicTransition::new_marker().to_resolved()
+                )?),
             ),
         ]
         .into_iter()
@@ -590,25 +609,25 @@ impl AppProject {
     #[turbo_tasks::function]
     async fn ssr_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
         Ok(get_server_module_options_context(
-            self.project().project_path().owned().await?,
+            turbo_tasks::read!(self.project().project_path().owned())?,
             self.project().execution_context(),
-            self.ssr_ty().owned().await?,
+            turbo_tasks::read!(self.ssr_ty().owned())?,
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::NodeJs,
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
-            *self.project().should_write_nft_manifests().await?,
+            *turbo_tasks::read!(self.project().should_write_nft_manifests())?,
         ))
     }
 
     #[turbo_tasks::function]
     async fn edge_ssr_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
         Ok(get_server_module_options_context(
-            self.project().project_path().owned().await?,
+            turbo_tasks::read!(self.project().project_path().owned())?,
             self.project().execution_context(),
-            self.ssr_ty().owned().await?,
+            turbo_tasks::read!(self.ssr_ty().owned())?,
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::Edge,
@@ -623,8 +642,8 @@ impl AppProject {
     #[turbo_tasks::function]
     async fn ssr_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_server_resolve_options_context(
-            self.project().project_path().owned().await?,
-            self.ssr_ty().owned().await?,
+            turbo_tasks::read!(self.project().project_path().owned())?,
+            turbo_tasks::read!(self.ssr_ty().owned())?,
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
@@ -635,8 +654,8 @@ impl AppProject {
     #[turbo_tasks::function]
     async fn edge_ssr_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_edge_resolve_options_context(
-            self.project().project_path().owned().await?,
-            self.ssr_ty().owned().await?,
+            turbo_tasks::read!(self.project().project_path().owned())?,
+            turbo_tasks::read!(self.ssr_ty().owned())?,
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
@@ -649,19 +668,20 @@ impl AppProject {
         let transitions = [
             (
                 rcstr!("next-dynamic"),
-                ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
+                ResolvedVc::upcast(turbo_tasks::read!(
+                    NextDynamicTransition::new_marker().to_resolved()
+                )?),
             ),
             (
                 rcstr!("next-dynamic-client"),
-                ResolvedVc::upcast(
+                ResolvedVc::upcast(turbo_tasks::read!(
                     NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
                         .to_resolved()
-                        .await?,
-                ),
+                )?),
             ),
             (
                 rcstr!("next-shared"),
-                self.shared_transition().to_resolved().await?,
+                turbo_tasks::read!(self.shared_transition().to_resolved())?,
             ),
         ]
         .into_iter()
@@ -678,7 +698,9 @@ impl AppProject {
                             ))),
                             module_styles_rule_condition(),
                         ]),
-                        ResolvedVc::upcast(self.client_transition().to_resolved().await?),
+                        ResolvedVc::upcast(turbo_tasks::read!(
+                            self.client_transition().to_resolved()
+                        )?),
                     ),
                 ],
                 ..Default::default()
@@ -721,19 +743,20 @@ impl AppProject {
         let transitions = [
             (
                 rcstr!("next-dynamic"),
-                ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
+                ResolvedVc::upcast(turbo_tasks::read!(
+                    NextDynamicTransition::new_marker().to_resolved()
+                )?),
             ),
             (
                 rcstr!("next-dynamic-client"),
-                ResolvedVc::upcast(
+                ResolvedVc::upcast(turbo_tasks::read!(
                     NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
                         .to_resolved()
-                        .await?,
-                ),
+                )?),
             ),
             (
                 rcstr!("next-shared"),
-                self.edge_shared_transition().to_resolved().await?,
+                turbo_tasks::read!(self.edge_shared_transition().to_resolved())?,
             ),
         ]
         .into_iter()
@@ -750,7 +773,9 @@ impl AppProject {
                             ))),
                             module_styles_rule_condition(),
                         ]),
-                        ResolvedVc::upcast(self.client_transition().to_resolved().await?),
+                        ResolvedVc::upcast(turbo_tasks::read!(
+                            self.client_transition().to_resolved()
+                        )?),
                     ),
                 ],
                 ..Default::default()
@@ -796,8 +821,8 @@ impl AppProject {
     #[turbo_tasks::function]
     async fn client_runtime_entries(self: Vc<Self>) -> Result<Vc<EvaluatableAssets>> {
         Ok(get_client_runtime_entries(
-            self.project().project_path().owned().await?,
-            self.client_ty().owned().await?,
+            turbo_tasks::read!(self.project().project_path().owned())?,
+            turbo_tasks::read!(self.client_ty().owned())?,
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
@@ -816,38 +841,65 @@ impl AppProject {
         app_route_filter: Option<Vec<RcStr>>,
     ) -> Result<Vc<Routes>> {
         let app_entrypoints = self.app_entrypoints();
-        Ok(Vc::cell(
-            app_entrypoints
-                .await?
-                .iter()
-                .filter(|(pathname, _)| {
-                    app_route_filter.as_ref().is_none_or(|app_routes| {
-                        app_routes
-                            .iter()
-                            .any(|route| route.as_str() == pathname.to_string())
-                    })
-                })
-                .map(|(pathname, app_entrypoint)| async {
-                    Ok((
-                        pathname.to_string().into(),
-                        app_entry_point_to_route(self, app_entrypoint.clone())
-                            .owned()
-                            .await?,
-                    ))
-                })
-                .try_join()
-                .await?
+        #[cfg(not(feature = "sync"))]
+        {
+            Ok(Vc::cell(
+                turbo_tasks::read!(
+                    turbo_tasks::read!(app_entrypoints)?
+                        .iter()
+                        .filter(|(pathname, _)| {
+                            app_route_filter.as_ref().is_none_or(|app_routes| {
+                                app_routes
+                                    .iter()
+                                    .any(|route| route.as_str() == pathname.to_string())
+                            })
+                        })
+                        .map(|(pathname, app_entrypoint)| async {
+                            Ok((
+                                pathname.to_string().into(),
+                                turbo_tasks::read!(
+                                    app_entry_point_to_route(self, app_entrypoint.clone()).owned()
+                                )?,
+                            ))
+                        })
+                        .try_join()
+                )?
                 .into_iter()
                 .collect(),
-        ))
+            ))
+        }
+        #[cfg(feature = "sync")]
+        {
+            let mut routes = Vec::new();
+            for (pathname, app_entrypoint) in
+                turbo_tasks::read!(app_entrypoints)?
+                    .iter()
+                    .filter(|(pathname, _)| {
+                        app_route_filter.as_ref().is_none_or(|app_routes| {
+                            app_routes
+                                .iter()
+                                .any(|route| route.as_str() == pathname.to_string())
+                        })
+                    })
+            {
+                routes.push({
+                    Ok::<_, anyhow::Error>((
+                        pathname.to_string().into(),
+                        turbo_tasks::read!(
+                            app_entry_point_to_route(self, app_entrypoint.clone()).owned()
+                        )?,
+                    ))
+                }?);
+            }
+            Ok(Vc::cell(routes.into_iter().collect()))
+        }
     }
 
     #[turbo_tasks::function]
     pub async fn route_keys(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
         let app_entrypoints = self.app_entrypoints();
         Ok(Vc::cell(
-            app_entrypoints
-                .await?
+            turbo_tasks::read!(app_entrypoints)?
                 .iter()
                 .map(|(pathname, _)| pathname.to_string().into())
                 .collect(),
@@ -858,21 +910,21 @@ impl AppProject {
     pub async fn client_main_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
         let client_module_context = Vc::upcast(self.client_module_context());
 
-        let client_main_module = cjs_resolve(
-            Vc::upcast(PlainResolveOrigin::new(
-                client_module_context,
-                self.project().project_path().await?.join("_")?,
-            )),
-            Request::parse(Pattern::Constant(rcstr!(
-                "next/dist/client/app-next-turbopack.js"
-            ))),
-            CommonJsReferenceSubType::Undefined,
-            None,
-            ResolveErrorMode::Error,
-        )
-        .await?
-        .first_module()
-        .await?
+        let client_main_module = turbo_tasks::read!(
+            turbo_tasks::read!(cjs_resolve(
+                Vc::upcast(PlainResolveOrigin::new(
+                    client_module_context,
+                    turbo_tasks::read!(self.project().project_path())?.join("_")?,
+                )),
+                Request::parse(Pattern::Constant(rcstr!(
+                    "next/dist/client/app-next-turbopack.js"
+                ))),
+                CommonJsReferenceSubType::Undefined,
+                None,
+                ResolveErrorMode::Error,
+            ))?
+            .first_module()
+        )?
         .context("expected Next.js client runtime to resolve to a module")?;
 
         Ok(*client_main_module)
@@ -885,17 +937,165 @@ impl AppProject {
         rsc_entry: ResolvedVc<Box<dyn Module>>,
         client_shared_entries_when_has_layout_segments: Option<Vc<EvaluatableAssets>>,
     ) -> Result<Vc<BaseAndFullModuleGraph>> {
-        if *self.project.per_page_module_graph().await? {
+        if *turbo_tasks::read!(self.project.per_page_module_graph())? {
             let next_mode = self.project.next_mode();
-            let next_mode_ref = next_mode.await?;
-            let should_trace = *self.project.should_write_nft_manifests().await?;
+            let next_mode_ref = turbo_tasks::read!(next_mode)?;
+            let should_trace = *turbo_tasks::read!(self.project.should_write_nft_manifests())?;
             let should_read_binding_usage = next_mode_ref.is_production();
 
             // Implements layout segment optimization to compute a graph "chain" for each layout
             // segment
             let span = tracing::info_span!("module graph for endpoint", modules = Empty);
             let span_clone = span.clone();
-            async move {
+            #[cfg(not(feature = "sync"))]
+            {
+                turbo_tasks::read!(
+                    async move {
+                        let rsc_entry_chunk_group = ChunkGroupEntry::Entry(vec![rsc_entry]);
+
+                        let mut graphs = vec![];
+                        let mut visited_modules = VisitedModules::empty();
+
+                        if let Some(client_shared_entries) =
+                            client_shared_entries_when_has_layout_segments
+                        {
+                            let ServerEntries {
+                                server_component_entries,
+                                server_utils,
+                            } = &*turbo_tasks::read!(find_server_entries(
+                                *rsc_entry,
+                                should_trace,
+                                should_read_binding_usage
+                            ))?;
+
+                            let client_shared_entries = turbo_tasks::read!(client_shared_entries)?
+                                .into_iter()
+                                .map(ResolvedVc::upcast)
+                                .collect();
+
+                            // SEGMENT: client_shared_entries and server utils shared by the layout
+                            // segments and the page
+                            let graph = SingleModuleGraph::new_with_entries_visited_intern(
+                                GraphEntries::from_chunk_groups(vec![
+                                    ChunkGroupEntry::Entry(client_shared_entries),
+                                    ChunkGroupEntry::SharedMultiple(turbo_tasks::read!(
+                                        server_utils
+                                            .iter()
+                                            .map(async |m| Ok(ResolvedVc::upcast(
+                                                turbo_tasks::read!(m)?.module
+                                            )))
+                                            .try_join()
+                                    )?),
+                                ]),
+                                visited_modules,
+                                should_trace,
+                                should_read_binding_usage,
+                            );
+                            graphs.push(graph);
+                            visited_modules = VisitedModules::concatenate(visited_modules, graph);
+
+                            // Skip the last server component, which is the page itself, because
+                            // that one won't have it's visited modules
+                            // added, and will be visited in the next step
+                            // as part of rsc_entry
+                            for module in server_component_entries
+                                .iter()
+                                .take(server_component_entries.len().saturating_sub(1))
+                            {
+                                // SEGMENT: layout segment
+                                let graph = SingleModuleGraph::new_with_entries_visited_intern(
+                                    GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Shared(
+                                        ResolvedVc::upcast(*module),
+                                    )]),
+                                    visited_modules,
+                                    should_trace,
+                                    should_read_binding_usage,
+                                );
+                                graphs.push(graph);
+                                let is_layout = turbo_tasks::read!(module.server_path())?
+                                    .file_stem()
+                                    == Some("layout");
+                                visited_modules = if is_layout {
+                                    // Only propagate the visited_modules of the parent layout(s),
+                                    // not across siblings such
+                                    // as loading.js and
+                                    // page.js.
+                                    VisitedModules::concatenate(visited_modules, graph)
+                                } else {
+                                    // Prevents graph index from getting out of sync.
+                                    // TODO We should remove VisitedModule entirely in favor of
+                                    // lookups
+                                    // in SingleModuleGraph
+                                    VisitedModules::with_incremented_index(visited_modules)
+                                };
+                            }
+                        }
+
+                        // SEGMENT: rsc entry chunk group
+                        let graph = SingleModuleGraph::new_with_entries_visited_intern(
+                            GraphEntries::from_chunk_groups(vec![rsc_entry_chunk_group]),
+                            visited_modules,
+                            should_trace,
+                            should_read_binding_usage,
+                        );
+                        graphs.push(graph);
+                        visited_modules = VisitedModules::concatenate(visited_modules, graph);
+
+                        let base = ModuleGraph::from_graphs(graphs.clone(), None);
+                        let additional_entries = endpoint.additional_entries(base.connect());
+                        let additional_module_graph =
+                            SingleModuleGraph::new_with_entries_visited_intern(
+                                turbo_tasks::read!(additional_entries.owned())?,
+                                visited_modules,
+                                should_trace,
+                                should_read_binding_usage,
+                            );
+                        graphs.push(additional_module_graph);
+
+                        if !span.is_disabled() {
+                            let mut module_count = 0u64;
+                            for g in &graphs {
+                                module_count += turbo_tasks::read!(
+                                    g.connect().module_count().untracked().owned()
+                                )?;
+                            }
+                            span.record("modules", module_count);
+                        }
+
+                        let remove_unused_imports = *turbo_tasks::read!(
+                            self.project
+                                .next_config()
+                                .turbopack_remove_unused_imports(next_mode)
+                        )?;
+
+                        let (full, binding_usage_info) = if remove_unused_imports {
+                            let full_with_unused_references =
+                                ModuleGraph::from_graphs(graphs.clone(), None);
+                            let binding_usage_info = compute_binding_usage_info(
+                                full_with_unused_references,
+                                should_read_binding_usage,
+                            );
+                            (
+                                ModuleGraph::from_graphs(graphs, Some(binding_usage_info)),
+                                Some(binding_usage_info),
+                            )
+                        } else {
+                            (ModuleGraph::from_graphs(graphs, None), None)
+                        };
+
+                        Ok(BaseAndFullModuleGraph {
+                            base: turbo_tasks::read!(base.connect().to_resolved())?,
+                            full: turbo_tasks::read!(full.connect().to_resolved())?,
+                            binding_usage_info,
+                        }
+                        .cell())
+                    }
+                    .instrument(span_clone)
+                )
+            }
+            #[cfg(feature = "sync")]
+            {
+                let _g = span_clone.entered();
                 let rsc_entry_chunk_group = ChunkGroupEntry::Entry(vec![rsc_entry]);
 
                 let mut graphs = vec![];
@@ -906,27 +1106,34 @@ impl AppProject {
                     let ServerEntries {
                         server_component_entries,
                         server_utils,
-                    } = &*find_server_entries(*rsc_entry, should_trace, should_read_binding_usage)
-                        .await?;
+                    } = &*turbo_tasks::read!(find_server_entries(
+                        *rsc_entry,
+                        should_trace,
+                        should_read_binding_usage
+                    ))?;
 
-                    let client_shared_entries = client_shared_entries
-                        .await?
+                    let client_shared_entries = turbo_tasks::read!(client_shared_entries)?
                         .into_iter()
                         .map(ResolvedVc::upcast)
                         .collect();
 
                     // SEGMENT: client_shared_entries and server utils shared by the layout segments
                     // and the page
+                    let server_utils_modules = {
+                        let mut server_utils_modules = Vec::new();
+                        for m in server_utils.iter() {
+                            server_utils_modules.push({
+                                Ok::<_, anyhow::Error>(ResolvedVc::upcast(
+                                    turbo_tasks::read!(m)?.module,
+                                ))
+                            }?);
+                        }
+                        server_utils_modules
+                    };
                     let graph = SingleModuleGraph::new_with_entries_visited_intern(
                         GraphEntries::from_chunk_groups(vec![
                             ChunkGroupEntry::Entry(client_shared_entries),
-                            ChunkGroupEntry::SharedMultiple(
-                                server_utils
-                                    .iter()
-                                    .map(async |m| Ok(ResolvedVc::upcast(m.await?.module)))
-                                    .try_join()
-                                    .await?,
-                            ),
+                            ChunkGroupEntry::SharedMultiple(server_utils_modules),
                         ]),
                         visited_modules,
                         should_trace,
@@ -952,7 +1159,8 @@ impl AppProject {
                             should_read_binding_usage,
                         );
                         graphs.push(graph);
-                        let is_layout = module.server_path().await?.file_stem() == Some("layout");
+                        let is_layout =
+                            turbo_tasks::read!(module.server_path())?.file_stem() == Some("layout");
                         visited_modules = if is_layout {
                             // Only propagate the visited_modules of the parent layout(s), not
                             // across siblings such as loading.js and
@@ -980,7 +1188,7 @@ impl AppProject {
                 let base = ModuleGraph::from_graphs(graphs.clone(), None);
                 let additional_entries = endpoint.additional_entries(base.connect());
                 let additional_module_graph = SingleModuleGraph::new_with_entries_visited_intern(
-                    additional_entries.owned().await?,
+                    turbo_tasks::read!(additional_entries.owned())?,
                     visited_modules,
                     should_trace,
                     should_read_binding_usage,
@@ -990,16 +1198,17 @@ impl AppProject {
                 if !span.is_disabled() {
                     let mut module_count = 0u64;
                     for g in &graphs {
-                        module_count += g.connect().module_count().untracked().owned().await?;
+                        module_count +=
+                            turbo_tasks::read!(g.connect().module_count().untracked().owned())?;
                     }
                     span.record("modules", module_count);
                 }
 
-                let remove_unused_imports = *self
-                    .project
-                    .next_config()
-                    .turbopack_remove_unused_imports(next_mode)
-                    .await?;
+                let remove_unused_imports = *turbo_tasks::read!(
+                    self.project
+                        .next_config()
+                        .turbopack_remove_unused_imports(next_mode)
+                )?;
 
                 let (full, binding_usage_info) = if remove_unused_imports {
                     let full_with_unused_references =
@@ -1017,14 +1226,12 @@ impl AppProject {
                 };
 
                 Ok(BaseAndFullModuleGraph {
-                    base: base.connect().to_resolved().await?,
-                    full: full.connect().to_resolved().await?,
+                    base: turbo_tasks::read!(base.connect().to_resolved())?,
+                    full: turbo_tasks::read!(full.connect().to_resolved())?,
                     binding_usage_info,
                 }
                 .cell())
             }
-            .instrument(span_clone)
-            .await
         } else {
             Ok(self.project.whole_app_module_graphs())
         }
@@ -1137,7 +1344,7 @@ impl AppEndpoint {
             self.app_project.edge_rsc_module_context(),
             loader_tree,
             self.page.clone(),
-            self.app_project.project().project_path().owned().await?,
+            turbo_tasks::read!(self.app_project.project().project_path().owned())?,
             self.app_project.project().next_config(),
         ))
     }
@@ -1149,7 +1356,7 @@ impl AppEndpoint {
         root_layouts: Vc<FileSystemPathVec>,
         next_config: Vc<NextConfig>,
     ) -> Result<Vc<AppEntry>> {
-        let root_layouts = root_layouts.await?;
+        let root_layouts = turbo_tasks::read!(root_layouts)?;
         let config = if root_layouts.is_empty() {
             None
         } else {
@@ -1158,7 +1365,7 @@ impl AppEndpoint {
             for layout in root_layouts.iter().rev() {
                 let source = Vc::upcast(FileSource::new(layout.clone()));
                 let layout_config = parse_segment_config_from_source(source, ParseSegmentMode::App);
-                config.apply_parent_config(&*layout_config.await?);
+                config.apply_parent_config(&*turbo_tasks::read!(layout_config)?);
             }
 
             Some(config.cell())
@@ -1169,7 +1376,7 @@ impl AppEndpoint {
             self.app_project.edge_route_module_context(),
             Vc::upcast(FileSource::new(path)),
             self.page.clone(),
-            self.app_project.project().project_path().owned().await?,
+            turbo_tasks::read!(self.app_project.project().project_path().owned())?,
             config,
             next_config,
         ))
@@ -1184,9 +1391,9 @@ impl AppEndpoint {
         Ok(get_app_metadata_route_entry(
             self.app_project.route_module_context(),
             self.app_project.edge_route_module_context(),
-            self.app_project.project().project_path().owned().await?,
+            turbo_tasks::read!(self.app_project.project().project_path().owned())?,
             self.page.clone(),
-            *self.app_project.project().next_mode().await?,
+            *turbo_tasks::read!(self.app_project.project().next_mode())?,
             metadata,
             next_config,
         ))
@@ -1194,9 +1401,12 @@ impl AppEndpoint {
 
     #[turbo_tasks::function]
     async fn app_endpoint_entry(self: Vc<Self>) -> Result<Vc<AppEntry>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
 
-        let next_config = self.await?.app_project.project().next_config();
+        let next_config = turbo_tasks::read!(self)?
+            .app_project
+            .project()
+            .next_config();
         let app_entry = match &this.ty {
             AppEndpointType::Page { loader_tree, .. } => self.app_page_entry(**loader_tree),
             AppEndpointType::Route { path, root_layouts } => {
@@ -1212,10 +1422,10 @@ impl AppEndpoint {
 
     #[turbo_tasks::function]
     async fn output(self: Vc<Self>) -> Result<Vc<AppEndpointOutput>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         let project = this.app_project.project();
 
-        let app_entry = self.app_endpoint_entry().await?;
+        let app_entry = turbo_tasks::read!(self.app_endpoint_entry())?;
 
         #[derive(Debug, PartialEq, Eq)]
         enum EmitManifests {
@@ -1247,8 +1457,8 @@ impl AppEndpoint {
                 ),
             };
 
-        let node_root = project.node_root().owned().await?;
-        let client_relative_path = project.client_relative_path().owned().await?;
+        let node_root = turbo_tasks::read!(project.node_root().owned())?;
+        let client_relative_path = turbo_tasks::read!(project.client_relative_path().owned())?;
         let server_path = node_root.join("server")?;
 
         let mut server_assets = fxindexset![];
@@ -1256,26 +1466,26 @@ impl AppEndpoint {
         // assets to add to the middleware manifest (to be loaded in the edge runtime).
         let mut middleware_assets = fxindexset![];
 
-        let runtime = app_entry.config.await?.runtime.unwrap_or_default();
+        let runtime = turbo_tasks::read!(app_entry.config)?
+            .runtime
+            .unwrap_or_default();
 
         let rsc_entry = app_entry.rsc_entry;
 
         let is_app_page = matches!(this.ty, AppEndpointType::Page { .. });
 
-        let module_graphs = this
-            .app_project
-            .app_module_graphs(
-                self,
-                *rsc_entry,
-                // We only need the client runtime entries for pages not for Route Handlers
-                is_app_page.then(|| this.app_project.client_runtime_entries()),
-            )
-            .await?;
+        let module_graphs = turbo_tasks::read!(this.app_project.app_module_graphs(
+            self,
+            *rsc_entry,
+            // We only need the client runtime entries for pages not for Route Handlers
+            is_app_page.then(|| this.app_project.client_runtime_entries()),
+        ))?;
 
-        let client_chunking_context = project.client_chunking_context().to_resolved().await?;
+        let client_chunking_context =
+            turbo_tasks::read!(project.client_chunking_context().to_resolved())?;
 
         let ssr_chunking_context = if process_ssr {
-            Some(
+            Some(turbo_tasks::read!(
                 match runtime {
                     NextRuntime::NodeJs => Vc::upcast(project.server_chunking_context(true)),
                     NextRuntime::Edge => this
@@ -1284,34 +1494,35 @@ impl AppEndpoint {
                         .edge_chunking_context(process_client_assets),
                 }
                 .to_resolved()
-                .await?,
-            )
+            )?)
         } else {
             None
         };
 
-        let per_page_module_graph = *project.per_page_module_graph().await?;
+        let per_page_module_graph = *turbo_tasks::read!(project.per_page_module_graph())?;
 
-        let next_dynamic_imports =
+        let next_dynamic_imports = turbo_tasks::read!(
             NextDynamicGraphs::new(*module_graphs.base, per_page_module_graph)
                 .get_next_dynamic_imports_for_endpoint(*rsc_entry)
-                .await?;
+        )?;
 
-        let client_references =
+        let client_references = turbo_tasks::read!(
             ClientReferencesGraphs::new(*module_graphs.base, per_page_module_graph)
                 .get_client_references_for_endpoint(
                     *rsc_entry,
                     matches!(this.ty, AppEndpointType::Page { .. }),
-                    /* include_traced */ *project.should_write_nft_manifests().await?,
-                    /* include_binding_usage */ project.next_mode().await?.is_production(),
+                    /* include_traced */
+                    *turbo_tasks::read!(project.should_write_nft_manifests())?,
+                    /* include_binding_usage */
+                    turbo_tasks::read!(project.next_mode())?.is_production(),
                 )
                 .to_resolved()
-                .await?;
+        )?;
 
         // We only need the client runtime entries for pages not for Route Handlers
         let (availability_info, client_shared_chunks) = if is_app_page {
             let client_shared_chunk_group = get_app_client_shared_chunk_group(
-                AssetIdent::from_path(project.project_path().owned().await?)
+                AssetIdent::from_path(turbo_tasks::read!(project.project_path().owned())?)
                     .with_modifier(rcstr!("client-shared-chunks"))
                     .into_vc(),
                 this.app_project.client_runtime_entries(),
@@ -1319,46 +1530,47 @@ impl AppEndpoint {
                 *client_chunking_context,
             );
 
-            client_assets.extend(client_shared_chunk_group.all_assets().await?);
+            client_assets.extend(turbo_tasks::read!(client_shared_chunk_group.all_assets())?);
 
-            let client_shared_chunk_group = client_shared_chunk_group.await?;
+            let client_shared_chunk_group = turbo_tasks::read!(client_shared_chunk_group)?;
             (
                 client_shared_chunk_group.availability_info,
-                client_shared_chunk_group.assets.owned().await?,
+                turbo_tasks::read!(client_shared_chunk_group.assets.owned())?,
             )
         } else {
             (AvailabilityInfo::root(), vec![])
         };
 
-        let client_references_chunks = get_app_client_references_chunks(
-            *client_references,
-            *module_graphs.full,
-            *client_chunking_context,
-            availability_info,
-            ssr_chunking_context.map(|ctx| *ctx),
-        )
-        .to_resolved()
-        .await?;
-        let client_references_chunks_ref = client_references_chunks.await?;
+        let client_references_chunks = turbo_tasks::read!(
+            get_app_client_references_chunks(
+                *client_references,
+                *module_graphs.full,
+                *client_chunking_context,
+                availability_info,
+                ssr_chunking_context.map(|ctx| *ctx),
+            )
+            .to_resolved()
+        )?;
+        let client_references_chunks_ref = turbo_tasks::read!(client_references_chunks)?;
 
         for &assets in client_references_chunks_ref
             .layout_segment_client_chunks
             .values()
         {
-            client_assets.extend(assets.all_assets().await?.iter().copied());
+            client_assets.extend(turbo_tasks::read!(assets.all_assets())?.iter().copied());
         }
         for &assets in client_references_chunks_ref
             .client_component_client_chunks
             .values()
         {
-            client_assets.extend(assets.all_assets().await?.iter().copied());
+            client_assets.extend(turbo_tasks::read!(assets.all_assets())?.iter().copied());
         }
         for &assets in client_references_chunks_ref
             .client_component_ssr_chunks
             .values()
         {
             // TODO(alexkirsz) In which manifest does this go?
-            server_assets.extend(assets.all_assets().await?.iter().copied());
+            server_assets.extend(turbo_tasks::read!(assets.all_assets())?.iter().copied());
         }
 
         // In development, register a page-specific HMR chunk list that owns all client
@@ -1371,24 +1583,23 @@ impl AppEndpoint {
         // root_main_files_per_page so it is serialized under rootMainFilesTree[page] in
         // the build manifest. The server renderer reads rootMainFilesTree[pagePath] first
         // (required-scripts.tsx), so only the correct page's register chunk is loaded.
-        let is_hot_module_replacement_enabled = project
-            .client_compile_time_info()
-            .await?
-            .hot_module_replacement_enabled;
+        let is_hot_module_replacement_enabled =
+            turbo_tasks::read!(project.client_compile_time_info())?.hot_module_replacement_enabled;
         let page_hmr_chunks = if is_app_page && is_hot_module_replacement_enabled {
             let client_components_chunks_ident =
-                AssetIdent::from_path(project.project_path().owned().await?)
+                AssetIdent::from_path(turbo_tasks::read!(project.project_path().owned())?)
                     .with_modifier(rcstr!("client-components"))
                     .with_modifier(app_entry.original_name.clone())
                     .into_vc();
             let client_reference_chunks =
                 get_client_references_chunks_for_hmr(*client_references_chunks);
-            client_chunking_context
-                .hmr_chunk_list(client_components_chunks_ident, client_reference_chunks)
-                .await?
-                .iter()
-                .copied()
-                .collect::<Vec<_>>()
+            turbo_tasks::read!(
+                client_chunking_context
+                    .hmr_chunk_list(client_components_chunks_ident, client_reference_chunks)
+            )?
+            .iter()
+            .copied()
+            .collect::<Vec<_>>()
         } else {
             vec![]
         };
@@ -1400,18 +1611,19 @@ impl AppEndpoint {
         // in the browser.
         let polyfill_output_asset = if matches!(this.ty, AppEndpointType::Page { .. }) {
             // polyfill-nomodule.js is a pre-compiled asset distributed as part of next
-            let next_package = get_next_package(project.project_path().owned().await?).await?;
+            let next_package = turbo_tasks::read!(get_next_package(turbo_tasks::read!(
+                project.project_path().owned()
+            )?))?;
             let polyfill_source =
                 FileSource::new(next_package.join("dist/build/polyfills/polyfill-nomodule.js")?);
 
-            let polyfill_output_asset = ResolvedVc::upcast(
+            let polyfill_output_asset = ResolvedVc::upcast(turbo_tasks::read!(
                 SingleFileEcmascriptOutput::new(
                     *client_chunking_context,
                     Vc::upcast(polyfill_source),
                 )
                 .to_resolved()
-                .await?,
-            );
+            )?);
 
             client_assets.insert(polyfill_output_asset);
 
@@ -1423,8 +1635,7 @@ impl AppEndpoint {
         // Compile any service workers registered via `navigator.serviceWorker.register(new
         // URL(...), { scope })` reachable from this endpoint.
         client_assets.extend(
-            service_worker_output_assets(project, *module_graphs.base)
-                .await?
+            turbo_tasks::read!(service_worker_output_assets(project, *module_graphs.base))?
                 .iter()
                 .copied(),
         );
@@ -1457,13 +1668,13 @@ impl AppEndpoint {
             // as the edge runtime doesn't support chunk loading we need to add all client
             // references to the middleware manifest so they get loaded during runtime
             // initialization
-            let client_references_chunks = &*client_references_chunks.await?;
+            let client_references_chunks = &*turbo_tasks::read!(client_references_chunks)?;
 
             for &assets in client_references_chunks
                 .client_component_ssr_chunks
                 .values()
             {
-                middleware_assets.extend(assets.all_assets().await?);
+                middleware_assets.extend(turbo_tasks::read!(assets.all_assets())?);
             }
         }
 
@@ -1476,9 +1687,9 @@ impl AppEndpoint {
                 },
             );
 
-        let server_action_manifest = create_server_actions_manifest(
+        let server_action_manifest = turbo_tasks::read!(create_server_actions_manifest(
             actions,
-            project.project_path().owned().await?,
+            turbo_tasks::read!(project.project_path().owned())?,
             node_root.clone(),
             app_entry.original_name.clone(),
             runtime,
@@ -1490,16 +1701,15 @@ impl AppEndpoint {
             this.app_project
                 .project()
                 .runtime_chunking_context(process_client_assets, runtime),
-        )
-        .await?;
+        ))?;
         if emit_rsc_manifests {
             server_assets.insert(server_action_manifest.manifest);
         }
 
         let server_action_manifest_loader = server_action_manifest.loader;
 
-        let app_entry_chunks = self
-            .app_entry_chunks(
+        let app_entry_chunks = turbo_tasks::read!(
+            self.app_entry_chunks(
                 *client_references,
                 *server_action_manifest_loader,
                 server_path.clone(),
@@ -1507,11 +1717,11 @@ impl AppEndpoint {
                 *module_graphs.full,
             )
             .to_resolved()
-            .await?;
-        server_assets.extend(app_entry_chunks.all_assets().await?);
-        let app_entry_chunk_group_ref = app_entry_chunks.await?;
+        )?;
+        server_assets.extend(turbo_tasks::read!(app_entry_chunks.all_assets())?);
+        let app_entry_chunk_group_ref = turbo_tasks::read!(app_entry_chunks)?;
         let app_entry_chunks = app_entry_chunk_group_ref.assets;
-        let app_entry_chunks_ref = app_entry_chunks.await?;
+        let app_entry_chunks_ref = turbo_tasks::read!(app_entry_chunks)?;
 
         // these references are important for turbotrace
         let mut client_reference_manifest = None;
@@ -1526,10 +1736,12 @@ impl AppEndpoint {
                     client_references_chunks,
                     client_chunking_context,
                     ssr_chunking_context,
-                    async_module_info: module_graphs.full.async_module_info().to_resolved().await?,
-                    next_config: project.next_config().to_resolved().await?,
+                    async_module_info: turbo_tasks::read!(
+                        module_graphs.full.async_module_info().to_resolved()
+                    )?,
+                    next_config: turbo_tasks::read!(project.next_config().to_resolved())?,
                     runtime,
-                    mode: *project.next_mode().await?,
+                    mode: *turbo_tasks::read!(project.next_mode())?,
                 }
                 .resolved_cell(),
             );
@@ -1542,9 +1754,9 @@ impl AppEndpoint {
         if emit_manifests == EmitManifests::Full {
             let next_font_manifest_output = ResolvedVc::upcast(
                 FontManifest {
-                    client_root: project.client_root().owned().await?,
+                    client_root: turbo_tasks::read!(project.client_root().owned())?,
                     node_root: node_root.clone(),
-                    dir: this.app_project.app_dir().owned().await?,
+                    dir: turbo_tasks::read!(this.app_project.app_dir().owned())?,
                     original_name: app_entry.original_name.clone(),
                     manifest_path_prefix: app_entry.original_name.clone(),
                     pathname: app_entry.original_name.clone(),
@@ -1566,7 +1778,7 @@ impl AppEndpoint {
                     rcstr!("server/middleware-build-manifest.js"),
                     rcstr!("server/interception-route-rewrite-manifest.js"),
                 ];
-                if project.next_mode().await?.is_production() {
+                if turbo_tasks::read!(project.next_mode())?.is_production() {
                     file_paths_from_root.insert(rcstr!("required-server-files.js"));
                 }
                 if emit_manifests == EmitManifests::Full {
@@ -1576,10 +1788,7 @@ impl AppEndpoint {
                     file_paths_from_root.insert(rcstr!("server/server-reference-manifest.js"));
                 }
 
-                if project
-                    .next_config()
-                    .experimental_sri()
-                    .await?
+                if turbo_tasks::read!(project.next_config().experimental_sri())?
                     .as_ref()
                     .is_some_and(|v| v.algorithm.is_some())
                 {
@@ -1590,56 +1799,61 @@ impl AppEndpoint {
 
                 let node_root_value = node_root.clone();
 
-                file_paths_from_root.extend(
-                    get_js_paths_from_root(&node_root_value, middleware_assets.iter().copied())
-                        .await?,
-                );
-                file_paths_from_root.extend(
-                    get_js_paths_from_root(&node_root_value, app_entry_chunks_ref.iter().copied())
-                        .await?,
-                );
+                file_paths_from_root.extend(turbo_tasks::read!(get_js_paths_from_root(
+                    &node_root_value,
+                    middleware_assets.iter().copied()
+                ))?);
+                file_paths_from_root.extend(turbo_tasks::read!(get_js_paths_from_root(
+                    &node_root_value,
+                    app_entry_chunks_ref.iter().copied()
+                ))?);
 
-                let all_output_assets = all_assets_from_entries(*app_entry_chunks).await?;
+                let all_output_assets =
+                    turbo_tasks::read!(all_assets_from_entries(*app_entry_chunks))?;
 
-                wasm_paths_from_root
-                    .extend(get_wasm_paths_from_root(&node_root_value, middleware_assets).await?);
-                wasm_paths_from_root.extend(
-                    get_wasm_paths_from_root(&node_root_value, all_output_assets.iter().copied())
-                        .await?,
-                );
+                wasm_paths_from_root.extend(turbo_tasks::read!(get_wasm_paths_from_root(
+                    &node_root_value,
+                    middleware_assets
+                ))?);
+                wasm_paths_from_root.extend(turbo_tasks::read!(get_wasm_paths_from_root(
+                    &node_root_value,
+                    all_output_assets.iter().copied()
+                ))?);
 
-                let all_assets =
-                    get_asset_paths_from_root(&node_root_value, all_output_assets).await?;
+                let all_assets = turbo_tasks::read!(get_asset_paths_from_root(
+                    &node_root_value,
+                    all_output_assets
+                ))?;
 
                 let entry_file = rcstr!("app-edge-has-no-entrypoint");
 
                 if emit_manifests == EmitManifests::Full {
-                    let dynamic_import_entries = collect_next_dynamic_chunks(
+                    let dynamic_import_entries = turbo_tasks::read!(collect_next_dynamic_chunks(
                         *module_graphs.full,
                         *client_chunking_context,
                         next_dynamic_imports,
                         NextDynamicChunkAvailability::ClientReferences(
-                            &*(client_references_chunks.await?),
+                            &*(turbo_tasks::read!(client_references_chunks)?),
                         ),
-                    )
-                    .await?;
+                    ))?;
 
-                    let loadable_manifest_output = create_react_loadable_manifest(
-                        *dynamic_import_entries,
-                        *client_chunking_context,
-                        client_relative_path.clone(),
-                        node_root.join(&format!(
-                            "server/app{}/react-loadable-manifest",
-                            app_entry.original_name
-                        ))?,
-                        NextRuntime::Edge,
-                    )
-                    .await?;
+                    let loadable_manifest_output =
+                        turbo_tasks::read!(create_react_loadable_manifest(
+                            *dynamic_import_entries,
+                            *client_chunking_context,
+                            client_relative_path.clone(),
+                            node_root.join(&format!(
+                                "server/app{}/react-loadable-manifest",
+                                app_entry.original_name
+                            ))?,
+                            NextRuntime::Edge,
+                        ))?;
 
                     server_assets.extend(loadable_manifest_output.iter().copied());
-                    file_paths_from_root.extend(
-                        get_js_paths_from_root(&node_root_value, loadable_manifest_output).await?,
-                    );
+                    file_paths_from_root.extend(turbo_tasks::read!(get_js_paths_from_root(
+                        &node_root_value,
+                        loadable_manifest_output
+                    ))?);
                 }
                 if emit_manifests != EmitManifests::None {
                     // create middleware manifest
@@ -1653,24 +1867,22 @@ impl AppEndpoint {
                         .last()
                         .context("expected app entry chunks for edge app endpoint")?;
                     let entrypoint = node_root_value
-                        .get_path_to(&*entrypoint_chunk.path().await?)
+                        .get_path_to(&*turbo_tasks::read!(entrypoint_chunk.path())?)
                         .context("expected app entry chunk to be within node root")?
                         .into();
                     let edge_function_definition = EdgeFunctionDefinition {
                         files: file_paths_from_root.into_iter().collect(),
-                        wasm: wasm_paths_to_bindings(wasm_paths_from_root).await?,
+                        wasm: turbo_tasks::read!(wasm_paths_to_bindings(wasm_paths_from_root))?,
                         assets: paths_to_bindings(all_assets),
                         name: app_function_name(&app_entry.original_name).into(),
                         page: app_entry.original_name.clone(),
                         entrypoint,
-                        regions: app_entry
-                            .config
-                            .await?
+                        regions: turbo_tasks::read!(app_entry.config)?
                             .preferred_region
                             .clone()
                             .map(Regions::Multiple),
                         matchers: vec![matchers],
-                        env: project.edge_env().owned().await?,
+                        env: turbo_tasks::read!(project.edge_env().owned())?,
                     };
                     let middleware_manifest_v2 = MiddlewaresManifestV2 {
                         sorted_middleware: vec![app_entry.original_name.clone()],
@@ -1680,7 +1892,7 @@ impl AppEndpoint {
                         ..Default::default()
                     };
                     let manifest_path_prefix = &app_entry.original_name;
-                    let middleware_manifest_v2 = ResolvedVc::upcast(
+                    let middleware_manifest_v2 = ResolvedVc::upcast(turbo_tasks::read!(
                         VirtualOutputAsset::new(
                             node_root.join(&format!(
                                 "server/app{manifest_path_prefix}/middleware-manifest.json",
@@ -1693,18 +1905,16 @@ impl AppEndpoint {
                             ),
                         )
                         .to_resolved()
-                        .await?,
-                    );
+                    )?);
                     server_assets.insert(middleware_manifest_v2);
                 }
                 if emit_manifests != EmitManifests::None {
                     // create app paths manifest
-                    let app_paths_manifest_output = create_app_paths_manifest(
+                    let app_paths_manifest_output = turbo_tasks::read!(create_app_paths_manifest(
                         node_root.clone(),
                         &app_entry.original_name,
                         entry_file,
-                    )
-                    .await?;
+                    ))?;
                     server_assets.insert(app_paths_manifest_output);
                 }
 
@@ -1722,43 +1932,41 @@ impl AppEndpoint {
 
                 if emit_manifests != EmitManifests::None {
                     // create app paths manifest
-                    let app_paths_manifest_output = create_app_paths_manifest(
+                    let app_paths_manifest_output = turbo_tasks::read!(create_app_paths_manifest(
                         node_root.clone(),
                         &app_entry.original_name,
                         server_path
-                            .get_path_to(&*rsc_chunk.path().await?)
+                            .get_path_to(&*turbo_tasks::read!(rsc_chunk.path())?)
                             .context(
                                 "RSC chunk path should be within app paths manifest directory",
                             )?
                             .into(),
-                    )
-                    .await?;
+                    ))?;
                     server_assets.insert(app_paths_manifest_output);
                 }
 
                 let loadable_manifest_output = if emit_manifests == EmitManifests::Full {
                     // create react-loadable-manifest for next/dynamic
-                    let dynamic_import_entries = collect_next_dynamic_chunks(
+                    let dynamic_import_entries = turbo_tasks::read!(collect_next_dynamic_chunks(
                         *module_graphs.full,
                         *client_chunking_context,
                         next_dynamic_imports,
                         NextDynamicChunkAvailability::ClientReferences(
-                            &*(client_references_chunks.await?),
+                            &*(turbo_tasks::read!(client_references_chunks)?),
                         ),
-                    )
-                    .await?;
+                    ))?;
 
-                    let loadable_manifest_output = create_react_loadable_manifest(
-                        *dynamic_import_entries,
-                        *client_chunking_context,
-                        client_relative_path.clone(),
-                        node_root.join(&format!(
-                            "server/app{}/react-loadable-manifest",
-                            app_entry.original_name
-                        ))?,
-                        NextRuntime::NodeJs,
-                    )
-                    .await?;
+                    let loadable_manifest_output =
+                        turbo_tasks::read!(create_react_loadable_manifest(
+                            *dynamic_import_entries,
+                            *client_chunking_context,
+                            client_relative_path.clone(),
+                            node_root.join(&format!(
+                                "server/app{}/react-loadable-manifest",
+                                app_entry.original_name
+                            ))?,
+                            NextRuntime::NodeJs,
+                        ))?;
 
                     server_assets.extend(loadable_manifest_output.iter().copied());
                     Some(loadable_manifest_output)
@@ -1766,13 +1974,8 @@ impl AppEndpoint {
                     None
                 };
 
-                if *this
-                    .app_project
-                    .project()
-                    .should_write_nft_manifests()
-                    .await?
-                {
-                    server_assets.insert(ResolvedVc::upcast(
+                if *turbo_tasks::read!(this.app_project.project().should_write_nft_manifests())? {
+                    server_assets.insert(ResolvedVc::upcast(turbo_tasks::read!(
                         NftJsonAsset::new(
                             project,
                             Some(app_function_name(&app_entry.original_name).into()),
@@ -1786,8 +1989,7 @@ impl AppEndpoint {
                             self.trace_result(),
                         )
                         .to_resolved()
-                        .await?,
-                    ));
+                    )?));
                 }
 
                 let server_assets = ResolvedVc::cell(server_assets.into_iter().collect::<Vec<_>>());
@@ -1813,10 +2015,12 @@ impl AppEndpoint {
         process_client_assets: bool,
         module_graph: Vc<ModuleGraph>,
     ) -> Result<Vc<OutputAssetsWithReferenced>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         let project = this.app_project.project();
-        let app_entry = self.app_endpoint_entry().await?;
-        let runtime = app_entry.config.await?.runtime.unwrap_or_default();
+        let app_entry = turbo_tasks::read!(self.app_endpoint_entry())?;
+        let runtime = turbo_tasks::read!(app_entry.config)?
+            .runtime
+            .unwrap_or_default();
 
         let chunking_context = project.runtime_chunking_context(process_client_assets, runtime);
 
@@ -1834,7 +2038,7 @@ impl AppEndpoint {
                     ChunkGroup::Entry(vec![app_entry.rsc_entry]),
                     module_graph,
                     OutputAssets::empty(),
-                    chunk_group1.await?.availability_info,
+                    turbo_tasks::read!(chunk_group1)?.availability_info,
                 );
 
                 chunk_group1
@@ -1842,53 +2046,205 @@ impl AppEndpoint {
                     .concatenate(chunk_group2_assets)
             }
             NextRuntime::NodeJs => {
-                async {
+                #[cfg(not(feature = "sync"))]
+                {
+                    turbo_tasks::read!(
+                        async {
+                            let mut current_chunk_group = ChunkGroupResult::empty_resolved();
+
+                            let entry_chunk_group = ChunkGroup::Entry(vec![app_entry.rsc_entry]);
+
+                            let chunk_group_info = module_graph.chunk_group_info();
+
+                            let client_references = turbo_tasks::read!(client_references)?;
+                            let span = tracing::trace_span!("server utils");
+                            turbo_tasks::read!(
+                                async {
+                                    let parent_chunk_group = *turbo_tasks::read!(
+                                        chunk_group_info.get_index_of(entry_chunk_group.clone())
+                                    )?;
+
+                                    // This is basically a manual shared chunk. But it's
+                                    // particularly helpful
+                                    // for development, so that we share more layout segment chunks
+                                    // across pages.
+                                    let server_utils = turbo_tasks::read!(
+                                        client_references
+                                            .server_utils
+                                            .iter()
+                                            .map(async |m| Ok(ResolvedVc::upcast(
+                                                turbo_tasks::read!(m)?.module
+                                            )))
+                                            .try_join()
+                                    )?;
+                                    let chunk_group = turbo_tasks::read!(
+                                        chunking_context
+                                            .chunk_group(
+                                                AssetIdent::from_path(turbo_tasks::read!(
+                                                    this.app_project
+                                                        .project()
+                                                        .project_path()
+                                                        .owned()
+                                                )?,)
+                                                .with_modifier(rcstr!("server-utils"))
+                                                .into_vc(),
+                                                ChunkGroup::SharedMerged {
+                                                    merge_tag: NEXT_SERVER_UTILITY_MERGE_TAG
+                                                        .clone(),
+                                                    entries: server_utils,
+                                                    parent: parent_chunk_group,
+                                                },
+                                                module_graph,
+                                                AvailabilityInfo::root(),
+                                            )
+                                            .to_resolved()
+                                    )?;
+
+                                    current_chunk_group = chunk_group;
+
+                                    anyhow::Ok(())
+                                }
+                                .instrument(span)
+                            )?;
+                            for server_component in client_references
+                                .server_component_entries
+                                .iter()
+                                .copied()
+                                .take(
+                                    client_references
+                                        .server_component_entries
+                                        .len()
+                                        .saturating_sub(1),
+                                )
+                            {
+                                let span = tracing::trace_span!(
+                                    "layout segment",
+                                    name = display(turbo_tasks::read!(
+                                        server_component.ident().to_string()
+                                    )?)
+                                );
+                                turbo_tasks::read!(
+                                    async {
+                                        let chunk_group = chunking_context.chunk_group(
+                                            server_component.ident(),
+                                            ChunkGroup::Shared(ResolvedVc::upcast(
+                                                server_component,
+                                            )),
+                                            module_graph,
+                                            turbo_tasks::read!(current_chunk_group)?
+                                                .availability_info,
+                                        );
+
+                                        current_chunk_group = turbo_tasks::read!(
+                                            current_chunk_group
+                                                .concatenate(chunk_group)
+                                                .to_resolved()
+                                        )?;
+
+                                        anyhow::Ok(())
+                                    }
+                                    .instrument(span)
+                                )?;
+                            }
+
+                            {
+                                let chunk_group = chunking_context.chunk_group(
+                                    server_action_manifest_loader.ident(),
+                                    ChunkGroup::Shared(ResolvedVc::upcast(
+                                        server_action_manifest_loader,
+                                    )),
+                                    module_graph,
+                                    turbo_tasks::read!(current_chunk_group)?.availability_info,
+                                );
+
+                                current_chunk_group = turbo_tasks::read!(
+                                    current_chunk_group.concatenate(chunk_group).to_resolved()
+                                )?;
+                            }
+
+                            let current_referenced_assets = current_chunk_group.referenced_assets();
+                            let chunk_group = turbo_tasks::read!(current_chunk_group)?;
+                            let current_availability_info = chunk_group.availability_info;
+                            let current_chunks = chunk_group.assets;
+
+                            anyhow::Ok(
+                                OutputAssetsWithReferenced {
+                                    assets: ResolvedVc::cell(vec![turbo_tasks::read!(
+                                        chunking_context
+                                            .entry_chunk_group_asset(
+                                                server_path.join(&format!(
+                                                    "app{original_name}.js",
+                                                    original_name = app_entry.original_name
+                                                ))?,
+                                                entry_chunk_group,
+                                                module_graph,
+                                                *current_chunks,
+                                                current_referenced_assets,
+                                                current_availability_info,
+                                            )
+                                            .to_resolved()
+                                    )?]),
+                                    referenced_assets: ResolvedVc::cell(vec![]),
+                                    references: ResolvedVc::cell(vec![]),
+                                }
+                                .cell(),
+                            )
+                        }
+                        .instrument(tracing::trace_span!("server node entrypoint"))
+                    )?
+                }
+                #[cfg(feature = "sync")]
+                {
+                    let _g = tracing::trace_span!("server node entrypoint").entered();
                     let mut current_chunk_group = ChunkGroupResult::empty_resolved();
 
                     let entry_chunk_group = ChunkGroup::Entry(vec![app_entry.rsc_entry]);
 
                     let chunk_group_info = module_graph.chunk_group_info();
 
-                    let client_references = client_references.await?;
+                    let client_references = turbo_tasks::read!(client_references)?;
                     let span = tracing::trace_span!("server utils");
-                    async {
-                        let parent_chunk_group = *chunk_group_info
-                            .get_index_of(entry_chunk_group.clone())
-                            .await?;
+                    {
+                        let _g = span.entered();
+                        let parent_chunk_group = *turbo_tasks::read!(
+                            chunk_group_info.get_index_of(entry_chunk_group.clone())
+                        )?;
 
                         // This is basically a manual shared chunk. But it's particularly helpful
                         // for development, so that we share more layout segment chunks across
                         // pages.
-                        let server_utils = client_references
-                            .server_utils
-                            .iter()
-                            .map(async |m| Ok(ResolvedVc::upcast(m.await?.module)))
-                            .try_join()
-                            .await?;
-                        let chunk_group = chunking_context
-                            .chunk_group(
-                                AssetIdent::from_path(
-                                    this.app_project.project().project_path().owned().await?,
+                        let server_utils = {
+                            let mut server_utils = Vec::new();
+                            for m in client_references.server_utils.iter() {
+                                server_utils.push({
+                                    Ok::<_, anyhow::Error>(ResolvedVc::upcast(
+                                        turbo_tasks::read!(m)?.module,
+                                    ))
+                                }?);
+                            }
+                            server_utils
+                        };
+                        let chunk_group = turbo_tasks::read!(
+                            chunking_context
+                                .chunk_group(
+                                    AssetIdent::from_path(turbo_tasks::read!(
+                                        this.app_project.project().project_path().owned()
+                                    )?,)
+                                    .with_modifier(rcstr!("server-utils"))
+                                    .into_vc(),
+                                    ChunkGroup::SharedMerged {
+                                        merge_tag: NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
+                                        entries: server_utils,
+                                        parent: parent_chunk_group,
+                                    },
+                                    module_graph,
+                                    AvailabilityInfo::root(),
                                 )
-                                .with_modifier(rcstr!("server-utils"))
-                                .into_vc(),
-                                ChunkGroup::SharedMerged {
-                                    merge_tag: NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
-                                    entries: server_utils,
-                                    parent: parent_chunk_group,
-                                },
-                                module_graph,
-                                AvailabilityInfo::root(),
-                            )
-                            .to_resolved()
-                            .await?;
+                                .to_resolved()
+                        )?;
 
                         current_chunk_group = chunk_group;
-
-                        anyhow::Ok(())
                     }
-                    .instrument(span)
-                    .await?;
                     for server_component in client_references
                         .server_component_entries
                         .iter()
@@ -1902,25 +2258,22 @@ impl AppEndpoint {
                     {
                         let span = tracing::trace_span!(
                             "layout segment",
-                            name = display(server_component.ident().to_string().await?)
+                            name =
+                                display(turbo_tasks::read!(server_component.ident().to_string())?)
                         );
-                        async {
+                        {
+                            let _g = span.entered();
                             let chunk_group = chunking_context.chunk_group(
                                 server_component.ident(),
                                 ChunkGroup::Shared(ResolvedVc::upcast(server_component)),
                                 module_graph,
-                                current_chunk_group.await?.availability_info,
+                                turbo_tasks::read!(current_chunk_group)?.availability_info,
                             );
 
-                            current_chunk_group = current_chunk_group
-                                .concatenate(chunk_group)
-                                .to_resolved()
-                                .await?;
-
-                            anyhow::Ok(())
+                            current_chunk_group = turbo_tasks::read!(
+                                current_chunk_group.concatenate(chunk_group).to_resolved()
+                            )?;
                         }
-                        .instrument(span)
-                        .await?;
                     }
 
                     {
@@ -1928,68 +2281,59 @@ impl AppEndpoint {
                             server_action_manifest_loader.ident(),
                             ChunkGroup::Shared(ResolvedVc::upcast(server_action_manifest_loader)),
                             module_graph,
-                            current_chunk_group.await?.availability_info,
+                            turbo_tasks::read!(current_chunk_group)?.availability_info,
                         );
 
-                        current_chunk_group = current_chunk_group
-                            .concatenate(chunk_group)
-                            .to_resolved()
-                            .await?;
+                        current_chunk_group = turbo_tasks::read!(
+                            current_chunk_group.concatenate(chunk_group).to_resolved()
+                        )?;
                     }
 
                     let current_referenced_assets = current_chunk_group.referenced_assets();
-                    let chunk_group = current_chunk_group.await?;
+                    let chunk_group = turbo_tasks::read!(current_chunk_group)?;
                     let current_availability_info = chunk_group.availability_info;
                     let current_chunks = chunk_group.assets;
 
-                    anyhow::Ok(
-                        OutputAssetsWithReferenced {
-                            assets: ResolvedVc::cell(vec![
-                                chunking_context
-                                    .entry_chunk_group_asset(
-                                        server_path.join(&format!(
-                                            "app{original_name}.js",
-                                            original_name = app_entry.original_name
-                                        ))?,
-                                        entry_chunk_group,
-                                        module_graph,
-                                        *current_chunks,
-                                        current_referenced_assets,
-                                        current_availability_info,
-                                    )
-                                    .to_resolved()
-                                    .await?,
-                            ]),
-                            referenced_assets: ResolvedVc::cell(vec![]),
-                            references: ResolvedVc::cell(vec![]),
-                        }
-                        .cell(),
-                    )
+                    OutputAssetsWithReferenced {
+                        assets: ResolvedVc::cell(vec![turbo_tasks::read!(
+                            chunking_context
+                                .entry_chunk_group_asset(
+                                    server_path.join(&format!(
+                                        "app{original_name}.js",
+                                        original_name = app_entry.original_name
+                                    ))?,
+                                    entry_chunk_group,
+                                    module_graph,
+                                    *current_chunks,
+                                    current_referenced_assets,
+                                    current_availability_info,
+                                )
+                                .to_resolved()
+                        )?]),
+                        referenced_assets: ResolvedVc::cell(vec![]),
+                        references: ResolvedVc::cell(vec![]),
+                    }
+                    .cell()
                 }
-                .instrument(tracing::trace_span!("server node entrypoint"))
-                .await?
             }
         })
     }
 
     #[turbo_tasks::function]
     async fn trace_result(self: Vc<Self>) -> Result<Vc<EndpointTraceResult>> {
-        let this = self.await?;
-        let app_entry = self.app_endpoint_entry().await?;
+        let this = turbo_tasks::read!(self)?;
+        let app_entry = turbo_tasks::read!(self.app_endpoint_entry())?;
 
         let rsc_entry = app_entry.rsc_entry;
 
         let is_app_page = matches!(this.ty, AppEndpointType::Page { .. });
 
-        let module_graphs = this
-            .app_project
-            .app_module_graphs(
-                self,
-                *rsc_entry,
-                // We only need the client runtime entries for pages not for Route Handlers
-                is_app_page.then(|| this.app_project.client_runtime_entries()),
-            )
-            .await?;
+        let module_graphs = turbo_tasks::read!(this.app_project.app_module_graphs(
+            self,
+            *rsc_entry,
+            // We only need the client runtime entries for pages not for Route Handlers
+            is_app_page.then(|| this.app_project.client_runtime_entries()),
+        ))?;
 
         Ok(trace_endpoint(
             this.app_project.project(),
@@ -2000,7 +2344,8 @@ impl AppEndpoint {
     }
 }
 
-async fn create_app_paths_manifest(
+turbo_tasks::dual_fn! {
+fn create_app_paths_manifest(
     node_root: FileSystemPath,
     original_name: &str,
     filename: RcStr,
@@ -2016,7 +2361,7 @@ async fn create_app_paths_manifest(
         ..Default::default()
     };
     Ok(ResolvedVc::upcast(
-        VirtualOutputAsset::new(
+        turbo_tasks::read!(VirtualOutputAsset::new(
             path,
             AssetContent::file(
                 FileContent::Content(File::from(serde_json::to_string_pretty(
@@ -2025,16 +2370,17 @@ async fn create_app_paths_manifest(
                 .cell(),
             ),
         )
-        .to_resolved()
-        .await?,
+        .to_resolved())
+        ?,
     ))
+}
 }
 
 #[turbo_tasks::value_impl]
 impl Endpoint for AppEndpoint {
     #[turbo_tasks::function]
     async fn output(self: ResolvedVc<Self>) -> Result<Vc<EndpointOutput>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         let page_name = this.page.to_string();
         let span = match this.ty {
             AppEndpointType::Page {
@@ -2057,76 +2403,153 @@ impl Endpoint for AppEndpoint {
             }
         };
 
-        async move {
-            let output = self.output();
-            let project = this.app_project.project();
-            let node_root = project.node_root().owned().await?;
-            let client_relative_root = project.client_relative_path().owned().await?;
+        #[cfg(not(feature = "sync"))]
+        {
+            turbo_tasks::read!(
+                async move {
+                    let output = self.output();
+                    let project = this.app_project.project();
+                    let node_root = turbo_tasks::read!(project.node_root().owned())?;
+                    let client_relative_root =
+                        turbo_tasks::read!(project.client_relative_path().owned())?;
 
-            let output_assets = output.output_assets();
-            let output_assets = if let Some(sri) =
-                &*project.next_config().experimental_sri().await?
-                && let Some(algorithm) = sri.algorithm.clone()
-            {
-                let sri_manifest = get_sri_manifest_asset(
-                    node_root.join(&format!(
-                        "server/app{}/subresource-integrity-manifest.json",
-                        &self.app_endpoint_entry().await?.original_name
-                    ))?,
-                    output_assets,
-                    client_relative_root.clone(),
-                    algorithm,
-                );
-                output_assets.concat_asset(sri_manifest)
-            } else {
-                output_assets
-            };
+                    let output_assets = output.output_assets();
+                    let output_assets = if let Some(sri) =
+                        &*turbo_tasks::read!(project.next_config().experimental_sri())?
+                        && let Some(algorithm) = sri.algorithm.clone()
+                    {
+                        let sri_manifest = get_sri_manifest_asset(
+                            node_root.join(&format!(
+                                "server/app{}/subresource-integrity-manifest.json",
+                                &turbo_tasks::read!(self.app_endpoint_entry())?.original_name
+                            ))?,
+                            output_assets,
+                            client_relative_root.clone(),
+                            algorithm,
+                        );
+                        output_assets.concat_asset(sri_manifest)
+                    } else {
+                        output_assets
+                    };
 
-            let (server_paths, client_paths) = if project.next_mode().await?.is_development() {
-                let server_paths = all_asset_paths(output_assets, node_root.clone(), None)
-                    .owned()
-                    .await?;
-                let client_paths = all_paths_in_root(output_assets, client_relative_root)
-                    .owned()
-                    .await?;
-                (server_paths, client_paths)
-            } else {
-                (vec![], vec![])
-            };
+                    let (server_paths, client_paths) =
+                        if turbo_tasks::read!(project.next_mode())?.is_development() {
+                            let server_paths = turbo_tasks::read!(
+                                all_asset_paths(output_assets, node_root.clone(), None).owned()
+                            )?;
+                            let client_paths = turbo_tasks::read!(
+                                all_paths_in_root(output_assets, client_relative_root).owned()
+                            )?;
+                            (server_paths, client_paths)
+                        } else {
+                            (vec![], vec![])
+                        };
 
-            let written_endpoint = match *output.await? {
-                AppEndpointOutput::NodeJs { rsc_chunk, .. } => EndpointOutputPaths::NodeJs {
-                    server_entry_path: node_root
-                        .get_path_to(&*rsc_chunk.path().await?)
-                        .context("Node.js chunk entry path must be inside the node root")?
-                        .into(),
-                    server_paths,
-                    client_paths,
-                },
-                AppEndpointOutput::Edge { .. } => EndpointOutputPaths::Edge {
-                    server_paths,
-                    client_paths,
-                },
-            };
+                    let written_endpoint = match *turbo_tasks::read!(output)? {
+                        AppEndpointOutput::NodeJs { rsc_chunk, .. } => {
+                            EndpointOutputPaths::NodeJs {
+                                server_entry_path: node_root
+                                    .get_path_to(&*turbo_tasks::read!(rsc_chunk.path())?)
+                                    .context(
+                                        "Node.js chunk entry path must be inside the node root",
+                                    )?
+                                    .into(),
+                                server_paths,
+                                client_paths,
+                            }
+                        }
+                        AppEndpointOutput::Edge { .. } => EndpointOutputPaths::Edge {
+                            server_paths,
+                            client_paths,
+                        },
+                    };
 
-            anyhow::Ok(
-                EndpointOutput {
-                    output_assets: output_assets.to_resolved().await?,
-                    output_paths: written_endpoint.resolved_cell(),
-                    project: project.to_resolved().await?,
+                    anyhow::Ok(
+                        EndpointOutput {
+                            output_assets: turbo_tasks::read!(output_assets.to_resolved())?,
+                            output_paths: written_endpoint.resolved_cell(),
+                            project: turbo_tasks::read!(project.to_resolved())?,
+                        }
+                        .cell(),
+                    )
                 }
-                .cell(),
+                .instrument(span)
             )
+            .with_context(|| format!("Failed to write app endpoint {page_name}"))
         }
-        .instrument(span)
-        .await
-        .with_context(|| format!("Failed to write app endpoint {page_name}"))
+        #[cfg(feature = "sync")]
+        {
+            let _g = span.entered();
+            (|| -> anyhow::Result<Vc<EndpointOutput>> {
+                let output = self.output();
+                let project = this.app_project.project();
+                let node_root = turbo_tasks::read!(project.node_root().owned())?;
+                let client_relative_root =
+                    turbo_tasks::read!(project.client_relative_path().owned())?;
+
+                let output_assets = output.output_assets();
+                let output_assets = if let Some(sri) =
+                    &*turbo_tasks::read!(project.next_config().experimental_sri())?
+                    && let Some(algorithm) = sri.algorithm.clone()
+                {
+                    let sri_manifest = get_sri_manifest_asset(
+                        node_root.join(&format!(
+                            "server/app{}/subresource-integrity-manifest.json",
+                            &turbo_tasks::read!(self.app_endpoint_entry())?.original_name
+                        ))?,
+                        output_assets,
+                        client_relative_root.clone(),
+                        algorithm,
+                    );
+                    output_assets.concat_asset(sri_manifest)
+                } else {
+                    output_assets
+                };
+
+                let (server_paths, client_paths) =
+                    if turbo_tasks::read!(project.next_mode())?.is_development() {
+                        let server_paths = turbo_tasks::read!(
+                            all_asset_paths(output_assets, node_root.clone(), None).owned()
+                        )?;
+                        let client_paths = turbo_tasks::read!(
+                            all_paths_in_root(output_assets, client_relative_root).owned()
+                        )?;
+                        (server_paths, client_paths)
+                    } else {
+                        (vec![], vec![])
+                    };
+
+                let written_endpoint = match *turbo_tasks::read!(output)? {
+                    AppEndpointOutput::NodeJs { rsc_chunk, .. } => EndpointOutputPaths::NodeJs {
+                        server_entry_path: node_root
+                            .get_path_to(&*turbo_tasks::read!(rsc_chunk.path())?)
+                            .context("Node.js chunk entry path must be inside the node root")?
+                            .into(),
+                        server_paths,
+                        client_paths,
+                    },
+                    AppEndpointOutput::Edge { .. } => EndpointOutputPaths::Edge {
+                        server_paths,
+                        client_paths,
+                    },
+                };
+
+                anyhow::Ok(
+                    EndpointOutput {
+                        output_assets: turbo_tasks::read!(output_assets.to_resolved())?,
+                        output_paths: written_endpoint.resolved_cell(),
+                        project: turbo_tasks::read!(project.to_resolved())?,
+                    }
+                    .cell(),
+                )
+            })()
+            .with_context(|| format!("Failed to write app endpoint {page_name}"))
+        }
     }
 
     #[turbo_tasks::function]
     async fn server_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
-        Ok(self
-            .await?
+        Ok(turbo_tasks::read!(self)?
             .app_project
             .project()
             .server_changed(self.output().server_assets()))
@@ -2134,8 +2557,7 @@ impl Endpoint for AppEndpoint {
 
     #[turbo_tasks::function]
     async fn client_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
-        Ok(self
-            .await?
+        Ok(turbo_tasks::read!(self)?
             .app_project
             .project()
             .client_changed(self.output().client_assets()))
@@ -2143,13 +2565,13 @@ impl Endpoint for AppEndpoint {
 
     #[turbo_tasks::function]
     async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         Ok(GraphEntries::from_chunk_groups(vec![
-            ChunkGroupEntry::Entry(vec![self.app_endpoint_entry().await?.rsc_entry]),
+            ChunkGroupEntry::Entry(vec![
+                turbo_tasks::read!(self.app_endpoint_entry())?.rsc_entry,
+            ]),
             ChunkGroupEntry::Entry(
-                this.app_project
-                    .client_runtime_entries()
-                    .await?
+                turbo_tasks::read!(this.app_project.client_runtime_entries())?
                     .iter()
                     .copied()
                     .map(ResolvedVc::upcast)
@@ -2164,14 +2586,16 @@ impl Endpoint for AppEndpoint {
         self: Vc<Self>,
         graph: Vc<ModuleGraph>,
     ) -> Result<Vc<GraphEntries>> {
-        let this = self.await?;
-        let app_entry = self.app_endpoint_entry().await?;
+        let this = turbo_tasks::read!(self)?;
+        let app_entry = turbo_tasks::read!(self.app_endpoint_entry())?;
         let rsc_entry = app_entry.rsc_entry;
-        let runtime = app_entry.config.await?.runtime.unwrap_or_default();
+        let runtime = turbo_tasks::read!(app_entry.config)?
+            .runtime
+            .unwrap_or_default();
 
         let actions = ServerActionsGraphs::new(
             graph,
-            *this.app_project.project().per_page_module_graph().await?,
+            *turbo_tasks::read!(this.app_project.project().per_page_module_graph())?,
         )
         .get_server_actions_for_endpoint(
             *rsc_entry,
@@ -2181,9 +2605,9 @@ impl Endpoint for AppEndpoint {
             },
         );
 
-        let server_actions_loader = ResolvedVc::upcast(
+        let server_actions_loader = ResolvedVc::upcast(turbo_tasks::read!(
             build_server_actions_loader(
-                this.app_project.project().project_path().owned().await?,
+                turbo_tasks::read!(this.app_project.project().project_path().owned())?,
                 app_entry.original_name.clone(),
                 actions,
                 match runtime {
@@ -2192,8 +2616,7 @@ impl Endpoint for AppEndpoint {
                 },
             )
             .to_resolved()
-            .await?,
-        );
+        )?);
 
         Ok(
             GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Shared(server_actions_loader)])
@@ -2203,24 +2626,21 @@ impl Endpoint for AppEndpoint {
 
     #[turbo_tasks::function]
     async fn module_graphs(self: Vc<Self>) -> Result<Vc<ModuleGraphs>> {
-        let this = self.await?;
-        let app_entry = self.app_endpoint_entry().await?;
+        let this = turbo_tasks::read!(self)?;
+        let app_entry = turbo_tasks::read!(self.app_endpoint_entry())?;
         let is_app_page = matches!(this.ty, AppEndpointType::Page { .. });
-        let module_graphs = this
-            .app_project
-            .app_module_graphs(
-                self,
-                *app_entry.rsc_entry,
-                // We only need the client runtime entries for pages not for Route Handlers
-                is_app_page.then(|| this.app_project.client_runtime_entries()),
-            )
-            .await?;
+        let module_graphs = turbo_tasks::read!(this.app_project.app_module_graphs(
+            self,
+            *app_entry.rsc_entry,
+            // We only need the client runtime entries for pages not for Route Handlers
+            is_app_page.then(|| this.app_project.client_runtime_entries()),
+        ))?;
         Ok(Vc::cell(vec![module_graphs.full]))
     }
 
     #[turbo_tasks::function]
     async fn project(self: Vc<Self>) -> Result<Vc<Project>> {
-        Ok(self.await?.app_project.project())
+        Ok(turbo_tasks::read!(self)?.app_project.project())
     }
 
     #[turbo_tasks::function]
@@ -2247,8 +2667,8 @@ enum AppEndpointOutput {
 impl AppEndpointOutput {
     #[turbo_tasks::function]
     pub async fn output_assets(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let server_assets = self.server_assets().await?;
-        let client_assets = self.client_assets().await?;
+        let server_assets = turbo_tasks::read!(self.server_assets())?;
+        let client_assets = turbo_tasks::read!(self.client_assets())?;
         Ok(Vc::cell(
             server_assets
                 .iter()

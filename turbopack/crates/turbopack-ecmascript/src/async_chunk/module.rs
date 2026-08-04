@@ -1,8 +1,9 @@
 use anyhow::{Result, bail};
 use indoc::formatdoc;
+#[cfg(not(feature = "sync"))]
 use tracing::Instrument;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkData, ChunkableModule, ChunkingContext, ChunkingContextExt,
@@ -52,10 +53,7 @@ impl AsyncLoaderModule {
 
     #[turbo_tasks::function]
     pub async fn asset_ident_for(module: Vc<Box<dyn ChunkableModule>>) -> Result<Vc<AssetIdent>> {
-        Ok(module
-            .ident()
-            .owned()
-            .await?
+        Ok(turbo_tasks::read!(module.ident().owned())?
             .with_modifier(rcstr!("async loader"))
             .into_vc())
     }
@@ -67,13 +65,13 @@ impl AsyncLoaderModule {
     ) -> Result<Vc<OutputAssetsWithReferenced>> {
         if let Some(chunk_items) = self.availability_info.available_modules() {
             let inner_module = ResolvedVc::upcast(self.inner);
-            let batches = module_graph
-                .module_batches(self.chunking_context.batching_config())
-                .await?;
-            let module_or_batch = batches.get_entry(inner_module).await?;
+            let batches = turbo_tasks::read!(
+                module_graph.module_batches(self.chunking_context.batching_config())
+            )?;
+            let module_or_batch = turbo_tasks::read!(batches.get_entry(inner_module))?;
             if let Some(chunkable_module_or_batch) =
                 ChunkableModuleOrBatch::from_module_or_batch(module_or_batch)
-                && *chunk_items.get(chunkable_module_or_batch.into()).await?
+                && *turbo_tasks::read!(chunk_items.get(chunkable_module_or_batch.into()))?
             {
                 return Ok(OutputAssetsWithReferenced {
                     assets: ResolvedVc::cell(vec![]),
@@ -93,19 +91,29 @@ impl AsyncLoaderModule {
 
     #[turbo_tasks::function]
     async fn chunks_data(self: Vc<Self>, module_graph: Vc<ModuleGraph>) -> Result<Vc<ChunksData>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         let span = tracing::info_span!(
             "compute async chunks",
-            name = self.ident().to_string().await?.as_str()
+            name = turbo_tasks::read!(self.ident().to_string())?.as_str()
         );
-        async move {
+        #[cfg(not(feature = "sync"))]
+        let result = async move {
             Ok(ChunkData::from_assets(
-                this.chunking_context.output_root().owned().await?,
-                *self.chunk_group(module_graph).await?.assets,
+                turbo_tasks::read!(this.chunking_context.output_root().owned())?,
+                *turbo_tasks::read!(self.chunk_group(module_graph))?.assets,
             ))
         }
         .instrument(span)
-        .await
+        .await;
+        #[cfg(feature = "sync")]
+        let result = {
+            let _enter = span.entered();
+            Ok(ChunkData::from_assets(
+                turbo_tasks::read!(this.chunking_context.output_root().owned())?,
+                *turbo_tasks::read!(self.chunk_group(module_graph))?.assets,
+            ))
+        };
+        result
     }
 }
 
@@ -160,11 +168,12 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
         estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let options = EcmascriptChunkItemOptions {
-            supports_arrow_functions: *chunking_context
-                .environment()
-                .runtime_versions()
-                .supports_arrow_functions()
-                .await?,
+            supports_arrow_functions: *turbo_tasks::read!(
+                chunking_context
+                    .environment()
+                    .runtime_versions()
+                    .supports_arrow_functions()
+            )?,
             ..Default::default()
         };
 
@@ -184,19 +193,21 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
             .cell());
         }
 
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
 
         let id = if let Some(placeable) =
             ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(this.inner)
         {
-            Some(placeable.chunk_item_id(chunking_context).await?)
+            Some(turbo_tasks::read!(
+                placeable.chunk_item_id(chunking_context)
+            )?)
         } else {
             None
         };
         let id = id.as_ref();
 
-        let chunks_data = self.chunks_data(module_graph).await?;
-        let chunks_data = chunks_data.iter().try_join().await?;
+        let chunks_data = turbo_tasks::read!(self.chunks_data(module_graph))?;
+        let chunks_data = turbo_tasks::parallel!(chunks_data.iter())?;
         let chunks_data: Vec<_> = chunks_data
             .iter()
             .map(|chunk_data| EcmascriptChunkData::new(chunk_data))
@@ -263,29 +274,23 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
         module_graph: Vc<ModuleGraph>,
     ) -> Result<Vc<AssetIdent>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
 
-        let nested_async_availability = this
-            .chunking_context
-            .is_nested_async_availability_enabled()
-            .await?;
+        let nested_async_availability =
+            turbo_tasks::read!(this.chunking_context.is_nested_async_availability_enabled())?;
 
         let availability_ident = if *nested_async_availability {
             Some(
-                self.chunks_data(module_graph)
-                    .hash()
-                    .await?
+                turbo_tasks::read!(self.chunks_data(module_graph).hash())?
                     .to_string()
                     .into(),
             )
         } else {
-            this.availability_info.ident().await?
+            turbo_tasks::read!(this.availability_info.ident())?
         };
 
         Ok(if let Some(availability_ident) = availability_ident {
-            self.ident()
-                .owned()
-                .await?
+            turbo_tasks::read!(self.ident().owned())?
                 .with_modifier(availability_ident)
                 .into_vc()
         } else {

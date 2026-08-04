@@ -44,15 +44,16 @@ impl EcmascriptBuildNodeRuntimeChunk {
 
     #[turbo_tasks::function]
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
 
-        let output_root_to_root_path = this.chunking_context.output_root_to_root_path().await?;
-        let output_root = this.chunking_context.output_root().await?;
-        let generate_source_map = *this
-            .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
-            .await?;
-        let runtime_path = self.path().await?;
+        let output_root_to_root_path =
+            turbo_tasks::read!(this.chunking_context.output_root_to_root_path())?;
+        let output_root = turbo_tasks::read!(this.chunking_context.output_root())?;
+        let generate_source_map = *turbo_tasks::read!(
+            this.chunking_context
+                .reference_chunk_source_maps(Vc::upcast(self))
+        )?;
+        let runtime_path = turbo_tasks::read!(self.path())?;
         let runtime_public_path = if let Some(path) = output_root.get_path_to(&runtime_path) {
             path
         } else {
@@ -60,13 +61,14 @@ impl EcmascriptBuildNodeRuntimeChunk {
         };
 
         let mut code = CodeBuilder::default();
-        let asset_prefix = this.chunking_context.asset_prefix().await?;
+        let asset_prefix = turbo_tasks::read!(this.chunking_context.asset_prefix())?;
         let asset_prefix = asset_prefix.as_deref().unwrap_or("/");
 
         // Get the list of global variable names to forward to workers
-        let worker_config = Vc::upcast::<Box<dyn ChunkingContext>>(*this.chunking_context)
-            .worker_configuration_options()
-            .await?;
+        let worker_config = turbo_tasks::read!(
+            Vc::upcast::<Box<dyn ChunkingContext>>(*this.chunking_context)
+                .worker_configuration_options()
+        )?;
 
         writedoc!(
             code,
@@ -105,7 +107,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
         let asset_context =
             turbopack::get_runtime_asset_context(this.chunking_context.environment());
 
-        match *this.chunking_context.runtime_type().await? {
+        match *turbo_tasks::read!(this.chunking_context.runtime_type())? {
             RuntimeType::Development => {
                 let runtime_code = turbopack_ecmascript_runtime::get_nodejs_runtime_code(
                     asset_context,
@@ -113,7 +115,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
                     this.has_async_modules,
                     generate_source_map,
                 );
-                code.push_code(&*runtime_code.await?);
+                code.push_code(&*turbo_tasks::read!(runtime_code)?);
             }
             RuntimeType::Production => {
                 let runtime_code = turbopack_ecmascript_runtime::get_nodejs_runtime_code(
@@ -122,7 +124,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
                     this.has_async_modules,
                     generate_source_map,
                 );
-                code.push_code(&*runtime_code.await?);
+                code.push_code(&*turbo_tasks::read!(runtime_code)?);
             }
             #[cfg(feature = "test")]
             RuntimeType::Dummy => {
@@ -137,9 +139,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
     #[turbo_tasks::function]
     async fn ident_for_path(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
         Ok(AssetIdent::from_path(
-            turbopack_ecmascript_runtime::embed_fs()
-                .root()
-                .await?
+            turbo_tasks::read!(turbopack_ecmascript_runtime::embed_fs().root())?
                 .join("runtime.js")?,
         )
         .into_vc())
@@ -147,7 +147,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
 
     #[turbo_tasks::function]
     async fn source_map(self: Vc<Self>) -> Result<Vc<SourceMapAsset>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         Ok(SourceMapAsset::new(
             Vc::upcast(*this.chunking_context),
             self.ident_for_path(),
@@ -160,15 +160,16 @@ impl EcmascriptBuildNodeRuntimeChunk {
 impl OutputAssetsReference for EcmascriptBuildNodeRuntimeChunk {
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         let mut references = vec![];
 
-        if *this
-            .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
-            .await?
-        {
-            references.push(ResolvedVc::upcast(self.source_map().to_resolved().await?))
+        if *turbo_tasks::read!(
+            this.chunking_context
+                .reference_chunk_source_maps(Vc::upcast(self))
+        )? {
+            references.push(ResolvedVc::upcast(turbo_tasks::read!(
+                self.source_map().to_resolved()
+            )?))
         }
 
         Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(
@@ -181,7 +182,7 @@ impl OutputAssetsReference for EcmascriptBuildNodeRuntimeChunk {
 impl OutputAsset for EcmascriptBuildNodeRuntimeChunk {
     #[turbo_tasks::function]
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         let ident = self.ident_for_path();
 
         Ok(this
@@ -195,11 +196,10 @@ impl Asset for EcmascriptBuildNodeRuntimeChunk {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         Ok(AssetContent::file(
-            FileContent::Content(File::from(
+            FileContent::Content(File::from(turbo_tasks::read!(
                 self.code()
                     .to_rope_with_magic_comments(|| self.source_map())
-                    .await?,
-            ))
+            )?))
             .cell(),
         ))
     }

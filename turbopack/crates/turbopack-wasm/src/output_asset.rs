@@ -40,12 +40,8 @@ impl OutputAssetsReference for WebAssemblyAsset {}
 impl OutputAsset for WebAssemblyAsset {
     #[turbo_tasks::function]
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        let this = self.await?;
-        let ident = this
-            .source
-            .ident()
-            .owned()
-            .await?
+        let this = turbo_tasks::read!(self)?;
+        let ident = turbo_tasks::read!(this.source.ident().owned())?
             .with_modifier(rcstr!("wasm"))
             .into_vc();
         Ok(this

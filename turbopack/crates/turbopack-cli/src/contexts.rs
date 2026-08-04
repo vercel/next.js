@@ -65,12 +65,14 @@ pub async fn get_client_resolve_options_context(
     project_path: FileSystemPath,
     node_env: Vc<NodeEnv>,
 ) -> Result<Vc<ResolveOptionsContext>> {
-    let next_client_import_map = get_client_import_map(project_path.clone())
-        .to_resolved()
-        .await?;
+    let next_client_import_map =
+        turbo_tasks::read!(get_client_import_map(project_path.clone()).to_resolved())?;
     let module_options_context = ResolveOptionsContext {
-        enable_node_modules: Some(project_path.root().owned().await?),
-        custom_conditions: vec![node_env.await?.to_string().into(), rcstr!("browser")],
+        enable_node_modules: Some(turbo_tasks::read!(project_path.root().owned())?),
+        custom_conditions: vec![
+            turbo_tasks::read!(node_env)?.to_string().into(),
+            rcstr!("browser"),
+        ],
         import_map: Some(next_client_import_map),
         browser: true,
         module: true,
@@ -96,7 +98,7 @@ async fn get_client_module_options_context(
     node_env: Vc<NodeEnv>,
     source_maps_type: SourceMapsType,
 ) -> Result<Vc<ModuleOptionsContext>> {
-    let is_dev = matches!(*node_env.await?, NodeEnv::Development);
+    let is_dev = matches!(*turbo_tasks::read!(node_env)?, NodeEnv::Development);
     let module_options_context = ModuleOptionsContext {
         environment: Some(env),
         execution_context: Some(execution_context),
@@ -109,9 +111,11 @@ async fn get_client_module_options_context(
         get_client_resolve_options_context(project_path.clone(), node_env);
 
     let enable_react_refresh = is_dev
-        && assert_can_resolve_react_refresh(project_path.clone(), resolve_options_context)
-            .await?
-            .is_found();
+        && turbo_tasks::read!(assert_can_resolve_react_refresh(
+            project_path.clone(),
+            resolve_options_context
+        ))?
+        .is_found();
 
     let enable_jsx = Some(
         JsxTransformOptions {
@@ -185,25 +189,25 @@ pub async fn get_client_compile_time_info(
     node_env: Vc<NodeEnv>,
     hot_module_replacement_enabled: bool,
 ) -> Result<Vc<CompileTimeInfo>> {
-    let node_env = node_env.await?;
-    CompileTimeInfo::builder(
-        Environment::new(ExecutionEnvironment::Browser(
-            BrowserEnvironment {
-                dom: true,
-                web_worker: false,
-                service_worker: false,
-                browserslist_query,
-            }
-            .resolved_cell(),
-        ))
-        .to_resolved()
-        .await?,
+    let node_env = turbo_tasks::read!(node_env)?;
+    turbo_tasks::read!(
+        CompileTimeInfo::builder(turbo_tasks::read!(
+            Environment::new(ExecutionEnvironment::Browser(
+                BrowserEnvironment {
+                    dom: true,
+                    web_worker: false,
+                    service_worker: false,
+                    browserslist_query,
+                }
+                .resolved_cell(),
+            ))
+            .to_resolved()
+        )?,)
+        .defines(client_defines(&node_env).resolved_cell())
+        .free_var_references(
+            free_var_references!(..client_defines(&node_env).into_iter()).resolved_cell(),
+        )
+        .hot_module_replacement_enabled(hot_module_replacement_enabled)
+        .cell()
     )
-    .defines(client_defines(&node_env).resolved_cell())
-    .free_var_references(
-        free_var_references!(..client_defines(&node_env).into_iter()).resolved_cell(),
-    )
-    .hot_module_replacement_enabled(hot_module_replacement_enabled)
-    .cell()
-    .await
 }

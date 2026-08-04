@@ -451,8 +451,8 @@ impl CompileTimeInfo {
     pub async fn new(environment: ResolvedVc<Environment>) -> Result<Vc<Self>> {
         Ok(CompileTimeInfo {
             environment,
-            defines: CompileTimeDefines::empty().to_resolved().await?,
-            free_var_references: FreeVarReferences::empty().to_resolved().await?,
+            defines: turbo_tasks::read!(CompileTimeDefines::empty().to_resolved())?,
+            free_var_references: turbo_tasks::read!(FreeVarReferences::empty().to_resolved())?,
             hot_module_replacement_enabled: false,
         }
         .cell())
@@ -490,23 +490,27 @@ impl CompileTimeInfoBuilder {
         self
     }
 
-    pub async fn build(self) -> Result<CompileTimeInfo> {
+    turbo_tasks::dual_fn! {
+    pub fn build(self) -> Result<CompileTimeInfo> {
         Ok(CompileTimeInfo {
             environment: self.environment,
             defines: match self.defines {
                 Some(defines) => defines,
-                None => CompileTimeDefines::empty().to_resolved().await?,
+                None => turbo_tasks::read!(CompileTimeDefines::empty().to_resolved())?,
             },
             free_var_references: match self.free_var_references {
                 Some(free_var_references) => free_var_references,
-                None => FreeVarReferences::empty().to_resolved().await?,
+                None => turbo_tasks::read!(FreeVarReferences::empty().to_resolved())?,
             },
             hot_module_replacement_enabled: self.hot_module_replacement_enabled,
         })
     }
+    }
 
-    pub async fn cell(self) -> Result<Vc<CompileTimeInfo>> {
-        Ok(self.build().await?.cell())
+    turbo_tasks::dual_fn! {
+    pub fn cell(self) -> Result<Vc<CompileTimeInfo>> {
+        Ok(turbo_tasks::read!(self.build())?.cell())
+    }
     }
 }
 

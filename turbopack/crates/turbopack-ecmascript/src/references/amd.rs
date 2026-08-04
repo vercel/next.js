@@ -10,8 +10,10 @@ use swc_core::{
     },
     quote, quote_expr,
 };
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::TryJoinIterExt;
 use turbo_tasks::{
-    NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc, debug::ValueDebugFormat,
+    NonLocalValue, ReadRef, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
 };
 use turbopack_core::{
@@ -149,50 +151,31 @@ impl AmdDefineWithDependenciesCodeGen {
         }
     }
 
-    pub async fn code_generation(
+    turbo_tasks::dual_fn! {
+    pub fn code_generation(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let mut visitors = Vec::new();
 
+        // The sync `parallel!` only fans out plain `Vc` reads, so the multi-step
+        // per-element resolution runs concurrently in the async build (as before) and
+        // sequentially under `sync`.
+        #[cfg(not(feature = "sync"))]
         let resolved_elements = self
             .dependencies_requests
             .iter()
-            .map(|element| async move {
-                Ok(match element {
-                    AmdDefineDependencyElement::Request {
-                        request,
-                        request_str,
-                    } => ResolvedElement::PatternMapping {
-                        pattern_mapping: PatternMapping::resolve_request(
-                            **request,
-                            *self.origin,
-                            chunking_context,
-                            cjs_resolve(
-                                *self.origin,
-                                **request,
-                                CommonJsReferenceSubType::Undefined,
-                                Some(self.issue_source),
-                                self.error_mode,
-                            ),
-                            ResolveType::ChunkItem,
-                        )
-                        .await?,
-                        request_str: request_str.to_string(),
-                    },
-                    AmdDefineDependencyElement::Exports => {
-                        ResolvedElement::Expr(quote!("exports" as Expr))
-                    }
-                    AmdDefineDependencyElement::Module => {
-                        ResolvedElement::Expr(quote!("module" as Expr))
-                    }
-                    AmdDefineDependencyElement::Require => {
-                        ResolvedElement::Expr(TURBOPACK_REQUIRE.into())
-                    }
-                })
-            })
+            .map(|element| async move { self.resolve_element(element, chunking_context).await })
             .try_join()
             .await?;
+        #[cfg(feature = "sync")]
+        let resolved_elements = {
+            let mut resolved_elements = Vec::with_capacity(self.dependencies_requests.len());
+            for element in self.dependencies_requests.iter() {
+                resolved_elements.push(self.resolve_element(element, chunking_context)?);
+            }
+            resolved_elements
+        };
 
         let factory_type = self.factory_type;
 
@@ -206,6 +189,49 @@ impl AmdDefineWithDependenciesCodeGen {
         ));
 
         Ok(CodeGeneration::visitors(visitors))
+    }
+    }
+
+    turbo_tasks::dual_fn! {
+    /// Resolves a single AMD dependency element (the per-item body of
+    /// [`Self::code_generation`]).
+    fn resolve_element(
+        &self,
+        element: &AmdDefineDependencyElement,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<ResolvedElement> {
+        Ok(match element {
+            AmdDefineDependencyElement::Request {
+                request,
+                request_str,
+            } => ResolvedElement::PatternMapping {
+                pattern_mapping: turbo_tasks::read!(PatternMapping::resolve_request(
+                    **request,
+                    *self.origin,
+                    chunking_context,
+                    cjs_resolve(
+                        *self.origin,
+                        **request,
+                        CommonJsReferenceSubType::Undefined,
+                        Some(self.issue_source),
+                        self.error_mode,
+                    ),
+                    ResolveType::ChunkItem,
+                ))
+                ?,
+                request_str: request_str.to_string(),
+            },
+            AmdDefineDependencyElement::Exports => {
+                ResolvedElement::Expr(quote!("exports" as Expr))
+            }
+            AmdDefineDependencyElement::Module => {
+                ResolvedElement::Expr(quote!("module" as Expr))
+            }
+            AmdDefineDependencyElement::Require => {
+                ResolvedElement::Expr(TURBOPACK_REQUIRE.into())
+            }
+        })
+    }
     }
 }
 

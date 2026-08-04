@@ -1,29 +1,48 @@
 |name, initial| {
-  use std::hash::BuildHasher;
-  let path = std::path::PathBuf::from(
-    format!("{}/.cache/{}", env!("CARGO_TARGET_TMPDIR"), rustc_hash::FxBuildHasher.hash_one(name)));
-  if initial {
-    let _ = std::fs::remove_dir_all(&path);
-  }
-  std::fs::create_dir_all(&path).unwrap();
-  turbo_tasks::TurboTasks::new(
-    turbo_tasks_backend::TurboTasksBackend::new(
-      turbo_tasks_backend::BackendOptions {
-        num_workers: Some(2),
-        small_preallocation: true,
-        storage_mode: Some(turbo_tasks_backend::StorageMode::ReadWriteOnShutdown),
-        ..Default::default()
-      },
-      turbo_tasks_backend::turbo_backing_storage(
-        path.as_path(),
-        &turbo_tasks_backend::GitVersionInfo {
-          describe: "test-unversioned",
-          dirty: false,
+  // No-tokio (`sync`) build: the background snapshot/persistence loop is Phase 2, so
+  // run fully in memory (`storage_mode: None` + noop storage, single-run). The async
+  // build keeps the real on-disk persistence path the multi-run harness exercises.
+  #[cfg(feature = "sync")]
+  return {
+    let _ = (name, initial);
+    turbo_tasks::TurboTasks::new(
+      turbo_tasks_backend::TurboTasksBackend::new(
+        turbo_tasks_backend::BackendOptions {
+          storage_mode: None,
+          ..Default::default()
         },
-        false,
-        true,
-        false,
-      ).unwrap().0
+        turbo_tasks_backend::noop_backing_storage(),
+      )
     )
-  )
+  };
+  #[cfg(not(feature = "sync"))]
+  {
+    use std::hash::BuildHasher;
+    let path = std::path::PathBuf::from(
+      format!("{}/.cache/{}", env!("CARGO_TARGET_TMPDIR"), rustc_hash::FxBuildHasher.hash_one(name)));
+    if initial {
+      let _ = std::fs::remove_dir_all(&path);
+    }
+    std::fs::create_dir_all(&path).unwrap();
+    turbo_tasks::TurboTasks::new(
+      turbo_tasks_backend::TurboTasksBackend::new(
+        turbo_tasks_backend::BackendOptions {
+          num_workers: Some(2),
+          small_preallocation: true,
+          storage_mode: Some(turbo_tasks_backend::StorageMode::ReadWriteOnShutdown),
+          ..Default::default()
+        },
+        turbo_tasks_backend::turbo_backing_storage(
+          path.as_path(),
+          &turbo_tasks_backend::GitVersionInfo {
+            describe: "test-unversioned",
+            dirty: false,
+          },
+          false,
+          true,
+          false,
+        ).unwrap().0
+      )
+    )
+  }
 }

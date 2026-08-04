@@ -38,13 +38,15 @@ swc_sourcemap = { workspace = true }
 swc_core = { workspace = true, features = ["ecma_preset_env", "common"] }
 tracing = { workspace = true }
 turbo-bincode = { workspace = true }
-turbo-esregex = { workspace = true }
+turbo-esregex = { path = "../turbo-esregex", default-features = false }
 turbo-frozenmap = { workspace = true }
 turbo-prehash = { workspace = true }
 turbo-rcstr = { workspace = true }
-turbo-tasks = { workspace = true }
-turbo-tasks-env = { workspace = true }
-turbo-tasks-fs = { workspace = true }
+# Direct path deps (default-features = false) so `--features sync` builds
+# tokio-free — cargo forbids overriding default-features on inherited deps.
+turbo-tasks = { path = "../turbo-tasks", default-features = false }
+turbo-tasks-env = { path = "../turbo-tasks-env", default-features = false }
+turbo-tasks-fs = { path = "../turbo-tasks-fs", default-features = false }
 turbo-tasks-hash = { workspace = true }
 turbo-unix-path = { workspace = true }
 url = { workspace = true }
@@ -54,9 +56,29 @@ uuid = { workspace = true}
 [dev-dependencies]
 rstest = { workspace = true }
 tokio = { workspace = true }
-turbo-tasks-testing = { workspace = true }
-turbo-tasks-backend = { workspace = true }
+# Direct path deps (default-features = false) so the sync test build is tokio-free.
+turbo-tasks-testing = { path = "../turbo-tasks-testing", default-features = false }
+turbo-tasks-backend = { path = "../turbo-tasks-backend", default-features = false }
 tempfile = { workspace = true }
 
 [features]
-default = []
+default = ["tokio_runtime"]
+# The async execution runtime, on by default. Disable for a tokio-free sync
+# build: `--no-default-features --features sync`. Forwards to the dual-mode deps.
+tokio_runtime = [
+    "turbo-esregex/tokio_runtime",
+    "turbo-tasks/tokio_runtime",
+    "turbo-tasks-env/tokio_runtime",
+    "turbo-tasks-fs/tokio_runtime",
+    "turbo-tasks-backend/tokio_runtime",
+    "turbo-tasks-testing/tokio_runtime",
+]
+# Synchronous (inline-compute, no-tokio) engine; pair with --no-default-features.
+sync = [
+    "turbo-esregex/sync",
+    "turbo-tasks/sync",
+    "turbo-tasks-env/sync",
+    "turbo-tasks-fs/sync",
+    "turbo-tasks-backend/sync",
+    "turbo-tasks-testing/sync",
+]

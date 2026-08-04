@@ -21,11 +21,7 @@ impl Module for RawModule {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         Ok(match &self.modifier {
-            Some(modifier) => self
-                .source
-                .ident()
-                .owned()
-                .await?
+            Some(modifier) => turbo_tasks::read!(self.source.ident().owned())?
                 .with_modifier(modifier.clone())
                 .into_vc(),
             None => self.source.ident(),

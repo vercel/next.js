@@ -28,23 +28,22 @@ impl Transition for NextCssClientReferenceTransition {
         rsc_module_asset_context: Vc<ModuleAssetContext>,
         reference_type: ReferenceType,
     ) -> Result<Vc<ProcessResult>> {
-        let module =
-            self.await?
-                .client_transition
-                .process(source, rsc_module_asset_context, reference_type);
+        let module = turbo_tasks::read!(self)?.client_transition.process(
+            source,
+            rsc_module_asset_context,
+            reference_type,
+        );
 
-        let ProcessResult::Module(module) = *module.await? else {
+        let ProcessResult::Module(module) = *turbo_tasks::read!(module)? else {
             return Ok(ProcessResult::Ignore.cell());
         };
 
         let client_module = ResolvedVc::try_sidecast::<Box<dyn CssChunkPlaceable>>(module)
             .context("css client asset is not css chunk placeable")?;
 
-        Ok(ProcessResult::Module(ResolvedVc::upcast(
-            CssClientReferenceModule::new(*client_module)
-                .to_resolved()
-                .await?,
-        ))
+        Ok(ProcessResult::Module(ResolvedVc::upcast(turbo_tasks::read!(
+            CssClientReferenceModule::new(*client_module).to_resolved()
+        )?))
         .cell())
     }
 }

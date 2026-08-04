@@ -4,8 +4,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
-    debug::ValueDebugFormat, trace::TraceRawVcs,
+    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 
 use crate::{
@@ -79,7 +78,7 @@ impl SingleChunkableModuleReference {
         Ok(Self::cell(SingleChunkableModuleReference {
             asset,
             description,
-            export: export.owned().await?,
+            export: turbo_tasks::read!(export.owned())?,
         }))
     }
 }
@@ -116,49 +115,86 @@ pub async fn referenced_modules_and_affecting_sources(
     module: Vc<Box<dyn Module>>,
     include_binding_usage: bool,
 ) -> Result<Vc<ModulesWithRefData>> {
-    let modules = module
-        .references()
-        .await?
-        .iter()
-        .map(|reference| async {
-            let trait_ref = reference.into_trait_ref().await?;
-            let resolve_result = reference.resolve_reference().await?;
-            if let Some(chunking_type) = &trait_ref.chunking_type() {
-                let mut modules = resolve_result
-                    .primary_modules_raw_iter()
-                    .collect::<Vec<_>>();
-                modules.extend(
-                    resolve_result
-                        .affecting_sources_iter()
-                        .map(|source| async move {
-                            Ok(ResolvedVc::upcast(
-                                RawModule::new(*source).to_resolved().await?,
-                            ))
-                        })
-                        .try_join()
-                        .await?,
-                );
-
-                let binding_usage = if include_binding_usage {
-                    trait_ref.binding_usage()
-                } else {
-                    BindingUsage::default()
-                };
-
-                return Ok(Some((
-                    *reference,
-                    ResolvedReference {
-                        chunking_type: chunking_type.clone(),
-                        binding_usage,
-                        modules,
-                    },
-                )));
-            }
-            Ok(None)
-        })
-        .try_flat_join()
-        .await?;
+    let references = turbo_tasks::read!(module.references())?;
+    // Hot path: keep the concurrent `try_join` in the async build; the per-reference
+    // dual helper cannot fan out through `parallel!` under sync, so loop sequentially.
+    #[cfg(not(feature = "sync"))]
+    let resolved = {
+        use turbo_tasks::TryJoinIterExt;
+        references
+            .iter()
+            .map(|reference| reference_with_resolved_data(*reference, include_binding_usage))
+            .try_join()
+            .await?
+    };
+    #[cfg(feature = "sync")]
+    let resolved = {
+        let mut resolved = Vec::with_capacity(references.len());
+        for reference in references.iter() {
+            resolved.push(reference_with_resolved_data(
+                *reference,
+                include_binding_usage,
+            )?);
+        }
+        resolved
+    };
+    let modules = resolved.into_iter().flatten().collect();
     Ok(Vc::cell(modules))
+}
+
+turbo_tasks::dual_fn! {
+/// Per-reference step of [`referenced_modules_and_affecting_sources`]: resolves the
+/// reference and collects its primary modules and affecting sources.
+fn reference_with_resolved_data(
+    reference: ResolvedVc<Box<dyn ModuleReference>>,
+    include_binding_usage: bool,
+) -> Result<Option<(ResolvedVc<Box<dyn ModuleReference>>, ResolvedReference)>> {
+    let trait_ref = turbo_tasks::read!(reference.into_trait_ref())?;
+    let resolve_result = turbo_tasks::read!(reference.resolve_reference())?;
+    if let Some(chunking_type) = &trait_ref.chunking_type() {
+        let mut modules = resolve_result
+            .primary_modules_raw_iter()
+            .collect::<Vec<_>>();
+        // Keep the concurrent `try_join` in the async build; `.to_resolved()` futures
+        // cannot fan out through `parallel!` under sync, so resolve sequentially.
+        #[cfg(not(feature = "sync"))]
+        modules.extend(
+            {
+                use turbo_tasks::TryJoinIterExt;
+                resolve_result
+                    .affecting_sources_iter()
+                    .map(|source| RawModule::new(*source).to_resolved())
+                    .try_join()
+                    .await?
+            }
+            .into_iter()
+            .map(ResolvedVc::upcast),
+        );
+        #[cfg(feature = "sync")]
+        for source in resolve_result.affecting_sources_iter() {
+            modules.push(ResolvedVc::upcast(turbo_tasks::read!(RawModule::new(
+                *source
+            )
+            .to_resolved())?));
+        }
+
+        let binding_usage = if include_binding_usage {
+            trait_ref.binding_usage()
+        } else {
+            BindingUsage::default()
+        };
+
+        return Ok(Some((
+            reference,
+            ResolvedReference {
+                chunking_type: chunking_type.clone(),
+                binding_usage,
+                modules,
+            },
+        )));
+    }
+    Ok(None)
+}
 }
 
 #[turbo_tasks::value]
@@ -196,18 +232,43 @@ impl TracedModuleReference {
 #[turbo_tasks::function]
 pub async fn primary_referenced_modules(module: Vc<Box<dyn Module>>) -> Result<Vc<Modules>> {
     let mut set = HashSet::new();
-    let modules = module
-        .references()
-        .await?
-        .iter()
-        .map(|reference| async { reference.resolve_reference().await?.primary_modules().await })
-        .try_join()
-        .await?
+    let references = turbo_tasks::read!(module.references())?;
+    // Hot path: keep the concurrent `try_join` in the async build; the per-reference
+    // dual helper cannot fan out through `parallel!` under sync, so loop sequentially.
+    #[cfg(not(feature = "sync"))]
+    let resolved = {
+        use turbo_tasks::TryJoinIterExt;
+        references
+            .iter()
+            .map(|reference| primary_modules_of_reference(*reference))
+            .try_join()
+            .await?
+    };
+    #[cfg(feature = "sync")]
+    let resolved = {
+        let mut resolved = Vec::with_capacity(references.len());
+        for reference in references.iter() {
+            resolved.push(primary_modules_of_reference(*reference)?);
+        }
+        resolved
+    };
+    let modules = resolved
         .into_iter()
         .flatten()
         .filter(|&module| set.insert(module))
         .collect();
     Ok(Vc::cell(modules))
+}
+
+turbo_tasks::dual_fn! {
+/// Per-reference step of [`primary_referenced_modules`]: resolves the reference and
+/// returns its primary modules.
+fn primary_modules_of_reference(
+    reference: ResolvedVc<Box<dyn ModuleReference>>,
+) -> Result<Vec<ResolvedVc<Box<dyn Module>>>> {
+    let resolve_result = turbo_tasks::read!(reference.resolve_reference())?;
+    turbo_tasks::read!(resolve_result.primary_modules())
+}
 }
 
 #[derive(Clone, Eq, PartialEq, ValueDebugFormat, TraceRawVcs, NonLocalValue, Encode, Decode)]
@@ -231,42 +292,108 @@ pub async fn primary_chunkable_referenced_modules(
     include_traced: bool,
     include_binding_usage: bool,
 ) -> Result<Vc<ModulesWithRefData>> {
-    let modules = module
-        .references()
-        .await?
-        .iter()
-        .map(|reference| async {
-            let trait_ref = reference.into_trait_ref().await?;
-            if let Some(chunking_type) = &trait_ref.chunking_type() {
-                if !include_traced && chunking_type.is_traced() {
-                    return Ok(None);
-                }
-
-                let resolved = reference
-                    .resolve_reference()
-                    .await?
-                    .primary_modules()
-                    .await?;
-                let binding_usage = if include_binding_usage {
-                    trait_ref.binding_usage()
-                } else {
-                    BindingUsage::default()
-                };
-
-                return Ok(Some((
+    let references = turbo_tasks::read!(module.references())?;
+    // Hot path: keep the concurrent `try_join` in the async build; the per-reference
+    // dual helper cannot fan out through `parallel!` under sync, so loop sequentially.
+    #[cfg(not(feature = "sync"))]
+    let resolved = {
+        use turbo_tasks::TryJoinIterExt;
+        references
+            .iter()
+            .map(|reference| {
+                chunkable_reference_with_resolved_data(
                     *reference,
-                    ResolvedReference {
-                        chunking_type: chunking_type.clone(),
-                        binding_usage,
-                        modules: resolved,
-                    },
-                )));
+                    include_traced,
+                    include_binding_usage,
+                )
+            })
+            .try_join()
+            .await?
+    };
+    #[cfg(feature = "sync")]
+    let resolved = {
+        // The same reads as the async `try_join`, reordered so the expensive step fans
+        // out: a module's `resolve_reference` chains are published to the pool up
+        // front via `parallel!` — the serial loop claims each chain depth-first on
+        // this one worker (the sync engine's longest serial critical path). `into_trait_ref` reads
+        // are value-cell hits (cheap), so filtering stays serial and identical to the async
+        // build.
+        let mut eligible = Vec::with_capacity(references.len());
+        for (i, reference) in references.iter().enumerate() {
+            let trait_ref = turbo_tasks::read!(reference.into_trait_ref())?;
+            if matches!(
+                &trait_ref.chunking_type(),
+                Some(chunking_type) if include_traced || !chunking_type.is_traced()
+            ) {
+                eligible.push((i, *reference, trait_ref));
             }
-            Ok(None)
-        })
-        .try_flat_join()
-        .await?;
+        }
+        let resolve_results =
+            turbo_tasks::parallel!(eligible.iter().map(|(_, r, _)| r.resolve_reference()))?;
+        let mut resolved: Vec<Option<_>> = (0..references.len()).map(|_| None).collect();
+        for ((i, reference, trait_ref), resolve_result) in
+            eligible.into_iter().zip(resolve_results.iter())
+        {
+            // `primary_modules` is cheap (it only awaits on the rare `Unknown` error
+            // path) and not a `Vc`, so it stays serial — the expensive chains were
+            // fanned out above.
+            let modules = resolve_result.primary_modules()?;
+            let chunking_type = trait_ref
+                .chunking_type()
+                .expect("filtered to chunkable references above")
+                .clone();
+            let binding_usage = if include_binding_usage {
+                trait_ref.binding_usage()
+            } else {
+                BindingUsage::default()
+            };
+            resolved[i] = Some((
+                reference,
+                ResolvedReference {
+                    chunking_type,
+                    binding_usage,
+                    modules,
+                },
+            ));
+        }
+        resolved
+    };
+    let modules = resolved.into_iter().flatten().collect();
     Ok(Vc::cell(modules))
+}
+
+turbo_tasks::dual_fn! {
+/// Per-reference step of [`primary_chunkable_referenced_modules`].
+fn chunkable_reference_with_resolved_data(
+    reference: ResolvedVc<Box<dyn ModuleReference>>,
+    include_traced: bool,
+    include_binding_usage: bool,
+) -> Result<Option<(ResolvedVc<Box<dyn ModuleReference>>, ResolvedReference)>> {
+    let trait_ref = turbo_tasks::read!(reference.into_trait_ref())?;
+    if let Some(chunking_type) = &trait_ref.chunking_type() {
+        if !include_traced && chunking_type.is_traced() {
+            return Ok(None);
+        }
+
+        let resolve_result = turbo_tasks::read!(reference.resolve_reference())?;
+        let resolved = turbo_tasks::read!(resolve_result.primary_modules())?;
+        let binding_usage = if include_binding_usage {
+            trait_ref.binding_usage()
+        } else {
+            BindingUsage::default()
+        };
+
+        return Ok(Some((
+            reference,
+            ResolvedReference {
+                chunking_type: chunking_type.clone(),
+                binding_usage,
+                modules: resolved,
+            },
+        )));
+    }
+    Ok(None)
+}
 }
 
 /// Walks the asset graph from multiple assets and collect all referenced
@@ -275,16 +402,12 @@ pub async fn primary_chunkable_referenced_modules(
 pub async fn all_assets_from_entries(
     entries: Vc<OutputAssets>,
 ) -> Result<Vc<ExpandedOutputAssets>> {
-    Ok(Vc::cell(
-        expand_output_assets(
-            entries
-                .await?
-                .into_iter()
-                .map(ExpandOutputAssetsInput::Asset),
-            true,
-        )
-        .await?,
-    ))
+    Ok(Vc::cell(turbo_tasks::read!(expand_output_assets(
+        turbo_tasks::read!(entries)?
+            .into_iter()
+            .map(ExpandOutputAssetsInput::Asset),
+        true,
+    ))?))
 }
 
 /// Walks the asset graph from multiple assets and collect all referenced
@@ -293,7 +416,8 @@ pub async fn all_assets_from_entries(
 pub async fn all_assets_from_entry(
     entry: ResolvedVc<Box<dyn OutputAsset>>,
 ) -> Result<Vc<ExpandedOutputAssets>> {
-    Ok(Vc::cell(
-        expand_output_assets(std::iter::once(ExpandOutputAssetsInput::Asset(entry)), true).await?,
-    ))
+    Ok(Vc::cell(turbo_tasks::read!(expand_output_assets(
+        std::iter::once(ExpandOutputAssetsInput::Asset(entry)),
+        true
+    ))?))
 }

@@ -283,7 +283,10 @@ impl DirectoryTree {
         let mut subdirectories = BTreeMap::new();
 
         for (name, subdirectory) in &self.subdirectories {
-            subdirectories.insert(name.clone(), subdirectory.into_plain().owned().await?);
+            subdirectories.insert(
+                name.clone(),
+                turbo_tasks::read!(subdirectory.into_plain().owned())?,
+            );
         }
 
         let url_tree = build_url_segment_tree_from_subdirs(&subdirectories);
@@ -305,9 +308,9 @@ pub struct OptionAppDir(Option<FileSystemPath>);
 pub async fn find_app_dir(project_path: FileSystemPath) -> Result<Vc<OptionAppDir>> {
     let app = project_path.join("app")?;
     let src_app = project_path.join("src/app")?;
-    let app_dir = if *app.get_type().await? == FileSystemEntryType::Directory {
+    let app_dir = if *turbo_tasks::read!(app.get_type())? == FileSystemEntryType::Directory {
         app
-    } else if *src_app.get_type().await? == FileSystemEntryType::Directory {
+    } else if *turbo_tasks::read!(src_app.get_type())? == FileSystemEntryType::Directory {
         src_app
     } else {
         return Ok(Vc::cell(None));
@@ -323,18 +326,17 @@ async fn get_directory_tree(
 ) -> Result<Vc<DirectoryTree>> {
     let span = tracing::info_span!(
         "read app directory tree",
-        name = display(dir.to_string_ref().await?)
+        name = display(turbo_tasks::read!(dir.to_string_ref())?)
     );
-    get_directory_tree_internal(dir, page_extensions)
-        .instrument(span)
-        .await
+    turbo_tasks::read!(get_directory_tree_internal(dir, page_extensions).instrument(span))
 }
 
-async fn get_directory_tree_internal(
+turbo_tasks::dual_fn! {
+fn get_directory_tree_internal(
     dir: FileSystemPath,
     page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<DirectoryTree>> {
-    let DirectoryContent::Entries(entries) = &*dir.read_dir().await? else {
+    let DirectoryContent::Entries(entries) = &*turbo_tasks::read!(dir.read_dir())? else {
         // the file watcher might invalidate things in the wrong order,
         // and we have to account for the eventual consistency of turbo-tasks
         // so we just return an empty tree here.
@@ -344,7 +346,7 @@ async fn get_directory_tree_internal(
         }
         .cell());
     };
-    let page_extensions_value = page_extensions.await?;
+    let page_extensions_value = turbo_tasks::read!(page_extensions)?;
 
     let mut subdirectories = BTreeMap::new();
     let mut modules = AppDirModules::default();
@@ -355,7 +357,7 @@ async fn get_directory_tree_internal(
     let mut metadata_twitter = Vec::new();
 
     for (basename, entry) in entries {
-        let entry = entry.clone().resolve_symlink().await?;
+        let entry = turbo_tasks::read!(entry.clone().resolve_symlink())?;
         match entry {
             DirectoryEntry::File(file) => {
                 // Do not process .d.ts files as routes
@@ -417,7 +419,7 @@ async fn get_directory_tree_internal(
                     .rsplit_once('.')
                     .map_or(file_name, |(basename, _)| basename);
                 let alt_path = file.parent().join(&format!("{basename}.alt.txt"))?;
-                let alt_path = matches!(&*alt_path.get_type().await?, FileSystemEntryType::File)
+                let alt_path = matches!(&*turbo_tasks::read!(alt_path.get_type())?, FileSystemEntryType::File)
                     .then_some(alt_path);
 
                 entry.push((
@@ -431,9 +433,9 @@ async fn get_directory_tree_internal(
             DirectoryEntry::Directory(dir)
                 // appDir ignores paths starting with an underscore
                 if !basename.starts_with('_') => {
-                    let result = get_directory_tree(dir.clone(), page_extensions)
-                        .to_resolved()
-                        .await?;
+                    let result = turbo_tasks::read!(get_directory_tree(dir.clone(), page_extensions)
+                        .to_resolved())
+                        ?;
                     subdirectories.insert(basename.clone(), result);
                 }
             // TODO(WEB-952) handle symlinks in app dir
@@ -456,6 +458,7 @@ async fn get_directory_tree_internal(
         modules,
     }
     .cell())
+}
 }
 
 #[turbo_tasks::value]
@@ -833,8 +836,8 @@ pub async fn collect_root_params(
     entrypoints: ResolvedVc<Entrypoints>,
 ) -> Result<Vc<CollectedRootParams>> {
     let mut collected_root_params = FxIndexSet::<RcStr>::default();
-    for (_, entrypoint) in entrypoints.await?.iter() {
-        if let Some(ref root_params) = *entrypoint.root_params().await? {
+    for (_, entrypoint) in turbo_tasks::read!(entrypoints)?.iter() {
+        if let Some(ref root_params) = *turbo_tasks::read!(entrypoint.root_params())? {
             collected_root_params.extend(root_params.iter().cloned());
         }
     }
@@ -871,6 +874,7 @@ struct DuplicateParallelRouteIssue {
     page: AppPage,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for DuplicateParallelRouteIssue {
@@ -883,6 +887,29 @@ impl Issue for DuplicateParallelRouteIssue {
     }
 
     async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(
+            format!(
+                "You cannot have two parallel pages that resolve to the same path. Please check \
+                 {} and {}.",
+                self.previously_inserted_page, self.page
+            )
+            .into(),
+        ))
+    }
+}
+
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for DuplicateParallelRouteIssue {
+    fn file_path(&self) -> Result<FileSystemPath> {
+        self.app_dir.join(&self.page.to_string())
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::ProcessModule
+    }
+
+    fn title(&self) -> Result<StyledString> {
         Ok(StyledString::Text(
             format!(
                 "You cannot have two parallel pages that resolve to the same path. Please check \
@@ -915,6 +942,7 @@ fn missing_default_parallel_route_issue(
     .cell()
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for MissingDefaultParallelRouteIssue {
@@ -943,6 +971,59 @@ impl Issue for MissingDefaultParallelRouteIssue {
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Stack(vec![
+            StyledString::Text(
+                format!(
+                    "The parallel route slot \"@{}\" is missing a default.js file. When using \
+                     parallel routes, each slot must have a default.js file to serve as a \
+                     fallback.",
+                    self.slot_name
+                )
+                .into(),
+            ),
+            StyledString::Text(
+                format!(
+                    "Create a default.js file at: {}/@{}/default.js",
+                    self.app_page, self.slot_name
+                )
+                .into(),
+            ),
+        ])))
+    }
+
+    fn documentation_link(&self) -> RcStr {
+        rcstr!("https://nextjs.org/docs/messages/slot-missing-default")
+    }
+}
+
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for MissingDefaultParallelRouteIssue {
+    fn file_path(&self) -> Result<FileSystemPath> {
+        self.app_dir
+            .join(&self.app_page.to_string())?
+            .join(&format!("@{}", self.slot_name))
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::AppStructure
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(
+            format!(
+                "Missing required default.js file for parallel route at {}/@{}",
+                self.app_page, self.slot_name
+            )
+            .into(),
+        ))
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
         Ok(Some(StyledString::Stack(vec![
             StyledString::Text(
                 format!(
@@ -1017,7 +1098,8 @@ fn has_child_routes(directory_tree: &PlainDirectoryTree) -> bool {
     false
 }
 
-async fn check_duplicate(
+turbo_tasks::dual_fn! {
+fn check_duplicate(
     duplicate: &mut FxHashMap<AppPath, AppPage>,
     loader_tree: &AppPageLoaderTree,
     app_dir: FileSystemPath,
@@ -1039,6 +1121,7 @@ async fn check_duplicate(
 
     Ok(())
 }
+}
 
 #[turbo_tasks::value(transparent)]
 struct AppPageLoaderTreeOption(Option<ResolvedVc<AppPageLoaderTree>>);
@@ -1055,9 +1138,9 @@ async fn directory_tree_to_loader_tree(
     for_app_path: AppPath,
 ) -> Result<Vc<AppPageLoaderTreeOption>> {
     let plain_tree_vc = directory_tree.into_plain();
-    let plain_tree = &*plain_tree_vc.await?;
+    let plain_tree = &*turbo_tasks::read!(plain_tree_vc)?;
 
-    let tree = directory_tree_to_loader_tree_internal(
+    let tree = turbo_tasks::read!(directory_tree_to_loader_tree_internal(
         app_dir,
         global_metadata,
         directory_name,
@@ -1066,12 +1149,12 @@ async fn directory_tree_to_loader_tree(
         for_app_path,
         AppDirModules::default(),
         Some(&plain_tree.url_tree),
-    )
-    .await?;
+    ))?;
 
     Ok(Vc::cell(tree.map(AppPageLoaderTree::resolved_cell)))
 }
 
+turbo_tasks::dual_fn! {
 /// Checks the current module if it needs to be updated with the default page.
 /// If the module is already set, update the parent module to the same value.
 /// If the parent module is set and module is not set, set the module to the parent module.
@@ -1086,7 +1169,7 @@ async fn directory_tree_to_loader_tree(
 ///   module is set.
 /// * `is_first_layer_group_route` - If true, the module will be overridden with the parent module
 ///   if it is not set.
-async fn check_and_update_module_references(
+fn check_and_update_module_references(
     app_dir: FileSystemPath,
     module: &mut Option<FileSystemPath>,
     parent_module: &mut Option<FileSystemPath>,
@@ -1108,7 +1191,7 @@ async fn check_and_update_module_references(
         // page. This can only happen in the root directory because after this the parent module
         // will always be set.
         (None, None) => {
-            let default_page = get_next_package(app_dir).await?.join(file_path)?;
+            let default_page = turbo_tasks::read!(get_next_package(app_dir))?.join(file_path)?;
             *module = Some(default_page.clone());
             *parent_module = Some(default_page);
         }
@@ -1116,7 +1199,9 @@ async fn check_and_update_module_references(
 
     Ok(())
 }
+}
 
+turbo_tasks::dual_fn! {
 /// Checks if the current directory is the root directory and if the module is not set.
 /// If the module is not set, it will be set to the default page.
 ///
@@ -1124,19 +1209,21 @@ async fn check_and_update_module_references(
 /// * `app_dir` - The application directory.
 /// * `module` - The module to check and update if it is not set.
 /// * `file_path` - The file path to the default page if the module is not set.
-async fn check_and_update_global_module_references(
+fn check_and_update_global_module_references(
     app_dir: FileSystemPath,
     module: &mut Option<FileSystemPath>,
     file_path: &str,
 ) -> Result<()> {
     if module.is_none() {
-        *module = Some(get_next_package(app_dir).await?.join(file_path)?);
+        *module = Some(turbo_tasks::read!(get_next_package(app_dir))?.join(file_path)?);
     }
 
     Ok(())
 }
+}
 
-async fn directory_tree_to_loader_tree_internal(
+turbo_tasks::dual_fn! {
+fn directory_tree_to_loader_tree_internal(
     app_dir: FileSystemPath,
     global_metadata: Vc<GlobalMetadata>,
     directory_name: RcStr,
@@ -1168,41 +1255,41 @@ async fn directory_tree_to_loader_tree_internal(
     // Handle the non-global modules that should always be overridden for top level groups or set to
     // the default page if they are not set.
     if is_root_directory || is_first_layer_group_route {
-        check_and_update_module_references(
+        turbo_tasks::read!(check_and_update_module_references(
             app_dir.clone(),
             &mut modules.not_found,
             &mut parent_modules.not_found,
             "dist/client/components/builtin/not-found.js",
             is_first_layer_group_route,
-        )
-        .await?;
+        ))
+        ?;
 
-        check_and_update_module_references(
+        turbo_tasks::read!(check_and_update_module_references(
             app_dir.clone(),
             &mut modules.forbidden,
             &mut parent_modules.forbidden,
             "dist/client/components/builtin/forbidden.js",
             is_first_layer_group_route,
-        )
-        .await?;
+        ))
+        ?;
 
-        check_and_update_module_references(
+        turbo_tasks::read!(check_and_update_module_references(
             app_dir.clone(),
             &mut modules.unauthorized,
             &mut parent_modules.unauthorized,
             "dist/client/components/builtin/unauthorized.js",
             is_first_layer_group_route,
-        )
-        .await?;
+        ))
+        ?;
     }
 
     if is_root_directory {
-        check_and_update_global_module_references(
+        turbo_tasks::read!(check_and_update_global_module_references(
             app_dir.clone(),
             &mut modules.global_error,
             "dist/client/components/builtin/global-error.js",
-        )
-        .await?;
+        ))
+        ?;
     }
 
     // For dynamic segments like [id], find all static siblings at the same URL level.
@@ -1227,7 +1314,7 @@ async fn directory_tree_to_loader_tree_internal(
         segment: directory_name.clone(),
         parallel_routes: FxIndexMap::default(),
         modules: modules.without_leaves(),
-        global_metadata: global_metadata.to_resolved().await?,
+        global_metadata: turbo_tasks::read!(global_metadata.to_resolved())?,
         static_siblings,
     };
 
@@ -1252,7 +1339,7 @@ async fn directory_tree_to_loader_tree_internal(
                     metadata: modules.metadata,
                     ..Default::default()
                 },
-                global_metadata: global_metadata.to_resolved().await?,
+                global_metadata: turbo_tasks::read!(global_metadata.to_resolved())?,
                 static_siblings: Vec::new(),
             },
         );
@@ -1281,7 +1368,20 @@ async fn directory_tree_to_loader_tree_internal(
                 url_tree.and_then(|t| t.get_child(&directory_name))
             };
 
-        let subtree = Box::pin(directory_tree_to_loader_tree_internal(
+        #[cfg(not(feature = "sync"))]
+        let subtree = turbo_tasks::read!(Box::pin(directory_tree_to_loader_tree_internal(
+            app_dir.clone(),
+            global_metadata,
+            subdir_name.clone(),
+            subdirectory,
+            child_app_page.clone(),
+            for_app_path.clone(),
+            parent_modules.clone(),
+            child_url_tree,
+        )))
+        ?;
+        #[cfg(feature = "sync")]
+        let subtree = turbo_tasks::read!(directory_tree_to_loader_tree_internal(
             app_dir.clone(),
             global_metadata,
             subdir_name.clone(),
@@ -1291,7 +1391,7 @@ async fn directory_tree_to_loader_tree_internal(
             parent_modules.clone(),
             child_url_tree,
         ))
-        .await?;
+        ?;
 
         if let Some(illegal_path) = subtree.as_ref().and(illegal_path_error) {
             return Err(illegal_path);
@@ -1338,13 +1438,13 @@ async fn directory_tree_to_loader_tree_internal(
                     && !is_leaf_segment
                     && !slot_has_children
                 {
-                    missing_default_parallel_route_issue(
+                    turbo_tasks::read!(missing_default_parallel_route_issue(
                         app_dir.clone(),
                         app_page.clone(),
                         key.into(),
                     )
-                    .to_resolved()
-                    .await?
+                    .to_resolved())
+                    ?
                     .emit();
                 }
 
@@ -1358,7 +1458,7 @@ async fn directory_tree_to_loader_tree_internal(
             }
 
             if subtree.has_page() {
-                check_duplicate(&mut duplicate, &subtree, app_dir.clone()).await?;
+                turbo_tasks::read!(check_duplicate(&mut duplicate, &subtree, app_dir.clone()))?;
             }
 
             if let Some(current_tree) = tree.parallel_routes.get("children") {
@@ -1417,57 +1517,57 @@ async fn directory_tree_to_loader_tree_internal(
             // file. Also skip validation if the slot is UNDER a catch-all route or if
             // this is a leaf segment (no child routes).
             if default.is_none() && key != "children" && !is_inside_catchall && !is_leaf_segment {
-                missing_default_parallel_route_issue(
+                turbo_tasks::read!(missing_default_parallel_route_issue(
                     app_dir.clone(),
                     app_page.clone(),
                     key.clone(),
                 )
-                .to_resolved()
-                .await?
+                .to_resolved())
+                ?
                 .emit();
             }
 
             tree.parallel_routes.insert(
                 key.clone(),
-                default_route_tree(
+                turbo_tasks::read!(default_route_tree(
                     app_dir.clone(),
                     global_metadata,
                     app_page.clone(),
                     default,
                     key.clone(),
                     for_app_path.clone(),
-                )
-                .await?,
+                ))
+                ?,
             );
         }
     }
 
     if tree.parallel_routes.is_empty() {
         if modules.default.is_some() || current_level_is_parallel_route {
-            tree = default_route_tree(
+            tree = turbo_tasks::read!(default_route_tree(
                 app_dir.clone(),
                 global_metadata,
                 app_page.clone(),
                 modules.default.clone(),
                 rcstr!("children"),
                 for_app_path.clone(),
-            )
-            .await?;
+            ))
+            ?;
         } else {
             return Ok(None);
         }
     } else if tree.parallel_routes.get("children").is_none() {
         tree.parallel_routes.insert(
             rcstr!("children"),
-            default_route_tree(
+            turbo_tasks::read!(default_route_tree(
                 app_dir.clone(),
                 global_metadata,
                 app_page.clone(),
                 modules.default.clone(),
                 rcstr!("children"),
                 for_app_path.clone(),
-            )
-            .await?,
+            ))
+            ?,
         );
     }
 
@@ -1481,8 +1581,10 @@ async fn directory_tree_to_loader_tree_internal(
 
     Ok(Some(tree))
 }
+}
 
-async fn default_route_tree(
+turbo_tasks::dual_fn! {
+fn default_route_tree(
     app_dir: FileSystemPath,
     global_metadata: Vc<GlobalMetadata>,
     app_page: AppPage,
@@ -1509,13 +1611,14 @@ async fn default_route_tree(
             };
 
             AppDirModules {
-                default: Some(get_next_package(app_dir).await?.join(default_file)?),
+                default: Some(turbo_tasks::read!(get_next_package(app_dir))?.join(default_file)?),
                 ..Default::default()
             }
         },
-        global_metadata: global_metadata.to_resolved().await?,
+        global_metadata: turbo_tasks::read!(global_metadata.to_resolved())?,
         static_siblings: Vec::new(),
     })
+}
 }
 
 #[turbo_tasks::function]
@@ -1531,22 +1634,24 @@ async fn directory_tree_to_entrypoints_internal(
     root_params: ResolvedVc<RootParamVecOption>,
 ) -> Result<Vc<Entrypoints>> {
     let span = tracing::info_span!("build layout trees", name = display(&app_page));
-    directory_tree_to_entrypoints_internal_untraced(
-        app_dir,
-        global_metadata,
-        is_global_not_found_enabled,
-        next_mode,
-        directory_name,
-        directory_tree,
-        app_page,
-        root_layouts,
-        root_params,
+    turbo_tasks::read!(
+        directory_tree_to_entrypoints_internal_untraced(
+            app_dir,
+            global_metadata,
+            is_global_not_found_enabled,
+            next_mode,
+            directory_name,
+            directory_tree,
+            app_page,
+            root_layouts,
+            root_params,
+        )
+        .instrument(span)
     )
-    .instrument(span)
-    .await
 }
 
-async fn directory_tree_to_entrypoints_internal_untraced(
+turbo_tasks::dual_fn! {
+fn directory_tree_to_entrypoints_internal_untraced(
     app_dir: FileSystemPath,
     global_metadata: ResolvedVc<GlobalMetadata>,
     is_global_not_found_enabled: Vc<bool>,
@@ -1560,7 +1665,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     let mut result = FxIndexMap::default();
 
     let directory_tree_vc = directory_tree;
-    let directory_tree = &*directory_tree.await?;
+    let directory_tree = &*turbo_tasks::read!(directory_tree)?;
 
     let subdirectories = &directory_tree.subdirectories;
     let modules = &directory_tree.modules;
@@ -1568,7 +1673,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     // segment config. https://nextjs.org/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#segment-runtime-option
     // Pass down layouts from each tree to apply segment config when adding route.
     let root_layouts = if let Some(layout) = &modules.layout {
-        let mut layouts = root_layouts.owned().await?;
+        let mut layouts = turbo_tasks::read!(root_layouts.owned())?;
         layouts.push(layout.clone());
         ResolvedVc::cell(layouts)
     } else {
@@ -1576,7 +1681,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     };
 
     // TODO: `root_layouts` is a misnomer, they're just parent layouts
-    let root_params = if root_params.await?.is_none() && (*root_layouts.await?).len() == 1 {
+    let root_params = if turbo_tasks::read!(root_params)?.is_none() && (*turbo_tasks::read!(root_layouts)?).len() == 1 {
         // found a root layout. the params up-to-and-including this point are the root params
         // for all child segments
         ResolvedVc::cell(Some(
@@ -1598,15 +1703,15 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     if modules.page.is_some() {
         let app_path = AppPath::from(app_page.clone());
 
-        let loader_tree = *directory_tree_to_loader_tree(
+        let loader_tree = *turbo_tasks::read!(directory_tree_to_loader_tree(
             app_dir.clone(),
             *global_metadata,
             directory_name.clone(),
             directory_tree_vc,
             app_page.clone(),
             app_path,
-        )
-        .await?;
+        ))
+        ?;
 
         add_app_page(
             app_dir.clone(),
@@ -1645,7 +1750,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         .chain(twitter.iter().cloned().map(MetadataItem::from))
         .chain(open_graph.iter().cloned().map(MetadataItem::from))
     {
-        let app_page = app_page.clone_push_str(&get_metadata_route_name(meta.clone()).await?)?;
+        let app_page = app_page.clone_push_str(&turbo_tasks::read!(get_metadata_route_name(meta.clone()))?)?;
 
         add_app_metadata_route(
             app_dir.clone(),
@@ -1662,11 +1767,11 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             favicon,
             robots,
             manifest,
-        } = &*global_metadata.await?;
+        } = &*turbo_tasks::read!(global_metadata)?;
 
         for meta in favicon.iter().chain(robots.iter()).chain(manifest.iter()) {
             let app_page =
-                app_page.clone_push_str(&get_metadata_route_name(meta.clone()).await?)?;
+                app_page.clone_push_str(&turbo_tasks::read!(get_metadata_route_name(meta.clone()))?)?;
 
             add_app_metadata_route(
                 app_dir.clone(),
@@ -1682,37 +1787,37 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         // fill in the default modules for the not-found entrypoint
         if modules.layout.is_none() {
             modules.layout = Some(
-                get_next_package(app_dir.clone())
-                    .await?
+                turbo_tasks::read!(get_next_package(app_dir.clone()))
+                    ?
                     .join("dist/client/components/builtin/layout.js")?,
             );
         }
 
         if modules.not_found.is_none() {
             modules.not_found = Some(
-                get_next_package(app_dir.clone())
-                    .await?
+                turbo_tasks::read!(get_next_package(app_dir.clone()))
+                    ?
                     .join("dist/client/components/builtin/not-found.js")?,
             );
         }
         if modules.forbidden.is_none() {
             modules.forbidden = Some(
-                get_next_package(app_dir.clone())
-                    .await?
+                turbo_tasks::read!(get_next_package(app_dir.clone()))
+                    ?
                     .join("dist/client/components/builtin/forbidden.js")?,
             );
         }
         if modules.unauthorized.is_none() {
             modules.unauthorized = Some(
-                get_next_package(app_dir.clone())
-                    .await?
+                turbo_tasks::read!(get_next_package(app_dir.clone()))
+                    ?
                     .join("dist/client/components/builtin/unauthorized.js")?,
             );
         }
         if modules.global_error.is_none() {
             modules.global_error = Some(
-                get_next_package(app_dir.clone())
-                    .await?
+                turbo_tasks::read!(get_next_package(app_dir.clone()))
+                    ?
                     .join("dist/client/components/builtin/global-error.js")?,
             );
         }
@@ -1721,7 +1826,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         // is considered as its own entry point.
 
         // Determine if we enable the global not-found feature.
-        let is_global_not_found_enabled = *is_global_not_found_enabled.await?;
+        let is_global_not_found_enabled = *turbo_tasks::read!(is_global_not_found_enabled)?;
         let use_global_not_found =
             is_global_not_found_enabled || modules.global_not_found.is_some();
 
@@ -1743,8 +1848,8 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                                 // leaf module only keeps page pointing to empty-stub
                                 AppDirModules {
                                     // page is built-in/empty-stub
-                                    page: Some(get_next_package(app_dir.clone())
-                                        .await?
+                                    page: Some(turbo_tasks::read!(get_next_package(app_dir.clone()))
+                                        ?
                                         .join("dist/client/components/builtin/empty-stub.js")?,
                                     ),
                                     ..Default::default()
@@ -1755,8 +1860,8 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                                 AppDirModules {
                                     page: match modules.not_found {
                                         Some(v) => Some(v),
-                                        None => Some(get_next_package(app_dir.clone())
-                                            .await?
+                                        None => Some(turbo_tasks::read!(get_next_package(app_dir.clone()))
+                                            ?
                                             .join("dist/client/components/builtin/not-found.js")?,
                                         ),
                                     },
@@ -1783,8 +1888,8 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                     match modules.global_not_found {
                         Some(v) => Some(v),
                         None => Some(
-                            get_next_package(app_dir.clone())
-                                .await?
+                            turbo_tasks::read!(get_next_package(app_dir.clone()))
+                                ?
                                 .join("dist/client/components/builtin/global-not-found.js")?,
                         ),
                     }
@@ -1816,10 +1921,10 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         // This aligns with webpack: default Pages entries (including /_error) are only added when
         // the build isn't app-only. If the build is app-only (no user pages/api), we should still
         // expose the app global error so runtime errors render, but we shouldn't emit it otherwise.
-        if matches!(*next_mode.await?, NextMode::Build) {
+        if matches!(*turbo_tasks::read!(next_mode)?, NextMode::Build) {
             // Create a `_global-error/page` route using user's global-error.js or built-in
             // fallback.
-            let next_package = get_next_package(app_dir.clone()).await?;
+            let next_package = turbo_tasks::read!(get_next_package(app_dir.clone()))?;
             let global_error_tree = AppPageLoaderTree {
                 page: app_page.clone(),
                 segment: directory_name.clone(),
@@ -1863,7 +1968,8 @@ async fn directory_tree_to_entrypoints_internal_untraced(
 
     let app_page = &app_page;
     let directory_name = &directory_name;
-    let subdirectories = subdirectories
+    #[cfg(not(feature = "sync"))]
+    let subdirectories = turbo_tasks::read!(subdirectories
         .iter()
         .map(|(subdir_name, &subdirectory)| {
             let app_dir = app_dir.clone();
@@ -1879,7 +1985,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                     illegal_path = Some(e);
                 }
 
-                let map = directory_tree_to_entrypoints_internal(
+                let map = turbo_tasks::read!(directory_tree_to_entrypoints_internal(
                     app_dir.clone(),
                     *global_metadata,
                     is_global_not_found_enabled,
@@ -1889,8 +1995,8 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                     child_app_page.clone(),
                     *root_layouts,
                     *root_params,
-                )
-                .await?;
+                ))
+                ?;
 
                 if let Some(illegal_path) = illegal_path
                     && !map.is_empty()
@@ -1920,8 +2026,67 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 Ok((map, loader_trees))
             }
         })
-        .try_join()
-        .await?;
+        .try_join())
+        ?;
+    #[cfg(feature = "sync")]
+    let subdirectories = {
+        let mut subdirectories_acc = Vec::new();
+        for (subdir_name, &subdirectory) in subdirectories.iter() {
+            let app_dir = app_dir.clone();
+            subdirectories_acc.push({
+                let mut child_app_page = app_page.clone();
+                let mut illegal_path = None;
+
+                // When constructing the app_page fails (e. g. due to limitations of the order),
+                // we only want to emit the error when there are actual pages below that
+                // directory.
+                if let Err(e) = child_app_page.push_str(&normalize_underscore(subdir_name)) {
+                    illegal_path = Some(e);
+                }
+
+                let map = turbo_tasks::read!(directory_tree_to_entrypoints_internal(
+                    app_dir.clone(),
+                    *global_metadata,
+                    is_global_not_found_enabled,
+                    next_mode,
+                    subdir_name.clone(),
+                    *subdirectory,
+                    child_app_page.clone(),
+                    *root_layouts,
+                    *root_params,
+                ))
+                ?;
+
+                if let Some(illegal_path) = illegal_path
+                    && !map.is_empty()
+                {
+                    return Err(illegal_path);
+                }
+
+                let mut loader_trees = Vec::new();
+
+                for (_, entrypoint) in map.iter() {
+                    if let Entrypoint::AppPage { ref pages, .. } = *entrypoint {
+                        for page in pages {
+                            let app_path = AppPath::from(page.clone());
+
+                            let loader_tree = directory_tree_to_loader_tree(
+                                app_dir.clone(),
+                                *global_metadata,
+                                directory_name.clone(),
+                                directory_tree_vc,
+                                app_page.clone(),
+                                app_path,
+                            );
+                            loader_trees.push(loader_tree);
+                        }
+                    }
+                }
+                Ok::<_, anyhow::Error>((map, loader_trees))
+            }?);
+        }
+        subdirectories_acc
+    };
 
     for (map, loader_trees) in subdirectories.iter() {
         let mut i = 0;
@@ -1933,7 +2098,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                     root_params,
                 } => {
                     for page in pages {
-                        let loader_tree = *loader_trees[i].await?;
+                        let loader_tree = *turbo_tasks::read!(loader_trees[i])?;
                         i += 1;
 
                         add_app_page(
@@ -1979,6 +2144,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     }
     Ok(Vc::cell(result))
 }
+}
 
 /// Returns the global metadata for an app directory.
 #[turbo_tasks::function]
@@ -1986,7 +2152,7 @@ pub async fn get_global_metadata(
     app_dir: FileSystemPath,
     page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<GlobalMetadata>> {
-    let DirectoryContent::Entries(entries) = &*app_dir.read_dir().await? else {
+    let DirectoryContent::Entries(entries) = &*turbo_tasks::read!(app_dir.read_dir())? else {
         bail!("app_dir must be a directory")
     };
     let mut metadata = GlobalMetadata::default();
@@ -1999,7 +2165,7 @@ pub async fn get_global_metadata(
         let Some(GlobalMetadataFileMatch {
             metadata_type,
             dynamic,
-        }) = match_global_metadata_file(basename, &page_extensions.await?)
+        }) = match_global_metadata_file(basename, &turbo_tasks::read!(page_extensions)?)
         else {
             continue;
         };
@@ -2029,6 +2195,7 @@ struct DirectoryTreeIssue {
     pub message: ResolvedVc<StyledString>,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for DirectoryTreeIssue {
@@ -2051,6 +2218,32 @@ impl Issue for DirectoryTreeIssue {
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
-        Ok(Some((*self.message.await?).clone()))
+        Ok(Some((*turbo_tasks::read!(self.message)?).clone()))
+    }
+}
+
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for DirectoryTreeIssue {
+    fn severity(&self) -> IssueSeverity {
+        self.severity
+    }
+
+    fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "An issue occurred while preparing your Next.js app"
+        )))
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::AppStructure
+    }
+
+    fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.app_dir.clone())
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some((*turbo_tasks::read!(self.message)?).clone()))
     }
 }

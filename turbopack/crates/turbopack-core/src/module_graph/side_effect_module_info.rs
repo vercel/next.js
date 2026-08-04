@@ -1,6 +1,6 @@
 use anyhow::Result;
 use rustc_hash::{FxHashMap, FxHashSet};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 
 use crate::{
     module::{Module, ModuleSideEffects},
@@ -29,7 +29,7 @@ pub async fn compute_side_effect_free_module_info(
     // Layout segment optimization, we can individually compute the side effect free modules for
     // each graph.
     let mut result: Vc<SideEffectFreeModules> = Vc::cell(Default::default());
-    for graph in graphs.iter_graphs().await? {
+    for graph in turbo_tasks::read!(graphs.iter_graphs())? {
         result = compute_side_effect_free_module_info_single(graph.connect(), result);
     }
     Ok(result)
@@ -40,31 +40,30 @@ async fn compute_side_effect_free_module_info_single(
     graph: ResolvedVc<ModuleGraphLayer>,
     parent_side_effect_free_modules: Vc<SideEffectFreeModules>,
 ) -> Result<Vc<SideEffectFreeModules>> {
-    let parent_side_effect_free_modules = parent_side_effect_free_modules.await?;
-    let graph = graph.await?;
-    let module_side_effects = graph
-        .iter_reachable_nodes()?
-        .map(async |node| {
-            Ok(match node {
-                SingleModuleGraphNode::Module(module) => {
-                    // This turbo task always has a cache hit since it is called when building the
-                    // module graph. we could consider moving this information
-                    // into to the module graph, but then changes would invalidate the whole graph.
-                    (*module, *module.side_effects().await?)
-                }
-                SingleModuleGraphNode::VisitedModule { idx: _, module } => (
-                    *module,
-                    if parent_side_effect_free_modules.contains(module) {
-                        ModuleSideEffects::SideEffectFree
-                    } else {
-                        ModuleSideEffects::SideEffectful
-                    },
-                ),
-            })
+    let parent_side_effect_free_modules = turbo_tasks::read!(parent_side_effect_free_modules)?;
+    let graph = turbo_tasks::read!(graph)?;
+    let nodes = graph.iter_reachable_nodes()?.collect::<Vec<_>>();
+    // This turbo task always has a cache hit since it is called when building the
+    // module graph. we could consider moving this information
+    // into to the module graph, but then changes would invalidate the whole graph.
+    let side_effects = turbo_tasks::parallel!(nodes.iter().filter_map(|node| match node {
+        SingleModuleGraphNode::Module(module) => Some(module.side_effects()),
+        SingleModuleGraphNode::VisitedModule { .. } => None,
+    }))?;
+    let mut side_effects = side_effects.into_iter();
+    let module_side_effects = nodes
+        .iter()
+        .map(|node| match node {
+            SingleModuleGraphNode::Module(module) => (*module, *side_effects.next().unwrap()),
+            SingleModuleGraphNode::VisitedModule { idx: _, module } => (
+                *module,
+                if parent_side_effect_free_modules.contains(module) {
+                    ModuleSideEffects::SideEffectFree
+                } else {
+                    ModuleSideEffects::SideEffectful
+                },
+            ),
         })
-        .try_join()
-        .await?
-        .into_iter()
         .collect::<FxHashMap<_, _>>();
 
     // Modules are categorized as side-effectful, locally side effect free and side effect free.
@@ -117,32 +116,31 @@ async fn compute_side_effect_free_module_info_single(
                 .is_some_and(|v| v == "1" || v == "true")
         });
         if *PRINT_SIDE_EFFECT_INFO {
-            use turbo_tasks::TryJoinIterExt;
+            let infos = module_side_effects
+                .iter()
+                .filter_map(|(m, e)| match e {
+                    ModuleSideEffects::SideEffectful => None,
+                    ModuleSideEffects::SideEffectFree => Some((m, false)),
+                    ModuleSideEffects::ModuleEvaluationIsSideEffectFree => {
+                        if locally_side_effect_free_modules_that_have_side_effects.contains(m) {
+                            None
+                        } else {
+                            Some((m, true))
+                        }
+                    }
+                })
+                .collect::<Vec<_>>();
+            let idents = turbo_tasks::parallel!(infos.iter().map(|(m, _)| m.ident_string()))?;
             println!(
                 "side effect free modules: {:#?}",
-                module_side_effects
-                    .iter()
-                    .filter_map(|(m, e)| match e {
-                        ModuleSideEffects::SideEffectful => None,
-                        ModuleSideEffects::SideEffectFree => Some((m, false)),
-                        ModuleSideEffects::ModuleEvaluationIsSideEffectFree => {
-                            if locally_side_effect_free_modules_that_have_side_effects.contains(m) {
-                                None
-                            } else {
-                                Some((m, true))
-                            }
-                        }
-                    })
-                    .map(async |(m, locally)| Ok((
-                        m.ident_string().await?,
-                        if locally {
-                            "inferred locally"
-                        } else {
-                            "declared"
-                        }
-                    )))
-                    .try_join()
-                    .await?
+                idents
+                    .into_iter()
+                    .zip(infos.iter().map(|&(_, locally)| if locally {
+                        "inferred locally"
+                    } else {
+                        "declared"
+                    }))
+                    .collect::<Vec<_>>()
             );
         }
     }

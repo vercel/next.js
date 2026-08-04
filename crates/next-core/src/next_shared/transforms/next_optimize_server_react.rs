@@ -8,19 +8,21 @@ use turbopack_ecmascript::{CustomTransformer, TransformContext, TransformPlugin}
 
 use super::{EcmascriptTransformStage, get_ecma_transform_rule};
 
+turbo_tasks::dual_fn! {
 #[allow(dead_code)]
-pub async fn get_next_optimize_server_react_rule(
+pub fn get_next_optimize_server_react_rule(
     enable_mdx_rs: bool,
     optimize_use_state: bool,
 ) -> Result<ModuleRule> {
-    let transformer = next_optimize_server_react_transform_plugin(optimize_use_state)
-        .to_resolved()
-        .await?;
+    let transformer = turbo_tasks::read!(next_optimize_server_react_transform_plugin(optimize_use_state)
+        .to_resolved())
+        ?;
     Ok(get_ecma_transform_rule(
         transformer,
         enable_mdx_rs,
         EcmascriptTransformStage::Postprocess,
     ))
+}
 }
 
 #[turbo_tasks::function]
@@ -34,10 +36,22 @@ struct NextOptimizeServerReact {
     optimize_use_state: bool,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 impl CustomTransformer for NextOptimizeServerReact {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "next_optimize_server_react", skip_all)]
     async fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
+        program.mutate(optimize_server_react(Config {
+            optimize_use_state: self.optimize_use_state,
+        }));
+        Ok(())
+    }
+}
+
+#[cfg(feature = "sync")]
+impl CustomTransformer for NextOptimizeServerReact {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "next_optimize_server_react", skip_all)]
+    fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
         program.mutate(optimize_server_react(Config {
             optimize_use_state: self.optimize_use_state,
         }));

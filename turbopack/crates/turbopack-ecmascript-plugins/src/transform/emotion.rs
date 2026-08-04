@@ -5,6 +5,7 @@ use std::{
 };
 
 use anyhow::Result;
+#[cfg(not(feature = "sync"))]
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use indexmap::IndexMap;
@@ -131,10 +132,8 @@ impl EmotionTransformer {
     }
 }
 
-#[async_trait]
-impl CustomTransformer for EmotionTransformer {
-    #[tracing::instrument(level = tracing::Level::TRACE, name = "emotion", skip_all)]
-    async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+impl EmotionTransformer {
+    fn transform_inner(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         #[cfg(feature = "transform_emotion")]
         {
             let hash = {
@@ -152,5 +151,23 @@ impl CustomTransformer for EmotionTransformer {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(not(feature = "sync"))]
+#[async_trait]
+impl CustomTransformer for EmotionTransformer {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "emotion", skip_all)]
+    async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+        self.transform_inner(program, ctx)
+    }
+}
+
+/// See the async impl above; the sync engine drops `async`/`#[async_trait]`.
+#[cfg(feature = "sync")]
+impl CustomTransformer for EmotionTransformer {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "emotion", skip_all)]
+    fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+        self.transform_inner(program, ctx)
     }
 }

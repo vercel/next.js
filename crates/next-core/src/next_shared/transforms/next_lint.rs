@@ -9,12 +9,14 @@ use turbopack_ecmascript::{CustomTransformer, TransformContext, TransformPlugin}
 use super::get_ecma_transform_rule;
 use crate::next_shared::transforms::EcmascriptTransformStage;
 
-pub async fn get_next_lint_transform_rule(enable_mdx_rs: bool) -> Result<ModuleRule> {
+turbo_tasks::dual_fn! {
+pub fn get_next_lint_transform_rule(enable_mdx_rs: bool) -> Result<ModuleRule> {
     Ok(get_ecma_transform_rule(
-        lint_transform_plugin().to_resolved().await?,
+        turbo_tasks::read!(lint_transform_plugin().to_resolved())?,
         enable_mdx_rs,
         EcmascriptTransformStage::Preprocess,
     ))
+}
 }
 
 #[turbo_tasks::function]
@@ -25,10 +27,20 @@ fn lint_transform_plugin() -> Vc<TransformPlugin> {
 #[derive(Debug)]
 struct LintTransformer {}
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 impl CustomTransformer for LintTransformer {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "next_custom_lint", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+        program.visit_with(&mut lint_codemod_comments(ctx.comments));
+        Ok(())
+    }
+}
+
+#[cfg(feature = "sync")]
+impl CustomTransformer for LintTransformer {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "next_custom_lint", skip_all)]
+    fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         program.visit_with(&mut lint_codemod_comments(ctx.comments));
         Ok(())
     }

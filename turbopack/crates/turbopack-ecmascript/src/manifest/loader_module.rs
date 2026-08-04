@@ -3,7 +3,7 @@ use std::io::Write as _;
 use anyhow::{Result, anyhow};
 use indoc::writedoc;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkData, ChunkableModule, ChunkingContext, ChunksData,
@@ -58,21 +58,18 @@ impl ManifestLoaderModule {
 
     #[turbo_tasks::function]
     pub async fn chunks_data(self: Vc<Self>) -> Result<Vc<ChunksData>> {
-        let this = self.await?;
-        let manifest = this.manifest.await?;
-        let chunks = this.manifest.manifest_chunk_group().await?.assets;
+        let this = turbo_tasks::read!(self)?;
+        let manifest = turbo_tasks::read!(this.manifest)?;
+        let chunks = turbo_tasks::read!(this.manifest.manifest_chunk_group())?.assets;
         Ok(ChunkData::from_assets(
-            manifest.chunking_context.output_root().owned().await?,
+            turbo_tasks::read!(manifest.chunking_context.output_root().owned())?,
             *chunks,
         ))
     }
 
     #[turbo_tasks::function]
     pub async fn asset_ident_for(module: Vc<Box<dyn ChunkableModule>>) -> Result<Vc<AssetIdent>> {
-        Ok(module
-            .ident()
-            .owned()
-            .await?
+        Ok(turbo_tasks::read!(module.ident().owned())?
             .with_modifier(modifier())
             .into_vc())
     }
@@ -82,11 +79,7 @@ impl ManifestLoaderModule {
 impl Module for ManifestLoaderModule {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self
-            .manifest
-            .module_ident()
-            .owned()
-            .await?
+        Ok(turbo_tasks::read!(self.manifest.module_ident().owned())?
             .with_modifier(modifier())
             .into_vc())
     }
@@ -134,30 +127,28 @@ impl EcmascriptChunkPlaceable for ManifestLoaderModule {
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         let mut code = Vec::new();
 
-        let manifest = this.manifest.await?;
+        let manifest = turbo_tasks::read!(this.manifest)?;
 
         // We need several items in order for a dynamic import to fully load. First, we
         // need the chunk path of the manifest chunk, relative from the output root. The
         // chunk is a servable file, which will contain the manifest chunk item, which
         // will perform the actual chunk traversal and generate load statements.
-        let chunks_server_data = &*self.chunks_data().await?.iter().try_join().await?;
+        let chunks_server_data =
+            &*turbo_tasks::parallel!(turbo_tasks::read!(self.chunks_data())?.iter())?;
 
         // We also need the manifest chunk item's id, which points to a CJS module that
         // exports a promise for all of the necessary chunk loads.
-        let item_id = this
-            .manifest
-            .chunk_item_id(*manifest.chunking_context)
-            .await?;
+        let item_id = turbo_tasks::read!(this.manifest.chunk_item_id(*manifest.chunking_context))?;
 
         // Finally, we need the id of the module that we're actually trying to
         // dynamically import.
         let placeable =
             ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(manifest.inner)
                 .ok_or_else(|| anyhow!("asset is not placeable in ecmascript chunk"))?;
-        let dynamic_id = placeable.chunk_item_id(*manifest.chunking_context).await?;
+        let dynamic_id = turbo_tasks::read!(placeable.chunk_item_id(*manifest.chunking_context))?;
 
         // This is the code that will be executed when the dynamic import is reached.
         // It will load the manifest chunk, which will load all the chunks needed by
@@ -218,11 +209,7 @@ impl EcmascriptChunkPlaceable for ManifestLoaderModule {
 impl ManifestLoaderModule {
     #[turbo_tasks::function]
     pub async fn content_ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self
-            .manifest
-            .content_ident()
-            .owned()
-            .await?
+        Ok(turbo_tasks::read!(self.manifest.content_ident().owned())?
             .with_modifier(modifier())
             .into_vc())
     }

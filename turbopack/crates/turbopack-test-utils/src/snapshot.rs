@@ -5,7 +5,7 @@ use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use similar::TextDiff;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
+use turbo_tasks::{ReadRef, Vc};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, File, FileContent, FileSystemEntryType, FileSystemPath,
 };
@@ -22,12 +22,13 @@ pub static UPDATE: LazyLock<bool> = LazyLock::new(|| env::var("UPDATE").unwrap_o
 
 static ANSI_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\x1b\[\d+m").unwrap());
 
-pub async fn snapshot_issues<I: IntoIterator<Item = ReadRef<PlainIssue>>>(
-    captured_issues: I,
+turbo_tasks::dual_fn! {
+pub fn snapshot_issues(
+    captured_issues: impl IntoIterator<Item = ReadRef<PlainIssue>>,
     issues_path: FileSystemPath,
     workspace_root: &str,
 ) -> Result<()> {
-    let expected_issues = expected(issues_path.clone()).await?;
+    let expected_issues = turbo_tasks::read!(expected(issues_path.clone()))?;
     let mut seen = FxHashSet::default();
     for plain_issue in captured_issues.into_iter() {
         let title = styled_string_to_file_safe_string(&plain_issue.title)
@@ -74,15 +75,17 @@ pub async fn snapshot_issues<I: IntoIterator<Item = ReadRef<PlainIssue>>>(
 
         let asset = AssetContent::file(FileContent::Content(File::from(content)).cell());
 
-        diff(path, asset).await?;
+        turbo_tasks::read!(diff(path, asset))?;
     }
 
-    matches_expected(expected_issues, seen).await
+    turbo_tasks::read!(matches_expected(expected_issues, seen))
+}
 }
 
-pub async fn expected(dir: FileSystemPath) -> Result<FxHashSet<FileSystemPath>> {
+turbo_tasks::dual_fn! {
+pub fn expected(dir: FileSystemPath) -> Result<FxHashSet<FileSystemPath>> {
     let mut expected = FxHashSet::default();
-    let entries = dir.read_dir().await?;
+    let entries = turbo_tasks::read!(dir.read_dir())?;
     if let DirectoryContent::Entries(entries) = &*entries {
         for (file, entry) in entries {
             match entry {
@@ -99,15 +102,17 @@ pub async fn expected(dir: FileSystemPath) -> Result<FxHashSet<FileSystemPath>> 
     }
     Ok(expected)
 }
+}
 
-pub async fn matches_expected(
+turbo_tasks::dual_fn! {
+pub fn matches_expected(
     expected: FxHashSet<FileSystemPath>,
     seen: FxHashSet<FileSystemPath>,
 ) -> Result<()> {
-    for path in diff_paths(&expected, &seen).await? {
+    for path in diff_paths(&expected, &seen) {
         let p = &path.path;
         if *UPDATE {
-            remove_file(path.clone()).await?;
+            turbo_tasks::read!(remove_file(path.clone()))?;
             println!("removed file {p}");
         } else {
             bail!("expected file {}, but it was not emitted", p);
@@ -115,19 +120,21 @@ pub async fn matches_expected(
     }
     Ok(())
 }
+}
 
-pub async fn diff(path: FileSystemPath, actual: Vc<AssetContent>) -> Result<()> {
+turbo_tasks::dual_fn! {
+pub fn diff(path: FileSystemPath, actual: Vc<AssetContent>) -> Result<()> {
     let path_str = &path.path;
     let expected = AssetContent::file(path.read());
 
-    let actual = get_contents(actual).await?;
-    let expected = get_contents(expected).await?;
+    let actual = turbo_tasks::read!(get_contents(actual))?;
+    let expected = turbo_tasks::read!(get_contents(expected))?;
 
     if actual != expected {
         if let Some(actual) = actual {
             if *UPDATE {
                 let content = FileContent::Content(File::from(RcStr::from(actual))).cell();
-                path.write(content).await?;
+                turbo_tasks::read!(path.write(content))?;
                 println!("updated contents of {path_str}");
             } else {
                 if expected.is_none() {
@@ -152,10 +159,12 @@ pub async fn diff(path: FileSystemPath, actual: Vc<AssetContent>) -> Result<()> 
 
     Ok(())
 }
+}
 
-async fn get_contents(file: Vc<AssetContent>) -> Result<Option<String>> {
-    Ok(match &*file.await? {
-        AssetContent::File(file) => match &*file.await? {
+turbo_tasks::dual_fn! {
+fn get_contents(file: Vc<AssetContent>) -> Result<Option<String>> {
+    Ok(match &*turbo_tasks::read!(file)? {
+        AssetContent::File(file) => match &*turbo_tasks::read!(file)? {
             FileContent::NotFound => None,
             FileContent::Content(expected) => {
                 let rope = expected.content();
@@ -174,31 +183,30 @@ async fn get_contents(file: Vc<AssetContent>) -> Result<Option<String>> {
         )),
     })
 }
+}
 
-async fn remove_file(path: FileSystemPath) -> Result<()> {
-    path.write(FileContent::NotFound.cell()).await?;
+turbo_tasks::dual_fn! {
+fn remove_file(path: FileSystemPath) -> Result<()> {
+    turbo_tasks::read!(path.write(FileContent::NotFound.cell()))?;
     Ok(())
+}
 }
 
 /// Values in left that are not in right.
 /// FileSystemPath hashes as a Vc, not as the file path, so we need to get
-/// the path to properly diff.
-async fn diff_paths(
+/// the path to properly diff. (Pure computation — no reads.)
+fn diff_paths(
     left: &FxHashSet<FileSystemPath>,
     right: &FxHashSet<FileSystemPath>,
-) -> Result<FxHashSet<FileSystemPath>> {
+) -> FxHashSet<FileSystemPath> {
     let mut map = left
         .iter()
-        .map(|p| async move { Ok((p.path.clone(), p.clone())) })
-        .try_join()
-        .await?
-        .iter()
-        .cloned()
+        .map(|p| (p.path.clone(), p.clone()))
         .collect::<FxHashMap<_, _>>();
     for p in right {
         map.remove(&p.path);
     }
-    Ok(map.values().cloned().collect())
+    map.values().cloned().collect()
 }
 
 fn styled_string_to_file_safe_string(styled_string: &StyledString) -> String {

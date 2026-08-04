@@ -25,10 +25,11 @@ pub mod source;
 
 #[turbo_tasks::function]
 pub async fn wasm_edge_var_name(asset: Vc<Box<dyn Asset>>) -> Result<Vc<RcStr>> {
-    let hash = asset
-        .content()
-        .content_hash(no_hash_salt(), HashAlgorithm::Xxh3Hash128Hex)
-        .await?;
+    let hash = turbo_tasks::read!(
+        asset
+            .content()
+            .content_hash(no_hash_salt(), HashAlgorithm::Xxh3Hash128Hex)
+    )?;
     let hash = hash
         .as_ref()
         .context("Missing content when trying to generate the content hash for a WASM asset")?;

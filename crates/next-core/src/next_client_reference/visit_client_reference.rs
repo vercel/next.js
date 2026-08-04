@@ -83,27 +83,75 @@ pub async fn find_server_entries(
     include_traced: bool,
     include_binding_usage: bool,
 ) -> Result<Vc<ServerEntries>> {
-    async move {
-        let emit_spans = tracing::enabled!(Level::INFO);
-        let graph = AdjacencyMap::new()
-            .visit(
-                vec![FindServerEntriesNode::Internal(
-                    entry,
-                    if emit_spans {
-                        // INVALIDATION: we don't need to invalidate when the span name changes
-                        Some(entry.ident_string().untracked().await?)
-                    } else {
-                        None
+    // Async drives the traversal as an instrumented future; sync runs it inline under
+    // the entered span (no future to instrument).
+    #[cfg(not(feature = "sync"))]
+    {
+        turbo_tasks::read!(
+            async move {
+                let emit_spans = tracing::enabled!(Level::INFO);
+                let graph = turbo_tasks::read!(AdjacencyMap::new().visit(
+                    vec![FindServerEntriesNode::Internal(
+                        entry,
+                        if emit_spans {
+                            // INVALIDATION: we don't need to invalidate when the span name changes
+                            Some(turbo_tasks::read!(entry.ident_string().untracked())?)
+                        } else {
+                            None
+                        },
+                    )],
+                    FindServerEntries {
+                        emit_spans,
+                        include_traced,
+                        include_binding_usage,
                     },
-                )],
-                FindServerEntries {
-                    emit_spans,
-                    include_traced,
-                    include_binding_usage,
+                ))
+                .completed()?;
+
+                let mut server_component_entries = vec![];
+                let mut server_utils = vec![];
+                for node in graph.postorder_topological() {
+                    match node {
+                        FindServerEntriesNode::ServerUtilEntry(server_util, _) => {
+                            server_utils.push(*server_util);
+                        }
+                        FindServerEntriesNode::ServerComponentEntry(server_component, _) => {
+                            server_component_entries.push(*server_component);
+                        }
+                        FindServerEntriesNode::Internal(_, _)
+                        | FindServerEntriesNode::ClientReference => {}
+                    }
+                }
+
+                Ok(ServerEntries {
+                    server_component_entries,
+                    server_utils,
+                }
+                .cell())
+            }
+            .instrument(tracing::info_span!("find server entries"))
+        )
+    }
+    #[cfg(feature = "sync")]
+    {
+        let _guard = tracing::info_span!("find server entries").entered();
+        let emit_spans = tracing::enabled!(Level::INFO);
+        let graph = turbo_tasks::read!(AdjacencyMap::new().visit(
+            vec![FindServerEntriesNode::Internal(
+                entry,
+                if emit_spans {
+                    Some(turbo_tasks::read!(entry.ident_string().untracked())?)
+                } else {
+                    None
                 },
-            )
-            .await
-            .completed()?;
+            )],
+            FindServerEntries {
+                emit_spans,
+                include_traced,
+                include_binding_usage,
+            },
+        ))
+        .completed()?;
 
         let mut server_component_entries = vec![];
         let mut server_utils = vec![];
@@ -125,8 +173,6 @@ pub async fn find_server_entries(
         }
         .cell())
     }
-    .instrument(tracing::info_span!("find server entries"))
-    .await
 }
 
 struct FindServerEntries {
@@ -150,17 +196,22 @@ enum FindServerEntriesNode {
 
 impl Visit<FindServerEntriesNode> for FindServerEntries {
     type EdgesIntoIter = Vec<(FindServerEntriesNode, ())>;
+    #[cfg(not(feature = "sync"))]
     type EdgesFuture = impl Future<Output = Result<Self::EdgesIntoIter>>;
 
-    fn visit(&mut self, node: &FindServerEntriesNode, _edge: Option<&()>) -> VisitControlFlow {
-        match node {
-            FindServerEntriesNode::Internal(..) => VisitControlFlow::Continue,
-            FindServerEntriesNode::ClientReference
-            | FindServerEntriesNode::ServerUtilEntry(..)
-            | FindServerEntriesNode::ServerComponentEntry(..) => VisitControlFlow::Skip,
-        }
+    #[cfg(not(feature = "sync"))]
+    fn visit(&mut self, node: &FindServerEntriesNode, edge: Option<&()>) -> VisitControlFlow {
+        self.visit_node(node, edge)
     }
 
+    /// The sync `Visit` trait takes `&self` everywhere (the streaming traversal driver
+    /// shares the visitor with pool jobs) — separate signature, same body.
+    #[cfg(feature = "sync")]
+    fn visit(&self, node: &FindServerEntriesNode, edge: Option<&()>) -> VisitControlFlow {
+        self.visit_node(node, edge)
+    }
+
+    #[cfg(not(feature = "sync"))]
     fn edges(&mut self, node: &FindServerEntriesNode) -> Self::EdgesFuture {
         let include_traced = self.include_traced;
         let include_binding_usage = self.include_binding_usage;
@@ -179,12 +230,11 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
             // Pass include_traced and include_binding_usage to reuse the same cached
             // `primary_chunkable_referenced_modules` task result, but the traced references will be
             // filtered out again afterwards.
-            let referenced_modules = primary_chunkable_referenced_modules(
+            let referenced_modules = turbo_tasks::read!(primary_chunkable_referenced_modules(
                 parent_module,
                 include_traced,
                 include_binding_usage,
-            )
-            .await?;
+            ))?;
 
             let referenced_modules = referenced_modules
                 .iter()
@@ -211,7 +261,9 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
                                 if emit_spans {
                                     // INVALIDATION: we don't need to invalidate when the span name
                                     // changes
-                                    Some(server_component_asset.ident_string().untracked().await?)
+                                    Some(turbo_tasks::read!(
+                                        server_component_asset.ident_string().untracked()
+                                    )?)
                                 } else {
                                     None
                                 },
@@ -229,7 +281,7 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
                                 if emit_spans {
                                     // INVALIDATION: we don't need to invalidate when the span name
                                     // changes
-                                    Some(module.ident_string().untracked().await?)
+                                    Some(turbo_tasks::read!(module.ident_string().untracked())?)
                                 } else {
                                     None
                                 },
@@ -244,7 +296,7 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
                             if emit_spans {
                                 // INVALIDATION: we don't need to invalidate when the span name
                                 // changes
-                                Some(module.ident_string().untracked().await?)
+                                Some(turbo_tasks::read!(module.ident_string().untracked())?)
                             } else {
                                 None
                             },
@@ -253,13 +305,119 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
                     ))
                 });
 
-            let assets = referenced_modules.try_join().await?;
+            let assets = turbo_tasks::read!(referenced_modules.try_join())?;
 
             Ok(assets)
         }
     }
 
-    fn span(&mut self, node: &FindServerEntriesNode, _edge: Option<&()>) -> tracing::Span {
+    #[cfg(feature = "sync")]
+    fn edges(&self, node: &FindServerEntriesNode) -> Result<Self::EdgesIntoIter> {
+        let include_traced = self.include_traced;
+        let include_binding_usage = self.include_binding_usage;
+        let parent_module = match node {
+            FindServerEntriesNode::ClientReference => {
+                unreachable!("ClientReference node should not be visited")
+            }
+            FindServerEntriesNode::Internal(module, _) => **module,
+            FindServerEntriesNode::ServerUtilEntry(module, _) => Vc::upcast(**module),
+            FindServerEntriesNode::ServerComponentEntry(module, _) => Vc::upcast(**module),
+        };
+        let emit_spans = self.emit_spans;
+        let referenced_modules = turbo_tasks::read!(primary_chunkable_referenced_modules(
+            parent_module,
+            include_traced,
+            include_binding_usage,
+        ))?;
+        let entry_for =
+            |module: &ResolvedVc<Box<dyn Module>>| -> Result<(FindServerEntriesNode, ())> {
+                if ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(*module)
+                    .is_some()
+                    || ResolvedVc::try_downcast_type::<CssClientReferenceModule>(*module).is_some()
+                {
+                    return Ok((FindServerEntriesNode::ClientReference, ()));
+                }
+                if let Some(server_component_asset) =
+                    ResolvedVc::try_downcast_type::<NextServerComponentModule>(*module)
+                {
+                    return Ok((
+                        FindServerEntriesNode::ServerComponentEntry(
+                            server_component_asset,
+                            if emit_spans {
+                                Some(turbo_tasks::read!(
+                                    server_component_asset.ident_string().untracked()
+                                )?)
+                            } else {
+                                None
+                            },
+                        ),
+                        (),
+                    ));
+                }
+                if let Some(server_util_module) =
+                    ResolvedVc::try_downcast_type::<NextServerUtilityModule>(*module)
+                {
+                    return Ok((
+                        FindServerEntriesNode::ServerUtilEntry(
+                            server_util_module,
+                            if emit_spans {
+                                Some(turbo_tasks::read!(module.ident_string().untracked())?)
+                            } else {
+                                None
+                            },
+                        ),
+                        (),
+                    ));
+                }
+                Ok((
+                    FindServerEntriesNode::Internal(
+                        *module,
+                        if emit_spans {
+                            Some(turbo_tasks::read!(module.ident_string().untracked())?)
+                        } else {
+                            None
+                        },
+                    ),
+                    (),
+                ))
+            };
+        let mut assets = Vec::new();
+        for module in referenced_modules
+            .iter()
+            .flat_map(|(_, resolved)| match resolved.chunking_type {
+                ChunkingType::Traced { .. } => None,
+                _ => Some(resolved.modules.iter()),
+            })
+            .flatten()
+        {
+            assets.push(entry_for(module)?);
+        }
+        Ok(assets)
+    }
+
+    #[cfg(not(feature = "sync"))]
+    fn span(&mut self, node: &FindServerEntriesNode, edge: Option<&()>) -> tracing::Span {
+        self.node_span(node, edge)
+    }
+
+    /// The sync `Visit` trait takes `&self` everywhere — separate signature, same body.
+    #[cfg(feature = "sync")]
+    fn span(&self, node: &FindServerEntriesNode, edge: Option<&()>) -> tracing::Span {
+        self.node_span(node, edge)
+    }
+}
+
+impl FindServerEntries {
+    fn visit_node(&self, node: &FindServerEntriesNode, _edge: Option<&()>) -> VisitControlFlow {
+        match node {
+            FindServerEntriesNode::Internal(..) => VisitControlFlow::Continue,
+            FindServerEntriesNode::ClientReference
+            | FindServerEntriesNode::ServerUtilEntry(..)
+            | FindServerEntriesNode::ServerComponentEntry(..) => VisitControlFlow::Skip,
+        }
+    }
+
+    fn node_span(&self, node: &FindServerEntriesNode, _edge: Option<&()>) -> tracing::Span {
         if !self.emit_spans {
             return Span::none();
         }

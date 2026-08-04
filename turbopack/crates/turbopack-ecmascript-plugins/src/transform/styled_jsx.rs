@@ -1,4 +1,5 @@
 use anyhow::Result;
+#[cfg(not(feature = "sync"))]
 use async_trait::async_trait;
 use swc_core::{
     common::FileName,
@@ -17,10 +18,8 @@ impl StyledJsxTransformer {
     }
 }
 
-#[async_trait]
-impl CustomTransformer for StyledJsxTransformer {
-    #[tracing::instrument(level = tracing::Level::TRACE, name = "styled_jsx", skip_all)]
-    async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+impl StyledJsxTransformer {
+    fn transform_inner(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         program.mutate(styled_jsx::visitor::styled_jsx(
             ctx.source_map.clone(),
             // styled_jsx don't really use that in a relevant way
@@ -33,5 +32,23 @@ impl CustomTransformer for StyledJsxTransformer {
         ));
 
         Ok(())
+    }
+}
+
+#[cfg(not(feature = "sync"))]
+#[async_trait]
+impl CustomTransformer for StyledJsxTransformer {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "styled_jsx", skip_all)]
+    async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+        self.transform_inner(program, ctx)
+    }
+}
+
+/// See the async impl above; the sync engine drops `async`/`#[async_trait]`.
+#[cfg(feature = "sync")]
+impl CustomTransformer for StyledJsxTransformer {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "styled_jsx", skip_all)]
+    fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+        self.transform_inner(program, ctx)
     }
 }

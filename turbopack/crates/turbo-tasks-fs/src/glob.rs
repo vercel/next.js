@@ -131,7 +131,7 @@ impl Glob {
                     if index > 0 {
                         new_glob.push(',');
                     }
-                    let glob = &*glob.await?;
+                    let glob = &*turbo_tasks::read!(glob)?;
                     if let Some(old_opts) = opts {
                         if old_opts != glob.opts {
                             bail!(

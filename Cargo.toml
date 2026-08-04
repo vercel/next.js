@@ -220,6 +220,10 @@ swc_core = { version = "69.0.0", default-features = false, features = [
 ] }
 
 swc_plugin_backend_wasmtime = "11.0.0"
+# Keep in lockstep with the versions swc_core v69 re-exports (used directly by
+# turbopack-ecmascript-plugins to avoid swc_core's tokio-pulling plugin-host feature).
+swc_plugin_proxy = { version = "25.0.0", default-features = false }
+swc_plugin_runner = { version = "29.0.0", default-features = false }
 testing = "24.0.0"
 
 # Keep consistent with preset_env_base through swc_core

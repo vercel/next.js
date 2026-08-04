@@ -263,6 +263,41 @@ where
     }
 }
 
+#[cfg(feature = "sync")]
+impl<T, Cast> ReadVcFuture<T, Cast>
+where
+    T: ?Sized,
+    Cast: VcCast,
+{
+    /// Direct synchronous read (no future/poll) for the no-async sync engine.
+    pub(crate) fn read_sync(self) -> Result<Cast::Output> {
+        self.raw.read_sync().and_then(Cast::cast)
+    }
+
+    /// Probe variant of [`read_sync`](Self::read_sync): returns
+    /// [`SyncProbe::Miss`] with the missed task id instead of computing it, for
+    /// `parallel!`'s pool fan-out. No future/poll.
+    pub(crate) fn probe_sync(self) -> Result<super::raw::SyncProbe<Cast::Output>> {
+        use super::raw::SyncProbe;
+        Ok(match self.raw.read_probe_sync()? {
+            SyncProbe::Hit(content) => SyncProbe::Hit(Cast::cast(content)?),
+            SyncProbe::Miss(task) => SyncProbe::Miss(task),
+        })
+    }
+}
+
+#[cfg(feature = "sync")]
+impl<T, Cast> crate::macro_helpers::SyncRead for ReadVcFuture<T, Cast>
+where
+    T: ?Sized,
+    Cast: VcCast,
+{
+    type Output = Result<Cast::Output>;
+    fn sync_read(self) -> Self::Output {
+        self.read_sync()
+    }
+}
+
 pub struct ReadOwnedVcFuture<T>
 where
     T: VcValueType,
@@ -286,6 +321,30 @@ where
             Poll::Ready(Err(err)) => Poll::Ready(Err(err)),
             Poll::Pending => Poll::Pending,
         }
+    }
+}
+
+#[cfg(feature = "sync")]
+impl<T> ReadOwnedVcFuture<T>
+where
+    T: VcValueType,
+    VcReadTarget<T>: Clone,
+{
+    /// Direct synchronous read (no future/poll) for the no-async sync engine.
+    pub(crate) fn read_sync(self) -> Result<VcReadTarget<T>> {
+        self.future.read_sync().map(ReadRef::into_owned)
+    }
+}
+
+#[cfg(feature = "sync")]
+impl<T> crate::macro_helpers::SyncRead for ReadOwnedVcFuture<T>
+where
+    T: VcValueType,
+    VcReadTarget<T>: Clone,
+{
+    type Output = Result<VcReadTarget<T>>;
+    fn sync_read(self) -> Self::Output {
+        self.read_sync()
     }
 }
 
@@ -330,6 +389,40 @@ where
     }
 }
 
+#[cfg(feature = "sync")]
+impl<'l, T, Q> ReadKeyedVcFuture<'l, T, Q>
+where
+    T: VcValueType,
+    Q: ?Sized,
+    VcReadTarget<T>: KeyedAccess<Q>,
+{
+    /// Direct synchronous read (no future/poll) for the no-async sync engine.
+    pub(crate) fn read_sync(
+        self,
+    ) -> Result<Option<MappedReadRef<T, <VcReadTarget<T> as KeyedAccess<Q>>::Value>>> {
+        let result = self.future.read_sync()?;
+        Ok(if let Some(value) = (*result).get(self.key) {
+            let ptr = value as *const _;
+            Some(unsafe { MappedReadRef::new(result.into_raw_arc(), ptr) })
+        } else {
+            None
+        })
+    }
+}
+
+#[cfg(feature = "sync")]
+impl<'l, T, Q> crate::macro_helpers::SyncRead for ReadKeyedVcFuture<'l, T, Q>
+where
+    T: VcValueType,
+    Q: ?Sized,
+    VcReadTarget<T>: KeyedAccess<Q>,
+{
+    type Output = Result<Option<MappedReadRef<T, <VcReadTarget<T> as KeyedAccess<Q>>::Value>>>;
+    fn sync_read(self) -> Self::Output {
+        self.read_sync()
+    }
+}
+
 pin_project! {
     pub struct ReadContainsKeyedVcFuture<'l, T, Q>
     where
@@ -362,5 +455,109 @@ where
             Poll::Ready(Err(err)) => Poll::Ready(Err(err)),
             Poll::Pending => Poll::Pending,
         }
+    }
+}
+
+#[cfg(feature = "sync")]
+impl<'l, T, Q> ReadContainsKeyedVcFuture<'l, T, Q>
+where
+    T: VcValueType,
+    Q: ?Sized,
+    VcReadTarget<T>: KeyedAccess<Q>,
+{
+    /// Direct synchronous read (no future/poll) for the no-async sync engine.
+    pub(crate) fn read_sync(self) -> Result<bool> {
+        let result = self.future.read_sync()?;
+        Ok((*result).contains_key(self.key))
+    }
+}
+
+#[cfg(feature = "sync")]
+impl<'l, T, Q> crate::macro_helpers::SyncRead for ReadContainsKeyedVcFuture<'l, T, Q>
+where
+    T: VcValueType,
+    Q: ?Sized,
+    VcReadTarget<T>: KeyedAccess<Q>,
+{
+    type Output = Result<bool>;
+    fn sync_read(self) -> Self::Output {
+        self.read_sync()
+    }
+}
+
+/// The set of types `parallel!` can fan out over in the no-async sync build: a
+/// deferred `Vc` read. Each item is probed (to discover not-yet-computed tasks,
+/// which are then computed on the worker pool) and finally read. There is no
+/// future and no poll — [`sync_parallel_read`](crate::sync_parallel_read) drives
+/// this directly. `async` blocks are intentionally NOT accepted (unlike the async
+/// `parallel!`, which fans out arbitrary futures).
+#[cfg(feature = "sync")]
+pub trait SyncParallelRead {
+    /// The value produced by reading one item (mirrors `<item>.await`'s `Ok` type).
+    type Ok;
+    /// Probe the item without computing: [`SyncProbe::Hit`] carries the already-read
+    /// value (a cache hit — no need to read it again) and records its dependency edge;
+    /// [`SyncProbe::Miss`] carries the id of a not-yet-computed task to run first.
+    fn sync_probe(self) -> Result<super::raw::SyncProbe<Self::Ok>>;
+    /// Read the value synchronously (records the dependency edge on the reader). Used to
+    /// collect items that missed the probe, after their task has been computed.
+    fn sync_par_read(self) -> Result<Self::Ok>;
+}
+
+#[cfg(feature = "sync")]
+impl<T> SyncParallelRead for crate::Vc<T>
+where
+    T: VcValueType,
+{
+    type Ok = <VcValueTypeCast<T> as VcCast>::Output;
+    fn sync_probe(self) -> Result<super::raw::SyncProbe<Self::Ok>> {
+        let future: ReadVcFuture<T> = self.node.into_read().into();
+        future.probe_sync()
+    }
+    fn sync_par_read(self) -> Result<Self::Ok> {
+        let future: ReadVcFuture<T> = self.node.into_read().into();
+        future.read_sync()
+    }
+}
+
+#[cfg(feature = "sync")]
+impl<T> SyncParallelRead for &crate::Vc<T>
+where
+    T: VcValueType,
+{
+    type Ok = <VcValueTypeCast<T> as VcCast>::Output;
+    fn sync_probe(self) -> Result<super::raw::SyncProbe<Self::Ok>> {
+        (*self).sync_probe()
+    }
+    fn sync_par_read(self) -> Result<Self::Ok> {
+        (*self).sync_par_read()
+    }
+}
+
+#[cfg(feature = "sync")]
+impl<T> SyncParallelRead for crate::ResolvedVc<T>
+where
+    T: VcValueType,
+{
+    type Ok = <VcValueTypeCast<T> as VcCast>::Output;
+    fn sync_probe(self) -> Result<super::raw::SyncProbe<Self::Ok>> {
+        (*self).sync_probe()
+    }
+    fn sync_par_read(self) -> Result<Self::Ok> {
+        (*self).sync_par_read()
+    }
+}
+
+#[cfg(feature = "sync")]
+impl<T> SyncParallelRead for &crate::ResolvedVc<T>
+where
+    T: VcValueType,
+{
+    type Ok = <VcValueTypeCast<T> as VcCast>::Output;
+    fn sync_probe(self) -> Result<super::raw::SyncProbe<Self::Ok>> {
+        (**self).sync_probe()
+    }
+    fn sync_par_read(self) -> Result<Self::Ok> {
+        (**self).sync_par_read()
     }
 }

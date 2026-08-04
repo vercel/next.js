@@ -53,7 +53,7 @@ impl<'a> PageGuard<'a> {
     /// Closes the page, returns the app.
     pub async fn close_page(mut self) -> Result<PreparedApp<'a>> {
         // Invariant: the page is always Some while the guard is alive.
-        self.page.take().unwrap().close().await?;
+        turbo_tasks::read!(self.page.take().unwrap().close())?;
         Ok(
             // Invariant: the app is always Some while the guard is alive.
             self.app.take().unwrap(),
@@ -62,7 +62,7 @@ impl<'a> PageGuard<'a> {
 
     /// Waits until the binding is called with the given payload.
     pub async fn wait_for_binding(&mut self, payload: &str) -> Result<()> {
-        while let Some(event) = self.events.next().await {
+        while let Some(event) = turbo_tasks::read!(self.events.next()) {
             match event {
                 Event::EventBindingCalled(event) => {
                     if event.name == BINDING_NAME && event.payload == payload {
@@ -80,11 +80,10 @@ impl<'a> PageGuard<'a> {
 
     /// Waits until the page and the page JavaScript is hydrated.
     pub async fn wait_for_hydration(&mut self) -> Result<()> {
-        timeout(
+        turbo_tasks::read!(timeout(
             MAX_HYDRATION_TIMEOUT,
             self.wait_for_binding(TEST_APP_HYDRATION_DONE),
-        )
-        .await
+        ))
         .context("Timeout happened while waiting for hydration")?
         .context("Error happened while waiting for hydration")?;
         Ok(())

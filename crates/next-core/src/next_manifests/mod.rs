@@ -46,14 +46,41 @@ pub struct BuildManifest {
 impl OutputAssetsReference for BuildManifest {
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
-        let chunks: Vec<ReadRef<OutputAssets>> = self.pages.values().try_join().await?;
+        #[cfg(not(feature = "sync"))]
+        let chunks: Vec<ReadRef<OutputAssets>> =
+            turbo_tasks::read!(self.pages.values().try_join())?;
+        #[cfg(feature = "sync")]
+        let chunks: Vec<ReadRef<OutputAssets>> = {
+            let mut chunks = Vec::new();
+            for c in self.pages.values() {
+                chunks.push(turbo_tasks::read!(c)?);
+            }
+            chunks
+        };
 
-        let root_main_files = self
-            .root_main_files
-            .iter()
-            .map(async |c| Ok(c.path().await?.has_extension(".js").then_some(*c)))
-            .try_flat_join()
-            .await?;
+        #[cfg(not(feature = "sync"))]
+        let root_main_files = turbo_tasks::read!(
+            self.root_main_files
+                .iter()
+                .map(async |c| Ok(turbo_tasks::read!(c.path())?
+                    .has_extension(".js")
+                    .then_some(*c)))
+                .try_flat_join()
+        )?;
+        #[cfg(feature = "sync")]
+        let root_main_files = {
+            let mut root_main_files = Vec::new();
+            for c in self.root_main_files.iter() {
+                root_main_files.extend({
+                    Ok::<_, anyhow::Error>(
+                        turbo_tasks::read!(c.path())?
+                            .has_extension(".js")
+                            .then_some(*c),
+                    )
+                }?);
+            }
+            root_main_files
+        };
 
         let per_page_files = self
             .root_main_files_per_page
@@ -103,92 +130,203 @@ impl Asset for BuildManifest {
             pub root_main_files_tree: FxIndexMap<RcStr, Vec<RcStr>>,
         }
 
-        let pages: Vec<(RcStr, Vec<RcStr>)> = self
-            .pages
-            .iter()
-            .map(async |(k, chunks)| {
-                Ok((
-                    k.clone(),
-                    chunks
-                        .await?
-                        .iter()
-                        .copied()
-                        .map(async |chunk| {
-                            let chunk_path = chunk.path().await?;
-                            Ok(client_relative_path
-                                .get_path_to(&chunk_path)
-                                .context("client chunk entry path must be inside the client root")?
-                                .into())
-                        })
-                        .try_join()
-                        .await?,
-                ))
-            })
-            .try_join()
-            .await?;
+        #[cfg(not(feature = "sync"))]
+        let pages: Vec<(RcStr, Vec<RcStr>)> = turbo_tasks::read!(
+            self.pages
+                .iter()
+                .map(async |(k, chunks)| {
+                    Ok((
+                        k.clone(),
+                        turbo_tasks::read!(
+                            turbo_tasks::read!(chunks)?
+                                .iter()
+                                .copied()
+                                .map(async |chunk| {
+                                    let chunk_path = turbo_tasks::read!(chunk.path())?;
+                                    Ok(client_relative_path
+                                        .get_path_to(&chunk_path)
+                                        .context(
+                                            "client chunk entry path must be inside the client \
+                                             root",
+                                        )?
+                                        .into())
+                                })
+                                .try_join()
+                        )?,
+                    ))
+                })
+                .try_join()
+        )?;
+        #[cfg(feature = "sync")]
+        let pages: Vec<(RcStr, Vec<RcStr>)> = {
+            let mut pages = Vec::new();
+            for (k, chunks) in self.pages.iter() {
+                pages.push({
+                    Ok::<_, anyhow::Error>((k.clone(), {
+                        let mut inner = Vec::new();
+                        for chunk in turbo_tasks::read!(chunks)?.iter().copied() {
+                            inner.push({
+                                let chunk_path = turbo_tasks::read!(chunk.path())?;
+                                Ok::<_, anyhow::Error>(
+                                    client_relative_path
+                                        .get_path_to(&chunk_path)
+                                        .context(
+                                            "client chunk entry path must be inside the client \
+                                             root",
+                                        )?
+                                        .into(),
+                                )
+                            }?);
+                        }
+                        inner
+                    }))
+                }?);
+            }
+            pages
+        };
 
-        let polyfill_files: Vec<RcStr> = self
-            .polyfill_files
-            .iter()
-            .copied()
-            .map(async |chunk| {
-                let chunk_path = chunk.path().await?;
-                Ok(client_relative_path
-                    .get_path_to(&chunk_path)
-                    .context("failed to resolve client-relative path to polyfill")?
-                    .into())
-            })
-            .try_join()
-            .await?;
-
-        let root_main_files: Vec<RcStr> = self
-            .root_main_files
-            .iter()
-            .map(async |chunk| {
-                let chunk_path = chunk.path().await?;
-                if !chunk_path.has_extension(".js") {
-                    Ok(None)
-                } else {
-                    Ok(Some(
+        #[cfg(not(feature = "sync"))]
+        let polyfill_files: Vec<RcStr> = turbo_tasks::read!(
+            self.polyfill_files
+                .iter()
+                .copied()
+                .map(async |chunk| {
+                    let chunk_path = turbo_tasks::read!(chunk.path())?;
+                    Ok(client_relative_path
+                        .get_path_to(&chunk_path)
+                        .context("failed to resolve client-relative path to polyfill")?
+                        .into())
+                })
+                .try_join()
+        )?;
+        #[cfg(feature = "sync")]
+        let polyfill_files: Vec<RcStr> = {
+            let mut polyfill_files = Vec::new();
+            for chunk in self.polyfill_files.iter().copied() {
+                polyfill_files.push({
+                    let chunk_path = turbo_tasks::read!(chunk.path())?;
+                    Ok::<_, anyhow::Error>(
                         client_relative_path
                             .get_path_to(&chunk_path)
-                            .context("failed to resolve client-relative path to root_main_file")?
+                            .context("failed to resolve client-relative path to polyfill")?
                             .into(),
-                    ))
-                }
-            })
-            .try_flat_join()
-            .await?;
+                    )
+                }?);
+            }
+            polyfill_files
+        };
 
-        let root_main_files_tree: Vec<(RcStr, Vec<RcStr>)> = self
-            .root_main_files_per_page
-            .iter()
-            .map(async |(page, per_page_chunks)| {
-                let per_page_paths: Vec<RcStr> = per_page_chunks
-                    .iter()
-                    .copied()
-                    .map(async |chunk| {
-                        let chunk_path = chunk.path().await?;
-                        Ok(client_relative_path
-                            .get_path_to(&chunk_path)
-                            .context(
-                                "failed to resolve client-relative path to per-page root file",
-                            )?
-                            .into())
-                    })
-                    .try_join()
-                    .await?;
-                // Combine the shared root_main_files with this page's extra
-                // files so that required-scripts.tsx gets the full list.
-                let combined = root_main_files
-                    .iter()
-                    .cloned()
-                    .chain(per_page_paths)
-                    .collect();
-                Ok((page.clone(), combined))
-            })
-            .try_join()
-            .await?;
+        #[cfg(not(feature = "sync"))]
+        let root_main_files: Vec<RcStr> = turbo_tasks::read!(
+            self.root_main_files
+                .iter()
+                .map(async |chunk| {
+                    let chunk_path = turbo_tasks::read!(chunk.path())?;
+                    if !chunk_path.has_extension(".js") {
+                        Ok(None)
+                    } else {
+                        Ok(Some(
+                            client_relative_path
+                                .get_path_to(&chunk_path)
+                                .context(
+                                    "failed to resolve client-relative path to root_main_file",
+                                )?
+                                .into(),
+                        ))
+                    }
+                })
+                .try_flat_join()
+        )?;
+        #[cfg(feature = "sync")]
+        let root_main_files: Vec<RcStr> = {
+            let mut root_main_files = Vec::new();
+            for chunk in self.root_main_files.iter() {
+                root_main_files.extend({
+                    let chunk_path = turbo_tasks::read!(chunk.path())?;
+                    if !chunk_path.has_extension(".js") {
+                        Ok::<_, anyhow::Error>(None)
+                    } else {
+                        Ok(Some(
+                            client_relative_path
+                                .get_path_to(&chunk_path)
+                                .context(
+                                    "failed to resolve client-relative path to root_main_file",
+                                )?
+                                .into(),
+                        ))
+                    }
+                }?);
+            }
+            root_main_files
+        };
+
+        #[cfg(not(feature = "sync"))]
+        let root_main_files_tree: Vec<(RcStr, Vec<RcStr>)> = turbo_tasks::read!(
+            self.root_main_files_per_page
+                .iter()
+                .map(async |(page, per_page_chunks)| {
+                    let per_page_paths: Vec<RcStr> = turbo_tasks::read!(
+                        per_page_chunks
+                            .iter()
+                            .copied()
+                            .map(async |chunk| {
+                                let chunk_path = turbo_tasks::read!(chunk.path())?;
+                                Ok(client_relative_path
+                                    .get_path_to(&chunk_path)
+                                    .context(
+                                        "failed to resolve client-relative path to per-page root \
+                                         file",
+                                    )?
+                                    .into())
+                            })
+                            .try_join()
+                    )?;
+                    // Combine the shared root_main_files with this page's extra
+                    // files so that required-scripts.tsx gets the full list.
+                    let combined = root_main_files
+                        .iter()
+                        .cloned()
+                        .chain(per_page_paths)
+                        .collect();
+                    Ok((page.clone(), combined))
+                })
+                .try_join()
+        )?;
+        #[cfg(feature = "sync")]
+        let root_main_files_tree: Vec<(RcStr, Vec<RcStr>)> = {
+            let mut root_main_files_tree = Vec::new();
+            for (page, per_page_chunks) in self.root_main_files_per_page.iter() {
+                root_main_files_tree.push({
+                    let per_page_paths: Vec<RcStr> = {
+                        let mut per_page_paths = Vec::new();
+                        for chunk in per_page_chunks.iter().copied() {
+                            per_page_paths.push({
+                                let chunk_path = turbo_tasks::read!(chunk.path())?;
+                                Ok::<_, anyhow::Error>(
+                                    client_relative_path
+                                        .get_path_to(&chunk_path)
+                                        .context(
+                                            "failed to resolve client-relative path to per-page \
+                                             root file",
+                                        )?
+                                        .into(),
+                                )
+                            }?);
+                        }
+                        per_page_paths
+                    };
+                    // Combine the shared root_main_files with this page's extra
+                    // files so that required-scripts.tsx gets the full list.
+                    let combined = root_main_files
+                        .iter()
+                        .cloned()
+                        .chain(per_page_paths)
+                        .collect();
+                    Ok::<_, anyhow::Error>((page.clone(), combined))
+                }?);
+            }
+            root_main_files_tree
+        };
 
         let manifest = SerializedBuildManifest {
             pages: FxIndexMap::from_iter(pages),
@@ -237,24 +375,43 @@ impl Asset for ClientBuildManifest {
     async fn content(&self) -> Result<Vc<AssetContent>> {
         let client_relative_path = &self.client_relative_path;
 
-        let manifest: FxIndexMap<RcStr, Vec<RcStr>> = self
-            .pages
-            .iter()
-            .map(async |(k, chunk)| {
-                Ok((
-                    k.clone(),
-                    vec![
-                        client_relative_path
-                            .get_path_to(&*chunk.path().await?)
-                            .context("client chunk entry path must be inside the client root")?
-                            .into(),
-                    ],
-                ))
-            })
-            .try_join()
-            .await?
-            .into_iter()
-            .collect();
+        #[cfg(not(feature = "sync"))]
+        let manifest: FxIndexMap<RcStr, Vec<RcStr>> = turbo_tasks::read!(
+            self.pages
+                .iter()
+                .map(async |(k, chunk)| {
+                    Ok((
+                        k.clone(),
+                        vec![
+                            client_relative_path
+                                .get_path_to(&*turbo_tasks::read!(chunk.path())?)
+                                .context("client chunk entry path must be inside the client root")?
+                                .into(),
+                        ],
+                    ))
+                })
+                .try_join()
+        )?
+        .into_iter()
+        .collect();
+        #[cfg(feature = "sync")]
+        let manifest: FxIndexMap<RcStr, Vec<RcStr>> = {
+            let mut manifest = Vec::new();
+            for (k, chunk) in self.pages.iter() {
+                manifest.push({
+                    Ok::<_, anyhow::Error>((
+                        k.clone(),
+                        vec![
+                            client_relative_path
+                                .get_path_to(&*turbo_tasks::read!(chunk.path())?)
+                                .context("client chunk entry path must be inside the client root")?
+                                .into(),
+                        ],
+                    ))
+                }?);
+            }
+            manifest.into_iter().collect()
+        };
 
         Ok(AssetContent::file(
             FileContent::Content(File::from(serde_json::to_string_pretty(&manifest)?)).cell(),

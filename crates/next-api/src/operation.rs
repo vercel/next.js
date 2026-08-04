@@ -37,9 +37,9 @@ pub struct EntrypointsOperation {
 async fn entrypoints_without_collectibles_operation(
     entrypoints: OperationVc<Entrypoints>,
 ) -> Result<Vc<Entrypoints>> {
-    let _ = entrypoints.resolve().strongly_consistent().await?;
+    let _ = turbo_tasks::read!(entrypoints.resolve().strongly_consistent())?;
     entrypoints.drop_issues();
-    let _ = take_effects(entrypoints).await?;
+    let _ = turbo_tasks::read!(take_effects(entrypoints))?;
     Ok(entrypoints.connect())
 }
 
@@ -47,7 +47,7 @@ async fn entrypoints_without_collectibles_operation(
 impl EntrypointsOperation {
     #[turbo_tasks::function(operation, root)]
     pub async fn new(entrypoints: OperationVc<Entrypoints>) -> Result<Vc<Self>> {
-        let e = entrypoints.connect().await?;
+        let e = turbo_tasks::read!(entrypoints.connect())?;
         let entrypoints = entrypoints_without_collectibles_operation(entrypoints);
         Ok(Self {
             routes: e
@@ -138,7 +138,7 @@ async fn pick_endpoint(
     op: OperationVc<Entrypoints>,
     selector: EndpointSelector,
 ) -> Result<Vc<OptionEndpoint>> {
-    let endpoints = op.read_strongly_consistent().await?;
+    let endpoints = turbo_tasks::read!(op.read_strongly_consistent())?;
     let endpoint = match selector {
         EndpointSelector::InstrumentationNodeJs => {
             endpoints.instrumentation.as_ref().map(|i| i.node_js)

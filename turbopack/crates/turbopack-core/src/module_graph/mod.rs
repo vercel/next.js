@@ -1,6 +1,7 @@
+#[cfg(not(feature = "sync"))]
+use std::future::Future;
 use std::{
     collections::{BinaryHeap, VecDeque},
-    future::Future,
     iter::FusedIterator,
     ops::Deref,
 };
@@ -14,11 +15,15 @@ use petgraph::{
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
-use tracing::{Instrument, Level, Span};
+#[cfg(not(feature = "sync"))]
+use tracing::Instrument;
+use tracing::{Level, Span};
 use turbo_rcstr::RcStr;
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::TryJoinIterExt;
 use turbo_tasks::{
-    CollectiblesSource, FxIndexMap, NonLocalValue, OperationVc, ReadRef, ResolvedVc,
-    TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
+    CollectiblesSource, FxIndexMap, NonLocalValue, OperationVc, ReadRef, ResolvedVc, ValueToString,
+    Vc,
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
     trace::TraceRawVcs,
@@ -146,9 +151,7 @@ impl VisitedModules {
     #[turbo_tasks::function(operation)]
     pub async fn from_graph(graph: OperationVc<SingleModuleGraph>) -> Result<Vc<Self>> {
         Ok(Self {
-            modules: graph
-                .connect()
-                .await?
+            modules: turbo_tasks::read!(graph.connect())?
                 .enumerate_nodes()
                 .flat_map(|(node_idx, module)| match module {
                     SingleModuleGraphNode::Module(module) => Some((
@@ -168,7 +171,7 @@ impl VisitedModules {
 
     #[turbo_tasks::function(operation)]
     pub async fn with_incremented_index(this: OperationVc<Self>) -> Result<Vc<Self>> {
-        let this = this.connect().await?;
+        let this = turbo_tasks::read!(this.connect())?;
         Ok(Self {
             modules: this.modules.clone(),
             next_graph_idx: this.next_graph_idx + 1,
@@ -181,8 +184,8 @@ impl VisitedModules {
         this: OperationVc<Self>,
         graph: OperationVc<SingleModuleGraph>,
     ) -> Result<Vc<Self>> {
-        let graph = graph.connect().await?;
-        let this = this.connect().await?;
+        let graph = turbo_tasks::read!(graph.connect())?;
+        let this = turbo_tasks::read!(this.connect())?;
         let iter = this
             .modules
             .iter()
@@ -330,36 +333,39 @@ pub struct RefData {
 }
 
 impl SingleModuleGraph {
+    turbo_tasks::dual_fn! {
     /// Walks the graph starting from the given entries and collects all reachable nodes, skipping
     /// nodes listed in `visited_modules`
     /// The resulting graph's outgoing edges are in reverse order.
-    async fn new_inner(
+    fn new_inner(
         entries: &GraphEntries,
         visited_modules: &FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
         include_traced: bool,
         include_binding_usage: bool,
     ) -> Result<Vc<Self>> {
         let emit_spans = tracing::enabled!(Level::INFO);
+        #[cfg(not(feature = "sync"))]
         let root_nodes = entries
             .all_modules_with_is_traced()
-            .map(|(e, is_traced)| {
-                SingleModuleGraphBuilderNode::new_module(emit_spans, e, is_traced)
-            })
+            .map(|(e, is_traced)| SingleModuleGraphBuilderNode::new_module(emit_spans, e, is_traced))
             .try_join()
             .await?;
+        #[cfg(feature = "sync")]
+        let root_nodes = entries
+            .all_modules_with_is_traced()
+            .map(|(e, is_traced)| SingleModuleGraphBuilderNode::new_module(emit_spans, e, is_traced))
+            .collect::<Result<Vec<_>>>()?;
 
-        let children_nodes_iter = AdjacencyMap::new()
-            .visit(
-                root_nodes,
-                SingleModuleGraphBuilder {
-                    visited_modules,
-                    emit_spans,
-                    include_traced,
-                    include_binding_usage,
-                },
-            )
-            .await
-            .completed()?;
+        let children_nodes_iter = turbo_tasks::read!(AdjacencyMap::new().visit(
+            root_nodes,
+            SingleModuleGraphBuilder {
+                visited_modules,
+                emit_spans,
+                include_traced,
+                include_binding_usage,
+            },
+        ))
+        .completed()?;
         let node_count = children_nodes_iter.len();
 
         let mut graph: DiGraph<SingleModuleGraphNode, RefData> = DiGraph::with_capacity(
@@ -422,53 +428,48 @@ impl SingleModuleGraph {
                 let mut duplicates = FxHashSet::default();
                 let mut set = FxHashSet::default();
                 for &module in modules.keys() {
-                    let ident = module.ident().to_string().await?;
+                    let ident = turbo_tasks::read!(module.ident().to_string())?;
                     if !set.insert(ident.clone()) {
                         duplicates.insert(ident);
                     }
                 }
                 if !duplicates.is_empty() {
-                    use turbo_tasks::TryFlatJoinIterExt;
+                    let mut duplicate_modules = Vec::new();
+                    for (&m, &idx) in modules.iter() {
+                        let id = turbo_tasks::read!(m.ident().to_string())?;
+                        if !duplicates.contains(&id) {
+                            continue;
+                        }
+                        // 3 is arbitrary but it is enough to reveal a little bit
+                        // of detail.
+                        #[cfg(not(feature = "sync"))]
+                        let debug = m.value_debug_format(3).try_to_string().await?;
+                        // `ValueDebugFormatString::try_to_string` is future-based; the sync
+                        // build falls back to the plain `Debug` representation.
+                        #[cfg(feature = "sync")]
+                        let debug = format!("{m:?}");
 
-                    let duplicates_clone = duplicates.clone();
-                    let duplicate_modules = modules
-                        .iter()
-                        .map(async |(&m, &idx)| {
-                            let id = m.ident().to_string().await?;
-                            if duplicates_clone.contains(&id) {
-                                // 3 is arbitrary but it is enough to reveal a little bit
-                                // of detail.
-                                let debug = m.value_debug_format(3).try_to_string().await?;
+                        // Collect reverse dependencies (parents) to help
+                        // diagnose how this module entered the graph.
+                        let parent_modules: Vec<_> = graph
+                            .edges_directed(idx, petgraph::Direction::Incoming)
+                            .filter_map(|edge| match graph.node_weight(edge.source()) {
+                                Some(SingleModuleGraphNode::Module(m)) => Some(*m),
+                                Some(SingleModuleGraphNode::VisitedModule { module, .. }) => {
+                                    Some(*module)
+                                }
+                                None => None,
+                            })
+                            .collect();
+                        let parents: Vec<String> = turbo_tasks::parallel!(
+                            parent_modules.iter().map(|p| p.ident().to_string())
+                        )?
+                        .into_iter()
+                        .map(|ident| (*ident).to_string())
+                        .collect();
 
-                                // Collect reverse dependencies (parents) to help
-                                // diagnose how this module entered the graph.
-                                let parent_modules: Vec<_> = graph
-                                    .edges_directed(idx, petgraph::Direction::Incoming)
-                                    .filter_map(|edge| match graph.node_weight(edge.source()) {
-                                        Some(SingleModuleGraphNode::Module(m)) => Some(*m),
-                                        Some(SingleModuleGraphNode::VisitedModule {
-                                            module,
-                                            ..
-                                        }) => Some(*module),
-                                        None => None,
-                                    })
-                                    .collect();
-                                let parents: Vec<String> = parent_modules
-                                    .iter()
-                                    .map(async |p| {
-                                        let ident = p.ident().to_string().await?;
-                                        Ok((*ident).to_string())
-                                    })
-                                    .try_join()
-                                    .await?;
-
-                                Ok(Some((id, debug, parents)))
-                            } else {
-                                Ok(None)
-                            }
-                        })
-                        .try_flat_join()
-                        .await?;
+                        duplicate_modules.push((id, debug, parents));
+                    }
                     // group by ident
                     let mut map: FxHashMap<_, Vec<(String, Vec<String>)>> = FxHashMap::default();
                     for (key, debug, parents) in duplicate_modules {
@@ -502,9 +503,10 @@ impl SingleModuleGraph {
         .cell();
 
         turbo_tasks::emit(ResolvedVc::upcast::<Box<dyn ImportTracer>>(
-            ModuleGraphImportTracer::new(graph).to_resolved().await?,
+            turbo_tasks::read!(ModuleGraphImportTracer::new(graph).to_resolved())?,
         ));
         Ok(graph)
+    }
     }
 
     /// WARNING: using this is discouraged, as it doesn't filter out unused or traced references.
@@ -678,95 +680,98 @@ impl ModuleGraphImportTracer {
     // Compute this mapping on demand since it might not always be needed.
     #[turbo_tasks::function]
     async fn path_to_modules(&self) -> Result<Vc<PathToModulesMap>> {
-        let path_and_modules = self
-            .graph
-            .await?
-            .modules
-            .iter()
-            .map(|(&module, _)| async move { Ok((module.ident().await?.path.clone(), module)) })
-            .try_join()
-            .await?;
+        let graph = turbo_tasks::read!(self.graph)?;
+        let modules = graph.modules.keys().copied().collect::<Vec<_>>();
+        let idents = turbo_tasks::parallel!(modules.iter().map(|module| module.ident()))?;
         let mut map: FxHashMap<FileSystemPath, Vec<ResolvedVc<Box<dyn Module>>>> =
             FxHashMap::default();
-        for (path, module) in path_and_modules {
-            map.entry(path).or_default().push(module)
+        for (module, ident) in modules.into_iter().zip(idents) {
+            map.entry(ident.path.clone()).or_default().push(module)
         }
         Ok(PathToModulesMap::cell(PathToModulesMap { map }))
     }
+}
+
+turbo_tasks::dual_fn! {
+/// Computes the shortest import trace from `module` up to one of the roots of `graph`.
+fn module_import_trace(
+    graph: &SingleModuleGraph,
+    module: &ResolvedVc<Box<dyn Module>>,
+) -> Result<crate::issue::ImportTrace> {
+    let reversed_graph = Reversed(&graph.graph.0);
+    let Some(&module_idx) = graph.modules.get(module) else {
+        // The only way this could really happen is if `path_to_modules` is computed
+        // from a different graph than graph`.  Just error out.
+        bail!("inconsistent read?")
+    };
+    // compute the path from this index to a root of the graph.
+    let Some((_, path)) = petgraph::algo::astar(
+        &reversed_graph,
+        module_idx,
+        |n| reversed_graph.neighbors(n).next().is_none(),
+        // Edge weights
+        |e| match e.weight().chunking_type {
+            // Prefer following normal imports/requires when we can
+            ChunkingType::Parallel { .. } => 0,
+            _ => 1,
+        },
+        // `astar` can be accelerated with a distance estimation heuristic, as long
+        // as our estimate is never > the actual distance.
+        // However we don't have a mechanism, so just
+        // estimate 0 which essentially makes this behave like
+        // dijktra's shortest path algorithm.  `petgraph` has an implementation of
+        // dijkstra's but it doesn't report  paths, just distances.
+        // NOTE: dijkstra's with integer weights can be accelerated with incredibly
+        // efficient priority queue structures (basically with only 0 and 1 as
+        // weights you can use a `VecDeque`!).  However,
+        // this is unlikely to be a performance concern.
+        // Furthermore, if computing paths _does_ become a performance concern, the
+        // solution would be a hand written implementation of dijkstras so we can
+        // hoist redundant work out of this loop.
+        |_| 0,
+    ) else {
+        unreachable!("there must be a path to a root");
+    };
+
+    // Represent the path as a sequence of AssetIdents
+    // TODO: consider hinting at various transitions (e.g. was this an
+    // import/require/dynamic-import?)
+    let path = turbo_tasks::parallel!(path.into_iter().map(|n| {
+        graph
+            .graph
+            .node_weight(n)
+            .unwrap() // This is safe since `astar`` only returns indices from the graph
+            .module()
+            .ident()
+    }))?;
+    Ok(path)
+}
 }
 
 #[turbo_tasks::value_impl]
 impl ImportTracer for ModuleGraphImportTracer {
     #[turbo_tasks::function]
     async fn get_traces(self: Vc<Self>, path: FileSystemPath) -> Result<Vc<ImportTraces>> {
-        let path_to_modules = self.path_to_modules().await?;
+        let path_to_modules = turbo_tasks::read!(self.path_to_modules())?;
         let Some(modules) = path_to_modules.map.get(&path) else {
             return Ok(Vc::default()); // This isn't unusual, the file just might not be in this
             // graph.
         };
         debug_assert!(!modules.is_empty(), "modules should not be an empty vec");
-        let graph = &*self.await?.graph.await?;
+        let graph = &*turbo_tasks::read!(turbo_tasks::read!(self)?.graph)?;
 
-        let reversed_graph = Reversed(&graph.graph.0);
-        return Ok(ImportTraces::cell(ImportTraces(
-            modules
-                .iter()
-                .map(|m| async move {
-                    let Some(&module_idx) = graph.modules.get(m) else {
-                        // The only way this could really happen is if `path_to_modules` is computed
-                        // from a different graph than graph`.  Just error out.
-                        bail!("inconsistent read?")
-                    };
-                    // compute the path from this index to a root of the graph.
-                    let Some((_, path)) = petgraph::algo::astar(
-                        &reversed_graph,
-                        module_idx,
-                        |n| reversed_graph.neighbors(n).next().is_none(),
-                        // Edge weights
-                        |e| match e.weight().chunking_type {
-                            // Prefer following normal imports/requires when we can
-                            ChunkingType::Parallel { .. } => 0,
-                            _ => 1,
-                        },
-                        // `astar` can be accelerated with a distance estimation heuristic, as long
-                        // as our estimate is never > the actual distance.
-                        // However we don't have a mechanism, so just
-                        // estimate 0 which essentially makes this behave like
-                        // dijktra's shortest path algorithm.  `petgraph` has an implementation of
-                        // dijkstra's but it doesn't report  paths, just distances.
-                        // NOTE: dijkstra's with integer weights can be accelerated with incredibly
-                        // efficient priority queue structures (basically with only 0 and 1 as
-                        // weights you can use a `VecDeque`!).  However,
-                        // this is unlikely to be a performance concern.
-                        // Furthermore, if computing paths _does_ become a performance concern, the
-                        // solution would be a hand written implementation of dijkstras so we can
-                        // hoist redundant work out of this loop.
-                        |_| 0,
-                    ) else {
-                        unreachable!("there must be a path to a root");
-                    };
-
-                    // Represent the path as a sequence of AssetIdents
-                    // TODO: consider hinting at various transitions (e.g. was this an
-                    // import/require/dynamic-import?)
-                    let path = path
-                        .into_iter()
-                        .map(async |n| {
-                            graph
-                                .graph
-                                .node_weight(n)
-                                .unwrap() // This is safe since `astar`` only returns indices from the graph
-                                .module()
-                                .ident()
-                                .await
-                        })
-                        .try_join()
-                        .await?;
-                    Ok(path)
-                })
-                .try_join()
-                .await?,
-        )));
+        #[cfg(not(feature = "sync"))]
+        let traces = modules
+            .iter()
+            .map(|m| module_import_trace(graph, m))
+            .try_join()
+            .await?;
+        #[cfg(feature = "sync")]
+        let traces = modules
+            .iter()
+            .map(|m| module_import_trace(graph, m))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(ImportTraces::cell(ImportTraces(traces)))
     }
 }
 
@@ -789,9 +794,9 @@ impl ModuleGraph {
         graphs: Vec<OperationVc<SingleModuleGraph>>,
         binding_usage: Option<OperationVc<BindingUsageInfo>>,
     ) -> Result<Vc<Self>> {
-        let graph = Self::from_graphs_inner(graphs, binding_usage)
-            .read_strongly_consistent()
-            .await?;
+        let graph = turbo_tasks::read!(
+            Self::from_graphs_inner(graphs, binding_usage).read_strongly_consistent()
+        )?;
         Ok(ReadRef::cell(graph))
     }
 
@@ -804,11 +809,11 @@ impl ModuleGraph {
             input_graphs: graphs.clone(),
             input_binding_usage: binding_usage,
             snapshot: ModuleGraphSnapshot {
-                graphs: graphs.iter().map(|g| g.connect()).try_join().await?,
+                graphs: turbo_tasks::parallel!(graphs.iter().map(|g| g.connect()))?,
                 skip_visited_module_children: false,
                 graph_idx_override: None,
                 binding_usage: if let Some(binding_usage) = binding_usage {
-                    Some(binding_usage.connect().await?)
+                    Some(turbo_tasks::read!(binding_usage.connect())?)
                 } else {
                     None
                 },
@@ -819,12 +824,12 @@ impl ModuleGraph {
 
     #[turbo_tasks::function]
     pub async fn chunk_group_info(self: Vc<Self>) -> Result<Vc<ChunkGroupInfo>> {
-        compute_chunk_group_info(&*self.await?).await
+        turbo_tasks::read!(compute_chunk_group_info(&*turbo_tasks::read!(self)?))
     }
 
     #[turbo_tasks::function]
     pub async fn merged_modules(self: Vc<Self>) -> Result<Vc<MergedModuleInfo>> {
-        compute_merged_modules(self).await
+        turbo_tasks::read!(compute_merged_modules(self))
     }
 
     #[turbo_tasks::function]
@@ -832,7 +837,7 @@ impl ModuleGraph {
         self: Vc<Self>,
         config: Vc<BatchingConfig>,
     ) -> Result<Vc<ModuleBatchesGraph>> {
-        compute_module_batches(self, &*config.await?).await
+        turbo_tasks::read!(compute_module_batches(self, &*turbo_tasks::read!(config)?))
     }
 
     #[turbo_tasks::function]
@@ -843,20 +848,19 @@ impl ModuleGraph {
     ) -> Result<Vc<StyleGroups>> {
         match &config.algorithm {
             StyleGroupsAlgorithm::Default => {
-                compute_style_groups(self, chunking_context, &config).await
+                turbo_tasks::read!(compute_style_groups(self, chunking_context, &config))
             }
             StyleGroupsAlgorithm::Graph {
                 module_factor_cost,
                 request_cost,
             } => {
-                compute_style_groups_graph(
+                turbo_tasks::read!(compute_style_groups_graph(
                     self,
                     chunking_context,
                     request_cost.get(),
                     module_factor_cost.get(),
                     config.max_chunk_size as u64,
-                )
-                .await
+                ))
             }
         }
     }
@@ -865,14 +869,24 @@ impl ModuleGraph {
     pub async fn async_module_info(self: Vc<Self>) -> Result<Vc<AsyncModulesInfo>> {
         // `compute_async_module_info` calls `module.is_self_async()`, so we need to again ignore
         // all issues such that they aren't emitted multiple times.
-        async move {
-            let result_op = compute_async_module_info(self.to_resolved().await?);
-            let result_vc = result_op.resolve().strongly_consistent().await?;
+        #[cfg(not(feature = "sync"))]
+        return turbo_tasks::read!(
+            async move {
+                let result_op = compute_async_module_info(self.to_resolved().await?);
+                let result_vc = result_op.resolve().strongly_consistent().await?;
+                result_op.drop_collectibles::<Box<dyn Issue>>();
+                anyhow::Ok(*result_vc)
+            }
+            .instrument(tracing::info_span!("compute async module info"))
+        );
+        #[cfg(feature = "sync")]
+        {
+            let _guard = tracing::info_span!("compute async module info").entered();
+            let result_op = compute_async_module_info(turbo_tasks::read!(self.to_resolved())?);
+            let result_vc = turbo_tasks::read!(result_op.resolve().strongly_consistent())?;
             result_op.drop_collectibles::<Box<dyn Issue>>();
-            anyhow::Ok(*result_vc)
+            Ok(*result_vc)
         }
-        .instrument(tracing::info_span!("compute async module info"))
-        .await
     }
 
     #[turbo_tasks::function]
@@ -880,11 +894,11 @@ impl ModuleGraph {
         self: Vc<Self>,
         module: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<AsyncModuleInfo>> {
-        let graph_ref = self.await?;
+        let graph_ref = turbo_tasks::read!(self)?;
         let async_module_info = self.async_module_info();
 
         let entry = graph_ref.get_entry(module)?;
-        let referenced_modules = graph_ref
+        let children = graph_ref
             .iter_graphs_neighbors_rev(entry, Direction::Outgoing, false)
             .filter(|(edge_idx, _)| {
                 let ty = graph_ref.get_edge(*edge_idx).unwrap();
@@ -894,9 +908,23 @@ impl ModuleGraph {
             .collect::<Result<Vec<_>>>()?
             .into_iter()
             .rev()
-            .map(async |m| Ok(async_module_info.is_async(m).await?.then_some(*m)))
-            .try_flat_join()
+            .collect::<Vec<_>>();
+        #[cfg(not(feature = "sync"))]
+        let is_async_flags = children
+            .iter()
+            .map(|&m| async_module_info.is_async(m))
+            .try_join()
             .await?;
+        #[cfg(feature = "sync")]
+        let is_async_flags = children
+            .iter()
+            .map(|&m| async_module_info.is_async(m))
+            .collect::<Result<Vec<_>>>()?;
+        let referenced_modules = children
+            .iter()
+            .zip(is_async_flags)
+            .filter_map(|(m, is_async)| is_async.then_some(**m))
+            .collect::<Vec<_>>();
 
         Ok(AsyncModuleInfo::new(referenced_modules))
     }
@@ -939,11 +967,11 @@ impl ModuleGraphLayer {
     ) -> Result<Vc<Self>> {
         Ok(Self {
             snapshot: ModuleGraphSnapshot {
-                graphs: vec![graph.connect().await?],
+                graphs: vec![turbo_tasks::read!(graph.connect())?],
                 skip_visited_module_children: true,
                 graph_idx_override: Some(graph_idx),
                 binding_usage: if let Some(binding_usage) = binding_usage {
-                    Some(binding_usage.connect().await?)
+                    Some(turbo_tasks::read!(binding_usage.connect())?)
                 } else {
                     None
                 },
@@ -1115,16 +1143,14 @@ impl ModuleGraphSnapshot {
         })
     }
 
+    turbo_tasks::dual_fn! {
     /// Returns a map of all modules in the graphs to their identifiers.
     /// This is primarily useful for debugging.
-    pub async fn get_ids(&self) -> Result<FxHashMap<ResolvedVc<Box<dyn Module>>, ReadRef<RcStr>>> {
-        Ok(self
-            .iter_nodes()
-            .map(async |n| Ok((n, n.ident().to_string().await?)))
-            .try_join()
-            .await?
-            .into_iter()
-            .collect::<FxHashMap<_, _>>())
+    pub fn get_ids(&self) -> Result<FxHashMap<ResolvedVc<Box<dyn Module>>, ReadRef<RcStr>>> {
+        let nodes = self.iter_nodes().collect::<Vec<_>>();
+        let idents = turbo_tasks::parallel!(nodes.iter().map(|n| n.ident().to_string()))?;
+        Ok(nodes.into_iter().zip(idents).collect::<FxHashMap<_, _>>())
+    }
     }
 
     /// Traverses all reachable nodes exactly once and calls the visitor.
@@ -1643,13 +1669,12 @@ impl SingleModuleGraph {
         include_traced: bool,
         include_binding_usage: bool,
     ) -> Result<Vc<Self>> {
-        SingleModuleGraph::new_inner(
+        turbo_tasks::read!(SingleModuleGraph::new_inner(
             &GraphEntries::from_chunk_groups(vec![entry]),
             &Default::default(),
             include_traced,
             include_binding_usage,
-        )
-        .await
+        ))
     }
 
     #[turbo_tasks::function(operation)]
@@ -1658,13 +1683,12 @@ impl SingleModuleGraph {
         include_traced: bool,
         include_binding_usage: bool,
     ) -> Result<Vc<Self>> {
-        SingleModuleGraph::new_inner(
-            &*entries.await?,
+        turbo_tasks::read!(SingleModuleGraph::new_inner(
+            &*turbo_tasks::read!(entries)?,
             &Default::default(),
             include_traced,
             include_binding_usage,
-        )
-        .await
+        ))
     }
 
     #[turbo_tasks::function(operation)]
@@ -1674,13 +1698,12 @@ impl SingleModuleGraph {
         include_traced: bool,
         include_binding_usage: bool,
     ) -> Result<Vc<Self>> {
-        SingleModuleGraph::new_inner(
-            &*entries.await?,
-            &visited_modules.connect().await?.modules,
+        turbo_tasks::read!(SingleModuleGraph::new_inner(
+            &*turbo_tasks::read!(entries)?,
+            &turbo_tasks::read!(visited_modules.connect())?.modules,
             include_traced,
             include_binding_usage,
-        )
-        .await
+        ))
     }
 
     #[turbo_tasks::function(operation)]
@@ -1691,13 +1714,12 @@ impl SingleModuleGraph {
         include_traced: bool,
         include_binding_usage: bool,
     ) -> Result<Vc<Self>> {
-        SingleModuleGraph::new_inner(
+        turbo_tasks::read!(SingleModuleGraph::new_inner(
             &entries,
-            &visited_modules.connect().await?.modules,
+            &turbo_tasks::read!(visited_modules.connect())?.modules,
             include_traced,
             include_binding_usage,
-        )
-        .await
+        ))
     }
 
     #[turbo_tasks::function]
@@ -1769,7 +1791,8 @@ enum SingleModuleGraphBuilderNode {
 }
 
 impl SingleModuleGraphBuilderNode {
-    async fn new_module(
+    turbo_tasks::dual_fn! {
+    fn new_module(
         emit_spans: bool,
         module: ResolvedVc<Box<dyn Module>>,
         is_traced: bool,
@@ -1778,12 +1801,13 @@ impl SingleModuleGraphBuilderNode {
             module,
             ident: if emit_spans {
                 // INVALIDATION: we don't need to invalidate when the span name changes
-                Some(module.ident_string().untracked().await?)
+                Some(turbo_tasks::read!(module.ident_string().untracked())?)
             } else {
                 None
             },
             is_traced,
         })
+    }
     }
     fn new_visited_module(module: ResolvedVc<Box<dyn Module>>, idx: GraphNodeIndex) -> Self {
         Self::VisitedModule { module, idx }
@@ -1801,22 +1825,138 @@ struct SingleModuleGraphBuilder<'a> {
     /// Whether to read ModuleReference::binding_usage()
     include_binding_usage: bool,
 }
+turbo_tasks::dual_fn! {
+/// Computes the outgoing graph builder edges of one module node (shared between the async and
+/// the sync traversal driver).
+fn single_module_graph_builder_edges(
+    module: ResolvedVc<Box<dyn Module>>,
+    is_traced: bool,
+    visited_modules: &FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
+    emit_spans: bool,
+    include_traced: bool,
+    include_binding_usage: bool,
+) -> Result<Vec<(SingleModuleGraphBuilderNode, RefData)>> {
+    let refs_cell = if !is_traced {
+        primary_chunkable_referenced_modules(*module, include_traced, include_binding_usage)
+    } else {
+        // Currently we don't care about the binding usage of traced references
+        referenced_modules_and_affecting_sources(*module, false)
+    };
+    let refs = match turbo_tasks::read!(refs_cell) {
+        Ok(refs) => refs,
+        Err(e) => {
+            return Err(e.context(turbo_tasks::read!(module.ident().to_string())?));
+        }
+    };
+
+    let edge_data = refs
+        .iter()
+        .flat_map(|(reference, resolved)| {
+            resolved.modules.iter().map(|m| {
+                (
+                    *reference,
+                    resolved.chunking_type.clone(),
+                    resolved.binding_usage.clone(),
+                    *m,
+                )
+            })
+        })
+        .filter(|(_, ty, _, _)| {
+            // Ignore non-entry traced reference if not already in tracing mode.
+            //
+            // ChunkingType::Traced{TracedMode::Entry}
+            // ==> target is always traced
+            // ChunkingType::Traced{TracedMode::Transitive}
+            // ==> target only traced if parent is traced
+            // ChunkingType::*
+            // ==> target only traced if parent is traced
+            !matches!(
+                ty,
+                ChunkingType::Traced {
+                    mode: TracedMode::Transitive
+                }
+            ) || is_traced
+        })
+        .collect::<Vec<_>>();
+
+    #[cfg(not(feature = "sync"))]
+    let result = edge_data
+        .into_iter()
+        .map(async |(reference, ty, binding_usage, target)| {
+            let to = if let Some(idx) = visited_modules.get(&target) {
+                SingleModuleGraphBuilderNode::new_visited_module(target, *idx)
+            } else {
+                SingleModuleGraphBuilderNode::new_module(
+                    emit_spans,
+                    target,
+                    is_traced || ty.is_traced(),
+                )
+                .await?
+            };
+            Ok((
+                to,
+                RefData {
+                    chunking_type: ty,
+                    binding_usage,
+                    reference,
+                },
+            ))
+        })
+        .try_join()
+        .await?;
+    #[cfg(feature = "sync")]
+    let result = edge_data
+        .into_iter()
+        .map(|(reference, ty, binding_usage, target)| {
+            let to = if let Some(idx) = visited_modules.get(&target) {
+                SingleModuleGraphBuilderNode::new_visited_module(target, *idx)
+            } else {
+                SingleModuleGraphBuilderNode::new_module(
+                    emit_spans,
+                    target,
+                    is_traced || ty.is_traced(),
+                )?
+            };
+            Ok((
+                to,
+                RefData {
+                    chunking_type: ty,
+                    binding_usage,
+                    reference,
+                },
+            ))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    Ok(result)
+}
+}
+
 impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'_> {
     type EdgesIntoIter = Vec<(SingleModuleGraphBuilderNode, RefData)>;
+    #[cfg(not(feature = "sync"))]
     type EdgesFuture = impl Future<Output = Result<Self::EdgesIntoIter>>;
 
+    #[cfg(not(feature = "sync"))]
     fn visit(
         &mut self,
         node: &SingleModuleGraphBuilderNode,
-        _edge: Option<&RefData>,
+        edge: Option<&RefData>,
     ) -> VisitControlFlow {
-        match node {
-            SingleModuleGraphBuilderNode::Module { .. } => VisitControlFlow::Continue,
-            // Module was already visited previously
-            SingleModuleGraphBuilderNode::VisitedModule { .. } => VisitControlFlow::Skip,
-        }
+        self.visit_node(node, edge)
     }
 
+    /// The sync `Visit` trait takes `&self` everywhere (the streaming traversal driver
+    /// shares the visitor with pool jobs) — separate signature, same body.
+    #[cfg(feature = "sync")]
+    fn visit(
+        &self,
+        node: &SingleModuleGraphBuilderNode,
+        edge: Option<&RefData>,
+    ) -> VisitControlFlow {
+        self.visit_node(node, edge)
+    }
+
+    #[cfg(not(feature = "sync"))]
     fn edges(&mut self, node: &SingleModuleGraphBuilderNode) -> Self::EdgesFuture {
         // Destructure beforehand to not have to clone the whole node when entering the async block
         let &SingleModuleGraphBuilderNode::Module {
@@ -1831,73 +1971,69 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
         let include_traced = self.include_traced;
         let include_binding_usage = self.include_binding_usage;
         async move {
-            let refs_cell = if !is_traced {
-                primary_chunkable_referenced_modules(*module, include_traced, include_binding_usage)
-            } else {
-                // Currently we don't care about the binding usage of traced references
-                referenced_modules_and_affecting_sources(*module, false)
-            };
-            let refs = match refs_cell.await {
-                Ok(refs) => refs,
-                Err(e) => {
-                    return Err(e.context(module.ident().to_string().await?));
-                }
-            };
-
-            refs.iter()
-                .flat_map(|(reference, resolved)| {
-                    resolved.modules.iter().map(|m| {
-                        (
-                            *reference,
-                            resolved.chunking_type.clone(),
-                            resolved.binding_usage.clone(),
-                            *m,
-                        )
-                    })
-                })
-                .filter(|(_, ty, _, _)| {
-                    // Ignore non-entry traced reference if not already in tracing mode.
-                    //
-                    // ChunkingType::Traced{TracedMode::Entry}
-                    // ==> target is always traced
-                    // ChunkingType::Traced{TracedMode::Transitive}
-                    // ==> target only traced if parent is traced
-                    // ChunkingType::*
-                    // ==> target only traced if parent is traced
-                    !matches!(
-                        ty,
-                        ChunkingType::Traced {
-                            mode: TracedMode::Transitive
-                        }
-                    ) || is_traced
-                })
-                .map(async |(reference, ty, binding_usage, target)| {
-                    let to = if let Some(idx) = visited_modules.get(&target) {
-                        SingleModuleGraphBuilderNode::new_visited_module(target, *idx)
-                    } else {
-                        SingleModuleGraphBuilderNode::new_module(
-                            emit_spans,
-                            target,
-                            is_traced || ty.is_traced(),
-                        )
-                        .await?
-                    };
-                    Ok((
-                        to,
-                        RefData {
-                            chunking_type: ty,
-                            binding_usage,
-                            reference,
-                        },
-                    ))
-                })
-                .try_join()
-                .await
+            single_module_graph_builder_edges(
+                module,
+                is_traced,
+                visited_modules,
+                emit_spans,
+                include_traced,
+                include_binding_usage,
+            )
+            .await
         }
     }
 
+    #[cfg(feature = "sync")]
+    fn edges(&self, node: &SingleModuleGraphBuilderNode) -> Result<Self::EdgesIntoIter> {
+        let &SingleModuleGraphBuilderNode::Module {
+            module, is_traced, ..
+        } = node
+        else {
+            // These are always skipped in `visit()`
+            unreachable!()
+        };
+        single_module_graph_builder_edges(
+            module,
+            is_traced,
+            self.visited_modules,
+            self.emit_spans,
+            self.include_traced,
+            self.include_binding_usage,
+        )
+    }
+
+    #[cfg(not(feature = "sync"))]
     fn span(
         &mut self,
+        node: &SingleModuleGraphBuilderNode,
+        edge: Option<&RefData>,
+    ) -> tracing::Span {
+        self.node_span(node, edge)
+    }
+
+    /// The sync `Visit` trait takes `&self` everywhere — separate signature, same body.
+    #[cfg(feature = "sync")]
+    fn span(&self, node: &SingleModuleGraphBuilderNode, edge: Option<&RefData>) -> tracing::Span {
+        self.node_span(node, edge)
+    }
+}
+
+impl SingleModuleGraphBuilder<'_> {
+    fn visit_node(
+        &self,
+        node: &SingleModuleGraphBuilderNode,
+        // `_edge` is part of the `Visit::visit` signature.
+        _edge: Option<&RefData>,
+    ) -> VisitControlFlow {
+        match node {
+            SingleModuleGraphBuilderNode::Module { .. } => VisitControlFlow::Continue,
+            // Module was already visited previously
+            SingleModuleGraphBuilderNode::VisitedModule { .. } => VisitControlFlow::Skip,
+        }
+    }
+
+    fn node_span(
+        &self,
         node: &SingleModuleGraphBuilderNode,
         edge: Option<&RefData>,
     ) -> tracing::Span {
@@ -1958,7 +2094,7 @@ pub mod tests {
     use anyhow::Result;
     use rustc_hash::FxHashMap;
     use turbo_rcstr::{RcStr, rcstr};
-    use turbo_tasks::{ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc};
+    use turbo_tasks::{ReadRef, ResolvedVc, ValueToString, Vc};
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
     use turbo_tasks_fs::{FileSystem, FileSystemPath, VirtualFileSystem};
 
@@ -1971,7 +2107,7 @@ pub mod tests {
         resolve::ModuleResolveResult,
     };
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_traverse_dfs_from_entries_diamond() {
         run_graph_test(
             vec![rcstr!("a.js")],
@@ -2032,7 +2168,7 @@ pub mod tests {
         .await;
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_traverse_dfs_from_entries_cycle() {
         run_graph_test(
             vec![rcstr!("a.js")],
@@ -2091,7 +2227,7 @@ pub mod tests {
         .await;
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_traverse_edges_fixed_point_with_priority_cycle() {
         run_graph_test(
             vec![rcstr!("a.js")],
@@ -2145,7 +2281,7 @@ pub mod tests {
         .await;
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_traverse_edges_fixed_point_no_priority_is_bfs() {
         run_graph_test(
             vec![rcstr!("a.js")],
@@ -2203,7 +2339,7 @@ pub mod tests {
         .await;
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_traverse_cycles() {
         run_graph_test(
             vec![rcstr!("a.js")],
@@ -2255,7 +2391,7 @@ pub mod tests {
         .await;
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_reverse_edges_through_layered_graph() {
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),
@@ -2272,7 +2408,7 @@ pub mod tests {
             #[turbo_tasks::function(operation, root)]
             async fn reverse_traversal_results_operation() -> Result<Vc<ReverseTraversalResults>> {
                 let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
-                let root = fs.root().await?;
+                let root = turbo_tasks::read!(fs.root())?;
 
                 // a simple linear graph a -> b ->c
                 // but b->c is in a parent graph and a is in the child
@@ -2284,8 +2420,8 @@ pub mod tests {
                     Vc::upcast::<Box<dyn Module>>(MockModule::new(root.join(name).unwrap(), repo))
                         .to_resolved()
                 };
-                let a_module = make_module("a.js").await?;
-                let b_module = make_module("b.js").await?;
+                let a_module = turbo_tasks::read!(make_module("a.js"))?;
+                let b_module = turbo_tasks::read!(make_module("b.js"))?;
 
                 let parent_graph = SingleModuleGraph::new_with_entries(
                     GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(vec![b_module])])
@@ -2310,13 +2446,12 @@ pub mod tests {
                     None,
                 )
                 .connect();
-                let child_graph = module_graph
-                    .iter_graphs()
-                    .await?
-                    .get(1)
-                    .unwrap()
-                    .connect()
-                    .await?;
+                let child_graph = turbo_tasks::read!(
+                    turbo_tasks::read!(module_graph.iter_graphs())?
+                        .get(1)
+                        .unwrap()
+                        .connect()
+                )?;
 
                 // test traversing forward from a in the child graph
                 let mut visited_forward = Vec::new();
@@ -2330,36 +2465,26 @@ pub mod tests {
                     |_, _, _| Ok(()),
                     false,
                 )?;
-                let forward = visited_forward
-                    .iter()
-                    .map(|m| m.ident().to_string().owned())
-                    .try_join()
-                    .await?;
+                let forward =
+                    turbo_tasks::parallel!(visited_forward.iter().map(|m| m.ident().to_string()))?
+                        .into_iter()
+                        .map(ReadRef::into_owned)
+                        .collect::<Vec<_>>();
 
                 // test traversing backwards from 'd' which is only in the child graph
-                let d_module = child_graph
-                    .enumerate_nodes()
-                    .map(|(_index, module)| async move {
-                        Ok(match module {
-                            crate::module_graph::SingleModuleGraphNode::Module(module) => {
-                                if module.ident().to_string().owned().await? == "[test]/d.js" {
-                                    Some(*module)
-                                } else {
-                                    None
-                                }
-                            }
-                            crate::module_graph::SingleModuleGraphNode::VisitedModule {
-                                ..
-                            } => None,
-                        })
-                    })
-                    .try_flat_join()
-                    .await?
-                    .into_iter()
-                    .next()
-                    .unwrap();
+                let mut d_module = None;
+                for (_index, module) in child_graph.enumerate_nodes() {
+                    if let crate::module_graph::SingleModuleGraphNode::Module(module) = module
+                        && turbo_tasks::read!(module.ident().to_string().owned())? == "[test]/d.js"
+                    {
+                        d_module = Some(*module);
+                        break;
+                    }
+                }
+                let d_module = d_module.unwrap();
 
-                async fn get_reverse_from(
+                turbo_tasks::dual_fn! {
+                fn get_reverse_from(
                     graph: &ModuleGraphLayer,
                     module: ResolvedVc<Box<dyn Module>>,
                 ) -> Result<Vec<RcStr>> {
@@ -2373,17 +2498,19 @@ pub mod tests {
                         },
                         |_, _, _| Ok(()),
                     )?;
-                    visited
-                        .iter()
-                        .map(|m| m.ident().to_string().owned())
-                        .try_join()
-                        .await
+                    Ok(turbo_tasks::parallel!(
+                        visited.iter().map(|m| m.ident().to_string())
+                    )?
+                    .into_iter()
+                    .map(ReadRef::into_owned)
+                    .collect())
+                }
                 }
 
                 Ok(ReverseTraversalResults {
                     forward,
-                    reverse_from_d: get_reverse_from(&child_graph, d_module).await?,
-                    reverse_from_b: get_reverse_from(&child_graph, b_module).await?,
+                    reverse_from_d: turbo_tasks::read!(get_reverse_from(&child_graph, d_module))?,
+                    reverse_from_b: turbo_tasks::read!(get_reverse_from(&child_graph, b_module))?,
                 }
                 .cell())
             }
@@ -2417,7 +2544,7 @@ pub mod tests {
         .unwrap();
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_iter_nodes_modules_through_layered_graph() {
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),
@@ -2435,7 +2562,7 @@ pub mod tests {
             #[turbo_tasks::function(operation, root)]
             async fn reverse_traversal_results_operation() -> Result<Vc<Results>> {
                 let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
-                let root = fs.root().await?;
+                let root = turbo_tasks::read!(fs.root())?;
 
                 // a simple linear graph a -> b -> c -> x -> y -> z
                 // but x -> y -> z is in a parent graph
@@ -2461,8 +2588,8 @@ pub mod tests {
                     Vc::upcast::<Box<dyn Module>>(MockModule::new(root.join(name).unwrap(), repo))
                         .to_resolved()
                 };
-                let x_module = make_module("x.js").await?;
-                let a_module = make_module("a.js").await?;
+                let x_module = turbo_tasks::read!(make_module("x.js"))?;
+                let a_module = turbo_tasks::read!(make_module("a.js"))?;
 
                 let parent_graph = SingleModuleGraph::new_with_entries(
                     GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(vec![x_module])])
@@ -2487,70 +2614,67 @@ pub mod tests {
                     None,
                 )
                 .connect();
-                let graph_layers = module_graph.iter_graphs().await?;
+                let graph_layers = turbo_tasks::read!(module_graph.iter_graphs())?;
+
+                turbo_tasks::dual_fn! {
+                /// The display string for one graph node ("visited "-prefixed for
+                /// `VisitedModule` nodes).
+                fn node_ident_string(node: &SingleModuleGraphNode) -> Result<RcStr> {
+                    Ok(match node {
+                        SingleModuleGraphNode::Module(module) => {
+                            turbo_tasks::read!(module.ident_string().owned())?
+                        }
+                        SingleModuleGraphNode::VisitedModule { module, .. } => {
+                            format!(
+                                "visited {}",
+                                turbo_tasks::read!(module.ident_string().owned())?
+                            )
+                            .into()
+                        }
+                    })
+                }
+                }
+
+                let module_graph_ref = turbo_tasks::read!(module_graph)?;
+                let mut iter_nodes = Vec::new();
+                for node in module_graph_ref.iter_reachable_nodes()? {
+                    iter_nodes.push(turbo_tasks::read!(node_ident_string(node))?);
+                }
+
+                let reachable_modules = module_graph_ref
+                    .iter_reachable_modules()?
+                    .collect::<Vec<_>>();
+                let iter_modules =
+                    turbo_tasks::parallel!(reachable_modules.iter().map(|m| m.ident_string()))?
+                        .into_iter()
+                        .map(ReadRef::into_owned)
+                        .collect::<Vec<_>>();
+
+                let mut iter_nodes_single = Vec::new();
+                let mut iter_modules_single = Vec::new();
+                for layer in graph_layers.iter() {
+                    let layer_ref = turbo_tasks::read!(layer.connect())?;
+
+                    let mut nodes = Vec::new();
+                    for node in layer_ref.iter_reachable_nodes()? {
+                        nodes.push(turbo_tasks::read!(node_ident_string(node))?);
+                    }
+                    iter_nodes_single.push(nodes);
+
+                    let layer_modules = layer_ref.iter_reachable_modules()?.collect::<Vec<_>>();
+                    iter_modules_single.push(
+                        turbo_tasks::parallel!(layer_modules.iter().map(|m| m.ident_string()))?
+                            .into_iter()
+                            .map(ReadRef::into_owned)
+                            .collect::<Vec<_>>(),
+                    );
+                }
 
                 Ok(Results {
-                    iter_nodes: module_graph
-                        .await?
-                        .iter_reachable_nodes()?
-                        .map(async |node| {
-                            Ok(match node {
-                                SingleModuleGraphNode::Module(module) => {
-                                    module.ident_string().owned().await?
-                                }
-                                SingleModuleGraphNode::VisitedModule { module, .. } => {
-                                    format!("visited {}", module.ident_string().owned().await?)
-                                        .into()
-                                }
-                            })
-                        })
-                        .try_join()
-                        .await?,
-                    iter_modules: module_graph
-                        .await?
-                        .iter_reachable_modules()?
-                        .map(|m| m.ident_string().owned())
-                        .try_join()
-                        .await?,
-                    iter_nodes_single: graph_layers
-                        .iter()
-                        .map(async |layer| {
-                            layer
-                                .connect()
-                                .await?
-                                .iter_reachable_nodes()?
-                                .map(async |node| {
-                                    Ok(match node {
-                                        SingleModuleGraphNode::Module(module) => {
-                                            module.ident_string().owned().await?
-                                        }
-                                        SingleModuleGraphNode::VisitedModule { module, .. } => {
-                                            format!(
-                                                "visited {}",
-                                                module.ident_string().owned().await?
-                                            )
-                                            .into()
-                                        }
-                                    })
-                                })
-                                .try_join()
-                                .await
-                        })
-                        .try_join()
-                        .await?,
-                    iter_modules_single: graph_layers
-                        .iter()
-                        .map(async |layer| {
-                            layer
-                                .connect()
-                                .await?
-                                .iter_reachable_modules()?
-                                .map(|m| m.ident_string().owned())
-                                .try_join()
-                                .await
-                        })
-                        .try_join()
-                        .await?,
+                    iter_nodes,
+                    iter_modules,
+                    iter_nodes_single,
+                    iter_modules_single,
                 }
                 .cell())
             }
@@ -2706,15 +2830,16 @@ pub mod tests {
 
         #[turbo_tasks::function]
         async fn references(&self) -> Result<Vc<ModuleReferences>> {
-            let repo = self.repo.await?;
+            let repo = turbo_tasks::read!(self.repo)?;
             let references = match repo.repo.get(&self.path) {
                 Some(deps) => {
-                    deps.iter()
-                        .map(async |p| {
+                    let mut references = Vec::with_capacity(deps.len());
+                    for p in deps {
+                        references.push(turbo_tasks::read!(
                             Vc::upcast::<Box<dyn ModuleReference>>(MockModuleReference::new(
-                                ResolvedVc::upcast(
-                                    MockModule::new(p.clone(), *self.repo).to_resolved().await?,
-                                ),
+                                ResolvedVc::upcast(turbo_tasks::read!(
+                                    MockModule::new(p.clone(), *self.repo).to_resolved()
+                                )?),
                                 rcstr!("normal-dep"),
                                 repo.chunking_types
                                     .get(&(self.path.clone(), p.clone()))
@@ -2725,10 +2850,9 @@ pub mod tests {
                                     }),
                             ))
                             .to_resolved()
-                            .await
-                        })
-                        .try_join()
-                        .await?
+                        )?);
+                    }
+                    references
                 }
                 None => vec![],
             };
@@ -2814,17 +2938,16 @@ pub mod tests {
             graph_entries: Vec<(RcStr, Vec<RcStr>)>,
         ) -> Result<Vc<SetupGraph>> {
             let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
-            let root = fs.root().await?;
+            let root = turbo_tasks::read!(fs.root())?;
 
             let repo = TestRepo::new(&root, graph_entries);
-            let entry_modules = entries
-                .iter()
-                .map(|e| {
+            let mut entry_modules = Vec::with_capacity(entries.len());
+            for e in entries.iter() {
+                entry_modules.push(turbo_tasks::read!(
                     Vc::upcast::<Box<dyn Module>>(MockModule::new(root.join(e).unwrap(), repo))
                         .to_resolved()
-                })
-                .try_join()
-                .await?;
+                )?);
+            }
             let graph = SingleModuleGraph::new_with_entries(
                 GraphEntries::resolved_cell(GraphEntries::new(
                     vec![ChunkGroupEntry::Entry(entry_modules.clone())],
@@ -2837,19 +2960,16 @@ pub mod tests {
             // Create a simple name mapping to make analyzing the visitors easier.
             // Technically they could always pull this name off of the
             // `module.ident().await?.path.path` themselves but you cannot `await` in visitors.
-            let module_to_name = graph
-                .connect()
-                .await?
-                .modules
-                .keys()
-                .map(|m| async move { Ok((*m, m.ident().await?.path.path.clone())) })
-                .try_join()
-                .await?
-                .into_iter()
+            let graph_ref = turbo_tasks::read!(graph.connect())?;
+            let graph_modules = graph_ref.modules.keys().copied().collect::<Vec<_>>();
+            let idents = turbo_tasks::parallel!(graph_modules.iter().map(|m| m.ident()))?;
+            let module_to_name = graph_modules
+                .iter()
+                .zip(idents)
+                .map(|(&m, ident)| (m, ident.path.path.clone()))
                 .collect();
-            let module_graph = ModuleGraph::from_graphs(vec![graph], None)
-                .connect()
-                .await?;
+            let module_graph =
+                turbo_tasks::read!(ModuleGraph::from_graphs(vec![graph], None).connect())?;
 
             Ok(SetupGraph {
                 module_graph,

@@ -72,14 +72,16 @@ pub fn parse_require_context(args: &[JsValue<'_>]) -> Result<RequireContextOptio
 pub struct RequireContextValue(pub(crate) FxIndexMap<RcStr, RcStr>);
 
 impl RequireContextValue {
-    pub async fn from_context_map(map: Vc<RequireContextMap>) -> Result<Self> {
+    turbo_tasks::dual_fn! {
+    pub fn from_context_map(map: Vc<RequireContextMap>) -> Result<Self> {
         let mut context_map = FxIndexMap::default();
 
-        for (key, entry) in map.await?.iter() {
+        for (key, entry) in turbo_tasks::read!(map)?.iter() {
             context_map.insert(key.clone(), entry.origin_relative.clone());
         }
 
         Ok(RequireContextValue(context_map))
+    }
     }
 }
 

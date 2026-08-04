@@ -11,7 +11,9 @@ pub use module_options_context::*;
 pub use module_rule::*;
 pub use rule_condition::*;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::TryJoinIterExt;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{
     FileSystemPath,
     glob::{Glob, GlobOptions},
@@ -68,52 +70,89 @@ pub(crate) fn package_import_map_from_context(
     import_map.cell()
 }
 
-async fn rule_condition_from_webpack_condition_glob(
+turbo_tasks::dual_fn! {
+fn rule_condition_from_webpack_condition_glob(
     execution_context: ResolvedVc<ExecutionContext>,
     glob: &RcStr,
 ) -> Result<RuleCondition> {
     Ok(if glob.contains('/') {
         RuleCondition::ResourcePathGlob {
-            base: execution_context.project_path().owned().await?,
-            glob: Glob::new(glob.clone(), GlobOptions::default()).await?,
+            base: turbo_tasks::read!(execution_context.project_path().owned())?,
+            glob: turbo_tasks::read!(Glob::new(glob.clone(), GlobOptions::default()))?,
         }
     } else {
-        RuleCondition::ResourceBasePathGlob(Glob::new(glob.clone(), GlobOptions::default()).await?)
+        RuleCondition::ResourceBasePathGlob(turbo_tasks::read!(Glob::new(glob.clone(), GlobOptions::default()))?)
     })
 }
+}
 
-async fn rule_condition_from_webpack_condition(
+turbo_tasks::dual_fn! {
+fn rule_condition_from_webpack_condition(
     execution_context: ResolvedVc<ExecutionContext>,
     builtin_conditions: &dyn WebpackLoaderBuiltinConditionSet,
     webpack_loader_condition: &ConditionItem,
 ) -> Result<RuleCondition> {
     Ok(match webpack_loader_condition {
-        ConditionItem::All(conds) => RuleCondition::All(
-            conds
+        ConditionItem::All(conds) => {
+            // Recursive fan-out: keep concurrent `try_join` in the async build; the sync
+            // build recurses sequentially (see `dual_fn!` / R3 docs).
+            #[cfg(not(feature = "sync"))]
+            let converted = turbo_tasks::read!(conds
                 .iter()
                 .map(|c| {
                     rule_condition_from_webpack_condition(execution_context, builtin_conditions, c)
                 })
-                .try_join()
-                .await?,
-        ),
-        ConditionItem::Any(conds) => RuleCondition::Any(
-            conds
+                .try_join())?;
+            #[cfg(feature = "sync")]
+            let converted = {
+                let mut converted = Vec::with_capacity(conds.len());
+                for c in conds.iter() {
+                    converted.push(rule_condition_from_webpack_condition(
+                        execution_context,
+                        builtin_conditions,
+                        c,
+                    )?);
+                }
+                converted
+            };
+            RuleCondition::All(converted)
+        }
+        ConditionItem::Any(conds) => {
+            #[cfg(not(feature = "sync"))]
+            let converted = turbo_tasks::read!(conds
                 .iter()
                 .map(|c| {
                     rule_condition_from_webpack_condition(execution_context, builtin_conditions, c)
                 })
-                .try_join()
-                .await?,
-        ),
-        ConditionItem::Not(cond) => RuleCondition::Not(Box::new(
-            Box::pin(rule_condition_from_webpack_condition(
+                .try_join())?;
+            #[cfg(feature = "sync")]
+            let converted = {
+                let mut converted = Vec::with_capacity(conds.len());
+                for c in conds.iter() {
+                    converted.push(rule_condition_from_webpack_condition(
+                        execution_context,
+                        builtin_conditions,
+                        c,
+                    )?);
+                }
+                converted
+            };
+            RuleCondition::Any(converted)
+        }
+        ConditionItem::Not(cond) => {
+            // Async recursion boxes to keep the future size finite; the sync build recurses
+            // directly (see `dual_fn!` / R7 docs).
+            #[cfg(not(feature = "sync"))]
+            let inner = turbo_tasks::read!(Box::pin(rule_condition_from_webpack_condition(
                 execution_context,
                 builtin_conditions,
                 cond,
-            ))
-            .await?,
-        )),
+            )))?;
+            #[cfg(feature = "sync")]
+            let inner =
+                rule_condition_from_webpack_condition(execution_context, builtin_conditions, cond)?;
+            RuleCondition::Not(Box::new(inner))
+        }
         ConditionItem::Builtin(name) => match builtin_conditions.match_condition(name) {
             WebpackLoaderBuiltinConditionSetMatch::Matched => RuleCondition::True,
             WebpackLoaderBuiltinConditionSetMatch::Unmatched => RuleCondition::False,
@@ -132,10 +171,10 @@ async fn rule_condition_from_webpack_condition(
             let mut rule_conditions = Vec::new();
             match &path {
                 Some(ConditionPath::Glob(glob)) => rule_conditions.push(
-                    rule_condition_from_webpack_condition_glob(execution_context, glob).await?,
+                    turbo_tasks::read!(rule_condition_from_webpack_condition_glob(execution_context, glob))?,
                 ),
                 Some(ConditionPath::Regex(regex)) => {
-                    rule_conditions.push(RuleCondition::ResourcePathEsRegex(regex.await?));
+                    rule_conditions.push(RuleCondition::ResourcePathEsRegex(turbo_tasks::read!(regex)?));
                 }
                 None => {}
             }
@@ -144,28 +183,29 @@ async fn rule_condition_from_webpack_condition(
                     rule_conditions.push(RuleCondition::ResourceQueryEquals(value.clone().into()));
                 }
                 Some(ConditionQuery::Regex(regex)) => {
-                    rule_conditions.push(RuleCondition::ResourceQueryEsRegex(regex.await?));
+                    rule_conditions.push(RuleCondition::ResourceQueryEsRegex(turbo_tasks::read!(regex)?));
                 }
                 None => {}
             }
             match &content_type {
                 Some(ConditionContentType::Glob(glob)) => {
                     rule_conditions.push(RuleCondition::ContentTypeGlob(
-                        Glob::new(glob.clone(), GlobOptions::default()).await?,
+                        turbo_tasks::read!(Glob::new(glob.clone(), GlobOptions::default()))?,
                     ));
                 }
                 Some(ConditionContentType::Regex(regex)) => {
-                    rule_conditions.push(RuleCondition::ContentTypeEsRegex(regex.await?));
+                    rule_conditions.push(RuleCondition::ContentTypeEsRegex(turbo_tasks::read!(regex)?));
                 }
                 None => {}
             }
             // Add the content condition last since matching requires a more expensive file read.
             if let Some(content) = content {
-                rule_conditions.push(RuleCondition::ResourceContentEsRegex(content.await?));
+                rule_conditions.push(RuleCondition::ResourceContentEsRegex(turbo_tasks::read!(content)?));
             }
             RuleCondition::All(rule_conditions)
         }
     })
+}
 }
 
 #[turbo_tasks::value(cell = "new", eq = "manual")]
@@ -187,7 +227,7 @@ impl ModuleOptions {
             ref enable_webpack_loaders,
             ref rules,
             ..
-        } = *module_options_context.await?;
+        } = *turbo_tasks::read!(module_options_context)?;
 
         if !rules.is_empty() {
             for (condition, new_context) in rules.iter() {
@@ -203,13 +243,13 @@ impl ModuleOptions {
 
         let need_path = (!enable_raw_css
             && if let Some(options) = enable_postcss_transform {
-                let options = options.await?;
+                let options = turbo_tasks::read!(options)?;
                 options.postcss_package.is_none()
             } else {
                 false
             })
             || if let Some(options) = enable_webpack_loaders {
-                let options = options.await?;
+                let options = turbo_tasks::read!(options)?;
                 options.loader_runner_package.is_none()
             } else {
                 false
@@ -270,7 +310,7 @@ impl ModuleOptions {
             keep_last_successful_parse,
             analyze_mode,
             ..
-        } = *module_options_context.await?;
+        } = *turbo_tasks::read!(module_options_context)?;
 
         let module_css_condition = module_css_condition.clone().unwrap_or_else(|| {
             RuleCondition::any(vec![
@@ -315,7 +355,7 @@ impl ModuleOptions {
         // If a custom plugin requires specific order _before_ core transform kicks in,
         // should use `before_transform_plugins`.
         if let Some(enable_jsx) = enable_jsx {
-            let jsx = enable_jsx.await?;
+            let jsx = turbo_tasks::read!(enable_jsx)?;
 
             postprocess.push(EcmascriptInputTransform::React {
                 development: jsx.development,
@@ -350,7 +390,7 @@ impl ModuleOptions {
         }
 
         let decorators_transform = if let Some(options) = &enable_decorators {
-            let options = options.await?;
+            let options = turbo_tasks::read!(options)?;
             options
                 .decorators_kind
                 .as_ref()
@@ -407,7 +447,9 @@ impl ModuleOptions {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
                 } else {
                     vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
-                        ResolvedVc::upcast(BytesSourceTransform::new().to_resolved().await?),
+                        ResolvedVc::upcast(turbo_tasks::read!(
+                            BytesSourceTransform::new().to_resolved()
+                        )?),
                     ]))]
                 },
             ));
@@ -422,14 +464,16 @@ impl ModuleOptions {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
                 } else {
                     vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
-                        ResolvedVc::upcast(TextSourceTransform::new().to_resolved().await?),
+                        ResolvedVc::upcast(turbo_tasks::read!(
+                            TextSourceTransform::new().to_resolved()
+                        )?),
                     ]))]
                 },
             ));
         }
 
         if let Some(webpack_loaders_options) = enable_webpack_loaders {
-            let webpack_loaders_options = webpack_loaders_options.await?;
+            let webpack_loaders_options = turbo_tasks::read!(webpack_loaders_options)?;
             let execution_context =
                 execution_context.context("execution_context is required for webpack_loaders")?;
             let import_map = if let Some(loader_runner_package) =
@@ -446,28 +490,25 @@ impl ModuleOptions {
                         .context("need_path in ModuleOptions::new is incorrect")?,
                 )
             };
-            let builtin_conditions = webpack_loaders_options
-                .builtin_conditions
-                .into_trait_ref()
-                .await?;
-            for (key, rule) in webpack_loaders_options.rules.await?.iter() {
+            let builtin_conditions =
+                turbo_tasks::read!(webpack_loaders_options.builtin_conditions.into_trait_ref())?;
+            for (key, rule) in turbo_tasks::read!(webpack_loaders_options.rules)?.iter() {
                 let mut rule_conditions = Vec::new();
 
                 // prefer to add the glob condition ahead of the user-defined `condition` field,
                 // because we know it's cheap to check
-                rule_conditions.push(
-                    rule_condition_from_webpack_condition_glob(execution_context, key).await?,
-                );
+                rule_conditions.push(turbo_tasks::read!(
+                    rule_condition_from_webpack_condition_glob(execution_context, key)
+                )?);
 
                 if let Some(condition) = &rule.condition {
-                    rule_conditions.push(
+                    rule_conditions.push(turbo_tasks::read!(
                         rule_condition_from_webpack_condition(
                             execution_context,
                             &*builtin_conditions,
                             condition,
                         )
-                        .await?,
-                    )
+                    )?)
                 }
 
                 rule_conditions.push(RuleCondition::not(RuleCondition::ResourceIsVirtualSource));
@@ -479,9 +520,9 @@ impl ModuleOptions {
                     let mut effects = Vec::new();
 
                     // Add source transforms if loaders are specified
-                    if !rule.loaders.await?.is_empty() {
+                    if !turbo_tasks::read!(rule.loaders)?.is_empty() {
                         effects.push(ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
-                            ResolvedVc::upcast(
+                            ResolvedVc::upcast(turbo_tasks::read!(
                                 WebpackLoaders::new(
                                     node_evaluate_asset_context(
                                         *execution_context,
@@ -497,25 +538,22 @@ impl ModuleOptions {
                                     matches!(ecmascript_source_maps, SourceMapsType::Full),
                                 )
                                 .to_resolved()
-                                .await?,
-                            ),
+                            )?),
                         ])));
                     }
 
                     // Add module type if specified
                     if let Some(type_str) = rule.module_type.as_ref() {
-                        effects.push(
-                            ConfiguredModuleType::parse(type_str)?
-                                .into_effect(
-                                    ecma_preprocess,
-                                    main,
-                                    postprocess,
-                                    ecmascript_options_vc,
-                                    environment,
-                                    lightningcss_features,
-                                )
-                                .await?,
-                        )
+                        effects.push(turbo_tasks::read!(
+                            ConfiguredModuleType::parse(type_str)?.into_effect(
+                                ecma_preprocess,
+                                main,
+                                postprocess,
+                                ecmascript_options_vc,
+                                environment,
+                                lightningcss_features,
+                            )
+                        )?)
                     }
 
                     if !effects.is_empty() {
@@ -530,7 +568,7 @@ impl ModuleOptions {
         if enable_mdx || enable_mdx_rs.is_some() {
             let (jsx_runtime, jsx_import_source, development) = if let Some(enable_jsx) = enable_jsx
             {
-                let jsx = enable_jsx.await?;
+                let jsx = turbo_tasks::read!(enable_jsx)?;
                 (
                     jsx.runtime.clone(),
                     jsx.import_source.clone(),
@@ -540,9 +578,9 @@ impl ModuleOptions {
                 (None, None, false)
             };
 
-            let mdx_options = &*enable_mdx_rs
-                .unwrap_or_else(|| MdxTransformOptions::default().resolved_cell())
-                .await?;
+            let mdx_options = &*turbo_tasks::read!(
+                enable_mdx_rs.unwrap_or_else(|| MdxTransformOptions::default().resolved_cell())
+            )?;
 
             let mdx_transform_options = (MdxTransformOptions {
                 development: Some(development),
@@ -560,11 +598,9 @@ impl ModuleOptions {
                     RuleCondition::ContentTypeStartsWith("text/markdown".to_string()),
                 ]),
                 vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
-                    ResolvedVc::upcast(
-                        MdxTransform::new(mdx_transform_options)
-                            .to_resolved()
-                            .await?,
-                    ),
+                    ResolvedVc::upcast(turbo_tasks::read!(
+                        MdxTransform::new(mdx_transform_options).to_resolved()
+                    )?),
                 ]))],
             ));
         }
@@ -604,7 +640,9 @@ impl ModuleOptions {
                 } else {
                     vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
                         // Use spec-compliant ESM for import attributes
-                        ResolvedVc::upcast(JsonSourceTransform::new_esm().to_resolved().await?),
+                        ResolvedVc::upcast(turbo_tasks::read!(
+                            JsonSourceTransform::new_esm().to_resolved()
+                        )?),
                     ]))]
                 },
             ),
@@ -622,7 +660,9 @@ impl ModuleOptions {
                 } else {
                     vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
                         // For backcompat with webpack we generate a cjs style export
-                        ResolvedVc::upcast(JsonSourceTransform::new_cjs().to_resolved().await?),
+                        ResolvedVc::upcast(turbo_tasks::read!(
+                            JsonSourceTransform::new_cjs().to_resolved()
+                        )?),
                     ]))]
                 },
             ),
@@ -736,7 +776,7 @@ impl ModuleOptions {
         ]);
 
         if let Some(options) = enable_typescript_transform {
-            let options = options.await?;
+            let options = turbo_tasks::read!(options)?;
             // Prepend extra_preprocess (e.g. ReactCompilerRust) so it runs before decorators and
             // TypeScript.
             let ts_preprocess = ResolvedVc::cell(
@@ -860,7 +900,7 @@ impl ModuleOptions {
             ]);
         } else {
             if let Some(options) = enable_postcss_transform {
-                let options = options.await?;
+                let options = turbo_tasks::read!(options)?;
                 let execution_context = execution_context
                     .context("execution_context is required for the postcss_transform")?;
 
@@ -885,7 +925,7 @@ impl ModuleOptions {
                         module_css_external_transform_conditions.clone(),
                     ]),
                     vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
-                        ResolvedVc::upcast(
+                        ResolvedVc::upcast(turbo_tasks::read!(
                             PostCssTransform::new(
                                 node_evaluate_asset_context(
                                     *execution_context,
@@ -900,8 +940,7 @@ impl ModuleOptions {
                                 matches!(css_source_maps, SourceMapsType::Full),
                             )
                             .to_resolved()
-                            .await?,
-                        ),
+                        )?),
                     ]))],
                 ));
             }

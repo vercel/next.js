@@ -1,7 +1,11 @@
 use std::{cmp::max, fmt::Debug, time::Duration};
 
+#[cfg(any(feature = "process_pool", feature = "worker_pool"))]
 use tokio::sync::OwnedSemaphorePermit;
 
+/// Semaphore permits held by an in-flight pool operation. Only used by the
+/// tokio-based pool backends, which are absent from the `sync` build.
+#[cfg(any(feature = "process_pool", feature = "worker_pool"))]
 pub enum AcquiredPermits {
     Idle {
         // This is used for drop
@@ -28,6 +32,9 @@ pub struct NodeJsPoolStats {
     pub queued_tasks: u32,
 }
 
+// Only the pool backends drive these stats; they are async-only until the
+// blocking pool port lands.
+#[cfg_attr(feature = "sync", allow(dead_code))]
 impl NodeJsPoolStats {
     #[allow(unused)]
     pub fn add_bootup_time(&mut self, time: Duration) {

@@ -84,11 +84,14 @@ impl MiddlewareEndpoint {
             )
             .module();
 
-        let is_proxy = userland_module.ident().await?.path.file_stem() == Some("proxy");
+        let is_proxy = turbo_tasks::read!(userland_module.ident())?
+            .path
+            .file_stem()
+            == Some("proxy");
 
         let module = get_middleware_module(
             *self.asset_context,
-            self.project.project_path().owned().await?,
+            turbo_tasks::read!(self.project.project_path().owned())?,
             userland_module,
             is_proxy,
             self.project.next_config(),
@@ -100,7 +103,7 @@ impl MiddlewareEndpoint {
 
         Ok(wrap_edge_entry(
             *self.asset_context,
-            self.project.project_path().owned().await?,
+            turbo_tasks::read!(self.project.project_path().owned())?,
             module,
             rcstr!("middleware"),
         ))
@@ -108,8 +111,8 @@ impl MiddlewareEndpoint {
 
     #[turbo_tasks::function]
     async fn edge_chunk_group(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
-        let this = self.await?;
-        let module = self.entry_module().to_resolved().await?;
+        let this = turbo_tasks::read!(self)?;
+        let module = turbo_tasks::read!(self.entry_module().to_resolved())?;
 
         let module_graph = this.project.module_graph(*module);
 
@@ -126,41 +129,37 @@ impl MiddlewareEndpoint {
 
     #[turbo_tasks::function]
     async fn node_chunk(self: Vc<Self>) -> Result<Vc<Box<dyn OutputAsset>>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
 
         let chunking_context = this.project.server_chunking_context(false);
 
-        let userland_module = self.entry_module().to_resolved().await?;
+        let userland_module = turbo_tasks::read!(self.entry_module().to_resolved())?;
         let module_graph = this.project.module_graph(*userland_module);
 
-        let EntryChunkGroupResult { asset: chunk, .. } = *chunking_context
-            .root_entry_chunk_group(
-                this.project
-                    .node_root()
-                    .await?
-                    .join("server/middleware.js")?,
+        let EntryChunkGroupResult { asset: chunk, .. } =
+            *turbo_tasks::read!(chunking_context.root_entry_chunk_group(
+                turbo_tasks::read!(this.project.node_root())?.join("server/middleware.js")?,
                 ChunkGroup::Entry(vec![userland_module]),
                 module_graph,
                 OutputAssets::empty(),
                 OutputAssets::empty(),
-            )
-            .await?;
+            ))?;
         Ok(*chunk)
     }
 
     #[turbo_tasks::function]
     async fn output_assets(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let this = self.await?;
-        let config = this.config.await?;
+        let this = turbo_tasks::read!(self)?;
+        let config = turbo_tasks::read!(this.config)?;
 
         let next_config = this.project.next_config();
-        let i18n = next_config.i18n().await?;
+        let i18n = turbo_tasks::read!(next_config.i18n())?;
         let has_i18n = i18n.is_some();
         let has_i18n_locales = i18n
             .as_ref()
             .map(|i18n| i18n.locales.len() > 1)
             .unwrap_or(false);
-        let base_path = next_config.base_path().await?;
+        let base_path = turbo_tasks::read!(next_config.base_path())?;
 
         let matchers = if let Some(matchers) = config.middleware_matcher.as_ref() {
             matchers
@@ -226,33 +225,31 @@ impl MiddlewareEndpoint {
         };
 
         if matches!(this.runtime, NextRuntime::NodeJs) {
-            let chunk = self.node_chunk().to_resolved().await?;
+            let chunk = turbo_tasks::read!(self.node_chunk().to_resolved())?;
             let mut output_assets = vec![chunk];
-            if *this.project.should_write_nft_manifests().await? {
-                output_assets.push(ResolvedVc::upcast(
+            if *turbo_tasks::read!(this.project.should_write_nft_manifests())? {
+                output_assets.push(ResolvedVc::upcast(turbo_tasks::read!(
                     NftJsonAsset::new(*this.project, None, *chunk, vec![], self.trace_result())
                         .to_resolved()
-                        .await?,
-                ));
+                )?));
             }
             let middleware_manifest_v2 = MiddlewaresManifestV2 {
                 middleware: [].into_iter().collect(),
                 ..Default::default()
             };
-            let middleware_manifest_v2 = VirtualOutputAsset::new(
-                this.project
-                    .node_root()
-                    .await?
-                    .join("server/middleware/middleware-manifest.json")?,
-                AssetContent::file(
-                    FileContent::Content(File::from(serde_json::to_string_pretty(
-                        &middleware_manifest_v2,
-                    )?))
-                    .cell(),
-                ),
-            )
-            .to_resolved()
-            .await?;
+            let middleware_manifest_v2 = turbo_tasks::read!(
+                VirtualOutputAsset::new(
+                    turbo_tasks::read!(this.project.node_root())?
+                        .join("server/middleware/middleware-manifest.json")?,
+                    AssetContent::file(
+                        FileContent::Content(File::from(serde_json::to_string_pretty(
+                            &middleware_manifest_v2,
+                        )?))
+                        .cell(),
+                    ),
+                )
+                .to_resolved()
+            )?;
             output_assets.push(ResolvedVc::upcast(middleware_manifest_v2));
 
             Ok(Vc::cell(output_assets))
@@ -260,28 +257,34 @@ impl MiddlewareEndpoint {
             let edge_chunk_group = self.edge_chunk_group();
             let edge_all_assets = edge_chunk_group.expand_all_assets();
 
-            let node_root = this.project.node_root().owned().await?;
+            let node_root = turbo_tasks::read!(this.project.node_root().owned())?;
             let node_root_value = node_root.clone();
-            let edge_chunk_group_ref = edge_chunk_group.await?;
-            let edge_assets = edge_chunk_group_ref.assets.await?;
+            let edge_chunk_group_ref = turbo_tasks::read!(edge_chunk_group)?;
+            let edge_assets = turbo_tasks::read!(edge_chunk_group_ref.assets)?;
 
-            let file_paths_from_root =
-                get_js_paths_from_root(&node_root_value, edge_assets.iter().copied()).await?;
+            let file_paths_from_root = turbo_tasks::read!(get_js_paths_from_root(
+                &node_root_value,
+                edge_assets.iter().copied()
+            ))?;
             let entrypoint_asset = *edge_assets
                 .last()
                 .context("expected assets for edge middleware endpoint")?;
             let entrypoint = node_root_value
-                .get_path_to(&*entrypoint_asset.path().await?)
+                .get_path_to(&*turbo_tasks::read!(entrypoint_asset.path())?)
                 .context("expected edge middleware asset to be within node root")?
                 .into();
 
-            let mut output_assets = edge_chunk_group.all_assets().owned().await?;
+            let mut output_assets = turbo_tasks::read!(edge_chunk_group.all_assets().owned())?;
 
-            let wasm_paths_from_root =
-                get_wasm_paths_from_root(&node_root_value, edge_all_assets.await?).await?;
+            let wasm_paths_from_root = turbo_tasks::read!(get_wasm_paths_from_root(
+                &node_root_value,
+                turbo_tasks::read!(edge_all_assets)?
+            ))?;
 
-            let all_assets =
-                get_asset_paths_from_root(&node_root_value, edge_all_assets.await?).await?;
+            let all_assets = turbo_tasks::read!(get_asset_paths_from_root(
+                &node_root_value,
+                turbo_tasks::read!(edge_all_assets)?
+            ))?;
 
             let regions = if let Some(regions) = config.preferred_region.as_ref() {
                 if regions.len() == 1 {
@@ -297,14 +300,14 @@ impl MiddlewareEndpoint {
 
             let edge_function_definition = EdgeFunctionDefinition {
                 files: file_paths_from_root,
-                wasm: wasm_paths_to_bindings(wasm_paths_from_root).await?,
+                wasm: turbo_tasks::read!(wasm_paths_to_bindings(wasm_paths_from_root))?,
                 assets: paths_to_bindings(all_assets),
                 name: rcstr!("middleware"),
                 page: rcstr!("/"),
                 entrypoint,
                 regions,
                 matchers: matchers.clone(),
-                env: this.project.edge_env().owned().await?,
+                env: turbo_tasks::read!(this.project.edge_env().owned())?,
             };
             let middleware_manifest_v2 = MiddlewaresManifestV2 {
                 middleware: [(rcstr!("/"), edge_function_definition)]
@@ -312,17 +315,18 @@ impl MiddlewareEndpoint {
                     .collect(),
                 ..Default::default()
             };
-            let middleware_manifest_v2 = VirtualOutputAsset::new(
-                node_root.join("server/middleware/middleware-manifest.json")?,
-                AssetContent::file(
-                    FileContent::Content(File::from(serde_json::to_string_pretty(
-                        &middleware_manifest_v2,
-                    )?))
-                    .cell(),
-                ),
-            )
-            .to_resolved()
-            .await?;
+            let middleware_manifest_v2 = turbo_tasks::read!(
+                VirtualOutputAsset::new(
+                    node_root.join("server/middleware/middleware-manifest.json")?,
+                    AssetContent::file(
+                        FileContent::Content(File::from(serde_json::to_string_pretty(
+                            &middleware_manifest_v2,
+                        )?))
+                        .cell(),
+                    ),
+                )
+                .to_resolved()
+            )?;
             output_assets.push(ResolvedVc::upcast(middleware_manifest_v2));
 
             Ok(Vc::cell(output_assets))
@@ -341,7 +345,7 @@ impl MiddlewareEndpoint {
 
     #[turbo_tasks::function]
     async fn trace_result(self: Vc<Self>) -> Result<Vc<EndpointTraceResult>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         let userland_module = self.entry_module();
         Ok(trace_endpoint(
             *this.project,
@@ -357,23 +361,70 @@ impl Endpoint for MiddlewareEndpoint {
     #[turbo_tasks::function]
     async fn output(self: ResolvedVc<Self>) -> Result<Vc<EndpointOutput>> {
         let span = tracing::info_span!("middleware endpoint");
-        async move {
-            let this = self.await?;
+        #[cfg(not(feature = "sync"))]
+        {
+            turbo_tasks::read!(
+                async move {
+                    let this = turbo_tasks::read!(self)?;
+                    let output_assets = self.output_assets();
+
+                    let (server_paths, client_paths) =
+                        if turbo_tasks::read!(this.project.next_mode())?.is_development() {
+                            let node_root = turbo_tasks::read!(this.project.node_root().owned())?;
+                            let server_paths = turbo_tasks::read!(
+                                all_asset_paths(output_assets, node_root, None).owned()
+                            )?;
+
+                            // Middleware could in theory have a client path (e.g. `new URL`).
+                            let client_relative_root =
+                                turbo_tasks::read!(this.project.client_relative_path().owned())?;
+                            let client_paths = turbo_tasks::read!(
+                                all_paths_in_root(output_assets, client_relative_root)
+                                    .into_future()
+                                    .owned()
+                                    .instrument(tracing::info_span!("client_paths"))
+                            )?;
+                            (server_paths, client_paths)
+                        } else {
+                            (vec![], vec![])
+                        };
+
+                    Ok(EndpointOutput {
+                        output_paths: EndpointOutputPaths::Edge {
+                            server_paths,
+                            client_paths,
+                        }
+                        .resolved_cell(),
+                        output_assets: turbo_tasks::read!(output_assets.to_resolved())?,
+                        project: this.project,
+                    }
+                    .cell())
+                }
+                .instrument(span)
+            )
+        }
+        #[cfg(feature = "sync")]
+        {
+            let _g = span.entered();
+            let this = turbo_tasks::read!(self)?;
             let output_assets = self.output_assets();
 
-            let (server_paths, client_paths) = if this.project.next_mode().await?.is_development() {
-                let node_root = this.project.node_root().owned().await?;
-                let server_paths = all_asset_paths(output_assets, node_root, None)
-                    .owned()
-                    .await?;
+            let (server_paths, client_paths) = if turbo_tasks::read!(this.project.next_mode())?
+                .is_development()
+            {
+                let node_root = turbo_tasks::read!(this.project.node_root().owned())?;
+                let server_paths =
+                    turbo_tasks::read!(all_asset_paths(output_assets, node_root, None).owned())?;
 
                 // Middleware could in theory have a client path (e.g. `new URL`).
-                let client_relative_root = this.project.client_relative_path().owned().await?;
-                let client_paths = all_paths_in_root(output_assets, client_relative_root)
-                    .into_future()
-                    .owned()
-                    .instrument(tracing::info_span!("client_paths"))
-                    .await?;
+                let client_relative_root =
+                    turbo_tasks::read!(this.project.client_relative_path().owned())?;
+                let client_paths = {
+                    let _g = tracing::info_span!("client_paths").entered();
+                    turbo_tasks::read!(
+                        all_paths_in_root(output_assets, client_relative_root).owned()
+                    )?
+                };
                 (server_paths, client_paths)
             } else {
                 (vec![], vec![])
@@ -385,18 +436,18 @@ impl Endpoint for MiddlewareEndpoint {
                     client_paths,
                 }
                 .resolved_cell(),
-                output_assets: output_assets.to_resolved().await?,
+                output_assets: turbo_tasks::read!(output_assets.to_resolved())?,
                 project: this.project,
             }
             .cell())
         }
-        .instrument(span)
-        .await
     }
 
     #[turbo_tasks::function]
     async fn server_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
-        Ok(self.await?.project.server_changed(self.output_assets()))
+        Ok(turbo_tasks::read!(self)?
+            .project
+            .server_changed(self.output_assets()))
     }
 
     #[turbo_tasks::function]
@@ -408,7 +459,7 @@ impl Endpoint for MiddlewareEndpoint {
     async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         Ok(
             GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(vec![
-                self.entry_module().to_resolved().await?,
+                turbo_tasks::read!(self.entry_module().to_resolved())?,
             ])])
             .cell(),
         )
@@ -416,12 +467,9 @@ impl Endpoint for MiddlewareEndpoint {
 
     #[turbo_tasks::function]
     async fn module_graphs(self: Vc<Self>) -> Result<Vc<ModuleGraphs>> {
-        let this = self.await?;
-        let module_graph = this
-            .project
-            .module_graph(self.entry_module())
-            .to_resolved()
-            .await?;
+        let this = turbo_tasks::read!(self)?;
+        let module_graph =
+            turbo_tasks::read!(this.project.module_graph(self.entry_module()).to_resolved())?;
         Ok(Vc::cell(vec![module_graph]))
     }
 

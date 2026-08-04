@@ -53,7 +53,7 @@ impl OutputAssetsReferences {
     #[turbo_tasks::function]
     pub async fn concatenate(&self, other: Vc<Self>) -> Result<Vc<Self>> {
         let mut references: FxIndexSet<_> = self.0.iter().copied().collect();
-        references.extend(other.await?.iter().copied());
+        references.extend(turbo_tasks::read!(other)?.iter().copied());
         Ok(Vc::cell(references.into_iter().collect()))
     }
 }
@@ -75,7 +75,7 @@ impl OutputAssets {
     #[turbo_tasks::function]
     pub async fn concatenate(&self, other: Vc<Self>) -> Result<Vc<Self>> {
         let mut assets: FxIndexSet<_> = self.0.iter().copied().collect();
-        assets.extend(other.await?.iter().copied());
+        assets.extend(turbo_tasks::read!(other)?.iter().copied());
         Ok(Vc::cell(assets.into_iter().collect()))
     }
 
@@ -90,7 +90,7 @@ impl OutputAssets {
     pub async fn concat(other: Vec<Vc<Self>>) -> Result<Vc<Self>> {
         let mut assets: FxIndexSet<_> = FxIndexSet::default();
         for other in other {
-            assets.extend(other.await?.iter().copied());
+            assets.extend(turbo_tasks::read!(other)?.iter().copied());
         }
         Ok(Vc::cell(assets.into_iter().collect()))
     }
@@ -129,25 +129,24 @@ pub struct OutputAssetsWithReferenced {
 }
 
 impl OutputAssetsWithReferenced {
-    async fn expand_assets(
+    turbo_tasks::dual_fn! {
+    fn expand_assets(
         &self,
         inner_output_assets: bool,
     ) -> Result<Vec<ResolvedVc<Box<dyn OutputAsset>>>> {
-        expand_output_assets(
-            self.assets
-                .await?
+        turbo_tasks::read!(expand_output_assets(
+            turbo_tasks::read!(self.assets)?
                 .into_iter()
-                .chain(self.referenced_assets.await?)
+                .chain(turbo_tasks::read!(self.referenced_assets)?)
                 .map(ExpandOutputAssetsInput::Asset)
                 .chain(
-                    self.references
-                        .await?
+                    turbo_tasks::read!(self.references)?
                         .into_iter()
                         .map(ExpandOutputAssetsInput::Reference),
                 ),
             inner_output_assets,
-        )
-        .await
+        ))
+    }
     }
 }
 
@@ -165,19 +164,17 @@ impl OutputAssetsWithReferenced {
 
     #[turbo_tasks::function]
     pub async fn concatenate(&self, other: Vc<Self>) -> Result<Vc<Self>> {
-        let other = other.await?;
+        let other = turbo_tasks::read!(other)?;
         Ok(Self {
-            assets: self.assets.concatenate(*other.assets).to_resolved().await?,
-            referenced_assets: self
-                .referenced_assets
-                .concatenate(*other.referenced_assets)
-                .to_resolved()
-                .await?,
-            references: self
-                .references
-                .concatenate(*other.references)
-                .to_resolved()
-                .await?,
+            assets: turbo_tasks::read!(self.assets.concatenate(*other.assets).to_resolved())?,
+            referenced_assets: turbo_tasks::read!(
+                self.referenced_assets
+                    .concatenate(*other.referenced_assets)
+                    .to_resolved()
+            )?,
+            references: turbo_tasks::read!(
+                self.references.concatenate(*other.references).to_resolved()
+            )?,
         }
         .cell())
     }
@@ -188,7 +185,7 @@ impl OutputAssetsWithReferenced {
         asset: ResolvedVc<Box<dyn OutputAsset>>,
     ) -> Result<Vc<Self>> {
         Ok(Self {
-            assets: self.assets.concat_asset(*asset).to_resolved().await?,
+            assets: turbo_tasks::read!(self.assets.concat_asset(*asset).to_resolved())?,
             referenced_assets: self.referenced_assets,
             references: self.references,
         }
@@ -198,14 +195,14 @@ impl OutputAssetsWithReferenced {
     /// Returns all assets, including referenced assets and nested assets.
     #[turbo_tasks::function]
     pub async fn expand_all_assets(&self) -> Result<Vc<ExpandedOutputAssets>> {
-        Ok(Vc::cell(self.expand_assets(true).await?))
+        Ok(Vc::cell(turbo_tasks::read!(self.expand_assets(true))?))
     }
 
     /// Returns only direct referenced assets and does not include assets referenced indirectly by
     /// them.
     #[turbo_tasks::function]
     pub async fn all_assets(&self) -> Result<Vc<OutputAssets>> {
-        Ok(Vc::cell(self.expand_assets(false).await?))
+        Ok(Vc::cell(turbo_tasks::read!(self.expand_assets(false))?))
     }
 
     /// Returns only primary asset entries. Doesn't expand OutputAssets. Doesn't return referenced
@@ -219,27 +216,23 @@ impl OutputAssetsWithReferenced {
     /// primary assets.
     #[turbo_tasks::function]
     pub async fn referenced_assets(&self) -> Result<Vc<OutputAssets>> {
-        Ok(Vc::cell(
-            expand_output_assets(
-                self.referenced_assets
-                    .await?
-                    .into_iter()
-                    .map(ExpandOutputAssetsInput::Asset)
-                    .chain(
-                        self.references
-                            .await?
-                            .into_iter()
-                            .map(ExpandOutputAssetsInput::Reference),
-                    ),
-                false,
-            )
-            .await?,
-        ))
+        Ok(Vc::cell(turbo_tasks::read!(expand_output_assets(
+            turbo_tasks::read!(self.referenced_assets)?
+                .into_iter()
+                .map(ExpandOutputAssetsInput::Asset)
+                .chain(
+                    turbo_tasks::read!(self.references)?
+                        .into_iter()
+                        .map(ExpandOutputAssetsInput::Reference),
+                ),
+            false,
+        ))?))
     }
 }
 
+turbo_tasks::dual_fn! {
 /// Computes the list of all chunk children of a given chunk.
-async fn get_referenced_assets(
+fn get_referenced_assets(
     inner_output_assets: bool,
     input: ExpandOutputAssetsInput,
 ) -> Result<impl Iterator<Item = ExpandOutputAssetsInput>> {
@@ -248,23 +241,22 @@ async fn get_referenced_assets(
             if !inner_output_assets {
                 return Ok(Either::Left(std::iter::empty()));
             }
-            output_asset.references().await?
+            turbo_tasks::read!(output_asset.references())?
         }
-        ExpandOutputAssetsInput::Reference(reference) => reference.references().await?,
+        ExpandOutputAssetsInput::Reference(reference) => turbo_tasks::read!(reference.references())?,
     };
-    let assets = refs
-        .assets
-        .await?
+    let assets = turbo_tasks::read!(refs
+        .assets)?
         .into_iter()
-        .chain(refs.referenced_assets.await?)
+        .chain(turbo_tasks::read!(refs.referenced_assets)?)
         .map(ExpandOutputAssetsInput::Asset)
         .chain(
-            refs.references
-                .await?
+            turbo_tasks::read!(refs.references)?
                 .into_iter()
                 .map(ExpandOutputAssetsInput::Reference),
         );
     Ok(Either::Right(assets))
+}
 }
 
 #[derive(PartialEq, Eq, Hash, Clone, Copy)]
@@ -273,15 +265,16 @@ pub enum ExpandOutputAssetsInput {
     Reference(ResolvedVc<Box<dyn OutputAssetsReference>>),
 }
 
-pub async fn expand_output_assets(
+turbo_tasks::dual_fn! {
+pub fn expand_output_assets(
     inputs: impl Iterator<Item = ExpandOutputAssetsInput>,
     inner_output_assets: bool,
 ) -> Result<Vec<ResolvedVc<Box<dyn OutputAsset>>>> {
-    let edges = AdjacencyMap::new()
-        .visit(inputs, async |input| {
-            get_referenced_assets(inner_output_assets, input).await
-        })
-        .await
+    let edges = turbo_tasks::read!(AdjacencyMap::new()
+        .visit(inputs, |input| get_referenced_assets(
+            inner_output_assets,
+            input
+        )))
         .completed()?
         .into_postorder_topological();
 
@@ -296,4 +289,5 @@ pub async fn expand_output_assets(
     }
 
     Ok(assets)
+}
 }

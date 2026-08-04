@@ -85,7 +85,7 @@ pub async fn create_worker(options: Arc<WorkerOptions>) -> anyhow::Result<u32> {
         anyhow::bail!("Worker creator not registered");
     }
 
-    let worker_id = rx.await?;
+    let worker_id = turbo_tasks::read!(rx)?;
     Ok(worker_id)
 }
 
@@ -164,9 +164,8 @@ impl From<NapiTaskMessage> for TaskMessage {
 #[allow(dead_code)]
 #[napi]
 pub async fn recv_task_message_in_worker(worker_id: u32) -> napi::Result<NapiTaskMessage> {
-    let (task_id, message) = WORKER_POOL_OPERATION
-        .recv_task_message_in_worker(worker_id)
-        .await?;
+    let (task_id, message) =
+        turbo_tasks::read!(WORKER_POOL_OPERATION.recv_task_message_in_worker(worker_id))?;
     Ok(NapiTaskMessage {
         task_id,
         data: Vec::from(message).into(),
@@ -177,7 +176,7 @@ pub async fn recv_task_message_in_worker(worker_id: u32) -> napi::Result<NapiTas
 #[allow(dead_code)]
 #[napi]
 pub async fn send_task_message(message: NapiTaskMessage) -> napi::Result<()> {
-    Ok(WORKER_POOL_OPERATION
-        .send_task_message(message.into())
-        .await?)
+    Ok(turbo_tasks::read!(
+        WORKER_POOL_OPERATION.send_task_message(message.into())
+    )?)
 }

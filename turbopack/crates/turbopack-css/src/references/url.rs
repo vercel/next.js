@@ -58,15 +58,13 @@ impl UrlAssetReference {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<ReferencedAsset>> {
-        if let Some(module) = self.resolve_reference().await?.first_module().await?
+        if let Some(module) =
+            turbo_tasks::read!(turbo_tasks::read!(self.resolve_reference())?.first_module())?
             && let Some(embeddable) = ResolvedVc::try_downcast::<Box<dyn CssEmbed>>(module)
         {
-            return Ok(ReferencedAsset::Some(
-                embeddable
-                    .embedded_asset(chunking_context)
-                    .to_resolved()
-                    .await?,
-            )
+            return Ok(ReferencedAsset::Some(turbo_tasks::read!(
+                embeddable.embedded_asset(chunking_context).to_resolved()
+            )?)
             .cell());
         }
         Ok(ReferencedAsset::cell(ReferencedAsset::None))
@@ -103,28 +101,29 @@ pub async fn resolve_url_reference(
     url: Vc<UrlAssetReference>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<Option<RcStr>>> {
-    if let ReferencedAsset::Some(asset) = &*url.get_referenced_asset(chunking_context).await? {
-        let path = asset.path().await?;
+    if let ReferencedAsset::Some(asset) =
+        &*turbo_tasks::read!(url.get_referenced_asset(chunking_context))?
+    {
+        let path = turbo_tasks::read!(asset.path())?;
 
-        let url_path: RcStr = if *chunking_context
-            .should_use_absolute_url_references()
-            .await?
-        {
-            format!("/{}", path.path).into()
-        } else {
-            let context_path = chunking_context.chunk_root_path().await?;
-            context_path
-                .get_relative_path_to(&path)
-                .unwrap_or_else(|| format!("/{}", path.path).into())
-        };
+        let url_path: RcStr =
+            if *turbo_tasks::read!(chunking_context.should_use_absolute_url_references())? {
+                format!("/{}", path.path).into()
+            } else {
+                let context_path = turbo_tasks::read!(chunking_context.chunk_root_path())?;
+                context_path
+                    .get_relative_path_to(&path)
+                    .unwrap_or_else(|| format!("/{}", path.path).into())
+            };
 
         // Append the static suffix from UrlBehavior if configured (e.g., ?dpl=<deployment_id>).
-        let url_behavior = chunking_context.url_behavior(None).await?;
-        let url_with_suffix = if let Some(ref suffix) = *url_behavior.static_suffix.await? {
-            format!("{}{}", url_path, suffix).into()
-        } else {
-            url_path
-        };
+        let url_behavior = turbo_tasks::read!(chunking_context.url_behavior(None))?;
+        let url_with_suffix =
+            if let Some(ref suffix) = *turbo_tasks::read!(url_behavior.static_suffix)? {
+                format!("{}{}", url_path, suffix).into()
+            } else {
+                url_path
+            };
 
         return Ok(Vc::cell(Some(url_with_suffix)));
     }

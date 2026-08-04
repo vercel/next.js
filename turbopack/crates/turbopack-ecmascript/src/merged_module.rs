@@ -30,14 +30,15 @@ pub(crate) struct MergedEcmascriptModule {
 }
 
 impl MergedEcmascriptModule {
-    pub async fn new(
+    turbo_tasks::dual_fn! {
+    pub fn new(
         modules: Vc<MergeableModulesExposed>,
         entry_points: Vc<MergeableModules>,
         options: ResolvedVc<EcmascriptOptions>,
     ) -> Result<ResolvedVc<Self>> {
         Ok(MergedEcmascriptModule {
-            modules: modules
-                .await?
+            modules: turbo_tasks::read!(modules)
+                ?
                 .iter()
                 .map(|(m, exposed)| {
                     Ok((
@@ -47,8 +48,8 @@ impl MergedEcmascriptModule {
                     ))
                 })
                 .collect::<Result<Vec<_>>>()?,
-            entry_points: entry_points
-                .await?
+            entry_points: turbo_tasks::read!(entry_points)
+                ?
                 .iter()
                 .map(|m| {
                     ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(*m)
@@ -58,6 +59,7 @@ impl MergedEcmascriptModule {
             options,
         }
         .resolved_cell())
+    }
     }
 }
 
@@ -118,7 +120,7 @@ impl EcmascriptChunkPlaceable for MergedEcmascriptModule {
         async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let module = self.await?;
+        let module = turbo_tasks::read!(self)?;
         let modules = &module.modules;
         let entry_points = &module.entry_points;
         let options = modules

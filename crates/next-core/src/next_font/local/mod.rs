@@ -59,12 +59,13 @@ pub(crate) struct NextFontLocalResolvePlugin {
 impl NextFontLocalResolvePlugin {
     #[turbo_tasks::function]
     pub async fn new(root: FileSystemPath) -> Result<Vc<Self>> {
-        let condition = BeforeResolvePluginCondition::from_request_glob(Glob::new(
-            rcstr!("{next,@vercel/turbopack-next/internal}/font/local/*"),
-            GlobOptions::default(),
-        ))
-        .to_resolved()
-        .await?;
+        let condition = turbo_tasks::read!(
+            BeforeResolvePluginCondition::from_request_glob(Glob::new(
+                rcstr!("{next,@vercel/turbopack-next/internal}/font/local/*"),
+                GlobOptions::default(),
+            ))
+            .to_resolved()
+        )?;
         Ok(NextFontLocalResolvePlugin { root, condition }.cell())
     }
 }
@@ -82,8 +83,8 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
         _reference_type: ReferenceType,
         request_vc: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
-        let this = &*self.await?;
-        let request = &*request_vc.await?;
+        let this = &*turbo_tasks::read!(self)?;
+        let request = &*turbo_tasks::read!(request_vc)?;
 
         let Some(request_key) = request.request() else {
             return Ok(ResolveResultOption::none());
@@ -101,7 +102,7 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
 
         match request_key.as_str() {
             "next/font/local/target.css" => {
-                if !can_use_next_font(this.root.clone(), query).await? {
+                if !turbo_tasks::read!(can_use_next_font(this.root.clone(), query))? {
                     return Ok(ResolveResultOption::none());
                 }
 
@@ -109,7 +110,8 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                 let qstr = qstring::QString::from(query.as_str());
                 let options_vc = font_options_from_query_map(query.clone());
 
-                let font_fallbacks = &*get_font_fallbacks(lookup_path.clone(), options_vc).await?;
+                let font_fallbacks =
+                    &*turbo_tasks::read!(get_font_fallbacks(lookup_path.clone(), options_vc))?;
                 let font_fallbacks = match font_fallbacks {
                     FontFallbackResult::FontFileNotFound(err) => {
                         return Ok(ResolveResultOption::some(
@@ -125,7 +127,8 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                     FontFallbackResult::Ok(font_fallbacks) => *font_fallbacks,
                 };
 
-                let properties = get_font_css_properties(options_vc, *font_fallbacks).await?;
+                let properties =
+                    turbo_tasks::read!(get_font_css_properties(options_vc, *font_fallbacks))?;
                 let file_content = formatdoc!(
                     r#"
                     import cssModule from "@vercel/turbopack-next/internal/font/local/cssmodule.module.css?{}";
@@ -145,29 +148,29 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                 "#,
                     // Pass along whichever options we received to the css handler
                     qstr,
-                    properties.font_family.await?,
-                    properties
-                        .weight
-                        .await?
+                    turbo_tasks::read!(properties.font_family)?,
+                    turbo_tasks::read!(properties.weight)?
                         .as_ref()
                         .map(|w| format!("fontWeight: {w},\n"))
                         .unwrap_or_else(|| "".to_owned()),
-                    properties
-                        .style
-                        .await?
+                    turbo_tasks::read!(properties.style)?
                         .as_ref()
                         .map(|s| format!("fontStyle: \"{s}\",\n"))
                         .unwrap_or_else(|| "".to_owned()),
                 );
-                let js_asset = VirtualSource::new(
-                    lookup_path.join(&format!(
-                        "{}.js",
-                        get_request_id(options_vc.font_family().await?, request_hash)
-                    ))?,
-                    AssetContent::file(FileContent::Content(file_content.into()).cell()),
-                )
-                .to_resolved()
-                .await?;
+                let js_asset = turbo_tasks::read!(
+                    VirtualSource::new(
+                        lookup_path.join(&format!(
+                            "{}.js",
+                            get_request_id(
+                                turbo_tasks::read!(options_vc.font_family())?,
+                                request_hash
+                            )
+                        ))?,
+                        AssetContent::file(FileContent::Content(file_content.into()).cell()),
+                    )
+                    .to_resolved()
+                )?;
 
                 Ok(ResolveResultOption::some(
                     ResolveResult::source(ResolvedVc::upcast(js_asset)).cell(),
@@ -178,9 +181,10 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                 let options = font_options_from_query_map(query.clone());
                 let css_virtual_path = lookup_path.join(&format!(
                     "/{}.module.css",
-                    get_request_id(options.font_family().await?, request_hash)
+                    get_request_id(turbo_tasks::read!(options.font_family())?, request_hash)
                 ))?;
-                let fallback = &*get_font_fallbacks(lookup_path.clone(), options).await?;
+                let fallback =
+                    &*turbo_tasks::read!(get_font_fallbacks(lookup_path.clone(), options))?;
                 let fallback = match fallback {
                     FontFallbackResult::FontFileNotFound(err) => {
                         return Ok(ResolveResultOption::some(
@@ -196,19 +200,19 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                     FontFallbackResult::Ok(font_fallbacks) => **font_fallbacks,
                 };
 
-                let stylesheet = build_stylesheet(
+                let stylesheet = turbo_tasks::read!(build_stylesheet(
                     font_options_from_query_map(query.clone()),
                     fallback,
                     get_font_css_properties(options, fallback),
-                )
-                .await?;
+                ))?;
 
-                let css_asset = VirtualSource::new(
-                    css_virtual_path,
-                    AssetContent::file(FileContent::Content(stylesheet.into()).cell()),
-                )
-                .to_resolved()
-                .await?;
+                let css_asset = turbo_tasks::read!(
+                    VirtualSource::new(
+                        css_virtual_path,
+                        AssetContent::file(FileContent::Content(stylesheet.into()).cell()),
+                    )
+                    .to_resolved()
+                )?;
 
                 Ok(ResolveResultOption::some(
                     ResolveResult::source(ResolvedVc::upcast(css_asset)).cell(),
@@ -237,10 +241,10 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
 
                 let font_file = lookup_path.join(&path)?.read();
 
-                let font_source =
+                let font_source = turbo_tasks::read!(
                     VirtualSource::new(font_virtual_path, AssetContent::file(font_file))
                         .to_resolved()
-                        .await?;
+                )?;
 
                 Ok(ResolveResultOption::some(
                     ResolveResult::source(ResolvedVc::upcast(font_source)).cell(),
@@ -256,12 +260,12 @@ async fn get_font_css_properties(
     options_vc: Vc<NextFontLocalOptions>,
     font_fallbacks: Vc<FontFallbacks>,
 ) -> Result<Vc<FontCssProperties>> {
-    let options = &*options_vc.await?;
+    let options = &*turbo_tasks::read!(options_vc)?;
 
     Ok(FontCssProperties::cell(FontCssProperties {
-        font_family: build_font_family_string(options_vc, font_fallbacks)
-            .to_resolved()
-            .await?,
+        font_family: turbo_tasks::read!(
+            build_font_family_string(options_vc, font_fallbacks).to_resolved()
+        )?,
         weight: ResolvedVc::cell(match &options.fonts {
             FontDescriptors::Many(_) => None,
             // When the user only provided a top-level font file, include the font weight in the
@@ -318,6 +322,7 @@ struct FontResolvingIssue {
     font_path: ResolvedVc<RcStr>,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for FontResolvingIssue {
@@ -336,7 +341,31 @@ impl Issue for FontResolvingIssue {
     async fn title(&self) -> Result<StyledString> {
         Ok(StyledString::Line(vec![
             StyledString::Text(rcstr!("Font file not found: Can't resolve '")),
-            StyledString::Code(self.font_path.owned().await?),
+            StyledString::Code(turbo_tasks::read!(self.font_path.owned())?),
+            StyledString::Text(rcstr!("'")),
+        ]))
+    }
+}
+
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for FontResolvingIssue {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    fn file_path(&self) -> Result<FileSystemPath> {
+        panic!("FontResolvingIssue::file_path should not be called");
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Resolve
+    }
+
+    fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Line(vec![
+            StyledString::Text(rcstr!("Font file not found: Can't resolve '")),
+            StyledString::Code(turbo_tasks::read!(self.font_path.owned())?),
             StyledString::Text(rcstr!("'")),
         ]))
     }

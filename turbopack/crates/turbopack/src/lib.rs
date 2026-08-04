@@ -15,9 +15,11 @@ use module_options::{
     ConfiguredModuleType, ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType,
 };
 pub use runtime_asset_context::get_runtime_asset_context;
-use tracing::{Instrument, field::Empty};
+#[cfg(not(feature = "sync"))]
+use tracing::Instrument;
+use tracing::field::Empty;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 pub use turbopack_core::condition;
 use turbopack_core::{
@@ -78,16 +80,17 @@ use crate::{
     transition::{Transition, TransitionOptions},
 };
 
-async fn apply_module_type(
+turbo_tasks::dual_fn! {
+fn apply_module_type(
     source: ResolvedVc<Box<dyn Source>>,
     module_asset_context: Vc<ModuleAssetContext>,
     module_type: Vc<ModuleType>,
     reference_type: ReferenceType,
     inner_assets: Option<ResolvedVc<InnerAssets>>,
 ) -> Result<Vc<ProcessResult>> {
-    let tree_shaking_mode = module_asset_context
-        .module_options_context()
-        .await?
+    let tree_shaking_mode = turbo_tasks::read!(module_asset_context
+        .module_options_context())
+        ?
         .tree_shaking_mode;
     let part = match &reference_type {
         ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(part)) => {
@@ -101,7 +104,7 @@ async fn apply_module_type(
     };
     let is_evaluation = matches!(&part, Some(ModulePart::Evaluation));
 
-    let module_type = &*module_type.await?;
+    let module_type = &*turbo_tasks::read!(module_type)?;
     let module = match module_type {
         ModuleType::Ecmascript {
             preprocess,
@@ -129,7 +132,7 @@ async fn apply_module_type(
             postprocess,
             options,
         } => {
-            let context_for_module = match module_type {
+            let context_for_module = turbo_tasks::read!(match module_type {
                 ModuleType::Typescript { analyze_types, .. } if *analyze_types => {
                     module_asset_context.with_types_resolving_enabled()
                 }
@@ -138,25 +141,25 @@ async fn apply_module_type(
                 }
                 _ => module_asset_context,
             }
-            .to_resolved()
-            .await?;
-            let side_effect_free_packages = module_asset_context
-                .module_options_context()
-                .await?
+            .to_resolved())
+            ?;
+            let side_effect_free_packages = turbo_tasks::read!(module_asset_context
+                .module_options_context())
+                ?
                 .side_effect_free_packages;
             let mut builder = EcmascriptModuleAsset::builder(
                 source,
                 ResolvedVc::upcast(context_for_module),
-                preprocess
+                turbo_tasks::read!(preprocess
                     .extend(**main)
                     .extend(**postprocess)
-                    .to_resolved()
-                    .await?,
+                    .to_resolved())
+                    ?,
                 *options,
-                module_asset_context
+                turbo_tasks::read!(module_asset_context
                     .compile_time_info()
-                    .to_resolved()
-                    .await?,
+                    .to_resolved())
+                    ?,
                 side_effect_free_packages,
             );
             match module_type {
@@ -184,7 +187,7 @@ async fn apply_module_type(
                 builder = builder.with_inner_assets(inner_assets);
             }
 
-            let module = builder.build().to_resolved().await?;
+            let module = turbo_tasks::read!(builder.build().to_resolved())?;
             if matches!(reference_type, ReferenceType::Runtime) {
                 ResolvedVc::upcast(module)
             } else {
@@ -195,12 +198,12 @@ async fn apply_module_type(
                 if tree_shaking_mode.is_some() && is_evaluation {
                     // If we are tree shaking, skip the evaluation part if the module is marked as
                     // side effect free.
-                    if *module.side_effects().await? == ModuleSideEffects::SideEffectFree {
+                    if *turbo_tasks::read!(module.side_effects())? == ModuleSideEffects::SideEffectFree {
                         return Ok(ProcessResult::Ignore.cell());
                     }
                 }
 
-                match tree_shaking_mode {
+                turbo_tasks::read!(match tree_shaking_mode {
                     Some(TreeShakingMode::ModuleFragments) => {
                         Vc::upcast(EcmascriptModulePartAsset::select_part(
                             *module,
@@ -208,24 +211,24 @@ async fn apply_module_type(
                         ))
                     }
                     Some(TreeShakingMode::ReexportsOnly) => {
-                        if *module.get_exports().split_locals_and_reexports().await? {
+                        if *turbo_tasks::read!(module.get_exports().split_locals_and_reexports())? {
                             if let Some(part) = part {
                                 match part {
                                     ModulePart::Evaluation => {
                                         Vc::upcast(EcmascriptModuleLocalsModule::new(*module))
                                     }
                                     ModulePart::Export(_) => {
-                                        apply_reexport_tree_shaking(
+                                        turbo_tasks::read!(apply_reexport_tree_shaking(
                                             Vc::upcast(
-                                                *EcmascriptModuleFacadeModule::new(Vc::upcast(
+                                                *turbo_tasks::read!(EcmascriptModuleFacadeModule::new(Vc::upcast(
                                                     *module,
                                                 ))
-                                                .to_resolved()
-                                                .await?,
+                                                .to_resolved())
+                                                ?,
                                             ),
                                             part.clone(),
-                                        )
-                                        .await?
+                                        ))
+                                        ?
                                     }
                                     _ => bail!(
                                         "Invalid module part \"{}\" for reexports only tree \
@@ -242,18 +245,18 @@ async fn apply_module_type(
                     }
                     None => Vc::upcast(*module),
                 }
-                .to_resolved()
-                .await?
+                .to_resolved())
+                ?
             }
         }
-        ModuleType::Raw => ResolvedVc::upcast(RawModule::new(*source).to_resolved().await?),
+        ModuleType::Raw => ResolvedVc::upcast(turbo_tasks::read!(RawModule::new(*source).to_resolved())?),
         ModuleType::NodeAddon => {
-            ResolvedVc::upcast(NodeAddonModule::new(*source).to_resolved().await?)
+            ResolvedVc::upcast(turbo_tasks::read!(NodeAddonModule::new(*source).to_resolved())?)
         }
         ModuleType::CssModule => ResolvedVc::upcast(
-            EcmascriptCssModule::new(*source, Vc::upcast(module_asset_context))
-                .to_resolved()
-                .await?,
+            turbo_tasks::read!(EcmascriptCssModule::new(*source, Vc::upcast(module_asset_context))
+                .to_resolved())
+                ?,
         ),
 
         ModuleType::Css {
@@ -261,7 +264,7 @@ async fn apply_module_type(
             environment,
             lightningcss_features,
         } => ResolvedVc::upcast(
-            CssModule::new(
+            turbo_tasks::read!(CssModule::new(
                 *source,
                 Vc::upcast(module_asset_context),
                 *ty,
@@ -269,47 +272,49 @@ async fn apply_module_type(
                 environment.as_deref().copied(),
                 *lightningcss_features,
             )
-            .to_resolved()
-            .await?,
+            .to_resolved())
+            ?,
         ),
         ModuleType::StaticUrlJs { tag } => ResolvedVc::upcast(
-            StaticUrlJsModule::new(*source, tag.clone())
-                .to_resolved()
-                .await?,
+            turbo_tasks::read!(StaticUrlJsModule::new(*source, tag.clone())
+                .to_resolved())
+                ?,
         ),
         ModuleType::StaticUrlCss { tag } => ResolvedVc::upcast(
-            StaticUrlCssModule::new(*source, tag.clone())
-                .to_resolved()
-                .await?,
+            turbo_tasks::read!(StaticUrlCssModule::new(*source, tag.clone())
+                .to_resolved())
+                ?,
         ),
         ModuleType::WebAssembly { source_ty } => ResolvedVc::upcast(
-            WebAssemblyModuleAsset::new(
+            turbo_tasks::read!(WebAssemblyModuleAsset::new(
                 WebAssemblySource::new(*source, *source_ty),
                 Vc::upcast(module_asset_context),
             )
-            .to_resolved()
-            .await?,
+            .to_resolved())
+            ?,
         ),
         ModuleType::Custom(custom) => {
-            custom
+            turbo_tasks::read!(custom
                 .create_module(*source, module_asset_context, reference_type)
-                .to_resolved()
-                .await?
+                .to_resolved())
+                ?
         }
     };
 
     if tree_shaking_mode.is_some() && is_evaluation {
         // If we are tree shaking, skip the evaluation part if the module is marked as
         // side effect free.
-        if *module.side_effects().await? == ModuleSideEffects::SideEffectFree {
+        if *turbo_tasks::read!(module.side_effects())? == ModuleSideEffects::SideEffectFree {
             return Ok(ProcessResult::Ignore.cell());
         }
     }
 
     Ok(ProcessResult::Module(module).cell())
 }
+}
 
-async fn apply_reexport_tree_shaking(
+turbo_tasks::dual_fn! {
+fn apply_reexport_tree_shaking(
     module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     part: ModulePart,
 ) -> Result<Vc<Box<dyn Module>>> {
@@ -318,7 +323,7 @@ async fn apply_reexport_tree_shaking(
             module: final_module,
             export_name: new_export,
             ..
-        } = &*follow_reexports(module, export.clone(), true).await?;
+        } = &*turbo_tasks::read!(follow_reexports(module, export.clone(), true))?;
         let module = if let Some(new_export) = new_export {
             if *new_export == *export {
                 Vc::upcast(**final_module)
@@ -337,6 +342,7 @@ async fn apply_reexport_tree_shaking(
         return Ok(module);
     }
     Ok(Vc::upcast(module))
+}
 }
 
 #[turbo_tasks::value]
@@ -426,15 +432,15 @@ impl ModuleAssetContext {
 
     #[turbo_tasks::function]
     pub async fn with_types_resolving_enabled(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
-        let this = self.await?;
-        if this.is_types_resolving_enabled().await? {
+        let this = turbo_tasks::read!(self)?;
+        if turbo_tasks::read!(this.is_types_resolving_enabled())? {
             return Ok(self);
         }
-        let resolve_options_context = *this
-            .resolve_options_context
-            .with_types_enabled()
-            .to_resolved()
-            .await?;
+        let resolve_options_context = *turbo_tasks::read!(
+            this.resolve_options_context
+                .with_types_enabled()
+                .to_resolved()
+        )?;
 
         Ok(ModuleAssetContext::new(
             *this.transitions,
@@ -447,40 +453,48 @@ impl ModuleAssetContext {
 }
 
 impl ModuleAssetContext {
-    async fn is_types_resolving_enabled(&self) -> Result<bool> {
-        let resolve_options_context = self.resolve_options_context.await?;
+    turbo_tasks::dual_fn! {
+    fn is_types_resolving_enabled(&self) -> Result<bool> {
+        let resolve_options_context = turbo_tasks::read!(self.resolve_options_context)?;
         Ok(resolve_options_context.enable_types && resolve_options_context.enable_typescript)
     }
-    async fn process_with_transition_rules(
+    }
+
+    turbo_tasks::dual_fn! {
+    fn process_with_transition_rules(
         self: Vc<Self>,
         source: ResolvedVc<Box<dyn Source>>,
         reference_type: ReferenceType,
     ) -> Result<Vc<ProcessResult>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         Ok(
-            if let Some(transition) = this
-                .transitions
-                .await?
-                .get_by_rules(source, &reference_type)
-                .await?
+            if let Some(transition) = turbo_tasks::read!(turbo_tasks::read!(this
+                .transitions)
+                ?
+                .get_by_rules(source, &reference_type))
+                ?
             {
                 transition.process(*source, self, reference_type)
             } else {
-                self.process_default(source, reference_type).await?
+                turbo_tasks::read!(self.process_default(source, reference_type))?
             },
         )
     }
+    }
 
-    async fn process_default(
+    turbo_tasks::dual_fn! {
+    fn process_default(
         self: Vc<Self>,
         source: ResolvedVc<Box<dyn Source>>,
         reference_type: ReferenceType,
     ) -> Result<Vc<ProcessResult>> {
-        process_default(self, source, reference_type, Vec::new()).await
+        turbo_tasks::read!(process_default(self, source, reference_type, Vec::new()))
+    }
     }
 }
 
-async fn process_default(
+turbo_tasks::dual_fn! {
+fn process_default(
     module_asset_context: Vc<ModuleAssetContext>,
     source: ResolvedVc<Box<dyn Source>>,
     reference_type: ReferenceType,
@@ -488,30 +502,39 @@ async fn process_default(
 ) -> Result<Vc<ProcessResult>> {
     let span = tracing::info_span!(
         "process module",
-        name = %source.ident().to_string().await?,
+        name = %turbo_tasks::read!(source.ident().to_string())?,
         layer = Empty,
         reference_type = display(&reference_type)
     );
     if !span.is_disabled() {
         // You can't await multiple times in the span macro call parameters.
-        span.record("layer", module_asset_context.await?.layer.name().as_str());
+        span.record("layer", turbo_tasks::read!(module_asset_context)?.layer.name().as_str());
     }
 
-    process_default_internal(
+    // Instrument the async future in the async build; enter the span as a guard under sync.
+    #[cfg(not(feature = "sync"))]
+    let result = turbo_tasks::read!(process_default_internal(
         module_asset_context,
         source,
         reference_type,
         processed_rules,
     )
-    .instrument(span)
-    .await
+    .instrument(span))?;
+    #[cfg(feature = "sync")]
+    let result = {
+        let _guard = span.entered();
+        process_default_internal(module_asset_context, source, reference_type, processed_rules)?
+    };
+    Ok(result)
+}
 }
 
+turbo_tasks::dual_fn! {
 /// Apply collected transforms to a module type.
 /// For Ecmascript/Typescript variants: merge collected transforms into the module type.
 /// For Custom: call extend_ecmascript_transforms() if any transforms exist.
 /// For non-ecmascript types: warn if transforms exist, return unchanged.
-async fn apply_module_rule_transforms(
+fn apply_module_rule_transforms(
     module_type: &mut ModuleType,
     collected_preprocess: &mut Vec<ResolvedVc<EcmascriptInputTransforms>>,
     collected_main: &mut Vec<ResolvedVc<EcmascriptInputTransforms>>,
@@ -559,21 +582,21 @@ async fn apply_module_rule_transforms(
                 final_preprocess = final_preprocess.extend(*vc);
             }
             final_preprocess = final_preprocess.extend(**preprocess);
-            *preprocess = final_preprocess.to_resolved().await?;
+            *preprocess = turbo_tasks::read!(final_preprocess.to_resolved())?;
 
             let mut final_main = EcmascriptInputTransforms::empty();
             for vc in collected_main.drain(..) {
                 final_main = final_main.extend(*vc);
             }
             final_main = final_main.extend(**main);
-            *main = final_main.to_resolved().await?;
+            *main = turbo_tasks::read!(final_main.to_resolved())?;
 
             // Apply module type's postprocess first, then collected postprocess
             let mut final_postprocess = **postprocess;
             for vc in collected_postprocess.drain(..) {
                 final_postprocess = final_postprocess.extend(*vc);
             }
-            *postprocess = final_postprocess.to_resolved().await?;
+            *postprocess = turbo_tasks::read!(final_postprocess.to_resolved())?;
         }
         ModuleType::Custom(custom_module_type) => {
             if has_transforms {
@@ -591,20 +614,20 @@ async fn apply_module_rule_transforms(
                     combined_postprocess = combined_postprocess.extend(*vc);
                 }
 
-                match custom_module_type
+                match turbo_tasks::read!(custom_module_type
                     .extend_ecmascript_transforms(
                         combined_preprocess,
                         combined_main,
                         combined_postprocess,
                     )
-                    .to_resolved()
-                    .await
+                    .to_resolved())
+
                 {
                     Ok(new_custom_module_type) => {
                         *custom_module_type = new_custom_module_type;
                     }
                     Err(_) => {
-                        ModuleIssue::new(
+                        turbo_tasks::read!(ModuleIssue::new(
                             *ident,
                             rcstr!("Invalid module type"),
                             rcstr!(
@@ -613,8 +636,8 @@ async fn apply_module_rule_transforms(
                             ),
                             Some(IssueSource::from_source_only(current_source)),
                         )
-                        .to_resolved()
-                        .await?
+                        .to_resolved())
+                        ?
                         .emit();
                     }
                 }
@@ -622,7 +645,7 @@ async fn apply_module_rule_transforms(
         }
         other => {
             if has_transforms {
-                ModuleIssue::new(
+                turbo_tasks::read!(ModuleIssue::new(
                     *ident,
                     rcstr!("Invalid module type"),
                     format!(
@@ -633,8 +656,8 @@ async fn apply_module_rule_transforms(
                     .into(),
                     Some(IssueSource::from_source_only(current_source)),
                 )
-                .to_resolved()
-                .await?
+                .to_resolved())
+                ?
                 .emit();
                 collected_preprocess.clear();
                 collected_main.clear();
@@ -644,15 +667,17 @@ async fn apply_module_rule_transforms(
     }
     Ok(())
 }
+}
 
-async fn process_default_internal(
+turbo_tasks::dual_fn! {
+fn process_default_internal(
     module_asset_context: Vc<ModuleAssetContext>,
     source: ResolvedVc<Box<dyn Source>>,
     reference_type: ReferenceType,
     processed_rules: Vec<usize>,
 ) -> Result<Vc<ProcessResult>> {
-    let ident = source.ident().to_resolved().await?;
-    let ident_ref = ident.await?;
+    let ident = turbo_tasks::read!(source.ident().to_resolved())?;
+    let ident_ref = turbo_tasks::read!(ident)?;
     let path_ref = &ident_ref.path;
     let options = ModuleOptions::new(
         path_ref.parent(),
@@ -676,24 +701,24 @@ async fn process_default_internal(
         },
     ) = reference_type
     {
-        let module_options_context = module_asset_context.module_options_context().await?;
-        let webpack_loaders_options = module_options_context
+        let module_options_context = turbo_tasks::read!(module_asset_context.module_options_context())?;
+        let webpack_loaders_options = turbo_tasks::read!(module_options_context
             .enable_webpack_loaders
             .as_ref()
             .context(
                 "turbopackUse import assertions require webpack loaders to be enabled \
                  (enable_webpack_loaders)",
-            )?
-            .await?;
+            )?)
+            ?;
         let execution_context = module_options_context
             .execution_context
             .context("execution_context is required for turbopackUse import assertions")?;
-        let execution_context_value = execution_context.await?;
+        let execution_context_value = turbo_tasks::read!(execution_context)?;
 
-        let resolve_options_context = module_asset_context
+        let resolve_options_context = turbo_tasks::read!(module_asset_context
             .resolve_options_context()
-            .to_resolved()
-            .await?;
+            .to_resolved())
+            ?;
         let source_maps = matches!(
             module_options_context.ecmascript.source_maps,
             SourceMapsType::Full
@@ -711,15 +736,15 @@ async fn process_default_internal(
             )
         };
 
-        let evaluate_context = node_evaluate_asset_context(
+        let evaluate_context = turbo_tasks::read!(node_evaluate_asset_context(
             *execution_context,
             Some(import_map),
             None,
             Layer::new(rcstr!("webpack_loaders")),
             false,
         )
-        .to_resolved()
-        .await?;
+        .to_resolved())
+        ?;
 
         let loader_relative_path = execution_context_value
             .project_path
@@ -730,7 +755,7 @@ async fn process_default_internal(
             options: loader.options.clone(),
         };
         let loaders_vc = WebpackLoaderItems(vec![webpack_loader_item]).cell();
-        let webpack_loaders = WebpackLoaders::new(
+        let webpack_loaders = turbo_tasks::read!(WebpackLoaders::new(
             *evaluate_context,
             *execution_context,
             loaders_vc,
@@ -738,22 +763,22 @@ async fn process_default_internal(
             *resolve_options_context,
             source_maps,
         )
-        .to_resolved()
-        .await?;
+        .to_resolved())
+        ?;
 
         let transforms = Vc::<SourceTransforms>::cell(vec![ResolvedVc::upcast(webpack_loaders)]);
-        current_source = transforms
+        current_source = turbo_tasks::read!(transforms
             .transform(*current_source, Vc::upcast(module_asset_context))
-            .to_resolved()
-            .await?;
+            .to_resolved())
+            ?;
 
         // If turbopackModuleType is specified, skip rule matching and directly
         // apply the requested module type with empty transforms (loader output
         // is already processed).
         if let Some(type_str) = module_type {
-            let empty_transforms = EcmascriptInputTransforms::empty().to_resolved().await?;
+            let empty_transforms = turbo_tasks::read!(EcmascriptInputTransforms::empty().to_resolved())?;
             let default_options = EcmascriptOptions::default().resolved_cell();
-            let effect = ConfiguredModuleType::parse(type_str)?
+            let effect = turbo_tasks::read!(ConfiguredModuleType::parse(type_str)?
                 .into_effect(
                     empty_transforms,
                     empty_transforms,
@@ -761,24 +786,24 @@ async fn process_default_internal(
                     default_options,
                     None,
                     Default::default(),
-                )
-                .await?;
+                ))
+                ?;
             match effect {
                 ModuleRuleEffect::ModuleType(module_type) => {
-                    return apply_module_type(
+                    return turbo_tasks::read!(apply_module_type(
                         current_source,
                         module_asset_context,
                         module_type.cell(),
                         reference_type,
                         inner_assets,
-                    )
-                    .await;
+                    ))
+                    ;
                 }
                 ModuleRuleEffect::SourceTransforms(transforms) => {
-                    current_source = transforms
+                    current_source = turbo_tasks::read!(transforms
                         .transform(*current_source, Vc::upcast(module_asset_context))
-                        .to_resolved()
-                        .await?;
+                        .to_resolved())
+                        ?;
                     // Fall through to re-process with new ident
                 }
                 _ => bail!("Unexpected module rule effect for turbopackModuleType"),
@@ -789,15 +814,15 @@ async fn process_default_internal(
         // beginning so the new extension is matched by the correct rules.
         // Use a plain Import reference type to avoid re-applying turbopackUse
         // loaders in the recursive call (which would cause an infinite loop).
-        if current_source.ident().to_resolved().await? != ident {
+        if turbo_tasks::read!(current_source.ident().to_resolved())? != ident {
             let plain_reference_type =
                 ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Import);
-            if let Some(transition) = module_asset_context
-                .await?
-                .transitions
-                .await?
-                .get_by_rules(current_source, &plain_reference_type)
-                .await?
+            if let Some(transition) = turbo_tasks::read!(turbo_tasks::read!(turbo_tasks::read!(module_asset_context)
+                ?
+                .transitions)
+                ?
+                .get_by_rules(current_source, &plain_reference_type))
+                ?
             {
                 return Ok(transition.process(
                     *current_source,
@@ -805,13 +830,21 @@ async fn process_default_internal(
                     plain_reference_type,
                 ));
             } else {
-                return Box::pin(process_default(
+                // Async recursion boxes to keep the future size finite; sync recurses directly.
+                #[cfg(not(feature = "sync"))]
+                return turbo_tasks::read!(Box::pin(process_default(
                     module_asset_context,
                     current_source,
                     plain_reference_type,
                     processed_rules,
-                ))
-                .await;
+                )));
+                #[cfg(feature = "sync")]
+                return process_default(
+                    module_asset_context,
+                    current_source,
+                    plain_reference_type,
+                    processed_rules,
+                );
             }
         }
     }
@@ -822,30 +855,30 @@ async fn process_default_internal(
     let mut collected_main: Vec<ResolvedVc<EcmascriptInputTransforms>> = Vec::new();
     let mut collected_postprocess: Vec<ResolvedVc<EcmascriptInputTransforms>> = Vec::new();
 
-    let options_value = options.await?;
+    let options_value = turbo_tasks::read!(options)?;
     'outer: for (i, rule) in options_value.rules.iter().enumerate() {
         if processed_rules.contains(&i) {
             continue;
         }
-        if rule.matches(source, path_ref, &reference_type).await? {
+        if turbo_tasks::read!(rule.matches(source, path_ref, &reference_type))? {
             for effect in rule.effects() {
                 match effect {
                     ModuleRuleEffect::Ignore => {
                         return Ok(ProcessResult::Ignore.cell());
                     }
                     ModuleRuleEffect::SourceTransforms(transforms) => {
-                        current_source = transforms
+                        current_source = turbo_tasks::read!(transforms
                             .transform(*current_source, Vc::upcast(module_asset_context))
-                            .to_resolved()
-                            .await?;
-                        if current_source.ident().to_resolved().await? != ident {
+                            .to_resolved())
+                            ?;
+                        if turbo_tasks::read!(current_source.ident().to_resolved())? != ident {
                             // The ident has been changed, so we need to apply new rules.
-                            if let Some(transition) = module_asset_context
-                                .await?
-                                .transitions
-                                .await?
-                                .get_by_rules(current_source, &reference_type)
-                                .await?
+                            if let Some(transition) = turbo_tasks::read!(turbo_tasks::read!(turbo_tasks::read!(module_asset_context)
+                                ?
+                                .transitions)
+                                ?
+                                .get_by_rules(current_source, &reference_type))
+                                ?
                             {
                                 return Ok(transition.process(
                                     *current_source,
@@ -855,13 +888,21 @@ async fn process_default_internal(
                             } else {
                                 let mut processed_rules = processed_rules.clone();
                                 processed_rules.push(i);
-                                return Box::pin(process_default(
+                                // Async recursion boxes; sync recurses directly.
+                                #[cfg(not(feature = "sync"))]
+                                return turbo_tasks::read!(Box::pin(process_default(
                                     module_asset_context,
                                     current_source,
                                     reference_type,
                                     processed_rules,
-                                ))
-                                .await;
+                                )));
+                                #[cfg(feature = "sync")]
+                                return process_default(
+                                    module_asset_context,
+                                    current_source,
+                                    reference_type,
+                                    processed_rules,
+                                );
                             }
                         }
                     }
@@ -870,15 +911,15 @@ async fn process_default_internal(
                         // processing. Once a ModuleType is determined, we
                         // stop processing further rules.
                         let mut module = module.clone();
-                        apply_module_rule_transforms(
+                        turbo_tasks::read!(apply_module_rule_transforms(
                             &mut module,
                             &mut collected_preprocess,
                             &mut collected_main,
                             &mut collected_postprocess,
                             ident,
                             current_source,
-                        )
-                        .await?;
+                        ))
+                        ?;
                         current_module_type = Some(module);
                         break 'outer;
                     }
@@ -901,16 +942,17 @@ async fn process_default_internal(
         return Ok(ProcessResult::Unknown(current_source).cell());
     };
 
-    let module = apply_module_type(
+    let module = turbo_tasks::read!(apply_module_type(
         current_source,
         module_asset_context,
         module_type.cell(),
         reference_type,
         inner_assets,
-    )
-    .await?;
+    ))
+    ?;
 
     Ok(module)
+}
 }
 
 #[turbo_tasks::function]
@@ -925,7 +967,7 @@ pub async fn externals_tracing_module_context(
 
     let resolve_options = ResolveOptionsContext {
         custom_extensions: Some(extensions),
-        emulate_environment: Some(compile_time_info.await?.environment),
+        emulate_environment: Some(turbo_tasks::read!(compile_time_info)?.environment),
         loose_errors: true,
         collect_affecting_sources: true,
         custom_conditions: vec![rcstr!("node")],
@@ -987,7 +1029,7 @@ impl AssetContext for ModuleAssetContext {
         self: Vc<Self>,
         origin_path: FileSystemPath,
     ) -> Result<Vc<ResolveOptions>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         let module_asset_context = if let Some(transition) = this.transition {
             transition.process_context(self)
         } else {
@@ -996,14 +1038,14 @@ impl AssetContext for ModuleAssetContext {
         // TODO move `apply_commonjs/esm_resolve_options` etc. to here
         let options = resolve_options(
             origin_path.parent(),
-            *module_asset_context.await?.resolve_options_context,
+            *turbo_tasks::read!(module_asset_context)?.resolve_options_context,
         );
         // Inject the turbopack-ecmascript-runtime import map so that
         // @turbopack/* built-in modules and @vercel/turbopack-ecmascript-runtime/*
         // paths are always resolvable.
-        let runtime_import_map = turbopack_ecmascript_runtime::turbopack_runtime_import_map()
-            .to_resolved()
-            .await?;
+        let runtime_import_map = turbo_tasks::read!(
+            turbopack_ecmascript_runtime::turbopack_runtime_import_map().to_resolved()
+        )?;
         Ok(options.with_extended_import_map(*runtime_import_map))
     }
 
@@ -1024,9 +1066,10 @@ impl AssetContext for ModuleAssetContext {
             resolve_options,
         );
 
-        let mut result = self.process_resolve_result(*result.to_resolved().await?, reference_type);
-        let this = self.await?;
-        if this.is_types_resolving_enabled().await? {
+        let mut result =
+            self.process_resolve_result(*turbo_tasks::read!(result.to_resolved())?, reference_type);
+        let this = turbo_tasks::read!(self)?;
+        if turbo_tasks::read!(this.is_types_resolving_enabled())? {
             let types_result = type_resolve(
                 Vc::upcast(PlainResolveOrigin::new(Vc::upcast(self), origin_path)),
                 request,
@@ -1044,112 +1087,27 @@ impl AssetContext for ModuleAssetContext {
         result: Vc<ResolveResult>,
         reference_type: ReferenceType,
     ) -> Result<Vc<ModuleResolveResult>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
 
         let replace_externals = this.replace_externals;
-        let import_externals = this
-            .module_options_context
-            .await?
+        let import_externals = turbo_tasks::read!(this.module_options_context)?
             .ecmascript
             .import_externals;
 
-        let result = result.await?;
+        let result = turbo_tasks::read!(result)?;
 
-        let result = result
-            .map_primary_items(|item| {
-                let reference_type = reference_type.clone();
-                async move {
-                    Ok(match item {
-                        ResolveResultItem::Source(source) => {
-                            match &*self.process(*source, reference_type).await? {
-                                ProcessResult::Module(module) => {
-                                    ModuleResolveResultItem::Module(*module)
-                                }
-                                ProcessResult::Unknown(source) => {
-                                    ModuleResolveResultItem::Unknown(*source)
-                                }
-                                ProcessResult::Ignore => ModuleResolveResultItem::Ignore,
-                            }
-                        }
-                        ResolveResultItem::External {
-                            name,
-                            ty,
-                            traced,
-                            target,
-                        } => {
-                            let replacement = if replace_externals {
-                                // Determine the package folder, `target` is the full path to the
-                                // resolved file.
-                                let target = if let Some(mut target) = target {
-                                    loop {
-                                        let parent = target.parent();
-                                        if parent.is_root() {
-                                            break;
-                                        }
-                                        if parent.file_name() == "node_modules" {
-                                            break;
-                                        }
-                                        if parent.file_name().starts_with("@")
-                                            && parent.parent().file_name() == "node_modules"
-                                        {
-                                            break;
-                                        }
-                                        target = parent;
-                                    }
-                                    Some(target)
-                                } else {
-                                    None
-                                };
-
-                                let analyze_mode = if traced == ExternalTraced::Traced
-                                    && let Some(options) = &self
-                                        .module_options_context()
-                                        .await?
-                                        .enable_externals_tracing
-                                {
-                                    // result.affecting_sources can be ignored for tracing, as this
-                                    // request will later be resolved relative to tracing_root (or
-                                    // the .next/node_modules/lodash-1238123 symlink) anyway.
-
-                                    let options = options.await?;
-                                    let origin = PlainResolveOrigin::new(
-                                        Vc::upcast(externals_tracing_module_context(
-                                            *options.compile_time_info,
-                                            false,
-                                        )),
-                                        // If target is specified, a symlink will be created to
-                                        // make the folder
-                                        // itself available, but we still need to trace
-                                        // resolving the individual file(s) inside the package.
-                                        target
-                                            .as_ref()
-                                            .unwrap_or(&options.tracing_root)
-                                            .join("_")?,
-                                    );
-                                    CachedExternalTracingMode::Traced {
-                                        origin: ResolvedVc::upcast(origin.to_resolved().await?),
-                                    }
-                                } else {
-                                    CachedExternalTracingMode::Untraced
-                                };
-
-                                replace_external(&name, ty, target, import_externals, analyze_mode)
-                                    .await?
-                            } else {
-                                None
-                            };
-
-                            replacement
-                                .unwrap_or_else(|| ModuleResolveResultItem::External { name, ty })
-                        }
-                        ResolveResultItem::Ignore => ModuleResolveResultItem::Ignore,
-                        ResolveResultItem::Empty => ModuleResolveResultItem::Empty,
-                        ResolveResultItem::Error(e) => ModuleResolveResultItem::Error(e),
-                        ResolveResultItem::Custom(u8) => ModuleResolveResultItem::Custom(u8),
-                    })
-                }
-            })
-            .await?;
+        // The per-item mapper is a dual helper: `map_primary_items` takes a future-returning
+        // closure in the async build and a `Result`-returning closure under sync. A single
+        // shared closure works for both because `process_resolve_item` is itself dual.
+        let result = turbo_tasks::read!(result.map_primary_items(|item| {
+            process_resolve_item(
+                item,
+                self,
+                reference_type.clone(),
+                replace_externals,
+                import_externals,
+            )
+        }))?;
 
         Ok(result.cell())
     }
@@ -1160,20 +1118,20 @@ impl AssetContext for ModuleAssetContext {
         asset: ResolvedVc<Box<dyn Source>>,
         reference_type: ReferenceType,
     ) -> Result<Vc<ProcessResult>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         if let Some(transition) = this.transition {
             Ok(transition.process(*asset, self, reference_type))
         } else {
-            Ok(self
-                .process_with_transition_rules(asset, reference_type)
-                .await?)
+            Ok(turbo_tasks::read!(
+                self.process_with_transition_rules(asset, reference_type)
+            )?)
         }
     }
 
     #[turbo_tasks::function]
     async fn with_transition(&self, transition: RcStr) -> Result<Vc<Box<dyn AssetContext>>> {
         Ok(
-            if let Some(transition) = self.transitions.await?.get_named(transition) {
+            if let Some(transition) = turbo_tasks::read!(self.transitions)?.get_named(transition) {
                 Vc::upcast(ModuleAssetContext::new_transition(
                     *self.transitions,
                     *self.compile_time_info,
@@ -1198,11 +1156,12 @@ impl AssetContext for ModuleAssetContext {
 
 #[turbo_tasks::function]
 pub async fn emit_asset(asset: Vc<Box<dyn OutputAsset>>) -> Result<()> {
-    asset
-        .content()
-        .write(asset.path().owned().await?)
-        .as_side_effect()
-        .await?;
+    turbo_tasks::read!(
+        asset
+            .content()
+            .write(turbo_tasks::read!(asset.path().owned())?)
+            .as_side_effect()
+    )?;
 
     Ok(())
 }
@@ -1212,11 +1171,11 @@ pub async fn emit_assets_into_dir(
     assets: Vc<ExpandedOutputAssets>,
     output_dir: FileSystemPath,
 ) -> Result<()> {
-    let assets = assets.await?;
-    let paths = assets.iter().map(|&asset| asset.path()).try_join().await?;
+    let assets = turbo_tasks::read!(assets)?;
+    let paths = turbo_tasks::parallel!(assets.iter().map(|&asset| asset.path()))?;
     for (&asset, path) in assets.iter().zip(paths.iter()) {
         if path.is_inside_ref(&output_dir) {
-            emit_asset(*asset).as_side_effect().await?;
+            turbo_tasks::read!(emit_asset(*asset).as_side_effect())?;
         }
     }
     Ok(())
@@ -1227,14 +1186,13 @@ pub async fn emit_assets_into_dir_operation(
     assets: ResolvedVc<ExpandedOutputAssets>,
     output_dir: FileSystemPath,
 ) -> Result<()> {
-    emit_assets_into_dir(*assets, output_dir)
-        .as_side_effect()
-        .await?;
+    turbo_tasks::read!(emit_assets_into_dir(*assets, output_dir).as_side_effect())?;
     Ok(())
 }
 
+turbo_tasks::dual_fn! {
 /// Replaces the externals in the result with `ExternalModuleAsset` instances.
-pub async fn replace_external(
+pub fn replace_external(
     name: &RcStr,
     ty: ExternalType,
     target: Option<FileSystemPath>,
@@ -1258,11 +1216,108 @@ pub async fn replace_external(
         }
     };
 
-    let module = CachedExternalModule::new(name.clone(), target, external_type, analyze_mode)
-        .to_resolved()
-        .await?;
+    let module = turbo_tasks::read!(CachedExternalModule::new(name.clone(), target, external_type, analyze_mode)
+        .to_resolved())
+        ?;
 
     Ok(Some(ModuleResolveResultItem::Module(ResolvedVc::upcast(
         module,
     ))))
+}
+}
+
+turbo_tasks::dual_fn! {
+/// Maps a single primary resolve result item to a module resolve result item.
+/// Extracted from `process_resolve_result` so a single shared closure can be passed to the
+/// dual `map_primary_items` in both the async and sync builds.
+fn process_resolve_item(
+    item: ResolveResultItem,
+    module_asset_context: Vc<ModuleAssetContext>,
+    reference_type: ReferenceType,
+    replace_externals: bool,
+    import_externals: bool,
+) -> Result<ModuleResolveResultItem> {
+    Ok(match item {
+        ResolveResultItem::Source(source) => {
+            match &*turbo_tasks::read!(module_asset_context.process(*source, reference_type))? {
+                ProcessResult::Module(module) => ModuleResolveResultItem::Module(*module),
+                ProcessResult::Unknown(source) => ModuleResolveResultItem::Unknown(*source),
+                ProcessResult::Ignore => ModuleResolveResultItem::Ignore,
+            }
+        }
+        ResolveResultItem::External {
+            name,
+            ty,
+            traced,
+            target,
+        } => {
+            let replacement = if replace_externals {
+                // Determine the package folder, `target` is the full path to the
+                // resolved file.
+                let target = if let Some(mut target) = target {
+                    loop {
+                        let parent = target.parent();
+                        if parent.is_root() {
+                            break;
+                        }
+                        if parent.file_name() == "node_modules" {
+                            break;
+                        }
+                        if parent.file_name().starts_with("@")
+                            && parent.parent().file_name() == "node_modules"
+                        {
+                            break;
+                        }
+                        target = parent;
+                    }
+                    Some(target)
+                } else {
+                    None
+                };
+
+                let analyze_mode = if traced == ExternalTraced::Traced
+                    && let Some(options) = &turbo_tasks::read!(module_asset_context
+                        .module_options_context())
+                        ?
+                        .enable_externals_tracing
+                {
+                    // result.affecting_sources can be ignored for tracing, as this
+                    // request will later be resolved relative to tracing_root (or
+                    // the .next/node_modules/lodash-1238123 symlink) anyway.
+
+                    let options = turbo_tasks::read!(options)?;
+                    let origin = PlainResolveOrigin::new(
+                        Vc::upcast(externals_tracing_module_context(
+                            *options.compile_time_info,
+                            false,
+                        )),
+                        // If target is specified, a symlink will be created to
+                        // make the folder
+                        // itself available, but we still need to trace
+                        // resolving the individual file(s) inside the package.
+                        target
+                            .as_ref()
+                            .unwrap_or(&options.tracing_root)
+                            .join("_")?,
+                    );
+                    CachedExternalTracingMode::Traced {
+                        origin: ResolvedVc::upcast(turbo_tasks::read!(origin.to_resolved())?),
+                    }
+                } else {
+                    CachedExternalTracingMode::Untraced
+                };
+
+                turbo_tasks::read!(replace_external(&name, ty, target, import_externals, analyze_mode))?
+            } else {
+                None
+            };
+
+            replacement.unwrap_or_else(|| ModuleResolveResultItem::External { name, ty })
+        }
+        ResolveResultItem::Ignore => ModuleResolveResultItem::Ignore,
+        ResolveResultItem::Empty => ModuleResolveResultItem::Empty,
+        ResolveResultItem::Error(e) => ModuleResolveResultItem::Error(e),
+        ResolveResultItem::Custom(u8) => ModuleResolveResultItem::Custom(u8),
+    })
+}
 }

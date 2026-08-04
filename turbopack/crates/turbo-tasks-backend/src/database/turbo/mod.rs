@@ -10,11 +10,9 @@ use smallvec::SmallVec;
 use turbo_persistence::{
     ArcBytes, CompactConfig, DbConfig, KeyBase, StoreKey, TurboPersistence, ValueBuffer,
 };
-use turbo_tasks::{
-    message_queue::{TimingEvent, TraceEvent},
-    parallel::available_parallelism,
-    turbo_tasks,
-};
+#[cfg(feature = "tokio_runtime")]
+use turbo_tasks::message_queue::{TimingEvent, TraceEvent};
+use turbo_tasks::{parallel::available_parallelism, turbo_tasks};
 
 use crate::database::{key_value_database::KeySpace, write_batch::WriteBuffer};
 
@@ -178,6 +176,8 @@ fn do_compact(
         max_merge_segment_count,
         ..COMPACT_CONFIG
     })?;
+    // Compilation events are only emitted under the async runtime.
+    #[cfg(feature = "tokio_runtime")]
     if ran {
         let elapsed = start.elapsed();
         // avoid spamming the event queue with information about fast operations
@@ -198,6 +198,8 @@ fn do_compact(
             vec![],
         )));
     }
+    #[cfg(not(feature = "tokio_runtime"))]
+    let _ = (ran, wall_start, message);
     Ok(ran)
 }
 

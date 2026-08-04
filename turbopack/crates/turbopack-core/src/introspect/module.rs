@@ -34,7 +34,7 @@ impl Introspectable for IntrospectableModule {
 
     #[turbo_tasks::function]
     async fn details(&self) -> Result<Vc<RcStr>> {
-        if let Some(source) = *self.0.source().await? {
+        if let Some(source) = *turbo_tasks::read!(self.0.source())? {
             Ok(content_to_details(source.content()))
         } else {
             Ok(Vc::cell("No source".into()))

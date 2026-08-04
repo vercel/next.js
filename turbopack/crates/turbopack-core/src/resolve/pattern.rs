@@ -1527,7 +1527,7 @@ pub async fn read_matches(
     pattern: Vc<Pattern>,
 ) -> Result<Vc<PatternMatches>> {
     let mut prefix = prefix.to_string();
-    let pat = pattern.await?;
+    let pat = turbo_tasks::read!(pattern)?;
     let mut results = Vec::new();
     let mut nested = Vec::new();
     let slow_path = if let Some(constants) = pat.next_constants(&prefix) {
@@ -1572,7 +1572,7 @@ pub async fn read_matches(
                                 lookup_dir.try_join(parent_path)
                             };
                             if let Some(path) = path_option {
-                                Some(e.insert((path.raw_read_dir().await?, path)))
+                                Some(e.insert((turbo_tasks::read!(path.raw_read_dir())?, path)))
                             } else {
                                 None
                             }
@@ -1606,7 +1606,8 @@ pub async fn read_matches(
                         )),
                         RawDirectoryEntry::Symlink => {
                             let fs_path = parent_fs_path.join(last_segment)?;
-                            let LinkContent::Link { link_type, .. } = &*fs_path.read_link().await?
+                            let LinkContent::Link { link_type, .. } =
+                                &*turbo_tasks::read!(fs_path.read_link())?
                             else {
                                 continue;
                             };
@@ -1651,154 +1652,198 @@ pub async fn read_matches(
     };
 
     if slow_path {
-        async {
-            // Slow path: There are infinite matches for the pattern
-            // We will enumerate the filesystem to find matches
-            if !force_in_lookup_dir {
-                // {prefix}..
-                prefix.push_str("..");
-                if let Some(pos) = pat.match_position(&prefix) {
-                    results.push((
-                        pos,
-                        PatternMatch::Directory(prefix.clone().into(), lookup_dir.parent()),
-                    ));
-                }
+        turbo_tasks::dual_fn! {
+        // Slow path: There are infinite matches for the pattern
+        // We will enumerate the filesystem to find matches
+        fn read_matches_slow_path(
+            prefix: &mut String,
+            results: &mut Vec<(usize, PatternMatch)>,
+            nested: &mut Vec<(usize, Vc<PatternMatches>)>,
+            lookup_dir: &FileSystemPath,
+            force_in_lookup_dir: bool,
+            pat: &Pattern,
+            pattern: Vc<Pattern>,
+        ) -> Result<()> {
+                if !force_in_lookup_dir {
+                    // {prefix}..
+                    prefix.push_str("..");
+                    if let Some(pos) = pat.match_position(&prefix) {
+                        results.push((
+                            pos,
+                            PatternMatch::Directory(prefix.clone().into(), lookup_dir.parent()),
+                        ));
+                    }
 
-                // {prefix}../
-                prefix.push('/');
-                if let Some(pos) = pat.match_position(&prefix) {
-                    results.push((
-                        pos,
-                        PatternMatch::Directory(prefix.clone().into(), lookup_dir.parent()),
-                    ));
+                    // {prefix}../
+                    prefix.push('/');
+                    if let Some(pos) = pat.match_position(&prefix) {
+                        results.push((
+                            pos,
+                            PatternMatch::Directory(prefix.clone().into(), lookup_dir.parent()),
+                        ));
+                    }
+                    if let Some(pos) = pat.could_match_position(&prefix) {
+                        nested.push((
+                            pos,
+                            read_matches(
+                                lookup_dir.parent(),
+                                prefix.clone().into(),
+                                false,
+                                pattern,
+                            ),
+                        ));
+                    }
+                    prefix.pop();
+                    prefix.pop();
+                    prefix.pop();
                 }
-                if let Some(pos) = pat.could_match_position(&prefix) {
-                    nested.push((
-                        pos,
-                        read_matches(lookup_dir.parent(), prefix.clone().into(), false, pattern),
-                    ));
+                {
+                    prefix.push('.');
+                    // {prefix}.
+                    if let Some(pos) = pat.match_position(&prefix) {
+                        results.push((
+                            pos,
+                            PatternMatch::Directory(prefix.clone().into(), lookup_dir.clone()),
+                        ));
+                    }
+                    prefix.pop();
                 }
-                prefix.pop();
-                prefix.pop();
-                prefix.pop();
-            }
-            {
-                prefix.push('.');
-                // {prefix}.
-                if let Some(pos) = pat.match_position(&prefix) {
-                    results.push((
-                        pos,
-                        PatternMatch::Directory(prefix.clone().into(), lookup_dir.clone()),
-                    ));
+                if prefix.is_empty() {
+                    if let Some(pos) = pat.match_position("./") {
+                        results.push((
+                            pos,
+                            PatternMatch::Directory(rcstr!("./"), lookup_dir.clone()),
+                        ));
+                    }
+                    if let Some(pos) = pat.could_match_position("./") {
+                        nested.push((
+                            pos,
+                            read_matches(lookup_dir.clone(), rcstr!("./"), false, pattern),
+                        ));
+                    }
+                } else {
+                    prefix.push('/');
+                    // {prefix}/
+                    if let Some(pos) = pat.could_match_position(&prefix) {
+                        nested.push((
+                            pos,
+                            read_matches(
+                                lookup_dir.clone(),
+                                prefix.to_string().into(),
+                                false,
+                                pattern,
+                            ),
+                        ));
+                    }
+                    prefix.pop();
+                    prefix.push_str("./");
+                    // {prefix}./
+                    if let Some(pos) = pat.could_match_position(&prefix) {
+                        nested.push((
+                            pos,
+                            read_matches(
+                                lookup_dir.clone(),
+                                prefix.to_string().into(),
+                                false,
+                                pattern,
+                            ),
+                        ));
+                    }
+                    prefix.pop();
+                    prefix.pop();
                 }
-                prefix.pop();
-            }
-            if prefix.is_empty() {
-                if let Some(pos) = pat.match_position("./") {
-                    results.push((
-                        pos,
-                        PatternMatch::Directory(rcstr!("./"), lookup_dir.clone()),
-                    ));
-                }
-                if let Some(pos) = pat.could_match_position("./") {
-                    nested.push((
-                        pos,
-                        read_matches(lookup_dir.clone(), rcstr!("./"), false, pattern),
-                    ));
-                }
-            } else {
-                prefix.push('/');
-                // {prefix}/
-                if let Some(pos) = pat.could_match_position(&prefix) {
-                    nested.push((
-                        pos,
-                        read_matches(
-                            lookup_dir.clone(),
-                            prefix.to_string().into(),
-                            false,
-                            pattern,
-                        ),
-                    ));
-                }
-                prefix.pop();
-                prefix.push_str("./");
-                // {prefix}./
-                if let Some(pos) = pat.could_match_position(&prefix) {
-                    nested.push((
-                        pos,
-                        read_matches(
-                            lookup_dir.clone(),
-                            prefix.to_string().into(),
-                            false,
-                            pattern,
-                        ),
-                    ));
-                }
-                prefix.pop();
-                prefix.pop();
-            }
-            match &*lookup_dir.raw_read_dir().await? {
-                RawDirectoryContent::Entries(map) => {
-                    for (key, entry) in map.iter() {
-                        match entry {
-                            RawDirectoryEntry::File => {
-                                let len = prefix.len();
-                                prefix.push_str(key);
-                                // {prefix}{key}
-                                if let Some(pos) = pat.match_position(&prefix) {
-                                    let path = lookup_dir.join(key)?;
-                                    results.push((
-                                        pos,
-                                        PatternMatch::File(prefix.clone().into(), path),
-                                    ));
+                match &*turbo_tasks::read!(lookup_dir.raw_read_dir())? {
+                    RawDirectoryContent::Entries(map) => {
+                        for (key, entry) in map.iter() {
+                            match entry {
+                                RawDirectoryEntry::File => {
+                                    let len = prefix.len();
+                                    prefix.push_str(key);
+                                    // {prefix}{key}
+                                    if let Some(pos) = pat.match_position(&prefix) {
+                                        let path = lookup_dir.join(key)?;
+                                        results.push((
+                                            pos,
+                                            PatternMatch::File(prefix.clone().into(), path),
+                                        ));
+                                    }
+                                    prefix.truncate(len)
                                 }
-                                prefix.truncate(len)
-                            }
-                            RawDirectoryEntry::Directory => {
-                                let len = prefix.len();
-                                prefix.push_str(key);
-                                // {prefix}{key}
-                                if prefix.ends_with('/') {
-                                    prefix.pop();
+                                RawDirectoryEntry::Directory => {
+                                    let len = prefix.len();
+                                    prefix.push_str(key);
+                                    // {prefix}{key}
+                                    if prefix.ends_with('/') {
+                                        prefix.pop();
+                                    }
+                                    if let Some(pos) = pat.match_position(&prefix) {
+                                        let path = lookup_dir.join(key)?;
+                                        results.push((
+                                            pos,
+                                            PatternMatch::Directory(prefix.clone().into(), path),
+                                        ));
+                                    }
+                                    prefix.push('/');
+                                    // {prefix}{key}/
+                                    if let Some(pos) = pat.match_position(&prefix) {
+                                        let path = lookup_dir.join(key)?;
+                                        results.push((
+                                            pos,
+                                            PatternMatch::Directory(prefix.clone().into(), path),
+                                        ));
+                                    }
+                                    if let Some(pos) = pat.could_match_position(&prefix) {
+                                        let path = lookup_dir.join(key)?;
+                                        nested.push((
+                                            pos,
+                                            read_matches(
+                                                path,
+                                                prefix.clone().into(),
+                                                true,
+                                                pattern,
+                                            ),
+                                        ));
+                                    }
+                                    prefix.truncate(len)
                                 }
-                                if let Some(pos) = pat.match_position(&prefix) {
-                                    let path = lookup_dir.join(key)?;
-                                    results.push((
-                                        pos,
-                                        PatternMatch::Directory(prefix.clone().into(), path),
-                                    ));
-                                }
-                                prefix.push('/');
-                                // {prefix}{key}/
-                                if let Some(pos) = pat.match_position(&prefix) {
-                                    let path = lookup_dir.join(key)?;
-                                    results.push((
-                                        pos,
-                                        PatternMatch::Directory(prefix.clone().into(), path),
-                                    ));
-                                }
-                                if let Some(pos) = pat.could_match_position(&prefix) {
-                                    let path = lookup_dir.join(key)?;
-                                    nested.push((
-                                        pos,
-                                        read_matches(path, prefix.clone().into(), true, pattern),
-                                    ));
-                                }
-                                prefix.truncate(len)
-                            }
-                            RawDirectoryEntry::Symlink => {
-                                let len = prefix.len();
-                                prefix.push_str(key);
-                                // {prefix}{key}
-                                if prefix.ends_with('/') {
-                                    prefix.pop();
-                                }
-                                if let Some(pos) = pat.match_position(&prefix) {
-                                    let fs_path = lookup_dir.join(key)?;
-                                    if let LinkContent::Link { link_type, .. } =
-                                        &*fs_path.read_link().await?
-                                    {
-                                        if link_type.contains(LinkType::DIRECTORY) {
+                                RawDirectoryEntry::Symlink => {
+                                    let len = prefix.len();
+                                    prefix.push_str(key);
+                                    // {prefix}{key}
+                                    if prefix.ends_with('/') {
+                                        prefix.pop();
+                                    }
+                                    if let Some(pos) = pat.match_position(&prefix) {
+                                        let fs_path = lookup_dir.join(key)?;
+                                        if let LinkContent::Link { link_type, .. } =
+                                            &*turbo_tasks::read!(fs_path.read_link())?
+                                        {
+                                            if link_type.contains(LinkType::DIRECTORY) {
+                                                results.push((
+                                                    pos,
+                                                    PatternMatch::Directory(
+                                                        prefix.clone().into(),
+                                                        fs_path,
+                                                    ),
+                                                ));
+                                            } else {
+                                                results.push((
+                                                    pos,
+                                                    PatternMatch::File(
+                                                        prefix.clone().into(),
+                                                        fs_path,
+                                                    ),
+                                                ));
+                                            }
+                                        }
+                                    }
+                                    prefix.push('/');
+                                    if let Some(pos) = pat.match_position(&prefix) {
+                                        let fs_path = lookup_dir.join(key)?;
+                                        if let LinkContent::Link { link_type, .. } =
+                                            &*turbo_tasks::read!(fs_path.read_link())?
+                                            && link_type.contains(LinkType::DIRECTORY)
+                                        {
                                             results.push((
                                                 pos,
                                                 PatternMatch::Directory(
@@ -1806,57 +1851,57 @@ pub async fn read_matches(
                                                     fs_path,
                                                 ),
                                             ));
-                                        } else {
+                                        }
+                                    }
+                                    if let Some(pos) = pat.could_match_position(&prefix) {
+                                        let fs_path = lookup_dir.join(key)?;
+                                        if let LinkContent::Link { link_type, .. } =
+                                            &*turbo_tasks::read!(fs_path.read_link())?
+                                            && link_type.contains(LinkType::DIRECTORY)
+                                        {
                                             results.push((
                                                 pos,
-                                                PatternMatch::File(prefix.clone().into(), fs_path),
+                                                PatternMatch::Directory(
+                                                    prefix.clone().into(),
+                                                    fs_path,
+                                                ),
                                             ));
                                         }
                                     }
+                                    prefix.truncate(len)
                                 }
-                                prefix.push('/');
-                                if let Some(pos) = pat.match_position(&prefix) {
-                                    let fs_path = lookup_dir.join(key)?;
-                                    if let LinkContent::Link { link_type, .. } =
-                                        &*fs_path.read_link().await?
-                                        && link_type.contains(LinkType::DIRECTORY)
-                                    {
-                                        results.push((
-                                            pos,
-                                            PatternMatch::Directory(prefix.clone().into(), fs_path),
-                                        ));
-                                    }
-                                }
-                                if let Some(pos) = pat.could_match_position(&prefix) {
-                                    let fs_path = lookup_dir.join(key)?;
-                                    if let LinkContent::Link { link_type, .. } =
-                                        &*fs_path.read_link().await?
-                                        && link_type.contains(LinkType::DIRECTORY)
-                                    {
-                                        results.push((
-                                            pos,
-                                            PatternMatch::Directory(prefix.clone().into(), fs_path),
-                                        ));
-                                    }
-                                }
-                                prefix.truncate(len)
+                                RawDirectoryEntry::Other => {}
                             }
-                            RawDirectoryEntry::Other => {}
                         }
                     }
-                }
-                RawDirectoryContent::NotFound => {}
-            };
-            anyhow::Ok(())
+                    RawDirectoryContent::NotFound => {}
+                };
+                Ok(())
         }
-        .instrument(tracing::trace_span!("read_matches slow_path"))
-        .await?;
+        }
+        turbo_tasks::read!(
+            read_matches_slow_path(
+                &mut prefix,
+                &mut results,
+                &mut nested,
+                &lookup_dir,
+                force_in_lookup_dir,
+                &*pat,
+                pattern,
+            )
+            .instrument(tracing::trace_span!("read_matches slow_path"))
+        )?;
     }
     if results.is_empty() && nested.len() == 1 {
         Ok(nested.into_iter().next().unwrap().1)
     } else {
         for (pos, nested) in nested.into_iter() {
-            results.extend(nested.await?.iter().cloned().map(|p| (pos, p)));
+            results.extend(
+                turbo_tasks::read!(nested)?
+                    .iter()
+                    .cloned()
+                    .map(|p| (pos, p)),
+            );
         }
         results.sort_by(|(a, am), (b, bm)| (*a).cmp(b).then_with(|| am.name().cmp(bm.name())));
         Ok(Vc::cell(
@@ -2649,7 +2694,7 @@ mod tests {
         assert_eq!(split_last_segment("../../a/"), ("../..", "a"));
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_read_matches() {
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),
@@ -2667,32 +2712,32 @@ mod tests {
 
             #[turbo_tasks::function(operation, root)]
             async fn read_matches_operation() -> anyhow::Result<Vc<ReadMatchesOutput>> {
-                let root = DiskFileSystem::new(
-                    rcstr!("test"),
-                    Vc::cell(
-                        Path::new(env!("CARGO_MANIFEST_DIR"))
-                            .join("tests/pattern/read_matches")
-                            .to_str()
-                            .unwrap()
-                            .into(),
-                    ),
-                )
-                .root()
-                .owned()
-                .await?;
+                let root = turbo_tasks::read!(
+                    DiskFileSystem::new(
+                        rcstr!("test"),
+                        Vc::cell(
+                            Path::new(env!("CARGO_MANIFEST_DIR"))
+                                .join("tests/pattern/read_matches")
+                                .to_str()
+                                .unwrap()
+                                .into(),
+                        ),
+                    )
+                    .root()
+                    .owned()
+                )?;
 
-                let dynamic = read_matches(
+                let dynamic = turbo_tasks::read!(read_matches(
                     root.clone(),
                     rcstr!(""),
                     false,
                     Pattern::new(Pattern::Dynamic),
-                )
-                .await?
+                ))?
                 .into_iter()
                 .map(|m| m.name().to_string())
                 .collect::<Vec<_>>();
 
-                let dynamic_file_suffix = read_matches(
+                let dynamic_file_suffix = turbo_tasks::read!(read_matches(
                     root.clone(),
                     rcstr!(""),
                     false,
@@ -2700,19 +2745,17 @@ mod tests {
                         Pattern::Constant(rcstr!("sub/foo")),
                         Pattern::Dynamic,
                     ])),
-                )
-                .await?
+                ))?
                 .into_iter()
                 .map(|m| m.name().to_string())
                 .collect::<Vec<_>>();
 
-                let node_modules_dynamic = read_matches(
+                let node_modules_dynamic = turbo_tasks::read!(read_matches(
                     root.clone(),
                     rcstr!(""),
                     false,
                     Pattern::new(Pattern::Constant(rcstr!("node_modules")).or_any_nested_file()),
-                )
-                .await?
+                ))?
                 .into_iter()
                 .map(|m| m.name().to_string())
                 .collect::<Vec<_>>();
@@ -2720,7 +2763,7 @@ mod tests {
                 // Test: extension ordering is preserved (fast path, until_end=true)
                 // When both Component.web.tsx and Component.tsx exist, the order of
                 // alternatives determines which comes first in results.
-                let extension_ordering = read_matches(
+                let extension_ordering = turbo_tasks::read!(read_matches(
                     root.clone(),
                     rcstr!(""),
                     false,
@@ -2729,8 +2772,7 @@ mod tests {
                         Pattern::Constant(rcstr!("extensions/Component.web.tsx")),
                         Pattern::Constant(rcstr!("extensions/Component.tsx")),
                     ])),
-                )
-                .await?
+                ))?
                 .into_iter()
                 .map(|m| m.name().to_string())
                 .collect::<Vec<_>>();
@@ -2738,7 +2780,7 @@ mod tests {
                 // Test: subpath ordering is preserved (fast path, until_end=false)
                 // When alternatives route to different subdirectories, the index ordering
                 // must be respected. This exercises the fix for the hardcoded `0` bug.
-                let subpath_ordering = read_matches(
+                let subpath_ordering = turbo_tasks::read!(read_matches(
                     root.clone(),
                     rcstr!(""),
                     false,
@@ -2756,8 +2798,7 @@ mod tests {
                         p.normalize();
                         p
                     }),
-                )
-                .await?
+                ))?
                 .into_iter()
                 .map(|m| m.name().to_string())
                 .collect::<Vec<_>>();

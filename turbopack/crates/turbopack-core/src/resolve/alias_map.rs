@@ -109,6 +109,9 @@ where
                         values_string.insert(key, PassthroughDebug::new_string(string));
                     }
                     ValueDebugFormatString::Async(future) => {
+                        // Deliberately a raw `.await` (not `read!`): this runs inside the
+                        // boxed `ValueDebugFormatString::Async` future, which stays async in
+                        // both builds (matching turbo-tasks' own `ValueDebugFormat` impls).
                         values_string.insert(key, PassthroughDebug::new_string(future.await?));
                     }
                 }

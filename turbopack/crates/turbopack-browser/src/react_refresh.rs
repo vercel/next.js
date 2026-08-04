@@ -1,4 +1,5 @@
 use anyhow::Result;
+#[cfg(not(feature = "sync"))]
 use async_trait::async_trait;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
@@ -57,16 +58,18 @@ pub async fn assert_can_resolve_react_refresh(
         resolve_options_context,
     ));
     for request in [react_refresh_request_in_next(), react_refresh_request()] {
-        let result = turbopack_core::resolve::resolve(
+        let result = turbo_tasks::read!(turbopack_core::resolve::resolve(
             path.clone(),
             ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
             request,
             resolve_options,
-        )
-        .await?;
+        ))?;
 
         if result.first_source().is_some() {
-            return Ok(ResolveReactRefreshResult::Found(request.to_resolved().await?).cell());
+            return Ok(ResolveReactRefreshResult::Found(turbo_tasks::read!(
+                request.to_resolved()
+            )?)
+            .cell());
         }
     }
     ReactRefreshResolvingIssue { path }.resolved_cell().emit();
@@ -79,6 +82,7 @@ pub struct ReactRefreshResolvingIssue {
     path: FileSystemPath,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for ReactRefreshResolvingIssue {
@@ -101,6 +105,41 @@ impl Issue for ReactRefreshResolvingIssue {
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Line(vec![
+            StyledString::Text(rcstr!(
+                "React Refresh will be disabled.\nTo enable React Refresh, install the "
+            )),
+            StyledString::Code(rcstr!("react-refresh")),
+            StyledString::Text(rcstr!(" and ")),
+            StyledString::Code(rcstr!("@next/react-refresh-utils")),
+            StyledString::Text(rcstr!(" modules.")),
+        ])))
+    }
+}
+
+/// See the async impl above; the sync engine drops `async`/`#[async_trait]`.
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for ReactRefreshResolvingIssue {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Warning
+    }
+
+    fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Could not resolve React Refresh runtime"
+        )))
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Resolve
+    }
+
+    fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.path.clone())
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
         Ok(Some(StyledString::Line(vec![
             StyledString::Text(rcstr!(
                 "React Refresh will be disabled.\nTo enable React Refresh, install the "

@@ -8,7 +8,7 @@ use next_api::{
     project::ProjectContainer,
     route::EndpointGroupKey,
 };
-use turbo_tasks::{Effects, ReadRef, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{Effects, ReadRef, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     issue::PlainIssue,
@@ -29,10 +29,11 @@ pub async fn write_analyze_data_with_issues_operation(
     app_dir_only: bool,
 ) -> Result<Vc<WriteAnalyzeResult>> {
     let analyze_data_op = write_analyze_data_with_issues_operation_inner(project, app_dir_only);
-    let filter = project.project().issue_filter().await?;
+    let filter = turbo_tasks::read!(project.project().issue_filter())?;
 
-    let (_analyze_data, issues, effects) =
-        strongly_consistent_catch_collectables(analyze_data_op, &filter).await?;
+    let (_analyze_data, issues, effects) = turbo_tasks::read!(
+        strongly_consistent_catch_collectables(analyze_data_op, &filter)
+    )?;
 
     Ok(WriteAnalyzeResult { issues, effects }.cell())
 }
@@ -44,11 +45,12 @@ async fn write_analyze_data_with_issues_operation_inner(
 ) -> Result<()> {
     let analyze_data_op = get_analyze_data_operation(project, app_dir_only);
 
-    project
-        .project()
-        .emit_all_output_assets(analyze_data_op)
-        .as_side_effect()
-        .await?;
+    turbo_tasks::read!(
+        project
+            .project()
+            .emit_all_output_assets(analyze_data_op)
+            .as_side_effect()
+    )?;
 
     Ok(())
 }
@@ -61,14 +63,11 @@ async fn get_analyze_data_operation(
     let project = container.project();
     let project = project.with_next_config(project.next_config().with_analyze_config());
 
-    let analyze_output_root = project
-        .node_root()
-        .owned()
-        .await?
-        .join("diagnostics/analyze/data")?;
+    let analyze_output_root =
+        turbo_tasks::read!(project.node_root().owned())?.join("diagnostics/analyze/data")?;
     let whole_app_module_graphs = project.whole_app_module_graphs();
     let analyze_output_root = &analyze_output_root;
-    let endpoint_groups = project.get_all_endpoint_groups(app_dir_only).await?;
+    let endpoint_groups = turbo_tasks::read!(project.get_all_endpoint_groups(app_dir_only))?;
 
     // Collect output assets from _app and _document to merge into each route's
     // analyze.data so their modules are visible in every route's treemap.
@@ -79,8 +78,16 @@ async fn get_analyze_data_operation(
             key,
             EndpointGroupKey::PagesApp | EndpointGroupKey::PagesDocument
         ) {
-            combined_output_assets.extend(endpoint_group.output_assets().await?.iter().copied());
-            combined_traced_files.extend(endpoint_group.traced_files().await?.iter().cloned());
+            combined_output_assets.extend(
+                turbo_tasks::read!(endpoint_group.output_assets())?
+                    .iter()
+                    .copied(),
+            );
+            combined_traced_files.extend(
+                turbo_tasks::read!(endpoint_group.traced_files())?
+                    .iter()
+                    .cloned(),
+            );
         }
     }
 
@@ -88,32 +95,35 @@ async fn get_analyze_data_operation(
     let combined_assets_vc = Vc::cell(combined_output_assets);
     let combined_traced_vc = Vc::cell(combined_traced_files);
 
-    let analyze_data = endpoint_groups
-        .iter()
-        .map(async |(key, endpoint_group)| {
-            let output_assets = if has_combined
-                && !matches!(
-                    key,
-                    EndpointGroupKey::PagesApp | EndpointGroupKey::PagesDocument
-                ) {
-                // Combine route output assets with _app and _document output assets so
-                // the generated analyze.data already includes their modules.
-                combine_output_assets(endpoint_group.output_assets(), combined_assets_vc)
-            } else {
-                endpoint_group.output_assets()
-            };
-            let traced_files = if has_combined
-                && !matches!(
-                    key,
-                    EndpointGroupKey::PagesApp | EndpointGroupKey::PagesDocument
-                ) {
-                // Combine route traced files with _app and _document traced modules so
-                // the generated analyze.data already includes their modules.
-                combine_traced_files(endpoint_group.traced_files(), combined_traced_vc)
-            } else {
-                endpoint_group.traced_files()
-            };
-            let analyze_data = AnalyzeDataOutputAsset::new(
+    // Sequentialized `map(async).try_join()` (R3): the per-item body has multiple
+    // steps (`.to_resolved()`), so it can't go through `parallel!`. This is a rare,
+    // build-time diagnostics path where sequential is fine.
+    let mut analyze_data: Vec<ResolvedVc<Box<dyn OutputAsset>>> = Vec::new();
+    for (key, endpoint_group) in endpoint_groups.iter() {
+        let output_assets = if has_combined
+            && !matches!(
+                key,
+                EndpointGroupKey::PagesApp | EndpointGroupKey::PagesDocument
+            ) {
+            // Combine route output assets with _app and _document output assets so
+            // the generated analyze.data already includes their modules.
+            combine_output_assets(endpoint_group.output_assets(), combined_assets_vc)
+        } else {
+            endpoint_group.output_assets()
+        };
+        let traced_files = if has_combined
+            && !matches!(
+                key,
+                EndpointGroupKey::PagesApp | EndpointGroupKey::PagesDocument
+            ) {
+            // Combine route traced files with _app and _document traced modules so
+            // the generated analyze.data already includes their modules.
+            combine_traced_files(endpoint_group.traced_files(), combined_traced_vc)
+        } else {
+            endpoint_group.traced_files()
+        };
+        let analyze_data_asset = turbo_tasks::read!(
+            AnalyzeDataOutputAsset::new(
                 analyze_output_root
                     .join(&key.to_string())?
                     .join("analyze.data")?,
@@ -121,21 +131,18 @@ async fn get_analyze_data_operation(
                 traced_files,
             )
             .to_resolved()
-            .await?;
+        )?;
 
-            Ok(ResolvedVc::upcast(analyze_data))
-        })
-        .try_join()
-        .await?;
+        analyze_data.push(ResolvedVc::upcast(analyze_data_asset));
+    }
 
-    let modules_data = ResolvedVc::upcast(
+    let modules_data = ResolvedVc::upcast(turbo_tasks::read!(
         ModulesDataOutputAsset::new(
             analyze_output_root.join("modules.data")?,
-            *whole_app_module_graphs.await?.full,
+            *turbo_tasks::read!(whole_app_module_graphs)?.full,
         )
         .to_resolved()
-        .await?,
-    );
+    )?);
 
     Ok(Vc::cell(
         analyze_data

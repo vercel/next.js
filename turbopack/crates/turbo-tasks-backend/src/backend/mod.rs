@@ -5,6 +5,8 @@ mod snapshot_coordinator;
 mod storage;
 pub mod storage_schema;
 
+#[cfg(not(feature = "tokio_runtime"))]
+use std::time::{Duration, Instant};
 use std::{
     borrow::Cow,
     fmt::{self, Write},
@@ -25,9 +27,16 @@ use indexmap::IndexSet;
 use parking_lot::Mutex;
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use smallvec::{SmallVec, smallvec};
+// `Instant` is tokio's own type (used with `sleep_until`) under the async runtime;
+// `std::time::Instant` works for the timing/comparison uses in a no-tokio build.
+// `Duration` is the same `std::time::Duration` in both.
+#[cfg(feature = "tokio_runtime")]
 use tokio::time::{Duration, Instant};
 use tracing::{Span, trace_span};
 use turbo_bincode::{TurboBincodeBuffer, new_turbo_bincode_decoder, new_turbo_bincode_encoder};
+// Compilation events (timing/trace) are only emitted under the async runtime.
+#[cfg(feature = "tokio_runtime")]
+use turbo_tasks::message_queue::{TimingEvent, TraceEvent};
 use turbo_tasks::{
     CellId, DynTaskInputsStorage, RawVc, RawVcUnpacked, ReadCellOptions, ReadCellTracking,
     ReadConsistency, ReadOutputOptions, ReadTracking, SharedReference, TRANSIENT_TASK_BIT,
@@ -41,7 +50,6 @@ use turbo_tasks::{
     },
     event::{Event, EventDescription, EventListener},
     macro_helpers::NativeFunction,
-    message_queue::{TimingEvent, TraceEvent},
     registry::get_value_type,
     scope::scope_and_block,
     task_statistics::TaskStatisticsApi,
@@ -1355,38 +1363,44 @@ impl TurboTasksBackend {
 
         let elapsed = start.elapsed();
         let persist_duration = persist_start.elapsed();
-        // avoid spamming the event queue with information about fast operations
-        if elapsed > Duration::from_secs(10) {
-            turbo_tasks.send_compilation_event(Arc::new(TimingEvent::new(
-                "Finished writing to filesystem cache".to_string(),
-                elapsed,
+        // Compilation events are only emitted under the async runtime.
+        #[cfg(feature = "tokio_runtime")]
+        {
+            // avoid spamming the event queue with information about fast operations
+            if elapsed > Duration::from_secs(10) {
+                turbo_tasks.send_compilation_event(Arc::new(TimingEvent::new(
+                    "Finished writing to filesystem cache".to_string(),
+                    elapsed,
+                )));
+            }
+
+            let wall_start_ms = wall_start
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap_or_default()
+                // as_millis_f64 is not stable yet
+                .as_secs_f64()
+                * 1000.0;
+            let wall_end_ms = wall_start_ms + elapsed.as_secs_f64() * 1000.0;
+            turbo_tasks.send_compilation_event(Arc::new(TraceEvent::new(
+                "turbopack-persistence",
+                wall_start_ms,
+                wall_end_ms,
+                vec![
+                    ("reason", serde_json::Value::from(reason.as_str())),
+                    (
+                        "snapshot_duration_ms",
+                        serde_json::Value::from(snapshot_duration.as_secs_f64() * 1000.0),
+                    ),
+                    (
+                        "persist_duration_ms",
+                        serde_json::Value::from(persist_duration.as_secs_f64() * 1000.0),
+                    ),
+                    ("task_count", serde_json::Value::from(task_count)),
+                ],
             )));
         }
-
-        let wall_start_ms = wall_start
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap_or_default()
-            // as_millis_f64 is not stable yet
-            .as_secs_f64()
-            * 1000.0;
-        let wall_end_ms = wall_start_ms + elapsed.as_secs_f64() * 1000.0;
-        turbo_tasks.send_compilation_event(Arc::new(TraceEvent::new(
-            "turbopack-persistence",
-            wall_start_ms,
-            wall_end_ms,
-            vec![
-                ("reason", serde_json::Value::from(reason.as_str())),
-                (
-                    "snapshot_duration_ms",
-                    serde_json::Value::from(snapshot_duration.as_secs_f64() * 1000.0),
-                ),
-                (
-                    "persist_duration_ms",
-                    serde_json::Value::from(persist_duration.as_secs_f64() * 1000.0),
-                ),
-                ("task_count", serde_json::Value::from(task_count)),
-            ],
-        )));
+        #[cfg(not(feature = "tokio_runtime"))]
+        let _ = (persist_duration, wall_start, snapshot_duration, task_count);
 
         Ok((snapshot_time, true))
     }
@@ -1410,6 +1424,9 @@ impl TurboTasksBackend {
 
         // Only when it should write regularly to the storage, we schedule the initial snapshot
         // job.
+        // Background snapshotting requires the async runtime (the no-tokio engine
+        // persists via storage_mode = ReadWriteOnShutdown / None instead).
+        #[cfg(feature = "tokio_runtime")]
         if matches!(self.options.storage_mode, Some(StorageMode::ReadWrite)) {
             // Schedule the snapshot job
             let _span = trace_span!("persisting background job").entered();
@@ -2822,6 +2839,14 @@ impl TurboTasksBackend {
         job: TurboTasksBackendJob,
         turbo_tasks: &'a TurboTasks<TurboTasksBackend>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
+        // Background jobs (snapshot/GC) run on the async runtime. The no-tokio engine
+        // never schedules them, so this is a no-op there.
+        #[cfg(not(feature = "tokio_runtime"))]
+        {
+            let _ = (job, turbo_tasks);
+            return Box::pin(async move {});
+        }
+        #[cfg(feature = "tokio_runtime")]
         Box::pin(async move {
             match job {
                 TurboTasksBackendJob::Snapshot => {
@@ -3470,6 +3495,10 @@ impl TurboTasksBackend {
 }
 
 impl Backend for TurboTasksBackend {
+    fn debug_description(&self, task: TaskId) -> String {
+        self.debug_get_task_description(task)
+    }
+
     fn startup(&self, turbo_tasks: &TurboTasks<Self>) {
         self.startup(turbo_tasks);
     }

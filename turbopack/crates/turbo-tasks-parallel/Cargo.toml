@@ -1,0 +1,36 @@
+[package]
+name = "turbo-tasks-parallel"
+version = "0.1.0"
+description = "Standalone synchronous (no-async) full-DAG work-stealing scheduler with managed blocking, for the sync turbo-tasks engine."
+license = "MIT"
+edition = "2021"
+publish = false
+
+[lib]
+name = "tt_parallel"
+path = "src/lib.rs"
+
+[features]
+# Deadlock-state instrumentation: a self-watchdog thread that, after N seconds of no
+# global progress (configurable via `TT_PARALLEL_WATCHDOG_SECS`, default 5), dumps
+# per-worker state (computing / blocked-on / idle), queue depth, and the wait-graph to
+# stderr. Off by default (zero overhead); turn on to diagnose a hang instead of guessing.
+instrument = []
+
+[dependencies]
+crossbeam-deque = "0.8"
+crossbeam-utils = { workspace = true }
+parking_lot = { workspace = true }
+stacker = "0.1"
+
+[dev-dependencies]
+rand = { workspace = true }
+rayon = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "fork_join"
+harness = false
+
+[lints]
+workspace = true

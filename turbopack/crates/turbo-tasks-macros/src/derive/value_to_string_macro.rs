@@ -103,21 +103,42 @@ pub fn derive_value_to_string(input: TokenStream) -> TokenStream {
 /// The `ref_body` should produce `Result<RcStr>`. The `ValueToString` impl
 /// delegates to `ValueToStringRef::to_string_ref()`.
 fn wrap_impl(ident: &syn::Ident, ref_body: TokenStream2) -> TokenStream {
-    quote! {
-        impl turbo_tasks::ValueToStringRef for #ident {
-            async fn to_string_ref(&self) -> anyhow::Result<turbo_rcstr::RcStr> {
-                #[allow(unused_imports)]
-                use turbo_tasks::display::macro_helpers::ValueToStringify as _;
-                #ref_body
+    // `ValueToStringRef::to_string_ref` is an `async fn` in async mode and a plain
+    // `fn` returning `Result<RcStr>` in the no-async sync engine (the body uses the
+    // dual-mode `__turbo_stringify!`, which is synchronous under `sync`).
+    let to_string_ref_impl = if cfg!(feature = "sync") {
+        quote! {
+            impl turbo_tasks::ValueToStringRef for #ident {
+                fn to_string_ref(&self) -> anyhow::Result<turbo_rcstr::RcStr> {
+                    #[allow(unused_imports)]
+                    use turbo_tasks::display::macro_helpers::ValueToStringify as _;
+                    #ref_body
+                }
             }
         }
+    } else {
+        quote! {
+            impl turbo_tasks::ValueToStringRef for #ident {
+                async fn to_string_ref(&self) -> anyhow::Result<turbo_rcstr::RcStr> {
+                    #[allow(unused_imports)]
+                    use turbo_tasks::display::macro_helpers::ValueToStringify as _;
+                    #ref_body
+                }
+            }
+        }
+    };
+    quote! {
+        #to_string_ref_impl
 
         #[turbo_tasks::value_impl]
         impl turbo_tasks::ValueToString for #ident {
             #[turbo_tasks::function]
             async fn to_string(&self) -> anyhow::Result<turbo_tasks::Vc<turbo_rcstr::RcStr>> {
+                // `read!` is the dual-mode read (`.await` in the async build, inline in
+                // the `sync` build). `#[turbo_tasks::function]` strips `async` under sync,
+                // so the generated body must not use a raw `.await`.
                 Ok(turbo_tasks::Vc::cell(
-                    turbo_tasks::ValueToStringRef::to_string_ref(self).await?
+                    turbo_tasks::read!(turbo_tasks::ValueToStringRef::to_string_ref(self))?
                 ))
             }
         }

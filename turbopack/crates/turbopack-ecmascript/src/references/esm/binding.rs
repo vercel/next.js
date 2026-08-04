@@ -57,15 +57,16 @@ impl EsmBinding {
         }
     }
 
-    pub async fn code_generation(
+    turbo_tasks::dual_fn! {
+    pub fn code_generation(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
     ) -> Result<CodeGeneration> {
-        if chunking_context
+        if turbo_tasks::read!(chunking_context
             .unused_references()
-            .contains_key(&ResolvedVc::upcast(self.reference))
-            .await?
+            .contains_key(&ResolvedVc::upcast(self.reference)))
+            ?
         {
             return Ok(CodeGeneration::empty());
         }
@@ -73,7 +74,7 @@ impl EsmBinding {
         let mut visitors = vec![];
 
         let export = self.export.clone();
-        let imported_module = self.reference.get_referenced_asset().await?;
+        let imported_module = turbo_tasks::read!(self.reference.get_referenced_asset())?;
 
         enum ImportedIdent {
             Module(ReferencedAssetIdent),
@@ -83,9 +84,9 @@ impl EsmBinding {
 
         let imported_ident = match &imported_module {
             ReferencedAsset::None => ImportedIdent::None,
-            imported_module => imported_module
-                .get_ident(chunking_context, export, scope_hoisting_context)
-                .await?
+            imported_module => turbo_tasks::read!(imported_module
+                .get_ident(chunking_context, export, scope_hoisting_context))
+                ?
                 .map_or(ImportedIdent::Unresolvable, ImportedIdent::Module),
         };
 
@@ -198,6 +199,7 @@ impl EsmBinding {
         }
 
         Ok(CodeGeneration::visitors(visitors))
+    }
     }
 }
 

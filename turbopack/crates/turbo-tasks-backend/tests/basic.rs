@@ -3,12 +3,12 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{Vc, read};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_basic() {
     let mut nonce = 0;
     run_once(&REGISTRATION, move || {
@@ -25,20 +25,20 @@ async fn test_basic_operation(nonce: u32) -> Result<Vc<()>> {
     let _ = nonce; // ensure the nonce is part of our cache key
 
     let output1 = func_without_args();
-    assert_eq!(output1.await?.value, 123);
+    assert_eq!(read!(output1)?.value, 123);
 
     let input = Value { value: 42 }.cell();
     let output2 = func_transient(input);
-    assert_eq!(output2.await?.value, 42);
+    assert_eq!(read!(output2)?.value, 42);
 
     let output3 = func_persistent(output1);
-    assert_eq!(output3.await?.value, 123);
+    assert_eq!(read!(output3)?.value, 123);
 
     let output4 = nested_func_without_args_waiting();
-    assert_eq!(output4.await?.value, 123);
+    assert_eq!(read!(output4)?.value, 123);
 
     let output5 = nested_func_without_args_non_waiting();
-    assert_eq!(output5.await?.value, 123);
+    assert_eq!(read!(output5)?.value, 123);
 
     Ok(Vc::cell(()))
 }
@@ -52,14 +52,14 @@ struct Value {
 #[turbo_tasks::function]
 async fn func_transient(input: Vc<Value>) -> Result<Vc<Value>> {
     println!("func_transient");
-    let value = input.await?.value;
+    let value = read!(input)?.value;
     Ok(Value { value }.cell())
 }
 
 #[turbo_tasks::function]
 async fn func_persistent(input: Vc<Value>) -> Result<Vc<Value>> {
     println!("func_persistent");
-    let value = input.await?.value;
+    let value = read!(input)?.value;
     Ok(Value { value }.cell())
 }
 
@@ -73,7 +73,7 @@ fn func_without_args() -> Result<Vc<Value>> {
 #[turbo_tasks::function]
 async fn nested_func_without_args_waiting() -> Result<Vc<Value>> {
     println!("nested_func_without_args_waiting");
-    let value = func_without_args().owned().await?;
+    let value = read!(func_without_args().owned())?;
     Ok(value.cell())
 }
 

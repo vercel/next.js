@@ -239,6 +239,7 @@ impl NextSegmentConfigParsingIssue {
     }
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for NextSegmentConfigParsingIssue {
@@ -264,7 +265,7 @@ impl Issue for NextSegmentConfigParsingIssue {
     }
 
     async fn file_path(&self) -> Result<FileSystemPath> {
-        Ok(self.ident.await?.path.clone())
+        Ok(turbo_tasks::read!(self.ident)?.path.clone())
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
@@ -276,7 +277,58 @@ impl Issue for NextSegmentConfigParsingIssue {
 
     async fn detail(&self) -> Result<Option<StyledString>> {
         match self.detail {
-            Some(d) => Ok(Some((*d.await?).clone())),
+            Some(d) => Ok(Some((*turbo_tasks::read!(d)?).clone())),
+            None => Ok(None),
+        }
+    }
+
+    fn documentation_link(&self) -> RcStr {
+        rcstr!("https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config")
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
+    }
+}
+
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for NextSegmentConfigParsingIssue {
+    fn severity(&self) -> IssueSeverity {
+        self.severity
+    }
+
+    fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Line(vec![
+            StyledString::Text(
+                format!(
+                    "Next.js can't recognize the exported `{}` field in route. ",
+                    self.key,
+                )
+                .into(),
+            ),
+            StyledString::Text(self.error.clone()),
+        ]))
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Parse
+    }
+
+    fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(turbo_tasks::read!(self.ident)?.path.clone())
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(rcstr!(
+            "The exported configuration object in a source file needs to have a very specific \
+             format from which some properties can be statically parsed at compiled-time."
+        ))))
+    }
+
+    fn detail(&self) -> Result<Option<StyledString>> {
+        match self.detail {
+            Some(d) => Ok(Some((*turbo_tasks::read!(d)?).clone())),
             None => Ok(None),
         }
     }
@@ -366,7 +418,7 @@ pub async fn parse_segment_config_from_source(
     source: ResolvedVc<Box<dyn Source>>,
     mode: ParseSegmentMode,
 ) -> Result<Vc<NextSegmentConfig>> {
-    let ident = source.ident().await?;
+    let ident = turbo_tasks::read!(source.ident())?;
     let path = &ident.path;
 
     // Don't try parsing if it's not a javascript file, otherwise it will emit an
@@ -380,7 +432,7 @@ pub async fn parse_segment_config_from_source(
         return Ok(Default::default());
     }
 
-    let result = &*parse(
+    let result = &*turbo_tasks::read!(parse(
         *source,
         if path.path.ends_with(".ts") {
             EcmascriptModuleAssetType::Typescript {
@@ -401,8 +453,7 @@ pub async fn parse_segment_config_from_source(
         rcstr!("development"),
         false,
         false,
-    )
-    .await?;
+    ))?;
 
     let ParseResult::Ok {
         program: Program::Module(module_ast),
@@ -418,12 +469,17 @@ pub async fn parse_segment_config_from_source(
     // Arena for the `JsValue`s produced while evaluating config expressions;
     // freed when this function returns.
     let arena = ThreadLocal::new();
-    let config = WrapFuture::new(
+    // The async build drives the config-parsing future through `WrapFuture` so swc
+    // `GLOBALS` are set on every poll; the sync build has no await points, so it runs
+    // the same body inline inside a single `GLOBALS.set` scope (and `parse` is a plain
+    // closure rather than an `async` one).
+    #[cfg(not(feature = "sync"))]
+    let config = turbo_tasks::read!(WrapFuture::new(
         async {
             let mut config = NextSegmentConfig::default();
 
             let mut parse = async |ident, init, span| {
-                parse_config_value(
+                turbo_tasks::read!(parse_config_value(
                     source,
                     mode,
                     &mut config,
@@ -432,35 +488,28 @@ pub async fn parse_segment_config_from_source(
                     ident,
                     init,
                     span,
-                )
-                .await
+                ))
             };
 
             for item in &module_ast.body {
                 match item {
                     ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(decl)) => match &decl.decl {
-                        Decl::Class(decl) => {
-                            parse(
-                                Cow::Borrowed(decl.ident.sym.as_str()),
-                                Some(Cow::Owned(Expr::Class(ClassExpr {
-                                    ident: None,
-                                    class: decl.class.clone(),
-                                }))),
-                                decl.span(),
-                            )
-                            .await?
-                        }
-                        Decl::Fn(decl) => {
-                            parse(
-                                Cow::Borrowed(decl.ident.sym.as_str()),
-                                Some(Cow::Owned(Expr::Fn(FnExpr {
-                                    ident: None,
-                                    function: decl.function.clone(),
-                                }))),
-                                decl.span(),
-                            )
-                            .await?
-                        }
+                        Decl::Class(decl) => turbo_tasks::read!(parse(
+                            Cow::Borrowed(decl.ident.sym.as_str()),
+                            Some(Cow::Owned(Expr::Class(ClassExpr {
+                                ident: None,
+                                class: decl.class.clone(),
+                            }))),
+                            decl.span(),
+                        ))?,
+                        Decl::Fn(decl) => turbo_tasks::read!(parse(
+                            Cow::Borrowed(decl.ident.sym.as_str()),
+                            Some(Cow::Owned(Expr::Fn(FnExpr {
+                                ident: None,
+                                function: decl.function.clone(),
+                            }))),
+                            decl.span(),
+                        ))?,
                         Decl::Var(decl) => {
                             for decl in &decl.decls {
                                 let Some(ident) = decl.name.as_ident() else {
@@ -469,7 +518,7 @@ pub async fn parse_segment_config_from_source(
 
                                 let key = &ident.id.sym;
 
-                                parse(
+                                turbo_tasks::read!(parse(
                                     Cow::Borrowed(key.as_str()),
                                     Some(
                                         decl.init.as_deref().map(Cow::Borrowed).unwrap_or_else(
@@ -483,8 +532,7 @@ pub async fn parse_segment_config_from_source(
                                     } else {
                                         decl.span()
                                     },
-                                )
-                                .await?;
+                                ))?;
                             }
                         }
                         _ => continue,
@@ -492,7 +540,7 @@ pub async fn parse_segment_config_from_source(
                     ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named)) => {
                         for specifier in &named.specifiers {
                             if let ExportSpecifier::Named(named) = specifier {
-                                parse(
+                                turbo_tasks::read!(parse(
                                     match named.exported.as_ref().unwrap_or(&named.orig) {
                                         ModuleExportName::Ident(ident) => {
                                             Cow::Borrowed(ident.sym.as_str())
@@ -501,8 +549,7 @@ pub async fn parse_segment_config_from_source(
                                     },
                                     None,
                                     specifier.span(),
-                                )
-                                .await?;
+                                ))?;
                             }
                         }
                     }
@@ -514,8 +561,94 @@ pub async fn parse_segment_config_from_source(
             anyhow::Ok(config)
         },
         |f, ctx| GLOBALS.set(globals, || f.poll(ctx)),
-    )
-    .await?;
+    ))?;
+    #[cfg(feature = "sync")]
+    let config = GLOBALS.set(globals, || {
+        let mut config = NextSegmentConfig::default();
+
+        let mut parse = |ident, init, span| {
+            turbo_tasks::read!(parse_config_value(
+                source,
+                mode,
+                &mut config,
+                eval_context,
+                &arena,
+                ident,
+                init,
+                span,
+            ))
+        };
+
+        for item in &module_ast.body {
+            match item {
+                ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(decl)) => match &decl.decl {
+                    Decl::Class(decl) => turbo_tasks::read!(parse(
+                        Cow::Borrowed(decl.ident.sym.as_str()),
+                        Some(Cow::Owned(Expr::Class(ClassExpr {
+                            ident: None,
+                            class: decl.class.clone(),
+                        }))),
+                        decl.span(),
+                    ))?,
+                    Decl::Fn(decl) => turbo_tasks::read!(parse(
+                        Cow::Borrowed(decl.ident.sym.as_str()),
+                        Some(Cow::Owned(Expr::Fn(FnExpr {
+                            ident: None,
+                            function: decl.function.clone(),
+                        }))),
+                        decl.span(),
+                    ))?,
+                    Decl::Var(decl) => {
+                        for decl in &decl.decls {
+                            let Some(ident) = decl.name.as_ident() else {
+                                continue;
+                            };
+
+                            let key = &ident.id.sym;
+
+                            turbo_tasks::read!(parse(
+                                Cow::Borrowed(key.as_str()),
+                                Some(
+                                    decl.init
+                                        .as_deref()
+                                        .map(Cow::Borrowed)
+                                        .unwrap_or_else(|| Cow::Owned(*Expr::undefined(DUMMY_SP)),),
+                                ),
+                                // The config object can span hundreds of lines. Don't
+                                // highlight the whole thing
+                                if key == "config" {
+                                    ident.id.span
+                                } else {
+                                    decl.span()
+                                },
+                            ))?;
+                        }
+                    }
+                    _ => continue,
+                },
+                ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named)) => {
+                    for specifier in &named.specifiers {
+                        if let ExportSpecifier::Named(named) = specifier {
+                            turbo_tasks::read!(parse(
+                                match named.exported.as_ref().unwrap_or(&named.orig) {
+                                    ModuleExportName::Ident(ident) => {
+                                        Cow::Borrowed(ident.sym.as_str())
+                                    }
+                                    ModuleExportName::Str(s) => s.value.to_string_lossy(),
+                                },
+                                None,
+                                specifier.span(),
+                            ))?;
+                        }
+                    }
+                }
+                _ => {
+                    continue;
+                }
+            }
+        }
+        anyhow::Ok(config)
+    })?;
 
     let is_client_entry = module_ast
         .body
@@ -535,7 +668,7 @@ pub async fn parse_segment_config_from_source(
 
     if mode == ParseSegmentMode::App && is_client_entry {
         if let Some(span) = config.generate_static_params {
-            invalid_config(
+            turbo_tasks::read!(invalid_config(
                 source,
                 "generateStaticParams",
                 span,
@@ -545,12 +678,11 @@ pub async fn parse_segment_config_from_source(
                 ),
                 None,
                 IssueSeverity::Error,
-            )
-            .await?;
+            ))?;
         }
 
         if let Some(span) = config.instant {
-            invalid_config(
+            turbo_tasks::read!(invalid_config(
                 source,
                 "instant",
                 span,
@@ -561,12 +693,11 @@ pub async fn parse_segment_config_from_source(
                 ),
                 None,
                 IssueSeverity::Error,
-            )
-            .await?;
+            ))?;
         }
 
         if let Some(span) = config.prefetch {
-            invalid_config(
+            turbo_tasks::read!(invalid_config(
                 source,
                 "prefetch",
                 span,
@@ -577,15 +708,15 @@ pub async fn parse_segment_config_from_source(
                 ),
                 None,
                 IssueSeverity::Error,
-            )
-            .await?;
+            ))?;
         }
     }
 
     Ok(config.cell())
 }
 
-async fn invalid_config(
+turbo_tasks::dual_fn! {
+fn invalid_config(
     source: ResolvedVc<Box<dyn Source>>,
     key: &str,
     span: Span,
@@ -600,7 +731,7 @@ async fn invalid_config(
         None
     };
 
-    NextSegmentConfigParsingIssue::new(
+    turbo_tasks::read!(NextSegmentConfigParsingIssue::new(
         source.ident(),
         key.into(),
         error,
@@ -608,13 +739,15 @@ async fn invalid_config(
         IssueSource::from_swc_offsets(source, span.lo.to_u32(), span.hi.to_u32()),
         severity,
     )
-    .to_resolved()
-    .await?
+    .to_resolved())
+    ?
     .emit();
     Ok(())
 }
+}
 
-async fn parse_config_value(
+turbo_tasks::dual_fn! {
+fn parse_config_value(
     source: ResolvedVc<Box<dyn Source>>,
     mode: ParseSegmentMode,
     config: &mut NextSegmentConfig,
@@ -652,19 +785,19 @@ async fn parse_config_value(
     match &*key {
         "config" => {
             let Some(value) = get_value() else {
-                return invalid_config(
+                return turbo_tasks::read!(invalid_config(
                     source,
                     "config",
                     span,
                     rcstr!("It mustn't be reexported."),
                     None,
                     IssueSeverity::Error,
-                )
-                .await;
+                ))
+                ;
             };
 
             if mode == ParseSegmentMode::App {
-                return invalid_config(
+                return turbo_tasks::read!(invalid_config(
                     source,
                     "config",
                     span,
@@ -674,45 +807,45 @@ async fn parse_config_value(
                     ),
                     Some(&value),
                     IssueSeverity::Warning,
-                )
-                .await;
+                ))
+                ;
             }
 
             let JsValue::Object { parts, .. } = &value else {
-                return invalid_config(
+                return turbo_tasks::read!(invalid_config(
                     source,
                     "config",
                     span,
                     rcstr!("It needs to be a static object."),
                     Some(&value),
                     IssueSeverity::Error,
-                )
-                .await;
+                ))
+                ;
             };
 
             for part in parts {
                 let ObjectPart::KeyValue(key, value) = part else {
-                    return invalid_config(
+                    return turbo_tasks::read!(invalid_config(
                         source,
                         "config",
                         span,
                         rcstr!("It contains unsupported spread."),
                         Some(&value),
                         IssueSeverity::Error,
-                    )
-                    .await;
+                    ))
+                    ;
                 };
 
                 let Some(key) = key.as_str() else {
-                    return invalid_config(
+                    return turbo_tasks::read!(invalid_config(
                         source,
                         "config",
                         span,
                         rcstr!("It must only contain string keys."),
                         Some(value),
                         IssueSeverity::Error,
-                    )
-                    .await;
+                    ))
+                    ;
                 };
 
                 if matches!(value, JsValue::Constant(ConstantValue::Undefined)) {
@@ -721,42 +854,42 @@ async fn parse_config_value(
                 match key {
                     "runtime" => {
                         let Some(val) = value.as_str() else {
-                            return invalid_config(
+                            return turbo_tasks::read!(invalid_config(
                                 source,
                                 "config",
                                 span,
                                 rcstr!("`runtime` needs to be a static string."),
                                 Some(value),
                                 IssueSeverity::Error,
-                            )
-                            .await;
+                            ))
+                            ;
                         };
 
                         let runtime = match serde_json::from_value(Value::String(val.to_string())) {
                             Ok(runtime) => Some(runtime),
                             Err(err) => {
-                                return invalid_config(
+                                return turbo_tasks::read!(invalid_config(
                                     source,
                                     "config",
                                     span,
                                     format!("`runtime` has an invalid value: {err}.").into(),
                                     Some(value),
                                     IssueSeverity::Error,
-                                )
-                                .await;
+                                ))
+                                ;
                             }
                         };
 
                         if mode == ParseSegmentMode::Proxy && runtime == Some(NextRuntime::Edge) {
-                            invalid_config(
+                            turbo_tasks::read!(invalid_config(
                                 source,
                                 "config",
                                 span,
                                 rcstr!("Proxy does not support Edge runtime."),
                                 Some(value),
                                 IssueSeverity::Error,
-                            )
-                            .await?;
+                            ))
+                            ?;
                             continue;
                         }
 
@@ -764,13 +897,13 @@ async fn parse_config_value(
                     }
                     "matcher" => {
                         config.middleware_matcher =
-                            parse_route_matcher_from_js_value(source, span, value).await?;
+                            turbo_tasks::read!(parse_route_matcher_from_js_value(source, span, value))?;
                     }
                     "regions" => {
-                        config.preferred_region = parse_static_string_or_array_from_js_value(
+                        config.preferred_region = turbo_tasks::read!(parse_static_string_or_array_from_js_value(
                             source, span, "config", "regions", value,
-                        )
-                        .await?;
+                        ))
+                        ?;
                     }
                     _ => {
                         // Ignore,
@@ -780,86 +913,86 @@ async fn parse_config_value(
         }
         "dynamic" => {
             let Some(value) = get_value() else {
-                return invalid_config(
+                return turbo_tasks::read!(invalid_config(
                     source,
                     "dynamic",
                     span,
                     rcstr!("It mustn't be reexported."),
                     None,
                     IssueSeverity::Error,
-                )
-                .await;
+                ))
+                ;
             };
             if matches!(value, JsValue::Constant(ConstantValue::Undefined)) {
                 return Ok(());
             }
             let Some(val) = value.as_str() else {
-                return invalid_config(
+                return turbo_tasks::read!(invalid_config(
                     source,
                     "dynamic",
                     span,
                     rcstr!("It needs to be a static string."),
                     Some(&value),
                     IssueSeverity::Error,
-                )
-                .await;
+                ))
+                ;
             };
 
             config.dynamic = match serde_json::from_value(Value::String(val.to_string())) {
                 Ok(dynamic) => Some(dynamic),
                 Err(err) => {
-                    return invalid_config(
+                    return turbo_tasks::read!(invalid_config(
                         source,
                         "dynamic",
                         span,
                         format!("It has an invalid value: {err}.").into(),
                         Some(&value),
                         IssueSeverity::Error,
-                    )
-                    .await;
+                    ))
+                    ;
                 }
             };
         }
         "dynamicParams" => {
             let Some(value) = get_value() else {
-                return invalid_config(
+                return turbo_tasks::read!(invalid_config(
                     source,
                     "dynamicParams",
                     span,
                     rcstr!("It mustn't be reexported."),
                     None,
                     IssueSeverity::Error,
-                )
-                .await;
+                ))
+                ;
             };
             if matches!(value, JsValue::Constant(ConstantValue::Undefined)) {
                 return Ok(());
             }
             let Some(val) = value.as_bool() else {
-                return invalid_config(
+                return turbo_tasks::read!(invalid_config(
                     source,
                     "dynamicParams",
                     span,
                     rcstr!("It needs to be a static boolean."),
                     Some(&value),
                     IssueSeverity::Error,
-                )
-                .await;
+                ))
+                ;
             };
 
             config.dynamic_params = Some(val);
         }
         "revalidate" => {
             let Some(value) = get_value() else {
-                return invalid_config(
+                return turbo_tasks::read!(invalid_config(
                     source,
                     "revalidate",
                     span,
                     rcstr!("It mustn't be reexported."),
                     None,
                     IssueSeverity::Error,
-                )
-                .await;
+                ))
+                ;
             };
 
             match value {
@@ -882,112 +1015,112 @@ async fn parse_config_value(
         }
         "fetchCache" => {
             let Some(value) = get_value() else {
-                return invalid_config(
+                return turbo_tasks::read!(invalid_config(
                     source,
                     "fetchCache",
                     span,
                     rcstr!("It mustn't be reexported."),
                     None,
                     IssueSeverity::Error,
-                )
-                .await;
+                ))
+                ;
             };
             if matches!(value, JsValue::Constant(ConstantValue::Undefined)) {
                 return Ok(());
             }
             let Some(val) = value.as_str() else {
-                return invalid_config(
+                return turbo_tasks::read!(invalid_config(
                     source,
                     "fetchCache",
                     span,
                     rcstr!("It needs to be a static string."),
                     Some(&value),
                     IssueSeverity::Error,
-                )
-                .await;
+                ))
+                ;
             };
 
             config.fetch_cache = match serde_json::from_value(Value::String(val.to_string())) {
                 Ok(fetch_cache) => Some(fetch_cache),
                 Err(err) => {
-                    return invalid_config(
+                    return turbo_tasks::read!(invalid_config(
                         source,
                         "fetchCache",
                         span,
                         format!("It has an invalid value: {err}.").into(),
                         Some(&value),
                         IssueSeverity::Error,
-                    )
-                    .await;
+                    ))
+                    ;
                 }
             };
         }
         "runtime" => {
             let Some(value) = get_value() else {
-                return invalid_config(
+                return turbo_tasks::read!(invalid_config(
                     source,
                     "runtime",
                     span,
                     rcstr!("It mustn't be reexported."),
                     None,
                     IssueSeverity::Error,
-                )
-                .await;
+                ))
+                ;
             };
             if matches!(value, JsValue::Constant(ConstantValue::Undefined)) {
                 return Ok(());
             }
             let Some(val) = value.as_str() else {
-                return invalid_config(
+                return turbo_tasks::read!(invalid_config(
                     source,
                     "runtime",
                     span,
                     rcstr!("It needs to be a static string."),
                     Some(&value),
                     IssueSeverity::Error,
-                )
-                .await;
+                ))
+                ;
             };
 
             config.runtime = match serde_json::from_value(Value::String(val.to_string())) {
                 Ok(runtime) => Some(runtime),
                 Err(err) => {
-                    return invalid_config(
+                    return turbo_tasks::read!(invalid_config(
                         source,
                         "runtime",
                         span,
                         format!("It has an invalid value: {err}.").into(),
                         Some(&value),
                         IssueSeverity::Error,
-                    )
-                    .await;
+                    ))
+                    ;
                 }
             };
         }
         "preferredRegion" => {
             let Some(value) = get_value() else {
-                return invalid_config(
+                return turbo_tasks::read!(invalid_config(
                     source,
                     "preferredRegion",
                     span,
                     rcstr!("It mustn't be reexported."),
                     None,
                     IssueSeverity::Error,
-                )
-                .await;
+                ))
+                ;
             };
             if matches!(value, JsValue::Constant(ConstantValue::Undefined)) {
                 return Ok(());
             }
 
-            if let Some(preferred_region) = parse_static_string_or_array_from_js_value(
+            if let Some(preferred_region) = turbo_tasks::read!(parse_static_string_or_array_from_js_value(
                 source,
                 span,
                 "preferredRegion",
                 "preferredRegion",
                 &value,
-            )
-            .await?
+            ))
+            ?
             {
                 config.preferred_region = Some(preferred_region);
             }
@@ -1012,8 +1145,10 @@ async fn parse_config_value(
 
     Ok(())
 }
+}
 
-async fn parse_static_string_or_array_from_js_value(
+turbo_tasks::dual_fn! {
+fn parse_static_string_or_array_from_js_value(
     source: ResolvedVc<Box<dyn Source>>,
     span: Span,
     key: &str,
@@ -1031,7 +1166,7 @@ async fn parse_static_string_or_array_from_js_value(
                 if let Some(str) = item.as_str() {
                     result.push(str.to_string().into());
                 } else {
-                    invalid_config(
+                    turbo_tasks::read!(invalid_config(
                         source,
                         key,
                         span,
@@ -1042,14 +1177,14 @@ async fn parse_static_string_or_array_from_js_value(
                         .into(),
                         Some(item),
                         IssueSeverity::Error,
-                    )
-                    .await?;
+                    ))
+                    ?;
                 }
             }
             Some(result)
         }
         _ => {
-            invalid_config(
+            turbo_tasks::read!(invalid_config(
                 source,
                 key,
                 span,
@@ -1061,20 +1196,30 @@ async fn parse_static_string_or_array_from_js_value(
                 },
                 Some(value),
                 IssueSeverity::Error,
-            )
-            .await?;
+            ))
+            ?;
             return Ok(None);
         }
     })
 }
+}
 
-async fn parse_route_matcher_from_js_value(
+turbo_tasks::dual_fn! {
+fn parse_route_matcher_from_js_value(
     source: ResolvedVc<Box<dyn Source>>,
     span: Span,
     value: &JsValue<'_>,
 ) -> Result<Option<Vec<MiddlewareMatcherKind>>> {
-    let parse_matcher_kind_matcher =
-        async |value: &JsValue<'_>, sub_key: &str, matcher_idx: usize| {
+    // A dual-mode nested helper (a closure can't be `async` in the sync build; a
+    // `dual_fn!` fn can't capture, so `source`/`span` become explicit params).
+    turbo_tasks::dual_fn! {
+    fn parse_matcher_kind_matcher(
+        source: ResolvedVc<Box<dyn Source>>,
+        span: Span,
+        value: &JsValue<'_>,
+        sub_key: &str,
+        matcher_idx: usize,
+    ) -> Result<Vec<RouteHas>> {
             let mut route_has = vec![];
             if let JsValue::Array { items, .. } = value {
                 for (i, item) in items.iter().enumerate() {
@@ -1095,7 +1240,7 @@ async fn parse_route_matcher_from_js_value(
                                         }) {
                                             route_type = Some(part_value);
                                         } else {
-                                            invalid_config(
+                                            turbo_tasks::read!(invalid_config(
                                                 source,
                                                 "config",
                                                 span,
@@ -1107,15 +1252,15 @@ async fn parse_route_matcher_from_js_value(
                                                 .into(),
                                                 Some(part_value),
                                                 IssueSeverity::Error,
-                                            )
-                                            .await?;
+                                            ))
+                                            ?;
                                         }
                                     }
                                     Some("key") => {
                                         if let Some(part_value) = part_value.as_str() {
                                             route_key = Some(part_value);
                                         } else {
-                                            invalid_config(
+                                            turbo_tasks::read!(invalid_config(
                                                 source,
                                                 "config",
                                                 span,
@@ -1126,15 +1271,15 @@ async fn parse_route_matcher_from_js_value(
                                                 .into(),
                                                 Some(part_value),
                                                 IssueSeverity::Error,
-                                            )
-                                            .await?;
+                                            ))
+                                            ?;
                                         }
                                     }
                                     Some("value") => {
                                         if let Some(part_value) = part_value.as_str() {
                                             route_value = Some(part_value);
                                         } else {
-                                            invalid_config(
+                                            turbo_tasks::read!(invalid_config(
                                                 source,
                                                 "config",
                                                 span,
@@ -1145,12 +1290,12 @@ async fn parse_route_matcher_from_js_value(
                                                 .into(),
                                                 Some(part_value),
                                                 IssueSeverity::Error,
-                                            )
-                                            .await?;
+                                            ))
+                                            ?;
                                         }
                                     }
                                     _ => {
-                                        invalid_config(
+                                        turbo_tasks::read!(invalid_config(
                                             source,
                                             "config",
                                             span,
@@ -1161,8 +1306,8 @@ async fn parse_route_matcher_from_js_value(
                                             .into(),
                                             Some(part_key),
                                             IssueSeverity::Error,
-                                        )
-                                        .await?;
+                                        ))
+                                        ?;
                                     }
                                 }
                             }
@@ -1194,7 +1339,8 @@ async fn parse_route_matcher_from_js_value(
             }
 
             anyhow::Ok(route_has)
-        };
+    }
+    }
 
     let mut matchers = vec![];
 
@@ -1221,7 +1367,7 @@ async fn parse_route_matcher_from_js_value(
                                         had_source = true;
                                         matcher.original_source = value.into();
                                     } else {
-                                        invalid_config(
+                                        turbo_tasks::read!(invalid_config(
                                             source,
                                             "config",
                                             span,
@@ -1232,8 +1378,8 @@ async fn parse_route_matcher_from_js_value(
                                             .into(),
                                             Some(value),
                                             IssueSeverity::Error,
-                                        )
-                                        .await?;
+                                        ))
+                                        ?;
                                     }
                                 }
                                 Some("locale") => {
@@ -1247,7 +1393,7 @@ async fn parse_route_matcher_from_js_value(
                                     ) {
                                         // ignore
                                     } else {
-                                        invalid_config(
+                                        turbo_tasks::read!(invalid_config(
                                             source,
                                             "config",
                                             span,
@@ -1258,23 +1404,23 @@ async fn parse_route_matcher_from_js_value(
                                             .into(),
                                             Some(value),
                                             IssueSeverity::Error,
-                                        )
-                                        .await?;
+                                        ))
+                                        ?;
                                     }
                                 }
                                 Some("missing") => {
                                     matcher.missing =
-                                        Some(parse_matcher_kind_matcher(value, "missing", i).await?)
+                                        Some(turbo_tasks::read!(parse_matcher_kind_matcher(source, span, value, "missing", i))?)
                                 }
                                 Some("has") => {
                                     matcher.has =
-                                        Some(parse_matcher_kind_matcher(value, "has", i).await?)
+                                        Some(turbo_tasks::read!(parse_matcher_kind_matcher(source, span, value, "has", i))?)
                                 }
                                 Some("regexp") => {
                                     // ignored for now
                                 }
                                 _ => {
-                                    invalid_config(
+                                    turbo_tasks::read!(invalid_config(
                                         source,
                                         "config",
                                         span,
@@ -1282,27 +1428,27 @@ async fn parse_route_matcher_from_js_value(
                                             .into(),
                                         Some(key),
                                         IssueSeverity::Error,
-                                    )
-                                    .await?;
+                                    ))
+                                    ?;
                                 }
                             }
                         }
                     }
                     if !had_source {
-                        invalid_config(
+                        turbo_tasks::read!(invalid_config(
                             source,
                             "config",
                             span,
                             format!("Missing `source` in `matcher[{i}]` object").into(),
                             Some(value),
                             IssueSeverity::Error,
-                        )
-                        .await?;
+                        ))
+                        ?;
                     }
 
                     matchers.push(MiddlewareMatcherKind::Matcher(matcher));
                 } else {
-                    invalid_config(
+                    turbo_tasks::read!(invalid_config(
                         source,
                         "config",
                         span,
@@ -1312,13 +1458,13 @@ async fn parse_route_matcher_from_js_value(
                         .into(),
                         Some(value),
                         IssueSeverity::Error,
-                    )
-                    .await?;
+                    ))
+                    ?;
                 }
             }
         }
         _ => {
-            invalid_config(
+            turbo_tasks::read!(invalid_config(
                 source,
                 "config",
                 span,
@@ -1328,8 +1474,8 @@ async fn parse_route_matcher_from_js_value(
                 ),
                 Some(value),
                 IssueSeverity::Error,
-            )
-            .await?
+            ))
+            ?
         }
     }
 
@@ -1339,6 +1485,7 @@ async fn parse_route_matcher_from_js_value(
         Some(matchers)
     })
 }
+}
 
 /// A wrapper around [`parse_segment_config_from_source`] that merges route segment configuration
 /// information from all relevant files (page, layout, parallel routes, etc).
@@ -1346,26 +1493,37 @@ async fn parse_route_matcher_from_js_value(
 pub async fn parse_segment_config_from_loader_tree(
     loader_tree: Vc<AppPageLoaderTree>,
 ) -> Result<Vc<NextSegmentConfig>> {
-    let loader_tree = &*loader_tree.await?;
+    let loader_tree = &*turbo_tasks::read!(loader_tree)?;
 
-    Ok(parse_segment_config_from_loader_tree_internal(loader_tree)
-        .await?
-        .cell())
+    Ok(turbo_tasks::read!(parse_segment_config_from_loader_tree_internal(loader_tree))?.cell())
 }
 
-async fn parse_segment_config_from_loader_tree_internal(
+turbo_tasks::dual_fn! {
+fn parse_segment_config_from_loader_tree_internal(
     loader_tree: &AppPageLoaderTree,
 ) -> Result<NextSegmentConfig> {
     let mut config = NextSegmentConfig::default();
 
-    let parallel_configs = loader_tree
+    // Async recursion needs boxing + try_join fan-out; the sync build recurses on the
+    // real stack (bounded tree depth) and collects sequentially.
+    #[cfg(not(feature = "sync"))]
+    let parallel_configs = turbo_tasks::read!(loader_tree
         .parallel_routes
         .values()
         .map(|loader_tree| async move {
-            Box::pin(parse_segment_config_from_loader_tree_internal(loader_tree)).await
+            turbo_tasks::read!(Box::pin(parse_segment_config_from_loader_tree_internal(loader_tree)))
         })
-        .try_join()
-        .await?;
+        .try_join())
+        ?;
+    #[cfg(feature = "sync")]
+    let parallel_configs = {
+        let mut parallel_configs = Vec::new();
+        for loader_tree in loader_tree.parallel_routes.values() {
+            parallel_configs
+                .push(parse_segment_config_from_loader_tree_internal(loader_tree)?);
+        }
+        parallel_configs
+    };
 
     for tree in parallel_configs {
         config.apply_parallel_config(&tree)?;
@@ -1382,9 +1540,10 @@ async fn parse_segment_config_from_loader_tree_internal(
     {
         let source = Vc::upcast(FileSource::new(path.clone()));
         config.apply_parent_config(
-            &*parse_segment_config_from_source(source, ParseSegmentMode::App).await?,
+            &*turbo_tasks::read!(parse_segment_config_from_source(source, ParseSegmentMode::App))?,
         );
     }
 
     Ok(config)
+}
 }

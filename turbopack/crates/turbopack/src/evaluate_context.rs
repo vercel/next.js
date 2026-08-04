@@ -29,12 +29,14 @@ pub fn node_build_environment() -> Vc<Environment> {
     ))
 }
 
-async fn node_env_value(env: Vc<Box<dyn ProcessEnv>>) -> Result<RcStr> {
-    if let Some(node_env) = &*env.read(rcstr!("NODE_ENV")).await? {
+turbo_tasks::dual_fn! {
+fn node_env_value(env: Vc<Box<dyn ProcessEnv>>) -> Result<RcStr> {
+    if let Some(node_env) = &*turbo_tasks::read!(env.read(rcstr!("NODE_ENV")))? {
         Ok(node_env.clone())
     } else {
         Ok(rcstr!("development"))
     }
+}
 }
 
 #[turbo_tasks::function]
@@ -46,7 +48,7 @@ pub async fn node_evaluate_asset_context(
     ignore_dynamic_requests: bool,
 ) -> Result<Vc<Box<dyn AssetContext>>> {
     let mut import_map = if let Some(import_map) = import_map {
-        import_map.owned().await?
+        turbo_tasks::read!(import_map.owned())?
     } else {
         ImportMap::empty()
     };
@@ -54,24 +56,23 @@ pub async fn node_evaluate_asset_context(
         rcstr!("@vercel/turbopack-node/"),
         ImportMapping::PrimaryAlternative(
             rcstr!("./*"),
-            Some(turbopack_node::embed_js::embed_fs().root().owned().await?),
+            Some(turbo_tasks::read!(
+                turbopack_node::embed_js::embed_fs().root().owned()
+            )?),
         )
         .resolved_cell(),
     );
     let import_map = import_map.resolved_cell();
-    let node_env = node_env_value(execution_context.env()).await?;
+    let node_env = turbo_tasks::read!(node_env_value(execution_context.env()))?;
 
     // base context used for node_modules (and context for app code will be derived
     // from this)
     let resolve_options_context = ResolveOptionsContext {
-        enable_node_modules: Some(
-            execution_context
-                .project_path()
-                .await?
+        enable_node_modules: Some(turbo_tasks::read!(
+            turbo_tasks::read!(execution_context.project_path())?
                 .root()
                 .owned()
-                .await?,
-        ),
+        )?),
         enable_node_externals: true,
         enable_node_native_modules: true,
         custom_conditions: vec![node_env.clone(), rcstr!("node")],
@@ -91,17 +92,18 @@ pub async fn node_evaluate_asset_context(
 
     Ok(Vc::upcast(ModuleAssetContext::new(
         transitions.unwrap_or_default(),
-        CompileTimeInfo::builder(node_build_environment().to_resolved().await?)
-            .defines(
-                compile_time_defines!(
-                    process.turbopack = true,
-                    process.env.NODE_ENV = node_env.into_owned(),
-                    process.env.TURBOPACK = "1"
+        turbo_tasks::read!(
+            CompileTimeInfo::builder(turbo_tasks::read!(node_build_environment().to_resolved())?)
+                .defines(
+                    compile_time_defines!(
+                        process.turbopack = true,
+                        process.env.NODE_ENV = node_env.into_owned(),
+                        process.env.TURBOPACK = "1"
+                    )
+                    .resolved_cell(),
                 )
-                .resolved_cell(),
-            )
-            .cell()
-            .await?,
+                .cell()
+        )?,
         ModuleOptionsContext {
             tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
             ecmascript: EcmascriptOptionsContext {
@@ -124,20 +126,21 @@ pub async fn node_evaluate_asset_context(
 pub async fn config_tracing_module_context(
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<Box<dyn AssetContext>>> {
-    let node_env = node_env_value(execution_context.env()).await?;
+    let node_env = turbo_tasks::read!(node_env_value(execution_context.env()))?;
 
     Ok(Vc::upcast(externals_tracing_module_context(
-        CompileTimeInfo::builder(node_build_environment().to_resolved().await?)
-            .defines(
-                compile_time_defines!(
-                    process.turbopack = true,
-                    process.env.NODE_ENV = node_env.into_owned(),
-                    process.env.TURBOPACK = "1"
+        turbo_tasks::read!(
+            CompileTimeInfo::builder(turbo_tasks::read!(node_build_environment().to_resolved())?)
+                .defines(
+                    compile_time_defines!(
+                        process.turbopack = true,
+                        process.env.NODE_ENV = node_env.into_owned(),
+                        process.env.TURBOPACK = "1"
+                    )
+                    .resolved_cell(),
                 )
-                .resolved_cell(),
-            )
-            .cell()
-            .await?,
+                .cell()
+        )?,
         true,
     )))
 }

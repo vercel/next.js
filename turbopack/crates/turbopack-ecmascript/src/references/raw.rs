@@ -1,4 +1,5 @@
 use anyhow::{Result, bail};
+#[cfg(not(feature = "sync"))]
 use tracing::Instrument;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
@@ -46,36 +47,64 @@ impl FileSourceReference {
     }
 }
 
+turbo_tasks::dual_fn! {
+/// The uninstrumented body of [`FileSourceReference::resolve_reference`] (split out so
+/// both modes can wrap it in the tracing span).
+fn resolve_file_source_reference(
+    context_dir: FileSystemPath,
+    path: ResolvedVc<Pattern>,
+    collect_affecting_sources: bool,
+    issue_source: IssueSource,
+) -> Result<Vc<ModuleResolveResult>> {
+    let result = turbo_tasks::read!(resolve_raw(
+        context_dir.clone(),
+        *path,
+        collect_affecting_sources,
+        /* force_in_lookup_dir */ false,
+    )
+    .as_raw_module_result()
+    .to_resolved())
+    ?;
+    turbo_tasks::read!(check_and_emit_too_many_matches_warning(
+        *result,
+        issue_source,
+        context_dir,
+        path,
+    ))
+    ?;
+
+    Ok(*result)
+}
+}
+
 #[turbo_tasks::value_impl]
 impl ModuleReference for FileSourceReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         let span = tracing::info_span!(
             "trace file",
-            pattern = display(self.path.to_string().await?)
+            pattern = display(turbo_tasks::read!(self.path.to_string())?)
         );
-        async {
-            let result = resolve_raw(
-                self.context_dir.clone(),
-                *self.path,
-                self.collect_affecting_sources,
-                /* force_in_lookup_dir */ false,
-            )
-            .as_raw_module_result()
-            .to_resolved()
-            .await?;
-            check_and_emit_too_many_matches_warning(
-                *result,
-                self.issue_source,
+        #[cfg(not(feature = "sync"))]
+        let result = resolve_file_source_reference(
+            self.context_dir.clone(),
+            self.path,
+            self.collect_affecting_sources,
+            self.issue_source,
+        )
+        .instrument(span)
+        .await;
+        #[cfg(feature = "sync")]
+        let result = {
+            let _enter = span.entered();
+            resolve_file_source_reference(
                 self.context_dir.clone(),
                 self.path,
+                self.collect_affecting_sources,
+                self.issue_source,
             )
-            .await?;
-
-            Ok(*result)
-        }
-        .instrument(span)
-        .await
+        };
+        result
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
@@ -114,11 +143,12 @@ impl DirAssetReference {
     }
 }
 
-async fn resolve_reference_from_dir(
+turbo_tasks::dual_fn! {
+fn resolve_reference_from_dir(
     context_dir: FileSystemPath,
     path: Vc<Pattern>,
 ) -> Result<Vc<ModuleResolveResult>> {
-    let path_ref = path.await?;
+    let path_ref = turbo_tasks::read!(path)?;
     let (abs_path, rel_path) = path_ref.split_could_match("/ROOT/");
     if abs_path.is_none() && rel_path.is_none() {
         return Ok(*ModuleResolveResult::unresolvable());
@@ -126,26 +156,26 @@ async fn resolve_reference_from_dir(
 
     let abs_matches = if let Some(abs_path) = &abs_path {
         Some(
-            read_matches(
-                context_dir.root().owned().await?,
+            turbo_tasks::read!(read_matches(
+                turbo_tasks::read!(context_dir.root().owned())?,
                 rcstr!("/ROOT/"),
                 true,
                 Pattern::new(abs_path.or_any_nested_file()),
-            )
-            .await?,
+            ))
+            ?,
         )
     } else {
         None
     };
     let rel_matches = if let Some(rel_path) = &rel_path {
         Some(
-            read_matches(
+            turbo_tasks::read!(read_matches(
                 context_dir,
                 rcstr!(""),
                 true,
                 Pattern::new(rel_path.or_any_nested_file()),
-            )
-            .await?,
+            ))
+            ?,
         )
     } else {
         None
@@ -161,22 +191,22 @@ async fn resolve_reference_from_dir(
     for pat_match in matches {
         match pat_match {
             PatternMatch::File(matched_path, file) => {
-                let realpath = file.realpath_with_links().await?;
+                let realpath = turbo_tasks::read!(file.realpath_with_links())?;
                 for symlink in &realpath.symlinks {
                     affecting_sources.push(ResolvedVc::upcast(
-                        FileSource::new(symlink.clone()).to_resolved().await?,
+                        turbo_tasks::read!(FileSource::new(symlink.clone()).to_resolved())?,
                     ));
                 }
                 let path: FileSystemPath = match &realpath.path_result {
                     Ok(path) => path.clone(),
-                    Err(e) => bail!(e.as_error_message(file, &realpath).await?),
+                    Err(e) => bail!(turbo_tasks::read!(e.as_error_message(file, &realpath))?),
                 };
                 results.push((
                     RequestKey::new(matched_path.clone()),
                     ResolvedVc::upcast(
-                        RawModule::new(Vc::upcast(FileSource::new(path.clone())))
-                            .to_resolved()
-                            .await?,
+                        turbo_tasks::read!(RawModule::new(Vc::upcast(FileSource::new(path.clone())))
+                            .to_resolved())
+                            ?,
                     ),
                 ));
             }
@@ -188,6 +218,27 @@ async fn resolve_reference_from_dir(
         affecting_sources,
     ))
 }
+}
+
+turbo_tasks::dual_fn! {
+/// The uninstrumented body of [`DirAssetReference::resolve_reference`] (split out so
+/// both modes can wrap it in the tracing span).
+fn resolve_dir_asset_reference(
+    context_dir: FileSystemPath,
+    path: ResolvedVc<Pattern>,
+    issue_source: IssueSource,
+) -> Result<Vc<ModuleResolveResult>> {
+    let result = turbo_tasks::read!(resolve_reference_from_dir(context_dir.clone(), *path))?;
+    turbo_tasks::read!(check_and_emit_too_many_matches_warning(
+        result,
+        issue_source,
+        context_dir,
+        path,
+    ))
+    ?;
+    Ok(result)
+}
+}
 
 #[turbo_tasks::value_impl]
 impl ModuleReference for DirAssetReference {
@@ -195,21 +246,19 @@ impl ModuleReference for DirAssetReference {
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         let span = tracing::info_span!(
             "trace directory",
-            pattern = display(self.path.to_string().await?)
+            pattern = display(turbo_tasks::read!(self.path.to_string())?)
         );
-        async {
-            let result = resolve_reference_from_dir(self.context_dir.clone(), *self.path).await?;
-            check_and_emit_too_many_matches_warning(
-                result,
-                self.issue_source,
-                self.context_dir.clone(),
-                self.path,
-            )
-            .await?;
-            Ok(result)
-        }
-        .instrument(span)
-        .await
+        #[cfg(not(feature = "sync"))]
+        let result =
+            resolve_dir_asset_reference(self.context_dir.clone(), self.path, self.issue_source)
+                .instrument(span)
+                .await;
+        #[cfg(feature = "sync")]
+        let result = {
+            let _enter = span.entered();
+            resolve_dir_asset_reference(self.context_dir.clone(), self.path, self.issue_source)
+        };
+        result
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {

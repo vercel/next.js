@@ -4,17 +4,22 @@ use anyhow::{Result, bail};
 use either::Either;
 use regex::Regex;
 use tracing::Level;
-use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, ValueToString};
+use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString};
 
 use crate::chunk::{
     ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext,
     chunking::{ChunkItemOrBatchWithInfo, SplitContext, make_chunk},
+    parallel_reads,
 };
 
 /// Handle chunk items based on their total size. If the total size is too
 /// small, they will be pushed into `remaining`, if possible. If the total size
 /// is too large, it will return `false` and the caller should hand of the chunk
 /// items to be further split. Otherwise it creates a chunk.
+///
+/// This is a hand-written dual pair (see `dual_fn!` docs) because the `'l` lifetime
+/// parameter is not supported by the macro; the bodies must stay identical.
+#[cfg(not(feature = "sync"))]
 async fn handle_split_group<'l>(
     chunk_items: &mut Vec<&'l ChunkItemOrBatchWithInfo>,
     key: &mut String,
@@ -24,7 +29,12 @@ async fn handle_split_group<'l>(
     Ok(match (chunk_size(chunk_items), remaining) {
         (ChunkSize::Large, _) => false,
         (ChunkSize::Perfect, _) | (ChunkSize::Small, None) => {
-            make_chunk(take(chunk_items), Vec::new(), key, split_context).await?;
+            turbo_tasks::read!(make_chunk(
+                take(chunk_items),
+                Vec::new(),
+                key,
+                split_context
+            ))?;
             true
         }
         (ChunkSize::Small, Some(remaining)) => {
@@ -34,8 +44,35 @@ async fn handle_split_group<'l>(
     })
 }
 
+/// Sync twin of the async `handle_split_group` above; body identical.
+#[cfg(feature = "sync")]
+fn handle_split_group<'l>(
+    chunk_items: &mut Vec<&'l ChunkItemOrBatchWithInfo>,
+    key: &mut String,
+    split_context: &mut SplitContext<'_>,
+    remaining: Option<&mut Vec<&'l ChunkItemOrBatchWithInfo>>,
+) -> Result<bool> {
+    Ok(match (chunk_size(chunk_items), remaining) {
+        (ChunkSize::Large, _) => false,
+        (ChunkSize::Perfect, _) | (ChunkSize::Small, None) => {
+            turbo_tasks::read!(make_chunk(
+                take(chunk_items),
+                Vec::new(),
+                key,
+                split_context
+            ))?;
+            true
+        }
+        (ChunkSize::Small, Some(remaining)) => {
+            remaining.extend(take(chunk_items));
+            true
+        }
+    })
+}
+
+turbo_tasks::dual_fn! {
 /// Expands all batches and ensures that there are only terminal ChunkItems left.
-pub async fn expand_batches(
+pub fn expand_batches(
     chunk_items: Vec<&ChunkItemOrBatchWithInfo>,
     ty: ResolvedVc<Box<dyn ChunkType>>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
@@ -47,37 +84,44 @@ pub async fn expand_batches(
                 expanded.push(item.clone());
             }
             ChunkItemOrBatchWithInfo::Batch { batch, .. } => {
-                expanded.extend(
-                    batch
-                        .await?
-                        .chunk_items
-                        .iter()
-                        .map(async |item| {
-                            let size = ty.chunk_item_size(
-                                *chunking_context,
-                                *item.chunk_item,
-                                item.async_info.map(|i| *i),
-                            );
-                            let asset_ident = item.chunk_item.asset_ident().to_string();
-                            Ok(ChunkItemOrBatchWithInfo::ChunkItem {
-                                chunk_item: *item,
-                                size: *size.await?,
-                                asset_ident: asset_ident.owned().await?,
-                            })
-                        })
-                        .try_join()
-                        .await?,
-                );
+                expanded.extend(turbo_tasks::read!(parallel_reads(turbo_tasks::read!(batch)?
+                    .chunk_items
+                    .iter()
+                    .map(|item| expand_batch_item(item, ty, chunking_context))))?);
             }
         }
     }
     Ok(expanded)
 }
+}
 
+turbo_tasks::dual_fn! {
+/// Per-item body of [`expand_batches`]: sizes a single batched chunk item and turns it
+/// into a terminal [`ChunkItemOrBatchWithInfo::ChunkItem`].
+fn expand_batch_item(
+    item: &ChunkItemWithAsyncModuleInfo,
+    ty: ResolvedVc<Box<dyn ChunkType>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+) -> Result<ChunkItemOrBatchWithInfo> {
+    let size = ty.chunk_item_size(
+        *chunking_context,
+        *item.chunk_item,
+        item.async_info.map(|i| *i),
+    );
+    let asset_ident = item.chunk_item.asset_ident().to_string();
+    Ok(ChunkItemOrBatchWithInfo::ChunkItem {
+        chunk_item: *item,
+        size: *turbo_tasks::read!(size)?,
+        asset_ident: turbo_tasks::read!(asset_ident.owned())?,
+    })
+}
+}
+
+turbo_tasks::dual_fn! {
 /// Split chunk items into app code and vendor code. Continues splitting with
 /// [package_name_split] if necessary.
 #[tracing::instrument(level = Level::TRACE, skip_all, fields(name = display(&name)))]
-pub async fn app_vendors_split(
+pub fn app_vendors_split(
     chunk_items: Vec<&'_ ChunkItemOrBatchWithInfo>,
     mut name: String,
     split_context: &mut SplitContext<'_>,
@@ -106,49 +150,48 @@ pub async fn app_vendors_split(
     }
     if !chunk_group_specific_chunk_items.is_empty() {
         let mut name = format!("{name}-specific");
-        make_chunk(
+        turbo_tasks::read!(make_chunk(
             chunk_group_specific_chunk_items,
             Vec::new(),
             &mut name,
             split_context,
-        )
-        .await?;
+        ))?;
     }
     let mut remaining = Vec::new();
     let mut key = format!("{name}-app");
-    if !handle_split_group(
+    if !turbo_tasks::read!(handle_split_group(
         &mut app_chunk_items,
         &mut key,
         split_context,
         Some(&mut remaining),
-    )
-    .await?
+    ))?
     {
-        folder_split(app_chunk_items, 0, key.into(), split_context).await?;
+        turbo_tasks::read!(folder_split(app_chunk_items, 0, key.into(), split_context))?;
     }
     let mut key = format!("{name}-vendors");
-    if !handle_split_group(
+    if !turbo_tasks::read!(handle_split_group(
         &mut vendors_chunk_items,
         &mut key,
         split_context,
         Some(&mut remaining),
-    )
-    .await?
+    ))?
     {
-        package_name_split(vendors_chunk_items, key, split_context).await?;
+        turbo_tasks::read!(package_name_split(vendors_chunk_items, key, split_context))?;
     }
     if !remaining.is_empty()
-        && !handle_split_group(&mut remaining, &mut name, split_context, None).await?
+        && !turbo_tasks::read!(handle_split_group(&mut remaining, &mut name, split_context, None))?
     {
-        package_name_split(remaining, name, split_context).await?;
+        turbo_tasks::read!(package_name_split(remaining, name, split_context))?;
     }
     Ok(())
 }
+}
 
+turbo_tasks::dual_fn! {
 /// Split chunk items by node_modules package name. Continues splitting with
 /// [folder_split] if necessary.
 #[tracing::instrument(level = Level::TRACE, skip_all, fields(name = display(&name)))]
-async fn package_name_split(
+fn package_name_split(
     chunk_items: Vec<&'_ ChunkItemOrBatchWithInfo>,
     mut name: String,
     split_context: &mut SplitContext<'_>,
@@ -168,28 +211,30 @@ async fn package_name_split(
     let mut remaining = Vec::new();
     for (package_name, mut list) in map {
         let mut key = format!("{name}-{package_name}");
-        if !handle_split_group(&mut list, &mut key, split_context, Some(&mut remaining)).await? {
-            folder_split(list, 0, key.into(), split_context).await?;
+        if !turbo_tasks::read!(handle_split_group(&mut list, &mut key, split_context, Some(&mut remaining)))? {
+            turbo_tasks::read!(folder_split(list, 0, key.into(), split_context))?;
         }
     }
     if !remaining.is_empty()
-        && !handle_split_group(&mut remaining, &mut name, split_context, None).await?
+        && !turbo_tasks::read!(handle_split_group(&mut remaining, &mut name, split_context, None))?
     {
-        folder_split(remaining, 0, name.into(), split_context).await?;
+        turbo_tasks::read!(folder_split(remaining, 0, name.into(), split_context))?;
     }
     Ok(())
 }
+}
 
+turbo_tasks::dual_fn! {
 /// Split chunk items by folder structure.
 #[tracing::instrument(level = Level::TRACE, skip_all, fields(name = display(&name), location))]
-async fn folder_split<'l>(
-    chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
+fn folder_split(
+    chunk_items: Vec<&ChunkItemOrBatchWithInfo>,
     mut location: usize,
     name: Cow<'_, str>,
     split_context: &mut SplitContext<'_>,
 ) -> Result<()> {
     let mut map = FxIndexMap::<_, (_, Vec<_>)>::default();
-    let mut chunk_items: Either<_, Vec<&'l ChunkItemOrBatchWithInfo>> = Either::Left(chunk_items);
+    let mut chunk_items: Either<_, Vec<&ChunkItemOrBatchWithInfo>> = Either::Left(chunk_items);
     loop {
         let iter = match chunk_items {
             Either::Left(iter) => Either::Left(iter.into_iter()),
@@ -216,7 +261,7 @@ async fn folder_split<'l>(
                 continue;
             } else {
                 let mut key = format!("{name}-{folder_name}");
-                make_chunk(list, Vec::new(), &mut key, split_context).await?;
+                turbo_tasks::read!(make_chunk(list, Vec::new(), &mut key, split_context))?;
                 return Ok(());
             }
         } else {
@@ -226,17 +271,21 @@ async fn folder_split<'l>(
     let mut remaining = Vec::new();
     for (folder_name, (new_location, mut list)) in map {
         let mut key = format!("{name}-{folder_name}");
-        if !handle_split_group(&mut list, &mut key, split_context, Some(&mut remaining)).await? {
+        if !turbo_tasks::read!(handle_split_group(&mut list, &mut key, split_context, Some(&mut remaining)))? {
             if let Some(new_location) = new_location {
-                Box::pin(folder_split(
+                // Recursion: the async build must box the recursive future; the sync
+                // build recurses directly (plain call, no boxing).
+                #[cfg(not(feature = "sync"))]
+                turbo_tasks::read!(Box::pin(folder_split(
                     list,
                     new_location,
                     Cow::Borrowed(&name),
                     split_context,
-                ))
-                .await?;
+                )))?;
+                #[cfg(feature = "sync")]
+                folder_split(list, new_location, Cow::Borrowed(&name), split_context)?;
             } else {
-                make_chunk(list, Vec::new(), &mut key, split_context).await?;
+                turbo_tasks::read!(make_chunk(list, Vec::new(), &mut key, split_context))?;
             }
         }
     }
@@ -245,11 +294,12 @@ async fn folder_split<'l>(
             bail!("Batch items are not supported");
         };
         let mut key = format!("{}-{}", name, &asset_ident[..location]);
-        if !handle_split_group(&mut remaining, &mut key, split_context, None).await? {
-            make_chunk(remaining, Vec::new(), &mut key, split_context).await?;
+        if !turbo_tasks::read!(handle_split_group(&mut remaining, &mut key, split_context, None))? {
+            turbo_tasks::read!(make_chunk(remaining, Vec::new(), &mut key, split_context))?;
         }
     }
     Ok(())
+}
 }
 
 /// Returns `true` if the given `ident` is app code.

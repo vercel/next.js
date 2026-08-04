@@ -113,24 +113,22 @@ impl ImportAssetReference {
 impl ModuleReference for ImportAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let own_attrs = self.attributes.await?.as_reference_import_attributes();
+        let own_attrs = turbo_tasks::read!(self.attributes)?.as_reference_import_attributes();
         let import_context = match (&self.import_context, own_attrs.is_empty()) {
             (Some(import_context), true) => Some(*import_context),
-            (None, false) => Some(
+            (None, false) => Some(turbo_tasks::read!(
                 ImportContext::new(
                     own_attrs.layer.iter().cloned().collect(),
                     own_attrs.media.iter().cloned().collect(),
                     own_attrs.supports.iter().cloned().collect(),
                 )
                 .to_resolved()
-                .await?,
-            ),
-            (Some(import_context), false) => Some(
+            )?),
+            (Some(import_context), false) => Some(turbo_tasks::read!(
                 import_context
                     .add_attributes(own_attrs.layer, own_attrs.media, own_attrs.supports)
                     .to_resolved()
-                    .await?,
-            ),
+            )?),
             (None, true) => None,
         };
 
@@ -167,9 +165,9 @@ impl CodeGenerateable for ImportAssetReference {
             protocol,
             remainder,
             ..
-        } = &*self.request.await?
+        } = &*turbo_tasks::read!(self.request)?
         {
-            match &*self.attributes.await? {
+            match &*turbo_tasks::read!(self.attributes)? {
                 ImportAttributes::LightningCss {
                     layer_name,
                     supports,

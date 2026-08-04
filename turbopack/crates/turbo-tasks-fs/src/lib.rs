@@ -12,6 +12,11 @@
 #![cfg_attr(windows, feature(junction_point))]
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 #![allow(clippy::mutable_key_type)]
+// Under the no-tokio sync build the watcher subsystem and its supporting types
+// (invalidation reasons, path-set helpers, `Duration` imports, etc.) are gated
+// out, leaving them dead. Mirror turbo-tasks / turbo-tasks-backend and allow the
+// expected dead support code rather than scattering cfgs across every item.
+#![cfg_attr(not(feature = "tokio_runtime"), allow(dead_code, unused_imports))]
 
 pub mod embed;
 pub mod glob;
@@ -27,6 +32,10 @@ pub mod rope;
 pub mod source_context;
 pub mod util;
 pub(crate) mod virtual_fs;
+// The `notify`-based file watcher is dev/watch-mode only and tokio-bound
+// (it drives invalidations via `tokio_handle.block_on`). The no-tokio sync
+// build (targeting `next build`) omits it.
+#[cfg(feature = "tokio_runtime")]
 mod watcher;
 
 use std::{
@@ -45,6 +54,9 @@ use std::{
 };
 
 use anyhow::{Context, Result, anyhow, bail};
+// `#[async_trait]` is only used by the async build's `Effect`/`CapturedEffect` impls;
+// the sync build's impls are plain (non-async) trait impls.
+#[cfg(not(feature = "sync"))]
 use async_trait::async_trait;
 use auto_hash_map::{AutoMap, AutoSet};
 use bincode::{Decode, Encode};
@@ -53,12 +65,22 @@ use dunce::simplified;
 use indexmap::IndexSet;
 use jsonc_parser::{ParseOptions, parse_to_serde_value};
 use mime::Mime;
+#[cfg(not(feature = "tokio_runtime"))]
+use parking_lot::{RwLock, RwLockReadGuard};
 use rustc_hash::FxHashSet;
 use serde_json::Value;
-use tokio::{
-    runtime::Handle,
-    sync::{RwLock, RwLockReadGuard},
-};
+// The tokio runtime handle is only needed to give watcher-thread invalidations a
+// runtime context; there is no equivalent (or need) under the sync engine.
+#[cfg(feature = "tokio_runtime")]
+use tokio::runtime::Handle;
+// Dual-mode locks: tokio's async RwLock under the async runtime, parking_lot's
+// blocking RwLock under the no-tokio sync build. The invalidation lock's write
+// side is watcher-only (tokio_runtime), so under sync it is always uncontended.
+#[cfg(feature = "tokio_runtime")]
+use tokio::sync::{RwLock, RwLockReadGuard};
+// Futures are only instrumented in the async build; the sync build enters spans
+// directly (see `traced`).
+#[cfg(not(feature = "sync"))]
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -74,6 +96,8 @@ use turbo_unix_path::{
     get_parent_path, get_relative_path_to, join_path, normalize_path, sys_to_unix, unix_to_sys,
 };
 
+#[cfg(feature = "tokio_runtime")]
+use crate::watcher::DiskWatcher;
 use crate::{
     glob::Glob,
     invalidation::Write,
@@ -85,7 +109,6 @@ use crate::{
     retry::{can_retry, retry_blocking, retry_blocking_custom},
     rope::{Rope, RopeReader},
     util::extract_disk_access,
-    watcher::DiskWatcher,
 };
 pub use crate::{read_glob::ReadGlobResult, virtual_fs::VirtualFileSystem};
 
@@ -168,20 +191,115 @@ pub fn validate_path_length(path: &Path) -> Result<Cow<'_, Path>> {
         .with_context(|| format!("path length for file {path:?} exceeds max length of filesystem"))
 }
 
-trait ConcurrencyLimitedExt {
-    type Output;
-    async fn concurrency_limited(self, semaphore: &tokio::sync::Semaphore) -> Self::Output;
+/// The semaphore type bounding concurrent file operations. Async mode uses
+/// tokio's; the no-tokio sync build uses a small blocking counting semaphore.
+#[cfg(feature = "tokio_runtime")]
+type IoSemaphore = tokio::sync::Semaphore;
+#[cfg(not(feature = "tokio_runtime"))]
+type IoSemaphore = sync_semaphore::SyncSemaphore;
+
+/// A minimal blocking counting semaphore for the no-tokio sync build, matching
+/// the slice of `tokio::sync::Semaphore` we use (`new(usize)` + `acquire()` ->
+/// RAII permit). Blocks the calling worker until a permit is free; deadlock-free
+/// because permit holders never wait on the semaphore themselves.
+#[cfg(not(feature = "tokio_runtime"))]
+mod sync_semaphore {
+    use parking_lot::{Condvar, Mutex};
+
+    pub struct SyncSemaphore {
+        permits: Mutex<usize>,
+        available: Condvar,
+    }
+
+    pub struct SyncSemaphorePermit<'a>(&'a SyncSemaphore);
+
+    impl SyncSemaphore {
+        pub fn new(permits: usize) -> Self {
+            Self {
+                permits: Mutex::new(permits),
+                available: Condvar::new(),
+            }
+        }
+
+        pub fn acquire(&self) -> SyncSemaphorePermit<'_> {
+            let mut permits = self.permits.lock();
+            while *permits == 0 {
+                self.available.wait(&mut permits);
+            }
+            *permits -= 1;
+            SyncSemaphorePermit(self)
+        }
+    }
+
+    impl Drop for SyncSemaphorePermit<'_> {
+        fn drop(&mut self) {
+            *self.0.permits.lock() += 1;
+            self.0.available.notify_one();
+        }
+    }
 }
 
-impl<F, R> ConcurrencyLimitedExt for F
-where
-    F: Future<Output = R>,
-{
-    type Output = R;
-    async fn concurrency_limited(self, semaphore: &tokio::sync::Semaphore) -> Self::Output {
+/// Runs an I/O operation under the given semaphore, inside the given tracing span.
+///
+/// Dual-mode: the async build acquires the tokio semaphore permit (yielding until one is
+/// free), then awaits the future produced by `f`, instrumented with `span`. The `sync`
+/// build blocks the worker on the (blocking) [`SyncSemaphore`], enters the span, and
+/// runs `f` inline — `f` returns the value directly there (typically a dual-mode
+/// [`retry_blocking`] call). Callers use the dual `turbo_tasks::read!(limited(..))` form.
+#[cfg(not(feature = "sync"))]
+async fn limited<Fut: Future>(
+    semaphore: &IoSemaphore,
+    span: tracing::Span,
+    f: impl FnOnce() -> Fut,
+) -> Fut::Output {
+    #[cfg(feature = "tokio_runtime")]
+    let _permit = semaphore.acquire().await;
+    #[cfg(not(feature = "tokio_runtime"))]
+    let _permit = semaphore.acquire();
+    f().instrument(span).await
+}
+
+/// See the async definition above: blocks on the semaphore, enters the span, runs `f`
+/// inline.
+#[cfg(feature = "sync")]
+fn limited<R>(semaphore: &IoSemaphore, span: tracing::Span, f: impl FnOnce() -> R) -> R {
+    let _permit = semaphore.acquire();
+    let _span = span.entered();
+    f()
+}
+
+/// Runs `f` inside the given tracing span. Dual-mode building block for I/O bodies that
+/// manage the semaphore separately (see [`limited_block!`]): the async build instruments
+/// the future produced by `f`; the `sync` build enters the span and runs `f` inline.
+#[cfg(not(feature = "sync"))]
+fn traced<Fut: Future>(
+    span: tracing::Span,
+    f: impl FnOnce() -> Fut,
+) -> impl Future<Output = Fut::Output> {
+    f().instrument(span)
+}
+
+/// See the async definition above: enters the span and runs `f` inline.
+#[cfg(feature = "sync")]
+fn traced<R>(span: tracing::Span, f: impl FnOnce() -> R) -> R {
+    let _span = span.entered();
+    f()
+}
+
+/// Runs a multi-step I/O block under the given semaphore. The block must be written
+/// mode-agnostically (every await point through `turbo_tasks::read!`, spans via
+/// [`traced`]): the async build acquires the tokio permit with `.await`, the `sync`
+/// build blocks the worker on the [`SyncSemaphore`]; the block itself then runs in the
+/// enclosing (dual-mode) function, holding the permit for its duration.
+macro_rules! limited_block {
+    ($semaphore:expr, $body:block) => {{
+        let semaphore = $semaphore;
+        #[cfg(all(not(feature = "sync"), feature = "tokio_runtime"))]
         let _permit = semaphore.acquire().await;
-        self.await
-    }
+        #[cfg(not(all(not(feature = "sync"), feature = "tokio_runtime")))]
+        let _permit = semaphore.acquire();
+        $body
+    }};
 }
 
 fn number_env_var(name: &'static str) -> Option<usize> {
@@ -195,15 +313,15 @@ fn number_env_var(name: &'static str) -> Option<usize> {
         .filter(|val| *val != 0)
 }
 
-fn create_read_semaphore() -> tokio::sync::Semaphore {
+fn create_read_semaphore() -> IoSemaphore {
     // the semaphore isn't serialized, and we assume the environment variable doesn't change during
     // runtime, so it's okay to access it in this untracked way.
     static TURBO_ENGINE_READ_CONCURRENCY: LazyLock<usize> =
         LazyLock::new(|| number_env_var("TURBO_ENGINE_READ_CONCURRENCY").unwrap_or(64));
-    tokio::sync::Semaphore::new(*TURBO_ENGINE_READ_CONCURRENCY)
+    IoSemaphore::new(*TURBO_ENGINE_READ_CONCURRENCY)
 }
 
-fn create_write_semaphore() -> tokio::sync::Semaphore {
+fn create_write_semaphore() -> IoSemaphore {
     // the semaphore isn't serialized, and we assume the environment variable doesn't change during
     // runtime, so it's okay to access it in this untracked way.
     static TURBO_ENGINE_WRITE_CONCURRENCY: LazyLock<usize> = LazyLock::new(|| {
@@ -213,7 +331,7 @@ fn create_write_semaphore() -> tokio::sync::Semaphore {
             4,
         )
     });
-    tokio::sync::Semaphore::new(*TURBO_ENGINE_WRITE_CONCURRENCY)
+    IoSemaphore::new(*TURBO_ENGINE_WRITE_CONCURRENCY)
 }
 
 #[turbo_tasks::value_trait]
@@ -259,12 +377,13 @@ struct DiskFileSystemInner {
     /// Semaphore to limit the maximum number of concurrent file operations.
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[bincode(skip, default = "create_read_semaphore")]
-    read_semaphore: tokio::sync::Semaphore,
+    read_semaphore: IoSemaphore,
     /// Semaphore to limit the maximum number of concurrent file operations.
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[bincode(skip, default = "create_write_semaphore")]
-    write_semaphore: tokio::sync::Semaphore,
+    write_semaphore: IoSemaphore,
 
+    #[cfg(feature = "tokio_runtime")]
     #[turbo_tasks(debug_ignore, trace_ignore)]
     watcher: DiskWatcher,
     /// Root paths that we do not allow access to from this filesystem.
@@ -276,6 +395,8 @@ struct DiskFileSystemInner {
     #[bincode(skip, default = "turbo_tasks_weak")]
     turbo_tasks: Weak<dyn TurboTasksApi>,
     /// Used by invalidators when called from a non-tokio thread, specifically in the fs watcher.
+    /// Only present in the async runtime; the sync engine needs no runtime context.
+    #[cfg(feature = "tokio_runtime")]
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[bincode(skip, default = "Handle::current")]
     tokio_handle: Handle,
@@ -309,16 +430,18 @@ impl DiskFileSystemInner {
         })
     }
 
-    /// registers the path as an invalidator for the current task,
-    /// has to be called within a turbo-tasks function
-    async fn register_read_invalidator(&self, path: &Path) -> Result<()> {
-        if let Some(invalidator) = turbo_tasks::get_invalidator() {
-            self.invalidator_map.insert(path.to_owned(), invalidator);
-            self.watcher
-                .ensure_watched_file(path, self.root_path())
-                .await?;
+    turbo_tasks::dual_fn! {
+        /// registers the path as an invalidator for the current task,
+        /// has to be called within a turbo-tasks function
+        fn register_read_invalidator(&self, path: &Path) -> Result<()> {
+            if let Some(invalidator) = turbo_tasks::get_invalidator() {
+                self.invalidator_map.insert(path.to_owned(), invalidator);
+                #[cfg(feature = "tokio_runtime")]
+                turbo_tasks::read!(self.watcher
+                    .ensure_watched_file(path, self.root_path()))?;
+            }
+            Ok(())
         }
-        Ok(())
     }
 
     /// After an effect writes to a path, invalidate any read tasks tracking that path so they
@@ -330,6 +453,7 @@ impl DiskFileSystemInner {
             let Some(turbo_tasks) = self.turbo_tasks.upgrade() else {
                 return;
             };
+            #[cfg(feature = "tokio_runtime")]
             let _guard = self.tokio_handle.enter();
             let reason = Write {
                 path: full_path.to_string_lossy().into_owned(),
@@ -340,22 +464,40 @@ impl DiskFileSystemInner {
         }
     }
 
-    /// registers the path as an invalidator for the current task,
-    /// has to be called within a turbo-tasks function
-    async fn register_dir_invalidator(&self, path: &Path) -> Result<()> {
-        if let Some(invalidator) = turbo_tasks::get_invalidator() {
-            self.dir_invalidator_map
-                .insert(path.to_owned(), invalidator);
-            self.watcher
-                .ensure_watched_dir(path, self.root_path())
-                .await?;
+    turbo_tasks::dual_fn! {
+        /// registers the path as an invalidator for the current task,
+        /// has to be called within a turbo-tasks function
+        fn register_dir_invalidator(&self, path: &Path) -> Result<()> {
+            if let Some(invalidator) = turbo_tasks::get_invalidator() {
+                self.dir_invalidator_map
+                    .insert(path.to_owned(), invalidator);
+                #[cfg(feature = "tokio_runtime")]
+                turbo_tasks::read!(self.watcher
+                    .ensure_watched_dir(path, self.root_path()))?;
+            }
+            Ok(())
         }
-        Ok(())
     }
 
+    #[cfg(not(feature = "sync"))]
     async fn lock_path(&self, full_path: &Path) -> PathLockGuard<'_> {
+        // tokio's async RwLock yields; parking_lot's blocks (only used when tokio is
+        // disabled entirely — the write side is watcher-only).
+        #[cfg(feature = "tokio_runtime")]
         let lock1 = self.invalidation_lock.read().await;
+        #[cfg(not(feature = "tokio_runtime"))]
+        let lock1 = self.invalidation_lock.read();
         let lock2 = self.mutex_map.lock(full_path.to_path_buf()).await;
+        PathLockGuard(lock1, lock2)
+    }
+
+    /// Blocking counterpart for the no-async `sync` build: parking_lot's read lock
+    /// (uncontended — the write side is watcher-only, and there is no watcher under
+    /// sync) plus the blocking `MutexMap` lock.
+    #[cfg(feature = "sync")]
+    fn lock_path(&self, full_path: &Path) -> PathLockGuard<'_> {
+        let lock1 = self.invalidation_lock.read();
+        let lock2 = self.mutex_map.lock(full_path.to_path_buf());
         PathLockGuard(lock1, lock2)
     }
 
@@ -364,6 +506,7 @@ impl DiskFileSystemInner {
         let Some(turbo_tasks) = self.turbo_tasks.upgrade() else {
             return;
         };
+        #[cfg(feature = "tokio_runtime")]
         let _guard = self.tokio_handle.enter();
 
         let invalidator_map = take(&mut *self.invalidator_map.lock().unwrap());
@@ -389,6 +532,7 @@ impl DiskFileSystemInner {
         let Some(turbo_tasks) = self.turbo_tasks.upgrade() else {
             return;
         };
+        #[cfg(feature = "tokio_runtime")]
         let _guard = self.tokio_handle.enter();
 
         let invalidator_map = take(&mut *self.invalidator_map.lock().unwrap());
@@ -421,6 +565,7 @@ impl DiskFileSystemInner {
         let Some(turbo_tasks) = self.turbo_tasks.upgrade() else {
             return;
         };
+        #[cfg(feature = "tokio_runtime")]
         let _guard = self.tokio_handle.enter();
 
         let mut invalidator_map = self.invalidator_map.lock().unwrap();
@@ -477,6 +622,7 @@ impl DiskFileSystemInner {
         });
     }
 
+    #[cfg(feature = "tokio_runtime")]
     #[tracing::instrument(level = "info", name = "start filesystem watching", skip_all, fields(path = %self.root))]
     async fn start_watching_internal(
         self: &Arc<Self>,
@@ -486,14 +632,17 @@ impl DiskFileSystemInner {
         let root_path = self.root_path().to_path_buf();
 
         // create the directory for the filesystem on disk, if it doesn't exist
-        retry_blocking(|| std::fs::create_dir_all(&root_path))
-            .instrument(tracing::info_span!("create root directory", name = ?root_path))
-            .concurrency_limited(&self.write_semaphore)
-            .await?;
+        turbo_tasks::read!(limited(
+            &self.write_semaphore,
+            tracing::info_span!("create root directory", name = ?root_path),
+            || retry_blocking(|| std::fs::create_dir_all(&root_path)),
+        ))?;
 
-        self.watcher
-            .start_watching(self.clone(), report_invalidation_reason, poll_interval)
-            .await?;
+        turbo_tasks::read!(self.watcher.start_watching(
+            self.clone(),
+            report_invalidation_reason,
+            poll_interval
+        ))?;
 
         Ok(())
     }
@@ -540,23 +689,24 @@ impl DiskFileSystem {
             .invalidate_path_and_children_with_reason(paths, reason);
     }
 
+    // File watching is dev/watch-mode only and tokio-bound; the no-tokio sync
+    // build (targeting `next build`) does not provide it yet.
+    #[cfg(feature = "tokio_runtime")]
     pub async fn start_watching(&self, poll_interval: Option<Duration>) -> Result<()> {
-        self.inner
-            .start_watching_internal(false, poll_interval)
-            .await
+        turbo_tasks::read!(self.inner.start_watching_internal(false, poll_interval))
     }
 
+    #[cfg(feature = "tokio_runtime")]
     pub async fn start_watching_with_invalidation_reason(
         &self,
         poll_interval: Option<Duration>,
     ) -> Result<()> {
-        self.inner
-            .start_watching_internal(true, poll_interval)
-            .await
+        turbo_tasks::read!(self.inner.start_watching_internal(true, poll_interval))
     }
 
+    #[cfg(feature = "tokio_runtime")]
     pub async fn stop_watching(&self) {
-        self.inner.watcher.stop_watching().await;
+        turbo_tasks::read!(self.inner.watcher.stop_watching());
     }
 
     /// Try to convert [`Path`] to [`FileSystemPath`]. Return `None` if the file path leaves the
@@ -622,6 +772,17 @@ struct PathLockGuard<'a>(
     #[allow(dead_code)] mutex_map::MutexMapGuard<'a, PathBuf>,
 );
 
+/// Identity read: `lock_path` is a plain blocking `fn` under `sync`, so
+/// `read!(lock_path(..))` call sites (`.await` in the async build) just forward the
+/// guard.
+#[cfg(feature = "sync")]
+impl turbo_tasks::macro_helpers::SyncRead for PathLockGuard<'_> {
+    type Output = Self;
+    fn sync_read(self) -> Self::Output {
+        self
+    }
+}
+
 fn format_absolute_fs_path(path: &Path, name: &str, root_path: &Path) -> Option<String> {
     if let Ok(rel_path) = path.strip_prefix(root_path) {
         let path = if MAIN_SEPARATOR != '/' {
@@ -679,7 +840,7 @@ impl DiskFileSystem {
         root: Vc<RcStr>,
         denied_paths: Vec<RcStr>,
     ) -> Result<Vc<Self>> {
-        let root = root.owned().await?;
+        let root = turbo_tasks::read!(root.owned())?;
         let instance = DiskFileSystem {
             inner: Arc::new(DiskFileSystemInner {
                 name,
@@ -690,9 +851,11 @@ impl DiskFileSystem {
                 dir_invalidator_map: InvalidatorMap::new(),
                 read_semaphore: create_read_semaphore(),
                 write_semaphore: create_write_semaphore(),
+                #[cfg(feature = "tokio_runtime")]
                 watcher: DiskWatcher::new(),
                 denied_paths,
                 turbo_tasks: turbo_tasks_weak(),
+                #[cfg(feature = "tokio_runtime")]
                 tokio_handle: Handle::current(),
                 effect_state_storage: EffectStateStorage::default(),
             }),
@@ -718,14 +881,14 @@ impl FileSystem for DiskFileSystem {
         }
         let full_path = self.to_sys_path(&fs_path);
 
-        self.inner.register_read_invalidator(&full_path).await?;
+        turbo_tasks::read!(self.inner.register_read_invalidator(&full_path))?;
 
-        let _lock = self.inner.lock_path(&full_path).await;
-        let content = match retry_blocking(|| File::from_path(&full_path))
-            .instrument(tracing::info_span!("read file", name = ?full_path))
-            .concurrency_limited(&self.inner.read_semaphore)
-            .await
-        {
+        let _lock = turbo_tasks::read!(self.inner.lock_path(&full_path));
+        let content = match turbo_tasks::read!(limited(
+            &self.inner.read_semaphore,
+            tracing::info_span!("read file", name = ?full_path),
+            || retry_blocking(|| File::from_path(&full_path)),
+        )) {
             Ok(file) => FileContent::new(file),
             Err(e) if e.kind() == ErrorKind::NotFound || e.kind() == ErrorKind::InvalidFilename => {
                 FileContent::NotFound
@@ -744,14 +907,14 @@ impl FileSystem for DiskFileSystem {
         }
         let full_path = self.to_sys_path(&fs_path);
 
-        self.inner.register_dir_invalidator(&full_path).await?;
+        turbo_tasks::read!(self.inner.register_dir_invalidator(&full_path))?;
 
         // we use the sync std function here as it's a lot faster (600%) in node-file-trace
-        let read_dir = match retry_blocking(|| std::fs::read_dir(&full_path))
-            .instrument(tracing::info_span!("read directory", name = ?full_path))
-            .concurrency_limited(&self.inner.read_semaphore)
-            .await
-        {
+        let read_dir = match turbo_tasks::read!(limited(
+            &self.inner.read_semaphore,
+            tracing::info_span!("read directory", name = ?full_path),
+            || retry_blocking(|| std::fs::read_dir(&full_path)),
+        )) {
             Ok(dir) => dir,
             Err(e)
                 if e.kind() == ErrorKind::NotFound
@@ -832,14 +995,14 @@ impl FileSystem for DiskFileSystem {
         }
         let full_path = self.to_sys_path(&fs_path);
 
-        self.inner.register_read_invalidator(&full_path).await?;
+        turbo_tasks::read!(self.inner.register_read_invalidator(&full_path))?;
 
-        let _lock = self.inner.lock_path(&full_path).await;
-        let link_path = match retry_blocking(|| std::fs::read_link(&full_path))
-            .instrument(tracing::info_span!("read symlink", name = ?full_path))
-            .concurrency_limited(&self.inner.read_semaphore)
-            .await
-        {
+        let _lock = turbo_tasks::read!(self.inner.lock_path(&full_path));
+        let link_path = match turbo_tasks::read!(limited(
+            &self.inner.read_semaphore,
+            tracing::info_span!("read symlink", name = ?full_path),
+            || retry_blocking(|| std::fs::read_link(&full_path)),
+        )) {
             Ok(res) => res,
             Err(_) => return Ok(LinkContent::NotFound.cell()),
         };
@@ -882,19 +1045,20 @@ impl FileSystem for DiskFileSystem {
             let target_string = RcStr::from(relative_to_root_path.to_string_lossy());
             (
                 target_string.clone(),
-                FileSystemPath::new_normalized_unchecked(
-                    fs_path.fs().to_resolved().await?,
-                    target_string,
-                )
-                .get_type()
-                .await?,
+                turbo_tasks::read!(
+                    FileSystemPath::new_normalized_unchecked(
+                        turbo_tasks::read!(fs_path.fs().to_resolved())?,
+                        target_string,
+                    )
+                    .get_type()
+                )?,
             )
         } else {
             let link_path_string_cow = link_path.to_string_lossy();
             let link_path_unix = RcStr::from(sys_to_unix(&link_path_string_cow));
             (
                 link_path_unix.clone(),
-                fs_path.parent().join(&link_path_unix)?.get_type().await?,
+                turbo_tasks::read!(fs_path.parent().join(&link_path_unix)?.get_type())?,
             )
         };
 
@@ -920,7 +1084,7 @@ impl FileSystem for DiskFileSystem {
         fs_path: FileSystemPath,
         content: ResolvedVc<FileContent>,
     ) -> Result<()> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         // You might be tempted to use `session_dependent` here, but `write` purely declares a side
         // effect and does not need to be reexecuted in the next session. All side effects are
         // reexecuted in general.
@@ -936,8 +1100,8 @@ impl FileSystem for DiskFileSystem {
         // content is available in the persistent cache (via PersistedFileContent) and does not
         // require recomputing the content on cache restore — avoiding unnecessary downstream
         // recomputation.
-        let content = content.persist().to_resolved().await?;
-        let content_hash = u128::from_le_bytes(hash_xxh3_hash128(&*content.await?));
+        let content = turbo_tasks::read!(content.persist().to_resolved())?;
+        let content_hash = u128::from_le_bytes(hash_xxh3_hash128(&*turbo_tasks::read!(content)?));
 
         #[turbo_tasks::value(eq = "manual", cell = "new")]
         struct WriteEffect {
@@ -947,38 +1111,57 @@ impl FileSystem for DiskFileSystem {
             content_hash: u128,
         }
 
+        impl WriteEffect {
+            turbo_tasks::dual_fn! {
+                fn capture_inner(&self) -> Result<Box<dyn CapturedEffect>> {
+                    // Untracked, a tracked read of this cell occurred in the write effect so if
+                    // it somehow changes the effect will be re-emitted
+                    let inner = turbo_tasks::read!((*self.fs).untracked())?.inner.clone();
+
+                    // If the per-key effect state already records `Applied { value_hash }`
+                    // matching our hash, skip materializing the content (avoids a possible disk
+                    // read + decompression via the persistent cache). The apply-time state
+                    // machine will dedup-hit before touching content. If state diverged between
+                    // this read and apply, `Effects::apply` will fire our producer's
+                    // invalidator via the Retry pathway and the producer will rerun with a
+                    // fresh capture.
+                    let key_bytes: Box<[u8]> = self.full_path.as_os_str().as_encoded_bytes().into();
+                    let content = if inner
+                        .effect_state_storage
+                        .matches_applied(&key_bytes, self.content_hash)
+                    {
+                        None
+                    } else {
+                        // Untracked: the content cell is already captured via `content_hash`,
+                        // and we don't want this `capture` to take a tracked dependency on the
+                        // content cell — that would pin it and defeat the eviction this
+                        // refactor enables.
+                        Some(turbo_tasks::read!((*self.content).untracked())?)
+                    };
+                    Ok(Box::new(CapturedWriteEffect {
+                        full_path: self.full_path.clone(),
+                        inner,
+                        content,
+                        content_hash: self.content_hash,
+                    }) as Box<dyn CapturedEffect>)
+                }
+            }
+        }
+
+        #[cfg(not(feature = "sync"))]
         #[async_trait]
         #[turbo_tasks::value_impl]
         impl Effect for WriteEffect {
             async fn capture(&self) -> Result<Box<dyn CapturedEffect>> {
-                // Untracked, a tracked read of this cell occurred in the write effect so if it
-                // somehow changes the effect will be re-emitted
-                let inner = (*self.fs).untracked().await?.inner.clone();
+                self.capture_inner().await
+            }
+        }
 
-                // If the per-key effect state already records `Applied { value_hash }` matching
-                // our hash, skip materializing the content (avoids a possible disk read +
-                // decompression via the persistent cache). The apply-time state machine will
-                // dedup-hit before touching content. If state diverged between this read and
-                // apply, `Effects::apply` will fire our producer's invalidator via the Retry
-                // pathway and the producer will rerun with a fresh capture.
-                let key_bytes: Box<[u8]> = self.full_path.as_os_str().as_encoded_bytes().into();
-                let content = if inner
-                    .effect_state_storage
-                    .matches_applied(&key_bytes, self.content_hash)
-                {
-                    None
-                } else {
-                    // Untracked: the content cell is already captured via `content_hash`, and
-                    // we don't want this `capture` to take a tracked dependency on the content
-                    // cell — that would pin it and defeat the eviction this refactor enables.
-                    Some((*self.content).untracked().await?)
-                };
-                Ok(Box::new(CapturedWriteEffect {
-                    full_path: self.full_path.clone(),
-                    inner,
-                    content,
-                    content_hash: self.content_hash,
-                }) as Box<dyn CapturedEffect>)
+        #[cfg(feature = "sync")]
+        #[turbo_tasks::value_impl]
+        impl Effect for WriteEffect {
+            fn capture(&self) -> Result<Box<dyn CapturedEffect>> {
+                self.capture_inner()
             }
         }
 
@@ -990,6 +1173,7 @@ impl FileSystem for DiskFileSystem {
             content_hash: u128,
         }
 
+        #[cfg(not(feature = "sync"))]
         #[async_trait]
         impl CapturedEffect for CapturedWriteEffect {
             fn key(&self) -> Box<[u8]> {
@@ -1011,110 +1195,133 @@ impl FileSystem for DiskFileSystem {
             }
         }
 
+        #[cfg(feature = "sync")]
+        impl CapturedEffect for CapturedWriteEffect {
+            fn key(&self) -> Box<[u8]> {
+                self.full_path.as_os_str().as_encoded_bytes().into()
+            }
+
+            fn value_hash(&self) -> u128 {
+                self.content_hash
+            }
+
+            fn apply(&self) -> Result<(), turbo_tasks::ApplyError> {
+                let body = self
+                    .content
+                    .as_ref()
+                    .map(|content| || self.apply_inner(content).map_err(AnyhowWrapper::from));
+                self.inner
+                    .effect_state_storage
+                    .run_apply::<AnyhowWrapper, _>(self.key(), self.content_hash, body)
+            }
+        }
+
         impl CapturedWriteEffect {
-            async fn apply_inner(
-                &self,
-                content: &ReadRef<PersistedFileContent>,
-            ) -> anyhow::Result<()> {
-                let full_path = validate_path_length(&self.full_path)?;
+            turbo_tasks::dual_fn! {
+                fn apply_inner(
+                    &self,
+                    content: &ReadRef<PersistedFileContent>,
+                ) -> anyhow::Result<()> {
+                    let full_path = validate_path_length(&self.full_path)?;
 
-                let _lock = self.inner.lock_path(&full_path).await;
+                    let _lock = turbo_tasks::read!(self.inner.lock_path(&full_path));
 
-                // We perform an untracked comparison here, so that this write is not dependent
-                // on a read's Vc<FileContent> (and the memory it holds). Our untracked read can
-                // be freed immediately. Given this is an output file, it's unlikely any Turbo
-                // code will need to read the file from disk into a Vc<FileContent>, so we're
-                // not wasting cycles.
-                let compare = content
-                    .streaming_compare(&full_path)
-                    .instrument(tracing::info_span!("read file before write", name = ?full_path))
-                    .concurrency_limited(&self.inner.read_semaphore)
-                    .await?;
-                if compare == FileComparison::Equal {
-                    return Ok(());
-                }
+                    // We perform an untracked comparison here, so that this write is not
+                    // dependent on a read's Vc<FileContent> (and the memory it holds). Our
+                    // untracked read can be freed immediately. Given this is an output file,
+                    // it's unlikely any Turbo code will need to read the file from disk into a
+                    // Vc<FileContent>, so we're not wasting cycles.
+                    let compare = turbo_tasks::read!(limited(
+                        &self.inner.read_semaphore,
+                        tracing::info_span!("read file before write", name = ?full_path),
+                        || content.streaming_compare(&full_path),
+                    ))?;
+                    if compare == FileComparison::Equal {
+                        return Ok(());
+                    }
 
-                match &**content {
-                    PersistedFileContent::Content(..) => {
-                        let content = content.clone();
-                        let full_path = full_path.into_owned();
-                        async {
-                            let do_write = || {
-                                let content = content.clone();
-                                let full_path = full_path.clone();
-                                let span = tracing::info_span!("write file", name = ?full_path);
-                                retry_blocking(move || {
-                                    let mut f = std::fs::File::create(&full_path)?;
-                                    let PersistedFileContent::Content(file) = &*content else {
-                                        unreachable!()
-                                    };
-                                    std::io::copy(&mut file.read(), &mut f)?;
-                                    #[cfg(unix)]
-                                    f.set_permissions(file.meta.permissions.into())?;
-                                    f.flush()?;
-
-                                    static WRITE_VERSION: LazyLock<bool> = LazyLock::new(|| {
-                                        std::env::var_os("TURBO_ENGINE_WRITE_VERSION")
-                                            .is_some_and(|v| v == "1" || v == "true")
-                                    });
-                                    if *WRITE_VERSION {
-                                        let mut full_path = full_path.clone();
-                                        let hash = hash_xxh3_hash64(file);
-                                        let ext = full_path.extension();
-                                        let ext = if let Some(ext) = ext {
-                                            format!("{:016x}.{}", hash, ext.to_string_lossy())
-                                        } else {
-                                            format!("{hash:016x}")
-                                        };
-                                        full_path.set_extension(ext);
+                    match &**content {
+                        PersistedFileContent::Content(..) => {
+                            let content = content.clone();
+                            let full_path = full_path.into_owned();
+                            limited_block!(&self.inner.write_semaphore, {
+                                let do_write = || {
+                                    let content = content.clone();
+                                    let full_path = full_path.clone();
+                                    let span = tracing::info_span!("write file", name = ?full_path);
+                                    traced(span, || retry_blocking(move || {
                                         let mut f = std::fs::File::create(&full_path)?;
+                                        let PersistedFileContent::Content(file) = &*content else {
+                                            unreachable!()
+                                        };
                                         std::io::copy(&mut file.read(), &mut f)?;
                                         #[cfg(unix)]
                                         f.set_permissions(file.meta.permissions.into())?;
                                         f.flush()?;
-                                    }
-                                    Ok::<(), io::Error>(())
-                                })
-                                .instrument(span)
-                            };
 
-                            match do_write().await {
-                                Err(e) if e.kind() == ErrorKind::NotFound => {
-                                    // The parent directory doesn't exist. Create it and retry once.
-                                    if let Some(parent) = full_path.parent() {
-                                        retry_blocking(|| std::fs::create_dir_all(parent))
-                                            .instrument(tracing::info_span!(
-                                                "create directory",
-                                                name = ?parent
+                                        static WRITE_VERSION: LazyLock<bool> = LazyLock::new(|| {
+                                            std::env::var_os("TURBO_ENGINE_WRITE_VERSION")
+                                                .is_some_and(|v| v == "1" || v == "true")
+                                        });
+                                        if *WRITE_VERSION {
+                                            let mut full_path = full_path.clone();
+                                            let hash = hash_xxh3_hash64(file);
+                                            let ext = full_path.extension();
+                                            let ext = if let Some(ext) = ext {
+                                                format!("{:016x}.{}", hash, ext.to_string_lossy())
+                                            } else {
+                                                format!("{hash:016x}")
+                                            };
+                                            full_path.set_extension(ext);
+                                            let mut f = std::fs::File::create(&full_path)?;
+                                            std::io::copy(&mut file.read(), &mut f)?;
+                                            #[cfg(unix)]
+                                            f.set_permissions(file.meta.permissions.into())?;
+                                            f.flush()?;
+                                        }
+                                        Ok::<(), io::Error>(())
+                                    }))
+                                };
+
+                                match turbo_tasks::read!(do_write()) {
+                                    Err(e) if e.kind() == ErrorKind::NotFound => {
+                                        // The parent directory doesn't exist. Create it and
+                                        // retry once.
+                                        if let Some(parent) = full_path.parent() {
+                                            turbo_tasks::read!(traced(
+                                                tracing::info_span!(
+                                                    "create directory",
+                                                    name = ?parent
+                                                ),
+                                                || retry_blocking(|| {
+                                                    std::fs::create_dir_all(parent)
+                                                }),
                                             ))
-                                            .await
                                             .with_context(|| {
                                                 format!(
                                                     "failed to create directory {parent:?} for \
                                                      write to {full_path:?}",
                                                 )
                                             })?;
+                                        }
+                                        turbo_tasks::read!(do_write()).with_context(|| {
+                                            format!("failed to write to {full_path:?}")
+                                        })?;
                                     }
-                                    do_write().await.with_context(|| {
-                                        format!("failed to write to {full_path:?}")
-                                    })?;
+                                    result => {
+                                        result.with_context(|| {
+                                            format!("failed to write to {full_path:?}")
+                                        })?;
+                                    }
                                 }
-                                result => {
-                                    result.with_context(|| {
-                                        format!("failed to write to {full_path:?}")
-                                    })?;
-                                }
-                            }
-                            anyhow::Ok(())
+                            });
                         }
-                        .concurrency_limited(&self.inner.write_semaphore)
-                        .await?;
-                    }
-                    PersistedFileContent::NotFound => {
-                        retry_blocking(|| std::fs::remove_file(&full_path))
-                            .instrument(tracing::info_span!("remove file", name = ?full_path))
-                            .concurrency_limited(&self.inner.write_semaphore)
-                            .await
+                        PersistedFileContent::NotFound => {
+                            turbo_tasks::read!(limited(
+                                &self.inner.write_semaphore,
+                                tracing::info_span!("remove file", name = ?full_path),
+                                || retry_blocking(|| std::fs::remove_file(&full_path)),
+                            ))
                             .or_else(|err| {
                                 if err.kind() == ErrorKind::NotFound {
                                     Ok(())
@@ -1123,13 +1330,15 @@ impl FileSystem for DiskFileSystem {
                                 }
                             })
                             .with_context(|| format!("removing {full_path:?} failed"))?;
+                        }
                     }
+
+                    // Invalidate any read tasks tracking this path so they re-read the new
+                    // content
+                    self.inner.invalidate_from_write(&self.full_path);
+
+                    Ok(())
                 }
-
-                // Invalidate any read tasks tracking this path so they re-read the new content
-                self.inner.invalidate_from_write(&self.full_path);
-
-                Ok(())
             }
         }
 
@@ -1155,14 +1364,14 @@ impl FileSystem for DiskFileSystem {
         // effect and does not need to be re-executed in the next session. All side effects are
         // re-executed in general.
 
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         // Check if path is denied - if so, return an error
         if this.inner.is_path_denied(&fs_path) {
             turbobail!("Cannot write link to denied path: {fs_path}");
         }
         let full_path = this.to_sys_path(&fs_path);
 
-        let content_hash = u128::from_le_bytes(hash_xxh3_hash128(&*target.await?));
+        let content_hash = u128::from_le_bytes(hash_xxh3_hash128(&*turbo_tasks::read!(target)?));
 
         #[turbo_tasks::value(eq = "manual", cell = "new")]
         struct WriteLinkEffect {
@@ -1172,30 +1381,47 @@ impl FileSystem for DiskFileSystem {
             content_hash: u128,
         }
 
+        impl WriteLinkEffect {
+            turbo_tasks::dual_fn! {
+                fn capture_inner(&self) -> Result<Box<dyn CapturedEffect>> {
+                    let inner = turbo_tasks::read!((*self.fs).untracked())?.inner.clone();
+
+                    // Skip target materialization if the per-key effect state already records
+                    // `Applied { value_hash }` matching our hash. See `WriteEffect::capture`.
+                    let key_bytes: Box<[u8]> = self.full_path.as_os_str().as_encoded_bytes().into();
+                    let content = if inner
+                        .effect_state_storage
+                        .matches_applied(&key_bytes, self.content_hash)
+                    {
+                        None
+                    } else {
+                        // Untracked — see `WriteEffect::capture`.
+                        Some(turbo_tasks::read!((*self.target).untracked())?)
+                    };
+                    Ok(Box::new(CapturedWriteLinkEffect {
+                        full_path: self.full_path.clone(),
+                        inner,
+                        content,
+                        content_hash: self.content_hash,
+                    }) as Box<dyn CapturedEffect>)
+                }
+            }
+        }
+
+        #[cfg(not(feature = "sync"))]
         #[async_trait]
         #[turbo_tasks::value_impl]
         impl Effect for WriteLinkEffect {
             async fn capture(&self) -> Result<Box<dyn CapturedEffect>> {
-                let inner = (*self.fs).untracked().await?.inner.clone();
+                self.capture_inner().await
+            }
+        }
 
-                // Skip target materialization if the per-key effect state already records
-                // `Applied { value_hash }` matching our hash. See `WriteEffect::capture`.
-                let key_bytes: Box<[u8]> = self.full_path.as_os_str().as_encoded_bytes().into();
-                let content = if inner
-                    .effect_state_storage
-                    .matches_applied(&key_bytes, self.content_hash)
-                {
-                    None
-                } else {
-                    // Untracked — see `WriteEffect::capture`.
-                    Some((*self.target).untracked().await?)
-                };
-                Ok(Box::new(CapturedWriteLinkEffect {
-                    full_path: self.full_path.clone(),
-                    inner,
-                    content,
-                    content_hash: self.content_hash,
-                }) as Box<dyn CapturedEffect>)
+        #[cfg(feature = "sync")]
+        #[turbo_tasks::value_impl]
+        impl Effect for WriteLinkEffect {
+            fn capture(&self) -> Result<Box<dyn CapturedEffect>> {
+                self.capture_inner()
             }
         }
 
@@ -1208,6 +1434,7 @@ impl FileSystem for DiskFileSystem {
             content_hash: u128,
         }
 
+        #[cfg(not(feature = "sync"))]
         #[async_trait]
         impl CapturedEffect for CapturedWriteLinkEffect {
             fn key(&self) -> Box<[u8]> {
@@ -1229,11 +1456,33 @@ impl FileSystem for DiskFileSystem {
             }
         }
 
+        #[cfg(feature = "sync")]
+        impl CapturedEffect for CapturedWriteLinkEffect {
+            fn key(&self) -> Box<[u8]> {
+                self.full_path.as_os_str().as_encoded_bytes().into()
+            }
+
+            fn value_hash(&self) -> u128 {
+                self.content_hash
+            }
+
+            fn apply(&self) -> Result<(), turbo_tasks::ApplyError> {
+                let body = self
+                    .content
+                    .as_ref()
+                    .map(|content| || self.apply_inner(content).map_err(AnyhowWrapper::from));
+                self.inner
+                    .effect_state_storage
+                    .run_apply::<AnyhowWrapper, _>(self.key(), self.content_hash, body)
+            }
+        }
+
         impl CapturedWriteLinkEffect {
-            async fn apply_inner(&self, content: &ReadRef<LinkContent>) -> anyhow::Result<()> {
+            turbo_tasks::dual_fn! {
+            fn apply_inner(&self, content: &ReadRef<LinkContent>) -> anyhow::Result<()> {
                 let full_path = validate_path_length(&self.full_path)?;
 
-                let _lock = self.inner.lock_path(&full_path).await;
+                let _lock = turbo_tasks::read!(self.inner.lock_path(&full_path));
 
                 enum OsSpecificLinkContent {
                     Link {
@@ -1272,11 +1521,11 @@ impl FileSystem for DiskFileSystem {
                     LinkContent::NotFound => OsSpecificLinkContent::NotFound,
                 };
 
-                let old_content = match retry_blocking(|| std::fs::read_link(&full_path))
-                    .instrument(tracing::info_span!("read symlink before write", name = ?full_path))
-                    .concurrency_limited(&self.inner.read_semaphore)
-                    .await
-                {
+                let old_content = match turbo_tasks::read!(limited(
+                    &self.inner.read_semaphore,
+                    tracing::info_span!("read symlink before write", name = ?full_path),
+                    || retry_blocking(|| std::fs::read_link(&full_path)),
+                )) {
                     Ok(res) => Some((res.is_absolute(), res)),
                     Err(_) => None,
                 };
@@ -1369,82 +1618,85 @@ impl FileSystem for DiskFileSystem {
                             };
                             message
                         };
-                        async {
-                            let write_result =
-                                retry_blocking_custom(try_create_link, can_retry_link)
-                                    .instrument(tracing::info_span!(
-                                        "write symlink",
-                                        name = ?full_path,
-                                        target = ?target,
-                                    ))
-                                    .await;
+                        limited_block!(&self.inner.write_semaphore, {
+                            let write_result = turbo_tasks::read!(traced(
+                                tracing::info_span!(
+                                    "write symlink",
+                                    name = ?full_path,
+                                    target = ?target,
+                                ),
+                                || retry_blocking_custom(try_create_link, can_retry_link),
+                            ));
 
                             match write_result {
                                 Err(ref e) if e.source.kind() == ErrorKind::NotFound => {
                                     // Parent directory doesn't exist. Create it and retry once.
                                     if let Some(parent) = full_path.parent() {
-                                        retry_blocking(|| std::fs::create_dir_all(parent))
-                                            .instrument(tracing::info_span!(
+                                        turbo_tasks::read!(traced(
+                                            tracing::info_span!(
                                                 "create directory",
                                                 name = ?parent
-                                            ))
-                                            .await
-                                            .with_context(|| {
-                                                format!(
-                                                    "failed to create directory {parent:?} for \
-                                                     write link to {full_path:?}",
-                                                )
-                                            })?;
+                                            ),
+                                            || retry_blocking(|| {
+                                                std::fs::create_dir_all(parent)
+                                            }),
+                                        ))
+                                        .with_context(|| {
+                                            format!(
+                                                "failed to create directory {parent:?} for \
+                                                 write link to {full_path:?}",
+                                            )
+                                        })?;
                                     }
                                     // After the first attempt, any pre-existing link was already
                                     // removed (has_old_content is now false), so just create.
-                                    retry_blocking_custom(
-                                        || {
-                                            #[cfg(not(windows))]
-                                            let io_result =
-                                                std::os::unix::fs::symlink(&target, &full_path);
-                                            #[cfg(windows)]
-                                            let io_result = if is_directory {
-                                                std::os::windows::fs::junction_point(
+                                    turbo_tasks::read!(traced(
+                                        tracing::info_span!(
+                                            "write symlink",
+                                            name = ?full_path,
+                                            target = ?target,
+                                        ),
+                                        || retry_blocking_custom(
+                                            || {
+                                                #[cfg(not(windows))]
+                                                let io_result = std::os::unix::fs::symlink(
                                                     &target, &full_path,
-                                                )
-                                            } else {
-                                                std::os::windows::fs::symlink_file(
-                                                    &target, &full_path,
-                                                )
-                                            };
-                                            io_result.map_err(|err| SymlinkCreationError {
-                                                msg: "creation of a new symbolic link or junction \
-                                                      point failed",
-                                                source: err,
-                                            })
-                                        },
-                                        |e: &SymlinkCreationError| can_retry(&e.source),
-                                    )
-                                    .instrument(tracing::info_span!(
-                                        "write symlink",
-                                        name = ?full_path,
-                                        target = ?target,
+                                                );
+                                                #[cfg(windows)]
+                                                let io_result = if is_directory {
+                                                    std::os::windows::fs::junction_point(
+                                                        &target, &full_path,
+                                                    )
+                                                } else {
+                                                    std::os::windows::fs::symlink_file(
+                                                        &target, &full_path,
+                                                    )
+                                                };
+                                                io_result.map_err(|err| SymlinkCreationError {
+                                                    msg: "creation of a new symbolic link or \
+                                                          junction point failed",
+                                                    source: err,
+                                                })
+                                            },
+                                            |e: &SymlinkCreationError| can_retry(&e.source),
+                                        ),
                                     ))
-                                    .await
                                     .with_context(err_context)?;
                                 }
                                 result => result.with_context(err_context)?,
                             }
-                            anyhow::Ok(())
-                        }
-                        .concurrency_limited(&self.inner.write_semaphore)
-                        .await?;
+                        });
                     }
                     OsSpecificLinkContent::Invalid => {
                         bail!("invalid symlink target: {full_path:?}");
                     }
                     OsSpecificLinkContent::NotFound => {
-                        retry_blocking(|| remove_symbolic_link_dir_helper(&full_path))
-                            .instrument(tracing::info_span!("remove symlink", name = ?full_path))
-                            .concurrency_limited(&self.inner.write_semaphore)
-                            .await
-                            .with_context(|| format!("removing {full_path:?} failed"))?;
+                        turbo_tasks::read!(limited(
+                            &self.inner.write_semaphore,
+                            tracing::info_span!("remove symlink", name = ?full_path),
+                            || retry_blocking(|| remove_symbolic_link_dir_helper(&full_path)),
+                        ))
+                        .with_context(|| format!("removing {full_path:?} failed"))?;
                     }
                 }
 
@@ -1452,6 +1704,7 @@ impl FileSystem for DiskFileSystem {
                 self.inner.invalidate_from_write(&self.full_path);
 
                 Ok(())
+            }
             }
         }
 
@@ -1475,14 +1728,15 @@ impl FileSystem for DiskFileSystem {
             turbobail!("Cannot read metadata from denied path: {fs_path}");
         }
 
-        self.inner.register_read_invalidator(&full_path).await?;
+        turbo_tasks::read!(self.inner.register_read_invalidator(&full_path))?;
 
-        let _lock = self.inner.lock_path(&full_path).await;
-        let meta = retry_blocking(|| std::fs::metadata(&full_path))
-            .instrument(tracing::info_span!("read metadata", name = ?full_path))
-            .concurrency_limited(&self.inner.read_semaphore)
-            .await
-            .with_context(|| format!("reading metadata for {:?}", full_path))?;
+        let _lock = turbo_tasks::read!(self.inner.lock_path(&full_path));
+        let meta = turbo_tasks::read!(limited(
+            &self.inner.read_semaphore,
+            tracing::info_span!("read metadata", name = ?full_path),
+            || retry_blocking(|| std::fs::metadata(&full_path)),
+        ))
+        .with_context(|| format!("reading metadata for {:?}", full_path))?;
 
         Ok(FileMeta::cell(meta.into()))
     }
@@ -1527,8 +1781,10 @@ pub struct FileSystemPath {
 }
 
 impl ValueToStringRef for FileSystemPath {
-    async fn to_string_ref(&self) -> Result<RcStr> {
-        turbofmt!("[{}]/{}", self.fs, self.path).await
+    turbo_tasks::dual_fn! {
+        fn to_string_ref(&self) -> Result<RcStr> {
+            turbo_tasks::read!(turbofmt!("[{}]/{}", self.fs, self.path))
+        }
     }
 }
 
@@ -1536,7 +1792,7 @@ impl ValueToStringRef for FileSystemPath {
 impl ValueToString for FileSystemPath {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(self.to_string_ref().await?))
+        Ok(Vc::cell(turbo_tasks::read!(self.to_string_ref())?))
     }
 }
 
@@ -1872,7 +2128,9 @@ pub async fn rebase(
                 .into();
         }
     }
-    Ok(new_base.fs.root().await?.join(&new_path)?.cell())
+    Ok(turbo_tasks::read!(new_base.fs.root())?
+        .join(&new_path)?
+        .cell())
 }
 
 // Not turbo-tasks functions, only delegating
@@ -1930,13 +2188,18 @@ impl FileSystemPath {
         self.fs().metadata(self.clone())
     }
 
-    // Returns the realpath to the file, resolving all symlinks and reporting an error if the path
-    // is invalid.
-    pub async fn realpath(&self) -> Result<FileSystemPath> {
-        let result = &(*self.realpath_with_links().await?);
-        match &result.path_result {
-            Ok(path) => Ok(path.clone()),
-            Err(error) => bail!("{}", error.as_error_message(self, result).await?),
+    turbo_tasks::dual_fn! {
+        /// Returns the realpath to the file, resolving all symlinks and reporting an error if
+        /// the path is invalid.
+        pub fn realpath(&self) -> Result<FileSystemPath> {
+            let result = &(*turbo_tasks::read!(self.realpath_with_links())?);
+            match &result.path_result {
+                Ok(path) => Ok(path.clone()),
+                Err(error) => bail!(
+                    "{}",
+                    turbo_tasks::read!(error.as_error_message(self, result))?
+                ),
+            }
         }
     }
 
@@ -2001,8 +2264,9 @@ pub enum RealPathResultError {
 }
 
 impl RealPathResultError {
+    turbo_tasks::dual_fn! {
     /// Formats the error message
-    pub async fn as_error_message(
+    pub fn as_error_message(
         &self,
         orig: &FileSystemPath,
         result: &RealPathResult,
@@ -2010,7 +2274,7 @@ impl RealPathResultError {
         Ok(match self {
             RealPathResultError::TooManySymlinks => {
                 let len = result.symlinks.len();
-                turbofmt!("Symlink {orig} leads to too many other symlinks ({len} links)").await?
+                turbo_tasks::read!(turbofmt!("Symlink {orig} leads to too many other symlinks ({len} links)"))?
             }
             RealPathResultError::CycleDetected => {
                 // symlinks is Vec<FileSystemPath> — format with Debug since
@@ -2019,16 +2283,16 @@ impl RealPathResultError {
                     "{:?}",
                     result.symlinks.iter().map(|s| &s.path).collect::<Vec<_>>()
                 );
-                turbofmt!("Symlink {orig} is in a symlink loop: {symlinks_dbg}").await?
+                turbo_tasks::read!(turbofmt!("Symlink {orig} is in a symlink loop: {symlinks_dbg}"))?
             }
             RealPathResultError::Invalid => {
-                turbofmt!("Symlink {orig} is invalid, it points out of the filesystem root").await?
+                turbo_tasks::read!(turbofmt!("Symlink {orig} is invalid, it points out of the filesystem root"))?
             }
             RealPathResultError::NotFound => {
-                turbofmt!("Symlink {orig} is invalid, it points at a file that doesn't exist")
-                    .await?
+                turbo_tasks::read!(turbofmt!("Symlink {orig} is invalid, it points at a file that doesn't exist"))?
             }
         })
+    }
     }
 }
 
@@ -2106,10 +2370,11 @@ pub enum PersistedFileContent {
 }
 
 impl PersistedFileContent {
+    turbo_tasks::dual_fn! {
     /// Performs a comparison of self's data against a disk file's streamed read.
-    async fn streaming_compare(&self, path: &Path) -> Result<FileComparison> {
+    fn streaming_compare(&self, path: &Path) -> Result<FileComparison> {
         let old_file =
-            extract_disk_access(retry_blocking(|| std::fs::File::open(path)).await, path)?;
+            extract_disk_access(turbo_tasks::read!(retry_blocking(|| std::fs::File::open(path))), path)?;
         let Some(old_file) = old_file else {
             return Ok(match self {
                 PersistedFileContent::NotFound => FileComparison::Equal,
@@ -2121,7 +2386,7 @@ impl PersistedFileContent {
             return Ok(FileComparison::NotEqual);
         };
 
-        let old_meta = extract_disk_access(retry_blocking(|| old_file.metadata()).await, path)?;
+        let old_meta = extract_disk_access(turbo_tasks::read!(retry_blocking(|| old_file.metadata())), path)?;
         let Some(old_meta) = old_meta else {
             // If we failed to get meta, then the old file has been deleted between the
             // handle open. In which case, we just pretend the file never existed.
@@ -2158,6 +2423,7 @@ impl PersistedFileContent {
             new_contents.consume(len);
             old_contents.consume(len);
         })
+    }
     }
 }
 
@@ -2561,7 +2827,12 @@ impl FileContent {
     ) -> Result<Vc<Option<RcStr>>> {
         match self {
             FileContent::Content(file) => Ok(Vc::cell(Some(
-                deterministic_hash(&salt.await?, file.content().content_hash(), algorithm).into(),
+                deterministic_hash(
+                    &turbo_tasks::read!(salt)?,
+                    file.content().content_hash(),
+                    algorithm,
+                )
+                .into(),
             ))),
             FileContent::NotFound => Ok(Vc::cell(None)),
         }
@@ -2596,7 +2867,7 @@ impl ValueToString for FileJsonContent {
 impl FileJsonContent {
     #[turbo_tasks::function]
     pub async fn content(self: Vc<Self>) -> Result<Vc<Value>> {
-        match &*self.await? {
+        match &*turbo_tasks::read!(self)? {
             FileJsonContent::Content(json) => Ok(Vc::cell(json.clone())),
             FileJsonContent::Unparsable(e) => bail!("File is not valid JSON: {}", e),
             FileJsonContent::NotFound => bail!("File not found"),
@@ -2666,27 +2937,27 @@ pub enum DirectoryEntry {
 }
 
 impl DirectoryEntry {
+    turbo_tasks::dual_fn! {
     /// Handles the `DirectoryEntry::Symlink` variant by checking the symlink target
     /// type and replacing it with `DirectoryEntry::File` or
     /// `DirectoryEntry::Directory`.
-    pub async fn resolve_symlink(self) -> Result<Self> {
+    pub fn resolve_symlink(self) -> Result<Self> {
         if let DirectoryEntry::Symlink(symlink) = &self {
-            let result = &*symlink.realpath_with_links().await?;
+            let result = &*turbo_tasks::read!(symlink.realpath_with_links())?;
             let real_path = match &result.path_result {
                 Ok(path) => path,
                 Err(error) => {
                     return Ok(DirectoryEntry::Error(
-                        error.as_error_message(symlink, result).await?,
+                        turbo_tasks::read!(error.as_error_message(symlink, result))?,
                     ));
                 }
             };
-            Ok(match *real_path.get_type().await? {
+            Ok(match *turbo_tasks::read!(real_path.get_type())? {
                 FileSystemEntryType::Directory => DirectoryEntry::Directory(real_path.clone()),
                 FileSystemEntryType::File => DirectoryEntry::File(real_path.clone()),
                 // Happens if the link is to a non-existent file
                 FileSystemEntryType::NotFound => DirectoryEntry::Error(
-                    turbofmt!("Symlink {symlink} points at {real_path} which does not exist")
-                        .await?,
+                    turbo_tasks::read!(turbofmt!("Symlink {symlink} points at {real_path} which does not exist"))?,
                 ),
                 // This is caused by eventual consistency
                 FileSystemEntryType::Symlink => turbobail!(
@@ -2697,6 +2968,7 @@ impl DirectoryEntry {
         } else {
             Ok(self)
         }
+    }
     }
 
     pub fn path(self) -> Option<FileSystemPath> {
@@ -2838,19 +3110,21 @@ impl FileSystem for NullFileSystem {
     }
 }
 
-pub async fn to_sys_path(path: FileSystemPath) -> Result<Option<PathBuf>> {
-    if let Some(fs) = ResolvedVc::try_downcast_type::<DiskFileSystem>(path.fs) {
-        let sys_path = fs.await?.to_sys_path(&path);
-        return Ok(Some(sys_path));
-    }
+turbo_tasks::dual_fn! {
+    pub fn to_sys_path(path: FileSystemPath) -> Result<Option<PathBuf>> {
+        if let Some(fs) = ResolvedVc::try_downcast_type::<DiskFileSystem>(path.fs) {
+            let sys_path = turbo_tasks::read!(fs)?.to_sys_path(&path);
+            return Ok(Some(sys_path));
+        }
 
-    Ok(None)
+        Ok(None)
+    }
 }
 
 #[turbo_tasks::function]
 async fn read_dir(path: FileSystemPath) -> Result<Vc<DirectoryContent>> {
-    let fs = path.fs().to_resolved().await?;
-    match &*fs.raw_read_dir(path.clone()).await? {
+    let fs = turbo_tasks::read!(path.fs().to_resolved())?;
+    match &*turbo_tasks::read!(fs.raw_read_dir(path.clone()))? {
         RawDirectoryContent::NotFound => Ok(DirectoryContent::not_found()),
         RawDirectoryContent::Entries(entries) => {
             let mut normalized_entries = AutoMap::new();
@@ -2885,7 +3159,7 @@ async fn get_type(path: FileSystemPath) -> Result<Vc<FileSystemEntryType>> {
         return Ok(FileSystemEntryType::Directory.cell());
     }
     let parent = path.parent();
-    let dir_content = parent.raw_read_dir().await?;
+    let dir_content = turbo_tasks::read!(parent.raw_read_dir())?;
     match &*dir_content {
         RawDirectoryContent::NotFound => Ok(FileSystemEntryType::NotFound.cell()),
         RawDirectoryContent::Entries(entries) => {
@@ -2924,7 +3198,7 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
 
         // see if a parent segment of the path is a symlink and resolve that first
         let parent = current_path.parent();
-        let parent_result = parent.realpath_with_links().owned().await?;
+        let parent_result = turbo_tasks::read!(parent.realpath_with_links().owned())?;
         let basename = current_path
             .path
             .rsplit_once('/')
@@ -2946,7 +3220,7 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
         // use `get_type` before trying `read_link`, as there's a good chance of a cache hit on
         // `get_type`, and `read_link` isn't the common codepath.
         if !matches!(
-            *current_path.get_type().await?,
+            *turbo_tasks::read!(current_path.get_type())?,
             FileSystemEntryType::Symlink
         ) {
             return Ok(RealPathResult {
@@ -2956,11 +3230,11 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
             .cell());
         }
 
-        match &*current_path.read_link().await? {
+        match &*turbo_tasks::read!(current_path.read_link())? {
             LinkContent::Link { target, link_type } => {
                 symlinks.insert(current_path.clone());
                 current_path = if link_type.contains(LinkType::ABSOLUTE) {
-                    current_path.root().owned().await?
+                    turbo_tasks::read!(current_path.root().owned())?
                 } else {
                     parent_path
                 }
@@ -3030,8 +3304,8 @@ mod tests {
 
     #[turbo_tasks::function(operation, root)]
     async fn extract_effects_operation(op: OperationVc<()>) -> anyhow::Result<Vc<Effects>> {
-        let _ = op.resolve().strongly_consistent().await?;
-        Ok(take_effects(op).await?.cell())
+        let _ = turbo_tasks::read!(op.resolve().strongly_consistent())?;
+        Ok(turbo_tasks::read!(take_effects(op))?.cell())
     }
 
     #[test]
@@ -3050,7 +3324,7 @@ mod tests {
         );
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
     async fn with_extension() {
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),
@@ -3089,7 +3363,7 @@ mod tests {
         .unwrap()
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
     async fn file_stem() {
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),
@@ -3121,7 +3395,7 @@ mod tests {
         .unwrap()
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_try_from_sys_path() {
         let sys_root = if cfg!(windows) {
             Path::new(r"C:\fake\root")
@@ -3147,14 +3421,15 @@ mod tests {
     #[turbo_tasks::function(operation, root)]
     async fn assert_try_from_sys_path_operation(sys_root: RcStr) -> anyhow::Result<()> {
         let sys_root = Path::new(sys_root.as_str());
-        let fs_vc = DiskFileSystem::new(
-            rcstr!("temp"),
-            Vc::cell(RcStr::from(sys_root.to_str().unwrap())),
-        )
-        .to_resolved()
-        .await?;
-        let fs = fs_vc.await?;
-        let fs_root_path = fs_vc.root().await?;
+        let fs_vc = turbo_tasks::read!(
+            DiskFileSystem::new(
+                rcstr!("temp"),
+                Vc::cell(RcStr::from(sys_root.to_str().unwrap())),
+            )
+            .to_resolved()
+        )?;
+        let fs = turbo_tasks::read!(fs_vc)?;
+        let fs_root_path = turbo_tasks::read!(fs_vc.root())?;
 
         assert_eq!(
             fs.try_from_sys_path(
@@ -3264,8 +3539,8 @@ mod tests {
                 )
             };
             // Write it twice (same content)
-            write_file(path.join("symlink-file")?).await?;
-            write_file(path.join("symlink-file")?).await?;
+            turbo_tasks::read!(write_file(path.join("symlink-file")?))?;
+            turbo_tasks::read!(write_file(path.join("symlink-file")?))?;
 
             let write_dir = |f| {
                 fs.write_link(
@@ -3278,13 +3553,13 @@ mod tests {
                 )
             };
             // Write it twice (same content)
-            write_dir(path.join("symlink-dir")?).await?;
-            write_dir(path.join("symlink-dir")?).await?;
+            turbo_tasks::read!(write_dir(path.join("symlink-dir")?))?;
+            turbo_tasks::read!(write_dir(path.join("symlink-dir")?))?;
 
             Ok(())
         }
 
-        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        #[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_write_link() {
             let scratch = tempfile::tempdir().unwrap();
             let path = scratch.path().to_owned();
@@ -3313,15 +3588,14 @@ mod tests {
                     .await?;
                 let root_path = disk_file_system_root(fs);
 
-                read_strongly_consistent_and_apply_effects(
+                turbo_tasks::read!(read_strongly_consistent_and_apply_effects(
                     extract_effects_operation(test_write_link_effect_operation(
                         fs,
                         root_path.clone(),
                         rcstr!("subdir-a"),
                     )),
                     |e| e,
-                )
-                .await?;
+                ))?;
 
                 assert_eq!(read_to_string(path.join("symlink-file")).unwrap(), "foo");
                 assert_eq!(
@@ -3330,15 +3604,14 @@ mod tests {
                 );
 
                 // Write the same links again but with different targets
-                read_strongly_consistent_and_apply_effects(
+                turbo_tasks::read!(read_strongly_consistent_and_apply_effects(
                     extract_effects_operation(test_write_link_effect_operation(
                         fs,
                         root_path,
                         rcstr!("subdir-b"),
                     )),
                     |e| e,
-                )
-                .await?;
+                ))?;
 
                 assert_eq!(read_to_string(path.join("symlink-file")).unwrap(), "bar");
                 assert_eq!(
@@ -3375,31 +3648,22 @@ mod tests {
             symlinks_dir: FileSystemPath,
             updates: Vec<(usize, usize)>,
         ) -> anyhow::Result<()> {
-            use turbo_tasks::TryJoinIterExt;
-
-            updates
-                .into_iter()
-                .map(|(symlink_idx, target_idx)| {
-                    let target = RcStr::from(format!("../_targets/{target_idx}"));
-                    let symlink_path = symlinks_dir.join(&symlink_idx.to_string()).unwrap();
-                    async move {
-                        fs.write_link(
-                            symlink_path,
-                            LinkContent::Link {
-                                target,
-                                link_type: LinkType::DIRECTORY,
-                            }
-                            .cell(),
-                        )
-                        .await
+            turbo_tasks::parallel!(updates.into_iter().map(|(symlink_idx, target_idx)| {
+                let target = RcStr::from(format!("../_targets/{target_idx}"));
+                let symlink_path = symlinks_dir.join(&symlink_idx.to_string()).unwrap();
+                fs.write_link(
+                    symlink_path,
+                    LinkContent::Link {
+                        target,
+                        link_type: LinkType::DIRECTORY,
                     }
-                })
-                .try_join()
-                .await?;
+                    .cell(),
+                )
+            }))?;
             Ok(())
         }
 
-        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        #[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_symlink_stress() {
             let scratch = tempfile::tempdir().unwrap();
             let path = scratch.path().to_owned();
@@ -3428,15 +3692,14 @@ mod tests {
 
                 let initial_updates: Vec<(usize, usize)> =
                     (0..STRESS_SYMLINK_COUNT).map(|i| (i, 0)).collect();
-                read_strongly_consistent_and_apply_effects(
+                turbo_tasks::read!(read_strongly_consistent_and_apply_effects(
                     extract_effects_operation(write_symlink_stress_batch(
                         fs,
                         symlinks_dir.clone(),
                         initial_updates,
                     )),
                     |e| e,
-                )
-                .await?;
+                ))?;
 
                 let mut rng = rand::rngs::SmallRng::seed_from_u64(0);
                 for _ in 0..STRESS_ITERATIONS {
@@ -3448,15 +3711,14 @@ mod tests {
                     }
                     let updates: Vec<(usize, usize)> = updates_map.into_iter().collect();
 
-                    read_strongly_consistent_and_apply_effects(
+                    turbo_tasks::read!(read_strongly_consistent_and_apply_effects(
                         extract_effects_operation(write_symlink_stress_batch(
                             fs,
                             symlinks_dir.clone(),
                             updates,
                         )),
                         |e| e,
-                    )
-                    .await?;
+                    ))?;
                 }
 
                 anyhow::Ok(())
@@ -3532,7 +3794,7 @@ mod tests {
             (scratch, root, denied_path)
         }
 
-        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        #[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_denied_path_read() {
             #[turbo_tasks::function(operation, root)]
             async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
@@ -3541,11 +3803,11 @@ mod tests {
                     Vc::cell(root),
                     vec![denied_path],
                 );
-                let root_path = fs.root().await?;
+                let root_path = turbo_tasks::read!(fs.root())?;
 
                 // Test 1: Reading allowed file should work
                 let allowed_file = root_path.join("allowed_file.txt")?;
-                let content = allowed_file.read().await?;
+                let content = turbo_tasks::read!(allowed_file.read())?;
                 assert!(
                     matches!(&*content, FileContent::Content(_)),
                     "allowed file should be readable"
@@ -3553,7 +3815,7 @@ mod tests {
 
                 // Test 2: Direct read of denied file should return NotFound
                 let denied_file = root_path.join("denied_dir/secret.txt")?;
-                let content = denied_file.read().await?;
+                let content = turbo_tasks::read!(denied_file.read())?;
                 assert!(
                     matches!(&*content, FileContent::NotFound),
                     "denied file should return NotFound, got {:?}",
@@ -3562,7 +3824,7 @@ mod tests {
 
                 // Test 3: Reading nested denied file should return NotFound
                 let nested_denied = root_path.join("denied_dir/nested/deep.txt")?;
-                let content = nested_denied.read().await?;
+                let content = turbo_tasks::read!(nested_denied.read())?;
                 assert!(
                     matches!(&*content, FileContent::NotFound),
                     "nested denied file should return NotFound"
@@ -3570,7 +3832,7 @@ mod tests {
 
                 // Test 4: Reading the denied directory itself should return NotFound
                 let denied_dir = root_path.join("denied_dir")?;
-                let content = denied_dir.read().await?;
+                let content = turbo_tasks::read!(denied_dir.read())?;
                 assert!(
                     matches!(&*content, FileContent::NotFound),
                     "denied directory should return NotFound"
@@ -3595,7 +3857,7 @@ mod tests {
             .unwrap();
         }
 
-        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        #[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_denied_path_read_dir() {
             #[turbo_tasks::function(operation, root)]
             async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
@@ -3604,10 +3866,10 @@ mod tests {
                     Vc::cell(root),
                     vec![denied_path],
                 );
-                let root_path = fs.root().await?;
+                let root_path = turbo_tasks::read!(fs.root())?;
 
                 // Test: read_dir on root should not include denied_dir
-                let dir_content = root_path.read_dir().await?;
+                let dir_content = turbo_tasks::read!(root_path.read_dir())?;
                 match &*dir_content {
                     DirectoryContent::Entries(entries) => {
                         assert!(
@@ -3632,7 +3894,7 @@ mod tests {
 
                 // Test: read_dir on denied_dir should return NotFound
                 let denied_dir = root_path.join("denied_dir")?;
-                let dir_content = denied_dir.read_dir().await?;
+                let dir_content = turbo_tasks::read!(denied_dir.read_dir())?;
                 assert!(
                     matches!(&*dir_content, DirectoryContent::NotFound),
                     "denied_dir read_dir should return NotFound"
@@ -3657,7 +3919,7 @@ mod tests {
             .unwrap();
         }
 
-        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        #[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_denied_path_read_glob() {
             #[turbo_tasks::function(operation, root)]
             async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
@@ -3666,12 +3928,12 @@ mod tests {
                     Vc::cell(root),
                     vec![denied_path],
                 );
-                let root_path = fs.root().await?;
+                let root_path = turbo_tasks::read!(fs.root())?;
 
                 // Test: read_glob with ** should not reveal denied files
-                let glob_result = root_path
-                    .read_glob(Glob::new(rcstr!("**/*.txt"), GlobOptions::default()))
-                    .await?;
+                let glob_result = turbo_tasks::read!(
+                    root_path.read_glob(Glob::new(rcstr!("**/*.txt"), GlobOptions::default()))
+                )?;
 
                 // Check top level results
                 assert!(
@@ -3698,7 +3960,7 @@ mod tests {
                     glob_result.inner.contains_key("allowed_dir"),
                     "allowed_dir directory should be present"
                 );
-                let sub_inner = glob_result.inner.get("allowed_dir").unwrap().await?;
+                let sub_inner = turbo_tasks::read!(glob_result.inner.get("allowed_dir").unwrap())?;
                 assert!(
                     sub_inner.results.contains_key("file.txt"),
                     "allowed_dir/file.txt should be found"
@@ -3723,18 +3985,21 @@ mod tests {
             .unwrap();
         }
 
-        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        #[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_denied_path_write() {
             #[turbo_tasks::function(operation, root)]
             async fn write_file_operation(
                 path: FileSystemPath,
                 contents: RcStr,
             ) -> anyhow::Result<()> {
-                path.write(
-                    FileContent::Content(TurboFile::from_bytes(contents.to_string().into_bytes()))
+                turbo_tasks::read!(
+                    path.write(
+                        FileContent::Content(TurboFile::from_bytes(
+                            contents.to_string().into_bytes()
+                        ))
                         .cell(),
-                )
-                .await?;
+                    )
+                )?;
                 Ok(())
             }
 
@@ -3752,11 +4017,11 @@ mod tests {
                     Vc::cell(root),
                     vec![denied_path],
                 );
-                let root_path = fs.root().await?;
+                let root_path = turbo_tasks::read!(fs.root())?;
                 let allowed_file = root_path.join(&file_path)?;
                 let write_op = write_file_operation(allowed_file, contents);
-                write_op.read_strongly_consistent().await?;
-                Ok(take_effects(write_op).await?.cell())
+                turbo_tasks::read!(write_op.read_strongly_consistent())?;
+                Ok(turbo_tasks::read!(take_effects(write_op))?.cell())
             }
 
             #[turbo_tasks::function(operation, root)]
@@ -3771,21 +4036,21 @@ mod tests {
                     Vc::cell(root),
                     vec![denied_path],
                 );
-                let root_path = fs.root().await?;
+                let root_path = turbo_tasks::read!(fs.root())?;
 
                 let path = root_path.join(&denied_file)?;
-                let result = write_file_operation(path, rcstr!("forbidden"))
-                    .read_strongly_consistent()
-                    .await;
+                let result = turbo_tasks::read!(
+                    write_file_operation(path, rcstr!("forbidden")).read_strongly_consistent()
+                );
                 assert!(
                     result.is_err(),
                     "writing to denied path should return an error"
                 );
 
                 let path = root_path.join(&nested_denied_file)?;
-                let result = write_file_operation(path, rcstr!("nested"))
-                    .read_strongly_consistent()
-                    .await;
+                let result = turbo_tasks::read!(
+                    write_file_operation(path, rcstr!("nested")).read_strongly_consistent()
+                );
                 assert!(
                     result.is_err(),
                     "writing to nested denied path should return an error"
@@ -3810,7 +4075,10 @@ mod tests {
                     RcStr::from(ALLOWED_FILE),
                     RcStr::from(TEST_CONTENT),
                 );
-                read_strongly_consistent_and_apply_effects(effects_op, |e| e).await?;
+                turbo_tasks::read!(read_strongly_consistent_and_apply_effects(
+                    effects_op,
+                    |e| e
+                ))?;
 
                 // Verify the file was written to disk
                 let content = read_to_string(Path::new(root.as_str()).join(ALLOWED_FILE))?;

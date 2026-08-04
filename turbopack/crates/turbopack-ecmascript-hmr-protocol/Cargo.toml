@@ -17,5 +17,10 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 
 turbo-rcstr = { workspace = true }
-turbopack-cli-utils = { workspace = true }
-turbopack-core = { workspace = true }
+turbopack-cli-utils = { path = "../turbopack-cli-utils", default-features = false }
+turbopack-core = { path = "../turbopack-core", default-features = false }
+
+[features]
+default = ["tokio_runtime"]
+tokio_runtime = ["turbopack-cli-utils/tokio_runtime", "turbopack-core/tokio_runtime"]
+sync = ["turbopack-cli-utils/sync", "turbopack-core/sync"]

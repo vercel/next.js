@@ -63,6 +63,12 @@ impl<T: Clone + Send> Stream<T> {
         }
     }
 
+    /// Async-build only: pulling from a possibly-open stream needs the async
+    /// runtime to drive the source. The no-tokio `sync` build only ever holds
+    /// closed streams (see `new_closed`/`Decode`); a sync caller appearing here
+    /// should read the pulled values directly (or motivate a blocking source
+    /// port) rather than poll.
+    #[cfg(not(feature = "sync"))]
     pub async fn into_single(&self) -> SingleValue<T> {
         let mut stream = self.read();
         let Some(first) = stream.next().await else {

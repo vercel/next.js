@@ -1,4 +1,4 @@
-use hyper::{HeaderMap, Uri};
+use http::{HeaderMap, Uri};
 use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
 
 use crate::source::Body;
@@ -13,7 +13,7 @@ pub struct SourceRequest {
     pub uri: Uri,
     /// The headers to send.
     #[turbo_tasks(trace_ignore)]
-    pub headers: HeaderMap<hyper::header::HeaderValue>,
+    pub headers: HeaderMap<http::header::HeaderValue>,
     /// The body to send.
     pub body: Body,
 }

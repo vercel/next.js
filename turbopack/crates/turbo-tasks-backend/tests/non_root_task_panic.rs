@@ -20,7 +20,7 @@ async fn non_root_operation() -> Result<Vc<Value>> {
     Ok(Value { value: 42 }.cell())
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_strongly_consistent_read_of_non_root_task_panics() {
     // The panic happens on a worker thread. Capture the message via a panic hook.
     let panic_message = std::sync::Arc::new(std::sync::Mutex::new(None::<String>));
@@ -40,15 +40,14 @@ async fn test_strongly_consistent_read_of_non_root_task_panics() {
         }
     }));
 
-    // Spawn to catch the unwinding panic from the channel close on the test task.
-    let handle = tokio::task::spawn(async move {
+    // Run on a separate task/thread to isolate the unwinding panic (async: a tokio
+    // task; sync: a real OS thread). Either way the panic fires the hook above.
+    let _result = turbo_tasks_testing::spawn_join!({
         run_once_without_cache_check(&REGISTRATION, async move {
             non_root_operation().read_strongly_consistent().await
         })
         .await
     });
-    // The spawned task will fail because the worker thread panics and the channel closes.
-    let _result = handle.await;
 
     std::panic::set_hook(prev_hook);
 

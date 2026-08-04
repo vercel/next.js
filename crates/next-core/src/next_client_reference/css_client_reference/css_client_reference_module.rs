@@ -37,11 +37,7 @@ impl CssClientReferenceModule {
 impl Module for CssClientReferenceModule {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self
-            .client_module
-            .ident()
-            .owned()
-            .await?
+        Ok(turbo_tasks::read!(self.client_module.ident().owned())?
             .with_modifier(rcstr!("css client reference"))
             .into_vc())
     }
@@ -53,13 +49,11 @@ impl Module for CssClientReferenceModule {
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        let CssClientReferenceModule { client_module, .. } = &*self.await?;
+        let CssClientReferenceModule { client_module, .. } = &*turbo_tasks::read!(self)?;
 
-        Ok(Vc::cell(vec![ResolvedVc::upcast(
-            CssClientReference::new(*ResolvedVc::upcast(*client_module))
-                .to_resolved()
-                .await?,
-        )]))
+        Ok(Vc::cell(vec![ResolvedVc::upcast(turbo_tasks::read!(
+            CssClientReference::new(*ResolvedVc::upcast(*client_module)).to_resolved()
+        )?)]))
     }
     #[turbo_tasks::function]
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {

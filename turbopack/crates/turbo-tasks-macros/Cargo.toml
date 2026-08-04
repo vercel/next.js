@@ -9,6 +9,14 @@ edition = "2024"
 proc-macro = true
 bench = false
 
+[features]
+# Dual-mode migration (see DESIGN): when enabled, `#[turbo_tasks::function]` emits a
+# synchronous task body instead of an async one. Off by default (= async mode).
+# Wired through from the `turbo-tasks` crate's `sync` feature so the whole workspace
+# flips together. Drives both this proc-macro's expansion (`cfg!(feature = "sync")`)
+# and the `read!`/`parallel!` macro_rules in `turbo-tasks`.
+sync = []
+
 [lints]
 workspace = true
 

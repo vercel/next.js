@@ -43,8 +43,8 @@ fn traced_reference_ty() -> RcStr {
 
 #[turbo_tasks::function]
 pub async fn content_to_details(content: Vc<AssetContent>) -> Result<Vc<RcStr>> {
-    Ok(match &*content.await? {
-        AssetContent::File(file_content) => match &*file_content.await? {
+    Ok(match &*turbo_tasks::read!(content)? {
+        AssetContent::File(file_content) => match &*turbo_tasks::read!(file_content)? {
             FileContent::Content(file) => {
                 let content = file.content();
                 match content.to_str() {
@@ -66,9 +66,9 @@ pub async fn children_from_module_references(
 ) -> Result<Vc<IntrospectableChildren>> {
     let key = reference_ty();
     let mut children = FxIndexSet::default();
-    let references = references.await?;
+    let references = turbo_tasks::read!(references)?;
     for &reference in &*references {
-        let trait_ref = reference.into_trait_ref().await?;
+        let trait_ref = turbo_tasks::read!(reference.into_trait_ref())?;
         let key = match &trait_ref.chunking_type() {
             None => key.clone(),
             Some(ChunkingType::Parallel { inherit_async, .. }) => {
@@ -84,16 +84,14 @@ pub async fn children_from_module_references(
             Some(ChunkingType::Traced { .. }) => traced_reference_ty(),
         };
 
-        for &module in reference
-            .resolve_reference()
-            .await?
-            .primary_modules()
-            .await?
-            .iter()
+        for &module in turbo_tasks::read!(
+            turbo_tasks::read!(reference.resolve_reference())?.primary_modules()
+        )?
+        .iter()
         {
             children.insert((
                 key.clone(),
-                IntrospectableModule::new(*module).to_resolved().await?,
+                turbo_tasks::read!(IntrospectableModule::new(*module).to_resolved())?,
             ));
         }
     }
@@ -106,13 +104,11 @@ pub async fn children_from_output_assets(
 ) -> Result<Vc<IntrospectableChildren>> {
     let key = reference_ty();
     let mut children = FxIndexSet::default();
-    let references = references.expand_all_assets().await?;
+    let references = turbo_tasks::read!(references.expand_all_assets())?;
     for &reference in &*references {
         children.insert((
             key.clone(),
-            IntrospectableOutputAsset::new(*reference)
-                .to_resolved()
-                .await?,
+            turbo_tasks::read!(IntrospectableOutputAsset::new(*reference).to_resolved())?,
         ));
     }
     Ok(Vc::cell(children))

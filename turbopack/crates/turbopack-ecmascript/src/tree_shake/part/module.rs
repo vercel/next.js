@@ -71,33 +71,31 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptModuleContentOptions>> {
-        let module = self.await?;
+        let module = turbo_tasks::read!(self)?;
 
         let split_data = split_module(*module.full_module);
-        let parsed = part_of_module(split_data, module.part.clone())
-            .to_resolved()
-            .await?;
+        let parsed =
+            turbo_tasks::read!(part_of_module(split_data, module.part.clone()).to_resolved())?;
 
         let analyze = self.analyze();
-        let analyze_ref = analyze.await?;
+        let analyze_ref = turbo_tasks::read!(analyze)?;
 
-        let module_type_result = module.full_module.determine_module_type().await?;
-        let generate_source_map = *chunking_context
-            .reference_module_source_maps(Vc::upcast(*self))
-            .await?;
+        let module_type_result = turbo_tasks::read!(module.full_module.determine_module_type())?;
+        let generate_source_map =
+            *turbo_tasks::read!(chunking_context.reference_module_source_maps(Vc::upcast(*self)))?;
         Ok(EcmascriptModuleContentOptions {
             parsed: Some(parsed),
             module: ResolvedVc::upcast(self),
             specified_module_type: module_type_result.module_type,
             chunking_context,
-            references: analyze.references().to_resolved().await?,
+            references: turbo_tasks::read!(analyze.references().to_resolved())?,
             esm_references: analyze_ref.esm_references,
             part_references: vec![],
             code_generation: analyze_ref.code_generation,
             async_module: analyze_ref.async_module,
             generate_source_map,
             original_source_map: analyze_ref.source_map,
-            exports: self.get_exports().to_resolved().await?,
+            exports: turbo_tasks::read!(self.get_exports().to_resolved())?,
             async_module_info,
         }
         .cell())
@@ -131,8 +129,8 @@ impl EcmascriptModulePartAsset {
         }
 
         // This is a workaround to avoid creating duplicate assets for internal parts.
-        let split_result = split_module(*module).await?;
-        let part_id = get_part_id(&split_result, &part).await?;
+        let split_result = turbo_tasks::read!(split_module(*module))?;
+        let part_id = turbo_tasks::read!(get_part_id(&split_result, &part))?;
 
         Ok(Self::new_raw(*module, ModulePart::internal(part_id)))
     }
@@ -142,7 +140,8 @@ impl EcmascriptModulePartAsset {
         module: Vc<EcmascriptModuleAsset>,
         part: ModulePart,
     ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
-        let SplitResult::Ok { entrypoints, .. } = &*split_module(module).await? else {
+        let SplitResult::Ok { entrypoints, .. } = &*turbo_tasks::read!(split_module(module))?
+        else {
             return Ok(Vc::upcast(module));
         };
 
@@ -171,34 +170,35 @@ impl EcmascriptModulePartAsset {
                 let FollowExportsWithSideEffectsResult {
                     side_effects,
                     result,
-                } = &*follow_reexports_with_side_effects(source_module, export.clone()).await?;
+                } = &*turbo_tasks::read!(follow_reexports_with_side_effects(
+                    source_module,
+                    export.clone()
+                ))?;
                 let FollowExportsResult {
                     module: final_module,
                     export_name: new_export,
                     ..
-                } = &*result.await?;
+                } = &*turbo_tasks::read!(result)?;
                 let final_module = if let Some(new_export) = new_export {
                     if *new_export == export {
                         *final_module
                     } else {
-                        ResolvedVc::upcast(
+                        ResolvedVc::upcast(turbo_tasks::read!(
                             EcmascriptModuleRenameModule::new(
                                 **final_module,
                                 ModulePart::renamed_export(new_export.clone(), export.clone()),
                             )
                             .to_resolved()
-                            .await?,
-                        )
+                        )?)
                     }
                 } else {
-                    ResolvedVc::upcast(
+                    ResolvedVc::upcast(turbo_tasks::read!(
                         EcmascriptModuleRenameModule::new(
                             **final_module,
                             ModulePart::renamed_namespace(export.clone()),
                         )
                         .to_resolved()
-                        .await?,
-                    )
+                    )?)
                 };
                 if side_effects.is_empty() {
                     return Ok(*final_module);
@@ -221,10 +221,10 @@ impl EcmascriptModulePartAsset {
 
     #[turbo_tasks::function]
     pub async fn is_async_module(self: Vc<Self>) -> Result<Vc<bool>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         let result = analyze_ecmascript_module(*this.full_module, Some(this.part.clone()));
 
-        if let Some(async_module) = *result.await?.async_module.await? {
+        if let Some(async_module) = *turbo_tasks::read!(turbo_tasks::read!(result)?.async_module)? {
             Ok(async_module.is_self_async(self.references()))
         } else {
             Ok(Vc::cell(false))
@@ -248,20 +248,23 @@ async fn follow_reexports_with_side_effects(
     let mut current_module = module;
     let mut current_export_name = export_name;
     let result = loop {
-        if *current_module.side_effects().await? != ModuleSideEffects::SideEffectFree {
-            side_effects.push(only_effects(*current_module).to_resolved().await?);
+        if *turbo_tasks::read!(current_module.side_effects())? != ModuleSideEffects::SideEffectFree
+        {
+            side_effects.push(turbo_tasks::read!(
+                only_effects(*current_module).to_resolved()
+            )?);
         }
 
         // We ignore the side effect of the entry module here, because we need to proceed.
-        let result = follow_reexports(*current_module, current_export_name.clone(), true)
-            .to_resolved()
-            .await?;
+        let result = turbo_tasks::read!(
+            follow_reexports(*current_module, current_export_name.clone(), true).to_resolved()
+        )?;
 
         let FollowExportsResult {
             module,
             export_name,
             ty,
-        } = &*result.await?;
+        } = &*turbo_tasks::read!(result)?;
 
         match ty {
             FoundExportType::SideEffects => {
@@ -283,11 +286,7 @@ async fn follow_reexports_with_side_effects(
 impl Module for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self
-            .full_module
-            .ident()
-            .owned()
-            .await?
+        Ok(turbo_tasks::read!(self.full_module.ident().owned())?
             .with_part(self.part.clone())
             .into_vc())
     }
@@ -324,8 +323,12 @@ impl Module for EcmascriptModulePartAsset {
         if let ModulePart::Facade = self.part {
             // Facade depends on evaluation and re-exports
             let mut references = vec![];
-            references.push(part_dep(ModulePart::evaluation()).to_resolved().await?);
-            references.push(part_dep(ModulePart::exports()).to_resolved().await?);
+            references.push(turbo_tasks::read!(
+                part_dep(ModulePart::evaluation()).to_resolved()
+            )?);
+            references.push(turbo_tasks::read!(
+                part_dep(ModulePart::exports()).to_resolved()
+            )?);
             return Ok(Vc::cell(references));
         }
 
@@ -349,11 +352,11 @@ impl Module for EcmascriptModulePartAsset {
 impl EcmascriptChunkPlaceable for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     async fn get_exports(&self) -> Result<Vc<EcmascriptExports>> {
-        Ok(
-            *compute_ecmascript_module_exports(*self.full_module, Some(self.part.clone()))
-                .await?
-                .exports,
-        )
+        Ok(*turbo_tasks::read!(compute_ecmascript_module_exports(
+            *self.full_module,
+            Some(self.part.clone())
+        ))?
+        .exports)
     }
 
     #[turbo_tasks::function]
@@ -364,7 +367,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModulePartAsset {
         async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let analyze = self.analyze().await?;
+        let analyze = turbo_tasks::read!(self.analyze())?;
         let async_module_options = analyze.async_module.module_options(async_module_info);
 
         let content = self.module_content(chunking_context, async_module_info);

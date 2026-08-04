@@ -13,6 +13,8 @@ use parking_lot::{Mutex, MutexGuard};
 use rustc_hash::FxHashMap;
 use tracing::Instrument;
 
+#[cfg(feature = "tokio_runtime")]
+use crate::spawn;
 use crate::{
     self as turbo_tasks, CollectiblesSource, NonLocalValue, OperationVc, ReadRef, ResolvedVc,
     TryJoinIterExt, Upcast, VcRead, VcValueType, emit,
@@ -22,13 +24,16 @@ use crate::{
         debug_assert_in_top_level_task, debug_assert_not_in_top_level_task, mark_top_level_task,
         unmark_top_level_task_may_leak_eventually_consistent_state, with_turbo_tasks,
     },
-    spawn,
     trace::TraceRawVcs,
 };
 
 const APPLY_EFFECTS_CONCURRENCY_LIMIT: usize = 1024;
 
 /// An IO Side effect to be computed by turbo tasks and then executed outside of turbo tasks.
+///
+/// `capture` is an `async fn` in the async build and a plain synchronous `fn` in the no-async
+/// `sync` engine (no future); implementors must match the mode.
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_trait]
 pub trait Effect {
@@ -37,6 +42,14 @@ pub trait Effect {
     /// An implementation may elect to elide capturing data if the `EffectStateStorage` state is
     /// already up to date.
     async fn capture(&self) -> Result<Box<dyn CapturedEffect>>;
+}
+
+/// See the async definition above; the sync engine drops `async`/`#[async_trait]`.
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_trait]
+pub trait Effect {
+    /// Read any Vc data needed for `apply()` and return the [`CapturedEffect`] that performs it.
+    fn capture(&self) -> Result<Box<dyn CapturedEffect>>;
 }
 
 pub trait EffectExt {
@@ -57,6 +70,7 @@ where
 /// `apply()` is responsible for coordinating with [`EffectStateStorage`] via
 /// [`EffectStateStorage::run_apply`] (which handles the per-key state machine, in-progress
 /// coordination, dedup-hit short-circuit, and panic recovery).
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 pub trait CapturedEffect: TraceRawVcs + NonLocalValue + Send + Sync + 'static {
     /// Unique key identifying this effect's target (e.g., absolute path bytes).
@@ -69,6 +83,20 @@ pub trait CapturedEffect: TraceRawVcs + NonLocalValue + Send + Sync + 'static {
     ///
     /// Implementations typically dispatch into [`EffectStateStorage::run_apply`].
     async fn apply(&self) -> Result<(), ApplyError>;
+}
+
+/// See the async definition above; the sync engine's `apply` is a plain synchronous `fn`.
+#[cfg(feature = "sync")]
+pub trait CapturedEffect: TraceRawVcs + NonLocalValue + Send + Sync + 'static {
+    /// Unique key identifying this effect's target (e.g., absolute path bytes).
+    fn key(&self) -> Box<[u8]>;
+
+    /// Extract the hash of the value part of this effect for comparison.
+    fn value_hash(&self) -> u128;
+
+    /// Perform the side effect. Implementations typically dispatch into
+    /// [`EffectStateStorage::run_apply`].
+    fn apply(&self) -> Result<(), ApplyError>;
 }
 
 /// Outcome of [`CapturedEffect::apply`]. Distinguishes a side-effect failure (terminal) from a
@@ -155,6 +183,7 @@ impl EffectStateStorage {
     /// running `body`. Otherwise `body` runs once under an `InProgress` guard and the result is
     /// stored. A `None` `body` (capture elided content because storage matched, but it no longer
     /// does) yields [`ApplyError::Retry`].
+    #[cfg(not(feature = "sync"))]
     pub async fn run_apply<E, F, Fut>(
         &self,
         key: Box<[u8]>,
@@ -249,6 +278,95 @@ impl EffectStateStorage {
 
         effect_result.map_err(ApplyError::Failed)
     }
+
+    /// Synchronous counterpart of [`run_apply`](Self::run_apply) for the no-async sync
+    /// engine: `body` is a plain closure (no future) and a concurrent in-progress apply is
+    /// awaited by blocking the worker on the `Event` (`listener.wait()`) rather than
+    /// `.await`. Same per-key state machine.
+    #[cfg(feature = "sync")]
+    pub fn run_apply<E, F>(
+        &self,
+        key: Box<[u8]>,
+        value_hash: u128,
+        body: Option<F>,
+    ) -> Result<(), ApplyError>
+    where
+        E: EffectError,
+        F: FnOnce() -> Result<(), E> + Send,
+    {
+        let entry = self.entry_for(key);
+
+        struct EventGuard<'a> {
+            entry: &'a EffectStateEntry,
+        }
+        impl Drop for EventGuard<'_> {
+            fn drop(&mut self) {
+                let prev_state = replace(&mut *self.entry.lock(), EffectLastApplied::Unapplied);
+                let EffectLastApplied::InProgress { write_event } = prev_state else {
+                    unreachable!("EventGuard: prev_state must be InProgress");
+                };
+                write_event.notify(usize::MAX);
+            }
+        }
+
+        let begin_in_progress = |mut last_applied_guard: MutexGuard<'_, _>| {
+            *last_applied_guard = EffectLastApplied::InProgress {
+                write_event: Event::new(|| || "effect application in progress".to_string()),
+            };
+            EventGuard { entry: &entry }
+        };
+
+        let event_guard = loop {
+            let listener;
+            {
+                let last_applied_guard = entry.lock();
+                match &*last_applied_guard {
+                    EffectLastApplied::Unapplied => {
+                        break begin_in_progress(last_applied_guard);
+                    }
+                    EffectLastApplied::Applied {
+                        value_hash: stored,
+                        result,
+                    } => {
+                        if value_hash == *stored {
+                            return result.clone().map_err(ApplyError::Failed);
+                        } else {
+                            break begin_in_progress(last_applied_guard);
+                        }
+                    }
+                    EffectLastApplied::InProgress { write_event } => {
+                        listener = write_event.listen();
+                    }
+                }
+            };
+            // No reactor under sync: block this worker until the in-progress apply notifies.
+            listener.wait();
+        };
+
+        let Some(body) = body else {
+            drop(event_guard);
+            return Err(ApplyError::Retry);
+        };
+
+        let effect_result: Result<(), Arc<dyn EffectError>> =
+            body().map_err(|err| Arc::new(err) as Arc<dyn EffectError>);
+
+        let prev_state = replace(
+            &mut *entry.lock(),
+            EffectLastApplied::Applied {
+                value_hash,
+                result: effect_result.clone(),
+            },
+        );
+        forget(event_guard);
+
+        let EffectLastApplied::InProgress { write_event } = prev_state else {
+            unreachable!("Effect applied: prev_state must be InProgress");
+        };
+        write_event.notify(usize::MAX);
+
+        effect_result.map_err(ApplyError::Failed)
+    }
 }
 
 /// Capture effects. Call this from within a [turbo-tasks operation][crate::OperationVc].
@@ -302,6 +420,7 @@ impl EffectStateStorage {
 /// # Ok(())
 /// # }
 /// ```
+#[cfg(not(feature = "sync"))]
 pub async fn take_effects(source: impl CollectiblesSource) -> Result<Effects> {
     debug_assert_not_in_top_level_task("take_effects");
     let effects = source.take_collectibles::<Box<dyn Effect>>();
@@ -311,6 +430,27 @@ pub async fn take_effects(source: impl CollectiblesSource) -> Result<Effects> {
         .map(async |effect_vc| effect_vc.into_trait_ref().await?.capture().await)
         .try_join()
         .await?;
+
+    // detect duplicate keys
+    let unique_keys = build_unique_keys(&captured);
+
+    let invalidator = get_invalidator()
+        .expect("take_effects must be called from within a turbo-tasks task context");
+
+    Ok(Effects::new(captured, unique_keys, invalidator))
+}
+
+/// Synchronous counterpart of [`take_effects`] for the no-async sync engine: reads each
+/// emitted effect's trait ref and captures it inline (no future/`try_join`).
+#[cfg(feature = "sync")]
+pub fn take_effects(source: impl CollectiblesSource) -> Result<Effects> {
+    debug_assert_not_in_top_level_task("take_effects");
+    let effects = source.take_collectibles::<Box<dyn Effect>>();
+
+    let mut captured: Vec<Box<dyn CapturedEffect>> = Vec::new();
+    for effect_vc in effects {
+        captured.push(crate::read!(effect_vc.into_trait_ref())?.capture()?);
+    }
 
     // detect duplicate keys
     let unique_keys = build_unique_keys(&captured);
@@ -461,6 +601,7 @@ impl Effects {
     /// loop required to recover from [`EffectsError::Retry`]. Exposed publicly only as
     /// [`Effects::apply_for_testing`] (`#[doc(hidden)]`) so integration tests can drive the apply
     /// state machine directly.
+    #[cfg(not(feature = "sync"))]
     async fn apply(&self) -> Result<(), EffectsError> {
         debug_assert_in_top_level_task(
             "Effects::apply must be called from a top-level task to avoid unintended \
@@ -489,7 +630,13 @@ impl Effects {
                     // Run each apply on its own spawned task so that pending effects execute in
                     // parallel rather than serially on this future (see #94140).
                     let effect = captured[*idx].clone();
-                    match spawn(async move { effect.apply().await }).await {
+                    // Run each apply on its own spawned task for parallelism (async
+                    // runtime); without tokio, apply directly on this future.
+                    #[cfg(feature = "tokio_runtime")]
+                    let apply_result = spawn(async move { effect.apply().await }).await;
+                    #[cfg(not(feature = "tokio_runtime"))]
+                    let apply_result = effect.apply().await;
+                    match apply_result {
                         Ok(()) => Ok(()),
                         Err(ApplyError::Failed(err)) => Err(EffectsError::Apply(err)),
                         Err(ApplyError::Retry) => {
@@ -519,13 +666,59 @@ impl Effects {
         .await
     }
 
+    /// Synchronous counterpart of [`apply`](Self::apply) for the no-async sync engine:
+    /// applies each captured effect serially (no `spawn`/stream); the sync engine has no
+    /// reactor to fan them out. Retry keys are collected and invalidated once at the end.
+    #[cfg(feature = "sync")]
+    fn apply(&self) -> Result<(), EffectsError> {
+        debug_assert_in_top_level_task(
+            "Effects::apply must be called from a top-level task to avoid unintended \
+             re-executions due to eventual consistency",
+        );
+        let unique = match self.unique_keys.as_ref() {
+            Ok(unique) => unique.as_slice(),
+            Err(err) => return Err(EffectsError::Conflict(err.key_len)),
+        };
+        if unique.is_empty() {
+            return Ok(());
+        }
+
+        let _span = tracing::info_span!("apply effects", count = unique.len()).entered();
+        let captured = &self.captured;
+
+        let mut retry_keys = Vec::<String>::new();
+        for &idx in unique {
+            match captured[idx].apply() {
+                Ok(()) => {}
+                Err(ApplyError::Failed(err)) => return Err(EffectsError::Apply(err)),
+                Err(ApplyError::Retry) => {
+                    retry_keys.push(String::from_utf8_lossy(&captured[idx].key()).into_owned());
+                }
+            }
+        }
+
+        if retry_keys.is_empty() {
+            Ok(())
+        } else {
+            self.signal_retry(retry_keys)
+        }
+    }
+
     /// Test-only public alias for [`Effects::apply`]. Lets integration tests in other crates drive
     /// the per-key apply state machine directly (e.g. asserting dedup counts or the raw
     /// [`EffectsError::Retry`] signal). Production code must use
     /// [`read_strongly_consistent_and_apply_effects`] instead, which owns the retry loop.
+    #[cfg(not(feature = "sync"))]
     #[doc(hidden)]
     pub async fn apply_for_testing(&self) -> Result<(), EffectsError> {
         self.apply().await
+    }
+
+    /// Synchronous counterpart of [`apply_for_testing`](Self::apply_for_testing).
+    #[cfg(feature = "sync")]
+    #[doc(hidden)]
+    pub fn apply_for_testing(&self) -> Result<(), EffectsError> {
+        self.apply()
     }
 
     /// Invalidate the producing task (if any) and return [`EffectsError::Retry`] carrying the
@@ -556,6 +749,7 @@ impl Effects {
 /// This is one of two public entry points for applying effects (see also
 /// [`read_strongly_consistent_and_apply_effects_with`]) — [`Effects::apply`] is private so the
 /// retry contract cannot be bypassed.
+#[cfg(not(feature = "sync"))]
 pub async fn read_strongly_consistent_and_apply_effects<T, F>(
     op: OperationVc<T>,
     get_effects: F,
@@ -576,6 +770,27 @@ where
     }
 }
 
+/// Synchronous counterpart for the no-async sync engine (inline read + apply, no future).
+#[cfg(feature = "sync")]
+pub fn read_strongly_consistent_and_apply_effects<T, F>(
+    op: OperationVc<T>,
+    get_effects: F,
+) -> Result<ReadRef<T>>
+where
+    T: VcValueType,
+    F: Fn(&<<T as VcValueType>::Read as VcRead<T>>::Target) -> &Effects,
+{
+    let mut attempts = 0usize;
+    loop {
+        let value = crate::read!(op.read_strongly_consistent())?;
+        let effects = get_effects(&*value);
+        match effects.apply() {
+            Ok(()) => return Ok(value),
+            Err(e) => handle_apply_retry(e, &mut attempts)?,
+        }
+    }
+}
+
 /// AVOID CALLING THIS UNLESS DEEPLY REQUIRED
 ///
 /// Like [`read_strongly_consistent_and_apply_effects`], but the [`Effects`] directly accessed by
@@ -585,6 +800,7 @@ where
 /// turbo-tasks task (it owns the `mark`/`unmark` around `apply`). The consequence is that the
 /// effects may be re-applied if that enclosing task is invalidated — acceptable for lazily-created
 /// resources.
+#[cfg(not(feature = "sync"))]
 pub async fn resolve_strongly_consistent_and_take_and_apply_effects<T>(
     op: OperationVc<T>,
 ) -> Result<ResolvedVc<T>>
@@ -601,6 +817,31 @@ where
         // unmark so any further work (including the next loop iteration's read) is unaffected.
         mark_top_level_task();
         let result = effects.apply().await;
+        unmark_top_level_task_may_leak_eventually_consistent_state();
+        match result {
+            Ok(()) => return Ok(value),
+            Err(e) => handle_apply_retry(e, &mut attempts)?,
+        }
+    }
+}
+
+/// Synchronous counterpart for the no-async sync engine (inline resolve + take + apply).
+#[cfg(feature = "sync")]
+pub fn resolve_strongly_consistent_and_take_and_apply_effects<T>(
+    op: OperationVc<T>,
+) -> Result<ResolvedVc<T>>
+where
+    T: VcValueType,
+{
+    let mut attempts = 0usize;
+    loop {
+        let value = op.resolve().strongly_consistent().resolve_sync()?;
+        // Run the callback while *not* marked top-level so it can `take_effects` / read Vcs.
+        let effects = take_effects(op)?;
+        // `Effects::apply` asserts it runs at the top-level. Mark only around the apply, then
+        // unmark so any further work (including the next loop iteration's read) is unaffected.
+        mark_top_level_task();
+        let result = effects.apply();
         unmark_top_level_task_may_leak_eventually_consistent_state();
         match result {
             Ok(()) => return Ok(value),

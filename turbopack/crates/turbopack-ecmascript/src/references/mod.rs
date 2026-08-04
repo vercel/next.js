@@ -23,8 +23,11 @@ pub mod unreachable;
 pub mod util;
 pub mod worker;
 
+#[cfg(feature = "sync")]
+use std::cell::OnceCell;
+#[cfg(not(feature = "sync"))]
+use std::future::Future;
 use std::{
-    future::Future,
     mem::{replace, take},
     ops::Deref,
     sync::{Arc, LazyLock},
@@ -60,12 +63,14 @@ use swc_core::{
         },
     },
 };
+#[cfg(not(feature = "sync"))]
 use tokio::sync::OnceCell;
-use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::TryJoinIterExt;
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, PrettyPrintError, ReadRef, ResolvedVc, TaskInput,
-    TryJoinIterExt, Upcast, ValueToString, Vc, trace::TraceRawVcs, turbofmt,
+    Upcast, ValueToString, Vc, trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -151,6 +156,74 @@ use crate::{
     utils::{AstPathRange, js_value_to_pattern, module_value_to_well_known_object},
 };
 
+/// Runs `$body` (or evaluates `$e`) inside `$span`. The async build instruments an
+/// async block and awaits it — identical to the previous
+/// `async { .. }.instrument(span).await` — while the sync build simply enters the span
+/// for the duration of the now-synchronous body.
+macro_rules! instrumented {
+    ($span:expr, $body:block) => {{
+        #[cfg(not(feature = "sync"))]
+        let __result = tracing::Instrument::instrument(async { $body }, $span).await;
+        #[cfg(feature = "sync")]
+        let __result = {
+            let __enter = $span.entered();
+            $body
+        };
+        __result
+    }};
+    ($span:expr, $e:expr) => {{
+        #[cfg(not(feature = "sync"))]
+        let __result = tracing::Instrument::instrument($e, $span).await;
+        #[cfg(feature = "sync")]
+        let __result = {
+            let __enter = $span.entered();
+            $e
+        };
+        __result
+    }};
+}
+
+/// File-local companion to `turbo_tasks::dual_fn!` for signatures the shared macro
+/// cannot parse (lifetime parameters and inline bounds). The generic parameter list is
+/// given in square brackets and spliced verbatim; the body is written once,
+/// mode-agnostically (every await point through `turbo_tasks::read!`).
+macro_rules! dual_fn_lt {
+    (
+        $(#[$attr:meta])*
+        $vis:vis fn $name:ident [$($gen:tt)*] ($($args:tt)*) -> $ret:ty $body:block
+    ) => {
+        #[cfg(not(feature = "sync"))]
+        $(#[$attr])*
+        $vis async fn $name <$($gen)*> ($($args)*) -> $ret $body
+
+        #[cfg(feature = "sync")]
+        $(#[$attr])*
+        $vis fn $name <$($gen)*> ($($args)*) -> $ret $body
+    };
+}
+
+/// Like [`dual_fn_lt!`], but with fully separate async/sync signatures (for functions
+/// whose generics, `where` clauses, or argument types differ per mode — e.g. an
+/// `impl Future` argument that becomes a plain `Result` under sync). The single body
+/// must be mode-agnostic (every await point through `turbo_tasks::read!`).
+macro_rules! dual_fn_sig {
+    (
+        $(#[$attr:meta])*
+        async: $vis:vis fn $name:ident [$($agen:tt)*] ($($aargs:tt)*) -> $aret:ty
+            where [$($awhere:tt)*];
+        sync: fn [$($sgen:tt)*] ($($sargs:tt)*) -> $sret:ty where [$($swhere:tt)*];
+        $body:block
+    ) => {
+        #[cfg(not(feature = "sync"))]
+        $(#[$attr])*
+        $vis async fn $name <$($agen)*> ($($aargs)*) -> $aret where $($awhere)* $body
+
+        #[cfg(feature = "sync")]
+        $(#[$attr])*
+        $vis fn $name <$($sgen)*> ($($sargs)*) -> $sret where $($swhere)* $body
+    };
+}
+
 #[turbo_tasks::value(shared)]
 pub struct AnalyzeEcmascriptModuleResult {
     references: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
@@ -172,8 +245,7 @@ impl AnalyzeEcmascriptModuleResult {
     #[turbo_tasks::function]
     pub async fn references(&self) -> Result<Vc<ModuleReferences>> {
         Ok(Vc::cell(
-            self.esm_references
-                .await?
+            turbo_tasks::read!(self.esm_references)?
                 .iter()
                 .map(|r| ResolvedVc::upcast(*r))
                 .chain(self.references.iter().copied())
@@ -184,8 +256,7 @@ impl AnalyzeEcmascriptModuleResult {
     #[turbo_tasks::function]
     pub async fn local_references(&self) -> Result<Vc<ModuleReferences>> {
         Ok(Vc::cell(
-            self.esm_local_references
-                .await?
+            turbo_tasks::read!(self.esm_local_references)?
                 .iter()
                 .map(|r| ResolvedVc::upcast(*r))
                 .chain(self.references.iter().copied())
@@ -336,19 +407,33 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             .or_insert_with(on_insert)
     }
 
-    pub async fn add_esm_reference_free_var(
-        &mut self,
-        request: RcStr,
-        on_insert: impl AsyncFnOnce() -> Result<ResolvedVc<EsmAssetReference>>,
-    ) -> Result<ResolvedVc<EsmAssetReference>> {
-        Ok(match self.esm_references_free_var.entry(request) {
-            Entry::Occupied(e) => *e.get(),
-            Entry::Vacant(e) => *e.insert(on_insert().await?),
-        })
+    dual_fn_sig! {
+        async: pub fn add_esm_reference_free_var [F, Fut] (
+            &mut self,
+            request: RcStr,
+            on_insert: F,
+        ) -> Result<ResolvedVc<EsmAssetReference>>
+            where [
+                F: FnOnce() -> Fut,
+                Fut: Future<Output = Result<ResolvedVc<EsmAssetReference>>>,
+            ];
+        sync: fn [F] (
+            &mut self,
+            request: RcStr,
+            on_insert: F,
+        ) -> Result<ResolvedVc<EsmAssetReference>>
+            where [F: FnOnce() -> Result<ResolvedVc<EsmAssetReference>>];
+        {
+            Ok(match self.esm_references_free_var.entry(request) {
+                Entry::Occupied(e) => *e.get(),
+                Entry::Vacant(e) => *e.insert(turbo_tasks::read!(on_insert())?),
+            })
+        }
     }
 
+    turbo_tasks::dual_fn! {
     /// Builds the final analysis result. Resolves internal Vcs.
-    pub async fn build(
+    pub fn build(
         mut self,
         import_references: &[ResolvedVc<EsmAssetReference>],
         track_reexport_references: bool,
@@ -430,6 +515,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             },
         ))
     }
+    }
 }
 
 struct AnalysisState<'a> {
@@ -478,13 +564,14 @@ struct AnalysisState<'a> {
 }
 
 impl<'a> AnalysisState<'a> {
+    turbo_tasks::dual_fn! {
     /// Links a value to the graph, returning the linked value.
-    async fn link_value(
+    fn link_value(
         &self,
         value: JsValue<'a>,
         attributes: &ImportAttributes,
     ) -> Result<JsValue<'a>> {
-        Ok(link(
+        Ok(turbo_tasks::read!(link(
             self.arena,
             &self.var_graph,
             value,
@@ -504,9 +591,10 @@ impl<'a> AnalysisState<'a> {
             },
             &self.fun_args_values,
             &self.var_cache,
-        )
-        .await?
+        ))
+        ?
         .0)
+    }
     }
 }
 
@@ -525,45 +613,46 @@ pub async fn analyze_ecmascript_module(
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
     let span = tracing::info_span!(
         "analyze ecmascript module",
-        name = display(module.ident().to_string().await?)
+        name = display(turbo_tasks::read!(module.ident().to_string())?)
     );
-    let result = analyze_ecmascript_module_internal(module, part)
-        .instrument(span)
-        .await;
+    let result = instrumented!(span, analyze_ecmascript_module_internal(module, part));
 
     match result {
         Ok(result) => Ok(result),
         // ast-grep-ignore: no-context-turbofmt
-        Err(err) => Err(err
-            .context(turbofmt!("failed to analyze ecmascript module '{}'", module.ident()).await?)),
+        Err(err) => Err(err.context(turbo_tasks::read!(turbofmt!(
+            "failed to analyze ecmascript module '{}'",
+            module.ident()
+        ))?)),
     }
 }
 
-async fn analyze_ecmascript_module_internal(
+turbo_tasks::dual_fn! {
+fn analyze_ecmascript_module_internal(
     module: ResolvedVc<EcmascriptModuleAsset>,
     part: Option<ModulePart>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
-    let raw_module = module.await?;
+    let raw_module = turbo_tasks::read!(module)?;
 
     let source = raw_module.source;
     let ty = raw_module.ty;
     let options = raw_module.options;
-    let options = options.await?;
+    let options = turbo_tasks::read!(options)?;
     let import_externals = options.import_externals;
     let analyze_mode = options.analyze_mode;
 
     let origin = ResolvedVc::upcast::<Box<dyn ResolveOrigin>>(module);
-    let origin_ref = origin.into_trait_ref().await?;
+    let origin_ref = turbo_tasks::read!(origin.into_trait_ref())?;
     let origin_path = origin_ref.origin_path();
     let path = &origin_path;
     let mut analysis = AnalyzeEcmascriptModuleResultBuilder::new(analyze_mode);
     #[cfg(debug_assertions)]
     {
-        analysis.ident = source.ident().to_string().owned().await?;
+        analysis.ident = turbo_tasks::read!(source.ident().to_string().owned())?;
     }
 
     let inner_assets = if let Some(assets) = raw_module.inner_assets {
-        Some(assets.await?)
+        Some(turbo_tasks::read!(assets)?)
     } else {
         None
     };
@@ -587,39 +676,35 @@ async fn analyze_ecmascript_module_internal(
     let ModuleTypeResult {
         module_type: specified_type,
         ref referenced_package_json,
-    } = *module.determine_module_type().await?;
+    } = *turbo_tasks::read!(module.determine_module_type())?;
 
     if let Some(package_json) = referenced_package_json {
         let span = tracing::trace_span!("package.json reference");
-        async {
+        instrumented!(span, {
             analysis.add_reference(
-                PackageJsonReference::new(package_json.clone())
-                    .to_resolved()
-                    .await?,
+                turbo_tasks::read!(PackageJsonReference::new(package_json.clone())
+                    .to_resolved())
+                    ?,
             );
             anyhow::Ok(())
-        }
-        .instrument(span)
-        .await?;
+        })?;
     }
 
     if analyze_types {
         let span = tracing::trace_span!("tsconfig reference");
-        async {
-            match &*find_context_file(path.parent(), tsconfig(), false).await? {
+        instrumented!(span, {
+            match &*turbo_tasks::read!(find_context_file(path.parent(), tsconfig(), false))? {
                 FindContextFileResult::Found(tsconfig, _) => {
                     analysis.add_reference(
-                        TsConfigReference::new(*origin, tsconfig.clone())
-                            .to_resolved()
-                            .await?,
+                        turbo_tasks::read!(TsConfigReference::new(*origin, tsconfig.clone())
+                            .to_resolved())
+                            ?,
                     );
                 }
                 FindContextFileResult::NotFound(_) => {}
             };
             anyhow::Ok(())
-        }
-        .instrument(span)
-        .await?;
+        })?;
     }
 
     let EcmascriptExportsAnalysis {
@@ -628,13 +713,13 @@ async fn analyze_ecmascript_module_internal(
         esm_reexport_reference_idxs,
         esm_evaluation_reference_idxs,
         // This reads the ParseResult, so it has to happen before the final_read_hint.
-    } = &*compute_ecmascript_module_exports(*module, part).await?;
+    } = &*turbo_tasks::read!(compute_ecmascript_module_exports(*module, part))?;
 
     let parsed = if !analyze_mode.is_code_gen() {
         // We are never code-gening the module, so we can drop the AST after the analysis.
-        parsed.final_read_hint().await?
+        turbo_tasks::read!(parsed.final_read_hint())?
     } else {
-        parsed.await?
+        turbo_tasks::read!(parsed)?
     };
 
     let ParseResult::Ok {
@@ -647,7 +732,7 @@ async fn analyze_ecmascript_module_internal(
         program_source: _,
     } = &*parsed
     else {
-        return analysis.build(Default::default(), false).await;
+        return turbo_tasks::read!(analysis.build(Default::default(), false));
     };
 
     for i in esm_reexport_reference_idxs {
@@ -699,18 +784,18 @@ async fn analyze_ecmascript_module_internal(
     });
 
     let is_esm = eval_context.is_esm(specified_type);
-    let compile_time_info = compile_time_info_for_module_options(
+    let compile_time_info = turbo_tasks::read!(compile_time_info_for_module_options(
         *raw_module.compile_time_info,
         is_esm,
         options.enable_typeof_window_inlining,
     )
-    .to_resolved()
-    .await?;
+    .to_resolved())
+    ?;
 
     let pos = program.span().lo;
     if analyze_types {
         let span = tracing::trace_span!("type references");
-        async {
+        instrumented!(span, {
             if let Some(comments) = comments.get_leading(pos) {
                 for comment in comments.iter() {
                     if let CommentKind::Line = comment.kind {
@@ -726,33 +811,31 @@ async fn analyze_ecmascript_module_internal(
                         if let Some(m) = REFERENCE_PATH.captures(text) {
                             let path = &m[1];
                             analysis.add_reference(
-                                TsReferencePathAssetReference::new(*origin, path.into())
-                                    .to_resolved()
-                                    .await?,
+                                turbo_tasks::read!(TsReferencePathAssetReference::new(*origin, path.into())
+                                    .to_resolved())
+                                    ?,
                             );
                         } else if let Some(m) = REFERENCE_TYPES.captures(text) {
                             let types = &m[1];
                             analysis.add_reference(
-                                TsReferenceTypeAssetReference::new(*origin, types.into())
-                                    .to_resolved()
-                                    .await?,
+                                turbo_tasks::read!(TsReferenceTypeAssetReference::new(*origin, types.into())
+                                    .to_resolved())
+                                    ?,
                             );
                         }
                     }
                 }
             }
             anyhow::Ok(())
-        }
-        .instrument(span)
-        .await?;
+        })?;
     }
 
     if options.extract_source_map {
         let span = tracing::trace_span!("source map reference");
-        async {
+        instrumented!(span, {
             if let Some((source_map, reference)) =
-                parse_source_map_comment(source, source_mapping_url.as_deref(), &origin_path)
-                    .await?
+                turbo_tasks::read!(parse_source_map_comment(source, source_mapping_url.as_deref(), &origin_path))
+                    ?
             {
                 analysis.set_source_map(source_map);
                 if let Some(reference) = reference {
@@ -760,23 +843,21 @@ async fn analyze_ecmascript_module_internal(
                 }
             }
             anyhow::Ok(())
-        }
-        .instrument(span)
-        .await?;
+        })?;
     }
 
     let (emitter, collector) = IssueEmitter::new(source, source_map.clone(), None);
     let handler = Handler::with_emitter(true, false, Box::new(emitter));
 
-    let supports_block_scoping = *compile_time_info
+    let supports_block_scoping = *turbo_tasks::read!(compile_time_info
         .environment()
         .runtime_versions()
-        .supports_block_scoping()
-        .await?;
+        .supports_block_scoping())
+        ?;
 
     // TODO: we can do this when constructing the var graph
     let span = tracing::trace_span!("async module handling");
-    async {
+    instrumented!(span, {
         let top_level_await_span =
             set_handler_and_globals(&handler, globals, || has_top_level_await(program));
         let has_top_level_await = top_level_await_span.is_some();
@@ -789,7 +870,7 @@ async fn analyze_ecmascript_module_internal(
             .resolved_cell();
             analysis.set_async_module(async_module);
         } else if let Some(span) = top_level_await_span {
-            AnalyzeIssue::new(
+            turbo_tasks::read!(AnalyzeIssue::new(
                 IssueSeverity::Error,
                 source.ident(),
                 Vc::cell(rcstr!("unexpected top level await")),
@@ -798,14 +879,12 @@ async fn analyze_ecmascript_module_internal(
                 None,
                 Some(issue_source(source, span)),
             )
-            .to_resolved()
-            .await?
+            .to_resolved())
+            ?
             .emit();
         }
         anyhow::Ok(())
-    }
-    .instrument(span)
-    .await?;
+    })?;
 
     // The arena that owns every `JsValue` built during this analysis. Borrowed once here so all
     // uses share a single (covariant) reference lifetime; it is freed when the function returns.
@@ -827,10 +906,10 @@ async fn analyze_ecmascript_module_internal(
     };
 
     let span = tracing::trace_span!("effects processing");
-    async {
+    instrumented!(span, {
         analysis.code_gens.extend(take(&mut var_graph.code_gens));
         let effects = take(&mut var_graph.effects);
-        let compile_time_info_ref = compile_time_info.await?;
+        let compile_time_info_ref = turbo_tasks::read!(compile_time_info)?;
 
         let mut analysis_state = AnalysisState {
             arena,
@@ -840,14 +919,14 @@ async fn analyze_ecmascript_module_internal(
             origin,
             origin_path: origin_path.clone(),
             compile_time_info,
-            free_var_references_members: compile_time_info_ref
+            free_var_references_members: turbo_tasks::read!(compile_time_info_ref
                 .free_var_references
                 .members()
-                .to_resolved()
-                .await?,
+                .to_resolved())
+                ?,
             compile_time_info_ref,
             var_graph,
-            allow_project_root_tracing: !source.ident().await?.path.is_in_node_modules(),
+            allow_project_root_tracing: !turbo_tasks::read!(source.ident())?.path.is_in_node_modules(),
             fun_args_values: Default::default(),
             var_cache: Default::default(),
             first_import_meta: true,
@@ -914,9 +993,9 @@ async fn analyze_ecmascript_module_internal(
                     // (e.g. function calls)
                     let condition_has_side_effects = condition.has_side_effects();
 
-                    let condition = analysis_state
-                        .link_value(take(&mut *condition), ImportAttributes::empty_ref())
-                        .await?;
+                    let condition = turbo_tasks::read!(analysis_state
+                        .link_value(take(&mut *condition), ImportAttributes::empty_ref()))
+                        ?;
 
                     macro_rules! inactive {
                         ($block:ident) => {
@@ -1074,11 +1153,11 @@ async fn analyze_ecmascript_module_internal(
                     in_try,
                     new,
                 } => {
-                    let func = analysis_state
-                        .link_value(take(&mut *func), eval_context.imports.get_attributes(span))
-                        .await?;
+                    let func = turbo_tasks::read!(analysis_state
+                        .link_value(take(&mut *func), eval_context.imports.get_attributes(span)))
+                        ?;
 
-                    handle_call(
+                    turbo_tasks::read!(handle_call(
                         &ast_path,
                         span,
                         func,
@@ -1089,8 +1168,8 @@ async fn analyze_ecmascript_module_internal(
                         in_try,
                         new,
                         eval_context.imports.get_attributes(span),
-                    )
-                    .await?;
+                    ))
+                    ?;
                 }
                 Effect::DynamicImport {
                     args,
@@ -1099,7 +1178,7 @@ async fn analyze_ecmascript_module_internal(
                     in_try,
                     export_usage,
                 } => {
-                    handle_dynamic_import(
+                    turbo_tasks::read!(handle_dynamic_import(
                         &ast_path,
                         span,
                         args,
@@ -1109,8 +1188,8 @@ async fn analyze_ecmascript_module_internal(
                         in_try,
                         eval_context.imports.get_attributes(span),
                         export_usage,
-                    )
-                    .await?;
+                    ))
+                    ?;
                 }
                 Effect::MemberCall {
                     mut obj,
@@ -1121,7 +1200,7 @@ async fn analyze_ecmascript_module_internal(
                     in_try,
                     new,
                 } => {
-                    let func = analysis_state
+                    let func = turbo_tasks::read!(analysis_state
                         .link_value(
                             JsValue::member(
                                 arena.get_or_default(),
@@ -1129,8 +1208,8 @@ async fn analyze_ecmascript_module_internal(
                                 take(&mut *prop),
                             ),
                             eval_context.imports.get_attributes(span),
-                        )
-                        .await?;
+                        ))
+                        ?;
 
                     if !new
                         && matches!(
@@ -1146,13 +1225,13 @@ async fn analyze_ecmascript_module_internal(
                             items: ref mut values,
                             mutable,
                             ..
-                        } = analysis_state
-                            .link_value(take(&mut *obj), eval_context.imports.get_attributes(span))
-                            .await?
+                        } = turbo_tasks::read!(analysis_state
+                            .link_value(take(&mut *obj), eval_context.imports.get_attributes(span)))
+                            ?
                     {
-                        *value = analysis_state
-                            .link_value(take(value), ImportAttributes::empty_ref())
-                            .await?;
+                        *value = turbo_tasks::read!(analysis_state
+                            .link_value(take(value), ImportAttributes::empty_ref()))
+                            ?;
                         if let JsValue::Function(_, func_ident, _) = value {
                             let mut closure_arg = JsValue::alternatives(take(values));
                             if mutable {
@@ -1176,7 +1255,7 @@ async fn analyze_ecmascript_module_internal(
                         }
                     }
 
-                    handle_call(
+                    turbo_tasks::read!(handle_call(
                         &ast_path,
                         span,
                         func,
@@ -1187,8 +1266,8 @@ async fn analyze_ecmascript_module_internal(
                         in_try,
                         new,
                         eval_context.imports.get_attributes(span),
-                    )
-                    .await?;
+                    ))
+                    ?;
                 }
                 Effect::FreeVar {
                     var,
@@ -1227,23 +1306,23 @@ async fn analyze_ecmascript_module_internal(
                     }
 
                     // FreeVar("require") might be turbopackIgnore-d
-                    if !analysis_state
+                    if !turbo_tasks::read!(analysis_state
                         .link_value(
                             JsValue::FreeVar(var.clone()),
                             eval_context.imports.get_attributes(span),
-                        )
-                        .await?
+                        ))
+                        ?
                         .is_unknown()
                     {
                         // Call handle free var
-                        handle_free_var(
+                        turbo_tasks::read!(handle_free_var(
                             &ast_path,
                             JsValue::FreeVar(var),
                             span,
                             &analysis_state,
                             &mut analysis,
-                        )
-                        .await?;
+                        ))
+                        ?;
                     }
                 }
                 Effect::Member {
@@ -1261,12 +1340,12 @@ async fn analyze_ecmascript_module_internal(
                     let obj =
                         analysis_state.link_value(take(&mut *obj), ImportAttributes::empty_ref());
 
-                    let prop = analysis_state
-                        .link_value(take(&mut *prop), ImportAttributes::empty_ref())
-                        .await?;
+                    let prop = turbo_tasks::read!(analysis_state
+                        .link_value(take(&mut *prop), ImportAttributes::empty_ref()))
+                        ?;
 
-                    handle_member(&ast_path, obj, prop, span, &analysis_state, &mut analysis)
-                        .await?;
+                    turbo_tasks::read!(handle_member(&ast_path, obj, prop, span, &analysis_state, &mut analysis))
+                        ?;
                 }
                 Effect::ImportedBinding {
                     esm_reference_index,
@@ -1279,7 +1358,7 @@ async fn analyze_ecmascript_module_internal(
                     };
 
                     if let Some("__turbopack_module_id__") = export.as_deref() {
-                        let chunking_type = r.await?.chunking_type();
+                        let chunking_type = turbo_tasks::read!(r)?.chunking_type();
                         analysis.add_reference_code_gen(
                             EsmModuleIdAssetReference::new(*r, chunking_type),
                             ast_path.to_vec().into(),
@@ -1291,7 +1370,7 @@ async fn analyze_ecmascript_module_internal(
                         ) {
                             // TODO move this logic into Effect creation itself and don't create new
                             // references after the fact here.
-                            let original_reference = r.await?;
+                            let original_reference = turbo_tasks::read!(r)?;
                             if original_reference.export_name.is_none()
                                 && export.is_some()
                                 && let Some(export) = export
@@ -1336,10 +1415,10 @@ async fn analyze_ecmascript_module_internal(
                         analyze_mode.is_code_gen(),
                         "unexpected Effect::TypeOf in tracing mode"
                     );
-                    let arg = analysis_state
-                        .link_value(take(&mut *arg), ImportAttributes::empty_ref())
-                        .await?;
-                    handle_typeof(&ast_path, arg, span, &analysis_state, &mut analysis).await?;
+                    let arg = turbo_tasks::read!(analysis_state
+                        .link_value(take(&mut *arg), ImportAttributes::empty_ref()))
+                        ?;
+                    turbo_tasks::read!(handle_typeof(&ast_path, arg, span, &analysis_state, &mut analysis))?;
                 }
                 Effect::ImportMeta { ast_path, span: _ } => {
                     debug_assert!(
@@ -1349,7 +1428,7 @@ async fn analyze_ecmascript_module_internal(
                     if analysis_state.first_import_meta {
                         analysis_state.first_import_meta = false;
                         analysis.add_code_gen(ImportMetaBinding::new(
-                            source.ident().await?.path.clone(),
+                            turbo_tasks::read!(source.ident())?.path.clone(),
                             analysis_state
                                 .compile_time_info_ref
                                 .hot_module_replacement_enabled,
@@ -1361,23 +1440,22 @@ async fn analyze_ecmascript_module_internal(
             }
         }
         anyhow::Ok(())
-    }
-    .instrument(span)
-    .await?;
+    })?;
 
     analysis.set_successful(true);
 
-    collector.emit(false).await?;
+    turbo_tasks::read!(collector.emit(false))?;
 
-    analysis
+    turbo_tasks::read!(analysis
         .build(
             import_references,
             matches!(
                 options.tree_shaking_mode,
                 Some(TreeShakingMode::ReexportsOnly)
             ),
-        )
-        .await
+        ))
+
+}
 }
 
 #[turbo_tasks::function]
@@ -1386,12 +1464,12 @@ async fn compile_time_info_for_module_options(
     is_esm: bool,
     enable_typeof_window_inlining: Option<TypeofWindow>,
 ) -> Result<Vc<CompileTimeInfo>> {
-    let compile_time_info = compile_time_info.await?;
+    let compile_time_info = turbo_tasks::read!(compile_time_info)?;
     let free_var_references = compile_time_info.free_var_references;
     let defines = compile_time_info.defines;
 
-    let mut free_var_references = free_var_references.owned().await?;
-    let mut defines = defines.owned().await?;
+    let mut free_var_references = turbo_tasks::read!(free_var_references.owned())?;
+    let mut defines = turbo_tasks::read!(defines.owned())?;
 
     let (typeof_exports, typeof_module, typeof_this, require) = if is_esm {
         (
@@ -1501,7 +1579,8 @@ async fn compile_time_info_for_module_options(
     .cell())
 }
 
-async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
+dual_fn_lt! {
+fn handle_call ['a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync] (
     ast_path: &[AstParentKind],
     span: Span,
     func: JsValue<'a>,
@@ -1546,6 +1625,7 @@ async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
     let linked_args_cache = OnceCell::new();
 
     // Create the lazy linking closure that will be passed to handle_well_known_function_call
+    #[cfg(not(feature = "sync"))]
     let linked_args = || async {
         linked_args_cache
             .get_or_try_init(|| async {
@@ -1558,6 +1638,20 @@ async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
             })
             .await
     };
+    #[cfg(feature = "sync")]
+    let linked_args = || -> Result<&Vec<JsValue<'a>>> {
+        if linked_args_cache.get().is_none() {
+            let mut linked = Vec::with_capacity(unlinked_args.len());
+            for arg in unlinked_args.iter() {
+                let arg = arg.clone_in(state.arena.get_or_default());
+                linked.push(turbo_tasks::read!(
+                    state.link_value(arg, ImportAttributes::empty_ref())
+                )?);
+            }
+            let _ = linked_args_cache.set(linked);
+        }
+        Ok(linked_args_cache.get().unwrap())
+    };
 
     match func {
         JsValue::Alternatives {
@@ -1567,7 +1661,7 @@ async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
         } => {
             for alt in values {
                 if let JsValue::WellKnownFunction(wkf) = alt {
-                    handle_well_known_function_call(
+                    turbo_tasks::read!(handle_well_known_function_call(
                         wkf,
                         new,
                         &linked_args,
@@ -1585,13 +1679,13 @@ async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
                         collect_affecting_sources,
                         tracing_only,
                         attributes,
-                    )
-                    .await?;
+                    ))
+                    ?;
                 }
             }
         }
         JsValue::WellKnownFunction(wkf) => {
-            handle_well_known_function_call(
+            turbo_tasks::read!(handle_well_known_function_call(
                 wkf,
                 new,
                 &linked_args,
@@ -1609,16 +1703,18 @@ async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
                 collect_affecting_sources,
                 tracing_only,
                 attributes,
-            )
-            .await?;
+            ))
+            ?;
         }
         _ => {}
     }
 
     Ok(())
 }
+}
 
-async fn handle_dynamic_import<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
+dual_fn_lt! {
+fn handle_dynamic_import ['a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync] (
     ast_path: &[AstParentKind],
     span: Span,
     args: BumpVec<'a, EffectArg<'a>>,
@@ -1666,14 +1762,26 @@ async fn handle_dynamic_import<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>
         })
         .collect();
 
-    let linked_args = unlinked_args
+    #[cfg(not(feature = "sync"))]
+    let linked_args = turbo_tasks::read!(unlinked_args
         .iter()
         .map(|arg| arg.clone_in(state.arena.get_or_default()))
         .map(|arg| state.link_value(arg, ImportAttributes::empty_ref()))
-        .try_join()
-        .await?;
+        .try_join())
+        ?;
+    #[cfg(feature = "sync")]
+    let linked_args = {
+        let mut linked = Vec::with_capacity(unlinked_args.len());
+        for arg in unlinked_args.iter() {
+            let arg = arg.clone_in(state.arena.get_or_default());
+            linked.push(turbo_tasks::read!(
+                state.link_value(arg, ImportAttributes::empty_ref())
+            )?);
+        }
+        linked
+    };
 
-    handle_dynamic_import_with_linked_args(
+    turbo_tasks::read!(handle_dynamic_import_with_linked_args(
         ast_path,
         span,
         &linked_args,
@@ -1686,11 +1794,13 @@ async fn handle_dynamic_import<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>
         error_mode,
         state.import_externals,
         export_usage,
-    )
-    .await
+    ))
+
+}
 }
 
-async fn handle_dynamic_import_with_linked_args(
+turbo_tasks::dual_fn! {
+fn handle_dynamic_import_with_linked_args(
     ast_path: &[AstParentKind],
     span: Span,
     linked_args: &[JsValue<'_>],
@@ -1752,17 +1862,17 @@ async fn handle_dynamic_import_with_linked_args(
         };
 
         analysis.add_reference_code_gen(
-            EsmAsyncAssetReference::new(
+            turbo_tasks::read!(EsmAsyncAssetReference::new(
                 origin,
-                Request::parse(pat).to_resolved().await?,
+                turbo_tasks::read!(Request::parse(pat).to_resolved())?,
                 issue_source(source, span),
                 import_annotations,
                 error_mode,
                 import_externals,
                 export_usage,
                 resolve_override,
-            )
-            .await?,
+            ))
+            ?,
             ast_path.to_vec().into(),
         );
         return Ok(());
@@ -1776,30 +1886,84 @@ async fn handle_dynamic_import_with_linked_args(
 
     Ok(())
 }
+}
 
-async fn handle_well_known_function_call<'a, 'l, F, Fut>(
-    func: WellKnownFunctionKind<'a>,
-    new: bool,
-    linked_args: &F,
-    handler: &Handler,
-    span: Span,
-    ignore_dynamic_requests: bool,
-    analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
-    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+turbo_tasks::dual_fn! {
+/// Computes the directory that `fs.readFileSync("./foo")`-style relative accesses are
+/// traced against.
+///
+/// readFileSync("./foo") should always be relative to the project root, but this is
+/// dangerous inside of node_modules as it can cause a lot of false positives in the
+/// tracing, if some package does `path.join(dynamic)`, it would include
+/// everything from the project root as well.
+///
+/// Also, when there's no cwd set (i.e. in a tracing-specific module context, as we
+/// shouldn't assume a `process.cwd()` for all of node_modules), fallback to
+/// the source file directory. This still allows relative file accesses, just
+/// not from the project root.
+fn traced_project_dir(
+    state: &AnalysisState<'_>,
     compile_time_info: ResolvedVc<CompileTimeInfo>,
-    url_rewrite_behavior: Option<UrlRewriteBehavior>,
     source: ResolvedVc<Box<dyn Source>>,
-    ast_path: &[AstParentKind],
-    in_try: bool,
-    state: &AnalysisState<'a>,
-    collect_affecting_sources: bool,
-    tracing_only: bool,
-    attributes: &ImportAttributes,
-) -> Result<()>
-where
-    'a: 'l,
-    F: Fn() -> Fut,
-    Fut: Future<Output = Result<&'l Vec<JsValue<'a>>>>,
+) -> Result<FileSystemPath> {
+    if state.allow_project_root_tracing
+        && let Some(cwd) = turbo_tasks::read!(compile_time_info.environment().cwd().owned())?
+    {
+        Ok(cwd)
+    } else {
+        Ok(turbo_tasks::read!(source.ident())?.path.parent())
+    }
+}
+}
+
+dual_fn_sig! {
+    async: fn handle_well_known_function_call ['a, 'l, F, Fut] (
+        func: WellKnownFunctionKind<'a>,
+        new: bool,
+        linked_args: &F,
+        handler: &Handler,
+        span: Span,
+        ignore_dynamic_requests: bool,
+        analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        compile_time_info: ResolvedVc<CompileTimeInfo>,
+        url_rewrite_behavior: Option<UrlRewriteBehavior>,
+        source: ResolvedVc<Box<dyn Source>>,
+        ast_path: &[AstParentKind],
+        in_try: bool,
+        state: &AnalysisState<'a>,
+        collect_affecting_sources: bool,
+        tracing_only: bool,
+        attributes: &ImportAttributes,
+    ) -> Result<()>
+        where [
+            'a: 'l,
+            F: Fn() -> Fut,
+            Fut: Future<Output = Result<&'l Vec<JsValue<'a>>>>,
+        ];
+    sync: fn ['a, 'l, F] (
+        func: WellKnownFunctionKind<'a>,
+        new: bool,
+        linked_args: &F,
+        handler: &Handler,
+        span: Span,
+        ignore_dynamic_requests: bool,
+        analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        compile_time_info: ResolvedVc<CompileTimeInfo>,
+        url_rewrite_behavior: Option<UrlRewriteBehavior>,
+        source: ResolvedVc<Box<dyn Source>>,
+        ast_path: &[AstParentKind],
+        in_try: bool,
+        state: &AnalysisState<'a>,
+        collect_affecting_sources: bool,
+        tracing_only: bool,
+        attributes: &ImportAttributes,
+    ) -> Result<()>
+        where [
+            'a: 'l,
+            F: Fn() -> Result<&'l Vec<JsValue<'a>>>,
+        ];
 {
     fn explain_args(args: &[JsValue<'_>]) -> (String, String) {
         JsValue::explain_args(args, 10, 2)
@@ -1814,31 +1978,12 @@ where
         ResolveErrorMode::Error
     };
 
-    let get_traced_project_dir = async || -> Result<FileSystemPath> {
-        // readFileSync("./foo") should always be relative to the project root, but this is
-        // dangerous inside of node_modules as it can cause a lot of false positives in the
-        // tracing, if some package does `path.join(dynamic)`, it would include
-        // everything from the project root as well.
-        //
-        // Also, when there's no cwd set (i.e. in a tracing-specific module context, as we
-        // shouldn't assume a `process.cwd()` for all of node_modules), fallback to
-        // the source file directory. This still allows relative file accesses, just
-        // not from the project root.
-        if state.allow_project_root_tracing
-            && let Some(cwd) = compile_time_info.environment().cwd().owned().await?
-        {
-            Ok(cwd)
-        } else {
-            Ok(source.ident().await?.path.parent())
-        }
-    };
-
     let get_issue_source =
         || IssueSource::from_swc_offsets(source, span.lo.to_u32(), span.hi.to_u32());
     if new {
         match func {
             WellKnownFunctionKind::URLConstructor => {
-                let args = linked_args().await?;
+                let args = turbo_tasks::read!(linked_args())?;
                 if let [url, JsValue::Member(_, member_obj, member_prop)] = &args[..]
                     && let JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta) = &**member_obj
                     && let JsValue::Constant(super::analyzer::ConstantValue::Str(meta_prop)) =
@@ -1868,8 +2013,8 @@ where
                     analysis.add_reference_code_gen(
                         UrlAssetReference::new(
                             origin,
-                            Request::parse(pat).to_resolved().await?,
-                            *compile_time_info.environment().rendering().await?,
+                            turbo_tasks::read!(Request::parse(pat).to_resolved())?,
+                            *turbo_tasks::read!(compile_time_info.environment().rendering())?,
                             issue_source(source, span),
                             error_mode,
                             url_rewrite_behavior.unwrap_or(UrlRewriteBehavior::Relative),
@@ -1881,7 +2026,7 @@ where
             }
             WellKnownFunctionKind::WorkerConstructor
             | WellKnownFunctionKind::SharedWorkerConstructor => {
-                let args = linked_args().await?;
+                let args = turbo_tasks::read!(linked_args())?;
                 if let Some(url @ JsValue::Url(_, JsValueUrlKind::Relative)) = args.first() {
                     let (name, is_shared) = match func {
                         WellKnownFunctionKind::WorkerConstructor => ("Worker", false),
@@ -1903,7 +2048,7 @@ where
                         }
                     }
 
-                    if *compile_time_info.environment().rendering().await? == Rendering::Client {
+                    if *turbo_tasks::read!(compile_time_info.environment().rendering())? == Rendering::Client {
                         let error_mode = if in_try {
                             ResolveErrorMode::Warn
                         } else {
@@ -1912,7 +2057,7 @@ where
                         analysis.add_reference_code_gen(
                             WorkerAssetReference::new_web_worker(
                                 origin,
-                                Request::parse(pat).to_resolved().await?,
+                                turbo_tasks::read!(Request::parse(pat).to_resolved())?,
                                 issue_source(source, span),
                                 error_mode,
                                 tracing_only,
@@ -1928,7 +2073,7 @@ where
                 return Ok(());
             }
             WellKnownFunctionKind::NodeWorkerConstructor => {
-                let args = linked_args().await?;
+                let args = turbo_tasks::read!(linked_args())?;
                 if !args.is_empty() {
                     // When `{ eval: true }` is passed as the second argument,
                     // the first argument is inline JS code, not a file path.
@@ -2008,15 +2153,15 @@ where
                         args.first(),
                         Some(JsValue::Url(_, JsValueUrlKind::Relative))
                     ) {
-                        origin.into_trait_ref().await?.origin_path().parent()
+                        turbo_tasks::read!(origin.into_trait_ref())?.origin_path().parent()
                     } else {
-                        get_traced_project_dir().await?
+                        turbo_tasks::read!(traced_project_dir(state, compile_time_info, source))?
                     };
                     analysis.add_reference_code_gen(
                         WorkerAssetReference::new_node_worker_thread(
                             origin,
                             context_dir,
-                            Pattern::new(pat).to_resolved().await?,
+                            turbo_tasks::read!(Pattern::new(pat).to_resolved())?,
                             collect_affecting_sources,
                             get_issue_source(),
                             error_mode,
@@ -2046,13 +2191,13 @@ where
 
     match func {
         WellKnownFunctionKind::Import => {
-            let args = linked_args().await?;
+            let args = turbo_tasks::read!(linked_args())?;
             let export_usage = match &attributes.export_names {
                 Some(names) if names.is_empty() => ExportUsage::Evaluation,
                 Some(names) => ExportUsage::PartialNamespaceObject(names.clone()),
                 None => ExportUsage::All,
             };
-            handle_dynamic_import_with_linked_args(
+            turbo_tasks::read!(handle_dynamic_import_with_linked_args(
                 ast_path,
                 span,
                 args,
@@ -2065,11 +2210,11 @@ where
                 error_mode,
                 state.import_externals,
                 export_usage,
-            )
-            .await?;
+            ))
+            ?;
         }
         WellKnownFunctionKind::Require => {
-            let args = linked_args().await?;
+            let args = turbo_tasks::read!(linked_args())?;
             if args.len() == 1 {
                 let pat = js_value_to_pattern(&args[0]);
                 if !pat.has_constant_parts() {
@@ -2099,7 +2244,7 @@ where
                 analysis.add_reference_code_gen(
                     CjsRequireAssetReference::new(
                         origin,
-                        Request::parse(pat).to_resolved().await?,
+                        turbo_tasks::read!(Request::parse(pat).to_resolved())?,
                         issue_source(source, span),
                         error_mode,
                         attributes.chunking_type,
@@ -2117,7 +2262,7 @@ where
             )
         }
         WellKnownFunctionKind::RequireFrom(rel) => {
-            let args = linked_args().await?;
+            let args = turbo_tasks::read!(linked_args())?;
             if args.len() == 1 {
                 let pat = js_value_to_pattern(&args[0]);
                 if !pat.has_constant_parts() {
@@ -2134,9 +2279,9 @@ where
                         return Ok(());
                     }
                 }
-                let origin_ref = origin.into_trait_ref().await?;
+                let origin_ref = turbo_tasks::read!(origin.into_trait_ref())?;
                 let origin = ResolvedVc::upcast(
-                    PlainResolveOrigin::new(
+                    turbo_tasks::read!(PlainResolveOrigin::new(
                         *origin_ref.asset_context(),
                         origin_ref
                             .origin_path()
@@ -2144,14 +2289,14 @@ where
                             .join(rel.as_str())?
                             .join("_")?,
                     )
-                    .to_resolved()
-                    .await?,
+                    .to_resolved())
+                    ?,
                 );
 
                 analysis.add_reference_code_gen(
                     CjsRequireAssetReference::new(
                         origin,
-                        Request::parse(pat).to_resolved().await?,
+                        turbo_tasks::read!(Request::parse(pat).to_resolved())?,
                         issue_source(source, span),
                         error_mode,
                         attributes.chunking_type,
@@ -2169,21 +2314,21 @@ where
             )
         }
         WellKnownFunctionKind::Define => {
-            analyze_amd_define(
+            turbo_tasks::read!(analyze_amd_define(
                 source,
                 analysis,
                 origin,
                 handler,
                 span,
                 ast_path,
-                linked_args().await?,
+                turbo_tasks::read!(linked_args())?,
                 error_mode,
-            )
-            .await?;
+            ))
+            ?;
         }
 
         WellKnownFunctionKind::RequireResolve => {
-            let args = linked_args().await?;
+            let args = turbo_tasks::read!(linked_args())?;
             if args.len() == 1 || args.len() == 2 {
                 // TODO error TP1003 require.resolve(???*0*, {"paths": [???*1*]}) is not
                 // statically analyze-able with ignore_dynamic_requests =
@@ -2216,7 +2361,7 @@ where
                 analysis.add_reference_code_gen(
                     CjsRequireResolveAssetReference::new(
                         origin,
-                        Request::parse(pat).to_resolved().await?,
+                        turbo_tasks::read!(Request::parse(pat).to_resolved())?,
                         issue_source(source, span),
                         error_mode,
                         attributes.chunking_type,
@@ -2237,7 +2382,7 @@ where
         }
 
         WellKnownFunctionKind::ImportMetaGlob => {
-            let args = linked_args().await?;
+            let args = turbo_tasks::read!(linked_args())?;
             let Some(options) = parse_import_meta_glob(
                 args,
                 handler,
@@ -2265,7 +2410,7 @@ where
         }
 
         WellKnownFunctionKind::RequireContext => {
-            let args = linked_args().await?;
+            let args = turbo_tasks::read!(linked_args())?;
             let options = match parse_require_context(args) {
                 Ok(options) => options,
                 Err(err) => {
@@ -2285,7 +2430,7 @@ where
             };
 
             analysis.add_reference_code_gen(
-                RequireContextAssetReference::new(
+                turbo_tasks::read!(RequireContextAssetReference::new(
                     source,
                     origin,
                     options.dir,
@@ -2293,14 +2438,14 @@ where
                     options.filter.cell(),
                     Some(issue_source(source, span)),
                     error_mode,
-                )
-                .await?,
+                ))
+                ?,
                 ast_path.to_vec().into(),
             );
         }
 
         WellKnownFunctionKind::FsReadMethod(name) if analysis.analyze_mode.is_tracing_assets() => {
-            let args = linked_args().await?;
+            let args = turbo_tasks::read!(linked_args())?;
             if !args.is_empty() {
                 let pat = js_value_to_pattern(&args[0]);
                 if !pat.has_constant_parts() {
@@ -2317,14 +2462,14 @@ where
                     }
                 }
                 analysis.add_reference(
-                    FileSourceReference::new(
-                        get_traced_project_dir().await?,
+                    turbo_tasks::read!(FileSourceReference::new(
+                        turbo_tasks::read!(traced_project_dir(state, compile_time_info, source))?,
                         Pattern::new(pat),
                         collect_affecting_sources,
                         get_issue_source(),
                     )
-                    .to_resolved()
-                    .await?,
+                    .to_resolved())
+                    ?,
                 );
                 return Ok(());
             }
@@ -2336,7 +2481,7 @@ where
             )
         }
         WellKnownFunctionKind::FsReadDir if analysis.analyze_mode.is_tracing_assets() => {
-            let args = linked_args().await?;
+            let args = turbo_tasks::read!(linked_args())?;
             if !args.is_empty() {
                 let pat = js_value_to_pattern(&args[0]);
                 if !pat.has_constant_parts() {
@@ -2353,13 +2498,13 @@ where
                     }
                 }
                 analysis.add_reference(
-                    DirAssetReference::new(
-                        get_traced_project_dir().await?,
+                    turbo_tasks::read!(DirAssetReference::new(
+                        turbo_tasks::read!(traced_project_dir(state, compile_time_info, source))?,
                         Pattern::new(pat),
                         get_issue_source(),
                     )
-                    .to_resolved()
-                    .await?,
+                    .to_resolved())
+                    ?,
                 );
                 return Ok(());
             }
@@ -2371,10 +2516,10 @@ where
             )
         }
         WellKnownFunctionKind::PathResolve(..) if analysis.analyze_mode.is_tracing_assets() => {
-            let parent_path = origin.into_trait_ref().await?.origin_path().parent();
-            let args = linked_args().await?;
+            let parent_path = turbo_tasks::read!(origin.into_trait_ref())?.origin_path().parent();
+            let args = turbo_tasks::read!(linked_args())?;
 
-            let linked_func_call = state
+            let linked_func_call = turbo_tasks::read!(state
                 .link_value(
                     JsValue::call_from_parts(
                         state.arena.get_or_default(),
@@ -2391,8 +2536,8 @@ where
                         ),
                     ),
                     ImportAttributes::empty_ref(),
-                )
-                .await?;
+                ))
+                ?;
 
             let pat = js_value_to_pattern(&linked_func_call);
             if !pat.has_constant_parts() {
@@ -2409,29 +2554,29 @@ where
                 }
             }
             analysis.add_reference(
-                DirAssetReference::new(
-                    get_traced_project_dir().await?,
+                turbo_tasks::read!(DirAssetReference::new(
+                    turbo_tasks::read!(traced_project_dir(state, compile_time_info, source))?,
                     Pattern::new(pat),
                     get_issue_source(),
                 )
-                .to_resolved()
-                .await?,
+                .to_resolved())
+                ?,
             );
             return Ok(());
         }
         WellKnownFunctionKind::PathJoin if analysis.analyze_mode.is_tracing_assets() => {
             // ignore path.join in `node-gyp`, it will includes too many files
-            if source
-                .ident()
-                .await?
+            if turbo_tasks::read!(source
+                .ident())
+                ?
                 .path
                 .path
                 .contains("node_modules/node-gyp")
             {
                 return Ok(());
             }
-            let args = linked_args().await?;
-            let linked_func_call = state
+            let args = turbo_tasks::read!(linked_args())?;
+            let linked_func_call = turbo_tasks::read!(state
                 .link_value(
                     JsValue::call_from_parts(
                         state.arena.get_or_default(),
@@ -2443,8 +2588,8 @@ where
                         ),
                     ),
                     ImportAttributes::empty_ref(),
-                )
-                .await?;
+                ))
+                ?;
             let pat = js_value_to_pattern(&linked_func_call);
             if !pat.has_constant_parts() {
                 let (args, hints) = explain_args(args);
@@ -2460,20 +2605,20 @@ where
                 }
             }
             analysis.add_reference(
-                DirAssetReference::new(
-                    get_traced_project_dir().await?,
+                turbo_tasks::read!(DirAssetReference::new(
+                    turbo_tasks::read!(traced_project_dir(state, compile_time_info, source))?,
                     Pattern::new(pat),
                     get_issue_source(),
                 )
-                .to_resolved()
-                .await?,
+                .to_resolved())
+                ?,
             );
             return Ok(());
         }
         WellKnownFunctionKind::ChildProcessSpawnMethod(name)
             if analysis.analyze_mode.is_tracing_assets() =>
         {
-            let args = linked_args().await?;
+            let args = turbo_tasks::read!(linked_args())?;
 
             // Is this specifically `spawn(process.argv[0], ['-e', ...])`?
             if is_invoking_node_process_eval(args) {
@@ -2489,9 +2634,9 @@ where
                         args[1].clone_in(state.arena.get_or_default()),
                         0_f64.into(),
                     );
-                    let first_arg = state
-                        .link_value(first_arg, ImportAttributes::empty_ref())
-                        .await?;
+                    let first_arg = turbo_tasks::read!(state
+                        .link_value(first_arg, ImportAttributes::empty_ref()))
+                        ?;
                     let pat = js_value_to_pattern(&first_arg);
                     let dynamic = !pat.has_constant_parts();
                     if dynamic {
@@ -2504,14 +2649,14 @@ where
                             ResolveErrorMode::Error
                         };
                         analysis.add_reference(
-                            CjsAssetReference::new(
+                            turbo_tasks::read!(CjsAssetReference::new(
                                 *origin,
                                 Request::parse(pat),
                                 issue_source(source, span),
                                 error_mode,
                             )
-                            .to_resolved()
-                            .await?,
+                            .to_resolved())
+                            ?,
                         );
                     }
                 }
@@ -2521,8 +2666,8 @@ where
                 }
                 if !dynamic || !ignore_dynamic_requests {
                     analysis.add_reference(
-                        FileSourceReference::new(
-                            get_traced_project_dir().await?,
+                        turbo_tasks::read!(FileSourceReference::new(
+                            turbo_tasks::read!(traced_project_dir(state, compile_time_info, source))?,
                             Pattern::new(pat),
                             collect_affecting_sources,
                             IssueSource::from_swc_offsets(
@@ -2531,8 +2676,8 @@ where
                                 span.hi.to_u32(),
                             ),
                         )
-                        .to_resolved()
-                        .await?,
+                        .to_resolved())
+                        ?,
                     );
                 }
                 if show_dynamic_warning {
@@ -2557,7 +2702,7 @@ where
             )
         }
         WellKnownFunctionKind::ChildProcessFork if analysis.analyze_mode.is_tracing_assets() => {
-            let args = linked_args().await?;
+            let args = turbo_tasks::read!(linked_args())?;
             if !args.is_empty() {
                 let first_arg = &args[0];
                 let pat = js_value_to_pattern(first_arg);
@@ -2580,14 +2725,14 @@ where
                     ResolveErrorMode::Error
                 };
                 analysis.add_reference(
-                    CjsAssetReference::new(
+                    turbo_tasks::read!(CjsAssetReference::new(
                         *origin,
                         Request::parse(pat),
                         issue_source(source, span),
                         error_mode,
                     )
-                    .to_resolved()
-                    .await?,
+                    .to_resolved())
+                    ?,
                 );
                 return Ok(());
             }
@@ -2603,7 +2748,7 @@ where
         WellKnownFunctionKind::NodePreGypFind if analysis.analyze_mode.is_tracing_assets() => {
             use turbopack_resolve::node_native_binding::NodePreGypConfigReference;
 
-            let args = linked_args().await?;
+            let args = turbo_tasks::read!(linked_args())?;
             if args.len() == 1 {
                 let first_arg = &args[0];
                 let pat = js_value_to_pattern(first_arg);
@@ -2620,14 +2765,14 @@ where
                     return Ok(());
                 }
                 analysis.add_reference(
-                    NodePreGypConfigReference::new(
-                        origin.into_trait_ref().await?.origin_path().parent(),
+                    turbo_tasks::read!(NodePreGypConfigReference::new(
+                        turbo_tasks::read!(origin.into_trait_ref())?.origin_path().parent(),
                         Pattern::new(pat),
                         compile_time_info.environment().compile_target(),
                         collect_affecting_sources,
                     )
-                    .to_resolved()
-                    .await?,
+                    .to_resolved())
+                    ?,
                 );
                 return Ok(());
             }
@@ -2646,31 +2791,31 @@ where
         WellKnownFunctionKind::NodeGypBuild if analysis.analyze_mode.is_tracing_assets() => {
             use turbopack_resolve::node_native_binding::NodeGypBuildReference;
 
-            let args = linked_args().await?;
+            let args = turbo_tasks::read!(linked_args())?;
             if args.len() == 1 {
-                let first_arg = state
+                let first_arg = turbo_tasks::read!(state
                     .link_value(
                         args[0].clone_in(state.arena.get_or_default()),
                         ImportAttributes::empty_ref(),
-                    )
-                    .await?;
+                    ))
+                    ?;
                 if let Some(s) = first_arg.as_str() {
                     // TODO this resolving should happen within Vc<NodeGypBuildReference>
-                    let current_context = origin
-                        .into_trait_ref()
-                        .await?
+                    let current_context = turbo_tasks::read!(turbo_tasks::read!(origin
+                        .into_trait_ref())
+                        ?
                         .origin_path()
-                        .root()
-                        .await?
+                        .root())
+                        ?
                         .join(s.trim_start_matches("/ROOT/"))?;
                     analysis.add_reference(
-                        NodeGypBuildReference::new(
+                        turbo_tasks::read!(NodeGypBuildReference::new(
                             current_context,
                             collect_affecting_sources,
                             compile_time_info.environment().compile_target(),
                         )
-                        .to_resolved()
-                        .await?,
+                        .to_resolved())
+                        ?,
                     );
                     return Ok(());
                 }
@@ -2689,23 +2834,23 @@ where
         WellKnownFunctionKind::NodeBindings if analysis.analyze_mode.is_tracing_assets() => {
             use turbopack_resolve::node_native_binding::NodeBindingsReference;
 
-            let args = linked_args().await?;
+            let args = turbo_tasks::read!(linked_args())?;
             if args.len() == 1 {
-                let first_arg = state
+                let first_arg = turbo_tasks::read!(state
                     .link_value(
                         args[0].clone_in(state.arena.get_or_default()),
                         ImportAttributes::empty_ref(),
-                    )
-                    .await?;
+                    ))
+                    ?;
                 if let Some(s) = first_arg.as_str() {
                     analysis.add_reference(
-                        NodeBindingsReference::new(
-                            origin.into_trait_ref().await?.origin_path(),
+                        turbo_tasks::read!(NodeBindingsReference::new(
+                            turbo_tasks::read!(origin.into_trait_ref())?.origin_path(),
                             s.into(),
                             collect_affecting_sources,
                         )
-                        .to_resolved()
-                        .await?,
+                        .to_resolved())
+                        ?,
                     );
                     return Ok(());
                 }
@@ -2720,7 +2865,7 @@ where
             )
         }
         WellKnownFunctionKind::NodeExpressSet if analysis.analyze_mode.is_tracing_assets() => {
-            let args = linked_args().await?;
+            let args = turbo_tasks::read!(linked_args())?;
             if args.len() == 2
                 && let Some(s) = args.first().and_then(|arg| arg.as_str())
             {
@@ -2744,7 +2889,7 @@ where
                             let abs_pattern = if p.starts_with("/ROOT/") {
                                 pat
                             } else {
-                                let linked_func_call = state
+                                let linked_func_call = turbo_tasks::read!(state
                                     .link_value(
                                         JsValue::call_from_iter(
                                             state.arena.get_or_default(),
@@ -2757,18 +2902,18 @@ where
                                             ],
                                         ),
                                         ImportAttributes::empty_ref(),
-                                    )
-                                    .await?;
+                                    ))
+                                    ?;
                                 js_value_to_pattern(&linked_func_call)
                             };
                             analysis.add_reference(
-                                DirAssetReference::new(
-                                    get_traced_project_dir().await?,
+                                turbo_tasks::read!(DirAssetReference::new(
+                                    turbo_tasks::read!(traced_project_dir(state, compile_time_info, source))?,
                                     Pattern::new(abs_pattern),
                                     get_issue_source(),
                                 )
-                                .to_resolved()
-                                .await?,
+                                .to_resolved())
+                                ?,
                             );
                             return Ok(());
                         }
@@ -2783,14 +2928,14 @@ where
                                     ResolveErrorMode::Error
                                 };
                                 analysis.add_reference(
-                                    CjsAssetReference::new(
+                                    turbo_tasks::read!(CjsAssetReference::new(
                                         *origin,
                                         Request::parse(pat),
                                         issue_source(source, span),
                                         error_mode,
                                     )
-                                    .to_resolved()
-                                    .await?,
+                                    .to_resolved())
+                                    ?,
                                 );
                             }
                             return Ok(());
@@ -2811,12 +2956,12 @@ where
         WellKnownFunctionKind::NodeStrongGlobalizeSetRootDir
             if analysis.analyze_mode.is_tracing_assets() =>
         {
-            let args = linked_args().await?;
+            let args = turbo_tasks::read!(linked_args())?;
             if let Some(p) = args.first().and_then(|arg| arg.as_str()) {
                 let abs_pattern = if p.starts_with("/ROOT/") {
                     Pattern::Constant(format!("{p}/intl").into())
                 } else {
-                    let linked_func_call = state
+                    let linked_func_call = turbo_tasks::read!(state
                         .link_value(
                             JsValue::call_from_iter(
                                 state.arena.get_or_default(),
@@ -2828,18 +2973,18 @@ where
                                 ],
                             ),
                             ImportAttributes::empty_ref(),
-                        )
-                        .await?;
+                        ))
+                        ?;
                     js_value_to_pattern(&linked_func_call)
                 };
                 analysis.add_reference(
-                    DirAssetReference::new(
-                        get_traced_project_dir().await?,
+                    turbo_tasks::read!(DirAssetReference::new(
+                        turbo_tasks::read!(traced_project_dir(state, compile_time_info, source))?,
                         Pattern::new(abs_pattern),
                         get_issue_source(),
                     )
-                    .to_resolved()
-                    .await?,
+                    .to_resolved())
+                    ?,
                 );
                 return Ok(());
             }
@@ -2856,7 +3001,7 @@ where
             )
         }
         WellKnownFunctionKind::NodeResolveFrom if analysis.analyze_mode.is_tracing_assets() => {
-            let args = linked_args().await?;
+            let args = turbo_tasks::read!(linked_args())?;
             if args.len() == 2 && args.get(1).and_then(|arg| arg.as_str()).is_some() {
                 let error_mode = if in_try {
                     ResolveErrorMode::Warn
@@ -2864,14 +3009,14 @@ where
                     ResolveErrorMode::Error
                 };
                 analysis.add_reference(
-                    CjsAssetReference::new(
+                    turbo_tasks::read!(CjsAssetReference::new(
                         *origin,
                         Request::parse(js_value_to_pattern(&args[1])),
                         issue_source(source, span),
                         error_mode,
                     )
-                    .to_resolved()
-                    .await?,
+                    .to_resolved())
+                    ?,
                 );
                 return Ok(());
             }
@@ -2885,12 +3030,15 @@ where
             )
         }
         WellKnownFunctionKind::NodeProtobufLoad if analysis.analyze_mode.is_tracing_assets() => {
-            let args = linked_args().await?;
+            let args = turbo_tasks::read!(linked_args())?;
             if args.len() == 2
                 && let Some(JsValue::Object { parts, .. }) = args.get(1)
             {
-                let context_dir = get_traced_project_dir().await?;
-                let resolved_dirs = parts
+                let context_dir = turbo_tasks::read!(traced_project_dir(state, compile_time_info, source))?;
+                // Collected eagerly so no closure-carrying iterator is held across the
+                // await points below (the async build cannot prove those higher-ranked
+                // closure bounds for the generated future).
+                let include_dirs: Vec<&str> = parts
                     .iter()
                     .filter_map(|object_part| match object_part {
                         ObjectPart::KeyValue(
@@ -2902,18 +3050,15 @@ where
                         _ => None,
                     })
                     .flatten()
-                    .map(|dir| {
-                        DirAssetReference::new(
-                            context_dir.clone(),
-                            Pattern::new(Pattern::Constant(dir.into())),
-                            get_issue_source(),
-                        )
-                        .to_resolved()
-                    })
-                    .try_join()
-                    .await?;
-
-                for resolved_dir_ref in resolved_dirs {
+                    .collect();
+                for dir in include_dirs {
+                    let resolved_dir_ref = turbo_tasks::read!(DirAssetReference::new(
+                        context_dir.clone(),
+                        Pattern::new(Pattern::Constant(dir.into())),
+                        get_issue_source(),
+                    )
+                    .to_resolved())
+                    ?;
                     analysis.add_reference(resolved_dir_ref);
                 }
 
@@ -2934,22 +3079,22 @@ where
         kind @ (WellKnownFunctionKind::ModuleHotAccept
         | WellKnownFunctionKind::ModuleHotDecline) => {
             let is_accept = matches!(kind, WellKnownFunctionKind::ModuleHotAccept);
-            let args = linked_args().await?;
+            let args = turbo_tasks::read!(linked_args())?;
             if let Some(first_arg) = args.first() {
                 if let Some(dep_strings) = extract_hot_dep_strings(first_arg) {
                     let mut references = Vec::new();
                     let mut esm_references = Vec::new();
                     for dep_str in &dep_strings {
-                        let request = Request::parse_string(dep_str.clone()).to_resolved().await?;
-                        let reference = ModuleHotReferenceAssetReference::new(
+                        let request = turbo_tasks::read!(Request::parse_string(dep_str.clone()).to_resolved())?;
+                        let reference = turbo_tasks::read!(ModuleHotReferenceAssetReference::new(
                             *origin,
                             *request,
                             issue_source(source, span),
                             error_mode,
                             state.is_esm,
                         )
-                        .to_resolved()
-                        .await?;
+                        .to_resolved())
+                        ?;
                         analysis.add_reference(reference);
                         references.push(reference);
 
@@ -2994,6 +3139,7 @@ where
     };
     Ok(())
 }
+}
 
 /// Extracts dependency strings from the first argument of module.hot.accept/decline.
 /// Returns None if the argument is not a string or array of strings (e.g., it's a function
@@ -3014,21 +3160,35 @@ fn extract_hot_dep_strings(arg: &JsValue<'_>) -> Option<Vec<RcStr>> {
     None
 }
 
-async fn handle_member<'a>(
-    ast_path: &[AstParentKind],
-    link_obj: impl Future<Output = Result<JsValue<'a>>> + Send + Sync,
-    prop: JsValue<'a>,
-    span: Span,
-    state: &AnalysisState<'a>,
-    analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
-) -> Result<()> {
+dual_fn_sig! {
+    async: fn handle_member ['a] (
+        ast_path: &[AstParentKind],
+        link_obj: impl Future<Output = Result<JsValue<'a>>> + Send + Sync,
+        prop: JsValue<'a>,
+        span: Span,
+        state: &AnalysisState<'a>,
+        analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
+    ) -> Result<()>
+        where [];
+    // Under sync, `link_value` runs eagerly at the call site, so the "lazy" object link
+    // arrives as an already-computed `Result` (`read!` reads it by identity).
+    sync: fn ['a] (
+        ast_path: &[AstParentKind],
+        link_obj: Result<JsValue<'a>>,
+        prop: JsValue<'a>,
+        span: Span,
+        state: &AnalysisState<'a>,
+        analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
+    ) -> Result<()>
+        where [];
+{
     if let Some(prop) = prop.as_str() {
-        let has_member = state.free_var_references_members.contains_key(prop).await?;
+        let has_member = turbo_tasks::read!(state.free_var_references_members.contains_key(prop))?;
         let is_prop_cache = prop == "cache";
 
         // This isn't pretty, but we cannot await the future twice in the two branches below.
         let obj = if has_member || is_prop_cache {
-            Some(link_obj.await?)
+            Some(turbo_tasks::read!(link_obj)?)
         } else {
             None
         };
@@ -3037,13 +3197,13 @@ async fn handle_member<'a>(
             let obj = obj.as_ref().unwrap();
             if let Some((mut name, false)) = obj.get_definable_name(Some(&state.var_graph)) {
                 name.0.push(DefinableNameSegmentRef::Name(prop));
-                if let Some(value) = state
+                if let Some(value) = turbo_tasks::read!(state
                     .compile_time_info_ref
                     .free_var_references
-                    .get(&name)
-                    .await?
+                    .get(&name))
+                    ?
                 {
-                    handle_free_var_reference(ast_path, &value, span, state, analysis).await?;
+                    turbo_tasks::read!(handle_free_var_reference(ast_path, &value, span, state, analysis))?;
                     return Ok(());
                 }
             }
@@ -3059,8 +3219,10 @@ async fn handle_member<'a>(
 
     Ok(())
 }
+}
 
-async fn handle_typeof<'a>(
+dual_fn_lt! {
+fn handle_typeof ['a] (
     ast_path: &[AstParentKind],
     arg: JsValue<'a>,
     span: Span,
@@ -3069,21 +3231,23 @@ async fn handle_typeof<'a>(
 ) -> Result<()> {
     if let Some((mut name, false)) = arg.get_definable_name(Some(&state.var_graph)) {
         name.0.push(DefinableNameSegmentRef::TypeOf);
-        if let Some(value) = state
+        if let Some(value) = turbo_tasks::read!(state
             .compile_time_info_ref
             .free_var_references
-            .get(&name)
-            .await?
+            .get(&name))
+            ?
         {
-            handle_free_var_reference(ast_path, &value, span, state, analysis).await?;
+            turbo_tasks::read!(handle_free_var_reference(ast_path, &value, span, state, analysis))?;
             return Ok(());
         }
     }
 
     Ok(())
 }
+}
 
-async fn handle_free_var<'a>(
+dual_fn_lt! {
+fn handle_free_var ['a] (
     ast_path: &[AstParentKind],
     var: JsValue<'a>,
     span: Span,
@@ -3091,20 +3255,22 @@ async fn handle_free_var<'a>(
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<()> {
     if let Some((name, _)) = var.get_definable_name(None)
-        && let Some(value) = state
+        && let Some(value) = turbo_tasks::read!(state
             .compile_time_info_ref
             .free_var_references
-            .get(&name)
-            .await?
+            .get(&name))
+            ?
     {
-        handle_free_var_reference(ast_path, &value, span, state, analysis).await?;
+        turbo_tasks::read!(handle_free_var_reference(ast_path, &value, span, state, analysis))?;
         return Ok(());
     }
 
     Ok(())
 }
+}
 
-async fn handle_free_var_reference(
+turbo_tasks::dual_fn! {
+fn handle_free_var_reference(
     ast_path: &[AstParentKind],
     value: &FreeVarReference,
     span: Span,
@@ -3158,45 +3324,15 @@ async fn handle_free_var_reference(
             lookup_path,
             export,
         } => {
-            let esm_reference = analysis
-                .add_esm_reference_free_var(request.clone(), async || {
-                    // There would be no import in the first place if you don't reference the given
-                    // free var (e.g. `process`). This means that it's also fine to remove the
-                    // import again if the variable reference turns out be dead code in some later
-                    // stage of the build, thus mark the import call as /*@__PURE__*/.
-                    Ok(EsmAssetReference::new_pure(
-                        state.module,
-                        if let Some(lookup_path) = lookup_path {
-                            ResolvedVc::upcast(
-                                PlainResolveOrigin::new(
-                                    *state.origin.into_trait_ref().await?.asset_context(),
-                                    lookup_path.clone(),
-                                )
-                                .to_resolved()
-                                .await?,
-                            )
-                        } else {
-                            state.origin
-                        },
-                        request.clone(),
-                        IssueSource::from_swc_offsets(
-                            state.source,
-                            span.lo.to_u32(),
-                            span.hi.to_u32(),
-                        ),
-                        Default::default(),
-                        export.clone().map(ModulePart::export),
-                        // TODO This could be optimized. E.g. referencing `Buffer` in some top
-                        // level function could set ImportUsage properly here
-                        ImportUsage::TopLevel,
-                        state.import_externals,
-                        state.tree_shaking_mode,
-                        None,
-                    )
-                    .await?
-                    .resolved_cell())
-                })
-                .await?;
+            let esm_reference = turbo_tasks::read!(analysis
+                .add_esm_reference_free_var(request.clone(), || free_var_esm_reference(
+                    state,
+                    request.clone(),
+                    lookup_path.as_ref(),
+                    export.clone(),
+                    span,
+                )))
+                ?;
 
             analysis.add_code_gen(EsmBinding::new(
                 esm_reference,
@@ -3205,7 +3341,7 @@ async fn handle_free_var_reference(
             ));
         }
         FreeVarReference::InputRelative(kind) => {
-            let source_path = (*state.source).ident().await?.path.clone();
+            let source_path = turbo_tasks::read!((*state.source).ident())?.path.clone();
             let source_path = match kind {
                 InputRelativeConstant::DirName => source_path.parent(),
                 InputRelativeConstant::FileName => source_path,
@@ -3238,21 +3374,76 @@ async fn handle_free_var_reference(
             );
 
             if let Some(inner) = inner {
+                // Recursion: the async build must box the recursive future; the sync
+                // build simply recurses.
+                #[cfg(not(feature = "sync"))]
                 return Box::pin(handle_free_var_reference(
                     ast_path, inner, span, state, analysis,
                 ))
                 .await;
+                #[cfg(feature = "sync")]
+                return handle_free_var_reference(ast_path, inner, span, state, analysis);
             }
         }
     }
     Ok(true)
+}
+}
+
+turbo_tasks::dual_fn! {
+/// Creates the ad-hoc ESM reference backing a [`FreeVarReference::EcmaScriptModule`].
+///
+/// There would be no import in the first place if you don't reference the given
+/// free var (e.g. `process`). This means that it's also fine to remove the
+/// import again if the variable reference turns out be dead code in some later
+/// stage of the build, thus mark the import call as /*@__PURE__*/.
+fn free_var_esm_reference(
+    state: &AnalysisState<'_>,
+    request: RcStr,
+    lookup_path: Option<&FileSystemPath>,
+    export: Option<RcStr>,
+    span: Span,
+) -> Result<ResolvedVc<EsmAssetReference>> {
+    Ok(turbo_tasks::read!(EsmAssetReference::new_pure(
+        state.module,
+        if let Some(lookup_path) = lookup_path {
+            ResolvedVc::upcast(
+                turbo_tasks::read!(PlainResolveOrigin::new(
+                    *turbo_tasks::read!(state.origin.into_trait_ref())?.asset_context(),
+                    lookup_path.clone(),
+                )
+                .to_resolved())
+                ?,
+            )
+        } else {
+            state.origin
+        },
+        request,
+        IssueSource::from_swc_offsets(
+            state.source,
+            span.lo.to_u32(),
+            span.hi.to_u32(),
+        ),
+        Default::default(),
+        export.map(ModulePart::export),
+        // TODO This could be optimized. E.g. referencing `Buffer` in some top
+        // level function could set ImportUsage properly here
+        ImportUsage::TopLevel,
+        state.import_externals,
+        state.tree_shaking_mode,
+        None,
+    ))
+    ?
+    .resolved_cell())
+}
 }
 
 fn issue_source(source: ResolvedVc<Box<dyn Source>>, span: Span) -> IssueSource {
     IssueSource::from_swc_offsets(source, span.lo.to_u32(), span.hi.to_u32())
 }
 
-async fn analyze_amd_define(
+turbo_tasks::dual_fn! {
+fn analyze_amd_define(
     source: ResolvedVc<Box<dyn Source>>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
@@ -3264,7 +3455,7 @@ async fn analyze_amd_define(
 ) -> Result<()> {
     match args {
         [JsValue::Constant(id), JsValue::Array { items: deps, .. }, _] if id.as_str().is_some() => {
-            analyze_amd_define_with_deps(
+            turbo_tasks::read!(analyze_amd_define_with_deps(
                 source,
                 analysis,
                 origin,
@@ -3274,14 +3465,14 @@ async fn analyze_amd_define(
                 id.as_str(),
                 deps,
                 error_mode,
-            )
-            .await?;
+            ))
+            ?;
         }
         [JsValue::Array { items: deps, .. }, _] => {
-            analyze_amd_define_with_deps(
+            turbo_tasks::read!(analyze_amd_define_with_deps(
                 source, analysis, origin, handler, span, ast_path, None, deps, error_mode,
-            )
-            .await?;
+            ))
+            ?;
         }
         [JsValue::Constant(id), JsValue::Function(..)] if id.as_str().is_some() => {
             analysis.add_code_gen(AmdDefineWithDependenciesCodeGen::new(
@@ -3360,8 +3551,10 @@ async fn analyze_amd_define(
 
     Ok(())
 }
+}
 
-async fn analyze_amd_define_with_deps(
+turbo_tasks::dual_fn! {
+fn analyze_amd_define_with_deps(
     source: ResolvedVc<Box<dyn Source>>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
@@ -3393,15 +3586,15 @@ async fn analyze_amd_define_with_deps(
                     requests.push(AmdDefineDependencyElement::Module);
                 }
                 _ => {
-                    let request = Request::parse_string(dep.into()).to_resolved().await?;
-                    let reference = AmdDefineAssetReference::new(
+                    let request = turbo_tasks::read!(Request::parse_string(dep.into()).to_resolved())?;
+                    let reference = turbo_tasks::read!(AmdDefineAssetReference::new(
                         *origin,
                         *request,
                         issue_source(source, span),
                         error_mode,
                     )
-                    .to_resolved()
-                    .await?;
+                    .to_resolved())
+                    ?;
                     requests.push(AmdDefineDependencyElement::Request {
                         request,
                         request_str: dep.to_string(),
@@ -3439,6 +3632,7 @@ async fn analyze_amd_define_with_deps(
 
     Ok(())
 }
+}
 
 /// Used to generate the "root" path to a __filename/__dirname/import.meta.url
 /// reference.
@@ -3455,15 +3649,18 @@ fn require_resolve(path: FileSystemPath) -> String {
     format!("/ROOT/{}", path.path.as_str())
 }
 
-async fn early_value_visitor<'a>(
+dual_fn_lt! {
+fn early_value_visitor ['a] (
     _arena: &'a ThreadLocal<Bump>,
     mut v: JsValue<'a>,
 ) -> Result<(JsValue<'a>, bool)> {
     let modified = early_replace_builtin(&mut v);
     Ok((v, modified))
 }
+}
 
-async fn value_visitor<'a>(
+dual_fn_lt! {
+fn value_visitor ['a] (
     arena: &'a ThreadLocal<Bump>,
     origin: Vc<Box<dyn ResolveOrigin>>,
     origin_path: &FileSystemPath,
@@ -3474,7 +3671,7 @@ async fn value_visitor<'a>(
     attributes: &ImportAttributes,
     allow_project_root_tracing: bool,
 ) -> Result<(JsValue<'a>, bool)> {
-    let (mut v, modified) = value_visitor_inner(
+    let (mut v, modified) = turbo_tasks::read!(value_visitor_inner(
         arena,
         origin,
         origin_path,
@@ -3484,13 +3681,15 @@ async fn value_visitor<'a>(
         var_graph,
         attributes,
         allow_project_root_tracing,
-    )
-    .await?;
+    ))
+    ?;
     v.normalize_shallow(arena.get_or_default());
     Ok((v, modified))
 }
+}
 
-async fn value_visitor_inner<'a>(
+dual_fn_lt! {
+fn value_visitor_inner ['a] (
     arena: &'a ThreadLocal<Bump>,
     origin: Vc<Box<dyn ResolveOrigin>>,
     origin_path: &FileSystemPath,
@@ -3503,7 +3702,7 @@ async fn value_visitor_inner<'a>(
 ) -> Result<(JsValue<'a>, bool)> {
     let ImportAttributes { ignore, .. } = *attributes;
     if let Some((name, _)) = v.get_definable_name(Some(var_graph))
-        && let Some(value) = compile_time_info_ref.defines.get(&name).await?
+        && let Some(value) = turbo_tasks::read!(compile_time_info_ref.defines.get(&name))?
     {
         return Ok((
             JsValue::from_compile_time_define_value_in(arena.get_or_default(), &value)?,
@@ -3518,7 +3717,7 @@ async fn value_visitor_inner<'a>(
             ) =>
         {
             let (_, args) = call.into_parts();
-            require_resolve_visitor(arena, origin, args).await?
+            turbo_tasks::read!(require_resolve_visitor(arena, origin, args))?
         }
         JsValue::Call(_, ref call)
             if matches!(
@@ -3537,7 +3736,7 @@ async fn value_visitor_inner<'a>(
             ) =>
         {
             let (_, args) = call.into_parts();
-            require_context_visitor(arena, origin, origin_path, args).await?
+            turbo_tasks::read!(require_context_visitor(arena, origin, origin_path, args))?
         }
         JsValue::Call(_, ref call)
             if matches!(
@@ -3652,10 +3851,10 @@ async fn value_visitor_inner<'a>(
             "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
             _ => return Ok((v, false)),
         },
-        JsValue::Module(ref mv) => compile_time_info
+        JsValue::Module(ref mv) => turbo_tasks::read!(compile_time_info
             .environment()
-            .node_externals()
-            .await?
+            .node_externals())
+            ?
             // TODO check externals
             .then(|| module_value_to_well_known_object(mv))
             .flatten()
@@ -3668,7 +3867,7 @@ async fn value_visitor_inner<'a>(
         ),
         _ => {
             let (mut v, mut modified) =
-                replace_well_known(arena, v, compile_time_info, allow_project_root_tracing).await?;
+                turbo_tasks::read!(replace_well_known(arena, v, compile_time_info, allow_project_root_tracing))?;
             modified = replace_builtin(arena.get_or_default(), &mut v) || modified;
             modified = modified || v.make_nested_operations_unknown();
             return Ok((v, modified));
@@ -3676,8 +3875,10 @@ async fn value_visitor_inner<'a>(
     };
     Ok((value, true))
 }
+}
 
-async fn require_resolve_visitor<'a>(
+dual_fn_lt! {
+fn require_resolve_visitor ['a] (
     arena: &'a ThreadLocal<Bump>,
     origin: Vc<Box<dyn ResolveOrigin>>,
     args: BumpVec<'a, JsValue<'a>>,
@@ -3685,24 +3886,21 @@ async fn require_resolve_visitor<'a>(
     Ok(if args.len() == 1 {
         let pat = js_value_to_pattern(&args[0]);
         let request = Request::parse(pat.clone());
-        let resolved = cjs_resolve_source(
+        let resolved = turbo_tasks::read!(cjs_resolve_source(
             origin,
             request,
             CommonJsReferenceSubType::Undefined,
             None,
             ResolveErrorMode::Warn,
         )
-        .to_resolved()
-        .await?;
-        let mut values =
-            resolved
-                .await?
-                .primary_sources()
-                .map(|source| async move {
-                    Ok(require_resolve(source.ident().await?.path.clone()).into())
-                })
-                .try_join()
-                .await?;
+        .to_resolved())
+        ?;
+        let resolved_ref = turbo_tasks::read!(resolved)?;
+        let mut values: Vec<JsValue<'a>> =
+            turbo_tasks::parallel!(resolved_ref.primary_sources().map(|source| source.ident()))?
+                .into_iter()
+                .map(|ident| require_resolve(ident.path.clone()).into())
+                .collect();
 
         match values.len() {
             0 => JsValue::unknown(
@@ -3729,8 +3927,10 @@ async fn require_resolve_visitor<'a>(
         )
     })
 }
+}
 
-async fn require_context_visitor<'a>(
+dual_fn_lt! {
+fn require_context_visitor ['a] (
     arena: &'a ThreadLocal<Bump>,
     origin: Vc<Box<dyn ResolveOrigin>>,
     origin_path: &FileSystemPath,
@@ -3764,9 +3964,10 @@ async fn require_context_visitor<'a>(
 
     Ok(JsValue::WellKnownFunction(
         WellKnownFunctionKind::RequireContextRequire(Box::new(
-            RequireContextValue::from_context_map(map).await?,
+            turbo_tasks::read!(RequireContextValue::from_context_map(map))?,
         )),
     ))
+}
 }
 
 #[derive(Hash, Debug, Clone, Eq, PartialEq, TraceRawVcs, Encode, Decode)]

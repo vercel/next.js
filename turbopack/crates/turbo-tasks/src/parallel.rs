@@ -12,6 +12,10 @@ use std::{
     thread,
 };
 
+// The tokio-task-based parallel iteration helpers (everything except
+// `available_parallelism`) are part of the async runtime; the sync engine uses
+// rayon directly. Gated so a no-tokio build excludes them.
+#[cfg(feature = "tokio_runtime")]
 use crate::{
     scope::scope_and_block,
     util::{Chunk, good_chunk_size, into_chunks},
@@ -40,11 +44,124 @@ pub fn available_parallelism() -> Result<NonZeroUsize, Arc<io::Error>> {
         .clone()
 }
 
+// Serial fallbacks used when there is no async runtime (the `sync` engine). Same
+// signatures as the tokio-task versions above, so callers are unchanged; they just
+// run on the current thread. (The `Send`/`Sync` bounds are unnecessary here but kept
+// to match the parallel signatures.)
+#[cfg(not(feature = "tokio_runtime"))]
+pub fn for_each<'l, T, F>(items: &'l [T], f: F)
+where
+    T: Sync,
+    F: Fn(&'l T) + Send + Sync,
+{
+    items.iter().for_each(&f);
+}
+
+#[cfg(not(feature = "tokio_runtime"))]
+pub fn try_for_each<'l, T, E>(
+    items: &'l [T],
+    f: impl (Fn(&'l T) -> Result<(), E>) + Send + Sync,
+) -> Result<(), E>
+where
+    T: Sync,
+    E: Send + 'static,
+{
+    items.iter().try_for_each(&f)
+}
+
+#[cfg(not(feature = "tokio_runtime"))]
+pub fn try_for_each_mut<'l, T, E>(
+    items: &'l mut [T],
+    f: impl (Fn(&'l mut T) -> Result<(), E>) + Send + Sync,
+) -> Result<(), E>
+where
+    T: Send + Sync,
+    E: Send + 'static,
+{
+    // Match the parallel contract: `f` is applied to EVERY item (the parallel impl
+    // runs independent chunks), returning the first error — rather than short-circuiting
+    // on the first error and leaving later items untouched.
+    let mut result = Ok(());
+    for item in items.iter_mut() {
+        if let Err(e) = f(item)
+            && result.is_ok()
+        {
+            result = Err(e);
+        }
+    }
+    result
+}
+
+#[cfg(not(feature = "tokio_runtime"))]
+pub fn try_for_each_owned<T, E>(
+    items: Vec<T>,
+    f: impl (Fn(T) -> Result<(), E>) + Send + Sync,
+) -> Result<(), E>
+where
+    T: Send + Sync,
+    E: Send + 'static,
+{
+    items.into_iter().try_for_each(&f)
+}
+
+#[cfg(not(feature = "tokio_runtime"))]
+pub fn for_each_owned<T>(items: Vec<T>, f: impl Fn(T) + Send + Sync)
+where
+    T: Send + Sync,
+{
+    items.into_iter().for_each(f);
+}
+
+#[cfg(not(feature = "tokio_runtime"))]
+pub fn map_collect<'l, Item, PerItemResult, Result>(
+    items: &'l [Item],
+    f: impl Fn(&'l Item) -> PerItemResult + Send + Sync,
+) -> Result
+where
+    Item: Sync,
+    PerItemResult: Send + Sync + 'l,
+    Result: FromIterator<PerItemResult>,
+{
+    items.iter().map(f).collect()
+}
+
+#[cfg(not(feature = "tokio_runtime"))]
+pub fn map_collect_owned<'l, Item, PerItemResult, Result>(
+    items: Vec<Item>,
+    f: impl Fn(Item) -> PerItemResult + Send + Sync,
+) -> Result
+where
+    Item: Send + Sync,
+    PerItemResult: Send + Sync + 'l,
+    Result: FromIterator<PerItemResult>,
+{
+    items.into_iter().map(f).collect()
+}
+
+/// Serial counterpart of the tokio `map_collect_chunked_owned`: runs the mapper
+/// over the whole input as a single chunk (no work-stealing pool), preserving the
+/// same `Fn(Chunk<Item>) -> PerItemResult` interface so call sites are identical.
+#[cfg(not(feature = "tokio_runtime"))]
+pub fn map_collect_chunked_owned<'l, Item, PerItemResult, Result>(
+    items: Vec<Item>,
+    f: impl Fn(crate::util::Chunk<Item>) -> PerItemResult + Send + Sync,
+) -> Result
+where
+    Item: Send + Sync,
+    PerItemResult: Send + Sync + 'l,
+    Result: FromIterator<PerItemResult>,
+{
+    let len = items.len();
+    Result::from_iter(crate::util::into_chunks(items, len.max(1)).map(f))
+}
+
+#[cfg(feature = "tokio_runtime")]
 struct Chunked {
     chunk_size: usize,
     chunk_count: usize,
 }
 
+#[cfg(feature = "tokio_runtime")]
 fn get_chunked(len: usize) -> Option<Chunked> {
     if len <= 1 {
         return None;
@@ -60,6 +177,7 @@ fn get_chunked(len: usize) -> Option<Chunked> {
     })
 }
 
+#[cfg(feature = "tokio_runtime")]
 pub fn for_each<'l, T, F>(items: &'l [T], f: F)
 where
     T: Sync,
@@ -87,6 +205,7 @@ where
     });
 }
 
+#[cfg(feature = "tokio_runtime")]
 pub fn for_each_owned<T>(items: Vec<T>, f: impl Fn(T) + Send + Sync)
 where
     T: Send + Sync,
@@ -114,6 +233,7 @@ where
     });
 }
 
+#[cfg(feature = "tokio_runtime")]
 pub fn try_for_each<'l, T, E>(
     items: &'l [T],
     f: impl (Fn(&'l T) -> Result<(), E>) + Send + Sync,
@@ -146,6 +266,7 @@ where
     .collect::<Result<(), E>>()
 }
 
+#[cfg(feature = "tokio_runtime")]
 pub fn try_for_each_mut<'l, T, E>(
     items: &'l mut [T],
     f: impl (Fn(&'l mut T) -> Result<(), E>) + Send + Sync,
@@ -178,6 +299,7 @@ where
     .collect::<Result<(), E>>()
 }
 
+#[cfg(feature = "tokio_runtime")]
 pub fn try_for_each_owned<T, E>(
     items: Vec<T>,
     f: impl (Fn(T) -> Result<(), E>) + Send + Sync,
@@ -210,6 +332,7 @@ where
     .collect::<Result<(), E>>()
 }
 
+#[cfg(feature = "tokio_runtime")]
 pub fn map_collect<'l, Item, PerItemResult, Result>(
     items: &'l [Item],
     f: impl Fn(&'l Item) -> PerItemResult + Send + Sync,
@@ -236,6 +359,7 @@ where
     .collect()
 }
 
+#[cfg(feature = "tokio_runtime")]
 pub fn map_collect_owned<'l, Item, PerItemResult, Result>(
     items: Vec<Item>,
     f: impl Fn(Item) -> PerItemResult + Send + Sync,
@@ -262,6 +386,7 @@ where
     .collect()
 }
 
+#[cfg(feature = "tokio_runtime")]
 pub fn map_collect_chunked_owned<'l, Item, PerItemResult, Result>(
     items: Vec<Item>,
     f: impl Fn(Chunk<Item>) -> PerItemResult + Send + Sync,
@@ -297,7 +422,7 @@ mod tests {
 
     use super::*;
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_parallel_for_each() {
         let input = vec![1, 2, 3, 4, 5];
         let sum = AtomicI32::new(0);
@@ -307,7 +432,7 @@ mod tests {
         assert_eq!(sum.load(Ordering::SeqCst), 15);
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_parallel_try_for_each() {
         let input = vec![1, 2, 3, 4, 5];
         let result = try_for_each(&input, |&x| {
@@ -321,7 +446,7 @@ mod tests {
         assert_eq!(result.unwrap_err(), "Odd number 1 encountered");
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_parallel_try_for_each_mut() {
         let mut input = vec![1, 2, 3, 4, 5];
         let result = try_for_each_mut(&mut input, |x| {
@@ -337,7 +462,7 @@ mod tests {
         assert_eq!(input, vec![11, 12, 13, 14, 15]);
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_parallel_for_each_owned() {
         let input = vec![1, 2, 3, 4, 5];
         let sum = AtomicI32::new(0);
@@ -347,28 +472,28 @@ mod tests {
         assert_eq!(sum.load(Ordering::SeqCst), 15);
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_parallel_map_collect() {
         let input = vec![1, 2, 3, 4, 5];
         let result: Vec<_> = map_collect(&input, |&x| x * 2);
         assert_eq!(result, vec![2, 4, 6, 8, 10]);
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_parallel_map_collect_owned() {
         let input = vec![1, 2, 3, 4, 5];
         let result: Vec<_> = map_collect_owned(input, |x| x * 2);
         assert_eq!(result, vec![2, 4, 6, 8, 10]);
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_parallel_map_collect_owned_many() {
         let input = vec![1; 1000];
         let result: Vec<_> = map_collect_owned(input, |x| x * 2);
         assert_eq!(result, vec![2; 1000]);
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_panic_in_scope() {
         let result = catch_unwind(AssertUnwindSafe(|| {
             let mut input = vec![1; 1000];

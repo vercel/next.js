@@ -1,6 +1,8 @@
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::TryJoinIterExt;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
@@ -34,7 +36,7 @@ impl StaticAssetsContentSource {
         dir: FileSystemPath,
     ) -> Result<Vc<StaticAssetsContentSource>> {
         if cfg!(debug_assertions) {
-            let prefix_string = prefix.await?;
+            let prefix_string = turbo_tasks::read!(prefix)?;
             debug_assert!(prefix_string.is_empty() || prefix_string.ends_with('/'));
             debug_assert!(!prefix_string.starts_with('/'));
         }
@@ -45,12 +47,12 @@ impl StaticAssetsContentSource {
 // TODO(WEB-1251) It would be better to lazily enumerate the directory
 #[turbo_tasks::function]
 async fn get_routes_from_directory(dir: FileSystemPath) -> Result<Vc<RouteTree>> {
-    let dir = dir.read_dir().await?;
+    let dir = turbo_tasks::read!(dir.read_dir())?;
     let DirectoryContent::Entries(entries) = &*dir else {
         return Ok(RouteTree::empty());
     };
 
-    let routes = entries
+    let route_vcs = entries
         .iter()
         .flat_map(|(name, entry)| match entry {
             DirectoryEntry::File(path) | DirectoryEntry::Symlink(path) => {
@@ -66,9 +68,23 @@ async fn get_routes_from_directory(dir: FileSystemPath) -> Result<Vc<RouteTree>>
             ),
             _ => None,
         })
-        .map(|v| async move { v.to_resolved().await })
+        .collect::<Vec<_>>();
+    // `.to_resolved()` futures cannot fan out through `parallel!` under sync; keep the
+    // concurrent `try_join` in the async build and resolve sequentially under sync.
+    #[cfg(not(feature = "sync"))]
+    let routes = route_vcs
+        .into_iter()
+        .map(|v| v.to_resolved())
         .try_join()
         .await?;
+    #[cfg(feature = "sync")]
+    let routes = {
+        let mut routes = Vec::with_capacity(route_vcs.len());
+        for v in route_vcs {
+            routes.push(turbo_tasks::read!(v.to_resolved())?);
+        }
+        routes
+    };
     Ok(Vc::<RouteTrees>::cell(routes).merge())
 }
 
@@ -76,7 +92,7 @@ async fn get_routes_from_directory(dir: FileSystemPath) -> Result<Vc<RouteTree>>
 impl ContentSource for StaticAssetsContentSource {
     #[turbo_tasks::function]
     async fn get_routes(&self) -> Result<Vc<RouteTree>> {
-        let prefix = self.prefix.await?;
+        let prefix = turbo_tasks::read!(self.prefix)?;
         let prefix = BaseSegment::from_static_pathname(prefix.as_str()).collect::<Vec<_>>();
         Ok(get_routes_from_directory(self.dir.clone()).with_prepended_base(prefix))
     }
@@ -113,31 +129,36 @@ impl Introspectable for StaticAssetsContentSource {
 
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
-        let dir = self.dir.read_dir().await?;
+        let dir = turbo_tasks::read!(self.dir.read_dir())?;
         let DirectoryContent::Entries(entries) = &*dir else {
             return Ok(Vc::cell(Default::default()));
         };
 
-        let prefix = self.prefix.await?;
-        let children = entries
+        let prefix = turbo_tasks::read!(self.prefix)?;
+        // The per-entry body resolves child sources; it runs concurrently in the async build
+        // and sequentially under sync (the body is more than a single plain `Vc` read).
+        #[cfg(not(feature = "sync"))]
+        let children: Vec<_> = entries
             .iter()
             .map(move |(name, entry)| {
                 let prefix = prefix.clone();
                 async move {
                     let child = match entry {
                         DirectoryEntry::File(path) | DirectoryEntry::Symlink(path) => {
-                            IntrospectableSource::new(Vc::upcast(FileSource::new(path.clone())))
+                            turbo_tasks::read!(
+                                IntrospectableSource::new(Vc::upcast(FileSource::new(
+                                    path.clone()
+                                )))
                                 .to_resolved()
-                                .await?
+                            )?
                         }
-                        DirectoryEntry::Directory(path) => ResolvedVc::upcast(
+                        DirectoryEntry::Directory(path) => ResolvedVc::upcast(turbo_tasks::read!(
                             StaticAssetsContentSource::with_prefix(
                                 Vc::cell(format!("{}{name}/", prefix).into()),
                                 path.clone(),
                             )
                             .to_resolved()
-                            .await?,
-                        ),
+                        )?),
                         DirectoryEntry::Other(_) | DirectoryEntry::Error(_) => {
                             todo!("unsupported DirectoryContent variant: {entry:?}")
                         }
@@ -149,6 +170,32 @@ impl Introspectable for StaticAssetsContentSource {
             .await?
             .into_iter()
             .collect();
-        Ok(Vc::cell(children))
+        #[cfg(feature = "sync")]
+        let children: Vec<_> = {
+            let mut children = Vec::with_capacity(entries.len());
+            for (name, entry) in entries.iter() {
+                let child = match entry {
+                    DirectoryEntry::File(path) | DirectoryEntry::Symlink(path) => {
+                        turbo_tasks::read!(
+                            IntrospectableSource::new(Vc::upcast(FileSource::new(path.clone())))
+                                .to_resolved()
+                        )?
+                    }
+                    DirectoryEntry::Directory(path) => ResolvedVc::upcast(turbo_tasks::read!(
+                        StaticAssetsContentSource::with_prefix(
+                            Vc::cell(format!("{}{name}/", prefix).into()),
+                            path.clone(),
+                        )
+                        .to_resolved()
+                    )?),
+                    DirectoryEntry::Other(_) | DirectoryEntry::Error(_) => {
+                        todo!("unsupported DirectoryContent variant: {entry:?}")
+                    }
+                };
+                children.push((name.clone(), child));
+            }
+            children
+        };
+        Ok(Vc::cell(children.into_iter().collect()))
     }
 }

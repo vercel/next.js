@@ -3,7 +3,9 @@ use std::{borrow::Cow, fmt::Display};
 use anyhow::Result;
 use rustc_hash::FxHashSet;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc};
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::TryJoinIterExt;
+use turbo_tasks::{ReadRef, ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent, json::parse_json_with_source_context};
 use turbopack_core::{
     asset::AssetContent,
@@ -87,12 +89,13 @@ impl ContentSource for IntrospectionSource {
     #[turbo_tasks::function]
     async fn get_routes(self: Vc<Self>) -> Result<Vc<RouteTree>> {
         Ok(Vc::<RouteTrees>::cell(vec![
-            RouteTree::new_route(Vec::new(), RouteType::Exact, Vc::upcast(self))
-                .to_resolved()
-                .await?,
-            RouteTree::new_route(Vec::new(), RouteType::CatchAll, Vc::upcast(self))
-                .to_resolved()
-                .await?,
+            turbo_tasks::read!(
+                RouteTree::new_route(Vec::new(), RouteType::Exact, Vc::upcast(self)).to_resolved()
+            )?,
+            turbo_tasks::read!(
+                RouteTree::new_route(Vec::new(), RouteType::CatchAll, Vc::upcast(self))
+                    .to_resolved()
+            )?,
         ])
         .merge())
     }
@@ -109,7 +112,7 @@ impl GetContentSourceContent for IntrospectionSource {
         // get last segment
         let path = &path[path.rfind('/').unwrap_or(0) + 1..];
         let introspectable = if path.is_empty() {
-            let roots = &self.await?.roots;
+            let roots = &turbo_tasks::read!(self)?.roots;
             if roots.len() == 1 {
                 *roots.iter().next().unwrap()
             } else {
@@ -118,27 +121,30 @@ impl GetContentSourceContent for IntrospectionSource {
         } else {
             parse_json_with_source_context(path)?
         };
-        let internal_ty = Vc::debug_identifier(*introspectable).await?;
+        let internal_ty = turbo_tasks::read!(Vc::debug_identifier(*introspectable))?;
         fn str_or_err(s: &Result<ReadRef<RcStr>>) -> Cow<'_, str> {
             s.as_ref().map_or_else(
                 |e| Cow::<'_, str>::Owned(format!("ERROR: {e:?}")),
                 |d| Cow::Borrowed(&**d),
             )
         }
-        let ty = introspectable.ty().await;
+        let ty = turbo_tasks::read!(introspectable.ty());
         let ty = str_or_err(&ty);
-        let title = introspectable.title().await;
+        let title = turbo_tasks::read!(introspectable.title());
         let title = str_or_err(&title);
-        let details = introspectable.details().await;
+        let details = turbo_tasks::read!(introspectable.details());
         let details = str_or_err(&details);
-        let children = introspectable.children().await?;
+        let children = turbo_tasks::read!(introspectable.children())?;
         let has_children = !children.is_empty();
+        // Each child's introspection strings are read concurrently in the async build and
+        // sequentially under sync (the per-child body is more than a single plain `Vc` read).
+        #[cfg(not(feature = "sync"))]
         let children = children
             .iter()
             .map(|(name, child)| async move {
-                let ty = child.ty().await;
+                let ty = turbo_tasks::read!(child.ty());
                 let ty = str_or_err(&ty);
-                let title = child.title().await;
+                let title = turbo_tasks::read!(child.title());
                 let title = str_or_err(&title);
                 let path = serde_json::to_string(&child)?;
                 Ok(format!(
@@ -151,6 +157,25 @@ impl GetContentSourceContent for IntrospectionSource {
             })
             .try_join()
             .await?;
+        #[cfg(feature = "sync")]
+        let children = {
+            let mut rendered = Vec::with_capacity(children.len());
+            for (name, child) in children.iter() {
+                let ty = turbo_tasks::read!(child.ty());
+                let ty = str_or_err(&ty);
+                let title = turbo_tasks::read!(child.title());
+                let title = str_or_err(&title);
+                let path = serde_json::to_string(&child)?;
+                rendered.push(format!(
+                    "<li>{name} <!-- {title} --><a href=\"./{path}\">[{ty}] {title}</a></li>",
+                    name = HtmlEscaped(name),
+                    title = HtmlEscaped(title),
+                    path = HtmlStringEscaped(urlencoding::encode(&path)),
+                    ty = HtmlEscaped(ty),
+                ));
+            }
+            rendered
+        };
         let details = if details.is_empty() {
             String::new()
         } else if has_children {

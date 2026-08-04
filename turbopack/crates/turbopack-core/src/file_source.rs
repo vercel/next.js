@@ -63,9 +63,9 @@ impl Source for FileSource {
 impl Asset for FileSource {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
-        let file_type = &*self.path.get_type().await?;
+        let file_type = &*turbo_tasks::read!(self.path.get_type())?;
         match file_type {
-            FileSystemEntryType::Symlink => match &*self.path.read_link().await? {
+            FileSystemEntryType::Symlink => match &*turbo_tasks::read!(self.path.read_link())? {
                 LinkContent::Link { target, link_type } => Ok(AssetContent::Redirect {
                     target: target.clone(),
                     link_type: *link_type,
@@ -74,7 +74,7 @@ impl Asset for FileSource {
                 _ => bail!("Invalid symlink"),
             },
             FileSystemEntryType::File => {
-                Ok(AssetContent::File(self.path.read().to_resolved().await?).cell())
+                Ok(AssetContent::File(turbo_tasks::read!(self.path.read().to_resolved())?).cell())
             }
             FileSystemEntryType::NotFound => {
                 Ok(AssetContent::File(FileContent::NotFound.resolved_cell()).cell())

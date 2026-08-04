@@ -11,6 +11,9 @@ bench = false
 
 [features]
 transform_emotion = []
+default = ["tokio_runtime"]
+tokio_runtime = ["turbo-tasks/tokio_runtime", "turbo-tasks-fs/tokio_runtime", "turbopack-core/tokio_runtime", "turbopack-ecmascript/tokio_runtime"]
+sync = ["turbo-tasks/sync", "turbo-tasks-fs/sync", "turbopack-core/sync", "turbopack-ecmascript/sync"]
 
 [lints]
 workspace = true
@@ -27,10 +30,10 @@ tracing = { workspace = true }
 rustc-hash = { workspace = true }
 
 turbo-rcstr = { workspace = true }
-turbo-tasks = { workspace = true }
-turbo-tasks-fs = { workspace = true }
-turbopack-core = { workspace = true }
-turbopack-ecmascript = { workspace = true }
+turbo-tasks = { path = "../turbo-tasks", default-features = false }
+turbo-tasks-fs = { path = "../turbo-tasks-fs", default-features = false }
+turbopack-core = { path = "../turbopack-core", default-features = false }
+turbopack-ecmascript = { path = "../turbopack-ecmascript", default-features = false }
 
 styled_components = { workspace = true }
 styled_jsx = { workspace = true }
@@ -38,10 +41,19 @@ swc_core = { workspace = true, features = [
   "ecma_ast",
   "ecma_visit",
   "common",
-  "__plugin_transform_host",
-  "__plugin_transform_host_schema_v1",
 ] }
+# The plugin-host pieces are pulled in directly instead of via swc_core's
+# `__plugin_transform_host` umbrella feature: that feature force-enables
+# `swc/plugin`, which drags an (unused here) tokio runtime into the graph —
+# the `sync` build must stay tokio-free. These are the exact same crate
+# versions swc_core v69 re-exports, so all types stay identical.
 swc_plugin_backend_wasmtime = { workspace = true }
+swc_plugin_proxy = { workspace = true, features = ["plugin-rt"] }
+swc_plugin_runner = { workspace = true, features = [
+  "ecma",
+  "encoding-impl",
+  "plugin_transform_schema_v1",
+] }
 swc_emotion = { workspace = true }
 swc_relay = { workspace = true }
 

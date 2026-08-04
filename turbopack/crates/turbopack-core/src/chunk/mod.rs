@@ -582,29 +582,63 @@ pub struct ChunkItemWithAsyncModuleInfo {
     pub async_info: Option<ResolvedVc<AsyncModuleInfo>>,
 }
 
+/// Dual-mode fan-out for item shapes `turbo_tasks::parallel!` cannot fan out under the
+/// `sync` feature yet: `SyncParallelRead` is currently only implemented for
+/// `Vc`/`ResolvedVc` items, not for dual-helper `Result`s or `.to_resolved()` futures.
+/// The async build joins the items concurrently (identical to
+/// `TryJoinIterExt::try_join`, which call sites used before); the sync build reads them
+/// sequentially. Read it through `turbo_tasks::read!(parallel_reads(..))`. TODO: collapse
+/// call sites back to `turbo_tasks::parallel!` once `SyncParallelRead` covers these
+/// shapes.
+#[cfg(not(feature = "sync"))]
+pub(crate) async fn parallel_reads<T, F>(items: impl Iterator<Item = F>) -> Result<Vec<T>>
+where
+    F: Future<Output = Result<T>>,
+{
+    use turbo_tasks::TryJoinIterExt;
+    items.try_join().await
+}
+
+/// Sync twin of the async `parallel_reads` above: sequential `SyncRead`s.
+#[cfg(feature = "sync")]
+pub(crate) fn parallel_reads<T, F>(items: impl Iterator<Item = F>) -> Result<Vec<T>>
+where
+    F: turbo_tasks::macro_helpers::SyncRead<Output = Result<T>>,
+{
+    items.map(|item| item.sync_read()).collect()
+}
+
+#[cfg(not(feature = "sync"))]
 pub trait ChunkItemExt {
     /// Returns the module id of this chunk item.
     fn id(self: Vc<Self>) -> impl Future<Output = Result<ModuleId>> + Send;
+}
+
+#[cfg(feature = "sync")]
+pub trait ChunkItemExt {
+    /// Returns the module id of this chunk item.
+    fn id(self: Vc<Self>) -> Result<ModuleId>;
 }
 
 impl<T> ChunkItemExt for T
 where
     T: Upcast<Box<dyn ChunkItem>> + Send,
 {
+    turbo_tasks::dual_fn! {
     /// Returns the module id of this chunk item.
-    async fn id(self: Vc<Self>) -> Result<ModuleId> {
+    fn id(self: Vc<Self>) -> Result<ModuleId> {
         let chunk_item = Vc::upcast_non_strict(self);
-        chunk_item
-            .into_trait_ref()
-            .await?
-            .chunking_context()
-            .chunk_item_id_strategy()
-            .await?
-            .get_id(chunk_item)
-            .await
+        let id_strategy = turbo_tasks::read!(
+            turbo_tasks::read!(chunk_item.into_trait_ref())?
+                .chunking_context()
+                .chunk_item_id_strategy()
+        )?;
+        turbo_tasks::read!(id_strategy.get_id(chunk_item))
+    }
     }
 }
 
+#[cfg(not(feature = "sync"))]
 pub trait ModuleChunkItemIdExt {
     /// Returns the chunk item id of this module.
     fn chunk_item_id(
@@ -612,19 +646,28 @@ pub trait ModuleChunkItemIdExt {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> impl Future<Output = Result<ModuleId>> + Send;
 }
+
+#[cfg(feature = "sync")]
+pub trait ModuleChunkItemIdExt {
+    /// Returns the chunk item id of this module.
+    fn chunk_item_id(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<ModuleId>;
+}
+
 impl<T> ModuleChunkItemIdExt for T
 where
     T: Upcast<Box<dyn Module>> + Send,
 {
-    async fn chunk_item_id(
+    turbo_tasks::dual_fn! {
+    fn chunk_item_id(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<ModuleId> {
-        chunking_context
-            .chunk_item_id_strategy()
-            .await?
-            .get_id_from_module(Vc::upcast_non_strict(self))
-            .await
+        let id_strategy = turbo_tasks::read!(chunking_context.chunk_item_id_strategy())?;
+        turbo_tasks::read!(id_strategy.get_id_from_module(Vc::upcast_non_strict(self)))
+    }
     }
 }
 

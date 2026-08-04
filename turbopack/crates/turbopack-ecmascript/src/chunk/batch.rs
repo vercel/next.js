@@ -1,6 +1,8 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc, trace::TraceRawVcs};
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::TryJoinIterExt;
+use turbo_tasks::{ResolvedVc, Vc, trace::TraceRawVcs};
 use turbopack_core::{
     chunk::{
         ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo, ChunkItemOrBatchWithAsyncModuleInfo,
@@ -18,7 +20,8 @@ pub enum EcmascriptChunkItemOrBatchWithAsyncInfo {
 }
 
 impl EcmascriptChunkItemOrBatchWithAsyncInfo {
-    pub async fn from_chunk_item_or_batch(
+    turbo_tasks::dual_fn! {
+    pub fn from_chunk_item_or_batch(
         item: &ChunkItemOrBatchWithAsyncModuleInfo,
     ) -> Result<Self> {
         Ok(match item {
@@ -29,12 +32,13 @@ impl EcmascriptChunkItemOrBatchWithAsyncInfo {
             }
             &ChunkItemOrBatchWithAsyncModuleInfo::Batch(batch) => {
                 EcmascriptChunkItemOrBatchWithAsyncInfo::Batch(
-                    EcmascriptChunkBatchWithAsyncInfo::from_batch(*batch)
-                        .to_resolved()
-                        .await?,
+                    turbo_tasks::read!(EcmascriptChunkBatchWithAsyncInfo::from_batch(*batch)
+                        .to_resolved())
+                        ?,
                 )
             }
         })
+    }
     }
 
     pub fn references(&self) -> Vc<OutputAssetsWithReferenced> {
@@ -57,8 +61,7 @@ impl EcmascriptChunkBatchWithAsyncInfo {
     #[turbo_tasks::function]
     pub async fn from_batch(batch: Vc<ChunkItemBatchWithAsyncModuleInfo>) -> Result<Vc<Self>> {
         Ok(Self {
-            chunk_items: batch
-                .await?
+            chunk_items: turbo_tasks::read!(batch)?
                 .chunk_items
                 .iter()
                 .map(EcmascriptChunkItemWithAsyncInfo::from_chunk_item)
@@ -74,10 +77,10 @@ impl EcmascriptChunkBatchWithAsyncInfo {
         let mut references = Vec::new();
         // We expect most references to be empty, and avoiding try_join to avoid allocating the Vec
         for item in &self.chunk_items {
-            let r = item.chunk_item.references().await?;
-            output_assets.extend(r.assets.await?);
-            referenced_output_assets.extend(r.referenced_assets.await?);
-            references.extend(r.references.await?);
+            let r = turbo_tasks::read!(item.chunk_item.references())?;
+            output_assets.extend(turbo_tasks::read!(r.assets)?);
+            referenced_output_assets.extend(turbo_tasks::read!(r.referenced_assets)?);
+            references.extend(turbo_tasks::read!(r.references)?);
         }
         Ok(OutputAssetsWithReferenced {
             assets: ResolvedVc::cell(output_assets),
@@ -99,15 +102,26 @@ impl EcmascriptChunkItemBatchGroup {
     pub async fn from_chunk_item_batch_group(
         batch_group: Vc<ChunkItemBatchGroup>,
     ) -> Result<Vc<Self>> {
-        Ok(Self {
-            items: batch_group
-                .await?
-                .items
-                .iter()
-                .map(EcmascriptChunkItemOrBatchWithAsyncInfo::from_chunk_item_or_batch)
-                .try_join()
-                .await?,
-        }
-        .cell())
+        let batch_group_ref = turbo_tasks::read!(batch_group)?;
+        // The sync `parallel!` only fans out plain `Vc` reads, so the per-item helper
+        // runs concurrently in the async build (as before) and sequentially under
+        // `sync`.
+        #[cfg(not(feature = "sync"))]
+        let items = batch_group_ref
+            .items
+            .iter()
+            .map(EcmascriptChunkItemOrBatchWithAsyncInfo::from_chunk_item_or_batch)
+            .try_join()
+            .await?;
+        #[cfg(feature = "sync")]
+        let items = {
+            let mut items = Vec::with_capacity(batch_group_ref.items.len());
+            for item in batch_group_ref.items.iter() {
+                items
+                    .push(EcmascriptChunkItemOrBatchWithAsyncInfo::from_chunk_item_or_batch(item)?);
+            }
+            items
+        };
+        Ok(Self { items }.cell())
     }
 }

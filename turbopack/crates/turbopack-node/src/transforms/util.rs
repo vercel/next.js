@@ -5,7 +5,7 @@ use bincode::{Decode, Encode};
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, TryJoinIterExt, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ResolvedVc, trace::TraceRawVcs};
 use turbo_tasks_fs::{File, FileContent, FileSystem};
 use turbopack_core::{
     asset::AssetContent, server_fs::ServerFileSystem, virtual_source::VirtualSource,
@@ -20,34 +20,34 @@ pub struct EmittedAsset {
     source_map: Option<JsonValue>,
 }
 
-pub async fn emitted_assets_to_virtual_sources(
-    assets: Option<Vec<EmittedAsset>>,
-) -> Result<Vec<ResolvedVc<VirtualSource>>> {
-    assets
-        .into_iter()
-        .flatten()
-        .map(
-            |EmittedAsset {
-                 file,
-                 content,
-                 source_map,
-             }| (file, (content, source_map)),
-        )
+turbo_tasks::dual_fn! {
+    pub fn emitted_assets_to_virtual_sources(
+        assets: Option<Vec<EmittedAsset>>,
+    ) -> Result<Vec<ResolvedVc<VirtualSource>>> {
         // Sort it to make it deterministic
-        .collect::<BTreeMap<_, _>>()
-        .into_iter()
-        .map(|(file, (content, _source_map))| {
-            async move {
-                // TODO handle SourceMap
+        let sorted: BTreeMap<_, _> = assets
+            .into_iter()
+            .flatten()
+            .map(
+                |EmittedAsset {
+                     file,
+                     content,
+                     source_map,
+                 }| (file, (content, source_map)),
+            )
+            .collect();
+        let mut sources = Vec::with_capacity(sorted.len());
+        for (file, (content, _source_map)) in sorted {
+            // TODO handle SourceMap
+            sources.push(turbo_tasks::read!(
                 VirtualSource::new(
-                    ServerFileSystem::new().root().await?.join(&file)?,
+                    turbo_tasks::read!(ServerFileSystem::new().root())?.join(&file)?,
                     AssetContent::File(FileContent::Content(File::from(content)).resolved_cell())
                         .cell(),
                 )
                 .to_resolved()
-                .await
-            }
-        })
-        .try_join()
-        .await
+            )?);
+        }
+        Ok(sources)
+    }
 }

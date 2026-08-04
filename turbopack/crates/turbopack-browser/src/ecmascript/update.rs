@@ -16,11 +16,12 @@ pub(super) struct EcmascriptChunkPartialUpdate {
     pub modified: FxIndexMap<ModuleId, ResolvedVc<Code>>,
 }
 
-pub(super) async fn update_ecmascript_chunk(
+turbo_tasks::dual_fn! {
+pub(super) fn update_ecmascript_chunk(
     content: Vc<EcmascriptBrowserChunkContent>,
     from: &ReadRef<EcmascriptBrowserChunkVersion>,
 ) -> Result<EcmascriptChunkUpdate> {
-    let to = content.own_version().await?;
+    let to = turbo_tasks::read!(content.own_version())?;
 
     // When to and from point to the same value we can skip comparing them. This will happen since
     // `TraitRef::<Box<dyn Version>>::cell` will not clone the value, but only make the cell point
@@ -29,14 +30,14 @@ pub(super) async fn update_ecmascript_chunk(
         return Ok(EcmascriptChunkUpdate::None);
     }
 
-    let entries = content.entries().await?;
+    let entries = turbo_tasks::read!(content.entries())?;
     let mut added = FxIndexMap::default();
     let mut modified = FxIndexMap::default();
     let mut deleted = FxIndexMap::default();
 
     for (id, from_hash) in &from.entries_hashes {
         if let Some(entry) = entries.get(id) {
-            if *entry.hash.await? != *from_hash {
+            if *turbo_tasks::read!(entry.hash)? != *from_hash {
                 modified.insert(id.clone(), entry.code);
             }
         } else {
@@ -47,7 +48,7 @@ pub(super) async fn update_ecmascript_chunk(
     // Remaining entries are added
     for (id, entry) in entries.iter() {
         if !from.entries_hashes.contains_key(id) {
-            added.insert(id.clone(), (*entry.hash.await?, entry.code));
+            added.insert(id.clone(), (*turbo_tasks::read!(entry.hash)?, entry.code));
         }
     }
 
@@ -62,4 +63,5 @@ pub(super) async fn update_ecmascript_chunk(
     };
 
     Ok(update)
+}
 }

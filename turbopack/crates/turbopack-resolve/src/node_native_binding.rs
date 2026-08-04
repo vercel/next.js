@@ -4,7 +4,7 @@ use anyhow::{Result, bail};
 use regex::Regex;
 use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, FileContent, FileSystemEntryType, FileSystemPath,
     json::parse_json_rope_with_source_context,
@@ -13,6 +13,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkingType, TracedMode},
     file_source::FileSource,
+    module::Module,
     raw_module::RawModule,
     reference::ModuleReference,
     resolve::{ModuleResolveResult, RequestKey, ResolveResultItem, pattern::Pattern, resolve_raw},
@@ -64,13 +65,12 @@ impl NodePreGypConfigReference {
 impl ModuleReference for NodePreGypConfigReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        resolve_node_pre_gyp_files(
+        turbo_tasks::read!(resolve_node_pre_gyp_files(
             self.context_dir.clone(),
             *self.config_file_pattern,
             *self.compile_target,
             self.collect_affecting_sources,
-        )
-        .await
+        ))
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
@@ -80,7 +80,8 @@ impl ModuleReference for NodePreGypConfigReference {
     }
 }
 
-async fn resolve_node_pre_gyp_files(
+turbo_tasks::dual_fn! {
+fn resolve_node_pre_gyp_files(
     context_dir: FileSystemPath,
     config_file_pattern: Vc<Pattern>,
     compile_target: Vc<CompileTarget>,
@@ -96,19 +97,19 @@ async fn resolve_node_pre_gyp_files(
         LazyLock::new(|| Regex::new(r"\{arch\}").expect("create node_arch regex failed"));
     static LIBC_TEMPLATE: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r"\{libc\}").expect("create node_libc regex failed"));
-    let config = resolve_raw(
+    let config = turbo_tasks::read!(resolve_raw(
         context_dir,
         config_file_pattern,
         collect_affecting_sources,
         true,
-    )
-    .await?;
-    let compile_target = compile_target.await?;
+    ))
+    ?;
+    let compile_target = turbo_tasks::read!(compile_target)?;
     if let Some(config_asset) = config.first_source()
-        && let AssetContent::File(file) = &*config_asset.content().await?
-        && let FileContent::Content(config_file) = &*file.await?
+        && let AssetContent::File(file) = &*turbo_tasks::read!(config_asset.content())?
+        && let FileContent::Content(config_file) = &*turbo_tasks::read!(file)?
     {
-        let config_asset_ident = config_asset.ident().await?;
+        let config_asset_ident = turbo_tasks::read!(config_asset.ident())?;
         let config_file_path = &config_asset_ident.path;
         let mut affecting_paths = vec![config_file_path.clone()];
         let config_file_dir = config_file_path.parent();
@@ -138,10 +139,10 @@ async fn resolve_node_pre_gyp_files(
                 .into();
 
             // Find all dynamic libraries in the given directory.
-            if let DirectoryContent::Entries(entries) = &*config_file_dir
+            if let DirectoryContent::Entries(entries) = &*turbo_tasks::read!(config_file_dir
                 .join(&native_binding_path)?
-                .read_dir()
-                .await?
+                .read_dir())
+                ?
             {
                 let extension = compile_target.dylib_ext();
                 for (key, entry) in entries.iter().filter(|(k, _)| k.ends_with(extension)) {
@@ -160,19 +161,19 @@ async fn resolve_node_pre_gyp_files(
             )
             .into();
             let resolved_file_vc = config_file_dir.join(&node_file_path)?;
-            if *resolved_file_vc.get_type().await? == FileSystemEntryType::File {
+            if *turbo_tasks::read!(resolved_file_vc.get_type())? == FileSystemEntryType::File {
                 sources.insert(
                     node_file_path,
                     Vc::upcast(FileSource::new(resolved_file_vc)),
                 );
             }
         }
-        if let DirectoryContent::Entries(entries) = &*config_file_dir
+        if let DirectoryContent::Entries(entries) = &*turbo_tasks::read!(config_file_dir
             // TODO
             // read the dependencies path from `bindings.gyp`
             .join("deps/lib")?
-            .read_dir()
-            .await?
+            .read_dir())
+            ?
         {
             for (key, entry) in entries.iter() {
                 match entry {
@@ -183,7 +184,7 @@ async fn resolve_node_pre_gyp_files(
                         );
                     }
                     DirectoryEntry::Symlink(dylib) => {
-                        let realpath_with_links = dylib.realpath_with_links().await?;
+                        let realpath_with_links = turbo_tasks::read!(dylib.realpath_with_links())?;
                         for symlink in realpath_with_links.symlinks.iter() {
                             affecting_paths.push(symlink.clone());
                         }
@@ -192,7 +193,7 @@ async fn resolve_node_pre_gyp_files(
                             Vc::upcast(FileSource::new(match &realpath_with_links.path_result {
                                 Ok(path) => path.clone(),
                                 Err(e) => {
-                                    bail!(e.as_error_message(dylib, &realpath_with_links).await?)
+                                    bail!(turbo_tasks::read!(e.as_error_message(dylib, &realpath_with_links))?)
                                 }
                             })),
                         );
@@ -201,27 +202,28 @@ async fn resolve_node_pre_gyp_files(
                 }
             }
         }
+        let mut modules: Vec<(RequestKey, ResolvedVc<Box<dyn Module>>)> =
+            Vec::with_capacity(sources.len());
+        for (key, source) in sources {
+            modules.push((
+                RequestKey::new(key),
+                ResolvedVc::upcast(turbo_tasks::read!(RawModule::new(source).to_resolved())?),
+            ));
+        }
+        let mut affecting_sources: Vec<ResolvedVc<Box<dyn Source>>> =
+            Vec::with_capacity(affecting_paths.len());
+        for p in affecting_paths {
+            affecting_sources.push(ResolvedVc::upcast(
+                turbo_tasks::read!(FileSource::new(p).to_resolved())?,
+            ));
+        }
         return Ok(*ModuleResolveResult::modules_with_affecting_sources(
-            sources
-                .into_iter()
-                .map(|(key, source)| async move {
-                    Ok((
-                        RequestKey::new(key),
-                        ResolvedVc::upcast(RawModule::new(source).to_resolved().await?),
-                    ))
-                })
-                .try_join()
-                .await?,
-            affecting_paths
-                .into_iter()
-                .map(|p| async move {
-                    anyhow::Ok(ResolvedVc::upcast(FileSource::new(p).to_resolved().await?))
-                })
-                .try_join()
-                .await?,
+            modules,
+            affecting_sources,
         ));
     };
     Ok(*ModuleResolveResult::unresolvable())
+}
 }
 
 #[turbo_tasks::value]
@@ -253,12 +255,11 @@ impl NodeGypBuildReference {
 impl ModuleReference for NodeGypBuildReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        resolve_node_gyp_build_files(
+        turbo_tasks::read!(resolve_node_gyp_build_files(
             self.context_dir.clone(),
             self.collect_affecting_sources,
             self.compile_target,
-        )
-        .await
+        ))
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
@@ -268,7 +269,8 @@ impl ModuleReference for NodeGypBuildReference {
     }
 }
 
-async fn resolve_node_gyp_build_files(
+turbo_tasks::dual_fn! {
+fn resolve_node_gyp_build_files(
     context_dir: FileSystemPath,
     collect_affecting_sources: bool,
     compile_target: ResolvedVc<CompileTarget>,
@@ -285,7 +287,7 @@ async fn resolve_node_gyp_build_files(
         collect_affecting_sources,
         true,
     );
-    let gyp_file = gyp_file.await?;
+    let gyp_file = turbo_tasks::read!(gyp_file)?;
     let mut primary_sources = gyp_file.primary_sources();
     if let (Some(binding_gyp), None) = (primary_sources.next(), primary_sources.next()) {
         let mut merged_affecting_sources = if collect_affecting_sources {
@@ -293,8 +295,8 @@ async fn resolve_node_gyp_build_files(
         } else {
             Vec::new()
         };
-        if let AssetContent::File(file) = &*binding_gyp.content().await?
-            && let FileContent::Content(config_file) = &*file.await?
+        if let AssetContent::File(file) = &*turbo_tasks::read!(binding_gyp.content())?
+            && let FileContent::Content(config_file) = &*turbo_tasks::read!(file)?
             && let Some(captured) = GYP_BUILD_TARGET_NAME.captures(&config_file.content().to_str()?)
         {
             let mut resolved: FxIndexMap<RcStr, ResolvedVc<Box<dyn Source>>> =
@@ -302,13 +304,13 @@ async fn resolve_node_gyp_build_files(
             for found in captured.iter().skip(1).flatten() {
                 let name = found.as_str();
                 let target_path = context_dir.join("build/Release")?;
-                let resolved_prebuilt_file = resolve_raw(
+                let resolved_prebuilt_file = turbo_tasks::read!(resolve_raw(
                     target_path,
                     Pattern::new(Pattern::Constant(format!("{name}.node").into())),
                     collect_affecting_sources,
                     true,
-                )
-                .await?;
+                ))
+                ?;
                 if let Some((_, ResolveResultItem::Source(source))) =
                     resolved_prebuilt_file.primary.first()
                 {
@@ -320,23 +322,24 @@ async fn resolve_node_gyp_build_files(
                 }
             }
             if !resolved.is_empty() {
+                let mut modules: Vec<(RequestKey, ResolvedVc<Box<dyn Module>>)> =
+                    Vec::with_capacity(resolved.len());
+                for (key, source) in resolved {
+                    modules.push((
+                        RequestKey::new(key),
+                        ResolvedVc::upcast(
+                            turbo_tasks::read!(RawModule::new(*source).to_resolved())?,
+                        ),
+                    ));
+                }
                 return Ok(*ModuleResolveResult::modules_with_affecting_sources(
-                    resolved
-                        .into_iter()
-                        .map(|(key, source)| async move {
-                            Ok((
-                                RequestKey::new(key),
-                                ResolvedVc::upcast(RawModule::new(*source).to_resolved().await?),
-                            ))
-                        })
-                        .try_join()
-                        .await?,
+                    modules,
                     merged_affecting_sources,
                 ));
             }
         }
     }
-    let compile_target = compile_target.await?;
+    let compile_target = turbo_tasks::read!(compile_target)?;
     let arch = compile_target.arch;
     let platform = compile_target.platform;
     let prebuilt_dir = format!("{platform}-{arch}");
@@ -351,6 +354,7 @@ async fn resolve_node_gyp_build_files(
         true,
     )
     .as_raw_module_result())
+}
 }
 
 #[turbo_tasks::value]
@@ -382,12 +386,11 @@ impl NodeBindingsReference {
 impl ModuleReference for NodeBindingsReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        resolve_node_bindings_files(
+        turbo_tasks::read!(resolve_node_bindings_files(
             self.context_dir.clone(),
             self.file_name.clone(),
             self.collect_affecting_sources,
-        )
-        .await
+        ))
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
@@ -397,7 +400,8 @@ impl ModuleReference for NodeBindingsReference {
     }
 }
 
-async fn resolve_node_bindings_files(
+turbo_tasks::dual_fn! {
+fn resolve_node_bindings_files(
     context_dir: FileSystemPath,
     file_name: RcStr,
     collect_affecting_sources: bool,
@@ -413,16 +417,16 @@ async fn resolve_node_bindings_files(
     });
     let mut root_context_dir = context_dir;
     loop {
-        let resolved = resolve_raw(
+        let resolved = turbo_tasks::read!(resolve_raw(
             root_context_dir.clone(),
             Pattern::new(Pattern::Constant(rcstr!("package.json"))),
             collect_affecting_sources,
             true,
-        )
-        .await?;
+        ))
+        ?;
         if let Some(asset) = resolved.first_source()
-            && let AssetContent::File(file) = &*asset.content().await?
-            && let FileContent::Content(_) = &*file.await?
+            && let AssetContent::File(file) = &*turbo_tasks::read!(asset.content())?
+            && let FileContent::Content(_) = &*turbo_tasks::read!(file)?
         {
             break;
         };
@@ -434,28 +438,38 @@ async fn resolve_node_bindings_files(
         root_context_dir = parent;
     }
 
-    let try_path = |sub_path: RcStr| async move {
-        let path = root_context_dir.join(&sub_path)?;
-        Ok(
-            if matches!(*path.get_type().await?, FileSystemEntryType::File) {
-                Some((
-                    RequestKey::new(sub_path),
-                    ResolvedVc::upcast(
-                        RawModule::new(Vc::upcast(FileSource::new(path.clone())))
-                            .to_resolved()
-                            .await?,
-                    ),
-                ))
-            } else {
-                None
-            },
-        )
-    };
-
-    let modules = BINDINGS_TRY
-        .iter()
-        .map(|try_dir| try_path.clone()(format!("{}/{}", try_dir, file_name).into()))
-        .try_flat_join()
-        .await?;
+    let mut modules: Vec<(RequestKey, ResolvedVc<Box<dyn Module>>)> = Vec::new();
+    for try_dir in BINDINGS_TRY.iter() {
+        if let Some(module) = turbo_tasks::read!(try_bindings_path(
+            root_context_dir.clone(),
+            format!("{}/{}", try_dir, file_name).into(),
+        ))? {
+            modules.push(module);
+        }
+    }
     Ok(*ModuleResolveResult::modules(modules))
+}
+}
+
+turbo_tasks::dual_fn! {
+fn try_bindings_path(
+    root_context_dir: FileSystemPath,
+    sub_path: RcStr,
+) -> Result<Option<(RequestKey, ResolvedVc<Box<dyn Module>>)>> {
+    let path = root_context_dir.join(&sub_path)?;
+    Ok(
+        if matches!(*turbo_tasks::read!(path.get_type())?, FileSystemEntryType::File) {
+            Some((
+                RequestKey::new(sub_path),
+                ResolvedVc::upcast(
+                    turbo_tasks::read!(RawModule::new(Vc::upcast(FileSource::new(path.clone())))
+                        .to_resolved())
+                        ?,
+                ),
+            ))
+        } else {
+            None
+        },
+    )
+}
 }

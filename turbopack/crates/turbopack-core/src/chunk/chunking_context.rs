@@ -167,19 +167,17 @@ impl ChunkGroupResult {
 
     #[turbo_tasks::function]
     pub async fn concatenate(&self, next: Vc<Self>) -> Result<Vc<Self>> {
-        let next = next.await?;
+        let next = turbo_tasks::read!(next)?;
         Ok(ChunkGroupResult {
-            assets: self.assets.concatenate(*next.assets).to_resolved().await?,
-            referenced_assets: self
-                .referenced_assets
-                .concatenate(*next.referenced_assets)
-                .to_resolved()
-                .await?,
-            references: self
-                .references
-                .concatenate(*next.references)
-                .to_resolved()
-                .await?,
+            assets: turbo_tasks::read!(self.assets.concatenate(*next.assets).to_resolved())?,
+            referenced_assets: turbo_tasks::read!(
+                self.referenced_assets
+                    .concatenate(*next.referenced_assets)
+                    .to_resolved()
+            )?,
+            references: turbo_tasks::read!(
+                self.references.concatenate(*next.references).to_resolved()
+            )?,
             availability_info: next.availability_info,
         }
         .cell())
@@ -187,23 +185,18 @@ impl ChunkGroupResult {
 
     #[turbo_tasks::function]
     pub async fn all_assets(&self) -> Result<Vc<OutputAssets>> {
-        Ok(Vc::cell(
-            expand_output_assets(
-                self.assets
-                    .await?
-                    .into_iter()
-                    .chain(self.referenced_assets.await?)
-                    .map(ExpandOutputAssetsInput::Asset)
-                    .chain(
-                        self.references
-                            .await?
-                            .into_iter()
-                            .map(ExpandOutputAssetsInput::Reference),
-                    ),
-                false,
-            )
-            .await?,
-        ))
+        Ok(Vc::cell(turbo_tasks::read!(expand_output_assets(
+            turbo_tasks::read!(self.assets)?
+                .into_iter()
+                .chain(turbo_tasks::read!(self.referenced_assets)?)
+                .map(ExpandOutputAssetsInput::Asset)
+                .chain(
+                    turbo_tasks::read!(self.references)?
+                        .into_iter()
+                        .map(ExpandOutputAssetsInput::Reference),
+                ),
+            false,
+        ))?))
     }
 
     /// Returns only primary asset entries. Doesn't expand OutputAssets. Doesn't return referenced
@@ -215,22 +208,17 @@ impl ChunkGroupResult {
 
     #[turbo_tasks::function]
     pub async fn referenced_assets(&self) -> Result<Vc<OutputAssets>> {
-        Ok(Vc::cell(
-            expand_output_assets(
-                self.referenced_assets
-                    .await?
-                    .into_iter()
-                    .map(ExpandOutputAssetsInput::Asset)
-                    .chain(
-                        self.references
-                            .await?
-                            .into_iter()
-                            .map(ExpandOutputAssetsInput::Reference),
-                    ),
-                false,
-            )
-            .await?,
-        ))
+        Ok(Vc::cell(turbo_tasks::read!(expand_output_assets(
+            turbo_tasks::read!(self.referenced_assets)?
+                .into_iter()
+                .map(ExpandOutputAssetsInput::Asset)
+                .chain(
+                    turbo_tasks::read!(self.references)?
+                        .into_iter()
+                        .map(ExpandOutputAssetsInput::Reference),
+                ),
+            false,
+        ))?))
     }
 }
 
@@ -733,8 +721,8 @@ async fn relative_path_from_chunk_root_to_project_root(
     // From that we want to return  ../../../root to get from a path in `chunks` to a path in the
     // project root.
 
-    let chunk_root_path = chunking_context.chunk_root_path().await?;
-    let output_root = chunking_context.output_root().await?;
+    let chunk_root_path = turbo_tasks::read!(chunking_context.chunk_root_path())?;
+    let output_root = turbo_tasks::read!(chunking_context.output_root())?;
     let chunk_to_output_root = chunk_root_path.get_relative_path_to(&output_root);
     let Some(chunk_to_output_root) = chunk_to_output_root else {
         turbobail!(
@@ -743,7 +731,8 @@ async fn relative_path_from_chunk_root_to_project_root(
             chunking_context.output_root()
         );
     };
-    let output_root_to_chunk_root_path = chunking_context.output_root_to_root_path().await?;
+    let output_root_to_chunk_root_path =
+        turbo_tasks::read!(chunking_context.output_root_to_root_path())?;
 
     // Note we cannot use `normalize_path` here since it rejects paths that start with `../`
     Ok(Vc::cell(
@@ -797,17 +786,15 @@ async fn entry_chunk_group_asset(
     extra_referenced_assets: Vc<OutputAssets>,
     availability_info: AvailabilityInfo,
 ) -> Result<Vc<Box<dyn OutputAsset>>> {
-    Ok(*chunking_context
-        .entry_chunk_group(
-            path,
-            chunk_group,
-            module_graph,
-            extra_chunks,
-            extra_referenced_assets,
-            availability_info,
-        )
-        .await?
-        .asset)
+    Ok(*turbo_tasks::read!(chunking_context.entry_chunk_group(
+        path,
+        chunk_group,
+        module_graph,
+        extra_chunks,
+        extra_referenced_assets,
+        availability_info,
+    ))?
+    .asset)
 }
 
 #[turbo_tasks::function]

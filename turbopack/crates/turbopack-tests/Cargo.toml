@@ -13,8 +13,8 @@ publish = false
 workspace = true
 
 [dependencies]
-turbopack = { workspace = true }
-turbopack-node = { workspace = true, default-features = false, features = ["process_pool"]}
+turbopack = { path = "../turbopack", default-features = false }
+turbopack-node = { path = "../turbopack-node", default-features = false, features = ["process_pool"]}
 
 [dev-dependencies]
 anyhow = { workspace = true }
@@ -27,24 +27,29 @@ testing = { workspace = true }
 tokio = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["json"] }
 turbo-rcstr = { workspace = true }
-turbo-tasks = { workspace = true }
-turbo-tasks-bytes = { workspace = true }
-turbo-tasks-env = { workspace = true }
-turbo-tasks-fs = { workspace = true }
-turbo-tasks-backend = { workspace = true }
+turbo-tasks = { path = "../turbo-tasks", default-features = false }
+turbo-tasks-bytes = { path = "../turbo-tasks-bytes", default-features = false }
+turbo-tasks-env = { path = "../turbo-tasks-env", default-features = false }
+turbo-tasks-fs = { path = "../turbo-tasks-fs", default-features = false }
+turbo-tasks-backend = { path = "../turbo-tasks-backend", default-features = false }
 turbo-unix-path = { workspace = true }
-turbopack-browser = { workspace = true, features = ["test"] }
-turbopack-core = { workspace = true }
-turbopack-css = { workspace = true }
-turbopack-ecmascript = { workspace = true }
-turbopack-ecmascript-plugins = { workspace = true, features = [
+turbopack-browser = { path = "../turbopack-browser", default-features = false, features = ["test"] }
+turbopack-core = { path = "../turbopack-core", default-features = false }
+turbopack-css = { path = "../turbopack-css", default-features = false }
+turbopack-ecmascript = { path = "../turbopack-ecmascript", default-features = false }
+turbopack-ecmascript-plugins = { path = "../turbopack-ecmascript-plugins", default-features = false, features = [
   "transform_emotion",
 ] }
-turbopack-ecmascript-runtime = { workspace = true }
-turbopack-env = { workspace = true }
-turbopack-node = { workspace = true, default-features = false, features = ["process_pool"]}
-turbopack-nodejs = { workspace = true, features = ["test"] }
-turbopack-resolve = { workspace = true }
-turbopack-test-utils = { workspace = true }
+turbopack-ecmascript-runtime = { path = "../turbopack-ecmascript-runtime", default-features = false }
+turbopack-env = { path = "../turbopack-env", default-features = false }
+turbopack-node = { path = "../turbopack-node", default-features = false, features = ["process_pool"]}
+turbopack-nodejs = { path = "../turbopack-nodejs", default-features = false, features = ["test"] }
+turbopack-resolve = { path = "../turbopack-resolve", default-features = false }
+turbopack-test-utils = { path = "../turbopack-test-utils", default-features = false }
 turbopack-trace-utils = { workspace = true }
+
+[features]
+default = ["tokio_runtime"]
+tokio_runtime = ["turbo-tasks/tokio_runtime", "turbo-tasks-backend/tokio_runtime", "turbo-tasks-bytes/tokio_runtime", "turbo-tasks-env/tokio_runtime", "turbo-tasks-fs/tokio_runtime", "turbopack/tokio_runtime", "turbopack-browser/tokio_runtime", "turbopack-core/tokio_runtime", "turbopack-css/tokio_runtime", "turbopack-ecmascript/tokio_runtime", "turbopack-ecmascript-plugins/tokio_runtime", "turbopack-ecmascript-runtime/tokio_runtime", "turbopack-env/tokio_runtime", "turbopack-node/tokio_runtime", "turbopack-nodejs/tokio_runtime", "turbopack-resolve/tokio_runtime", "turbopack-test-utils/tokio_runtime"]
+sync = ["turbo-tasks/sync", "turbo-tasks-backend/sync", "turbo-tasks-bytes/sync", "turbo-tasks-env/sync", "turbo-tasks-fs/sync", "turbopack/sync", "turbopack-browser/sync", "turbopack-core/sync", "turbopack-css/sync", "turbopack-ecmascript/sync", "turbopack-ecmascript-plugins/sync", "turbopack-ecmascript-runtime/sync", "turbopack-env/sync", "turbopack-node/sync", "turbopack-nodejs/sync", "turbopack-resolve/sync", "turbopack-test-utils/sync"]
 

@@ -1,7 +1,7 @@
 use std::hash::Hash;
 
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc, turbobail};
+use turbo_tasks::{ResolvedVc, Vc, turbobail};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
@@ -41,19 +41,39 @@ impl RebasedAsset {
 impl OutputAssetsReference for RebasedAsset {
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
-        let references = referenced_modules_and_affecting_sources(*self.module, false)
-            .await?
+        let ref_data = turbo_tasks::read!(referenced_modules_and_affecting_sources(
+            *self.module,
+            false
+        ))?;
+        let modules = ref_data
             .iter()
-            .flat_map(|(_, ref_data)| ref_data.modules.iter())
-            .map(async |module| {
-                Ok(ResolvedVc::upcast(
+            .flat_map(|(_, ref_data)| ref_data.modules.iter());
+        // Keep the concurrent `try_join` in the async build; `.to_resolved()` futures
+        // cannot fan out through `parallel!` under sync, so resolve sequentially.
+        #[cfg(not(feature = "sync"))]
+        let resolved = {
+            use turbo_tasks::TryJoinIterExt;
+            modules
+                .map(|module| {
                     RebasedAsset::new(**module, self.input_dir.clone(), self.output_dir.clone())
                         .to_resolved()
-                        .await?,
-                ))
-            })
-            .try_join()
-            .await?;
+                })
+                .try_join()
+                .await?
+        };
+        #[cfg(feature = "sync")]
+        let resolved = {
+            let mut resolved = Vec::new();
+            for module in modules {
+                resolved.push(turbo_tasks::read!(
+                    RebasedAsset::new(**module, self.input_dir.clone(), self.output_dir.clone())
+                        .to_resolved()
+                )?);
+            }
+            resolved
+        };
+        let references: Vec<ResolvedVc<Box<dyn OutputAsset>>> =
+            resolved.into_iter().map(ResolvedVc::upcast).collect();
         Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(
             references,
         )))
@@ -65,7 +85,7 @@ impl OutputAsset for RebasedAsset {
     #[turbo_tasks::function]
     async fn path(&self) -> Result<Vc<FileSystemPath>> {
         Ok(FileSystemPath::rebase(
-            self.module.ident().await?.path.clone(),
+            turbo_tasks::read!(self.module.ident())?.path.clone(),
             self.input_dir.clone(),
             self.output_dir.clone(),
         ))
@@ -76,7 +96,7 @@ impl OutputAsset for RebasedAsset {
 impl Asset for RebasedAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
-        if let Some(source) = *self.module.source().await? {
+        if let Some(source) = *turbo_tasks::read!(self.module.source())? {
             Ok(source.content())
         } else {
             turbobail!("Module {} has no source", self.module.ident());

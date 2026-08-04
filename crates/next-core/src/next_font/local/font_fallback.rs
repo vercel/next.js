@@ -37,15 +37,20 @@ pub(super) async fn get_font_fallbacks(
     lookup_path: FileSystemPath,
     options_vc: Vc<NextFontLocalOptions>,
 ) -> Result<Vc<FontFallbackResult>> {
-    let options = &*options_vc.await?;
-    let scoped_font_family =
-        get_scoped_font_family(FontFamilyType::Fallback, options_vc.font_family().await?);
+    let options = &*turbo_tasks::read!(options_vc)?;
+    let scoped_font_family = get_scoped_font_family(
+        FontFamilyType::Fallback,
+        turbo_tasks::read!(options_vc.font_family())?,
+    );
 
     let mut font_fallbacks = vec![];
     match options.adjust_font_fallback {
         AdjustFontFallback::Arial => {
-            let adjustment =
-                get_font_adjustment(lookup_path, options_vc, &DEFAULT_SANS_SERIF_FONT).await?;
+            let adjustment = turbo_tasks::read!(get_font_adjustment(
+                lookup_path,
+                options_vc,
+                &DEFAULT_SANS_SERIF_FONT
+            ))?;
 
             match adjustment {
                 FontResult::Ok(adjustment) => font_fallbacks.push(
@@ -62,8 +67,11 @@ pub(super) async fn get_font_fallbacks(
             };
         }
         AdjustFontFallback::TimesNewRoman => {
-            let adjustment =
-                get_font_adjustment(lookup_path, options_vc, &DEFAULT_SERIF_FONT).await?;
+            let adjustment = turbo_tasks::read!(get_font_adjustment(
+                lookup_path,
+                options_vc,
+                &DEFAULT_SERIF_FONT
+            ))?;
 
             match adjustment {
                 FontResult::Ok(adjustment) => font_fallbacks.push(
@@ -89,14 +97,15 @@ pub(super) async fn get_font_fallbacks(
     Ok(FontFallbackResult::Ok(FontFallbacks(font_fallbacks).resolved_cell()).cell())
 }
 
-async fn get_font_adjustment(
+turbo_tasks::dual_fn! {
+fn get_font_adjustment(
     lookup_path: FileSystemPath,
     options: Vc<NextFontLocalOptions>,
     fallback_font: &DefaultFallbackFont,
 ) -> Result<FontResult<FontAdjustment>> {
-    let options = &*options.await?;
+    let options = &*turbo_tasks::read!(options)?;
     let main_descriptor = pick_font_for_fallback_generation(&options.fonts)?;
-    let font_file = &*lookup_path.join(&main_descriptor.path)?.read().await?;
+    let font_file = &*turbo_tasks::read!(lookup_path.join(&main_descriptor.path)?.read())?;
     let font_file_rope = match font_file {
         FileContent::NotFound => {
             return Ok(FontResult::FontFileNotFound(FontFileNotFound(
@@ -140,6 +149,7 @@ async fn get_font_adjustment(
         line_gap: font.hhea_table.line_gap as f64 / (units_per_em * size_adjust),
         size_adjust,
     }))
+}
 }
 
 fn calc_average_width(font: &mut Font<DynamicFontTableProvider>) -> Option<f32> {

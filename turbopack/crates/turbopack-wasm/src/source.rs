@@ -42,7 +42,7 @@ impl Source for WebAssemblySource {
         Ok(match self.source_ty {
             WebAssemblySourceType::Binary => self.source.ident(),
             WebAssemblySourceType::Text => {
-                let ident = self.source.ident().owned().await?;
+                let ident = turbo_tasks::read!(self.source.ident().owned())?;
                 let new_path = ident.path.append("_.wasm")?;
                 ident.with_path(new_path).into_vc()
             }
@@ -51,7 +51,7 @@ impl Source for WebAssemblySource {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<Vc<RcStr>> {
-        let inner = self.source.description().await?;
+        let inner = turbo_tasks::read!(self.source.description())?;
         Ok(Vc::cell(
             format!("WebAssembly transform of {}", inner).into(),
         ))
@@ -67,7 +67,7 @@ impl Asset for WebAssemblySource {
             WebAssemblySourceType::Text => self.source.content(),
         };
 
-        let content = content.file_content().await?;
+        let content = turbo_tasks::read!(content.file_content())?;
 
         let FileContent::Content(file) = &*content else {
             return Ok(AssetContent::file(FileContent::NotFound.cell()));

@@ -43,10 +43,8 @@ impl<T: Send + Sync + 'static> MessageChannel<T> {
     }
 
     pub(crate) async fn recv(&self) -> Result<T> {
-        let mut rx = self.receiver.lock().await;
-        rx.recv()
-            .await
-            .ok_or_else(|| anyhow::anyhow!("failed to recv message"))
+        let mut rx = turbo_tasks::read!(self.receiver.lock());
+        turbo_tasks::read!(rx.recv()).ok_or_else(|| anyhow::anyhow!("failed to recv message"))
     }
 }
 
@@ -159,9 +157,7 @@ impl WorkerPoolOperation {
                 .or_insert_with(|| Arc::new(MessageChannel::unbounded()))
                 .clone()
         };
-        channel
-            .recv()
-            .await
+        turbo_tasks::read!(channel.recv())
             .with_context(|| format!("failed to recv message in worker {worker_id}"))
     }
 
@@ -172,9 +168,7 @@ impl WorkerPoolOperation {
                 .or_insert_with(|| Arc::new(MessageChannel::unbounded()))
                 .clone()
         };
-        channel
-            .send(message.data)
-            .await
+        turbo_tasks::read!(channel.send(message.data))
             .with_context(|| format!("failed to send  response for task {}", message.task_id))
     }
 }
@@ -187,7 +181,7 @@ pub(crate) fn terminate_worker(worker_options: Arc<WorkerOptions>, worker_id: u3
 }
 
 pub(crate) async fn get_pool_state(worker_options: Arc<WorkerOptions>) -> Arc<PoolState> {
-    WORKER_POOL_OPERATION.get_pool_state(worker_options).await
+    turbo_tasks::read!(WORKER_POOL_OPERATION.get_pool_state(worker_options))
 }
 
 /// Pre-allocated channels for a single task's communication.
@@ -227,18 +221,13 @@ impl TaskChannels {
 
     /// Send message to worker (Rust -> JS Worker)
     pub(crate) async fn send_to_worker(&self, message: Bytes) -> Result<()> {
-        self.worker_channel
-            .send((self.task_id, message))
-            .await
+        turbo_tasks::read!(self.worker_channel.send((self.task_id, message)))
             .context("failed to send message to worker")
     }
 
     /// Receive message from worker (JS Worker -> Rust)
     pub(crate) async fn recv_from_worker(&self) -> Result<Bytes> {
-        self.task_channel
-            .recv()
-            .await
-            .context("failed to recv task message")
+        turbo_tasks::read!(self.task_channel.recv()).context("failed to recv task message")
     }
 }
 
@@ -274,11 +263,11 @@ impl Drop for WorkerOperation {
 #[async_trait::async_trait]
 impl Operation for WorkerOperation {
     async fn recv(&mut self) -> Result<Bytes> {
-        self.channels.recv_from_worker().await
+        turbo_tasks::read!(self.channels.recv_from_worker())
     }
 
     async fn send(&mut self, message: Bytes) -> Result<()> {
-        self.channels.send_to_worker(message).await
+        turbo_tasks::read!(self.channels.send_to_worker(message))
     }
 
     async fn wait_or_kill(&mut self) -> Result<ExitStatus> {

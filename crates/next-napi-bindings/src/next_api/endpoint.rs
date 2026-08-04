@@ -1,6 +1,7 @@
 use std::{ops::Deref, sync::Arc};
 
 use anyhow::Result;
+#[cfg(not(feature = "sync"))]
 use futures_util::TryFutureExt;
 use napi::{JsFunction, bindgen_prelude::External};
 use napi_derive::napi;
@@ -12,6 +13,7 @@ use next_api::{
         endpoint_server_changed_operation, endpoint_write_to_disk_operation,
     },
 };
+#[cfg(not(feature = "sync"))]
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -19,9 +21,12 @@ use turbo_tasks::{
 };
 use turbopack_core::issue::{IssueFilter, PlainIssue};
 
+// `subscribe` drives dev change-subscriptions only; the sync build's subscribe
+// napi methods bail.
+#[cfg(not(feature = "sync"))]
+use crate::next_api::utils::subscribe;
 use crate::next_api::utils::{
     DetachedVc, NapiIssue, RootTask, TurbopackResult, strongly_consistent_catch_collectables,
-    subscribe,
 };
 
 #[napi(object)]
@@ -109,12 +114,28 @@ impl Deref for ExternalEndpoint {
 /// `node_modules` reshuffle), this falls back to a default filter rather than
 /// propagating the error.  In this scenario we believe the caller will already be observing the
 /// same error
+#[cfg(not(feature = "sync"))]
 async fn issue_filter_from_endpoint(
     endpoint_op: OperationVc<OptionEndpoint>,
 ) -> ReadRef<IssueFilter> {
-    if let Ok(ep_option) = endpoint_op.connect().await
+    if let Ok(ep_option) = turbo_tasks::read!(endpoint_op.connect())
         && let Some(ep) = &*ep_option
-        && let Ok(filter) = ep.project().issue_filter().await
+        && let Ok(filter) = turbo_tasks::read!(ep.project().issue_filter())
+    {
+        filter
+    } else {
+        ReadRef::new_owned(IssueFilter::warnings_and_foreign_errors())
+    }
+}
+
+// No generics/lifetimes here, but the two call sites differ by mode (async
+// awaits it, sync calls it inline), so hand-write the twin rather than
+// `dual_fn!`. Body is identical, `read!`-based.
+#[cfg(feature = "sync")]
+fn issue_filter_from_endpoint(endpoint_op: OperationVc<OptionEndpoint>) -> ReadRef<IssueFilter> {
+    if let Ok(ep_option) = turbo_tasks::read!(endpoint_op.connect())
+        && let Some(ep) = &*ep_option
+        && let Ok(filter) = turbo_tasks::read!(ep.project().issue_filter())
     {
         filter
     } else {
@@ -134,9 +155,14 @@ async fn get_written_endpoint_with_issues_operation(
     endpoint_op: OperationVc<OptionEndpoint>,
 ) -> Result<Vc<WrittenEndpointWithIssues>> {
     let write_to_disk_op = endpoint_write_to_disk_operation(endpoint_op);
+    #[cfg(not(feature = "sync"))]
     let filter = issue_filter_from_endpoint(endpoint_op).await;
-    let (written, issues, effects) =
-        strongly_consistent_catch_collectables(write_to_disk_op, &filter).await?;
+    #[cfg(feature = "sync")]
+    let filter = issue_filter_from_endpoint(endpoint_op);
+    let (written, issues, effects) = turbo_tasks::read!(strongly_consistent_catch_collectables(
+        write_to_disk_op,
+        &filter
+    ))?;
     Ok(WrittenEndpointWithIssues {
         written,
         issues,
@@ -145,6 +171,7 @@ async fn get_written_endpoint_with_issues_operation(
     .cell())
 }
 
+#[cfg(not(feature = "sync"))]
 #[tracing::instrument(level = "info", name = "write endpoint to disk", skip_all)]
 #[napi]
 pub async fn endpoint_write_to_disk(
@@ -177,6 +204,40 @@ pub async fn endpoint_write_to_disk(
     })
 }
 
+// Sync (no-tokio) twin: drives the same operation graph through `run_sync` +
+// `read!` instead of `turbo_tasks.run(async).await`. On failure the error is
+// surfaced synchronously (see `throw_turbopack_internal_error_sync`).
+#[cfg(feature = "sync")]
+#[tracing::instrument(level = "info", name = "write endpoint to disk", skip_all)]
+#[napi]
+pub fn endpoint_write_to_disk(
+    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
+) -> napi::Result<TurbopackResult<NapiWrittenEndpoint>> {
+    let ctx = endpoint.turbopack_ctx();
+    let endpoint_op = ***endpoint;
+    let (written, issues) = ctx
+        .turbo_tasks()
+        .run_sync(move || {
+            let written_entrypoint_with_issues_op =
+                get_written_endpoint_with_issues_operation(endpoint_op);
+            let read = turbo_tasks::read!(read_strongly_consistent_and_apply_effects(
+                written_entrypoint_with_issues_op,
+                |v| &v.effects,
+            ))?;
+            let WrittenEndpointWithIssues {
+                written, issues, ..
+            } = &*read;
+
+            Ok((written.clone(), issues.clone()))
+        })
+        .map_err(|e| ctx.throw_turbopack_internal_error_sync(&e))?;
+    Ok(TurbopackResult {
+        result: NapiWrittenEndpoint::from(written.map(ReadRef::into_owned)),
+        issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
+    })
+}
+
+#[cfg(not(feature = "sync"))]
 #[tracing::instrument(level = "info", name = "get server-side endpoint changes", skip_all)]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn endpoint_server_changed_subscribe(
@@ -214,6 +275,7 @@ pub fn endpoint_server_changed_subscribe(
     )
 }
 
+#[cfg(not(feature = "sync"))]
 #[turbo_tasks::value(shared, serialization = "skip", eq = "manual")]
 struct EndpointIssuesAndDiags {
     changed: Option<ReadRef<Completion>>,
@@ -221,6 +283,7 @@ struct EndpointIssuesAndDiags {
     effects: Arc<Effects>,
 }
 
+#[cfg(not(feature = "sync"))]
 impl PartialEq for EndpointIssuesAndDiags {
     fn eq(&self, other: &Self) -> bool {
         (match (&self.changed, &other.changed) {
@@ -231,8 +294,10 @@ impl PartialEq for EndpointIssuesAndDiags {
     }
 }
 
+#[cfg(not(feature = "sync"))]
 impl Eq for EndpointIssuesAndDiags {}
 
+#[cfg(not(feature = "sync"))]
 #[turbo_tasks::function(operation, root)]
 async fn subscribe_issues_and_diags_operation(
     endpoint_op: OperationVc<OptionEndpoint>,
@@ -260,6 +325,7 @@ async fn subscribe_issues_and_diags_operation(
     .cell())
 }
 
+#[cfg(not(feature = "sync"))]
 #[tracing::instrument(level = "info", name = "get client-side endpoint changes", skip_all)]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn endpoint_client_changed_subscribe(
@@ -294,4 +360,32 @@ pub fn endpoint_client_changed_subscribe(
             }])
         },
     )
+}
+
+// ---- Sync (no-tokio) bail twins for the endpoint change-subscription methods ----
+// Kept exported so next's JS binding loads; a sync `next build` never subscribes.
+
+#[cfg(feature = "sync")]
+#[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
+pub fn endpoint_server_changed_subscribe(
+    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] _endpoint: External<ExternalEndpoint>,
+    _issues: bool,
+    _func: JsFunction,
+) -> napi::Result<External<RootTask>> {
+    Err(napi::Error::from_reason(
+        "endpoint_server_changed_subscribe is unavailable in the sync (no-tokio) build; change \
+         subscriptions are dev-only",
+    ))
+}
+
+#[cfg(feature = "sync")]
+#[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
+pub fn endpoint_client_changed_subscribe(
+    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] _endpoint: External<ExternalEndpoint>,
+    _func: JsFunction,
+) -> napi::Result<External<RootTask>> {
+    Err(napi::Error::from_reason(
+        "endpoint_client_changed_subscribe is unavailable in the sync (no-tokio) build; change \
+         subscriptions are dev-only",
+    ))
 }

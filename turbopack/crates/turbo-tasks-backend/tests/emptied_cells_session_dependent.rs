@@ -3,12 +3,12 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, State, Vc};
+use turbo_tasks::{ResolvedVc, State, Vc, read};
 use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_emptied_cells_session_dependent() {
     run(&REGISTRATION, || async {
         let input_op = get_state_operation();
@@ -61,14 +61,14 @@ struct ChangingInput {
 #[turbo_tasks::function(operation, root)]
 async fn compute_operation(input: ResolvedVc<ChangingInput>) -> Result<Vc<u32>> {
     println!("compute_operation()");
-    let value = *inner_compute(*input).await?;
+    let value = *read!(inner_compute(*input))?;
     Ok(Vc::cell(value))
 }
 
 #[turbo_tasks::function]
 async fn inner_compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
     println!("inner_compute()");
-    let state_value = *input.await?.state.get();
+    let state_value = *read!(input)?.state.get();
     let mut last = None;
     for i in 0..=state_value {
         last = Some(compute2(Vc::cell(i)));
@@ -79,6 +79,6 @@ async fn inner_compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
 #[turbo_tasks::function(session_dependent)]
 async fn compute2(input: Vc<u32>) -> Result<Vc<u32>> {
     println!("compute2()");
-    let value = *input.await?;
+    let value = *read!(input)?;
     Ok(Vc::cell(value))
 }

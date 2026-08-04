@@ -52,13 +52,9 @@ impl RawWebAssemblyModuleAsset {
 impl Module for RawWebAssemblyModuleAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self
-            .source
-            .ident()
-            .owned()
-            .await?
+        Ok(turbo_tasks::read!(self.source.ident().owned())?
             .with_modifier(rcstr!("wasm raw"))
-            .with_layer(self.asset_context.into_trait_ref().await?.layer())
+            .with_layer(turbo_tasks::read!(self.asset_context.into_trait_ref())?.layer())
             .into_vc())
     }
 
@@ -102,8 +98,8 @@ impl EcmascriptChunkPlaceable for RawWebAssemblyModuleAsset {
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let wasm_asset = self.wasm_asset(chunking_context);
-        let path = wasm_asset.path().await?;
-        let output_root = chunking_context.output_root().await?;
+        let path = turbo_tasks::read!(wasm_asset.path())?;
+        let output_root = turbo_tasks::read!(chunking_context.output_root())?;
 
         let Some(path) = output_root.get_path_to(&path) else {
             bail!("WASM asset ident is not relative to output root");
@@ -122,7 +118,7 @@ impl EcmascriptChunkPlaceable for RawWebAssemblyModuleAsset {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         _module_graph: Vc<ModuleGraph>,
     ) -> Result<Vc<OutputAssetsWithReferenced>> {
-        let wasm_asset = self.wasm_asset(chunking_context).to_resolved().await?;
+        let wasm_asset = turbo_tasks::read!(self.wasm_asset(chunking_context).to_resolved())?;
         Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(vec![
             ResolvedVc::upcast(wasm_asset),
         ])))

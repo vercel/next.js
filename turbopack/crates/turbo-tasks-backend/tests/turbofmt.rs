@@ -3,7 +3,7 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, ValueToString, Vc, turbobail, turbofmt};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc, read, turbobail, turbofmt};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
@@ -18,7 +18,7 @@ struct FmtTest {
 
 #[turbo_tasks::function(operation, root)]
 async fn turbofmt_operation(value: ResolvedVc<FmtTest>) -> anyhow::Result<Vc<RcStr>> {
-    let s: RcStr = turbofmt!("prefix {} vc {}", 42u32, value).await?;
+    let s: RcStr = read!(turbofmt!("prefix {} vc {}", 42u32, value))?;
     Ok(Vc::cell(s))
 }
 
@@ -27,7 +27,7 @@ async fn turbobail_operation(value: ResolvedVc<FmtTest>) -> anyhow::Result<Vc<Rc
     turbobail!("error: {} with {}", 42u32, value)
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_turbofmt() {
     run_once(&REGISTRATION, || async {
         let v = FmtTest {
@@ -45,7 +45,7 @@ async fn test_turbofmt() {
     .unwrap()
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_turbobail() {
     run_once(&REGISTRATION, || async {
         let v = FmtTest {

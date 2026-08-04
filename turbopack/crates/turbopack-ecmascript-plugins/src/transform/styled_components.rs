@@ -1,4 +1,5 @@
 use anyhow::Result;
+#[cfg(not(feature = "sync"))]
 use async_trait::async_trait;
 use serde::Deserialize;
 use swc_core::{atoms::Wtf8Atom, common::comments::NoopComments, ecma::ast::Program};
@@ -68,10 +69,8 @@ impl StyledComponentsTransformer {
     }
 }
 
-#[async_trait]
-impl CustomTransformer for StyledComponentsTransformer {
-    #[tracing::instrument(level = tracing::Level::TRACE, name = "styled_components", skip_all)]
-    async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+impl StyledComponentsTransformer {
+    fn transform_inner(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         program.mutate(styled_components::styled_components(
             Some(ctx.file_path_str),
             ctx.file_name_hash,
@@ -80,5 +79,23 @@ impl CustomTransformer for StyledComponentsTransformer {
         ));
 
         Ok(())
+    }
+}
+
+#[cfg(not(feature = "sync"))]
+#[async_trait]
+impl CustomTransformer for StyledComponentsTransformer {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "styled_components", skip_all)]
+    async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+        self.transform_inner(program, ctx)
+    }
+}
+
+/// See the async impl above; the sync engine drops `async`/`#[async_trait]`.
+#[cfg(feature = "sync")]
+impl CustomTransformer for StyledComponentsTransformer {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "styled_components", skip_all)]
+    fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+        self.transform_inner(program, ctx)
     }
 }

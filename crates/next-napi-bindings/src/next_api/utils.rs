@@ -5,6 +5,7 @@ use std::{
 };
 
 use anyhow::{Context, Result, anyhow};
+#[cfg(not(feature = "sync"))]
 use futures_util::TryFutureExt;
 use napi::{
     JsFunction, JsObject, JsUnknown, NapiRaw, NapiValue, Status,
@@ -107,13 +108,26 @@ pub fn root_task_dispose(
 /// [Peeks]: turbo_tasks::CollectiblesSource::peek_collectibles
 /// [`Issue`]: turbopack_core::issue::Issue
 /// [consume]: turbo_tasks::CollectiblesSource::take_collectibles
+#[cfg(not(feature = "sync"))]
 pub async fn get_issues<T: Send>(
     source: OperationVc<T>,
     filter: &IssueFilter,
 ) -> Result<Arc<Vec<ReadRef<PlainIssue>>>> {
-    Ok(Arc::new(
-        source.peek_issues().get_plain_issues(filter).await?,
-    ))
+    Ok(Arc::new(turbo_tasks::read!(
+        source.peek_issues().get_plain_issues(filter)
+    )?))
+}
+
+// Bounded generic (`<T: Send>`) can't go through `dual_fn!`; hand-write the sync
+// twin with an identical `read!`-based body.
+#[cfg(feature = "sync")]
+pub fn get_issues<T: Send>(
+    source: OperationVc<T>,
+    filter: &IssueFilter,
+) -> Result<Arc<Vec<ReadRef<PlainIssue>>>> {
+    Ok(Arc::new(turbo_tasks::read!(
+        source.peek_issues().get_plain_issues(filter)
+    )?))
 }
 
 /// Returns true if the file path refers to a Next.js/React internal file whose
@@ -428,6 +442,11 @@ impl<T: ToNapiValue> ToNapiValue for TurbopackResult<T> {
     }
 }
 
+// Subscriptions drive dev/HMR through a spawned root task, a tokio-backed
+// `ThreadsafeFunction`, and the async engine's `spawn_root_task`. None of that
+// exists in the no-tokio sync `next build`; the exported subscribe napi methods
+// bail before ever reaching this helper, so it is compiled out under sync.
+#[cfg(not(feature = "sync"))]
 pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send, V: ToNapiValue>(
     ctx: NextTurbopackContext,
     func: JsFunction,
@@ -464,6 +483,7 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
 
 // Await the source and return fatal issues if there are any, otherwise
 // propagate any actual error results.
+#[cfg(not(feature = "sync"))]
 pub async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
     source_op: OperationVc<R>,
     filter: &IssueFilter,
@@ -472,9 +492,33 @@ pub async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
     Arc<Vec<ReadRef<PlainIssue>>>,
     Arc<Effects>,
 )> {
-    let result = source_op.read_strongly_consistent().await;
-    let issues = get_issues(source_op, filter).await?;
-    let effects = Arc::new(take_effects(source_op).await?);
+    let result = turbo_tasks::read!(source_op.read_strongly_consistent());
+    let issues = turbo_tasks::read!(get_issues(source_op, filter))?;
+    let effects = Arc::new(turbo_tasks::read!(take_effects(source_op))?);
+
+    let result = if result.is_err() && issues.iter().any(|i| i.severity <= IssueSeverity::Error) {
+        None
+    } else {
+        Some(result?)
+    };
+
+    Ok((result, issues, effects))
+}
+
+// Bounded generic (`<R: VcValueType + Send>`) can't go through `dual_fn!`;
+// hand-write the sync twin with an identical `read!`-based body.
+#[cfg(feature = "sync")]
+pub fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
+    source_op: OperationVc<R>,
+    filter: &IssueFilter,
+) -> Result<(
+    Option<ReadRef<R>>,
+    Arc<Vec<ReadRef<PlainIssue>>>,
+    Arc<Effects>,
+)> {
+    let result = turbo_tasks::read!(source_op.read_strongly_consistent());
+    let issues = turbo_tasks::read!(get_issues(source_op, filter))?;
+    let effects = Arc::new(turbo_tasks::read!(take_effects(source_op))?);
 
     let result = if result.is_err() && issues.iter().any(|i| i.severity <= IssueSeverity::Error) {
         None

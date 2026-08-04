@@ -41,13 +41,13 @@ impl Transition for NextServerComponentTransition {
         reference_type: ReferenceType,
     ) -> Result<Vc<ProcessResult>> {
         // Capture the original source path before any transformation
-        let source_path = source.ident().await?.path.clone();
+        let source_path = turbo_tasks::read!(source.ident())?.path.clone();
 
         let source = self.process_source(source);
         let module_asset_context = self.process_context(module_asset_context);
 
         Ok(
-            match &*module_asset_context.process(source, reference_type).await? {
+            match &*turbo_tasks::read!(module_asset_context.process(source, reference_type))? {
                 ProcessResult::Module(module) => {
                     let Some(module) =
                         ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*module)
@@ -58,8 +58,10 @@ impl Transition for NextServerComponentTransition {
                     // Create the server component module with the original source path
                     let server_component = NextServerComponentModule::new(*module, source_path);
 
-                    ProcessResult::Module(ResolvedVc::upcast(server_component.to_resolved().await?))
-                        .cell()
+                    ProcessResult::Module(ResolvedVc::upcast(turbo_tasks::read!(
+                        server_component.to_resolved()
+                    )?))
+                    .cell()
                 }
                 ProcessResult::Unknown(source) => ProcessResult::Unknown(*source).cell(),
                 ProcessResult::Ignore => ProcessResult::Ignore.cell(),

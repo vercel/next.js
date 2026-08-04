@@ -3,12 +3,12 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::Result;
-use turbo_tasks::{State, Vc, unmark_top_level_task_may_leak_eventually_consistent_state};
+use turbo_tasks::{State, Vc, read, unmark_top_level_task_may_leak_eventually_consistent_state};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_hidden_mutate() {
     run_once(&REGISTRATION, || async {
         unmark_top_level_task_may_leak_eventually_consistent_state();
@@ -71,7 +71,7 @@ async fn create_input() -> Result<Vc<ChangingInput>> {
 #[turbo_tasks::function(root)]
 async fn compute(input: Vc<ChangingInput>) -> Result<Vc<Value>> {
     println!("compute()");
-    let input = input.await?;
+    let input = read!(input)?;
     let value = input.state.get();
     Ok(Value { value: *value }.cell())
 }
@@ -79,7 +79,7 @@ async fn compute(input: Vc<ChangingInput>) -> Result<Vc<Value>> {
 #[turbo_tasks::function(root)]
 async fn read_input(input: Vc<Value>) -> Result<Vc<u32>> {
     println!("read_input()");
-    let value = input.await?;
+    let value = read!(input)?;
     Ok(Vc::cell(value.value))
 }
 

@@ -31,9 +31,7 @@ use turbopack_ecmascript::{
 #[turbo_tasks::function]
 async fn hmr_entry_point_base_ident() -> Result<Vc<AssetIdent>> {
     Ok(AssetIdent::from_path(
-        VirtualFileSystem::new_with_name(rcstr!("hmr-entry"))
-            .root()
-            .await?
+        turbo_tasks::read!(VirtualFileSystem::new_with_name(rcstr!("hmr-entry")).root())?
             .join("hmr-entry.js")?,
     )
     .into_vc())
@@ -60,9 +58,7 @@ impl HmrEntryModule {
 impl Module for HmrEntryModule {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(hmr_entry_point_base_ident()
-            .owned()
-            .await?
+        Ok(turbo_tasks::read!(hmr_entry_point_base_ident().owned())?
             .with_asset(rcstr!("ENTRY"), self.ident)
             .into_vc())
     }
@@ -74,11 +70,9 @@ impl Module for HmrEntryModule {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        Ok(Vc::cell(vec![ResolvedVc::upcast(
-            HmrEntryModuleReference::new(Vc::upcast(*self.module))
-                .to_resolved()
-                .await?,
-        )]))
+        Ok(Vc::cell(vec![ResolvedVc::upcast(turbo_tasks::read!(
+            HmrEntryModuleReference::new(Vc::upcast(*self.module)).to_resolved()
+        )?)]))
     }
     #[turbo_tasks::function]
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
@@ -121,14 +115,12 @@ impl EcmascriptChunkPlaceable for HmrEntryModule {
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         let module = this.module;
         let chunk_item = module.as_chunk_item(module_graph, chunking_context);
-        let id = chunking_context
-            .chunk_item_id_strategy()
-            .await?
-            .get_id(chunk_item)
-            .await?;
+        let id = turbo_tasks::read!(
+            turbo_tasks::read!(chunking_context.chunk_item_id_strategy())?.get_id(chunk_item)
+        )?;
 
         let mut code = RopeBuilder::default();
         writeln!(code, "{TURBOPACK_REQUIRE}({});", StringifyJs(&id))?;

@@ -38,8 +38,8 @@ pub trait VersionedContent {
         // scheme of the content, we ask for a full invalidation, except in the
         // case where versions are the same.
         let to = self.version();
-        let from_ref = from.into_trait_ref().await?;
-        let to_ref = to.into_trait_ref().await?;
+        let from_ref = turbo_tasks::read!(from.into_trait_ref())?;
+        let to_ref = turbo_tasks::read!(to.into_trait_ref())?;
 
         // Fast path: versions are the same.
         if TraitRef::ptr_eq(&from_ref, &to_ref) {
@@ -52,8 +52,8 @@ pub trait VersionedContent {
         // version ids.
         let from_id = from.id();
         let to_id = to.id();
-        let from_id = from_id.await?;
-        let to_id = to_id.await?;
+        let from_id = turbo_tasks::read!(from_id)?;
+        let to_id = turbo_tasks::read!(to_id)?;
         Ok(if *from_id == *to_id {
             Update::None.cell()
         } else {
@@ -81,9 +81,9 @@ impl VersionedContent for VersionedAssetContent {
 
     #[turbo_tasks::function]
     async fn version(&self) -> Result<Vc<Box<dyn Version>>> {
-        Ok(Vc::upcast(
-            FileHashVersion::compute(&self.asset_content).await?,
-        ))
+        Ok(Vc::upcast(turbo_tasks::read!(FileHashVersion::compute(
+            &self.asset_content
+        ))?))
     }
 }
 
@@ -92,7 +92,7 @@ impl VersionedAssetContent {
     #[turbo_tasks::function]
     /// Creates a new instance from a [`Vc<AssetContent>`][AssetContent].
     pub async fn new(asset_content: Vc<AssetContent>) -> Result<Vc<Self>> {
-        let asset_content = asset_content.await?;
+        let asset_content = turbo_tasks::read!(asset_content)?;
         Ok(Self::cell(VersionedAssetContent { asset_content }))
     }
 }
@@ -226,19 +226,20 @@ pub struct FileHashVersion {
 }
 
 impl FileHashVersion {
+    turbo_tasks::dual_fn! {
     /// Computes a new [`Vc<FileHashVersion>`] from a path.
-    pub async fn compute(asset_content: &AssetContent) -> Result<Vc<Self>> {
+    pub fn compute(asset_content: &AssetContent) -> Result<Vc<Self>> {
         match asset_content {
             AssetContent::File(file_vc) => {
-                let hash = file_vc
+                let hash = turbo_tasks::read!(file_vc
                     .content_hash(no_hash_salt(), HashAlgorithm::Xxh3Hash128Base38)
-                    .owned()
-                    .await?
+                    .owned())?
                     .context("file not found")?;
                 Ok(Self::cell(FileHashVersion { hash }))
             }
             AssetContent::Redirect { .. } => bail!("not a file"),
         }
+    }
     }
 }
 
@@ -274,14 +275,22 @@ impl VersionState {
 }
 
 impl VersionState {
+    #[cfg(not(feature = "sync"))]
     pub async fn new(version: TraitRef<Box<dyn Version>>) -> Result<Vc<Self>> {
         Ok(Self::cell(VersionState {
             version: State::new(VersionRef(version)),
         }))
     }
 
+    #[cfg(feature = "sync")]
+    pub fn new(version: TraitRef<Box<dyn Version>>) -> Result<Vc<Self>> {
+        Ok(Self::cell(VersionState {
+            version: State::new(VersionRef(version)),
+        }))
+    }
+
     pub async fn set(self: Vc<Self>, new_version: TraitRef<Box<dyn Version>>) -> Result<()> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         this.version.set(VersionRef(new_version));
         Ok(())
     }

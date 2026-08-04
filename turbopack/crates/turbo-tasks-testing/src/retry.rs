@@ -1,4 +1,6 @@
-use std::{future::Future, time::Duration};
+#[cfg(feature = "tokio_runtime")]
+use std::future::Future;
+use std::time::Duration;
 
 pub fn retry<A, F, R, E>(
     mut args: A,
@@ -25,6 +27,7 @@ where
     }
 }
 
+#[cfg(feature = "tokio_runtime")]
 pub async fn retry_async<A, F, Fut, R, E>(
     mut args: A,
     f: F,

@@ -29,9 +29,10 @@ impl ModuleReference for PackageJsonReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
-            RawModule::new(Vc::upcast(FileSource::new(self.package_json.clone())))
-                .to_resolved()
-                .await?,
+            turbo_tasks::read!(
+                RawModule::new(Vc::upcast(FileSource::new(self.package_json.clone())))
+                    .to_resolved()
+            )?,
         )))
     }
 

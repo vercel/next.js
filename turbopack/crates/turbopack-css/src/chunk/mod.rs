@@ -5,7 +5,9 @@ use std::fmt::Write;
 
 use anyhow::{Result, bail};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, ValueDefault, ValueToString, Vc};
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::TryJoinIterExt;
+use turbo_tasks::{FxIndexSet, ResolvedVc, ValueDefault, ValueToString, Vc};
 use turbo_tasks_fs::{
     File, FileContent, FileSystem, FileSystemPath,
     rope::{Rope, RopeBuilder},
@@ -67,56 +69,56 @@ impl CssChunk {
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         use std::io::Write;
 
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
 
-        let source_maps = *this
-            .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
-            .await?;
+        let source_maps = *turbo_tasks::read!(
+            this.chunking_context
+                .reference_chunk_source_maps(Vc::upcast(self))
+        )?;
 
         // CSS chunks never have debug IDs
         let mut code = CodeBuilder::new(source_maps, false);
         let mut body = CodeBuilder::new(source_maps, false);
         let mut external_imports = FxIndexSet::default();
-        for css_item in &this.content.await?.chunk_items {
-            let content = &css_item.content().await?;
+        for css_item in &turbo_tasks::read!(this.content)?.chunk_items {
+            let content = &turbo_tasks::read!(css_item.content())?;
             for import in &content.imports {
                 if let CssImport::External(external_import) = import {
-                    external_imports.insert((*external_import.await?).to_string());
+                    external_imports.insert((*turbo_tasks::read!(external_import)?).to_string());
                 }
             }
 
             if matches!(
-                &*this.chunking_context.minify_type().await?,
+                &*turbo_tasks::read!(this.chunking_context.minify_type())?,
                 MinifyType::NoMinify
             ) {
-                let id = css_item.asset_ident().to_string().await?;
+                let id = turbo_tasks::read!(css_item.asset_ident().to_string())?;
                 writeln!(body, "/* {id} */")?;
             }
 
-            let close = write_import_context(&mut body, content.import_context).await?;
+            let close =
+                turbo_tasks::read!(write_import_context(&mut body, content.import_context))?;
 
             let chunking_context = self.chunking_context();
-            let source_map = content.source_map.await?;
+            let source_map = turbo_tasks::read!(content.source_map)?;
             let source_map = source_map.as_content().map(|f| f.content());
-            let source_map = match *chunking_context.source_map_source_type().await? {
+            let source_map = match *turbo_tasks::read!(chunking_context.source_map_source_type())? {
                 SourceMapSourceType::AbsoluteFileUri => {
-                    absolute_fileify_source_map(
+                    turbo_tasks::read!(absolute_fileify_source_map(
                         source_map,
-                        chunking_context.root_path().owned().await?,
-                    )
-                    .await?
+                        turbo_tasks::read!(chunking_context.root_path().owned())?,
+                    ))?
                 }
                 SourceMapSourceType::RelativeUri => {
-                    relative_fileify_source_map(
+                    turbo_tasks::read!(relative_fileify_source_map(
                         source_map,
-                        chunking_context.root_path().owned().await?,
-                        chunking_context
-                            .relative_path_from_chunk_root_to_project_root()
-                            .owned()
-                            .await?,
-                    )
-                    .await?
+                        turbo_tasks::read!(chunking_context.root_path().owned())?,
+                        turbo_tasks::read!(
+                            chunking_context
+                                .relative_path_from_chunk_root_to_project_root()
+                                .owned()
+                        )?,
+                    ))?
                 }
                 SourceMapSourceType::TurbopackUri => source_map.cloned(),
             };
@@ -142,13 +144,13 @@ impl CssChunk {
 
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
-        let code = self.code().await?;
+        let code = turbo_tasks::read!(self.code())?;
 
         let rope = if code.has_source_map() {
             use std::io::Write;
             let mut rope_builder = RopeBuilder::default();
             rope_builder.concat(code.source_code());
-            let source_map_path = CssChunkSourceMapAsset::new(self).path().await?;
+            let source_map_path = turbo_tasks::read!(CssChunkSourceMapAsset::new(self).path())?;
             write!(
                 rope_builder,
                 "/*# sourceMappingURL={}*/",
@@ -166,9 +168,9 @@ impl CssChunk {
 
     #[turbo_tasks::function]
     async fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
-        let CssChunkContent { chunk_items, .. } = &*self.content.await?;
+        let CssChunkContent { chunk_items, .. } = &*turbo_tasks::read!(self.content)?;
         let mut common_path = if let Some(chunk_item) = chunk_items.first() {
-            let path = chunk_item.asset_ident().await?.path.clone();
+            let path = turbo_tasks::read!(chunk_item.asset_ident())?.path.clone();
             Some(path)
         } else {
             None
@@ -178,7 +180,7 @@ impl CssChunk {
         // uniquely
         for &chunk_item in chunk_items.iter() {
             if let Some(common_path_ref) = common_path.as_mut() {
-                let path = &chunk_item.asset_ident().await?.path;
+                let path = &turbo_tasks::read!(chunk_item.asset_ident())?.path;
                 while !path.is_inside_or_equal_ref(common_path_ref) {
                     let parent = common_path_ref.parent();
                     if parent == *common_path_ref {
@@ -189,21 +191,35 @@ impl CssChunk {
                 }
             }
         }
+        // `.to_resolved()` futures cannot fan out through the sync `parallel!`; keep
+        // the async build concurrent and resolve sequentially under `sync`.
+        #[cfg(not(feature = "sync"))]
         let assets = chunk_items
             .iter()
             .map(|chunk_item| async move {
                 Ok((
                     rcstr!("chunk item"),
-                    chunk_item.content_ident().to_resolved().await?,
+                    turbo_tasks::read!(chunk_item.content_ident().to_resolved())?,
                 ))
             })
             .try_join()
             .await?;
+        #[cfg(feature = "sync")]
+        let assets = {
+            let mut assets = Vec::with_capacity(chunk_items.len());
+            for chunk_item in chunk_items.iter() {
+                assets.push((
+                    rcstr!("chunk item"),
+                    turbo_tasks::read!(chunk_item.content_ident().to_resolved())?,
+                ));
+            }
+            assets
+        };
 
         let path = if let Some(common_path) = common_path {
             common_path
         } else {
-            ServerFileSystem::new().root().owned().await?
+            turbo_tasks::read!(ServerFileSystem::new().root().owned())?
         };
         let mut ident = AssetIdent::from_path(path);
         ident.assets.extend(assets);
@@ -212,13 +228,14 @@ impl CssChunk {
     }
 }
 
-pub async fn write_import_context(
+turbo_tasks::dual_fn! {
+pub fn write_import_context(
     body: &mut impl std::io::Write,
     import_context: Option<ResolvedVc<ImportContext>>,
 ) -> Result<String> {
     let mut close = String::new();
     if let Some(import_context) = import_context {
-        let import_context = &*import_context.await?;
+        let import_context = &*turbo_tasks::read!(import_context)?;
         if !&import_context.layers.is_empty() {
             writeln!(body, "@layer {} {{", import_context.layers.join("."))?;
             close.push_str("\n}");
@@ -238,6 +255,7 @@ pub async fn write_import_context(
     }
     Ok(close)
 }
+}
 
 #[turbo_tasks::value]
 pub struct CssChunkContent {
@@ -248,44 +266,66 @@ pub struct CssChunkContent {
 impl OutputAssetsReference for CssChunk {
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
-        let this = self.await?;
-        let content = this.content.await?;
+        let this = turbo_tasks::read!(self)?;
+        let content = turbo_tasks::read!(this.content)?;
         let should_generate_single_item_chunks = content.chunk_items.len() > 1
-            && *this
-                .chunking_context
-                .is_dynamic_chunk_content_loading_enabled()
-                .await?;
+            && *turbo_tasks::read!(
+                this.chunking_context
+                    .is_dynamic_chunk_content_loading_enabled()
+            )?;
+        // The sync `parallel!` only fans out plain `Vc` reads, so the multi-step
+        // per-item work stays concurrent in the async build and runs sequentially
+        // under `sync`.
+        #[cfg(not(feature = "sync"))]
         let references = content
             .chunk_items
             .iter()
             .map(|item| async {
-                let refs = item.references().await?;
+                let refs = turbo_tasks::read!(item.references())?;
                 let single_css_chunk = if should_generate_single_item_chunks {
-                    Some(ResolvedVc::upcast(
-                        SingleItemCssChunk::new(*this.chunking_context, **item)
-                            .to_resolved()
-                            .await?,
-                    ))
+                    Some(ResolvedVc::upcast(turbo_tasks::read!(
+                        SingleItemCssChunk::new(*this.chunking_context, **item).to_resolved()
+                    )?))
                 } else {
                     None
                 };
                 Ok((
-                    refs.assets.await?,
+                    turbo_tasks::read!(refs.assets)?,
                     single_css_chunk,
-                    refs.referenced_assets.await?,
-                    refs.references.await?,
+                    turbo_tasks::read!(refs.referenced_assets)?,
+                    turbo_tasks::read!(refs.references)?,
                 ))
             })
             .try_join()
             .await?;
-        let source_map = if *this
-            .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
-            .await?
-        {
-            Some(ResolvedVc::upcast(
-                CssChunkSourceMapAsset::new(self).to_resolved().await?,
-            ))
+        #[cfg(feature = "sync")]
+        let references = {
+            let mut references = Vec::with_capacity(content.chunk_items.len());
+            for item in content.chunk_items.iter() {
+                let refs = turbo_tasks::read!(item.references())?;
+                let single_css_chunk = if should_generate_single_item_chunks {
+                    Some(ResolvedVc::upcast(turbo_tasks::read!(
+                        SingleItemCssChunk::new(*this.chunking_context, **item).to_resolved()
+                    )?))
+                } else {
+                    None
+                };
+                references.push((
+                    turbo_tasks::read!(refs.assets)?,
+                    single_css_chunk,
+                    turbo_tasks::read!(refs.referenced_assets)?,
+                    turbo_tasks::read!(refs.references)?,
+                ));
+            }
+            references
+        };
+        let source_map = if *turbo_tasks::read!(
+            this.chunking_context
+                .reference_chunk_source_maps(Vc::upcast(self))
+        )? {
+            Some(ResolvedVc::upcast(turbo_tasks::read!(
+                CssChunkSourceMapAsset::new(self).to_resolved()
+            )?))
         } else {
             None
         };
@@ -324,7 +364,7 @@ impl OutputAssetsReference for CssChunk {
 impl Chunk for CssChunk {
     #[turbo_tasks::function]
     async fn ident(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
-        Ok(AssetIdent::from_path(self.path().owned().await?).into_vc())
+        Ok(AssetIdent::from_path(turbo_tasks::read!(self.path().owned())?).into_vc())
     }
 
     #[turbo_tasks::function]
@@ -337,57 +377,86 @@ impl Chunk for CssChunk {
 impl OutputChunk for CssChunk {
     #[turbo_tasks::function]
     async fn runtime_info(&self) -> Result<Vc<OutputChunkRuntimeInfo>> {
-        if !*self
-            .chunking_context
-            .is_dynamic_chunk_content_loading_enabled()
-            .await?
-        {
+        if !*turbo_tasks::read!(
+            self.chunking_context
+                .is_dynamic_chunk_content_loading_enabled()
+        )? {
             return Ok(OutputChunkRuntimeInfo::empty());
         }
 
-        let content = self.content.await?;
+        let content = turbo_tasks::read!(self.content)?;
         let entries_chunk_items = &content.chunk_items;
+        // The sync `parallel!` only fans out plain `Vc` reads, so the dual
+        // `ChunkItemExt::id` helper and `.to_resolved()` futures stay concurrent in
+        // the async build and run sequentially under `sync`.
+        #[cfg(not(feature = "sync"))]
         let included_ids = entries_chunk_items
             .iter()
             .map(|chunk_item| chunk_item.id())
             .try_join()
             .await?;
-        let imports_chunk_items: Vec<_> = entries_chunk_items
-            .iter()
-            .map(|&css_item| async move {
-                Ok(css_item
-                    .content()
-                    .await?
-                    .imports
-                    .iter()
-                    .filter_map(|import| {
-                        if let CssImport::Internal(_, item) = import {
-                            Some(*item)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect::<Vec<_>>())
-            })
-            .try_join()
-            .await?
-            .into_iter()
-            .flatten()
-            .collect();
-        let module_chunks = if content.chunk_items.len() > 1 {
-            content
-                .chunk_items
+        #[cfg(feature = "sync")]
+        let included_ids = {
+            let mut ids = Vec::with_capacity(entries_chunk_items.len());
+            for chunk_item in entries_chunk_items.iter() {
+                ids.push(turbo_tasks::read!(chunk_item.id())?);
+            }
+            ids
+        };
+        // Per-item `content()` reads are plain `Vc` reads, so this fan-out stays
+        // parallel in both modes.
+        let imports_chunk_items: Vec<_> = turbo_tasks::parallel!(
+            entries_chunk_items
                 .iter()
-                .chain(imports_chunk_items.iter())
-                .map(|item| {
-                    Vc::upcast::<Box<dyn OutputAsset>>(SingleItemCssChunk::new(
-                        *self.chunking_context,
-                        **item,
-                    ))
-                    .to_resolved()
+                .map(|&css_item| css_item.content())
+        )?
+        .into_iter()
+        .flat_map(|content| {
+            content
+                .imports
+                .iter()
+                .filter_map(|import| {
+                    if let CssImport::Internal(_, item) = import {
+                        Some(*item)
+                    } else {
+                        None
+                    }
                 })
-                .try_join()
-                .await?
+                .collect::<Vec<_>>()
+        })
+        .collect();
+        let module_chunks = if content.chunk_items.len() > 1 {
+            #[cfg(not(feature = "sync"))]
+            {
+                content
+                    .chunk_items
+                    .iter()
+                    .chain(imports_chunk_items.iter())
+                    .map(|item| {
+                        Vc::upcast::<Box<dyn OutputAsset>>(SingleItemCssChunk::new(
+                            *self.chunking_context,
+                            **item,
+                        ))
+                        .to_resolved()
+                    })
+                    .try_join()
+                    .await?
+            }
+            #[cfg(feature = "sync")]
+            {
+                let mut module_chunks =
+                    Vec::with_capacity(content.chunk_items.len() + imports_chunk_items.len());
+                for item in content.chunk_items.iter().chain(imports_chunk_items.iter()) {
+                    module_chunks.push(turbo_tasks::read!(
+                        Vc::upcast::<Box<dyn OutputAsset>>(SingleItemCssChunk::new(
+                            *self.chunking_context,
+                            **item,
+                        ))
+                        .to_resolved()
+                    )?);
+                }
+                module_chunks
+            }
         } else {
             Vec::new()
         };
@@ -406,7 +475,7 @@ impl OutputAsset for CssChunk {
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let ident = self.ident_for_path();
 
-        Ok(self.await?.chunking_context.chunk_path(
+        Ok(turbo_tasks::read!(self)?.chunking_context.chunk_path(
             Some(Vc::upcast(self)),
             ident,
             None,
@@ -477,39 +546,52 @@ impl Introspectable for CssChunk {
     async fn details(self: Vc<Self>) -> Result<Vc<RcStr>> {
         let content = content_to_details(self.content());
         let mut details = String::new();
-        let this = self.await?;
-        let chunk_content = this.content.await?;
+        let this = turbo_tasks::read!(self)?;
+        let chunk_content = turbo_tasks::read!(this.content)?;
         details += "Chunk items:\n\n";
         for item in chunk_content.chunk_items.iter() {
-            writeln!(details, "- {}", item.asset_ident().to_string().await?)?;
+            writeln!(
+                details,
+                "- {}",
+                turbo_tasks::read!(item.asset_ident().to_string())?
+            )?;
         }
         details += "\nContent:\n\n";
-        write!(details, "{}", content.await?)?;
+        write!(details, "{}", turbo_tasks::read!(content)?)?;
         Ok(Vc::cell(details.into()))
     }
 
     #[turbo_tasks::function]
     async fn children(self: Vc<Self>) -> Result<Vc<IntrospectableChildren>> {
-        let mut children = children_from_output_assets(OutputAssetsReference::references(self))
-            .owned()
-            .await?;
+        let mut children = turbo_tasks::read!(
+            children_from_output_assets(OutputAssetsReference::references(self)).owned()
+        )?;
+        let chunk_content = turbo_tasks::read!(turbo_tasks::read!(self)?.content)?;
+        // `.to_resolved()` futures cannot fan out through the sync `parallel!`; keep
+        // the async build concurrent and resolve sequentially under `sync`.
+        #[cfg(not(feature = "sync"))]
         children.extend(
-            self.await?
-                .content
-                .await?
+            chunk_content
                 .chunk_items
                 .iter()
                 .map(|chunk_item| async move {
                     Ok((
                         rcstr!("entry module"),
-                        IntrospectableModule::new(chunk_item.module())
-                            .to_resolved()
-                            .await?,
+                        turbo_tasks::read!(
+                            IntrospectableModule::new(chunk_item.module()).to_resolved()
+                        )?,
                     ))
                 })
                 .try_join()
                 .await?,
         );
+        #[cfg(feature = "sync")]
+        for chunk_item in chunk_content.chunk_items.iter() {
+            children.insert((
+                rcstr!("entry module"),
+                turbo_tasks::read!(IntrospectableModule::new(chunk_item.module()).to_resolved())?,
+            ));
+        }
         Ok(Vc::cell(children))
     }
 }
@@ -541,25 +623,23 @@ impl ChunkType for CssChunkType {
                     chunk_items.push(chunk_item);
                 }
                 ChunkItemOrBatchWithAsyncModuleInfo::Batch(batch) => {
-                    let batch = batch.await?;
+                    let batch = turbo_tasks::read!(batch)?;
                     chunk_items.extend(batch.chunk_items.iter().cloned());
                 }
             }
         }
+        // The per-item body never awaits — a plain loop works in both modes.
+        let mut css_chunk_items = Vec::with_capacity(chunk_items.len());
+        for ChunkItemWithAsyncModuleInfo { chunk_item, .. } in chunk_items.iter() {
+            let Some(chunk_item) = ResolvedVc::try_downcast::<Box<dyn CssChunkItem>>(*chunk_item)
+            else {
+                bail!("Chunk item is not an css chunk item but reporting chunk type css");
+            };
+            // CSS doesn't need to care about async_info, so we can discard it
+            css_chunk_items.push(chunk_item);
+        }
         let content = CssChunkContent {
-            chunk_items: chunk_items
-                .iter()
-                .map(async |ChunkItemWithAsyncModuleInfo { chunk_item, .. }| {
-                    let Some(chunk_item) =
-                        ResolvedVc::try_downcast::<Box<dyn CssChunkItem>>(*chunk_item)
-                    else {
-                        bail!("Chunk item is not an css chunk item but reporting chunk type css");
-                    };
-                    // CSS doesn't need to care about async_info, so we can discard it
-                    Ok(chunk_item)
-                })
-                .try_join()
-                .await?,
+            chunk_items: css_chunk_items,
         }
         .cell();
         Ok(Vc::upcast(CssChunk::new(*chunking_context, content)))
@@ -575,9 +655,10 @@ impl ChunkType for CssChunkType {
         let Some(chunk_item) = ResolvedVc::try_downcast::<Box<dyn CssChunkItem>>(chunk_item) else {
             bail!("Chunk item is not an css chunk item but reporting chunk type css");
         };
-        Ok(Vc::cell(chunk_item.content().await.map_or(0, |content| {
-            round_chunk_item_size(content.inner_code.len())
-        })))
+        Ok(Vc::cell(
+            turbo_tasks::read!(chunk_item.content())
+                .map_or(0, |content| round_chunk_item_size(content.inner_code.len())),
+        ))
     }
 }
 

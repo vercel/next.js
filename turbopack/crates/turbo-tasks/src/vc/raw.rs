@@ -413,6 +413,7 @@ impl RawVc {
 
     /// Convert a potentially local `RawVc` into a non-local `RawVc`. This is a subset of resolution
     /// resolution, because the returned `RawVc` can be a `TaskOutput`.
+    #[cfg(not(feature = "sync"))]
     pub async fn to_non_local(self) -> Result<RawVc> {
         let Some((execution_id, local_task_id, ..)) = self.as_local_output() else {
             return Ok(self);
@@ -424,6 +425,16 @@ impl RawVc {
             "a LocalOutput cannot point at other LocalOutputs"
         );
         Ok(local_output)
+    }
+
+    /// Convert a potentially local `RawVc` into a non-local `RawVc`. This is a subset of resolution
+    /// resolution, because the returned `RawVc` can be a `TaskOutput`.
+    ///
+    /// Sync engine: local outputs are computed inline, so they are always ready.
+    #[cfg(feature = "sync")]
+    pub fn to_non_local(self) -> Result<RawVc> {
+        let tt = turbo_tasks();
+        self.to_non_local_unchecked_sync(&*tt)
     }
 
     /// Convert a potentially local `RawVc` into a non-local `RawVc`. This is a subset of resolution
@@ -661,6 +672,99 @@ impl Future for ResolveRawVcFuture {
 
 impl Unpin for ResolveRawVcFuture {}
 
+#[cfg(feature = "sync")]
+impl ResolveRawVcFuture {
+    /// Synchronous counterpart of [`ResolveRawVcFuture::poll`], for the no-async
+    /// sync engine: resolves the `RawVc` pointer chain to a `TaskCell` with no
+    /// future/poll/waker. `try_read_task_output`/`try_read_local_output` already
+    /// compute inline (or `managed_block` on a producer) internally under sync and
+    /// return `Ok(Ok(_))`, so there is nothing to wait on here — it is a plain loop.
+    pub(crate) fn resolve_sync(mut self) -> Result<RawVc> {
+        suppress_top_level_task_check(self.strongly_consistent, || {
+            with_turbo_tasks(|tt| {
+                loop {
+                    match self.current.unpack() {
+                        RawVcUnpacked::TaskOutput(task) => {
+                            match tt.try_read_task_output(task, self.read_output_options)? {
+                                Ok(vc) => {
+                                    self.read_output_options.consistency =
+                                        ReadConsistency::Eventual;
+                                    self.current = vc;
+                                }
+                                Err(_listener) => unreachable!(
+                                    "sync turbo-tasks resolves inline; try_read_task_output never \
+                                     returns an EventListener outside of a probe read"
+                                ),
+                            }
+                        }
+                        RawVcUnpacked::TaskCell(_, _) => return Ok(self.current),
+                        RawVcUnpacked::LocalOutput(execution_id, local_task_id, ..) => {
+                            match tt.try_read_local_output(execution_id, local_task_id)? {
+                                Ok(vc) => self.current = vc,
+                                Err(_listener) => unreachable!(
+                                    "sync turbo-tasks resolves inline; try_read_local_output \
+                                     never returns an EventListener outside of a probe read"
+                                ),
+                            }
+                        }
+                    }
+                }
+            })
+        })
+    }
+
+    /// Probe variant of [`resolve_sync`](Self::resolve_sync): resolves the pointer
+    /// chain but, on the first task that is not yet computed, returns
+    /// [`SyncProbe::Miss`] with that task id INSTEAD of computing it — so
+    /// [`sync_parallel_read`](crate::sync_parallel_read) can dispatch the missing
+    /// tasks to the worker pool. No future/poll: setting `SYNC_PROBE` makes the
+    /// backend read report a miss rather than compute inline.
+    pub(crate) fn resolve_probe_sync(mut self) -> Result<SyncProbe<RawVc>> {
+        suppress_top_level_task_check(self.strongly_consistent, || {
+            with_turbo_tasks(|tt| {
+                crate::manager::with_sync_probe(|| {
+                    loop {
+                        match self.current.unpack() {
+                            RawVcUnpacked::TaskOutput(task) => {
+                                match tt.try_read_task_output(task, self.read_output_options)? {
+                                    Ok(vc) => {
+                                        self.read_output_options.consistency =
+                                            ReadConsistency::Eventual;
+                                        self.current = vc;
+                                    }
+                                    Err(_listener) => return Ok(SyncProbe::Miss(task)),
+                                }
+                            }
+                            RawVcUnpacked::TaskCell(_, _) => {
+                                return Ok(SyncProbe::Hit(self.current));
+                            }
+                            RawVcUnpacked::LocalOutput(execution_id, local_task_id, ..) => {
+                                match tt.try_read_local_output(execution_id, local_task_id)? {
+                                    Ok(vc) => self.current = vc,
+                                    Err(_listener) => unreachable!(
+                                        "local outputs are computed inline and are ready during a \
+                                         probe"
+                                    ),
+                                }
+                            }
+                        }
+                    }
+                })
+            })
+        })
+    }
+}
+
+/// Result of a synchronous probe read (see [`ResolveRawVcFuture::resolve_probe_sync`]):
+/// either the value was cached (`Hit`, carrying the already-read value so the caller
+/// need not read it again) or the read missed on a not-yet-computed task whose id is
+/// returned (`Miss`), so the caller can compute it on the worker pool.
+#[cfg(feature = "sync")]
+pub enum SyncProbe<T> {
+    Hit(T),
+    Miss(crate::TaskId),
+}
+
 #[must_use]
 pub struct ReadRawVcFuture {
     read_cell_options: ReadCellOptions,
@@ -798,6 +902,64 @@ impl Future for ReadRawVcFuture {
 }
 
 impl Unpin for ReadRawVcFuture {}
+
+#[cfg(feature = "sync")]
+impl ReadRawVcFuture {
+    /// Synchronous counterpart of [`ReadRawVcFuture::poll`], for the no-async sync
+    /// engine: resolve the chain, then read the cell — directly, no future/poll.
+    /// `try_read_task_cell` computes inline (or `managed_block`s) internally under
+    /// sync and returns `Ok(Ok(_))`; the listener branch is a probe-only path.
+    pub(crate) fn read_sync(self) -> Result<TypedCellContent> {
+        let ReadRawVcState::Resolving(resolve) = self.state else {
+            unreachable!("read_sync is only called on a fresh future, so state is Resolving");
+        };
+        let strongly_consistent = resolve.strongly_consistent;
+        let resolved = resolve.resolve_sync()?;
+        let Some((task, index)) = resolved.as_task_cell() else {
+            unreachable!("ResolveRawVcFuture always resolves to a TaskCell");
+        };
+        let read_cell_options = self.read_cell_options;
+        suppress_top_level_task_check(strongly_consistent, || {
+            with_turbo_tasks(
+                |tt| match tt.try_read_task_cell(task, index, read_cell_options)? {
+                    Ok(content) => Ok(content),
+                    Err(_listener) => unreachable!(
+                        "sync turbo-tasks reads inline; try_read_task_cell never returns an \
+                         EventListener outside of a probe read"
+                    ),
+                },
+            )
+        })
+    }
+
+    /// Probe variant of [`read_sync`](Self::read_sync): resolve + read the cell, but
+    /// return [`SyncProbe::Miss`] on the first not-yet-computed task instead of
+    /// computing it inline. No future/poll.
+    pub(crate) fn read_probe_sync(self) -> Result<SyncProbe<TypedCellContent>> {
+        let ReadRawVcState::Resolving(resolve) = self.state else {
+            unreachable!("read_probe_sync is only called on a fresh future, so state is Resolving");
+        };
+        let strongly_consistent = resolve.strongly_consistent;
+        let resolved = match resolve.resolve_probe_sync()? {
+            SyncProbe::Hit(resolved) => resolved,
+            SyncProbe::Miss(task) => return Ok(SyncProbe::Miss(task)),
+        };
+        let Some((task, index)) = resolved.as_task_cell() else {
+            unreachable!("ResolveRawVcFuture always resolves to a TaskCell");
+        };
+        let read_cell_options = self.read_cell_options;
+        suppress_top_level_task_check(strongly_consistent, || {
+            with_turbo_tasks(|tt| {
+                crate::manager::with_sync_probe(|| {
+                    match tt.try_read_task_cell(task, index, read_cell_options)? {
+                        Ok(content) => Ok(SyncProbe::Hit(content)),
+                        Err(_listener) => Ok(SyncProbe::Miss(task)),
+                    }
+                })
+            })
+        })
+    }
+}
 
 #[cfg(test)]
 mod tests {

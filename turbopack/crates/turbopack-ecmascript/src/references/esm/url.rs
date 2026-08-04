@@ -79,10 +79,12 @@ impl UrlAssetReference {
         }
     }
 
-    pub(crate) fn get_referenced_asset(
-        self: Vc<Self>,
-    ) -> impl Future<Output = Result<ReferencedAsset>> {
-        ReferencedAsset::from_resolve_result(self.resolve_reference())
+    turbo_tasks::dual_fn! {
+        pub(crate) fn get_referenced_asset(self: Vc<Self>) -> Result<ReferencedAsset> {
+            turbo_tasks::read!(ReferencedAsset::from_resolve_result(
+                self.resolve_reference()
+            ))
+        }
     }
 }
 
@@ -133,12 +135,12 @@ pub struct UrlAssetReferenceCodeGen {
 }
 
 impl UrlAssetReferenceCodeGen {
-    /// Rewrites call to the `new URL()` ctor depends on the current
-    /// conditions. Generated code will point to the output path of the asset,
-    /// as similar to the webpack's behavior. This is based on the
-    /// configuration (UrlRewriteBehavior), and the current context
-    /// (rendering), lastly the asset's condition (if it's referenced /
-    /// external). The following table shows the behavior:
+    // Rewrites call to the `new URL()` ctor depends on the current
+    // conditions. Generated code will point to the output path of the asset,
+    // as similar to the webpack's behavior. This is based on the
+    // configuration (UrlRewriteBehavior), and the current context
+    // (rendering), lastly the asset's condition (if it's referenced /
+    // external). The following table shows the behavior:
     /*
      * original call: `new URL(url, base);`
     ┌───────────────────────────────┬─────────────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────┬───────────────────────┐
@@ -150,17 +152,18 @@ impl UrlAssetReferenceCodeGen {
     │ None                          │ new URL(url, base)                                                      │ new URL(url, base)                             │ new URL(url, base)    │
     └───────────────────────────────┴─────────────────────────────────────────────────────────────────────────┴────────────────────────────────────────────────┴───────────────────────┘
     */
-    pub async fn code_generation(
+    turbo_tasks::dual_fn! {
+    pub fn code_generation(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let mut visitors = vec![];
 
-        let reference = self.reference.await?;
+        let reference = turbo_tasks::read!(self.reference)?;
 
         match reference.url_rewrite_behavior {
             UrlRewriteBehavior::Relative => {
-                let referenced_asset = self.reference.get_referenced_asset().await?;
+                let referenced_asset = turbo_tasks::read!(self.reference.get_referenced_asset())?;
 
                 // if the referenced url is in the module graph of turbopack, replace it into
                 // the chunk item will be emitted into output path to point the
@@ -172,7 +175,7 @@ impl UrlAssetReferenceCodeGen {
                     ReferencedAsset::Some(asset) => {
                         // We rewrite the first `new URL()` arguments to be a require() of the chunk
                         // item, which exports the static asset path to the linked file.
-                        let id = asset.chunk_item_id(chunking_context).await?;
+                        let id = turbo_tasks::read!(asset.chunk_item_id(chunking_context))?;
 
                         visitors.push(create_visitor!(self.path, visit_mut_expr, |new_expr: &mut Expr| {
                             let should_rewrite_to_relative = if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
@@ -220,7 +223,7 @@ impl UrlAssetReferenceCodeGen {
                 }
             }
             UrlRewriteBehavior::Full => {
-                let referenced_asset = self.reference.get_referenced_asset().await?;
+                let referenced_asset = turbo_tasks::read!(self.reference.get_referenced_asset())?;
 
                 // For rendering environments (CSR), we rewrite the `import.meta.url` to
                 // be a location.origin because it allows us to access files from the root of
@@ -237,7 +240,7 @@ impl UrlAssetReferenceCodeGen {
                     ReferencedAsset::Some(asset) => {
                         // We rewrite the first `new URL()` arguments to be a require() of the
                         // chunk item, which returns the asset path as its exports.
-                        let id = asset.chunk_item_id(chunking_context).await?;
+                        let id = turbo_tasks::read!(asset.chunk_item_id(chunking_context))?;
 
                         // If there's a rewrite to the base url, then the current rendering
                         // environment should able to resolve the asset path
@@ -342,5 +345,6 @@ impl UrlAssetReferenceCodeGen {
         };
 
         Ok(CodeGeneration::visitors(visitors))
+    }
     }
 }

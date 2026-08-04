@@ -22,8 +22,9 @@ pub enum ActionsTransform {
     Server,
 }
 
+turbo_tasks::dual_fn! {
 /// Returns a rule which applies the Next.js Server Actions transform.
-pub async fn get_server_actions_transform_rule(
+pub fn get_server_actions_transform_rule(
     mode: Vc<NextMode>,
     transform: ActionsTransform,
     encryption_key: ResolvedVc<RcStr>,
@@ -31,20 +32,21 @@ pub async fn get_server_actions_transform_rule(
     use_cache_enabled: bool,
     cache_kinds: ResolvedVc<CacheKinds>,
 ) -> Result<ModuleRule> {
-    let transformer = next_server_actions_transform_plugin(
+    let transformer = turbo_tasks::read!(next_server_actions_transform_plugin(
         mode,
         transform,
         *encryption_key,
         use_cache_enabled,
         *cache_kinds,
     )
-    .to_resolved()
-    .await?;
+    .to_resolved())
+    ?;
     Ok(get_ecma_transform_rule(
         transformer,
         enable_mdx_rs,
         EcmascriptTransformStage::Preprocess,
     ))
+}
 }
 
 #[turbo_tasks::function]
@@ -56,7 +58,7 @@ async fn next_server_actions_transform_plugin(
     cache_kinds: ResolvedVc<CacheKinds>,
 ) -> Result<Vc<TransformPlugin>> {
     Ok(Vc::cell(Box::new(NextServerActions {
-        mode: *mode.await?,
+        mode: *turbo_tasks::read!(mode)?,
         is_react_server_layer: matches!(transform, ActionsTransform::Server),
         encryption_key,
         use_cache_enabled,
@@ -73,6 +75,7 @@ struct NextServerActions {
     mode: NextMode,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 impl CustomTransformer for NextServerActions {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "server_actions", skip_all)]
@@ -84,8 +87,33 @@ impl CustomTransformer for NextServerActions {
                 is_react_server_layer: self.is_react_server_layer,
                 is_development: self.mode.is_development(),
                 use_cache_enabled: self.use_cache_enabled,
-                hash_salt: self.encryption_key.await?.to_string(),
-                cache_kinds: self.cache_kinds.owned().await?,
+                hash_salt: turbo_tasks::read!(self.encryption_key)?.to_string(),
+                cache_kinds: turbo_tasks::read!(self.cache_kinds.owned())?,
+            },
+            ctx.comments.clone(),
+            ctx.unresolved_mark,
+            ctx.source_map.clone(),
+            Default::default(),
+            ServerActionsMode::Turbopack,
+        );
+        program.mutate(actions);
+        Ok(())
+    }
+}
+
+#[cfg(feature = "sync")]
+impl CustomTransformer for NextServerActions {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "server_actions", skip_all)]
+    fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+        let actions = server_actions(
+            &FileName::Real(ctx.file_path_str.into()),
+            Some(ctx.query_str.clone()),
+            Config {
+                is_react_server_layer: self.is_react_server_layer,
+                is_development: self.mode.is_development(),
+                use_cache_enabled: self.use_cache_enabled,
+                hash_salt: turbo_tasks::read!(self.encryption_key)?.to_string(),
+                cache_kinds: turbo_tasks::read!(self.cache_kinds.owned())?,
             },
             ctx.comments.clone(),
             ctx.unresolved_mark,

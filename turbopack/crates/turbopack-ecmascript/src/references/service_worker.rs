@@ -50,11 +50,7 @@ pub struct ServiceWorkerEntryModule {
 impl Module for ServiceWorkerEntryModule {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self
-            .inner
-            .ident()
-            .owned()
-            .await?
+        Ok(turbo_tasks::read!(self.inner.ident().owned())?
             .with_modifier(format!("service worker entry [{}]", self.scope).into())
             .into_vc())
     }

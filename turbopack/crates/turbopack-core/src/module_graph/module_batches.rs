@@ -10,11 +10,14 @@ use either::Either;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use serde::{Deserialize, Serialize};
+#[cfg(not(feature = "sync"))]
 use tracing::Instrument;
 use turbo_prehash::BuildHasherExt;
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::TryJoinIterExt;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
-    trace::TraceRawVcs, turbobail,
+    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, ValueToString, Vc, trace::TraceRawVcs,
+    turbobail,
 };
 
 use crate::{
@@ -77,16 +80,15 @@ pub struct ModuleBatchesGraph {
 }
 
 impl ModuleBatchesGraph {
-    pub async fn get_entry_index(&self, entry: ResolvedVc<Box<dyn Module>>) -> Result<NodeIndex> {
+    turbo_tasks::dual_fn! {
+    pub fn get_entry_index(&self, entry: ResolvedVc<Box<dyn Module>>) -> Result<NodeIndex> {
         let Some(entry) = self.entries.get(&entry) else {
             if cfg!(debug_assertions) {
                 let possible_entries = format!(
                     "{:#?}",
-                    self.entries
-                        .keys()
-                        .map(|e| e.ident().to_string())
-                        .try_join()
-                        .await?
+                    turbo_tasks::parallel!(
+                        self.entries.keys().map(|e| e.ident().to_string())
+                    )?
                 );
                 turbobail!(
                     "Entry {} is not in graph (possible entries: {})",
@@ -98,6 +100,7 @@ impl ModuleBatchesGraph {
             }
         };
         Ok(*entry)
+    }
     }
 
     pub fn get_ordered_entries<'l>(
@@ -129,9 +132,11 @@ impl ModuleBatchesGraph {
         self.batch_groups.get(module_or_batch).copied()
     }
 
-    pub async fn get_entry(&self, entry: ResolvedVc<Box<dyn Module>>) -> Result<ModuleOrBatch> {
-        let entry = self.get_entry_index(entry).await?;
+    turbo_tasks::dual_fn! {
+    pub fn get_entry(&self, entry: ResolvedVc<Box<dyn Module>>) -> Result<ModuleOrBatch> {
+        let entry = turbo_tasks::read!(self.get_entry_index(entry))?;
         Ok(*self.graph.node_weight(entry).unwrap())
+    }
     }
 
     // Clippy complains but there's a type error without the bound
@@ -284,7 +289,8 @@ impl PreBatches {
         })
     }
 
-    async fn get_pre_batch_items(
+    turbo_tasks::dual_fn! {
+    fn get_pre_batch_items(
         &mut self,
         entry: ResolvedVc<Box<dyn Module>>,
         module_chunk_groups: &FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>,
@@ -339,13 +345,11 @@ impl PreBatches {
         )?;
         Ok(state.items)
     }
+    }
 }
 
-pub async fn compute_module_batches(
-    module_graph: Vc<ModuleGraph>,
-    _config: &BatchingConfig,
-) -> Result<Vc<ModuleBatchesGraph>> {
-    let outer_span = tracing::info_span!(
+fn compute_module_batches_span() -> tracing::Span {
+    tracing::info_span!(
         "compute module batches",
         initial_pre_batch_items = tracing::field::Empty,
         initial_pre_batches = tracing::field::Empty,
@@ -353,569 +357,615 @@ pub async fn compute_module_batches(
         batches = tracing::field::Empty,
         modules = tracing::field::Empty,
         edges = tracing::field::Empty
-    );
+    )
+}
+
+#[cfg(not(feature = "sync"))]
+pub async fn compute_module_batches(
+    module_graph: Vc<ModuleGraph>,
+    config: &BatchingConfig,
+) -> Result<Vc<ModuleBatchesGraph>> {
+    let outer_span = compute_module_batches_span();
     let span = outer_span.clone();
-    async move {
-        let chunk_group_info = module_graph.chunk_group_info().await?;
-        let module_chunk_groups = chunk_group_info.module_chunk_groups.await?;
-        let module_graph = module_graph.await?;
+    compute_module_batches_inner(module_graph, config, &span)
+        .instrument(outer_span)
+        .await
+}
 
-        let mut pre_batches = PreBatches::new();
+#[cfg(feature = "sync")]
+pub fn compute_module_batches(
+    module_graph: Vc<ModuleGraph>,
+    config: &BatchingConfig,
+) -> Result<Vc<ModuleBatchesGraph>> {
+    let outer_span = compute_module_batches_span();
+    let span = outer_span.clone();
+    let _guard = outer_span.enter();
+    compute_module_batches_inner(module_graph, config, &span)
+}
 
-        // Walk the module graph and mark all modules that are boundary modules (referenced from a
-        // different chunk group bitmap)
-        module_graph.traverse_edges_unordered(|parent, node| {
-            if let Some((parent, ty)) = parent {
-                let std::collections::hash_set::Entry::Vacant(entry) =
-                    pre_batches.boundary_modules.entry(node)
-                else {
-                    // Already a boundary module, can skip check
-                    return Ok(());
-                };
-                if ty.chunking_type.is_parallel() {
-                    let parent_chunk_groups = module_chunk_groups
-                        .get(&parent)
-                        .context("all modules need to have chunk group info")?;
-                    let chunk_groups = module_chunk_groups
-                        .get(&node)
-                        .context("all modules need to have chunk group info")?;
-                    if parent_chunk_groups != chunk_groups {
-                        // This is a boundary module
-                        entry.insert();
-                    }
-                } else {
+turbo_tasks::dual_fn! {
+fn compute_module_batches_inner(
+    module_graph: Vc<ModuleGraph>,
+    _config: &BatchingConfig,
+    span: &tracing::Span,
+) -> Result<Vc<ModuleBatchesGraph>> {
+    let chunk_group_info = turbo_tasks::read!(module_graph.chunk_group_info())?;
+    let module_chunk_groups = turbo_tasks::read!(chunk_group_info.module_chunk_groups)?;
+    let module_graph = turbo_tasks::read!(module_graph)?;
+
+    let mut pre_batches = PreBatches::new();
+
+    // Walk the module graph and mark all modules that are boundary modules (referenced from a
+    // different chunk group bitmap)
+    module_graph.traverse_edges_unordered(|parent, node| {
+        if let Some((parent, ty)) = parent {
+            let std::collections::hash_set::Entry::Vacant(entry) =
+                pre_batches.boundary_modules.entry(node)
+            else {
+                // Already a boundary module, can skip check
+                return Ok(());
+            };
+            if ty.chunking_type.is_parallel() {
+                let parent_chunk_groups = module_chunk_groups
+                    .get(&parent)
+                    .context("all modules need to have chunk group info")?;
+                let chunk_groups = module_chunk_groups
+                    .get(&node)
+                    .context("all modules need to have chunk group info")?;
+                if parent_chunk_groups != chunk_groups {
+                    // This is a boundary module
                     entry.insert();
                 }
+            } else {
+                entry.insert();
+            }
+        }
+        Ok(())
+    })?;
+
+    // All entries are boundary modules too
+    for chunk_group in &chunk_group_info.chunk_groups {
+        for entry in chunk_group.entries() {
+            pre_batches.boundary_modules.insert(entry);
+        }
+    }
+
+    // Pre batches would be incorrect with cycles, so we need to opt-out of pre batches for
+    // cycles that include boundary modules
+    module_graph.traverse_cycles(
+        |ref_data| ref_data.chunking_type.is_parallel(),
+        |cycle| {
+            if cycle.len() > 1
+                && cycle
+                    .iter()
+                    .any(|node| pre_batches.boundary_modules.contains(node))
+            {
+                pre_batches
+                    .boundary_modules
+                    .extend(cycle.iter().map(|node| **node));
             }
             Ok(())
-        })?;
+        },
+    )?;
 
-        // All entries are boundary modules too
-        for chunk_group in &chunk_group_info.chunk_groups {
-            for entry in chunk_group.entries() {
-                pre_batches.boundary_modules.insert(entry);
-            }
+    let mut queue: VecDeque<(ResolvedVc<Box<dyn Module>>, PreBatchIndex)> = VecDeque::new();
+
+    let mut chunk_group_indices_with_merged_children = FxHashSet::default();
+
+    // Start with the entries
+    for chunk_group in &chunk_group_info.chunk_groups {
+        for entry in chunk_group.entries() {
+            pre_batches.ensure_pre_batch_for_module(entry, &module_chunk_groups, &mut queue)?;
         }
+        if let Some(parent) = chunk_group.get_merged_parent() {
+            chunk_group_indices_with_merged_children.insert(parent);
+        }
+    }
 
-        // Pre batches would be incorrect with cycles, so we need to opt-out of pre batches for
-        // cycles that include boundary modules
-        module_graph.traverse_cycles(
-            |ref_data| ref_data.chunking_type.is_parallel(),
-            |cycle| {
-                if cycle.len() > 1
-                    && cycle
-                        .iter()
-                        .any(|node| pre_batches.boundary_modules.contains(node))
-                {
-                    pre_batches
-                        .boundary_modules
-                        .extend(cycle.iter().map(|node| **node));
+    let mut initial_pre_batch_items = 0;
+    // Fill all pre batches
+    while let Some((chunkable_module, idx)) = queue.pop_front() {
+        let items = turbo_tasks::read!(pre_batches.get_pre_batch_items(
+            chunkable_module,
+            &module_chunk_groups,
+            &module_graph,
+            &mut queue,
+        ))?;
+        initial_pre_batch_items += items.len();
+        let batch = &mut pre_batches.batches[idx];
+        batch.items.extend(items);
+    }
+    span.record("initial_pre_batch_items", initial_pre_batch_items);
+    span.record("initial_pre_batches", pre_batches.batches.len());
+
+    // Figure out the order of all merged groups
+    let mut ordered_entries: Vec<Option<EntriesList>> =
+        vec![None; chunk_group_info.chunk_groups.len()];
+    for (i, chunk_group) in chunk_group_info.chunk_groups.iter().enumerate() {
+        if !chunk_group_indices_with_merged_children.contains(&i) {
+            continue;
+        }
+        let mut merged_modules: FxHashMap<ChunkingType, FxIndexSet<_>> = FxHashMap::default();
+        let mut stack = ordered_entries[i]
+            .as_ref()
+            .map_or_else(
+                || Either::Left(chunk_group.entries()),
+                |v| Either::Right(v.0.iter().copied()),
+            )
+            .map(|module| {
+                let idx = *pre_batches
+                    .entries
+                    .get(&module)
+                    .context("could not prebatch for module")?;
+                Ok((idx, 0))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        stack.reverse();
+        let mut visited = FxHashSet::default();
+        while let Some((idx, mut pos)) = stack.pop() {
+            let batch = &pre_batches.batches[idx];
+            while let Some(item) = batch.items.get_index(pos) {
+                match item {
+                    PreBatchItem::ParallelModule(_) => {}
+                    PreBatchItem::ParallelReference(other_idx) => {
+                        if visited.insert(*other_idx) {
+                            stack.push((idx, pos + 1));
+                            stack.push((*other_idx, 0));
+                            break;
+                        }
+                    }
+                    PreBatchItem::NonParallelEdge(chunking_type, module) => {
+                        if chunking_type.is_merged() {
+                            merged_modules
+                                .entry(chunking_type.clone())
+                                .or_default()
+                                .insert(*module);
+                        }
+                    }
                 }
-                Ok(())
-            },
-        )?;
-
-        let mut queue: VecDeque<(ResolvedVc<Box<dyn Module>>, PreBatchIndex)> = VecDeque::new();
-
-        let mut chunk_group_indices_with_merged_children = FxHashSet::default();
-
-        // Start with the entries
-        for chunk_group in &chunk_group_info.chunk_groups {
-            for entry in chunk_group.entries() {
-                pre_batches.ensure_pre_batch_for_module(entry, &module_chunk_groups, &mut queue)?;
-            }
-            if let Some(parent) = chunk_group.get_merged_parent() {
-                chunk_group_indices_with_merged_children.insert(parent);
+                pos += 1;
             }
         }
-
-        let mut initial_pre_batch_items = 0;
-        // Fill all pre batches
-        while let Some((chunkable_module, idx)) = queue.pop_front() {
-            let items = pre_batches
-                .get_pre_batch_items(
-                    chunkable_module,
-                    &module_chunk_groups,
-                    &module_graph,
-                    &mut queue,
-                )
-                .await?;
-            initial_pre_batch_items += items.len();
-            let batch = &mut pre_batches.batches[idx];
-            batch.items.extend(items);
-        }
-        span.record("initial_pre_batch_items", initial_pre_batch_items);
-        span.record("initial_pre_batches", pre_batches.batches.len());
-
-        // Figure out the order of all merged groups
-        let mut ordered_entries: Vec<Option<EntriesList>> =
-            vec![None; chunk_group_info.chunk_groups.len()];
-        for (i, chunk_group) in chunk_group_info.chunk_groups.iter().enumerate() {
-            if !chunk_group_indices_with_merged_children.contains(&i) {
-                continue;
+        if !merged_modules.is_empty() {
+            for (ty, merged_modules) in merged_modules {
+                let chunk_group_key = match ty {
+                    ChunkingType::Isolated {
+                        merge_tag: Some(merge_tag),
+                        ..
+                    } => ChunkGroupKey::IsolatedMerged {
+                        parent: i.into(),
+                        merge_tag: merge_tag.clone(),
+                    },
+                    ChunkingType::Shared {
+                        merge_tag: Some(merge_tag),
+                        ..
+                    } => ChunkGroupKey::SharedMerged {
+                        parent: i.into(),
+                        merge_tag: merge_tag.clone(),
+                    },
+                    _ => unreachable!(),
+                };
+                let idx = chunk_group_info
+                    .chunk_group_keys
+                    .get_index_of(&chunk_group_key)
+                    .context("could not find chunk group key for merged chunk group")?;
+                ordered_entries[idx] = Some(EntriesList(merged_modules));
             }
-            let mut merged_modules: FxHashMap<ChunkingType, FxIndexSet<_>> = FxHashMap::default();
-            let mut stack = ordered_entries[i]
-                .as_ref()
-                .map_or_else(
-                    || Either::Left(chunk_group.entries()),
-                    |v| Either::Right(v.0.iter().copied()),
-                )
-                .map(|module| {
-                    let idx = *pre_batches
-                        .entries
-                        .get(&module)
-                        .context("could not prebatch for module")?;
-                    Ok((idx, 0))
+        }
+    }
+
+    // Create a map of parallel module to the batches they are contained in.
+    let mut parallel_module_to_pre_batch: FxIndexMap<_, Vec<PreBatchIndex>> =
+        FxIndexMap::default();
+
+    // Fill the map and also fill up the single_module_entries
+    for (idx, pre_batch) in pre_batches.batches.iter().enumerate() {
+        for item in &pre_batch.items {
+            match item {
+                PreBatchItem::ParallelModule(module) => {
+                    parallel_module_to_pre_batch
+                        .entry(*module)
+                        .or_default()
+                        .push(idx);
+                }
+                PreBatchItem::NonParallelEdge(_, module) => {
+                    if !pre_batches.entries.contains_key(module) {
+                        pre_batches.single_module_entries.insert(*module);
+                    }
+                }
+                PreBatchItem::ParallelReference(_) => {}
+            }
+        }
+    }
+
+    // We never want a module to occur in multiple batches.
+
+    let mut extracted_shared_items = 0;
+    // Extract shared modules into separate batches
+    for i in 0..parallel_module_to_pre_batch.len() {
+        let (&module, batches) = parallel_module_to_pre_batch
+            .get_index(i)
+            .context("could not find parallel module to pre batch index")?;
+        if batches.len() > 1 {
+            // Create a new batch for the shared modules
+            let batches_with_item_index = batches
+                .iter()
+                .map(|&idx| {
+                    let batch_items = &pre_batches.batches[idx].items;
+                    let item_idx = batch_items
+                        .get_index_of(&PreBatchItem::ParallelModule(module))
+                        .context("could not find batch item index for parallel module")?;
+                    Ok((idx, item_idx))
                 })
                 .collect::<Result<Vec<_>>>()?;
-            stack.reverse();
-            let mut visited = FxHashSet::default();
-            while let Some((idx, mut pos)) = stack.pop() {
-                let batch = &pre_batches.batches[idx];
-                while let Some(item) = batch.items.get_index(pos) {
-                    match item {
-                        PreBatchItem::ParallelModule(_) => {}
-                        PreBatchItem::ParallelReference(other_idx) => {
-                            if visited.insert(*other_idx) {
-                                stack.push((idx, pos + 1));
-                                stack.push((*other_idx, 0));
-                                break;
-                            }
-                        }
-                        PreBatchItem::NonParallelEdge(chunking_type, module) => {
-                            if chunking_type.is_merged() {
-                                merged_modules
-                                    .entry(chunking_type.clone())
-                                    .or_default()
-                                    .insert(*module);
-                            }
-                        }
-                    }
-                    pos += 1;
-                }
+            let mut selected_items = 1;
+            fn get_item_at(
+                pre_batches: &PreBatches,
+                batch_idx: PreBatchIndex,
+                item_idx: usize,
+            ) -> Option<&PreBatchItem> {
+                pre_batches.batches[batch_idx].items.get_index(item_idx)
             }
-            if !merged_modules.is_empty() {
-                for (ty, merged_modules) in merged_modules {
-                    let chunk_group_key = match ty {
-                        ChunkingType::Isolated {
-                            merge_tag: Some(merge_tag),
-                            ..
-                        } => ChunkGroupKey::IsolatedMerged {
-                            parent: i.into(),
-                            merge_tag: merge_tag.clone(),
-                        },
-                        ChunkingType::Shared {
-                            merge_tag: Some(merge_tag),
-                            ..
-                        } => ChunkGroupKey::SharedMerged {
-                            parent: i.into(),
-                            merge_tag: merge_tag.clone(),
-                        },
-                        _ => unreachable!(),
-                    };
-                    let idx = chunk_group_info
-                        .chunk_group_keys
-                        .get_index_of(&chunk_group_key)
-                        .context("could not find chunk group key for merged chunk group")?;
-                    ordered_entries[idx] = Some(EntriesList(merged_modules));
+            // Select more matching items that are equal in all batches that contain the shared
+            // module(s)
+            loop {
+                if let Some(PreBatchItem::ParallelModule(next_module)) = get_item_at(
+                    &pre_batches,
+                    batches_with_item_index[0].0,
+                    batches_with_item_index[0].1 + selected_items,
+                ) && parallel_module_to_pre_batch
+                    .get(next_module)
+                    .context("could not find pre batch for parallel module")?
+                    .len()
+                    == batches.len()
+                    && batches_with_item_index[1..]
+                        .iter()
+                        .all(|&(batch_idx, item_idx)| {
+                            get_item_at(&pre_batches, batch_idx, item_idx + selected_items)
+                                == Some(&PreBatchItem::ParallelModule(*next_module))
+                        })
+                {
+                    selected_items += 1;
+                    continue;
                 }
+                break;
             }
-        }
+            extracted_shared_items += selected_items;
 
-        // Create a map of parallel module to the batches they are contained in.
-        let mut parallel_module_to_pre_batch: FxIndexMap<_, Vec<PreBatchIndex>> =
-            FxIndexMap::default();
-
-        // Fill the map and also fill up the single_module_entries
-        for (idx, pre_batch) in pre_batches.batches.iter().enumerate() {
-            for item in &pre_batch.items {
-                match item {
-                    PreBatchItem::ParallelModule(module) => {
-                        parallel_module_to_pre_batch
-                            .entry(*module)
-                            .or_default()
-                            .push(idx);
-                    }
-                    PreBatchItem::NonParallelEdge(_, module) => {
-                        if !pre_batches.entries.contains_key(module) {
-                            pre_batches.single_module_entries.insert(*module);
-                        }
-                    }
-                    PreBatchItem::ParallelReference(_) => {}
-                }
-            }
-        }
-
-        // We never want a module to occur in multiple batches.
-
-        let mut extracted_shared_items = 0;
-        // Extract shared modules into separate batches
-        for i in 0..parallel_module_to_pre_batch.len() {
-            let (&module, batches) = parallel_module_to_pre_batch
-                .get_index(i)
-                .context("could not find parallel module to pre batch index")?;
-            if batches.len() > 1 {
-                // Create a new batch for the shared modules
-                let batches_with_item_index = batches
-                    .iter()
-                    .map(|&idx| {
-                        let batch_items = &pre_batches.batches[idx].items;
-                        let item_idx = batch_items
-                            .get_index_of(&PreBatchItem::ParallelModule(module))
-                            .context("could not find batch item index for parallel module")?;
-                        Ok((idx, item_idx))
-                    })
-                    .collect::<Result<Vec<_>>>()?;
-                let mut selected_items = 1;
-                fn get_item_at(
-                    pre_batches: &PreBatches,
-                    batch_idx: PreBatchIndex,
-                    item_idx: usize,
-                ) -> Option<&PreBatchItem> {
-                    pre_batches.batches[batch_idx].items.get_index(item_idx)
-                }
-                // Select more matching items that are equal in all batches that contain the shared
-                // module(s)
-                loop {
-                    if let Some(PreBatchItem::ParallelModule(next_module)) = get_item_at(
-                        &pre_batches,
-                        batches_with_item_index[0].0,
-                        batches_with_item_index[0].1 + selected_items,
-                    ) && parallel_module_to_pre_batch
-                        .get(next_module)
-                        .context("could not find pre batch for parallel module")?
-                        .len()
-                        == batches.len()
-                        && batches_with_item_index[1..]
-                            .iter()
-                            .all(|&(batch_idx, item_idx)| {
-                                get_item_at(&pre_batches, batch_idx, item_idx + selected_items)
-                                    == Some(&PreBatchItem::ParallelModule(*next_module))
-                            })
-                    {
-                        selected_items += 1;
-                        continue;
-                    }
-                    break;
-                }
-                extracted_shared_items += selected_items;
-
-                // Check if a batch is completely selected. In that case we can replace all other
-                // occurrences with a reference to that batch
-                let exact_match = batches_with_item_index
-                    .iter()
-                    .find(|&&(batch_idx, item_idx)| {
-                        item_idx == 0
-                            && pre_batches.batches[batch_idx].items.len() == selected_items
-                    });
-                if let Some(&(exact_match, _)) = exact_match {
-                    // Replace all other occurrences with a reference to the exact match
-                    for &(batch_index, item_start) in batches_with_item_index.iter() {
-                        if batch_index != exact_match {
-                            pre_batches.batches[batch_index].items.splice(
-                                item_start..item_start + selected_items,
-                                std::iter::once(PreBatchItem::ParallelReference(exact_match)),
-                            );
-                        }
-                    }
-                    for item in pre_batches.batches[exact_match].items.iter() {
-                        if let PreBatchItem::ParallelModule(module) = item {
-                            parallel_module_to_pre_batch
-                                .get_mut(module)
-                                .context("could not find pre batch for parallel module")?
-                                .clear();
-                        }
-                    }
-                } else {
-                    // Create a new batch of the shared part and replace all occurrences with a
-                    // reference to that batch
-                    let first_batch_index = batches_with_item_index[0].0;
-                    let first_batch_item_index = batches_with_item_index[0].1;
-                    let new_batch_index = pre_batches.batches.len();
-                    let mut new_batch =
-                        PreBatch::new(pre_batches.batches[first_batch_index].chunk_groups.clone());
-                    new_batch
-                        .items
-                        .extend(pre_batches.batches[first_batch_index].items.splice(
-                            first_batch_item_index..first_batch_item_index + selected_items,
-                            std::iter::once(PreBatchItem::ParallelReference(new_batch_index)),
-                        ));
-                    for item in new_batch.items.iter() {
-                        if let PreBatchItem::ParallelModule(module) = item {
-                            parallel_module_to_pre_batch
-                                .get_mut(module)
-                                .context("could not find pre batch for parallel module")?
-                                .clear();
-                        }
-                    }
-                    pre_batches.batches.push(new_batch);
-                    for &(batch_index, item_start) in batches_with_item_index[1..].iter() {
+            // Check if a batch is completely selected. In that case we can replace all other
+            // occurrences with a reference to that batch
+            let exact_match = batches_with_item_index
+                .iter()
+                .find(|&&(batch_idx, item_idx)| {
+                    item_idx == 0
+                        && pre_batches.batches[batch_idx].items.len() == selected_items
+                });
+            if let Some(&(exact_match, _)) = exact_match {
+                // Replace all other occurrences with a reference to the exact match
+                for &(batch_index, item_start) in batches_with_item_index.iter() {
+                    if batch_index != exact_match {
                         pre_batches.batches[batch_index].items.splice(
                             item_start..item_start + selected_items,
-                            std::iter::once(PreBatchItem::ParallelReference(new_batch_index)),
+                            std::iter::once(PreBatchItem::ParallelReference(exact_match)),
                         );
                     }
                 }
+                for item in pre_batches.batches[exact_match].items.iter() {
+                    if let PreBatchItem::ParallelModule(module) = item {
+                        parallel_module_to_pre_batch
+                            .get_mut(module)
+                            .context("could not find pre batch for parallel module")?
+                            .clear();
+                    }
+                }
+            } else {
+                // Create a new batch of the shared part and replace all occurrences with a
+                // reference to that batch
+                let first_batch_index = batches_with_item_index[0].0;
+                let first_batch_item_index = batches_with_item_index[0].1;
+                let new_batch_index = pre_batches.batches.len();
+                let mut new_batch =
+                    PreBatch::new(pre_batches.batches[first_batch_index].chunk_groups.clone());
+                new_batch
+                    .items
+                    .extend(pre_batches.batches[first_batch_index].items.splice(
+                        first_batch_item_index..first_batch_item_index + selected_items,
+                        std::iter::once(PreBatchItem::ParallelReference(new_batch_index)),
+                    ));
+                for item in new_batch.items.iter() {
+                    if let PreBatchItem::ParallelModule(module) = item {
+                        parallel_module_to_pre_batch
+                            .get_mut(module)
+                            .context("could not find pre batch for parallel module")?
+                            .clear();
+                    }
+                }
+                pre_batches.batches.push(new_batch);
+                for &(batch_index, item_start) in batches_with_item_index[1..].iter() {
+                    pre_batches.batches[batch_index].items.splice(
+                        item_start..item_start + selected_items,
+                        std::iter::once(PreBatchItem::ParallelReference(new_batch_index)),
+                    );
+                }
             }
         }
-        span.record("extracted_shared_items", extracted_shared_items);
+    }
+    span.record("extracted_shared_items", extracted_shared_items);
 
-        // Now every module is only in one batch
+    // Now every module is only in one batch
 
-        let mut edges_count = 0;
+    let mut edges_count = 0;
 
-        // Since batches can only have references followed by a list of parallel chunkable modules,
-        // we need to split batches that have modules before references.
-        for i in 0..pre_batches.batches.len() {
-            let items = take(&mut pre_batches.batches[i].items);
-            let mut new_items =
-                FxIndexSet::with_capacity_and_hasher(items.len(), Default::default());
-            enum Mode {
-                ParallelChunkableModule,
-                Other,
-            }
-            let mut mode = Mode::Other;
-            for item in items {
-                let chunkable_module = if let PreBatchItem::ParallelModule(module) = &item {
-                    ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(*module)
+    // Since batches can only have references followed by a list of parallel chunkable modules,
+    // we need to split batches that have modules before references.
+    for i in 0..pre_batches.batches.len() {
+        let items = take(&mut pre_batches.batches[i].items);
+        let mut new_items =
+            FxIndexSet::with_capacity_and_hasher(items.len(), Default::default());
+        enum Mode {
+            ParallelChunkableModule,
+            Other,
+        }
+        let mut mode = Mode::Other;
+        for item in items {
+            let chunkable_module = if let PreBatchItem::ParallelModule(module) = &item {
+                ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(*module)
+            } else {
+                None
+            };
+            let item = if let PreBatchItem::ParallelModule(module) = item {
+                if chunkable_module.is_some() {
+                    PreBatchItem::ParallelModule(module)
                 } else {
-                    None
-                };
-                let item = if let PreBatchItem::ParallelModule(module) = item {
+                    pre_batches.single_module_entries.insert(module);
+                    PreBatchItem::NonParallelEdge(
+                        ChunkingType::Parallel {
+                            inherit_async: false,
+                            hoisted: false,
+                        },
+                        module,
+                    )
+                }
+            } else {
+                item
+            };
+            match (&mode, chunkable_module) {
+                (_, Some(_)) => {
+                    mode = Mode::ParallelChunkableModule;
+                    new_items.insert(item);
+                }
+                (Mode::Other, _) => {
+                    edges_count += 1;
+                    new_items.insert(item);
+                }
+                (Mode::ParallelChunkableModule, _) => {
+                    // Split the batch
+                    let idx = pre_batches.batches.len();
+                    let mut new_batch =
+                        PreBatch::new(pre_batches.batches[i].chunk_groups.clone());
+                    new_batch.items.extend(new_items.drain(..));
+                    pre_batches.batches.push(new_batch);
+                    edges_count += 1;
+                    new_items.insert(PreBatchItem::ParallelReference(idx));
                     if chunkable_module.is_some() {
-                        PreBatchItem::ParallelModule(module)
+                        new_items.insert(item);
                     } else {
-                        pre_batches.single_module_entries.insert(module);
-                        PreBatchItem::NonParallelEdge(
-                            ChunkingType::Parallel {
+                        edges_count += 1;
+                        mode = Mode::Other;
+                        new_items.insert(item);
+                    }
+                }
+            }
+        }
+        pre_batches.batches[i].items = new_items;
+    }
+    span.record("pre_batches", pre_batches.batches.len());
+
+    // Now batches are in the correct shape. We can create the real batches and the graph.
+
+    // Create the graph
+    let mut graph: DiGraph<ModuleOrBatch, ModuleBatchesGraphEdge, u32> =
+        petgraph::graph::DiGraph::with_capacity(
+            pre_batches.batches.len() + pre_batches.single_module_entries.len(),
+            edges_count,
+        );
+
+    // Create the Vc<ModuleBatch> instances
+    #[cfg(not(feature = "sync"))]
+    let batches = pre_batches
+        .batches
+        .iter()
+        .enumerate()
+        .map(|(i, pre_batch)| create_batch_node(i, pre_batch))
+        .try_join()
+        .await?;
+    #[cfg(feature = "sync")]
+    let batches = pre_batches
+        .batches
+        .iter()
+        .enumerate()
+        .map(|(i, pre_batch)| create_batch_node(i, pre_batch))
+        .collect::<Result<Vec<_>>>()?;
+
+    // Create the batch groups by grouping batches with the same chunk groups
+    let mut batch_groups: FxHashMap<_, Vec<_>> = FxHashMap::default();
+    for (i, pre_batch) in pre_batches.batches.iter().enumerate() {
+        let key = BuildHasherDefault::<FxHasher>::default().prehash(&pre_batch.chunk_groups);
+        let batch = batches[i];
+        batch_groups.entry(key).or_default().push(batch);
+    }
+    for &module in &pre_batches.single_module_entries {
+        let chunk_groups = module_chunk_groups
+            .get(&module)
+            .context("all modules need to have chunk group info")?;
+        let key = BuildHasherDefault::<FxHasher>::default().prehash(chunk_groups);
+        batch_groups
+            .entry(key)
+            .or_default()
+            .push(ModuleOrBatch::Module(module));
+    }
+
+    // Create the batch group instances (only groups with more than one item get one)
+    let multi_item_groups = batch_groups
+        .into_iter()
+        .filter(|(_, items)| items.len() > 1)
+        .collect::<Vec<_>>();
+    #[cfg(not(feature = "sync"))]
+    let batch_group_vcs = multi_item_groups
+        .iter()
+        .map(|(key, items)| ModuleBatchGroup::new(items.clone(), (**key).clone()).to_resolved())
+        .try_join()
+        .await?;
+    #[cfg(feature = "sync")]
+    let batch_group_vcs = multi_item_groups
+        .iter()
+        .map(|(key, items)| {
+            turbo_tasks::read!(
+                ModuleBatchGroup::new(items.clone(), (**key).clone()).to_resolved()
+            )
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let batch_groups = multi_item_groups
+        .into_iter()
+        .zip(batch_group_vcs)
+        .flat_map(|((_, items), batch_group)| {
+            items.into_iter().map(move |item| (item, batch_group))
+        })
+        .collect::<FxHashMap<_, _>>();
+
+    // Insert batches into the graph and store the NodeIndices
+    let mut batches_count = 0;
+    let mut modules_count = 0;
+    let batch_indices = batches
+        .into_iter()
+        .map(|batch| {
+            match &batch {
+                ModuleOrBatch::Batch(_) => batches_count += 1,
+                ModuleOrBatch::Module(_) => modules_count += 1,
+                ModuleOrBatch::None(_) => {}
+            }
+            graph.add_node(batch)
+        })
+        .collect::<Vec<_>>();
+
+    // Also insert single modules into the graph and store the NodeIndices
+    let single_module_indices = pre_batches
+        .single_module_entries
+        .iter()
+        .map(|module| graph.add_node(ModuleOrBatch::Module(*module)))
+        .collect::<Vec<_>>();
+
+    span.record("batches", batches_count);
+    modules_count += pre_batches.single_module_entries.len();
+    span.record("modules", modules_count);
+    span.record("edges", edges_count);
+
+    // Add all the edges to the graph
+    for (i, pre_batch) in pre_batches.batches.into_iter().enumerate() {
+        let index = batch_indices[i];
+        let items = pre_batch.items;
+        for item in items {
+            match item {
+                PreBatchItem::ParallelReference(idx) => {
+                    graph.add_edge(
+                        index,
+                        batch_indices[idx],
+                        ModuleBatchesGraphEdge {
+                            ty: ChunkingType::Parallel {
                                 inherit_async: false,
                                 hoisted: false,
                             },
-                            module,
-                        )
-                    }
-                } else {
-                    item
-                };
-                match (&mode, chunkable_module) {
-                    (_, Some(_)) => {
-                        mode = Mode::ParallelChunkableModule;
-                        new_items.insert(item);
-                    }
-                    (Mode::Other, _) => {
-                        edges_count += 1;
-                        new_items.insert(item);
-                    }
-                    (Mode::ParallelChunkableModule, _) => {
-                        // Split the batch
-                        let idx = pre_batches.batches.len();
-                        let mut new_batch =
-                            PreBatch::new(pre_batches.batches[i].chunk_groups.clone());
-                        new_batch.items.extend(new_items.drain(..));
-                        pre_batches.batches.push(new_batch);
-                        edges_count += 1;
-                        new_items.insert(PreBatchItem::ParallelReference(idx));
-                        if chunkable_module.is_some() {
-                            new_items.insert(item);
-                        } else {
-                            edges_count += 1;
-                            mode = Mode::Other;
-                            new_items.insert(item);
-                        }
-                    }
-                }
-            }
-            pre_batches.batches[i].items = new_items;
-        }
-        span.record("pre_batches", pre_batches.batches.len());
-
-        // Now batches are in the correct shape. We can create the real batches and the graph.
-
-        // Create the graph
-        let mut graph: DiGraph<ModuleOrBatch, ModuleBatchesGraphEdge, u32> =
-            petgraph::graph::DiGraph::with_capacity(
-                pre_batches.batches.len() + pre_batches.single_module_entries.len(),
-                edges_count,
-            );
-
-        // Create the Vc<ModuleBatch> instances
-        let batches = pre_batches
-            .batches
-            .iter_mut()
-            .enumerate()
-            .map(async |(i, pre_batch)| {
-                let mut modules = pre_batch.items.iter().filter_map(|item| {
-                    if let PreBatchItem::ParallelModule(module) = item {
-                        ResolvedVc::try_downcast(*module)
-                    } else {
-                        None
-                    }
-                });
-                let Some(first) = modules.next() else {
-                    return Ok(ModuleOrBatch::None(i));
-                };
-                if let Some(second) = modules.next() {
-                    let batch = ModuleBatch::new(
-                        [first, second]
-                            .into_iter()
-                            .chain(modules)
-                            .map(|m| *m)
-                            .collect::<Vec<_>>(),
-                        Some(pre_batch.chunk_groups.clone()),
+                            module: None,
+                        },
                     );
-                    Ok(ModuleOrBatch::Batch(batch.to_resolved().await?))
-                } else {
-                    Ok(ModuleOrBatch::Module(ResolvedVc::upcast(first)))
                 }
-            })
-            .try_join()
-            .await?;
-
-        // Create the batch groups by grouping batches with the same chunk groups
-        let mut batch_groups: FxHashMap<_, Vec<_>> = FxHashMap::default();
-        for (i, pre_batch) in pre_batches.batches.iter().enumerate() {
-            let key = BuildHasherDefault::<FxHasher>::default().prehash(&pre_batch.chunk_groups);
-            let batch = batches[i];
-            batch_groups.entry(key).or_default().push(batch);
-        }
-        for &module in &pre_batches.single_module_entries {
-            let chunk_groups = module_chunk_groups
-                .get(&module)
-                .context("all modules need to have chunk group info")?;
-            let key = BuildHasherDefault::<FxHasher>::default().prehash(chunk_groups);
-            batch_groups
-                .entry(key)
-                .or_default()
-                .push(ModuleOrBatch::Module(module));
-        }
-
-        // Create the batch group instances
-        let batch_groups = batch_groups
-            .into_iter()
-            .map(async |(key, items)| {
-                if items.len() == 1 {
-                    Ok(Either::Left(std::iter::empty()))
-                } else {
-                    let batch_group = ModuleBatchGroup::new(items.clone(), (*key).clone())
-                        .to_resolved()
-                        .await?;
-                    Ok(Either::Right(
-                        items.into_iter().map(move |item| (item, batch_group)),
-                    ))
-                }
-            })
-            .try_join()
-            .await?
-            .into_iter()
-            .flatten()
-            .collect::<FxHashMap<_, _>>();
-
-        // Insert batches into the graph and store the NodeIndices
-        let mut batches_count = 0;
-        let mut modules_count = 0;
-        let batch_indices = batches
-            .into_iter()
-            .map(|batch| {
-                match &batch {
-                    ModuleOrBatch::Batch(_) => batches_count += 1,
-                    ModuleOrBatch::Module(_) => modules_count += 1,
-                    ModuleOrBatch::None(_) => {}
-                }
-                graph.add_node(batch)
-            })
-            .collect::<Vec<_>>();
-
-        // Also insert single modules into the graph and store the NodeIndices
-        let single_module_indices = pre_batches
-            .single_module_entries
-            .iter()
-            .map(|module| graph.add_node(ModuleOrBatch::Module(*module)))
-            .collect::<Vec<_>>();
-
-        span.record("batches", batches_count);
-        modules_count += pre_batches.single_module_entries.len();
-        span.record("modules", modules_count);
-        span.record("edges", edges_count);
-
-        // Add all the edges to the graph
-        for (i, pre_batch) in pre_batches.batches.into_iter().enumerate() {
-            let index = batch_indices[i];
-            let items = pre_batch.items;
-            for item in items {
-                match item {
-                    PreBatchItem::ParallelReference(idx) => {
+                PreBatchItem::NonParallelEdge(ty, module) => {
+                    if let Some(batch) = pre_batches.entries.get(&module).copied() {
                         graph.add_edge(
                             index,
-                            batch_indices[idx],
-                            ModuleBatchesGraphEdge {
-                                ty: ChunkingType::Parallel {
-                                    inherit_async: false,
-                                    hoisted: false,
-                                },
-                                module: None,
-                            },
-                        );
-                    }
-                    PreBatchItem::NonParallelEdge(ty, module) => {
-                        if let Some(batch) = pre_batches.entries.get(&module).copied() {
-                            graph.add_edge(
-                                index,
-                                batch_indices[batch],
-                                ModuleBatchesGraphEdge {
-                                    ty,
-                                    module: Some(module),
-                                },
-                            );
-                            continue;
-                        }
-                        let idx = pre_batches
-                            .single_module_entries
-                            .get_index_of(&module)
-                            .context("could not find single module entry index")?;
-                        let idx = single_module_indices[idx];
-                        graph.add_edge(
-                            index,
-                            idx,
+                            batch_indices[batch],
                             ModuleBatchesGraphEdge {
                                 ty,
                                 module: Some(module),
                             },
                         );
+                        continue;
                     }
-                    PreBatchItem::ParallelModule(_) => {}
+                    let idx = pre_batches
+                        .single_module_entries
+                        .get_index_of(&module)
+                        .context("could not find single module entry index")?;
+                    let idx = single_module_indices[idx];
+                    graph.add_edge(
+                        index,
+                        idx,
+                        ModuleBatchesGraphEdge {
+                            ty,
+                            module: Some(module),
+                        },
+                    );
                 }
+                PreBatchItem::ParallelModule(_) => {}
             }
         }
-
-        debug_assert_eq!(graph.capacity().0, graph.node_count());
-        debug_assert_eq!(graph.capacity().1, graph.edge_count());
-
-        // Find the NodeIndices for our entries of the graph
-        let mut entries = FxHashMap::default();
-        for chunk_group in &chunk_group_info.chunk_groups {
-            for module in chunk_group.entries() {
-                if let Some(batch) = pre_batches.entries.get(&module).copied() {
-                    entries.insert(module, batch_indices[batch]);
-                    continue;
-                }
-                let idx = pre_batches
-                    .single_module_entries
-                    .get_index_of(&module)
-                    .context("could not find single module entry index")?;
-                let idx = single_module_indices[idx];
-                entries.insert(module, idx);
-            }
-        }
-
-        Ok(ModuleBatchesGraph {
-            graph: TracedDiGraph(graph),
-            entries,
-            batch_groups,
-            ordered_entries,
-        }
-        .cell())
     }
-    .instrument(outer_span)
-    .await
+
+    debug_assert_eq!(graph.capacity().0, graph.node_count());
+    debug_assert_eq!(graph.capacity().1, graph.edge_count());
+
+    // Find the NodeIndices for our entries of the graph
+    let mut entries = FxHashMap::default();
+    for chunk_group in &chunk_group_info.chunk_groups {
+        for module in chunk_group.entries() {
+            if let Some(batch) = pre_batches.entries.get(&module).copied() {
+                entries.insert(module, batch_indices[batch]);
+                continue;
+            }
+            let idx = pre_batches
+                .single_module_entries
+                .get_index_of(&module)
+                .context("could not find single module entry index")?;
+            let idx = single_module_indices[idx];
+            entries.insert(module, idx);
+        }
+    }
+
+    Ok(ModuleBatchesGraph {
+        graph: TracedDiGraph(graph),
+        entries,
+        batch_groups,
+        ordered_entries,
+    }
+    .cell())
+}
+}
+
+turbo_tasks::dual_fn! {
+/// Creates the `ModuleOrBatch` node for one pre-batch: a `ModuleBatch` for two or more
+/// chunkable modules, the single module itself for exactly one, and `None` for zero.
+fn create_batch_node(i: usize, pre_batch: &PreBatch) -> Result<ModuleOrBatch> {
+    let mut modules = pre_batch.items.iter().filter_map(|item| {
+        if let PreBatchItem::ParallelModule(module) = item {
+            ResolvedVc::try_downcast(*module)
+        } else {
+            None
+        }
+    });
+    let Some(first) = modules.next() else {
+        return Ok(ModuleOrBatch::None(i));
+    };
+    if let Some(second) = modules.next() {
+        let batch = ModuleBatch::new(
+            [first, second]
+                .into_iter()
+                .chain(modules)
+                .map(|m| *m)
+                .collect::<Vec<_>>(),
+            Some(pre_batch.chunk_groups.clone()),
+        );
+        Ok(ModuleOrBatch::Batch(turbo_tasks::read!(batch.to_resolved())?))
+    } else {
+        Ok(ModuleOrBatch::Module(ResolvedVc::upcast(first)))
+    }
+}
 }

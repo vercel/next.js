@@ -49,11 +49,10 @@ struct Fallback {
 // This JSON file is large, so we cache it in turbotasks
 #[turbo_tasks::function]
 async fn load_font_metrics(project_root: FileSystemPath) -> Result<Vc<FontMetricsMap>> {
-    let data: FontMetricsMap = load_next_js_json_file(
+    let data: FontMetricsMap = turbo_tasks::read!(load_next_js_json_file(
         project_root,
         rcstr!("dist/server/capsize-font-metrics.json"),
-    )
-    .await?;
+    ))?;
 
     Ok(data.cell())
 }
@@ -63,11 +62,11 @@ pub(super) async fn get_font_fallback(
     project_root: FileSystemPath,
     options_vc: Vc<NextFontGoogleOptions>,
 ) -> Result<Vc<FontFallback>> {
-    let options = options_vc.await?;
+    let options = turbo_tasks::read!(options_vc)?;
     Ok(match &options.fallback {
         Some(fallback) => FontFallback::Manual(fallback.clone()).cell(),
         None => {
-            let metrics_json = load_font_metrics(project_root.clone()).await?;
+            let metrics_json = turbo_tasks::read!(load_font_metrics(project_root.clone()))?;
             let fallback = lookup_fallback(
                 &options.font_family,
                 &metrics_json,
@@ -78,7 +77,7 @@ pub(super) async fn get_font_fallback(
                 Ok(fallback) => FontFallback::Automatic(AutomaticFontFallback {
                     scoped_font_family: get_scoped_font_family(
                         FontFamilyType::Fallback,
-                        options_vc.font_family().await?,
+                        turbo_tasks::read!(options_vc.font_family())?,
                     ),
                     local_font_family: fallback.font_family,
                     adjustment: fallback.adjustment,

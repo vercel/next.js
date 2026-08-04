@@ -113,18 +113,19 @@ impl AssetContent {
     pub async fn write(&self, path: FileSystemPath) -> Result<()> {
         match self {
             AssetContent::File(file) => {
-                path.write(**file).as_side_effect().await?;
+                turbo_tasks::read!(path.write(**file).as_side_effect())?;
             }
             AssetContent::Redirect { target, link_type } => {
-                path.write_symbolic_link_dir(
-                    LinkContent::Link {
-                        target: target.clone(),
-                        link_type: *link_type,
-                    }
-                    .cell(),
-                )
-                .as_side_effect()
-                .await?;
+                turbo_tasks::read!(
+                    path.write_symbolic_link_dir(
+                        LinkContent::Link {
+                            target: target.clone(),
+                            link_type: *link_type,
+                        }
+                        .cell(),
+                    )
+                    .as_side_effect()
+                )?;
             }
         }
         Ok(())

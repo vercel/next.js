@@ -45,14 +45,16 @@ pub(crate) enum NextDynamicChunkAvailability<'a> {
     AvailabilityInfo(AvailabilityInfo),
 }
 
-pub(crate) async fn collect_next_dynamic_chunks(
+turbo_tasks::dual_fn! {
+pub(crate) fn collect_next_dynamic_chunks(
     module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     dynamic_import_entries: ReadRef<DynamicImportEntriesWithImporter>,
     chunking_availability: NextDynamicChunkAvailability<'_>,
 ) -> Result<ResolvedVc<DynamicImportedChunks>> {
     let chunking_availability = &chunking_availability;
-    let dynamic_import_chunks = dynamic_import_entries
+    #[cfg(not(feature = "sync"))]
+    let dynamic_import_chunks = turbo_tasks::read!(dynamic_import_entries
         .iter()
         .map(|(dynamic_entry, parent_client_reference)| async move {
             let module = ResolvedVc::upcast::<Box<dyn ChunkableModule>>(*dynamic_entry);
@@ -61,15 +63,15 @@ pub(crate) async fn collect_next_dynamic_chunks(
             // containing the next/dynamic imports
             let availability_info = match chunking_availability {
                 NextDynamicChunkAvailability::ClientReferences(client_reference_chunks) => {
-                    client_reference_chunks
+                    turbo_tasks::read!(client_reference_chunks
                         .client_component_client_chunks
                         .get(
                             &parent_client_reference.context(
                                 "Parent client reference not found for next/dynamic import",
                             )?,
                         )
-                        .context("Client reference chunk group not found for next/dynamic import")?
-                        .await?
+                        .context("Client reference chunk group not found for next/dynamic import")?)
+                        ?
                         .availability_info
                 }
                 NextDynamicChunkAvailability::AvailabilityInfo(availability_info) => {
@@ -79,16 +81,51 @@ pub(crate) async fn collect_next_dynamic_chunks(
 
             let async_loader =
                 chunking_context.async_loader_chunk_item(*module, module_graph, availability_info);
-            let async_chunk_group = async_loader.references().to_resolved().await?;
+            let async_chunk_group = turbo_tasks::read!(async_loader.references().to_resolved())?;
 
             Ok((*dynamic_entry, (*dynamic_entry, async_chunk_group)))
         })
-        .try_join()
-        .await?;
+        .try_join())
+        ?;
+    #[cfg(feature = "sync")]
+    let dynamic_import_chunks = {
+        let mut dynamic_import_chunks = Vec::new();
+        for (dynamic_entry, parent_client_reference) in dynamic_import_entries.iter() {
+            let module = ResolvedVc::upcast::<Box<dyn ChunkableModule>>(*dynamic_entry);
+
+            // This is the availability info for the parent chunk group, i.e. the client reference
+            // containing the next/dynamic imports
+            let availability_info = match chunking_availability {
+                NextDynamicChunkAvailability::ClientReferences(client_reference_chunks) => {
+                    turbo_tasks::read!(client_reference_chunks
+                        .client_component_client_chunks
+                        .get(
+                            &parent_client_reference.context(
+                                "Parent client reference not found for next/dynamic import",
+                            )?,
+                        )
+                        .context("Client reference chunk group not found for next/dynamic import")?)
+                        ?
+                        .availability_info
+                }
+                NextDynamicChunkAvailability::AvailabilityInfo(availability_info) => {
+                    *availability_info
+                }
+            };
+
+            let async_loader =
+                chunking_context.async_loader_chunk_item(*module, module_graph, availability_info);
+            let async_chunk_group = turbo_tasks::read!(async_loader.references().to_resolved())?;
+
+            dynamic_import_chunks.push((*dynamic_entry, (*dynamic_entry, async_chunk_group)));
+        }
+        dynamic_import_chunks
+    };
 
     Ok(ResolvedVc::cell(FxIndexMap::from_iter(
         dynamic_import_chunks,
     )))
+}
 }
 
 #[turbo_tasks::value(transparent)]
@@ -120,16 +157,19 @@ pub struct DynamicImportEntries(
 pub async fn map_next_dynamic(
     graph: ResolvedVc<ModuleGraphLayer>,
 ) -> Result<Vc<DynamicImportEntries>> {
-    let actions =
-        graph
-            .await?
+    #[cfg(not(feature = "sync"))]
+    let actions = turbo_tasks::read!(
+        turbo_tasks::read!(graph)?
             .iter_reachable_modules()?
             .map(|module| async move {
                 if let Some(dynamic_entry_module) =
                     ResolvedVc::try_downcast_type::<NextDynamicEntryModule>(module)
-                    && module.ident().await?.layer.as_ref().is_some_and(|layer| {
-                        layer.name() == "app-client" || layer.name() == "client"
-                    })
+                    && turbo_tasks::read!(module.ident())?
+                        .layer
+                        .as_ref()
+                        .is_some_and(|layer| {
+                            layer.name() == "app-client" || layer.name() == "client"
+                        })
                 {
                     return Ok(Some((
                         module,
@@ -150,6 +190,39 @@ pub async fn map_next_dynamic(
                 Ok(None)
             })
             .try_flat_join()
-            .await?;
+    )?;
+    #[cfg(feature = "sync")]
+    let actions = {
+        let graph_ref = turbo_tasks::read!(graph)?;
+        let mut actions = Vec::new();
+        for module in graph_ref.iter_reachable_modules()? {
+            if let Some(dynamic_entry_module) =
+                ResolvedVc::try_downcast_type::<NextDynamicEntryModule>(module)
+                && turbo_tasks::read!(module.ident())?
+                    .layer
+                    .as_ref()
+                    .is_some_and(|layer| layer.name() == "app-client" || layer.name() == "client")
+            {
+                actions.push((
+                    module,
+                    DynamicImportEntriesMapType::DynamicEntry(dynamic_entry_module),
+                ));
+                continue;
+            }
+            // TODO add this check once these modules have the correct layer
+            // if layer.is_some_and(|layer| &**layer == "app-rsc") {
+            if let Some(client_reference_module) =
+                ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(module)
+            {
+                actions.push((
+                    module,
+                    DynamicImportEntriesMapType::ClientReference(client_reference_module),
+                ));
+                continue;
+            }
+            // }
+        }
+        actions
+    };
     Ok(Vc::cell(actions.into_iter().collect()))
 }

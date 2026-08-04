@@ -99,7 +99,7 @@ impl VersionedContentMap {
         client_relative_path: FileSystemPath,
         client_output_path: FileSystemPath,
     ) -> Result<()> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         let compute_entry = compute_entry_operation(
             self,
             assets_operation,
@@ -123,9 +123,7 @@ impl VersionedContentMap {
         client_relative_path: FileSystemPath,
         client_output_path: FileSystemPath,
     ) -> Result<Vc<OptionMapEntry>> {
-        let entries = get_entries(assets_operation)
-            .read_strongly_consistent()
-            .await
+        let entries = turbo_tasks::read!(get_entries(assets_operation).read_strongly_consistent())
             // Any error should result in an empty list, which removes all assets from the map
             .ok();
 
@@ -161,14 +159,15 @@ impl VersionedContentMap {
         });
 
         // Make sure all written client assets are up-to-date
-        emit_assets(
-            assets_operation.connect(),
-            node_root,
-            client_relative_path,
-            client_output_path,
-        )
-        .as_side_effect()
-        .await?;
+        turbo_tasks::read!(
+            emit_assets(
+                assets_operation.connect(),
+                node_root,
+                client_relative_path,
+                client_output_path,
+            )
+            .as_side_effect()
+        )?;
         let map_entry = Vc::cell(Some(MapEntry {
             assets_operation,
             path_to_asset: entries.iter().flatten().cloned().collect(),
@@ -178,8 +177,8 @@ impl VersionedContentMap {
 
     #[turbo_tasks::function]
     pub async fn get(self: Vc<Self>, path: FileSystemPath) -> Result<Vc<OptionVersionedContent>> {
-        Ok(Vc::cell(match *self.get_asset(path).await? {
-            Some(asset) => Some(asset.versioned_content().to_resolved().await?),
+        Ok(Vc::cell(match *turbo_tasks::read!(self.get_asset(path))? {
+            Some(asset) => Some(turbo_tasks::read!(asset.versioned_content().to_resolved())?),
             None => None,
         }))
     }
@@ -190,7 +189,7 @@ impl VersionedContentMap {
         path: FileSystemPath,
         section: Option<RcStr>,
     ) -> Result<Vc<FileContent>> {
-        let Some(asset) = &*self.get_asset(path.clone()).await? else {
+        let Some(asset) = &*turbo_tasks::read!(self.get_asset(path.clone()))? else {
             return Ok(FileContent::NotFound.cell());
         };
 
@@ -209,7 +208,7 @@ impl VersionedContentMap {
 
     #[turbo_tasks::function]
     pub async fn get_asset(self: Vc<Self>, path: FileSystemPath) -> Result<Vc<OptionOutputAsset>> {
-        let result = self.raw_get(path.clone()).await?;
+        let result = turbo_tasks::read!(self.raw_get(path.clone()))?;
         if let Some(MapEntry {
             assets_operation: _,
             path_to_asset,
@@ -228,14 +227,23 @@ impl VersionedContentMap {
             let map = &self.map_path_to_op.get().0;
             map.keys().cloned().collect::<Vec<_>>()
         };
-        let keys = keys
-            .into_iter()
-            .map(|path| {
-                let root = root.clone();
-                async move { Ok(root.get_path_to(&path).map(RcStr::from)) }
-            })
-            .try_flat_join()
-            .await?;
+        #[cfg(not(feature = "sync"))]
+        let keys = turbo_tasks::read!(
+            keys.into_iter()
+                .map(|path| {
+                    let root = root.clone();
+                    async move { Ok(root.get_path_to(&path).map(RcStr::from)) }
+                })
+                .try_flat_join()
+        )?;
+        #[cfg(feature = "sync")]
+        let keys = {
+            let mut result = Vec::new();
+            for path in keys.into_iter() {
+                result.extend(root.get_path_to(&path).map(RcStr::from));
+            }
+            result
+        };
         Ok(Vc::cell(keys))
     }
 
@@ -269,15 +277,26 @@ struct GetEntriesResult(GetEntriesResultT);
 
 #[turbo_tasks::function(operation, root)]
 async fn get_entries(assets: OperationVc<ExpandedOutputAssets>) -> Result<Vc<GetEntriesResult>> {
-    let assets_ref = assets.connect().await?;
-    let entries = assets_ref
-        .iter()
-        .map(|&asset| async move {
-            let path = asset.path().owned().await?;
-            Ok((path, asset))
-        })
-        .try_join()
-        .await?;
+    let assets_ref = turbo_tasks::read!(assets.connect())?;
+    #[cfg(not(feature = "sync"))]
+    let entries = turbo_tasks::read!(
+        assets_ref
+            .iter()
+            .map(|&asset| async move {
+                let path = turbo_tasks::read!(asset.path().owned())?;
+                Ok((path, asset))
+            })
+            .try_join()
+    )?;
+    #[cfg(feature = "sync")]
+    let entries = {
+        let mut entries = Vec::new();
+        for &asset in assets_ref.iter() {
+            let path = turbo_tasks::read!(asset.path().owned())?;
+            entries.push((path, asset));
+        }
+        entries
+    };
     Ok(Vc::cell(entries))
 }
 

@@ -71,36 +71,37 @@ impl InstrumentationEndpoint {
 
     #[turbo_tasks::function]
     async fn entry_module(&self) -> Result<Vc<Box<dyn Module>>> {
-        let userland_module = self
-            .asset_context
-            .process(
-                *self.source,
-                ReferenceType::Entry(EntryReferenceSubType::Instrumentation),
-            )
-            .module()
-            .to_resolved()
-            .await?;
+        let userland_module = turbo_tasks::read!(
+            self.asset_context
+                .process(
+                    *self.source,
+                    ReferenceType::Entry(EntryReferenceSubType::Instrumentation),
+                )
+                .module()
+                .to_resolved()
+        )?;
 
         if !self.is_edge {
             return Ok(*userland_module);
         }
 
-        let edge_entry_module = wrap_edge_entry(
-            *self.asset_context,
-            self.project.project_path().owned().await?,
-            *userland_module,
-            rcstr!("instrumentation"),
-        )
-        .to_resolved()
-        .await?;
+        let edge_entry_module = turbo_tasks::read!(
+            wrap_edge_entry(
+                *self.asset_context,
+                turbo_tasks::read!(self.project.project_path().owned())?,
+                *userland_module,
+                rcstr!("instrumentation"),
+            )
+            .to_resolved()
+        )?;
 
         Ok(*edge_entry_module)
     }
 
     #[turbo_tasks::function]
     async fn edge_chunk_group(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
-        let this = self.await?;
-        let module = self.entry_module().to_resolved().await?;
+        let this = turbo_tasks::read!(self)?;
+        let module = turbo_tasks::read!(self.entry_module().to_resolved())?;
 
         let module_graph = this.project.module_graph(*module);
 
@@ -116,52 +117,51 @@ impl InstrumentationEndpoint {
 
     #[turbo_tasks::function]
     async fn node_chunk(self: Vc<Self>) -> Result<Vc<Box<dyn OutputAsset>>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
 
         let chunking_context = this.project.server_chunking_context(false);
 
-        let userland_module = self.entry_module().to_resolved().await?;
+        let userland_module = turbo_tasks::read!(self.entry_module().to_resolved())?;
         let module_graph = this.project.module_graph(*userland_module);
 
-        let EntryChunkGroupResult { asset: chunk, .. } = *chunking_context
-            .entry_chunk_group(
-                this.project
-                    .node_root()
-                    .await?
-                    .join("server/instrumentation.js")?,
+        let EntryChunkGroupResult { asset: chunk, .. } =
+            *turbo_tasks::read!(chunking_context.entry_chunk_group(
+                turbo_tasks::read!(this.project.node_root())?.join("server/instrumentation.js")?,
                 ChunkGroup::Entry(vec![userland_module]),
                 module_graph,
                 OutputAssets::empty(),
                 OutputAssets::empty(),
                 AvailabilityInfo::root(),
-            )
-            .await?;
+            ))?;
         Ok(*chunk)
     }
 
     #[turbo_tasks::function]
     async fn output_assets(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
 
         if this.is_edge {
             let edge_chunk_group = self.edge_chunk_group();
             let edge_all_assets = edge_chunk_group.expand_all_assets();
 
-            let node_root = this.project.node_root().owned().await?;
+            let node_root = turbo_tasks::read!(this.project.node_root().owned())?;
             let node_root_value = node_root.clone();
 
-            let file_paths_from_root =
-                get_js_paths_from_root(&node_root_value, edge_chunk_group.await?.assets.await?)
-                    .await?;
+            let file_paths_from_root = turbo_tasks::read!(get_js_paths_from_root(
+                &node_root_value,
+                turbo_tasks::read!(turbo_tasks::read!(edge_chunk_group)?.assets)?
+            ))?;
 
-            let mut output_assets = edge_chunk_group.all_assets().owned().await?;
+            let mut output_assets = turbo_tasks::read!(edge_chunk_group.all_assets().owned())?;
 
-            let wasm_paths_from_root =
-                get_wasm_paths_from_root(&node_root_value, edge_all_assets.await?).await?;
+            let wasm_paths_from_root = turbo_tasks::read!(get_wasm_paths_from_root(
+                &node_root_value,
+                turbo_tasks::read!(edge_all_assets)?
+            ))?;
 
             let instrumentation_definition = InstrumentationDefinition {
                 files: file_paths_from_root,
-                wasm: wasm_paths_to_bindings(wasm_paths_from_root).await?,
+                wasm: turbo_tasks::read!(wasm_paths_to_bindings(wasm_paths_from_root))?,
                 name: rcstr!("instrumentation"),
                 ..Default::default()
             };
@@ -169,29 +169,29 @@ impl InstrumentationEndpoint {
                 instrumentation: Some(instrumentation_definition),
                 ..Default::default()
             };
-            let middleware_manifest_v2 = VirtualOutputAsset::new(
-                node_root.join("server/instrumentation/middleware-manifest.json")?,
-                AssetContent::file(
-                    FileContent::Content(File::from(serde_json::to_string_pretty(
-                        &middleware_manifest_v2,
-                    )?))
-                    .cell(),
-                ),
-            )
-            .to_resolved()
-            .await?;
+            let middleware_manifest_v2 = turbo_tasks::read!(
+                VirtualOutputAsset::new(
+                    node_root.join("server/instrumentation/middleware-manifest.json")?,
+                    AssetContent::file(
+                        FileContent::Content(File::from(serde_json::to_string_pretty(
+                            &middleware_manifest_v2,
+                        )?))
+                        .cell(),
+                    ),
+                )
+                .to_resolved()
+            )?;
             output_assets.push(ResolvedVc::upcast(middleware_manifest_v2));
 
             Ok(Vc::cell(output_assets))
         } else {
-            let chunk = self.node_chunk().to_resolved().await?;
+            let chunk = turbo_tasks::read!(self.node_chunk().to_resolved())?;
             let mut output_assets = vec![chunk];
-            if *this.project.should_write_nft_manifests().await? {
-                output_assets.push(ResolvedVc::upcast(
+            if *turbo_tasks::read!(this.project.should_write_nft_manifests())? {
+                output_assets.push(ResolvedVc::upcast(turbo_tasks::read!(
                     NftJsonAsset::new(*this.project, None, *chunk, vec![], self.trace_result())
                         .to_resolved()
-                        .await?,
-                ));
+                )?));
             }
             Ok(Vc::cell(output_assets))
         }
@@ -199,7 +199,7 @@ impl InstrumentationEndpoint {
 
     #[turbo_tasks::function]
     async fn trace_result(self: Vc<Self>) -> Result<Vc<EndpointTraceResult>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         let userland_module = self.entry_module();
         Ok(trace_endpoint(
             *this.project,
@@ -215,21 +215,51 @@ impl Endpoint for InstrumentationEndpoint {
     #[turbo_tasks::function]
     async fn output(self: ResolvedVc<Self>) -> Result<Vc<EndpointOutput>> {
         let span = tracing::info_span!("instrumentation endpoint");
-        async move {
-            let this = self.await?;
+        #[cfg(not(feature = "sync"))]
+        {
+            turbo_tasks::read!(
+                async move {
+                    let this = turbo_tasks::read!(self)?;
+                    let output_assets = self.output_assets();
+
+                    let server_paths = if turbo_tasks::read!(this.project.next_mode())?
+                        .is_development()
+                    {
+                        let node_root = turbo_tasks::read!(this.project.node_root().owned())?;
+                        turbo_tasks::read!(all_asset_paths(output_assets, node_root, None).owned())?
+                    } else {
+                        vec![]
+                    };
+
+                    Ok(EndpointOutput {
+                        output_assets: turbo_tasks::read!(output_assets.to_resolved())?,
+                        output_paths: EndpointOutputPaths::Edge {
+                            server_paths,
+                            client_paths: vec![],
+                        }
+                        .resolved_cell(),
+                        project: this.project,
+                    }
+                    .cell())
+                }
+                .instrument(span)
+            )
+        }
+        #[cfg(feature = "sync")]
+        {
+            let _g = span.entered();
+            let this = turbo_tasks::read!(self)?;
             let output_assets = self.output_assets();
 
-            let server_paths = if this.project.next_mode().await?.is_development() {
-                let node_root = this.project.node_root().owned().await?;
-                all_asset_paths(output_assets, node_root, None)
-                    .owned()
-                    .await?
+            let server_paths = if turbo_tasks::read!(this.project.next_mode())?.is_development() {
+                let node_root = turbo_tasks::read!(this.project.node_root().owned())?;
+                turbo_tasks::read!(all_asset_paths(output_assets, node_root, None).owned())?
             } else {
                 vec![]
             };
 
             Ok(EndpointOutput {
-                output_assets: output_assets.to_resolved().await?,
+                output_assets: turbo_tasks::read!(output_assets.to_resolved())?,
                 output_paths: EndpointOutputPaths::Edge {
                     server_paths,
                     client_paths: vec![],
@@ -239,13 +269,13 @@ impl Endpoint for InstrumentationEndpoint {
             }
             .cell())
         }
-        .instrument(span)
-        .await
     }
 
     #[turbo_tasks::function]
     async fn server_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
-        Ok(self.await?.project.server_changed(self.output_assets()))
+        Ok(turbo_tasks::read!(self)?
+            .project
+            .server_changed(self.output_assets()))
     }
 
     #[turbo_tasks::function]
@@ -255,7 +285,7 @@ impl Endpoint for InstrumentationEndpoint {
 
     #[turbo_tasks::function]
     async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
-        let entry_module = self.entry_module().to_resolved().await?;
+        let entry_module = turbo_tasks::read!(self.entry_module().to_resolved())?;
         Ok(
             GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(vec![entry_module])])
                 .cell(),
@@ -264,9 +294,9 @@ impl Endpoint for InstrumentationEndpoint {
 
     #[turbo_tasks::function]
     async fn module_graphs(self: Vc<Self>) -> Result<Vc<ModuleGraphs>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         let module = self.entry_module();
-        let module_graph = this.project.module_graph(module).to_resolved().await?;
+        let module_graph = turbo_tasks::read!(this.project.module_graph(module).to_resolved())?;
         Ok(Vc::cell(vec![module_graph]))
     }
 

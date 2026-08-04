@@ -61,7 +61,7 @@ async fn apply_esm_specific_options_internal(
     options: Vc<ResolveOptions>,
     clear_extensions: bool,
 ) -> Result<Vc<ResolveOptions>> {
-    let mut options: ResolveOptions = options.owned().await?;
+    let mut options: ResolveOptions = turbo_tasks::read!(options.owned())?;
     // TODO set fully_specified when in strict ESM mode
     // options.fully_specified = true;
     for conditions in get_condition_maps(&mut options) {
@@ -83,7 +83,7 @@ async fn apply_esm_specific_options_internal(
 
 #[turbo_tasks::function]
 pub async fn apply_cjs_specific_options(options: Vc<ResolveOptions>) -> Result<Vc<ResolveOptions>> {
-    let mut options: ResolveOptions = options.owned().await?;
+    let mut options: ResolveOptions = turbo_tasks::read!(options.owned())?;
     for conditions in get_condition_maps(&mut options) {
         conditions.insert(rcstr!("import"), ConditionValue::Unset);
         conditions.insert(rcstr!("require"), ConditionValue::Set);
@@ -94,7 +94,8 @@ pub async fn apply_cjs_specific_options(options: Vc<ResolveOptions>) -> Result<V
     Ok(options.cell())
 }
 
-pub async fn esm_resolve(
+turbo_tasks::dual_fn! {
+pub fn esm_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
     ty: EcmaScriptModulesReferenceSubType,
@@ -102,11 +103,12 @@ pub async fn esm_resolve(
     issue_source: Option<IssueSource>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = ReferenceType::EcmaScriptModules(ty);
-    let origin_ref = origin.into_trait_ref().await?;
-    let options = *apply_esm_specific_options(origin_ref.resolve_options(), &ty)
-        .to_resolved()
-        .await?;
-    specific_resolve(origin_ref, request, options, ty, error_mode, issue_source).await
+    let origin_ref = turbo_tasks::read!(origin.into_trait_ref())?;
+    let options = *turbo_tasks::read!(apply_esm_specific_options(origin_ref.resolve_options(), &ty)
+        .to_resolved())
+        ?;
+    turbo_tasks::read!(specific_resolve(origin_ref, request, options, ty, error_mode, issue_source))
+}
 }
 
 #[turbo_tasks::function]
@@ -118,11 +120,18 @@ pub async fn cjs_resolve(
     error_mode: ResolveErrorMode,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = ReferenceType::CommonJs(ty);
-    let origin_ref = origin.into_trait_ref().await?;
-    let options = *apply_cjs_specific_options(origin_ref.resolve_options())
-        .to_resolved()
-        .await?;
-    specific_resolve(origin_ref, request, options, ty, error_mode, issue_source).await
+    let origin_ref = turbo_tasks::read!(origin.into_trait_ref())?;
+    let options = *turbo_tasks::read!(
+        apply_cjs_specific_options(origin_ref.resolve_options()).to_resolved()
+    )?;
+    turbo_tasks::read!(specific_resolve(
+        origin_ref,
+        request,
+        options,
+        ty,
+        error_mode,
+        issue_source
+    ))
 }
 
 #[turbo_tasks::function]
@@ -134,14 +143,14 @@ pub async fn cjs_resolve_source(
     error_mode: ResolveErrorMode,
 ) -> Result<Vc<ResolveResult>> {
     let ty = ReferenceType::CommonJs(ty);
-    let origin_ref = origin.into_trait_ref().await?;
-    let options = *apply_cjs_specific_options(origin_ref.resolve_options())
-        .to_resolved()
-        .await?;
+    let origin_ref = turbo_tasks::read!(origin.into_trait_ref())?;
+    let options = *turbo_tasks::read!(
+        apply_cjs_specific_options(origin_ref.resolve_options()).to_resolved()
+    )?;
     let origin_path = origin_ref.origin_path();
     let result = resolve(origin_path.parent(), ty.clone(), *request, options);
 
-    handle_resolve_source_error(
+    turbo_tasks::read!(handle_resolve_source_error(
         result,
         ty,
         origin_path,
@@ -149,11 +158,11 @@ pub async fn cjs_resolve_source(
         options,
         error_mode,
         issue_source,
-    )
-    .await
+    ))
 }
 
-async fn specific_resolve(
+turbo_tasks::dual_fn! {
+fn specific_resolve(
     origin: TraitRef<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
@@ -168,7 +177,7 @@ async fn specific_resolve(
         reference_type.clone(),
     );
 
-    handle_resolve_error(
+    turbo_tasks::read!(handle_resolve_error(
         result,
         reference_type,
         origin.origin_path(),
@@ -176,6 +185,6 @@ async fn specific_resolve(
         options,
         error_mode,
         issue_source,
-    )
-    .await
+    ))
+}
 }

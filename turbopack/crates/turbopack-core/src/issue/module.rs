@@ -1,4 +1,5 @@
 use anyhow::Result;
+#[cfg(not(feature = "sync"))]
 use async_trait::async_trait;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
@@ -34,6 +35,7 @@ impl ModuleIssue {
     }
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for ModuleIssue {
@@ -42,15 +44,40 @@ impl Issue for ModuleIssue {
     }
 
     async fn file_path(&self) -> Result<FileSystemPath> {
-        Ok(self.ident.await?.path.clone())
+        Ok(turbo_tasks::read!(self.ident)?.path.clone())
     }
 
     async fn title(&self) -> Result<StyledString> {
-        Ok((*self.title.await?).clone())
+        Ok((*turbo_tasks::read!(self.title)?).clone())
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
-        Ok(Some((*self.description.await?).clone()))
+        Ok(Some((*turbo_tasks::read!(self.description)?).clone()))
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        self.source
+    }
+}
+
+/// See the async impl above; the sync engine drops `async`/`#[async_trait]`.
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for ModuleIssue {
+    fn stage(&self) -> IssueStage {
+        IssueStage::ProcessModule
+    }
+
+    fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(turbo_tasks::read!(self.ident)?.path.clone())
+    }
+
+    fn title(&self) -> Result<StyledString> {
+        Ok((*turbo_tasks::read!(self.title)?).clone())
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some((*turbo_tasks::read!(self.description)?).clone()))
     }
 
     fn source(&self) -> Option<IssueSource> {
@@ -60,7 +87,7 @@ impl Issue for ModuleIssue {
 
 #[turbo_tasks::function]
 pub async fn emit_unknown_module_type_error(source: Vc<Box<dyn Source>>) -> Result<()> {
-    ModuleIssue {ident: source.ident().to_resolved().await?,
+    ModuleIssue {ident: turbo_tasks::read!(source.ident().to_resolved())?,
         title: StyledString::Text(rcstr!("Unknown module type")).resolved_cell(),
         description: StyledString::Text(
             r"This module doesn't have an associated type. Use a known file extension, or register a loader for it.
@@ -68,7 +95,7 @@ pub async fn emit_unknown_module_type_error(source: Vc<Box<dyn Source>>) -> Resu
 Read more: https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders".into(),
         )
         .resolved_cell(),
-        source: Some(IssueSource::from_source_only(source.to_resolved().await?)),}
+        source: Some(IssueSource::from_source_only(turbo_tasks::read!(source.to_resolved())?)),}
     .resolved_cell()
     .emit();
 

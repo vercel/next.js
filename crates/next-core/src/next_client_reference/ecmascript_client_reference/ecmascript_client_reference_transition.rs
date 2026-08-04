@@ -50,23 +50,17 @@ impl Transition for NextEcmascriptClientReferenceTransition {
 
         let module_asset_context = self.process_context(module_asset_context);
 
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
 
         let ident = match part {
-            Some(part) => source
-                .ident()
-                .owned()
-                .await?
+            Some(part) => turbo_tasks::read!(source.ident().owned())?
                 .with_part(part.clone())
                 .into_vc(),
             None => source.ident(),
         };
-        let ident_ref = ident.await?;
+        let ident_ref = turbo_tasks::read!(ident)?;
         let client_source = if ident_ref.path.path.contains("next/dist/esm/") {
-            let path = ident_ref
-                .path
-                .root()
-                .await?
+            let path = turbo_tasks::read!(ident_ref.path.root())?
                 .join(&ident_ref.path.path.replace("next/dist/esm/", "next/dist/"))?;
             Vc::upcast(FileSource::new_with_query_and_fragment(
                 path,
@@ -81,7 +75,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
             module_asset_context,
             ReferenceType::Entry(EntryReferenceSubType::AppClientComponent),
         );
-        let ProcessResult::Module(client_module) = *client_module.await? else {
+        let ProcessResult::Module(client_module) = *turbo_tasks::read!(client_module)? else {
             return Ok(ProcessResult::Ignore.cell());
         };
 
@@ -91,7 +85,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
             ReferenceType::Entry(EntryReferenceSubType::AppClientComponent),
         );
 
-        let ProcessResult::Module(ssr_module) = *ssr_module.await? else {
+        let ProcessResult::Module(ssr_module) = *turbo_tasks::read!(ssr_module)? else {
             return Ok(ProcessResult::Ignore.cell());
         };
 
@@ -109,7 +103,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
 
         // TODO(alexkirsz) This is necessary to remove the transition currently set on
         // the context.
-        let module_asset_context = module_asset_context.await?;
+        let module_asset_context = turbo_tasks::read!(module_asset_context)?;
         let server_context = ModuleAssetContext::new(
             *module_asset_context.transitions,
             *module_asset_context.compile_time_info,
@@ -118,7 +112,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
             module_asset_context.layer.clone(),
         );
 
-        Ok(ProcessResult::Module(ResolvedVc::upcast(
+        Ok(ProcessResult::Module(ResolvedVc::upcast(turbo_tasks::read!(
             EcmascriptClientReferenceModule::new(
                 ident,
                 Vc::upcast(server_context),
@@ -126,8 +120,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
                 *ssr_module,
             )
             .to_resolved()
-            .await?,
-        ))
+        )?))
         .cell())
     }
 }

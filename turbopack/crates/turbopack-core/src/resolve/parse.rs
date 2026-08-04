@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 use anyhow::{Ok, Result};
 use regex::Regex;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc, turbofmt};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc, turbofmt};
 
 use super::pattern::Pattern;
 
@@ -346,14 +346,18 @@ impl Request {
         // Because we are normalized, we should handle alternatives here
         if let Pattern::Alternatives(alts) = request {
             Ok(Self::cell(Self::Alternatives {
-                requests: alts
-                    .into_iter()
+                requests: {
                     // We can call parse_inner directly because these patterns are already
-                    // normalized.  We don't call `Self::parse_ref` so we can try to get a cache hit
-                    // on the sub-patterns
-                    .map(|p| Self::parse_inner(p).to_resolved())
-                    .try_join()
-                    .await?,
+                    // normalized.  We don't call `Self::parse_ref` so we can try to get a cache
+                    // hit on the sub-patterns.
+                    // Sequential in both modes: alternatives lists are small and
+                    // `.to_resolved()` futures cannot fan out through `parallel!` under sync.
+                    let mut requests = Vec::with_capacity(alts.len());
+                    for p in alts {
+                        requests.push(turbo_tasks::read!(Self::parse_inner(p).to_resolved())?);
+                    }
+                    requests
+                },
             }))
         } else {
             Ok(Self::cell(Self::parse_ref(request)))
@@ -402,7 +406,7 @@ impl Request {
 
     #[turbo_tasks::function]
     pub async fn as_relative(self: Vc<Self>) -> Result<Vc<Self>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         Ok(match &*this {
             Request::Empty
             | Request::Raw { .. }
@@ -435,14 +439,13 @@ impl Request {
                 Self::parse(pat)
             }
             Request::Alternatives { requests } => {
-                let requests = requests
-                    .iter()
-                    .copied()
-                    .map(|v| *v)
-                    .map(Request::as_relative)
-                    .map(|v| async move { v.to_resolved().await })
-                    .try_join()
-                    .await?;
+                let requests = {
+                    let mut resolved = Vec::with_capacity(requests.len());
+                    for v in requests.iter().copied() {
+                        resolved.push(turbo_tasks::read!(Request::as_relative(*v).to_resolved())?);
+                    }
+                    resolved
+                };
                 Request::Alternatives { requests }.cell()
             }
         })
@@ -450,7 +453,7 @@ impl Request {
 
     #[turbo_tasks::function]
     pub async fn with_query(self: Vc<Self>, query: RcStr) -> Result<Vc<Self>> {
-        Ok(match &*self.await? {
+        Ok(match &*turbo_tasks::read!(self)? {
             Request::Raw {
                 path,
                 query: _,
@@ -496,13 +499,15 @@ impl Request {
             Request::Unknown { .. } => self,
             Request::Dynamic => self,
             Request::Alternatives { requests } => {
-                let requests = requests
-                    .iter()
-                    .copied()
-                    .map(|req| req.with_query(query.clone()))
-                    .map(|v| async move { v.to_resolved().await })
-                    .try_join()
-                    .await?;
+                let requests = {
+                    let mut resolved = Vec::with_capacity(requests.len());
+                    for req in requests.iter().copied() {
+                        resolved.push(turbo_tasks::read!(
+                            req.with_query(query.clone()).to_resolved()
+                        )?);
+                    }
+                    resolved
+                };
                 Request::Alternatives { requests }.cell()
             }
         })
@@ -510,7 +515,7 @@ impl Request {
 
     #[turbo_tasks::function]
     pub async fn with_fragment(self: Vc<Self>, fragment: RcStr) -> Result<Vc<Self>> {
-        Ok(match &*self.await? {
+        Ok(match &*turbo_tasks::read!(self)? {
             Request::Raw {
                 path,
                 query,
@@ -574,13 +579,15 @@ impl Request {
             Request::Unknown { .. } => self,
             Request::Dynamic => self,
             Request::Alternatives { requests } => {
-                let requests = requests
-                    .iter()
-                    .copied()
-                    .map(|req| req.with_fragment(fragment.clone()))
-                    .map(|v| async move { v.to_resolved().await })
-                    .try_join()
-                    .await?;
+                let requests = {
+                    let mut resolved = Vec::with_capacity(requests.len());
+                    for req in requests.iter().copied() {
+                        resolved.push(turbo_tasks::read!(
+                            req.with_fragment(fragment.clone()).to_resolved()
+                        )?);
+                    }
+                    resolved
+                };
                 Request::Alternatives { requests }.cell()
             }
         })
@@ -588,7 +595,7 @@ impl Request {
 
     #[turbo_tasks::function]
     pub async fn append_path(self: Vc<Self>, suffix: RcStr) -> Result<Vc<Self>> {
-        Ok(match &*self.await? {
+        Ok(match &*turbo_tasks::read!(self)? {
             Request::Raw {
                 path,
                 query,
@@ -658,7 +665,7 @@ impl Request {
                 encoding,
                 data,
             } => {
-                let data = ResolvedVc::cell(turbofmt!("{}{suffix}", *data).await?);
+                let data = ResolvedVc::cell(turbo_tasks::read!(turbofmt!("{}{suffix}", *data))?);
                 Self::DataUri {
                     media_type: media_type.clone(),
                     encoding: encoding.clone(),
@@ -688,11 +695,15 @@ impl Request {
             }
             Request::Dynamic => self,
             Request::Alternatives { requests } => {
-                let requests = requests
-                    .iter()
-                    .map(|req| async { req.append_path(suffix.clone()).to_resolved().await })
-                    .try_join()
-                    .await?;
+                let requests = {
+                    let mut resolved = Vec::with_capacity(requests.len());
+                    for req in requests.iter() {
+                        resolved.push(turbo_tasks::read!(
+                            req.append_path(suffix.clone()).to_resolved()
+                        )?);
+                    }
+                    resolved
+                };
                 Request::Alternatives { requests }.cell()
             }
         })
@@ -739,9 +750,7 @@ impl Request {
                 encoding,
                 data,
             } => Pattern::Constant(
-                stringify_data_uri(media_type, encoding, *data)
-                    .await?
-                    .into(),
+                turbo_tasks::read!(stringify_data_uri(media_type, encoding, *data))?.into(),
             ),
             Request::Uri {
                 protocol,
@@ -750,15 +759,13 @@ impl Request {
             } => Pattern::Constant(format!("{protocol}{remainder}").into()),
             Request::Unknown { path } => path.clone(),
             Request::Dynamic => Pattern::Dynamic,
-            Request::Alternatives { requests } => Pattern::Alternatives(
-                requests
-                    .iter()
-                    .map(async |r: &ResolvedVc<Request>| -> Result<Pattern> {
-                        Ok(r.request_pattern().owned().await?)
-                    })
-                    .try_join()
-                    .await?,
-            ),
+            Request::Alternatives { requests } => Pattern::Alternatives({
+                let mut patterns = Vec::with_capacity(requests.len());
+                for r in requests.iter() {
+                    patterns.push(turbo_tasks::read!(r.request_pattern().owned())?);
+                }
+                patterns
+            }),
         }))
     }
 }
@@ -818,7 +825,7 @@ impl ValueToString for Request {
                 data,
             } => format!(
                 "data uri \"{media_type}\" \"{encoding}\" \"{}\"",
-                data.await?
+                turbo_tasks::read!(data)?
             )
             .into(),
             Request::Uri {
@@ -829,7 +836,7 @@ impl ValueToString for Request {
             Request::Unknown { path } => format!("unknown {}", path.describe_as_string()).into(),
             Request::Dynamic => rcstr!("dynamic"),
             Request::Alternatives { requests } => {
-                let vec = requests.iter().map(|i| i.to_string()).try_join().await?;
+                let vec = turbo_tasks::parallel!(requests.iter().map(|i| i.to_string()))?;
                 vec.iter()
                     .map(|r| r.as_str())
                     .collect::<Vec<_>>()
@@ -840,7 +847,8 @@ impl ValueToString for Request {
     }
 }
 
-pub async fn stringify_data_uri(
+turbo_tasks::dual_fn! {
+pub fn stringify_data_uri(
     media_type: &RcStr,
     encoding: &RcStr,
     data: ResolvedVc<RcStr>,
@@ -848,8 +856,9 @@ pub async fn stringify_data_uri(
     Ok(format!(
         "data:{media_type}{}{encoding},{}",
         if encoding.is_empty() { "" } else { ";" },
-        data.await?
+        turbo_tasks::read!(data)?
     ))
+}
 }
 
 #[cfg(test)]

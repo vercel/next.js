@@ -72,7 +72,7 @@ impl WorkerThreadPool {
         let cwd: RcStr = cwd.to_string_lossy().into();
         let filename: RcStr = entrypoint.to_string_lossy().into();
         let worker_options = Arc::new(WorkerOptions { cwd, filename });
-        let state = get_pool_state(worker_options.clone()).await;
+        let state = turbo_tasks::read!(get_pool_state(worker_options.clone()));
         EvaluatePool::new(
             Box::new(Self {
                 worker_options,
@@ -95,7 +95,8 @@ impl WorkerThreadPool {
     }
 
     async fn acquire_worker(&self) -> Result<(u32, AcquiredPermits)> {
-        let concurrency_permit = self.concurrency_semaphore.clone().acquire_owned().await?;
+        let concurrency_permit =
+            turbo_tasks::read!(self.concurrency_semaphore.clone().acquire_owned())?;
 
         {
             let mut idle = self.state.idle_workers.lock();
@@ -125,9 +126,9 @@ impl WorkerThreadPool {
         }
 
         let bootup = async {
-            let permit = self.bootup_semaphore.clone().acquire_owned().await;
+            let permit = turbo_tasks::read!(self.bootup_semaphore.clone().acquire_owned());
             let wait_time = self.state.stats.lock().wait_time_before_bootup();
-            sleep(wait_time).await;
+            turbo_tasks::read!(sleep(wait_time));
             permit
         };
 
@@ -181,7 +182,7 @@ impl NodeBackend for WorkerThreadsBackend {
                 debug,
             } = options;
 
-            Ok(WorkerThreadPool::create(
+            Ok(turbo_tasks::read!(WorkerThreadPool::create(
                 cwd,
                 entrypoint,
                 env,
@@ -190,8 +191,7 @@ impl NodeBackend for WorkerThreadsBackend {
                 project_dir,
                 concurrency,
                 debug,
-            )
-            .await)
+            )))
         })
     }
 
@@ -229,7 +229,7 @@ impl EvaluateOperation for WorkerThreadPool {
                 panic!("Node.js operation task id overflow")
             }
 
-            let (worker_id, permits) = self.acquire_worker().await?;
+            let (worker_id, permits) = turbo_tasks::read!(self.acquire_worker())?;
 
             let state = self.state.clone();
 

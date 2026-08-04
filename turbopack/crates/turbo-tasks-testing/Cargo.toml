@@ -13,11 +13,29 @@ bench = false
 [lints]
 workspace = true
 
+[features]
+default = ["tokio_runtime"]
+# Async (tokio) harness — the normal build. Forwards to the engine crates' equivalents.
+tokio_runtime = [
+  "dep:tokio",
+  "turbo-tasks/tokio_runtime",
+  "turbo-tasks-backend/tokio_runtime",
+]
+# No-tokio synchronous harness: the same `run`/`run_once` API drives bodies inline.
+# Pair with `--no-default-features`. Forwards `sync` to the engine crates.
+sync = [
+  "turbo-tasks/sync",
+  "turbo-tasks-backend/sync",
+]
+
 [dependencies]
 anyhow = { workspace = true }
 futures = { workspace = true }
 rustc-hash = { workspace = true }
 smallvec = { workspace = true }
-tokio = { workspace = true }
-turbo-tasks = { workspace = true, features = ["non_operation_vc_strongly_consistent"] }
-turbo-tasks-backend = { workspace = true }
+tokio = { workspace = true, optional = true }
+# Direct path deps with default-features = false so a `-p ... --no-default-features
+# --features sync` build of a downstream test crate excludes tokio entirely. Under a
+# normal workspace build, feature unification re-enables `tokio_runtime`.
+turbo-tasks = { path = "../turbo-tasks", default-features = false, features = ["non_operation_vc_strongly_consistent"] }
+turbo-tasks-backend = { path = "../turbo-tasks-backend", default-features = false }

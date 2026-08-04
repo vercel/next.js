@@ -22,16 +22,17 @@ static SASS_GLOB_RE: LazyLock<Regex> = LazyLock::new(|| {
 static SASS_LOADER_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(^|/)@?sass[-/]loader($|/|\.)").unwrap());
 
+turbo_tasks::dual_fn! {
 /// Detect manually-configured sass loaders. This is used to generate a warning, suggesting using
 /// the built-in sass support.
-async fn detect_likely_sass_loader(
+fn detect_likely_sass_loader(
     webpack_rules: &[(RcStr, LoaderRuleItem)],
 ) -> Result<Option<RcStr>> {
     for (glob, rule) in webpack_rules {
         if SASS_GLOB_RE.is_match(glob)
-            || rule
-                .loaders
-                .await?
+            || turbo_tasks::read!(rule
+                .loaders)
+                ?
                 .iter()
                 .any(|item| SASS_LOADER_RE.is_match(&item.loader))
         {
@@ -40,29 +41,31 @@ async fn detect_likely_sass_loader(
     }
     Ok(None)
 }
+}
 
-pub async fn get_sass_loader_rules(
+turbo_tasks::dual_fn! {
+pub fn get_sass_loader_rules(
     project_path: &FileSystemPath,
     next_config: Vc<NextConfig>,
     user_webpack_rules: &[(RcStr, LoaderRuleItem)],
 ) -> Result<Vec<(RcStr, LoaderRuleItem)>> {
-    let use_builtin_sass = next_config
-        .experimental_turbopack_use_builtin_sass()
-        .await?;
+    let use_builtin_sass = turbo_tasks::read!(next_config
+        .experimental_turbopack_use_builtin_sass())
+        ?;
 
     match *use_builtin_sass {
         Some(true) => {}
         Some(false) => return Ok(Vec::new()),
         None => {
-            if let Some(glob) = detect_likely_sass_loader(user_webpack_rules).await? {
+            if let Some(glob) = turbo_tasks::read!(detect_likely_sass_loader(user_webpack_rules))? {
                 ManuallyConfiguredBuiltinLoaderIssue {
                     glob,
                     loader: rcstr!("sass-loader"),
                     config_key: rcstr!("experimental.turbopackUseBuiltinSass"),
-                    config_file_path: next_config
+                    config_file_path: turbo_tasks::read!(next_config
                         .config_file_path(project_path.clone())
-                        .owned()
-                        .await?,
+                        .owned())
+                        ?,
                 }
                 .resolved_cell()
                 .emit();
@@ -70,7 +73,7 @@ pub async fn get_sass_loader_rules(
         }
     }
 
-    let sass_options = next_config.sass_config().await?;
+    let sass_options = turbo_tasks::read!(next_config.sass_config())?;
     let Some(sass_options) = sass_options.as_object() else {
         bail!("sass_options must be an object");
     };
@@ -125,6 +128,7 @@ pub async fn get_sass_loader_rules(
     }
 
     Ok(rules)
+}
 }
 
 #[cfg(test)]

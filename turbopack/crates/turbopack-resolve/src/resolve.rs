@@ -21,12 +21,12 @@ async fn base_resolve_options(
     fs: ResolvedVc<Box<dyn FileSystem>>,
     options_context: Vc<ResolveOptionsContext>,
 ) -> Result<Vc<ResolveOptions>> {
-    let opt = options_context.await?;
+    let opt = turbo_tasks::read!(options_context)?;
     let emulating = opt.emulate_environment;
-    let root = fs.root().owned().await?;
+    let root = turbo_tasks::read!(fs.root().owned())?;
     let mut direct_mappings = AliasMap::new();
     let node_externals = if let Some(environment) = emulating {
-        environment.node_externals().owned().await?
+        turbo_tasks::read!(environment.node_externals().owned())?
     } else {
         opt.enable_node_externals
     };
@@ -70,7 +70,7 @@ async fn base_resolve_options(
 
     let mut import_map = ImportMap::new(direct_mappings);
     if let Some(additional_import_map) = opt.import_map {
-        let additional_import_map = additional_import_map.await?;
+        let additional_import_map = turbo_tasks::read!(additional_import_map)?;
         import_map.extend_ref(&additional_import_map);
     }
     let import_map = import_map.resolved_cell();
@@ -92,7 +92,7 @@ async fn base_resolve_options(
             conditions.insert(rcstr!("module-sync"), opt.module_sync);
         }
         if let Some(environment) = emulating {
-            for condition in environment.resolve_conditions().await?.iter() {
+            for condition in turbo_tasks::read!(environment.resolve_conditions())?.iter() {
                 conditions.insert(condition.clone(), ConditionValue::Set);
             }
         }
@@ -128,7 +128,7 @@ async fn base_resolve_options(
     let extensions = if let Some(custom_extension) = &opt.custom_extensions {
         custom_extension.clone()
     } else if let Some(environment) = emulating {
-        environment.resolve_extensions().owned().await?
+        turbo_tasks::read!(environment.resolve_extensions().owned())?
     } else {
         let mut ext = Vec::new();
         if opt.enable_typescript && opt.enable_react {
@@ -153,7 +153,7 @@ async fn base_resolve_options(
     Ok(ResolveOptions {
         extensions,
         modules: if let Some(environment) = emulating {
-            if *environment.resolve_node_modules().await? {
+            if *turbo_tasks::read!(environment.resolve_node_modules())? {
                 vec![ResolveModules::Nested(
                     root.clone(),
                     vec![rcstr!("node_modules")],
@@ -213,12 +213,35 @@ async fn base_resolve_options(
     .cell())
 }
 
+turbo_tasks::dual_fn! {
+/// Attempts to find a tsconfig up the file tree and, if found, applies it to the given resolve
+/// options.
+fn find_tsconfig_resolve_options(
+    resolve_path: FileSystemPath,
+    collect_affecting_sources: bool,
+    resolve_options: Vc<ResolveOptions>,
+) -> Result<Vc<ResolveOptions>> {
+    let tsconfig = turbo_tasks::read!(find_context_file(
+        resolve_path,
+        tsconfig(),
+        collect_affecting_sources,
+    ))?;
+    Ok(match &*tsconfig {
+        FindContextFileResult::Found(path, _) => apply_tsconfig_resolve_options(
+            resolve_options,
+            tsconfig_resolve_options(path.clone()),
+        ),
+        FindContextFileResult::NotFound(_) => resolve_options,
+    })
+}
+}
+
 #[turbo_tasks::function]
 pub async fn resolve_options(
     resolve_path: FileSystemPath,
     options_context: Vc<ResolveOptionsContext>,
 ) -> Result<Vc<ResolveOptions>> {
-    let options_context_value = options_context.await?;
+    let options_context_value = turbo_tasks::read!(options_context)?;
     if !options_context_value.rules.is_empty() {
         for (condition, new_options_context) in options_context_value.rules.iter() {
             if condition.matches(&resolve_path) {
@@ -230,30 +253,17 @@ pub async fn resolve_options(
     let resolve_options = base_resolve_options(*resolve_path.fs, options_context);
 
     let resolve_options = if options_context_value.enable_typescript {
-        let find_tsconfig = async || {
-            // Otherwise, attempt to find a tsconfig up the file tree
-            let tsconfig = find_context_file(
-                resolve_path.clone(),
-                tsconfig(),
-                options_context_value.collect_affecting_sources,
-            )
-            .await?;
-            anyhow::Ok::<Vc<ResolveOptions>>(match &*tsconfig {
-                FindContextFileResult::Found(path, _) => apply_tsconfig_resolve_options(
-                    resolve_options,
-                    tsconfig_resolve_options(path.clone()),
-                ),
-                FindContextFileResult::NotFound(_) => resolve_options,
-            })
-        };
-
         // Use a specified tsconfig path if provided. In Next.js, this is always provided by the
         // default config, at the very least.
         match &options_context_value.tsconfig_path {
             TsConfigHandling::Disabled => resolve_options,
-            TsConfigHandling::ContextFile => find_tsconfig().await?,
+            TsConfigHandling::ContextFile => turbo_tasks::read!(find_tsconfig_resolve_options(
+                resolve_path.clone(),
+                options_context_value.collect_affecting_sources,
+                resolve_options,
+            ))?,
             TsConfigHandling::Fixed(tsconfig_path) => {
-                let meta = tsconfig_path.metadata().await;
+                let meta = turbo_tasks::read!(tsconfig_path.metadata());
                 if meta.is_ok() {
                     // If the file exists, use it.
                     apply_tsconfig_resolve_options(
@@ -264,7 +274,11 @@ pub async fn resolve_options(
                     // Otherwise, try and find one.
                     // TODO: If the user provides a tsconfig.json explicitly, this should fail
                     // explicitly. Currently implemented this way for parity with webpack.
-                    find_tsconfig().await?
+                    turbo_tasks::read!(find_tsconfig_resolve_options(
+                        resolve_path.clone(),
+                        options_context_value.collect_affecting_sources,
+                        resolve_options,
+                    ))?
                 }
             }
         }

@@ -45,6 +45,26 @@ const MAX_COUNT_BEFORE_YIELD: usize = 1000;
 /// of them per `process()` call before yielding.
 const FIND_AND_SCHEDULE_BATCH_SIZE: usize = 10000;
 const MAX_UPPERS_FOLLOWER_PRODUCT: usize = 31;
+/// The batched new-follower classifiers normally settle in one or two iterations. They can
+/// retry when concurrently changing aggregation numbers make the one-task-at-a-time snapshots
+/// ambiguous. If that retry path does not converge quickly, fall back to locking the exact
+/// upper/follower pair and classify from a single consistent snapshot.
+///
+/// Under the sync engine a single worker drives a deep inline chain of
+/// `task_execution_completed` → `connect_children` → aggregation, while other
+/// workers concurrently bump aggregation numbers. The one-lock-at-a-time snapshots
+/// can then stay ambiguous forever, turning the retry loop into a CPU livelock that
+/// the deadline backstop reports as a deadlock.
+/// Keep the bound tiny so we fall back to the consistent `task_pair` snapshot
+/// almost immediately; the pair-lock is slightly more expensive but guarantees
+/// progress.
+const MAX_AGGREGATION_CLASSIFICATION_RETRIES: usize = 2;
+/// Hard bound for the outer `inner_of_upper_has_new_followers` loop. The correct
+/// algorithm needs at most 2 iterations (followers →inners → followers). If we exceed
+/// this bound the aggregation numbers are oscillating due to concurrent updates and the
+/// optimistic path will never converge – fall back to pair-locked classification for
+/// all remaining followers.
+const MAX_INNER_OF_UPPER_NEW_FOLLOWERS_ITERATIONS: usize = 4;
 /// Maximum number of `OptimizeJob`s held in the in-memory `optimize_queue` at one time.
 /// When this is reached, further pushes are dropped and the affected tasks have their
 /// `optimization_pending` flag set so the work is recovered later by
@@ -1765,6 +1785,115 @@ impl AggregationUpdateQueue {
         }
     }
 
+    /// Classifies a newly connected edge from a consistent snapshot of the two endpoint tasks.
+    ///
+    /// The batched new-follower paths optimize for throughput by holding one task guard at a
+    /// time and retrying when aggregation-number snapshots are ambiguous. That retry is usually
+    /// very short, but unlucky interleavings can keep the snapshots moving. This fallback locks
+    /// the pair once and applies the current invariant directly, which makes progress without
+    /// waiting for graph-wide quiescence.
+    fn inner_of_upper_has_new_follower_pair_locked(
+        &mut self,
+        ctx: &mut impl ExecuteContext,
+        new_follower_id: TaskId,
+        upper_id: TaskId,
+        count: u32,
+    ) {
+        // Guard against self-edges which can arise via follower cycles that become
+        // visible after aggregation. `task_pair` with equal ids would panic in
+        // `get_multiple_mut`'s aliasing assert.
+        if upper_id == new_follower_id {
+            return;
+        }
+        let (mut upper, mut new_follower) = ctx.task_pair(
+            upper_id,
+            new_follower_id,
+            // For performance reasons this should stay `Meta` and not `All`
+            AGGREGATION_UPDATE_CATEGORY,
+        );
+        self.check_optimization_pending(&upper);
+        self.check_optimization_pending(&new_follower);
+
+        let upper_aggregation_number = get_aggregation_number(&upper);
+        let follower_aggregation_number = get_aggregation_number(&new_follower);
+        let should_be_inner = is_root_node(upper_aggregation_number)
+            || upper_aggregation_number > follower_aggregation_number;
+
+        if should_be_inner {
+            let mut is_active = ctx.should_track_activeness() && upper.has_activeness();
+
+            if new_follower.update_upper_count(upper_id, count) {
+                if new_follower.upper_len().is_power_of_two() {
+                    self.push_optimize_task(&mut new_follower);
+                }
+
+                let data = AggregatedDataUpdate::from_task(&mut new_follower);
+                let followers = get_followers(&new_follower);
+                let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
+                let upper_ids = if diff.is_empty() {
+                    SmallVec::new()
+                } else {
+                    get_uppers(&upper)
+                };
+
+                if ctx.should_track_activeness() && !is_active {
+                    is_active = upper.has_activeness();
+                }
+
+                drop(upper);
+                drop(new_follower);
+
+                if !upper_ids.is_empty() {
+                    self.push(
+                        AggregatedDataUpdateJob {
+                            upper_ids,
+                            update: diff,
+                        }
+                        .into(),
+                    );
+                }
+                if !followers.is_empty() {
+                    self.push(AggregationUpdateJob::InnerOfUpperHasNewFollowers {
+                        upper_id,
+                        new_follower_ids: followers,
+                    });
+                }
+                if is_active {
+                    self.push_find_and_schedule_dirty(new_follower_id);
+                }
+            }
+        } else if upper.update_followers_count(new_follower_id, count) {
+            if upper.followers_len().is_power_of_two() {
+                self.push_optimize_task(&mut upper);
+            }
+
+            let has_active_count = ctx.should_track_activeness()
+                && upper.get_activeness().is_some_and(|a| a.active_counter > 0);
+            let upper_ids = get_uppers(&upper);
+
+            drop(upper);
+            drop(new_follower);
+
+            if has_active_count {
+                self.push(AggregationUpdateJob::IncreaseActiveCount {
+                    task: new_follower_id,
+                });
+            }
+            if !upper_ids.is_empty() {
+                self.push(AggregationUpdateJob::InnerOfUppersHasNewFollower {
+                    upper_ids,
+                    new_follower_id,
+                });
+            }
+            if upper_aggregation_number == follower_aggregation_number {
+                self.push(AggregationUpdateJob::BalanceEdge {
+                    upper_id,
+                    task_id: new_follower_id,
+                });
+            }
+        }
+    }
+
     /// Schedules the tasks if they're dirty.
     ///
     /// Only used when activeness is tracked.
@@ -2416,12 +2545,36 @@ impl AggregationUpdateQueue {
 
     /// Batched version of `inner_of_upper_has_new_follower`.
     /// See detailed comments in that function, follow the STEP numbers.
+    ///
+    /// Under the sync engine the optimistic one-lock-at-a-time classification can
+    /// livelock because aggregation numbers are bumped concurrently by other workers
+    /// while this worker is still in `task_execution_completed` on a deep inline stack.
+    /// For correctness we always use the pair-locked consistent snapshot; the
+    /// optimistic path is disabled under `sync` (or when the new
+    /// `force_pair_locked` cfg is set). This is slightly slower but guarantees
+    /// termination.
     fn inner_of_uppers_has_new_follower<T: TaskIdWithOptionalCount + Clone, const N: usize>(
         &mut self,
         ctx: &mut impl ExecuteContext<'_>,
         new_follower_id: TaskId,
         mut upper_ids: SmallVec<[T; N]>,
     ) {
+        // Force pair-locked path for sync correctness. The optimistic batched path
+        // can livelock under sync's deep inline completion order. The cost of pair-locking is
+        // negligible compared to a deadlock.
+        #[cfg(any(feature = "force_pair_locked_aggregation", feature = "sync"))]
+        {
+            for upper_item in upper_ids {
+                let (upper_id, count) = upper_item.task_id_and_count();
+                self.inner_of_upper_has_new_follower_pair_locked(
+                    ctx,
+                    new_follower_id,
+                    upper_id,
+                    count,
+                );
+            }
+            return;
+        }
         if cfg!(feature = "aggregation_update_no_batch") {
             for upper_item in upper_ids {
                 let (upper_id, count) = upper_item.task_id_and_count();
@@ -2447,6 +2600,7 @@ impl AggregationUpdateQueue {
         let mut upper_upper_ids_with_new_follower = FxHashMap::default();
         let mut tasks_for_which_increment_active_count = SmallVec::new();
         let mut is_active = false;
+        let mut retries = 0;
         loop {
             let mut upper_ids_with_min_aggregation_number = Vec::new();
             for upper_item in upper_ids.drain(..) {
@@ -2520,6 +2674,19 @@ impl AggregationUpdateQueue {
             }
 
             if upper_ids_with_min_aggregation_number.is_empty() {
+                break;
+            }
+            retries += 1;
+            if retries > MAX_AGGREGATION_CLASSIFICATION_RETRIES {
+                for (upper_item, _) in upper_ids_with_min_aggregation_number {
+                    let (upper_id, count) = upper_item.task_id_and_count();
+                    self.inner_of_upper_has_new_follower_pair_locked(
+                        ctx,
+                        new_follower_id,
+                        upper_id,
+                        count,
+                    );
+                }
                 break;
             }
 
@@ -2660,12 +2827,28 @@ impl AggregationUpdateQueue {
 
     /// Batched version of `inner_of_upper_has_new_follower`.
     /// See detailed comments in that function, follow the STEP numbers.
+    ///
+    /// See comment on `inner_of_uppers_has_new_follower` – under sync we must use
+    /// pair-locked classification to guarantee termination.
     fn inner_of_upper_has_new_followers<T: TaskIdWithOptionalCount, const N: usize>(
         &mut self,
         ctx: &mut impl ExecuteContext<'_>,
         new_follower_ids: SmallVec<[T; N]>,
         upper_id: TaskId,
     ) {
+        #[cfg(any(feature = "force_pair_locked_aggregation", feature = "sync"))]
+        {
+            for new_follower_item in new_follower_ids {
+                let (new_follower_id, count) = new_follower_item.task_id_and_count();
+                self.inner_of_upper_has_new_follower_pair_locked(
+                    ctx,
+                    new_follower_id,
+                    upper_id,
+                    count,
+                );
+            }
+            return;
+        }
         if cfg!(feature = "aggregation_update_no_batch") {
             for new_follower_item in new_follower_ids {
                 let (new_follower_id, count) = new_follower_item.task_id_and_count();
@@ -2699,7 +2882,40 @@ impl AggregationUpdateQueue {
         let mut upper_data_updates = Vec::new();
         let mut upper_new_followers = FxHashMap::default();
         let mut inner_tasks = Vec::new();
+        let mut retries = 0;
+        let mut iteration: usize = 0;
         loop {
+            iteration += 1;
+            // Hard bound to turn livelock into diagnostic panic instead of 35s spin.
+            // Normal case needs ≤2 iterations. If we exceed 100k, something is wrong.
+            if iteration > 100_000 {
+                // Only eprint once per 1M iterations to avoid log spam while still
+                // capturing the state without perturbing timing too much.
+                if iteration % 1_000_000 == 0 {
+                    let upper_agg = {
+                        let upper = ctx.task(upper_id, AGGREGATION_UPDATE_CATEGORY);
+                        get_aggregation_number(&upper)
+                    };
+                    let follower_info = followers_with_min_aggregation_number
+                        .iter()
+                        .map(|(id, _count, agg)| format!("{id:?} agg={agg}"))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    eprintln!(
+                        "[aggregation livelock] inner_of_upper_has_new_followers \
+                         upper_id={upper_id:?} upper_agg={upper_agg} iteration={iteration} \
+                         remaining_followers={} [{follower_info}]",
+                        followers_with_min_aggregation_number.len()
+                    );
+                }
+                if iteration > 10_000_000 {
+                    panic!(
+                        "aggregation livelock detected in inner_of_upper_has_new_followers: \
+                         upper_id={upper_id:?} iteration={iteration} remaining_followers={}",
+                        followers_with_min_aggregation_number.len()
+                    );
+                }
+            }
             let mut upper_upper_ids_for_new_followers = SmallVec::new();
             let mut new_followers_of_upper_uppers = SmallVec::new();
             let mut has_active_count = false;
@@ -2795,6 +3011,18 @@ impl AggregationUpdateQueue {
             }
 
             if followers_with_min_aggregation_number.is_empty() {
+                break;
+            }
+            retries += 1;
+            if retries > MAX_AGGREGATION_CLASSIFICATION_RETRIES {
+                for (new_follower_id, count, _) in followers_with_min_aggregation_number {
+                    self.inner_of_upper_has_new_follower_pair_locked(
+                        ctx,
+                        new_follower_id,
+                        upper_id,
+                        count,
+                    );
+                }
                 break;
             }
 
@@ -2924,6 +3152,15 @@ impl AggregationUpdateQueue {
         upper_id: TaskId,
         count: u32,
     ) {
+        // Under sync always use the pair-locked path – see comments on the batched
+        // variants. The optimistic single-lock retry loop can livelock when the sync
+        // engine's deep inline completions interleave with concurrent aggregation bumps.
+        #[cfg(any(feature = "force_pair_locked_aggregation", feature = "sync"))]
+        {
+            self.inner_of_upper_has_new_follower_pair_locked(ctx, new_follower_id, upper_id, count);
+            return;
+        }
+
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("process new follower").entered();
 
@@ -2947,7 +3184,24 @@ impl AggregationUpdateQueue {
         // right one, but when we tried the incorrect one, the values might change concurrently.
         // To solve this, we need to try in a loop until we lock the right one and can guarantee the
         // correct relationship between the values.
+        //
+        // Under the sync engine the same queue may be driven inline on one worker while other
+        // workers concurrently bump aggregation numbers via their own queues. The
+        // one-task-at-a-time snapshots can therefore stay ambiguous and the loop may not
+        // converge. Bound the retries and fall back to a single consistent snapshot of the
+        // pair.
+        let mut retries = 0usize;
         loop {
+            if retries > MAX_AGGREGATION_CLASSIFICATION_RETRIES {
+                self.inner_of_upper_has_new_follower_pair_locked(
+                    ctx,
+                    new_follower_id,
+                    upper_id,
+                    count,
+                );
+                return;
+            }
+            retries += 1;
             // STEP 2
             let mut upper = ctx.task(
                 upper_id,
@@ -3438,8 +3692,34 @@ impl AggregationUpdateQueue {
 
 impl Operation for AggregationUpdateQueue {
     fn execute(mut self, ctx: &mut impl ExecuteContext<'_>) {
+        let mut iterations: usize = 0;
         loop {
             ctx.operation_suspend_point(&self);
+            iterations += 1;
+            if iterations > 1_000_000 {
+                if iterations % 1_000_000 == 0 {
+                    eprintln!(
+                        "[aggregation livelock] execute loop iteration={iterations} jobs={} \
+                         agg_updates={} balance={} optimize={} find_and_schedule={} scheduled={}",
+                        self.jobs.len(),
+                        self.aggregation_number_updates.len(),
+                        self.balance_queue.len(),
+                        self.optimize_queue.len(),
+                        self.find_and_schedule.len(),
+                        self.scheduled_tasks.len()
+                    );
+                }
+                if iterations > 10_000_000 {
+                    panic!(
+                        "aggregation livelock detected in execute: iterations={iterations} \
+                         jobs={} agg_updates={} balance={} optimize={}",
+                        self.jobs.len(),
+                        self.aggregation_number_updates.len(),
+                        self.balance_queue.len(),
+                        self.optimize_queue.len()
+                    );
+                }
+            }
             if self.process(ctx) {
                 return;
             }

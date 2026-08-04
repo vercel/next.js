@@ -13,7 +13,12 @@ bench = false
 workspace = true
 
 [dependencies]
-next-core = { workspace = true }
-turbopack-core = { workspace = true }
+next-core = { path = "../next-core", default-features = false }
+turbopack-core = { path = "../../turbopack/crates/turbopack-core", default-features = false }
 turbo-rcstr = { workspace = true }
+
+[features]
+default = ["tokio_runtime"]
+tokio_runtime = ["next-core/tokio_runtime", "turbopack-core/tokio_runtime"]
+sync = ["next-core/sync", "turbopack-core/sync"]
 

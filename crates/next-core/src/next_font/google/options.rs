@@ -28,9 +28,17 @@ pub(super) struct NextFontGoogleOptions {
     pub subsets: Option<Vec<RcStr>>,
 }
 
+#[cfg(not(feature = "sync"))]
 impl NextFontGoogleOptions {
     pub async fn font_family(self: Vc<Self>) -> Result<RcStr> {
-        Ok(self.await?.font_family.clone())
+        Ok(turbo_tasks::read!(self)?.font_family.clone())
+    }
+}
+
+#[cfg(feature = "sync")]
+impl NextFontGoogleOptions {
+    pub fn font_family(self: Vc<Self>) -> Result<RcStr> {
+        Ok(turbo_tasks::read!(self)?.font_family.clone())
     }
 }
 

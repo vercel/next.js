@@ -75,7 +75,7 @@ pub async fn get_app_metadata_route_entry(
     let is_multi_dynamic: bool = if Some(segment_config).is_some() {
         // is_multi_dynamic is true when config.generateSitemaps or
         // config.generateImageMetadata is defined in dynamic routes
-        let config = segment_config.await.unwrap();
+        let config = turbo_tasks::read!(segment_config).unwrap();
         config.generate_sitemaps || config.generate_image_metadata
     } else {
         false
@@ -115,8 +115,9 @@ pub async fn get_app_metadata_route_entry(
 const CACHE_HEADER_NONE: &str = "no-cache, no-store";
 const CACHE_HEADER_REVALIDATE: &str = "public, max-age=0, must-revalidate";
 
-async fn get_base64_file_content(path: FileSystemPath) -> Result<String> {
-    let original_file_content = path.read().await?;
+turbo_tasks::dual_fn! {
+fn get_base64_file_content(path: FileSystemPath) -> Result<String> {
+    let original_file_content = turbo_tasks::read!(path.read())?;
 
     Ok(match &*original_file_content {
         FileContent::Content(content) => {
@@ -127,6 +128,7 @@ async fn get_base64_file_content(path: FileSystemPath) -> Result<String> {
             turbobail!("metadata file not found: {path}")
         }
     })
+}
 }
 
 #[turbo_tasks::function]
@@ -143,7 +145,7 @@ async fn static_route_source(mode: NextMode, path: FileSystemPath) -> Result<Vc<
     let is_twitter = stem == "twitter-image";
     let is_open_graph = stem == "opengraph-image";
 
-    let content_type = get_content_type(path.clone()).await?;
+    let content_type = turbo_tasks::read!(get_content_type(path.clone()))?;
     let original_file_content_b64;
 
     // Twitter image file size limit is 5MB.
@@ -152,7 +154,7 @@ async fn static_route_source(mode: NextMode, path: FileSystemPath) -> Result<Vc<
     // x-ref(facebook): https://developers.facebook.com/docs/sharing/webmasters/images
     let file_size_limit_mb = if is_twitter { 5 } else { 8 };
     if (is_twitter || is_open_graph)
-        && let Some(content) = path.read().await?.as_content()
+        && let Some(content) = turbo_tasks::read!(path.read())?.as_content()
         && let file_size = content.content().to_bytes().len()
         && file_size > (file_size_limit_mb * 1024 * 1024)
     {
@@ -172,7 +174,7 @@ async fn static_route_source(mode: NextMode, path: FileSystemPath) -> Result<Vc<
         // Don't inline huge string, just insert placeholder
         original_file_content_b64 = "".to_string();
     } else {
-        original_file_content_b64 = get_base64_file_content(path.clone()).await?
+        original_file_content_b64 = turbo_tasks::read!(get_base64_file_content(path.clone()))?
     }
 
     let code = formatdoc! {
@@ -217,7 +219,7 @@ async fn dynamic_text_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn So
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
 
-    let content_type = get_content_type(path.clone()).await?;
+    let content_type = turbo_tasks::read!(get_content_type(path.clone()))?;
 
     // refer https://github.com/vercel/next.js/blob/7b2b9823432fb1fa28ae0ac3878801d638d93311/packages/next/src/build/webpack/loaders/next-metadata-route-loader.ts#L84
     // for the original template.
@@ -265,12 +267,13 @@ async fn dynamic_text_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn So
     Ok(Vc::upcast(source))
 }
 
-async fn dynamic_sitemap_route_with_generate_source(
+turbo_tasks::dual_fn! {
+fn dynamic_sitemap_route_with_generate_source(
     path: FileSystemPath,
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
-    let content_type = get_content_type(path.clone()).await?;
+    let content_type = turbo_tasks::read!(get_content_type(path.clone()))?;
 
     let code = formatdoc! {
         r#"
@@ -353,13 +356,15 @@ async fn dynamic_sitemap_route_with_generate_source(
 
     Ok(Vc::upcast(source))
 }
+}
 
-async fn dynamic_sitemap_route_without_generate_source(
+turbo_tasks::dual_fn! {
+fn dynamic_sitemap_route_without_generate_source(
     path: FileSystemPath,
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
-    let content_type = get_content_type(path.clone()).await?;
+    let content_type = turbo_tasks::read!(get_content_type(path.clone()))?;
 
     let code = formatdoc! {
         r#"
@@ -403,6 +408,7 @@ async fn dynamic_sitemap_route_without_generate_source(
 
     Ok(Vc::upcast(source))
 }
+}
 
 #[turbo_tasks::function]
 async fn dynamic_site_map_route_source(
@@ -410,13 +416,14 @@ async fn dynamic_site_map_route_source(
     is_multi_dynamic: bool,
 ) -> Result<Vc<Box<dyn Source>>> {
     if is_multi_dynamic {
-        dynamic_sitemap_route_with_generate_source(path).await
+        turbo_tasks::read!(dynamic_sitemap_route_with_generate_source(path))
     } else {
-        dynamic_sitemap_route_without_generate_source(path).await
+        turbo_tasks::read!(dynamic_sitemap_route_without_generate_source(path))
     }
 }
 
-async fn dynamic_image_route_with_metadata_source(
+turbo_tasks::dual_fn! {
+fn dynamic_image_route_with_metadata_source(
     path: FileSystemPath,
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
@@ -486,8 +493,10 @@ async fn dynamic_image_route_with_metadata_source(
 
     Ok(Vc::upcast(source))
 }
+}
 
-async fn dynamic_image_route_without_metadata_source(
+turbo_tasks::dual_fn! {
+fn dynamic_image_route_without_metadata_source(
     path: FileSystemPath,
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
@@ -519,6 +528,7 @@ async fn dynamic_image_route_without_metadata_source(
 
     Ok(Vc::upcast(source))
 }
+}
 
 #[turbo_tasks::function]
 async fn dynamic_image_route_source(
@@ -526,9 +536,9 @@ async fn dynamic_image_route_source(
     is_multi_dynamic: bool,
 ) -> Result<Vc<Box<dyn Source>>> {
     if is_multi_dynamic {
-        dynamic_image_route_with_metadata_source(path).await
+        turbo_tasks::read!(dynamic_image_route_with_metadata_source(path))
     } else {
-        dynamic_image_route_without_metadata_source(path).await
+        turbo_tasks::read!(dynamic_image_route_without_metadata_source(path))
     }
 }
 
@@ -540,6 +550,7 @@ struct StaticMetadataFileSizeIssue {
     file_size_limit_mb: usize,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for StaticMetadataFileSizeIssue {
@@ -563,15 +574,50 @@ impl Issue for StaticMetadataFileSizeIssue {
 
     async fn description(&self) -> Result<Option<StyledString>> {
         let current_size = (self.file_size as f32) / 1024.0 / 1024.0;
-        Ok(Some(StyledString::Text(
-            turbofmt!(
-                "File size for {} image \"{}\" exceeds {}MB. (Current: {current_size:.1}MB)",
-                self.img_name,
-                self.path,
-                self.file_size_limit_mb,
-            )
-            .await?,
+        Ok(Some(StyledString::Text(turbo_tasks::read!(turbofmt!(
+            "File size for {} image \"{}\" exceeds {}MB. (Current: {current_size:.1}MB)",
+            self.img_name,
+            self.path,
+            self.file_size_limit_mb,
+        ))?)))
+    }
+
+    fn documentation_link(&self) -> RcStr {
+        rcstr!(
+            "https://nextjs.org/docs/app/api-reference/file-conventions/metadata/opengraph-image#image-files-jpg-png-gif"
+        )
+    }
+}
+
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for StaticMetadataFileSizeIssue {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Static metadata file size exceeded"
         )))
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::ProcessModule
+    }
+
+    fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.path.clone())
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
+        let current_size = (self.file_size as f32) / 1024.0 / 1024.0;
+        Ok(Some(StyledString::Text(turbo_tasks::read!(turbofmt!(
+            "File size for {} image \"{}\" exceeds {}MB. (Current: {current_size:.1}MB)",
+            self.img_name,
+            self.path,
+            self.file_size_limit_mb,
+        ))?)))
     }
 
     fn documentation_link(&self) -> RcStr {

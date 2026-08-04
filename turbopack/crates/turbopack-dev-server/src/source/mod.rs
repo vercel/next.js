@@ -15,7 +15,9 @@ use std::collections::BTreeSet;
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use futures::{TryStreamExt, stream::Stream as StreamTrait};
+#[cfg(not(feature = "sync"))]
+use futures::TryStreamExt;
+use futures::stream::Stream as StreamTrait;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     Completion, NonLocalValue, OperationVc, ResolvedVc, Upcast, Vc, trace::TraceRawVcs,
@@ -53,9 +55,36 @@ impl Version for ProxyResult {
             name.deterministic_hash(&mut hash);
             value.deterministic_hash(&mut hash);
         }
-        let mut read = self.body.read();
-        while let Some(chunk) = read.try_next().await? {
-            hash.write_bytes(&chunk);
+        // The body is a `turbo_tasks_bytes::Stream`. In the async build it is driven with the
+        // `TryStream` combinator as before. The no-tokio `sync` build can only ever hold a
+        // *closed* stream (see `Stream::new_closed`), which `poll_next` resolves without ever
+        // returning `Pending`; we drive it with a no-op waker and bail honestly if a genuinely
+        // open (runtime-backed) stream is ever encountered here.
+        #[cfg(not(feature = "sync"))]
+        {
+            let mut read = self.body.read();
+            while let Some(chunk) = turbo_tasks::read!(read.try_next())? {
+                hash.write_bytes(&chunk);
+            }
+        }
+        #[cfg(feature = "sync")]
+        {
+            use std::task::{Context, Poll};
+
+            use futures::stream::StreamExt;
+            let mut read = std::pin::pin!(self.body.read());
+            let waker = futures::task::noop_waker();
+            let mut cx = Context::from_waker(&waker);
+            loop {
+                match read.as_mut().poll_next_unpin(&mut cx) {
+                    Poll::Ready(Some(chunk)) => hash.write_bytes(&chunk?),
+                    Poll::Ready(None) => break,
+                    Poll::Pending => anyhow::bail!(
+                        "reading an open dev-server body stream requires the async runtime \
+                         (blocking port not yet landed)"
+                    ),
+                }
+            }
         }
         Ok(Vc::cell(hash.finish().to_string().into()))
     }
@@ -124,7 +153,7 @@ impl ContentSourceContent {
             StaticContent {
                 content,
                 status_code: 200,
-                headers: HeaderList::empty().to_resolved().await?,
+                headers: turbo_tasks::read!(HeaderList::empty().to_resolved())?,
             }
             .resolved_cell(),
         )

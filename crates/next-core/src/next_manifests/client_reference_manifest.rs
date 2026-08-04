@@ -111,7 +111,7 @@ impl OutputAssetsReference for ClientReferenceManifest {
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
         Ok(OutputAssetsWithReferenced::from_assets(
-            *build_manifest(self).await?.references,
+            *turbo_tasks::read!(build_manifest(self))?.references,
         ))
     }
 }
@@ -134,7 +134,7 @@ impl OutputAsset for ClientReferenceManifest {
 impl Asset for ClientReferenceManifest {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
-        Ok(*build_manifest(self).await?.content)
+        Ok(*turbo_tasks::read!(build_manifest(self))?.content)
     }
 }
 
@@ -160,48 +160,50 @@ async fn build_manifest(
         next_config,
         runtime,
         mode,
-    } = &*manifest.await?;
+    } = &*turbo_tasks::read!(manifest)?;
     let span = tracing::info_span!(
         "build client reference manifest",
         entry_name = display(&entry_name)
     );
-    async move {
+    #[cfg(not(feature = "sync"))]
+    {
+        turbo_tasks::read!(async move {
         let mut entry_manifest: SerializedClientReferenceManifest = Default::default();
         let mut references = FxIndexSet::default();
-        let prefix_path = next_config.computed_asset_prefix().owned().await?;
-        let asset_suffix_path = next_config.asset_suffix_path().owned().await?;
-        let add_deployment_id_at_runtime = *next_config
-            .should_append_server_deployment_id_at_runtime()
-            .await?;
+        let prefix_path = turbo_tasks::read!(next_config.computed_asset_prefix().owned())?;
+        let asset_suffix_path = turbo_tasks::read!(next_config.asset_suffix_path().owned())?;
+        let add_deployment_id_at_runtime = *turbo_tasks::read!(next_config
+            .should_append_server_deployment_id_at_runtime())
+            ?;
         let suffix_path = if !add_deployment_id_at_runtime {
             asset_suffix_path.unwrap_or_default()
         } else {
             rcstr!("")
         };
 
-        entry_manifest.module_loading.cross_origin = *next_config.cross_origin().await?;
+        entry_manifest.module_loading.cross_origin = *turbo_tasks::read!(next_config.cross_origin())?;
         let ClientReferencesChunks {
             client_component_client_chunks,
             layout_segment_client_chunks,
             client_component_ssr_chunks,
-        } = &*client_references_chunks.await?;
+        } = &*turbo_tasks::read!(client_references_chunks)?;
         let client_relative_path = client_relative_path.clone();
         let node_root_ref = node_root.clone();
 
-        let client_references_ecmascript = client_references
-            .await?
+        let client_references_ecmascript = turbo_tasks::read!(turbo_tasks::read!(client_references)
+            ?
             .client_references
             .iter()
             .map(async |r| {
                 Ok(match r.ty {
-                    ClientReferenceType::EcmascriptClientReference(r) => Some((r, r.await?)),
+                    ClientReferenceType::EcmascriptClientReference(r) => Some((r, turbo_tasks::read!(r)?)),
                     ClientReferenceType::CssClientReference(_) => None,
                 })
             })
-            .try_flat_join()
-            .await?;
+            .try_flat_join())
+            ?;
 
-        let async_modules = client_references_ecmascript
+        let async_modules = turbo_tasks::read!(client_references_ecmascript
             .iter()
             .flat_map(|(r, r_val)| {
                 [
@@ -211,32 +213,32 @@ async fn build_manifest(
                 ]
             })
             .map(async move |asset| {
-                Ok(if async_module_info.is_async(asset).await? {
+                Ok(if turbo_tasks::read!(async_module_info.is_async(asset))? {
                     Some(asset)
                 } else {
                     None
                 })
             })
-            .try_flat_join()
-            .await?;
+            .try_flat_join())
+            ?;
 
         async fn cached_chunk_paths(
             cache: &mut FxHashMap<ResolvedVc<Box<dyn OutputAsset>>, FileSystemPath>,
             chunks: impl Iterator<Item = ResolvedVc<Box<dyn OutputAsset>>>,
         ) -> Result<impl Iterator<Item = (ResolvedVc<Box<dyn OutputAsset>>, FileSystemPath)>>
         {
-            let results = chunks
+            let results = turbo_tasks::read!(chunks
                 .into_iter()
                 .map(|chunk| (chunk, cache.get(&chunk).cloned()))
                 .map(async |(chunk, path)| {
                     Ok(if let Some(path) = path {
                         (chunk, Either::Left(path))
                     } else {
-                        (chunk, Either::Right(chunk.path().owned().await?))
+                        (chunk, Either::Right(turbo_tasks::read!(chunk.path().owned())?))
                     })
                 })
-                .try_join()
-                .await?;
+                .try_join())
+                ?;
 
             for (chunk, path) in &results {
                 if let Either::Right(path) = path {
@@ -259,23 +261,23 @@ async fn build_manifest(
             let app_client_reference_ty =
                 ClientReferenceType::EcmascriptClientReference(client_reference_module);
 
-            let server_path = client_reference_module_ref.server_ident.to_string().await?;
+            let server_path = turbo_tasks::read!(client_reference_module_ref.server_ident.to_string())?;
             let client_module = client_reference_module_ref.client_module;
-            let client_chunk_item_id = client_module
-                .chunk_item_id(**client_chunking_context)
-                .await?;
+            let client_chunk_item_id = turbo_tasks::read!(client_module
+                .chunk_item_id(**client_chunking_context))
+                ?;
 
             let (client_chunks_paths, client_is_async) = if let Some(client_assets) =
                 client_component_client_chunks.get(&app_client_reference_ty)
             {
-                let client_chunks = client_assets.primary_assets().await?;
-                let client_referenced_assets = client_assets.referenced_assets().await?;
+                let client_chunks = turbo_tasks::read!(client_assets.primary_assets())?;
+                let client_referenced_assets = turbo_tasks::read!(client_assets.referenced_assets())?;
                 references.extend(client_chunks.iter());
                 references.extend(client_referenced_assets.iter());
 
                 let client_chunks_paths =
-                    cached_chunk_paths(&mut client_chunk_path_cache, client_chunks.iter().copied())
-                        .await?;
+                    turbo_tasks::read!(cached_chunk_paths(&mut client_chunk_path_cache, client_chunks.iter().copied()))
+                        ?;
 
                 let chunk_paths = client_chunks_paths
                     .filter_map(|(_, chunk_path)| {
@@ -306,11 +308,11 @@ async fn build_manifest(
 
             if let Some(ssr_chunking_context) = *ssr_chunking_context {
                 let ssr_module = client_reference_module_ref.ssr_module;
-                let ssr_chunk_item_id = ssr_module.chunk_item_id(*ssr_chunking_context).await?;
+                let ssr_chunk_item_id = turbo_tasks::read!(ssr_module.chunk_item_id(*ssr_chunking_context))?;
 
-                let rsc_chunk_item_id = client_reference_module
-                    .chunk_item_id(*ssr_chunking_context)
-                    .await?;
+                let rsc_chunk_item_id = turbo_tasks::read!(client_reference_module
+                    .chunk_item_id(*ssr_chunking_context))
+                    ?;
 
                 let (ssr_chunks_paths, ssr_is_async) = if *runtime == NextRuntime::Edge {
                     // the chunks get added to the middleware-manifest.json instead
@@ -321,14 +323,14 @@ async fn build_manifest(
                 } else if let Some(ssr_assets) =
                     client_component_ssr_chunks.get(&app_client_reference_ty)
                 {
-                    let ssr_chunks = ssr_assets.primary_assets().await?;
-                    let ssr_referenced_assets = ssr_assets.referenced_assets().await?;
+                    let ssr_chunks = turbo_tasks::read!(ssr_assets.primary_assets())?;
+                    let ssr_referenced_assets = turbo_tasks::read!(ssr_assets.referenced_assets())?;
                     references.extend(ssr_chunks.iter());
                     references.extend(ssr_referenced_assets.iter());
 
                     let ssr_chunks_paths =
-                        cached_chunk_paths(&mut ssr_chunk_path_cache, ssr_chunks.iter().copied())
-                            .await?;
+                        turbo_tasks::read!(cached_chunk_paths(&mut ssr_chunk_path_cache, ssr_chunks.iter().copied()))
+                            ?;
                     let chunk_paths = ssr_chunks_paths
                         .filter_map(|(_, chunk_path)| {
                             node_root_ref
@@ -415,12 +417,12 @@ async fn build_manifest(
             // server_path() which returns the transformed path (e.g., page.mdx.tsx).
             // This ensures the manifest key matches what the LoaderTree stores and what
             // the runtime looks up after stripping one extension.
-            let server_component_name = server_component
-                .source_path()
-                .await?
+            let server_component_name = turbo_tasks::read!(turbo_tasks::read!(server_component
+                .source_path())
+                ?
                 .with_extension("")
-                .to_string_ref()
-                .await?;
+                .to_string_ref())
+                ?;
             let entry_js_files = entry_manifest
                 .entry_js_files
                 .entry(server_component_name.clone())
@@ -430,12 +432,12 @@ async fn build_manifest(
                 .entry(server_component_name)
                 .or_default();
 
-            let client_chunks = client_assets.primary_assets().await?;
+            let client_chunks = turbo_tasks::read!(client_assets.primary_assets())?;
             let client_chunks_with_path =
-                cached_chunk_paths(&mut client_chunk_path_cache, client_chunks.iter().copied())
-                    .await?;
+                turbo_tasks::read!(cached_chunk_paths(&mut client_chunk_path_cache, client_chunks.iter().copied()))
+                    ?;
             // Inlining breaks HMR so it is always disabled in dev.
-            let inlined_css = *next_config.inline_css().await? && mode.is_production();
+            let inlined_css = *turbo_tasks::read!(next_config.inline_css())? && mode.is_production();
 
             for (chunk, chunk_path) in client_chunks_with_path {
                 if let Some(path) = client_relative_path.get_path_to(&chunk_path) {
@@ -446,7 +448,7 @@ async fn build_manifest(
                         let content = if inlined_css {
                             Some(
                                 if let Some(content_file) =
-                                    chunk.content().file_content().await?.as_content()
+                                    turbo_tasks::read!(chunk.content().file_content())?.as_content()
                                 {
                                     content_file.content().to_str()?.into()
                                 } else {
@@ -477,7 +479,7 @@ async fn build_manifest(
         // path still (same as webpack does)
         let normalized_manifest_entry = entry_name.replace("%5F", "_");
         Ok(ClientReferenceManifestResult {
-            content: AssetContent::file(
+            content: turbo_tasks::read!(AssetContent::file(
                 FileContent::Content(File::from(formatdoc! {
                     r#"
                         globalThis.__RSC_MANIFEST = globalThis.__RSC_MANIFEST || {{}};
@@ -503,14 +505,380 @@ async fn build_manifest(
                 }))
                 .cell(),
             )
-            .to_resolved()
-            .await?,
+            .to_resolved())
+            ?,
             references: ResolvedVc::cell(references.into_iter().collect()),
         }
         .cell())
     }
-    .instrument(span)
-    .await
+    .instrument(span))
+    }
+    #[cfg(feature = "sync")]
+    {
+        let _span_guard = span.entered();
+        let mut entry_manifest: SerializedClientReferenceManifest = Default::default();
+        let mut references = FxIndexSet::default();
+        let prefix_path = turbo_tasks::read!(next_config.computed_asset_prefix().owned())?;
+        let asset_suffix_path = turbo_tasks::read!(next_config.asset_suffix_path().owned())?;
+        let add_deployment_id_at_runtime =
+            *turbo_tasks::read!(next_config.should_append_server_deployment_id_at_runtime())?;
+        let suffix_path = if !add_deployment_id_at_runtime {
+            asset_suffix_path.unwrap_or_default()
+        } else {
+            rcstr!("")
+        };
+
+        entry_manifest.module_loading.cross_origin =
+            *turbo_tasks::read!(next_config.cross_origin())?;
+        let ClientReferencesChunks {
+            client_component_client_chunks,
+            layout_segment_client_chunks,
+            client_component_ssr_chunks,
+        } = &*turbo_tasks::read!(client_references_chunks)?;
+        let client_relative_path = client_relative_path.clone();
+        let node_root_ref = node_root.clone();
+
+        let client_references_ecmascript = {
+            let mut client_references_ecmascript = Vec::new();
+            for r in turbo_tasks::read!(client_references)?
+                .client_references
+                .iter()
+            {
+                client_references_ecmascript.extend({
+                    Ok::<_, anyhow::Error>(match r.ty {
+                        ClientReferenceType::EcmascriptClientReference(r) => {
+                            Some((r, turbo_tasks::read!(r)?))
+                        }
+                        ClientReferenceType::CssClientReference(_) => None,
+                    })
+                }?);
+            }
+            client_references_ecmascript
+        };
+
+        let async_modules = {
+            let mut async_modules = Vec::new();
+            for asset in client_references_ecmascript.iter().flat_map(|(r, r_val)| {
+                [
+                    ResolvedVc::upcast(*r),
+                    ResolvedVc::upcast(r_val.client_module),
+                    ResolvedVc::upcast(r_val.ssr_module),
+                ]
+            }) {
+                async_modules.extend({
+                    Ok::<_, anyhow::Error>(
+                        if turbo_tasks::read!(async_module_info.is_async(asset))? {
+                            Some(asset)
+                        } else {
+                            None
+                        },
+                    )
+                }?);
+            }
+            async_modules
+        };
+
+        fn cached_chunk_paths(
+            cache: &mut FxHashMap<ResolvedVc<Box<dyn OutputAsset>>, FileSystemPath>,
+            chunks: impl Iterator<Item = ResolvedVc<Box<dyn OutputAsset>>>,
+        ) -> Result<impl Iterator<Item = (ResolvedVc<Box<dyn OutputAsset>>, FileSystemPath)>>
+        {
+            let results = {
+                let mut results = Vec::new();
+                for (chunk, path) in chunks
+                    .into_iter()
+                    .map(|chunk| (chunk, cache.get(&chunk).cloned()))
+                {
+                    results.push({
+                        Ok::<_, anyhow::Error>(if let Some(path) = path {
+                            (chunk, Either::Left(path))
+                        } else {
+                            (
+                                chunk,
+                                Either::Right(turbo_tasks::read!(chunk.path().owned())?),
+                            )
+                        })
+                    }?);
+                }
+                results
+            };
+
+            for (chunk, path) in &results {
+                if let Either::Right(path) = path {
+                    cache.insert(*chunk, path.clone());
+                }
+            }
+            Ok(results.into_iter().map(|(chunk, path)| match path {
+                Either::Left(path) => (chunk, path),
+                Either::Right(path) => (chunk, path),
+            }))
+        }
+        let mut client_chunk_path_cache: FxHashMap<
+            ResolvedVc<Box<dyn OutputAsset>>,
+            FileSystemPath,
+        > = FxHashMap::default();
+        let mut ssr_chunk_path_cache: FxHashMap<ResolvedVc<Box<dyn OutputAsset>>, FileSystemPath> =
+            FxHashMap::default();
+
+        for (client_reference_module, client_reference_module_ref) in client_references_ecmascript {
+            let app_client_reference_ty =
+                ClientReferenceType::EcmascriptClientReference(client_reference_module);
+
+            let server_path =
+                turbo_tasks::read!(client_reference_module_ref.server_ident.to_string())?;
+            let client_module = client_reference_module_ref.client_module;
+            let client_chunk_item_id =
+                turbo_tasks::read!(client_module.chunk_item_id(**client_chunking_context))?;
+
+            let (client_chunks_paths, client_is_async) = if let Some(client_assets) =
+                client_component_client_chunks.get(&app_client_reference_ty)
+            {
+                let client_chunks = turbo_tasks::read!(client_assets.primary_assets())?;
+                let client_referenced_assets =
+                    turbo_tasks::read!(client_assets.referenced_assets())?;
+                references.extend(client_chunks.iter());
+                references.extend(client_referenced_assets.iter());
+
+                let client_chunks_paths = turbo_tasks::read!(cached_chunk_paths(
+                    &mut client_chunk_path_cache,
+                    client_chunks.iter().copied()
+                ))?;
+
+                let chunk_paths = client_chunks_paths
+                    .filter_map(|(_, chunk_path)| {
+                        client_relative_path
+                            .get_path_to(&chunk_path)
+                            .map(ToString::to_string)
+                    })
+                    // It's possible that a chunk also emits CSS files, that will
+                    // be handled separately.
+                    .filter(|path| path.ends_with(".js"))
+                    .map(|path| {
+                        format!(
+                            "{}{}{}",
+                            prefix_path,
+                            path.split('/').map(encode_uri_component).format("/"),
+                            suffix_path
+                        )
+                    })
+                    .map(RcStr::from)
+                    .collect::<Vec<_>>();
+
+                let is_async = async_modules.contains(&ResolvedVc::upcast(client_module));
+
+                (chunk_paths, is_async)
+            } else {
+                (Vec::new(), false)
+            };
+
+            if let Some(ssr_chunking_context) = *ssr_chunking_context {
+                let ssr_module = client_reference_module_ref.ssr_module;
+                let ssr_chunk_item_id =
+                    turbo_tasks::read!(ssr_module.chunk_item_id(*ssr_chunking_context))?;
+
+                let rsc_chunk_item_id = turbo_tasks::read!(
+                    client_reference_module.chunk_item_id(*ssr_chunking_context)
+                )?;
+
+                let (ssr_chunks_paths, ssr_is_async) = if *runtime == NextRuntime::Edge {
+                    // the chunks get added to the middleware-manifest.json instead
+                    // of this file because the
+                    // edge runtime doesn't support dynamically
+                    // loading chunks.
+                    (Vec::new(), false)
+                } else if let Some(ssr_assets) =
+                    client_component_ssr_chunks.get(&app_client_reference_ty)
+                {
+                    let ssr_chunks = turbo_tasks::read!(ssr_assets.primary_assets())?;
+                    let ssr_referenced_assets = turbo_tasks::read!(ssr_assets.referenced_assets())?;
+                    references.extend(ssr_chunks.iter());
+                    references.extend(ssr_referenced_assets.iter());
+
+                    let ssr_chunks_paths = turbo_tasks::read!(cached_chunk_paths(
+                        &mut ssr_chunk_path_cache,
+                        ssr_chunks.iter().copied()
+                    ))?;
+                    let chunk_paths = ssr_chunks_paths
+                        .filter_map(|(_, chunk_path)| {
+                            node_root_ref
+                                .get_path_to(&chunk_path)
+                                .map(ToString::to_string)
+                        })
+                        .map(RcStr::from)
+                        .collect::<Vec<_>>();
+
+                    let is_async = async_modules.contains(&ResolvedVc::upcast(ssr_module));
+
+                    (chunk_paths, is_async)
+                } else {
+                    (Vec::new(), false)
+                };
+
+                let rsc_is_async = if *runtime == NextRuntime::Edge {
+                    false
+                } else {
+                    async_modules.contains(&ResolvedVc::upcast(client_reference_module))
+                };
+
+                entry_manifest.client_modules.module_exports.insert(
+                    get_client_reference_module_key(&server_path, "*"),
+                    ManifestNodeEntry {
+                        name: rcstr!("*"),
+                        id: (&client_chunk_item_id).into(),
+                        chunks: client_chunks_paths,
+                        // This should of course be client_is_async, but SSR can become
+                        // async due to ESM externals, and
+                        // the ssr_manifest_node is currently ignored
+                        // by React.
+                        r#async: client_is_async || ssr_is_async,
+                    },
+                );
+
+                let mut ssr_manifest_node = ManifestNode::default();
+                ssr_manifest_node.module_exports.insert(
+                    rcstr!("*"),
+                    ManifestNodeEntry {
+                        name: rcstr!("*"),
+                        id: (&ssr_chunk_item_id).into(),
+                        chunks: ssr_chunks_paths,
+                        // See above
+                        r#async: client_is_async || ssr_is_async,
+                    },
+                );
+
+                let mut rsc_manifest_node = ManifestNode::default();
+                rsc_manifest_node.module_exports.insert(
+                    rcstr!("*"),
+                    ManifestNodeEntry {
+                        name: rcstr!("*"),
+                        id: (&rsc_chunk_item_id).into(),
+                        chunks: vec![],
+                        r#async: rsc_is_async,
+                    },
+                );
+
+                match runtime {
+                    NextRuntime::NodeJs => {
+                        entry_manifest
+                            .ssr_module_mapping
+                            .insert((&client_chunk_item_id).into(), ssr_manifest_node);
+                        entry_manifest
+                            .rsc_module_mapping
+                            .insert((&client_chunk_item_id).into(), rsc_manifest_node);
+                    }
+                    NextRuntime::Edge => {
+                        entry_manifest
+                            .edge_ssr_module_mapping
+                            .insert((&client_chunk_item_id).into(), ssr_manifest_node);
+                        entry_manifest
+                            .edge_rsc_module_mapping
+                            .insert((&client_chunk_item_id).into(), rsc_manifest_node);
+                    }
+                }
+            }
+        }
+
+        // per layout segment chunks need to be emitted into the manifest too
+        for (server_component, client_assets) in layout_segment_client_chunks.iter() {
+            // Use source_path() to get the original source path (e.g., page.mdx) instead of
+            // server_path() which returns the transformed path (e.g., page.mdx.tsx).
+            // This ensures the manifest key matches what the LoaderTree stores and what
+            // the runtime looks up after stripping one extension.
+            let server_component_name = turbo_tasks::read!(
+                turbo_tasks::read!(server_component.source_path())?
+                    .with_extension("")
+                    .to_string_ref()
+            )?;
+            let entry_js_files = entry_manifest
+                .entry_js_files
+                .entry(server_component_name.clone())
+                .or_default();
+            let entry_css_files = entry_manifest
+                .entry_css_files
+                .entry(server_component_name)
+                .or_default();
+
+            let client_chunks = turbo_tasks::read!(client_assets.primary_assets())?;
+            let client_chunks_with_path = turbo_tasks::read!(cached_chunk_paths(
+                &mut client_chunk_path_cache,
+                client_chunks.iter().copied()
+            ))?;
+            // Inlining breaks HMR so it is always disabled in dev.
+            let inlined_css =
+                *turbo_tasks::read!(next_config.inline_css())? && mode.is_production();
+
+            for (chunk, chunk_path) in client_chunks_with_path {
+                if let Some(path) = client_relative_path.get_path_to(&chunk_path) {
+                    // The entry CSS files and entry JS files don't have prefix and suffix
+                    // applied because it is added by Next.js during rendering.
+                    let path = path.into();
+                    if chunk_path.has_extension(".css") {
+                        let content = if inlined_css {
+                            Some(
+                                if let Some(content_file) =
+                                    turbo_tasks::read!(chunk.content().file_content())?.as_content()
+                                {
+                                    content_file.content().to_str()?.into()
+                                } else {
+                                    RcStr::default()
+                                },
+                            )
+                        } else {
+                            None
+                        };
+                        entry_css_files.insert(CssResource {
+                            path,
+                            inlined: inlined_css,
+                            content,
+                        });
+                    } else {
+                        entry_js_files.insert(path);
+                    }
+                }
+            }
+        }
+
+        let client_reference_manifest_json = serde_json::to_string(&entry_manifest).unwrap();
+
+        // We put normalized path for the each entry key and the manifest output path,
+        // to conform next.js's load client reference manifest behavior:
+        // https://github.com/vercel/next.js/blob/2f9d718695e4c90be13c3bf0f3647643533071bf/packages/next/src/server/load-components.ts#L162-L164
+        // note this only applies to the manifests, assets are placed to the original
+        // path still (same as webpack does)
+        let normalized_manifest_entry = entry_name.replace("%5F", "_");
+        Ok(ClientReferenceManifestResult {
+            content: turbo_tasks::read!(AssetContent::file(
+                FileContent::Content(File::from(formatdoc! {
+                    r#"
+                        globalThis.__RSC_MANIFEST = globalThis.__RSC_MANIFEST || {{}};
+                        globalThis.__RSC_MANIFEST[{entry_name}] = {manifest};
+                        {suffix}
+                    "#,
+                    entry_name = StringifyJs(&normalized_manifest_entry),
+                    manifest = &client_reference_manifest_json,
+                    suffix = if add_deployment_id_at_runtime {
+                        formatdoc!{
+                            r#"
+                            for (const key in globalThis.__RSC_MANIFEST[{entry_name}].clientModules) {{
+                                const val = {{ ...globalThis.__RSC_MANIFEST[{entry_name}].clientModules[key] }}
+                                globalThis.__RSC_MANIFEST[{entry_name}].clientModules[key] = val
+                                val.chunks = val.chunks.map((c) => `${{c}}?dpl=${{process.env.NEXT_DEPLOYMENT_ID}}`)
+                            }}
+                            "#,
+                            entry_name = StringifyJs(&normalized_manifest_entry),
+                        }
+                    } else {
+                        "".to_string()
+                    }
+                }))
+                .cell(),
+            )
+            .to_resolved())
+            ?,
+            references: ResolvedVc::cell(references.into_iter().collect()),
+        }
+        .cell())
+    }
 }
 
 impl From<&TurbopackModuleId> for ModuleId {

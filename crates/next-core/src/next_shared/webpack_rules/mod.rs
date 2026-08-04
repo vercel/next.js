@@ -142,22 +142,30 @@ pub async fn webpack_loader_options(
     next_config: Vc<NextConfig>,
     builtin_conditions: BTreeSet<WebpackLoaderBuiltinCondition>,
 ) -> Result<Vc<OptionWebpackLoadersOptions>> {
-    let user_rules = next_config.webpack_rules(project_path.clone()).await?;
+    let user_rules = turbo_tasks::read!(next_config.webpack_rules(project_path.clone()))?;
     let mut rules = (*user_rules).clone();
 
-    rules.append(&mut get_sass_loader_rules(&project_path, next_config, &user_rules).await?);
-    rules.append(
-        &mut get_babel_loader_rules(&project_path, next_config, &builtin_conditions, &user_rules)
-            .await?,
-    );
+    rules.append(&mut turbo_tasks::read!(get_sass_loader_rules(
+        &project_path,
+        next_config,
+        &user_rules
+    ))?);
+    rules.append(&mut turbo_tasks::read!(get_babel_loader_rules(
+        &project_path,
+        next_config,
+        &builtin_conditions,
+        &user_rules
+    ))?);
 
     Ok(Vc::cell(Some(
         WebpackLoadersOptions {
             rules: ResolvedVc::cell(rules),
-            loader_runner_package: Some(loader_runner_package_mapping().to_resolved().await?),
-            builtin_conditions: NextWebpackLoaderBuiltinConditionSet::new(builtin_conditions)
-                .to_resolved()
-                .await?,
+            loader_runner_package: Some(turbo_tasks::read!(
+                loader_runner_package_mapping().to_resolved()
+            )?),
+            builtin_conditions: turbo_tasks::read!(
+                NextWebpackLoaderBuiltinConditionSet::new(builtin_conditions).to_resolved()
+            )?,
         }
         .resolved_cell(),
     )))
@@ -184,6 +192,7 @@ pub struct ManuallyConfiguredBuiltinLoaderIssue {
     config_file_path: FileSystemPath,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for ManuallyConfiguredBuiltinLoaderIssue {
@@ -209,6 +218,51 @@ impl Issue for ManuallyConfiguredBuiltinLoaderIssue {
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Stack(vec![
+            StyledString::Text(rcstr!(
+                "Next.js includes a built-in version of this loader that is configured \
+                 automatically. You may not need to configure this."
+            )),
+            StyledString::Line(vec![
+                StyledString::Text(rcstr!("You can silence this warning by setting ")),
+                StyledString::Code(self.config_key.clone()),
+                StyledString::Text(rcstr!(" in ")),
+                StyledString::Text(self.config_file_path.path.clone()),
+                StyledString::Text(rcstr!(" to ")),
+                StyledString::Code(rcstr!("true")),
+                StyledString::Text(rcstr!(" (to silence this warning) or ")),
+                StyledString::Code(rcstr!("false")),
+                StyledString::Text(rcstr!(" (to disable the default built-in loader)")),
+            ]),
+        ])))
+    }
+}
+
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for ManuallyConfiguredBuiltinLoaderIssue {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Warning
+    }
+
+    fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.config_file_path.clone())
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Config
+    }
+
+    fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Line(vec![
+            StyledString::Text(rcstr!("Identified a likely manual configuration of ")),
+            StyledString::Code(self.loader.clone()),
+            StyledString::Text(rcstr!(" for paths matching ")),
+            StyledString::Code(self.glob.clone()),
+        ]))
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
         Ok(Some(StyledString::Stack(vec![
             StyledString::Text(rcstr!(
                 "Next.js includes a built-in version of this loader that is configured \

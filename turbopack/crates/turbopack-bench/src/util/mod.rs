@@ -50,7 +50,7 @@ where
     Fut: Future<Output = Result<R, E>>,
 {
     // waits 5, 10, 20, 40 seconds = 75 seconds total
-    retry_async(args, f, 3, Duration::from_secs(5)).await
+    turbo_tasks::read!(retry_async(args, f, 3, Duration::from_secs(5)))
 }
 
 pub fn build_test(module_count: usize, bundler: &dyn Bundler) -> TestApp {
@@ -97,7 +97,7 @@ pub async fn create_browser() -> Browser {
     if with_devtools {
         builder = builder.arg("--auto-open-devtools-for-tabs");
     }
-    let (browser, mut handler) = retry_async(
+    let (browser, mut handler) = turbo_tasks::read!(retry_async(
         builder.build().unwrap(),
         |c| {
             let c = c.clone();
@@ -105,14 +105,15 @@ pub async fn create_browser() -> Browser {
         },
         3,
         Duration::from_millis(100),
-    )
-    .await
+    ))
     .expect("Launching the browser failed");
 
     // See https://crates.io/crates/chromiumoxide
     tokio::task::spawn(async move {
         loop {
-            if let Err(Ws(Protocol(ResetWithoutClosingHandshake))) = handler.next().await.unwrap() {
+            if let Err(Ws(Protocol(ResetWithoutClosingHandshake))) =
+                turbo_tasks::read!(handler.next()).unwrap()
+            {
                 break;
             }
         }
@@ -166,7 +167,7 @@ impl<A: AsyncExecutor> AsyncBencherExtension<A> for AsyncBencher<'_, '_, A> {
         let routine = &routine;
         self.iter_custom(|iters| async move {
             let measurement = WallTime;
-            let value = routine(iters, measurement).await.expect("routine failed");
+            let value = turbo_tasks::read!(routine(iters, measurement)).expect("routine failed");
             if log_progress {
                 eprint!(" {:?}/{}", FormatDuration(value / (iters as u32)), iters);
             }
@@ -198,9 +199,8 @@ impl<A: AsyncExecutor> AsyncBencherExtension<A> for AsyncBencher<'_, '_, A> {
                 eprint!(" setup...");
             }
             let start = Instant::now();
-            let input = retry_async_default((), |_| setup())
-                .await
-                .expect("failed to setup");
+            let input =
+                turbo_tasks::read!(retry_async_default((), |_| setup())).expect("failed to setup");
             if log_progress {
                 let duration = start.elapsed();
                 eprint!(" [{:?}]", FormatDuration(duration));
@@ -216,9 +216,9 @@ impl<A: AsyncExecutor> AsyncBencherExtension<A> for AsyncBencher<'_, '_, A> {
                 .take()
                 .expect("iter_custom only executes its closure once");
 
-            let (output, value) = routine(input, iters, measurement, log_progress)
-                .await
-                .expect("Routine failed");
+            let (output, value) =
+                turbo_tasks::read!(routine(input, iters, measurement, log_progress))
+                    .expect("Routine failed");
             let output = black_box(output);
 
             if log_progress {

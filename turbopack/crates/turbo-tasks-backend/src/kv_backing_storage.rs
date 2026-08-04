@@ -480,7 +480,7 @@ mod tests {
     ///
     /// This is a lower-level test that verifies the database layer correctly handles
     /// the case where multiple task IDs are stored under the same hash key.
-    #[tokio::test(flavor = "multi_thread")]
+    #[turbo_tasks::test(flavor = "multi_thread")]
     async fn test_hash_collision_returns_multiple_candidates() -> Result<()> {
         let tempdir = tempfile::tempdir()?;
         let path = tempdir.path();
@@ -528,7 +528,7 @@ mod tests {
 
     /// Tests that multiple distinct keys written in a single batch with flush can be read back.
     /// This mirrors the actual save_snapshot pattern: write many TaskCache entries, flush, commit.
-    #[tokio::test(flavor = "multi_thread")]
+    #[turbo_tasks::test(flavor = "multi_thread")]
     async fn test_batch_write_with_flush_and_reopen() -> Result<()> {
         let tempdir = tempfile::tempdir()?;
         let path = tempdir.path();

@@ -6,12 +6,12 @@ use std::time::Duration;
 
 use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{CollectiblesSource, ReadRef, ResolvedVc, State, ValueToString, Vc, emit};
+use turbo_tasks::{CollectiblesSource, ReadRef, ResolvedVc, State, ValueToString, Vc, emit, read};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_dirty_in_progress() {
     run_once(&REGISTRATION, || async {
         let cases = [
@@ -32,7 +32,7 @@ async fn test_dirty_in_progress() {
             output_op.read_strongly_consistent().await?;
             println!("update to {b}");
             input_val.state.set(b);
-            tokio::time::sleep(Duration::from_millis(50)).await;
+            turbo_tasks_testing::sleep!(Duration::from_millis(50));
             println!("update to {c}");
             input_val.state.set(c);
             let read = output_op.read_strongly_consistent().await?;
@@ -73,8 +73,8 @@ impl ValueToString for Collectible {
 #[turbo_tasks::function(operation, root)]
 async fn inner_compute(input: ResolvedVc<ChangingInput>) -> Result<Vc<u32>> {
     println!("start inner_compute");
-    let value = *input.await?.state.get();
-    tokio::time::sleep(Duration::from_millis(200)).await;
+    let value = *read!(input)?.state.get();
+    turbo_tasks_testing::sleep!(Duration::from_millis(200));
     if value > 10 {
         let collectible: ResolvedVc<Box<dyn ValueToString>> =
             ResolvedVc::upcast(Collectible { value }.resolved_cell());
@@ -92,14 +92,14 @@ async fn inner_compute(input: ResolvedVc<ChangingInput>) -> Result<Vc<u32>> {
 async fn compute_operation(input: ResolvedVc<ChangingInput>) -> Result<Vc<Output>> {
     println!("start compute");
     let operation = inner_compute(input);
-    let value = *operation.connect().await?;
+    let value = *read!(operation.connect())?;
     let collectibles = operation.peek_collectibles::<Box<dyn ValueToString>>();
     if collectibles.len() > 1 {
         bail!("expected 0..1 collectible, found {}", collectibles.len());
     }
     let first = collectibles.iter().next();
     let collectible = if let Some(first) = first {
-        first.to_string().await?.to_string()
+        read!(first.to_string())?.to_string()
     } else {
         "".to_string()
     };

@@ -31,7 +31,7 @@ impl FilterProcessEnv {
 impl ProcessEnv for FilterProcessEnv {
     #[turbo_tasks::function]
     async fn read_all(&self) -> Result<Vc<TransientEnvMap>> {
-        let prior = self.prior.read_all().await?;
+        let prior = turbo_tasks::read!(self.prior.read_all())?;
         let mut filtered = FxIndexMap::default();
         for (key, value) in &*prior {
             let uppercase = key.to_uppercase();

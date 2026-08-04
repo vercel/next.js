@@ -10,8 +10,10 @@ use swc_core::{
     },
     quote,
 };
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::TryJoinIterExt;
 use turbo_tasks::{
-    NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc, debug::ValueDebugFormat,
+    NonLocalValue, ReadRef, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
 };
 use turbopack_core::{
@@ -75,14 +77,13 @@ impl ModuleReference for ModuleHotReferenceAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         if self.is_esm {
-            esm_resolve(
+            turbo_tasks::read!(esm_resolve(
                 *self.origin,
                 *self.request,
                 EcmaScriptModulesReferenceSubType::Undefined,
                 self.error_mode,
                 Some(self.issue_source),
-            )
-            .await
+            ))
         } else {
             Ok(cjs_resolve(
                 *self.origin,
@@ -127,11 +128,16 @@ impl ModuleHotReferenceCodeGen {
         }
     }
 
-    pub async fn code_generation(
+    turbo_tasks::dual_fn! {
+    pub fn code_generation(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
     ) -> Result<CodeGeneration> {
+        // The sync `parallel!` only fans out plain `Vc` reads, so the multi-step
+        // per-reference resolution runs concurrently in the async build (as before) and
+        // sequentially under `sync`.
+        #[cfg(not(feature = "sync"))]
         let resolved_ids: Vec<ReadRef<PatternMapping>> = self
             .references
             .iter()
@@ -149,9 +155,26 @@ impl ModuleHotReferenceCodeGen {
             })
             .try_join()
             .await?;
+        #[cfg(feature = "sync")]
+        let resolved_ids: Vec<ReadRef<PatternMapping>> = {
+            let mut resolved_ids = Vec::with_capacity(self.references.len());
+            for reference in self.references.iter() {
+                let r = turbo_tasks::read!(reference)?;
+                let resolve_result = reference.resolve_reference();
+                resolved_ids.push(turbo_tasks::read!(PatternMapping::resolve_request(
+                    *r.request,
+                    *r.origin,
+                    chunking_context,
+                    resolve_result,
+                    ResolveType::ChunkItem,
+                ))?);
+            }
+            resolved_ids
+        };
 
         // Resolve ESM binding re-import information for each dep.
         // Each entry is (namespace_ident, module_id_expr) if the dep has a matching ESM import.
+        #[cfg(not(feature = "sync"))]
         let esm_reimports: Vec<Option<(String, SyntaxContext, Expr)>> = self
             .esm_references
             .iter()
@@ -159,16 +182,16 @@ impl ModuleHotReferenceCodeGen {
                 let Some(esm_ref) = esm_ref else {
                     return Ok(None);
                 };
-                let referenced_asset = esm_ref.get_referenced_asset().await?;
+                let referenced_asset = turbo_tasks::read!(esm_ref.get_referenced_asset())?;
                 match &referenced_asset {
                     ReferencedAsset::Some(asset) => {
-                        let ident = referenced_asset
-                            .get_ident(chunking_context, None, scope_hoisting_context)
-                            .await?;
+                        let ident = turbo_tasks::read!(referenced_asset
+                            .get_ident(chunking_context, None, scope_hoisting_context))
+                            ?;
                         if let Some((namespace_ident, ctxt)) =
                             ident.and_then(|i| i.into_module_namespace_ident())
                         {
-                            let id = asset.chunk_item_id(chunking_context).await?;
+                            let id = turbo_tasks::read!(asset.chunk_item_id(chunking_context))?;
                             let module_id_expr = module_id_to_lit(&id);
                             return Ok(Some((
                                 namespace_ident,
@@ -183,6 +206,40 @@ impl ModuleHotReferenceCodeGen {
             })
             .try_join()
             .await?;
+        #[cfg(feature = "sync")]
+        let esm_reimports: Vec<Option<(String, SyntaxContext, Expr)>> = {
+            let mut esm_reimports = Vec::with_capacity(self.esm_references.len());
+            for esm_ref in self.esm_references.iter() {
+                let Some(esm_ref) = esm_ref else {
+                    esm_reimports.push(None);
+                    continue;
+                };
+                let referenced_asset = turbo_tasks::read!(esm_ref.get_referenced_asset())?;
+                let reimport = match &referenced_asset {
+                    ReferencedAsset::Some(asset) => {
+                        let ident = turbo_tasks::read!(referenced_asset
+                            .get_ident(chunking_context, None, scope_hoisting_context))
+                            ?;
+                        if let Some((namespace_ident, ctxt)) =
+                            ident.and_then(|i| i.into_module_namespace_ident())
+                        {
+                            let id = turbo_tasks::read!(asset.chunk_item_id(chunking_context))?;
+                            let module_id_expr = module_id_to_lit(&id);
+                            Some((
+                                namespace_ident,
+                                ctxt.unwrap_or_default(),
+                                module_id_expr,
+                            ))
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                };
+                esm_reimports.push(reimport);
+            }
+            esm_reimports
+        };
 
         let is_single = self.references.len() == 1;
 
@@ -272,6 +329,7 @@ impl ModuleHotReferenceCodeGen {
         ));
 
         Ok(CodeGeneration::visitors(visitors))
+    }
     }
 }
 

@@ -1,4 +1,5 @@
 use anyhow::Result;
+#[cfg(not(feature = "sync"))]
 use async_trait::async_trait;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{Issue, IssueSeverity, IssueSource, IssueStage, StyledString};
@@ -11,15 +12,9 @@ pub struct SpecifiedModuleTypeIssue {
     pub specified_type: SpecifiedModuleType,
 }
 
-#[async_trait]
-#[turbo_tasks::value_impl]
-impl Issue for SpecifiedModuleTypeIssue {
-    async fn file_path(&self) -> Result<FileSystemPath> {
-        self.source.file_path().await
-    }
-
-    async fn title(&self) -> Result<StyledString> {
-        Ok(StyledString::Text(match self.specified_type {
+impl SpecifiedModuleTypeIssue {
+    fn title_impl(&self) -> StyledString {
+        StyledString::Text(match self.specified_type {
             SpecifiedModuleType::CommonJs => "Specified module format (CommonJs) is not matching \
                                               the module format of the source code (EcmaScript \
                                               Modules)"
@@ -31,11 +26,11 @@ impl Issue for SpecifiedModuleTypeIssue {
             SpecifiedModuleType::Automatic => "Specified module format is not matching the module \
                                                format of the source code"
                 .into(),
-        }))
+        })
     }
 
-    async fn description(&self) -> Result<Option<StyledString>> {
-        Ok(Some(StyledString::Text(match self.specified_type {
+    fn description_impl(&self) -> Option<StyledString> {
+        Some(StyledString::Text(match self.specified_type {
             SpecifiedModuleType::CommonJs => {
                 "The CommonJs module format was specified in the package.json that is affecting \
                  this source file or by using an special extension, but Ecmascript import/export \
@@ -61,7 +56,57 @@ impl Issue for SpecifiedModuleTypeIssue {
                                                file is not matching the module format of the \
                                                source code."
                 .into(),
-        })))
+        }))
+    }
+}
+
+#[cfg(not(feature = "sync"))]
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for SpecifiedModuleTypeIssue {
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        turbo_tasks::read!(self.source.file_path())
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(self.title_impl())
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(self.description_impl())
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        match self.specified_type {
+            SpecifiedModuleType::CommonJs => IssueSeverity::Error,
+            SpecifiedModuleType::EcmaScript => IssueSeverity::Warning,
+            SpecifiedModuleType::Automatic => IssueSeverity::Hint,
+        }
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Analysis
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
+    }
+}
+
+/// See the async impl above; the sync engine drops `async`/`#[async_trait]`.
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for SpecifiedModuleTypeIssue {
+    fn file_path(&self) -> Result<FileSystemPath> {
+        turbo_tasks::read!(self.source.file_path())
+    }
+
+    fn title(&self) -> Result<StyledString> {
+        Ok(self.title_impl())
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
+        Ok(self.description_impl())
     }
 
     fn severity(&self) -> IssueSeverity {

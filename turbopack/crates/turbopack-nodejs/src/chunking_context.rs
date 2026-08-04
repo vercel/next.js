@@ -1,9 +1,26 @@
 use anyhow::{Context, Result, bail};
+#[cfg(not(feature = "sync"))]
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    FxIndexMap, ResolvedVc, TryJoinIterExt, Upcast, ValueToString, ValueToStringRef, Vc,
-};
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::TryJoinIterExt;
+use turbo_tasks::{FxIndexMap, ResolvedVc, Upcast, ValueToString, ValueToStringRef, Vc};
+
+/// Runs `$body` inside `$span`. The async build instruments an async block and
+/// awaits it (identical to the previous `async move { .. }.instrument(span).await`);
+/// the sync build simply enters the span for the duration of the synchronous body.
+macro_rules! instrumented {
+    ($span:expr, $body:block) => {{
+        #[cfg(not(feature = "sync"))]
+        let __result = async move { $body }.instrument($span).await;
+        #[cfg(feature = "sync")]
+        let __result = {
+            let __enter = $span.entered();
+            $body
+        };
+        __result
+    }};
+}
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
@@ -316,7 +333,8 @@ impl NodeJsChunkingContext {
 }
 
 impl NodeJsChunkingContext {
-    async fn generate_chunk(
+    turbo_tasks::dual_fn! {
+    fn generate_chunk(
         self: Vc<Self>,
         chunk: ResolvedVc<Box<dyn Chunk>>,
     ) -> Result<ResolvedVc<Box<dyn OutputAsset>>> {
@@ -324,9 +342,9 @@ impl NodeJsChunkingContext {
             if let Some(ecmascript_chunk) = ResolvedVc::try_downcast_type::<EcmascriptChunk>(chunk)
             {
                 ResolvedVc::upcast(
-                    EcmascriptBuildNodeChunk::new(self, *ecmascript_chunk)
-                        .to_resolved()
-                        .await?,
+                    turbo_tasks::read!(EcmascriptBuildNodeChunk::new(self, *ecmascript_chunk)
+                        .to_resolved())
+                        ?,
                 )
             } else if let Some(output_asset) =
                 ResolvedVc::try_sidecast::<Box<dyn OutputAsset>>(chunk)
@@ -336,6 +354,7 @@ impl NodeJsChunkingContext {
                 bail!("Unable to generate output asset for chunk");
             },
         )
+    }
     }
 }
 
@@ -428,10 +447,11 @@ impl ChunkingContext for NodeJsChunkingContext {
         extension: RcStr,
     ) -> Result<Vc<FileSystemPath>> {
         let root_path = self.chunk_root_path.clone();
-        let name = ident
-            .output_name(self.root_path.clone(), prefix, extension)
-            .owned()
-            .await?;
+        let name = turbo_tasks::read!(
+            ident
+                .output_name(self.root_path.clone(), prefix, extension)
+                .owned()
+        )?;
         Ok(root_path.join(&name)?.cell())
     }
 
@@ -470,13 +490,13 @@ impl ChunkingContext for NodeJsChunkingContext {
         original_asset_ident: Vc<AssetIdent>,
         tag: Option<RcStr>,
     ) -> Result<Vc<FileSystemPath>> {
-        let this = self.await?;
-        let source_path = original_asset_ident.await?.path.clone();
+        let this = turbo_tasks::read!(self)?;
+        let source_path = turbo_tasks::read!(original_asset_ident)?.path.clone();
         let basename = source_path.file_name();
         let ContentHashing::Direct { length } = this.asset_content_hashing;
-        let hash = content
-            .content_hash(self.hash_salt(), HashAlgorithm::Xxh3Hash128Base38)
-            .await?;
+        let hash = turbo_tasks::read!(
+            content.content_hash(self.hash_salt(), HashAlgorithm::Xxh3Hash128Base38)
+        )?;
         let hash = hash
             .as_ref()
             .context("Missing content when trying to generate the content hash for static asset")?;
@@ -518,27 +538,38 @@ impl ChunkingContext for NodeJsChunkingContext {
         module_graph: ResolvedVc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
-        let span = tracing::info_span!("chunking", name = display(ident.to_string().await?));
-        async move {
+        let span = tracing::info_span!(
+            "chunking",
+            name = display(turbo_tasks::read!(ident.to_string())?)
+        );
+        instrumented!(span, {
             let MakeChunkGroupResult {
                 chunks,
                 references,
                 availability_info,
-            } = make_chunk_group(
+            } = turbo_tasks::read!(make_chunk_group(
                 chunk_group,
                 module_graph,
                 ResolvedVc::upcast(self),
                 availability_info,
-            )
-            .await?;
+            ))?;
 
-            let chunks = chunks.await?;
+            let chunks = turbo_tasks::read!(chunks)?;
 
+            #[cfg(not(feature = "sync"))]
             let assets = chunks
                 .iter()
                 .map(|chunk| self.generate_chunk(*chunk))
                 .try_join()
                 .await?;
+            #[cfg(feature = "sync")]
+            let assets = {
+                let mut assets = Vec::with_capacity(chunks.len());
+                for chunk in chunks.iter() {
+                    assets.push(self.generate_chunk(*chunk)?);
+                }
+                assets
+            };
 
             Ok(ChunkGroupResult {
                 assets: ResolvedVc::cell(assets),
@@ -547,9 +578,7 @@ impl ChunkingContext for NodeJsChunkingContext {
                 availability_info,
             }
             .cell())
-        }
-        .instrument(span)
-        .await
+        })
     }
 
     #[turbo_tasks::function]
@@ -564,30 +593,38 @@ impl ChunkingContext for NodeJsChunkingContext {
     ) -> Result<Vc<EntryChunkGroupResult>> {
         let span = tracing::info_span!(
             "chunking",
-            name = display(path.to_string_ref().await?),
+            name = display(turbo_tasks::read!(path.to_string_ref())?),
             chunking_type = "entry",
         );
-        async move {
+        instrumented!(span, {
             let MakeChunkGroupResult {
                 chunks,
                 references,
                 availability_info,
-            } = make_chunk_group(
+            } = turbo_tasks::read!(make_chunk_group(
                 chunk_group.clone(),
                 module_graph,
                 ResolvedVc::upcast(self),
                 availability_info,
-            )
-            .await?;
+            ))?;
 
-            let chunks = chunks.await?;
+            let chunks = turbo_tasks::read!(chunks)?;
 
-            let extra_chunks = extra_chunks.await?;
+            let extra_chunks = turbo_tasks::read!(extra_chunks)?;
+            #[cfg(not(feature = "sync"))]
             let mut other_chunks = chunks
                 .iter()
                 .map(|chunk| self.generate_chunk(*chunk))
                 .try_join()
                 .await?;
+            #[cfg(feature = "sync")]
+            let mut other_chunks = {
+                let mut other_chunks = Vec::with_capacity(chunks.len());
+                for chunk in chunks.iter() {
+                    other_chunks.push(self.generate_chunk(*chunk)?);
+                }
+                other_chunks
+            };
             other_chunks.extend(extra_chunks.iter().copied());
 
             let Some(module) = ResolvedVc::try_sidecast(chunk_group.entries().last().unwrap())
@@ -603,7 +640,7 @@ impl ChunkingContext for NodeJsChunkingContext {
                 })
                 .collect::<Result<Vec<_>>>()?;
 
-            let asset = ResolvedVc::upcast(
+            let asset = ResolvedVc::upcast(turbo_tasks::read!(
                 EcmascriptBuildNodeEntryChunk::new(
                     path,
                     Vc::cell(other_chunks),
@@ -615,17 +652,14 @@ impl ChunkingContext for NodeJsChunkingContext {
                     *self,
                 )
                 .to_resolved()
-                .await?,
-            );
+            )?);
 
             Ok(EntryChunkGroupResult {
                 asset,
                 availability_info,
             }
             .cell())
-        }
-        .instrument(span)
-        .await
+        })
     }
 
     #[turbo_tasks::function]
@@ -655,18 +689,17 @@ impl ChunkingContext for NodeJsChunkingContext {
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<Box<dyn ChunkItem>>> {
         let chunking_context: ResolvedVc<Box<dyn ChunkingContext>> =
-            Vc::upcast::<Box<dyn ChunkingContext>>(self)
+            turbo_tasks::read!(Vc::upcast::<Box<dyn ChunkingContext>>(self).to_resolved())?;
+        Ok(if turbo_tasks::read!(self)?.manifest_chunks {
+            let manifest_asset = turbo_tasks::read!(
+                ManifestAsyncModule::new(
+                    module,
+                    module_graph,
+                    *chunking_context,
+                    availability_info,
+                )
                 .to_resolved()
-                .await?;
-        Ok(if self.await?.manifest_chunks {
-            let manifest_asset = ManifestAsyncModule::new(
-                module,
-                module_graph,
-                *chunking_context,
-                availability_info,
-            )
-            .to_resolved()
-            .await?;
+            )?;
             let loader_module = ManifestLoaderModule::new(*manifest_asset);
             loader_module.as_chunk_item(module_graph, *chunking_context)
         } else {
@@ -680,7 +713,7 @@ impl ChunkingContext for NodeJsChunkingContext {
         self: Vc<Self>,
         module: Vc<Box<dyn ChunkableModule>>,
     ) -> Result<Vc<AssetIdent>> {
-        Ok(if self.await?.manifest_chunks {
+        Ok(if turbo_tasks::read!(self)?.manifest_chunks {
             ManifestLoaderModule::asset_ident_for(module)
         } else {
             AsyncLoaderModule::asset_ident_for(module)
@@ -693,7 +726,9 @@ impl ChunkingContext for NodeJsChunkingContext {
         module: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<ModuleExportUsage>> {
         if let Some(export_usage) = self.export_usage {
-            Ok(export_usage.await?.used_exports(module).await?)
+            Ok(turbo_tasks::read!(
+                turbo_tasks::read!(export_usage)?.used_exports(module)
+            )?)
         } else {
             Ok(ModuleExportUsage::all())
         }

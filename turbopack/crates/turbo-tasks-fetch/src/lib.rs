@@ -6,11 +6,13 @@ mod client;
 mod error;
 mod response;
 
+// Test-only cache helpers exist only in the async build (reqwest client cache).
+#[cfg(not(feature = "sync"))]
+pub use crate::client::{
+    __test_only_reqwest_client_cache_clear, __test_only_reqwest_client_cache_len,
+};
 pub use crate::{
-    client::{
-        __test_only_reqwest_client_cache_clear, __test_only_reqwest_client_cache_len,
-        FetchClientConfig,
-    },
+    client::FetchClientConfig,
     error::{FetchError, FetchErrorKind, FetchIssue},
     response::{FetchResult, HttpResponse, HttpResponseBody},
 };

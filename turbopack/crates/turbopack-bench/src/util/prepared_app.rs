@@ -20,7 +20,7 @@ use url::Url;
 use crate::{BINDING_NAME, bundlers::Bundler, util::PageGuard};
 
 async fn copy_dir(from: PathBuf, to: PathBuf) -> anyhow::Result<()> {
-    copy_dir_inner(from, to, Arc::new(Semaphore::new(64))).await
+    turbo_tasks::read!(copy_dir_inner(from, to, Arc::new(Semaphore::new(64))))
 }
 
 // HACK: Needed so that `copy_dir`'s `Future` can be inferred as `Send`:
@@ -40,11 +40,8 @@ async fn copy_dir_inner(
 ) -> anyhow::Result<()> {
     let mut jobs = Vec::new();
     {
-        let _permit = semaphore
-            .acquire()
-            .await
-            .expect("semaphore is never closed");
-        let mut dir = spawn_blocking(|| std::fs::read_dir(from)).await??;
+        let _permit = turbo_tasks::read!(semaphore.acquire()).expect("semaphore is never closed");
+        let mut dir = turbo_tasks::read!(spawn_blocking(|| std::fs::read_dir(from)))??;
         for entry in &mut dir {
             let entry = entry?;
             let ty = entry.file_type()?;
@@ -52,17 +49,15 @@ async fn copy_dir_inner(
             if ty.is_dir() {
                 let semaphore = semaphore.clone();
                 jobs.push(tokio::spawn(async move {
-                    tokio::fs::create_dir(&to).await?;
-                    copy_dir_inner_send(entry.path(), to, semaphore).await
+                    turbo_tasks::read!(tokio::fs::create_dir(&to))?;
+                    turbo_tasks::read!(copy_dir_inner_send(entry.path(), to, semaphore))
                 }));
             } else if ty.is_file() {
                 let semaphore = semaphore.clone();
                 jobs.push(tokio::spawn(async move {
-                    let _permit = semaphore
-                        .acquire()
-                        .await
-                        .expect("semaphore is never closed");
-                    tokio::fs::copy(entry.path(), to).await?;
+                    let _permit =
+                        turbo_tasks::read!(semaphore.acquire()).expect("semaphore is never closed");
+                    turbo_tasks::read!(tokio::fs::copy(entry.path(), to))?;
                     Ok::<_, anyhow::Error>(())
                 }));
             }
@@ -70,7 +65,7 @@ async fn copy_dir_inner(
     }
 
     for job in jobs {
-        job.await??;
+        turbo_tasks::read!(job)??;
     }
 
     Ok(())
@@ -91,8 +86,8 @@ impl<'a> PreparedApp<'a> {
     pub async fn new(bundler: &'a dyn Bundler, template_dir: PathBuf) -> Result<PreparedApp<'a>> {
         let test_dir = tempfile::tempdir()?;
 
-        tokio::fs::create_dir_all(&test_dir).await?;
-        copy_dir(template_dir, test_dir.path().to_path_buf()).await?;
+        turbo_tasks::read!(tokio::fs::create_dir_all(&test_dir))?;
+        turbo_tasks::read!(copy_dir(template_dir, test_dir.path().to_path_buf()))?;
 
         Ok(Self {
             bundler,
@@ -122,27 +117,19 @@ impl<'a> PreparedApp<'a> {
 
     pub async fn with_page(self, browser: &Browser) -> Result<PageGuard<'a>> {
         let server = self.server.as_ref().context("Server must be started")?;
-        let page = browser
-            .new_page("about:blank")
-            .await
+        let page = turbo_tasks::read!(browser.new_page("about:blank"))
             .context("Unable to open about:blank")?;
         // Bindings survive page reloads. Set them up as early as possible.
-        add_binding(&page)
-            .await
+        turbo_tasks::read!(add_binding(&page))
             .context("Failed to add bindings to the browser tab")?;
 
-        let mut errors = page
-            .event_listener::<EventExceptionThrown>()
-            .await
+        let mut errors = turbo_tasks::read!(page.event_listener::<EventExceptionThrown>())
             .context("Unable to listen to exception events")?;
-        let binding_events = page
-            .event_listener::<EventBindingCalled>()
-            .await
+        let binding_events = turbo_tasks::read!(page.event_listener::<EventBindingCalled>())
             .context("Unable to listen to binding events")?;
-        let mut network_response_events = page
-            .event_listener::<EventResponseReceived>()
-            .await
-            .context("Unable to listen to response received events")?;
+        let mut network_response_events =
+            turbo_tasks::read!(page.event_listener::<EventResponseReceived>())
+                .context("Unable to listen to response received events")?;
 
         let destination = Url::parse(&server.1)?.join(self.bundler.get_path())?;
         // We can't use page.goto() here since this will wait for the naviation to be
@@ -151,13 +138,12 @@ impl<'a> PreparedApp<'a> {
         // needing to be evaluated.
         // So instead we navigate via JavaScript and wait only for the HTML response to
         // be completed.
-        page.evaluate_expression(format!("window.location='{destination}'"))
-            .await
+        turbo_tasks::read!(page.evaluate_expression(format!("window.location='{destination}'")))
             .context("Unable to evaluate javascript to navigate to target page")?;
 
         // Wait for HTML response completed
         loop {
-            match network_response_events.next().await {
+            match turbo_tasks::read!(network_response_events.next()) {
                 Some(event) => {
                     if event.response.url == destination.as_str() {
                         break;
@@ -199,7 +185,7 @@ impl Drop for PreparedApp<'_> {
 
 /// Adds benchmark-specific bindings to the page.
 async fn add_binding(page: &Page) -> Result<()> {
-    page.execute(AddBindingParams::new(BINDING_NAME)).await?;
+    turbo_tasks::read!(page.execute(AddBindingParams::new(BINDING_NAME)))?;
     Ok(())
 }
 

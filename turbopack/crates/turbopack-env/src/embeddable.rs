@@ -23,7 +23,7 @@ impl EmbeddableProcessEnv {
 impl ProcessEnv for EmbeddableProcessEnv {
     #[turbo_tasks::function]
     async fn read_all(&self) -> Result<Vc<TransientEnvMap>> {
-        let prior = self.prior.read_all().await?;
+        let prior = turbo_tasks::read!(self.prior.read_all())?;
 
         let encoded = prior
             .iter()
@@ -35,7 +35,7 @@ impl ProcessEnv for EmbeddableProcessEnv {
 
     #[turbo_tasks::function]
     async fn read(&self, name: RcStr) -> Result<Vc<Option<RcStr>>> {
-        let prior = self.prior.read(name).await?;
+        let prior = turbo_tasks::read!(self.prior.read(name))?;
         let encoded = prior
             .as_deref()
             .map(|s| StringifyJs(s).to_string())

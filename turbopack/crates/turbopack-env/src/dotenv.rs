@@ -13,7 +13,7 @@ use crate::TryDotenvProcessEnv;
 pub async fn load_env(project_path: FileSystemPath) -> Result<Vc<Box<dyn ProcessEnv>>> {
     let env: Vc<Box<dyn ProcessEnv>> = Vc::upcast(CommandLineProcessEnv::new());
 
-    let node_env = env.read(rcstr!("NODE_ENV")).owned().await?;
+    let node_env = turbo_tasks::read!(env.read(rcstr!("NODE_ENV")).owned())?;
     let node_env = node_env.unwrap_or(rcstr!("development"));
 
     let env = Vc::upcast(CustomProcessEnv::new(

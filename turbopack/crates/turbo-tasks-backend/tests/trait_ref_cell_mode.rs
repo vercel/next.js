@@ -3,7 +3,7 @@
 
 use anyhow::Result;
 use turbo_tasks::{
-    State, TraitRef, Upcast, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
+    State, TraitRef, Upcast, Vc, read, unmark_top_level_task_may_leak_eventually_consistent_state,
 };
 use turbo_tasks_testing::{Registration, register, run_once};
 
@@ -11,7 +11,7 @@ static REGISTRATION: Registration = register!();
 
 // Test that with `cell = "compare"`, the cell will be re-used as long as the
 // value is equal.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_trait_ref_shared_cell_mode() {
     run_once(&REGISTRATION, || async {
         unmark_top_level_task_may_leak_eventually_consistent_state();
@@ -47,7 +47,7 @@ async fn test_trait_ref_shared_cell_mode() {
 
 // Test that with `cell = "new"`, the cell will is never re-used, even if the
 // value is equal.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_trait_ref_new_cell_mode() {
     run_once(&REGISTRATION, || async {
         unmark_top_level_task_may_leak_eventually_consistent_state();
@@ -141,10 +141,13 @@ where
 
 #[turbo_tasks::function]
 async fn shared_value_from_input(input: Vc<CellIdSelector>) -> Result<Vc<Box<dyn ValueTrait>>> {
-    value_from_input::<SharedValue>(input, Vc::<SharedValue>::cell).await
+    read!(value_from_input::<SharedValue>(
+        input,
+        Vc::<SharedValue>::cell
+    ))
 }
 
 #[turbo_tasks::function]
 async fn new_value_from_input(input: Vc<CellIdSelector>) -> Result<Vc<Box<dyn ValueTrait>>> {
-    value_from_input::<NewValue>(input, Vc::<NewValue>::cell).await
+    read!(value_from_input::<NewValue>(input, Vc::<NewValue>::cell))
 }

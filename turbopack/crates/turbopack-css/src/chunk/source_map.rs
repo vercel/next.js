@@ -32,16 +32,18 @@ impl OutputAssetsReference for CssChunkSourceMapAsset {}
 impl OutputAsset for CssChunkSourceMapAsset {
     #[turbo_tasks::function]
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         let ident = this.chunk.ident_for_path();
-        Ok(this
-            .chunk
-            .await?
-            .chunking_context
-            .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".css"))
-            .await?
+        Ok(
+            turbo_tasks::read!(turbo_tasks::read!(this.chunk)?.chunking_context.chunk_path(
+                Some(Vc::upcast(self)),
+                ident,
+                None,
+                rcstr!(".css")
+            ))?
             .append(".map")?
-            .cell())
+            .cell(),
+        )
     }
 }
 
@@ -50,7 +52,7 @@ impl Asset for CssChunkSourceMapAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
         let content = self.chunk.generate_source_map();
-        if content.await?.is_content() {
+        if turbo_tasks::read!(content)?.is_content() {
             Ok(AssetContent::file(content))
         } else {
             Ok(AssetContent::file(

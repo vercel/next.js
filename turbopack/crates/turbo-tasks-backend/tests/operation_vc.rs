@@ -2,7 +2,7 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::Result;
-use turbo_tasks::{OperationVc, ResolvedVc, Vc};
+use turbo_tasks::{OperationVc, ResolvedVc, Vc, read};
 use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
@@ -15,7 +15,9 @@ fn bare_op_fn() -> Vc<i32> {
 // operations can take `ResolvedVc`s too (anything that's a `NonLocalValue`).
 #[turbo_tasks::function(operation, root)]
 async fn multiply(value: OperationVc<i32>, coefficient: ResolvedVc<i32>) -> Result<Vc<i32>> {
-    Ok(Vc::cell((*value.connect().await?) * (*coefficient.await?)))
+    Ok(Vc::cell(
+        (*read!(value.connect())?) * (*read!(coefficient)?),
+    ))
 }
 
 #[turbo_tasks::function(operation, root)]
@@ -25,7 +27,7 @@ fn use_operations() -> Vc<i32> {
     forty_two.connect()
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_use_operations() -> Result<()> {
     run(&REGISTRATION, || async {
         assert_eq!(*use_operations().read_strongly_consistent().await?, 42);

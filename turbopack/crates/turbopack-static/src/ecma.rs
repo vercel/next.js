@@ -47,11 +47,7 @@ impl StaticUrlJsModule {
 impl Module for StaticUrlJsModule {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let mut ident = self
-            .source
-            .ident()
-            .owned()
-            .await?
+        let mut ident = turbo_tasks::read!(self.source.ident().owned())?
             .with_modifier(rcstr!("static in ecmascript"));
         if let Some(tag) = &self.tag {
             ident = ident.with_modifier(format!("tag {}", tag).into());
@@ -97,13 +93,14 @@ impl EcmascriptChunkPlaceable for StaticUrlJsModule {
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         let static_asset = self.static_output_asset(chunking_context);
-        let url = chunking_context
-            .asset_url(static_asset.path().owned().await?, this.tag.clone())
-            .await?;
+        let url = turbo_tasks::read!(chunking_context.asset_url(
+            turbo_tasks::read!(static_asset.path().owned())?,
+            this.tag.clone()
+        ))?;
 
-        let url_behavior = chunking_context.url_behavior(this.tag.clone()).await?;
+        let url_behavior = turbo_tasks::read!(chunking_context.url_behavior(this.tag.clone()))?;
 
         let inner_code = match &url_behavior.suffix {
             AssetSuffix::None => {
@@ -138,11 +135,12 @@ impl EcmascriptChunkPlaceable for StaticUrlJsModule {
         Ok(EcmascriptChunkItemContent {
             inner_code: inner_code.into(),
             options: EcmascriptChunkItemOptions {
-                supports_arrow_functions: *chunking_context
-                    .environment()
-                    .runtime_versions()
-                    .supports_arrow_functions()
-                    .await?,
+                supports_arrow_functions: *turbo_tasks::read!(
+                    chunking_context
+                        .environment()
+                        .runtime_versions()
+                        .supports_arrow_functions()
+                )?,
                 ..Default::default()
             },
             ..Default::default()
@@ -165,10 +163,8 @@ async fn static_url_js_output_assets(
     module: Vc<StaticUrlJsModule>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<OutputAssetsWithReferenced>> {
-    let static_asset = module
-        .static_output_asset(chunking_context)
-        .to_resolved()
-        .await?;
+    let static_asset =
+        turbo_tasks::read!(module.static_output_asset(chunking_context).to_resolved())?;
     Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(vec![
         ResolvedVc::upcast(static_asset),
     ])))

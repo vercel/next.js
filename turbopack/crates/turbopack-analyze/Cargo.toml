@@ -15,15 +15,20 @@ flate2 = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 turbo-rcstr = { workspace = true }
-turbo-tasks = { workspace = true }
-turbo-tasks-fs = { workspace = true }
-turbopack-core = { workspace = true }
+turbo-tasks = { path = "../turbo-tasks", default-features = false }
+turbo-tasks-fs = { path = "../turbo-tasks-fs", default-features = false }
+turbopack-core = { path = "../turbopack-core", default-features = false }
 
 [dev-dependencies]
 serde_json = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
-turbo-tasks-testing = { workspace = true }
-turbo-tasks-backend = { workspace = true }
+turbo-tasks-testing = { path = "../turbo-tasks-testing", default-features = false }
+turbo-tasks-backend = { path = "../turbo-tasks-backend", default-features = false }
 
 [lints]
 workspace = true
+
+[features]
+default = ["tokio_runtime"]
+tokio_runtime = ["turbo-tasks/tokio_runtime", "turbo-tasks-backend/tokio_runtime", "turbo-tasks-fs/tokio_runtime", "turbo-tasks-testing/tokio_runtime", "turbopack-core/tokio_runtime"]
+sync = ["turbo-tasks/sync", "turbo-tasks-backend/sync", "turbo-tasks-fs/sync", "turbo-tasks-testing/sync", "turbopack-core/sync"]

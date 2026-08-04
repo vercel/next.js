@@ -28,18 +28,20 @@ use crate::{
     next_shared::resolve::InvalidImportModuleIssue,
 };
 
-pub async fn insert_next_root_params_mapping(
+turbo_tasks::dual_fn! {
+pub fn insert_next_root_params_mapping(
     import_map: &mut ImportMap,
     ty: Either<ServerContextType, ClientContextType>,
     collected_root_params: Option<Vc<CollectedRootParams>>,
 ) -> Result<()> {
     import_map.insert_exact_alias(
         "next/root-params",
-        get_next_root_params_mapping(EitherTaskInput(ty), collected_root_params)
-            .to_resolved()
-            .await?,
+        turbo_tasks::read!(get_next_root_params_mapping(EitherTaskInput(ty), collected_root_params)
+            .to_resolved())
+            ?,
     );
     Ok(())
+}
 }
 
 #[turbo_tasks::function]
@@ -54,11 +56,9 @@ async fn get_next_root_params_mapping(
     // which only reads `collected_root_params` when producing a mapping result. That way, if
     // `collected_root_params` changes, the resolve options will remain the same, and
     // only the mapping result will be invalidated.
-    let mapping = ImportMapping::Dynamic(ResolvedVc::upcast(
-        NextRootParamsMapper::new(ty, collected_root_params)
-            .to_resolved()
-            .await?,
-    ));
+    let mapping = ImportMapping::Dynamic(ResolvedVc::upcast(turbo_tasks::read!(
+        NextRootParamsMapper::new(ty, collected_root_params).to_resolved()
+    )?));
     Ok(mapping.cell())
 }
 
@@ -85,7 +85,7 @@ impl NextRootParamsMapper {
 
     #[turbo_tasks::function]
     async fn import_map_result(self: Vc<Self>) -> Result<Vc<ImportMapResult>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         Ok(match &this.context_type {
             Either::Left(server_ty) => match &server_ty {
                 ServerContextType::AppRSC { .. } | ServerContextType::AppRoute { .. } => {
@@ -135,7 +135,7 @@ impl NextRootParamsMapper {
     async fn valid_import_map_result(
         collected_root_params: ResolvedVc<CollectedRootParams>,
     ) -> Result<Vc<ImportMapResult>> {
-        let collected_root_params = collected_root_params.await?;
+        let collected_root_params = turbo_tasks::read!(collected_root_params)?;
 
         // Generate a virtual 'next/root-params' module based on the root params we collected.
         let module_content =
@@ -161,12 +161,13 @@ impl NextRootParamsMapper {
                 .join("\n")
             };
 
-        let virtual_source = VirtualSource::new(
-            next_js_file_path("root-params.js".into()).owned().await?,
-            AssetContent::file(FileContent::Content(module_content.into()).cell()),
-        )
-        .to_resolved()
-        .await?;
+        let virtual_source = turbo_tasks::read!(
+            VirtualSource::new(
+                turbo_tasks::read!(next_js_file_path("root-params.js".into()).owned())?,
+                AssetContent::file(FileContent::Content(module_content.into()).cell()),
+            )
+            .to_resolved()
+        )?;
 
         let import_map_result = ImportMapResult::Result(
             ResolveResult::source(ResolvedVc::upcast(virtual_source)).resolved_cell(),
@@ -176,7 +177,8 @@ impl NextRootParamsMapper {
 
     #[turbo_tasks::function]
     async fn invalid_import_map_result(message: RcStr) -> Result<Vc<ImportMapResult>> {
-        let path: FileSystemPath = next_js_file_path("root-params.js".into()).owned().await?;
+        let path: FileSystemPath =
+            turbo_tasks::read!(next_js_file_path("root-params.js".into()).owned())?;
 
         // error the compilation.
         InvalidImportModuleIssue {
@@ -188,17 +190,18 @@ impl NextRootParamsMapper {
         .emit();
 
         // map to a dummy module that rethrows the error at runtime.
-        let virtual_source = VirtualSource::new(
-            path.clone(),
-            AssetContent::file(
-                FileContent::Content(
-                    format!("throw new Error({})", serde_json::to_string(&message)?).into(),
-                )
-                .cell(),
-            ),
-        )
-        .to_resolved()
-        .await?;
+        let virtual_source = turbo_tasks::read!(
+            VirtualSource::new(
+                path.clone(),
+                AssetContent::file(
+                    FileContent::Content(
+                        format!("throw new Error({})", serde_json::to_string(&message)?).into(),
+                    )
+                    .cell(),
+                ),
+            )
+            .to_resolved()
+        )?;
 
         let import_map_result = ImportMapResult::Result(
             ResolveResult::source(ResolvedVc::upcast(virtual_source)).resolved_cell(),

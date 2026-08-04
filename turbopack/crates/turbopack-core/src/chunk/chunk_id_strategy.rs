@@ -30,33 +30,38 @@ pub struct ModuleIdStrategy {
 }
 
 impl ModuleIdStrategy {
-    pub async fn get_id(&self, chunk_item: Vc<Box<dyn ChunkItem>>) -> Result<ModuleId> {
+    turbo_tasks::dual_fn! {
+    pub fn get_id(&self, chunk_item: Vc<Box<dyn ChunkItem>>) -> Result<ModuleId> {
         let ident = chunk_item.asset_ident();
-        self.get_id_from_ident(ident).await
+        turbo_tasks::read!(self.get_id_from_ident(ident))
+    }
     }
 
-    pub async fn get_id_from_module(&self, module: Vc<Box<dyn Module>>) -> Result<ModuleId> {
+    turbo_tasks::dual_fn! {
+    pub fn get_id_from_module(&self, module: Vc<Box<dyn Module>>) -> Result<ModuleId> {
         let ident = module.ident();
-        self.get_id_from_ident(ident).await
+        turbo_tasks::read!(self.get_id_from_ident(ident))
+    }
     }
 
-    pub async fn get_id_from_ident(&self, ident: Vc<AssetIdent>) -> Result<ModuleId> {
-        let ident = ident.to_resolved().await?;
+    turbo_tasks::dual_fn! {
+    pub fn get_id_from_ident(&self, ident: Vc<AssetIdent>) -> Result<ModuleId> {
+        let ident = turbo_tasks::read!(ident.to_resolved())?;
         if let Some(module_id_map) = self.module_id_map
-            && let Some(module_id) = module_id_map.get(&ident).await?.as_deref().cloned()
+            && let Some(module_id) = turbo_tasks::read!(module_id_map.get(&ident))?.as_deref().cloned()
         {
             return Ok(module_id);
         }
 
         match self.fallback {
             ModuleIdFallback::Error => {
-                let ident_string = ident.to_string().await?;
+                let ident_string = turbo_tasks::read!(ident.to_string())?;
                 if ident_string.ends_with("[app-client] (ecmascript, next/dynamic entry)") {
                     // TODO: This shouldn't happen, but is a temporary workaround to ignore
                     // next/dynamic imports of a server component from another
                     // server component.
                     return Ok(ModuleId::String(
-                        hash_xxh3_hash64(ident.to_string().await?)
+                        hash_xxh3_hash64(turbo_tasks::read!(ident.to_string())?)
                             .to_string()
                             .into(),
                     ));
@@ -64,7 +69,8 @@ impl ModuleIdStrategy {
 
                 turbobail!("ModuleId not found for ident: {}", ident);
             }
-            ModuleIdFallback::Ident => Ok(ModuleId::String(ident.to_string().owned().await?)),
+            ModuleIdFallback::Ident => Ok(ModuleId::String(turbo_tasks::read!(ident.to_string().owned())?)),
         }
+    }
     }
 }

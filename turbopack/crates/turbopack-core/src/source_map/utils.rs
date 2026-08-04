@@ -6,7 +6,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, turbofmt};
+use turbo_tasks::{ReadRef, ResolvedVc, turbofmt};
 use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystemPath, rope::Rope, util::uri_from_path_buf,
 };
@@ -78,28 +78,20 @@ struct SourceMapJson {
     sections: Option<Vec<SourceMapSectionItemJson>>,
 }
 
-/// Replace the origin prefix in the `file` and `sources` with `turbopack:///` and read the
-/// `sourceContent`s from disk.
-pub async fn resolve_source_map_sources(
-    map: Option<&Rope>,
+turbo_tasks::dual_fn! {
+/// Per-source step of [`resolve_source_map_sources`]: rewrites `source_url` to a
+/// `turbopack:///` URL and fills in missing `source_content` from disk.
+fn resolve_source(
+    source_url: &mut String,
+    source_content: Option<&mut Option<Box<RawValue>>>,
     origin: &FileSystemPath,
-) -> Result<Option<Rope>> {
-    let fs_vc = origin.fs().to_resolved().await?;
-    let fs_str = &*turbofmt!("[{fs_vc}]").await?;
-
-    let disk_fs = if let Some(fs_vc) = ResolvedVc::try_downcast_type::<DiskFileSystem>(fs_vc) {
-        Some((fs_vc, fs_vc.await?))
-    } else {
-        None
-    };
-    let disk_fs = &disk_fs;
-
-    let resolve_source =
-        async |source_url: &mut String, source_content: Option<&mut Option<Box<RawValue>>>| {
-            // original_source should always be a URL (possibly a `file://` url). If it's a relative
-            // URL, it should be relative to `origin` (the generated file that's being mapped).
-            // https://developer.mozilla.org/en-US/docs/Learn_web_development/Howto/Web_mechanics/What_is_a_URL#absolute_urls_vs._relative_urls
-            let maybe_file_url = if source_url.starts_with("//") {
+    fs_str: &str,
+    disk_fs: Option<&(ResolvedVc<DiskFileSystem>, ReadRef<DiskFileSystem>)>,
+) -> Result<()> {
+    // original_source should always be a URL (possibly a `file://` url). If it's a relative
+    // URL, it should be relative to `origin` (the generated file that's being mapped).
+    // https://developer.mozilla.org/en-US/docs/Learn_web_development/Howto/Web_mechanics/What_is_a_URL#absolute_urls_vs._relative_urls
+    let maybe_file_url = if source_url.starts_with("//") {
                 // looks like a "scheme-relative" URL
                 // Rewrite '//scheme/relative' -> 'file:///scheme/relative' (three slashes)
                 Cow::Owned(format!("file:/{source_url}"))
@@ -142,7 +134,7 @@ pub async fn resolve_source_map_sources(
                 if let Some(source_content) = source_content
                     && source_content.is_none()
                 {
-                    if let FileContent::Content(file) = &*fs_path.read().await? {
+                    if let FileContent::Content(file) = &*turbo_tasks::read!(fs_path.read())? {
                         let text = file.content().to_str()?;
                         *source_content = Some(unencoded_str_to_raw_value(&text));
                     } else {
@@ -168,32 +160,59 @@ pub async fn resolve_source_map_sources(
                     .replace_all(source_url, |s: &regex::Captures<'_>| s[0].replace('.', "_"));
                 *source_url = format!("{SOURCE_URL_PROTOCOL_STR}///{fs_str}/{origin_str}/{source}");
             }
-            anyhow::Ok(())
+            Ok(())
+}
+}
+
+turbo_tasks::dual_fn! {
+/// Per-map step of [`resolve_source_map_sources`]: resolves all `sources` entries of a
+/// (possibly sectioned) source map.
+fn resolve_map(
+    map: &mut SourceMapJson,
+    origin: &FileSystemPath,
+    fs_str: &str,
+    disk_fs: Option<&(ResolvedVc<DiskFileSystem>, ReadRef<DiskFileSystem>)>,
+) -> Result<()> {
+    if let Some(sources) = &mut map.sources {
+        let mut contents = if let Some(mut contents) = map.sources_content.take() {
+            contents.resize(sources.len(), None);
+            contents
+        } else {
+            iter::repeat_n(None, sources.len()).collect()
         };
 
-    let resolve_map = async |map: &mut SourceMapJson| {
-        if let Some(sources) = &mut map.sources {
-            let mut contents = if let Some(mut contents) = map.sources_content.take() {
-                contents.resize(sources.len(), None);
-                contents
-            } else {
-                iter::repeat_n(None, sources.len()).collect()
-            };
-
-            for (source, content) in sources.iter_mut().zip(contents.iter_mut()) {
-                if let Some(source) = source {
-                    if let Some(source_root) = &map.source_root {
-                        *source = format!("{source_root}{source}");
-                    }
-                    resolve_source(source, Some(content)).await?;
+        for (source, content) in sources.iter_mut().zip(contents.iter_mut()) {
+            if let Some(source) = source {
+                if let Some(source_root) = &map.source_root {
+                    *source = format!("{source_root}{source}");
                 }
+                turbo_tasks::read!(resolve_source(source, Some(content), origin, fs_str, disk_fs))?;
             }
-
-            map.source_root = None;
-            map.sources_content = Some(contents);
         }
-        anyhow::Ok(())
+
+        map.source_root = None;
+        map.sources_content = Some(contents);
+    }
+    Ok(())
+}
+}
+
+turbo_tasks::dual_fn! {
+/// Replace the origin prefix in the `file` and `sources` with `turbopack:///` and read the
+/// `sourceContent`s from disk.
+pub fn resolve_source_map_sources(
+    map: Option<&Rope>,
+    origin: &FileSystemPath,
+) -> Result<Option<Rope>> {
+    let fs_vc = turbo_tasks::read!(origin.fs().to_resolved())?;
+    let fs_str = &*turbo_tasks::read!(turbofmt!("[{fs_vc}]"))?;
+
+    let disk_fs = if let Some(fs_vc) = ResolvedVc::try_downcast_type::<DiskFileSystem>(fs_vc) {
+        Some((fs_vc, turbo_tasks::read!(fs_vc)?))
+    } else {
+        None
     };
+    let disk_fs = disk_fs.as_ref();
 
     let Some(map) = map else {
         return Ok(None);
@@ -205,16 +224,17 @@ pub async fn resolve_source_map_sources(
     };
 
     if let Some(file) = &mut map.file {
-        resolve_source(file, None).await?;
+        turbo_tasks::read!(resolve_source(file, None, origin, fs_str, disk_fs))?;
     }
 
-    resolve_map(&mut map).await?;
+    turbo_tasks::read!(resolve_map(&mut map, origin, fs_str, disk_fs))?;
     for section in map.sections.iter_mut().flatten() {
-        resolve_map(&mut section.map).await?;
+        turbo_tasks::read!(resolve_map(&mut section.map, origin, fs_str, disk_fs))?;
     }
 
     let map = Rope::from(serde_json::to_vec(&map)?);
     Ok(Some(map))
+}
 }
 
 fn unencoded_str_to_raw_value(unencoded: &str) -> Box<RawValue> {
@@ -225,18 +245,16 @@ fn unencoded_str_to_raw_value(unencoded: &str) -> Box<RawValue> {
     .expect("serde_json::to_string should produce valid JSON")
 }
 
+turbo_tasks::dual_fn! {
 /// Helper function to transform turbopack:/// file references in a sourcemap.
 /// Handles parsing the sourcemap, resolving the filesystem, applying transformations, and
 /// serializing back.
 /// The transform function is given the source string as found in the sourcemap (i.e. a URI).
-async fn transform_relative_files<F>(
+fn transform_relative_files(
     map: Option<&Rope>,
     context_path: &FileSystemPath,
-    mut transform: F,
-) -> Result<Option<Rope>>
-where
-    F: FnMut(&DiskFileSystem, &str) -> Result<String>,
-{
+    mut transform: impl FnMut(&DiskFileSystem, &str) -> Result<String>,
+) -> Result<Option<Rope>> {
     let Some(map) = map else {
         return Ok(None);
     };
@@ -247,9 +265,8 @@ where
     };
 
     let context_fs = context_path.fs;
-    let context_fs = &*ResolvedVc::try_downcast_type::<DiskFileSystem>(context_fs)
-        .context("Expected the chunking context to have a DiskFileSystem")?
-        .await?;
+    let context_fs = &*turbo_tasks::read!(ResolvedVc::try_downcast_type::<DiskFileSystem>(context_fs)
+        .context("Expected the chunking context to have a DiskFileSystem")?)?;
 
     let prefix = format!("{}///[{}]/", SOURCE_URL_PROTOCOL_STR, context_fs.name());
 
@@ -271,19 +288,21 @@ where
 
     Ok(Some(Rope::from(serde_json::to_vec(&map)?)))
 }
+}
 
+turbo_tasks::dual_fn! {
 /// Turns `turbopack:///[project]` references in sourcemap sources into absolute `file://` uris. This
 /// is useful for debugging environments.
-pub async fn absolute_fileify_source_map(
+pub fn absolute_fileify_source_map(
     map: Option<&Rope>,
     context_path: FileSystemPath,
 ) -> Result<Option<Rope>> {
-    transform_relative_files(map, &context_path, |context_fs, src_rest| {
+    turbo_tasks::read!(transform_relative_files(map, &context_path, |context_fs, src_rest| {
         let path = context_path.join(src_rest)?;
 
         Ok(uri_from_path_buf(context_fs.to_sys_path(&path)))
-    })
-    .await
+    }))
+}
 }
 
 fn uri_encode_path(path: &str) -> String {
@@ -292,9 +311,10 @@ fn uri_encode_path(path: &str) -> String {
         .collect::<Vec<_>>()
         .join("/")
 }
+turbo_tasks::dual_fn! {
 /// Turns `turbopack:///[project]` references in sourcemap sources into relative './' prefixed uris.
 /// This is useful in server environments and especially build environments.
-pub async fn relative_fileify_source_map(
+pub fn relative_fileify_source_map(
     map: Option<&Rope>,
     context_path: FileSystemPath,
     relative_path_to_output_root: RcStr,
@@ -304,7 +324,7 @@ pub async fn relative_fileify_source_map(
         .map(|s| urlencoding::encode(s))
         .collect::<Vec<_>>()
         .join("/");
-    transform_relative_files(map, &context_path, |_context_fs, src_rest| {
+    turbo_tasks::read!(transform_relative_files(map, &context_path, |_context_fs, src_rest| {
         // NOTE: we just include the relative path prefix here instead of using `sourceRoot`
         // since the spec on sourceRoot is broken.
 
@@ -317,8 +337,8 @@ pub async fn relative_fileify_source_map(
         } else {
             Ok(format!("{relative_path_to_output_root}/{src_rest}",))
         }
-    })
-    .await
+    }))
+}
 }
 
 #[cfg(test)]
@@ -350,7 +370,7 @@ mod tests {
         )
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_resolve_source_map_sources() {
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),
@@ -373,15 +393,16 @@ mod tests {
                 };
                 let url_root = Url::from_directory_path(sys_root).unwrap();
 
-                let fs_root_path = DiskFileSystem::new(
-                    rcstr!("mock"),
-                    Vc::cell(RcStr::from(sys_root.to_str().unwrap())),
-                )
-                .root()
-                .await?;
+                let fs_root_path = turbo_tasks::read!(
+                    DiskFileSystem::new(
+                        rcstr!("mock"),
+                        Vc::cell(RcStr::from(sys_root.to_str().unwrap())),
+                    )
+                    .root()
+                )?;
 
                 let resolved_source_map: SourceMapJson = serde_json::from_str(
-                    &resolve_source_map_sources(
+                    &turbo_tasks::read!(resolve_source_map_sources(
                         Some(&source_map_rope(
                             /* source_root */ None,
                             [
@@ -406,14 +427,13 @@ mod tests {
                         // NOTE: the percent encoding here should NOT be decoded, as this is not
                         // part of a `file://` URL
                         &fs_root_path.join("app/source%20mapped/page.js").unwrap(),
-                    )
-                    .await?
+                    ))?
                     .unwrap()
                     .to_str()?,
                 )?;
 
                 let rooted_source_map: SourceMapJson = serde_json::from_str(
-                    &resolve_source_map_sources(
+                    &turbo_tasks::read!(resolve_source_map_sources(
                         Some(&source_map_rope(
                             // NOTE: these should get literally concated, a slash should NOT get
                             // added.
@@ -421,8 +441,7 @@ mod tests {
                             ["page.js"],
                         )),
                         &fs_root_path.join("app/page.js").unwrap(),
-                    )
-                    .await?
+                    ))?
                     .unwrap()
                     .to_str()?,
                 )?;

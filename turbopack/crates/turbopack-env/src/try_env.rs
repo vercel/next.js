@@ -20,9 +20,8 @@ impl TryDotenvProcessEnv {
         prior: ResolvedVc<Box<dyn ProcessEnv>>,
         path: FileSystemPath,
     ) -> Result<Vc<Self>> {
-        let dotenv = DotenvProcessEnv::new(Some(*prior), path.clone())
-            .to_resolved()
-            .await?;
+        let dotenv =
+            turbo_tasks::read!(DotenvProcessEnv::new(Some(*prior), path.clone()).to_resolved())?;
         Ok(TryDotenvProcessEnv {
             dotenv,
             prior,
@@ -42,10 +41,10 @@ impl ProcessEnv for TryDotenvProcessEnv {
         // Ensure prior succeeds. If it doesn't, then we don't want to attempt to read
         // the dotenv file (and potentially emit an Issue), just trust that the prior
         // will have emitted its own.
-        prior.await?;
+        turbo_tasks::read!(prior)?;
 
         let vars = dotenv.read_all_with_prior(prior);
-        match vars.await {
+        match turbo_tasks::read!(vars) {
             Ok(_) => Ok(vars),
             Err(e) => {
                 // If parsing the dotenv file fails (but getting the prior value didn't), then

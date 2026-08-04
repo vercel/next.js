@@ -47,96 +47,319 @@ pub async fn get_app_client_references_chunks(
     client_availability_info: AvailabilityInfo,
     ssr_chunking_context: Option<Vc<Box<dyn ChunkingContext>>>,
 ) -> Result<Vc<ClientReferencesChunks>> {
-    async move {
+    #[cfg(not(feature = "sync"))]
+    {
+        turbo_tasks::read!(
+            async move {
+                // TODO Reconsider this. Maybe it need to be true in production.
+                let separate_chunk_group_per_client_reference = false;
+                let app_client_references = turbo_tasks::read!(app_client_references)?;
+                if separate_chunk_group_per_client_reference {
+                    todo!();
+                    // let app_client_references_chunks: Vec<(_, (_, Option<_>))> =
+                    // app_client_references     .client_references
+                    //     .iter()
+                    //     .map(|client_reference| async move {
+                    //         Ok((
+                    //             client_reference.ty,
+                    //             match client_reference.ty {
+                    //                 ClientReferenceType::EcmascriptClientReference(
+                    //                     ecmascript_client_reference,
+                    //                 ) => {
+                    //                     let ecmascript_client_reference_ref =
+                    //                         ecmascript_client_reference.await?;
+
+                    //                     let client_chunk_group = client_chunking_context
+                    //                         .root_chunk_group(
+                    //                             module_graph,
+                    //                             *ResolvedVc::upcast(
+                    //
+                    // ecmascript_client_reference_ref.client_module,
+                    //                             ),
+                    //                         )
+                    //                         .await?;
+
+                    //                     (
+                    //                         (
+                    //                             client_chunk_group.assets,
+                    //                             client_chunk_group.availability_info,
+                    //                         ),
+                    //                         if let Some(ssr_chunking_context) =
+                    // ssr_chunking_context {                             let
+                    // ssr_chunk_group = ssr_chunking_context
+                    // .root_chunk_group(
+                    // *ResolvedVc::upcast(
+                    // ecmascript_client_reference_ref.ssr_module,
+                    // ),                                     module_graph,
+                    //                                 )
+                    //                                 .await?;
+
+                    //                             Some((
+                    //                                 ssr_chunk_group.assets,
+                    //                                 ssr_chunk_group.availability_info,
+                    //                             ))
+                    //                         } else {
+                    //                             None
+                    //                         },
+                    //                     )
+                    //                 }
+                    //                 ClientReferenceType::CssClientReference(css_client_reference)
+                    // => {                     let client_chunk_group =
+                    // client_chunking_context
+                    // .root_chunk_group(
+                    // *ResolvedVc::upcast(css_client_reference),
+                    // module_graph,                         )
+                    //                         .await?;
+
+                    //                     (
+                    //                         (
+                    //                             client_chunk_group.assets,
+                    //                             client_chunk_group.availability_info,
+                    //                         ),
+                    //                         None,
+                    //                     )
+                    //                 }
+                    //             },
+                    //         ))
+                    //     })
+                    //     .try_join()
+                    //     .await?;
+
+                    // Ok(ClientReferencesChunks {
+                    //     client_component_client_chunks: app_client_references_chunks
+                    //         .iter()
+                    //         .map(|&(client_reference_ty, (client_chunks, _))| {
+                    //             (client_reference_ty, client_chunks)
+                    //         })
+                    //         .collect(),
+                    //     client_component_ssr_chunks: app_client_references_chunks
+                    //         .iter()
+                    //         .flat_map(|&(client_reference_ty, (_, ssr_chunks))| {
+                    //             ssr_chunks.map(|ssr_chunks| (client_reference_ty, ssr_chunks))
+                    //         })
+                    //         .collect(),
+                    //     layout_segment_client_chunks: FxIndexMap::default(),
+                    // }
+                    // .cell())
+                } else {
+                    let mut client_references_by_server_component: FxIndexMap<_, Vec<_>> =
+                        FxIndexMap::default();
+                    let mut framework_reference_types = Vec::new();
+                    for &server_component in app_client_references.server_component_entries.iter() {
+                        client_references_by_server_component
+                            .entry(server_component)
+                            .or_default();
+                    }
+                    for client_reference in app_client_references.client_references.iter() {
+                        if let Some(server_component) = client_reference.server_component {
+                            client_references_by_server_component
+                                .entry(server_component)
+                                .or_default()
+                                .push(client_reference.ty);
+                        } else {
+                            framework_reference_types.push(client_reference.ty);
+                        }
+                    }
+                    // Framework components need to go into first layout segment
+                    if let Some((_, list)) = client_references_by_server_component.first_mut() {
+                        list.extend(framework_reference_types);
+                    }
+
+                    let chunk_group_info = module_graph.chunk_group_info();
+
+                    let mut current_client_chunk_group = ChunkGroupResult {
+                        assets: ResolvedVc::cell(vec![]),
+                        referenced_assets: ResolvedVc::cell(vec![]),
+                        references: ResolvedVc::cell(vec![]),
+                        availability_info: client_availability_info,
+                    }
+                    .resolved_cell();
+                    let mut current_ssr_chunk_group = ChunkGroupResult::empty_resolved();
+
+                    let mut layout_segment_client_chunks = FxIndexMap::default();
+                    let mut client_component_ssr_chunks = FxIndexMap::default();
+                    let mut client_component_client_chunks = FxIndexMap::default();
+
+                    for (server_component, client_reference_types) in
+                        client_references_by_server_component.into_iter()
+                    {
+                        let parent_chunk_group =
+                            *turbo_tasks::read!(chunk_group_info.get_index_of(
+                                ChunkGroup::Shared(ResolvedVc::upcast(server_component))
+                            ))?;
+
+                        let base_ident = turbo_tasks::read!(server_component.ident().owned())?;
+
+                        let server_path =
+                            turbo_tasks::read!(server_component.server_path().owned())?;
+                        let is_layout = server_path.file_stem() == Some("layout");
+                        let server_component_path =
+                            turbo_tasks::read!(server_path.to_string_ref())?;
+
+                        let ssr_modules =
+                            turbo_tasks::read!(client_reference_types
+                    .iter()
+                    .map(|client_reference_ty| async move {
+                        Ok(match client_reference_ty {
+                            ClientReferenceType::EcmascriptClientReference(
+                                ecmascript_client_reference,
+                            ) => {
+                                let ecmascript_client_reference_ref =
+                                    turbo_tasks::read!(ecmascript_client_reference)?;
+
+                                Some(ResolvedVc::upcast(
+                                    ecmascript_client_reference_ref.ssr_module,
+                                ))
+                            }
+                            _ => None,
+                        })
+                    })
+                    .try_flat_join())?;
+
+                        let ssr_chunk_group = if !ssr_modules.is_empty()
+                            && let Some(ssr_chunking_context) = ssr_chunking_context
+                        {
+                            let availability_info =
+                                turbo_tasks::read!(current_ssr_chunk_group)?.availability_info;
+                            let _span = tracing::info_span!(
+                                "server side rendering",
+                                layout_segment = display(&server_component_path),
+                            )
+                            .entered();
+
+                            Some(
+                                ssr_chunking_context.chunk_group(
+                                    base_ident
+                                        .clone()
+                                        .with_modifier(rcstr!("ssr modules"))
+                                        .into_vc(),
+                                    ChunkGroup::IsolatedMerged {
+                                        parent: parent_chunk_group,
+                                        merge_tag: ecmascript_client_reference_merge_tag_ssr(),
+                                        entries: ssr_modules,
+                                    },
+                                    module_graph,
+                                    availability_info,
+                                ),
+                            )
+                        } else {
+                            None
+                        };
+
+                        let client_modules = turbo_tasks::read!(
+                            client_reference_types
+                                .iter()
+                                .map(|client_reference_ty| async move {
+                                    Ok(match client_reference_ty {
+                                        ClientReferenceType::EcmascriptClientReference(
+                                            ecmascript_client_reference,
+                                        ) => ResolvedVc::upcast(
+                                            turbo_tasks::read!(ecmascript_client_reference)?
+                                                .client_module,
+                                        ),
+                                        ClientReferenceType::CssClientReference(
+                                            css_client_reference,
+                                        ) => ResolvedVc::upcast(*css_client_reference),
+                                    })
+                                })
+                                .try_join()
+                        )?;
+                        let client_chunk_group = if !client_modules.is_empty() {
+                            let availability_info =
+                                turbo_tasks::read!(current_client_chunk_group)?.availability_info;
+                            let _span = tracing::info_span!(
+                                "client side rendering",
+                                layout_segment = display(&server_component_path),
+                            )
+                            .entered();
+
+                            Some(client_chunking_context.chunk_group(
+                                base_ident.with_modifier(rcstr!("client modules")).into_vc(),
+                                ChunkGroup::IsolatedMerged {
+                                    parent: parent_chunk_group,
+                                    merge_tag: ecmascript_client_reference_merge_tag(),
+                                    entries: client_modules,
+                                },
+                                module_graph,
+                                availability_info,
+                            ))
+                        } else {
+                            None
+                        };
+
+                        if let Some(client_chunk_group) = client_chunk_group {
+                            let client_chunk_group = turbo_tasks::read!(
+                                current_client_chunk_group
+                                    .concatenate(client_chunk_group)
+                                    .to_resolved()
+                            )?;
+
+                            if is_layout {
+                                current_client_chunk_group = client_chunk_group;
+                            }
+
+                            let assets = turbo_tasks::read!(
+                                client_chunk_group
+                                    .output_assets_with_referenced()
+                                    .to_resolved()
+                            )?;
+                            layout_segment_client_chunks.insert(server_component, assets);
+
+                            for &client_reference_ty in client_reference_types.iter() {
+                                if let ClientReferenceType::EcmascriptClientReference(_) =
+                                    client_reference_ty
+                                {
+                                    client_component_client_chunks
+                                        .insert(client_reference_ty, client_chunk_group);
+                                }
+                            }
+                        }
+
+                        if let Some(ssr_chunk_group) = ssr_chunk_group {
+                            let ssr_chunk_group = turbo_tasks::read!(
+                                current_ssr_chunk_group
+                                    .concatenate(ssr_chunk_group)
+                                    .to_resolved()
+                            )?;
+
+                            if is_layout {
+                                current_ssr_chunk_group = ssr_chunk_group;
+                            }
+
+                            let assets = turbo_tasks::read!(
+                                ssr_chunk_group
+                                    .output_assets_with_referenced()
+                                    .to_resolved()
+                            )?;
+                            for &client_reference_ty in client_reference_types.iter() {
+                                if let ClientReferenceType::EcmascriptClientReference(_) =
+                                    client_reference_ty
+                                {
+                                    client_component_ssr_chunks.insert(client_reference_ty, assets);
+                                }
+                            }
+                        }
+                    }
+
+                    Ok(ClientReferencesChunks {
+                        client_component_client_chunks,
+                        client_component_ssr_chunks,
+                        layout_segment_client_chunks,
+                    }
+                    .cell())
+                }
+            }
+            .instrument(tracing::info_span!("process client references"))
+        )
+    }
+    #[cfg(feature = "sync")]
+    {
+        let _span_guard = tracing::info_span!("process client references").entered();
         // TODO Reconsider this. Maybe it need to be true in production.
         let separate_chunk_group_per_client_reference = false;
-        let app_client_references = app_client_references.await?;
+        let app_client_references = turbo_tasks::read!(app_client_references)?;
         if separate_chunk_group_per_client_reference {
             todo!();
-            // let app_client_references_chunks: Vec<(_, (_, Option<_>))> = app_client_references
-            //     .client_references
-            //     .iter()
-            //     .map(|client_reference| async move {
-            //         Ok((
-            //             client_reference.ty,
-            //             match client_reference.ty {
-            //                 ClientReferenceType::EcmascriptClientReference(
-            //                     ecmascript_client_reference,
-            //                 ) => {
-            //                     let ecmascript_client_reference_ref =
-            //                         ecmascript_client_reference.await?;
-
-            //                     let client_chunk_group = client_chunking_context
-            //                         .root_chunk_group(
-            //                             module_graph,
-            //                             *ResolvedVc::upcast(
-            //                                 ecmascript_client_reference_ref.client_module,
-            //                             ),
-            //                         )
-            //                         .await?;
-
-            //                     (
-            //                         (
-            //                             client_chunk_group.assets,
-            //                             client_chunk_group.availability_info,
-            //                         ),
-            //                         if let Some(ssr_chunking_context) = ssr_chunking_context {
-            //                             let ssr_chunk_group = ssr_chunking_context
-            //                                 .root_chunk_group(
-            //                                     *ResolvedVc::upcast(
-            //                                         ecmascript_client_reference_ref.ssr_module,
-            //                                     ),
-            //                                     module_graph,
-            //                                 )
-            //                                 .await?;
-
-            //                             Some((
-            //                                 ssr_chunk_group.assets,
-            //                                 ssr_chunk_group.availability_info,
-            //                             ))
-            //                         } else {
-            //                             None
-            //                         },
-            //                     )
-            //                 }
-            //                 ClientReferenceType::CssClientReference(css_client_reference) => {
-            //                     let client_chunk_group = client_chunking_context
-            //                         .root_chunk_group(
-            //                             *ResolvedVc::upcast(css_client_reference),
-            //                             module_graph,
-            //                         )
-            //                         .await?;
-
-            //                     (
-            //                         (
-            //                             client_chunk_group.assets,
-            //                             client_chunk_group.availability_info,
-            //                         ),
-            //                         None,
-            //                     )
-            //                 }
-            //             },
-            //         ))
-            //     })
-            //     .try_join()
-            //     .await?;
-
-            // Ok(ClientReferencesChunks {
-            //     client_component_client_chunks: app_client_references_chunks
-            //         .iter()
-            //         .map(|&(client_reference_ty, (client_chunks, _))| {
-            //             (client_reference_ty, client_chunks)
-            //         })
-            //         .collect(),
-            //     client_component_ssr_chunks: app_client_references_chunks
-            //         .iter()
-            //         .flat_map(|&(client_reference_ty, (_, ssr_chunks))| {
-            //             ssr_chunks.map(|ssr_chunks| (client_reference_ty, ssr_chunks))
-            //         })
-            //         .collect(),
-            //     layout_segment_client_chunks: FxIndexMap::default(),
-            // }
-            // .cell())
         } else {
             let mut client_references_by_server_component: FxIndexMap<_, Vec<_>> =
                 FxIndexMap::default();
@@ -179,40 +402,42 @@ pub async fn get_app_client_references_chunks(
             for (server_component, client_reference_types) in
                 client_references_by_server_component.into_iter()
             {
-                let parent_chunk_group = *chunk_group_info
-                    .get_index_of(ChunkGroup::Shared(ResolvedVc::upcast(server_component)))
-                    .await?;
+                let parent_chunk_group = *turbo_tasks::read!(
+                    chunk_group_info
+                        .get_index_of(ChunkGroup::Shared(ResolvedVc::upcast(server_component)))
+                )?;
 
-                let base_ident = server_component.ident().owned().await?;
+                let base_ident = turbo_tasks::read!(server_component.ident().owned())?;
 
-                let server_path = server_component.server_path().owned().await?;
+                let server_path = turbo_tasks::read!(server_component.server_path().owned())?;
                 let is_layout = server_path.file_stem() == Some("layout");
-                let server_component_path = server_path.to_string_ref().await?;
+                let server_component_path = turbo_tasks::read!(server_path.to_string_ref())?;
 
-                let ssr_modules = client_reference_types
-                    .iter()
-                    .map(|client_reference_ty| async move {
-                        Ok(match client_reference_ty {
+                let ssr_modules = {
+                    let mut out = Vec::new();
+                    for client_reference_ty in client_reference_types.iter() {
+                        out.extend(match client_reference_ty {
                             ClientReferenceType::EcmascriptClientReference(
                                 ecmascript_client_reference,
                             ) => {
                                 let ecmascript_client_reference_ref =
-                                    ecmascript_client_reference.await?;
+                                    turbo_tasks::read!(ecmascript_client_reference)?;
 
                                 Some(ResolvedVc::upcast(
                                     ecmascript_client_reference_ref.ssr_module,
                                 ))
                             }
                             _ => None,
-                        })
-                    })
-                    .try_flat_join()
-                    .await?;
+                        });
+                    }
+                    out
+                };
 
                 let ssr_chunk_group = if !ssr_modules.is_empty()
                     && let Some(ssr_chunking_context) = ssr_chunking_context
                 {
-                    let availability_info = current_ssr_chunk_group.await?.availability_info;
+                    let availability_info =
+                        turbo_tasks::read!(current_ssr_chunk_group)?.availability_info;
                     let _span = tracing::info_span!(
                         "server side rendering",
                         layout_segment = display(&server_component_path),
@@ -238,24 +463,25 @@ pub async fn get_app_client_references_chunks(
                     None
                 };
 
-                let client_modules = client_reference_types
-                    .iter()
-                    .map(|client_reference_ty| async move {
-                        Ok(match client_reference_ty {
+                let client_modules = {
+                    let mut out = Vec::new();
+                    for client_reference_ty in client_reference_types.iter() {
+                        out.push(match client_reference_ty {
                             ClientReferenceType::EcmascriptClientReference(
                                 ecmascript_client_reference,
-                            ) => {
-                                ResolvedVc::upcast(ecmascript_client_reference.await?.client_module)
-                            }
+                            ) => ResolvedVc::upcast(
+                                turbo_tasks::read!(ecmascript_client_reference)?.client_module,
+                            ),
                             ClientReferenceType::CssClientReference(css_client_reference) => {
                                 ResolvedVc::upcast(*css_client_reference)
                             }
-                        })
-                    })
-                    .try_join()
-                    .await?;
+                        });
+                    }
+                    out
+                };
                 let client_chunk_group = if !client_modules.is_empty() {
-                    let availability_info = current_client_chunk_group.await?.availability_info;
+                    let availability_info =
+                        turbo_tasks::read!(current_client_chunk_group)?.availability_info;
                     let _span = tracing::info_span!(
                         "client side rendering",
                         layout_segment = display(&server_component_path),
@@ -277,19 +503,21 @@ pub async fn get_app_client_references_chunks(
                 };
 
                 if let Some(client_chunk_group) = client_chunk_group {
-                    let client_chunk_group = current_client_chunk_group
-                        .concatenate(client_chunk_group)
-                        .to_resolved()
-                        .await?;
+                    let client_chunk_group = turbo_tasks::read!(
+                        current_client_chunk_group
+                            .concatenate(client_chunk_group)
+                            .to_resolved()
+                    )?;
 
                     if is_layout {
                         current_client_chunk_group = client_chunk_group;
                     }
 
-                    let assets = client_chunk_group
-                        .output_assets_with_referenced()
-                        .to_resolved()
-                        .await?;
+                    let assets = turbo_tasks::read!(
+                        client_chunk_group
+                            .output_assets_with_referenced()
+                            .to_resolved()
+                    )?;
                     layout_segment_client_chunks.insert(server_component, assets);
 
                     for &client_reference_ty in client_reference_types.iter() {
@@ -303,19 +531,21 @@ pub async fn get_app_client_references_chunks(
                 }
 
                 if let Some(ssr_chunk_group) = ssr_chunk_group {
-                    let ssr_chunk_group = current_ssr_chunk_group
-                        .concatenate(ssr_chunk_group)
-                        .to_resolved()
-                        .await?;
+                    let ssr_chunk_group = turbo_tasks::read!(
+                        current_ssr_chunk_group
+                            .concatenate(ssr_chunk_group)
+                            .to_resolved()
+                    )?;
 
                     if is_layout {
                         current_ssr_chunk_group = ssr_chunk_group;
                     }
 
-                    let assets = ssr_chunk_group
-                        .output_assets_with_referenced()
-                        .to_resolved()
-                        .await?;
+                    let assets = turbo_tasks::read!(
+                        ssr_chunk_group
+                            .output_assets_with_referenced()
+                            .to_resolved()
+                    )?;
                     for &client_reference_ty in client_reference_types.iter() {
                         if let ClientReferenceType::EcmascriptClientReference(_) =
                             client_reference_ty
@@ -334,8 +564,6 @@ pub async fn get_app_client_references_chunks(
             .cell())
         }
     }
-    .instrument(tracing::info_span!("process client references"))
-    .await
 }
 
 /// Flattens all client-side output assets from `client_references_chunks` so the
@@ -346,18 +574,32 @@ pub async fn get_app_client_references_chunks(
 pub async fn get_client_references_chunks_for_hmr(
     client_references_chunks: Vc<ClientReferencesChunks>,
 ) -> Result<Vc<OutputAssets>> {
-    let client_references_chunks_ref = client_references_chunks.await?;
-    let mut extras: FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>> = client_references_chunks_ref
-        .layout_segment_client_chunks
-        .values()
-        .map(|&assets| async move {
-            let primary = assets.primary_assets().await?;
-            Ok(primary.iter().copied().collect::<Vec<_>>())
-        })
-        .try_flat_join()
-        .await?
-        .into_iter()
-        .collect();
+    let client_references_chunks_ref = turbo_tasks::read!(client_references_chunks)?;
+    #[cfg(not(feature = "sync"))]
+    let mut extras: FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>> = turbo_tasks::read!(
+        client_references_chunks_ref
+            .layout_segment_client_chunks
+            .values()
+            .map(|&assets| async move {
+                let primary = turbo_tasks::read!(assets.primary_assets())?;
+                Ok(primary.iter().copied().collect::<Vec<_>>())
+            })
+            .try_flat_join()
+    )?
+    .into_iter()
+    .collect();
+    #[cfg(feature = "sync")]
+    let mut extras: FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>> = {
+        let mut out = FxIndexSet::default();
+        for &assets in client_references_chunks_ref
+            .layout_segment_client_chunks
+            .values()
+        {
+            let primary = turbo_tasks::read!(assets.primary_assets())?;
+            out.extend(primary.iter().copied());
+        }
+        out
+    };
     for &chunk_group in client_references_chunks_ref
         .client_component_client_chunks
         .values()
@@ -365,7 +607,11 @@ pub async fn get_client_references_chunks_for_hmr(
         // Use all_assets() (not primary_assets()) to also follow async loader references
         // transitively. This ensures that dynamic imports within 'use client' pages are
         // covered by the page's HMR subscription, not just the page module itself.
-        extras.extend(chunk_group.all_assets().await?.iter().copied());
+        extras.extend(
+            turbo_tasks::read!(chunk_group.all_assets())?
+                .iter()
+                .copied(),
+        );
     }
     // client_component_ssr_chunks are intentionally excluded: they run on the server
     // (Node.js/Edge), not in the browser, so they don't belong in the client HMR chunk list.

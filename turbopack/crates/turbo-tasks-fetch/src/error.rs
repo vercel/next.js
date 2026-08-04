@@ -1,4 +1,5 @@
 use anyhow::Result;
+#[cfg(not(feature = "sync"))]
 use async_trait::async_trait;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
@@ -69,30 +70,11 @@ pub struct FetchIssue {
     pub detail: ResolvedVc<StyledString>,
 }
 
-#[async_trait]
-#[turbo_tasks::value_impl]
-impl Issue for FetchIssue {
-    async fn file_path(&self) -> Result<FileSystemPath> {
-        Ok(self.issue_context.clone())
-    }
-
-    fn severity(&self) -> IssueSeverity {
-        self.severity
-    }
-
-    async fn title(&self) -> Result<StyledString> {
-        Ok(StyledString::Text(rcstr!(
-            "Error while requesting resource"
-        )))
-    }
-
-    fn stage(&self) -> IssueStage {
-        IssueStage::Load
-    }
-
-    async fn description(&self) -> Result<Option<StyledString>> {
-        let url = &*self.url.await?;
-        let kind = &*self.kind.await?;
+impl FetchIssue {
+    turbo_tasks::dual_fn! {
+    fn description_impl(&self) -> Result<Option<StyledString>> {
+        let url = &*turbo_tasks::read!(self.url)?;
+        let kind = &*turbo_tasks::read!(self.kind)?;
 
         Ok(Some(match kind {
             FetchErrorKind::Connect => StyledString::Line(vec![
@@ -117,8 +99,72 @@ impl Issue for FetchIssue {
             ]),
         }))
     }
+    }
+
+    turbo_tasks::dual_fn! {
+    fn detail_impl(&self) -> Result<Option<StyledString>> {
+        Ok(Some((*turbo_tasks::read!(self.detail)?).clone()))
+    }
+    }
+}
+
+#[cfg(not(feature = "sync"))]
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for FetchIssue {
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.issue_context.clone())
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        self.severity
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Error while requesting resource"
+        )))
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Load
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        self.description_impl().await
+    }
 
     async fn detail(&self) -> Result<Option<StyledString>> {
-        Ok(Some((*self.detail.await?).clone()))
+        self.detail_impl().await
+    }
+}
+
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for FetchIssue {
+    fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.issue_context.clone())
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        self.severity
+    }
+
+    fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Error while requesting resource"
+        )))
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Load
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
+        self.description_impl()
+    }
+
+    fn detail(&self) -> Result<Option<StyledString>> {
+        self.detail_impl()
     }
 }

@@ -3,12 +3,13 @@ use std::{borrow::Cow, fmt::Display, io::Write};
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToStringRef, Vc, trace::TraceRawVcs};
+use turbo_tasks::{ResolvedVc, ValueToStringRef, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{FileSystem, FileSystemPath, LinkType, VirtualFileSystem, rope::RopeBuilder};
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, TracedMode},
+    context::AssetContext,
     ident::{AssetIdent, Layer},
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
@@ -19,11 +20,7 @@ use turbopack_core::{
     raw_module::RawModule,
     reference::{ModuleReference, ModuleReferences, TracedModuleReference},
     reference_type::ReferenceType,
-    resolve::{
-        ResolveErrorMode,
-        origin::{ResolveOrigin, ResolveOriginExt},
-        parse::Request,
-    },
+    resolve::{ResolveErrorMode, origin::ResolveOrigin, parse::Request},
 };
 use turbopack_resolve::ecmascript::{cjs_resolve, esm_resolve};
 
@@ -262,13 +259,14 @@ fn externals_fs_root() -> Vc<FileSystemPath> {
 impl Module for CachedExternalModule {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let mut ident = AssetIdent::from_path(externals_fs_root().await?.join(&self.request)?)
-            .with_layer(Layer::new(rcstr!("external")))
-            .with_modifier(self.request.clone())
-            .with_modifier(self.external_type.to_string().into());
+        let mut ident =
+            AssetIdent::from_path(turbo_tasks::read!(externals_fs_root())?.join(&self.request)?)
+                .with_layer(Layer::new(rcstr!("external")))
+                .with_modifier(self.request.clone())
+                .with_modifier(self.external_type.to_string().into());
 
         if let Some(target) = &self.target {
-            ident = ident.with_modifier(target.to_string_ref().await?);
+            ident = ident.with_modifier(turbo_tasks::read!(target.to_string_ref())?);
         }
 
         Ok(ident.into_vc())
@@ -286,40 +284,43 @@ impl Module for CachedExternalModule {
             CachedExternalTracingMode::Traced { origin } => {
                 let external_result = match self.external_type {
                     CachedExternalType::EcmaScriptViaImport => {
-                        esm_resolve(
+                        turbo_tasks::read!(turbo_tasks::read!(esm_resolve(
                             **origin,
                             Request::parse_string(self.request.clone()),
                             Default::default(),
                             ResolveErrorMode::Error,
                             None,
-                        )
-                        .await?
-                        .await?
+                        ))?)?
                     }
                     CachedExternalType::CommonJs | CachedExternalType::EcmaScriptViaRequire => {
-                        cjs_resolve(
+                        turbo_tasks::read!(cjs_resolve(
                             **origin,
                             Request::parse_string(self.request.clone()),
                             Default::default(),
                             None,
                             ResolveErrorMode::Error,
-                        )
-                        .await?
+                        ))?
                     }
                     CachedExternalType::Global | CachedExternalType::Script => {
-                        let resolve_options = origin.into_trait_ref().await?.resolve_options();
-                        origin
-                            .resolve_asset(
-                                Request::parse_string(self.request.clone()),
-                                resolve_options,
-                                ReferenceType::Undefined,
-                            )
-                            .await?
-                            .await?
+                        // Inlined `ResolveOriginExt::resolve_asset` (an async-only
+                        // extension method): every step is a plain `Vc` read, so one
+                        // body works in both modes.
+                        let origin_ref = turbo_tasks::read!(origin.into_trait_ref())?;
+                        let resolve_options = origin_ref.resolve_options();
+                        turbo_tasks::read!((*origin_ref.asset_context()).resolve_asset(
+                            origin_ref.origin_path(),
+                            *turbo_tasks::read!(
+                                Request::parse_string(self.request.clone()).to_resolved()
+                            )?,
+                            *turbo_tasks::read!(resolve_options.to_resolved())?,
+                            ReferenceType::Undefined,
+                        ))?
                     }
                 };
 
-                let references = external_result
+                // `.to_resolved()` futures cannot fan out through the sync `parallel!`;
+                // resolve sequentially in both modes (the list is small).
+                let modules = external_result
                     .affecting_sources
                     .iter()
                     .map(|s| {
@@ -331,16 +332,17 @@ impl Module for CachedExternalModule {
                             rcstr!("affecting source"),
                         ))
                     })
-                    .chain(external_result.primary_modules_raw_iter().map(|m| *m))
-                    .map(|s| {
+                    .chain(external_result.primary_modules_raw_iter().map(|m| *m));
+                let mut references = Vec::new();
+                for module in modules {
+                    references.push(turbo_tasks::read!(
                         Vc::upcast::<Box<dyn ModuleReference>>(TracedModuleReference::new(
-                            s,
+                            module,
                             TracedMode::Entry,
                         ))
                         .to_resolved()
-                    })
-                    .try_join()
-                    .await?;
+                    )?);
+                }
                 Vc::cell(references)
             }
         })
@@ -422,18 +424,17 @@ impl EcmascriptChunkPlaceable for CachedExternalModule {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         _module_graph: Vc<ModuleGraph>,
     ) -> Result<Vc<OutputAssetsWithReferenced>> {
-        let module = self.await?;
-        let chunking_context_resolved = chunking_context.to_resolved().await?;
+        let module = turbo_tasks::read!(self)?;
+        let chunking_context_resolved = turbo_tasks::read!(chunking_context.to_resolved())?;
         let assets = if let Some(target) = &module.target {
-            ResolvedVc::cell(vec![ResolvedVc::upcast(
+            ResolvedVc::cell(vec![ResolvedVc::upcast(turbo_tasks::read!(
                 ExternalsSymlinkAsset::new(
                     *chunking_context_resolved,
                     hashed_package_name(target).into(),
                     target.clone(),
                 )
                 .to_resolved()
-                .await?,
-            )])
+            )?)])
         } else {
             OutputAssets::empty_resolved()
         };
@@ -476,10 +477,7 @@ impl OutputAssetsReference for ExternalsSymlinkAsset {}
 impl OutputAsset for ExternalsSymlinkAsset {
     #[turbo_tasks::function]
     async fn path(&self) -> Result<Vc<FileSystemPath>> {
-        Ok(self
-            .chunking_context
-            .output_root()
-            .await?
+        Ok(turbo_tasks::read!(self.chunking_context.output_root())?
             .join("node_modules")?
             .join(&self.hashed_package)?
             .cell())
@@ -490,17 +488,18 @@ impl OutputAsset for ExternalsSymlinkAsset {
 impl Asset for ExternalsSymlinkAsset {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         // path: [output]/bench/app-router-server/.next/node_modules/lodash-ee4fa714b6d81ca3
         // target: [project]/node_modules/.pnpm/lodash@3.10.1/node_modules/lodash
 
-        let output_root_to_project_root = this.chunking_context.output_root_to_root_path().await?;
+        let output_root_to_project_root =
+            turbo_tasks::read!(this.chunking_context.output_root_to_root_path())?;
         let project_root_to_target = &this.target.path;
 
-        let path = self.path().await?;
+        let path = turbo_tasks::read!(self.path())?;
         let path_to_output_root = path
             .parent()
-            .get_relative_path_to(&*this.chunking_context.output_root().await?)
+            .get_relative_path_to(&*turbo_tasks::read!(this.chunking_context.output_root())?)
             .context("path must be inside output root")?;
 
         let target = format!(

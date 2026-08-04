@@ -1,3 +1,10 @@
+// ASYNC-ONLY: these are compile-time macro-error snapshot tests (trybuild). They test
+// macro expansion / misuse diagnostics, not tokio-vs-sync runtime behavior, so they run
+// in the default (async) config — like doc-tests. (trybuild also compiles its fixtures
+// against turbo-tasks's *default* features, which would be the invalid "neither sync nor
+// tokio_runtime" config in a `--features sync` build.)
+#![cfg(not(feature = "sync"))]
+
 // Unset RUSTC_WRAPPER before trybuild tests run. When sccache wraps rustc, it
 // emits "warning: ignoring -C extra-filename flag due to -o flag" which pollutes
 // trybuild's stderr snapshot comparisons. Unsetting it here means only the

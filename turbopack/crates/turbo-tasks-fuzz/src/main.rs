@@ -32,7 +32,7 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::FsWatcher(args) => fs_watcher::run(args).await,
-        Commands::SymlinkStress(args) => symlink_stress::run(args).await,
+        Commands::FsWatcher(args) => turbo_tasks::read!(fs_watcher::run(args)),
+        Commands::SymlinkStress(args) => turbo_tasks::read!(symlink_stress::run(args)),
     }
 }

@@ -57,17 +57,31 @@ impl OutputAsset for AssetHashesManifestAsset {
 
 #[turbo_tasks::function]
 pub async fn endpoint_outputs(endpoint: Vc<Box<dyn Endpoint>>) -> Result<Vc<OutputAssets>> {
-    Ok(*endpoint.output().await?.output_assets)
+    Ok(*turbo_tasks::read!(endpoint.output())?.output_assets)
 }
 
 #[turbo_tasks::function]
 pub async fn endpoints_outputs(endpoints: Vc<Endpoints>) -> Result<Vc<OutputAssets>> {
-    let endpoints = endpoints.await?;
-    let all_outputs = endpoints
-        .iter()
-        .map(async |endpoint| endpoint.output().await?.output_assets.await)
-        .try_join()
-        .await?;
+    let endpoints = turbo_tasks::read!(endpoints)?;
+    #[cfg(not(feature = "sync"))]
+    let all_outputs = turbo_tasks::read!(
+        endpoints
+            .iter()
+            .map(async |endpoint| turbo_tasks::read!(
+                turbo_tasks::read!(endpoint.output())?.output_assets
+            ))
+            .try_join()
+    )?;
+    #[cfg(feature = "sync")]
+    let all_outputs = {
+        let mut all_outputs = Vec::new();
+        for endpoint in endpoints.iter() {
+            all_outputs.push(turbo_tasks::read!(
+                turbo_tasks::read!(endpoint.output())?.output_assets
+            )?);
+        }
+        all_outputs
+    };
     let set = all_outputs.into_iter().flatten().collect::<FxIndexSet<_>>();
     Ok(Vc::cell(set.into_iter().collect()))
 }
@@ -80,7 +94,7 @@ pub async fn expand_outputs(
     project: Vc<Project>,
     root: FileSystemPath,
 ) -> Result<Vc<OutputAssetsWithPaths>> {
-    let entrypoint_groups = project.get_all_endpoint_groups(false).await?;
+    let entrypoint_groups = turbo_tasks::read!(project.get_all_endpoint_groups(false))?;
 
     let output_assets = entrypoint_groups
         .iter()
@@ -94,29 +108,55 @@ pub async fn expand_outputs(
         })
         .collect::<Vec<_>>();
 
-    let output_assets = expand_output_assets(
-        output_assets
-            .iter()
-            .try_join()
-            .await?
+    #[cfg(not(feature = "sync"))]
+    let output_assets = turbo_tasks::read!(expand_output_assets(
+        turbo_tasks::read!(output_assets.iter().try_join())?
             .into_iter()
             .flatten()
             .map(ExpandOutputAssetsInput::Asset),
         true,
-    )
-    .await?;
-
-    let mut output_assets = output_assets
-        .into_iter()
-        .map(async |asset| {
-            if let Some(path) = root.get_path_to(&*asset.path().await?) {
-                Ok(Some((asset, RcStr::from(path))))
-            } else {
-                Ok(None)
+    ))?;
+    #[cfg(feature = "sync")]
+    let output_assets = {
+        let expanded_inputs = {
+            let mut expanded_inputs = Vec::new();
+            for asset in output_assets.iter() {
+                expanded_inputs.push(turbo_tasks::read!(*asset)?);
             }
-        })
-        .try_flat_join()
-        .await?;
+            expanded_inputs
+        };
+        turbo_tasks::read!(expand_output_assets(
+            expanded_inputs
+                .into_iter()
+                .flatten()
+                .map(ExpandOutputAssetsInput::Asset),
+            true,
+        ))?
+    };
+
+    #[cfg(not(feature = "sync"))]
+    let mut output_assets = turbo_tasks::read!(
+        output_assets
+            .into_iter()
+            .map(async |asset| {
+                if let Some(path) = root.get_path_to(&*turbo_tasks::read!(asset.path())?) {
+                    Ok(Some((asset, RcStr::from(path))))
+                } else {
+                    Ok(None)
+                }
+            })
+            .try_flat_join()
+    )?;
+    #[cfg(feature = "sync")]
+    let mut output_assets = {
+        let mut result = Vec::new();
+        for asset in output_assets.into_iter() {
+            if let Some(path) = root.get_path_to(&*turbo_tasks::read!(asset.path())?) {
+                result.push((asset, RcStr::from(path)));
+            }
+        }
+        result
+    };
 
     // Shared JS assets aren't duplicated here, but we have some duplicate OutputAssets with the
     // same path, e.g. a static image which exists twice, once with the server and then also with
@@ -131,23 +171,38 @@ pub async fn expand_outputs(
 impl Asset for AssetHashesManifestAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
-        let output_assets = expand_outputs(*self.project, self.asset_root.clone()).await?;
+        let output_assets =
+            turbo_tasks::read!(expand_outputs(*self.project, self.asset_root.clone()))?;
 
-        let asset_paths = output_assets
-            .iter()
-            .map(async |(asset, path)| {
-                Ok((
-                    path,
-                    asset
-                        .content_hash(
+        #[cfg(not(feature = "sync"))]
+        let asset_paths = turbo_tasks::read!(
+            output_assets
+                .iter()
+                .map(async |(asset, path)| {
+                    Ok((
+                        path,
+                        turbo_tasks::read!(asset.content_hash(
                             self.project.next_config().output_hash_salt(),
                             HashAlgorithm::Xxh3Hash128Base38,
-                        )
-                        .await?,
-                ))
-            })
-            .try_join()
-            .await?;
+                        ))?,
+                    ))
+                })
+                .try_join()
+        )?;
+        #[cfg(feature = "sync")]
+        let asset_paths = {
+            let mut asset_paths = Vec::new();
+            for (asset, path) in output_assets.iter() {
+                asset_paths.push((
+                    path,
+                    turbo_tasks::read!(asset.content_hash(
+                        self.project.next_config().output_hash_salt(),
+                        HashAlgorithm::Xxh3Hash128Base38,
+                    ))?,
+                ));
+            }
+            asset_paths
+        };
 
         struct Manifest<'a> {
             asset_paths: &'a Vec<(&'a RcStr, ReadRef<Option<RcStr>>)>,
@@ -184,19 +239,17 @@ impl Asset for AssetHashesManifestAsset {
 pub async fn immutable_hashes_manifest_asset_if_enabled(
     project: ResolvedVc<Project>,
 ) -> Result<Vc<OutputAssets>> {
-    if *project.next_config().enable_immutable_assets().await? {
-        let path = project
-            .node_root()
-            .await?
-            .join("immutable-static-hashes.json")?;
+    if *turbo_tasks::read!(project.next_config().enable_immutable_assets())? {
+        let path = turbo_tasks::read!(project.node_root())?.join("immutable-static-hashes.json")?;
 
-        let asset = AssetHashesManifestAsset::new(
-            path,
-            *project,
-            project.client_relative_path().owned().await?,
-        )
-        .to_resolved()
-        .await?;
+        let asset = turbo_tasks::read!(
+            AssetHashesManifestAsset::new(
+                path,
+                *project,
+                turbo_tasks::read!(project.client_relative_path().owned())?,
+            )
+            .to_resolved()
+        )?;
         Ok(Vc::cell(vec![ResolvedVc::upcast(asset)]))
     } else {
         Ok(OutputAssets::empty())

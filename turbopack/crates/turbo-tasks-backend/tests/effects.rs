@@ -14,7 +14,7 @@ use rustc_hash::FxHashMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     ApplyError, CapturedEffect, Effect, EffectExt, EffectStateStorage, Effects, EffectsError,
-    NonLocalValue, OperationValue, ReadRef, ResolvedVc, State, TurboTasks, Vc, take_effects,
+    NonLocalValue, OperationValue, ReadRef, ResolvedVc, State, TurboTasks, Vc, read, take_effects,
     trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
@@ -209,7 +209,7 @@ impl TestInput {
 
 #[turbo_tasks::function(operation, root)]
 async fn producer_operation(input: ResolvedVc<TestInput>) -> Result<()> {
-    let input = input.await?;
+    let input = read!(input)?;
     let shared = input.shared.clone();
     let spec = input.spec.get().clone();
     // Track `tick` so callers can force a producer rerun without mutating `spec`.
@@ -233,8 +233,8 @@ async fn producer_operation(input: ResolvedVc<TestInput>) -> Result<()> {
 #[turbo_tasks::function(operation, root)]
 async fn extract_effects(input: ResolvedVc<TestInput>) -> Result<Vc<Effects>> {
     let producer = producer_operation(input);
-    let _ = producer.resolve().strongly_consistent().await?;
-    Ok(take_effects(producer).await?.cell())
+    let _ = read!(producer.resolve().strongly_consistent())?;
+    Ok(read!(take_effects(producer))?.cell())
 }
 
 /// Mutate the spec via its top-level handle and return the resulting
@@ -270,7 +270,7 @@ fn create_tt() -> Arc<TurboTasks<TurboTasksBackend>> {
 /// `EffectStateStorage` with `Applied { value_hash }`; the second call sees
 /// `Effects.captured == None` and falls through `apply_post_drop` where every
 /// state entry is `Applied` with a matching hash → no `dyn_apply` invocation.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn duplicate_apply_runs_once() {
     let tt = create_tt();
     tt.run_once(async move {
@@ -303,7 +303,7 @@ async fn duplicate_apply_runs_once() {
 /// whose identity multiset matches the previous one. `.apply_for_testing()` on the new
 /// `Effects` short-circuits through the per-key state machine because each
 /// `EffectStateEntry` is still `Applied { value_hash: matching }`.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn reemit_unchanged_hash_does_not_reapply() {
     let tt = create_tt();
     tt.run_once(async move {
@@ -344,7 +344,7 @@ async fn reemit_unchanged_hash_does_not_reapply() {
 
 /// Changing one effect's hash re-runs only that effect; the sibling stays
 /// short-circuited by its `Applied { value_hash: matching }` state entry.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn hash_change_reapplies_only_changed_key() {
     let tt = create_tt();
     tt.run_once(async move {
@@ -389,7 +389,7 @@ async fn hash_change_reapplies_only_changed_key() {
 
 /// Adding a brand-new effect to the emitted set only runs the new key's
 /// apply; the pre-existing keys stay short-circuited.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn adding_effect_only_runs_new_key() {
     let tt = create_tt();
     tt.run_once(async move {
@@ -425,7 +425,7 @@ async fn adding_effect_only_runs_new_key() {
 
 /// Removing an effect from the emitted set must not re-run the surviving
 /// effect, and the removed effect's apply must not fire again either.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn removing_effect_does_not_reapply_survivors() {
     let tt = create_tt();
     tt.run_once(async move {
@@ -467,7 +467,7 @@ async fn removing_effect_does_not_reapply_survivors() {
 /// kept alive for the lifetime of the cell so re-apply always has a body to
 /// run; there is no Retry signal in this scenario because the test effects
 /// don't elide content at capture time.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn sibling_producer_overwrites_state_reapplies_on_call() {
     let tt = create_tt();
     tt.run_once(async move {
@@ -525,7 +525,7 @@ async fn sibling_producer_overwrites_state_reapplies_on_call() {
 /// apply re-enters the state machine; with storage `Applied{H_A}` matching
 /// the captured hash H_A, the state machine returns the cached result
 /// without invoking the body a second time.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn repeated_apply_after_unchanged_state_dedupes() {
     let tt = create_tt();
     tt.run_once(async move {
@@ -556,7 +556,7 @@ async fn repeated_apply_after_unchanged_state_dedupes() {
 /// `ReadRef` references that would prevent eviction. We confirm referential
 /// behavior: after a sibling stomps storage and A is invalidated and re-read,
 /// the new `Effects` cell is a different value (cell = "new").
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn cell_new_produces_distinct_effects_per_producer_run() {
     let tt = create_tt();
     tt.run_once(async move {
@@ -589,7 +589,7 @@ async fn cell_new_produces_distinct_effects_per_producer_run() {
 /// apply succeeded, `capture` observes storage `Applied{matching}` and elides
 /// content materialization. The apply-side state machine still dedup-hits
 /// because storage is unchanged, so the side effect does not re-fire.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn capture_skips_content_when_storage_matches() {
     let tt = create_tt();
     tt.run_once(async move {
@@ -649,7 +649,7 @@ async fn capture_skips_content_when_storage_matches() {
 /// `EffectsError::Retry`. The producer's invalidator fires; re-reading A
 /// produces a fresh `Effects` whose `capture` sees the mismatch and
 /// materializes content this time, so the second apply succeeds.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn capture_skip_then_stomp_signals_retry() {
     let tt = create_tt();
     tt.run_once(async move {

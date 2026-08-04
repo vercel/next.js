@@ -3,14 +3,11 @@ use std::sync::atomic::AtomicBool;
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use rustc_hash::FxHashMap;
-use tracing::Instrument;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{
-    FxIndexSet, OperationVc, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc, trace::TraceRawVcs,
-};
+use turbo_tasks::{FxIndexSet, OperationVc, ResolvedVc, Vc, trace::TraceRawVcs};
 
 use super::{
-    ChunkItemWithAsyncModuleInfo, ChunkingContext, availability_info::AvailabilityInfo,
+    ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkingContext, availability_info::AvailabilityInfo,
     chunking::make_chunks,
 };
 use crate::{
@@ -18,6 +15,7 @@ use crate::{
         ChunkGroupContent, ChunkGroupContentInner, ChunkableModule, ChunkingType, Chunks,
         available_modules::{AvailableModuleItem, AvailableModulesSet},
         chunk_item_batch::{ChunkItemBatchGroup, ChunkItemOrBatchWithAsyncModuleInfo},
+        parallel_reads,
     },
     module_graph::{
         GraphTraversalAction, ModuleGraph,
@@ -38,24 +36,24 @@ pub struct MakeChunkGroupResult {
     pub availability_info: AvailabilityInfo,
 }
 
+turbo_tasks::dual_fn! {
 /// Creates a chunk group from a set of entries.
-pub async fn make_chunk_group(
+pub fn make_chunk_group(
     chunk_group: ChunkGroup,
     module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     availability_info: AvailabilityInfo,
 ) -> Result<MakeChunkGroupResult> {
-    let can_split_async = chunking_context.chunk_loading().await?.can_split_async();
-    let is_nested_async_availability_enabled = *chunking_context
-        .is_nested_async_availability_enabled()
-        .await?;
-    let should_merge_modules = *chunking_context.is_module_merging_enabled().await?;
-    let batching_config = chunking_context.batching_config().to_resolved().await?;
+    let can_split_async = turbo_tasks::read!(chunking_context.chunk_loading())?.can_split_async();
+    let is_nested_async_availability_enabled = *turbo_tasks::read!(chunking_context
+        .is_nested_async_availability_enabled())?;
+    let should_merge_modules = *turbo_tasks::read!(chunking_context.is_module_merging_enabled())?;
+    let batching_config = turbo_tasks::read!(chunking_context.batching_config().to_resolved())?;
 
     let ChunkGroupContent {
         inner,
         availability_info: new_availability_info,
-    } = chunk_group_content(
+    } = turbo_tasks::read!(chunk_group_content(
         module_graph,
         chunk_group,
         ChunkGroupContentOptions {
@@ -64,8 +62,7 @@ pub async fn make_chunk_group(
             should_merge_modules,
             batching_config,
         },
-    )
-    .await?;
+    ))?;
     let ChunkGroupContentInner {
         chunkable_items,
         batch_groups,
@@ -76,7 +73,7 @@ pub async fn make_chunk_group(
     let async_module_info = module_graph.async_module_info();
 
     // Attach async info to chunkable modules
-    let mut chunk_items = chunkable_items
+    let mut chunk_items = turbo_tasks::read!(parallel_reads(chunkable_items
         .iter()
         .copied()
         .map(|m| {
@@ -86,14 +83,12 @@ pub async fn make_chunk_group(
                 *module_graph,
                 *chunking_context,
             )
-        })
-        .try_join()
-        .await?
+        })))?
         .into_iter()
         .flatten()
         .collect::<Vec<_>>();
 
-    let chunk_item_batch_groups = batch_groups
+    let chunk_item_batch_groups = turbo_tasks::read!(parallel_reads(batch_groups
         .iter()
         .map(|&batch_group| {
             ChunkItemBatchGroup::from_module_batch_group(
@@ -102,9 +97,7 @@ pub async fn make_chunk_group(
                 *chunking_context,
             )
             .to_resolved()
-        })
-        .try_join()
-        .await?;
+        })))?;
 
     // Insert async chunk loaders for every referenced async module
     let async_availability_info =
@@ -113,56 +106,55 @@ pub async fn make_chunk_group(
         } else {
             availability_info
         };
-    let async_loaders = async_modules
+    let async_loaders = turbo_tasks::read!(parallel_reads(async_modules
         .iter()
         .copied()
-        .map(async |module| {
+        .map(|module| {
             chunking_context
                 .async_loader_chunk_item(*module, *module_graph, async_availability_info)
                 .to_resolved()
-                .await
-        })
-        .try_join()
-        .await?;
-    let async_loader_chunk_items = async_loaders
+        })))?;
+    let async_loader_chunk_items = turbo_tasks::read!(parallel_reads(async_loaders
         .iter()
-        .map(async |&chunk_item| {
-            let chunk_type = chunk_item
-                .into_trait_ref()
-                .await?
-                .ty()
-                .to_resolved()
-                .await?;
-            Ok(ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(
-                ChunkItemWithAsyncModuleInfo {
-                    chunk_item,
-                    chunk_type,
-                    module: None,
-                    async_info: None,
-                },
-            ))
-        })
-        .try_join()
-        .await?;
+        .map(|&chunk_item| async_loader_chunk_item_with_info(chunk_item))))?;
 
     chunk_items.extend(async_loader_chunk_items);
 
     // Pass chunk items to chunking algorithm
-    let chunks = make_chunks(
+    let chunks = turbo_tasks::read!(make_chunks(
         *module_graph,
         *chunking_context,
         Vc::cell(chunk_items),
         Vc::cell(chunk_item_batch_groups),
         rcstr!(""),
     )
-    .to_resolved()
-    .await?;
+    .to_resolved())?;
 
     Ok(MakeChunkGroupResult {
         chunks,
         references: ResolvedVc::upcast_vec(async_loaders),
         availability_info: new_availability_info,
     })
+}
+}
+
+turbo_tasks::dual_fn! {
+/// Wraps an async-loader chunk item (resolving its chunk type) so it can be chunked
+/// alongside regular chunk items.
+fn async_loader_chunk_item_with_info(
+    chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
+) -> Result<ChunkItemOrBatchWithAsyncModuleInfo> {
+    let chunk_item_trait_ref = turbo_tasks::read!(chunk_item.into_trait_ref())?;
+    let chunk_type = turbo_tasks::read!(chunk_item_trait_ref.ty().to_resolved())?;
+    Ok(ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(
+        ChunkItemWithAsyncModuleInfo {
+            chunk_item,
+            chunk_type,
+            module: None,
+            async_info: None,
+        },
+    ))
+}
 }
 
 #[turbo_tasks::task_input]
@@ -178,8 +170,9 @@ pub struct ChunkGroupContentOptions {
     pub batching_config: ResolvedVc<BatchingConfig>,
 }
 
+turbo_tasks::dual_fn! {
 /// Computes the content of a chunk group.
-pub async fn chunk_group_content(
+pub fn chunk_group_content(
     module_graph: ResolvedVc<ModuleGraph>,
     chunk_group: ChunkGroup,
     options: ChunkGroupContentOptions,
@@ -187,19 +180,20 @@ pub async fn chunk_group_content(
     let availability_info = options.availability_info;
     let chunk_group_content = chunk_group_content_operation(module_graph, chunk_group, options);
     let available_modules = available_modules_operation(chunk_group_content);
-    let inner = chunk_group_content.connect().await?;
+    let inner = turbo_tasks::read!(chunk_group_content.connect())?;
 
     Ok(ChunkGroupContent {
         inner,
-        availability_info: availability_info.with_modules(available_modules).await?,
+        availability_info: turbo_tasks::read!(availability_info.with_modules(available_modules))?,
     })
+}
 }
 
 #[turbo_tasks::function(operation)]
 async fn available_modules_operation(
     chunk_group_content: OperationVc<ChunkGroupContentInner>,
 ) -> Result<Vc<AvailableModulesSet>> {
-    Ok(*chunk_group_content.connect().await?.available_modules)
+    Ok(*turbo_tasks::read!(chunk_group_content.connect())?.available_modules)
 }
 
 #[turbo_tasks::function(operation)]
@@ -213,7 +207,7 @@ async fn chunk_group_content_operation(
         batching_config,
     }: ChunkGroupContentOptions,
 ) -> Result<Vc<ChunkGroupContentInner>> {
-    let module_batches_graph = module_graph.module_batches(*batching_config).await?;
+    let module_batches_graph = turbo_tasks::read!(module_graph.module_batches(*batching_config))?;
 
     type ModuleToChunkableMap = FxHashMap<ModuleOrBatch, ChunkableModuleOrBatch>;
 
@@ -230,13 +224,15 @@ async fn chunk_group_content_operation(
     };
 
     let available_modules = match availability_info.available_modules() {
-        Some(available_modules) => Some(available_modules.snapshot().await?),
+        Some(available_modules) => Some(turbo_tasks::read!(available_modules.snapshot())?),
         None => None,
     };
 
     let mut entries = Vec::with_capacity(chunk_group.entries_count());
     for entry in chunk_group.entries() {
-        entries.push(module_batches_graph.get_entry_index(entry).await?);
+        entries.push(turbo_tasks::read!(
+            module_batches_graph.get_entry_index(entry)
+        )?);
     }
 
     {
@@ -358,13 +354,11 @@ async fn chunk_group_content_operation(
         )
         .collect();
     let available_modules: ResolvedVc<AvailableModulesSet> =
-        Vc::<AvailableModulesSet>::cell(available_modules)
-            .to_resolved()
-            .await?;
+        turbo_tasks::read!(Vc::<AvailableModulesSet>::cell(available_modules).to_resolved())?;
 
     let should_merge_modules = if should_merge_modules {
         let merged_modules = module_graph.merged_modules();
-        let merged_modules_ref = merged_modules.await?;
+        let merged_modules_ref = turbo_tasks::read!(merged_modules)?;
         Some((merged_modules, merged_modules_ref))
     } else {
         None
@@ -372,32 +366,11 @@ async fn chunk_group_content_operation(
 
     let chunkable_items = if let Some((merged_modules, merged_modules_ref)) = &should_merge_modules
     {
-        state
-            .chunkable_items
-            .into_iter()
-            .map(async |chunkable_module| match chunkable_module {
-                ChunkableModuleOrBatch::Module(module) => {
-                    let module = match merged_modules_ref
-                        .should_replace_module(ResolvedVc::upcast(module))
-                        .await?
-                    {
-                        Some(None) => return Ok(None),
-                        Some(Some(replacement)) => replacement,
-                        None => module,
-                    };
-
-                    Ok(Some(ChunkableModuleOrBatch::Module(module)))
-                }
-                ChunkableModuleOrBatch::Batch(batch) => Ok(Some(ChunkableModuleOrBatch::Batch(
-                    map_module_batch(*merged_modules, *batch)
-                        .to_resolved()
-                        .await?,
-                ))),
-                ChunkableModuleOrBatch::None(i) => Ok(Some(ChunkableModuleOrBatch::None(i))),
-            })
-            .try_flat_join()
-            .instrument(tracing::trace_span!("replace with merged modules"))
-            .await?
+        turbo_tasks::read!(replace_with_merged_modules(
+            state.chunkable_items,
+            *merged_modules,
+            merged_modules_ref,
+        ))?
     } else {
         state.chunkable_items.into_iter().collect()
     };
@@ -410,11 +383,9 @@ async fn chunk_group_content_operation(
     }
 
     let batch_groups = if let Some((merged_modules, _)) = &should_merge_modules {
-        batch_groups
-            .into_iter()
-            .map(|group| map_module_batch_group(*merged_modules, *group).to_resolved())
-            .try_join()
-            .await?
+        turbo_tasks::read!(parallel_reads(batch_groups.into_iter().map(|group| {
+            map_module_batch_group(*merged_modules, *group).to_resolved()
+        })))?
     } else {
         batch_groups.into_iter().collect()
     };
@@ -428,41 +399,86 @@ async fn chunk_group_content_operation(
     .cell())
 }
 
+turbo_tasks::dual_fn! {
+/// Applies module merging to the chunkable items: modules replaced by a merged module are
+/// swapped for it (or dropped if merged away), and batches are mapped through
+/// [`map_module_batch`].
+#[tracing::instrument(level = tracing::Level::TRACE, skip_all, name = "replace with merged modules")]
+fn replace_with_merged_modules(
+    chunkable_items: FxIndexSet<ChunkableModuleOrBatch>,
+    merged_modules: Vc<MergedModuleInfo>,
+    merged_modules_ref: &MergedModuleInfo,
+) -> Result<Vec<ChunkableModuleOrBatch>> {
+    Ok(turbo_tasks::read!(parallel_reads(chunkable_items
+        .into_iter()
+        .map(|chunkable_module| {
+            replace_chunkable_module_with_merged(chunkable_module, merged_modules, merged_modules_ref)
+        })))?
+        .into_iter()
+        .flatten()
+        .collect())
+}
+}
+
+turbo_tasks::dual_fn! {
+/// Per-item body of [`replace_with_merged_modules`].
+fn replace_chunkable_module_with_merged(
+    chunkable_module: ChunkableModuleOrBatch,
+    merged_modules: Vc<MergedModuleInfo>,
+    merged_modules_ref: &MergedModuleInfo,
+) -> Result<Option<ChunkableModuleOrBatch>> {
+    match chunkable_module {
+        ChunkableModuleOrBatch::Module(module) => {
+            let module = match turbo_tasks::read!(
+                merged_modules_ref.should_replace_module(ResolvedVc::upcast(module))
+            )? {
+                Some(None) => return Ok(None),
+                Some(Some(replacement)) => replacement,
+                None => module,
+            };
+
+            Ok(Some(ChunkableModuleOrBatch::Module(module)))
+        }
+        ChunkableModuleOrBatch::Batch(batch) => Ok(Some(ChunkableModuleOrBatch::Batch(
+            turbo_tasks::read!(map_module_batch(merged_modules, *batch).to_resolved())?,
+        ))),
+        ChunkableModuleOrBatch::None(i) => Ok(Some(ChunkableModuleOrBatch::None(i))),
+    }
+}
+}
+
 #[turbo_tasks::function]
 async fn map_module_batch(
     merged_modules: Vc<MergedModuleInfo>,
     batch: Vc<ModuleBatch>,
 ) -> Result<Vc<ModuleBatch>> {
-    let merged_modules = merged_modules.await?;
-    let batch_ref = batch.await?;
+    let merged_modules = turbo_tasks::read!(merged_modules)?;
+    let batch_ref = turbo_tasks::read!(batch)?;
 
-    let modified = AtomicBool::new(false);
+    let replacements =
+        turbo_tasks::read!(parallel_reads(batch_ref.modules.iter().copied().map(
+            |module| merged_modules.should_replace_module(ResolvedVc::upcast(module))
+        )))?;
+    let mut modified = false;
     let modules = batch_ref
         .modules
         .iter()
         .copied()
-        .map(async |module| {
-            let module = match merged_modules
-                .should_replace_module(ResolvedVc::upcast(module))
-                .await?
-            {
-                Some(None) => {
-                    modified.store(true, std::sync::atomic::Ordering::Relaxed);
-                    return Ok(None);
-                }
-                Some(Some(replacement)) => {
-                    modified.store(true, std::sync::atomic::Ordering::Relaxed);
-                    replacement
-                }
-                None => module,
-            };
-
-            Ok(Some(module))
+        .zip(replacements)
+        .filter_map(|(module, replacement)| match replacement {
+            Some(None) => {
+                modified = true;
+                None
+            }
+            Some(Some(replacement)) => {
+                modified = true;
+                Some(replacement)
+            }
+            None => Some(module),
         })
-        .try_flat_join()
-        .await?;
+        .collect::<Vec<_>>();
 
-    if modified.into_inner() {
+    if modified {
         Ok(ModuleBatch::new(
             ResolvedVc::deref_vec(modules),
             batch_ref.chunk_groups.clone(),
@@ -477,47 +493,64 @@ async fn map_module_batch_group(
     merged_modules: Vc<MergedModuleInfo>,
     group: Vc<ModuleBatchGroup>,
 ) -> Result<Vc<ModuleBatchGroup>> {
-    let merged_modules_ref = merged_modules.await?;
-    let group_ref = group.await?;
+    let merged_modules_ref = turbo_tasks::read!(merged_modules)?;
+    let group_ref = turbo_tasks::read!(group)?;
 
     let modified = AtomicBool::new(false);
-    let items = group_ref
-        .items
-        .iter()
-        .copied()
-        .map(async |chunkable_module| match chunkable_module {
-            ModuleOrBatch::Module(module) => {
-                let module = match merged_modules_ref.should_replace_module(module).await? {
-                    Some(None) => {
-                        modified.store(true, std::sync::atomic::Ordering::Relaxed);
-                        return Ok(None);
-                    }
-                    Some(Some(replacement)) => {
-                        modified.store(true, std::sync::atomic::Ordering::Relaxed);
-                        ResolvedVc::upcast(replacement)
-                    }
-                    None => module,
-                };
-
-                Ok(Some(ModuleOrBatch::Module(module)))
-            }
-            ModuleOrBatch::Batch(batch) => {
-                let replacement = map_module_batch(merged_modules, *batch)
-                    .to_resolved()
-                    .await?;
-                if replacement != batch {
-                    modified.store(true, std::sync::atomic::Ordering::Relaxed);
-                }
-                Ok(Some(ModuleOrBatch::Batch(replacement)))
-            }
-            ModuleOrBatch::None(i) => Ok(Some(ModuleOrBatch::None(i))),
-        })
-        .try_flat_join()
-        .await?;
+    let items = turbo_tasks::read!(parallel_reads(group_ref.items.iter().copied().map(
+        |module_or_batch| {
+            map_module_or_batch_with_merged(
+                module_or_batch,
+                merged_modules,
+                &merged_modules_ref,
+                &modified,
+            )
+        }
+    )))?
+    .into_iter()
+    .flatten()
+    .collect();
 
     if modified.into_inner() {
         Ok(ModuleBatchGroup::new(items, group_ref.chunk_groups.clone()))
     } else {
         Ok(group)
     }
+}
+
+turbo_tasks::dual_fn! {
+/// Per-item body of [`map_module_batch_group`].
+fn map_module_or_batch_with_merged(
+    module_or_batch: ModuleOrBatch,
+    merged_modules: Vc<MergedModuleInfo>,
+    merged_modules_ref: &MergedModuleInfo,
+    modified: &AtomicBool,
+) -> Result<Option<ModuleOrBatch>> {
+    match module_or_batch {
+        ModuleOrBatch::Module(module) => {
+            let module = match turbo_tasks::read!(merged_modules_ref.should_replace_module(module))? {
+                Some(None) => {
+                    modified.store(true, std::sync::atomic::Ordering::Relaxed);
+                    return Ok(None);
+                }
+                Some(Some(replacement)) => {
+                    modified.store(true, std::sync::atomic::Ordering::Relaxed);
+                    ResolvedVc::upcast(replacement)
+                }
+                None => module,
+            };
+
+            Ok(Some(ModuleOrBatch::Module(module)))
+        }
+        ModuleOrBatch::Batch(batch) => {
+            let replacement =
+                turbo_tasks::read!(map_module_batch(merged_modules, *batch).to_resolved())?;
+            if replacement != batch {
+                modified.store(true, std::sync::atomic::Ordering::Relaxed);
+            }
+            Ok(Some(ModuleOrBatch::Batch(replacement)))
+        }
+        ModuleOrBatch::None(i) => Ok(Some(ModuleOrBatch::None(i))),
+    }
+}
 }

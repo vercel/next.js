@@ -10,18 +10,19 @@ autobenches = false
 bench = false
 
 [features]
-default = ["process_pool"]
+default = ["process_pool", "tokio_runtime"]
 # enable "HMR" for embedded assets
 dynamic_embed_contents = ["turbo-tasks-fs/dynamic_embed_contents"]
-process_pool = ["tokio/full"]
-worker_pool = ["tokio/sync", "napi", "napi-derive", "turbo-rcstr/napi"]
+process_pool = ["tokio/full", "dep:futures-retry"]
+worker_pool = ["tokio/sync", "napi", "napi-derive", "turbo-rcstr/napi", "dep:futures-retry"]
+tokio_runtime = ["dep:futures-retry","turbo-tasks/tokio_runtime", "turbo-tasks-backend/tokio_runtime", "turbo-tasks-bytes/tokio_runtime", "turbo-tasks-env/tokio_runtime", "turbo-tasks-fs/tokio_runtime", "turbo-tasks-testing/tokio_runtime", "turbopack-cli-utils/tokio_runtime", "turbopack-core/tokio_runtime", "turbopack-ecmascript/tokio_runtime", "turbopack-resolve/tokio_runtime"]
+sync = ["process_pool", "turbo-tasks/sync", "turbo-tasks-backend/sync", "turbo-tasks-bytes/sync", "turbo-tasks-env/sync", "turbo-tasks-fs/sync", "turbo-tasks-testing/sync", "turbopack-cli-utils/sync", "turbopack-core/sync", "turbopack-ecmascript/sync", "turbopack-resolve/sync"]
 
 [lints]
 workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-async-stream = "0.3.4"
 async-trait = { workspace = true }
 dashmap = { workspace = true }
 base64 = "0.21.0"
@@ -30,7 +31,7 @@ bytes = { workspace = true }
 const_format = { workspace = true }
 either = { workspace = true, features = ["serde"] }
 futures = { workspace = true }
-futures-retry = { workspace = true }
+futures-retry = { workspace = true, optional = true }
 indoc = { workspace = true }
 owo-colors = { workspace = true }
 parking_lot = { workspace = true }
@@ -43,19 +44,19 @@ tokio = { workspace = true, optional = true }
 tracing = { workspace = true }
 turbo-bincode = { workspace = true }
 turbo-rcstr = { workspace = true }
-turbo-tasks = { workspace = true }
-turbo-tasks-bytes = { workspace = true }
-turbo-tasks-env = { workspace = true }
-turbo-tasks-fs = { workspace = true }
+turbo-tasks = { path = "../turbo-tasks", default-features = false }
+turbo-tasks-bytes = { path = "../turbo-tasks-bytes", default-features = false }
+turbo-tasks-env = { path = "../turbo-tasks-env", default-features = false }
+turbo-tasks-fs = { path = "../turbo-tasks-fs", default-features = false }
 turbo-tasks-hash = { workspace = true }
-turbopack-cli-utils = { workspace = true }
-turbopack-core = { workspace = true }
-turbopack-ecmascript = { workspace = true }
-turbopack-resolve = { workspace = true }
+turbopack-cli-utils = { path = "../turbopack-cli-utils", default-features = false }
+turbopack-core = { path = "../turbopack-core", default-features = false }
+turbopack-ecmascript = { path = "../turbopack-ecmascript", default-features = false }
+turbopack-resolve = { path = "../turbopack-resolve", default-features = false }
 napi = { workspace = true, features = ["error_anyhow"], optional = true }
 napi-derive = { workspace = true, optional = true }
 
 [dev-dependencies]
 rustc-hash = { workspace = true }
-turbo-tasks-backend = { workspace = true }
-turbo-tasks-testing = { workspace = true }
+turbo-tasks-backend = { path = "../turbo-tasks-backend", default-features = false }
+turbo-tasks-testing = { path = "../turbo-tasks-testing", default-features = false }

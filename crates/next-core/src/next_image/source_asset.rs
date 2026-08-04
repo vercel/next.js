@@ -42,11 +42,7 @@ impl Source for StructuredImageFileSource {
             }
             BlurPlaceholderMode::None => rcstr!("structured image object"),
         };
-        Ok(self
-            .image
-            .ident()
-            .owned()
-            .await?
+        Ok(turbo_tasks::read!(self.image.ident().owned())?
             .with_modifier(modifier)
             .rename_as("*.mjs")
             .into_vc())
@@ -54,7 +50,7 @@ impl Source for StructuredImageFileSource {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<Vc<RcStr>> {
-        let ident = self.image.ident().to_string().await?;
+        let ident = turbo_tasks::read!(self.image.ident().to_string())?;
         Ok(Vc::cell(format!("structured image of {}", ident).into()))
     }
 }
@@ -63,7 +59,7 @@ impl Source for StructuredImageFileSource {
 impl Asset for StructuredImageFileSource {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
-        let content = self.image.content().await?;
+        let content = turbo_tasks::read!(self.image.content())?;
         let AssetContent::File(content) = *content else {
             bail!("Input source is not a file and can't be transformed into image information");
         };
@@ -72,10 +68,10 @@ impl Asset for StructuredImageFileSource {
         let blur_options = blur_options();
         match self.blur_placeholder_mode {
             BlurPlaceholderMode::NextImageUrl => {
-                let info = get_meta_data(*self.image, *content, None).await?;
+                let info = turbo_tasks::read!(get_meta_data(*self.image, *content, None))?;
                 let width = info.width;
                 let height = info.height;
-                let blur_options = blur_options.await?;
+                let blur_options = turbo_tasks::read!(blur_options)?;
                 let (blur_width, blur_height) = if width > height {
                     (
                         blur_options.size,
@@ -100,7 +96,8 @@ impl Asset for StructuredImageFileSource {
                 )?;
             }
             BlurPlaceholderMode::DataUrl => {
-                let info = get_meta_data(*self.image, *content, Some(blur_options)).await?;
+                let info =
+                    turbo_tasks::read!(get_meta_data(*self.image, *content, Some(blur_options)))?;
                 write!(
                     result,
                     "export default {{ src, width: {width}, height: {height}, blurWidth: \
@@ -122,7 +119,7 @@ impl Asset for StructuredImageFileSource {
                 writeln!(result, "}};")?;
             }
             BlurPlaceholderMode::None => {
-                let info = get_meta_data(*self.image, *content, None).await?;
+                let info = turbo_tasks::read!(get_meta_data(*self.image, *content, None))?;
                 writeln!(
                     result,
                     "export default {{ src, width: {width}, height: {height} }}",

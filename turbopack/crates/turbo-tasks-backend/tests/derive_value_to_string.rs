@@ -101,7 +101,7 @@ enum MixedEnum {
 // --- Tests ---
 
 /// No attribute: delegates to Display::to_string(self).
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_display_delegation() {
     run_once(&REGISTRATION, || async {
         let v: ResolvedVc<Box<dyn ValueToString>> =
@@ -117,7 +117,7 @@ async fn test_display_delegation() {
 }
 
 /// FormatAutoFields on structs: named fields, positional fields, and constant strings.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_struct_format_strings() {
     run_once(&REGISTRATION, || async {
         let v1: ResolvedVc<Box<dyn ValueToString>> = ResolvedVc::upcast(
@@ -153,7 +153,7 @@ async fn test_struct_format_strings() {
 }
 
 /// DirectExpr form: single expression delegation.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_struct_direct_expr() {
     run_once(&REGISTRATION, || async {
         let v: ResolvedVc<Box<dyn ValueToString>> = ResolvedVc::upcast(
@@ -174,7 +174,7 @@ async fn test_struct_direct_expr() {
 }
 
 /// FormatExprs on structs: format string with explicit expressions, including Vc delegation.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_struct_format_exprs() {
     run_once(&REGISTRATION, || async {
         let v1: ResolvedVc<Box<dyn ValueToString>> = ResolvedVc::upcast(
@@ -208,7 +208,7 @@ async fn test_struct_format_exprs() {
 }
 
 /// Enum with per-variant auto-field format strings and default variant names.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_enum_variants() {
     run_once(&REGISTRATION, || async {
         // Per-variant attributes
@@ -259,7 +259,7 @@ async fn test_enum_variants() {
 }
 
 /// Enum with mixed forms: constant literal, Vc delegation, and format exprs.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_mixed_enum() {
     run_once(&REGISTRATION, || async {
         assert_eq!(
@@ -328,7 +328,7 @@ enum TortureEnum {
     WithReadRef(ReadRef<NamedFields>),
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_torture_enum() {
     run_once(&REGISTRATION, || async {
         let named_resolved = NamedFields {

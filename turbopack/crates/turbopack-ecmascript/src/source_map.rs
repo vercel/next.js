@@ -26,9 +26,10 @@ impl GenerateSourceMap for InlineSourceMap {
     #[turbo_tasks::function]
     pub async fn generate_source_map(&self) -> Result<Vc<FileContent>> {
         let source_map = maybe_decode_data_url(&self.source_map);
-        if let Some(source_map) =
-            resolve_source_map_sources(source_map.as_ref(), &self.origin_path).await?
-        {
+        if let Some(source_map) = turbo_tasks::read!(resolve_source_map_sources(
+            source_map.as_ref(),
+            &self.origin_path
+        ))? {
             Ok(FileContent::Content(File::from(source_map)).cell())
         } else {
             Ok(FileContent::NotFound.cell())
@@ -83,7 +84,8 @@ pub fn extract_source_mapping_url_from_content(file_content: &str) -> Option<&st
     })
 }
 
-pub async fn parse_source_map_comment(
+turbo_tasks::dual_fn! {
+pub fn parse_source_map_comment(
     source: ResolvedVc<Box<dyn Source>>,
     source_mapping_url: Option<&str>,
     origin_path: &FileSystemPath,
@@ -99,9 +101,9 @@ pub async fn parse_source_map_comment(
         });
         if path.ends_with(".map") {
             let source_map_origin = origin_path.parent().join(path)?;
-            let reference = SourceMapReference::new(origin_path.clone(), source_map_origin)
-                .to_resolved()
-                .await?;
+            let reference = turbo_tasks::read!(
+                SourceMapReference::new(origin_path.clone(), source_map_origin).to_resolved()
+            )?;
             return Ok(Some((
                 ResolvedVc::upcast(reference),
                 Some(ResolvedVc::upcast(reference)),
@@ -127,4 +129,5 @@ pub async fn parse_source_map_comment(
     }
 
     Ok(None)
+}
 }

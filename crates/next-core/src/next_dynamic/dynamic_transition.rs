@@ -52,14 +52,14 @@ impl Transition for NextDynamicTransition {
         _reference_type: ReferenceType,
     ) -> Result<Vc<ProcessResult>> {
         let module_asset_context = self.process_context(module_asset_context);
-        let module = match self.await?.client_transition {
+        let module = match turbo_tasks::read!(self)?.client_transition {
             Some(client_transition) => {
                 client_transition.process(source, module_asset_context, ReferenceType::Undefined)
             }
             None => module_asset_context.process(source, ReferenceType::Undefined),
         };
 
-        Ok(match &*module.try_into_module().await? {
+        Ok(match &*turbo_tasks::read!(module.try_into_module())? {
             Some(client_module) => {
                 let Some(client_module) =
                     ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*client_module)
@@ -67,11 +67,9 @@ impl Transition for NextDynamicTransition {
                     bail!("not an ecmascript client_module");
                 };
 
-                ProcessResult::Module(ResolvedVc::upcast(
-                    NextDynamicEntryModule::new(*client_module)
-                        .to_resolved()
-                        .await?,
-                ))
+                ProcessResult::Module(ResolvedVc::upcast(turbo_tasks::read!(
+                    NextDynamicEntryModule::new(*client_module).to_resolved()
+                )?))
             }
             None => ProcessResult::Ignore,
         }

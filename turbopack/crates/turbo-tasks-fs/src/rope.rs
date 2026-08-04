@@ -20,11 +20,39 @@ use bincode::{
 };
 use bytes::Bytes;
 use futures::Stream;
+// `AsyncRead` (and tokio's `ReadBuf`) are only used by the tokio async surface.
+// The no-tokio sync build uses a minimal local `ReadBuf` shim (below) so the
+// std `Read`/`BufRead` impls keep working without tokio.
+#[cfg(feature = "tokio_runtime")]
 use tokio::io::{AsyncRead, ReadBuf};
 use triomphe::Arc;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 
 static EMPTY_BUF: &[u8] = &[];
+
+/// Minimal stand-in for `tokio::io::ReadBuf` for the no-tokio sync build. Only
+/// the slice `RopeReader` needs: `new` + `put_slice` (+ `remaining`, used solely
+/// by the tokio-gated `AsyncRead` impl, hence dead under sync).
+#[cfg(not(feature = "tokio_runtime"))]
+struct ReadBuf<'a> {
+    buf: &'a mut [u8],
+    filled: usize,
+}
+
+#[cfg(not(feature = "tokio_runtime"))]
+impl<'a> ReadBuf<'a> {
+    fn new(buf: &'a mut [u8]) -> Self {
+        Self { buf, filled: 0 }
+    }
+    fn put_slice(&mut self, src: &[u8]) {
+        self.buf[self.filled..self.filled + src.len()].copy_from_slice(src);
+        self.filled += src.len();
+    }
+    #[allow(dead_code)]
+    fn remaining(&self) -> usize {
+        self.buf.len() - self.filled
+    }
+}
 
 /// An efficient structure for sharing bytes/strings between multiple sources.
 ///
@@ -828,6 +856,7 @@ impl Read for RopeReader<'_> {
     }
 }
 
+#[cfg(feature = "tokio_runtime")]
 impl AsyncRead for RopeReader<'_> {
     fn poll_read(
         self: Pin<&mut Self>,

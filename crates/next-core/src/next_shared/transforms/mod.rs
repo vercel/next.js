@@ -39,7 +39,8 @@ use turbopack_ecmascript::{EcmascriptInputTransform, TransformPlugin};
 
 use crate::next_image::{StructuredImageModuleType, module::BlurPlaceholderMode};
 
-pub async fn get_next_image_rule() -> Result<ModuleRule> {
+turbo_tasks::dual_fn! {
+pub fn get_next_image_rule() -> Result<ModuleRule> {
     Ok(ModuleRule::new(
         RuleCondition::All(vec![
             // avoid urlAssetReference to be affected by this rule, since urlAssetReference
@@ -65,12 +66,13 @@ pub async fn get_next_image_rule() -> Result<ModuleRule> {
         ]),
         vec![ModuleRuleEffect::ModuleType(ModuleType::Custom(
             ResolvedVc::upcast(
-                StructuredImageModuleType::new(BlurPlaceholderMode::DataUrl)
-                    .to_resolved()
-                    .await?,
+                turbo_tasks::read!(StructuredImageModuleType::new(BlurPlaceholderMode::DataUrl)
+                    .to_resolved())
+                    ?,
             ),
         ))],
     ))
+}
 }
 
 fn match_js_extension(enable_mdx_rs: bool) -> RuleCondition {

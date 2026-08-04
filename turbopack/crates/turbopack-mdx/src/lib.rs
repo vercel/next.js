@@ -3,6 +3,7 @@
 #![feature(arbitrary_self_types_pointers)]
 
 use anyhow::Result;
+#[cfg(not(feature = "sync"))]
 use async_trait::async_trait;
 use mdxjs::{MdxParseOptions, Options, compile};
 use serde::Deserialize;
@@ -100,18 +101,14 @@ struct MdxTransformedAsset {
 impl Source for MdxTransformedAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self
-            .source
-            .ident()
-            .owned()
-            .await?
+        Ok(turbo_tasks::read!(self.source.ident().owned())?
             .rename_as("*.tsx")
             .into_vc())
     }
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<Vc<RcStr>> {
-        let inner = self.source.description().await?;
+        let inner = turbo_tasks::read!(self.source.description())?;
         Ok(Vc::cell(format!("MDX transform of {}", inner).into()))
     }
 }
@@ -120,7 +117,7 @@ impl Source for MdxTransformedAsset {
 impl Asset for MdxTransformedAsset {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
-        Ok(*self.process().await?.content)
+        Ok(*turbo_tasks::read!(self.process())?.content)
     }
 }
 
@@ -128,14 +125,14 @@ impl Asset for MdxTransformedAsset {
 impl MdxTransformedAsset {
     #[turbo_tasks::function]
     async fn process(&self) -> Result<Vc<MdxTransformResult>> {
-        let content = self.source.content().await?;
-        let transform_options = self.options.await?;
+        let content = turbo_tasks::read!(self.source.content())?;
+        let transform_options = turbo_tasks::read!(self.options)?;
 
         let AssetContent::File(file) = &*content else {
             anyhow::bail!("Unexpected mdx asset content");
         };
 
-        let FileContent::Content(file) = &*file.await? else {
+        let FileContent::Content(file) = &*turbo_tasks::read!(file)? else {
             anyhow::bail!("Not able to read mdx file content");
         };
 
@@ -167,7 +164,7 @@ impl MdxTransformedAsset {
                 .jsx_import_source
                 .clone()
                 .map(RcStr::into_owned),
-            filepath: Some(self.source.ident().await?.path.to_string()),
+            filepath: Some(turbo_tasks::read!(self.source.ident())?.path.to_string()),
             ..Default::default()
         };
 
@@ -175,11 +172,12 @@ impl MdxTransformedAsset {
 
         match result {
             Ok(mdx_jsx_component) => Ok(MdxTransformResult {
-                content: AssetContent::file(
-                    FileContent::Content(File::from(Rope::from(mdx_jsx_component))).cell(),
-                )
-                .to_resolved()
-                .await?,
+                content: turbo_tasks::read!(
+                    AssetContent::file(
+                        FileContent::Content(File::from(Rope::from(mdx_jsx_component))).cell(),
+                    )
+                    .to_resolved()
+                )?,
             }
             .cell()),
             Err(err) => {
@@ -248,11 +246,20 @@ struct MdxIssue {
     mdx_source: RcStr,
 }
 
+impl MdxIssue {
+    turbo_tasks::dual_fn! {
+        fn file_path_impl(&self) -> anyhow::Result<FileSystemPath> {
+            turbo_tasks::read!(self.source.file_path())
+        }
+    }
+}
+
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for MdxIssue {
     async fn file_path(&self) -> anyhow::Result<FileSystemPath> {
-        self.source.file_path().await
+        self.file_path_impl().await
     }
 
     fn source(&self) -> Option<IssueSource> {
@@ -268,6 +275,30 @@ impl Issue for MdxIssue {
     }
 
     async fn description(&self) -> anyhow::Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(self.reason.clone())))
+    }
+}
+
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for MdxIssue {
+    fn file_path(&self) -> anyhow::Result<FileSystemPath> {
+        self.file_path_impl()
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Parse
+    }
+
+    fn title(&self) -> anyhow::Result<StyledString> {
+        Ok(StyledString::Text(rcstr!("MDX Parse Error")))
+    }
+
+    fn description(&self) -> anyhow::Result<Option<StyledString>> {
         Ok(Some(StyledString::Text(self.reason.clone())))
     }
 }

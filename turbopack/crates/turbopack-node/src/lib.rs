@@ -4,7 +4,9 @@
 
 use anyhow::Result;
 use rustc_hash::FxHashMap;
-use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, Vc};
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::TryFlatJoinIterExt;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -36,18 +38,30 @@ pub fn child_process_backend() -> Vc<Box<dyn NodeBackend>> {
 pub fn worker_threads_backend() -> Vc<Box<dyn NodeBackend>> {
     Vc::upcast(worker_pool::WorkerThreadsBackend.cell())
 }
+/// A sync build with no subprocess pool at all (pure-Rust, no JS evaluation)
+/// returns the honest stub backend (see [`backend::UnsupportedNodeBackend`]).
+/// When `process_pool` is enabled (the default for the `sync` feature), the real
+/// `ChildProcessesBackend` above is used instead, bridged to the edge runtime.
+#[cfg(all(feature = "sync", not(feature = "process_pool")))]
+pub fn child_process_backend() -> Vc<Box<dyn NodeBackend>> {
+    Vc::upcast(backend::UnsupportedNodeBackend.cell())
+}
 
 #[turbo_tasks::function]
 async fn emit(
     intermediate_asset: Vc<Box<dyn OutputAsset>>,
     intermediate_output_path: FileSystemPath,
 ) -> Result<()> {
-    for asset in internal_assets(intermediate_asset, intermediate_output_path).await? {
-        let _ = asset
-            .content()
-            .write(asset.path().owned().await?)
-            .to_resolved()
-            .await?;
+    for asset in turbo_tasks::read!(internal_assets(
+        intermediate_asset,
+        intermediate_output_path
+    ))? {
+        let _ = turbo_tasks::read!(
+            asset
+                .content()
+                .write(turbo_tasks::read!(asset.path().owned())?)
+                .to_resolved()
+        )?;
     }
     Ok(())
 }
@@ -60,15 +74,15 @@ async fn internal_assets(
     intermediate_asset: ResolvedVc<Box<dyn OutputAsset>>,
     intermediate_output_path: FileSystemPath,
 ) -> Result<Vc<OutputAssets>> {
-    let all_assets = expand_output_assets(
+    let all_assets = turbo_tasks::read!(expand_output_assets(
         std::iter::once(ExpandOutputAssetsInput::Asset(intermediate_asset)),
         true,
-    )
-    .await?;
+    ))?;
+    #[cfg(not(feature = "sync"))]
     let internal_assets = all_assets
         .into_iter()
         .map(async |asset| {
-            let path = asset.path().await?;
+            let path = turbo_tasks::read!(asset.path())?;
             if path.is_inside_ref(&intermediate_output_path) {
                 Ok(Some(asset))
             } else {
@@ -77,6 +91,17 @@ async fn internal_assets(
         })
         .try_flat_join()
         .await?;
+    #[cfg(feature = "sync")]
+    let internal_assets = {
+        let mut internal_assets = Vec::new();
+        for asset in all_assets {
+            let path = turbo_tasks::read!(asset.path())?;
+            if path.is_inside_ref(&intermediate_output_path) {
+                internal_assets.push(asset);
+            }
+        }
+        internal_assets
+    };
     Ok(Vc::cell(internal_assets))
 }
 
@@ -90,14 +115,17 @@ async fn internal_assets_for_source_mapping(
     intermediate_asset: Vc<Box<dyn OutputAsset>>,
     intermediate_output_path: FileSystemPath,
 ) -> Result<Vc<AssetsForSourceMapping>> {
-    let internal_assets =
-        internal_assets(intermediate_asset, intermediate_output_path.clone()).await?;
+    let internal_assets = turbo_tasks::read!(internal_assets(
+        intermediate_asset,
+        intermediate_output_path.clone()
+    ))?;
     let intermediate_output_path = intermediate_output_path.clone();
     let mut internal_assets_for_source_mapping = FxHashMap::default();
     for asset in internal_assets.iter() {
         if let Some(generate_source_map) =
             ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(*asset)
-            && let Some(path) = intermediate_output_path.get_path_to(&*asset.path().await?)
+            && let Some(path) =
+                intermediate_output_path.get_path_to(&*turbo_tasks::read!(asset.path())?)
         {
             internal_assets_for_source_mapping.insert(path.to_string(), generate_source_map);
         }

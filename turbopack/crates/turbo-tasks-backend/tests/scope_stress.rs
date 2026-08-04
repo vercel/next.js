@@ -2,12 +2,12 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::Result;
-use turbo_tasks::{Completion, TryJoinIterExt, Vc, run_once};
+use turbo_tasks::{Completion, TryJoinIterExt, Vc, read, run_once};
 use turbo_tasks_testing::{Registration, register, run_with_tt};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn rectangle_stress() -> Result<()> {
     let size = std::env::var("TURBOPACK_TEST_RECTANGLE_STRESS_SIZE")
         .map(|size| size.parse().unwrap())
@@ -38,10 +38,10 @@ async fn rectangle_stress() -> Result<()> {
 #[turbo_tasks::function(root)]
 async fn rectangle(a: u32, b: u32) -> Result<Vc<Completion>> {
     if a > 0 {
-        rectangle(a - 1, b).await?;
+        read!(rectangle(a - 1, b))?;
     }
     if b > 0 {
-        rectangle(a, b - 1).await?;
+        read!(rectangle(a, b - 1))?;
     }
     Ok(Completion::new())
 }

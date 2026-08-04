@@ -6,10 +6,13 @@ license = "MIT"
 edition = "2024"
 autobenches = false
 
+# The node-file-trace CLI binary drives an async tokio main; async-build only.
+# The library is dual (compiles + runs under the no-tokio sync build).
 [[bin]]
 name = "turbopack-nft"
 path = "src/main.rs"
 bench = false
+required-features = ["tokio_runtime"]
 
 [lib]
 bench = false
@@ -24,21 +27,28 @@ console-subscriber = { workspace = true, optional = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
 swc_core = { workspace = true }
-tokio = { workspace = true, features = ["full"] }
+tokio = { workspace = true, features = ["full"], optional = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["json"] }
 turbo-rcstr = { workspace = true }
-turbo-tasks = { workspace = true }
-turbo-tasks-backend = { workspace = true }
-turbo-tasks-env = { workspace = true }
-turbo-tasks-fs = { workspace = true }
+turbo-tasks = { path = "../turbo-tasks", default-features = false }
+turbo-tasks-backend = { path = "../turbo-tasks-backend", default-features = false }
+turbo-tasks-env = { path = "../turbo-tasks-env", default-features = false }
+turbo-tasks-fs = { path = "../turbo-tasks-fs", default-features = false }
 turbo-tasks-malloc = { workspace = true, default-features = false, features = [
     "custom_allocator"
 ] }
-turbopack = { workspace = true }
-turbopack-ecmascript = { workspace = true }
-turbopack-cli-utils = { workspace = true }
-turbopack-core = { workspace = true }
-turbopack-resolve = { workspace = true }
-turbopack-trace-utils = { workspace = true }
+turbopack = { path = "../turbopack", default-features = false }
+turbopack-ecmascript = { path = "../turbopack-ecmascript", default-features = false }
+turbopack-cli-utils = { path = "../turbopack-cli-utils", default-features = false }
+turbopack-core = { path = "../turbopack-core", default-features = false }
+turbopack-resolve = { path = "../turbopack-resolve", default-features = false }
+# Only used by the (async-only) CLI binary; tokio-bound, so optional + gated so the
+# no-tokio sync library build links zero tokio.
+turbopack-trace-utils = { workspace = true, optional = true }
+
+[features]
+default = ["tokio_runtime"]
+tokio_runtime = ["dep:tokio", "dep:turbopack-trace-utils", "turbo-tasks/tokio_runtime", "turbo-tasks-backend/tokio_runtime", "turbo-tasks-env/tokio_runtime", "turbo-tasks-fs/tokio_runtime", "turbopack/tokio_runtime", "turbopack-cli-utils/tokio_runtime", "turbopack-core/tokio_runtime", "turbopack-ecmascript/tokio_runtime", "turbopack-resolve/tokio_runtime"]
+sync = ["turbo-tasks/sync", "turbo-tasks-backend/sync", "turbo-tasks-env/sync", "turbo-tasks-fs/sync", "turbopack/sync", "turbopack-cli-utils/sync", "turbopack-core/sync", "turbopack-ecmascript/sync", "turbopack-resolve/sync"]
 

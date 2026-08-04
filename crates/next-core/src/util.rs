@@ -258,32 +258,33 @@ pub async fn get_transpiled_packages(
     next_config: Vc<NextConfig>,
     project_path: FileSystemPath,
 ) -> Result<Vc<Vec<RcStr>>> {
-    let mut transpile_packages: Vec<RcStr> = next_config.transpile_packages().owned().await?;
+    let mut transpile_packages: Vec<RcStr> =
+        turbo_tasks::read!(next_config.transpile_packages().owned())?;
 
-    let default_transpiled_packages: Vec<RcStr> = load_next_js_json_file(
+    let default_transpiled_packages: Vec<RcStr> = turbo_tasks::read!(load_next_js_json_file(
         project_path,
         rcstr!("dist/lib/default-transpiled-packages.json"),
-    )
-    .await?;
+    ))?;
 
     transpile_packages.extend(default_transpiled_packages.iter().cloned());
 
     Ok(Vc::cell(transpile_packages))
 }
 
-pub async fn foreign_code_context_condition(
+turbo_tasks::dual_fn! {
+pub fn foreign_code_context_condition(
     next_config: Vc<NextConfig>,
     project_path: FileSystemPath,
 ) -> Result<ContextCondition> {
-    let transpiled_packages = get_transpiled_packages(next_config, project_path.clone()).await?;
+    let transpiled_packages = turbo_tasks::read!(get_transpiled_packages(next_config, project_path.clone()))?;
 
     // The next template files are allowed to import the user's code via import
     // mapping, and imports must use the project-level [ResolveOptions] instead
     // of the `node_modules` specific resolve options (the template files are
     // technically node module files).
     let not_next_template_dir = ContextCondition::not(ContextCondition::InPath(
-        get_next_package(project_path.clone())
-            .await?
+        turbo_tasks::read!(get_next_package(project_path.clone()))
+            ?
             .join(NEXT_TEMPLATE_PATH)?,
     ));
 
@@ -299,24 +300,27 @@ pub async fn foreign_code_context_condition(
     ]);
     Ok(result)
 }
+}
 
+turbo_tasks::dual_fn! {
 /// Determines if the module is an internal asset (i.e overlay, fallback) coming from the embedded
 /// FS, don't apply user defined transforms.
 //
 // TODO: Turbopack specific embed fs paths should be handled by internals of Turbopack itself and
 // user config should not try to leak this. However, currently we apply few transform options
 // subject to Next.js's configuration even if it's embedded assets.
-pub async fn internal_assets_conditions() -> Result<ContextCondition> {
+pub fn internal_assets_conditions() -> Result<ContextCondition> {
     Ok(ContextCondition::any(vec![
-        ContextCondition::InPath(next_js_fs().root().owned().await?),
+        ContextCondition::InPath(turbo_tasks::read!(next_js_fs().root().owned())?),
         ContextCondition::InPath(
-            turbopack_ecmascript_runtime::embed_fs()
+            turbo_tasks::read!(turbopack_ecmascript_runtime::embed_fs()
                 .root()
-                .owned()
-                .await?,
+                .owned())
+                ?,
         ),
-        ContextCondition::InPath(turbopack_node::embed_js::embed_fs().root().owned().await?),
+        ContextCondition::InPath(turbo_tasks::read!(turbopack_node::embed_js::embed_fs().root().owned())?),
     ]))
+}
 }
 
 pub fn app_function_name(page: impl Display) -> String {
@@ -377,21 +381,22 @@ pub enum MiddlewareMatcherKind {
     Matcher(ProxyMatcher),
 }
 
+turbo_tasks::dual_fn! {
 /// Loads a next.js template, replaces `replacements` and `injections` and makes
 /// sure there are none left over.
-pub async fn load_next_js_template<'b>(
+pub fn load_next_js_template<'b>(
     template_path: &'b str,
     project_path: FileSystemPath,
     replacements: impl IntoIterator<Item = (&'b str, &'b str)>,
     injections: impl IntoIterator<Item = (&'b str, &'b str)>,
     imports: impl IntoIterator<Item = (&'b str, Option<&'b str>)>,
 ) -> Result<Vc<Box<dyn Source>>> {
-    let template_path = virtual_next_js_template_path(project_path.clone(), template_path).await?;
+    let template_path = turbo_tasks::read!(virtual_next_js_template_path(project_path.clone(), template_path))?;
 
-    let content = file_content_rope(template_path.read()).await?;
+    let content = turbo_tasks::read!(file_content_rope(template_path.read()))?;
     let content = content.to_str()?;
 
-    let package_root = get_next_package(project_path).await?;
+    let package_root = turbo_tasks::read!(get_next_package(project_path))?;
 
     let content = expand_next_js_template(
         &content,
@@ -410,23 +415,25 @@ pub async fn load_next_js_template<'b>(
 
     Ok(Vc::upcast(source))
 }
+}
 
+turbo_tasks::dual_fn! {
 /// Loads a next.js template but does **not** require that any relative imports are present
 /// or rewritten. This is intended for small internal templates that do not have their own
 /// imports but still use template variables/injections.
-pub async fn load_next_js_template_no_imports(
+pub fn load_next_js_template_no_imports(
     template_path: &str,
     project_path: FileSystemPath,
     replacements: &[(&str, &str)],
     injections: &[(&str, &str)],
     imports: &[(&str, Option<&str>)],
 ) -> Result<Vc<Box<dyn Source>>> {
-    let template_path = virtual_next_js_template_path(project_path.clone(), template_path).await?;
+    let template_path = turbo_tasks::read!(virtual_next_js_template_path(project_path.clone(), template_path))?;
 
-    let content = file_content_rope(template_path.read()).await?;
+    let content = turbo_tasks::read!(file_content_rope(template_path.read()))?;
     let content = content.to_str()?;
 
-    let package_root = get_next_package(project_path).await?;
+    let package_root = turbo_tasks::read!(get_next_package(project_path))?;
 
     let content = expand_next_js_template_no_imports(
         &content,
@@ -445,10 +452,11 @@ pub async fn load_next_js_template_no_imports(
 
     Ok(Vc::upcast(source))
 }
+}
 
 #[turbo_tasks::function]
 pub async fn file_content_rope(content: Vc<FileContent>) -> Result<Vc<Rope>> {
-    let content = &*content.await?;
+    let content = &*turbo_tasks::read!(content)?;
 
     let FileContent::Content(file) = content else {
         bail!("Expected file content for file");
@@ -457,25 +465,26 @@ pub async fn file_content_rope(content: Vc<FileContent>) -> Result<Vc<Rope>> {
     Ok(file.content().to_owned().cell())
 }
 
-async fn virtual_next_js_template_path(
+turbo_tasks::dual_fn! {
+fn virtual_next_js_template_path(
     project_path: FileSystemPath,
     file: &str,
 ) -> Result<FileSystemPath> {
     debug_assert!(!file.contains('/'));
-    get_next_package(project_path)
-        .await?
+    turbo_tasks::read!(get_next_package(project_path))
+        ?
         .join(&format!("{NEXT_TEMPLATE_PATH}/{file}"))
 }
+}
 
+#[cfg(not(feature = "sync"))]
 pub async fn load_next_js_json_file<T: DeserializeOwned>(
     project_path: FileSystemPath,
     sub_path: RcStr,
 ) -> Result<T> {
-    let file_path = get_next_package(project_path.clone())
-        .await?
-        .join(&sub_path)?;
+    let file_path = turbo_tasks::read!(get_next_package(project_path.clone()))?.join(&sub_path)?;
 
-    let content = &*file_path.read().await?;
+    let content = &*turbo_tasks::read!(file_path.read())?;
 
     match content.parse_json_ref() {
         FileJsonContent::Unparsable(e) => bail!("File is not valid JSON: {e}"),
@@ -484,15 +493,46 @@ pub async fn load_next_js_json_file<T: DeserializeOwned>(
     }
 }
 
+#[cfg(feature = "sync")]
+pub fn load_next_js_json_file<T: DeserializeOwned>(
+    project_path: FileSystemPath,
+    sub_path: RcStr,
+) -> Result<T> {
+    let file_path = turbo_tasks::read!(get_next_package(project_path.clone()))?.join(&sub_path)?;
+
+    let content = &*turbo_tasks::read!(file_path.read())?;
+
+    match content.parse_json_ref() {
+        FileJsonContent::Unparsable(e) => bail!("File is not valid JSON: {e}"),
+        FileJsonContent::NotFound => turbobail!("File not found: {file_path:?}",),
+        FileJsonContent::Content(value) => Ok(serde_json::from_value(value)?),
+    }
+}
+
+#[cfg(not(feature = "sync"))]
 pub async fn load_next_js_jsonc_file<T: DeserializeOwned>(
     project_path: FileSystemPath,
     sub_path: RcStr,
 ) -> Result<T> {
-    let file_path = get_next_package(project_path.clone())
-        .await?
-        .join(&sub_path)?;
+    let file_path = turbo_tasks::read!(get_next_package(project_path.clone()))?.join(&sub_path)?;
 
-    let content = &*file_path.read().await?;
+    let content = &*turbo_tasks::read!(file_path.read())?;
+
+    match content.parse_json_with_comments_ref() {
+        FileJsonContent::Unparsable(e) => turbobail!("File is not valid JSON: {e}"),
+        FileJsonContent::NotFound => turbobail!("File not found: {file_path}",),
+        FileJsonContent::Content(value) => Ok(serde_json::from_value(value)?),
+    }
+}
+
+#[cfg(feature = "sync")]
+pub fn load_next_js_jsonc_file<T: DeserializeOwned>(
+    project_path: FileSystemPath,
+    sub_path: RcStr,
+) -> Result<T> {
+    let file_path = turbo_tasks::read!(get_next_package(project_path.clone()))?.join(&sub_path)?;
+
+    let content = &*turbo_tasks::read!(file_path.read())?;
 
     match content.parse_json_with_comments_ref() {
         FileJsonContent::Unparsable(e) => turbobail!("File is not valid JSON: {e}"),
@@ -607,7 +647,7 @@ mod tests {
             BackendOptions::default(),
             noop_backing_storage(),
         ));
-        tt.run_once(async {
+        turbo_tasks::read!(tt.run_once(async {
             // Test normal glob patterns without relative prefixes
             let base_path = create_test_fs_path("project/src");
 
@@ -623,8 +663,7 @@ mod tests {
             assert_eq!(glob, "lib/utils.ts");
             assert_eq!(path.path.as_str(), "project/src");
             Ok(())
-        })
-        .await
+        }))
         .unwrap();
     }
 
@@ -634,7 +673,7 @@ mod tests {
             BackendOptions::default(),
             noop_backing_storage(),
         ));
-        tt.run_once(async {
+        turbo_tasks::read!(tt.run_once(async {
             let base_path = create_test_fs_path("project/src");
 
             // Single ./ prefix
@@ -652,8 +691,7 @@ mod tests {
             assert_eq!(glob, "lib/**/*.{js,ts}");
             assert_eq!(path.path.as_str(), "project/src");
             Ok(())
-        })
-        .await
+        }))
         .unwrap();
     }
 
@@ -663,7 +701,7 @@ mod tests {
             BackendOptions::default(),
             noop_backing_storage(),
         ));
-        tt.run_once(async {
+        turbo_tasks::read!(tt.run_once(async {
             let base_path = create_test_fs_path("project/src/components");
 
             // Single ../ prefix
@@ -681,8 +719,7 @@ mod tests {
             assert_eq!(glob, "external/**/*.json");
             assert_eq!(path.path.as_str(), "");
             Ok(())
-        })
-        .await
+        }))
         .unwrap();
     }
 
@@ -692,7 +729,7 @@ mod tests {
             BackendOptions::default(),
             noop_backing_storage(),
         ));
-        tt.run_once(async {
+        turbo_tasks::read!(tt.run_once(async {
             let base_path = create_test_fs_path("project/src/components");
 
             // ../ followed by ./
@@ -710,8 +747,7 @@ mod tests {
             assert_eq!(glob, "external/*.json");
             assert_eq!(path.path.as_str(), "project");
             Ok(())
-        })
-        .await
+        }))
         .unwrap();
     }
 
@@ -721,7 +757,7 @@ mod tests {
             BackendOptions::default(),
             noop_backing_storage(),
         ));
-        tt.run_once(async {
+        turbo_tasks::read!(tt.run_once(async {
             // Test navigating out of project root with empty path
             let empty_path = create_test_fs_path("");
             let result = relativize_glob("../outside.js", &empty_path);
@@ -755,8 +791,7 @@ mod tests {
                     .contains("navigates out of the project root")
             );
             Ok(())
-        })
-        .await
+        }))
         .unwrap();
     }
 }

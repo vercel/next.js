@@ -50,18 +50,19 @@ swc_sourcemap = { workspace = true }
 smallvec = { workspace = true }
 strsim = { workspace = true }
 thread_local = { workspace = true }
-tokio = { workspace = true }
+# Optional so a `--no-default-features --features sync` build links zero tokio.
+tokio = { workspace = true, optional = true }
 tracing = { workspace = true }
 turbo-bincode = { workspace = true }
-turbo-esregex = { workspace = true }
+turbo-esregex = { path = "../turbo-esregex", default-features = false }
 turbo-frozenmap = { workspace = true }
 turbo-rcstr = { workspace = true }
-turbo-tasks = { workspace = true }
-turbo-tasks-fs = { workspace = true }
+turbo-tasks = { path = "../turbo-tasks", default-features = false }
+turbo-tasks-fs = { path = "../turbo-tasks-fs", default-features = false }
 turbo-tasks-hash = { workspace = true }
-turbopack-core = { workspace = true }
-turbopack-resolve = { workspace = true }
-turbopack-swc-utils = { workspace = true }
+turbopack-core = { path = "../turbopack-core", default-features = false }
+turbopack-resolve = { path = "../turbopack-resolve", default-features = false }
+turbopack-swc-utils = { path = "../turbopack-swc-utils", default-features = false }
 url = { workspace = true }
 urlencoding = { workspace = true }
 
@@ -93,12 +94,14 @@ swc_core = { workspace = true, features = [
 ] }
 
 [features]
-default = []
+default = ["tokio_runtime"]
+tokio_runtime = ["dep:tokio", "turbo-esregex/tokio_runtime", "turbo-tasks/tokio_runtime", "turbo-tasks-backend/tokio_runtime", "turbo-tasks-fs/tokio_runtime", "turbo-tasks-testing/tokio_runtime", "turbopack-core/tokio_runtime", "turbopack-resolve/tokio_runtime", "turbopack-swc-utils/tokio_runtime", "turbopack-test-utils/tokio_runtime"]
+sync = ["turbo-esregex/sync", "turbo-tasks/sync", "turbo-tasks-backend/sync", "turbo-tasks-fs/sync", "turbo-tasks-testing/sync", "turbopack-core/sync", "turbopack-resolve/sync", "turbopack-swc-utils/sync", "turbopack-test-utils/sync"]
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
 rstest = { workspace = true }
-turbo-tasks-backend = { workspace = true }
+turbo-tasks-backend = { path = "../turbo-tasks-backend", default-features = false }
 turbo-tasks-malloc = { workspace = true, features  = ["custom_allocator"] }
-turbo-tasks-testing = { workspace = true }
-turbopack-test-utils = { workspace = true }
+turbo-tasks-testing = { path = "../turbo-tasks-testing", default-features = false }
+turbopack-test-utils = { path = "../turbopack-test-utils", default-features = false }

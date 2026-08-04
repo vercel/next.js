@@ -11,6 +11,9 @@ bench = false
 
 [features]
 log_request_stats = []
+default = ["tokio_runtime"]
+tokio_runtime = ["dep:tokio", "dep:tokio-stream", "dep:tokio-util", "dep:hyper-tungstenite", "dep:socket2", "dep:hyper", "hyper/full", "turbo-tasks/tokio_runtime", "turbo-tasks-backend/tokio_runtime", "turbo-tasks-bytes/tokio_runtime", "turbo-tasks-fs/tokio_runtime", "turbopack-cli-utils/tokio_runtime", "turbopack-core/tokio_runtime", "turbopack-ecmascript/tokio_runtime", "turbopack-ecmascript-hmr-protocol/tokio_runtime"]
+sync = ["turbo-tasks/sync", "turbo-tasks-backend/sync", "turbo-tasks-bytes/sync", "turbo-tasks-fs/sync", "turbopack-cli-utils/sync", "turbopack-core/sync", "turbopack-ecmascript/sync", "turbopack-ecmascript-hmr-protocol/sync"]
 
 [lints]
 workspace = true
@@ -22,8 +25,15 @@ auto-hash-map = { workspace = true }
 bincode = { workspace = true }
 flate2 = { workspace = true }
 futures = { workspace = true }
-hyper = { version = "0.14", features = ["full"] }
-hyper-tungstenite = "0.9.0"
+# The pure content-source graph only needs the `http`-crate types (Uri/HeaderMap/Method/
+# HeaderValue); it depends on `http` directly (no tokio). `hyper` 0.14 depends on tokio
+# unconditionally (non-optional), so it is optional and only pulled in by `tokio_runtime`
+# for the live-serving path — this keeps the no-tokio `sync` build free of tokio.
+http = "0.2"
+hyper = { version = "0.14", optional = true }
+# Websocket upgrade for the HMR update server — tokio-based, serving-only. Optional so
+# the `sync` build links no tokio through it. Enabled by `tokio_runtime`.
+hyper-tungstenite = { version = "0.9.0", optional = true }
 mime = { workspace = true }
 mime_guess = "2.0.4"
 parking_lot = { workspace = true }
@@ -32,24 +42,28 @@ rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_qs = { workspace = true }
-socket2 = "0.4.9"
-tokio = { workspace = true }
-tokio-stream = "0.1.9"
-tokio-util = { workspace = true }
+# Serving-only (socket bind in `DevServer::listen`); no tokio, but gated with the rest
+# of the serving path so the `sync` build omits it. Enabled by `tokio_runtime`.
+socket2 = { version = "0.4.9", optional = true }
+# tokio and the tokio-based stream helpers are the async runtime the live server needs.
+# Optional so `--no-default-features --features sync` links zero tokio.
+tokio = { workspace = true, optional = true }
+tokio-stream = { version = "0.1.9", optional = true }
+tokio-util = { workspace = true, optional = true }
 tracing = { workspace = true }
 turbo-bincode = { workspace = true }
 turbo-rcstr = { workspace = true }
-turbo-tasks = { workspace = true }
-turbo-tasks-bytes = { workspace = true }
-turbo-tasks-fs = { workspace = true }
+turbo-tasks = { path = "../turbo-tasks", default-features = false }
+turbo-tasks-bytes = { path = "../turbo-tasks-bytes", default-features = false }
+turbo-tasks-fs = { path = "../turbo-tasks-fs", default-features = false }
 turbo-tasks-hash = { workspace = true }
 # TODO remove this dependency
-turbopack-cli-utils = { workspace = true }
-turbopack-core = { workspace = true }
-turbopack-ecmascript = { workspace = true }
-turbopack-ecmascript-hmr-protocol = { workspace = true }
+turbopack-cli-utils = { path = "../turbopack-cli-utils", default-features = false }
+turbopack-core = { path = "../turbopack-core", default-features = false }
+turbopack-ecmascript = { path = "../turbopack-ecmascript", default-features = false }
+turbopack-ecmascript-hmr-protocol = { path = "../turbopack-ecmascript-hmr-protocol", default-features = false }
 urlencoding = "2.1.2"
 
 [dev-dependencies]
-turbo-tasks-backend = { workspace = true }
+turbo-tasks-backend = { path = "../turbo-tasks-backend", default-features = false }
 

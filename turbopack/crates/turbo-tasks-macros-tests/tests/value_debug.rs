@@ -2,12 +2,12 @@
 
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Vc, debug::ValueDebugFormat};
+use turbo_tasks::{Vc, debug::ValueDebugFormat, read};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn ignored_indexes() {
     #[allow(dead_code)]
     #[derive(ValueDebugFormat)]
@@ -25,7 +25,7 @@ async fn ignored_indexes() {
         #[turbo_tasks::function(operation, root)]
         async fn value_debug_format_operation() -> Result<Vc<RcStr>> {
             let input = IgnoredIndexes(-1, 2, -3);
-            let debug = input.value_debug_format(usize::MAX).try_to_string().await?;
+            let debug = read!(input.value_debug_format(usize::MAX).try_to_string())?;
             Ok(Vc::cell(RcStr::from(debug)))
         }
         let debug = value_debug_format_operation()

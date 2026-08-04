@@ -3043,9 +3043,9 @@ checksum = "c3531d702d6c1a3ba92a5fb55a404c7b8c476c8e7ca249951077afcbe4bc807f"
 
 [[package]]
 name = "h2"
-version = "0.3.24"
+version = "0.3.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb2c4422095b67ee78da96fbb51a4cc413b3b25883c7717ff7ca1ab31022c9c9"
+checksum = "0beca50380b1fc32983fc1cb4587bfa4bb9e78fc259aad4a0032d2080309222d"
 dependencies = [
  "bytes",
  "fnv",
@@ -3371,14 +3371,14 @@ dependencies = [
  "futures-channel",
  "futures-core",
  "futures-util",
- "h2 0.3.24",
+ "h2 0.3.27",
  "http 0.2.11",
  "http-body 0.4.5",
  "httparse",
  "httpdate",
  "itoa",
  "pin-project-lite",
- "socket2 0.5.10",
+ "socket2 0.4.9",
  "tokio",
  "tower-service",
  "tracing",
@@ -4945,6 +4945,7 @@ dependencies = [
  "turbo-tasks",
  "turbo-tasks-backend",
  "turbo-tasks-malloc",
+ "turbopack-core",
  "turbopack-node",
  "turbopack-trace-utils",
 ]
@@ -10049,6 +10050,7 @@ dependencies = [
  "turbo-tasks-hash",
  "turbo-tasks-macros",
  "turbo-tasks-malloc",
+ "turbo-tasks-parallel",
  "unsize",
 ]
 
@@ -10265,6 +10267,39 @@ dependencies = [
  "libmimalloc-sys",
  "mimalloc",
  "windows-sys 0.60.2",
+]
+
+[[package]]
+name = "turbo-tasks-parallel"
+version = "0.1.0"
+dependencies = [
+ "codspeed-criterion-compat",
+ "crossbeam-deque",
+ "crossbeam-utils",
+ "parking_lot",
+ "rand 0.10.1",
+ "rayon",
+ "stacker",
+]
+
+[[package]]
+name = "turbo-tasks-sync-demo"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "tokio",
+ "turbo-tasks",
+ "turbo-tasks-backend",
+]
+
+[[package]]
+name = "turbo-tasks-sync-tests"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "turbo-tasks",
+ "turbo-tasks-backend",
+ "turbo-tasks-testing",
 ]
 
 [[package]]
@@ -10527,7 +10562,6 @@ dependencies = [
  "serde",
  "smallvec",
  "swc_core",
- "tokio",
  "tracing",
  "turbo-bincode",
  "turbo-rcstr",
@@ -10548,6 +10582,7 @@ dependencies = [
  "bincode 2.0.1",
  "flate2",
  "futures",
+ "http 0.2.11",
  "hyper 0.14.32",
  "hyper-tungstenite",
  "mime",
@@ -10661,6 +10696,8 @@ dependencies = [
  "swc_core",
  "swc_emotion",
  "swc_plugin_backend_wasmtime",
+ "swc_plugin_proxy",
+ "swc_plugin_runner",
  "swc_relay",
  "tracing",
  "turbo-rcstr",
@@ -10766,7 +10803,6 @@ name = "turbopack-node"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-stream",
  "async-trait",
  "base64 0.21.4",
  "bincode 2.0.1",

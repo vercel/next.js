@@ -15,6 +15,8 @@ pub use tracing;
 
 #[cfg(debug_assertions)]
 use crate::debug::ValueDebugFormatString;
+#[cfg(feature = "tokio_runtime")]
+pub use crate::manager::spawn_detached_for_testing;
 use crate::{
     InputResolution, NonLocalValue, RawVc, TaskInput, TaskPersistence, TraitType, ValueType,
     ValueTypeId,
@@ -23,7 +25,7 @@ pub use crate::{
     dyn_task_inputs::DynTaskInputs,
     global_name_for_method, global_name_for_scope, global_name_for_trait_method,
     global_name_for_trait_method_impl, global_name_for_type,
-    manager::{find_cell_by_id, find_cell_by_type, spawn_detached_for_testing},
+    manager::{find_cell_by_id, find_cell_by_type},
     native_function::{
         ArgMeta, NativeFunction, VTABLE_DEFAULT, downcast_args_owned, downcast_args_ref,
         downcast_stack_args_owned,
@@ -332,4 +334,66 @@ macro_rules! global_name_for_scope {
             ::std::stringify!($($item)+),
         ])
     }}
+}
+
+// ---------------------------------------------------------------------------
+// Dual-mode (synchronous turbo-tasks) — deferred runtime hooks.
+//
+// These back the `read!` / `parallel!` macros under the `sync` feature. The
+// synchronous execution runtime (engine + backend) is not yet implemented (see
+// DESIGN, Phase 1). They exist so that `sync`-mode code COMPILES today — letting us
+// validate the dual-mode plumbing end to end — but they are intentionally NOT
+// functional yet (the bodies `unimplemented!()`).
+//
+// `SyncRead` is implemented for exactly the concrete `Vc` read/resolve future
+// types (and `Result`, for reads that are already synchronous under `sync`). It is
+// deliberately NOT blanket-implemented over `IntoFuture`: that restriction is what
+// makes the compiler *reject* `async` blocks / closures / `async fn`s at `read!`
+// sites in the sync build — there is no async runtime to drive them. Each impl
+// delegates to the type's `sync_read`/`resolve_sync` method, which computes inline
+// (no future, no poll, no waker). Impls live next to their types (see `vc/read.rs`,
+// `vc/mod.rs`, `vc/operation.rs`); the `Result` identity impl lives here.
+// ---------------------------------------------------------------------------
+
+/// Synchronous counterpart of `.await`, backing `read!`/`parallel!` under `sync`.
+#[cfg(feature = "sync")]
+pub trait SyncRead {
+    /// Mirrors `<Self as IntoFuture>::Output` so sync code type-checks like async.
+    type Output;
+    fn sync_read(self) -> Self::Output;
+}
+
+/// Identity read for expressions that are already synchronous under `sync` (e.g. a
+/// dual-mode helper that is `async fn` under `tokio_runtime` but a plain `fn`
+/// returning `Result` under `sync`). `read!(x)?` then just forwards `x`.
+#[cfg(feature = "sync")]
+impl<T, E> SyncRead for Result<T, E> {
+    type Output = Result<T, E>;
+    fn sync_read(self) -> Self::Output {
+        self
+    }
+}
+
+/// Span-following read: `read!(expr.instrument(span))` sites stay dual-mode — the
+/// async build awaits the instrumented future; under `sync` we enter the span and
+/// read the inner expression inline.
+#[cfg(feature = "sync")]
+impl<T: SyncRead> SyncRead for tracing::instrument::Instrumented<T> {
+    type Output = T::Output;
+    fn sync_read(self) -> Self::Output {
+        let span = self.span().clone();
+        let _enter = span.entered();
+        self.into_inner().sync_read()
+    }
+}
+
+/// Drive a whole `#[turbo_tasks::test]` body to completion synchronously.
+///
+/// The body keeps its original `async` form (with all its `.await`s and the
+/// `run!`/`run_once!` harness glue); under the sync engine every awaited future is
+/// immediately `Ready`, so a single poll runs the entire body. Used only by the
+/// `sync`-mode expansion of `#[turbo_tasks::test]`.
+#[cfg(feature = "sync")]
+pub fn sync_poll_test<F: std::future::Future>(future: F) -> F::Output {
+    crate::sync_runtime::sync_poll(future)
 }

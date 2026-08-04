@@ -4,12 +4,12 @@
 
 use anyhow::{Result, bail};
 use rand::{RngExt, SeedableRng, rngs::StdRng};
-use turbo_tasks::{ResolvedVc, State, Vc};
+use turbo_tasks::{ResolvedVc, State, Vc, read};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_random_change() {
     run_once(&REGISTRATION, || async {
         let state_op = make_state_operation();
@@ -58,7 +58,7 @@ fn make_state_operation() -> Vc<ValueContainer> {
 
 #[turbo_tasks::function(operation, root)]
 async fn func2_operation(input: ResolvedVc<ValueContainer>) -> Result<Vc<Value>> {
-    let state = input.await?;
+    let state = read!(input)?;
     let value = state.state.get();
     println!("func2 {}", *value);
     Ok(func(*input, -*value))
@@ -71,7 +71,7 @@ async fn func_operation(input: ResolvedVc<ValueContainer>) -> Vc<Value> {
 
 #[turbo_tasks::function]
 async fn func(input: Vc<ValueContainer>, nesting: i32) -> Result<Vc<Value>> {
-    let state = input.await?;
+    let state = read!(input)?;
     let value = state.state.get();
     if nesting < *value {
         return Ok(func(input, nesting + 1));

@@ -41,8 +41,9 @@ impl From<ExportFilterInput> for ExportFilter {
     }
 }
 
+turbo_tasks::dual_fn! {
 /// Returns a rule which applies the Next.js page export stripping transform.
-pub async fn get_next_pages_transforms_rule(
+pub fn get_next_pages_transforms_rule(
     pages_dir: FileSystemPath,
     export_filter: ExportFilter,
     enable_mdx_rs: bool,
@@ -51,9 +52,9 @@ pub async fn get_next_pages_transforms_rule(
 ) -> Result<ModuleRule> {
     // Apply the Next SSG transform to all pages.
     let strip_transform = EcmascriptInputTransform::Plugin(
-        next_strip_page_exports_transform_plugin(export_filter.into())
-            .to_resolved()
-            .await?,
+        turbo_tasks::read!(next_strip_page_exports_transform_plugin(export_filter.into())
+            .to_resolved())
+            ?,
     );
     let document_exclusions: Vec<RuleCondition> = page_extensions
         .iter()
@@ -83,6 +84,7 @@ pub async fn get_next_pages_transforms_rule(
         }],
     ))
 }
+}
 
 #[turbo_tasks::function]
 fn next_strip_page_exports_transform_plugin(
@@ -98,10 +100,26 @@ struct NextJsStripPageExports {
     export_filter: ExportFilter,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 impl CustomTransformer for NextJsStripPageExports {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "next_strip_page_exports", skip_all)]
     async fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
+        // TODO(alexkirsz) Connect the eliminated_packages to telemetry.
+        let eliminated_packages = Default::default();
+        program.mutate(next_transform_strip_page_exports(
+            self.export_filter,
+            eliminated_packages,
+        ));
+
+        Ok(())
+    }
+}
+
+#[cfg(feature = "sync")]
+impl CustomTransformer for NextJsStripPageExports {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "next_strip_page_exports", skip_all)]
+    fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
         // TODO(alexkirsz) Connect the eliminated_packages to telemetry.
         let eliminated_packages = Default::default();
         program.mutate(next_transform_strip_page_exports(

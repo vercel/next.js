@@ -20,11 +20,32 @@ pub fn extract_disk_access<T>(value: io::Result<T>, path: &Path) -> Result<Optio
     }
 }
 
+#[cfg(not(feature = "sync"))]
 pub async fn uri_from_file(root: FileSystemPath, path: Option<&str>) -> Result<String> {
     let root_fs = root.fs;
-    let root_fs = &*ResolvedVc::try_downcast_type::<DiskFileSystem>(root_fs)
-        .context("Expected root to have a DiskFileSystem")?
-        .await?;
+    let root_fs = &*turbo_tasks::read!(
+        ResolvedVc::try_downcast_type::<DiskFileSystem>(root_fs)
+            .context("Expected root to have a DiskFileSystem")?
+    )?;
+
+    let path = match path {
+        Some(path) => root.join(path)?,
+        None => root,
+    };
+
+    Ok(uri_from_path_buf(root_fs.to_sys_path(&path)))
+}
+
+// Sync twin: identical `read!`-based body. The `Option<&str>` borrow means the
+// two call shapes differ (async awaits, sync calls inline), so hand-write twins
+// rather than `dual_fn!`.
+#[cfg(feature = "sync")]
+pub fn uri_from_file(root: FileSystemPath, path: Option<&str>) -> Result<String> {
+    let root_fs = root.fs;
+    let root_fs = &*turbo_tasks::read!(
+        ResolvedVc::try_downcast_type::<DiskFileSystem>(root_fs)
+            .context("Expected root to have a DiskFileSystem")?
+    )?;
 
     let path = match path {
         Some(path) => root.join(path)?,

@@ -1,4 +1,5 @@
 use anyhow::Result;
+#[cfg(not(feature = "sync"))]
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use swc_core::{
@@ -57,8 +58,7 @@ pub fn throw_module_not_found_error_expr(request: &str, message: &str) -> Expr {
 #[turbo_tasks::function]
 pub async fn request_to_string(request: Vc<Request>) -> Result<Vc<RcStr>> {
     Ok(Vc::cell(
-        request
-            .await?
+        turbo_tasks::read!(request)?
             .request()
             // TODO: Handle Request::Dynamic, Request::Alternatives
             .unwrap_or(rcstr!("unknown")),
@@ -68,13 +68,14 @@ pub async fn request_to_string(request: Vc<Request>) -> Result<Vc<RcStr>> {
 /// If a pattern resolves to more than 10000 results, it's likely a mistake so issue a warning.
 const TOO_MANY_MATCHES_LIMIT: usize = 10000;
 
-pub async fn check_and_emit_too_many_matches_warning(
+turbo_tasks::dual_fn! {
+pub fn check_and_emit_too_many_matches_warning(
     result: Vc<ModuleResolveResult>,
     issue_source: IssueSource,
     context_dir: FileSystemPath,
     pattern: ResolvedVc<Pattern>,
 ) -> Result<()> {
-    let num_matches = result.await?.primary.len();
+    let num_matches = turbo_tasks::read!(result)?.primary.len();
     if num_matches > TOO_MANY_MATCHES_LIMIT {
         TooManyMatchesWarning {
             source: issue_source,
@@ -87,6 +88,7 @@ pub async fn check_and_emit_too_many_matches_warning(
     }
     Ok(())
 }
+}
 
 #[turbo_tasks::value(shared)]
 struct TooManyMatchesWarning {
@@ -96,19 +98,17 @@ struct TooManyMatchesWarning {
     pattern: ResolvedVc<Pattern>,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for TooManyMatchesWarning {
     async fn title(&self) -> Result<StyledString> {
-        Ok(StyledString::Text(
-            turbofmt!(
-                "The file pattern {} matches {} files in {}",
-                self.pattern,
-                self.num_matches,
-                self.context_dir
-            )
-            .await?,
-        ))
+        Ok(StyledString::Text(turbo_tasks::read!(turbofmt!(
+            "The file pattern {} matches {} files in {}",
+            self.pattern,
+            self.num_matches,
+            self.context_dir
+        ))?))
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
@@ -118,7 +118,43 @@ impl Issue for TooManyMatchesWarning {
     }
 
     async fn file_path(&self) -> Result<FileSystemPath> {
-        self.source.file_path().await
+        turbo_tasks::read!(self.source.file_path())
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Resolve
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Warning
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
+    }
+}
+
+/// See the async impl above; the sync engine drops `async`/`#[async_trait]`.
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for TooManyMatchesWarning {
+    fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(turbo_tasks::read!(turbofmt!(
+            "The file pattern {} matches {} files in {}",
+            self.pattern,
+            self.num_matches,
+            self.context_dir
+        ))?))
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(rcstr!(
+            "Overly broad patterns can lead to build performance issues and over bundling."
+        ))))
+    }
+
+    fn file_path(&self) -> Result<FileSystemPath> {
+        turbo_tasks::read!(self.source.file_path())
     }
 
     fn stage(&self) -> IssueStage {

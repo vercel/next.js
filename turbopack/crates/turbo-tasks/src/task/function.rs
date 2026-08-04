@@ -28,7 +28,13 @@ use anyhow::Result;
 use super::{TaskInput, TaskOutput};
 use crate::{RawVc, Vc, VcRead, VcValueType, dyn_task_inputs::DynTaskInputs};
 
+/// The executable produced by a task's `functor`. Async mode boxes a future that the
+/// executor polls; the no-async sync engine boxes a plain closure that
+/// `execute_task_inline` calls directly (no future, no poll, no waker).
+#[cfg(not(feature = "sync"))]
 pub type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>;
+#[cfg(feature = "sync")]
+pub type NativeTaskFuture = Box<dyn FnOnce() -> Result<RawVc> + Send>;
 
 pub trait TaskFn: Send + Sync + 'static {
     fn functor(&self, this: Option<RawVc>, arg: &dyn DynTaskInputs) -> Result<NativeTaskFuture>;
@@ -208,12 +214,22 @@ macro_rules! task_fn_impl {
             #[allow(non_snake_case)]
             fn functor(self, arg: &dyn DynTaskInputs) -> Result<NativeTaskFuture> {
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
-                Ok(Box::pin(async move {
+                #[cfg(not(feature = "sync"))]
+                { Ok(Box::pin(async move {
                     (self)($($arg,)*).try_into_raw_vc()
-                }))
+                })) }
+                #[cfg(feature = "sync")]
+                { Ok(Box::new(move || {
+                    (self)($($arg,)*).try_into_raw_vc()
+                })) }
             }
         }
 
+        // Async-function tasks only exist in async mode; under `sync` the
+        // `#[turbo_tasks::function]` macro strips `async`, so task fns are always
+        // synchronous (they use `read!` instead of `.await`) and select the
+        // synchronous `FunctionMode`/`MethodMode` impls above/below.
+        #[cfg(not(feature = "sync"))]
         impl<F, Output, FutureOutput, $($arg,)*> TaskFnInputFunction<AsyncFunctionMode, ($($arg,)*)> for F
         where
             $($arg: TaskInput + 'static,)*
@@ -241,11 +257,18 @@ macro_rules! task_fn_impl {
             fn functor(self, this: RawVc, arg: &dyn DynTaskInputs) -> Result<NativeTaskFuture> {
                 let recv = Vc::<Recv>::from(this);
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
-                Ok(Box::pin(async move {
+                #[cfg(not(feature = "sync"))]
+                { Ok(Box::pin(async move {
                     let recv = recv.await?;
                     let recv = <Recv::Read as VcRead<Recv>>::target_to_value_ref(&*recv);
                     (self)(recv, $($arg,)*).try_into_raw_vc()
-                }))
+                })) }
+                #[cfg(feature = "sync")]
+                { Ok(Box::new(move || {
+                    let recv = crate::read!(recv)?;
+                    let recv = <Recv::Read as VcRead<Recv>>::target_to_value_ref(&*recv);
+                    (self)(recv, $($arg,)*).try_into_raw_vc()
+                })) }
             }
         }
 
@@ -260,9 +283,14 @@ macro_rules! task_fn_impl {
             fn functor(self, this: RawVc, arg: &dyn DynTaskInputs) -> Result<NativeTaskFuture> {
                 let recv = Vc::<Recv>::from(this);
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
-                Ok(Box::pin(async move {
+                #[cfg(not(feature = "sync"))]
+                { Ok(Box::pin(async move {
                     (self)(recv, $($arg,)*).try_into_raw_vc()
-                }))
+                })) }
+                #[cfg(feature = "sync")]
+                { Ok(Box::new(move || {
+                    (self)(recv, $($arg,)*).try_into_raw_vc()
+                })) }
             }
         }
 
@@ -281,6 +309,8 @@ macro_rules! task_fn_impl {
             type Output = Fut::Output;
         }
 
+        // Async-method tasks: async-mode only (see the `AsyncFunctionMode` note above).
+        #[cfg(not(feature = "sync"))]
         impl<F, Recv, $($arg,)*> TaskFnInputFunctionWithThis<AsyncMethodMode, Recv, ($($arg,)*)> for F
         where
             Recv: VcValueType,
@@ -299,6 +329,7 @@ macro_rules! task_fn_impl {
             }
         }
 
+        #[cfg(not(feature = "sync"))]
         impl<F, Recv, $($arg,)*> TaskFnInputFunctionWithThis<AsyncFunctionMode, Recv, ($($arg,)*)> for F
         where
             Recv: Sync + Send + 'static,
@@ -365,6 +396,7 @@ mod tests {
             todo!()
         }
 
+        #[cfg(not(feature = "sync"))]
         async fn async_one_arg(_a: i32) -> crate::Vc<i32> {
             todo!()
         }
@@ -373,6 +405,7 @@ mod tests {
             todo!()
         }
 
+        #[cfg(not(feature = "sync"))]
         async fn async_with_recv(_a: &i32) -> crate::Vc<i32> {
             todo!()
         }
@@ -381,10 +414,12 @@ mod tests {
             todo!()
         }
 
+        #[cfg(not(feature = "sync"))]
         async fn async_with_recv_and_str(_a: &i32, _s: RcStr) -> crate::Vc<i32> {
             todo!()
         }
 
+        #[cfg(not(feature = "sync"))]
         async fn async_with_recv_and_str_and_result(_a: &i32, _s: RcStr) -> Result<crate::Vc<i32>> {
             todo!()
         }
@@ -396,6 +431,7 @@ mod tests {
         }
 
         struct Struct;
+        #[cfg(not(feature = "sync"))]
         impl Struct {
             async fn inherent_method(&self) {}
         }
@@ -418,10 +454,12 @@ mod tests {
             }
         }
 
+        #[cfg(not(feature = "sync"))]
         trait AsyncTrait {
             async fn async_method(&self);
         }
 
+        #[cfg(not(feature = "sync"))]
         impl AsyncTrait for Struct {
             async fn async_method(&self) {
                 todo!()
@@ -453,22 +491,28 @@ mod tests {
         accepts_task_fn(task_fn);
         let task_fn = into_task_fn(one_arg);
         accepts_task_fn(task_fn);
-        let task_fn = into_task_fn(async_one_arg);
-        accepts_task_fn(task_fn);
         let task_fn = into_task_fn_with_this(with_recv);
-        accepts_task_fn(task_fn);
-        let task_fn = into_task_fn_with_this(async_with_recv);
         accepts_task_fn(task_fn);
         let task_fn = into_task_fn_with_this(with_recv_and_str);
         accepts_task_fn(task_fn);
-        let task_fn = into_task_fn_with_this(async_with_recv_and_str);
-        accepts_task_fn(task_fn);
-        let task_fn = into_task_fn_with_this(async_with_recv_and_str_and_result);
-        accepts_task_fn(task_fn);
-        let task_fn = into_task_fn_with_this(<Struct as AsyncTrait>::async_method);
-        accepts_task_fn(task_fn);
-        let task_fn = into_task_fn_with_this(Struct::inherent_method);
-        accepts_task_fn(task_fn);
+        // Async task fns only exist in async mode — under `sync` the
+        // `#[turbo_tasks::function]` macro strips `async`, so the async-mode
+        // `TaskFnInputFunction*` impls are not compiled and these are rejected.
+        #[cfg(not(feature = "sync"))]
+        {
+            let task_fn = into_task_fn(async_one_arg);
+            accepts_task_fn(task_fn);
+            let task_fn = into_task_fn_with_this(async_with_recv);
+            accepts_task_fn(task_fn);
+            let task_fn = into_task_fn_with_this(async_with_recv_and_str);
+            accepts_task_fn(task_fn);
+            let task_fn = into_task_fn_with_this(async_with_recv_and_str_and_result);
+            accepts_task_fn(task_fn);
+            let task_fn = into_task_fn_with_this(<Struct as AsyncTrait>::async_method);
+            accepts_task_fn(task_fn);
+            let task_fn = into_task_fn_with_this(Struct::inherent_method);
+            accepts_task_fn(task_fn);
+        }
 
         /*
         let task_fn = <Struct as BoxAsyncTrait>::box_async_method.into_task_fn();

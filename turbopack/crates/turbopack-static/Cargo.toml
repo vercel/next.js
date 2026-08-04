@@ -16,10 +16,15 @@ workspace = true
 anyhow = { workspace = true }
 
 turbo-rcstr = { workspace = true }
-turbo-tasks = { workspace = true }
-turbo-tasks-fs = { workspace = true }
+turbo-tasks = { path = "../turbo-tasks", default-features = false }
+turbo-tasks-fs = { path = "../turbo-tasks-fs", default-features = false }
 turbo-tasks-hash = { workspace = true }
-turbopack-core = { workspace = true }
-turbopack-css = { workspace = true }
-turbopack-ecmascript = { workspace = true }
+turbopack-core = { path = "../turbopack-core", default-features = false }
+turbopack-css = { path = "../turbopack-css", default-features = false }
+turbopack-ecmascript = { path = "../turbopack-ecmascript", default-features = false }
+
+[features]
+default = ["tokio_runtime"]
+tokio_runtime = ["turbo-tasks/tokio_runtime", "turbo-tasks-fs/tokio_runtime", "turbopack-core/tokio_runtime", "turbopack-css/tokio_runtime", "turbopack-ecmascript/tokio_runtime"]
+sync = ["turbo-tasks/sync", "turbo-tasks-fs/sync", "turbopack-core/sync", "turbopack-css/sync", "turbopack-ecmascript/sync"]
 

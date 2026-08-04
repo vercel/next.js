@@ -6,8 +6,16 @@ license = "MIT"
 edition = "2024"
 autobenches = false
 
+# The demo binary drives the tokio file watcher + an async main; async-build only.
+[[example]]
+name = "turbopack"
+required-features = ["tokio_runtime"]
+
 [features]
 test_persistent_cache = []
+default = ["tokio_runtime"]
+tokio_runtime = ["dep:tokio", "turbo-esregex/tokio_runtime", "turbo-tasks/tokio_runtime", "turbo-tasks-backend/tokio_runtime", "turbo-tasks-env/tokio_runtime", "turbo-tasks-fs/tokio_runtime", "turbopack-core/tokio_runtime", "turbopack-css/tokio_runtime", "turbopack-ecmascript/tokio_runtime", "turbopack-ecmascript-runtime/tokio_runtime", "turbopack-env/tokio_runtime", "turbopack-mdx/tokio_runtime", "turbopack-node/tokio_runtime", "turbopack-resolve/tokio_runtime", "turbopack-static/tokio_runtime", "turbopack-wasm/tokio_runtime"]
+sync = ["turbo-esregex/sync", "turbo-tasks/sync", "turbo-tasks-backend/sync", "turbo-tasks-env/sync", "turbo-tasks-fs/sync", "turbopack-core/sync", "turbopack-css/sync", "turbopack-ecmascript/sync", "turbopack-ecmascript-runtime/sync", "turbopack-env/sync", "turbopack-mdx/sync", "turbopack-node/sync", "turbopack-resolve/sync", "turbopack-static/sync", "turbopack-wasm/sync"]
 
 [lints]
 workspace = true
@@ -21,25 +29,27 @@ rustc-hash = { workspace = true }
 smallvec = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-tokio = { workspace = true }
+# Unused in src today; kept optional + tokio_runtime-gated so the no-tokio sync
+# build links zero tokio.
+tokio = { workspace = true, optional = true }
 tracing = { workspace = true }
 
 turbo-rcstr = { workspace = true }
-turbo-esregex = { workspace = true }
-turbo-tasks = { workspace = true }
-turbo-tasks-env = { workspace = true }
-turbo-tasks-fs = { workspace = true }
+turbo-esregex = { path = "../turbo-esregex", default-features = false }
+turbo-tasks = { path = "../turbo-tasks", default-features = false }
+turbo-tasks-env = { path = "../turbo-tasks-env", default-features = false }
+turbo-tasks-fs = { path = "../turbo-tasks-fs", default-features = false }
 turbo-tasks-hash = { workspace = true }
-turbopack-core = { workspace = true }
-turbopack-css = { workspace = true }
-turbopack-ecmascript = { workspace = true }
-turbopack-ecmascript-runtime = { workspace = true }
-turbopack-env = { workspace = true }
-turbopack-mdx = { workspace = true }
-turbopack-node = { workspace = true, default-features = false }
-turbopack-resolve = { workspace = true }
-turbopack-static = { workspace = true }
-turbopack-wasm = { workspace = true }
+turbopack-core = { path = "../turbopack-core", default-features = false }
+turbopack-css = { path = "../turbopack-css", default-features = false }
+turbopack-ecmascript = { path = "../turbopack-ecmascript", default-features = false }
+turbopack-ecmascript-runtime = { path = "../turbopack-ecmascript-runtime", default-features = false }
+turbopack-env = { path = "../turbopack-env", default-features = false }
+turbopack-mdx = { path = "../turbopack-mdx", default-features = false }
+turbopack-node = { path = "../turbopack-node", default-features = false }
+turbopack-resolve = { path = "../turbopack-resolve", default-features = false }
+turbopack-static = { path = "../turbopack-static", default-features = false }
+turbopack-wasm = { path = "../turbopack-wasm", default-features = false }
 
 [dev-dependencies]
-turbo-tasks-backend = { workspace = true }
+turbo-tasks-backend = { path = "../turbo-tasks-backend", default-features = false }

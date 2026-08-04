@@ -19,13 +19,29 @@ pub trait ValueToString {
 
 /// Implements an async counterpart to `Display`, returning `RcStr`. This may
 /// act as an optimization.
+#[cfg(not(feature = "sync"))]
 pub trait ValueToStringRef {
     fn to_string_ref(&self) -> impl Future<Output = Result<RcStr>> + Send;
 }
 
+/// Implements a synchronous counterpart to `Display`, returning `RcStr` (sync build).
+#[cfg(feature = "sync")]
+pub trait ValueToStringRef {
+    fn to_string_ref(&self) -> Result<RcStr>;
+}
+
 /// Ref-following: `&T` delegates to `T`'s `ValueToStringRef`.
+#[cfg(not(feature = "sync"))]
 impl<T: ValueToStringRef + Sync> ValueToStringRef for &T {
     fn to_string_ref(&self) -> impl Future<Output = Result<RcStr>> + Send {
+        (**self).to_string_ref()
+    }
+}
+
+/// Ref-following: `&T` delegates to `T`'s `ValueToStringRef`.
+#[cfg(feature = "sync")]
+impl<T: ValueToStringRef + Sync> ValueToStringRef for &T {
+    fn to_string_ref(&self) -> Result<RcStr> {
         (**self).to_string_ref()
     }
 }
@@ -40,19 +56,41 @@ impl ValueToString for RcStr {
 }
 
 /// Identity implementation: `RcStr` just returns itself.
+#[cfg(not(feature = "sync"))]
 impl ValueToStringRef for RcStr {
     async fn to_string_ref(&self) -> Result<RcStr> {
         Ok(self.clone())
     }
 }
 
+/// Identity implementation: `RcStr` just returns itself.
+#[cfg(feature = "sync")]
+impl ValueToStringRef for RcStr {
+    fn to_string_ref(&self) -> Result<RcStr> {
+        Ok(self.clone())
+    }
+}
+
 /// Deref-following: `ReadRef<T>` delegates to the deref target's `ValueToStringRef`.
+#[cfg(not(feature = "sync"))]
 impl<T> ValueToStringRef for crate::ReadRef<T>
 where
     T: crate::VcValueType,
     <T::Read as crate::VcRead<T>>::Target: ValueToStringRef,
 {
     fn to_string_ref(&self) -> impl Future<Output = Result<RcStr>> + Send {
+        (**self).to_string_ref()
+    }
+}
+
+/// Deref-following: `ReadRef<T>` delegates to the deref target's `ValueToStringRef`.
+#[cfg(feature = "sync")]
+impl<T> ValueToStringRef for crate::ReadRef<T>
+where
+    T: crate::VcValueType,
+    <T::Read as crate::VcRead<T>>::Target: ValueToStringRef,
+{
+    fn to_string_ref(&self) -> Result<RcStr> {
         (**self).to_string_ref()
     }
 }
@@ -67,7 +105,10 @@ macro_rules! __turbo_stringify {
         let mut $name: $crate::display::macro_helpers::StringifyType = {
             use $crate::display::macro_helpers::ValueToStringify as _;
             let tmp = $crate::display::macro_helpers::ValueToStringifyWrap($i);
-            (&&&tmp).to_stringify().await?
+            // `read!` is the dual-mode read: `.await` in the async build, inline under
+            // `sync`. `turbobail!` expands into a non-async block inside a (sync-mode
+            // non-async) `#[turbo_tasks::function]` body, so a raw `.await` is illegal.
+            $crate::read!((&&&tmp).to_stringify())?
         };
     };
 }
@@ -89,8 +130,14 @@ pub mod macro_helpers {
 
     pub struct ValueToStringifyWrap<T>(pub T);
 
+    #[cfg(not(feature = "sync"))]
     pub trait ValueToStringify<const LEVEL: u8> {
         fn to_stringify(&self) -> impl Future<Output = Result<StringifyType>> + Send;
+    }
+
+    #[cfg(feature = "sync")]
+    pub trait ValueToStringify<const LEVEL: u8> {
+        fn to_stringify(&self) -> Result<StringifyType>;
     }
 
     pub enum StringifyType {
@@ -129,6 +176,7 @@ pub mod macro_helpers {
     }
 
     /// Blanket impl: uses synchronous `Display::to_string()` for owned values.
+    #[cfg(not(feature = "sync"))]
     impl<T: Display + Send + Sync> ValueToStringify<1> for &ValueToStringifyWrap<&T> {
         #[inline(always)]
         fn to_stringify(&self) -> impl Future<Output = Result<StringifyType>> + Send {
@@ -137,6 +185,16 @@ pub mod macro_helpers {
         }
     }
 
+    /// Blanket impl: uses synchronous `Display::to_string()` for owned values.
+    #[cfg(feature = "sync")]
+    impl<T: Display + Send + Sync> ValueToStringify<1> for &ValueToStringifyWrap<&T> {
+        #[inline(always)]
+        fn to_stringify(&self) -> Result<StringifyType> {
+            Ok(StringifyType::String((self.0).to_string()))
+        }
+    }
+
+    #[cfg(not(feature = "sync"))]
     impl<T: Send> ValueToStringify<2> for &&ValueToStringifyWrap<&crate::Vc<T>>
     where
         T: ValueToString,
@@ -151,6 +209,20 @@ pub mod macro_helpers {
         }
     }
 
+    #[cfg(feature = "sync")]
+    impl<T: Send> ValueToStringify<2> for &&ValueToStringifyWrap<&crate::Vc<T>>
+    where
+        T: ValueToString,
+    {
+        #[inline(always)]
+        fn to_stringify(&self) -> Result<StringifyType> {
+            let vc = self.0;
+            let s = crate::read!(vc.to_string())?;
+            Ok(StringifyType::RcStr((*s).clone()))
+        }
+    }
+
+    #[cfg(not(feature = "sync"))]
     impl<T: Send> ValueToStringify<2> for &&ValueToStringifyWrap<&ResolvedVc<T>>
     where
         T: ValueToString,
@@ -165,6 +237,20 @@ pub mod macro_helpers {
         }
     }
 
+    #[cfg(feature = "sync")]
+    impl<T: Send> ValueToStringify<2> for &&ValueToStringifyWrap<&ResolvedVc<T>>
+    where
+        T: ValueToString,
+    {
+        #[inline(always)]
+        fn to_stringify(&self) -> Result<StringifyType> {
+            let vc = self.0;
+            let s = crate::read!(vc.to_string())?;
+            Ok(StringifyType::RcStr((*s).clone()))
+        }
+    }
+
+    #[cfg(not(feature = "sync"))]
     impl<T: Send> ValueToStringify<2> for &&&ValueToStringifyWrap<&T>
     where
         T: ValueToStringRef,
@@ -173,6 +259,17 @@ pub mod macro_helpers {
         fn to_stringify(&self) -> impl Future<Output = Result<StringifyType>> {
             let s = self.0.to_string_ref();
             async move { Ok(StringifyType::RcStr(s.await?)) }
+        }
+    }
+
+    #[cfg(feature = "sync")]
+    impl<T: Send> ValueToStringify<2> for &&&ValueToStringifyWrap<&T>
+    where
+        T: ValueToStringRef,
+    {
+        #[inline(always)]
+        fn to_stringify(&self) -> Result<StringifyType> {
+            Ok(StringifyType::RcStr(self.0.to_string_ref()?))
         }
     }
 }

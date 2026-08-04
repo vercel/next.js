@@ -82,29 +82,28 @@ pub async fn webpack_runtime(
     transforms: Vc<EcmascriptInputTransforms>,
     compile_time_info: Vc<CompileTimeInfo>,
 ) -> Result<Vc<WebpackRuntime>> {
-    let node_env = compile_time_info
-        .await?
-        .defines
-        .read_process_env(rcstr!("NODE_ENV"))
-        .owned()
-        .await?
-        .unwrap_or_else(|| rcstr!("development"));
-    let parsed = parse(
+    let node_env = turbo_tasks::read!(
+        turbo_tasks::read!(compile_time_info)?
+            .defines
+            .read_process_env(rcstr!("NODE_ENV"))
+            .owned()
+    )?
+    .unwrap_or_else(|| rcstr!("development"));
+    let parsed = turbo_tasks::read!(parse(
         source,
         EcmascriptModuleAssetType::Ecmascript,
         transforms,
         node_env,
         false,
         false,
-    )
-    .await?;
+    ))?;
     match &*parsed {
         ParseResult::Ok { program, .. } => {
             if let Some(stmts) = program_iife(program)
                 && stmts.iter().any(is_webpack_require_decl)
             {
                 return Ok(WebpackRuntime::Webpack5 {
-                    context_path: source.ident().await?.path.parent(),
+                    context_path: turbo_tasks::read!(source.ident())?.path.parent(),
                 }
                 .cell());
             }

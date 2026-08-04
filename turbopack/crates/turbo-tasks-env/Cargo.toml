@@ -8,6 +8,14 @@ edition = "2024"
 [lib]
 bench = false
 
+[features]
+default = ["tokio_runtime"]
+# The async execution runtime, on by default. Disable for a tokio-free sync
+# build: `--no-default-features --features sync`. Forwards to the dual-mode deps.
+tokio_runtime = ["turbo-tasks/tokio_runtime", "turbo-tasks-fs/tokio_runtime"]
+# Synchronous (inline-compute, no-tokio) engine; pair with --no-default-features.
+sync = ["turbo-tasks/sync", "turbo-tasks-fs/sync"]
+
 [lints]
 workspace = true
 
@@ -16,6 +24,8 @@ anyhow = { workspace = true }
 dotenvs = "0.1.0"
 turbo-bincode = { workspace = true }
 turbo-rcstr = { workspace = true }
-turbo-tasks = { workspace = true }
-turbo-tasks-fs = { workspace = true }
+# Direct path deps (default-features = false) so `--features sync` can build
+# tokio-free — cargo forbids overriding default-features on inherited deps.
+turbo-tasks = { path = "../turbo-tasks", default-features = false }
+turbo-tasks-fs = { path = "../turbo-tasks-fs", default-features = false }
 

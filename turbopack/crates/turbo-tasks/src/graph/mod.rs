@@ -4,6 +4,7 @@ mod graph_store;
 mod graph_traversal;
 mod non_deterministic;
 mod visit;
+#[cfg(not(feature = "sync"))]
 mod with_future;
 
 pub use adjacency_map::AdjacencyMap;

@@ -3,9 +3,10 @@ use std::{collections::VecDeque, iter::once};
 use anyhow::Result;
 use rustc_hash::FxHashSet;
 use turbo_rcstr::{RcStr, rcstr};
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::TryJoinIterExt;
 use turbo_tasks::{
-    Completion, FxIndexMap, FxIndexSet, ResolvedVc, State, TryJoinIterExt, ValueToStringRef, Vc,
-    fxindexset,
+    Completion, FxIndexMap, FxIndexSet, ResolvedVc, State, ValueToStringRef, Vc, fxindexset,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -66,18 +67,16 @@ impl AssetGraphContentSource {
 
     #[turbo_tasks::function]
     async fn all_assets_map(&self) -> Result<Vc<OutputAssetsMap>> {
-        Ok(Vc::cell(
-            expand(
-                &*self.root_assets.await?,
-                &self.root_path,
-                self.expanded.as_ref(),
-            )
-            .await?,
-        ))
+        Ok(Vc::cell(turbo_tasks::read!(expand(
+            &*turbo_tasks::read!(self.root_assets)?,
+            &self.root_path,
+            self.expanded.as_ref(),
+        ))?))
     }
 }
 
-async fn expand(
+turbo_tasks::dual_fn! {
+fn expand(
     root_assets: &FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>>,
     root_path: &FileSystemPath,
     expanded: Option<&ExpandedState>,
@@ -87,14 +86,11 @@ async fn expand(
     let mut queue: VecDeque<ResolvedVc<Box<dyn OutputAssetsReference>>> =
         VecDeque::with_capacity(32);
     let mut assets_set = FxHashSet::default();
-    let root_assets_with_path = root_assets
-        .iter()
-        .map(|&asset| async move {
-            let path = asset.path().await?;
-            Ok((path, asset))
-        })
-        .try_join()
-        .await?;
+    let mut root_assets_with_path = Vec::with_capacity(root_assets.len());
+    for &asset in root_assets.iter() {
+        let path = turbo_tasks::read!(asset.path())?;
+        root_assets_with_path.push((path, asset));
+    }
 
     if let Some(expanded) = &expanded {
         let expanded = expanded.get();
@@ -128,18 +124,18 @@ async fn expand(
     }
 
     while let Some(asset) = queue.pop_front() {
-        let refs = asset.references().await?;
-        for &reference in refs.references.await?.iter() {
+        let refs = turbo_tasks::read!(asset.references())?;
+        for &reference in turbo_tasks::read!(refs.references)?.iter() {
             queue.push_back(reference);
         }
-        let ref_assets = refs
-            .assets
-            .await?
+        let ref_assets = turbo_tasks::read!(refs
+            .assets)
+            ?
             .into_iter()
-            .chain(refs.referenced_assets.await?);
+            .chain(turbo_tasks::read!(refs.referenced_assets)?);
         for asset in ref_assets {
             if assets_set.insert(asset) {
-                let path = asset.path().await?;
+                let path = turbo_tasks::read!(asset.path())?;
                 if let Some(sub_path) = root_path.get_path_to(&path) {
                     let (sub_paths_buffer, sub_paths) = get_sub_paths(sub_path);
                     let expanded = if let Some(expanded) = &expanded {
@@ -174,6 +170,7 @@ async fn expand(
     }
     Ok(map)
 }
+}
 
 fn get_sub_paths(sub_path: &str) -> ([RcStr; 3], usize) {
     let sub_paths_buffer: [RcStr; 3];
@@ -202,11 +199,9 @@ fn all_assets_map_operation(source: ResolvedVc<AssetGraphContentSource>) -> Vc<O
 impl ContentSource for AssetGraphContentSource {
     #[turbo_tasks::function]
     async fn get_routes(self: ResolvedVc<Self>) -> Result<Vc<RouteTree>> {
-        let assets = all_assets_map_operation(self)
-            .read_strongly_consistent()
-            .await?;
+        let assets = turbo_tasks::read!(all_assets_map_operation(self).read_strongly_consistent())?;
         let mut paths = Vec::new();
-        let routes = assets
+        let route_vcs = assets
             .iter()
             .map(|(path, asset)| {
                 paths.push(path.as_str());
@@ -220,9 +215,25 @@ impl ContentSource for AssetGraphContentSource {
                     )),
                 )
             })
-            .map(|v| async move { v.to_resolved().await })
-            .try_join()
-            .await?;
+            .collect::<Vec<_>>();
+        // `.to_resolved()` futures cannot fan out through `parallel!` under sync; keep the
+        // concurrent `try_join` in the async build and resolve sequentially under sync.
+        #[cfg(not(feature = "sync"))]
+        let routes = {
+            route_vcs
+                .into_iter()
+                .map(|v| v.to_resolved())
+                .try_join()
+                .await?
+        };
+        #[cfg(feature = "sync")]
+        let routes = {
+            let mut routes = Vec::with_capacity(route_vcs.len());
+            for v in route_vcs {
+                routes.push(turbo_tasks::read!(v.to_resolved())?);
+            }
+            routes
+        };
         Ok(Vc::<RouteTrees>::cell(routes).merge())
     }
 }
@@ -258,7 +269,7 @@ impl GetContentSourceContent for AssetGraphGetContentSourceContent {
         _path: RcStr,
         _data: ContentSourceData,
     ) -> Result<Vc<ContentSourceContent>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         turbo_tasks::emit(ResolvedVc::upcast::<Box<dyn ContentSourceSideEffect>>(self));
         Ok(ContentSourceContent::static_content(
             this.asset.versioned_content(),
@@ -270,7 +281,7 @@ impl GetContentSourceContent for AssetGraphGetContentSourceContent {
 impl ContentSourceSideEffect for AssetGraphGetContentSourceContent {
     #[turbo_tasks::function]
     async fn apply(&self) -> Result<Vc<Completion>> {
-        let source = self.source.await?;
+        let source = turbo_tasks::read!(self.source)?;
 
         if let Some(expanded) = &source.expanded {
             expanded.update_conditionally(|expanded| expanded.insert(self.path.clone()));
@@ -288,7 +299,9 @@ impl Introspectable for AssetGraphContentSource {
 
     #[turbo_tasks::function]
     async fn title(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(self.root_path.to_string_ref().await?))
+        Ok(Vc::cell(turbo_tasks::read!(
+            self.root_path.to_string_ref()
+        )?))
     }
 
     #[turbo_tasks::function]
@@ -302,32 +315,61 @@ impl Introspectable for AssetGraphContentSource {
 
     #[turbo_tasks::function]
     async fn children(self: Vc<Self>) -> Result<Vc<IntrospectableChildren>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
 
-        let root_assets = this.root_assets.await?;
+        let root_assets = turbo_tasks::read!(this.root_assets)?;
+        // `.to_resolved()` futures cannot fan out through `parallel!` under sync; keep the
+        // concurrent `try_join` in the async build and resolve sequentially under sync.
+        #[cfg(not(feature = "sync"))]
         let root_asset_children = root_assets
             .iter()
             .map(|&asset| async move {
                 Ok((
                     rcstr!("root"),
-                    IntrospectableOutputAsset::new(*asset).to_resolved().await?,
+                    turbo_tasks::read!(IntrospectableOutputAsset::new(*asset).to_resolved())?,
                 ))
             })
             .try_join()
             .await?;
+        #[cfg(feature = "sync")]
+        let root_asset_children = {
+            let mut children = Vec::with_capacity(root_assets.len());
+            for &asset in root_assets.iter() {
+                children.push((
+                    rcstr!("root"),
+                    turbo_tasks::read!(IntrospectableOutputAsset::new(*asset).to_resolved())?,
+                ));
+            }
+            children
+        };
 
-        let expanded_assets = self.all_assets_map().await?;
+        let expanded_assets = turbo_tasks::read!(self.all_assets_map())?;
+        #[cfg(not(feature = "sync"))]
         let expanded_asset_children = expanded_assets
             .values()
             .filter(|&a| !root_assets.contains(a))
             .map(|&asset| async move {
                 Ok((
                     rcstr!("inner"),
-                    IntrospectableOutputAsset::new(*asset).to_resolved().await?,
+                    turbo_tasks::read!(IntrospectableOutputAsset::new(*asset).to_resolved())?,
                 ))
             })
             .try_join()
             .await?;
+        #[cfg(feature = "sync")]
+        let expanded_asset_children = {
+            let mut children = Vec::new();
+            for &asset in expanded_assets
+                .values()
+                .filter(|&a| !root_assets.contains(a))
+            {
+                children.push((
+                    rcstr!("inner"),
+                    turbo_tasks::read!(IntrospectableOutputAsset::new(*asset).to_resolved())?,
+                ));
+            }
+            children
+        };
 
         Ok(Vc::cell(
             root_asset_children
@@ -335,7 +377,9 @@ impl Introspectable for AssetGraphContentSource {
                 .chain(expanded_asset_children)
                 .chain(once((
                     rcstr!("expanded"),
-                    ResolvedVc::upcast(FullyExpanded(self.to_resolved().await?).resolved_cell()),
+                    ResolvedVc::upcast(
+                        FullyExpanded(turbo_tasks::read!(self.to_resolved())?).resolved_cell(),
+                    ),
                 )))
                 .collect(),
         ))
@@ -354,26 +398,46 @@ impl Introspectable for FullyExpanded {
 
     #[turbo_tasks::function]
     async fn title(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(self.0.await?.root_path.to_string_ref().await?))
+        Ok(Vc::cell(turbo_tasks::read!(
+            turbo_tasks::read!(self.0)?.root_path.to_string_ref()
+        )?))
     }
 
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
-        let source = self.0.await?;
+        let source = turbo_tasks::read!(self.0)?;
 
-        let expanded_assets = expand(&*source.root_assets.await?, &source.root_path, None).await?;
+        let expanded_assets = turbo_tasks::read!(expand(
+            &*turbo_tasks::read!(source.root_assets)?,
+            &source.root_path,
+            None
+        ))?;
+        // `.to_resolved()` futures cannot fan out through `parallel!` under sync; keep the
+        // concurrent `try_join` in the async build and resolve sequentially under sync.
+        #[cfg(not(feature = "sync"))]
         let children = expanded_assets
             .iter()
             .map(|(_k, &v)| async move {
                 Ok((
                     rcstr!("asset"),
-                    IntrospectableOutputAsset::new(*v).to_resolved().await?,
+                    turbo_tasks::read!(IntrospectableOutputAsset::new(*v).to_resolved())?,
                 ))
             })
             .try_join()
             .await?
             .into_iter()
             .collect();
+        #[cfg(feature = "sync")]
+        let children = {
+            let mut children = Vec::with_capacity(expanded_assets.len());
+            for (_k, &v) in expanded_assets.iter() {
+                children.push((
+                    rcstr!("asset"),
+                    turbo_tasks::read!(IntrospectableOutputAsset::new(*v).to_resolved())?,
+                ));
+            }
+            children.into_iter().collect()
+        };
 
         Ok(Vc::cell(children))
     }

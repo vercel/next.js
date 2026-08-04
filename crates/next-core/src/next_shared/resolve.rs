@@ -28,6 +28,7 @@ pub struct InvalidImportModuleIssue {
     pub skip_context_message: bool,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for InvalidImportModuleIssue {
@@ -69,6 +70,47 @@ impl Issue for InvalidImportModuleIssue {
     }
 }
 
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for InvalidImportModuleIssue {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Resolve
+    }
+
+    fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!("Invalid import")))
+    }
+
+    fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.file_path.clone())
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
+        let mut messages = self.messages.clone();
+        if !self.skip_context_message {
+            //[TODO]: how do we get the import trace?
+            messages.push(
+                format!(
+                    "The error was caused by importing '{}'",
+                    self.file_path.path
+                )
+                .into(),
+            );
+        }
+
+        Ok(Some(StyledString::Line(
+            messages
+                .iter()
+                .map(|v| StyledString::Text(format!("{v}\n").into()))
+                .collect::<Vec<StyledString>>(),
+        )))
+    }
+}
+
 #[turbo_tasks::value]
 pub(crate) struct NextExternalResolvePlugin {
     condition: ResolvedVc<AfterResolvePluginCondition>,
@@ -78,15 +120,16 @@ pub(crate) struct NextExternalResolvePlugin {
 impl NextExternalResolvePlugin {
     #[turbo_tasks::function]
     pub async fn new(project_path: FileSystemPath) -> Result<Vc<Self>> {
-        let condition = AfterResolvePluginCondition::new_with_glob(
-            project_path.root().owned().await?,
-            Glob::new(
-                rcstr!("**/next/dist/**/*.{external,runtime.dev,runtime.prod}.js"),
-                GlobOptions::default(),
-            ),
-        )
-        .to_resolved()
-        .await?;
+        let condition = turbo_tasks::read!(
+            AfterResolvePluginCondition::new_with_glob(
+                turbo_tasks::read!(project_path.root().owned())?,
+                Glob::new(
+                    rcstr!("**/next/dist/**/*.{external,runtime.dev,runtime.prod}.js"),
+                    GlobOptions::default(),
+                ),
+            )
+            .to_resolved()
+        )?;
         Ok(NextExternalResolvePlugin { condition }.cell())
     }
 }
@@ -138,15 +181,16 @@ impl NextNodeSharedRuntimeResolvePlugin {
         root: FileSystemPath,
         server_context_type: ServerContextType,
     ) -> Result<Vc<Self>> {
-        let condition = AfterResolvePluginCondition::new_with_glob(
-            root.root().owned().await?,
-            Glob::new(
-                rcstr!("**/next/dist/**/*.shared-runtime.js"),
-                GlobOptions::default(),
-            ),
-        )
-        .to_resolved()
-        .await?;
+        let condition = turbo_tasks::read!(
+            AfterResolvePluginCondition::new_with_glob(
+                turbo_tasks::read!(root.root().owned())?,
+                Glob::new(
+                    rcstr!("**/next/dist/**/*.shared-runtime.js"),
+                    GlobOptions::default(),
+                ),
+            )
+            .to_resolved()
+        )?;
         Ok(NextNodeSharedRuntimeResolvePlugin {
             server_context_type,
             condition,
@@ -193,15 +237,13 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
 
         let (base, _) = path.split_at(starting_index);
 
-        let new_path = fs_path
-            .root()
-            .await?
-            .join(&format!("{base}/{resource_request}"))?;
+        let new_path =
+            turbo_tasks::read!(fs_path.root())?.join(&format!("{base}/{resource_request}"))?;
 
         Ok(Vc::cell(Some(
-            ResolveResult::source(ResolvedVc::upcast(
-                FileSource::new(new_path).to_resolved().await?,
-            ))
+            ResolveResult::source(ResolvedVc::upcast(turbo_tasks::read!(
+                FileSource::new(new_path).to_resolved()
+            )?))
             .resolved_cell(),
         )))
     }
@@ -216,15 +258,16 @@ pub(crate) struct NextSharedRuntimeResolvePlugin {
 impl NextSharedRuntimeResolvePlugin {
     #[turbo_tasks::function]
     pub async fn new(root: FileSystemPath) -> Result<Vc<Self>> {
-        let condition = AfterResolvePluginCondition::new_with_glob(
-            root.root().owned().await?,
-            Glob::new(
-                rcstr!("**/next/dist/esm/**/*.shared-runtime.js"),
-                GlobOptions::default(),
-            ),
-        )
-        .to_resolved()
-        .await?;
+        let condition = turbo_tasks::read!(
+            AfterResolvePluginCondition::new_with_glob(
+                turbo_tasks::read!(root.root().owned())?,
+                Glob::new(
+                    rcstr!("**/next/dist/esm/**/*.shared-runtime.js"),
+                    GlobOptions::default(),
+                ),
+            )
+            .to_resolved()
+        )?;
         Ok(NextSharedRuntimeResolvePlugin { condition }.cell())
     }
 }
@@ -245,11 +288,11 @@ impl AfterResolvePlugin for NextSharedRuntimeResolvePlugin {
     ) -> Result<Vc<ResolveResultOption>> {
         let raw_fs_path = fs_path.clone();
         let modified_path = raw_fs_path.path.replace("next/dist/esm/", "next/dist/");
-        let new_path = fs_path.root().await?.join(&modified_path)?;
+        let new_path = turbo_tasks::read!(fs_path.root())?.join(&modified_path)?;
         Ok(Vc::cell(Some(
-            ResolveResult::source(ResolvedVc::upcast(
-                FileSource::new(new_path).to_resolved().await?,
-            ))
+            ResolveResult::source(ResolvedVc::upcast(turbo_tasks::read!(
+                FileSource::new(new_path).to_resolved()
+            )?))
             .resolved_cell(),
         )))
     }

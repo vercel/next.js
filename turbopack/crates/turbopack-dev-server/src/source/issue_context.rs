@@ -38,7 +38,7 @@ impl IssueFilePathContentSource {
 impl ContentSource for IssueFilePathContentSource {
     #[turbo_tasks::function]
     async fn get_routes(self: ResolvedVc<Self>) -> Result<Vc<RouteTree>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         let routes = this.source.get_routes();
         Ok(routes.map_routes(Vc::upcast(
             IssueContextContentSourceMapper { source: self }.cell(),
@@ -109,7 +109,7 @@ impl Introspectable for IssueFilePathContentSource {
     async fn title(&self) -> Result<Vc<RcStr>> {
         Ok(
             if let Some(source) = ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.source) {
-                let title = source.title().await?;
+                let title = turbo_tasks::read!(source.title())?;
                 Vc::cell(format!("{}: {}", self.description, title).into())
             } else {
                 Vc::cell(self.description.clone())

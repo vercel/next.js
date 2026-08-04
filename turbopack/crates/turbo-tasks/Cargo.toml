@@ -9,8 +9,19 @@ edition = "2024"
 bench = false
 
 [features]
-default = []
-tokio_tracing = ["tokio/tracing"]
+default = ["tokio_runtime"]
+# The async execution runtime (tokio + the scheduler/spawn machinery). On by
+# default. The `sync` (inline-compute) engine does not use it; build a tokio-free
+# sync-only crate with `--no-default-features --features sync`.
+tokio_runtime = ["dep:tokio", "dep:tokio-util"]
+# Dual-mode migration (see DESIGN): compile task bodies synchronously instead of
+# async. Forwards to the proc-macro crate so `#[turbo_tasks::function]` and the
+# `read!`/`parallel!` macros all flip together. Off by default (= async mode).
+sync = ["turbo-tasks-macros/sync", "dep:turbo-tasks-parallel"]
+# Turn on the sync scheduler's deadlock-state watchdog/dump (see `tt_parallel`'s
+# `instrument` feature). Diagnostic only; off by default. Implies `sync`.
+sync_instrument = ["sync", "turbo-tasks-parallel/instrument"]
+tokio_tracing = ["tokio_runtime", "tokio/tracing"]
 hanging_detection = []
 task_id_details = []
 task_dirty_cause = []
@@ -38,6 +49,8 @@ indexmap = { workspace = true, features = ["serde"] }
 parking_lot = { workspace = true, features = ["serde"]}
 pin-project-lite = { workspace = true }
 rayon = { workspace = true }
+# The standalone sync work-stealing scheduler (only used by the `sync` engine).
+turbo-tasks-parallel = { path = "../turbo-tasks-parallel", optional = true }
 regex = { workspace = true }
 rustc-hash = { workspace = true }
 scattered-collect = { workspace = true }
@@ -46,8 +59,8 @@ serde_json = { workspace = true }
 shrink-to-fit = { workspace = true, features = ["indexmap", "serde_json", "smallvec", "nightly"] }
 smallvec = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true, features = ["full"] }
-tokio-util = { workspace = true }
+tokio = { workspace = true, features = ["full"], optional = true }
+tokio-util = { workspace = true, optional = true }
 tracing = { workspace = true }
 triomphe = { workspace = true, features = ["unsize", "unstable"] }
 turbo-bincode = { workspace = true }

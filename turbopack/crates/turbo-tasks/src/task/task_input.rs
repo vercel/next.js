@@ -30,14 +30,72 @@ use crate::{
     trace::TraceRawVcs,
 };
 
+/// Dual-mode recursive input resolution: `EXPR.resolve_input().await?` in async mode,
+/// direct `EXPR.resolve_input()?` in the no-async sync engine.
+#[cfg(not(feature = "sync"))]
+macro_rules! resolve_in {
+    ($e:expr) => {
+        $e.resolve_input().await?
+    };
+}
+#[cfg(feature = "sync")]
+macro_rules! resolve_in {
+    ($e:expr) => {
+        $e.resolve_input()?
+    };
+}
+
+/// Like [`resolve_in!`] but boxes the recursive future in async mode (needed for
+/// single-field recursive types like `Box`/`Arc`/`ReadRef` to keep the async state
+/// machine finite-sized). The sync engine has no future, so it is a direct call.
+#[cfg(not(feature = "sync"))]
+macro_rules! resolve_in_boxed {
+    ($e:expr) => {
+        ::std::boxed::Box::pin($e.resolve_input()).await?
+    };
+}
+#[cfg(feature = "sync")]
+macro_rules! resolve_in_boxed {
+    ($e:expr) => {
+        $e.resolve_input()?
+    };
+}
+
+/// Emit the mode-appropriate `resolve_input` method with a shared body: an `async fn`
+/// in async mode, a plain `fn` returning `Result<Self>` in the no-async sync engine.
+/// The body should use [`resolve_in!`]/[`resolve_in_boxed!`] for nested resolution.
+// The receiver is threaded through as a caller-provided ident (`|this|`) rather than
+// using `self` directly: a macro cannot emit a method whose `&self` binds a `self`
+// token that originates in the caller's `$body` (macro hygiene keeps them distinct).
+#[cfg(not(feature = "sync"))]
+macro_rules! resolve_input_fn {
+    (|$this:ident| $body:block) => {
+        async fn resolve_input(&self) -> Result<Self> {
+            let $this = self;
+            $body
+        }
+    };
+}
+#[cfg(feature = "sync")]
+macro_rules! resolve_input_fn {
+    (|$this:ident| $body:block) => {
+        fn resolve_input(&self) -> Result<Self> {
+            let $this = self;
+            $body
+        }
+    };
+}
+
 /// An 8-byte hand-rolled [`Future`] that immediately resolves to `Ok(self.clone())` of the
 /// referenced value.
 ///
-/// Used by the [`TaskInput::resolve_input`] default implementation
+/// Used by the async [`TaskInput::resolve_input`] default implementation.
+#[cfg(not(feature = "sync"))]
 struct CloneReady<'a, T> {
     pub inner: Option<&'a T>,
 }
 
+#[cfg(not(feature = "sync"))]
 impl<'a, T: Clone> Future for CloneReady<'a, T> {
     type Output = Result<T>;
 
@@ -51,6 +109,7 @@ impl<'a, T: Clone> Future for CloneReady<'a, T> {
 }
 
 // `CloneReady` holds only a shared reference; it has no self-referential state.
+#[cfg(not(feature = "sync"))]
 impl<'a, T> Unpin for CloneReady<'a, T> {}
 
 /// Trait to implement in order for a type to be accepted as a
@@ -111,8 +170,16 @@ pub trait TaskInput:
     /// This method should resolve any [`Vc`]s nested inside of this object, cloning the object in
     /// the process. If the input is unresolved ([`TaskInput::is_resolved`]) a "local" resolution
     /// task is created that runs this method.
+    #[cfg(not(feature = "sync"))]
     fn resolve_input(&self) -> impl Future<Output = Result<Self>> + Send + '_ {
         CloneReady { inner: Some(self) }
+    }
+
+    /// This method should resolve any [`Vc`]s nested inside of this object, cloning the object in
+    /// the process. Sync engine: no `Vc` to await, so this just clones.
+    #[cfg(feature = "sync")]
+    fn resolve_input(&self) -> Result<Self> {
+        Ok(self.clone())
     }
 
     /// This should return `true` if there are any unresolved [`Vc`]s in the type.
@@ -184,13 +251,13 @@ where
         self.iter().any(TaskInput::is_transient)
     }
 
-    async fn resolve_input(&self) -> Result<Self> {
-        let mut resolved = Vec::with_capacity(self.len());
-        for value in self {
-            resolved.push(value.resolve_input().await?);
+    resolve_input_fn!(|this| {
+        let mut resolved = Vec::with_capacity(this.len());
+        for value in this {
+            resolved.push(resolve_in!(value));
         }
         Ok(resolved)
-    }
+    });
 }
 
 impl<T> TaskInput for Box<T>
@@ -205,9 +272,7 @@ where
         self.as_ref().is_transient()
     }
 
-    async fn resolve_input(&self) -> Result<Self> {
-        Ok(Box::new(Box::pin(self.as_ref().resolve_input()).await?))
-    }
+    resolve_input_fn!(|this| { Ok(Box::new(resolve_in_boxed!(this.as_ref()))) });
 }
 
 impl<T> TaskInput for Arc<T>
@@ -222,9 +287,7 @@ where
         self.as_ref().is_transient()
     }
 
-    async fn resolve_input(&self) -> Result<Self> {
-        Ok(Arc::new(Box::pin(self.as_ref().resolve_input()).await?))
-    }
+    resolve_input_fn!(|this| { Ok(Arc::new(resolve_in_boxed!(this.as_ref()))) });
 }
 
 impl<T> TaskInput for ReadRef<T>
@@ -239,11 +302,11 @@ where
         Self::as_raw_ref(self).is_transient()
     }
 
-    async fn resolve_input(&self) -> Result<Self> {
-        Ok(ReadRef::new_owned(
-            Box::pin(Self::as_raw_ref(self).resolve_input()).await?,
-        ))
-    }
+    resolve_input_fn!(|this| {
+        Ok(ReadRef::new_owned(resolve_in_boxed!(Self::as_raw_ref(
+            this
+        ))))
+    });
 }
 
 impl<T> TaskInput for Option<T>
@@ -264,12 +327,12 @@ where
         }
     }
 
-    async fn resolve_input(&self) -> Result<Self> {
-        match self {
-            Some(value) => Ok(Some(value.resolve_input().await?)),
+    resolve_input_fn!(|this| {
+        match this {
+            Some(value) => Ok(Some(resolve_in!(value))),
             None => Ok(None),
         }
-    }
+    });
 }
 
 impl<T> TaskInput for Vc<T>
@@ -284,10 +347,16 @@ where
         self.node.is_transient()
     }
 
+    // It isn't ideal to use this function but it exactly matches this usecase (resolved but
+    // still a Vc)
+    #[cfg(not(feature = "sync"))]
     fn resolve_input(&self) -> impl Future<Output = Result<Self>> + Send + '_ {
-        // It isn't ideal to use this function but it exactly matches this usecase (resolved but
-        // still a Vc)
         (*self).resolve()
+    }
+
+    #[cfg(feature = "sync")]
+    fn resolve_input(&self) -> Result<Self> {
+        (*self).resolve().resolve_sync()
     }
 }
 
@@ -366,16 +435,13 @@ where
     K: TaskInput + Ord,
     V: TaskInput,
 {
-    async fn resolve_input(&self) -> Result<Self> {
+    resolve_input_fn!(|this| {
         let mut new_map = BTreeMap::new();
-        for (k, v) in self {
-            new_map.insert(
-                TaskInput::resolve_input(k).await?,
-                TaskInput::resolve_input(v).await?,
-            );
+        for (k, v) in this {
+            new_map.insert(resolve_in!(k), resolve_in!(v));
         }
         Ok(new_map)
-    }
+    });
 
     fn is_resolved(&self) -> bool {
         self.iter()
@@ -392,13 +458,13 @@ impl<T> TaskInput for BTreeSet<T>
 where
     T: TaskInput + Ord,
 {
-    async fn resolve_input(&self) -> Result<Self> {
+    resolve_input_fn!(|this| {
         let mut new_set = BTreeSet::new();
-        for value in self {
-            new_set.insert(TaskInput::resolve_input(value).await?);
+        for value in this {
+            new_set.insert(resolve_in!(value));
         }
         Ok(new_set)
-    }
+    });
 
     fn is_resolved(&self) -> bool {
         self.iter().all(TaskInput::is_resolved)
@@ -414,17 +480,14 @@ where
     K: TaskInput + Ord + 'static,
     V: TaskInput + 'static,
 {
-    async fn resolve_input(&self) -> Result<Self> {
-        let mut new_entries = Vec::with_capacity(self.len());
-        for (k, v) in self {
-            new_entries.push((
-                TaskInput::resolve_input(k).await?,
-                TaskInput::resolve_input(v).await?,
-            ));
+    resolve_input_fn!(|this| {
+        let mut new_entries = Vec::with_capacity(this.len());
+        for (k, v) in this {
+            new_entries.push((resolve_in!(k), resolve_in!(v)));
         }
         // note: resolving might deduplicate `Vc`s in keys
         Ok(Self::from(new_entries))
-    }
+    });
 
     fn is_resolved(&self) -> bool {
         self.iter()
@@ -441,13 +504,13 @@ impl<T> TaskInput for FrozenSet<T>
 where
     T: TaskInput + Ord + 'static,
 {
-    async fn resolve_input(&self) -> Result<Self> {
-        let mut new_set = Vec::with_capacity(self.len());
-        for value in self {
-            new_set.push(TaskInput::resolve_input(value).await?);
+    resolve_input_fn!(|this| {
+        let mut new_set = Vec::with_capacity(this.len());
+        for value in this {
+            new_set.push(resolve_in!(value));
         }
         Ok(Self::from_iter(new_set))
-    }
+    });
 
     fn is_resolved(&self) -> bool {
         self.iter().all(TaskInput::is_resolved)
@@ -502,11 +565,20 @@ where
     L: TaskInput,
     R: TaskInput,
 {
+    #[cfg(not(feature = "sync"))]
     fn resolve_input(&self) -> impl Future<Output = Result<Self>> + Send + '_ {
         self.as_ref().map_either(
             |l| async move { anyhow::Ok(Self(Either::Left(l.resolve_input().await?))) },
             |r| async move { anyhow::Ok(Self(Either::Right(r.resolve_input().await?))) },
         )
+    }
+
+    #[cfg(feature = "sync")]
+    fn resolve_input(&self) -> Result<Self> {
+        Ok(match self.as_ref() {
+            Either::Left(l) => Self(Either::Left(resolve_in!(l))),
+            Either::Right(r) => Self(Either::Right(resolve_in!(r))),
+        })
     }
 
     fn is_resolved(&self) -> bool {
@@ -538,10 +610,10 @@ macro_rules! tuple_impls {
             }
 
             #[allow(non_snake_case)]
-            async fn resolve_input(&self) -> Result<Self> {
-                let ($($name,)+) = self;
-                Ok(($($name.resolve_input().await?,)+))
-            }
+            resolve_input_fn!(|this| {
+                let ($($name,)+) = this;
+                Ok(($(resolve_in!($name),)+))
+            });
         }
     };
 }

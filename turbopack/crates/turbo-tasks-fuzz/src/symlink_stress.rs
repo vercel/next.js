@@ -35,8 +35,8 @@ pub struct SymlinkStress {
 
 #[turbo_tasks::function(operation, root)]
 async fn extract_effects_operation(op: OperationVc<()>) -> anyhow::Result<Vc<Effects>> {
-    let _ = op.resolve().strongly_consistent().await?;
-    Ok(take_effects(op).await?.cell())
+    let _ = turbo_tasks::read!(op.resolve().strongly_consistent())?;
+    Ok(turbo_tasks::read!(take_effects(op))?.cell())
 }
 
 pub async fn run(args: SymlinkStress) -> anyhow::Result<()> {
@@ -67,17 +67,20 @@ pub async fn run(args: SymlinkStress) -> anyhow::Result<()> {
     let parallelism = args.parallelism;
     let duration = Duration::from_secs(args.duration_secs);
 
-    tt.run_once(async move {
-        let project_fs = disk_file_system_operation(RcStr::from(fs_root.to_str().unwrap()))
-            .resolve()
-            .strongly_consistent()
-            .await?;
-        let project_root = disk_file_system_root_operation(project_fs)
-            .resolve()
-            .strongly_consistent()
-            .await?
+    turbo_tasks::read!(tt.run_once(async move {
+        let project_fs = turbo_tasks::read!(
+            disk_file_system_operation(RcStr::from(fs_root.to_str().unwrap()))
+                .resolve()
+                .strongly_consistent()
+        )?;
+        let project_root = turbo_tasks::read!(
+            turbo_tasks::read!(
+                disk_file_system_root_operation(project_fs)
+                    .resolve()
+                    .strongly_consistent()
+            )?
             .owned()
-            .await?;
+        )?;
 
         // Create initial symlinks via turbo-tasks, all pointing to target 0
         let symlinks_path = project_root.join("_symlinks")?;
@@ -85,15 +88,14 @@ pub async fn run(args: SymlinkStress) -> anyhow::Result<()> {
 
         println!("creating {symlink_count} initial symlinks...");
 
-        read_strongly_consistent_and_apply_effects(
+        turbo_tasks::read!(read_strongly_consistent_and_apply_effects(
             extract_effects_operation(create_initial_symlinks_operation(
                 symlinks_path.clone(),
                 symlink_count,
                 initial_target,
             )),
             |e| e,
-        )
-        .await?;
+        ))?;
 
         println!(
             "starting stress test with parallelism={} for {}s...",
@@ -123,14 +125,13 @@ pub async fn run(args: SymlinkStress) -> anyhow::Result<()> {
                 .collect();
 
             // Execute writes in parallel via turbo-tasks
-            read_strongly_consistent_and_apply_effects(
+            turbo_tasks::read!(read_strongly_consistent_and_apply_effects(
                 extract_effects_operation(write_symlinks_batch_operation(
                     symlinks_path.clone(),
                     updates,
                 )),
                 |e| e,
-            )
-            .await?;
+            ))?;
 
             total_writes += parallelism as u64;
 
@@ -162,10 +163,9 @@ pub async fn run(args: SymlinkStress) -> anyhow::Result<()> {
         );
 
         Ok(())
-    })
-    .await?;
+    }))?;
 
-    tt.stop_and_wait().await;
+    turbo_tasks::read!(tt.stop_and_wait());
     Ok(())
 }
 
@@ -185,10 +185,11 @@ async fn create_initial_symlinks_operation(
     count: usize,
     target: RcStr,
 ) -> anyhow::Result<()> {
-    (0..count)
-        .map(|i| write_symlink(symlinks_dir.clone(), i, target.clone()))
-        .try_join()
-        .await?;
+    turbo_tasks::read!(
+        (0..count)
+            .map(|i| write_symlink(symlinks_dir.clone(), i, target.clone()))
+            .try_join()
+    )?;
     Ok(())
 }
 
@@ -197,14 +198,15 @@ async fn write_symlinks_batch_operation(
     symlinks_dir: FileSystemPath,
     updates: Vec<(usize, usize)>,
 ) -> anyhow::Result<()> {
-    updates
-        .into_iter()
-        .map(|(symlink_idx, target_idx)| {
-            let target = RcStr::from(format!("../_targets/{}", target_idx));
-            write_symlink(symlinks_dir.clone(), symlink_idx, target)
-        })
-        .try_join()
-        .await?;
+    turbo_tasks::read!(
+        updates
+            .into_iter()
+            .map(|(symlink_idx, target_idx)| {
+                let target = RcStr::from(format!("../_targets/{}", target_idx));
+                write_symlink(symlinks_dir.clone(), symlink_idx, target)
+            })
+            .try_join()
+    )?;
     Ok(())
 }
 
@@ -219,10 +221,11 @@ async fn write_symlink(
         target,
         link_type: LinkType::DIRECTORY,
     };
-    symlink_path
-        .fs()
-        .write_link(symlink_path.clone(), link_content.cell())
-        .await?;
+    turbo_tasks::read!(
+        symlink_path
+            .fs()
+            .write_link(symlink_path.clone(), link_content.cell())
+    )?;
     Ok(())
 }
 

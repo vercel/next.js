@@ -9,14 +9,16 @@ use turbopack_ecmascript::{CustomTransformer, TransformContext, TransformPlugin}
 use super::get_ecma_transform_rule;
 use crate::next_shared::transforms::EcmascriptTransformStage;
 
-pub async fn get_next_track_dynamic_imports_transform_rule(mdx_rs: bool) -> Result<ModuleRule> {
+turbo_tasks::dual_fn! {
+pub fn get_next_track_dynamic_imports_transform_rule(mdx_rs: bool) -> Result<ModuleRule> {
     Ok(get_ecma_transform_rule(
-        next_track_dynamic_imports_transform_plugin()
-            .to_resolved()
-            .await?,
+        turbo_tasks::read!(next_track_dynamic_imports_transform_plugin()
+            .to_resolved())
+            ?,
         mdx_rs,
         EcmascriptTransformStage::Postprocess,
     ))
+}
 }
 
 #[turbo_tasks::function]
@@ -27,10 +29,23 @@ fn next_track_dynamic_imports_transform_plugin() -> Vc<TransformPlugin> {
 #[derive(Debug)]
 struct NextTrackDynamicImports {}
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 impl CustomTransformer for NextTrackDynamicImports {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "next_track_dynamic_imports", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+        program.mutate(track_dynamic_imports(
+            ctx.unresolved_mark,
+            ctx.comments.clone(),
+        ));
+        Ok(())
+    }
+}
+
+#[cfg(feature = "sync")]
+impl CustomTransformer for NextTrackDynamicImports {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "next_track_dynamic_imports", skip_all)]
+    fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         program.mutate(track_dynamic_imports(
             ctx.unresolved_mark,
             ctx.comments.clone(),

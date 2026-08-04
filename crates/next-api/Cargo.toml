@@ -10,9 +10,11 @@ autobenches = false
 bench = false
 
 [features]
-default = ["process_pool"]
+default = ["tokio_runtime", "process_pool"]
 process_pool = ["next-core/process_pool", "turbopack-node/process_pool"]
 worker_pool = ["next-core/worker_pool", "turbopack-node/worker_pool"]
+tokio_runtime = ["next-core/tokio_runtime", "turbo-tasks/tokio_runtime", "turbo-tasks-backend/tokio_runtime", "turbo-tasks-env/tokio_runtime", "turbo-tasks-fs/tokio_runtime", "turbopack/tokio_runtime", "turbopack-analyze/tokio_runtime", "turbopack-browser/tokio_runtime", "turbopack-core/tokio_runtime", "turbopack-css/tokio_runtime", "turbopack-ecmascript/tokio_runtime", "turbopack-node/tokio_runtime", "turbopack-nodejs/tokio_runtime", "turbopack-resolve/tokio_runtime", "turbopack-wasm/tokio_runtime"]
+sync = ["next-core/sync", "turbo-tasks/sync", "turbo-tasks-backend/sync", "turbo-tasks-env/sync", "turbo-tasks-fs/sync", "turbopack/sync", "turbopack-analyze/sync", "turbopack-browser/sync", "turbopack-core/sync", "turbopack-css/sync", "turbopack-ecmascript/sync", "turbopack-node/sync", "turbopack-nodejs/sync", "turbopack-resolve/sync", "turbopack-wasm/sync"]
 
 [lints]
 workspace = true
@@ -25,7 +27,7 @@ byteorder = { workspace = true }
 either = { workspace = true }
 futures = { workspace = true }
 indexmap = { workspace = true }
-next-core = { workspace = true }
+next-core = { path = "../next-core", default-features = false }
 regex = { workspace = true }
 roaring = { workspace = true }
 rustc-hash = { workspace = true }
@@ -35,27 +37,27 @@ swc_core = { workspace = true }
 tracing = { workspace = true }
 turbo-bincode = { workspace = true }
 turbo-rcstr = { workspace = true }
-turbo-tasks = { workspace = true }
+turbo-tasks = { path = "../../turbopack/crates/turbo-tasks", default-features = false }
 turbo-tasks-hash = { workspace = true }
-turbo-tasks-env = { workspace = true }
-turbo-tasks-fs = { workspace = true }
+turbo-tasks-env = { path = "../../turbopack/crates/turbo-tasks-env", default-features = false }
+turbo-tasks-fs = { path = "../../turbopack/crates/turbo-tasks-fs", default-features = false }
 turbo-unix-path = { workspace = true }
-turbopack = { workspace = true }
-turbopack-analyze = { workspace = true }
-turbopack-browser = { workspace = true }
-turbopack-core = { workspace = true }
-turbopack-css = { workspace = true }
-turbopack-ecmascript = { workspace = true }
-turbopack-node = { workspace = true, default-features = false }
-turbopack-nodejs = { workspace = true }
-turbopack-resolve = { workspace = true }
-turbopack-wasm = { workspace = true }
+turbopack = { path = "../../turbopack/crates/turbopack", default-features = false }
+turbopack-analyze = { path = "../../turbopack/crates/turbopack-analyze", default-features = false }
+turbopack-browser = { path = "../../turbopack/crates/turbopack-browser", default-features = false }
+turbopack-core = { path = "../../turbopack/crates/turbopack-core", default-features = false }
+turbopack-css = { path = "../../turbopack/crates/turbopack-css", default-features = false }
+turbopack-ecmascript = { path = "../../turbopack/crates/turbopack-ecmascript", default-features = false }
+turbopack-node = { path = "../../turbopack/crates/turbopack-node", default-features = false }
+turbopack-nodejs = { path = "../../turbopack/crates/turbopack-nodejs", default-features = false }
+turbopack-resolve = { path = "../../turbopack/crates/turbopack-resolve", default-features = false }
+turbopack-wasm = { path = "../../turbopack/crates/turbopack-wasm", default-features = false }
 urlencoding = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
 tempfile = { workspace = true }
-turbo-tasks-backend = { workspace = true }
+turbo-tasks-backend = { path = "../../turbopack/crates/turbo-tasks-backend", default-features = false }
 
 [build-dependencies]
 anyhow = { workspace = true }

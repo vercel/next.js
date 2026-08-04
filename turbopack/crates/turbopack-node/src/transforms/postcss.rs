@@ -4,8 +4,7 @@ use indoc::formatdoc;
 use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, Completions, ResolvedVc, TryFlatJoinIterExt, Vc, fxindexmap, trace::TraceRawVcs,
-    turbofmt,
+    Completion, Completions, ResolvedVc, Vc, fxindexmap, trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::{
     File, FileContent, FileSystemEntryType, FileSystemPath, json::parse_json_with_source_context,
@@ -176,7 +175,7 @@ impl Source for PostCssTransformedAsset {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<Vc<RcStr>> {
-        let inner = self.source.description().await?;
+        let inner = turbo_tasks::read!(self.source.description())?;
         Ok(Vc::cell(format!("PostCSS transform of {}", inner).into()))
     }
 }
@@ -185,7 +184,7 @@ impl Source for PostCssTransformedAsset {
 impl Asset for PostCssTransformedAsset {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
-        Ok(*self.process().await?.content)
+        Ok(*turbo_tasks::read!(self.process())?.content)
     }
 }
 
@@ -203,17 +202,15 @@ async fn config_changed(
     let config_asset = asset_context
         .process(
             Vc::upcast(FileSource::new(postcss_config_path.clone())),
-            ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
+            ReferenceType::Internal(turbo_tasks::read!(InnerAssets::empty().to_resolved())?),
         )
         .module();
 
     Ok(Vc::<Completions>::cell(vec![
-        any_source_content_changed_of_module(config_asset)
-            .to_resolved()
-            .await?,
-        extra_configs_changed(asset_context, postcss_config_path)
-            .to_resolved()
-            .await?,
+        turbo_tasks::read!(any_source_content_changed_of_module(config_asset).to_resolved())?,
+        turbo_tasks::read!(
+            extra_configs_changed(asset_context, postcss_config_path).to_resolved()
+        )?,
     ])
     .completed())
 }
@@ -231,33 +228,27 @@ async fn extra_configs_changed(
         parent_path.join("tailwind.config.ts")?,
     ];
 
-    let configs = config_paths
-        .into_iter()
-        .map(|path| async move {
-            Ok(
-                if matches!(&*path.get_type().await?, FileSystemEntryType::File) {
-                    match *asset_context
-                        .process(
-                            Vc::upcast(FileSource::new(path)),
-                            ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
-                        )
-                        .try_into_module()
-                        .await?
-                    {
-                        Some(module) => Some(
-                            any_source_content_changed_of_module(*module)
-                                .to_resolved()
-                                .await?,
-                        ),
-                        None => None,
-                    }
-                } else {
-                    None
-                },
-            )
-        })
-        .try_flat_join()
-        .await?;
+    // Only a handful of candidate paths — check them sequentially in both modes.
+    let mut configs = Vec::new();
+    for path in config_paths {
+        if matches!(
+            &*turbo_tasks::read!(path.get_type())?,
+            FileSystemEntryType::File
+        ) && let Some(module) = *turbo_tasks::read!(
+            asset_context
+                .process(
+                    Vc::upcast(FileSource::new(path)),
+                    ReferenceType::Internal(turbo_tasks::read!(
+                        InnerAssets::empty().to_resolved()
+                    )?),
+                )
+                .try_into_module()
+        )? {
+            configs.push(turbo_tasks::read!(
+                any_source_content_changed_of_module(*module).to_resolved()
+            )?);
+        }
+    }
 
     Ok(Vc::<Completions>::cell(configs).completed())
 }
@@ -295,7 +286,7 @@ impl Source for JsonSource {
 
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        match &*self.key.await? {
+        match &*turbo_tasks::read!(self.key)? {
             Some(key) => Ok(AssetIdent::from_path(
                 self.path.append(".")?.append(key)?.append(".json")?,
             )
@@ -309,15 +300,15 @@ impl Source for JsonSource {
 impl Asset for JsonSource {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
-        let file_type = &*self.path.get_type().await?;
+        let file_type = &*turbo_tasks::read!(self.path.get_type())?;
         match file_type {
             FileSystemEntryType::File => {
                 let json = if self.allow_json5 {
-                    self.path.read_json5().content().await?
+                    turbo_tasks::read!(self.path.read_json5().content())?
                 } else {
-                    self.path.read_json().content().await?
+                    turbo_tasks::read!(self.path.read_json().content())?
                 };
-                let value = match &*self.key.await? {
+                let value = match &*turbo_tasks::read!(self.key)? {
                     Some(key) => {
                         let Some(value) = json.get(&**key) else {
                             anyhow::bail!("Invalid file type {:?}", file_type)
@@ -401,21 +392,20 @@ async fn postcss_executor(
     project_path: FileSystemPath,
     postcss_config_path: FileSystemPath,
 ) -> Result<Vc<ProcessResult>> {
-    let config_asset = asset_context
-        .process(
-            config_loader_source(project_path, postcss_config_path.clone()),
-            ReferenceType::Entry(EntryReferenceSubType::Undefined),
-        )
-        .module()
-        .to_resolved()
-        .await?;
+    let config_asset = turbo_tasks::read!(
+        asset_context
+            .process(
+                config_loader_source(project_path, postcss_config_path.clone()),
+                ReferenceType::Entry(EntryReferenceSubType::Undefined),
+            )
+            .module()
+            .to_resolved()
+    )?;
 
     Ok(asset_context.process(
         Vc::upcast(FileSource::new_with_query(
-            embed_file_path(rcstr!("transforms/postcss.ts"))
-                .owned()
-                .await?,
-            turbofmt!("?config={postcss_config_path}").await?,
+            turbo_tasks::read!(embed_file_path(rcstr!("transforms/postcss.ts")).owned())?,
+            turbo_tasks::read!(turbofmt!("?config={postcss_config_path}"))?,
         )),
         ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
             rcstr!("CONFIG") => config_asset
@@ -423,36 +413,44 @@ async fn postcss_executor(
     ))
 }
 
-async fn find_config_in_location(
-    project_path: FileSystemPath,
-    location: PostCssConfigLocation,
-    source: Vc<Box<dyn Source>>,
-) -> Result<Option<FileSystemPath>> {
-    // Build an ordered list of directories to search based on the location strategy.
-    let search_paths = match location {
-        // Only check project root (used for foreign/node_modules code).
-        PostCssConfigLocation::ProjectPath => {
-            vec![project_path]
-        }
-        // Check project root first, fall back to the CSS file's directory.
-        PostCssConfigLocation::ProjectPathOrLocalPath => {
-            vec![project_path, source.ident().await?.path.parent()]
-        }
-        // Check the CSS file's directory first, fall back to the project root.
-        PostCssConfigLocation::LocalPathOrProjectPath => {
-            vec![source.ident().await?.path.parent(), project_path]
-        }
-    };
+turbo_tasks::dual_fn! {
+    fn find_config_in_location(
+        project_path: FileSystemPath,
+        location: PostCssConfigLocation,
+        source: Vc<Box<dyn Source>>,
+    ) -> Result<Option<FileSystemPath>> {
+        // Build an ordered list of directories to search based on the location strategy.
+        let search_paths = match location {
+            // Only check project root (used for foreign/node_modules code).
+            PostCssConfigLocation::ProjectPath => {
+                vec![project_path]
+            }
+            // Check project root first, fall back to the CSS file's directory.
+            PostCssConfigLocation::ProjectPathOrLocalPath => {
+                vec![
+                    project_path,
+                    turbo_tasks::read!(source.ident())?.path.parent(),
+                ]
+            }
+            // Check the CSS file's directory first, fall back to the project root.
+            PostCssConfigLocation::LocalPathOrProjectPath => {
+                vec![
+                    turbo_tasks::read!(source.ident())?.path.parent(),
+                    project_path,
+                ]
+            }
+        };
 
-    for path in search_paths {
-        if let FindContextFileResult::Found(config_path, _) =
-            &*find_context_file_or_package_key(path, postcss_configs(), rcstr!("postcss")).await?
-        {
-            return Ok(Some(config_path.clone()));
+        for path in search_paths {
+            if let FindContextFileResult::Found(config_path, _) = &*turbo_tasks::read!(
+                find_context_file_or_package_key(path, postcss_configs(), rcstr!("postcss"))
+            )? {
+                return Ok(Some(config_path.clone()));
+            }
         }
+
+        Ok(None)
     }
-
-    Ok(None)
 }
 
 #[turbo_tasks::value_impl]
@@ -476,7 +474,7 @@ impl PostCssTransformedAsset {
             chunking_context,
             env,
             node_backend,
-        } = &*self.execution_context.await?;
+        } = &*turbo_tasks::read!(self.execution_context)?;
 
         // For this postcss transform, there is no guarantee that looking up for the
         // source path will arrives specific project config for the postcss.
@@ -489,22 +487,24 @@ impl PostCssTransformedAsset {
         //     - pkg1/(postcss.config.js) // The actual config we're looking for
         //
         // We look for the config in the project path first, then the source path
-        let Some(config_path) =
-            find_config_in_location(project_path.clone(), self.config_location, *self.source)
-                .await?
+        let Some(config_path) = turbo_tasks::read!(find_config_in_location(
+            project_path.clone(),
+            self.config_location,
+            *self.source
+        ))?
         else {
             return Ok(ProcessPostCssResult {
-                content: self.source.content().to_resolved().await?,
+                content: turbo_tasks::read!(self.source.content().to_resolved())?,
                 assets: Vec::new(),
             }
             .cell());
         };
 
         let source_content = self.source.content();
-        let AssetContent::File(file) = *source_content.await? else {
+        let AssetContent::File(file) = *turbo_tasks::read!(source_content)? else {
             bail!("PostCSS transform only support transforming files");
         };
-        let FileContent::Content(content) = &*file.await? else {
+        let FileContent::Content(content) = &*turbo_tasks::read!(file)? else {
             return Ok(ProcessPostCssResult {
                 content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
                 assets: Vec::new(),
@@ -516,31 +516,32 @@ impl PostCssTransformedAsset {
         let source_map = self.source_map;
 
         // This invalidates the transform when the config changes.
-        let config_changed = config_changed(*self.config_tracing_context, config_path.clone())
-            .to_resolved()
-            .await?;
+        let config_changed = turbo_tasks::read!(
+            config_changed(*self.config_tracing_context, config_path.clone()).to_resolved()
+        )?;
 
         let postcss_executor =
             postcss_executor(*evaluate_context, project_path.clone(), config_path).module();
 
-        let entries =
+        let entries = turbo_tasks::read!(
             get_evaluate_entries(postcss_executor, *evaluate_context, **node_backend, None)
                 .to_resolved()
-                .await?;
+        )?;
 
-        let module_graph = ModuleGraph::from_graphs(
-            vec![SingleModuleGraph::new_with_entries(
-                entries.graph_entries().to_resolved().await?,
-                false,
-                false,
-            )],
-            None,
-        )
-        .connect()
-        .to_resolved()
-        .await?;
+        let module_graph = turbo_tasks::read!(
+            ModuleGraph::from_graphs(
+                vec![SingleModuleGraph::new_with_entries(
+                    turbo_tasks::read!(entries.graph_entries().to_resolved())?,
+                    false,
+                    false,
+                )],
+                None,
+            )
+            .connect()
+            .to_resolved()
+        )?;
 
-        let source_ident = self.source.ident().await?;
+        let source_ident = turbo_tasks::read!(self.source.ident())?;
 
         // We need to get a path relative to the project because the postcss loader
         // runs with the project as the current working directory.
@@ -552,7 +553,7 @@ impl PostCssTransformedAsset {
             "".into()
         };
 
-        let config_value = evaluate_webpack_loader(WebpackLoaderContext {
+        let config_value = turbo_tasks::read!(evaluate_webpack_loader(WebpackLoaderContext {
             entries,
             cwd: project_path.clone(),
             env: *env,
@@ -570,8 +571,7 @@ impl PostCssTransformedAsset {
             ],
             additional_invalidation: config_changed,
             loader_names: vec![turbo_rcstr::rcstr!("postcss")],
-        })
-        .await?;
+        }))?;
 
         let Some(val) = &*config_value else {
             // An error happened, which has already been converted into an issue.
@@ -586,7 +586,7 @@ impl PostCssTransformedAsset {
 
         // TODO handle SourceMap
         let file = File::from(processed_css.css);
-        let assets = emitted_assets_to_virtual_sources(processed_css.assets).await?;
+        let assets = turbo_tasks::read!(emitted_assets_to_virtual_sources(processed_css.assets))?;
         let content =
             AssetContent::File(FileContent::Content(file).resolved_cell()).resolved_cell();
         Ok(ProcessPostCssResult { content, assets }.cell())

@@ -8,6 +8,7 @@ use std::{
 };
 
 use anyhow::Result;
+#[cfg(not(feature = "sync"))]
 use async_trait::async_trait;
 use crossterm::style::{StyledContent, Stylize};
 use owo_colors::{OwoColorize as _, Style};
@@ -377,10 +378,36 @@ impl ConsoleUi {
     }
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl IssueReporter for ConsoleUi {
     async fn report_issues(
+        &self,
+        issues: ReadRef<PlainIssues>,
+        source: RawVc,
+        min_failing_severity: IssueSeverity,
+    ) -> Result<bool> {
+        self.report_issues_impl(issues, source, min_failing_severity)
+    }
+}
+
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl IssueReporter for ConsoleUi {
+    fn report_issues(
+        &self,
+        issues: ReadRef<PlainIssues>,
+        source: RawVc,
+        min_failing_severity: IssueSeverity,
+    ) -> Result<bool> {
+        self.report_issues_impl(issues, source, min_failing_severity)
+    }
+}
+
+impl ConsoleUi {
+    // Shared (await-free) body of `IssueReporter::report_issues` for both modes.
+    fn report_issues_impl(
         &self,
         issues: ReadRef<PlainIssues>,
         source: RawVc,

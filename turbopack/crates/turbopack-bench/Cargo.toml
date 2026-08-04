@@ -33,10 +33,15 @@ serde_json = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tungstenite = { workspace = true }
-turbo-tasks = { workspace = true }
-turbo-tasks-testing = { workspace = true }
+turbo-tasks = { path = "../turbo-tasks", default-features = false }
+turbo-tasks-testing = { path = "../turbo-tasks-testing", default-features = false }
 turbopack-create-test-app = { workspace = true }
 url = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]
 nix = { version="0.30.1", features=["signal"] }
+
+[features]
+default = ["tokio_runtime"]
+tokio_runtime = ["turbo-tasks/tokio_runtime", "turbo-tasks-testing/tokio_runtime"]
+sync = ["turbo-tasks/sync", "turbo-tasks-testing/sync"]

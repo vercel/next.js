@@ -69,9 +69,14 @@ pub async fn project_fs(
         Vc::cell(project_dir),
         vec![denied_root_path],
     );
+    // File watching is dev-mode only and tokio-bound (the notify watcher). The
+    // no-tokio sync build targets one-shot `build`, which never watches.
+    #[cfg(feature = "tokio_runtime")]
     if watch {
-        disk_fs.await?.start_watching(None).await?;
+        turbo_tasks::read!(turbo_tasks::read!(disk_fs)?.start_watching(None))?;
     }
+    #[cfg(not(feature = "tokio_runtime"))]
+    let _ = watch;
     Ok(Vc::upcast(disk_fs))
 }
 

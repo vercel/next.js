@@ -36,9 +36,17 @@ pub(super) struct NextFontLocalOptions {
     pub declarations: Option<Vec<NextFontLocalDeclaration>>,
 }
 
+#[cfg(not(feature = "sync"))]
 impl NextFontLocalOptions {
     pub async fn font_family(self: Vc<Self>) -> Result<RcStr> {
-        Ok(self.await?.variable_name.clone())
+        Ok(turbo_tasks::read!(self)?.variable_name.clone())
+    }
+}
+
+#[cfg(feature = "sync")]
+impl NextFontLocalOptions {
+    pub fn font_family(self: Vc<Self>) -> Result<RcStr> {
+        Ok(turbo_tasks::read!(self)?.variable_name.clone())
     }
 }
 

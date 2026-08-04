@@ -63,7 +63,7 @@ impl EcmascriptModulePartReference {
         Ok(EcmascriptModulePartReference {
             module,
             part,
-            export_usage: export_usage.owned().await?,
+            export_usage: turbo_tasks::read!(export_usage.owned())?,
             mode: EcmascriptModulePartReferenceMode::Synthesize,
         }
         .cell())
@@ -79,7 +79,7 @@ impl EcmascriptModulePartReference {
         Ok(EcmascriptModulePartReference {
             module,
             part,
-            export_usage: export_usage.owned().await?,
+            export_usage: turbo_tasks::read!(export_usage.owned())?,
             mode: EcmascriptModulePartReferenceMode::Normal,
         }
         .cell())
@@ -91,7 +91,7 @@ impl ModuleReference for EcmascriptModulePartReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         let module = match self.mode {
-            EcmascriptModulePartReferenceMode::Synthesize => {
+            EcmascriptModulePartReferenceMode::Synthesize => turbo_tasks::read!(
                 match &self.part {
                     ModulePart::Locals => {
                         let Some(module) = ResolvedVc::try_downcast_type(self.module) else {
@@ -119,8 +119,7 @@ impl ModuleReference for EcmascriptModulePartReference {
                     }
                 }
                 .to_resolved()
-                .await?
-            }
+            )?,
             EcmascriptModulePartReferenceMode::Normal => ResolvedVc::upcast(self.module),
         };
 
@@ -143,14 +142,15 @@ impl ModuleReference for EcmascriptModulePartReference {
 }
 
 impl EcmascriptModulePartReference {
-    pub async fn code_generation(
+    turbo_tasks::dual_fn! {
+    pub fn code_generation(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
     ) -> Result<CodeGeneration> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         let referenced_asset = ReferencedAsset::from_resolve_result(self.resolve_reference());
-        let referenced_asset = referenced_asset.await?;
+        let referenced_asset = turbo_tasks::read!(referenced_asset)?;
 
         let ReferencedAsset::Some(module) = referenced_asset else {
             bail!("part module reference should have an module reference");
@@ -176,7 +176,7 @@ impl EcmascriptModulePartReference {
             // No need to import, the module was already executed and is available in the same scope
             // hoisting group (unless it's a namespace import)
         } else {
-            let ident = referenced_asset
+            let ident = turbo_tasks::read!(referenced_asset
                 .get_ident(
                     chunking_context,
                     match export_usage {
@@ -186,8 +186,8 @@ impl EcmascriptModulePartReference {
                         | ExportUsage::Evaluation => None,
                     },
                     scope_hoisting_context,
-                )
-                .await?
+                ))
+                ?
                 .context("part module reference should have an ident")?;
 
             match ident {
@@ -199,7 +199,7 @@ impl EcmascriptModulePartReference {
                     let key = sym.as_str().into();
                     let name = Ident::new(sym.into(), DUMMY_SP, ctxt.unwrap_or_default());
 
-                    let id = module.chunk_item_id(chunking_context).await?;
+                    let id = turbo_tasks::read!(module.chunk_item_id(chunking_context))?;
 
                     result.push(CodeGenerationHoistedStmt::new(
                         key,
@@ -215,5 +215,6 @@ impl EcmascriptModulePartReference {
         }
 
         Ok(CodeGeneration::hoisted_stmts(result))
+    }
     }
 }

@@ -39,14 +39,13 @@ impl ImportMetaBinding {
         ImportMetaBinding { path, hmr_enabled }
     }
 
-    pub async fn code_generation(
+    turbo_tasks::dual_fn! {
+    pub fn code_generation(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
-        let rel_path = chunking_context
-            .root_path()
-            .await?
-            .get_relative_path_to(&self.path);
+        let rel_path =
+            turbo_tasks::read!(chunking_context.root_path())?.get_relative_path_to(&self.path);
         let path = rel_path.map_or_else(
             || {
                 quote!(
@@ -90,6 +89,7 @@ impl ImportMetaBinding {
 
         Ok(CodeGeneration::hoisted_stmt(rcstr!("import.meta"), stmt))
     }
+    }
 }
 
 impl From<ImportMetaBinding> for CodeGen {
@@ -115,7 +115,8 @@ impl ImportMetaRef {
         ImportMetaRef { ast_path }
     }
 
-    pub async fn code_generation(
+    turbo_tasks::dual_fn! {
+    pub fn code_generation(
         &self,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
@@ -124,6 +125,7 @@ impl ImportMetaRef {
         });
 
         Ok(CodeGeneration::visitors(vec![visitor]))
+    }
     }
 }
 

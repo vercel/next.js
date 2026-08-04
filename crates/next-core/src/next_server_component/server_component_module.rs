@@ -56,7 +56,7 @@ impl NextServerComponentModule {
     /// This is the path of the actual compiled module.
     #[turbo_tasks::function]
     pub async fn server_path(&self) -> Result<Vc<FileSystemPath>> {
-        Ok(self.module.ident().await?.path.clone().cell())
+        Ok(turbo_tasks::read!(self.module.ident())?.path.clone().cell())
     }
 }
 
@@ -74,11 +74,7 @@ impl NextServerComponentModule {
 impl Module for NextServerComponentModule {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self
-            .module
-            .ident()
-            .owned()
-            .await?
+        Ok(turbo_tasks::read!(self.module.ident().owned())?
             .with_modifier(rcstr!("Next.js Server Component"))
             .into_vc())
     }
@@ -90,7 +86,9 @@ impl Module for NextServerComponentModule {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        Ok(Vc::cell(vec![self.module_reference().to_resolved().await?]))
+        Ok(Vc::cell(vec![turbo_tasks::read!(
+            self.module_reference().to_resolved()
+        )?]))
     }
 
     #[turbo_tasks::function]
@@ -128,7 +126,7 @@ impl EcmascriptChunkPlaceable for NextServerComponentModule {
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let module_id = self.module.chunk_item_id(chunking_context).await?;
+        let module_id = turbo_tasks::read!(self.module.chunk_item_id(chunking_context))?;
         Ok(EcmascriptChunkItemContent {
             inner_code: formatdoc!(
                 r#"

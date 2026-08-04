@@ -91,8 +91,8 @@ struct PathInvalidations(#[turbo_tasks(trace_ignore)] Arc<Mutex<FxHashSet<RcStr>
 
 #[turbo_tasks::function(operation, root)]
 async fn extract_effects_operation(op: OperationVc<()>) -> anyhow::Result<Vc<Effects>> {
-    let _ = op.resolve().strongly_consistent().await?;
-    Ok(take_effects(op).await?.cell())
+    let _ = turbo_tasks::read!(op.resolve().strongly_consistent())?;
+    Ok(turbo_tasks::read!(take_effects(op))?.cell())
 }
 
 pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
@@ -107,18 +107,21 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
         noop_backing_storage(),
     ));
 
-    tt.run_once(async move {
+    turbo_tasks::read!(tt.run_once(async move {
         let invalidations = TransientInstance::new(PathInvalidations::default());
-        let project_fs = disk_file_system_operation(RcStr::from(fs_root.to_str().unwrap()))
-            .resolve()
-            .strongly_consistent()
-            .await?;
-        let project_root = disk_file_system_root_operation(project_fs)
-            .resolve()
-            .strongly_consistent()
-            .await?
+        let project_fs = turbo_tasks::read!(
+            disk_file_system_operation(RcStr::from(fs_root.to_str().unwrap()))
+                .resolve()
+                .strongly_consistent()
+        )?;
+        let project_root = turbo_tasks::read!(
+            turbo_tasks::read!(
+                disk_file_system_root_operation(project_fs)
+                    .resolve()
+                    .strongly_consistent()
+            )?
             .owned()
-            .await?;
+        )?;
 
         create_directory_tree(&mut FxHashSet::default(), &fs_root, args.depth, args.width)?;
 
@@ -129,7 +132,7 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
         };
 
         if !args.start_watching_late {
-            project_fs.await?.start_watching(None).await?;
+            turbo_tasks::read!(turbo_tasks::read!(project_fs)?.start_watching(None))?;
         }
 
         let symlink_count = if args.symlinks.is_some() {
@@ -152,7 +155,10 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
             track_writes,
         ));
         if track_writes {
-            read_strongly_consistent_and_apply_effects(effects_op, |e| e).await?;
+            turbo_tasks::read!(read_strongly_consistent_and_apply_effects(
+                effects_op,
+                |e| e
+            ))?;
             let (total, mismatched) = verify_written_files(
                 &fs_root,
                 args.depth,
@@ -168,14 +174,14 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
             }
         } else {
             // Still drive the computation (and propagate errors) without applying effects.
-            effects_op.read_strongly_consistent().await?;
+            turbo_tasks::read!(effects_op.read_strongly_consistent())?;
             let invalidations = invalidations.0.lock().unwrap();
             println!("read all {} files", invalidations.len());
         }
         invalidations.0.lock().unwrap().clear();
 
         if args.start_watching_late {
-            project_fs.await?.start_watching(None).await?;
+            turbo_tasks::read!(turbo_tasks::read!(project_fs)?.start_watching(None))?;
         }
 
         let mut rand_buf = [0; 16];
@@ -227,7 +233,7 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
 
             // there's no way to know when we've received all the pending events from the operating
             // system, so just sleep and pray
-            sleep(Duration::from_millis(args.notify_timeout_ms)).await;
+            turbo_tasks::read!(sleep(Duration::from_millis(args.notify_timeout_ms)));
             let effects_op = extract_effects_operation(read_or_write_all_paths_operation(
                 invalidations.clone(),
                 project_root.clone(),
@@ -243,7 +249,10 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
                 ""
             };
             if track_writes {
-                read_strongly_consistent_and_apply_effects(effects_op, |e| e).await?;
+                turbo_tasks::read!(read_strongly_consistent_and_apply_effects(
+                    effects_op,
+                    |e| e
+                ))?;
                 let (total, mismatched) = verify_written_files(
                     &fs_root,
                     args.depth,
@@ -267,7 +276,7 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
                 }
             } else {
                 // Still drive the computation (and propagate errors) without applying effects.
-                effects_op.read_strongly_consistent().await?;
+                turbo_tasks::read!(effects_op.read_strongly_consistent())?;
                 let mut invalidations = invalidations.0.lock().unwrap();
                 println!(
                     "modified {} files{}. found {} invalidations",
@@ -291,8 +300,7 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
                 invalidations.clear();
             }
         }
-    })
-    .await
+    }))
 }
 
 #[turbo_tasks::function(operation)]
@@ -312,7 +320,7 @@ async fn read_path(
 ) -> anyhow::Result<()> {
     let path_str = path.path.clone();
     invalidations.0.lock().unwrap().insert(path_str);
-    let _ = path.read().await?;
+    let _ = turbo_tasks::read!(path.read())?;
     Ok(())
 }
 
@@ -323,7 +331,7 @@ async fn read_link(
 ) -> anyhow::Result<()> {
     let path_str = path.path.clone();
     invalidations.0.lock().unwrap().insert(path_str);
-    let _ = path.read_link().await?;
+    let _ = turbo_tasks::read!(path.read_link())?;
     Ok(())
 }
 
@@ -335,7 +343,7 @@ async fn write_path(
     let path_str = path.path.clone();
     invalidations.0.lock().unwrap().insert(path_str);
     let content = FileContent::Content(File::from(FILE_SENTINEL_CONTENT));
-    let _ = path.write(content.cell()).await?;
+    let _ = turbo_tasks::read!(path.write(content.cell()))?;
     Ok(())
 }
 
@@ -354,10 +362,7 @@ async fn write_link(
         LinkType::empty()
     };
     let link_content = LinkContent::Link { target, link_type };
-    let _ = path
-        .fs()
-        .write_link(path.clone(), link_content.cell())
-        .await?;
+    let _ = turbo_tasks::read!(path.fs().write_link(path.clone(), link_content.cell()))?;
     Ok(())
 }
 
@@ -383,39 +388,43 @@ async fn read_or_write_all_paths_operation(
             let child_path = parent.join(&child_name)?;
             if depth == 1 {
                 if write {
-                    write_path(invalidations.clone(), child_path).await?;
+                    turbo_tasks::read!(write_path(invalidations.clone(), child_path))?;
                 } else {
-                    read_path(invalidations.clone(), child_path).await?;
+                    turbo_tasks::read!(read_path(invalidations.clone(), child_path))?;
                 }
             } else {
-                Box::pin(process_paths_inner(
+                turbo_tasks::read!(Box::pin(process_paths_inner(
                     invalidations.clone(),
                     child_path,
                     depth - 1,
                     width,
                     write,
-                ))
-                .await?;
+                )))?;
             }
         }
         Ok(())
     }
-    process_paths_inner(invalidations.clone(), root.clone(), depth, width, write).await?;
+    turbo_tasks::read!(process_paths_inner(
+        invalidations.clone(),
+        root.clone(),
+        depth,
+        width,
+        write
+    ))?;
 
     if symlink_count > 0 {
         let symlinks_dir = root.join("_symlinks")?;
         for i in 0..symlink_count {
             let symlink_path = symlinks_dir.join(&i.to_string())?;
             if write {
-                write_link(
+                turbo_tasks::read!(write_link(
                     invalidations.clone(),
                     symlink_path,
                     RcStr::from(SYMLINK_SENTINEL_TARGET),
                     symlink_is_directory.unwrap_or(false),
-                )
-                .await?;
+                ))?;
             } else {
-                read_link(invalidations.clone(), symlink_path).await?;
+                turbo_tasks::read!(read_link(invalidations.clone(), symlink_path))?;
             }
         }
     }

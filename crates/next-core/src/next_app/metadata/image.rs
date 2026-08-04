@@ -24,7 +24,8 @@ use turbopack_ecmascript::{
 
 use crate::next_app::AppPage;
 
-async fn dynamic_image_metadata_with_generator_source(
+turbo_tasks::dual_fn! {
+fn dynamic_image_metadata_with_generator_source(
     path: FileSystemPath,
     ty: RcStr,
     page: AppPage,
@@ -33,10 +34,10 @@ async fn dynamic_image_metadata_with_generator_source(
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
 
-    let hash = path
+    let hash = turbo_tasks::read!(path
         .read()
-        .content_hash(no_hash_salt(), HashAlgorithm::default())
-        .await?;
+        .content_hash(no_hash_salt(), HashAlgorithm::default()))
+        ?;
     let hash = hash.as_ref().context("metadata file not found")?;
 
     let use_numeric_sizes = ty == "twitter" || ty == "openGraph";
@@ -100,8 +101,10 @@ async fn dynamic_image_metadata_with_generator_source(
 
     Ok(Vc::upcast(source))
 }
+}
 
-async fn dynamic_image_metadata_without_generator_source(
+turbo_tasks::dual_fn! {
+fn dynamic_image_metadata_without_generator_source(
     path: FileSystemPath,
     ty: RcStr,
     page: AppPage,
@@ -110,10 +113,10 @@ async fn dynamic_image_metadata_without_generator_source(
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
 
-    let hash = path
+    let hash = turbo_tasks::read!(path
         .read()
-        .content_hash(no_hash_salt(), HashAlgorithm::default())
-        .await?;
+        .content_hash(no_hash_salt(), HashAlgorithm::default()))
+        ?;
     let hash = hash.as_ref().context("metadata file not found")?;
 
     let use_numeric_sizes = ty == "twitter" || ty == "openGraph";
@@ -171,6 +174,7 @@ async fn dynamic_image_metadata_without_generator_source(
 
     Ok(Vc::upcast(source))
 }
+}
 
 #[turbo_tasks::function]
 pub async fn dynamic_image_metadata_source(
@@ -186,7 +190,7 @@ pub async fn dynamic_image_metadata_source(
             ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
         )
         .module();
-    let exports = &*collect_direct_exports(module).await?;
+    let exports = &*turbo_tasks::read!(collect_direct_exports(module))?;
     let exported_fields_excluding_default = exports
         .iter()
         .filter(|e| *e != "default")
@@ -197,34 +201,34 @@ pub async fn dynamic_image_metadata_source(
     let has_generate_image_metadata = exports.contains(&"generateImageMetadata".into());
 
     if has_generate_image_metadata {
-        dynamic_image_metadata_with_generator_source(
+        turbo_tasks::read!(dynamic_image_metadata_with_generator_source(
             path,
             ty,
             page,
             exported_fields_excluding_default,
-        )
-        .await
+        ))
     } else {
-        dynamic_image_metadata_without_generator_source(
+        turbo_tasks::read!(dynamic_image_metadata_without_generator_source(
             path,
             ty,
             page,
             exported_fields_excluding_default,
-        )
-        .await
+        ))
     }
 }
 
 #[turbo_tasks::function]
 async fn collect_direct_exports(module: Vc<Box<dyn Module>>) -> Result<Vc<Vec<RcStr>>> {
-    let Some(ecmascript_asset) =
-        ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module.to_resolved().await?)
-    else {
+    let Some(ecmascript_asset) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(
+        turbo_tasks::read!(module.to_resolved())?,
+    ) else {
         return Ok(Default::default());
     };
 
-    if let EcmascriptExports::EsmExports(exports) = &*ecmascript_asset.get_exports().await? {
-        let exports = &*exports.await?;
+    if let EcmascriptExports::EsmExports(exports) =
+        &*turbo_tasks::read!(ecmascript_asset.get_exports())?
+    {
+        let exports = &*turbo_tasks::read!(exports)?;
         return Ok(Vc::cell(exports.exports.keys().cloned().collect()));
     }
 

@@ -16,11 +16,14 @@ anyhow = { workspace = true }
 async-trait = { workspace = true }
 quick_cache = { workspace = true }
 serde = { workspace = true }
-tokio = { workspace = true }
+# Optional so the no-tokio `sync` build links neither tokio nor reqwest (which is
+# built on hyper+tokio). HTTP fetch is an async-runtime-only capability; the sync
+# build compiles a stub that returns an honest error. Enabled by `tokio_runtime`.
+tokio = { workspace = true, optional = true }
 turbo-rcstr = { workspace = true }
-turbo-tasks = { workspace = true }
-turbo-tasks-fs = { workspace = true }
-turbopack-core = { workspace = true }
+turbo-tasks = { path = "../turbo-tasks", default-features = false }
+turbo-tasks-fs = { path = "../turbo-tasks-fs", default-features = false }
+turbopack-core = { path = "../turbopack-core", default-features = false }
 
 # Enable specific tls features per-target.
 #
@@ -33,7 +36,7 @@ turbopack-core = { workspace = true }
 
 # On macOS, use the default rustls configuration (uses aws-lc-rs).
 [target.'cfg(target_os = "macos")'.dependencies]
-reqwest = { workspace = true, features = ["rustls"] }
+reqwest = { workspace = true, features = ["rustls"], optional = true }
 
 # On Linux (all architectures) and Windows x86-64, use ring for rustls.
 # - Linux: aws-lc-rs has cross-compilation issues in our CI:
@@ -44,7 +47,7 @@ reqwest = { workspace = true, features = ["rustls"] }
 #   CI, and would complicate the development environment setup. We could
 #   possibly switch to always using `native-tls` on Windows in the future.
 [target.'cfg(any(target_os = "linux", all(windows, not(target_arch = "aarch64"))))'.dependencies]
-reqwest = { workspace = true, features = ["rustls-no-provider"] }
+reqwest = { workspace = true, features = ["rustls-no-provider"], optional = true }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 
 # On Linux, we need to add webpki-roots, in case the user is building a bare-bones docker image that
@@ -59,10 +62,18 @@ webpki-root-certs = "1"
 
 # On Windows ARM64, use native-tls because rustls with ring has build issues.
 [target.'cfg(all(windows, target_arch = "aarch64"))'.dependencies]
-reqwest = { workspace = true, features = ["native-tls"] }
+reqwest = { workspace = true, features = ["native-tls"], optional = true }
 
 [dev-dependencies]
 mockito = { version = "1.7.0", default-features = false }
 tokio = { workspace = true, features = ["full"] }
-turbo-tasks-testing = { workspace = true }
-turbo-tasks-backend = { workspace = true }
+turbo-tasks-testing = { path = "../turbo-tasks-testing", default-features = false }
+turbo-tasks-backend = { path = "../turbo-tasks-backend", default-features = false }
+
+[features]
+default = ["tokio_runtime"]
+tokio_runtime = ["dep:tokio", "dep:reqwest", "turbo-tasks/tokio_runtime", "turbo-tasks-backend/tokio_runtime", "turbo-tasks-fs/tokio_runtime", "turbo-tasks-testing/tokio_runtime", "turbopack-core/tokio_runtime"]
+# The sync build still needs HTTP fetch (e.g. `next/font/google`). Under the
+# refined goal tokio is permitted at the I/O edge: keep async `reqwest` and drive
+# it to completion on a small dedicated runtime via `block_on` (see client.rs).
+sync = ["dep:tokio", "dep:reqwest", "turbo-tasks/sync", "turbo-tasks-backend/sync", "turbo-tasks-fs/sync", "turbo-tasks-testing/sync", "turbopack-core/sync"]

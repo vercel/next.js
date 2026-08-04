@@ -23,9 +23,11 @@ pub async fn content_from_relative_path(
         root_path.to_string_lossy().into(),
         Vc::cell(root_path.to_string_lossy().into()),
     );
-    disk_fs.await?.start_watching(None).await?;
+    // Live watching is async/dev-only; the no-tokio sync build has no watcher.
+    #[cfg(feature = "tokio_runtime")]
+    turbo_tasks::read!(disk_fs.await?.start_watching(None))?;
 
-    let fs_path = disk_fs.root().await?.join(path)?;
+    let fs_path = turbo_tasks::read!(disk_fs.root())?.join(path)?;
     Ok(fs_path.read())
 }
 

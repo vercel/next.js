@@ -48,7 +48,7 @@ impl Source for ProcessEnvAsset {
 impl Asset for ProcessEnvAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
-        let env = self.env.read_all().await?;
+        let env = turbo_tasks::read!(self.env.read_all())?;
 
         // TODO: In SSR, we use the native process.env, which can only contain string
         // values. We need to inject literal values (to emulate webpack's

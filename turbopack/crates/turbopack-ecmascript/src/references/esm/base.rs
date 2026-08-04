@@ -1,4 +1,5 @@
 use anyhow::{Result, bail};
+#[cfg(not(feature = "sync"))]
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use either::Either;
@@ -17,6 +18,12 @@ use turbo_tasks::{
     turbobail,
 };
 use turbo_tasks_fs::FileSystemPath;
+#[cfg(feature = "sync")]
+use turbopack_core::context::AssetContext;
+#[cfg(feature = "sync")]
+use turbopack_core::resolve::origin::PlainResolveOrigin;
+#[cfg(not(feature = "sync"))]
+use turbopack_core::resolve::origin::ResolveOriginExt;
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
     issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
@@ -27,10 +34,8 @@ use turbopack_core::{
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::{
         BindingUsage, ExportUsage, ExternalType, ImportUsage, ModulePart, ModuleResolveResult,
-        ModuleResolveResultItem, RequestKey, ResolveErrorMode,
-        origin::{ResolveOrigin, ResolveOriginExt},
-        parse::Request,
-        resolve,
+        ModuleResolveResultItem, RequestKey, ResolveErrorMode, origin::ResolveOrigin,
+        parse::Request, resolve,
     },
     source::Source,
 };
@@ -103,19 +108,24 @@ pub enum ImportSource {
 }
 
 impl ImportSource {
-    /// Compute the name of the variable that should hold the imported namespace.
-    pub async fn get_namespace_ident(
-        &self,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<String> {
-        Ok(match self {
-            ImportSource::Module { asset } => {
-                ReferencedAsset::get_ident_from_placeable(asset, chunking_context).await?
-            }
-            ImportSource::External { request, ty } => {
-                magic_identifier::mangle(&format!("{ty} external {request}"))
-            }
-        })
+    turbo_tasks::dual_fn! {
+        /// Compute the name of the variable that should hold the imported namespace.
+        pub fn get_namespace_ident(
+            &self,
+            chunking_context: Vc<Box<dyn ChunkingContext>>,
+        ) -> Result<String> {
+            Ok(match self {
+                ImportSource::Module { asset } => {
+                    turbo_tasks::read!(ReferencedAsset::get_ident_from_placeable(
+                        asset,
+                        chunking_context
+                    ))?
+                }
+                ImportSource::External { request, ty } => {
+                    magic_identifier::mangle(&format!("{ty} external {request}"))
+                }
+            })
+        }
     }
 }
 
@@ -196,17 +206,24 @@ impl ReferencedAssetIdent {
 }
 
 impl ReferencedAsset {
-    pub async fn get_ident(
-        &self,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        export: Option<RcStr>,
-        scope_hoisting_context: ScopeHoistingContext<'_>,
-    ) -> Result<Option<ReferencedAssetIdent>> {
-        self.get_ident_inner(chunking_context, export, scope_hoisting_context, None)
-            .await
+    turbo_tasks::dual_fn! {
+        pub fn get_ident(
+            &self,
+            chunking_context: Vc<Box<dyn ChunkingContext>>,
+            export: Option<RcStr>,
+            scope_hoisting_context: ScopeHoistingContext<'_>,
+        ) -> Result<Option<ReferencedAssetIdent>> {
+            turbo_tasks::read!(self.get_ident_inner(
+                chunking_context,
+                export,
+                scope_hoisting_context,
+                None
+            ))
+        }
     }
 
-    async fn get_ident_inner(
+    turbo_tasks::dual_fn! {
+    fn get_ident_inner(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         export: Option<RcStr>,
@@ -217,9 +234,9 @@ impl ReferencedAsset {
             ReferencedAsset::Some(asset) => {
                 if let Some(ctxt) = scope_hoisting_context.get_module_syntax_context(*asset)
                     && let Some(export) = &export
-                    && let EcmascriptExports::EsmExports(exports) = *asset.get_exports().await?
+                    && let EcmascriptExports::EsmExports(exports) = *turbo_tasks::read!(asset.get_exports())?
                 {
-                    let exports = exports.expand_exports(ModuleExportUsageInfo::all()).await?;
+                    let exports = turbo_tasks::read!(exports.expand_exports(ModuleExportUsageInfo::all()))?;
                     let esm_export = exports.exports.get(export);
                     match esm_export {
                         Some(EsmExport::LocalBinding(_name, liveness)) => {
@@ -241,8 +258,8 @@ impl ReferencedAsset {
                             };
 
                             let referenced_asset =
-                                ReferencedAsset::from_resolve_result(esm_ref.resolve_reference())
-                                    .await?;
+                                turbo_tasks::read!(ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()))
+                                    ?;
 
                             if let Some(&initial) = initial
                                 && referenced_asset == ReferencedAsset::Some(initial)
@@ -262,14 +279,25 @@ impl ReferencedAsset {
 
                             // If the target module is still in the same group, we can
                             // refer it locally, otherwise it will be imported
+                            // (async build: boxed for `async fn` recursion; sync build:
+                            // plain recursive call)
+                            #[cfg(not(feature = "sync"))]
+                            let inner_ident = Box::pin(referenced_asset.get_ident_inner(
+                                chunking_context,
+                                imported,
+                                scope_hoisting_context,
+                                Some(asset),
+                            ))
+                            .await?;
+                            #[cfg(feature = "sync")]
+                            let inner_ident = referenced_asset.get_ident_inner(
+                                chunking_context,
+                                imported,
+                                scope_hoisting_context,
+                                Some(asset),
+                            )?;
                             return Ok(
-                                match Box::pin(referenced_asset.get_ident_inner(
-                                    chunking_context,
-                                    imported,
-                                    scope_hoisting_context,
-                                    Some(asset),
-                                ))
-                                .await?
+                                match inner_ident
                                 {
                                     Some(ReferencedAssetIdent::Module {
                                         namespace_ident,
@@ -298,7 +326,7 @@ impl ReferencedAsset {
 
                 let import_source = ImportSource::Module { asset: *asset };
                 Some(ReferencedAssetIdent::Module {
-                    namespace_ident: import_source.get_namespace_ident(chunking_context).await?,
+                    namespace_ident: turbo_tasks::read!(import_source.get_namespace_ident(chunking_context))?,
                     ctxt: None,
                     export,
                     import_source,
@@ -310,7 +338,7 @@ impl ReferencedAsset {
                     ty: *ty,
                 };
                 Some(ReferencedAssetIdent::Module {
-                    namespace_ident: import_source.get_namespace_ident(chunking_context).await?,
+                    namespace_ident: turbo_tasks::read!(import_source.get_namespace_ident(chunking_context))?,
                     ctxt: None,
                     export,
                     import_source,
@@ -319,22 +347,26 @@ impl ReferencedAsset {
             ReferencedAsset::None | ReferencedAsset::Unresolvable => None,
         })
     }
+    }
 
-    pub(crate) async fn get_ident_from_placeable(
-        asset: &Vc<Box<dyn EcmascriptChunkPlaceable>>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<String> {
-        let id = asset.chunk_item_id(chunking_context).await?;
-        // There are a number of places in `next` that match on this prefix.
-        // See `packages/next/src/shared/lib/magic-identifier.ts`
-        Ok(magic_identifier::mangle(&format!("imported module {id}")))
+    turbo_tasks::dual_fn! {
+        pub(crate) fn get_ident_from_placeable(
+            asset: &Vc<Box<dyn EcmascriptChunkPlaceable>>,
+            chunking_context: Vc<Box<dyn ChunkingContext>>,
+        ) -> Result<String> {
+            let id = turbo_tasks::read!(asset.chunk_item_id(chunking_context))?;
+            // There are a number of places in `next` that match on this prefix.
+            // See `packages/next/src/shared/lib/magic-identifier.ts`
+            Ok(magic_identifier::mangle(&format!("imported module {id}")))
+        }
     }
 }
 
 impl ReferencedAsset {
-    pub async fn from_resolve_result(resolve_result: Vc<ModuleResolveResult>) -> Result<Self> {
+    turbo_tasks::dual_fn! {
+    pub fn from_resolve_result(resolve_result: Vc<ModuleResolveResult>) -> Result<Self> {
         // TODO handle multiple keyed results
-        let result = resolve_result.await?;
+        let result = turbo_tasks::read!(resolve_result)?;
         if result.is_unresolvable() {
             return Ok(ReferencedAsset::Unresolvable);
         }
@@ -357,6 +389,7 @@ impl ReferencedAsset {
             }
         }
         Ok(ReferencedAsset::None)
+    }
     }
 }
 
@@ -444,9 +477,36 @@ impl EsmReferenceExtras {
     }
 }
 
+/// Applies an annotation-driven transition to a resolve origin.
+///
+/// The async build delegates to [`ResolveOriginExt::with_transition`]. That extension method
+/// returns a bare `impl Future` (it is not dual-mode), so the sync build constructs the
+/// equivalent origin directly: a plain origin with the same `origin_path` and the transitioned
+/// `asset_context` — exactly what `with_transition` produces internally.
+#[cfg(not(feature = "sync"))]
+pub(crate) async fn transitioned_origin(
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    transition: RcStr,
+) -> Result<ResolvedVc<Box<dyn ResolveOrigin>>> {
+    turbo_tasks::read!(turbo_tasks::read!(origin.with_transition(transition))?.to_resolved())
+}
+/// See the async definition above.
+#[cfg(feature = "sync")]
+pub(crate) fn transitioned_origin(
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    transition: RcStr,
+) -> Result<ResolvedVc<Box<dyn ResolveOrigin>>> {
+    let origin_ref = turbo_tasks::read!(origin.into_trait_ref())?;
+    let asset_context = (*origin_ref.asset_context()).with_transition(transition);
+    Ok(ResolvedVc::upcast(turbo_tasks::read!(
+        PlainResolveOrigin::new(asset_context, origin_ref.origin_path()).to_resolved()
+    )?))
+}
+
 impl EsmAssetReference {
+    turbo_tasks::dual_fn! {
     #[allow(clippy::too_many_arguments)]
-    async fn new_inner(
+    fn new_inner(
         module: ResolvedVc<EcmascriptModuleAsset>,
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: RcStr,
@@ -462,11 +522,7 @@ impl EsmAssetReference {
         // Apply any annotation-driven transition eagerly so the stored origin is final and the
         // `annotations` don't need to be retained on the reference.
         let origin = if let Some(transition) = annotations.as_ref().and_then(|a| a.transition()) {
-            origin
-                .with_transition(transition.into())
-                .await?
-                .to_resolved()
-                .await?
+            turbo_tasks::read!(transitioned_origin(origin, transition.into()))?
         } else {
             origin
         };
@@ -483,9 +539,11 @@ impl EsmAssetReference {
             extras: EsmReferenceExtras::new(annotations.as_ref(), resolve_override),
         })
     }
+    }
 
+    turbo_tasks::dual_fn! {
     #[allow(clippy::too_many_arguments)]
-    pub async fn new(
+    pub fn new(
         module: ResolvedVc<EcmascriptModuleAsset>,
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: RcStr,
@@ -497,7 +555,7 @@ impl EsmAssetReference {
         tree_shaking_mode: Option<TreeShakingMode>,
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
     ) -> Result<Self> {
-        Self::new_inner(
+        turbo_tasks::read!(Self::new_inner(
             module,
             origin,
             request,
@@ -509,12 +567,13 @@ impl EsmAssetReference {
             tree_shaking_mode,
             resolve_override,
             /* is_pure_import */ false,
-        )
-        .await
+        ))
+    }
     }
 
+    turbo_tasks::dual_fn! {
     #[allow(clippy::too_many_arguments)]
-    pub async fn new_pure(
+    pub fn new_pure(
         module: ResolvedVc<EcmascriptModuleAsset>,
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: RcStr,
@@ -526,7 +585,7 @@ impl EsmAssetReference {
         tree_shaking_mode: Option<TreeShakingMode>,
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
     ) -> Result<Self> {
-        Self::new_inner(
+        turbo_tasks::read!(Self::new_inner(
             module,
             origin,
             request,
@@ -538,8 +597,8 @@ impl EsmAssetReference {
             tree_shaking_mode,
             resolve_override,
             /* is_pure_import */ true,
-        )
-        .await
+        ))
+    }
     }
 
     /// Builds a copy of this reference for a single resolved namespace export
@@ -566,10 +625,12 @@ impl EsmAssetReference {
         }
     }
 
-    pub(crate) fn get_referenced_asset(
-        self: Vc<Self>,
-    ) -> impl Future<Output = Result<ReferencedAsset>> {
-        ReferencedAsset::from_resolve_result(self.resolve_reference())
+    turbo_tasks::dual_fn! {
+        pub(crate) fn get_referenced_asset(self: Vc<Self>) -> Result<ReferencedAsset> {
+            turbo_tasks::read!(ReferencedAsset::from_resolve_result(
+                self.resolve_reference()
+            ))
+        }
     }
 }
 
@@ -583,7 +644,7 @@ impl ModuleReference for EsmAssetReference {
         }
         let ty = if let Some(loader) = extras.and_then(|e| e.turbopack_loader.as_ref()) {
             // Resolve the loader path relative to the importing file
-            let origin_ref = self.origin.into_trait_ref().await?;
+            let origin_ref = turbo_tasks::read!(self.origin.into_trait_ref())?;
             let origin_path = origin_ref.origin_path();
             let loader_request = Request::parse(loader.loader.clone().into());
             let resolved = resolve(
@@ -592,8 +653,9 @@ impl ModuleReference for EsmAssetReference {
                 loader_request,
                 origin_ref.resolve_options(),
             );
-            let loader_fs_path = if let Some(source) = resolved.await?.first_source() {
-                source.ident().await?.path.clone()
+            let loader_fs_path = if let Some(source) = turbo_tasks::read!(resolved)?.first_source()
+            {
+                turbo_tasks::read!(source.ident())?.path.clone()
             } else {
                 bail!("Unable to resolve turbopackLoader '{}'", loader.loader);
             };
@@ -618,7 +680,8 @@ impl ModuleReference for EsmAssetReference {
 
         if let Some(TreeShakingMode::ModuleFragments) = self.tree_shaking_mode {
             if let Some(ModulePart::Evaluation) = &self.export_name
-                && *self.module.side_effects().await? == ModuleSideEffects::SideEffectFree
+                && *turbo_tasks::read!(self.module.side_effects())?
+                    == ModuleSideEffects::SideEffectFree
             {
                 return Ok(ModuleResolveResult {
                     primary: Box::new([(RequestKey::default(), ModuleResolveResultItem::Ignore)]),
@@ -627,33 +690,34 @@ impl ModuleReference for EsmAssetReference {
                 .cell());
             }
 
-            if let Request::Module { module, .. } = &*request.await?
+            if let Request::Module { module, .. } = &*turbo_tasks::read!(request)?
                 && module.is_match(TURBOPACK_PART_IMPORT_SOURCE)
             {
                 if let Some(part) = &self.export_name {
                     return Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
-                        EcmascriptModulePartAsset::select_part(*self.module, part.clone())
-                            .to_resolved()
-                            .await?,
+                        turbo_tasks::read!(
+                            EcmascriptModulePartAsset::select_part(*self.module, part.clone())
+                                .to_resolved()
+                        )?,
                     )));
                 }
                 bail!("export_name is required for part import")
             }
         }
 
-        let result = esm_resolve(
+        let result = turbo_tasks::read!(esm_resolve(
             *self.origin,
             request,
             ty,
             ResolveErrorMode::Error,
             Some(self.issue_source),
-        )
-        .await?;
+        ))?;
 
         if let Some(ModulePart::Export(export_name)) = &self.export_name {
-            for &module in result.await?.primary_modules().await?.iter() {
+            for &module in turbo_tasks::read!(turbo_tasks::read!(result)?.primary_modules())?.iter()
+            {
                 if let Some(module) = ResolvedVc::try_downcast(module)
-                    && *is_export_missing(*module, export_name.clone()).await?
+                    && *turbo_tasks::read!(is_export_missing(*module, export_name.clone()))?
                 {
                     InvalidExport {
                         export: export_name.clone(),
@@ -701,17 +765,18 @@ impl ModuleReference for EsmAssetReference {
 }
 
 impl EsmAssetReference {
-    pub async fn code_generation(
+    turbo_tasks::dual_fn! {
+    pub fn code_generation(
         self: ResolvedVc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
     ) -> Result<CodeGeneration> {
-        let this = &*self.await?;
+        let this = &*turbo_tasks::read!(self)?;
 
-        if chunking_context
+        if turbo_tasks::read!(chunking_context
             .unused_references()
-            .contains_key(&ResolvedVc::upcast(self))
-            .await?
+            .contains_key(&ResolvedVc::upcast(self)))
+            ?
         {
             return Ok(CodeGeneration::empty());
         }
@@ -724,7 +789,7 @@ impl EsmAssetReference {
             .is_none_or(|v| v != SpecifiedChunkingType::None)
         {
             let import_externals = this.import_externals;
-            let referenced_asset = self.get_referenced_asset().await?;
+            let referenced_asset = turbo_tasks::read!(self.get_referenced_asset())?;
 
             match &referenced_asset {
                 ReferencedAsset::Unresolvable => {
@@ -769,7 +834,7 @@ impl EsmAssetReference {
                         // the same scope hoisting group (unless it's a
                         // namespace import)
                     } else {
-                        let ident = referenced_asset
+                        let ident = turbo_tasks::read!(referenced_asset
                             .get_ident(
                                 chunking_context,
                                 this.export_name.as_ref().and_then(|e| match e {
@@ -777,8 +842,8 @@ impl EsmAssetReference {
                                     _ => None,
                                 }),
                                 scope_hoisting_context,
-                            )
-                            .await?;
+                            ))
+                            ?;
                         // `referenced_asset` must not be used past this point: the ident carries
                         // everything about the import target (see `ImportSource`) — notably,
                         // when the ident was resolved through a re-export chain, the
@@ -795,10 +860,10 @@ impl EsmAssetReference {
                                 export: _,
                                 import_source,
                             }) => {
-                                let span = this
+                                let span = turbo_tasks::read!(this
                                     .issue_source
-                                    .to_swc_offsets()
-                                    .await?
+                                    .to_swc_offsets())
+                                    ?
                                     .map_or(DUMMY_SP, |(start, end)| {
                                         Span::new(BytePos(start), BytePos(end))
                                     });
@@ -809,7 +874,7 @@ impl EsmAssetReference {
                                 );
                                 let (key, mut call_expr) = match import_source {
                                     ImportSource::Module { asset } => {
-                                        let id = asset.chunk_item_id(chunking_context).await?;
+                                        let id = turbo_tasks::read!(asset.chunk_item_id(chunking_context))?;
                                         // Include ctxt in the key to prevent incorrect
                                         // deduplication when multiple merged modules import the
                                         // same target but have different syntax contexts (which
@@ -827,10 +892,10 @@ impl EsmAssetReference {
                                         request,
                                         ty: ExternalType::EcmaScriptModule,
                                     } => {
-                                        if !*chunking_context
+                                        if !*turbo_tasks::read!(chunking_context
                                             .environment()
-                                            .supports_esm_externals()
-                                            .await?
+                                            .supports_esm_externals())
+                                            ?
                                         {
                                             turbobail!(
                                                 "the chunking context ({}) does not support \
@@ -857,10 +922,10 @@ impl EsmAssetReference {
                                         request,
                                         ty: ExternalType::CommonJs | ExternalType::Url,
                                     } => {
-                                        if !*chunking_context
+                                        if !*turbo_tasks::read!(chunking_context
                                             .environment()
-                                            .supports_commonjs_externals()
-                                            .await?
+                                            .supports_commonjs_externals())
+                                            ?
                                         {
                                             turbobail!(
                                                 "the chunking context ({}) does not support \
@@ -913,6 +978,7 @@ impl EsmAssetReference {
 
         Ok(CodeGeneration::empty())
     }
+    }
 }
 
 fn var_decl_with_span(mut decl: Stmt, span: Span) -> Stmt {
@@ -930,6 +996,7 @@ pub struct InvalidExport {
     source: IssueSource,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for InvalidExport {
@@ -938,11 +1005,7 @@ impl Issue for InvalidExport {
     }
 
     async fn title(&self) -> Result<StyledString> {
-        Ok(StyledString::Line(vec![
-            StyledString::Text(rcstr!("Export ")),
-            StyledString::Code(self.export.clone()),
-            StyledString::Text(rcstr!(" doesn't exist in target module")),
-        ]))
+        self.title_impl()
     }
 
     fn stage(&self) -> IssueStage {
@@ -950,58 +1013,123 @@ impl Issue for InvalidExport {
     }
 
     async fn file_path(&self) -> Result<FileSystemPath> {
-        self.source.file_path().await
+        self.file_path_impl().await
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
-        let export_names = all_known_export_names(*self.module).await?;
-        let did_you_mean = export_names
-            .iter()
-            .map(|s| (s, jaro(self.export.as_str(), s.as_str())))
-            .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
-            .map(|(s, _)| s);
-        Ok(Some(StyledString::Stack(vec![
-            StyledString::Line(vec![
-                StyledString::Text(rcstr!("The export ")),
-                StyledString::Code(self.export.clone()),
-                StyledString::Text(rcstr!(" was not found in module ")),
-                StyledString::Strong(self.module.ident().to_string().owned().await?),
-                StyledString::Text(rcstr!(".")),
-            ]),
-            if let Some(did_you_mean) = did_you_mean {
-                StyledString::Line(vec![
-                    StyledString::Text(rcstr!("Did you mean to import ")),
-                    StyledString::Code(did_you_mean.clone()),
-                    StyledString::Text(rcstr!("?")),
-                ])
-            } else {
-                StyledString::Strong(rcstr!("The module has no exports at all."))
-            },
-            StyledString::Text(
-                "All exports of the module are statically known (It doesn't have dynamic \
-                 exports). So it's known statically that the requested export doesn't exist."
-                    .into(),
-            ),
-        ])))
+        self.description_impl().await
     }
 
     async fn detail(&self) -> Result<Option<StyledString>> {
-        let export_names = all_known_export_names(*self.module).await?;
-        Ok(Some(StyledString::Line(vec![
-            StyledString::Text(rcstr!("These are the exports of the module:\n")),
-            StyledString::Code(
-                export_names
-                    .iter()
-                    .map(|s| s.as_str())
-                    .intersperse(", ")
-                    .collect::<String>()
-                    .into(),
-            ),
-        ])))
+        self.detail_impl().await
     }
 
     fn source(&self) -> Option<IssueSource> {
         Some(self.source)
+    }
+}
+
+/// See the async impl above; the sync engine drops `async`/`#[async_trait]`.
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for InvalidExport {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    fn title(&self) -> Result<StyledString> {
+        self.title_impl()
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Bindings
+    }
+
+    fn file_path(&self) -> Result<FileSystemPath> {
+        self.file_path_impl()
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
+        self.description_impl()
+    }
+
+    fn detail(&self) -> Result<Option<StyledString>> {
+        self.detail_impl()
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
+    }
+}
+
+/// Mode-agnostic bodies for the dual `Issue` impls above.
+impl InvalidExport {
+    /// Await-free, so it is a plain `fn` shared by both modes.
+    fn title_impl(&self) -> Result<StyledString> {
+        Ok(StyledString::Line(vec![
+            StyledString::Text(rcstr!("Export ")),
+            StyledString::Code(self.export.clone()),
+            StyledString::Text(rcstr!(" doesn't exist in target module")),
+        ]))
+    }
+
+    turbo_tasks::dual_fn! {
+        fn file_path_impl(&self) -> Result<FileSystemPath> {
+            turbo_tasks::read!(self.source.file_path())
+        }
+    }
+
+    turbo_tasks::dual_fn! {
+        fn description_impl(&self) -> Result<Option<StyledString>> {
+            let export_names = turbo_tasks::read!(all_known_export_names(*self.module))?;
+            let did_you_mean = export_names
+                .iter()
+                .map(|s| (s, jaro(self.export.as_str(), s.as_str())))
+                .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+                .map(|(s, _)| s);
+            Ok(Some(StyledString::Stack(vec![
+                StyledString::Line(vec![
+                    StyledString::Text(rcstr!("The export ")),
+                    StyledString::Code(self.export.clone()),
+                    StyledString::Text(rcstr!(" was not found in module ")),
+                    StyledString::Strong(turbo_tasks::read!(
+                        self.module.ident().to_string().owned()
+                    )?),
+                    StyledString::Text(rcstr!(".")),
+                ]),
+                if let Some(did_you_mean) = did_you_mean {
+                    StyledString::Line(vec![
+                        StyledString::Text(rcstr!("Did you mean to import ")),
+                        StyledString::Code(did_you_mean.clone()),
+                        StyledString::Text(rcstr!("?")),
+                    ])
+                } else {
+                    StyledString::Strong(rcstr!("The module has no exports at all."))
+                },
+                StyledString::Text(
+                    "All exports of the module are statically known (It doesn't have dynamic \
+                     exports). So it's known statically that the requested export doesn't exist."
+                        .into(),
+                ),
+            ])))
+        }
+    }
+
+    turbo_tasks::dual_fn! {
+        fn detail_impl(&self) -> Result<Option<StyledString>> {
+            let export_names = turbo_tasks::read!(all_known_export_names(*self.module))?;
+            Ok(Some(StyledString::Line(vec![
+                StyledString::Text(rcstr!("These are the exports of the module:\n")),
+                StyledString::Code(
+                    export_names
+                        .iter()
+                        .map(|s| s.as_str())
+                        .intersperse(", ")
+                        .collect::<String>()
+                        .into(),
+                ),
+            ])))
+        }
     }
 }
 
@@ -1013,6 +1141,7 @@ pub struct CircularReExport {
     module_cycle: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for CircularReExport {
@@ -1021,11 +1150,7 @@ impl Issue for CircularReExport {
     }
 
     async fn title(&self) -> Result<StyledString> {
-        Ok(StyledString::Line(vec![
-            StyledString::Text(rcstr!("Export ")),
-            StyledString::Code(self.export.clone()),
-            StyledString::Text(rcstr!(" is a circular re-export")),
-        ]))
+        self.title_impl()
     }
 
     fn stage(&self) -> IssueStage {
@@ -1033,32 +1158,91 @@ impl Issue for CircularReExport {
     }
 
     async fn file_path(&self) -> Result<FileSystemPath> {
-        Ok(self.module.ident().await?.path.clone())
+        self.file_path_impl().await
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
-        Ok(Some(StyledString::Stack(vec![
-            StyledString::Line(vec![StyledString::Text(rcstr!("The export"))]),
-            StyledString::Line(vec![
-                StyledString::Code(self.export.clone()),
-                StyledString::Text(rcstr!(" of module ")),
-                StyledString::Strong(self.module.ident().to_string().owned().await?),
-            ]),
-            StyledString::Line(vec![StyledString::Text(rcstr!(
-                "is a re-export of the export"
-            ))]),
-            StyledString::Line(vec![
-                StyledString::Code(self.import.clone().unwrap_or_else(|| rcstr!("*"))),
-                StyledString::Text(rcstr!(" of module ")),
-                StyledString::Strong(self.module_cycle.ident().to_string().owned().await?),
-                StyledString::Text(rcstr!(".")),
-            ]),
-        ])))
+        self.description_impl().await
     }
 
     fn source(&self) -> Option<IssueSource> {
         // TODO(PACK-4879): This should point at the buggy export by querying for the source
         // location
         None
+    }
+}
+
+/// See the async impl above; the sync engine drops `async`/`#[async_trait]`.
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for CircularReExport {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    fn title(&self) -> Result<StyledString> {
+        self.title_impl()
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Bindings
+    }
+
+    fn file_path(&self) -> Result<FileSystemPath> {
+        self.file_path_impl()
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
+        self.description_impl()
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        // TODO(PACK-4879): This should point at the buggy export by querying for the source
+        // location
+        None
+    }
+}
+
+/// Mode-agnostic bodies for the dual `Issue` impls above.
+impl CircularReExport {
+    /// Await-free, so it is a plain `fn` shared by both modes.
+    fn title_impl(&self) -> Result<StyledString> {
+        Ok(StyledString::Line(vec![
+            StyledString::Text(rcstr!("Export ")),
+            StyledString::Code(self.export.clone()),
+            StyledString::Text(rcstr!(" is a circular re-export")),
+        ]))
+    }
+
+    turbo_tasks::dual_fn! {
+        fn file_path_impl(&self) -> Result<FileSystemPath> {
+            Ok(turbo_tasks::read!(self.module.ident())?.path.clone())
+        }
+    }
+
+    turbo_tasks::dual_fn! {
+        fn description_impl(&self) -> Result<Option<StyledString>> {
+            Ok(Some(StyledString::Stack(vec![
+                StyledString::Line(vec![StyledString::Text(rcstr!("The export"))]),
+                StyledString::Line(vec![
+                    StyledString::Code(self.export.clone()),
+                    StyledString::Text(rcstr!(" of module ")),
+                    StyledString::Strong(turbo_tasks::read!(
+                        self.module.ident().to_string().owned()
+                    )?),
+                ]),
+                StyledString::Line(vec![StyledString::Text(rcstr!(
+                    "is a re-export of the export"
+                ))]),
+                StyledString::Line(vec![
+                    StyledString::Code(self.import.clone().unwrap_or_else(|| rcstr!("*"))),
+                    StyledString::Text(rcstr!(" of module ")),
+                    StyledString::Strong(turbo_tasks::read!(
+                        self.module_cycle.ident().to_string().owned()
+                    )?),
+                    StyledString::Text(rcstr!(".")),
+                ]),
+            ])))
+        }
     }
 }

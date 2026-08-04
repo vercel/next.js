@@ -1,9 +1,12 @@
 use anyhow::{Context, Result, bail};
 use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
+#[cfg(not(feature = "sync"))]
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::TryJoinIterExt;
+use turbo_tasks::{ReadRef, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     chunk::{
@@ -21,66 +24,106 @@ pub async fn get_global_module_id_strategy(
     module_graph: ResolvedVc<ModuleGraph>,
 ) -> Result<Vc<ModuleIdStrategy>> {
     let span = tracing::info_span!("compute module id map");
-    async move {
-        let module_graph = module_graph.await?;
-
-        // All modules in the graph and additionally, all the modules that are inserted by chunking
-        // (i.e. async loaders)
-        let mut modules = FxHashSet::default();
-        let mut async_idents = vec![];
-        module_graph.traverse_edges_unordered(|parent, current| {
-            modules.insert(current);
-            if let Some((
-                _,
-                &RefData {
-                    chunking_type: ChunkingType::Async,
-                    ..
-                },
-            )) = parent
-            {
-                let module = ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(current)
-                    .context("expected chunkable module for async reference")?;
-                async_idents.push(AsyncLoaderModule::asset_ident_for(*module));
-            }
-            Ok(())
-        })?;
-
-        let mut module_id_map = modules
-            .into_iter()
-            .map(|m| m.ident())
-            .chain(async_idents.into_iter())
-            .map(|ident| async move {
-                let ident = ident.to_resolved().await?;
-                let ident_str = ident.to_string().await?;
-                let hash = hash_xxh3_hash64(&ident_str);
-                Ok((ident, (ident_str, hash)))
-            })
-            .try_join()
-            .await?
-            .into_iter()
-            .collect::<FxHashMap<_, _>>();
-
-        finalize_module_ids(&mut module_id_map);
-
-        Ok(ModuleIdStrategy {
-            module_id_map: Some(ResolvedVc::cell(
-                module_id_map
-                    .into_iter()
-                    .map(|(ident, (_, hash))| {
-                        const JS_MAX_SAFE_INTEGER: u64 = (1u64 << 53) - 1;
-                        if hash > JS_MAX_SAFE_INTEGER {
-                            bail!("Numeric module id is too large: {}", hash);
-                        }
-                        Ok((ident, ModuleId::Number(hash)))
-                    })
-                    .collect::<Result<FxHashMap<_, _>>>()?,
-            )),
-            fallback: ModuleIdFallback::Error,
-        }
-        .cell())
+    #[cfg(not(feature = "sync"))]
+    {
+        turbo_tasks::read!(compute_module_id_strategy(module_graph).instrument(span))
     }
-    .instrument(span)
-    .await
+    #[cfg(feature = "sync")]
+    {
+        let _guard = span.entered();
+        compute_module_id_strategy(module_graph)
+    }
+}
+
+turbo_tasks::dual_fn! {
+fn ident_hash(
+    ident: Vc<AssetIdent>,
+) -> Result<(ResolvedVc<AssetIdent>, (ReadRef<RcStr>, u64))> {
+    let ident = turbo_tasks::read!(ident.to_resolved())?;
+    let ident_str = turbo_tasks::read!(ident.to_string())?;
+    let hash = hash_xxh3_hash64(&ident_str);
+    Ok((ident, (ident_str, hash)))
+}
+}
+
+// Collect all modules in the graph plus the async-loader modules inserted by chunking.
+// This is pure/sync (no reads), shared by both the async and sync compute twins.
+fn collect_module_idents(module_graph: &ModuleGraph) -> Result<Vec<Vc<AssetIdent>>> {
+    let mut modules = FxHashSet::default();
+    let mut async_idents = vec![];
+    module_graph.traverse_edges_unordered(|parent, current| {
+        modules.insert(current);
+        if let Some((
+            _,
+            &RefData {
+                chunking_type: ChunkingType::Async,
+                ..
+            },
+        )) = parent
+        {
+            let module = ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(current)
+                .context("expected chunkable module for async reference")?;
+            async_idents.push(AsyncLoaderModule::asset_ident_for(*module));
+        }
+        Ok(())
+    })?;
+    Ok(modules
+        .into_iter()
+        .map(|m| m.ident())
+        .chain(async_idents.into_iter())
+        .collect())
+}
+
+fn build_module_id_strategy(
+    module_id_map: FxHashMap<ResolvedVc<AssetIdent>, (ReadRef<RcStr>, u64)>,
+) -> Result<Vc<ModuleIdStrategy>> {
+    let mut module_id_map = module_id_map;
+    finalize_module_ids(&mut module_id_map);
+
+    Ok(ModuleIdStrategy {
+        module_id_map: Some(ResolvedVc::cell(
+            module_id_map
+                .into_iter()
+                .map(|(ident, (_, hash))| {
+                    const JS_MAX_SAFE_INTEGER: u64 = (1u64 << 53) - 1;
+                    if hash > JS_MAX_SAFE_INTEGER {
+                        bail!("Numeric module id is too large: {}", hash);
+                    }
+                    Ok((ident, ModuleId::Number(hash)))
+                })
+                .collect::<Result<FxHashMap<_, _>>>()?,
+        )),
+        fallback: ModuleIdFallback::Error,
+    }
+    .cell())
+}
+
+#[cfg(not(feature = "sync"))]
+async fn compute_module_id_strategy(
+    module_graph: ResolvedVc<ModuleGraph>,
+) -> Result<Vc<ModuleIdStrategy>> {
+    let module_graph = turbo_tasks::read!(module_graph)?;
+    let module_id_map = collect_module_idents(&module_graph)?
+        .into_iter()
+        .map(ident_hash)
+        .try_join()
+        .await?
+        .into_iter()
+        .collect::<FxHashMap<_, _>>();
+    build_module_id_strategy(module_id_map)
+}
+
+#[cfg(feature = "sync")]
+fn compute_module_id_strategy(
+    module_graph: ResolvedVc<ModuleGraph>,
+) -> Result<Vc<ModuleIdStrategy>> {
+    let module_graph = turbo_tasks::read!(module_graph)?;
+    let mut module_id_map = FxHashMap::default();
+    for ident in collect_module_idents(&module_graph)? {
+        let (k, v) = ident_hash(ident)?;
+        module_id_map.insert(k, v);
+    }
+    build_module_id_strategy(module_id_map)
 }
 
 const JS_MAX_SAFE_INTEGER: u64 = (1u64 << 53) - 1;

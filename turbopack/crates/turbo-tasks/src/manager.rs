@@ -8,7 +8,7 @@ use std::{
     pin::Pin,
     process::abort,
     sync::{
-        Arc, Mutex, RwLock, Weak,
+        Arc, Condvar, Mutex, RwLock, Weak,
         atomic::{AtomicBool, AtomicUsize, Ordering},
     },
     time::{Duration, Instant},
@@ -22,6 +22,7 @@ use futures::FutureExt;
 use rustc_hash::{FxBuildHasher, FxHasher};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
+#[cfg(feature = "tokio_runtime")]
 use tokio::{select, sync::mpsc::Receiver, task_local};
 use tracing::{Instrument, Span, instrument};
 use turbo_tasks_hash::{DeterministicHash, hash_xxh3_hash128};
@@ -41,14 +42,17 @@ use crate::{
     keyed::KeyedEq,
     local_task_tracker::LocalTaskTracker,
     macro_helpers::NativeFunction,
-    message_queue::{CompilationEvent, CompilationEventQueue},
-    priority_runner::{Executor, PriorityRunner},
     registry,
     serialization_invalidation::SerializationInvalidator,
     task::local_task::{LocalTask, LocalTaskSpec, LocalTaskType},
     task_statistics::TaskStatisticsApi,
     trace::TraceRawVcs,
     util::{IdFactory, StaticOrArc},
+};
+#[cfg(feature = "tokio_runtime")]
+use crate::{
+    message_queue::{CompilationEvent, CompilationEventQueue},
+    priority_runner::{Executor, PriorityRunner},
 };
 
 /// Common base trait for [`TurboTasksApi`] and [`TurboTasks`]. Provides APIs for creating tasks
@@ -92,22 +96,38 @@ pub trait TurboTasksCallApi: Sync + Send {
         persistence: TaskPersistence,
     ) -> RawVc;
 
+    #[cfg(feature = "tokio_runtime")]
     fn run(
         &self,
         future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
     ) -> Pin<Box<dyn Future<Output = Result<(), TurboTasksExecutionError>> + Send>>;
+    #[cfg(feature = "tokio_runtime")]
     fn run_once(
         &self,
         future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
     ) -> Pin<Box<dyn Future<Output = Result<()>> + Send>>;
+    #[cfg(feature = "tokio_runtime")]
     fn run_once_with_reason(
         &self,
         reason: StaticOrArc<dyn InvalidationReason>,
         future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
     ) -> Pin<Box<dyn Future<Output = Result<()>> + Send>>;
+    #[cfg(feature = "tokio_runtime")]
     fn start_once_process(&self, future: Pin<Box<dyn Future<Output = ()> + Send + 'static>>);
 
+    /// Synchronous counterpart of [`run_once`](Self::run_once) for the no-tokio
+    /// (`sync`) build. Runs `future` to completion inline as a transient `Once` root
+    /// task on the calling thread — no executor, no tokio channel. The future's
+    /// `Result<()>` is propagated; any value is carried out by the caller via a slot
+    /// (see the free `run`/`run_once` functions).
+    #[cfg(feature = "sync")]
+    fn run_once_inline(
+        &self,
+        future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
+    ) -> Result<()>;
+
     /// Sends a compilation event to subscribers.
+    #[cfg(feature = "tokio_runtime")]
     fn send_compilation_event(&self, event: Arc<dyn CompilationEvent>);
 
     /// Returns a human-readable name for the given task.
@@ -124,6 +144,21 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn invalidate_with_reason(&self, task: TaskId, reason: StaticOrArc<dyn InvalidationReason>);
 
     fn invalidate_serialization(&self, task: TaskId);
+
+    /// Compute a single scheduled task inline on the calling thread (the synchronous
+    /// engine has no executor). Used by [`sync_parallel_read`]'s worker pool to compute a
+    /// missed `parallel!` item by id, in parallel across workers. Returns `true` if the
+    /// task body ran, `false` if it was already done or claimed by another worker.
+    #[cfg(feature = "sync")]
+    fn sync_execute_scheduled_task(&self, task: TaskId) -> bool;
+
+    /// Drive `task` to completion by id: claim and compute it on this worker, or — if
+    /// another worker already claimed it (e.g. a shared dependency) — `managed_block` on its
+    /// done-event until it finishes. Unlike [`Self::sync_execute_scheduled_task`] (which
+    /// returns immediately if it can't claim), this does not return until `task`'s output is
+    /// readable, so [`sync_parallel_read`]'s collection pass sees a completed task.
+    #[cfg(feature = "sync")]
+    fn sync_compute_task(&self, task: TaskId);
 
     fn try_read_task_output(
         &self,
@@ -190,12 +225,22 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     ///
     /// Beware: this method is not safe to use in production code. It is only intended for use in
     /// tests and for debugging purposes.
+    #[cfg(feature = "tokio_runtime")]
     fn spawn_detached_for_testing(&self, f: Pin<Box<dyn Future<Output = ()> + Send + 'static>>);
 
     fn task_statistics(&self) -> &TaskStatisticsApi;
 
+    #[cfg(all(feature = "tokio_runtime", not(feature = "sync")))]
+    fn stop_and_wait(&self) -> Pin<Box<dyn Future<Output = ()> + Send>>;
+    /// No-tokio counterpart. Marks the backend as stopping and flips the `stopped`
+    /// flag, returning an already-`Ready` future so async test-harness call sites
+    /// (`tt.stop_and_wait().await`) work unchanged under `sync_poll`. There are no
+    /// background jobs to drain in the sync engine (persistence runs inline /
+    /// Phase-2 std-thread), so this never actually suspends.
+    #[cfg(feature = "sync")]
     fn stop_and_wait(&self) -> Pin<Box<dyn Future<Output = ()> + Send>>;
 
+    #[cfg(feature = "tokio_runtime")]
     fn subscribe_to_compilation_events(
         &self,
         event_types: Option<Vec<String>>,
@@ -457,10 +502,10 @@ impl Display for TaskPriority {
 }
 
 enum ScheduledTask {
-    Task {
-        task_id: TaskId,
-        span: Span,
-    },
+    // Under `sync`, `TurboTasks::schedule` is a no-op (tasks run inline on read), so
+    // this variant is never constructed; the runner machinery is otherwise unused.
+    #[cfg_attr(feature = "sync", allow(dead_code))]
+    Task { task_id: TaskId, span: Span },
     LocalTask {
         ty: LocalTaskSpec,
         persistence: TaskPersistence,
@@ -478,6 +523,7 @@ pub struct TurboTasks<B: Backend + 'static> {
     currently_scheduled_foreground_jobs: AtomicUsize,
     currently_scheduled_background_jobs: AtomicUsize,
     scheduled_tasks: AtomicUsize,
+    #[cfg(all(feature = "tokio_runtime", not(feature = "sync")))]
     priority_runner:
         Arc<PriorityRunner<TurboTasks<B>, ScheduledTask, TaskPriority, TurboTasksExecutor>>,
     start: Mutex<Option<Instant>>,
@@ -489,6 +535,7 @@ pub struct TurboTasks<B: Backend + 'static> {
     event_foreground_done: Event,
     /// Event that is triggered when all background jobs are done
     event_background_done: Event,
+    #[cfg(all(feature = "tokio_runtime", not(feature = "sync")))]
     compilation_events: CompilationEventQueue,
 }
 
@@ -576,7 +623,93 @@ impl CurrentTaskState {
     }
 }
 
-// TODO implement our own thread pool and make these thread locals instead
+/// A scoped thread-local exposing the subset of tokio's `task_local!` API the sync
+/// engine uses (`with` / `try_with` / `sync_scope`). The value lives on the stack
+/// for the duration of `sync_scope`; nesting saves and restores the previous value.
+/// (Mirrors the `scoped-tls` pattern. The async-only `.scope()` is intentionally
+/// absent — async paths are compiled only under `tokio_runtime`.)
+#[cfg(not(feature = "tokio_runtime"))]
+pub(crate) struct SyncTaskLocal<T: 'static> {
+    inner: &'static std::thread::LocalKey<std::cell::Cell<*const ()>>,
+    _marker: std::marker::PhantomData<fn() -> T>,
+}
+
+#[cfg(not(feature = "tokio_runtime"))]
+pub(crate) struct SyncAccessError;
+
+#[cfg(not(feature = "tokio_runtime"))]
+impl<T: 'static> SyncTaskLocal<T> {
+    pub(crate) const fn new(
+        inner: &'static std::thread::LocalKey<std::cell::Cell<*const ()>>,
+    ) -> Self {
+        Self {
+            inner,
+            _marker: std::marker::PhantomData,
+        }
+    }
+
+    pub(crate) fn sync_scope<R>(&'static self, value: T, f: impl FnOnce() -> R) -> R {
+        struct Reset {
+            inner: &'static std::thread::LocalKey<std::cell::Cell<*const ()>>,
+            prev: *const (),
+        }
+        impl Drop for Reset {
+            fn drop(&mut self) {
+                self.inner.with(|c| c.set(self.prev));
+            }
+        }
+        let prev = self
+            .inner
+            .with(|c| c.replace(&value as *const T as *const ()));
+        let _reset = Reset {
+            inner: self.inner,
+            prev,
+        };
+        f()
+    }
+
+    pub(crate) fn with<R>(&'static self, f: impl FnOnce(&T) -> R) -> R {
+        self.try_with(f)
+            .unwrap_or_else(|_| panic!("sync task-local accessed outside of a scope"))
+    }
+
+    pub(crate) fn try_with<R>(
+        &'static self,
+        f: impl FnOnce(&T) -> R,
+    ) -> Result<R, SyncAccessError> {
+        let ptr = self.inner.with(|c| c.get());
+        if ptr.is_null() {
+            Err(SyncAccessError)
+        } else {
+            // SAFETY: a non-null pointer was set by `sync_scope` and the referent
+            // (a stack local in the enclosing `sync_scope` frame) outlives this call.
+            Ok(f(unsafe { &*(ptr as *const T) }))
+        }
+    }
+}
+
+#[cfg(not(feature = "tokio_runtime"))]
+macro_rules! sync_task_local {
+    ($( $(#[$attr:meta])* $vis:vis static $name:ident: $ty:ty; )*) => {
+        $(
+            $(#[$attr])*
+            $vis static $name: SyncTaskLocal<$ty> = {
+                thread_local! {
+                    static SLOT: std::cell::Cell<*const ()> =
+                        const { std::cell::Cell::new(std::ptr::null()) };
+                }
+                SyncTaskLocal::new(&SLOT)
+            };
+        )*
+    };
+}
+
+// The ambient task-locals. Under the async runtime these are tokio task-locals
+// (correct task-local semantics: they follow a task across `.await`/thread moves).
+// Under the synchronous engine (no tokio) they are scoped *thread*-locals — correct
+// because sync execution is inline on one call stack, and `parallel!` re-establishes
+// them per worker thread.
+#[cfg(feature = "tokio_runtime")]
 task_local! {
     /// The current TurboTasks instance
     static TURBO_TASKS: Arc<dyn TurboTasksApi>;
@@ -587,6 +720,13 @@ task_local! {
     /// This is used by strongly consistent reads to allow them to succeed in top-level tasks.
     /// This is NOT shared across local tasks (unlike CURRENT_TASK_STATE), so it's safe
     /// to set/unset without race conditions.
+    pub(crate) static SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK: bool;
+}
+
+#[cfg(not(feature = "tokio_runtime"))]
+sync_task_local! {
+    static TURBO_TASKS: Arc<dyn TurboTasksApi>;
+    static CURRENT_TASK_STATE: Arc<RwLock<CurrentTaskState>>;
     pub(crate) static SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK: bool;
 }
 
@@ -606,6 +746,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             currently_scheduled_foreground_jobs: AtomicUsize::new(0),
             currently_scheduled_background_jobs: AtomicUsize::new(0),
             scheduled_tasks: AtomicUsize::new(0),
+            #[cfg(all(feature = "tokio_runtime", not(feature = "sync")))]
             priority_runner: Arc::new(PriorityRunner::new(TurboTasksExecutor)),
             start: Default::default(),
             aggregated_update: Default::default(),
@@ -618,8 +759,14 @@ impl<B: Backend + 'static> TurboTasks<B> {
             event_background_done: Event::new(|| {
                 || "TurboTasks::event_background_done".to_string()
             }),
+            #[cfg(all(feature = "tokio_runtime", not(feature = "sync")))]
             compilation_events: CompilationEventQueue::default(),
         });
+        // Start the sync worker pool up front (analogous to the async build creating its
+        // tokio runtime before any task runs), so the first build doesn't pay thread
+        // creation inside its timed region.
+        #[cfg(feature = "sync")]
+        sync_pool::ensure_started();
         this.backend.startup(&*this);
         this
     }
@@ -633,15 +780,15 @@ impl<B: Backend + 'static> TurboTasks<B> {
     where
         T: ?Sized,
         F: Fn() -> Fut + Send + Sync + Clone + 'static,
-        Fut: Future<Output = Result<Vc<T>>> + Send,
+        Fut: Future<Output = Result<Vc<T>>> + Send + 'static,
     {
         let id = self.backend.create_transient_task(
             TransientTaskType::Root(Box::new(move || {
                 let functor = functor.clone();
-                Box::pin(async move {
+                future_as_native_task(async move {
                     mark_top_level_task();
                     let raw_vc = functor().await?.node;
-                    raw_vc.to_non_local().await
+                    crate::read!(raw_vc.to_non_local())
                 })
             })),
             self,
@@ -657,23 +804,34 @@ impl<B: Backend + 'static> TurboTasks<B> {
     // TODO make sure that all dependencies settle before reading them
     /// Creates a new root task, that is only executed once.
     /// Dependencies will not invalidate the task.
+    #[cfg(feature = "tokio_runtime")]
     #[track_caller]
     fn spawn_once_task<T, Fut>(&self, future: Fut)
     where
         T: ?Sized,
         Fut: Future<Output = Result<Vc<T>>> + Send + 'static,
     {
-        let id = self.backend.create_transient_task(
+        #[cfg(not(feature = "sync"))]
+        let task = {
             TransientTaskType::Once(Box::pin(async move {
                 mark_top_level_task();
                 let raw_vc = future.await?.node;
                 raw_vc.to_non_local().await
-            })),
-            self,
-        );
+            }))
+        };
+        #[cfg(feature = "sync")]
+        let task = {
+            TransientTaskType::Once(future_as_native_task(async move {
+                mark_top_level_task();
+                let raw_vc = future.await?.node;
+                raw_vc.to_non_local()
+            }))
+        };
+        let id = self.backend.create_transient_task(task, self);
         self.schedule(id, TaskPriority::initial());
     }
 
+    #[cfg(all(feature = "tokio_runtime", not(feature = "sync")))]
     pub async fn run_once<T: TraceRawVcs + Send + 'static>(
         &self,
         future: impl Future<Output = Result<T>> + Send + 'static,
@@ -690,6 +848,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         rx.await?
     }
 
+    #[cfg(feature = "tokio_runtime")]
     #[tracing::instrument(level = "trace", skip_all, name = "turbo_tasks::run")]
     pub async fn run<T: TraceRawVcs + Send + 'static>(
         &self,
@@ -725,6 +884,43 @@ impl<B: Backend + 'static> TurboTasks<B> {
         result
     }
 
+    // Inherent no-tokio counterpart of `run_once`, for tests that hold a concrete
+    // `TurboTasks<B>` and call `tt.run_once(fut).await` directly (rather than the free
+    // function). Same `async fn` signature, but driven inline via `run_once_inline` —
+    // the returned future is `Ready` after a single poll.
+    #[cfg(feature = "sync")]
+    pub async fn run_once<T: TraceRawVcs + Send + 'static>(
+        &self,
+        future: impl Future<Output = Result<T>> + Send + 'static,
+    ) -> Result<T> {
+        let slot: Arc<std::sync::Mutex<Option<T>>> = Arc::new(std::sync::Mutex::new(None));
+        let slot_inner = slot.clone();
+        TurboTasksCallApi::run_once_inline(
+            self,
+            Box::pin(async move {
+                let result = future.await?;
+                *slot_inner.lock().unwrap() = Some(result);
+                Ok(())
+            }),
+        )?;
+        Ok(slot
+            .lock()
+            .unwrap()
+            .take()
+            .expect("sync run_once: body did not produce a result"))
+    }
+
+    // Inherent no-tokio counterpart of `stop_and_wait`, for tests that hold a concrete
+    // `TurboTasks<B>`. Marks the backend stopping and flips the `stopped` flag; there
+    // are no background foreground-jobs to drain in the inline engine. Persistence is
+    // exercised explicitly by tests via `snapshot_and_evict_for_testing`.
+    #[cfg(feature = "sync")]
+    pub async fn stop_and_wait(&self) {
+        self.backend.stopping(self);
+        self.stopped.store(true, Ordering::Release);
+    }
+
+    #[cfg(feature = "tokio_runtime")]
     pub fn start_once_process(&self, future: impl Future<Output = ()> + Send + 'static) {
         let this = self.pin();
         tokio::spawn(async move {
@@ -747,11 +943,17 @@ impl<B: Backend + 'static> TurboTasks<B> {
         arg: &mut dyn DynTaskInputsStorage,
         persistence: TaskPersistence,
     ) -> RawVc {
+        // Parent task for child-connection. Under the synchronous engine a top-level
+        // call (outside any task) legitimately has no parent, so don't panic.
+        #[cfg(feature = "sync")]
+        let parent = current_reader_or_none();
+        #[cfg(not(feature = "sync"))]
+        let parent = current_task_if_available("turbo_function calls");
         RawVc::task_output(self.backend.get_or_create_task(
             native_fn,
             this,
             arg,
-            current_task_if_available("turbo_function calls"),
+            parent,
             persistence,
             self,
         ))
@@ -768,14 +970,32 @@ impl<B: Backend + 'static> TurboTasks<B> {
         if inputs_resolved.is_resolved() && this.is_none_or(|this| this.is_resolved()) {
             return self.native_call(native_fn, this, arg, persistence);
         }
-        // Need async resolution — must move the arg to the heap now
-        let arg = arg.take_box();
-        let task_type = LocalTaskSpec {
-            task_type: LocalTaskType::ResolveNative { native_fn },
-            this,
-            arg,
-        };
-        self.schedule_local_task(task_type, persistence)
+        // Synchronous engine: resolve `this` and the arguments inline instead of
+        // spawning an async `ResolveNative` local task. `run_resolve_native` is a plain
+        // synchronous fn under `sync` (no future/poll) — call it directly.
+        #[cfg(feature = "sync")]
+        {
+            let arg = arg.take_box();
+            return LocalTaskType::run_resolve_native(
+                native_fn,
+                this,
+                &*arg,
+                persistence,
+                self.pin(),
+            )
+            .expect("sync turbo-tasks: failed to resolve task inputs");
+        }
+        #[cfg(not(feature = "sync"))]
+        {
+            // Need async resolution — must move the arg to the heap now
+            let arg = arg.take_box();
+            let task_type = LocalTaskSpec {
+                task_type: LocalTaskType::ResolveNative { native_fn },
+                this,
+                arg,
+            };
+            self.schedule_local_task(task_type, persistence)
+        }
     }
 
     pub fn trait_call(
@@ -819,31 +1039,86 @@ impl<B: Backend + 'static> TurboTasks<B> {
             }
         }
 
+        // Synchronous engine: resolve `this` + inputs inline (mirrors dynamic_call).
+        // `run_resolve_trait` is a plain synchronous fn under `sync` — call it directly.
+        #[cfg(feature = "sync")]
+        {
+            let _ = inputs_resolved;
+            let arg = arg.take_box();
+            return LocalTaskType::run_resolve_trait(
+                trait_method,
+                this,
+                &*arg,
+                persistence,
+                self.pin(),
+            )
+            .expect("sync turbo-tasks: failed to resolve trait call inputs");
+        }
         // create a wrapper task to resolve all inputs
-        let task_type = LocalTaskSpec {
-            task_type: LocalTaskType::ResolveTrait { trait_method },
-            this: Some(this),
-            arg: arg.take_box(),
-        };
-
-        self.schedule_local_task(task_type, persistence)
+        #[cfg(not(feature = "sync"))]
+        {
+            let task_type = LocalTaskSpec {
+                task_type: LocalTaskType::ResolveTrait { trait_method },
+                this: Some(this),
+                arg: arg.take_box(),
+            };
+            self.schedule_local_task(task_type, persistence)
+        }
     }
 
     #[track_caller]
     pub fn schedule(&self, task_id: TaskId, priority: TaskPriority) {
-        self.begin_foreground_job();
-        self.scheduled_tasks.fetch_add(1, Ordering::AcqRel);
+        // Synchronous engine: scheduling a task = making sure it is computed by the sync
+        // scheduler. In parallel mode that means enqueuing a pool job that claim-dedups with
+        // other readers. In sequential mode it means computing immediately on this stack; this
+        // keeps the correctness fallback genuinely fork-free instead of leaving scheduled work
+        // on helper threads where it can participate in the parallel wait cycle.
+        #[cfg(feature = "sync")]
+        {
+            let _ = priority;
+            if sync_trace(task_id) {
+                eprintln!("[trace] SCHED {}", sync_token(task_id));
+            }
+            if sync_sequential() {
+                self.begin_foreground_job();
+                self.sync_execute_scheduled_task(task_id);
+                self.finish_foreground_job();
+                return;
+            }
+            let this = self.pin();
+            let tt: Arc<dyn TurboTasksApi> = this.clone();
+            crate::sync_stats::bump(&crate::sync_stats::SCHEDULE_CALLS);
+            sync_pool::pool().spawn_external(move |_w| {
+                crate::sync_stats::bump(&crate::sync_stats::POOL_JOBS_RUN);
+                let claimed = if TURBO_TASKS.try_with(|_| ()).is_ok() {
+                    tt.sync_execute_scheduled_task(task_id)
+                } else {
+                    let tt2 = tt.clone();
+                    TURBO_TASKS.sync_scope(tt, move || tt2.sync_execute_scheduled_task(task_id))
+                };
+                if claimed {
+                    crate::sync_stats::bump(&crate::sync_stats::POOL_CLAIMED);
+                }
+            });
+            return;
+        }
+        #[cfg(not(feature = "sync"))]
+        {
+            self.begin_foreground_job();
+            self.scheduled_tasks.fetch_add(1, Ordering::AcqRel);
 
-        self.priority_runner.schedule(
-            &self.pin(),
-            ScheduledTask::Task {
-                task_id,
-                span: Span::current(),
-            },
-            priority,
-        );
+            self.priority_runner.schedule(
+                &self.pin(),
+                ScheduledTask::Task {
+                    task_id,
+                    span: Span::current(),
+                },
+                priority,
+            );
+        }
     }
 
+    #[cfg(all(feature = "tokio_runtime", not(feature = "sync")))]
     fn schedule_local_task(
         &self,
         ty: LocalTaskSpec,
@@ -965,6 +1240,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
 
     /// Returns [UpdateInfo] with all updates aggregated over a given duration
     /// (`aggregation`). Will wait until an update happens.
+    #[cfg(feature = "tokio_runtime")]
     pub async fn get_or_wait_aggregated_update_info(&self, aggregation: Duration) -> UpdateInfo {
         self.aggregated_update_info(aggregation, Duration::MAX)
             .await
@@ -974,6 +1250,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
     /// Returns [UpdateInfo] with all updates aggregated over a given duration
     /// (`aggregation`). Will only return None when the timeout is reached while
     /// waiting for the first update.
+    #[cfg(feature = "tokio_runtime")]
     pub async fn aggregated_update_info(
         &self,
         aggregation: Duration,
@@ -1048,6 +1325,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         }
     }
 
+    #[cfg(feature = "tokio_runtime")]
     pub async fn wait_background_done(&self) {
         let listener = self.event_background_done.listen();
         if self
@@ -1059,6 +1337,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         }
     }
 
+    #[cfg(all(feature = "tokio_runtime", not(feature = "sync")))]
     pub async fn stop_and_wait(&self) {
         turbo_tasks_future_scope(self.pin(), async move {
             self.backend.stopping(self);
@@ -1090,6 +1369,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         .await;
     }
 
+    #[cfg(feature = "tokio_runtime")]
     #[track_caller]
     pub(crate) fn schedule_background_job<T>(&self, func: T)
     where
@@ -1121,6 +1401,315 @@ impl<B: Backend + 'static> TurboTasks<B> {
         })
     }
 
+    /// Called from the sync read loops when a read returned `Err(listener)` (the task
+    /// is not yet available). A genuine dependency *cycle* is already ruled out by the
+    /// [`SyncWaitGraph`] before we get here, so `task` is being produced by another worker.
+    ///
+    /// The strategy: try to claim and compute `task` inline; if it is already claimed by
+    /// another worker, just block on its done-event until that worker finishes. Because
+    /// [`sync_parallel_read`] gives every outermost item its own dedicated OS thread, the
+    /// producer of any in-flight task is always runnable, and the wait-for graph of an
+    /// acyclic task graph is itself acyclic, so the block always resolves. The `deadline`
+    /// is a backstop: it turns a genuine (undetected-cycle) hang into a fast, clear panic
+    /// instead of an indefinite wait.
+    ///
+    /// The deadline is progress-aware: if the pool's `completed` counter advances, the build
+    /// is making progress (just slow), so we reset the deadline. True deadlock has no
+    /// progress.
+    #[cfg(feature = "sync")]
+    fn sync_advance_or_wait(
+        &self,
+        task: TaskId,
+        listener: EventListener,
+        deadline: &mut Option<(std::time::Instant, u64)>,
+    ) {
+        if self.execute_task_inline(task) {
+            crate::sync_stats::bump(&crate::sync_stats::INLINE_CLAIMED);
+            *deadline = None;
+            return;
+        }
+        if sync_trace(task) {
+            eprintln!(
+                "[trace] ADV {} inline-claim-failed -> will managed_block",
+                sync_token(task)
+            );
+        }
+        let now_progress = sync_pool::pool().progress();
+        let until = match deadline {
+            Some((until, last_progress)) => {
+                if now_progress != *last_progress {
+                    let new_until = std::time::Instant::now() + *SYNC_DEADLOCK_TIMEOUT;
+                    *deadline = Some((new_until, now_progress));
+                    new_until
+                } else {
+                    *until
+                }
+            }
+            None => {
+                let new_until = std::time::Instant::now() + *SYNC_DEADLOCK_TIMEOUT;
+                *deadline = Some((new_until, now_progress));
+                new_until
+            }
+        };
+        let remaining = until.saturating_duration_since(std::time::Instant::now());
+        if remaining.is_zero() {
+            let progress = sync_pool::pool().progress();
+            eprintln!(
+                "\n=== sync deadlock on {task:?} ({}) progress={} (deadline stalled, no \
+                 completion since set) ===\n{}",
+                self.backend.debug_description(task),
+                progress,
+                sync_pool::pool().dump_state_simple()
+            );
+            #[cfg(feature = "sync_instrument")]
+            {
+                let backend = &self.backend;
+                let describe = |token: u64| -> Option<String> {
+                    std::num::NonZeroU64::new(token)
+                        .and_then(|nz| TaskId::try_from(nz).ok())
+                        .map(|id| backend.debug_description(id))
+                };
+                eprintln!(
+                    "=== detailed wait-graph (instrument) ===
+{}",
+                    sync_pool::pool().dump_state_described(describe)
+                );
+                static SAMPLED: std::sync::atomic::AtomicBool =
+                    std::sync::atomic::AtomicBool::new(false);
+                if SAMPLED
+                    .compare_exchange(
+                        false,
+                        true,
+                        std::sync::atomic::Ordering::SeqCst,
+                        std::sync::atomic::Ordering::SeqCst,
+                    )
+                    .is_ok()
+                {
+                    let pid = std::process::id().to_string();
+                    let out = std::env::var("TT_DEADLOCK_SAMPLE_FILE")
+                        .unwrap_or_else(|_| "/tmp/tt_deadlock_sample.txt".to_string());
+                    let _ = std::process::Command::new("sample")
+                        .args([&pid, "2", "-file", &out, "-mayDie"])
+                        .status();
+                    eprintln!("=== sync deadlock: thread sample written to {out} ===");
+                } else {
+                    std::thread::sleep(std::time::Duration::from_secs(4));
+                }
+            }
+            panic!(
+                "sync turbo-tasks: deadlock — task {task:?} was not produced within {:?}                  (progress={} stalled, no completion since deadline was set). This indicates a                  genuine dependency cycle that escaped detection, or a bug in the synchronous                  scheduler. If the build is just slow, this panic means *no* global progress                  was observed — a true stall, not slowness — or increase                  `TURBO_SYNC_DEADLOCK_SECS`.",
+                *SYNC_DEADLOCK_TIMEOUT, progress
+            );
+        }
+        if tt_parallel::in_worker() {
+            crate::sync_stats::bump(&crate::sync_stats::MANAGED_BLOCKS);
+            let blocker = ListenerBlocker {
+                listener: Some(listener),
+                timeout: remaining,
+                wake: Arc::new(ListenerWake::default()),
+            };
+            if tt_parallel::managed_block_current(sync_token(task), blocker).is_err() {
+                panic!(
+                    "sync turbo-tasks: dependency cycle detected while waiting on task {task:?} \
+                     (the producer is, transitively, waiting on a task this worker is producing)."
+                );
+            }
+        } else {
+            // Off-pool fallback (no worker context): a plain bounded wait. Reached only if
+            // a read happens outside the pool, which the bootstrap normally prevents.
+            listener.wait_timeout(remaining);
+        }
+    }
+
+    /// Precondition: the task is in the `Scheduled` state (the read-miss path in
+    /// `try_read_task_*` sets this before calling here).
+    #[cfg(feature = "sync")]
+    fn execute_task_inline(&self, task_id: TaskId) -> bool {
+        use crate::capture_future::capture_sync;
+
+        enum Outcome {
+            NotStarted,
+            Completed,
+            Stale(TaskPriority),
+        }
+
+        loop {
+            // It's okay for execution ids to overflow and wrap; they're just used for
+            // an assert.
+            let execution_id = self.execution_id_factory.wrapping_get();
+            let current_task_state = Arc::new(RwLock::new(CurrentTaskState::new(
+                task_id,
+                execution_id,
+                TaskPriority::initial(),
+                false, // in_top_level_task
+            )));
+            let outcome = CURRENT_TASK_STATE.sync_scope(current_task_state, || {
+                if self.stopped.load(Ordering::Acquire) {
+                    self.backend.task_execution_canceled(task_id, self);
+                    return Outcome::NotStarted;
+                }
+                let Some(TaskExecutionSpec { future, span }) = self
+                    .backend
+                    .try_start_task_execution(task_id, TaskPriority::initial(), self)
+                else {
+                    // Not scheduled: already done, or in progress on this stack (cycle).
+                    if sync_trace(task_id) {
+                        eprintln!(
+                            "[trace] INLINE {} -> NotStarted (claim failed)",
+                            sync_token(task_id)
+                        );
+                    }
+                    return Outcome::NotStarted;
+                };
+                if sync_trace(task_id) {
+                    eprintln!(
+                        "[trace] INLINE {} -> claimed, running body",
+                        sync_token(task_id)
+                    );
+                }
+                let _entered = span.entered();
+
+                // Cycle detection lives in the global `SyncWaitGraph` (edges added by the
+                // read path in `try_read_task_*`), not on this thread — so there is
+                // nothing to push/pop here.
+
+                // A synchronous task body has no real `.await` points — every
+                // dependency read is a `read!` (a synchronous call that recurses back
+                // through the manager to inline-compute missing deps). So the body's
+                // future completes in exactly one poll, on this call stack.
+                //
+                // Note: unlike the async executor we do NOT `wait_for_local_tasks` —
+                // the synchronous model resolves inputs eagerly and does not spawn
+                // `local` tasks.
+                //
+                // Reset the eventual-consistency top-level suppression flag for this
+                // task. The async executor runs each task on its own worker thread, so a
+                // task never inherits the transient suppress scope of whichever read
+                // triggered it. The sync engine runs the task inline on the SAME thread,
+                // so without this reset a task executed in the middle of a caller's
+                // strongly-consistent read would wrongly inherit `suppressed = true` and
+                // skip the top-level-task eventual-read check.
+                // Declare to the scheduler that this worker is producing `task_id` for the
+                // duration of the body, so another worker that reaches `task_id` (and
+                // `managed_block`s on it) participates in cross-worker cycle detection, and
+                // a `join` waiting on a stolen child parks-rather-than-steals (avoiding the
+                // self-wait). `owning` requires a pool worker; the read/schedule paths
+                // guarantee we're on one. Off-pool (a stray inline drive) we just run.
+                let run_body = || {
+                    // A task body is never itself a probe (the probe is the parent's
+                    // classification pass in `sync_parallel_read`). Clear `SYNC_PROBE` for the
+                    // body so a `read!` miss inside it claims+computes / blocks rather than
+                    // reporting a miss — a worker can reach here from inside a `parallel!`
+                    // probe via work-stealing.
+                    let probing = SYNC_PROBE.with(|p| p.replace(false));
+                    // Per-task-type timing (analysis only, `TURBO_SYNC_STATS=1` — see
+                    // `sync_stats::task_time`).
+                    let _timer = crate::sync_stats::time_task_named(|| {
+                        self.backend.get_task_name(task_id, self)
+                    });
+                    // Run the task body closure directly (no future/poll), catching panics
+                    // exactly as the async `CaptureFuture` does.
+                    let r = SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK
+                        .sync_scope(false, || capture_sync(future));
+                    SYNC_PROBE.with(|p| p.set(probing));
+                    r
+                };
+                let result = if tt_parallel::in_worker() {
+                    tt_parallel::owning_current(sync_token(task_id), run_body)
+                } else {
+                    run_body()
+                };
+                let result = match result {
+                    Ok(Ok(raw_vc)) => raw_vc
+                        .to_non_local_unchecked_sync(self)
+                        .map_err(|err| err.into()),
+                    Ok(Err(err)) => Err(err.into()),
+                    Err(err) => Err(TurboTasksExecutionError::Panic(Arc::new(err))),
+                };
+
+                let finished_state = self.finish_current_task_state();
+                let cell_counters =
+                    CURRENT_TASK_STATE.with(|ts| ts.write().unwrap().cell_counters.take().unwrap());
+                let outcome = match self.backend.task_execution_completed(
+                    task_id,
+                    result,
+                    &cell_counters,
+                    #[cfg(feature = "verify_determinism")]
+                    finished_state.stateful,
+                    finished_state.has_invalidator,
+                    self,
+                ) {
+                    Some(stale_priority) => Outcome::Stale(stale_priority),
+                    None => Outcome::Completed,
+                };
+                outcome
+            });
+            if sync_trace(task_id) {
+                eprintln!(
+                    "[trace] INLINE {} -> {}",
+                    sync_token(task_id),
+                    match &outcome {
+                        Outcome::NotStarted => "NotStarted",
+                        Outcome::Completed => "Completed",
+                        Outcome::Stale(_) => "Stale(reschedule)",
+                    }
+                );
+            }
+            match outcome {
+                Outcome::NotStarted => return false,
+                Outcome::Completed => return true,
+                Outcome::Stale(stale_priority) => {
+                    // Task went stale during execution; re-schedule and re-run inline.
+                    self.schedule(task_id, stale_priority);
+                }
+            }
+        }
+    }
+
+    /// Synchronous entry point into the task graph — the sync counterpart of
+    /// [`TurboTasks::run_once`]. Runs `closure` as a root `Once` task on the current
+    /// thread, so it executes within a task context (top-level `.cell()` and `read!`
+    /// work), and returns the closure's result.
+    ///
+    /// The closure must be `Send + 'static` (it becomes a task body), matching
+    /// `run_once`. Computation is fully inline — no tokio, no scheduler.
+    #[cfg(feature = "sync")]
+    pub fn run_sync<T, F>(&self, closure: F) -> Result<T>
+    where
+        F: FnOnce() -> Result<T> + Send + 'static,
+        T: Send + 'static,
+    {
+        let this = self.pin();
+        let tt_dyn: Arc<dyn TurboTasksApi> = this.clone();
+        turbo_tasks_scope(tt_dyn, move || {
+            // The closure's result is carried out of the task body via a slot (the
+            // task's own output is a `Completion`, like `run_once`).
+            let slot: Arc<std::sync::Mutex<Option<Result<T>>>> =
+                Arc::new(std::sync::Mutex::new(None));
+            let slot_inner = slot.clone();
+            // The task body is a plain closure — the sync `NativeTaskFuture` — so `run_sync`
+            // is genuinely async-free: no future, no poll, no `sync_poll` (unlike the
+            // async `run_once`, which wraps a caller-provided future). The closure is the
+            // whole call chain: it runs inline when the Once task is read below.
+            let once_id = this.backend.create_transient_task(
+                TransientTaskType::Once(Box::new(move || {
+                    mark_top_level_task();
+                    let result = closure();
+                    *slot_inner.lock().unwrap() = Some(result);
+                    Ok(crate::Vc::into_raw(Completion::new()))
+                })),
+                &this,
+            );
+            // Drive the Once task to completion by reading its output inline. Under
+            // the sync engine this always resolves (never returns an EventListener).
+            let _ = this.try_read_task_output(once_id, ReadOutputOptions::default())?;
+            slot.lock()
+                .unwrap()
+                .take()
+                .expect("sync Once task did not produce a result")
+        })
+    }
+
     pub fn backend(&self) -> &B {
         &self.backend
     }
@@ -1137,6 +1726,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             == 0
     }
 
+    #[cfg(feature = "tokio_runtime")]
     #[track_caller]
     pub fn schedule_backend_background_job(&self, job: B::BackendJob) {
         self.schedule_background_job(async move |this| {
@@ -1146,12 +1736,14 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 }
 
+#[cfg(feature = "tokio_runtime")]
 struct TurboTasksExecutor;
 
 /// Run a future and abort the process if a panic is reported
 ///
 /// Turbtasks catches panics from user code and propagates throught the task tree, but if it happens
 /// as part of state management we have to abort
+#[cfg(feature = "tokio_runtime")]
 async fn abort_on_panic<F: Future>(f: F) -> F::Output {
     match AssertUnwindSafe(f).catch_unwind().await {
         Ok(r) => r,
@@ -1167,6 +1759,10 @@ async fn abort_on_panic<F: Future>(f: F) -> F::Output {
     }
 }
 
+// In sync mode tasks run inline via `execute_task_inline` / `sync_pool`,
+// never via the `PriorityRunner` executor, even when `tokio_runtime` is also enabled (dual-mode /
+// edge bridge).
+#[cfg(all(feature = "tokio_runtime", not(feature = "sync")))]
 impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboTasksExecutor {
     type Future = impl Future<Output = ()> + Send + 'static;
 
@@ -1362,6 +1958,7 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
         self.trait_call(trait_method, this, arg, inputs_resolved, persistence)
     }
 
+    #[cfg(feature = "tokio_runtime")]
     #[track_caller]
     fn run(
         &self,
@@ -1371,6 +1968,7 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
         Box::pin(async move { this.run(future).await })
     }
 
+    #[cfg(feature = "tokio_runtime")]
     #[track_caller]
     fn run_once(
         &self,
@@ -1380,6 +1978,7 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
         Box::pin(async move { this.run_once(future).await })
     }
 
+    #[cfg(feature = "tokio_runtime")]
     #[track_caller]
     fn run_once_with_reason(
         &self,
@@ -1394,14 +1993,47 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
         Box::pin(async move { this.run_once(future).await })
     }
 
+    #[cfg(feature = "tokio_runtime")]
     #[track_caller]
     fn start_once_process(&self, future: Pin<Box<dyn Future<Output = ()> + Send + 'static>>) {
         self.start_once_process(future)
     }
 
+    #[cfg(feature = "sync")]
+    fn run_once_inline(
+        &self,
+        future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
+    ) -> Result<()> {
+        let this = self.pin();
+        let tt_dyn: Arc<dyn TurboTasksApi> = this.clone();
+        // Establish the ambient turbo-tasks context, then run the body as a transient
+        // `Once` root task. Reading its output inline drives the body to completion
+        // (the sync engine inline-computes every dependency, never suspending).
+        turbo_tasks_scope(tt_dyn, move || {
+            let once_id = this.backend.create_transient_task(
+                TransientTaskType::Once(future_as_native_task(async move {
+                    mark_top_level_task();
+                    future.await?;
+                    Ok(crate::Vc::into_raw(Completion::new()))
+                })),
+                &this,
+            );
+            let _ = this.try_read_task_output(once_id, ReadOutputOptions::default())?;
+            Ok(())
+        })
+    }
+
+    #[cfg(feature = "tokio_runtime")]
     fn send_compilation_event(&self, event: Arc<dyn CompilationEvent>) {
-        if let Err(e) = self.compilation_events.send(event) {
-            tracing::warn!("Failed to send compilation event: {e}");
+        #[cfg(not(feature = "sync"))]
+        {
+            if let Err(e) = self.compilation_events.send(event) {
+                tracing::warn!("Failed to send compilation event: {e}");
+            }
+        }
+        #[cfg(feature = "sync")]
+        {
+            let _ = event;
         }
     }
 
@@ -1429,6 +2061,33 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.backend.invalidate_serialization(task, self);
     }
 
+    #[cfg(feature = "sync")]
+    fn sync_execute_scheduled_task(&self, task: TaskId) -> bool {
+        let r = self.execute_task_inline(task);
+        if sync_trace(task) {
+            eprintln!("[trace] SCHEDEXEC {} -> claimed={}", sync_token(task), r);
+        }
+        r
+    }
+
+    #[cfg(feature = "sync")]
+    fn sync_compute_task(&self, task: TaskId) {
+        if self.execute_task_inline(task) {
+            return;
+        }
+        let mut deadline = None;
+        loop {
+            match self
+                .backend
+                .try_read_task_output(task, None, ReadOutputOptions::default(), self)
+            {
+                Ok(Ok(_)) => return,
+                Ok(Err(listener)) => self.sync_advance_or_wait(task, listener, &mut deadline),
+                Err(_) => return,
+            }
+        }
+    }
+
     #[track_caller]
     fn try_read_task_output(
         &self,
@@ -1438,6 +2097,43 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         if options.consistency == ReadConsistency::Eventual {
             debug_assert_not_in_top_level_task("read_task_output");
         }
+        #[cfg(feature = "sync")]
+        {
+            // Bootstrap onto the pool if reached off-pool (the `run_sync` driver or a
+            // top-level `read!`), so the claim/`managed_block`/fan-out below run on a worker.
+            // Nested reads inside a task body are already on a worker and skip this.
+            if !tt_parallel::in_worker() {
+                return sync_bootstrap_on_pool(|| self.try_read_task_output(task, options));
+            }
+            // Synchronous engine: on a miss, claim+compute the task on this worker (or
+            // `managed_block` on its producer) instead of returning an EventListener.
+            // Cycle detection lives on the cold blocking path only: `sync_advance_or_wait`
+            // computes the task inline when it can (the common case, no wait) and otherwise
+            // `managed_block`s, which rejects a wait that would close a cross-worker cycle;
+            // a same-stack cycle is caught by the backend's in-progress state. No global
+            // per-read bookkeeping is needed.
+            let reader = current_reader_or_none();
+            let mut deadline = None;
+            loop {
+                match self
+                    .backend
+                    .try_read_task_output(task, reader, options, self)?
+                {
+                    Ok(raw) => return Ok(Ok(raw)),
+                    Err(listener) => {
+                        // Probe mode (see `sync_parallel_read`): record the miss and yield
+                        // `Pending` so the caller can dispatch this task to the pool by id,
+                        // rather than computing it here on the probing worker.
+                        if SYNC_PROBE.with(|p| p.get()) {
+                            SYNC_PROBE_MISS.with(|m| m.set(Some(task)));
+                            return Ok(Err(listener));
+                        }
+                        self.sync_advance_or_wait(task, listener, &mut deadline);
+                    }
+                }
+            }
+        }
+        #[cfg(not(feature = "sync"))]
         self.backend.try_read_task_output(
             task,
             current_task_if_available("reading Vcs"),
@@ -1453,9 +2149,42 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         index: CellId,
         options: ReadCellOptions,
     ) -> Result<Result<TypedCellContent, EventListener>> {
-        let reader = current_task_if_available("reading Vcs");
-        self.backend
-            .try_read_task_cell(task, index, reader, options, self)
+        #[cfg(feature = "sync")]
+        {
+            // Bootstrap onto the pool if reached off-pool (see `try_read_task_output`).
+            if !tt_parallel::in_worker() {
+                return sync_bootstrap_on_pool(|| self.try_read_task_cell(task, index, options));
+            }
+            // Synchronous engine: claim+compute the owning task on this worker on a miss.
+            // Cycle detection is on the cold blocking path only (see `try_read_task_output`).
+            let reader = current_reader_or_none();
+            let mut deadline = None;
+            loop {
+                match self
+                    .backend
+                    .try_read_task_cell(task, index, reader, options, self)?
+                {
+                    Ok(content) => return Ok(Ok(content)),
+                    Err(listener) => {
+                        // Probe mode (see `sync_parallel_read`): record the miss and yield
+                        // `Pending` instead of computing on the probing worker.
+                        if SYNC_PROBE.with(|p| p.get()) {
+                            SYNC_PROBE_MISS.with(|m| m.set(Some(task)));
+                            return Ok(Err(listener));
+                        }
+                        self.sync_advance_or_wait(task, listener, &mut deadline);
+                    }
+                }
+            }
+        }
+        #[cfg(not(feature = "sync"))]
+        self.backend.try_read_task_cell(
+            task,
+            index,
+            current_task_if_available("reading Vcs"),
+            options,
+            self,
+        )
     }
 
     fn try_read_own_task_cell(
@@ -1569,6 +2298,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
 
     /// Creates a future that inherits the current task id and task state. The current global task
     /// will wait for this future to be dropped before exiting.
+    #[cfg(feature = "tokio_runtime")]
     fn spawn_detached_for_testing(&self, fut: Pin<Box<dyn Future<Output = ()> + Send + 'static>>) {
         // this is similar to what happens for a local task, except that we keep the local task's
         // state as well.
@@ -1600,6 +2330,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.backend.task_statistics()
     }
 
+    #[cfg(all(feature = "tokio_runtime", not(feature = "sync")))]
     fn stop_and_wait(&self) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> {
         let this = self.pin();
         Box::pin(async move {
@@ -1607,11 +2338,32 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         })
     }
 
+    #[cfg(feature = "sync")]
+    fn stop_and_wait(&self) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> {
+        let this = self.pin();
+        this.backend.stopping(&*this);
+        this.stopped.store(true, Ordering::Release);
+        Box::pin(std::future::ready(()))
+    }
+
+    #[cfg(all(feature = "tokio_runtime", not(feature = "sync")))]
     fn subscribe_to_compilation_events(
         &self,
         event_types: Option<Vec<String>>,
     ) -> Receiver<Arc<dyn CompilationEvent>> {
         self.compilation_events.subscribe(event_types)
+    }
+
+    #[cfg(all(feature = "tokio_runtime", feature = "sync"))]
+    fn subscribe_to_compilation_events(
+        &self,
+        _event_types: Option<Vec<String>>,
+    ) -> Receiver<Arc<dyn CompilationEvent>> {
+        // Sync engine has no compilation-event queue (HMR is async-only). Return a
+        // channel that never yields events; callers `.recv().await` will park forever,
+        // which matches the fact that sync never subscribes.
+        let (_tx, rx) = tokio::sync::mpsc::channel(1);
+        rx
     }
 
     fn is_tracking_dependencies(&self) -> bool {
@@ -1626,6 +2378,512 @@ async fn wait_for_local_tasks() {
         return;
     };
     listener.await;
+}
+
+/// How long the sync engine blocks on a task's done-event before declaring a
+/// deadlock. Legitimate cross-thread waits (`parallel!` on rayon) resolve in well
+/// under this; exceeding it means a re-entrant read the inline engine can't drive.
+///
+/// Default was 5s (unit-test friendly) but real cold builds (`v0/chat`,
+/// `ModuleGraph::from_graphs_inner`, `AppEndpoint::output`) legitimately keep a
+/// dependent task waiting 30–90s under contention, so the old default turned
+/// slowness into false deadlock panics. Bump to 60s; still overridable via
+/// `TURBO_SYNC_DEADLOCK_SECS`. This combines with the progress-aware reset below:
+/// a deadline only fires if *no* global progress was observed since it was set.
+#[cfg(feature = "sync")]
+static SYNC_DEADLOCK_TIMEOUT: std::sync::LazyLock<std::time::Duration> =
+    std::sync::LazyLock::new(|| {
+        std::env::var("TURBO_SYNC_DEADLOCK_SECS")
+            .ok()
+            .and_then(|s| s.parse::<u64>().ok())
+            .map(std::time::Duration::from_secs)
+            .unwrap_or(std::time::Duration::from_secs(60))
+    });
+
+/// The current task id, or `None` if not inside a task execution. Unlike
+/// [`current_task_if_available`] this never panics — a top-level synchronous read
+/// (outside any task) legitimately has no reader to track a dependency against.
+#[cfg(feature = "sync")]
+pub(crate) fn current_reader_or_none() -> Option<TaskId> {
+    CURRENT_TASK_STATE
+        .try_with(|ts| ts.read().unwrap().task_id)
+        .ok()
+        .flatten()
+}
+
+#[cfg(feature = "sync")]
+#[cfg(feature = "sync")]
+thread_local! {
+    /// Set while [`sync_parallel_read`] is *probing* an item to classify it as a cache hit
+    /// (resolve inline, free) or a miss (dispatch to the pool by id). While set, a read-miss
+    /// in [`try_read_task_output`]/[`try_read_task_cell`] records the missed task in
+    /// [`SYNC_PROBE_MISS`] and returns the backend's `EventListener` (so the future yields
+    /// `Pending`) instead of computing the task. Keeping hits off the pool is what makes an
+    /// incremental rebuild cheap. Cleared while a task body runs (see `execute_task_inline`),
+    /// since work-stealing can re-enter a body on a probing worker.
+    static SYNC_PROBE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+
+    /// The task a probing read missed on (see [`SYNC_PROBE`]).
+    static SYNC_PROBE_MISS: std::cell::Cell<Option<TaskId>> = const { std::cell::Cell::new(None) };
+
+}
+
+/// Run `f` with the [`SYNC_PROBE`] flag set, so a read-miss inside it reports the
+/// missed task (via `Err(EventListener)`) instead of computing it inline. Used by the
+/// direct (no-poll) probe reads in `vc/raw.rs`. Restores the previous flag on return.
+#[cfg(feature = "sync")]
+pub(crate) fn with_sync_probe<R>(f: impl FnOnce() -> R) -> R {
+    let prev = SYNC_PROBE.with(|p| p.replace(true));
+    let r = f();
+    SYNC_PROBE.with(|p| p.set(prev));
+    r
+}
+
+/// Wrap a top-level future (a `run`/root/once task body coming from the async `run`
+/// API surface) into a [`NativeTaskFuture`](crate::task::function::NativeTaskFuture).
+/// Async mode boxes it as a future the executor polls; the sync engine wraps it in a
+/// closure that drives it to completion.
+///
+/// This is the ONE place the sync build still drives a future: the OUTERMOST `run`
+/// boundary, where the caller handed us `Box::pin(async { .. })`. Every *inner* task
+/// body is a plain closure (see `task::function`), so the entire task/read/parallel
+/// hot path is genuinely async-free. A fully synchronous `run` API would remove even
+/// this last driver.
+#[cfg(not(feature = "sync"))]
+pub(crate) fn future_as_native_task<F>(fut: F) -> crate::task::function::NativeTaskFuture
+where
+    F: Future<Output = Result<RawVc>> + Send + 'static,
+{
+    Box::pin(fut)
+}
+#[cfg(feature = "sync")]
+pub(crate) fn future_as_native_task<F>(fut: F) -> crate::task::function::NativeTaskFuture
+where
+    F: Future<Output = Result<RawVc>> + Send + 'static,
+{
+    Box::new(move || crate::sync_runtime::sync_poll(fut))
+}
+
+/// A stable `u64` token for a task, used as the [`tt_parallel`] wait-graph key (which
+/// worker is producing a task / which task a worker is blocked on) for cycle detection.
+#[cfg(feature = "sync")]
+#[inline]
+fn sync_token(task: TaskId) -> u64 {
+    task.to_non_zero_u64().get()
+}
+
+/// A [`tt_parallel::Blocker`] backed by the backend's done-event `EventListener`: a worker
+/// that reaches a task another worker is producing parks here (with compensation) until the
+/// producer fires the event. One `block()` consumes the listener (a wait that doesn't miss
+/// a wakeup — the listener is registered before the producer completes); `managed_block`
+/// then returns and the read loop re-checks the backend. `timeout` bounds the park so a
+/// genuine (detection-escaping) cycle fails fast via the read loop's deadline instead of
+/// hanging.
+#[cfg(feature = "sync")]
+struct ListenerBlocker {
+    listener: Option<EventListener>,
+    timeout: std::time::Duration,
+    wake: Arc<ListenerWake>,
+}
+
+#[cfg(feature = "sync")]
+#[derive(Default)]
+struct ListenerWake {
+    generation: Mutex<u64>,
+    cv: Condvar,
+}
+
+#[cfg(feature = "sync")]
+impl ListenerWake {
+    fn generation(&self) -> u64 {
+        *self.generation.lock().unwrap()
+    }
+
+    fn wait(&self, generation: u64, timeout: Duration) -> bool {
+        let current = self.generation.lock().unwrap();
+        if *current == generation {
+            let (current, result) = self.cv.wait_timeout(current, timeout).unwrap();
+            !result.timed_out() || *current != generation
+        } else {
+            true
+        }
+    }
+}
+
+#[cfg(feature = "sync")]
+impl tt_parallel::WaitWake for ListenerWake {
+    fn wake(&self) {
+        let mut generation = self.generation.lock().unwrap();
+        *generation = generation.wrapping_add(1);
+        self.cv.notify_all();
+    }
+}
+
+#[cfg(feature = "sync")]
+struct EventListenerWake(Arc<ListenerWake>);
+
+#[cfg(feature = "sync")]
+impl std::task::Wake for EventListenerWake {
+    fn wake(self: Arc<Self>) {
+        tt_parallel::WaitWake::wake(&*self.0);
+    }
+
+    fn wake_by_ref(self: &Arc<Self>) {
+        tt_parallel::WaitWake::wake(&*self.0);
+    }
+}
+
+#[cfg(feature = "sync")]
+impl tt_parallel::Blocker for ListenerBlocker {
+    fn is_releasable(&mut self) -> bool {
+        self.listener.is_none()
+    }
+    fn cycle_waker(&self) -> Option<Arc<dyn tt_parallel::WaitWake>> {
+        Some(self.wake.clone())
+    }
+
+    fn block(&mut self, timeout: Option<std::time::Duration>) {
+        let Some(listener) = self.listener.as_mut() else {
+            return;
+        };
+        let generation = self.wake.generation();
+        let waker = std::task::Waker::from(Arc::new(EventListenerWake(self.wake.clone())));
+        let mut context = std::task::Context::from_waker(&waker);
+        if Pin::new(&mut *listener).poll(&mut context).is_ready() {
+            self.listener = None;
+            return;
+        }
+
+        let woke = self.wake.wait(
+            generation,
+            timeout.unwrap_or(self.timeout).min(self.timeout),
+        );
+        if !woke {
+            // Preserve the old deadline behavior: return to the outer read loop so it can
+            // refresh progress and either register a new listener or report a true stall.
+            self.listener = None;
+            return;
+        }
+        if Pin::new(listener).poll(&mut context).is_ready() {
+            self.listener = None;
+        }
+    }
+}
+
+/// Run `f` on the [`tt_parallel`] pool so that all task execution happens on pool workers
+/// (where `owning`/`managed_block`/`par_map` are valid). Called from the off-pool entry
+/// points — the `run_sync` driver and any top-level `read!`/`parallel!` reached directly
+/// from `turbo_tasks_scope` — to bootstrap onto the pool; nested reads are already on a
+/// worker and skip this. The pool worker is a fresh thread, so `TURBO_TASKS` is re-bound
+/// from the ambient handle (a top-level read has no task context to carry).
+#[cfg(feature = "sync")]
+fn sync_bootstrap_on_pool<R, F>(f: F) -> R
+where
+    F: FnOnce() -> R + Send,
+    R: Send,
+{
+    let tt = turbo_tasks();
+    sync_pool::pool().run(move |_w| {
+        if TURBO_TASKS.try_with(|_| ()).is_ok() {
+            f()
+        } else {
+            TURBO_TASKS.sync_scope(tt, f)
+        }
+    })
+}
+
+/// `TURBO_SYNC_SEQUENTIAL=1` selects the
+/// genuinely-serial correctness fallback. Read once and cached. Consumed both here (to skip
+/// the [`sync_parallel_read`] probe/fan-out) and by [`sync_pool::pool`] (to run `join` inline).
+///
+/// Default is **parallel** (`false`): the sync engine fans out `parallel!` / `par_map` / `join`
+/// across the work-stealing pool. Set `TURBO_SYNC_SEQUENTIAL=1` to force the fully-inline,
+/// fork-free fallback (deadlock-free by construction, single-core-slow) as an A/B oracle.
+#[cfg(feature = "sync")]
+fn sync_sequential() -> bool {
+    static SEQUENTIAL: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| {
+        std::env::var("TURBO_SYNC_SEQUENTIAL")
+            .map(|value| value != "0")
+            .unwrap_or(false)
+    });
+    *SEQUENTIAL
+}
+
+/// TEMP diagnostic: trace the sync lifecycle of tasks whose id is in
+/// `[SYNC_TRACE_LO, SYNC_TRACE_HI]`. Used to find why a specific task is never produced.
+#[cfg(feature = "sync")]
+fn sync_trace(task: TaskId) -> bool {
+    static RANGE: std::sync::LazyLock<Option<(u64, u64)>> = std::sync::LazyLock::new(|| {
+        let lo = std::env::var("SYNC_TRACE_LO").ok()?.parse().ok()?;
+        let hi = std::env::var("SYNC_TRACE_HI").ok()?.parse().ok()?;
+        Some((lo, hi))
+    });
+    match *RANGE {
+        Some((lo, hi)) => {
+            let n = task.to_non_zero_u64().get();
+            n >= lo && n <= hi
+        }
+        None => false,
+    }
+}
+
+/// Read many task outputs in parallel under the synchronous engine (backs the `parallel!`
+/// macro). Each item is any awaitable producing `Result<T>` (typically a `Vc`); results are
+/// collected in order into a single `Result<Vec<T>>`, matching the async `try_join` shape
+/// and yielding the first error by list position.
+///
+/// Three passes: probe every item (which resolves cache hits for free and *publishes* the
+/// misses to the worker pool), help the pool compute the misses, then re-read the missed
+/// items on this worker so their dependency edges are attributed to the calling task.
+#[cfg(feature = "sync")]
+pub fn sync_parallel_read<I>(items: Vec<I>) -> Result<Vec<I::Ok>>
+where
+    I: crate::vc::SyncParallelRead + Copy + Send,
+    I::Ok: Send,
+{
+    // Bootstrap onto the pool if reached off-pool (a top-level `parallel!` from
+    // `turbo_tasks_scope`), so the fan-out and all nested computation run on workers.
+    if !tt_parallel::in_worker() {
+        return sync_bootstrap_on_pool(move || sync_parallel_read(items));
+    }
+
+    // The genuinely-serial correctness fallback, and the degenerate widths where the probe
+    // pass would be pure overhead.
+    if sync_sequential() || items.len() < 2 {
+        return items.into_iter().map(|item| item.sync_par_read()).collect();
+    }
+
+    // Pass 1 — probe (no future, no poll). A cache HIT resolves here for free (its value is
+    // kept, so it is not read again) and records its dependency edge; a MISS yields the id of
+    // the not-yet-computed task, dispatched to the pool below rather than computed here.
+    //
+    // The probe is also what *publishes* the fan-out. A read miss transitions the task to
+    // `Scheduled` and the backend calls `schedule`, which (in sync mode) injects a pool job
+    // for it. So by the end of this loop all `n` missed tasks are queued and idle workers can
+    // start on them immediately. This is the entire point of probing before computing: the
+    // old serial path read item 0 to completion — recursively computing its whole subtree
+    // inline — before item 1 was so much as looked at, so items 1..n were never *visible* to
+    // the pool at the same time and the fan-out could not overlap.
+    let n = items.len();
+    crate::sync_stats::bump(&crate::sync_stats::PAR_CALLS);
+    crate::sync_stats::bump_by(&crate::sync_stats::PAR_ITEMS, n as u64);
+    let mut results: Vec<Option<I::Ok>> = (0..n).map(|_| None).collect();
+    let mut misses: Vec<usize> = Vec::new();
+    let mut miss_tasks: Vec<TaskId> = Vec::new();
+    for (idx, item) in items.iter().enumerate() {
+        match (*item).sync_probe()? {
+            crate::vc::SyncProbe::Hit(value) => results[idx] = Some(value),
+            crate::vc::SyncProbe::Miss(task) => {
+                misses.push(idx);
+                miss_tasks.push(task);
+            }
+        }
+    }
+    crate::sync_stats::bump_by(&crate::sync_stats::PAR_MISSES, miss_tasks.len() as u64);
+    crate::sync_stats::bump_by(&crate::sync_stats::PAR_HITS, (n - miss_tasks.len()) as u64);
+
+    // Pass 2 — help. Every miss is queued on the pool (see above); this worker now walks the
+    // list claiming whatever the pool has not picked up yet, so it contributes real work
+    // instead of idling. `sync_execute_scheduled_task` is the *non-blocking* claim: it
+    // returns `false` immediately if another worker already owns the task, so we skip past
+    // in-flight items rather than serializing on them. Anything still outstanding is waited
+    // for in pass 3.
+    //
+    // Deliberately NOT fork/join (`par_map`/`join`). A join parks the caller on a latch —
+    // a wait the `WaitGraph` cannot see, which strands every in-progress task token pinned to
+    // this worker's frozen stack with no way for another worker to satisfy them. That is the
+    // resulting cross-layer deadlock is why fan-out used to be disabled inside `owning` task
+    // bodies.
+    //
+    // With claim-or-block the only wait is `managed_block` on a *task token*, and it is only
+    // ever reached after a claim has failed — i.e. only when some other worker is actively
+    // running that task. So a blocked worker is always blocked on a task owned by a *running*
+    // worker; the wait-for graph is exactly `worker -> task -> owning worker`, all of it
+    // recorded in the `WaitGraph`; and a cycle in it would imply a cycle in the task graph,
+    // which cannot exist. No interleaving of blocks or steals can stall the pool, so fan-out
+    // is safe inside owning task bodies — which is what makes the sync engine parallel at all.
+    if !miss_tasks.is_empty() {
+        let tt = turbo_tasks();
+        for &task in &miss_tasks {
+            if tt.sync_execute_scheduled_task(task) {
+                crate::sync_stats::bump(&crate::sync_stats::PAR_HELP_CLAIMED);
+            }
+        }
+    }
+
+    // Pass 3 — read ONLY the missed items here (now computed), recording dependency edges.
+    // Hits were already read + edge-recorded during the probe.
+    for idx in misses {
+        results[idx] = Some(items[idx].sync_par_read()?);
+    }
+
+    Ok(results
+        .into_iter()
+        .map(|slot| slot.expect("each slot filled by probe hit or miss collection"))
+        .collect())
+}
+
+/// Run `f` over `items` on the sync worker pool, preserving order, with the ambient
+/// `TURBO_TASKS` handle bound on each worker (so `read!` inside `f` works even on a
+/// stolen worker). Unlike [`sync_parallel_read`], `f` is an arbitrary closure — used by
+/// the sync `GraphTraversal` driver to compute a BFS frontier's edges concurrently.
+///
+/// IMPORTANT: the closures run on pool workers *without* the caller's `CURRENT_TASK_STATE`,
+/// so reads inside `f` are not attributed to the calling task. The caller must only use
+/// this when dependency tracking is off (e.g. a one-shot `turbopack build`); with tracking
+/// on, use the serial path so dependency edges are recorded correctly.
+/// Parallel-map helper for the sync build — the sync counterpart of pushing a whole
+/// frontier into a `FuturesUnordered` (see `graph_traversal.rs`).
+///
+/// This is the single most important fan-out site in the engine. An async task body gets
+/// breadth for free: awaiting a dependency suspends the future and frees the worker, so
+/// hundreds of in-flight `edges()` computations can have outstanding demands at once and the
+/// executor queue fills up with work for every core. A sync task body cannot suspend — a
+/// worker that demands a dependency computes it inline, depth-first, on its own stack — so
+/// unless a fan-out site explicitly hands work to the pool, the entire traversal runs on one
+/// worker and the other cores sit parked on an empty queue.
+///
+/// `TURBO_SYNC_PARALLEL_MAP=0` restores the serial behaviour (A/B oracle).
+///
+/// Callers must only use this where reads inside `f` do not need to be attributed to the
+/// calling task: `f` runs on pool workers that do not carry the caller's
+/// `CURRENT_TASK_STATE`. `GraphTraversal` enforces that by checking
+/// `is_tracking_dependencies()`.
+#[cfg(feature = "sync")]
+pub fn sync_parallel_map<T, R>(items: Vec<T>, f: impl Fn(T) -> R + Sync + Send) -> Vec<R>
+where
+    T: Send,
+    R: Send,
+{
+    // Trivial sizes: run inline, no pool.
+    crate::sync_stats::bump(&crate::sync_stats::PARMAP_CALLS);
+    crate::sync_stats::bump_by(&crate::sync_stats::PARMAP_ITEMS, items.len() as u64);
+    if items.len() <= 1 || sync_sequential() || !sync_parallel_map_enabled() {
+        crate::sync_stats::bump(&crate::sync_stats::PARMAP_SERIAL);
+        return items.into_iter().map(&f).collect();
+    }
+    crate::sync_stats::bump_by(&crate::sync_stats::PARMAP_FANNED, items.len() as u64);
+    if !tt_parallel::in_worker() {
+        return sync_bootstrap_on_pool(move || sync_parallel_map(items, f));
+    }
+    let w = tt_parallel::current_worker().expect("in_worker checked above");
+    let tt = turbo_tasks();
+    // `scoped_fork` is what makes this actually fan out: the caller is inside an `owning`
+    // task body, where `join` would otherwise stay inline.
+    w.scoped_fork(|w| {
+        w.par_map(items, |_w, item| {
+            // A stolen chunk runs on a worker with no ambient handle; rebind it so `read!`
+            // inside `f` works there.
+            if TURBO_TASKS.try_with(|_| ()).is_ok() {
+                f(item)
+            } else {
+                TURBO_TASKS.sync_scope(tt.clone(), || f(item))
+            }
+        })
+    })
+}
+
+/// `TURBO_SYNC_PARALLEL_MAP=0` disables [`sync_parallel_map`]'s pool fan-out.
+#[cfg(feature = "sync")]
+fn sync_parallel_map_enabled() -> bool {
+    static ENABLED: std::sync::LazyLock<bool> =
+        std::sync::LazyLock::new(|| std::env::var("TURBO_SYNC_PARALLEL_MAP").as_deref() != Ok("0"));
+    *ENABLED
+}
+
+/// Whether the sync graph-traversal driver may use the *streaming* strategy (every
+/// discovered node's `edges()` published to the pool immediately, driver consuming a
+/// completion channel — see `visit_streaming` in `graph_traversal.rs`). Off when
+/// dependency tracking is on (job reads would not be attributed to the traversal
+/// task), or under the `TURBO_SYNC_SEQUENTIAL=1` oracle.
+///
+/// **Default on** (`TURBO_SYNC_TRAV_STREAMING=0` disables it): the self-draining
+/// [`tt_parallel::JobSource`] makes traversal progress independent of free pool capacity,
+/// while event-driven managed waits keep its larger fan-out from turning into a per-waiter
+/// polling storm. Level-BFS remains available as the fallback/A-B oracle.
+#[cfg(feature = "sync")]
+pub(crate) fn sync_traversal_streaming_enabled() -> bool {
+    static STREAMING: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| {
+        std::env::var("TURBO_SYNC_TRAV_STREAMING").as_deref() != Ok("0")
+    });
+    !turbo_tasks().is_tracking_dependencies() && !sync_sequential() && *STREAMING
+}
+
+/// Create a [`tt_parallel::JobSource`] on the sync worker pool for a streaming graph
+/// traversal (see `visit_streaming` in `graph_traversal.rs`): a driver-owned queue that
+/// free workers prefer over the injector backlog and that the driver itself can drain,
+/// making the traversal's completion independent of pool capacity.
+#[cfg(feature = "sync")]
+pub(crate) fn sync_job_source() -> tt_parallel::JobSource {
+    sync_pool::pool().job_source()
+}
+
+/// Push one traversal `edges()` job onto `source`, binding `TURBO_TASKS` on whichever
+/// worker runs it (pool workers do not carry the ambient handle) — the sync counterpart
+/// of pushing the edges future into the async driver's `FuturesUnordered`.
+#[cfg(feature = "sync")]
+pub(crate) fn sync_source_push(
+    source: &tt_parallel::JobSource,
+    token: u64,
+    f: impl FnOnce() + Send + 'static,
+) {
+    let tt = turbo_tasks();
+    source.push(token, move |_w| {
+        if TURBO_TASKS.try_with(|_| ()).is_ok() {
+            f()
+        } else {
+            TURBO_TASKS.sync_scope(tt, f)
+        }
+    });
+}
+
+/// The synchronous engine's worker pool — the standalone [`tt_parallel`] work-stealing
+/// scheduler. It is the sole sync execution engine: the `run_sync` driver and every
+/// top-level `read!`/`parallel!` bootstrap onto it ([`sync_bootstrap_on_pool`]), task
+/// computation runs as claimed pool work under `owning` ([`TurboTasks::execute_task_inline`]),
+/// reads block on a producer via `managed_block` ([`TurboTasks::sync_advance_or_wait`]), and
+/// `parallel!` / `schedule` fan out jobs into it. Created once (lazily) and reused.
+#[cfg(feature = "sync")]
+mod sync_pool {
+    use std::sync::OnceLock;
+
+    use tt_parallel::{Config, Pool};
+
+    pub(super) fn pool() -> &'static Pool {
+        static POOL: OnceLock<Pool> = OnceLock::new();
+        POOL.get_or_init(|| {
+            // Honor `TURBO_TASKS_AVAILABLE_PARALLELISM` for the sync worker pool too
+            // (`Config::default()` reads `std::thread::available_parallelism()` directly and
+            // would otherwise ignore the override). Setting it to `1` forces the fully-serial
+            // path in `sync_parallel_read` (no fan-out, no cross-worker waits), which is the
+            // deadlock-free fallback while the parallel scheduler's wide-nested-fan-out
+            // deadlock is being fixed.
+            // Honor `TURBO_TASKS_AVAILABLE_PARALLELISM` for worker count, but keep the
+            // default compensation headroom (`max_threads`). A blocked worker relies on
+            // compensation to run the task it is waiting on, so capping `max_threads` to the
+            // worker count (e.g. 1) would itself deadlock — the wait path is not serial.
+            let mut config = Config::default();
+            if let Ok(n) = crate::parallel::available_parallelism() {
+                config.workers = n.get();
+                config.max_threads = config.max_threads.max(n.get());
+            }
+            // `TURBO_SYNC_SEQUENTIAL=1` forces the
+            // genuinely-serial mode — `join` runs inline (no fork/latch/steal) and
+            // `sync_parallel_read` skips the probe/fan-out — so no cross-layer wait cycle can
+            // form. The deadlock-free correctness fallback and A/B oracle.
+            config.sequential = super::sync_sequential();
+            let pool = Pool::new(config);
+            crate::sync_stats::start_sampler(|| super::sync_pool::pool().snapshot());
+            pool
+        })
+    }
+
+    /// Force the pool to start now (it is otherwise created lazily on first use), so a cold
+    /// build doesn't pay worker-thread creation inside its timed region — mirroring the
+    /// async build, whose tokio pool exists before any task runs.
+    pub(super) fn ensure_started() {
+        pool();
+    }
 }
 
 pub(crate) fn current_task_if_available(from: &str) -> Option<TaskId> {
@@ -1690,6 +2948,7 @@ pub(crate) fn debug_assert_not_in_top_level_task(operation: &str) {
     }
 }
 
+#[cfg(all(feature = "tokio_runtime", not(feature = "sync")))]
 pub async fn run<T: Send + 'static>(
     tt: Arc<dyn TurboTasksApi>,
     future: impl Future<Output = Result<T>> + Send + 'static,
@@ -1707,6 +2966,7 @@ pub async fn run<T: Send + 'static>(
     Ok(rx.await?)
 }
 
+#[cfg(all(feature = "tokio_runtime", not(feature = "sync")))]
 pub async fn run_once<T: Send + 'static>(
     tt: Arc<dyn TurboTasksApi>,
     future: impl Future<Output = Result<T>> + Send + 'static,
@@ -1724,6 +2984,7 @@ pub async fn run_once<T: Send + 'static>(
     Ok(rx.await?)
 }
 
+#[cfg(all(feature = "tokio_runtime", not(feature = "sync")))]
 pub async fn run_once_with_reason<T: Send + 'static>(
     tt: Arc<dyn TurboTasksApi>,
     reason: impl InvalidationReason,
@@ -1743,6 +3004,54 @@ pub async fn run_once_with_reason<T: Send + 'static>(
     .await?;
 
     Ok(rx.await?)
+}
+
+// --- No-tokio (`sync`) free-function counterparts -------------------------------
+//
+// These keep the `async fn` *signature* of their tokio twins so the test harness
+// (`turbo-tasks-testing`) and test bodies can keep writing `run_once(tt, fut).await`
+// unchanged. They contain no real `.await` point: `run_once_inline` drives the body
+// to completion synchronously (inline compute), so the returned future is always
+// `Ready` after a single poll — exactly what `#[turbo_tasks::test]`'s `sync_poll`
+// expects. The result value is carried out of the erased `run_once_inline` via a slot.
+
+#[cfg(feature = "sync")]
+pub async fn run<T: Send + 'static>(
+    tt: Arc<dyn TurboTasksApi>,
+    future: impl Future<Output = Result<T>> + Send + 'static,
+) -> Result<T> {
+    run_once(tt, future).await
+}
+
+#[cfg(feature = "sync")]
+pub async fn run_once<T: Send + 'static>(
+    tt: Arc<dyn TurboTasksApi>,
+    future: impl Future<Output = Result<T>> + Send + 'static,
+) -> Result<T> {
+    let slot: Arc<std::sync::Mutex<Option<T>>> = Arc::new(std::sync::Mutex::new(None));
+    let slot_inner = slot.clone();
+    tt.run_once_inline(Box::pin(async move {
+        let result = future.await?;
+        *slot_inner.lock().unwrap() = Some(result);
+        Ok(())
+    }))?;
+    Ok(slot
+        .lock()
+        .unwrap()
+        .take()
+        .expect("sync run_once: body did not produce a result"))
+}
+
+#[cfg(feature = "sync")]
+pub async fn run_once_with_reason<T: Send + 'static>(
+    tt: Arc<dyn TurboTasksApi>,
+    reason: impl InvalidationReason,
+    future: impl Future<Output = Result<T>> + Send + 'static,
+) -> Result<T> {
+    // The reason only feeds the async aggregated-update-info telemetry path, which
+    // the sync engine does not run; the invalidation itself is independent of it.
+    let _ = reason;
+    run_once(tt, future).await
 }
 
 /// Calls [`TurboTasks::dynamic_call`] for the current turbo tasks instance.
@@ -1787,6 +3096,7 @@ pub fn turbo_tasks_scope<T>(tt: Arc<dyn TurboTasksApi>, f: impl FnOnce() -> T) -
     TURBO_TASKS.sync_scope(tt, f)
 }
 
+#[cfg(feature = "tokio_runtime")]
 pub fn turbo_tasks_future_scope<T>(
     tt: Arc<dyn TurboTasksApi>,
     f: impl Future<Output = T>,
@@ -1798,6 +3108,7 @@ pub fn turbo_tasks_future_scope<T>(
 ///
 /// Beware: this method is not safe to use in production code. It is only
 /// intended for use in tests and for debugging purposes.
+#[cfg(feature = "tokio_runtime")]
 pub fn spawn_detached_for_testing(f: impl Future<Output = ()> + Send + 'static) {
     turbo_tasks().spawn_detached_for_testing(Box::pin(f));
 }

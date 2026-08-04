@@ -1,6 +1,7 @@
 use std::mem::take;
 
 use anyhow::Result;
+#[cfg(not(feature = "sync"))]
 use async_trait::async_trait;
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
@@ -39,15 +40,16 @@ struct TsConfigIssue {
 
 #[turbo_tasks::function]
 async fn json_only(resolve_options: Vc<ResolveOptions>) -> Result<Vc<ResolveOptions>> {
-    let mut opts = resolve_options.owned().await?;
+    let mut opts = turbo_tasks::read!(resolve_options.owned())?;
     opts.extensions = vec![rcstr!(".json")];
     Ok(opts.cell())
 }
 
 type TsConfig = (Vc<FileJsonContent>, ResolvedVc<Box<dyn Source>>);
 
+turbo_tasks::dual_fn! {
 #[tracing::instrument(skip_all)]
-pub async fn read_tsconfigs(
+pub fn read_tsconfigs(
     mut data: Vc<FileContent>,
     mut tsconfig: ResolvedVc<Box<dyn Source>>,
     resolve_options: Vc<ResolveOptions>,
@@ -56,14 +58,14 @@ pub async fn read_tsconfigs(
     let resolve_options = json_only(resolve_options);
     loop {
         // tsc ignores empty config files.
-        if let FileContent::Content(file) = &*data.await?
+        if let FileContent::Content(file) = &*turbo_tasks::read!(data)?
             && file.content().is_empty()
         {
             break;
         }
 
         let parsed_data = data.parse_json_with_comments();
-        match &*parsed_data.await? {
+        match &*turbo_tasks::read!(parsed_data)? {
             FileJsonContent::Unparsable(e) => {
                 let message = format!("tsconfig is not parseable: invalid JSON: {}", e.message);
                 let source = IssueSource::from_unparsable_json(tsconfig, e);
@@ -87,7 +89,7 @@ pub async fn read_tsconfigs(
             FileJsonContent::Content(json) => {
                 configs.push((parsed_data, tsconfig));
                 if let Some(extends) = json["extends"].as_str() {
-                    let resolved = resolve_extends(*tsconfig, extends, resolve_options).await?;
+                    let resolved = turbo_tasks::read!(resolve_extends(*tsconfig, extends, resolve_options))?;
                     if let Some(source) = resolved {
                         data = source.content().file_content();
                         tsconfig = source;
@@ -110,29 +112,31 @@ pub async fn read_tsconfigs(
     }
     Ok(configs)
 }
+}
 
+turbo_tasks::dual_fn! {
 /// Resolves tsconfig files according to TS's implementation:
 /// https://github.com/microsoft/TypeScript/blob/611a912d/src/compiler/commandLineParser.ts#L3294-L3326
 #[tracing::instrument(skip_all)]
-async fn resolve_extends(
+fn resolve_extends(
     tsconfig: Vc<Box<dyn Source>>,
     extends: &str,
     resolve_options: Vc<ResolveOptions>,
 ) -> Result<Option<ResolvedVc<Box<dyn Source>>>> {
-    let parent_dir = tsconfig.ident().await?.path.parent();
+    let parent_dir = turbo_tasks::read!(tsconfig.ident())?.path.parent();
     let request = Request::parse_string(extends.into());
 
     // TS's resolution is weird, and has special behavior for different import
     // types. There might be multiple alternatives like
     // "some/path/node_modules/xyz/abc.json" and "some/node_modules/xyz/abc.json".
     // We only want to use the first one.
-    match &*request.await? {
+    match &*turbo_tasks::read!(request)? {
         // TS has special behavior for "rooted" paths (absolute paths):
         // https://github.com/microsoft/TypeScript/blob/611a912d/src/compiler/commandLineParser.ts#L3303-L3313
         Request::Windows { path: Pattern::Constant(path), .. } |
         // Server relative is treated as absolute
         Request::ServerRelative { path: Pattern::Constant(path), .. } => {
-            resolve_extends_rooted_or_relative(parent_dir, request, resolve_options, path).await
+            turbo_tasks::read!(resolve_extends_rooted_or_relative(parent_dir, request, resolve_options, path))
         }
 
         // TS has special behavior for (explicitly) './' and '../', but not '.' nor '..':
@@ -141,42 +145,44 @@ async fn resolve_extends(
             path: Pattern::Constant(path),
             ..
         } if path.starts_with("./") || path.starts_with("../") => {
-            resolve_extends_rooted_or_relative(parent_dir, request, resolve_options, path).await
+            turbo_tasks::read!(resolve_extends_rooted_or_relative(parent_dir, request, resolve_options, path))
         }
 
         // An empty extends is treated as "./tsconfig"
         Request::Empty => {
             let request = Request::parse_string(rcstr!("./tsconfig"));
-            Ok(resolve(parent_dir,
-                ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined), request, resolve_options).await?.first_source())
+            Ok(turbo_tasks::read!(resolve(parent_dir,
+                ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined), request, resolve_options))?.first_source())
         }
 
         // All other types are treated as module imports, and potentially joined with
         // "tsconfig.json". This includes "relative" imports like '.' and '..'.
         _ => {
-            let result = resolve(parent_dir.clone(), ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined), request, resolve_options).await?;
+            let result = turbo_tasks::read!(resolve(parent_dir.clone(), ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined), request, resolve_options))?;
             if let Some(source) = result.first_source() {
                 return Ok(Some(source));
             }
             let request = Request::parse_string(format!("{extends}/tsconfig").into());
-            Ok(resolve(parent_dir, ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined), request, resolve_options).await?.first_source())
+            Ok(turbo_tasks::read!(resolve(parent_dir, ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined), request, resolve_options))?.first_source())
         }
     }
 }
+}
 
-async fn resolve_extends_rooted_or_relative(
+turbo_tasks::dual_fn! {
+fn resolve_extends_rooted_or_relative(
     lookup_path: FileSystemPath,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     path: &str,
 ) -> Result<Option<ResolvedVc<Box<dyn Source>>>> {
-    let result = resolve(
+    let result = turbo_tasks::read!(resolve(
         lookup_path.clone(),
         ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined),
         request,
         resolve_options,
-    )
-    .await?;
+    ))
+    ?;
 
     let mut result = result.first_source();
 
@@ -185,30 +191,33 @@ async fn resolve_extends_rooted_or_relative(
     // https://github.com/microsoft/TypeScript/blob/611a912d/src/compiler/commandLineParser.ts#L3305
     if !path.ends_with(".json") && result.is_none() {
         let request = Request::parse_string(format!("{path}.json").into());
-        result = resolve(
+        result = turbo_tasks::read!(resolve(
             lookup_path.clone(),
             ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined),
             request,
             resolve_options,
-        )
-        .await?
+        ))
+        ?
         .first_source();
     }
     Ok(result)
 }
+}
 
-pub async fn read_from_tsconfigs<T>(
+turbo_tasks::dual_fn! {
+pub fn read_from_tsconfigs<T>(
     configs: &[TsConfig],
     accessor: impl Fn(&JsonValue, ResolvedVc<Box<dyn Source>>) -> Option<T>,
 ) -> Result<Option<T>> {
     for (config, source) in configs.iter() {
-        if let FileJsonContent::Content(json) = &*config.await?
+        if let FileJsonContent::Content(json) = &*turbo_tasks::read!(config)?
             && let Some(result) = accessor(json, *source)
         {
             return Ok(Some(result));
         }
     }
     Ok(None)
+}
 }
 
 /// Resolve options specific to tsconfig.json.
@@ -234,7 +243,10 @@ async fn try_join_base_url(
     base_url: RcStr,
 ) -> Result<Vc<FileSystemPathOption>> {
     Ok(Vc::cell(
-        source.ident().await?.path.parent().try_join(&base_url),
+        turbo_tasks::read!(source.ident())?
+            .path
+            .parent()
+            .try_join(&base_url),
     ))
 }
 
@@ -243,35 +255,35 @@ async fn try_join_base_url(
 pub async fn tsconfig_resolve_options(
     tsconfig: FileSystemPath,
 ) -> Result<Vc<TsConfigResolveOptions>> {
-    let configs = read_tsconfigs(
+    let configs = turbo_tasks::read!(read_tsconfigs(
         tsconfig.read(),
-        ResolvedVc::upcast(FileSource::new(tsconfig.clone()).to_resolved().await?),
-        node_cjs_resolve_options(tsconfig.root().owned().await?),
-    )
-    .await?;
+        ResolvedVc::upcast(turbo_tasks::read!(
+            FileSource::new(tsconfig.clone()).to_resolved()
+        )?),
+        node_cjs_resolve_options(turbo_tasks::read!(tsconfig.root().owned())?),
+    ))?;
 
     if configs.is_empty() {
         return Ok(Default::default());
     }
 
-    let base_url = if let Some(base_url) = read_from_tsconfigs(&configs, |json, source| {
-        json["compilerOptions"]["baseUrl"]
-            .as_str()
-            .map(|base_url| try_join_base_url(*source, base_url.into()))
-    })
-    .await?
-    {
-        base_url.owned().await?
+    let base_url = if let Some(base_url) =
+        turbo_tasks::read!(read_from_tsconfigs(&configs, |json, source| {
+            json["compilerOptions"]["baseUrl"]
+                .as_str()
+                .map(|base_url| try_join_base_url(*source, base_url.into()))
+        }))? {
+        turbo_tasks::read!(base_url.owned())?
     } else {
         None
     };
 
     let mut all_paths = FxIndexMap::default();
     for (content, source) in configs.iter().rev() {
-        if let FileJsonContent::Content(json) = &*content.await?
+        if let FileJsonContent::Content(json) = &*turbo_tasks::read!(content)?
             && let JsonValue::Object(paths) = &json["compilerOptions"]["paths"]
         {
-            let mut context_dir = source.ident().await?.path.parent();
+            let mut context_dir = turbo_tasks::read!(source.ident())?.path.parent();
             if let Some(base_url) = json["compilerOptions"]["baseUrl"].as_str()
                 && let Some(new_context) = context_dir.try_join(base_url)
             {
@@ -332,13 +344,13 @@ pub async fn tsconfig_resolve_options(
         None
     };
 
-    let is_module_resolution_nodenext = read_from_tsconfigs(&configs, |json, _| {
-        json["compilerOptions"]["moduleResolution"]
-            .as_str()
-            .map(|module_resolution| module_resolution.eq_ignore_ascii_case("nodenext"))
-    })
-    .await?
-    .unwrap_or_default();
+    let is_module_resolution_nodenext =
+        turbo_tasks::read!(read_from_tsconfigs(&configs, |json, _| {
+            json["compilerOptions"]["moduleResolution"]
+                .as_str()
+                .map(|module_resolution| module_resolution.eq_ignore_ascii_case("nodenext"))
+        }))?
+        .unwrap_or_default();
 
     Ok(TsConfigResolveOptions {
         base_url,
@@ -358,8 +370,8 @@ pub async fn apply_tsconfig_resolve_options(
     resolve_options: Vc<ResolveOptions>,
     tsconfig_resolve_options: Vc<TsConfigResolveOptions>,
 ) -> Result<Vc<ResolveOptions>> {
-    let tsconfig_resolve_options = tsconfig_resolve_options.await?;
-    let mut resolve_options = resolve_options.owned().await?;
+    let tsconfig_resolve_options = turbo_tasks::read!(tsconfig_resolve_options)?;
+    let mut resolve_options = turbo_tasks::read!(resolve_options.owned())?;
     if let Some(base_url) = &tsconfig_resolve_options.base_url {
         // We want to resolve in `compilerOptions.baseUrl` first, then in other
         // locations as a fallback.
@@ -373,14 +385,13 @@ pub async fn apply_tsconfig_resolve_options(
         );
     }
     if let Some(tsconfig_import_map) = tsconfig_resolve_options.import_map {
-        resolve_options.import_map = Some(
+        resolve_options.import_map = Some(turbo_tasks::read!(
             resolve_options
                 .import_map
                 .map(|import_map| import_map.extend(*tsconfig_import_map))
                 .unwrap_or(*tsconfig_import_map)
                 .to_resolved()
-                .await?,
-        );
+        )?);
     }
     resolve_options.enable_typescript_with_output_extension =
         tsconfig_resolve_options.is_module_resolution_nodenext;
@@ -394,7 +405,7 @@ pub async fn type_resolve(
     request: Vc<Request>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined);
-    let origin_ref = origin.into_trait_ref().await?;
+    let origin_ref = turbo_tasks::read!(origin.into_trait_ref())?;
     let context_path = origin_ref.origin_path().parent();
     let options = origin_ref.resolve_options();
     let options = apply_typescript_types_options(options);
@@ -403,7 +414,7 @@ pub async fn type_resolve(
         path: p,
         query: _,
         fragment: _,
-    } = &*request.await?
+    } = &*turbo_tasks::read!(request)?
     {
         let mut m = if let Some(mut stripped) = m.strip_prefix("@")? {
             stripped.replace_constants(&|c| Some(Pattern::Constant(c.replace("/", "__").into())));
@@ -428,7 +439,7 @@ pub async fn type_resolve(
             request,
             options,
         );
-        if !result1.await?.is_unresolvable() {
+        if !turbo_tasks::read!(result1)?.is_unresolvable() {
             result1
         } else {
             resolve(
@@ -451,7 +462,7 @@ pub async fn type_resolve(
             .asset_context()
             .process_resolve_result(result, ty.clone()),
     );
-    handle_resolve_error(
+    turbo_tasks::read!(handle_resolve_error(
         result,
         ty,
         origin_ref.origin_path(),
@@ -459,13 +470,12 @@ pub async fn type_resolve(
         options,
         ResolveErrorMode::Error,
         None,
-    )
-    .await
+    ))
 }
 
 #[turbo_tasks::function]
 pub async fn as_typings_result(result: Vc<ModuleResolveResult>) -> Result<Vc<ModuleResolveResult>> {
-    let mut result = result.owned().await?;
+    let mut result = turbo_tasks::read!(result.owned())?;
     result.primary = IntoIterator::into_iter(take(&mut result.primary))
         .map(|(k, v)| {
             (
@@ -484,7 +494,7 @@ pub async fn as_typings_result(result: Vc<ModuleResolveResult>) -> Result<Vc<Mod
 async fn apply_typescript_types_options(
     resolve_options: Vc<ResolveOptions>,
 ) -> Result<Vc<ResolveOptions>> {
-    let mut resolve_options = resolve_options.owned().await?;
+    let mut resolve_options = turbo_tasks::read!(resolve_options.owned())?;
     resolve_options.extensions = vec![rcstr!(".tsx"), rcstr!(".ts"), rcstr!(".d.ts")];
     resolve_options.into_package = resolve_options
         .into_package
@@ -516,6 +526,7 @@ async fn apply_typescript_types_options(
     Ok(resolve_options.cell())
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for TsConfigIssue {
@@ -530,10 +541,41 @@ impl Issue for TsConfigIssue {
     }
 
     async fn file_path(&self) -> anyhow::Result<FileSystemPath> {
-        self.source.file_path().await
+        turbo_tasks::read!(self.source.file_path())
     }
 
     async fn description(&self) -> anyhow::Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(self.message.clone())))
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Analysis
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
+    }
+}
+
+/// See the async impl above; the sync engine drops `async`/`#[async_trait]`.
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for TsConfigIssue {
+    fn severity(&self) -> IssueSeverity {
+        self.severity
+    }
+
+    fn title(&self) -> anyhow::Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "An issue occurred while parsing a tsconfig.json file."
+        )))
+    }
+
+    fn file_path(&self) -> anyhow::Result<FileSystemPath> {
+        turbo_tasks::read!(self.source.file_path())
+    }
+
+    fn description(&self) -> anyhow::Result<Option<StyledString>> {
         Ok(Some(StyledString::Text(self.message.clone())))
     }
 

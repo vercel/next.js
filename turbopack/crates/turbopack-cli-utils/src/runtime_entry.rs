@@ -33,16 +33,16 @@ impl RuntimeEntry {
             RuntimeEntry::Request(r, path) => (r, path),
         };
 
-        let modules = cjs_resolve(
-            Vc::upcast(PlainResolveOrigin::new(asset_context, path.clone())),
-            **request,
-            CommonJsReferenceSubType::Undefined,
-            None,
-            ResolveErrorMode::Error,
-        )
-        .await?
-        .primary_modules()
-        .await?;
+        let modules = turbo_tasks::read!(
+            turbo_tasks::read!(cjs_resolve(
+                Vc::upcast(PlainResolveOrigin::new(asset_context, path.clone())),
+                **request,
+                CommonJsReferenceSubType::Undefined,
+                None,
+                ResolveErrorMode::Error,
+            ))?
+            .primary_modules()
+        )?;
 
         let mut runtime_entries = Vec::with_capacity(modules.len());
         for &module in &modules {
@@ -73,7 +73,7 @@ impl RuntimeEntries {
         let mut runtime_entries = Vec::new();
 
         for reference in &self.0 {
-            let resolved_entries = reference.resolve_entry(asset_context).await?;
+            let resolved_entries = turbo_tasks::read!(reference.resolve_entry(asset_context))?;
             runtime_entries.extend(&resolved_entries);
         }
 

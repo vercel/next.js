@@ -1,31 +1,19 @@
-use std::pin::Pin;
-
-use anyhow::Result;
-use async_trait::async_trait;
-use futures::prelude::*;
-use tokio::sync::mpsc::Sender;
-use tokio_stream::wrappers::ReceiverStream;
-use tracing::Instrument;
-use turbo_rcstr::{RcStr, rcstr};
+// Everything below the `GetContentFn` machinery drives a live HMR update stream over a
+// tokio mpsc channel (`ReceiverStream`), which requires the async runtime. It is gated on
+// `tokio_runtime`; the `sync` build keeps only the pure `GetContentFn` wrapper (and its
+// test), which is the piece that has meaning without a running server.
+#[cfg(feature = "tokio_runtime")]
+pub use runtime_stream::*;
 use turbo_tasks::{
-    NonLocalValue, OperationVc, PrettyPrintError, ReadRef, ResolvedVc, TransientInstance, Vc,
+    NonLocalValue, OperationVc,
     trace::{TraceRawVcs, TraceRawVcsContext},
 };
-use turbo_tasks_fs::{FileSystem, FileSystemPath};
-use turbopack_core::{
-    issue::{
-        CollectibleIssuesExt, Issue, IssueFilter, IssueSeverity, IssueStage, PlainIssue,
-        StyledString,
-    },
-    server_fs::ServerFileSystem,
-    version::{
-        NotFoundVersion, PartialUpdate, TotalUpdate, Update, Version, VersionState,
-        VersionedContent,
-    },
-};
 
-use crate::source::{ProxyResult, resolve::ResolveSourceRequestResult};
+use crate::source::resolve::ResolveSourceRequestResult;
 
+// `GetContentFn` is consumed by the tokio_runtime update pipeline and exercised by the unit
+// test; in a plain `sync` lib build (no runtime, no tests) it is legitimately unused.
+#[cfg_attr(not(any(feature = "tokio_runtime", test)), allow(dead_code))]
 struct TypedGetContentFn<C> {
     capture: C,
     func: for<'a> fn(&'a C) -> OperationVc<ResolveSourceRequestResult>,
@@ -42,6 +30,7 @@ impl<C: TraceRawVcs> TraceRawVcs for TypedGetContentFn<C> {
     }
 }
 
+#[cfg_attr(not(any(feature = "tokio_runtime", test)), allow(dead_code))]
 trait TypedGetContentFnTrait: NonLocalValue + TraceRawVcs {
     fn call(&self) -> OperationVc<ResolveSourceRequestResult>;
 }
@@ -82,334 +71,369 @@ impl GetContentFn {
 }
 
 impl GetContentFn {
+    #[cfg_attr(not(any(feature = "tokio_runtime", test)), allow(dead_code))]
     fn call(&self) -> OperationVc<ResolveSourceRequestResult> {
         self.inner.call()
     }
 }
 
-async fn peek_issues<T: Send>(source: OperationVc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
-    let captured = source.peek_issues();
+#[cfg(feature = "tokio_runtime")]
+mod runtime_stream {
+    use std::pin::Pin;
 
-    captured.get_plain_issues(&IssueFilter::everything()).await
-}
-
-fn extend_issues(issues: &mut Vec<ReadRef<PlainIssue>>, new_issues: Vec<ReadRef<PlainIssue>>) {
-    for issue in new_issues {
-        if issues.contains(&issue) {
-            continue;
-        }
-
-        issues.push(issue);
-    }
-}
-
-#[turbo_tasks::function(operation, root)]
-fn versioned_content_update_operation(
-    content: ResolvedVc<Box<dyn VersionedContent>>,
-    from: ResolvedVc<Box<dyn Version>>,
-) -> Vc<Update> {
-    content.update(*from)
-}
-
-/// Computes the initial [`Version`] for an update stream from a resolved source request. Runs as
-/// an `operation` so [`UpdateStream::new`] can read it strongly consistently from its top-level
-/// task without performing an eventually-consistent read.
-#[turbo_tasks::function(operation, root)]
-async fn initial_version_operation(
-    content: OperationVc<ResolveSourceRequestResult>,
-) -> Result<Vc<Box<dyn Version>>> {
-    Ok(match *content.read_strongly_consistent().await? {
-        ResolveSourceRequestResult::Static(static_content, _) => {
-            static_content.await?.content.version()
-        }
-        ResolveSourceRequestResult::HttpProxy(proxy_result) => Vc::upcast(proxy_result.connect()),
-        _ => Vc::upcast(NotFoundVersion::new()),
-    })
-}
-
-#[turbo_tasks::function(operation, root)]
-async fn get_update_stream_item_operation(
-    resource: RcStr,
-    from: ResolvedVc<VersionState>,
-    get_content: TransientInstance<GetContentFn>,
-) -> Result<Vc<UpdateStreamItem>> {
-    let content_op = get_content.call();
-    let content_result = content_op.read_strongly_consistent().await;
-    let mut plain_issues = peek_issues(content_op).await?;
-
-    let content_value = match content_result {
-        Ok(content) => content,
-        Err(e) => {
-            plain_issues.push(
-                PlainIssue::from_issue(
-                    Vc::upcast(
-                        FatalStreamIssue {
-                            resource,
-                            description: StyledString::Text(
-                                format!("{}", PrettyPrintError(&e)).into(),
-                            )
-                            .resolved_cell(),
-                        }
-                        .cell(),
-                    ),
-                    None,
-                )
-                .await?,
-            );
-
-            let update = Update::Total(TotalUpdate {
-                to: Vc::upcast::<Box<dyn Version>>(NotFoundVersion::new())
-                    .into_trait_ref()
-                    .await?,
-            })
-            .cell();
-            return Ok(UpdateStreamItem::Found {
-                update: update.await?,
-                issues: plain_issues,
-            }
-            .cell());
-        }
+    use anyhow::Result;
+    use async_trait::async_trait;
+    use futures::prelude::*;
+    use tokio::sync::mpsc::Sender;
+    use tokio_stream::wrappers::ReceiverStream;
+    use tracing::Instrument;
+    use turbo_rcstr::{RcStr, rcstr};
+    use turbo_tasks::{
+        OperationVc, PrettyPrintError, ReadRef, ResolvedVc, TransientInstance, Vc,
+        trace::TraceRawVcs,
+    };
+    use turbo_tasks_fs::{FileSystem, FileSystemPath};
+    use turbopack_core::{
+        issue::{
+            CollectibleIssuesExt, Issue, IssueFilter, IssueSeverity, IssueStage, PlainIssue,
+            StyledString,
+        },
+        server_fs::ServerFileSystem,
+        version::{
+            NotFoundVersion, PartialUpdate, TotalUpdate, Update, Version, VersionState,
+            VersionedContent,
+        },
     };
 
-    match *content_value {
-        ResolveSourceRequestResult::Static(static_content_vc, _) => {
-            let static_content = static_content_vc.await?;
+    use super::GetContentFn;
+    use crate::source::{ProxyResult, resolve::ResolveSourceRequestResult};
 
-            // This can happen when a chunk is removed from the asset graph.
-            if static_content.status_code == 404 {
-                return Ok(UpdateStreamItem::NotFound.cell());
+    async fn peek_issues<T: Send>(source: OperationVc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
+        let captured = source.peek_issues();
+
+        captured.get_plain_issues(&IssueFilter::everything()).await
+    }
+
+    fn extend_issues(issues: &mut Vec<ReadRef<PlainIssue>>, new_issues: Vec<ReadRef<PlainIssue>>) {
+        for issue in new_issues {
+            if issues.contains(&issue) {
+                continue;
             }
 
-            let resolved_content = static_content.content;
-            let from = from.get().to_resolved().await?;
-            let update_op = versioned_content_update_operation(resolved_content, from);
-
-            extend_issues(&mut plain_issues, peek_issues(update_op).await?);
-
-            Ok(UpdateStreamItem::Found {
-                update: update_op.connect().await?,
-                issues: plain_issues,
-            }
-            .cell())
+            issues.push(issue);
         }
-        ResolveSourceRequestResult::HttpProxy(proxy_result_op) => {
-            let proxy_result_vc = proxy_result_op.connect();
-            let proxy_result_value = proxy_result_vc.await?;
+    }
 
-            if proxy_result_value.status == 404 {
-                return Ok(UpdateStreamItem::NotFound.cell());
+    #[turbo_tasks::function(operation, root)]
+    fn versioned_content_update_operation(
+        content: ResolvedVc<Box<dyn VersionedContent>>,
+        from: ResolvedVc<Box<dyn Version>>,
+    ) -> Vc<Update> {
+        content.update(*from)
+    }
+
+    /// Computes the initial [`Version`] for an update stream from a resolved source request. Runs
+    /// as an `operation` so [`UpdateStream::new`] can read it strongly consistently from its
+    /// top-level task without performing an eventually-consistent read.
+    #[turbo_tasks::function(operation, root)]
+    async fn initial_version_operation(
+        content: OperationVc<ResolveSourceRequestResult>,
+    ) -> Result<Vc<Box<dyn Version>>> {
+        Ok(match *content.read_strongly_consistent().await? {
+            ResolveSourceRequestResult::Static(static_content, _) => {
+                static_content.await?.content.version()
             }
-
-            extend_issues(&mut plain_issues, peek_issues(proxy_result_op).await?);
-
-            let from = from.get();
-            if let Some(from) =
-                ResolvedVc::try_downcast_type::<ProxyResult>(from.to_resolved().await?)
-                && from.await? == proxy_result_value
-            {
-                return Ok(UpdateStreamItem::Found {
-                    update: Update::None.cell().await?,
-                    issues: plain_issues,
-                }
-                .cell());
+            ResolveSourceRequestResult::HttpProxy(proxy_result) => {
+                Vc::upcast(proxy_result.connect())
             }
+            _ => Vc::upcast(NotFoundVersion::new()),
+        })
+    }
 
-            Ok(UpdateStreamItem::Found {
-                update: Update::Total(TotalUpdate {
-                    to: Vc::upcast::<Box<dyn Version>>(proxy_result_vc)
-                        .into_trait_ref()
-                        .await?,
-                })
-                .cell()
-                .await?,
-                issues: plain_issues,
-            }
-            .cell())
-        }
-        _ => {
-            let update = if plain_issues.is_empty() {
-                // Client requested a non-existing asset
-                // It might be removed in meantime, reload client
-                // TODO add special instructions for removed assets to handled it in a better
-                // way
-                Update::Total(TotalUpdate {
+    #[turbo_tasks::function(operation, root)]
+    async fn get_update_stream_item_operation(
+        resource: RcStr,
+        from: ResolvedVc<VersionState>,
+        get_content: TransientInstance<GetContentFn>,
+    ) -> Result<Vc<UpdateStreamItem>> {
+        let content_op = get_content.call();
+        let content_result = content_op.read_strongly_consistent().await;
+        let mut plain_issues = peek_issues(content_op).await?;
+
+        let content_value = match content_result {
+            Ok(content) => content,
+            Err(e) => {
+                plain_issues.push(
+                    PlainIssue::from_issue(
+                        Vc::upcast(
+                            FatalStreamIssue {
+                                resource,
+                                description: StyledString::Text(
+                                    format!("{}", PrettyPrintError(&e)).into(),
+                                )
+                                .resolved_cell(),
+                            }
+                            .cell(),
+                        ),
+                        None,
+                    )
+                    .await?,
+                );
+
+                let update = Update::Total(TotalUpdate {
                     to: Vc::upcast::<Box<dyn Version>>(NotFoundVersion::new())
                         .into_trait_ref()
                         .await?,
                 })
-                .cell()
-            } else {
-                Update::None.cell()
-            };
-
-            Ok(UpdateStreamItem::Found {
-                update: update.await?,
-                issues: plain_issues,
+                .cell();
+                return Ok(UpdateStreamItem::Found {
+                    update: update.await?,
+                    issues: plain_issues,
+                }
+                .cell());
             }
-            .cell())
+        };
+
+        match *content_value {
+            ResolveSourceRequestResult::Static(static_content_vc, _) => {
+                let static_content = static_content_vc.await?;
+
+                // This can happen when a chunk is removed from the asset graph.
+                if static_content.status_code == 404 {
+                    return Ok(UpdateStreamItem::NotFound.cell());
+                }
+
+                let resolved_content = static_content.content;
+                let from = from.get().to_resolved().await?;
+                let update_op = versioned_content_update_operation(resolved_content, from);
+
+                extend_issues(&mut plain_issues, peek_issues(update_op).await?);
+
+                Ok(UpdateStreamItem::Found {
+                    update: update_op.connect().await?,
+                    issues: plain_issues,
+                }
+                .cell())
+            }
+            ResolveSourceRequestResult::HttpProxy(proxy_result_op) => {
+                let proxy_result_vc = proxy_result_op.connect();
+                let proxy_result_value = proxy_result_vc.await?;
+
+                if proxy_result_value.status == 404 {
+                    return Ok(UpdateStreamItem::NotFound.cell());
+                }
+
+                extend_issues(&mut plain_issues, peek_issues(proxy_result_op).await?);
+
+                let from = from.get();
+                if let Some(from) =
+                    ResolvedVc::try_downcast_type::<ProxyResult>(from.to_resolved().await?)
+                    && from.await? == proxy_result_value
+                {
+                    return Ok(UpdateStreamItem::Found {
+                        update: Update::None.cell().await?,
+                        issues: plain_issues,
+                    }
+                    .cell());
+                }
+
+                Ok(UpdateStreamItem::Found {
+                    update: Update::Total(TotalUpdate {
+                        to: Vc::upcast::<Box<dyn Version>>(proxy_result_vc)
+                            .into_trait_ref()
+                            .await?,
+                    })
+                    .cell()
+                    .await?,
+                    issues: plain_issues,
+                }
+                .cell())
+            }
+            _ => {
+                let update = if plain_issues.is_empty() {
+                    // Client requested a non-existing asset
+                    // It might be removed in meantime, reload client
+                    // TODO add special instructions for removed assets to handled it in a better
+                    // way
+                    Update::Total(TotalUpdate {
+                        to: Vc::upcast::<Box<dyn Version>>(NotFoundVersion::new())
+                            .into_trait_ref()
+                            .await?,
+                    })
+                    .cell()
+                } else {
+                    Update::None.cell()
+                };
+
+                Ok(UpdateStreamItem::Found {
+                    update: update.await?,
+                    issues: plain_issues,
+                }
+                .cell())
+            }
         }
     }
-}
 
-#[derive(TraceRawVcs)]
-struct ComputeUpdateStreamSender(
-    // HACK: `trace_ignore`: It's not correct or safe to send `Vc`s across this mpsc channel, but
-    // (without nightly auto traits) there's no easy way for us to statically assert that
-    // `UpdateStreamItem` does not contain a `RawVc`.
-    //
-    // It could be safe (at least for the GC use-case) if we had some way of wrapping arbitrary
-    // objects in a GC root container.
-    #[turbo_tasks(trace_ignore)] Sender<Result<ReadRef<UpdateStreamItem>>>,
-);
+    #[derive(TraceRawVcs)]
+    struct ComputeUpdateStreamSender(
+        // HACK: `trace_ignore`: It's not correct or safe to send `Vc`s across this mpsc channel,
+        // but (without nightly auto traits) there's no easy way for us to statically
+        // assert that `UpdateStreamItem` does not contain a `RawVc`.
+        //
+        // It could be safe (at least for the GC use-case) if we had some way of wrapping arbitrary
+        // objects in a GC root container.
+        #[turbo_tasks(trace_ignore)] Sender<Result<ReadRef<UpdateStreamItem>>>,
+    );
 
-/// This function sends an [`UpdateStreamItem`] to `sender` every time it gets recomputed by
-/// turbo-tasks due to invalidation.
-#[turbo_tasks::function]
-async fn compute_update_stream(
-    resource: RcStr,
-    from: ResolvedVc<VersionState>,
-    get_content: TransientInstance<GetContentFn>,
-    sender: TransientInstance<ComputeUpdateStreamSender>,
-) -> () {
-    let item = get_update_stream_item_operation(resource, from, get_content)
-        .read_strongly_consistent()
-        .await;
-
-    // Send update. Ignore channel closed error.
-    let _ = sender.0.send(item).await;
-}
-
-pub(super) struct UpdateStream(
-    Pin<Box<dyn Stream<Item = Result<ReadRef<UpdateStreamItem>>> + Send + Sync>>,
-);
-
-impl UpdateStream {
-    #[tracing::instrument(skip(get_content), name = "UpdateStream::new")]
-    pub async fn new(
+    /// This function sends an [`UpdateStreamItem`] to `sender` every time it gets recomputed by
+    /// turbo-tasks due to invalidation.
+    #[turbo_tasks::function]
+    async fn compute_update_stream(
         resource: RcStr,
+        from: ResolvedVc<VersionState>,
         get_content: TransientInstance<GetContentFn>,
-    ) -> Result<UpdateStream> {
-        let (sx, rx) = tokio::sync::mpsc::channel(32);
+        sender: TransientInstance<ComputeUpdateStreamSender>,
+    ) -> () {
+        let item = get_update_stream_item_operation(resource, from, get_content)
+            .read_strongly_consistent()
+            .await;
 
-        let content = get_content.call();
-        // We can ignore issues reported in content here since [compute_update_stream]
-        // will handle them. This runs in a top-level task (`UpdateServer::run`'s
-        // `start_once_process`), so the initial version is computed in a dedicated `operation`
-        // task (where the per-content reads are legal) and read strongly consistently.
-        let version = initial_version_operation(content)
-            .read_trait_strongly_consistent()
-            .await?;
-        let version_state = VersionState::new(version).await?;
+        // Send update. Ignore channel closed error.
+        let _ = sender.0.send(item).await;
+    }
 
-        let _ = compute_update_stream(
-            resource,
-            version_state,
-            get_content,
-            TransientInstance::new(ComputeUpdateStreamSender(sx)),
-        );
+    pub struct UpdateStream(
+        Pin<Box<dyn Stream<Item = Result<ReadRef<UpdateStreamItem>>> + Send + Sync>>,
+    );
 
-        let mut last_had_issues = false;
+    impl UpdateStream {
+        #[tracing::instrument(skip(get_content), name = "UpdateStream::new")]
+        pub async fn new(
+            resource: RcStr,
+            get_content: TransientInstance<GetContentFn>,
+        ) -> Result<UpdateStream> {
+            let (sx, rx) = tokio::sync::mpsc::channel(32);
 
-        let stream = ReceiverStream::new(rx).filter_map(move |item| {
-            {
-                let (has_issues, issues_changed) =
-                    if let Ok(UpdateStreamItem::Found { issues, .. }) = item.as_deref() {
-                        let has_issues = !issues.is_empty();
-                        let issues_changed = has_issues != last_had_issues;
-                        last_had_issues = has_issues;
-                        (has_issues, issues_changed)
-                    } else {
-                        (false, false)
-                    };
+            let content = get_content.call();
+            // We can ignore issues reported in content here since [compute_update_stream]
+            // will handle them. This runs in a top-level task (`UpdateServer::run`'s
+            // `start_once_process`), so the initial version is computed in a dedicated `operation`
+            // task (where the per-content reads are legal) and read strongly consistently.
+            let version = initial_version_operation(content)
+                .read_trait_strongly_consistent()
+                .await?;
+            let version_state = VersionState::new(version).await?;
 
-                async move {
-                    match item.as_deref() {
-                        Ok(UpdateStreamItem::Found { update, .. }) => {
-                            match &**update {
-                                Update::Partial(PartialUpdate { to, .. })
-                                | Update::Total(TotalUpdate { to }) => {
-                                    version_state
-                                        .set(to.clone())
-                                        .await
-                                        .expect("failed to update version");
+            let _ = compute_update_stream(
+                resource,
+                version_state,
+                get_content,
+                TransientInstance::new(ComputeUpdateStreamSender(sx)),
+            );
 
-                                    Some(item)
-                                }
-                                // Do not propagate empty updates.
-                                Update::None | Update::Missing => {
-                                    if has_issues || issues_changed {
+            let mut last_had_issues = false;
+
+            let stream = ReceiverStream::new(rx).filter_map(move |item| {
+                {
+                    let (has_issues, issues_changed) =
+                        if let Ok(UpdateStreamItem::Found { issues, .. }) = item.as_deref() {
+                            let has_issues = !issues.is_empty();
+                            let issues_changed = has_issues != last_had_issues;
+                            last_had_issues = has_issues;
+                            (has_issues, issues_changed)
+                        } else {
+                            (false, false)
+                        };
+
+                    async move {
+                        match item.as_deref() {
+                            Ok(UpdateStreamItem::Found { update, .. }) => {
+                                match &**update {
+                                    Update::Partial(PartialUpdate { to, .. })
+                                    | Update::Total(TotalUpdate { to }) => {
+                                        version_state
+                                            .set(to.clone())
+                                            .await
+                                            .expect("failed to update version");
+
                                         Some(item)
-                                    } else {
-                                        None
+                                    }
+                                    // Do not propagate empty updates.
+                                    Update::None | Update::Missing => {
+                                        if has_issues || issues_changed {
+                                            Some(item)
+                                        } else {
+                                            None
+                                        }
                                     }
                                 }
                             }
-                        }
-                        _ => {
-                            // Propagate other updates
-                            Some(item)
+                            _ => {
+                                // Propagate other updates
+                                Some(item)
+                            }
                         }
                     }
+                    .in_current_span()
                 }
                 .in_current_span()
-            }
-            .in_current_span()
-        });
+            });
 
-        Ok(UpdateStream(Box::pin(stream)))
-    }
-}
-
-impl Stream for UpdateStream {
-    type Item = Result<ReadRef<UpdateStreamItem>>;
-
-    fn poll_next(
-        self: Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Option<Self::Item>> {
-        Pin::new(&mut self.get_mut().0).poll_next(cx)
-    }
-}
-
-#[turbo_tasks::value(serialization = "skip")]
-#[derive(Debug)]
-pub enum UpdateStreamItem {
-    NotFound,
-    Found {
-        update: ReadRef<Update>,
-        issues: Vec<ReadRef<PlainIssue>>,
-    },
-}
-
-#[turbo_tasks::value(serialization = "skip")]
-struct FatalStreamIssue {
-    description: ResolvedVc<StyledString>,
-    resource: RcStr,
-}
-
-#[async_trait]
-#[turbo_tasks::value_impl]
-impl Issue for FatalStreamIssue {
-    fn severity(&self) -> IssueSeverity {
-        IssueSeverity::Fatal
+            Ok(UpdateStream(Box::pin(stream)))
+        }
     }
 
-    fn stage(&self) -> IssueStage {
-        IssueStage::Other(rcstr!("websocket"))
+    impl Stream for UpdateStream {
+        type Item = Result<ReadRef<UpdateStreamItem>>;
+
+        fn poll_next(
+            self: Pin<&mut Self>,
+            cx: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<Option<Self::Item>> {
+            Pin::new(&mut self.get_mut().0).poll_next(cx)
+        }
     }
 
-    async fn file_path(&self) -> Result<FileSystemPath> {
-        ServerFileSystem::new().root().await?.join(&self.resource)
+    #[turbo_tasks::value(serialization = "skip")]
+    #[derive(Debug)]
+    pub enum UpdateStreamItem {
+        NotFound,
+        Found {
+            update: ReadRef<Update>,
+            issues: Vec<ReadRef<PlainIssue>>,
+        },
     }
 
-    async fn title(&self) -> Result<StyledString> {
-        Ok(StyledString::Text(rcstr!(
-            "Fatal error while getting content to stream"
-        )))
+    #[turbo_tasks::value(serialization = "skip")]
+    struct FatalStreamIssue {
+        description: ResolvedVc<StyledString>,
+        resource: RcStr,
     }
 
-    async fn description(&self) -> Result<Option<StyledString>> {
-        Ok(Some((*self.description.await?).clone()))
+    #[async_trait]
+    #[turbo_tasks::value_impl]
+    impl Issue for FatalStreamIssue {
+        fn severity(&self) -> IssueSeverity {
+            IssueSeverity::Fatal
+        }
+
+        fn stage(&self) -> IssueStage {
+            IssueStage::Other(rcstr!("websocket"))
+        }
+
+        async fn file_path(&self) -> Result<FileSystemPath> {
+            ServerFileSystem::new().root().await?.join(&self.resource)
+        }
+
+        async fn title(&self) -> Result<StyledString> {
+            Ok(StyledString::Text(rcstr!(
+                "Fatal error while getting content to stream"
+            )))
+        }
+
+        async fn description(&self) -> Result<Option<StyledString>> {
+            Ok(Some((*self.description.await?).clone()))
+        }
     }
 }
 
@@ -420,7 +444,7 @@ pub mod test {
         atomic::{AtomicI32, Ordering},
     };
 
-    use turbo_tasks::TurboTasks;
+    use turbo_tasks::{TurboTasks, Vc};
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
     use super::*;
@@ -430,7 +454,7 @@ pub mod test {
         ResolveSourceRequestResult::NotFound.cell()
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_get_content_fn() {
         let tt = TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),

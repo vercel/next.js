@@ -49,7 +49,7 @@ impl EnvMap {
 impl ProcessEnv for EnvMap {
     #[turbo_tasks::function]
     async fn read_all(self: Vc<Self>) -> Result<Vc<TransientEnvMap>> {
-        Ok(Vc::cell((*self.await?).clone()))
+        Ok(Vc::cell((*turbo_tasks::read!(self)?).clone()))
     }
 
     #[turbo_tasks::function]
@@ -85,8 +85,7 @@ pub async fn case_insensitive_read(
     name: RcStr,
 ) -> Result<Vc<Option<RcStr>>> {
     Ok(Vc::cell(
-        to_uppercase_map(map)
-            .await?
+        turbo_tasks::read!(to_uppercase_map(map))?
             .get(&RcStr::from(name.to_uppercase()))
             .cloned(),
     ))
@@ -94,7 +93,7 @@ pub async fn case_insensitive_read(
 
 #[turbo_tasks::function]
 async fn to_uppercase_map(map: Vc<TransientEnvMap>) -> Result<Vc<TransientEnvMap>> {
-    let map = &*map.await?;
+    let map = &*turbo_tasks::read!(map)?;
     let mut new = FxIndexMap::with_capacity_and_hasher(map.len(), Default::default());
     for (k, v) in map {
         new.insert(k.to_uppercase().into(), v.clone());

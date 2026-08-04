@@ -168,21 +168,26 @@ pub(crate) fn generate_turbofmt_inner(fmt: &str, exprs: &[Expr]) -> TokenStream2
     let resolve_stmts = generate_resolve_stmts(exprs);
     let vars = generate_arg_vars(exprs.len());
 
-    if vars.is_empty() {
+    // The argument resolution (`__turbo_stringify!`) is dual-mode: `.await` in async,
+    // synchronous under `sync`. So `turbofmt!` yields an `async` block that must be
+    // awaited (async build) or a plain block evaluating to `Result<RcStr>` directly
+    // (the no-async sync engine — `read!(turbofmt!(..))` then forwards the `Result`).
+    let body = if vars.is_empty() {
         quote! {
-            async {
-                #(#captured_stmts)*
-                anyhow::Ok(turbo_rcstr::RcStr::from(format!(#fmt)))
-            }
+            #(#captured_stmts)*
+            anyhow::Ok(turbo_rcstr::RcStr::from(format!(#fmt)))
         }
     } else {
         quote! {
-            async {
-                #(#captured_stmts)*
-                #(#resolve_stmts)*
-                anyhow::Ok(turbo_rcstr::RcStr::from(format!(#fmt, #(#vars),*)))
-            }
+            #(#captured_stmts)*
+            #(#resolve_stmts)*
+            anyhow::Ok(turbo_rcstr::RcStr::from(format!(#fmt, #(#vars),*)))
         }
+    };
+    if cfg!(feature = "sync") {
+        quote! { { #body } }
+    } else {
+        quote! { async { #body } }
     }
 }
 

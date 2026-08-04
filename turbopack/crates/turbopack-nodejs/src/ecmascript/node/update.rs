@@ -59,8 +59,9 @@ struct EcmascriptModuleEntry {
 }
 
 impl EcmascriptModuleEntry {
-    async fn from_code(id: &ModuleId, code: Vc<Code>, chunk_path: &str) -> Result<Self> {
-        let map = &*code.generate_source_map().await?;
+    turbo_tasks::dual_fn! {
+    fn from_code(id: &ModuleId, code: Vc<Code>, chunk_path: &str) -> Result<Self> {
+        let map = &*turbo_tasks::read!(code.generate_source_map())?;
         let map = map.as_content().map(|f| f.content().clone());
 
         /// serde_qs can't serialize a lone enum when it's [serde::untagged].
@@ -72,14 +73,16 @@ impl EcmascriptModuleEntry {
 
         Ok(EcmascriptModuleEntry {
             // Cloning a rope is cheap.
-            code: code.await?.source_code().clone(),
+            code: turbo_tasks::read!(code)?.source_code().clone(),
             url: format!("{}?{}", chunk_path, id),
             map,
         })
     }
+    }
 }
 
-pub(super) async fn update_node_chunk(
+turbo_tasks::dual_fn! {
+pub(super) fn update_node_chunk(
     content: Vc<EcmascriptBuildNodeChunkContent>,
     from_version: ResolvedVc<Box<dyn Version>>,
 ) -> Result<Update> {
@@ -91,14 +94,14 @@ pub(super) async fn update_node_chunk(
     } else {
         // It's likely `from_version` is `NotFoundVersion`.
         return Ok(Update::Total(TotalUpdate {
-            to: Vc::upcast::<Box<dyn Version>>(to_version)
-                .into_trait_ref()
-                .await?,
+            to: turbo_tasks::read!(Vc::upcast::<Box<dyn Version>>(to_version)
+                .into_trait_ref())
+                ?,
         }));
     };
 
-    let to = to_version.await?;
-    let from = from_version.await?;
+    let to = turbo_tasks::read!(to_version)?;
+    let from = turbo_tasks::read!(from_version)?;
 
     // When to and from point to the same value we can skip comparing them
     if from.ptr_eq(&to) {
@@ -106,7 +109,7 @@ pub(super) async fn update_node_chunk(
     }
 
     let chunk_path = to.chunk_path.as_str();
-    let chunk_update = update_ecmascript_node_chunk_content(content, &to, &from).await?;
+    let chunk_update = turbo_tasks::read!(update_ecmascript_node_chunk_content(content, &to, &from))?;
 
     let mut merged_update = EcmascriptMergedUpdate::default();
 
@@ -125,7 +128,7 @@ pub(super) async fn update_node_chunk(
                 partial.added.insert(module_id.clone());
 
                 let entry =
-                    EcmascriptModuleEntry::from_code(&module_id, module_code, chunk_path).await?;
+                    turbo_tasks::read!(EcmascriptModuleEntry::from_code(&module_id, module_code, chunk_path))?;
                 merged_update.entries.insert(module_id, entry);
             }
 
@@ -133,7 +136,7 @@ pub(super) async fn update_node_chunk(
 
             for (module_id, module_code) in modified {
                 let entry =
-                    EcmascriptModuleEntry::from_code(&module_id, module_code, chunk_path).await?;
+                    turbo_tasks::read!(EcmascriptModuleEntry::from_code(&module_id, module_code, chunk_path))?;
                 merged_update.entries.insert(module_id, entry);
             }
 
@@ -151,14 +154,15 @@ pub(super) async fn update_node_chunk(
         let instruction_value = serde_json::to_value(&merged_update)?;
 
         Update::Partial(PartialUpdate {
-            to: Vc::upcast::<Box<dyn Version>>(to_version)
-                .into_trait_ref()
-                .await?,
+            to: turbo_tasks::read!(Vc::upcast::<Box<dyn Version>>(to_version)
+                .into_trait_ref())
+                ?,
             instruction: Arc::new(instruction_value),
         })
     };
 
     Ok(update)
+}
 }
 
 enum NodeChunkUpdate {
@@ -170,7 +174,8 @@ enum NodeChunkUpdate {
     },
 }
 
-async fn update_ecmascript_node_chunk_content(
+turbo_tasks::dual_fn! {
+fn update_ecmascript_node_chunk_content(
     content: Vc<EcmascriptBuildNodeChunkContent>,
     to: &ReadRef<EcmascriptBuildNodeChunkVersion>,
     from: &ReadRef<EcmascriptBuildNodeChunkVersion>,
@@ -192,7 +197,7 @@ async fn update_ecmascript_node_chunk_content(
                 // Module was modified
                 let entries = match &entries_ref {
                     Some(entries) => entries,
-                    None => entries_ref.insert(content.entries().await?),
+                    None => entries_ref.insert(turbo_tasks::read!(content.entries())?),
                 };
                 if let Some(entry) = entries.get(id) {
                     modified.insert(id.clone(), *entry.code);
@@ -209,7 +214,7 @@ async fn update_ecmascript_node_chunk_content(
         if !from.entries_hashes.contains_key(id) {
             let entries = match &entries_ref {
                 Some(entries) => entries,
-                None => entries_ref.insert(content.entries().await?),
+                None => entries_ref.insert(turbo_tasks::read!(content.entries())?),
             };
             if let Some(entry) = entries.get(id) {
                 added.insert(id.clone(), *entry.code);
@@ -228,4 +233,5 @@ async fn update_ecmascript_node_chunk_content(
     };
 
     Ok(update)
+}
 }

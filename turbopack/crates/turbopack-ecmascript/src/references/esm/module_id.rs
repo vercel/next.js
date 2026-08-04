@@ -74,16 +74,17 @@ pub struct EsmModuleIdAssetReferenceCodeGen {
 }
 
 impl EsmModuleIdAssetReferenceCodeGen {
-    pub async fn code_generation(
+    turbo_tasks::dual_fn! {
+    pub fn code_generation(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let mut visitors = Vec::new();
 
         if let ReferencedAsset::Some(asset) =
-            self.reference.await?.inner.get_referenced_asset().await?
+            turbo_tasks::read!(turbo_tasks::read!(self.reference)?.inner.get_referenced_asset())?
         {
-            let id = asset.chunk_item_id(chunking_context).await?;
+            let id = turbo_tasks::read!(asset.chunk_item_id(chunking_context))?;
             let id = module_id_to_lit(&id);
             visitors.push(create_visitor!(
                 self.path,
@@ -106,5 +107,6 @@ impl EsmModuleIdAssetReferenceCodeGen {
         }
 
         Ok(CodeGeneration::visitors(visitors))
+    }
     }
 }

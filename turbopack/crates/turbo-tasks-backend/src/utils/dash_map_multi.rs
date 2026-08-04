@@ -182,44 +182,70 @@ where
             },
         )
     } else {
-        let (mut guard1, mut guard2) = loop {
-            {
-                let g1 = shards[s1].write();
-                if let Some(g2) = shards[s2].try_write() {
-                    break (g1, g2);
-                }
-            }
-            {
-                let g2 = shards[s2].write();
-                if let Some(g1) = shards[s1].try_write() {
-                    break (g1, g2);
-                }
-            }
-        };
+        // Deterministic shard ordering to avoid the ABBA deadlock / livelock that
+        // the previous `try_write` ping-pong could enter under high contention:
+        // two workers locking (shard A, shard B) and (shard B, shard A) could
+        // repeatedly acquire their first shard, fail the `try_write` for the
+        // second, release, and retry forever — never making progress. Ordering by
+        // shard index guarantees all workers take the same order, so no cycle
+        // can form. Once a thread holds the smaller index, any other thread that
+        // needs both must block on that same smaller index, so it cannot hold
+        // the larger while waiting for the smaller.
+        if s1 < s2 {
+            let mut guard1 = shards[s1].write();
+            let mut guard2 = shards[s2].write();
 
-        let bucket1 = guard1
-            .find_or_find_insert_slot(h1, eq1, hash_entry)
-            .unwrap_or_else(|slot| unsafe {
-                // SAFETY: See first insert_in_slot call
-                guard1.insert_in_slot(h1, slot, (key1.clone(), SharedValue::new(insert_with())))
-            });
-        let bucket2 = guard2
-            .find_or_find_insert_slot(h2, eq2, hash_entry)
-            .unwrap_or_else(|slot| unsafe {
-                // SAFETY: See first insert_in_slot call
-                guard2.insert_in_slot(h2, slot, (key2.clone(), SharedValue::new(insert_with())))
-            });
+            let bucket1 = guard1
+                .find_or_find_insert_slot(h1, eq1, &hash_entry)
+                .unwrap_or_else(|slot| unsafe {
+                    guard1.insert_in_slot(h1, slot, (key1.clone(), SharedValue::new(insert_with())))
+                });
+            // Different shards => different RawTables, so inserting into shard2
+            // cannot invalidate bucket1's pointer.
+            let bucket2 = guard2
+                .find_or_find_insert_slot(h2, eq2, &hash_entry)
+                .unwrap_or_else(|slot| unsafe {
+                    guard2.insert_in_slot(h2, slot, (key2.clone(), SharedValue::new(insert_with())))
+                });
 
-        (
-            RefMut::Simple {
-                _guard: guard1,
-                bucket: bucket1,
-            },
-            RefMut::Simple {
-                _guard: guard2,
-                bucket: bucket2,
-            },
-        )
+            (
+                RefMut::Simple {
+                    _guard: guard1,
+                    bucket: bucket1,
+                },
+                RefMut::Simple {
+                    _guard: guard2,
+                    bucket: bucket2,
+                },
+            )
+        } else {
+            // s2 < s1: lock min (s2) first to keep a global order.
+            let mut guard2 = shards[s2].write();
+            let mut guard1 = shards[s1].write();
+
+            let bucket2 = guard2
+                .find_or_find_insert_slot(h2, eq2, &hash_entry)
+                .unwrap_or_else(|slot| unsafe {
+                    guard2.insert_in_slot(h2, slot, (key2.clone(), SharedValue::new(insert_with())))
+                });
+            let bucket1 = guard1
+                .find_or_find_insert_slot(h1, eq1, &hash_entry)
+                .unwrap_or_else(|slot| unsafe {
+                    guard1.insert_in_slot(h1, slot, (key1.clone(), SharedValue::new(insert_with())))
+                });
+
+            // Return in (key1, key2) order regardless of lock order.
+            (
+                RefMut::Simple {
+                    _guard: guard1,
+                    bucket: bucket1,
+                },
+                RefMut::Simple {
+                    _guard: guard2,
+                    bucket: bucket2,
+                },
+            )
+        }
     }
 }
 

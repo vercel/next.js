@@ -326,7 +326,7 @@ impl ValueDefault for ModuleOptionsContext {
 pub async fn side_effect_free_packages_glob(
     side_effect_free_packages: ResolvedVc<Vec<RcStr>>,
 ) -> Result<Vc<Glob>> {
-    let side_effect_free_packages = &*side_effect_free_packages.await?;
+    let side_effect_free_packages = &*turbo_tasks::read!(side_effect_free_packages)?;
     if side_effect_free_packages.is_empty() {
         return Ok(Glob::new(rcstr!(""), GlobOptions::default()));
     }

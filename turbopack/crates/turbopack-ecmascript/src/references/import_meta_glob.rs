@@ -17,9 +17,11 @@ use swc_core::{
     quote, quote_expr,
 };
 use turbo_rcstr::RcStr;
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::TryJoinIterExt;
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
-    debug::ValueDebugFormat, trace::TraceRawVcs,
+    FxIndexMap, NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
     DirectoryEntry, FileSystemPath, ReadGlobResult,
@@ -323,6 +325,7 @@ fn strip_relative_prefix(pattern: &str) -> &str {
     pattern.strip_prefix("./").unwrap_or(pattern)
 }
 
+turbo_tasks::dual_fn! {
 /// Flatten a nested `ReadGlobResult` into a sorted list of
 /// `(base_relative_path, FileSystemPath)` pairs.
 ///
@@ -330,7 +333,7 @@ fn strip_relative_prefix(pattern: &str) -> &str {
 /// segment. This function walks the tree and collects all file entries with
 /// their full relative paths (relative to the directory `read_glob` was called
 /// on).
-async fn flatten_read_glob(result: &ReadGlobResult) -> Result<Vec<(RcStr, FileSystemPath)>> {
+fn flatten_read_glob(result: &ReadGlobResult) -> Result<Vec<(RcStr, FileSystemPath)>> {
     let mut files = Vec::new();
 
     // Collect file entries from the current node.
@@ -358,7 +361,7 @@ async fn flatten_read_glob(result: &ReadGlobResult) -> Result<Vec<(RcStr, FileSy
     // Resolve child directories (skip dot-directories like .git, .next, etc.)
     for (segment, inner_vc) in &result.inner {
         let child_prefix = segment.to_string();
-        let inner = inner_vc.await?;
+        let inner = turbo_tasks::read!(inner_vc)?;
         pending.push((child_prefix, inner));
     }
 
@@ -366,13 +369,14 @@ async fn flatten_read_glob(result: &ReadGlobResult) -> Result<Vec<(RcStr, FileSy
         collect_files(&node, &prefix, &mut files);
         for (segment, inner_vc) in &node.inner {
             let child_prefix = format!("{prefix}/{segment}");
-            let inner = inner_vc.await?;
+            let inner = turbo_tasks::read!(inner_vc)?;
             pending.push((child_prefix, inner));
         }
     }
 
     files.sort_by(|a: &(RcStr, _), b: &(RcStr, _)| a.0.cmp(&b.0));
     Ok(files)
+}
 }
 
 // ---------------------------------------------------------------------------
@@ -413,15 +417,17 @@ impl ImportMetaGlobMap {
         issue_source: Option<IssueSource>,
         error_mode: ResolveErrorMode,
     ) -> Result<Vc<Self>> {
-        let origin_path = origin.into_trait_ref().await?.origin_path().parent();
+        let origin_path = turbo_tasks::read!(origin.into_trait_ref())?
+            .origin_path()
+            .parent();
 
         // Use read_glob for efficient directory-pruning file discovery.
-        let glob_result = base_dir.read_glob(positive_glob).await?;
-        let files = flatten_read_glob(&glob_result).await?;
+        let glob_result = turbo_tasks::read!(base_dir.read_glob(positive_glob))?;
+        let files = turbo_tasks::read!(flatten_read_glob(&glob_result))?;
 
         // Pre-resolve the negative glob (if any) once, outside the loop.
         let negative = if let Some(neg) = negative_glob {
-            Some(neg.await?)
+            Some(turbo_tasks::read!(neg)?)
         } else {
             None
         };
@@ -432,7 +438,10 @@ impl ImportMetaGlobMap {
             EcmaScriptModulesReferenceSubType::DynamicImport
         };
 
-        // Resolve all matched files in parallel.
+        // Resolve all matched files. The sync `parallel!` only fans out plain `Vc`
+        // reads, so the multi-step per-file helper runs concurrently in the async build
+        // (as before) and sequentially under `sync`.
+        #[cfg(not(feature = "sync"))]
         let entries: Vec<_> = files
             .iter()
             .filter(|(base_relative, _)| {
@@ -444,51 +453,40 @@ impl ImportMetaGlobMap {
                 }
             })
             .map(|(_base_relative, path)| {
-                let origin_path = &origin_path;
-                let query = &query;
-                let reference_sub_type = &reference_sub_type;
-                async move {
-                    // Compute the origin-relative path for import resolution and as the
-                    // user-visible key in the result object.
-                    let Some(origin_relative) = origin_path.get_relative_path_to(path) else {
-                        bail!(
-                            "import.meta.glob: failed to compute relative path from origin to \
-                             matched file"
-                        );
-                    };
-
-                    // Append query string if specified (e.g., `?raw`).
-                    let request_str: RcStr = if let Some(q) = query {
-                        format!("{origin_relative}{q}").into()
-                    } else {
-                        origin_relative.clone()
-                    };
-
-                    let request = Request::parse_string(request_str).to_resolved().await?;
-
-                    let result = esm_resolve(
-                        origin,
-                        *request,
-                        reference_sub_type.clone(),
-                        error_mode,
-                        issue_source,
-                    )
-                    .await?
-                    .to_resolved()
-                    .await?;
-
-                    Ok((
-                        origin_relative.clone(),
-                        ImportMetaGlobMapEntry {
-                            origin_relative,
-                            request,
-                            result,
-                        },
-                    ))
-                }
+                resolve_glob_entry(
+                    origin,
+                    &origin_path,
+                    path,
+                    query.as_ref(),
+                    &reference_sub_type,
+                    error_mode,
+                    issue_source,
+                )
             })
             .try_join()
             .await?;
+        #[cfg(feature = "sync")]
+        let entries: Vec<_> = {
+            let mut entries = Vec::new();
+            for (base_relative, path) in files.iter() {
+                // Apply negative pattern filtering on the base-relative path.
+                if let Some(ref neg) = negative
+                    && neg.matches(base_relative)
+                {
+                    continue;
+                }
+                entries.push(resolve_glob_entry(
+                    origin,
+                    &origin_path,
+                    path,
+                    query.as_ref(),
+                    &reference_sub_type,
+                    error_mode,
+                    issue_source,
+                )?);
+            }
+            entries
+        };
 
         let mut map: FxIndexMap<RcStr, ImportMetaGlobMapEntry> = entries.into_iter().collect();
 
@@ -496,6 +494,57 @@ impl ImportMetaGlobMap {
 
         Ok(Vc::cell(map))
     }
+}
+
+turbo_tasks::dual_fn! {
+/// Resolves one glob-matched file (the per-item body of [`ImportMetaGlobMap::generate`]).
+fn resolve_glob_entry(
+    origin: Vc<Box<dyn ResolveOrigin>>,
+    origin_path: &FileSystemPath,
+    path: &FileSystemPath,
+    query: Option<&RcStr>,
+    reference_sub_type: &EcmaScriptModulesReferenceSubType,
+    error_mode: ResolveErrorMode,
+    issue_source: Option<IssueSource>,
+) -> Result<(RcStr, ImportMetaGlobMapEntry)> {
+    // Compute the origin-relative path for import resolution and as the
+    // user-visible key in the result object.
+    let Some(origin_relative) = origin_path.get_relative_path_to(path) else {
+        bail!(
+            "import.meta.glob: failed to compute relative path from origin to \
+             matched file"
+        );
+    };
+
+    // Append query string if specified (e.g., `?raw`).
+    let request_str: RcStr = if let Some(q) = query {
+        format!("{origin_relative}{q}").into()
+    } else {
+        origin_relative.clone()
+    };
+
+    let request = turbo_tasks::read!(Request::parse_string(request_str).to_resolved())?;
+
+    let result = turbo_tasks::read!(turbo_tasks::read!(esm_resolve(
+        origin,
+        *request,
+        reference_sub_type.clone(),
+        error_mode,
+        issue_source,
+    ))
+    ?
+    .to_resolved())
+    ?;
+
+    Ok((
+        origin_relative.clone(),
+        ImportMetaGlobMapEntry {
+            origin_relative,
+            request,
+            result,
+        },
+    ))
+}
 }
 
 // ---------------------------------------------------------------------------
@@ -594,7 +643,9 @@ impl ImportMetaGlobAsset {
     #[turbo_tasks::function]
     pub async fn map(&self) -> Result<Vc<ImportMetaGlobMap>> {
         let origin = *self.origin;
-        let origin_dir = origin.into_trait_ref().await?.origin_path().parent();
+        let origin_dir = turbo_tasks::read!(origin.into_trait_ref())?
+            .origin_path()
+            .parent();
 
         // Compute the base directory for glob scanning.
         // With `base`, patterns are resolved relative to origin + base.
@@ -662,7 +713,7 @@ impl ImportMetaGlobAsset {
 impl Module for ImportMetaGlobAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let origin_path = self.origin.into_trait_ref().await?.origin_path();
+        let origin_path = turbo_tasks::read!(self.origin.into_trait_ref())?.origin_path();
         Ok(AssetIdent::from_path(origin_path)
             .with_modifier(modifier(
                 &self.patterns,
@@ -681,8 +732,8 @@ impl Module for ImportMetaGlobAsset {
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        let this = self.await?;
-        let map = &*self.map().await?;
+        let this = turbo_tasks::read!(self)?;
+        let map = &*turbo_tasks::read!(self.map())?;
 
         let export = match &this.import {
             Some(name) => ExportUsage::Named(name.clone()),
@@ -746,9 +797,9 @@ impl EcmascriptChunkPlaceable for ImportMetaGlobAsset {
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let this = self.await?;
-        let map = &*self.map().await?;
-        let minify = chunking_context.minify_type().await?;
+        let this = turbo_tasks::read!(self)?;
+        let map = &*turbo_tasks::read!(self.map())?;
+        let minify = turbo_tasks::read!(chunking_context.minify_type())?;
 
         let mut glob_map = ObjectLit {
             span: DUMMY_SP,
@@ -756,14 +807,13 @@ impl EcmascriptChunkPlaceable for ImportMetaGlobAsset {
         };
 
         for (key, entry) in map {
-            let pm = PatternMapping::resolve_request(
+            let pm = turbo_tasks::read!(PatternMapping::resolve_request(
                 *entry.request,
                 *this.origin,
                 chunking_context,
                 *entry.result,
                 ResolveType::ChunkItem,
-            )
-            .await?;
+            ))?;
 
             let PatternMapping::Single(pm) = &*pm else {
                 continue;
@@ -944,16 +994,16 @@ pub struct ImportMetaGlobAssetReferenceCodeGen {
 }
 
 impl ImportMetaGlobAssetReferenceCodeGen {
-    pub async fn code_generation(
+    turbo_tasks::dual_fn! {
+    pub fn code_generation(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
-        let module_id = self
-            .reference
-            .await?
-            .inner
-            .chunk_item_id(chunking_context)
-            .await?;
+        let module_id = turbo_tasks::read!(
+            turbo_tasks::read!(self.reference)?
+                .inner
+                .chunk_item_id(chunking_context)
+        )?;
 
         let mut visitors = Vec::new();
         visitors.push(create_visitor!(
@@ -971,5 +1021,6 @@ impl ImportMetaGlobAssetReferenceCodeGen {
             }
         ));
         Ok(CodeGeneration::visitors(visitors))
+    }
     }
 }

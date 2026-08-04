@@ -60,14 +60,16 @@ impl ModuleRule {
         self.effects.iter()
     }
 
-    pub async fn matches(
+    turbo_tasks::dual_fn! {
+    pub fn matches(
         &self,
         source: ResolvedVc<Box<dyn Source>>,
         path: &FileSystemPath,
         reference_type: &ReferenceType,
     ) -> Result<bool> {
         Ok(self.match_mode.matches(reference_type)
-            && self.condition.matches(source, path, reference_type).await?)
+            && turbo_tasks::read!(self.condition.matches(source, path, reference_type))?)
+    }
     }
 }
 
@@ -221,11 +223,12 @@ impl ConfiguredModuleType {
         })
     }
 
+    turbo_tasks::dual_fn! {
     /// Convert this configured module type into module rule effects.
     ///
     /// Some module types (like `Bytes`) are implemented as source transforms rather than
     /// `ModuleType` variants, allowing them to compose with the standard Ecmascript pipeline.
-    pub async fn into_effect(
+    pub fn into_effect(
         self,
         preprocess: ResolvedVc<EcmascriptInputTransforms>,
         main: ResolvedVc<EcmascriptInputTransforms>,
@@ -239,7 +242,7 @@ impl ConfiguredModuleType {
                 // Use source transform instead of ModuleType - the transform produces .mjs
                 // which gets picked up by the standard Ecmascript rules
                 ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![ResolvedVc::upcast(
-                    BytesSourceTransform::new().to_resolved().await?,
+                    turbo_tasks::read!(BytesSourceTransform::new().to_resolved())?,
                 )]))
             }
             ConfiguredModuleType::Asset => {
@@ -272,7 +275,7 @@ impl ConfiguredModuleType {
             ConfiguredModuleType::Json => {
                 ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![ResolvedVc::upcast(
                     // TODO: can we switch this to `new_esm`?
-                    JsonSourceTransform::new_cjs().to_resolved().await?,
+                    turbo_tasks::read!(JsonSourceTransform::new_cjs().to_resolved())?,
                 )]))
             }
             ConfiguredModuleType::Wasm => ModuleRuleEffect::ModuleType(ModuleType::WebAssembly {
@@ -281,5 +284,6 @@ impl ConfiguredModuleType {
             ConfiguredModuleType::Raw => ModuleRuleEffect::ModuleType(ModuleType::Raw),
             ConfiguredModuleType::Node => ModuleRuleEffect::ModuleType(ModuleType::NodeAddon),
         })
+    }
     }
 }

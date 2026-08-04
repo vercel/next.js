@@ -150,6 +150,14 @@ pub fn task_input(args: TokenStream, input: TokenStream) -> TokenStream {
             },
             &|_ident| quote! {true},
         );
+        // In the no-async sync build, `TaskInput::resolve_input` is a plain `fn` returning
+        // `Result<Self>` (no future/await); in async mode it is an `async fn`. Emit the
+        // matching recursive-resolution body: `.await?` per field in async, `?` in sync.
+        let await_tok = if cfg!(feature = "sync") {
+            quote! {}
+        } else {
+            quote! { .await }
+        };
         let resolve_impl = match_expansion(
             &ident,
             &data,
@@ -160,7 +168,7 @@ pub fn task_input(args: TokenStream, input: TokenStream) -> TokenStream {
                     quote! {
                         {
                             #(
-                                let #fields = turbo_tasks::TaskInput::resolve_input(#fields).await?;
+                                let #fields = turbo_tasks::TaskInput::resolve_input(#fields) #await_tok ?;
                             )*
                             Ok(#ctor { #(#fields),* })
                         }
@@ -174,7 +182,7 @@ pub fn task_input(args: TokenStream, input: TokenStream) -> TokenStream {
                     quote! {
                         {
                             #(
-                                let #fields = turbo_tasks::TaskInput::resolve_input(#fields).await?;
+                                let #fields = turbo_tasks::TaskInput::resolve_input(#fields) #await_tok ?;
                             )*
                             Ok(#ctor(#(#fields),*))
                         }
@@ -183,6 +191,30 @@ pub fn task_input(args: TokenStream, input: TokenStream) -> TokenStream {
             },
             &|ctor| quote! {Ok(#ctor)},
         );
+        let resolve_input_method = if cfg!(feature = "sync") {
+            quote! {
+                #[allow(non_snake_case)]
+                #[allow(unreachable_code)]
+                fn resolve_input(&self) -> turbo_tasks::Result<Self> {
+                    #resolve_impl
+                }
+            }
+        } else {
+            quote! {
+                #[allow(non_snake_case)]
+                #[allow(unreachable_code)]
+                #[allow(clippy::manual_async_fn)]
+                fn resolve_input(
+                    &self,
+                ) -> impl ::std::future::Future<Output = turbo_tasks::Result<Self>>
+                + ::std::marker::Send
+                + '_ {
+                    async move {
+                        #resolve_impl
+                    }
+                }
+            }
+        };
         quote! {
             #[automatically_derived]
             impl #impl_generics turbo_tasks::TaskInput for #ident #ty_generics
@@ -202,18 +234,7 @@ pub fn task_input(args: TokenStream, input: TokenStream) -> TokenStream {
                     #is_transient_impl
                 }
 
-                #[allow(non_snake_case)]
-                #[allow(unreachable_code)]
-                #[allow(clippy::manual_async_fn)]
-                fn resolve_input(
-                    &self,
-                ) -> impl ::std::future::Future<Output = turbo_tasks::Result<Self>>
-                + ::std::marker::Send
-                + '_ {
-                    async move {
-                        #resolve_impl
-                    }
-                }
+                #resolve_input_method
             }
         }
     } else {

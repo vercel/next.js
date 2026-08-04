@@ -72,14 +72,16 @@ pub enum ExecutionEnvironment {
     Custom(u8),
 }
 
-async fn resolve_browserslist(browser_env: ResolvedVc<BrowserEnvironment>) -> Result<Vec<Distrib>> {
+turbo_tasks::dual_fn! {
+fn resolve_browserslist(browser_env: ResolvedVc<BrowserEnvironment>) -> Result<Vec<Distrib>> {
     Ok(browserslist::resolve(
-        browser_env.await?.browserslist_query.split(','),
+        turbo_tasks::read!(browser_env)?.browserslist_query.split(','),
         &browserslist::Opts {
             ignore_unknown_versions: true,
             ..Default::default()
         },
     )?)
+}
 }
 
 #[turbo_tasks::value_impl]
@@ -88,7 +90,9 @@ impl Environment {
     pub async fn compile_target(&self) -> Result<Vc<CompileTarget>> {
         Ok(match self.execution {
             ExecutionEnvironment::NodeJsBuildTime(node_env, ..)
-            | ExecutionEnvironment::NodeJsLambda(node_env) => *node_env.await?.compile_target,
+            | ExecutionEnvironment::NodeJsLambda(node_env) => {
+                *turbo_tasks::read!(node_env)?.compile_target
+            }
             ExecutionEnvironment::Browser(_) => CompileTarget::unknown(),
             ExecutionEnvironment::EdgeWorker(_) => CompileTarget::unknown(),
             ExecutionEnvironment::Custom(_) => todo!(),
@@ -101,7 +105,7 @@ impl Environment {
             ExecutionEnvironment::NodeJsBuildTime(node_env, ..)
             | ExecutionEnvironment::NodeJsLambda(node_env) => node_env.runtime_versions(),
             ExecutionEnvironment::Browser(browser_env) => {
-                let distribs = resolve_browserslist(browser_env).await?;
+                let distribs = turbo_tasks::read!(resolve_browserslist(browser_env))?;
                 Vc::cell(Versions::parse_versions(distribs)?)
             }
             ExecutionEnvironment::EdgeWorker(edge_env) => edge_env.runtime_versions(),
@@ -124,7 +128,7 @@ impl Environment {
                 Vc::default()
             }
             ExecutionEnvironment::Browser(browser_env) => {
-                Vc::cell(browser_env.await?.browserslist_query.clone())
+                Vc::cell(turbo_tasks::read!(browser_env)?.browserslist_query.clone())
             }
             ExecutionEnvironment::Custom(_) => todo!(),
         })
@@ -226,7 +230,7 @@ impl Environment {
         let env = self;
         Ok(match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(env)
-            | ExecutionEnvironment::NodeJsLambda(env) => *env.await?.cwd,
+            | ExecutionEnvironment::NodeJsLambda(env) => *turbo_tasks::read!(env)?.cwd,
             _ => Vc::cell(None),
         })
     }
@@ -284,11 +288,10 @@ impl Default for NodeJsEnvironment {
 impl NodeJsEnvironment {
     #[turbo_tasks::function]
     pub async fn runtime_versions(&self) -> Result<Vc<RuntimeVersions>> {
-        let str = match *self.node_version.await? {
+        let str = turbo_tasks::read!(match *turbo_tasks::read!(self.node_version)? {
             NodeJsVersion::Current(process_env) => get_current_nodejs_version(*process_env),
             NodeJsVersion::Static(version) => *version,
-        }
-        .await?;
+        })?;
 
         Ok(Vc::cell(Versions {
             node: Some(
@@ -302,10 +305,10 @@ impl NodeJsEnvironment {
     #[turbo_tasks::function]
     pub async fn current(process_env: ResolvedVc<Box<dyn ProcessEnv>>) -> Result<Vc<Self>> {
         Ok(Self::cell(NodeJsEnvironment {
-            compile_target: CompileTarget::current().to_resolved().await?,
-            node_version: NodeJsVersion::cell(NodeJsVersion::Current(process_env))
-                .to_resolved()
-                .await?,
+            compile_target: turbo_tasks::read!(CompileTarget::current().to_resolved())?,
+            node_version: turbo_tasks::read!(
+                NodeJsVersion::cell(NodeJsVersion::Current(process_env)).to_resolved()
+            )?,
             cwd: ResolvedVc::cell(None),
         }))
     }
@@ -345,11 +348,10 @@ pub struct EdgeWorkerEnvironment {
 impl EdgeWorkerEnvironment {
     #[turbo_tasks::function]
     pub async fn runtime_versions(&self) -> Result<Vc<RuntimeVersions>> {
-        let str = match *self.node_version.await? {
+        let str = turbo_tasks::read!(match *turbo_tasks::read!(self.node_version)? {
             NodeJsVersion::Current(process_env) => get_current_nodejs_version(*process_env),
             NodeJsVersion::Static(version) => *version,
-        }
-        .await?;
+        })?;
 
         Ok(Vc::cell(Versions {
             node: Some(
@@ -440,7 +442,7 @@ impl RuntimeVersions {
 
 #[turbo_tasks::function]
 pub async fn get_current_nodejs_version(env: Vc<Box<dyn ProcessEnv>>) -> Result<Vc<RcStr>> {
-    let path_read = env.read(rcstr!("PATH")).await?;
+    let path_read = turbo_tasks::read!(env.read(rcstr!("PATH")))?;
     let path = path_read.as_ref().context("env must have PATH")?;
     let mut cmd = Command::new("node");
     cmd.arg("--version");

@@ -1,6 +1,7 @@
 use std::sync::{Arc, RwLock};
 
 use anyhow::{Result, bail};
+#[cfg(not(feature = "sync"))]
 use async_trait::async_trait;
 use lightningcss::{
     css_modules::{CssModuleExport, Pattern, Segment},
@@ -14,6 +15,7 @@ use lightningcss::{
 use rustc_hash::FxHashMap;
 use smallvec::smallvec;
 use swc_core::base::sourcemap::SourceMapBuilder;
+#[cfg(not(feature = "sync"))]
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
@@ -66,7 +68,7 @@ async fn get_lightningcss_browser_targets(
 ) -> Result<Vc<LightningCssTargets>> {
     match environment {
         Some(environment) => {
-            let browserslist_query = environment.browserslist_query().owned().await?;
+            let browserslist_query = turbo_tasks::read!(environment.browserslist_query().owned())?;
             let browserslist_browsers =
                 lightningcss::targets::Browsers::from_browserslist_with_config(
                     browserslist_query.split(','),
@@ -95,7 +97,9 @@ async fn get_lightningcss_browser_targets(
     }
 }
 
-async fn stylesheet_to_css(
+turbo_tasks::dual_fn! {
+#[allow(clippy::too_many_arguments)]
+fn stylesheet_to_css(
     ss: &StyleSheet<'_, '_>,
     code: &str,
     minify_type: MinifyType,
@@ -111,12 +115,11 @@ async fn stylesheet_to_css(
         None
     };
 
-    let targets = *get_lightningcss_browser_targets(
+    let targets = *turbo_tasks::read!(get_lightningcss_browser_targets(
         environment.as_deref().copied(),
         handle_nesting,
         feature_flags,
-    )
-    .await?;
+    ))?;
 
     let result = ss.to_css(PrinterOptions {
         minify: matches!(minify_type, MinifyType::Minify { .. }),
@@ -143,6 +146,7 @@ async fn stylesheet_to_css(
     };
 
     Ok((result, srcmap))
+}
 }
 
 /// Multiple [ModuleReference]s
@@ -206,7 +210,7 @@ pub async fn process_css_with_placeholder(
     environment: Option<ResolvedVc<Environment>>,
     feature_flags: LightningCssFeatureFlags,
 ) -> Result<Vc<CssWithPlaceholderResult>> {
-    let result = parse_result.await?;
+    let result = turbo_tasks::read!(parse_result)?;
 
     match &*result {
         ParseCssResult::Ok {
@@ -216,7 +220,7 @@ pub async fn process_css_with_placeholder(
             code,
             ..
         } => {
-            let code = code.await?;
+            let code = turbo_tasks::read!(code)?;
             let code = match &*code {
                 FileContent::Content(v) => v.content().to_str()?,
                 _ => bail!("this case should be filtered out while parsing"),
@@ -224,7 +228,7 @@ pub async fn process_css_with_placeholder(
 
             // We use NoMinify because this is not a final css. We need to replace url references,
             // and we do final codegen with proper minification.
-            let (result, _) = stylesheet_to_css(
+            let (result, _) = turbo_tasks::read!(stylesheet_to_css(
                 stylesheet,
                 &code,
                 MinifyType::NoMinify,
@@ -233,8 +237,7 @@ pub async fn process_css_with_placeholder(
                 None,
                 environment,
                 feature_flags,
-            )
-            .await?;
+            ))?;
 
             let exports = result.exports.map(|exports| {
                 let mut exports = exports.into_iter().collect::<FxIndexMap<_, _>>();
@@ -267,14 +270,14 @@ pub async fn finalize_css(
     environment: Option<ResolvedVc<Environment>>,
     feature_flags: LightningCssFeatureFlags,
 ) -> Result<Vc<FinalCssResult>> {
-    let result = result.await?;
+    let result = turbo_tasks::read!(result)?;
     match &*result {
         CssWithPlaceholderResult::Ok {
             parse_result,
             url_references,
             ..
         } => {
-            let (mut stylesheet, code) = match &*parse_result.await? {
+            let (mut stylesheet, code) = match &*turbo_tasks::read!(parse_result)? {
                 ParseCssResult::Ok {
                     stylesheet,
                     options,
@@ -289,8 +292,9 @@ pub async fn finalize_css(
 
             let mut url_map = FxHashMap::default();
 
-            for (src, reference) in (*url_references.await?).iter() {
-                let resolved = resolve_url_reference(**reference, chunking_context).await?;
+            for (src, reference) in (*turbo_tasks::read!(url_references)?).iter() {
+                let resolved =
+                    turbo_tasks::read!(resolve_url_reference(**reference, chunking_context))?;
                 if let Some(v) = resolved.as_ref().cloned() {
                     url_map.insert(RcStr::from(src.as_str()), v);
                 }
@@ -298,22 +302,23 @@ pub async fn finalize_css(
 
             replace_url_references(&mut stylesheet, &url_map);
 
-            let code = code.await?;
+            let code = turbo_tasks::read!(code)?;
             let code = match &*code {
                 FileContent::Content(v) => v.content().to_str()?,
                 _ => bail!("this case should be filtered out while parsing"),
             };
 
-            let origin_source_map = if let Some(rope) = origin_source_map.await?.as_content() {
-                Some(parcel_sourcemap::SourceMap::from_json(
-                    "",
-                    &rope.content().to_str()?,
-                )?)
-            } else {
-                None
-            };
+            let origin_source_map =
+                if let Some(rope) = turbo_tasks::read!(origin_source_map)?.as_content() {
+                    Some(parcel_sourcemap::SourceMap::from_json(
+                        "",
+                        &rope.content().to_str()?,
+                    )?)
+                } else {
+                    None
+                };
 
-            let (result, srcmap) = stylesheet_to_css(
+            let (result, srcmap) = turbo_tasks::read!(stylesheet_to_css(
                 &stylesheet,
                 &code,
                 minify_type,
@@ -322,8 +327,7 @@ pub async fn finalize_css(
                 origin_source_map,
                 environment,
                 feature_flags,
-            )
-            .await?;
+            ))?;
 
             Ok(FinalCssResult::Ok {
                 output_code: result.code,
@@ -370,37 +374,68 @@ pub async fn parse_css(
 ) -> Result<Vc<ParseCssResult>> {
     let span = tracing::info_span!(
         "parse css",
-        name = display(source.ident().to_string().await?)
+        name = display(turbo_tasks::read!(source.ident().to_string())?)
     );
-    async move {
-        let content = source.content();
-        let ident_str = &*source.ident().to_string().await?;
-        Ok(match &*content.await? {
-            AssetContent::Redirect { .. } => ParseCssResult::Unparsable.cell(),
-            AssetContent::File(file_content) => match &*file_content.await? {
-                FileContent::NotFound => ParseCssResult::NotFound.cell(),
-                FileContent::Content(file) => match file.content().to_str() {
-                    Err(_err) => ParseCssResult::Unparsable.cell(),
-                    Ok(string) => {
-                        process_content(
-                            *file_content,
-                            string.into_owned(),
-                            ident_str,
-                            source,
-                            origin,
-                            import_context,
-                            ty,
-                            environment,
-                            feature_flags,
-                        )
-                        .await?
-                    }
-                },
-            },
-        })
-    }
+    #[cfg(not(feature = "sync"))]
+    let result = parse_css_internal(
+        source,
+        origin,
+        import_context,
+        ty,
+        environment,
+        feature_flags,
+    )
     .instrument(span)
-    .await
+    .await;
+    #[cfg(feature = "sync")]
+    let result = {
+        let _enter = span.entered();
+        parse_css_internal(
+            source,
+            origin,
+            import_context,
+            ty,
+            environment,
+            feature_flags,
+        )
+    };
+    result
+}
+
+turbo_tasks::dual_fn! {
+fn parse_css_internal(
+    source: ResolvedVc<Box<dyn Source>>,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    import_context: Option<ResolvedVc<ImportContext>>,
+    ty: CssModuleType,
+    environment: Option<ResolvedVc<Environment>>,
+    feature_flags: LightningCssFeatureFlags,
+) -> Result<Vc<ParseCssResult>> {
+    let content = source.content();
+    let ident_str = &*turbo_tasks::read!(source.ident().to_string())?;
+    Ok(match &*turbo_tasks::read!(content)? {
+        AssetContent::Redirect { .. } => ParseCssResult::Unparsable.cell(),
+        AssetContent::File(file_content) => match &*turbo_tasks::read!(file_content)? {
+            FileContent::NotFound => ParseCssResult::NotFound.cell(),
+            FileContent::Content(file) => match file.content().to_str() {
+                Err(_err) => ParseCssResult::Unparsable.cell(),
+                Ok(string) => {
+                    turbo_tasks::read!(process_content(
+                        *file_content,
+                        string.into_owned(),
+                        ident_str,
+                        source,
+                        origin,
+                        import_context,
+                        ty,
+                        environment,
+                        feature_flags,
+                    ))?
+                }
+            },
+        },
+    })
+}
 }
 
 /// Parse a CSS stylesheet and run CSS module validation.
@@ -427,7 +462,9 @@ fn parse_css_stylesheet<'a, 'o>(
     Ok(ss)
 }
 
-async fn process_content(
+turbo_tasks::dual_fn! {
+#[allow(clippy::too_many_arguments)]
+fn process_content(
     content_vc: ResolvedVc<FileContent>,
     code: String,
     filename: &str,
@@ -529,12 +566,11 @@ async fn process_content(
                     .emit();
                 }
 
-                let targets = *get_lightningcss_browser_targets(
+                let targets = *turbo_tasks::read!(get_lightningcss_browser_targets(
                     environment.as_deref().copied(),
                     true,
                     feature_flags,
-                )
-                .await?;
+                ))?;
 
                 // minify() is actually transform, and it performs operations like CSS modules
                 // handling.
@@ -612,7 +648,7 @@ async fn process_content(
     let mut stylesheet = stylesheet_into_static(&stylesheet, config.clone());
 
     let (references, url_references) =
-        analyze_references(&mut stylesheet, source, origin, import_context).await?;
+        turbo_tasks::read!(analyze_references(&mut stylesheet, source, origin, import_context))?;
 
     Ok(ParseCssResult::Ok {
         code: content_vc,
@@ -622,6 +658,7 @@ async fn process_content(
         options: config,
     }
     .cell())
+}
 }
 
 /// Visitor that lints wrong css module usage.
@@ -757,6 +794,28 @@ struct ParsingIssue {
     source: IssueSource,
 }
 
+impl ParsingIssue {
+    turbo_tasks::dual_fn! {
+        fn title_impl(&self) -> Result<StyledString> {
+            Ok(StyledString::Text(match self.stage {
+                IssueStage::Parse => rcstr!("Parsing CSS source code failed"),
+                IssueStage::Transform => rcstr!("Transforming CSS failed"),
+                _ => rcstr!("CSS processing failed"),
+            }))
+        }
+    }
+
+    turbo_tasks::dual_fn! {
+        fn additional_sources_impl(&self) -> Result<Vec<AdditionalIssueSource>> {
+            if let Some(additional) = turbo_tasks::read!(self.source.to_generated_code_source())? {
+                return Ok(vec![additional]);
+            }
+            Ok(vec![])
+        }
+    }
+}
+
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for ParsingIssue {
@@ -765,7 +824,7 @@ impl Issue for ParsingIssue {
     }
 
     async fn file_path(&self) -> Result<FileSystemPath> {
-        self.source.file_path().await
+        turbo_tasks::read!(self.source.file_path())
     }
 
     fn stage(&self) -> IssueStage {
@@ -773,11 +832,7 @@ impl Issue for ParsingIssue {
     }
 
     async fn title(&self) -> Result<StyledString> {
-        Ok(StyledString::Text(match self.stage {
-            IssueStage::Parse => rcstr!("Parsing CSS source code failed"),
-            IssueStage::Transform => rcstr!("Transforming CSS failed"),
-            _ => rcstr!("CSS processing failed"),
-        }))
+        self.title_impl().await
     }
 
     fn source(&self) -> Option<IssueSource> {
@@ -789,10 +844,39 @@ impl Issue for ParsingIssue {
     }
 
     async fn additional_sources(&self) -> Result<Vec<AdditionalIssueSource>> {
-        if let Some(additional) = self.source.to_generated_code_source().await? {
-            return Ok(vec![additional]);
-        }
-        Ok(vec![])
+        self.additional_sources_impl().await
+    }
+}
+
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for ParsingIssue {
+    fn severity(&self) -> IssueSeverity {
+        self.severity
+    }
+
+    fn file_path(&self) -> Result<FileSystemPath> {
+        turbo_tasks::read!(self.source.file_path())
+    }
+
+    fn stage(&self) -> IssueStage {
+        self.stage.clone()
+    }
+
+    fn title(&self) -> Result<StyledString> {
+        self.title_impl()
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(self.msg.clone())))
+    }
+
+    fn additional_sources(&self) -> Result<Vec<AdditionalIssueSource>> {
+        self.additional_sources_impl()
     }
 }
 

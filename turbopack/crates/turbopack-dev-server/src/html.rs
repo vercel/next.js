@@ -2,7 +2,9 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use mime_guess::mime::TEXT_HTML_UTF_8;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc, trace::TraceRawVcs};
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::TryJoinIterExt;
+use turbo_tasks::{ReadRef, ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
 use turbopack_core::{
@@ -96,14 +98,14 @@ impl DevHtmlAsset {
 impl DevHtmlAsset {
     #[turbo_tasks::function]
     pub async fn with_path(self: Vc<Self>, path: FileSystemPath) -> Result<Vc<Self>> {
-        let mut html: DevHtmlAsset = self.owned().await?;
+        let mut html: DevHtmlAsset = turbo_tasks::read!(self.owned())?;
         html.path = path;
         Ok(html.cell())
     }
 
     #[turbo_tasks::function]
     pub async fn with_body(self: Vc<Self>, body: RcStr) -> Result<Vc<Self>> {
-        let mut html: DevHtmlAsset = self.owned().await?;
+        let mut html: DevHtmlAsset = turbo_tasks::read!(self.owned())?;
         html.body = Some(body);
         Ok(html.cell())
     }
@@ -113,11 +115,11 @@ impl DevHtmlAsset {
 impl DevHtmlAsset {
     #[turbo_tasks::function]
     async fn html_content(self: Vc<Self>) -> Result<Vc<DevHtmlAssetContent>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         let context_path = this.path.parent();
         let mut chunk_paths = vec![];
-        for chunk in &*self.chunk_group().await?.assets.await? {
-            let chunk_path = &*chunk.path().await?;
+        for chunk in &*turbo_tasks::read!(turbo_tasks::read!(self.chunk_group())?.assets)? {
+            let chunk_path = &*turbo_tasks::read!(chunk.path())?;
             if let Some(relative_path) = context_path.get_path_to(chunk_path) {
                 chunk_paths.push(format!("/{relative_path}").into());
             }
@@ -128,6 +130,9 @@ impl DevHtmlAsset {
 
     #[turbo_tasks::function]
     async fn chunk_group(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
+        // Each entry's chunk group is computed concurrently in the async build and sequentially
+        // under sync (the per-entry body is more than a single plain `Vc` read).
+        #[cfg(not(feature = "sync"))]
         let all_chunk_groups = self
             .entries
             .iter()
@@ -140,21 +145,18 @@ impl DevHtmlAsset {
                 } = entry;
 
                 let asset_with_referenced = if let Some(runtime_entries) = runtime_entries {
-                    let runtime_entries =
-                        if let Some(evaluatable) = ResolvedVc::try_downcast(chunkable_module) {
-                            runtime_entries
-                                .with_entry(*evaluatable)
-                                .to_resolved()
-                                .await?
-                        } else {
-                            runtime_entries
-                        };
-                    chunking_context
-                        .evaluated_chunk_group_assets(
+                    let runtime_entries = if let Some(evaluatable) =
+                        ResolvedVc::try_downcast(chunkable_module)
+                    {
+                        turbo_tasks::read!(runtime_entries.with_entry(*evaluatable).to_resolved())?
+                    } else {
+                        runtime_entries
+                    };
+                    turbo_tasks::read!(
+                        chunking_context.evaluated_chunk_group_assets(
                             chunkable_module.ident(),
                             ChunkGroup::Entry(
-                                runtime_entries
-                                    .await?
+                                turbo_tasks::read!(runtime_entries)?
                                     .iter()
                                     .map(|v| ResolvedVc::upcast(*v))
                                     .collect(),
@@ -163,25 +165,72 @@ impl DevHtmlAsset {
                             OutputAssets::empty(),
                             AvailabilityInfo::root(),
                         )
-                        .await?
+                    )?
                 } else {
-                    chunking_context
-                        .root_chunk_group_assets(
-                            chunkable_module.ident(),
-                            ChunkGroup::Entry(vec![ResolvedVc::upcast(chunkable_module)]),
-                            *module_graph,
-                        )
-                        .await?
+                    turbo_tasks::read!(chunking_context.root_chunk_group_assets(
+                        chunkable_module.ident(),
+                        ChunkGroup::Entry(vec![ResolvedVc::upcast(chunkable_module)]),
+                        *module_graph,
+                    ))?
                 };
 
                 Ok((
-                    asset_with_referenced.assets.await?,
-                    asset_with_referenced.referenced_assets.await?,
-                    asset_with_referenced.references.await?,
+                    turbo_tasks::read!(asset_with_referenced.assets)?,
+                    turbo_tasks::read!(asset_with_referenced.referenced_assets)?,
+                    turbo_tasks::read!(asset_with_referenced.references)?,
                 ))
             })
             .try_join()
             .await?;
+        #[cfg(feature = "sync")]
+        let all_chunk_groups = {
+            let mut all_chunk_groups = Vec::with_capacity(self.entries.len());
+            for entry in self.entries.iter() {
+                let &DevHtmlEntry {
+                    chunkable_module,
+                    chunking_context,
+                    module_graph,
+                    runtime_entries,
+                } = entry;
+
+                let asset_with_referenced = if let Some(runtime_entries) = runtime_entries {
+                    let runtime_entries = if let Some(evaluatable) =
+                        ResolvedVc::try_downcast(chunkable_module)
+                    {
+                        turbo_tasks::read!(runtime_entries.with_entry(*evaluatable).to_resolved())?
+                    } else {
+                        runtime_entries
+                    };
+                    turbo_tasks::read!(
+                        chunking_context.evaluated_chunk_group_assets(
+                            chunkable_module.ident(),
+                            ChunkGroup::Entry(
+                                turbo_tasks::read!(runtime_entries)?
+                                    .iter()
+                                    .map(|v| ResolvedVc::upcast(*v))
+                                    .collect(),
+                            ),
+                            *module_graph,
+                            OutputAssets::empty(),
+                            AvailabilityInfo::root(),
+                        )
+                    )?
+                } else {
+                    turbo_tasks::read!(chunking_context.root_chunk_group_assets(
+                        chunkable_module.ident(),
+                        ChunkGroup::Entry(vec![ResolvedVc::upcast(chunkable_module)]),
+                        *module_graph,
+                    ))?
+                };
+
+                all_chunk_groups.push((
+                    turbo_tasks::read!(asset_with_referenced.assets)?,
+                    turbo_tasks::read!(asset_with_referenced.referenced_assets)?,
+                    turbo_tasks::read!(asset_with_referenced.references)?,
+                ));
+            }
+            all_chunk_groups
+        };
 
         let mut all_assets = Vec::new();
         let mut all_referenced_assets = Vec::new();
@@ -252,7 +301,7 @@ impl DevHtmlAssetContent {
 
     #[turbo_tasks::function]
     async fn version(self: Vc<Self>) -> Result<Vc<DevHtmlAssetVersion>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         Ok(DevHtmlAssetVersion { content: this }.cell())
     }
 }

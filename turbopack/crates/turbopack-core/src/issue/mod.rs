@@ -9,6 +9,7 @@ use std::{
 };
 
 use anyhow::{Result, bail};
+#[cfg(not(feature = "sync"))]
 use async_trait::async_trait;
 use auto_hash_map::AutoSet;
 use bincode::{Decode, Encode};
@@ -16,9 +17,8 @@ use serde::{Deserialize, Serialize};
 use turbo_esregex::EsRegex;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    CollectiblesSource, NonLocalValue, OperationVc, RawVc, ReadRef, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, Upcast, ValueDefault, ValueToString, ValueToStringRef, Vc, emit,
-    trace::TraceRawVcs,
+    CollectiblesSource, NonLocalValue, OperationVc, RawVc, ReadRef, ResolvedVc, Upcast,
+    ValueDefault, ValueToString, ValueToStringRef, Vc, emit, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
     FileContent, FileLine, FileLinesContent, FileSystem, FileSystemPath, glob::Glob,
@@ -126,6 +126,7 @@ impl StyledString {
     }
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_trait]
 pub trait Issue {
@@ -183,6 +184,64 @@ pub trait Issue {
     }
 }
 
+/// See the async definition above; the sync engine drops `async`/`#[async_trait]`.
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_trait]
+pub trait Issue {
+    /// Severity allows the user to filter out unimportant issues, with Bug
+    /// being the highest priority and Info being the lowest.
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    /// The file path that generated the issue, displayed to the user as message
+    /// header.
+    fn file_path(&self) -> Result<FileSystemPath>;
+
+    /// The stage of the compilation process at which the issue occurred. This
+    /// is used to sort issues.
+    fn stage(&self) -> IssueStage;
+
+    /// The issue title should be descriptive of the issue, but should be a
+    /// single line. This is displayed to the user directly under the issue
+    /// header.
+    fn title(&self) -> Result<StyledString>;
+
+    /// A more verbose message of the issue, appropriate for providing multiline
+    /// information of the issue.
+    fn description(&self) -> Result<Option<StyledString>> {
+        Ok(None)
+    }
+
+    /// Full details of the issue, appropriate for providing debug level
+    /// information. Only displayed if the user explicitly asks for detailed
+    /// messages (not to be confused with severity).
+    fn detail(&self) -> Result<Option<StyledString>> {
+        Ok(None)
+    }
+
+    /// A link to relevant documentation of the issue. Only displayed in console
+    /// if the user explicitly asks for detailed messages.
+    fn documentation_link(&self) -> RcStr {
+        rcstr!("")
+    }
+
+    /// The source location that caused the issue. Eg, for a parsing error it
+    /// should point at the offending character. Displayed to the user alongside
+    /// the title/description.
+    fn source(&self) -> Option<IssueSource> {
+        None
+    }
+
+    /// Additional source locations related to this issue (e.g., generated code
+    /// from a loader). Each source includes a description and location.
+    /// These are displayed alongside the primary source to give users full
+    /// context about the error.
+    fn additional_sources(&self) -> Result<Vec<AdditionalIssueSource>> {
+        Ok(vec![])
+    }
+}
+
 // A collectible trait that allows traces to be computed for a given module.
 #[turbo_tasks::value_trait]
 pub trait ImportTracer {
@@ -197,16 +256,16 @@ pub struct DelegatingImportTracer {
 }
 
 impl DelegatingImportTracer {
-    async fn get_traces(&self, path: FileSystemPath) -> Result<Vec<ImportTrace>> {
-        Ok(self
-            .delegates
-            .iter()
-            .map(|d| d.get_traces(path.clone()))
-            .try_join()
-            .await?
-            .iter()
-            .flat_map(|v| v.0.iter().cloned())
-            .collect())
+    turbo_tasks::dual_fn! {
+        fn get_traces(&self, path: FileSystemPath) -> Result<Vec<ImportTrace>> {
+            Ok(turbo_tasks::parallel!(self
+                .delegates
+                .iter()
+                .map(|d| d.get_traces(path.clone())))?
+                .iter()
+                .flat_map(|v| v.0.iter().cloned())
+                .collect())
+        }
     }
 }
 
@@ -308,16 +367,20 @@ impl IssueFilter {
         self
     }
 
-    /// Returns true if the issue is allowed by this filter.
-    pub async fn matches(&self, issue: ResolvedVc<Box<dyn Issue>>) -> Result<bool> {
-        Ok(self.matches_all_fast_path()
-            || self
-                .matches_ref_slow_path(&*issue.into_trait_ref().await?)
-                .await?)
+    turbo_tasks::dual_fn! {
+        /// Returns true if the issue is allowed by this filter.
+        pub fn matches(&self, issue: ResolvedVc<Box<dyn Issue>>) -> Result<bool> {
+            Ok(self.matches_all_fast_path()
+                || turbo_tasks::read!(self
+                    .matches_ref_slow_path(&*turbo_tasks::read!(issue.into_trait_ref())?))?)
+        }
     }
 
-    pub async fn matches_ref(&self, issue: &dyn Issue) -> Result<bool> {
-        Ok(self.matches_all_fast_path() || self.matches_ref_slow_path(issue).await?)
+    turbo_tasks::dual_fn! {
+        pub fn matches_ref(&self, issue: &dyn Issue) -> Result<bool> {
+            Ok(self.matches_all_fast_path()
+                || turbo_tasks::read!(self.matches_ref_slow_path(issue))?)
+        }
     }
 
     fn matches_all_fast_path(&self) -> bool {
@@ -326,10 +389,11 @@ impl IssueFilter {
             && self.ignore_rules.is_empty()
     }
 
-    async fn matches_ref_slow_path(&self, issue: &dyn Issue) -> Result<bool> {
+    turbo_tasks::dual_fn! {
+    fn matches_ref_slow_path(&self, issue: &dyn Issue) -> Result<bool> {
         // Fetch the file path once — it's used by both severity and ignore-rule
         // checks.
-        let file_path = issue.file_path().await?;
+        let file_path = turbo_tasks::read!(issue.file_path())?;
 
         // Check severity first — this is cheap and avoids fetching
         // title/description for issues that would be filtered out anyway.
@@ -369,7 +433,7 @@ impl IssueFilter {
                 }
                 if let Some(ref title_pat) = rule.title {
                     if title_str.is_none() {
-                        title_str = Some(issue.title().await?.to_unstyled_string());
+                        title_str = Some(turbo_tasks::read!(issue.title())?.to_unstyled_string());
                     }
                     if !title_pat.matches(title_str.as_deref().unwrap()) {
                         continue;
@@ -378,7 +442,7 @@ impl IssueFilter {
                 if let Some(ref desc_pat) = rule.description {
                     if description_text.is_none() {
                         description_text =
-                            Some(issue.description().await?.map(|s| s.to_unstyled_string()));
+                            Some(turbo_tasks::read!(issue.description())?.map(|s| s.to_unstyled_string()));
                     }
                     match description_text.as_ref().unwrap().as_deref() {
                         Some(desc) if desc_pat.matches(desc) => {}
@@ -391,6 +455,7 @@ impl IssueFilter {
         }
 
         Ok(true)
+    }
     }
 }
 
@@ -408,24 +473,51 @@ impl CapturedIssues {
         self.issues.iter().copied()
     }
 
-    // Returns all the issues as formatted `PlainIssues`.
-    pub async fn get_plain_issues(&self, filter: &IssueFilter) -> Result<Vec<ReadRef<PlainIssue>>> {
-        let mut list = self
-            .issues
-            .iter()
-            .map(async |issue| {
-                if filter.matches(*issue).await? {
-                    Ok(Some(
-                        PlainIssue::from_issue(**issue, Some(*self.tracer)).await?,
-                    ))
-                } else {
-                    Ok(None)
-                }
-            })
-            .try_flat_join()
-            .await?;
-        list.sort();
-        Ok(list)
+    turbo_tasks::dual_fn! {
+        // Returns all the issues as formatted `PlainIssues`.
+        pub fn get_plain_issues(&self, filter: &IssueFilter) -> Result<Vec<ReadRef<PlainIssue>>> {
+            // The sync `parallel!` only fans out plain `Vc` reads, so the multi-step
+            // per-issue helper runs concurrently in the async build (as before) and
+            // sequentially under `sync`.
+            #[cfg(not(feature = "sync"))]
+            let mut list = turbo_tasks::parallel!(self
+                .issues
+                .iter()
+                .map(|issue| filtered_plain_issue(filter, *issue, self.tracer)))?
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>();
+            #[cfg(feature = "sync")]
+            let mut list = self
+                .issues
+                .iter()
+                .map(|issue| filtered_plain_issue(filter, *issue, self.tracer))
+                .collect::<Result<Vec<_>>>()?
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>();
+            list.sort();
+            Ok(list)
+        }
+    }
+}
+
+turbo_tasks::dual_fn! {
+    /// Per-issue step of [`CapturedIssues::get_plain_issues`]: formats the issue as a
+    /// [`PlainIssue`] if it passes the filter.
+    fn filtered_plain_issue(
+        filter: &IssueFilter,
+        issue: ResolvedVc<Box<dyn Issue>>,
+        tracer: ResolvedVc<DelegatingImportTracer>,
+    ) -> Result<Option<ReadRef<PlainIssue>>> {
+        if turbo_tasks::read!(filter.matches(issue))? {
+            Ok(Some(turbo_tasks::read!(PlainIssue::from_issue(
+                *issue,
+                Some(*tracer)
+            ))?))
+        } else {
+            Ok(None)
+        }
     }
 }
 
@@ -479,7 +571,8 @@ impl IssueSource {
         }
     }
 
-    async fn into_plain(self) -> Result<PlainIssueSource> {
+    turbo_tasks::dual_fn! {
+    fn into_plain(self) -> Result<PlainIssueSource> {
         let Self { mut source, range } = self;
 
         let range = if let Some(range) = range {
@@ -489,7 +582,7 @@ impl IssueSource {
                     // Defensively read the content, an error there should not prevent all issue
                     // formatting.  Best practice is for `content` to return `NotFound` instead of
                     // an error.
-                    if let Ok(content) = self.source.content().lines().await
+                    if let Ok(content) = turbo_tasks::read!(self.source.content().lines())
                         && let FileLinesContent::Lines(lines) = &*content
                     {
                         let start = find_line_and_column(lines.as_ref(), start);
@@ -503,7 +596,7 @@ impl IssueSource {
 
             // If we have a source map, map the line/column to the original source.
             if let Some((start, end)) = range {
-                let mapped = source_pos(source, start, end).await?;
+                let mapped = turbo_tasks::read!(source_pos(source, start, end))?;
 
                 if let Some((mapped_source, start, end)) = mapped {
                     range = Some((start, end));
@@ -515,9 +608,10 @@ impl IssueSource {
             None
         };
         Ok(PlainIssueSource {
-            asset: PlainSource::from_source(*source).await?,
+            asset: turbo_tasks::read!(PlainSource::from_source(*source))?,
             range,
         })
+    }
     }
 
     /// Create an [`IssueSource`] from an [`UnparsableJson`] error, using its
@@ -569,6 +663,7 @@ impl IssueSource {
         }
     }
 
+    turbo_tasks::dual_fn! {
     /// Returns an `IssueSource` representing a span of code in the `source`.
     /// Positions are derived from byte offsets and stored as lines and columns.
     /// Requires a binary search of the source text to perform this.
@@ -578,14 +673,16 @@ impl IssueSource {
     /// * `source`: The source code in which to look up the byte offsets.
     /// * `start`: Byte offset into the source that the text begins. 0-based index and inclusive.
     /// * `end`: Byte offset into the source that the text ends. 0-based index and exclusive.
-    pub async fn from_byte_offset(
+    pub fn from_byte_offset(
         source: ResolvedVc<Box<dyn Source>>,
         start: u32,
         end: u32,
     ) -> Result<Self> {
         Ok(IssueSource {
             source,
-            range: if let FileLinesContent::Lines(lines) = &*source.content().lines().await? {
+            range: if let FileLinesContent::Lines(lines) =
+                &*turbo_tasks::read!(source.content().lines())?
+            {
                 let start = find_line_and_column(lines.as_ref(), start);
                 let end = find_line_and_column(lines.as_ref(), end);
                 Some(SourceRange::LineColumn(start, end))
@@ -594,22 +691,27 @@ impl IssueSource {
             },
         })
     }
-
-    /// Returns the file path for the source file.
-    pub async fn file_path(&self) -> Result<FileSystemPath> {
-        Ok(self.source.ident().await?.path.clone())
     }
 
+    turbo_tasks::dual_fn! {
+        /// Returns the file path for the source file.
+        pub fn file_path(&self) -> Result<FileSystemPath> {
+            Ok(turbo_tasks::read!(self.source.ident())?.path.clone())
+        }
+    }
+
+    turbo_tasks::dual_fn! {
     /// If this source implements `GenerateSourceMap`, returns an
     /// `AdditionalIssueSource` that wraps the source in a `GeneratedCodeSource`
     /// (stripping source-map support) so the generated code is shown alongside
     /// the original in error messages. Returns `None` otherwise.
-    pub async fn to_generated_code_source(&self) -> Result<Option<AdditionalIssueSource>> {
+    pub fn to_generated_code_source(&self) -> Result<Option<AdditionalIssueSource>> {
         if ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(self.source).is_some() {
-            let description = self.source.description().await?;
-            let generated = Vc::upcast::<Box<dyn Source>>(GeneratedCodeSource::new(*self.source))
-                .to_resolved()
-                .await?;
+            let description = turbo_tasks::read!(self.source.description())?;
+            let generated = turbo_tasks::read!(Vc::upcast::<Box<dyn Source>>(
+                GeneratedCodeSource::new(*self.source)
+            )
+            .to_resolved())?;
             return Ok(Some(AdditionalIssueSource {
                 description: format!("Generated code of {}", description).into(),
                 source: IssueSource {
@@ -624,16 +726,20 @@ impl IssueSource {
         }
         Ok(None)
     }
+    }
 }
 
 impl IssueSource {
+    turbo_tasks::dual_fn! {
     /// Returns bytes offsets corresponding the source range in the format used by swc's Spans.
-    pub async fn to_swc_offsets(&self) -> Result<Option<(u32, u32)>> {
+    pub fn to_swc_offsets(&self) -> Result<Option<(u32, u32)>> {
         Ok(match &self.range {
             Some(range) => match range {
                 SourceRange::ByteOffset(start, end) => Some((*start + 1, *end + 1)),
                 SourceRange::LineColumn(start, end) => {
-                    if let FileLinesContent::Lines(lines) = &*self.source.content().lines().await? {
+                    if let FileLinesContent::Lines(lines) =
+                        &*turbo_tasks::read!(self.source.content().lines())?
+                    {
                         let start = find_offset(lines.as_ref(), *start) + 1;
                         let end = find_offset(lines.as_ref(), *end) + 1;
                         Some((start, end))
@@ -645,9 +751,11 @@ impl IssueSource {
             _ => None,
         })
     }
+    }
 }
 
-async fn source_pos(
+turbo_tasks::dual_fn! {
+fn source_pos(
     source: ResolvedVc<Box<dyn Source>>,
     start: SourcePos,
     end: SourcePos,
@@ -657,36 +765,13 @@ async fn source_pos(
     };
 
     let srcmap = generator.generate_source_map();
-    let Some(srcmap) = &*SourceMap::new_from_rope_cached(srcmap).await? else {
+    let Some(srcmap) = &*turbo_tasks::read!(SourceMap::new_from_rope_cached(srcmap))? else {
         return Ok(None);
     };
 
-    let find = async |line: u32, col: u32| {
-        let TokenWithSource {
-            token,
-            source_content,
-        } = &srcmap.lookup_token_and_source(line, col).await?;
-
-        match token {
-            crate::source_map::Token::Synthetic(t) => anyhow::Ok((
-                SourcePos {
-                    line: t.generated_line as _,
-                    column: t.generated_column as _,
-                },
-                *source_content,
-            )),
-            crate::source_map::Token::Original(t) => anyhow::Ok((
-                SourcePos {
-                    line: t.original_line as _,
-                    column: t.original_column as _,
-                },
-                *source_content,
-            )),
-        }
-    };
-
-    let (start, content_1) = find(start.line, start.column).await?;
-    let (end, content_2) = find(end.line, end.column).await?;
+    let (start, content_1) =
+        turbo_tasks::read!(lookup_source_pos(srcmap, start.line, start.column))?;
+    let (end, content_2) = turbo_tasks::read!(lookup_source_pos(srcmap, end.line, end.column))?;
 
     let Some((content_1, content_2)) = content_1.zip(content_2) else {
         return Ok(None);
@@ -697,6 +782,39 @@ async fn source_pos(
     }
 
     Ok(Some((content_1, start, end)))
+}
+}
+
+turbo_tasks::dual_fn! {
+/// Per-position step of [`source_pos`]: looks up a generated line/column in the source
+/// map, returning the mapped position and the original source content (if any).
+fn lookup_source_pos(
+    srcmap: &SourceMap,
+    line: u32,
+    col: u32,
+) -> Result<(SourcePos, Option<ResolvedVc<Box<dyn Source>>>)> {
+    let TokenWithSource {
+        token,
+        source_content,
+    } = &turbo_tasks::read!(srcmap.lookup_token_and_source(line, col))?;
+
+    match token {
+        crate::source_map::Token::Synthetic(t) => Ok((
+            SourcePos {
+                line: t.generated_line as _,
+                column: t.generated_column as _,
+            },
+            *source_content,
+        )),
+        crate::source_map::Token::Original(t) => Ok((
+            SourcePos {
+                line: t.original_line as _,
+                column: t.original_column as _,
+            },
+            *source_content,
+        )),
+    }
+}
 }
 
 /// A labeled issue source used to provide additional context in error messages.
@@ -745,12 +863,13 @@ pub struct PlainTraceItem {
 }
 
 impl PlainTraceItem {
-    async fn from_asset_ident(asset: ReadRef<AssetIdent>) -> Result<Self> {
+    turbo_tasks::dual_fn! {
+    fn from_asset_ident(asset: ReadRef<AssetIdent>) -> Result<Self> {
         // TODO(lukesandberg): How should we display paths? it would be good to display all paths
         // relative to the cwd or the project root.
         let fs_path = asset.path.clone();
-        let fs_name = fs_path.fs.to_string().owned().await?;
-        let root_path = fs_path.fs.root().await?.path.clone();
+        let fs_name = turbo_tasks::read!(fs_path.fs.to_string().owned())?;
+        let root_path = turbo_tasks::read!(fs_path.fs.root())?.path.clone();
         let path = fs_path.path.clone();
         let layer = asset.layer.as_ref().map(Layer::user_friendly_name).cloned();
         Ok(Self {
@@ -760,48 +879,72 @@ impl PlainTraceItem {
             layer,
         })
     }
+    }
 }
 
 pub type PlainTrace = Vec<PlainTraceItem>;
 
+turbo_tasks::dual_fn! {
+/// Per-trace step of [`into_plain_trace`]: simplifies one import trace into
+/// [`PlainTraceItem`]s.
+fn plain_trace_from_import_trace(trace: Vec<ReadRef<AssetIdent>>) -> Result<PlainTrace> {
+    // The sync `parallel!` only fans out plain `Vc` reads, so the per-item helper runs
+    // concurrently in the async build (as before) and sequentially under `sync`.
+    #[cfg(not(feature = "sync"))]
+    let mut plain_trace = turbo_tasks::parallel!(trace
+        .into_iter()
+        .filter(|asset| {
+            // If there are nested assets, this is a synthetic module which is likely to be
+            // confusing/distracting.  Just skip it.
+            asset.assets.is_empty()
+        })
+        .map(PlainTraceItem::from_asset_ident))?;
+    #[cfg(feature = "sync")]
+    let mut plain_trace = trace
+        .into_iter()
+        .filter(|asset| {
+            // If there are nested assets, this is a synthetic module which is likely to be
+            // confusing/distracting.  Just skip it.
+            asset.assets.is_empty()
+        })
+        .map(PlainTraceItem::from_asset_ident)
+        .collect::<Result<Vec<_>>>()?;
+
+    // After simplifying the trace, we may end up with apparent duplicates.
+    // Consider this example:
+    // Import trace:
+    // ./[project]/app/global.scss.css [app-client] (css) [app-client]
+    // ./[project]/app/layout.js [app-client] (ecmascript) [app-client]
+    // ./[project]/app/layout.js [app-rsc] (client reference proxy) [app-rsc]
+    // ./[project]/app/layout.js [app-rsc] (ecmascript) [app-rsc]
+    // ./[project]/app/layout.js [app-rsc] (ecmascript, Next.js Server Component) [app-rsc]
+    //
+    // In that case, there are an number of 'shim modules' that are inserted by next with
+    // different `modifiers` that are used to model the server->client hand off.  The
+    // simplification performed by `PlainTraceItem::from_asset_ident` drops these
+    // 'modifiers' and so we would end up with 'app/layout.js' appearing to be duplicated
+    // several times.  These modules are implementation details of the application so we
+    // just deduplicate them here.
+
+    plain_trace.dedup();
+
+    Ok(plain_trace)
+}
+}
+
+turbo_tasks::dual_fn! {
 // Flatten and simplify this set of import traces into a simpler format for formatting.
-async fn into_plain_trace(traces: Vec<Vec<ReadRef<AssetIdent>>>) -> Result<Vec<PlainTrace>> {
+fn into_plain_trace(traces: Vec<Vec<ReadRef<AssetIdent>>>) -> Result<Vec<PlainTrace>> {
+    // The sync `parallel!` only fans out plain `Vc` reads, so the per-trace helper runs
+    // concurrently in the async build (as before) and sequentially under `sync`.
+    #[cfg(not(feature = "sync"))]
+    let mut plain_traces =
+        turbo_tasks::parallel!(traces.into_iter().map(plain_trace_from_import_trace))?;
+    #[cfg(feature = "sync")]
     let mut plain_traces = traces
         .into_iter()
-        .map(|trace| async move {
-            let mut plain_trace = trace
-                .into_iter()
-                .filter(|asset| {
-                    // If there are nested assets, this is a synthetic module which is likely to be
-                    // confusing/distracting.  Just skip it.
-                    asset.assets.is_empty()
-                })
-                .map(PlainTraceItem::from_asset_ident)
-                .try_join()
-                .await?;
-
-            // After simplifying the trace, we may end up with apparent duplicates.
-            // Consider this example:
-            // Import trace:
-            // ./[project]/app/global.scss.css [app-client] (css) [app-client]
-            // ./[project]/app/layout.js [app-client] (ecmascript) [app-client]
-            // ./[project]/app/layout.js [app-rsc] (client reference proxy) [app-rsc]
-            // ./[project]/app/layout.js [app-rsc] (ecmascript) [app-rsc]
-            // ./[project]/app/layout.js [app-rsc] (ecmascript, Next.js Server Component) [app-rsc]
-            //
-            // In that case, there are an number of 'shim modules' that are inserted by next with
-            // different `modifiers` that are used to model the server->client hand off.  The
-            // simplification performed by `PlainTraceItem::from_asset_ident` drops these
-            // 'modifiers' and so we would end up with 'app/layout.js' appearing to be duplicated
-            // several times.  These modules are implementation details of the application so we
-            // just deduplicate them here.
-
-            plain_trace.dedup();
-
-            Ok(plain_trace)
-        })
-        .try_join()
-        .await?;
+        .map(plain_trace_from_import_trace)
+        .collect::<Result<Vec<_>>>()?;
 
     // Trim any empty traces and traces that only contain 1 item.  Showing a trace that points to
     // the file with the issue is not useful.
@@ -840,6 +983,7 @@ async fn into_plain_trace(traces: Vec<Vec<ReadRef<AssetIdent>>>) -> Result<Vec<P
     }
 
     Ok(plain_traces)
+}
 }
 
 #[turbo_tasks::value(shared)]
@@ -972,60 +1116,78 @@ impl PlainIssue {
         issue: ResolvedVc<Box<dyn Issue>>,
         import_tracer: Option<ResolvedVc<DelegatingImportTracer>>,
     ) -> Result<Vc<Self>> {
-        Ok(
-            Self::from_issue_ref(&*issue.into_trait_ref().await?, import_tracer)
-                .await?
-                .cell(),
-        )
+        Ok(turbo_tasks::read!(Self::from_issue_ref(
+            &*turbo_tasks::read!(issue.into_trait_ref())?,
+            import_tracer
+        ))?
+        .cell())
     }
 }
 
 impl PlainIssue {
-    pub async fn from_issue_ref(
+    turbo_tasks::dual_fn! {
+    pub fn from_issue_ref(
         trait_ref: &dyn Issue,
         import_tracer: Option<ResolvedVc<DelegatingImportTracer>>,
     ) -> Result<Self> {
         let severity = trait_ref.severity();
-        let file_path = trait_ref.file_path().await?;
-        let file_path_str = file_path.to_string_ref().await?;
+        let file_path = turbo_tasks::read!(trait_ref.file_path())?;
+        let file_path_str = turbo_tasks::read!(file_path.to_string_ref())?;
+
+        let source = if let Some(s) = trait_ref.source() {
+            Some(turbo_tasks::read!(s.into_plain())?)
+        } else {
+            None
+        };
+        // The sync `parallel!` only fans out plain `Vc` reads, so the per-source helper
+        // runs concurrently in the async build (as before) and sequentially under `sync`.
+        #[cfg(not(feature = "sync"))]
+        let additional_sources = turbo_tasks::parallel!(
+            turbo_tasks::read!(trait_ref.additional_sources())?
+                .into_iter()
+                .map(plain_additional_issue_source)
+        )?;
+        #[cfg(feature = "sync")]
+        let additional_sources = turbo_tasks::read!(trait_ref.additional_sources())?
+            .into_iter()
+            .map(plain_additional_issue_source)
+            .collect::<Result<Vec<_>>>()?;
+        let import_traces = match import_tracer {
+            Some(tracer) => {
+                let traces =
+                    turbo_tasks::read!(turbo_tasks::read!(tracer)?.get_traces(file_path))?;
+                turbo_tasks::read!(into_plain_trace(traces))?
+            }
+            None => vec![],
+        };
 
         Ok(Self {
             severity,
             file_path: file_path_str,
             stage: trait_ref.stage(),
-            title: trait_ref.title().await?,
-            description: trait_ref.description().await?,
-            detail: trait_ref.detail().await?,
+            title: turbo_tasks::read!(trait_ref.title())?,
+            description: turbo_tasks::read!(trait_ref.description())?,
+            detail: turbo_tasks::read!(trait_ref.detail())?,
             documentation_link: trait_ref.documentation_link(),
-            source: {
-                if let Some(s) = trait_ref.source() {
-                    Some(s.into_plain().await?)
-                } else {
-                    None
-                }
-            },
-            additional_sources: {
-                trait_ref
-                    .additional_sources()
-                    .await?
-                    .into_iter()
-                    .map(async |s| {
-                        Ok(PlainAdditionalIssueSource {
-                            source: s.source.into_plain().await?,
-                            description: s.description,
-                        })
-                    })
-                    .try_join()
-                    .await?
-            },
-            import_traces: match import_tracer {
-                Some(tracer) => {
-                    into_plain_trace(tracer.await?.get_traces(file_path).await?).await?
-                }
-                None => vec![],
-            },
+            source,
+            additional_sources,
+            import_traces,
         })
     }
+    }
+}
+
+turbo_tasks::dual_fn! {
+/// Per-source step of [`PlainIssue::from_issue_ref`]: formats one
+/// [`AdditionalIssueSource`] as a [`PlainAdditionalIssueSource`].
+fn plain_additional_issue_source(
+    s: AdditionalIssueSource,
+) -> Result<PlainAdditionalIssueSource> {
+    Ok(PlainAdditionalIssueSource {
+        source: turbo_tasks::read!(s.source.into_plain())?,
+        description: s.description,
+    })
+}
 }
 
 #[turbo_tasks::value(serialization = "skip")]
@@ -1051,9 +1213,9 @@ impl PlainSource {
         // Defensively read the content, an error there should not prevent all issue
         // formatting.  Best practice is for `content` to return `NotFound` instead of
         // an error.
-        let content = if let Ok(asset_content) = asset.content().await
+        let content = if let Ok(asset_content) = turbo_tasks::read!(asset.content())
             && let AssetContent::File(file_content) = &*asset_content
-            && let Ok(file_content) = file_content.await
+            && let Ok(file_content) = turbo_tasks::read!(file_content)
         {
             file_content
         } else {
@@ -1062,14 +1224,15 @@ impl PlainSource {
         let ident = asset.ident();
 
         Ok(PlainSource {
-            ident: ident.to_string().owned().await?,
-            file_path: ident.await?.path.to_string_ref().await?,
+            ident: turbo_tasks::read!(ident.to_string().owned())?,
+            file_path: turbo_tasks::read!(turbo_tasks::read!(ident)?.path.to_string_ref())?,
             content,
         }
         .cell())
     }
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_trait]
 pub trait IssueReporter {
@@ -1089,6 +1252,20 @@ pub trait IssueReporter {
     /// * `min_failing_severity` - The minimum issue severity level considered to fatally end the
     ///   program.
     async fn report_issues(
+        &self,
+        issues: ReadRef<PlainIssues>,
+        source: RawVc,
+        min_failing_severity: IssueSeverity,
+    ) -> Result<bool>;
+}
+
+/// See the async definition above; the sync engine drops `async`/`#[async_trait]`.
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_trait]
+pub trait IssueReporter {
+    /// Reports already-collected issues to the user (e.g. to stdio). Returns whether fatal
+    /// (program-ending) issues were present. See the async definition above for details.
+    fn report_issues(
         &self,
         issues: ReadRef<PlainIssues>,
         source: RawVc,
@@ -1139,16 +1316,20 @@ where
 /// *inside* this task, where eventually-consistent reads are legal.
 #[turbo_tasks::function(operation, root)]
 async fn collect_issues(source: OperationVc<()>) -> Result<Vc<PlainIssues>> {
-    let plain = source
-        .peek_issues()
-        .get_plain_issues(&IssueFilter::everything())
-        .await?;
+    let plain = turbo_tasks::read!(
+        source
+            .peek_issues()
+            .get_plain_issues(&IssueFilter::everything())
+    )?;
     Ok(PlainIssues(plain).cell())
 }
 
 /// A helper function to print out issues to the console.
 ///
 /// Must be called in a turbo-task as this constructs a `cell`
+// `dual_fn!` cannot parse the `T: Send` bound, so the two modes are written out by hand;
+// the bodies are identical and fully `read!`-based.
+#[cfg(not(feature = "sync"))]
 pub async fn handle_issues<T: Send>(
     source_op: OperationVc<T>,
     issue_reporter: Vc<Box<dyn IssueReporter>>,
@@ -1157,7 +1338,7 @@ pub async fn handle_issues<T: Send>(
     operation: Option<&str>,
 ) -> Result<()> {
     let source_vc = source_op.connect();
-    let _ = source_op.resolve().strongly_consistent().await?;
+    let _ = turbo_tasks::read!(source_op.resolve().strongly_consistent())?;
     let source_raw = Vc::into_raw(source_vc);
 
     // Collect the issues in a dedicated `operation` task and read its *plain* result strongly
@@ -1165,22 +1346,64 @@ pub async fn handle_issues<T: Send>(
     // the per-issue reads happen inside `collect_issues`. The source is type-erased to
     // `OperationVc<()>` so a single non-generic task can collect issues for any source.
     let erased_source = OperationVc::<()>::try_from(source_raw)?;
-    let issues = collect_issues(erased_source)
-        .read_strongly_consistent()
-        .await?;
+    let issues = turbo_tasks::read!(collect_issues(erased_source).read_strongly_consistent())?;
 
-    // `report_issues` is a plain async method; reach it via a `TraitRef`. Resolve the reporter
-    // strongly consistently first so that `into_trait_ref` is a plain cell read (rather than an
-    // eventually-consistent task-output read) at the top level.
-    let reporter = issue_reporter
-        .to_resolved()
-        .strongly_consistent()
-        .await?
-        .into_trait_ref()
-        .await?;
-    let has_fatal = reporter
-        .report_issues(issues, source_raw, min_failing_severity)
-        .await?;
+    // `report_issues` is a plain (dual-mode) method; reach it via a `TraitRef`. Resolve the
+    // reporter strongly consistently first so that `into_trait_ref` is a plain cell read (rather
+    // than an eventually-consistent task-output read) at the top level.
+    let reporter = turbo_tasks::read!(
+        turbo_tasks::read!(issue_reporter.to_resolved().strongly_consistent())?.into_trait_ref()
+    )?;
+    let has_fatal =
+        turbo_tasks::read!(reporter.report_issues(issues, source_raw, min_failing_severity))?;
+
+    if has_fatal {
+        let mut message = "Fatal issue(s) occurred".to_owned();
+        if let Some(path) = path.as_ref() {
+            message += &format!(" in {path}");
+        };
+        if let Some(operation) = operation.as_ref() {
+            message += &format!(" ({operation})");
+        };
+
+        bail!(message)
+    } else {
+        Ok(())
+    }
+}
+
+/// A helper function to print out issues to the console.
+///
+/// Must be called in a turbo-task as this constructs a `cell`
+///
+/// See the async definition above; the sync build's body is identical.
+#[cfg(feature = "sync")]
+pub fn handle_issues<T: Send>(
+    source_op: OperationVc<T>,
+    issue_reporter: Vc<Box<dyn IssueReporter>>,
+    min_failing_severity: IssueSeverity,
+    path: Option<&str>,
+    operation: Option<&str>,
+) -> Result<()> {
+    let source_vc = source_op.connect();
+    let _ = turbo_tasks::read!(source_op.resolve().strongly_consistent())?;
+    let source_raw = Vc::into_raw(source_vc);
+
+    // Collect the issues in a dedicated `operation` task and read its *plain* result strongly
+    // consistently. This is safe at the top level (unlike an eventually-consistent read), while
+    // the per-issue reads happen inside `collect_issues`. The source is type-erased to
+    // `OperationVc<()>` so a single non-generic task can collect issues for any source.
+    let erased_source = OperationVc::<()>::try_from(source_raw)?;
+    let issues = turbo_tasks::read!(collect_issues(erased_source).read_strongly_consistent())?;
+
+    // `report_issues` is a plain (dual-mode) method; reach it via a `TraitRef`. Resolve the
+    // reporter strongly consistently first so that `into_trait_ref` is a plain cell read (rather
+    // than an eventually-consistent task-output read) at the top level.
+    let reporter = turbo_tasks::read!(
+        turbo_tasks::read!(issue_reporter.to_resolved().strongly_consistent())?.into_trait_ref()
+    )?;
+    let has_fatal =
+        turbo_tasks::read!(reporter.report_issues(issues, source_raw, min_failing_severity))?;
 
     if has_fatal {
         let mut message = "Fatal issue(s) occurred".to_owned();

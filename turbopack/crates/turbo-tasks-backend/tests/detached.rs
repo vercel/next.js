@@ -1,3 +1,10 @@
+// ASYNC-ONLY BY DESIGN: this exercises detached background execution — a future
+// spawned via `spawn_detached_for_testing` that *waits* on a `Notify`/`watch` channel
+// while the parent task uses `timeout(100ms, ..)` expecting the read to NOT complete
+// until the detached future is later notified. That requires genuine concurrency and
+// async timers, which the synchronous inline engine intentionally does not provide
+// (there is no background task to run while the parent waits). Not portable to `sync`.
+#![cfg(not(feature = "sync"))]
 #![allow(clippy::needless_return)] // clippy bug causes false positive
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
@@ -7,7 +14,7 @@ use tokio::{
     time::{Duration, sleep, timeout},
 };
 use turbo_tasks::{
-    State, TransientInstance, Vc, prevent_gc,
+    State, TransientInstance, Vc, prevent_gc, read,
     trace::{TraceRawVcs, TraceRawVcsContext},
     turbo_tasks, unmark_top_level_task_may_leak_eventually_consistent_state,
 };
@@ -15,7 +22,7 @@ use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_spawns_detached() -> anyhow::Result<()> {
     run_once(&REGISTRATION, || async {
         println!("test_spawns_detached");
@@ -84,7 +91,7 @@ async fn spawns_detached(
     Vc::cell(())
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_spawns_detached_changing() -> anyhow::Result<()> {
     run_once(&REGISTRATION, || async {
         unmark_top_level_task_may_leak_eventually_consistent_state();
@@ -160,12 +167,12 @@ async fn spawns_detached_changing(
                 .unwrap();
         }));
     }));
-    Vc::cell(*read_changing_input(changing_input_outer).await.unwrap())
+    Vc::cell(*read!(read_changing_input(changing_input_outer)).unwrap())
 }
 
 // spawns_detached should take a dependency on this function for each input
 #[turbo_tasks::function]
 async fn read_changing_input(changing_input: Vc<ChangingInput>) -> Vc<u32> {
     // when changing_input.set is called, it will trigger an invalidator for this task
-    Vc::cell(*changing_input.await.unwrap().state.get())
+    Vc::cell(*read!(changing_input).unwrap().state.get())
 }

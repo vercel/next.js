@@ -16,7 +16,7 @@ use crate::{next_config::NextConfig, util::load_next_js_template};
 
 #[turbo_tasks::function]
 pub async fn middleware_files(page_extensions: Vc<Vec<RcStr>>) -> Result<Vc<Vec<RcStr>>> {
-    let extensions = page_extensions.await?;
+    let extensions = turbo_tasks::read!(page_extensions)?;
     let files = ["middleware.", "src/middleware.", "proxy.", "src/proxy."]
         .into_iter()
         .flat_map(|f| {
@@ -49,13 +49,13 @@ pub async fn get_middleware_module(
     if let Some(ecma_module) =
         ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(userland_module)
     {
-        let exports = ecma_module.get_exports().await?;
+        let exports = turbo_tasks::read!(ecma_module.get_exports())?;
 
         // Check if the module has the required exports
         let has_valid_export = match &*exports {
             // ESM modules - check for named or default export
             EcmascriptExports::EsmExports(esm_exports) => {
-                let esm_exports = esm_exports.await?;
+                let esm_exports = turbo_tasks::read!(esm_exports)?;
                 let has_default = esm_exports.exports.contains_key("default");
                 let expected_named = function_name;
                 let has_named = esm_exports.exports.contains_key(expected_named);
@@ -76,7 +76,7 @@ pub async fn get_middleware_module(
             MiddlewareMissingExportIssue {
                 file_type: file_type.into(),
                 function_name: function_name.into(),
-                file_path: userland_module.ident().await?.path.clone(),
+                file_path: turbo_tasks::read!(userland_module.ident())?.path.clone(),
             }
             .resolved_cell()
             .emit();
@@ -90,26 +90,25 @@ pub async fn get_middleware_module(
     let mut incremental_cache_handler_import = None;
     let mut cache_handler_inner_assets = fxindexmap! {};
 
-    for cache_handler_path in next_config
-        .cache_handler(project_root.clone())
-        .await?
-        .into_iter()
+    for cache_handler_path in
+        turbo_tasks::read!(next_config.cache_handler(project_root.clone()))?.into_iter()
     {
         let cache_handler_inner = rcstr!("INNER_INCREMENTAL_CACHE_HANDLER");
         incremental_cache_handler_import = Some(cache_handler_inner.clone());
-        let cache_handler_module = asset_context
-            .process(
-                Vc::upcast(FileSource::new(cache_handler_path.clone())),
-                ReferenceType::Undefined,
-            )
-            .module()
-            .to_resolved()
-            .await?;
+        let cache_handler_module = turbo_tasks::read!(
+            asset_context
+                .process(
+                    Vc::upcast(FileSource::new(cache_handler_path.clone())),
+                    ReferenceType::Undefined,
+                )
+                .module()
+                .to_resolved()
+        )?;
         cache_handler_inner_assets.insert(cache_handler_inner, cache_handler_module);
     }
 
     // Load the file from the next.js codebase.
-    let source = load_next_js_template(
+    let source = turbo_tasks::read!(load_next_js_template(
         "middleware.js",
         project_root,
         [("VAR_USERLAND", INNER), ("VAR_DEFINITION_PAGE", page_path)],
@@ -118,8 +117,7 @@ pub async fn get_middleware_module(
             "incrementalCacheHandler",
             incremental_cache_handler_import.as_deref(),
         )],
-    )
-    .await?;
+    ))?;
 
     let mut inner_assets = fxindexmap! {
         rcstr!(INNER) => userland_module
@@ -143,6 +141,7 @@ struct MiddlewareMissingExportIssue {
     file_path: FileSystemPath,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for MiddlewareMissingExportIssue {
@@ -167,6 +166,61 @@ impl Issue for MiddlewareMissingExportIssue {
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
+        let type_description = if self.file_type == "Proxy" {
+            "proxy (previously called middleware)"
+        } else {
+            "middleware"
+        };
+
+        let migration_bullet = if self.file_type == "Proxy" {
+            "- You are migrating from `middleware` to `proxy`, but haven't updated the exported \
+             function.\n"
+        } else {
+            ""
+        };
+
+        // Rest of the message goes in description to avoid formatIssue indentation
+        let description_text = format!(
+            "This function is what Next.js runs for every request handled by this {}.\n\n\
+             Why this happens:\n\
+             {}\
+             - The file exists but doesn't export a function.\n\
+             - The export is not a function (e.g., an object or constant).\n\
+             - There's a syntax error preventing the export from being recognized.\n\n\
+             To fix it:\n\
+             - Ensure this file has either a default or \"{}\" function export.\n\n\
+             Learn more: https://nextjs.org/docs/messages/middleware-to-proxy",
+            type_description, migration_bullet, self.function_name
+        );
+
+        Ok(Some(StyledString::Text(description_text.into())))
+    }
+}
+
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for MiddlewareMissingExportIssue {
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.file_path.clone())
+    }
+
+    fn title(&self) -> Result<StyledString> {
+        let title_text = format!(
+            "{} is missing expected function export name",
+            self.file_type
+        );
+        Ok(StyledString::Text(title_text.into()))
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
         let type_description = if self.file_type == "Proxy" {
             "proxy (previously called middleware)"
         } else {

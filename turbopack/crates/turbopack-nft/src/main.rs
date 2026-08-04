@@ -74,8 +74,9 @@ async fn main_inner(args: Arguments) -> Result<()> {
         let (trace_writer, guard) = TraceWriter::new(trace_writer);
         let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
 
-        exit_handler
-            .on_exit(async move { tokio::task::spawn_blocking(|| drop(guard)).await.unwrap() });
+        exit_handler.on_exit(async move {
+            turbo_tasks::read!(tokio::task::spawn_blocking(|| drop(guard))).unwrap()
+        });
 
         subscriber.init();
     }
@@ -89,18 +90,16 @@ async fn main_inner(args: Arguments) -> Result<()> {
         noop_backing_storage(),
     ));
 
-    tt.run_once(async move {
-        node_file_trace(
+    turbo_tasks::read!(tt.run_once(async move {
+        turbo_tasks::read!(node_file_trace(
             current_dir()?.to_str().unwrap().into(),
             args.entry.into(),
             args.graph,
             args.show_issues,
             args.depth,
-        )
-        .await?;
+        ))?;
         Ok(())
-    })
-    .await?;
+    }))?;
 
     // Intentionally leak this `Arc`. Otherwise we'll waste time during process exit performing a
     // ton of drop calls.

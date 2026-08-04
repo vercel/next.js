@@ -16,8 +16,8 @@ workspace = true
 anyhow = { workspace = true }
 parking_lot = { workspace = true }
 turbo-rcstr = { workspace = true }
-turbo-tasks = { workspace = true }
-turbopack-core = { workspace = true }
+turbo-tasks = { path = "../turbo-tasks", default-features = false }
+turbopack-core = { path = "../turbopack-core", default-features = false }
 
 swc_core = { workspace = true, features = [
   "base",
@@ -25,4 +25,9 @@ swc_core = { workspace = true, features = [
   "common_concurrent",
   "common_sourcemap",
 ] }
+
+[features]
+default = ["tokio_runtime"]
+tokio_runtime = ["turbo-tasks/tokio_runtime", "turbopack-core/tokio_runtime"]
+sync = ["turbo-tasks/sync", "turbopack-core/sync"]
 

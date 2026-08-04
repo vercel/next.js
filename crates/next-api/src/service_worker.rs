@@ -38,13 +38,13 @@ pub async fn service_worker_output_assets(
     module_graph: Vc<ModuleGraph>,
 ) -> Result<Vc<OutputAssets>> {
     let mut by_scope: FxIndexMap<RcStr, FxIndexSet<FileSystemPath>> = FxIndexMap::default();
-    for layer in module_graph.iter_graphs().await?.iter() {
+    for layer in turbo_tasks::read!(module_graph.iter_graphs())?.iter() {
         let layer = layer.connect();
-        for module in layer.await?.iter_reachable_modules()? {
+        for module in turbo_tasks::read!(layer)?.iter_reachable_modules()? {
             if let Some(marker) = ResolvedVc::try_downcast_type::<ServiceWorkerEntryModule>(module)
             {
-                let marker = marker.await?;
-                let path = marker.inner.ident().await?.path.clone();
+                let marker = turbo_tasks::read!(marker)?;
+                let path = turbo_tasks::read!(marker.inner.ident())?.path.clone();
                 by_scope
                     .entry(marker.scope.clone())
                     .or_default()
@@ -59,11 +59,9 @@ pub async fn service_worker_output_assets(
             0 => {}
             1 => {
                 let source = sources.into_iter().next().unwrap();
-                assets.push(
-                    service_worker_chunk(project, scope, source)
-                        .to_resolved()
-                        .await?,
-                );
+                assets.push(turbo_tasks::read!(
+                    service_worker_chunk(project, scope, source).to_resolved()
+                )?);
             }
             _ => {
                 let file_path = sources.iter().next().unwrap().clone();
@@ -96,37 +94,37 @@ async fn service_worker_chunk(
 ) -> Result<Vc<Box<dyn OutputAsset>>> {
     let asset_context = project.service_worker_asset_context();
     let chunking_context = project.service_worker_chunking_context();
-    let node_root = project.node_root().owned().await?;
-    let is_production = project.next_mode().await?.is_production();
+    let node_root = turbo_tasks::read!(project.node_root().owned())?;
+    let is_production = turbo_tasks::read!(project.next_mode())?.is_production();
     let filename = service_worker_chunk_filename(&scope);
 
     let source: Vc<Box<dyn Source>> = Vc::upcast(FileSource::new(source_path));
-    let module = asset_context
-        .process(source, ReferenceType::Entry(EntryReferenceSubType::Web))
-        .module()
-        .to_resolved()
-        .await?;
+    let module = turbo_tasks::read!(
+        asset_context
+            .process(source, ReferenceType::Entry(EntryReferenceSubType::Web))
+            .module()
+            .to_resolved()
+    )?;
 
     let own_graph = ModuleGraph::from_graphs(
         vec![SingleModuleGraph::new_with_entry(
             ChunkGroupEntry::Entry(vec![module]),
-            /* include_traced */ *project.should_write_nft_manifests().await?,
+            /* include_traced */ *turbo_tasks::read!(project.should_write_nft_manifests())?,
             /* include_binding_usage */ is_production,
         )],
         /* binding_usage */ None,
     )
     .connect();
 
-    let EntryChunkGroupResult { asset, .. } = *chunking_context
-        .entry_chunk_group(
+    let EntryChunkGroupResult { asset, .. } =
+        *turbo_tasks::read!(chunking_context.entry_chunk_group(
             node_root.join("service-worker")?.join(&filename)?,
             ChunkGroup::Entry(vec![module]),
             own_graph,
             /* extra_chunks */ OutputAssets::empty(),
             /* extra_referenced_chunks */ OutputAssets::empty(),
             AvailabilityInfo::root(),
-        )
-        .await?;
+        ))?;
     Ok(*asset)
 }
 
@@ -139,6 +137,7 @@ struct ConflictingServiceWorkersIssue {
     file_path: FileSystemPath,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for ConflictingServiceWorkersIssue {
@@ -170,6 +169,45 @@ impl Issue for ConflictingServiceWorkersIssue {
     }
 
     async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.file_path.clone())
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::ProcessModule
+    }
+}
+
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for ConflictingServiceWorkersIssue {
+    fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Multiple service workers registered for the same scope."
+        )))
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Stack(vec![
+            StyledString::Text(
+                format!(
+                    "Multiple service workers with different source files were registered for \
+                     scope '{}'. Each scope serves a single service worker.",
+                    self.scope
+                )
+                .into(),
+            ),
+            StyledString::Line(vec![
+                StyledString::Text(rcstr!("Registered source files: ")),
+                StyledString::Code(self.files.join(", ").into()),
+            ]),
+        ])))
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    fn file_path(&self) -> Result<FileSystemPath> {
         Ok(self.file_path.clone())
     }
 

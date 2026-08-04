@@ -1,0 +1,41 @@
+[package]
+name = "turbo-tasks-sync-tests"
+version = "0.1.0"
+description = "End-to-end tests for the synchronous turbo-tasks execution engine."
+license = "MIT"
+edition = "2024"
+publish = false
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[features]
+# Off by default so `cargo build --workspace` does NOT unify `turbo-tasks/sync` on
+# (which would strip async from not-yet-codemodded crates). Run the sync tests with:
+#   cargo test -p turbo-tasks-sync-tests --features sync
+#
+# Built in isolation (`-p`), this enables `sync` WITHOUT `tokio_runtime` on the
+# direct path deps below, so the engine runs with ZERO tokio linked. Verify with:
+#   cargo tree -p turbo-tasks-sync-tests --features sync -i tokio   # (no results)
+sync = [
+  "turbo-tasks/sync",
+  # Enables `Vc::strongly_consistent()` (a test-only API) used by the invalidation test.
+  "turbo-tasks/non_operation_vc_strongly_consistent",
+  "turbo-tasks-backend/sync",
+  "turbo-tasks-testing/sync",
+]
+# Run the sync stress test with the scheduler's deadlock-state watchdog/dump on:
+#   cargo test -p turbo-tasks-sync-tests --features instrument --test stress -- --nocapture
+instrument = ["sync", "turbo-tasks/sync_instrument"]
+
+[dependencies]
+anyhow = { workspace = true }
+# Direct path deps with default-features = false so a `-p` build excludes the
+# `tokio_runtime` default feature entirely (no-tokio). Under `cargo build
+# --workspace`, feature unification re-enables tokio (sync-with-tokio); both work.
+turbo-tasks = { path = "../turbo-tasks", default-features = false }
+turbo-tasks-backend = { path = "../turbo-tasks-backend", default-features = false }
+turbo-tasks-testing = { path = "../turbo-tasks-testing", default-features = false }

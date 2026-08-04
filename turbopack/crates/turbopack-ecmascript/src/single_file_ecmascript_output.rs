@@ -1,8 +1,9 @@
-use std::sync::Arc;
+// RopeReader is in-memory and implements std::io::Read; the async read here was
+// gratuitous, so use the synchronous Read in both modes (no tokio needed).
+use std::{io::Read as _, sync::Arc};
 
 use anyhow::Result;
 use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
-use tokio::io::AsyncReadExt;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, ValueToStringRef, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::Rope};
@@ -28,7 +29,7 @@ pub struct SingleFileEcmascriptOutput {
 impl SingleFileEcmascriptOutput {
     #[turbo_tasks::function]
     async fn source_map(self: Vc<Self>) -> Result<Vc<SourceMapAsset>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         Ok(SourceMapAsset::new(
             *this.chunking_context,
             this.source.ident(),
@@ -77,13 +78,15 @@ impl SingleFileEcmascriptOutput {
 impl GenerateSourceMap for SingleFileEcmascriptOutput {
     #[turbo_tasks::function]
     pub async fn generate_source_map(&self) -> Result<Vc<FileContent>> {
-        let FileContent::Content(file) = &*self.source.content().file_content().await? else {
+        let FileContent::Content(file) =
+            &*turbo_tasks::read!(self.source.content().file_content())?
+        else {
             return Ok(FileContent::NotFound.cell());
         };
 
         let file_source = {
             let mut s = String::new();
-            file.read().read_to_string(&mut s).await?;
+            file.read().read_to_string(&mut s)?;
             s
         };
 
@@ -101,14 +104,12 @@ impl GenerateSourceMap for SingleFileEcmascriptOutput {
             pos += line.len() as u32;
         }
 
-        let source_path = self
-            .source
-            .ident()
-            .await?
-            .path
-            .to_string_ref()
-            .await?
-            .to_string();
+        let source_path = turbo_tasks::read!(
+            turbo_tasks::read!(self.source.ident())?
+                .path
+                .to_string_ref()
+        )?
+        .to_string();
 
         let sm: Arc<SourceMap> = Default::default();
         sm.new_source_file(FileName::Custom(source_path).into(), file_source);
@@ -129,17 +130,17 @@ impl GenerateSourceMap for SingleFileEcmascriptOutput {
 impl OutputAssetsReference for SingleFileEcmascriptOutput {
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
 
-        let include_source_map = *this
-            .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
-            .await?;
+        let include_source_map = *turbo_tasks::read!(
+            this.chunking_context
+                .reference_chunk_source_maps(Vc::upcast(self))
+        )?;
 
         let references = if include_source_map {
-            Vc::cell(vec![ResolvedVc::upcast(
-                self.source_map().to_resolved().await?,
-            )])
+            Vc::cell(vec![ResolvedVc::upcast(turbo_tasks::read!(
+                self.source_map().to_resolved()
+            )?)])
         } else {
             OutputAssets::empty()
         };

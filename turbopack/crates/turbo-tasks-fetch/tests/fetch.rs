@@ -1,7 +1,10 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
-#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
-#![cfg(test)]
+#![allow(clippy::needless_return)]
+// tokio macro-generated code doesn't respect this
+// HTTP fetch is async-runtime-only (reqwest = hyper+tokio); the no-tokio `sync` build
+// ships no HTTP client, so these end-to-end fetch tests exist only in the async build.
+#![cfg(all(test, not(feature = "sync")))]
 
 use std::{sync::Arc, time::Duration};
 

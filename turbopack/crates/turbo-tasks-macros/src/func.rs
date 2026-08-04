@@ -384,9 +384,19 @@ impl TurboFn<'_> {
             .unzip();
         let transform_stmts: Vec<Stmt> = transform_stmts.into_iter().flatten().collect();
 
+        // Dual-mode: in sync mode the inline task body is emitted as a plain `fn`
+        // (no async state machine). Task bodies must use `read!`/`parallel!` instead
+        // of `.await` so the same source compiles in either mode. The runtime
+        // already accepts synchronous task fns via `TaskFnInputFunction<FunctionMode>`.
+        let asyncness = if cfg!(feature = "sync") {
+            None
+        } else {
+            self.orig_signature.asyncness
+        };
         let inline_signature = Signature {
             ident: self.inline_ident.clone(),
             inputs,
+            asyncness,
             ..self.orig_signature.clone()
         };
 
@@ -450,6 +460,44 @@ impl TurboFn<'_> {
             if inline_input_idents.len() != self.exposed_inputs.len() {
                 let exposed_input_idents: Vec<_> = self.exposed_input_idents().collect();
                 let exposed_input_types: Vec<_> = self.exposed_input_types().collect();
+                // In the no-async sync build, argument resolution is a plain synchronous
+                // closure returning `Result<Box<dyn DynTaskInputs>>` (no future/await); in
+                // async mode it boxes a future. `TaskInput::resolve_input` matches: `?` vs
+                // `.await?` per argument.
+                let filter_and_resolve = if cfg!(feature = "sync") {
+                    quote! {
+                        |dyn_task_inputs: &dyn turbo_tasks::DynTaskInputs|
+                            -> turbo_tasks::Result<::std::boxed::Box<dyn turbo_tasks::DynTaskInputs>> {
+                            let (#(#exposed_input_idents,)*) = turbo_tasks::macro_helpers
+                                ::downcast_args_ref::<(#(#exposed_input_types,)*)>(dyn_task_inputs);
+                            let resolved = (#(
+                                <_ as turbo_tasks::TaskInput>::resolve_input(#inline_input_idents)?,
+                            )*);
+                            Ok(
+                                ::std::boxed::Box::new(resolved)
+                                as ::std::boxed::Box<dyn turbo_tasks::DynTaskInputs>
+                            )
+                        }
+                    }
+                } else {
+                    quote! {
+                        |dyn_task_inputs: &dyn turbo_tasks::DynTaskInputs| {
+                            Box::pin(async move {
+                                let (#(#exposed_input_idents,)*) = turbo_tasks::macro_helpers
+                                    ::downcast_args_ref::<(#(#exposed_input_types,)*)>(dyn_task_inputs);
+                                let resolved = (#(
+                                    <_ as turbo_tasks::TaskInput>::resolve_input(
+                                        #inline_input_idents
+                                    ).await?,
+                                )*);
+                                Ok(
+                                    ::std::boxed::Box::new(resolved)
+                                    as ::std::boxed::Box<dyn turbo_tasks::DynTaskInputs>
+                                )
+                            })
+                        }
+                    }
+                };
                 return Some(FilterTraitCallArgsTokens {
                     filter_owned: quote! {
                         |arg: &mut dyn turbo_tasks::DynTaskInputsStorage| {
@@ -466,23 +514,7 @@ impl TurboFn<'_> {
                             )
                         }
                     },
-                    filter_and_resolve: quote! {
-                        |dyn_task_inputs: &dyn turbo_tasks::DynTaskInputs| {
-                            Box::pin(async move {
-                                let (#(#exposed_input_idents,)*) = turbo_tasks::macro_helpers
-                                    ::downcast_args_ref::<(#(#exposed_input_types,)*)>(dyn_task_inputs);
-                                let resolved = (#(
-                                    <_ as turbo_tasks::TaskInput>::resolve_input(
-                                        #inline_input_idents
-                                    ).await?,
-                                )*);
-                                Ok(
-                                    ::std::boxed::Box::new(resolved)
-                                    as ::std::boxed::Box<dyn turbo_tasks::DynTaskInputs>
-                                )
-                            })
-                        }
-                    },
+                    filter_and_resolve,
                 });
             }
         }

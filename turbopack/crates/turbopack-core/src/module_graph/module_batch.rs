@@ -4,7 +4,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs};
+use turbo_tasks::{ReadRef, ResolvedVc, ValueToString, Vc, trace::TraceRawVcs};
 
 use crate::{
     chunk::ChunkableModule, module::Module, module_graph::chunk_group_info::RoaringBitmapWrapper,
@@ -21,14 +21,16 @@ pub enum ModuleOrBatch {
 }
 
 impl ModuleOrBatch {
-    pub async fn ident_strings(self) -> Result<IdentStrings> {
+    turbo_tasks::dual_fn! {
+    pub fn ident_strings(self) -> Result<IdentStrings> {
         Ok(match self {
             ModuleOrBatch::Module(module) => {
-                IdentStrings::Single(module.ident().to_string().owned().await?)
+                IdentStrings::Single(turbo_tasks::read!(module.ident().to_string().owned())?)
             }
-            ModuleOrBatch::Batch(batch) => IdentStrings::Multiple(batch.ident_strings().await?),
+            ModuleOrBatch::Batch(batch) => IdentStrings::Multiple(turbo_tasks::read!(batch.ident_strings())?),
             ModuleOrBatch::None(_) => IdentStrings::None,
         })
+    }
     }
 }
 
@@ -49,16 +51,18 @@ impl ChunkableModuleOrBatch {
         }
     }
 
-    pub async fn ident_strings(self) -> Result<IdentStrings> {
+    turbo_tasks::dual_fn! {
+    pub fn ident_strings(self) -> Result<IdentStrings> {
         Ok(match self {
             ChunkableModuleOrBatch::Module(module) => {
-                IdentStrings::Single(module.ident().to_string().owned().await?)
+                IdentStrings::Single(turbo_tasks::read!(module.ident().to_string().owned())?)
             }
             ChunkableModuleOrBatch::Batch(batch) => {
-                IdentStrings::Multiple(batch.ident_strings().await?)
+                IdentStrings::Multiple(turbo_tasks::read!(batch.ident_strings())?)
             }
             ChunkableModuleOrBatch::None(_) => IdentStrings::None,
         })
+    }
     }
 }
 
@@ -111,11 +115,10 @@ impl ModuleBatch {
     #[turbo_tasks::function]
     pub async fn ident_strings(&self) -> Result<Vc<Vec<RcStr>>> {
         Ok(Vc::cell(
-            self.modules
-                .iter()
-                .map(|module| module.ident().to_string().owned())
-                .try_join()
-                .await?,
+            turbo_tasks::parallel!(self.modules.iter().map(|module| module.ident().to_string()))?
+                .into_iter()
+                .map(ReadRef::into_owned)
+                .collect(),
         ))
     }
 }
@@ -148,7 +151,7 @@ pub struct ChunkableModuleBatchGroup {
 impl ChunkableModuleBatchGroup {
     #[turbo_tasks::function]
     pub async fn from_module_batch_group(batch_group: Vc<ModuleBatchGroup>) -> Result<Vc<Self>> {
-        let batch_group = batch_group.await?;
+        let batch_group = turbo_tasks::read!(batch_group)?;
         let items = batch_group
             .items
             .iter()

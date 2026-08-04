@@ -11,23 +11,24 @@ use crate::{
     next_shared::transforms::EcmascriptTransformStage,
 };
 
+turbo_tasks::dual_fn! {
 /// Returns a rule which applies the remove_console transform.
-pub async fn get_remove_console_transform_rule(
+pub fn get_remove_console_transform_rule(
     next_config: Vc<NextConfig>,
 ) -> Result<Option<ModuleRule>> {
-    let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
+    let enable_mdx_rs = turbo_tasks::read!(next_config.mdx_rs())?.is_some();
 
-    let has_config = next_config
-        .compiler()
-        .await?
+    let has_config = turbo_tasks::read!(next_config
+        .compiler())
+        ?
         .remove_console
         .as_ref()
         .is_some_and(|config| !matches!(config, RemoveConsoleConfig::Boolean(false)));
 
     if has_config {
-        let plugin = remove_console_transform_plugin(next_config)
-            .to_resolved()
-            .await?;
+        let plugin = turbo_tasks::read!(remove_console_transform_plugin(next_config)
+            .to_resolved())
+            ?;
         Ok(Some(get_ecma_transform_rule(
             plugin,
             enable_mdx_rs,
@@ -37,15 +38,14 @@ pub async fn get_remove_console_transform_rule(
         Ok(None)
     }
 }
+}
 
 #[turbo_tasks::function]
 async fn remove_console_transform_plugin(
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<TransformPlugin>> {
     use anyhow::Context as _;
-    let config = next_config
-        .compiler()
-        .await?
+    let config = turbo_tasks::read!(next_config.compiler())?
         .remove_console
         .as_ref()
         .and_then(|config| match config {
@@ -73,10 +73,24 @@ struct RemoveConsoleTransformer {
     config: remove_console::Config,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 impl CustomTransformer for RemoveConsoleTransformer {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "remove_console", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+        program.mutate(remove_console::remove_console(
+            self.config.clone(),
+            SyntaxContext::empty().apply_mark(ctx.unresolved_mark),
+        ));
+
+        Ok(())
+    }
+}
+
+#[cfg(feature = "sync")]
+impl CustomTransformer for RemoveConsoleTransformer {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "remove_console", skip_all)]
+    fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         program.mutate(remove_console::remove_console(
             self.config.clone(),
             SyntaxContext::empty().apply_mark(ctx.unresolved_mark),

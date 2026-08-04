@@ -63,10 +63,10 @@ impl EcmascriptModuleRenameModule {
     #[turbo_tasks::function]
     pub async fn async_module(&self) -> Result<Vc<AsyncModule>> {
         let (import_externals, has_top_level_await) =
-            if let Some(async_module) = *self.module.get_async_module().await? {
+            if let Some(async_module) = *turbo_tasks::read!(self.module.get_async_module())? {
                 (
-                    async_module.await?.import_externals,
-                    async_module.await?.has_top_level_await,
+                    turbo_tasks::read!(async_module)?.import_externals,
+                    turbo_tasks::read!(async_module)?.has_top_level_await,
                 )
             } else {
                 (false, false)
@@ -80,32 +80,32 @@ impl EcmascriptModuleRenameModule {
 }
 
 impl EcmascriptModuleRenameModule {
-    pub async fn module_reference(&self) -> Result<ResolvedVc<EcmascriptModulePartReference>> {
+    turbo_tasks::dual_fn! {
+    pub fn module_reference(&self) -> Result<ResolvedVc<EcmascriptModulePartReference>> {
         match &self.part {
             ModulePart::RenamedNamespace { .. } => {
-                EcmascriptModulePartReference::new_normal(
+                turbo_tasks::read!(EcmascriptModulePartReference::new_normal(
                     *self.module,
                     self.part.clone(),
                     ExportUsage::all(),
                 )
-                .to_resolved()
-                .await
+                .to_resolved())
             }
             ModulePart::RenamedExport {
                 original_export, ..
             } => {
-                EcmascriptModulePartReference::new_normal(
+                turbo_tasks::read!(EcmascriptModulePartReference::new_normal(
                     *self.module,
                     self.part.clone(),
                     ExportUsage::named(original_export.clone()),
                 )
-                .to_resolved()
-                .await
+                .to_resolved())
             }
             _ => {
                 bail!("Unexpected ModulePart for EcmascriptModuleRenameModule");
             }
         }
+    }
     }
 }
 
@@ -118,18 +118,14 @@ impl Module for EcmascriptModuleRenameModule {
 
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self
-            .module
-            .ident()
-            .owned()
-            .await?
+        Ok(turbo_tasks::read!(self.module.ident().owned())?
             .with_part(self.part.clone())
             .into_vc())
     }
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        let reference = self.await?.module_reference().await?;
+        let reference = turbo_tasks::read!(turbo_tasks::read!(self)?.module_reference())?;
         Ok(Vc::cell(vec![ResolvedVc::upcast(reference)]))
     }
 
@@ -137,12 +133,11 @@ impl Module for EcmascriptModuleRenameModule {
     async fn is_self_async(self: Vc<Self>) -> Result<Vc<bool>> {
         let async_module = self.async_module();
         let references = self.references();
-        let is_self_async = async_module
-            .to_resolved()
-            .await?
-            .is_self_async(*references.to_resolved().await?)
-            .to_resolved()
-            .await?;
+        let is_self_async = turbo_tasks::read!(
+            turbo_tasks::read!(async_module.to_resolved())?
+                .is_self_async(*turbo_tasks::read!(references.to_resolved())?)
+                .to_resolved()
+        )?;
         Ok(*is_self_async)
     }
 
@@ -184,24 +179,26 @@ impl EcmascriptAnalyzable for EcmascriptModuleRenameModule {
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptModuleContentOptions>> {
-        let reference = self.await?.module_reference().await?;
+        let reference = turbo_tasks::read!(turbo_tasks::read!(self)?.module_reference())?;
 
         Ok(EcmascriptModuleContentOptions {
             parsed: None,
             module: ResolvedVc::upcast(self),
             specified_module_type: SpecifiedModuleType::EcmaScript,
             chunking_context,
-            references: self.references().to_resolved().await?,
+            references: turbo_tasks::read!(self.references().to_resolved())?,
             part_references: vec![reference],
-            esm_references: EsmAssetReferences::empty().to_resolved().await?,
-            code_generation: CodeGens::empty().to_resolved().await?,
-            async_module: ResolvedVc::cell(Some(self.async_module().to_resolved().await?)),
+            esm_references: turbo_tasks::read!(EsmAssetReferences::empty().to_resolved())?,
+            code_generation: turbo_tasks::read!(CodeGens::empty().to_resolved())?,
+            async_module: ResolvedVc::cell(Some(turbo_tasks::read!(
+                self.async_module().to_resolved()
+            )?)),
             // The facade module cannot generate source maps, because the inserted references
             // contain spans from the original module, but the facade module itself doesn't have the
             // original module's swc_common::SourceMap in `parsed`.
             generate_source_map: false,
             original_source_map: None,
-            exports: self.get_exports().to_resolved().await?,
+            exports: turbo_tasks::read!(self.get_exports().to_resolved())?,
             async_module_info,
         }
         .cell())
@@ -212,7 +209,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleRenameModule {
 impl EcmascriptChunkPlaceable for EcmascriptModuleRenameModule {
     #[turbo_tasks::function]
     async fn get_exports(&self) -> Result<Vc<EcmascriptExports>> {
-        let reference = self.module_reference().await?;
+        let reference = turbo_tasks::read!(self.module_reference())?;
 
         let export = match &self.part {
             ModulePart::RenamedExport {
@@ -243,7 +240,9 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleRenameModule {
 
     #[turbo_tasks::function]
     async fn get_async_module(self: Vc<Self>) -> Result<Vc<OptionAsyncModule>> {
-        Ok(Vc::cell(Some(self.async_module().to_resolved().await?)))
+        Ok(Vc::cell(Some(turbo_tasks::read!(
+            self.async_module().to_resolved()
+        )?)))
     }
 
     #[turbo_tasks::function]
@@ -287,13 +286,12 @@ impl MergeableModule for EcmascriptModuleRenameModule {
         modules: Vc<MergeableModulesExposed>,
         entry_points: Vc<MergeableModules>,
     ) -> Result<Vc<Box<dyn ChunkableModule>>> {
-        Ok(Vc::upcast(
-            *MergedEcmascriptModule::new(
+        Ok(Vc::upcast(*turbo_tasks::read!(
+            MergedEcmascriptModule::new(
                 modules,
                 entry_points,
                 EcmascriptOptions::default().resolved_cell(),
             )
-            .await?,
-        ))
+        )?))
     }
 }

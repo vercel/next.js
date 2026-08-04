@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::DirectoryContent;
 use turbopack_core::{
     asset::Asset,
@@ -53,44 +53,36 @@ impl Module for TsConfigModuleAsset {
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let mut references = Vec::new();
-        let configs = read_tsconfigs(
+        let configs = turbo_tasks::read!(read_tsconfigs(
             self.source.content().file_content(),
             self.source,
-            apply_cjs_specific_options(self.origin.into_trait_ref().await?.resolve_options()),
-        )
-        .await?;
-        references.extend(
-            configs[1..]
-                .iter()
-                .map(|(_, config_asset)| async move {
-                    Ok(ResolvedVc::upcast(
-                        TsExtendsReference::new(**config_asset)
-                            .to_resolved()
-                            .await?,
-                    ))
-                })
-                .try_join()
-                .await?,
-        );
+            apply_cjs_specific_options(
+                turbo_tasks::read!(self.origin.into_trait_ref())?.resolve_options()
+            ),
+        ))?;
+        // `.to_resolved()` futures cannot fan out through the sync `parallel!`;
+        // resolve sequentially in both modes (extends chains are tiny).
+        for (_, config_asset) in configs[1..].iter() {
+            references.push(ResolvedVc::upcast(turbo_tasks::read!(
+                TsExtendsReference::new(**config_asset).to_resolved()
+            )?));
+        }
 
         // ts-node options
         {
-            let compiler = read_from_tsconfigs(&configs, |json, source| {
+            let compiler = turbo_tasks::read!(read_from_tsconfigs(&configs, |json, source| {
                 json["ts-node"]["compiler"]
                     .as_str()
                     .map(|s| (source, s.to_string()))
-            })
-            .await?;
+            }))?;
             let compiler = match compiler {
                 Some((_, c)) => RcStr::from(c),
                 None => rcstr!("typescript"),
             };
-            references.push(ResolvedVc::upcast(
-                CompilerReference::new(*self.origin, Request::parse(compiler.into()))
-                    .to_resolved()
-                    .await?,
-            ));
-            let require = read_from_tsconfigs(&configs, |json, source| {
+            references.push(ResolvedVc::upcast(turbo_tasks::read!(
+                CompilerReference::new(*self.origin, Request::parse(compiler.into())).to_resolved()
+            )?));
+            let require = turbo_tasks::read!(read_from_tsconfigs(&configs, |json, source| {
                 if let JsonValue::Array(array) = &json["ts-node"]["require"] {
                     Some(
                         array
@@ -101,21 +93,19 @@ impl Module for TsConfigModuleAsset {
                 } else {
                     None
                 }
-            })
-            .await?;
+            }))?;
             if let Some(require) = require {
                 for (_, request) in require {
-                    references.push(ResolvedVc::upcast(
+                    references.push(ResolvedVc::upcast(turbo_tasks::read!(
                         TsNodeRequireReference::new(*self.origin, Request::parse(request.into()))
                             .to_resolved()
-                            .await?,
-                    ));
+                    )?));
                 }
             }
         }
         // compilerOptions
         {
-            let types = read_from_tsconfigs(&configs, |json, source| {
+            let types = turbo_tasks::read!(read_from_tsconfigs(&configs, |json, source| {
                 if let JsonValue::Array(array) = &json["compilerOptions"]["types"] {
                     Some(
                         array
@@ -126,16 +116,15 @@ impl Module for TsConfigModuleAsset {
                 } else {
                     None
                 }
-            })
-            .await?;
+            }))?;
             let types = if let Some(types) = types {
                 types
             } else {
                 let mut all_types = Vec::new();
-                let mut current = self.source.ident().await?.path.parent();
+                let mut current = turbo_tasks::read!(self.source.ident())?.path.parent();
                 loop {
                     if let DirectoryContent::Entries(entries) =
-                        &*current.join("node_modules/@types")?.read_dir().await?
+                        &*turbo_tasks::read!(current.join("node_modules/@types")?.read_dir())?
                     {
                         all_types.extend(entries.iter().filter_map(|(name, _)| {
                             if name.starts_with('.') {
@@ -154,7 +143,7 @@ impl Module for TsConfigModuleAsset {
                 all_types
             };
             for (_, name) in types {
-                references.push(ResolvedVc::upcast(
+                references.push(ResolvedVc::upcast(turbo_tasks::read!(
                     TsConfigTypesReference::new(
                         *self.origin,
                         Request::module(
@@ -165,8 +154,7 @@ impl Module for TsConfigModuleAsset {
                         ),
                     )
                     .to_resolved()
-                    .await?,
-                ));
+                )?));
             }
         }
         Ok(Vc::cell(references))
@@ -237,7 +225,7 @@ impl ModuleReference for TsExtendsReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
-            RawModule::new(*self.config).to_resolved().await?,
+            turbo_tasks::read!(RawModule::new(*self.config).to_resolved())?,
         )))
     }
 

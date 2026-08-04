@@ -1,4 +1,5 @@
 use anyhow::Result;
+#[cfg(not(feature = "sync"))]
 use async_trait::async_trait;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc, turbofmt};
@@ -46,19 +47,18 @@ impl ModuleReference for CssModuleComposeReference {
             None,
         );
 
-        let resolved = result.await?.first_module().await?;
-        let file_path = self.origin.into_trait_ref().await?.origin_path();
+        let resolved = turbo_tasks::read!(turbo_tasks::read!(result)?.first_module())?;
+        let file_path = turbo_tasks::read!(self.origin.into_trait_ref())?.origin_path();
         if let Some(module) = resolved {
             if ResolvedVc::try_downcast_type::<EcmascriptCssModule>(module).is_none() {
                 CssModuleComposesIssue {
                     severity: IssueSeverity::Error,
                     file_path,
                     // TODO(PACK-4879): this should include detailed location information
-                    message: turbofmt!(
+                    message: turbo_tasks::read!(turbofmt!(
                         "Module {} referenced in `composes: ... from ...;` is not a CSS module.\n",
                         self.request
-                    )
-                    .await?,
+                    ))?,
                 }
                 .resolved_cell()
                 .emit();
@@ -68,11 +68,10 @@ impl ModuleReference for CssModuleComposeReference {
                 severity: IssueSeverity::Error,
                 file_path,
                 // TODO(PACK-4879): this should include detailed location information
-                message: turbofmt!(
+                message: turbo_tasks::read!(turbofmt!(
                     "Module {} referenced in `composes: ... from ...;` can't be resolved.\n",
                     self.request
-                )
-                .await?,
+                ))?,
             }
             .resolved_cell()
             .emit();
@@ -96,6 +95,7 @@ struct CssModuleComposesIssue {
     message: RcStr,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for CssModuleComposesIssue {
@@ -118,6 +118,32 @@ impl Issue for CssModuleComposesIssue {
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(self.message.clone())))
+    }
+}
+
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for CssModuleComposesIssue {
+    fn severity(&self) -> IssueSeverity {
+        self.severity
+    }
+
+    fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "An issue occurred while resolving a CSS module `composes:` rule"
+        )))
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Resolve
+    }
+
+    fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.file_path.clone())
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
         Ok(Some(StyledString::Text(self.message.clone())))
     }
 }

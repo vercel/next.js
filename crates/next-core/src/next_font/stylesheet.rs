@@ -12,8 +12,8 @@ use super::{
 #[turbo_tasks::function]
 pub(crate) async fn build_fallback_definition(fallbacks: Vc<FontFallbacks>) -> Result<Vc<RcStr>> {
     let mut res = "".to_owned();
-    for fallback_vc in &*fallbacks.await? {
-        if let FontFallback::Automatic(fallback) = &*fallback_vc.await? {
+    for fallback_vc in &*turbo_tasks::read!(fallbacks)? {
+        if let FontFallback::Automatic(fallback) = &*turbo_tasks::read!(fallback_vc)? {
             let override_properties = match &fallback.adjustment {
                 None => "".to_owned(),
                 Some(adjustment) => formatdoc!(
@@ -52,8 +52,8 @@ pub(crate) async fn build_fallback_definition(fallbacks: Vc<FontFallbacks>) -> R
 pub(super) async fn build_font_class_rules(
     css_properties: Vc<FontCssProperties>,
 ) -> Result<Vc<RcStr>> {
-    let css_properties = &*css_properties.await?;
-    let font_family_string = &*css_properties.font_family.await?;
+    let css_properties = &*turbo_tasks::read!(css_properties)?;
+    let font_family_string = &*turbo_tasks::read!(css_properties.font_family)?;
 
     let mut rules = formatdoc!(
         r#"
@@ -63,21 +63,17 @@ pub(super) async fn build_font_class_rules(
         }}
     "#,
         font_family_string,
-        css_properties
-            .weight
-            .await?
+        turbo_tasks::read!(css_properties.weight)?
             .as_ref()
             .map(|w| format!("font-weight: {w};\n"))
             .unwrap_or_else(|| "".to_owned()),
-        css_properties
-            .style
-            .await?
+        turbo_tasks::read!(css_properties.style)?
             .as_ref()
             .map(|s| format!("font-style: {s};\n"))
             .unwrap_or_else(|| "".to_owned()),
     );
 
-    if let Some(variable) = &*css_properties.variable.await? {
+    if let Some(variable) = &*turbo_tasks::read!(css_properties.variable)? {
         rules.push_str(&formatdoc!(
             r#"
         .variable {{

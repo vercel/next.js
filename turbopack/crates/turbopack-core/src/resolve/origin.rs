@@ -58,13 +58,13 @@ where
         options: Vc<ResolveOptions>,
         reference_type: ReferenceType,
     ) -> Result<Vc<ModuleResolveResult>> {
-        let origin = Vc::upcast_non_strict::<Box<dyn ResolveOrigin>>(self)
-            .into_trait_ref()
-            .await?;
+        let origin = turbo_tasks::read!(
+            Vc::upcast_non_strict::<Box<dyn ResolveOrigin>>(self).into_trait_ref()
+        )?;
         Ok(origin.asset_context().resolve_asset(
             origin.origin_path(),
-            *request.to_resolved().await?,
-            *options.to_resolved().await?,
+            *turbo_tasks::read!(request.to_resolved())?,
+            *turbo_tasks::read!(options.to_resolved())?,
             reference_type,
         ))
     }
@@ -73,17 +73,18 @@ where
         self: ResolvedVc<Self>,
         transition: RcStr,
     ) -> Result<Vc<Box<dyn ResolveOrigin>>> {
-        let origin = Vc::upcast_non_strict::<Box<dyn ResolveOrigin>>(*self)
-            .into_trait_ref()
-            .await?;
+        let origin = turbo_tasks::read!(
+            Vc::upcast_non_strict::<Box<dyn ResolveOrigin>>(*self).into_trait_ref()
+        )?;
         Ok(Vc::upcast(
             ResolveOriginWithTransition {
                 origin_path: origin.origin_path(),
-                asset_context: origin
-                    .asset_context()
-                    .with_transition(transition)
-                    .to_resolved()
-                    .await?,
+                asset_context: turbo_tasks::read!(
+                    origin
+                        .asset_context()
+                        .with_transition(transition)
+                        .to_resolved()
+                )?,
             }
             .cell(),
         ))

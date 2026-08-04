@@ -53,25 +53,26 @@ pub async fn get_next_client_import_map(
 ) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
-    insert_next_shared_aliases(
+    turbo_tasks::read!(insert_next_shared_aliases(
         &mut import_map,
         project_path.clone(),
         execution_context,
         next_config,
         next_mode,
         false,
-    )
-    .await?;
+    ))?;
 
-    insert_optimized_module_aliases(&mut import_map, project_path.clone()).await?;
+    turbo_tasks::read!(insert_optimized_module_aliases(
+        &mut import_map,
+        project_path.clone()
+    ))?;
 
-    insert_alias_option(
+    turbo_tasks::read!(insert_alias_option(
         &mut import_map,
         &project_path,
         next_config.resolve_alias_options(),
         ["browser"],
-    )
-    .await?;
+    ))?;
 
     match &ty {
         ClientContextType::Pages { .. } => {
@@ -86,10 +87,11 @@ pub async fn get_next_client_import_map(
         }
         ClientContextType::App { app_dir } => {
             // Keep in sync with file:///./../../../packages/next/src/lib/needs-experimental-react.ts
-            let blocking_ssr = *next_config.enable_blocking_ssr().await?;
-            let taint = *next_config.enable_taint().await?;
-            let transition_indicator = *next_config.enable_transition_indicator().await?;
-            let gesture_transition = *next_config.enable_gesture_transition().await?;
+            let blocking_ssr = *turbo_tasks::read!(next_config.enable_blocking_ssr())?;
+            let taint = *turbo_tasks::read!(next_config.enable_taint())?;
+            let transition_indicator =
+                *turbo_tasks::read!(next_config.enable_transition_indicator())?;
+            let gesture_transition = *turbo_tasks::read!(next_config.enable_gesture_transition())?;
             let react_channel =
                 if blocking_ssr || taint || transition_indicator || gesture_transition {
                     "-experimental"
@@ -139,7 +141,7 @@ pub async fn get_next_client_import_map(
                     rcstr!("next/dist/compiled/react-dom-experimental/static.browser"),
                 ),
             );
-            let react_client_package = get_react_client_package(next_config).await?;
+            let react_client_package = turbo_tasks::read!(get_react_client_package(next_config))?;
             import_map.insert_exact_alias(
                 rcstr!("react-dom/client"),
                 request_to_import_mapping(
@@ -213,7 +215,11 @@ pub async fn get_next_client_import_map(
         rcstr!("next/dist/compiled/server-only") => rcstr!("next/dist/compiled/server-only/index"),
         rcstr!("next/dist/compiled/client-only") => rcstr!("next/dist/compiled/client-only/index"),},
     );
-    insert_next_root_params_mapping(&mut import_map, Either::Right(ty.clone()), None).await?;
+    turbo_tasks::read!(insert_next_root_params_mapping(
+        &mut import_map,
+        Either::Right(ty.clone()),
+        None
+    ))?;
 
     match ty {
         ClientContextType::Pages { .. }
@@ -229,7 +235,11 @@ pub async fn get_next_client_import_map(
         ClientContextType::Other => {}
     }
 
-    insert_instrumentation_client_alias(&mut import_map, project_path, next_config).await?;
+    turbo_tasks::read!(insert_instrumentation_client_alias(
+        &mut import_map,
+        project_path,
+        next_config
+    ))?;
 
     insert_server_only_error_alias(&mut import_map);
 
@@ -275,23 +285,21 @@ pub async fn get_next_server_import_map(
 ) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
-    insert_next_shared_aliases(
+    turbo_tasks::read!(insert_next_shared_aliases(
         &mut import_map,
         project_path.clone(),
         execution_context,
         next_config,
         next_mode,
         false,
-    )
-    .await?;
+    ))?;
 
-    insert_alias_option(
+    turbo_tasks::read!(insert_alias_option(
         &mut import_map,
         &project_path,
         next_config.resolve_alias_options(),
         [],
-    )
-    .await?;
+    ))?;
 
     let external = ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Traced)
         .resolved_cell();
@@ -357,15 +365,14 @@ pub async fn get_next_server_import_map(
         ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => {}
     }
 
-    insert_next_server_special_aliases(
+    turbo_tasks::read!(insert_next_server_special_aliases(
         &mut import_map,
         project_path.clone(),
         ty,
         NextRuntime::NodeJs,
         next_config,
         collected_root_params,
-    )
-    .await?;
+    ))?;
 
     Ok(import_map.cell())
 }
@@ -420,25 +427,26 @@ pub async fn get_next_edge_import_map(
         rcstr!("next/dist/compiled/@vercel/og/index.node.js") => rcstr!("next/dist/compiled/@vercel/og/index.edge.js"),},
     );
 
-    insert_next_shared_aliases(
+    turbo_tasks::read!(insert_next_shared_aliases(
         &mut import_map,
         project_path.clone(),
         execution_context,
         next_config,
         next_mode,
         true,
-    )
-    .await?;
+    ))?;
 
-    insert_optimized_module_aliases(&mut import_map, project_path.clone()).await?;
+    turbo_tasks::read!(insert_optimized_module_aliases(
+        &mut import_map,
+        project_path.clone()
+    ))?;
 
-    insert_alias_option(
+    turbo_tasks::read!(insert_alias_option(
         &mut import_map,
         &project_path,
         next_config.resolve_alias_options(),
         [],
-    )
-    .await?;
+    ))?;
 
     match &ty {
         ServerContextType::Pages { .. }
@@ -475,15 +483,14 @@ pub async fn get_next_edge_import_map(
         }
     }
 
-    insert_next_server_special_aliases(
+    turbo_tasks::read!(insert_next_server_special_aliases(
         &mut import_map,
         project_path.clone(),
         ty.clone(),
         NextRuntime::Edge,
         next_config,
         collected_root_params,
-    )
-    .await?;
+    ))?;
 
     // Look for where 'server/web/globals.ts` are imported to find out corresponding
     // context
@@ -495,7 +502,7 @@ pub async fn get_next_edge_import_map(
         | ServerContextType::Instrumentation { .. }
         | ServerContextType::Pages { .. }
         | ServerContextType::PagesApi { .. } => {
-            insert_unsupported_node_internal_aliases(&mut import_map).await?;
+            turbo_tasks::read!(insert_unsupported_node_internal_aliases(&mut import_map))?;
         }
     }
 
@@ -538,14 +545,15 @@ pub async fn get_next_edge_and_server_fallback_import_map(
     Ok(fallback_import_map.cell())
 }
 
+turbo_tasks::dual_fn! {
 /// Insert default aliases for the node.js's internal to raise unsupported
 /// runtime errors. User may provide polyfills for their own by setting user
 /// config's alias.
-async fn insert_unsupported_node_internal_aliases(import_map: &mut ImportMap) -> Result<()> {
+fn insert_unsupported_node_internal_aliases(import_map: &mut ImportMap) -> Result<()> {
     let unsupported_replacer = ImportMapping::Dynamic(ResolvedVc::upcast(
-        NextEdgeUnsupportedModuleReplacer::new()
-            .to_resolved()
-            .await?,
+        turbo_tasks::read!(NextEdgeUnsupportedModuleReplacer::new()
+            .to_resolved())
+            ?,
     ))
     .resolved_cell();
 
@@ -557,6 +565,7 @@ async fn insert_unsupported_node_internal_aliases(import_map: &mut ImportMap) ->
     }
 
     Ok(())
+}
 }
 
 pub fn get_next_client_resolved_map(
@@ -629,7 +638,8 @@ static NEXT_ALIASES: LazyLock<[(RcStr, RcStr); 23]> = LazyLock::new(|| {
     ]
 });
 
-async fn insert_next_server_special_aliases(
+turbo_tasks::dual_fn! {
+fn insert_next_server_special_aliases(
     import_map: &mut ImportMap,
     project_path: FileSystemPath,
     ty: ServerContextType,
@@ -667,7 +677,7 @@ async fn insert_next_server_special_aliases(
         ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {}
         // the logic closely follows the one in createRSCAliases in webpack-config.ts
         ServerContextType::AppSSR { app_dir } => {
-            let next_package = get_next_package(app_dir.clone()).await?;
+            let next_package = turbo_tasks::read!(get_next_package(app_dir.clone()))?;
             import_map.insert_exact_alias(
                 rcstr!("styled-jsx"),
                 request_to_import_mapping(next_package.clone(), rcstr!("styled-jsx")),
@@ -677,27 +687,27 @@ async fn insert_next_server_special_aliases(
                 request_to_import_mapping(next_package.clone(), rcstr!("styled-jsx/*")),
             );
 
-            rsc_aliases(
+            turbo_tasks::read!(rsc_aliases(
                 import_map,
                 project_path.clone(),
                 ty.clone(),
                 runtime,
                 next_config,
-            )
-            .await?;
+            ))
+            ?;
         }
         ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation { .. } => {
-            rsc_aliases(
+            turbo_tasks::read!(rsc_aliases(
                 import_map,
                 project_path.clone(),
                 ty.clone(),
                 runtime,
                 next_config,
-            )
-            .await?;
+            ))
+            ?;
         }
     }
 
@@ -743,7 +753,7 @@ async fn insert_next_server_special_aliases(
         }
     }
 
-    insert_next_root_params_mapping(import_map, Either::Left(ty), collected_root_params).await?;
+    turbo_tasks::read!(insert_next_root_params_mapping(import_map, Either::Left(ty), collected_root_params))?;
 
     import_map.insert_exact_alias(
         rcstr!("@vercel/og"),
@@ -763,9 +773,11 @@ async fn insert_next_server_special_aliases(
 
     Ok(())
 }
+}
 
-async fn get_react_client_package(next_config: Vc<NextConfig>) -> Result<&'static str> {
-    let react_production_profiling = *next_config.enable_react_production_profiling().await?;
+turbo_tasks::dual_fn! {
+fn get_react_client_package(next_config: Vc<NextConfig>) -> Result<&'static str> {
+    let react_production_profiling = *turbo_tasks::read!(next_config.enable_react_production_profiling())?;
     let react_client_package = if react_production_profiling {
         "profiling"
     } else {
@@ -774,20 +786,22 @@ async fn get_react_client_package(next_config: Vc<NextConfig>) -> Result<&'stati
 
     Ok(react_client_package)
 }
+}
 
 // Use createVendoredReactAliases in file:///./../../../packages/next/src/build/create-compiler-aliases.ts
 // as the source of truth.
-async fn apply_vendored_react_aliases_server(
+turbo_tasks::dual_fn! {
+fn apply_vendored_react_aliases_server(
     import_map: &mut ImportMap,
     project_path: FileSystemPath,
     ty: ServerContextType,
     runtime: NextRuntime,
     next_config: Vc<NextConfig>,
 ) -> Result<()> {
-    let blocking_ssr = *next_config.enable_blocking_ssr().await?;
-    let taint = *next_config.enable_taint().await?;
-    let transition_indicator = *next_config.enable_transition_indicator().await?;
-    let gesture_transition = *next_config.enable_gesture_transition().await?;
+    let blocking_ssr = *turbo_tasks::read!(next_config.enable_blocking_ssr())?;
+    let taint = *turbo_tasks::read!(next_config.enable_taint())?;
+    let transition_indicator = *turbo_tasks::read!(next_config.enable_transition_indicator())?;
+    let gesture_transition = *turbo_tasks::read!(next_config.enable_gesture_transition())?;
     let react_channel = if blocking_ssr || taint || transition_indicator || gesture_transition {
         "-experimental"
     } else {
@@ -923,7 +937,7 @@ async fn apply_vendored_react_aliases_server(
             rcstr!("next/dist/compiled/react-dom-experimental")              => react_alias["react-dom"].clone(),});
     }
 
-    let react_client_package = get_react_client_package(next_config).await?;
+    let react_client_package = turbo_tasks::read!(get_react_client_package(next_config))?;
     react_alias.extend(fxindexmap! {rcstr!("react-dom/client") => RcStr::from(format!("next/dist/compiled/react-dom{react_channel}/{react_client_package}")),});
 
     let mut alias = react_alias;
@@ -940,22 +954,24 @@ async fn apply_vendored_react_aliases_server(
 
     Ok(())
 }
+}
 
-async fn rsc_aliases(
+turbo_tasks::dual_fn! {
+fn rsc_aliases(
     import_map: &mut ImportMap,
     project_path: FileSystemPath,
     ty: ServerContextType,
     runtime: NextRuntime,
     next_config: Vc<NextConfig>,
 ) -> Result<()> {
-    apply_vendored_react_aliases_server(
+    turbo_tasks::read!(apply_vendored_react_aliases_server(
         import_map,
         project_path.clone(),
         ty.clone(),
         runtime,
         next_config,
-    )
-    .await?;
+    ))
+    ?;
 
     let mut alias = FxIndexMap::default();
     if ty.should_use_react_server_condition() {
@@ -971,6 +987,7 @@ async fn rsc_aliases(
 
     Ok(())
 }
+}
 
 pub fn mdx_import_source_file() -> RcStr {
     format!("{VIRTUAL_PACKAGE_NAME}/mdx-import-source").into()
@@ -978,7 +995,8 @@ pub fn mdx_import_source_file() -> RcStr {
 
 // Insert aliases for Next.js stubs of fetch, object-assign, and url
 // Keep in sync with getOptimizedModuleAliases in webpack-config.ts
-async fn insert_optimized_module_aliases(
+turbo_tasks::dual_fn! {
+fn insert_optimized_module_aliases(
     import_map: &mut ImportMap,
     project_path: FileSystemPath,
 ) -> Result<()> {
@@ -998,9 +1016,11 @@ async fn insert_optimized_module_aliases(
     );
     Ok(())
 }
+}
 
 // Make sure to not add any external requests here.
-async fn insert_next_shared_aliases(
+turbo_tasks::dual_fn! {
+fn insert_next_shared_aliases(
     import_map: &mut ImportMap,
     project_path: FileSystemPath,
     execution_context: Vc<ExecutionContext>,
@@ -1008,7 +1028,7 @@ async fn insert_next_shared_aliases(
     next_mode: Vc<NextMode>,
     is_runtime_edge: bool,
 ) -> Result<()> {
-    let package_root = next_js_fs().root().owned().await?;
+    let package_root = turbo_tasks::read!(next_js_fs().root().owned())?;
 
     insert_alias_to_alternatives(
         import_map,
@@ -1033,9 +1053,9 @@ async fn insert_next_shared_aliases(
     // TODO: Add BeforeResolve plugins for `@next/font/google`
 
     let next_font_google_replacer_mapping = ImportMapping::Dynamic(ResolvedVc::upcast(
-        NextFontGoogleReplacer::new(project_path.clone())
-            .to_resolved()
-            .await?,
+        turbo_tasks::read!(NextFontGoogleReplacer::new(project_path.clone())
+            .to_resolved())
+            ?,
     ))
     .resolved_cell();
 
@@ -1057,14 +1077,14 @@ async fn insert_next_shared_aliases(
             "@vercel/turbopack-next/internal/font/google/cssmodule.module.css"
         )),
         ImportMapping::Dynamic(ResolvedVc::upcast(
-            NextFontGoogleCssModuleReplacer::new(
+            turbo_tasks::read!(NextFontGoogleCssModuleReplacer::new(
                 project_path.clone(),
                 execution_context,
                 next_mode,
                 fetch_client,
             )
-            .to_resolved()
-            .await?,
+            .to_resolved())
+            ?,
         ))
         .resolved_cell(),
     );
@@ -1072,20 +1092,20 @@ async fn insert_next_shared_aliases(
     import_map.insert_alias(
         AliasPattern::exact(GOOGLE_FONTS_INTERNAL_PREFIX),
         ImportMapping::Dynamic(ResolvedVc::upcast(
-            NextFontGoogleFontFileReplacer::new(project_path.clone(), fetch_client)
-                .to_resolved()
-                .await?,
+            turbo_tasks::read!(NextFontGoogleFontFileReplacer::new(project_path.clone(), fetch_client)
+                .to_resolved())
+                ?,
         ))
         .resolved_cell(),
     );
 
-    let next_package = get_next_package(project_path.clone()).await?;
+    let next_package = turbo_tasks::read!(get_next_package(project_path.clone()))?;
     import_map.insert_singleton_alias(rcstr!("@swc/helpers"), next_package.clone());
     import_map.insert_singleton_alias(rcstr!("styled-jsx"), next_package.clone());
     import_map.insert_singleton_alias(rcstr!("next"), project_path.clone());
     import_map.insert_singleton_alias(rcstr!("react"), project_path.clone());
     import_map.insert_singleton_alias(rcstr!("react-dom"), project_path.clone());
-    let react_client_package = get_react_client_package(next_config).await?;
+    let react_client_package = turbo_tasks::read!(get_react_client_package(next_config))?;
     import_map.insert_exact_alias(
         rcstr!("react-dom/client"),
         request_to_import_mapping(
@@ -1156,10 +1176,10 @@ async fn insert_next_shared_aliases(
     insert_package_alias(
         import_map,
         "@vercel/turbopack-node/",
-        turbopack_node::embed_js::embed_fs().root().owned().await?,
+        turbo_tasks::read!(turbopack_node::embed_js::embed_fs().root().owned())?,
     );
 
-    let image_config = next_config.image_config().await?;
+    let image_config = turbo_tasks::read!(next_config.image_config())?;
     if let Some(loader_file) = image_config.loader_file.as_deref().map(RcStr::from) {
         import_map.insert_exact_alias(
             rcstr!("next/dist/shared/lib/image-loader"),
@@ -1176,12 +1196,15 @@ async fn insert_next_shared_aliases(
 
     Ok(())
 }
+}
 
-pub async fn get_next_package(context_directory: FileSystemPath) -> Result<FileSystemPath> {
-    try_get_next_package(context_directory)
-        .owned()
-        .await?
+turbo_tasks::dual_fn! {
+pub fn get_next_package(context_directory: FileSystemPath) -> Result<FileSystemPath> {
+    turbo_tasks::read!(try_get_next_package(context_directory)
+        .owned())
+        ?
         .context("Next.js package not found")
+}
 }
 
 #[turbo_tasks::value(shared)]
@@ -1190,6 +1213,7 @@ struct MissingNextFolderIssue {
     root: FileSystemPath,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for MissingNextFolderIssue {
@@ -1215,11 +1239,95 @@ impl Issue for MissingNextFolderIssue {
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
-        let context_path: RcStr = match to_sys_path(self.path.clone()).await? {
+        let context_path: RcStr = match turbo_tasks::read!(to_sys_path(self.path.clone()))? {
             Some(path) => path.to_str().unwrap_or("{unknown}").into(),
             _ => rcstr!("{unknown}"),
         };
-        let root_path: RcStr = match to_sys_path(self.root.clone()).await? {
+        let root_path: RcStr = match turbo_tasks::read!(to_sys_path(self.root.clone()))? {
+            Some(path) => path.to_str().unwrap_or("{unknown}").into(),
+            _ => rcstr!("{unknown}"),
+        };
+
+        Ok(Some(StyledString::Stack(vec![
+            StyledString::Line(vec![
+                StyledString::Text(rcstr!("Resolved from: ")),
+                StyledString::Strong(context_path),
+            ]),
+            StyledString::Line(vec![
+                StyledString::Text(rcstr!("Filesystem root used for resolution: ")),
+                StyledString::Strong(root_path),
+            ]),
+            StyledString::Line(vec![StyledString::Text(rcstr!(""))]),
+            StyledString::Line(vec![StyledString::Text(rcstr!("Possible causes:"))]),
+            StyledString::Line(vec![StyledString::Text(rcstr!(
+                "  - node_modules is being reorganized by a concurrent install (e.g. pnpm adding \
+                 a package with a `next` peer dependency). This is transient and should clear \
+                 once the install completes."
+            ))]),
+            StyledString::Line(vec![StyledString::Text(rcstr!(
+                "  - node_modules/next was removed, renamed, or has a broken symlink."
+            ))]),
+            StyledString::Line(vec![
+                StyledString::Text(rcstr!("  - The workspace root is incorrect — see ")),
+                StyledString::Code(rcstr!("turbopack.root")),
+                StyledString::Text(rcstr!(
+                    " in the Next.js config docs for how to configure it."
+                )),
+            ]),
+            StyledString::Line(vec![StyledString::Text(rcstr!(
+                "  - In a monorepo, the Next.js package may only exist in a directory above the \
+                 closest directory containing a package manager lockfile. The workspace root is \
+                 detected by locating the nearest package manager lockfile."
+            ))]),
+            StyledString::Line(vec![StyledString::Text(rcstr!(
+                "  - Next.js is installed globally rather than as a project dependency. This is \
+                 not supported; install it locally."
+            ))]),
+            StyledString::Line(vec![StyledString::Text(rcstr!(""))]),
+            StyledString::Line(vec![StyledString::Text(rcstr!(
+                "Note: To ensure a hermetic build and a portable cache, files outside of the \
+                 workspace root are not compiled."
+            ))]),
+        ])))
+    }
+
+    fn documentation_link(&self) -> RcStr {
+        rcstr!(
+            "https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory"
+        )
+    }
+}
+
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for MissingNextFolderIssue {
+    fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.path.clone())
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        // In theory this should be fatal (how can we ever recover from next missing when we are
+        // next), but we actually might be detecting an ephemeral scenario where 'next' is moving
+        // and we can recover.
+        IssueSeverity::Error
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Resolve
+    }
+
+    fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Could not find the Next.js package (next/package.json)"
+        )))
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
+        let context_path: RcStr = match turbo_tasks::read!(to_sys_path(self.path.clone()))? {
+            Some(path) => path.to_str().unwrap_or("{unknown}").into(),
+            _ => rcstr!("{unknown}"),
+        };
+        let root_path: RcStr = match turbo_tasks::read!(to_sys_path(self.root.clone()))? {
             Some(path) => path.to_str().unwrap_or("{unknown}").into(),
             _ => rcstr!("{unknown}"),
         };
@@ -1278,15 +1386,17 @@ impl Issue for MissingNextFolderIssue {
 pub async fn try_get_next_package(
     context_directory: FileSystemPath,
 ) -> Result<Vc<OptionFileSystemPath>> {
-    let root = context_directory.root().owned().await?;
+    let root = turbo_tasks::read!(context_directory.root().owned())?;
     let result = resolve(
         context_directory.clone(),
         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
         Request::parse(Pattern::Constant(rcstr!("next/package.json"))),
         node_cjs_resolve_options(root.clone()),
     );
-    if let Some(source) = result.await?.first_source() {
-        Ok(Vc::cell(Some(source.ident().await?.path.parent())))
+    if let Some(source) = turbo_tasks::read!(result)?.first_source() {
+        Ok(Vc::cell(Some(
+            turbo_tasks::read!(source.ident())?.path.parent(),
+        )))
     } else {
         MissingNextFolderIssue {
             path: context_directory,
@@ -1298,6 +1408,7 @@ pub async fn try_get_next_package(
     }
 }
 
+#[cfg(not(feature = "sync"))]
 pub async fn insert_alias_option<const N: usize>(
     import_map: &mut ImportMap,
     project_path: &FileSystemPath,
@@ -1305,7 +1416,23 @@ pub async fn insert_alias_option<const N: usize>(
     conditions: [&'static str; N],
 ) -> Result<()> {
     let conditions = BTreeMap::from(conditions.map(|c| (c.into(), ConditionValue::Set)));
-    for (alias, value) in &alias_options.await? {
+    for (alias, value) in &turbo_tasks::read!(alias_options)? {
+        if let Some(mapping) = export_value_to_import_mapping(value, &conditions, project_path) {
+            import_map.insert_alias(alias, mapping);
+        }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "sync")]
+pub fn insert_alias_option<const N: usize>(
+    import_map: &mut ImportMap,
+    project_path: &FileSystemPath,
+    alias_options: Vc<ResolveAliasMap>,
+    conditions: [&'static str; N],
+) -> Result<()> {
+    let conditions = BTreeMap::from(conditions.map(|c| (c.into(), ConditionValue::Set)));
+    for (alias, value) in &turbo_tasks::read!(alias_options)? {
         if let Some(mapping) = export_value_to_import_mapping(value, &conditions, project_path) {
             import_map.insert_alias(alias, mapping);
         }
@@ -1392,13 +1519,14 @@ fn insert_package_alias(import_map: &mut ImportMap, prefix: &str, package_root: 
     );
 }
 
+turbo_tasks::dual_fn! {
 /// Handles instrumentation-client.ts bundling logic.
 ///
 /// Without injected modules, resolves `private-next-instrumentation-client`
 /// directly to the user's `instrumentation-client.{pageExt}` file. Otherwise,
 /// resolves it to a virtual module containing each injected module in array
 /// order, followed by the user's instrumentation module.
-async fn insert_instrumentation_client_alias(
+fn insert_instrumentation_client_alias(
     import_map: &mut ImportMap,
     project_path: FileSystemPath,
     next_config: Vc<NextConfig>,
@@ -1414,7 +1542,7 @@ async fn insert_instrumentation_client_alias(
         ImportMapping::Ignore.resolved_cell(),
     ];
 
-    let modules = next_config.instrumentation_client_inject().await?;
+    let modules = turbo_tasks::read!(next_config.instrumentation_client_inject())?;
 
     if modules.is_empty() {
         insert_alias_to_alternatives(
@@ -1446,15 +1574,15 @@ async fn insert_instrumentation_client_alias(
     }
     body.push_str("];\n");
 
-    let virtual_source = VirtualSource::new(
+    let virtual_source = turbo_tasks::read!(VirtualSource::new(
         // Use cjs here in case the user has type:module in the package.json. We do intentionally
         // place this file in the user's folder, so that the `require`s inserted above resolve
         // as expected.
         project_path.join("__next_instrumentation_client.cjs")?,
         AssetContent::file(FileContent::Content(body.into()).cell()),
     )
-    .to_resolved()
-    .await?;
+    .to_resolved())
+    ?;
 
     import_map.insert_exact_alias(
         rcstr!("private-next-instrumentation-client"),
@@ -1465,6 +1593,7 @@ async fn insert_instrumentation_client_alias(
     );
 
     Ok(())
+}
 }
 
 fn insert_client_only_error_alias(import_map: &mut ImportMap) {
@@ -1547,6 +1676,7 @@ struct InvalidImportIssue {
     description: Option<ResolvedVc<StyledString>>,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for InvalidImportIssue {
@@ -1563,12 +1693,39 @@ impl Issue for InvalidImportIssue {
     }
 
     async fn title(&self) -> Result<StyledString> {
-        Ok((*self.title.await?).clone())
+        Ok((*turbo_tasks::read!(self.title)?).clone())
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
         match self.description {
-            Some(inner) => Ok(Some((*inner.await?).clone())),
+            Some(inner) => Ok(Some((*turbo_tasks::read!(inner)?).clone())),
+            None => Ok(None),
+        }
+    }
+}
+
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for InvalidImportIssue {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    fn file_path(&self) -> Result<FileSystemPath> {
+        panic!("InvalidImportIssue::file_path should not be called");
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Resolve
+    }
+
+    fn title(&self) -> Result<StyledString> {
+        Ok((*turbo_tasks::read!(self.title)?).clone())
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
+        match self.description {
+            Some(inner) => Ok(Some((*turbo_tasks::read!(inner)?).clone())),
             None => Ok(None),
         }
     }

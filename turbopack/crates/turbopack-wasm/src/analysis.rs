@@ -21,7 +21,7 @@ pub(crate) struct WebAssemblyAnalysis {
 /// Extracts imports and exports.
 #[turbo_tasks::function]
 pub(crate) async fn analyze(source: Vc<WebAssemblySource>) -> Result<Vc<WebAssemblyAnalysis>> {
-    let content = source.content().file_content().await?;
+    let content = turbo_tasks::read!(source.content().file_content())?;
 
     let mut analysis = WebAssemblyAnalysis::default();
 

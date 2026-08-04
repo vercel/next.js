@@ -116,7 +116,7 @@ impl WorkerAssetReference {
 impl ModuleReference for WorkerAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let origin = self.origin.into_trait_ref().await?;
+        let origin = turbo_tasks::read!(self.origin.into_trait_ref())?;
         let asset_context = origin.asset_context();
 
         let result = match (&self.worker_type, &self.request) {
@@ -149,16 +149,15 @@ impl ModuleReference for WorkerAssetReference {
                 let result = asset_context.process_resolve_result(result, reference_type.clone());
 
                 // Report an error if we cannot resolve
-                handle_resolve_error(
+                turbo_tasks::read!(handle_resolve_error(
                     result,
                     reference_type.clone(),
                     origin.origin_path(),
-                    Request::parse(path.owned().await?),
+                    Request::parse(turbo_tasks::read!(path.owned())?),
                     origin.resolve_options(),
                     self.error_mode,
                     Some(self.issue_source),
-                )
-                .await?
+                ))?
             }
             _ => {
                 // This should never happen due to our constructor functions
@@ -173,7 +172,7 @@ impl ModuleReference for WorkerAssetReference {
         }
 
         // Wrap each resolved module in a WorkerLoaderModule
-        let result_ref = result.await?;
+        let result_ref = turbo_tasks::read!(result)?;
         let mut primary = Vec::with_capacity(result_ref.primary.len());
 
         for (request_key, resolve_item) in result_ref.primary.iter() {
@@ -183,18 +182,15 @@ impl ModuleReference for WorkerAssetReference {
                         ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(*module)
                     else {
                         CodeGenerationIssue {
-                            severity: self.get_module_type_issue_severity().await?,
+                            severity: turbo_tasks::read!(self.get_module_type_issue_severity())?,
                             title: StyledString::Text(rcstr!("non-chunkable module"))
                                 .resolved_cell(),
-                            message: StyledString::Text(
-                                turbofmt!(
-                                    "Worker entry point module '{}' is not chunkable and cannot \
-                                     be used as a worker module. This may happen if the module \
-                                     type doesn't support bundling.",
-                                    module.ident()
-                                )
-                                .await?,
-                            )
+                            message: StyledString::Text(turbo_tasks::read!(turbofmt!(
+                                "Worker entry point module '{}' is not chunkable and cannot be \
+                                 used as a worker module. This may happen if the module type \
+                                 doesn't support bundling.",
+                                module.ident()
+                            ))?)
                             .resolved_cell(),
                             path: origin.origin_path(),
                             source: Some(self.issue_source),
@@ -211,19 +207,16 @@ impl ModuleReference for WorkerAssetReference {
                             .is_none()
                     {
                         CodeGenerationIssue {
-                            severity: self.get_module_type_issue_severity().await?,
+                            severity: turbo_tasks::read!(self.get_module_type_issue_severity())?,
                             title: StyledString::Text(rcstr!("non-evaluatable module"))
                                 .resolved_cell(),
-                            message: StyledString::Text(
-                                turbofmt!(
-                                    "Worker thread entry point module '{}' must be evaluatable to \
-                                     serve as an entry point. This module cannot be used as a \
-                                     Node.js worker_threads Worker entry point because it doesn't \
-                                     support direct evaluation.",
-                                    module.ident()
-                                )
-                                .await?,
-                            )
+                            message: StyledString::Text(turbo_tasks::read!(turbofmt!(
+                                "Worker thread entry point module '{}' must be evaluatable to \
+                                 serve as an entry point. This module cannot be used as a Node.js \
+                                 worker_threads Worker entry point because it doesn't support \
+                                 direct evaluation.",
+                                module.ident()
+                            ))?)
                             .resolved_cell(),
                             path: origin.origin_path(),
                             source: Some(self.issue_source),
@@ -233,10 +226,10 @@ impl ModuleReference for WorkerAssetReference {
                         continue;
                     }
 
-                    let loader =
+                    let loader = turbo_tasks::read!(
                         WorkerLoaderModule::new(*chunkable, self.worker_type, *asset_context)
                             .to_resolved()
-                            .await?;
+                    )?;
 
                     primary.push((
                         request_key.clone(),
@@ -270,16 +263,17 @@ impl ModuleReference for WorkerAssetReference {
 }
 
 impl WorkerAssetReference {
+    turbo_tasks::dual_fn! {
     /// Downgrade errors to warnings if we are not in Error mode or if loose errors is enabled
-    async fn get_module_type_issue_severity(&self) -> Result<IssueSeverity> {
+    fn get_module_type_issue_severity(&self) -> Result<IssueSeverity> {
         Ok(
             if self.error_mode != ResolveErrorMode::Error
-                || self
+                || turbo_tasks::read!(turbo_tasks::read!(self
                     .origin
-                    .into_trait_ref()
-                    .await?
-                    .resolve_options()
-                    .await?
+                    .into_trait_ref())
+                    ?
+                    .resolve_options())
+                    ?
                     .loose_errors
             {
                 IssueSeverity::Warning
@@ -287,6 +281,7 @@ impl WorkerAssetReference {
                 IssueSeverity::Error
             },
         )
+    }
     }
 }
 
@@ -303,7 +298,9 @@ impl ValueToString for WorkerAssetReference {
             WorkerRequest::Url(request) => request.to_string(),
             WorkerRequest::Pattern { path, .. } => path.to_string(),
         };
-        Ok(Vc::cell(turbofmt!("new {worker_type}({request})").await?))
+        Ok(Vc::cell(turbo_tasks::read!(turbofmt!(
+            "new {worker_type}({request})"
+        ))?))
     }
 }
 
@@ -329,27 +326,29 @@ pub struct WorkerAssetReferenceCodeGen {
 }
 
 impl WorkerAssetReferenceCodeGen {
-    pub async fn code_generation(
+    turbo_tasks::dual_fn! {
+    pub fn code_generation(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
-        let reference = self.reference.await?;
+        let reference = turbo_tasks::read!(self.reference)?;
 
         // Build the request for PatternMapping
         let request = match &reference.request {
             WorkerRequest::Url(request) => **request,
-            WorkerRequest::Pattern { path, .. } => Request::parse(path.owned().await?),
+            WorkerRequest::Pattern { path, .. } => {
+                Request::parse(turbo_tasks::read!(path.owned())?)
+            }
         };
 
         // Use PatternMapping to handle both single and multiple (dynamic) worker results
-        let pm = PatternMapping::resolve_request(
+        let pm = turbo_tasks::read!(PatternMapping::resolve_request(
             request,
             *reference.origin,
             chunking_context,
             self.reference.resolve_reference(),
             ResolveType::ChunkItem,
-        )
-        .await?;
+        ))?;
 
         // Transform `new Worker(url, opts)` into `require(id)(Worker, opts)`
         // The loader module exports a function that creates the worker with all necessary
@@ -406,6 +405,7 @@ impl WorkerAssetReferenceCodeGen {
 
         Ok(CodeGeneration::visitors(vec![visitor]))
     }
+    }
 }
 
 #[derive(
@@ -432,11 +432,12 @@ impl WorkerGlobalsReplacementCodeGen {
         WorkerGlobalsReplacementCodeGen { placeholder, path }
     }
 
-    pub async fn code_generation(
+    turbo_tasks::dual_fn! {
+    pub fn code_generation(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
-        let options = chunking_context.worker_configuration_options().await?;
+        let options = turbo_tasks::read!(chunking_context.worker_configuration_options())?;
         let value: Expr = match self.placeholder {
             WorkerGlobalPlaceholder::ForwardedGlobals => Expr::Array(ArrayLit {
                 span: DUMMY_SP,
@@ -457,6 +458,7 @@ impl WorkerGlobalsReplacementCodeGen {
         });
 
         Ok(CodeGeneration::visitors(vec![visitor]))
+    }
     }
 }
 

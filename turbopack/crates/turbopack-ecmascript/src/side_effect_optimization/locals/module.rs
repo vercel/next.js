@@ -49,11 +49,7 @@ impl EcmascriptModuleLocalsModule {
 impl Module for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self
-            .module
-            .ident()
-            .owned()
-            .await?
+        Ok(turbo_tasks::read!(self.module.ident().owned())?
             .with_part(ModulePart::locals())
             .into_vc())
     }
@@ -71,8 +67,8 @@ impl Module for EcmascriptModuleLocalsModule {
 
     #[turbo_tasks::function]
     async fn is_self_async(self: Vc<Self>) -> Result<Vc<bool>> {
-        let analyze = self.await?.module.analyze().await?;
-        if let Some(async_module) = *analyze.async_module.await? {
+        let analyze = turbo_tasks::read!(turbo_tasks::read!(self)?.module.analyze())?;
+        if let Some(async_module) = *turbo_tasks::read!(analyze.async_module)? {
             let is_self_async = async_module.is_self_async(self.references());
             Ok(is_self_async)
         } else {
@@ -108,24 +104,25 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptModuleContentOptions>> {
-        let exports = self.get_exports().to_resolved().await?;
-        let original_module = self.await?.module;
-        let parsed = original_module.await?.parse().await?.to_resolved().await?;
+        let exports = turbo_tasks::read!(self.get_exports().to_resolved())?;
+        let original_module = turbo_tasks::read!(self)?.module;
+        let parsed = turbo_tasks::read!(
+            turbo_tasks::read!(turbo_tasks::read!(original_module)?.parse())?.to_resolved()
+        )?;
 
         let analyze = original_module.analyze();
-        let analyze_result = analyze.await?;
+        let analyze_result = turbo_tasks::read!(analyze)?;
 
-        let module_type_result = original_module.determine_module_type().await?;
-        let generate_source_map = *chunking_context
-            .reference_module_source_maps(Vc::upcast(*self))
-            .await?;
+        let module_type_result = turbo_tasks::read!(original_module.determine_module_type())?;
+        let generate_source_map =
+            *turbo_tasks::read!(chunking_context.reference_module_source_maps(Vc::upcast(*self)))?;
 
         Ok(EcmascriptModuleContentOptions {
             parsed: Some(parsed),
             module: ResolvedVc::upcast(self),
             specified_module_type: module_type_result.module_type,
             chunking_context,
-            references: analyze.local_references().to_resolved().await?,
+            references: turbo_tasks::read!(analyze.local_references().to_resolved())?,
             esm_references: analyze_result.esm_local_references,
             part_references: vec![],
             code_generation: analyze_result.code_generation,
@@ -143,10 +140,12 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
 impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
     async fn get_exports(&self) -> Result<Vc<EcmascriptExports>> {
-        let EcmascriptExports::EsmExports(exports) = *self.module.get_exports().await? else {
+        let EcmascriptExports::EsmExports(exports) =
+            *turbo_tasks::read!(self.module.get_exports())?
+        else {
             bail!("EcmascriptModuleLocalsModule must only be used on modules with EsmExports");
         };
-        let esm_exports = exports.await?;
+        let esm_exports = turbo_tasks::read!(exports)?;
         let mut exports = Vec::new();
 
         for (name, export) in &esm_exports.exports {
@@ -187,7 +186,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
         async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let analyze = self.await?.module.analyze().await?;
+        let analyze = turbo_tasks::read!(turbo_tasks::read!(self)?.module.analyze())?;
         let async_module_options = analyze.async_module.module_options(async_module_info);
 
         let content = self.module_content(chunking_context, async_module_info);
@@ -220,8 +219,12 @@ impl MergeableModule for EcmascriptModuleLocalsModule {
         modules: Vc<MergeableModulesExposed>,
         entry_points: Vc<MergeableModules>,
     ) -> Result<Vc<Box<dyn ChunkableModule>>> {
-        Ok(Vc::upcast(
-            *MergedEcmascriptModule::new(modules, entry_points, self.module.await?.options).await?,
-        ))
+        Ok(Vc::upcast(*turbo_tasks::read!(
+            MergedEcmascriptModule::new(
+                modules,
+                entry_points,
+                turbo_tasks::read!(self.module)?.options
+            )
+        )?))
     }
 }

@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::Result;
-use hyper::{
+use http::{
     Uri,
     header::{HeaderName as HyperHeaderName, HeaderValue as HyperHeaderValue},
 };
@@ -87,34 +87,40 @@ pub async fn resolve_source_request(
     let mut current_asset_path: RcStr = urlencoding::decode(&original_path[1..])?.into();
     let mut request_overwrites = (*request).clone();
     let mut response_header_overwrites = Vec::new();
-    let mut route_tree = content_source_get_routes_operation(source)
-        .resolve()
-        .strongly_consistent()
-        .await?;
+    let mut route_tree = turbo_tasks::read!(
+        content_source_get_routes_operation(source)
+            .resolve()
+            .strongly_consistent()
+    )?;
     'routes: loop {
         let mut sources_op = route_tree_get_operation(route_tree, current_asset_path.clone());
         'sources: loop {
-            for &get_content in sources_op.read_strongly_consistent().await?.iter() {
-                let content_vary = get_content_source_content_vary_operation(get_content)
-                    .read_strongly_consistent()
-                    .await?;
-                let content_data =
-                    request_to_data(&request_overwrites, &request, &content_vary).await?;
+            for &get_content in turbo_tasks::read!(sources_op.read_strongly_consistent())?.iter() {
+                let content_vary = turbo_tasks::read!(
+                    get_content_source_content_vary_operation(get_content)
+                        .read_strongly_consistent()
+                )?;
+                let content_data = turbo_tasks::read!(request_to_data(
+                    &request_overwrites,
+                    &request,
+                    &content_vary
+                ))?;
                 let content_op = get_content_source_content_get_operation(
                     get_content,
                     current_asset_path.clone(),
                     content_data,
                 );
-                match &*content_op.read_strongly_consistent().await? {
+                match &*turbo_tasks::read!(content_op.read_strongly_consistent())? {
                     ContentSourceContent::Rewrite(rewrite) => {
-                        let rewrite = rewrite.await?;
+                        let rewrite = turbo_tasks::read!(rewrite)?;
                         // apply rewrite extras
                         if let Some(headers) = &rewrite.response_headers {
-                            response_header_overwrites.extend(headers.await?.iter().cloned());
+                            response_header_overwrites
+                                .extend(turbo_tasks::read!(headers)?.iter().cloned());
                         }
                         if let Some(headers) = &rewrite.request_headers {
                             request_overwrites.headers.clear();
-                            for (name, value) in &*headers.await? {
+                            for (name, value) in &*turbo_tasks::read!(headers)? {
                                 request_overwrites.headers.insert(
                                     HyperHeaderName::try_from(name.as_str())?,
                                     HyperHeaderValue::try_from(value.as_str())?,
@@ -140,10 +146,11 @@ pub async fn resolve_source_request(
                                     urlencoding::decode(&new_uri.path()[1..])?.into_owned();
                                 request_overwrites.uri = new_uri;
                                 current_asset_path = new_asset_path.into();
-                                route_tree = content_source_get_routes_operation(*source)
-                                    .resolve()
-                                    .strongly_consistent()
-                                    .await?;
+                                route_tree = turbo_tasks::read!(
+                                    content_source_get_routes_operation(*source)
+                                        .resolve()
+                                        .strongly_consistent()
+                                )?;
                                 continue 'routes;
                             }
                             RewriteType::Sources {
@@ -160,9 +167,9 @@ pub async fn resolve_source_request(
                     ContentSourceContent::Static(static_content) => {
                         return Ok(ResolveSourceRequestResult::Static(
                             *static_content,
-                            HeaderList::new(response_header_overwrites)
-                                .to_resolved()
-                                .await?,
+                            turbo_tasks::read!(
+                                HeaderList::new(response_header_overwrites).to_resolved()
+                            )?,
                         )
                         .cell());
                     }
@@ -181,7 +188,8 @@ pub async fn resolve_source_request(
 
 static CACHE_BUSTER: AtomicU64 = AtomicU64::new(0);
 
-async fn request_to_data(
+turbo_tasks::dual_fn! {
+fn request_to_data(
     request: &SourceRequest,
     original_request: &SourceRequest,
     vary: &ContentSourceDataVary,
@@ -252,4 +260,5 @@ async fn request_to_data(
         data.cache_buster = CACHE_BUSTER.fetch_add(1, Ordering::SeqCst);
     }
     Ok(data)
+}
 }

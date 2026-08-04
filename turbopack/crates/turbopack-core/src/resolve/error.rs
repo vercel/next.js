@@ -1,4 +1,5 @@
 use anyhow::Result;
+#[cfg(not(feature = "sync"))]
 use async_trait::async_trait;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{PrettyPrintError, ResolvedVc, Vc};
@@ -16,7 +17,8 @@ use crate::{
     },
 };
 
-pub async fn handle_resolve_error(
+turbo_tasks::dual_fn! {
+pub fn handle_resolve_error(
     result: Vc<ModuleResolveResult>,
     reference_type: ReferenceType,
     origin_path: FileSystemPath,
@@ -26,26 +28,25 @@ pub async fn handle_resolve_error(
 
     source: Option<IssueSource>,
 ) -> Result<Vc<ModuleResolveResult>> {
-    Ok(match result.await {
+    Ok(match turbo_tasks::read!(result) {
         Ok(result_ref) => {
             if result_ref.is_unresolvable() {
-                emit_unresolvable_issue(
+                turbo_tasks::read!(emit_unresolvable_issue(
                     error_mode,
                     &origin_path,
                     reference_type,
                     request,
                     resolve_options,
                     source,
-                )
-                .await?;
+                ))?;
             }
 
-            handle_item_issues(result_ref.errors(), &origin_path, source).await?;
+            turbo_tasks::read!(handle_item_issues(result_ref.errors(), &origin_path, source))?;
 
             result
         }
         Err(err) => {
-            emit_resolve_error_issue(
+            turbo_tasks::read!(emit_resolve_error_issue(
                 error_mode,
                 &origin_path,
                 reference_type,
@@ -53,14 +54,15 @@ pub async fn handle_resolve_error(
                 resolve_options,
                 err,
                 source,
-            )
-            .await?;
+            ))?;
             *ModuleResolveResult::unresolvable()
         }
     })
 }
+}
 
-pub async fn handle_resolve_source_error(
+turbo_tasks::dual_fn! {
+pub fn handle_resolve_source_error(
     result: Vc<ResolveResult>,
     reference_type: ReferenceType,
     origin_path: FileSystemPath,
@@ -69,26 +71,25 @@ pub async fn handle_resolve_source_error(
     error_mode: ResolveErrorMode,
     source: Option<IssueSource>,
 ) -> Result<Vc<ResolveResult>> {
-    Ok(match result.await {
+    Ok(match turbo_tasks::read!(result) {
         Ok(result_ref) => {
             if result_ref.is_unresolvable() {
-                emit_unresolvable_issue(
+                turbo_tasks::read!(emit_unresolvable_issue(
                     error_mode,
                     &origin_path,
                     reference_type,
                     request,
                     resolve_options,
                     source,
-                )
-                .await?;
+                ))?;
             }
 
-            handle_item_issues(result_ref.errors(), &origin_path, source).await?;
+            turbo_tasks::read!(handle_item_issues(result_ref.errors(), &origin_path, source))?;
 
             result
         }
         Err(err) => {
-            emit_resolve_error_issue(
+            turbo_tasks::read!(emit_resolve_error_issue(
                 error_mode,
                 &origin_path,
                 reference_type,
@@ -96,14 +97,15 @@ pub async fn handle_resolve_source_error(
                 resolve_options,
                 err,
                 source,
-            )
-            .await?;
+            ))?;
             ResolveResult::unresolvable().cell()
         }
     })
 }
+}
 
-async fn handle_item_issues(
+turbo_tasks::dual_fn! {
+fn handle_item_issues(
     items: impl Iterator<Item = ResolvedVc<Box<dyn Issue>>>,
     origin_path: &FileSystemPath,
     source: Option<IssueSource>,
@@ -111,7 +113,7 @@ async fn handle_item_issues(
     let mut items = items.peekable();
     if items.peek().is_some() {
         for item in items {
-            let trait_ref = item.into_trait_ref().await?;
+            let trait_ref = turbo_tasks::read!(item.into_trait_ref())?;
             ResolvingIssueWithLocation {
                 inner: item,
                 severity: trait_ref.severity(),
@@ -126,8 +128,10 @@ async fn handle_item_issues(
     }
     Ok(())
 }
+}
 
-async fn emit_resolve_error_issue(
+turbo_tasks::dual_fn! {
+fn emit_resolve_error_issue(
     error_mode: ResolveErrorMode,
     origin_path: &FileSystemPath,
     reference_type: ReferenceType,
@@ -139,7 +143,9 @@ async fn emit_resolve_error_issue(
     if error_mode == ResolveErrorMode::Ignore {
         return Ok(());
     }
-    let severity = if error_mode == ResolveErrorMode::Warn || resolve_options.await?.loose_errors {
+    let severity = if error_mode == ResolveErrorMode::Warn
+        || turbo_tasks::read!(resolve_options)?.loose_errors
+    {
         IssueSeverity::Warning
     } else {
         IssueSeverity::Error
@@ -148,8 +154,8 @@ async fn emit_resolve_error_issue(
         severity,
         file_path: origin_path.clone(),
         request_type: format!("{reference_type} request"),
-        request: request.to_resolved().await?,
-        resolve_options: resolve_options.to_resolved().await?,
+        request: turbo_tasks::read!(request.to_resolved())?,
+        resolve_options: turbo_tasks::read!(resolve_options.to_resolved())?,
         error_message: Some(format!("{}", PrettyPrintError(&err))),
         source,
     }
@@ -157,8 +163,10 @@ async fn emit_resolve_error_issue(
     .emit();
     Ok(())
 }
+}
 
-async fn emit_unresolvable_issue(
+turbo_tasks::dual_fn! {
+fn emit_unresolvable_issue(
     error_mode: ResolveErrorMode,
     origin_path: &FileSystemPath,
     reference_type: ReferenceType,
@@ -169,7 +177,9 @@ async fn emit_unresolvable_issue(
     if error_mode == ResolveErrorMode::Ignore {
         return Ok(());
     }
-    let severity = if error_mode == ResolveErrorMode::Warn || resolve_options.await?.loose_errors {
+    let severity = if error_mode == ResolveErrorMode::Warn
+        || turbo_tasks::read!(resolve_options)?.loose_errors
+    {
         IssueSeverity::Warning
     } else {
         IssueSeverity::Error
@@ -178,8 +188,8 @@ async fn emit_unresolvable_issue(
         severity,
         file_path: origin_path.clone(),
         request_type: format!("{reference_type} request"),
-        request: request.to_resolved().await?,
-        resolve_options: resolve_options.to_resolved().await?,
+        request: turbo_tasks::read!(request.to_resolved())?,
+        resolve_options: turbo_tasks::read!(resolve_options.to_resolved())?,
         error_message: None,
         source,
     }
@@ -187,13 +197,16 @@ async fn emit_unresolvable_issue(
     .emit();
     Ok(())
 }
+}
 
-pub async fn resolve_error_severity(resolve_options: Vc<ResolveOptions>) -> Result<IssueSeverity> {
-    Ok(if resolve_options.await?.loose_errors {
+turbo_tasks::dual_fn! {
+pub fn resolve_error_severity(resolve_options: Vc<ResolveOptions>) -> Result<IssueSeverity> {
+    Ok(if turbo_tasks::read!(resolve_options)?.loose_errors {
         IssueSeverity::Warning
     } else {
         IssueSeverity::Error
     })
+}
 }
 
 /// Delegates to the inner issue but overrides the file path and source information.
@@ -207,6 +220,7 @@ pub struct ResolvingIssueWithLocation {
     pub source: Option<IssueSource>,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for ResolvingIssueWithLocation {
@@ -223,15 +237,52 @@ impl Issue for ResolvingIssueWithLocation {
     }
 
     async fn title(&self) -> Result<StyledString> {
-        self.inner.into_trait_ref().await?.title().await
+        turbo_tasks::read!(turbo_tasks::read!(self.inner.into_trait_ref())?.title())
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
-        self.inner.into_trait_ref().await?.description().await
+        turbo_tasks::read!(turbo_tasks::read!(self.inner.into_trait_ref())?.description())
     }
 
     async fn detail(&self) -> Result<Option<StyledString>> {
-        self.inner.into_trait_ref().await?.detail().await
+        turbo_tasks::read!(turbo_tasks::read!(self.inner.into_trait_ref())?.detail())
+    }
+
+    fn documentation_link(&self) -> RcStr {
+        self.documentation_link.clone()
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        self.source
+    }
+}
+
+/// See the async impl above; the sync engine drops `async`/`#[async_trait]`.
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for ResolvingIssueWithLocation {
+    fn severity(&self) -> IssueSeverity {
+        self.severity
+    }
+
+    fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.file_path.clone())
+    }
+
+    fn stage(&self) -> IssueStage {
+        self.stage.clone()
+    }
+
+    fn title(&self) -> Result<StyledString> {
+        turbo_tasks::read!(turbo_tasks::read!(self.inner.into_trait_ref())?.title())
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
+        turbo_tasks::read!(turbo_tasks::read!(self.inner.into_trait_ref())?.description())
+    }
+
+    fn detail(&self) -> Result<Option<StyledString>> {
+        turbo_tasks::read!(turbo_tasks::read!(self.inner.into_trait_ref())?.detail())
     }
 
     fn documentation_link(&self) -> RcStr {

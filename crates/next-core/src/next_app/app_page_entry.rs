@@ -38,24 +38,24 @@ pub async fn get_app_page_entry(
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<AppEntry>> {
     let config = parse_segment_config_from_loader_tree(loader_tree);
-    let is_edge = matches!(config.await?.runtime, Some(NextRuntime::Edge));
+    let is_edge = matches!(turbo_tasks::read!(config)?.runtime, Some(NextRuntime::Edge));
     let module_asset_context = if is_edge {
         edge_context
     } else {
         nodejs_context
     };
 
-    let server_component_transition =
-        ResolvedVc::upcast(NextServerComponentTransition::new().to_resolved().await?);
+    let server_component_transition = ResolvedVc::upcast(turbo_tasks::read!(
+        NextServerComponentTransition::new().to_resolved()
+    )?);
 
-    let base_path = next_config.base_path().owned().await?;
-    let loader_tree = AppPageLoaderTreeModule::build(
+    let base_path = turbo_tasks::read!(next_config.base_path().owned())?;
+    let loader_tree = turbo_tasks::read!(AppPageLoaderTreeModule::build(
         loader_tree,
         module_asset_context,
         server_component_transition,
         base_path,
-    )
-    .await?;
+    ))?;
 
     let AppPageLoaderTreeModule {
         inner_assets,
@@ -73,7 +73,7 @@ pub async fn get_app_page_entry(
     let pathname: RcStr = AppPath::from(page.clone()).to_string().into();
 
     // Load the file from the next.js codebase.
-    let source = load_next_js_template(
+    let source = turbo_tasks::read!(load_next_js_template(
         "app-page.js",
         project_root.clone(),
         [
@@ -86,10 +86,9 @@ pub async fn get_app_page_entry(
             ("__next_app_load_chunk__", &TURBOPACK_LOAD.bound()),
         ],
         [],
-    )
-    .await?;
+    ))?;
 
-    let source_content = &*file_content_rope(source.content().file_content()).await?;
+    let source_content = &*turbo_tasks::read!(file_content_rope(source.content().file_content()))?;
 
     result.concat(source_content);
 
@@ -97,10 +96,7 @@ pub async fn get_app_page_entry(
 
     let file = File::from(result.build());
     let source = VirtualSource::new_with_ident(
-        source
-            .ident()
-            .owned()
-            .await?
+        turbo_tasks::read!(source.ident().owned())?
             .with_query(RcStr::from(format!("?{query}")))
             .into_vc(),
         AssetContent::file(FileContent::Content(file).cell()),
@@ -126,8 +122,8 @@ pub async fn get_app_page_entry(
     Ok(AppEntry {
         pathname,
         original_name,
-        rsc_entry: rsc_entry.to_resolved().await?,
-        config: config.to_resolved().await?,
+        rsc_entry: turbo_tasks::read!(rsc_entry.to_resolved())?,
+        config: turbo_tasks::read!(config.to_resolved())?,
     }
     .cell())
 }
@@ -146,7 +142,7 @@ async fn wrap_edge_page(
     let mut incremental_cache_handler_import = None;
     let mut cache_handler_inner_assets = fxindexmap! {};
 
-    let cache_handlers = next_config.cache_handlers_map().owned().await?;
+    let cache_handlers = turbo_tasks::read!(next_config.cache_handlers_map().owned())?;
     for (index, (kind, handler_path)) in cache_handlers.iter().enumerate() {
         let cache_handler_inner: RcStr = format!("INNER_CACHE_HANDLER_{index}").into();
         let cache_handler_var = format!("cacheHandler{index}");
@@ -159,36 +155,36 @@ async fn wrap_edge_page(
             serde_json::to_string(kind.as_str())?
         ));
 
-        let cache_handler_module = asset_context
-            .process(
-                Vc::upcast(FileSource::new(project_root.join(handler_path)?)),
-                ReferenceType::Undefined,
-            )
-            .module()
-            .to_resolved()
-            .await?;
+        let cache_handler_module = turbo_tasks::read!(
+            asset_context
+                .process(
+                    Vc::upcast(FileSource::new(project_root.join(handler_path)?)),
+                    ReferenceType::Undefined,
+                )
+                .module()
+                .to_resolved()
+        )?;
         cache_handler_inner_assets.insert(cache_handler_inner, cache_handler_module);
     }
 
-    for cache_handler_path in next_config
-        .cache_handler(project_root.clone())
-        .await?
-        .into_iter()
+    for cache_handler_path in
+        turbo_tasks::read!(next_config.cache_handler(project_root.clone()))?.into_iter()
     {
         let cache_handler_inner: RcStr = "INNER_INCREMENTAL_CACHE_HANDLER".into();
         incremental_cache_handler_import = Some(cache_handler_inner.clone());
-        let cache_handler_module = asset_context
-            .process(
-                Vc::upcast(FileSource::new(cache_handler_path.clone())),
-                ReferenceType::Undefined,
-            )
-            .module()
-            .to_resolved()
-            .await?;
+        let cache_handler_module = turbo_tasks::read!(
+            asset_context
+                .process(
+                    Vc::upcast(FileSource::new(cache_handler_path.clone())),
+                    ReferenceType::Undefined,
+                )
+                .module()
+                .to_resolved()
+        )?;
         cache_handler_inner_assets.insert(cache_handler_inner, cache_handler_module);
     }
 
-    let source = load_next_js_template(
+    let source = turbo_tasks::read!(load_next_js_template(
         "edge-ssr-app.js",
         project_root.clone(),
         [("VAR_USERLAND", INNER), ("VAR_PAGE", &page.to_string())],
@@ -203,8 +199,7 @@ async fn wrap_edge_page(
             "incrementalCacheHandler",
             incremental_cache_handler_import.as_deref(),
         )],
-    )
-    .await?;
+    ))?;
 
     let mut inner_assets = fxindexmap! {
         INNER.into() => entry

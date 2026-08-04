@@ -14,12 +14,16 @@ pub(super) async fn build_stylesheet(
     font_css_properties: Vc<FontCssProperties>,
     font_fallback: ResolvedVc<FontFallback>,
 ) -> Result<Vc<RcStr>> {
-    let base_stylesheet = &*base_stylesheet.await?;
+    let base_stylesheet = &*turbo_tasks::read!(base_stylesheet)?;
     let mut stylesheet = base_stylesheet
         .as_ref()
         .map_or_else(|| "".to_owned(), |s| s.to_string());
 
-    stylesheet.push_str(&build_fallback_definition(Vc::cell(vec![font_fallback])).await?);
-    stylesheet.push_str(&build_font_class_rules(font_css_properties).await?);
+    stylesheet.push_str(&turbo_tasks::read!(build_fallback_definition(Vc::cell(
+        vec![font_fallback]
+    )))?);
+    stylesheet.push_str(&turbo_tasks::read!(build_font_class_rules(
+        font_css_properties
+    ))?);
     Ok(Vc::cell(stylesheet.into()))
 }

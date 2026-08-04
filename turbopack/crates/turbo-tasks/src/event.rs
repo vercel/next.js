@@ -211,6 +211,14 @@ impl EventListener {
     pub fn wait(self) {
         self.listener.wait();
     }
+
+    /// Like [`wait`](Self::wait) but gives up after `timeout`. Returns `true` if the
+    /// event was notified, `false` on timeout. Used by the `sync` engine to turn a
+    /// would-be deadlock (a re-entrant read the inline path can't drive) into a fast,
+    /// diagnosable failure instead of an infinite hang.
+    pub fn wait_timeout(self, timeout: std::time::Duration) -> bool {
+        self.listener.wait_timeout(timeout).is_some()
+    }
 }
 
 #[cfg(feature = "hanging_detection")]
@@ -299,20 +307,32 @@ impl EventListener {
                 .wait();
         }
     }
+
+    /// See the non-`hanging_detection` variant. Returns `true` if notified, `false`
+    /// on timeout.
+    pub fn wait_timeout(mut self, timeout: std::time::Duration) -> bool {
+        if let Some(future) = self.future.take() {
+            // SAFETY: EventListener is Unpin, so it's safe to move out of the Pin.
+            unsafe { std::pin::Pin::into_inner_unchecked(future) }
+                .into_inner()
+                .wait_timeout(timeout)
+                .is_some()
+        } else {
+            true
+        }
+    }
 }
 
 #[cfg(all(test, not(feature = "hanging_detection")))]
 mod tests {
-    use std::hint::black_box;
-
-    use tokio::time::{Duration, timeout};
+    use std::{hint::black_box, time::Duration};
 
     use super::*;
 
     // The closures used for descriptions/notes should be eliminated. This may only happen at higher
     // optimization levels (that would be okay), but in practice it seems to work even for
     // opt-level=0.
-    #[tokio::test]
+    #[turbo_tasks::test]
     async fn ensure_dead_code_elimination() {
         fn dead_fn() {
             // This code triggers a build error when it's not removed.
@@ -339,6 +359,9 @@ mod tests {
             }
         }));
 
-        let _ = black_box(timeout(Duration::from_millis(10), listener)).await;
+        // Dual-mode: `wait_timeout` blocks briefly then gives up (the event is never
+        // notified). In async this blocks the worker for 10ms; in sync it's the same.
+        // The point of the test is dead-code elimination of the description closures.
+        let _ = black_box(listener.wait_timeout(Duration::from_millis(10)));
     }
 }

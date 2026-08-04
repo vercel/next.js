@@ -28,7 +28,7 @@ pub enum AfterResolvePluginCondition {
 impl AfterResolvePluginCondition {
     #[turbo_tasks::function]
     pub async fn new_with_glob(root: FileSystemPath, glob: ResolvedVc<Glob>) -> Result<Vc<Self>> {
-        let glob = glob.await?;
+        let glob = turbo_tasks::read!(glob)?;
         Ok(AfterResolvePluginCondition::Glob { root, glob }.cell())
     }
 }
@@ -60,12 +60,12 @@ pub enum BeforeResolvePluginCondition {
 impl BeforeResolvePluginCondition {
     #[turbo_tasks::function]
     pub async fn from_modules(modules: ResolvedVc<Vec<RcStr>>) -> Result<Vc<Self>> {
-        Ok(BeforeResolvePluginCondition::Modules(modules.await?).cell())
+        Ok(BeforeResolvePluginCondition::Modules(turbo_tasks::read!(modules)?).cell())
     }
 
     #[turbo_tasks::function]
     pub async fn from_request_glob(glob: ResolvedVc<Glob>) -> Result<Vc<Self>> {
-        Ok(BeforeResolvePluginCondition::Request(glob.await?).cell())
+        Ok(BeforeResolvePluginCondition::Request(turbo_tasks::read!(glob)?).cell())
     }
 }
 

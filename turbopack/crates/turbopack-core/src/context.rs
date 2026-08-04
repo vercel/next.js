@@ -47,7 +47,7 @@ impl ProcessResult {
         Ok(Vc::cell(match self {
             ProcessResult::Module(module) => Some(*module),
             ProcessResult::Unknown(source) => {
-                emit_unknown_module_type_error(**source).await?;
+                turbo_tasks::read!(emit_unknown_module_type_error(**source))?;
                 None
             }
             ProcessResult::Ignore => None,

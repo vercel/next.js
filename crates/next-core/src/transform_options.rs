@@ -16,33 +16,35 @@ use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 use crate::{mode::NextMode, next_config::NextConfig};
 
-async fn get_typescript_options(
+turbo_tasks::dual_fn! {
+fn get_typescript_options(
     project_path: FileSystemPath,
     tsconfig_path: Option<FileSystemPath>,
 ) -> Result<Option<Vec<(Vc<FileJsonContent>, ResolvedVc<Box<dyn Source>>)>>> {
     if let Some(tsconfig_path) = tsconfig_path {
-        let tsconfigs = read_tsconfigs(
+        let tsconfigs = turbo_tasks::read!(read_tsconfigs(
             tsconfig_path.read(),
-            ResolvedVc::upcast(FileSource::new(tsconfig_path.clone()).to_resolved().await?),
-            node_cjs_resolve_options(tsconfig_path.root().owned().await?),
-        )
-        .await
+            ResolvedVc::upcast(turbo_tasks::read!(FileSource::new(tsconfig_path.clone()).to_resolved())?),
+            node_cjs_resolve_options(turbo_tasks::read!(tsconfig_path.root().owned())?),
+        ))
+
         .ok();
 
         Ok(tsconfigs)
     } else {
         let tsconfig = find_context_file(project_path, tsconfig(), false);
-        Ok(match tsconfig.await.ok().as_deref() {
-            Some(FindContextFileResult::Found(path, _)) => read_tsconfigs(
+        Ok(match turbo_tasks::read!(tsconfig).ok().as_deref() {
+            Some(FindContextFileResult::Found(path, _)) => turbo_tasks::read!(read_tsconfigs(
                 path.read(),
-                ResolvedVc::upcast(FileSource::new(path.clone()).to_resolved().await?),
-                node_cjs_resolve_options(path.root().owned().await?),
-            )
-            .await
+                ResolvedVc::upcast(turbo_tasks::read!(FileSource::new(path.clone()).to_resolved())?),
+                node_cjs_resolve_options(turbo_tasks::read!(path.root().owned())?),
+            ))
+
             .ok(),
             Some(FindContextFileResult::NotFound(_)) | None => None,
         })
     }
+}
 }
 
 /// Build the transform options for specifically for the typescript's runtime
@@ -52,27 +54,25 @@ pub async fn get_typescript_transform_options(
     project_path: FileSystemPath,
     tsconfig_path: Option<FileSystemPath>,
 ) -> Result<Vc<TypescriptTransformOptions>> {
-    let tsconfig = get_typescript_options(project_path, tsconfig_path).await?;
+    let tsconfig = turbo_tasks::read!(get_typescript_options(project_path, tsconfig_path))?;
 
     let use_define_for_class_fields = if let Some(ref tsconfig) = tsconfig {
-        read_from_tsconfigs(tsconfig, |json, _| {
+        turbo_tasks::read!(read_from_tsconfigs(tsconfig, |json, _| {
             json.get("compilerOptions")
                 .and_then(|opts| opts.get("useDefineForClassFields"))
                 .and_then(|v| v.as_bool())
-        })
-        .await?
+        }))?
         .unwrap_or(false)
     } else {
         false
     };
 
     let verbatim_module_syntax = if let Some(ref tsconfig) = tsconfig {
-        read_from_tsconfigs(tsconfig, |json, _| {
+        turbo_tasks::read!(read_from_tsconfigs(tsconfig, |json, _| {
             json.get("compilerOptions")
                 .and_then(|opts| opts.get("verbatimModuleSyntax"))
                 .and_then(|v| v.as_bool())
-        })
-        .await?
+        }))?
         .unwrap_or(false)
     } else {
         false
@@ -93,15 +93,14 @@ pub async fn get_decorators_transform_options(
     project_path: FileSystemPath,
     tsconfig_path: Option<FileSystemPath>,
 ) -> Result<Vc<DecoratorsOptions>> {
-    let tsconfig = get_typescript_options(project_path, tsconfig_path).await?;
+    let tsconfig = turbo_tasks::read!(get_typescript_options(project_path, tsconfig_path))?;
 
     let experimental_decorators = if let Some(ref tsconfig) = tsconfig {
-        read_from_tsconfigs(tsconfig, |json, _| {
+        turbo_tasks::read!(read_from_tsconfigs(tsconfig, |json, _| {
             json.get("compilerOptions")
                 .and_then(|opts| opts.get("experimentalDecorators"))
                 .and_then(|v| v.as_bool())
-        })
-        .await?
+        }))?
         .unwrap_or(false)
     } else {
         false
@@ -119,24 +118,22 @@ pub async fn get_decorators_transform_options(
     };
 
     let emit_decorators_metadata = if let Some(ref tsconfig) = tsconfig {
-        read_from_tsconfigs(tsconfig, |json, _| {
+        turbo_tasks::read!(read_from_tsconfigs(tsconfig, |json, _| {
             json.get("compilerOptions")
                 .and_then(|opts| opts.get("emitDecoratorMetadata"))
                 .and_then(|v| v.as_bool())
-        })
-        .await?
+        }))?
         .unwrap_or(false)
     } else {
         false
     };
 
     let use_define_for_class_fields = if let Some(ref tsconfig) = tsconfig {
-        read_from_tsconfigs(tsconfig, |json, _| {
+        turbo_tasks::read!(read_from_tsconfigs(tsconfig, |json, _| {
             json.get("compilerOptions")
                 .and_then(|opts| opts.get("useDefineForClassFields"))
                 .and_then(|v| v.as_bool())
-        })
-        .await?
+        }))?
         .unwrap_or(false)
     } else {
         false
@@ -171,14 +168,16 @@ pub async fn get_jsx_transform_options(
     next_config: Vc<NextConfig>,
     tsconfig_path: Option<FileSystemPath>,
 ) -> Result<Vc<JsxTransformOptions>> {
-    let tsconfig = get_typescript_options(project_path.clone(), tsconfig_path).await?;
+    let tsconfig = turbo_tasks::read!(get_typescript_options(project_path.clone(), tsconfig_path))?;
 
-    let is_react_development = mode.await?.is_react_development();
+    let is_react_development = turbo_tasks::read!(mode)?.is_react_development();
     let enable_react_refresh = if is_react_development {
         if let Some(resolve_options_context) = resolve_options_context {
-            assert_can_resolve_react_refresh(project_path.clone(), resolve_options_context)
-                .await?
-                .is_found()
+            turbo_tasks::read!(assert_can_resolve_react_refresh(
+                project_path.clone(),
+                resolve_options_context
+            ))?
+            .is_found()
         } else {
             false
         }
@@ -186,14 +185,16 @@ pub async fn get_jsx_transform_options(
         false
     };
 
-    let is_emotion_enabled = next_config.compiler().await?.emotion.is_some();
+    let is_emotion_enabled = turbo_tasks::read!(next_config.compiler())?
+        .emotion
+        .is_some();
 
     // [NOTE]: ref: WEB-901
     // next.js does not allow to overriding react runtime config via tsconfig /
     // jsconfig, it forces overrides into automatic runtime instead.
     // [TODO]: we need to emit / validate config message like next.js devserver does
     let react_transform_options = JsxTransformOptions {
-        development: mode.await?.is_react_development(),
+        development: turbo_tasks::read!(mode)?.is_react_development(),
         // https://github.com/vercel/next.js/blob/3dc2c1c7f8441cdee31da9f7e0986d654c7fd2e7/packages/next/src/build/swc/options.ts#L112
         // This'll be ignored if ts|jsconfig explicitly specifies importSource
         import_source: if is_emotion_enabled && !is_rsc_context {
@@ -206,7 +207,7 @@ pub async fn get_jsx_transform_options(
     };
 
     let react_transform_options = if let Some(tsconfig) = tsconfig {
-        read_from_tsconfigs(&tsconfig, |json, _| {
+        turbo_tasks::read!(read_from_tsconfigs(&tsconfig, |json, _| {
             let jsx_import_source = json
                 .get("compilerOptions")
                 .and_then(|opts| opts.get("jsxImportSource"))
@@ -221,8 +222,7 @@ pub async fn get_jsx_transform_options(
                 },
                 ..react_transform_options.clone()
             })
-        })
-        .await?
+        }))?
         .unwrap_or_default()
     } else {
         react_transform_options

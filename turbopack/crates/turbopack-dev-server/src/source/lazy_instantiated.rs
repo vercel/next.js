@@ -39,10 +39,12 @@ impl Introspectable for LazyInstantiatedContentSource {
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         Ok(Vc::cell(
-            [ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(
-                self.get_source.content_source().to_resolved().await?,
-            )
-            .map(|i| (rcstr!("source"), i))]
+            [
+                ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(turbo_tasks::read!(
+                    self.get_source.content_source().to_resolved()
+                )?)
+                .map(|i| (rcstr!("source"), i)),
+            ]
             .into_iter()
             .flatten()
             .collect(),

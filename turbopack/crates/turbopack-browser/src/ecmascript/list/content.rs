@@ -6,7 +6,9 @@ use either::Either;
 use indoc::writedoc;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, Vc, trace::TraceRawVcs};
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::TryJoinIterExt;
+use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -52,48 +54,60 @@ impl EcmascriptDevChunkListContent {
     /// Creates a new [`EcmascriptDevChunkListContent`].
     #[turbo_tasks::function]
     pub async fn new(chunk_list: Vc<EcmascriptDevChunkList>) -> Result<Vc<Self>> {
-        let chunk_list_ref = chunk_list.await?;
-        let output_root = chunk_list_ref.chunking_context.output_root().await?;
-        let current_chunk_method = match *chunk_list_ref
-            .chunking_context
-            .current_chunk_method()
+        let chunk_list_ref = turbo_tasks::read!(chunk_list)?;
+        let output_root = turbo_tasks::read!(chunk_list_ref.chunking_context.output_root())?;
+        let current_chunk_method =
+            match *turbo_tasks::read!(chunk_list_ref.chunking_context.current_chunk_method())? {
+                CurrentChunkMethod::StringLiteral => {
+                    let path = output_root
+                        .get_path_to(&*turbo_tasks::read!(chunk_list.path())?)
+                        .context("chunk list path not in output root")?
+                        .into();
+                    CurrentChunkMethodWithData::StringLiteral(path)
+                }
+                CurrentChunkMethod::DocumentCurrentScript => {
+                    CurrentChunkMethodWithData::DocumentCurrentScript
+                }
+            };
+        let chunk_loading_global =
+            (*turbo_tasks::read!(chunk_list_ref.chunking_context.chunk_loading_global())?).clone();
+        let chunks = turbo_tasks::read!(chunk_list_ref.chunks)?;
+        // The sync `parallel!` only fans out plain `Vc` reads, so the multi-step
+        // per-item work runs concurrently in the async build (as before) and
+        // sequentially under `sync`.
+        #[cfg(not(feature = "sync"))]
+        let chunks_contents: FxIndexMap<String, ResolvedVc<Box<dyn VersionedContent>>> = chunks
+            .iter()
+            .map(async |chunk| {
+                Ok((
+                    output_root
+                        .get_path_to(&*turbo_tasks::read!(chunk.path())?)
+                        .map(|path| path.to_string()),
+                    turbo_tasks::read!(chunk.versioned_content().to_resolved())?,
+                ))
+            })
+            .try_join()
             .await?
-        {
-            CurrentChunkMethod::StringLiteral => {
+            .into_iter()
+            .filter_map(|(path, content)| path.map(|path| (path, content)))
+            .collect();
+        #[cfg(feature = "sync")]
+        let chunks_contents: FxIndexMap<String, ResolvedVc<Box<dyn VersionedContent>>> = {
+            let mut chunks_contents = FxIndexMap::default();
+            for chunk in chunks.iter() {
                 let path = output_root
-                    .get_path_to(&*chunk_list.path().await?)
-                    .context("chunk list path not in output root")?
-                    .into();
-                CurrentChunkMethodWithData::StringLiteral(path)
+                    .get_path_to(&*turbo_tasks::read!(chunk.path())?)
+                    .map(|path| path.to_string());
+                let content = turbo_tasks::read!(chunk.versioned_content().to_resolved())?;
+                if let Some(path) = path {
+                    chunks_contents.insert(path, content);
+                }
             }
-            CurrentChunkMethod::DocumentCurrentScript => {
-                CurrentChunkMethodWithData::DocumentCurrentScript
-            }
+            chunks_contents
         };
-        let chunk_loading_global = (*chunk_list_ref
-            .chunking_context
-            .chunk_loading_global()
-            .await?)
-            .clone();
         Ok(EcmascriptDevChunkListContent {
             current_chunk_method,
-            chunks_contents: chunk_list_ref
-                .chunks
-                .await?
-                .iter()
-                .map(async |chunk| {
-                    Ok((
-                        output_root
-                            .get_path_to(&*chunk.path().await?)
-                            .map(|path| path.to_string()),
-                        chunk.versioned_content().to_resolved().await?,
-                    ))
-                })
-                .try_join()
-                .await?
-                .into_iter()
-                .filter_map(|(path, content)| path.map(|path| (path, content)))
-                .collect(),
+            chunks_contents,
             source: chunk_list_ref.source,
             chunk_loading_global,
         }
@@ -110,36 +124,52 @@ impl EcmascriptDevChunkListContent {
             if let Some(mergeable) =
                 ResolvedVc::try_sidecast::<Box<dyn MergeableVersionedContent>>(*chunk_content)
             {
-                let merger = mergeable.get_merger().to_resolved().await?;
+                let merger = turbo_tasks::read!(mergeable.get_merger().to_resolved())?;
                 by_merger.entry(merger).or_default().push(*chunk_content);
             } else {
                 by_path.insert(
                     chunk_path.clone(),
-                    chunk_content.version().into_trait_ref().await?,
+                    turbo_tasks::read!(chunk_content.version().into_trait_ref())?,
                 );
             }
         }
 
+        // The sync `parallel!` only fans out plain `Vc` reads, so the multi-step
+        // per-item work runs concurrently in the async build (as before) and
+        // sequentially under `sync`.
+        #[cfg(not(feature = "sync"))]
         let by_merger = by_merger
             .into_iter()
             .map(|(merger, contents)| (merger, Vc::cell(contents)))
             .map(async |(merger, contents)| {
                 Ok((
                     merger,
-                    merger.merge(contents).version().into_trait_ref().await?,
+                    turbo_tasks::read!(merger.merge(contents).version().into_trait_ref())?,
                 ))
             })
             .try_join()
             .await?
             .into_iter()
             .collect();
+        #[cfg(feature = "sync")]
+        let by_merger = {
+            let mut result = FxIndexMap::default();
+            for (merger, contents) in by_merger.into_iter() {
+                let contents = Vc::cell(contents);
+                result.insert(
+                    merger,
+                    turbo_tasks::read!(merger.merge(contents).version().into_trait_ref())?,
+                );
+            }
+            result
+        };
 
         Ok(EcmascriptDevChunkListVersion { by_path, by_merger }.cell())
     }
 
     #[turbo_tasks::function]
     pub(super) async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
 
         let chunks = this
             .chunks_contents
@@ -184,7 +214,7 @@ impl EcmascriptDevChunkListContent {
 impl VersionedContent for EcmascriptDevChunkListContent {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
-        let code = self.code().await?;
+        let code = turbo_tasks::read!(self.code())?;
         Ok(AssetContent::file(
             FileContent::Content(File::from(code.source_code().clone())).cell(),
         ))
@@ -200,6 +230,6 @@ impl VersionedContent for EcmascriptDevChunkListContent {
         self: ResolvedVc<Self>,
         from_version: ResolvedVc<Box<dyn Version>>,
     ) -> Result<Vc<Update>> {
-        update_chunk_list(self, from_version).await
+        turbo_tasks::read!(update_chunk_list(self, from_version))
     }
 }

@@ -13,7 +13,9 @@ pub async fn directory_from_relative_path(
     path: RcStr,
 ) -> Result<Vc<Box<dyn FileSystem>>> {
     let disk_fs = DiskFileSystem::new(name, Vc::cell(path));
-    disk_fs.await?.start_watching(None).await?;
+    // Live watching is async/dev-only; the no-tokio sync build has no watcher.
+    #[cfg(feature = "tokio_runtime")]
+    turbo_tasks::read!(disk_fs.await?.start_watching(None))?;
 
     Ok(Vc::upcast(disk_fs))
 }

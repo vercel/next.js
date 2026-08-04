@@ -207,7 +207,8 @@ pub enum CodeGen {
 }
 
 impl CodeGen {
-    pub async fn code_generation(
+    turbo_tasks::dual_fn! {
+    pub fn code_generation(
         &self,
         ctx: Vc<Box<dyn ChunkingContext>>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
@@ -215,33 +216,34 @@ impl CodeGen {
         exports: ResolvedVc<EcmascriptExports>,
     ) -> Result<CodeGeneration> {
         match self {
-            Self::AmdDefineWithDependenciesCodeGen(v) => v.code_generation(ctx).await,
-            Self::CjsRequireCacheAccess(v) => v.code_generation(ctx).await,
-            Self::ConstantConditionCodeGen(v) => v.code_generation(ctx).await,
-            Self::ConstantValueCodeGen(v) => v.code_generation(ctx).await,
-            Self::DynamicExpression(v) => v.code_generation(ctx).await,
-            Self::EsmBinding(v) => v.code_generation(ctx, scope_hoisting_context).await,
-            Self::EsmModuleItem(v) => v.code_generation(ctx).await,
-            Self::ExportsInfoBinding(v) => v.code_generation(ctx, module, exports).await,
-            Self::ExportsInfoRef(v) => v.code_generation(ctx).await,
-            Self::IdentReplacement(v) => v.code_generation(ctx).await,
-            Self::ImportMetaBinding(v) => v.code_generation(ctx).await,
-            Self::ImportMetaRef(v) => v.code_generation(ctx).await,
-            Self::MemberReplacement(v) => v.code_generation(ctx).await,
-            Self::Unreachable(v) => v.code_generation(ctx).await,
-            Self::CjsRequireAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
-            Self::CjsRequireResolveAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
-            Self::EsmAsyncAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
-            Self::EsmModuleIdAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
-            Self::ImportMetaGlobAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
-            Self::RequireContextAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
-            Self::UrlAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
-            Self::WorkerAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::AmdDefineWithDependenciesCodeGen(v) => turbo_tasks::read!(v.code_generation(ctx)),
+            Self::CjsRequireCacheAccess(v) => turbo_tasks::read!(v.code_generation(ctx)),
+            Self::ConstantConditionCodeGen(v) => turbo_tasks::read!(v.code_generation(ctx)),
+            Self::ConstantValueCodeGen(v) => turbo_tasks::read!(v.code_generation(ctx)),
+            Self::DynamicExpression(v) => turbo_tasks::read!(v.code_generation(ctx)),
+            Self::EsmBinding(v) => turbo_tasks::read!(v.code_generation(ctx, scope_hoisting_context)),
+            Self::EsmModuleItem(v) => turbo_tasks::read!(v.code_generation(ctx)),
+            Self::ExportsInfoBinding(v) => turbo_tasks::read!(v.code_generation(ctx, module, exports)),
+            Self::ExportsInfoRef(v) => turbo_tasks::read!(v.code_generation(ctx)),
+            Self::IdentReplacement(v) => turbo_tasks::read!(v.code_generation(ctx)),
+            Self::ImportMetaBinding(v) => turbo_tasks::read!(v.code_generation(ctx)),
+            Self::ImportMetaRef(v) => turbo_tasks::read!(v.code_generation(ctx)),
+            Self::MemberReplacement(v) => turbo_tasks::read!(v.code_generation(ctx)),
+            Self::Unreachable(v) => turbo_tasks::read!(v.code_generation(ctx)),
+            Self::CjsRequireAssetReferenceCodeGen(v) => turbo_tasks::read!(v.code_generation(ctx)),
+            Self::CjsRequireResolveAssetReferenceCodeGen(v) => turbo_tasks::read!(v.code_generation(ctx)),
+            Self::EsmAsyncAssetReferenceCodeGen(v) => turbo_tasks::read!(v.code_generation(ctx)),
+            Self::EsmModuleIdAssetReferenceCodeGen(v) => turbo_tasks::read!(v.code_generation(ctx)),
+            Self::ImportMetaGlobAssetReferenceCodeGen(v) => turbo_tasks::read!(v.code_generation(ctx)),
+            Self::RequireContextAssetReferenceCodeGen(v) => turbo_tasks::read!(v.code_generation(ctx)),
+            Self::UrlAssetReferenceCodeGen(v) => turbo_tasks::read!(v.code_generation(ctx)),
+            Self::WorkerAssetReferenceCodeGen(v) => turbo_tasks::read!(v.code_generation(ctx)),
             Self::ModuleHotReferenceCodeGen(v) => {
-                v.code_generation(ctx, scope_hoisting_context).await
+                turbo_tasks::read!(v.code_generation(ctx, scope_hoisting_context))
             }
-            Self::WorkerGlobalsReplacementCodeGen(v) => v.code_generation(ctx).await,
+            Self::WorkerGlobalsReplacementCodeGen(v) => turbo_tasks::read!(v.code_generation(ctx)),
         }
+    }
     }
 }
 

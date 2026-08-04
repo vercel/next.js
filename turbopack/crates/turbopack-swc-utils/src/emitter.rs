@@ -20,14 +20,15 @@ pub struct IssueCollector {
 }
 
 impl IssueCollector {
-    pub async fn emit(self, loose_errors: bool) -> Result<()> {
+    turbo_tasks::dual_fn! {
+    pub fn emit(self, loose_errors: bool) -> Result<()> {
         let issues = {
             let mut inner = self.inner.lock();
             take(&mut inner.emitted_issues)
         };
 
         for issue in issues {
-            AnalyzeIssue::new(
+            turbo_tasks::read!(AnalyzeIssue::new(
                 if loose_errors && issue.severity <= IssueSeverity::Error {
                     IssueSeverity::Warning
                 } else {
@@ -39,11 +40,12 @@ impl IssueCollector {
                 issue.code,
                 issue.issue_source,
             )
-            .to_resolved()
-            .await?
+            .to_resolved())
+            ?
             .emit();
         }
         Ok(())
+    }
     }
 
     pub fn last_emitted_issue(&self) -> Option<Vc<AnalyzeIssue>> {

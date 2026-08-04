@@ -1,6 +1,8 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, TraitRef, TryJoinIterExt, Vc};
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::TryJoinIterExt;
+use turbo_tasks::{FxIndexMap, ResolvedVc, TraitRef, Vc};
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
 use turbopack_core::version::{Version, VersionedContentMerger};
 
@@ -28,26 +30,39 @@ impl Version for EcmascriptDevChunkListVersion {
     #[turbo_tasks::function]
     async fn id(&self) -> Result<Vc<RcStr>> {
         let by_path = {
+            // The sync `parallel!` only fans out plain `Vc` reads, so the multi-step
+            // per-item work runs concurrently in the async build (as before) and
+            // sequentially under `sync`.
+            #[cfg(not(feature = "sync"))]
             let mut by_path = self
                 .by_path
                 .iter()
                 .map(|(path, version)| (path, TraitRef::cell(version.clone())))
                 .map(|(path, version)| async move {
-                    let id = version.id().owned().await?;
+                    let id = turbo_tasks::read!(version.id().owned())?;
                     Ok((path, id))
                 })
                 .try_join()
                 .await?;
+            #[cfg(feature = "sync")]
+            let mut by_path = {
+                let mut by_path = Vec::with_capacity(self.by_path.len());
+                for (path, version) in self.by_path.iter() {
+                    let version = TraitRef::cell(version.clone());
+                    let id = turbo_tasks::read!(version.id().owned())?;
+                    by_path.push((path, id));
+                }
+                by_path
+            };
             by_path.sort();
             by_path
         };
         let by_merger = {
-            let mut by_merger = self
-                .by_merger
-                .iter()
-                .map(|(_merger, version)| TraitRef::cell(version.clone()).id().owned())
-                .try_join()
-                .await?;
+            let mut by_merger = turbo_tasks::parallel!(
+                self.by_merger
+                    .iter()
+                    .map(|(_merger, version)| TraitRef::cell(version.clone()).id())
+            )?;
             by_merger.sort();
             by_merger
         };

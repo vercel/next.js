@@ -43,9 +43,9 @@ async fn to_evaluatable(
     let module = asset_context
         .process(asset, ReferenceType::Entry(EntryReferenceSubType::Runtime))
         .module();
-    let Some(entry) =
-        ResolvedVc::try_downcast::<Box<dyn EvaluatableAsset>>(module.to_resolved().await?)
-    else {
+    let Some(entry) = ResolvedVc::try_downcast::<Box<dyn EvaluatableAsset>>(turbo_tasks::read!(
+        module.to_resolved()
+    )?) else {
         turbobail!("{} is not a valid evaluated entry", module.ident());
     };
     Ok(*entry)
@@ -76,7 +76,7 @@ impl EvaluatableAssets {
         self: Vc<Self>,
         entry: ResolvedVc<Box<dyn EvaluatableAsset>>,
     ) -> Result<Vc<EvaluatableAssets>> {
-        let mut entries = self.owned().await?;
+        let mut entries = turbo_tasks::read!(self.owned())?;
         entries.push(entry);
         Ok(EvaluatableAssets(entries).cell())
     }

@@ -15,10 +15,13 @@ use napi_derive::napi;
 use owo_colors::OwoColorize;
 use serde::Serialize;
 use terminal_hyperlink::Hyperlink;
+// The compilation-event queue is tokio-backed (async engine only); the sync
+// `next build` has no message queue, so the startup-cache invalidation event is
+// compiled out below.
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::message_queue::{CompilationEvent, Severity};
 use turbo_tasks::{
-    PrettyPrintError, TurboTasks, TurboTasksCallApi,
-    backend::TurboTasksExecutionError,
-    message_queue::{CompilationEvent, Severity},
+    PrettyPrintError, TurboTasks, TurboTasksCallApi, backend::TurboTasksExecutionError,
 };
 use turbo_tasks_backend::{
     BackendOptions, GitVersionInfo, StartupCacheState, TurboTasksBackend,
@@ -118,6 +121,21 @@ impl NextTurbopackContext {
     ) -> impl Future<Output = napi::Result<T>> + use<T> {
         let err_fut = self.throw_turbopack_internal_error(err);
         async move { Err(err_fut.await) }
+    }
+
+    /// Synchronous counterpart of [`NextTurbopackContext::throw_turbopack_internal_result`] for
+    /// the no-tokio sync `next build`.
+    ///
+    /// The async version bridges the error to JS via a tokio-backed `ThreadsafeFunction`
+    /// (`call_async().await`) so that JS can construct its dedicated `TurbopackInternalError`
+    /// type. There is no async runtime to await that callback under sync, so we log the error
+    /// (same `log_internal_error_and_inform` as the async path) and surface it as a plain
+    /// `napi::Error` carrying the pretty-printed message. This only runs when a build *fails*,
+    /// so it never affects successful (byte-identical) build output — only the error surface.
+    #[cfg(feature = "sync")]
+    pub fn throw_turbopack_internal_error_sync(&self, err: &anyhow::Error) -> napi::Error {
+        log_internal_error_and_inform(err);
+        napi::Error::from_reason(PrettyPrintError(err).to_string())
     }
 
     /// Calls the `onBeforeDeferredEntries` callback in Node.js if one was provided.
@@ -282,7 +300,10 @@ pub fn create_turbo_tasks(
             backing_storage,
         ));
         if let StartupCacheState::Invalidated { reason_code } = cache_state {
+            #[cfg(not(feature = "sync"))]
             tt.send_compilation_event(Arc::new(StartupCacheInvalidationEvent { reason_code }));
+            #[cfg(feature = "sync")]
+            let _ = reason_code;
         }
         tt
     } else {
@@ -297,11 +318,13 @@ pub fn create_turbo_tasks(
     })
 }
 
+#[cfg(not(feature = "sync"))]
 #[derive(Serialize)]
 struct StartupCacheInvalidationEvent {
     reason_code: Option<String>,
 }
 
+#[cfg(not(feature = "sync"))]
 impl CompilationEvent for StartupCacheInvalidationEvent {
     fn type_name(&self) -> &'static str {
         "StartupCacheInvalidationEvent"

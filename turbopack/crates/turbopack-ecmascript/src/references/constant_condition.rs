@@ -30,7 +30,8 @@ impl ConstantConditionCodeGen {
         ConstantConditionCodeGen { value, path }
     }
 
-    pub async fn code_generation(
+    turbo_tasks::dual_fn! {
+    pub fn code_generation(
         &self,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
@@ -56,6 +57,7 @@ impl ConstantConditionCodeGen {
         .into();
 
         Ok(CodeGeneration::visitors(visitors))
+    }
     }
 }
 

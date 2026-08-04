@@ -48,17 +48,20 @@ pub mod test_utils {
         utils::module_value_to_well_known_object,
     };
 
-    pub async fn early_visitor<'a>(
+    turbo_tasks::dual_fn! {
+    pub fn early_visitor<'a>(
         _arena: &'a ThreadLocal<Bump>,
         mut v: JsValue<'a>,
     ) -> Result<(JsValue<'a>, bool)> {
         let m = early_replace_builtin(&mut v);
         Ok((v, m))
     }
+    }
 
+    turbo_tasks::dual_fn! {
     /// Visitor that replaces well known functions and objects with their
     /// corresponding values. Returns the new value and whether it was modified.
-    pub async fn visitor<'a>(
+    pub fn visitor<'a>(
         arena: &'a ThreadLocal<Bump>,
         v: JsValue<'a>,
         compile_time_info: Vc<CompileTimeInfo>,
@@ -214,7 +217,8 @@ pub mod test_utils {
                 }
             }
             _ => {
-                let (mut v, m1) = replace_well_known(arena, v, compile_time_info, true).await?;
+                let (mut v, m1) =
+                    turbo_tasks::read!(replace_well_known(arena, v, compile_time_info, true))?;
                 let m2 = replace_builtin(arena.get_or_default(), &mut v);
                 let m = m1 || m2 || v.make_nested_operations_unknown();
                 return Ok((v, m));
@@ -222,6 +226,7 @@ pub mod test_utils {
         };
         new_value.normalize_shallow(arena.get_or_default());
         Ok((new_value, true))
+    }
     }
 }
 
@@ -266,12 +271,7 @@ mod tests {
     #[fixture("tests/analyzer/graph/**/input.js")]
     fn fixture(input: PathBuf) {
         let input = RcStr::from(input.to_str().unwrap());
-        let rt = tokio::runtime::Builder::new_multi_thread()
-            .worker_threads(2)
-            .enable_all()
-            .build()
-            .unwrap();
-        rt.block_on(async move {
+        let body = async move {
             let tt = TurboTasks::new(TurboTasksBackend::new(
                 BackendOptions::default(),
                 noop_backing_storage(),
@@ -282,7 +282,20 @@ mod tests {
             })
             .await
             .unwrap();
-        });
+        };
+        #[cfg(feature = "tokio_runtime")]
+        {
+            let rt = tokio::runtime::Builder::new_multi_thread()
+                .worker_threads(2)
+                .enable_all()
+                .build()
+                .unwrap();
+            rt.block_on(body);
+        }
+        // No tokio in the sync build: the body's awaits are all Ready after one
+        // poll (same driving as #[turbo_tasks::test]).
+        #[cfg(not(feature = "tokio_runtime"))]
+        turbo_tasks::macro_helpers::sync_poll_test(body);
     }
 
     #[turbo_tasks::function(operation, root)]
@@ -412,14 +425,13 @@ mod tests {
                 let start = Instant::now();
                 // Ideally this would use eval_context.imports.get_attributes(span), but the
                 // span isn't available here
-                let (res, steps) = resolve(
+                let (res, steps) = turbo_tasks::read!(resolve(
                     &arena,
                     &var_graph,
                     JsValue::Variable(id.clone()),
                     ImportAttributes::empty_ref(),
                     &var_cache,
-                )
-                .await;
+                ))?;
                 let time = start.elapsed();
                 if time.as_millis() > 1 {
                     println!(
@@ -467,40 +479,39 @@ mod tests {
             while let Some((parent, effect)) = queue.pop() {
                 i += 1;
                 let start = Instant::now();
-                async fn handle_args<'a>(
+                turbo_tasks::dual_fn! {
+                fn handle_args<'a>(
                     arena: &'a ThreadLocal<Bump>,
                     args: BumpVec<'a, EffectArg<'a>>,
                     queue: &mut Vec<(usize, Effect<'a>)>,
                     var_graph: &VarGraph<'a>,
                     var_cache: &Mutex<FxHashMap<Id, JsValue<'a>>>,
                     i: usize,
-                ) -> Vec<JsValue<'a>> {
+                ) -> anyhow::Result<Vec<JsValue<'a>>> {
                     let mut new_args = Vec::with_capacity(args.len());
                     for arg in args {
                         match arg {
                             EffectArg::Value(v) => {
                                 new_args.push(
-                                    resolve(
+                                    turbo_tasks::read!(resolve(
                                         arena,
                                         var_graph,
                                         v,
                                         ImportAttributes::empty_ref(),
                                         var_cache,
-                                    )
-                                    .await
+                                    ))?
                                     .0,
                                 );
                             }
                             EffectArg::Closure(v, effects) => {
                                 new_args.push(
-                                    resolve(
+                                    turbo_tasks::read!(resolve(
                                         arena,
                                         var_graph,
                                         v,
                                         ImportAttributes::empty_ref(),
                                         var_cache,
-                                    )
-                                    .await
+                                    ))?
                                     .0,
                                 );
                                 queue.extend(
@@ -515,7 +526,8 @@ mod tests {
                             }
                         }
                     }
-                    new_args
+                    Ok(new_args)
+                }
                 }
                 let steps = match effect {
                     Effect::Conditional {
@@ -523,14 +535,13 @@ mod tests {
                         kind,
                         ..
                     } => {
-                        let (condition, steps) = resolve(
+                        let (condition, steps) = turbo_tasks::read!(resolve(
                             &arena,
                             &var_graph,
                             take(&mut *condition),
                             ImportAttributes::empty_ref(),
                             &var_cache,
-                        )
-                        .await;
+                        ))?;
                         resolved.push((format!("{parent} -> {i} conditional"), condition));
                         match BumpBox::into_inner(kind) {
                             ConditionalKind::If { then } => {
@@ -603,16 +614,16 @@ mod tests {
                         span,
                         ..
                     } => {
-                        let (func, steps) = resolve(
+                        let (func, steps) = turbo_tasks::read!(resolve(
                             &arena,
                             &var_graph,
                             take(&mut *func),
                             eval_context.imports.get_attributes(span),
                             &var_cache,
-                        )
-                        .await;
-                        let new_args =
-                            handle_args(&arena, args, &mut queue, &var_graph, &var_cache, i).await;
+                        ))?;
+                        let new_args = turbo_tasks::read!(handle_args(
+                            &arena, args, &mut queue, &var_graph, &var_cache, i
+                        ))?;
                         resolved.push((
                             format!("{parent} -> {i} call"),
                             if new {
@@ -628,14 +639,13 @@ mod tests {
                         0
                     }
                     Effect::TypeOf { mut arg, .. } => {
-                        let (arg, steps) = resolve(
+                        let (arg, steps) = turbo_tasks::read!(resolve(
                             &arena,
                             &var_graph,
                             take(&mut *arg),
                             ImportAttributes::empty_ref(),
                             &var_cache,
-                        )
-                        .await;
+                        ))?;
                         resolved.push((
                             format!("{parent} -> {i} typeof"),
                             JsValue::type_of(arena.get_or_default(), arg),
@@ -648,24 +658,23 @@ mod tests {
                         args,
                         ..
                     } => {
-                        let (obj, obj_steps) = resolve(
+                        let (obj, obj_steps) = turbo_tasks::read!(resolve(
                             &arena,
                             &var_graph,
                             take(&mut *obj),
                             ImportAttributes::empty_ref(),
                             &var_cache,
-                        )
-                        .await;
-                        let (prop, prop_steps) = resolve(
+                        ))?;
+                        let (prop, prop_steps) = turbo_tasks::read!(resolve(
                             &arena,
                             &var_graph,
                             take(&mut *prop),
                             ImportAttributes::empty_ref(),
                             &var_cache,
-                        )
-                        .await;
-                        let new_args =
-                            handle_args(&arena, args, &mut queue, &var_graph, &var_cache, i).await;
+                        ))?;
+                        let new_args = turbo_tasks::read!(handle_args(
+                            &arena, args, &mut queue, &var_graph, &var_cache, i
+                        ))?;
                         resolved.push((
                             format!("{parent} -> {i} member call"),
                             JsValue::member_call_from_iter(
@@ -678,8 +687,9 @@ mod tests {
                         obj_steps + prop_steps
                     }
                     Effect::DynamicImport { args, .. } => {
-                        let new_args =
-                            handle_args(&arena, args, &mut queue, &var_graph, &var_cache, i).await;
+                        let new_args = turbo_tasks::read!(handle_args(
+                            &arena, args, &mut queue, &var_graph, &var_cache, i
+                        ))?;
                         resolved.push((
                             format!("{parent} -> {i} dynamic import"),
                             JsValue::call_from_iter(
@@ -739,17 +749,10 @@ mod tests {
         Ok(())
     }
 
-    async fn resolve<'a>(
-        arena: &'a ThreadLocal<Bump>,
-        var_graph: &VarGraph<'a>,
-        val: JsValue<'a>,
-        attributes: &ImportAttributes,
-        var_cache: &Mutex<FxHashMap<Id, JsValue<'a>>>,
-    ) -> (JsValue<'a>, u32) {
-        // The caller (`fixture`) runs us inside `tt.run_once`, so a real
-        // turbo-tasks task context is already established here.
-        async {
-            let compile_time_info = CompileTimeInfo::builder(
+    turbo_tasks::dual_fn! {
+    fn test_compile_time_info() -> anyhow::Result<turbo_tasks::Vc<CompileTimeInfo>> {
+        Ok(turbo_tasks::read!(
+            CompileTimeInfo::builder(turbo_tasks::read!(
                 Environment::new(ExecutionEnvironment::NodeJsLambda(
                     NodeJsEnvironment {
                         compile_target: CompileTarget {
@@ -765,29 +768,62 @@ mod tests {
                     .resolved_cell(),
                 ))
                 .to_resolved()
-                .await?,
-            )
+            )?,)
             .cell()
-            .await?;
-            link(
-                arena,
-                var_graph,
-                val,
-                &(|val| Box::pin(super::test_utils::early_visitor(arena, val))),
-                &(|val| {
-                    Box::pin(super::test_utils::visitor(
-                        arena,
-                        val,
-                        compile_time_info,
-                        attributes,
-                    ))
-                }),
-                &Default::default(),
-                var_cache,
-            )
-            .await
-        }
+        )?)
+    }
+    }
+
+    // The caller (`fixture`) runs us inside `tt.run_once`, so a real turbo-tasks
+    // task context is already established here. cfg-dual (not `dual_fn!`) because
+    // the visitor closures differ by mode: async `link` takes future-returning
+    // closures (`Box::pin`), sync `link` takes closures returning `Result`.
+    #[cfg(not(feature = "sync"))]
+    async fn resolve<'a>(
+        arena: &'a ThreadLocal<Bump>,
+        var_graph: &VarGraph<'a>,
+        val: JsValue<'a>,
+        attributes: &ImportAttributes,
+        var_cache: &Mutex<FxHashMap<Id, JsValue<'a>>>,
+    ) -> anyhow::Result<(JsValue<'a>, u32)> {
+        let compile_time_info = test_compile_time_info().await?;
+        link(
+            arena,
+            var_graph,
+            val,
+            &(|val| Box::pin(super::test_utils::early_visitor(arena, val))),
+            &(|val| {
+                Box::pin(super::test_utils::visitor(
+                    arena,
+                    val,
+                    compile_time_info,
+                    attributes,
+                ))
+            }),
+            &Default::default(),
+            var_cache,
+        )
         .await
-        .unwrap()
+    }
+
+    /// See the async definition above.
+    #[cfg(feature = "sync")]
+    fn resolve<'a>(
+        arena: &'a ThreadLocal<Bump>,
+        var_graph: &VarGraph<'a>,
+        val: JsValue<'a>,
+        attributes: &ImportAttributes,
+        var_cache: &Mutex<FxHashMap<Id, JsValue<'a>>>,
+    ) -> anyhow::Result<(JsValue<'a>, u32)> {
+        let compile_time_info = test_compile_time_info()?;
+        link(
+            arena,
+            var_graph,
+            val,
+            &(|val| super::test_utils::early_visitor(arena, val)),
+            &(|val| super::test_utils::visitor(arena, val, compile_time_info, attributes)),
+            &Default::default(),
+            var_cache,
+        )
     }
 }

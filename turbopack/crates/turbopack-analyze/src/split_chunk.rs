@@ -33,8 +33,38 @@ pub struct ChunkPart {
 }
 
 impl ChunkPart {
+    #[cfg(not(feature = "sync"))]
     pub async fn get_compressed_size(&self) -> Result<Option<u32>> {
-        let lines = &*self.lines.await?;
+        let lines = &*turbo_tasks::read!(self.lines)?;
+        let FileLinesContent::Lines(lines) = lines else {
+            return Ok(None);
+        };
+
+        if self.ranges.is_empty() {
+            let mut all_content = String::new();
+            for line in lines {
+                all_content.push_str(&line.content);
+            }
+            Ok(Some(compressed_size_bytes(all_content)?))
+        } else {
+            let mut all_range_content = String::new();
+            for range in &self.ranges {
+                append_content_between(
+                    range.line,
+                    range.start_column,
+                    range.line,
+                    range.end_column,
+                    lines,
+                    &mut all_range_content,
+                );
+            }
+            Ok(Some(compressed_size_bytes(all_range_content)?))
+        }
+    }
+
+    #[cfg(feature = "sync")]
+    pub fn get_compressed_size(&self) -> Result<Option<u32>> {
+        let lines = &*turbo_tasks::read!(self.lines)?;
         let FileLinesContent::Lines(lines) = lines else {
             return Ok(None);
         };
@@ -69,49 +99,61 @@ pub struct ChunkParts(Vec<ChunkPart>);
 #[turbo_tasks::function]
 pub async fn split_traced_file_into_parts(path: FileSystemPath) -> Result<Vc<ChunkParts>> {
     let source = FileSource::new(path.clone());
-    let content = source.content().await?;
+    let content = turbo_tasks::read!(source.content())?;
     let AssetContent::File(file_content) = &*content else {
         return Ok(Vc::cell(vec![]));
     };
-    let FileContent::Content(content) = &*file_content.await? else {
+    let FileContent::Content(content) = &*turbo_tasks::read!(file_content)? else {
         return Ok(Vc::cell(vec![]));
     };
     let content = content.content();
-    let lines_vc = file_content.lines().to_resolved().await?;
+    let lines_vc = turbo_tasks::read!(file_content.lines().to_resolved())?;
 
-    self_mapped(path.to_string_ref().await?, content, lines_vc).await
+    turbo_tasks::read!(self_mapped(
+        turbo_tasks::read!(path.to_string_ref())?,
+        content,
+        lines_vc
+    ))
 }
 
 #[turbo_tasks::function]
 pub async fn split_output_asset_into_parts(
     asset: Vc<Box<dyn OutputAsset>>,
 ) -> Result<Vc<ChunkParts>> {
-    let content = asset.content().await?;
+    let content = turbo_tasks::read!(asset.content())?;
     let AssetContent::File(file_content) = &*content else {
         return Ok(Vc::cell(vec![]));
     };
-    let FileContent::Content(content) = &*file_content.await? else {
+    let FileContent::Content(content) = &*turbo_tasks::read!(file_content)? else {
         return Ok(Vc::cell(vec![]));
     };
     let content = content.content();
-    let lines_vc = file_content.lines().to_resolved().await?;
+    let lines_vc = turbo_tasks::read!(file_content.lines().to_resolved())?;
 
-    let Some(generate_source_map) =
-        ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(asset.to_resolved().await?)
-    else {
-        return self_mapped(asset.path().to_string().owned().await?, content, lines_vc).await;
+    let Some(generate_source_map) = ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(
+        turbo_tasks::read!(asset.to_resolved())?,
+    ) else {
+        return turbo_tasks::read!(self_mapped(
+            turbo_tasks::read!(asset.path().to_string().owned())?,
+            content,
+            lines_vc
+        ));
     };
-    let source_map = generate_source_map.generate_source_map().await?;
+    let source_map = turbo_tasks::read!(generate_source_map.generate_source_map())?;
     let Some(source_map) = source_map.as_content() else {
-        return self_mapped(asset.path().to_string().owned().await?, content, lines_vc).await;
+        return turbo_tasks::read!(self_mapped(
+            turbo_tasks::read!(asset.path().to_string().owned())?,
+            content,
+            lines_vc
+        ));
     };
     let Some(source_map) = SourceMap::new_from_rope(source_map.content())? else {
-        return unaccounted(asset, content, lines_vc).await;
+        return turbo_tasks::read!(unaccounted(asset, content, lines_vc));
     };
 
-    let lines = lines_vc.await?;
+    let lines = turbo_tasks::read!(lines_vc)?;
     let FileLinesContent::Lines(lines) = &*lines else {
-        return unaccounted(asset, content, lines_vc).await;
+        return turbo_tasks::read!(unaccounted(asset, content, lines_vc));
     };
 
     fn end_of_mapping_column(
@@ -395,14 +437,15 @@ pub async fn split_output_asset_into_parts(
             add_unaccounted_chunk_part(source, len, &mut chunk_parts, lines_vc);
         }
         State::StartOfFile => {
-            return unaccounted(asset, content, lines_vc).await;
+            return turbo_tasks::read!(unaccounted(asset, content, lines_vc));
         }
     }
 
     Ok(Vc::cell(chunk_parts.into_values().collect()))
 }
 
-pub async fn self_mapped(
+turbo_tasks::dual_fn! {
+pub fn self_mapped(
     path: RcStr,
     content: &Rope,
     lines: ResolvedVc<FileLinesContent>,
@@ -416,20 +459,23 @@ pub async fn self_mapped(
         lines,
     }]))
 }
+}
 
-async fn unaccounted(
+turbo_tasks::dual_fn! {
+fn unaccounted(
     asset: Vc<Box<dyn OutputAsset>>,
     content: &Rope,
     lines: ResolvedVc<FileLinesContent>,
 ) -> Result<Vc<ChunkParts>> {
     let len = content.len().try_into().unwrap_or(u32::MAX);
     Ok(Vc::cell(vec![ChunkPart {
-        source: asset.path().to_string().owned().await?,
+        source: turbo_tasks::read!(asset.path().to_string().owned())?,
         real_size: 0,
         unaccounted_size: len,
         ranges: vec![],
         lines,
     }]))
+}
 }
 
 fn append_content_between(

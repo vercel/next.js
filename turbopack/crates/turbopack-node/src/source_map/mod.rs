@@ -27,59 +27,60 @@ pub mod trace;
 
 const MAX_CODE_FRAMES: usize = 3;
 
-pub async fn apply_source_mapping(
-    text: &'_ str,
-    assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-    root: FileSystemPath,
-    project_dir: FileSystemPath,
-    formatting_mode: FormattingMode,
-) -> Result<Cow<'_, str>> {
-    static STACK_TRACE_LINE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new("\n    at (?:(.+) \\()?(.+):(\\d+):(\\d+)\\)?").unwrap());
+turbo_tasks::dual_fn! {
+    pub fn apply_source_mapping(
+        text: &'_ str,
+        assets_for_source_mapping: Vc<AssetsForSourceMapping>,
+        root: FileSystemPath,
+        project_dir: FileSystemPath,
+        formatting_mode: FormattingMode,
+    ) -> Result<Cow<'_, str>> {
+        static STACK_TRACE_LINE: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new("\n    at (?:(.+) \\()?(.+):(\\d+):(\\d+)\\)?").unwrap());
 
-    let mut it = STACK_TRACE_LINE.captures_iter(text).peekable();
-    if it.peek().is_none() {
-        return Ok(Cow::Borrowed(text));
+        let mut it = STACK_TRACE_LINE.captures_iter(text).peekable();
+        if it.peek().is_none() {
+            return Ok(Cow::Borrowed(text));
+        }
+        let mut first_error = true;
+        let mut visible_code_frames = 0;
+        let mut new = String::with_capacity(text.len() * 2);
+        let mut last_match = 0;
+        for cap in it {
+            // unwrap on 0 is OK because captures only reports matches
+            let m = cap.get(0).unwrap();
+            new.push_str(&text[last_match..m.start()]);
+            let name = cap.get(1).map(|s| s.as_str());
+            let file = cap.get(2).unwrap().as_str();
+            let line = cap.get(3).unwrap().as_str();
+            let column = cap.get(4).unwrap().as_str();
+            let line = line.parse::<u32>()?;
+            let column = column.parse::<u32>()?;
+            let frame = StackFrame {
+                name: name.map(|s| s.into()),
+                file: file.into(),
+                line: Some(line),
+                column: Some(column),
+            };
+            let resolved = turbo_tasks::read!(resolve_source_mapping(
+                assets_for_source_mapping,
+                root.clone(),
+                turbo_tasks::read!(project_dir.root().owned())?,
+                &frame,
+            ));
+            write_resolved(
+                &mut new,
+                resolved,
+                &frame,
+                &mut first_error,
+                &mut visible_code_frames,
+                formatting_mode,
+            )?;
+            last_match = m.end();
+        }
+        new.push_str(&text[last_match..]);
+        Ok(Cow::Owned(new))
     }
-    let mut first_error = true;
-    let mut visible_code_frames = 0;
-    let mut new = String::with_capacity(text.len() * 2);
-    let mut last_match = 0;
-    for cap in it {
-        // unwrap on 0 is OK because captures only reports matches
-        let m = cap.get(0).unwrap();
-        new.push_str(&text[last_match..m.start()]);
-        let name = cap.get(1).map(|s| s.as_str());
-        let file = cap.get(2).unwrap().as_str();
-        let line = cap.get(3).unwrap().as_str();
-        let column = cap.get(4).unwrap().as_str();
-        let line = line.parse::<u32>()?;
-        let column = column.parse::<u32>()?;
-        let frame = StackFrame {
-            name: name.map(|s| s.into()),
-            file: file.into(),
-            line: Some(line),
-            column: Some(column),
-        };
-        let resolved = resolve_source_mapping(
-            assets_for_source_mapping,
-            root.clone(),
-            project_dir.root().owned().await?,
-            &frame,
-        )
-        .await;
-        write_resolved(
-            &mut new,
-            resolved,
-            &frame,
-            &mut first_error,
-            &mut visible_code_frames,
-            formatting_mode,
-        )?;
-        last_match = m.end();
-    }
-    new.push_str(&text[last_match..]);
-    Ok(Cow::Owned(new))
 }
 
 fn write_resolved(
@@ -200,67 +201,69 @@ enum ResolvedSourceMapping {
     },
 }
 
-async fn resolve_source_mapping(
-    assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-    root: FileSystemPath,
-    project_dir: FileSystemPath,
-    frame: &StackFrame<'_>,
-) -> Result<ResolvedSourceMapping> {
-    let Some((line, column)) = frame.get_pos() else {
-        return Ok(ResolvedSourceMapping::NoSourceMap);
-    };
-    let name = frame.name.as_ref();
-    let file = &frame.file;
-    let Some(root) = to_sys_path(root).await? else {
-        return Ok(ResolvedSourceMapping::NoSourceMap);
-    };
-    let Ok(file) = Path::new(file.as_ref()).strip_prefix(root) else {
-        return Ok(ResolvedSourceMapping::NoSourceMap);
-    };
-    let file = file.to_string_lossy();
-    let file = if MAIN_SEPARATOR != '/' {
-        Cow::Owned(file.replace(MAIN_SEPARATOR, "/"))
-    } else {
-        file
-    };
-    let map = assets_for_source_mapping.await?;
-    let Some(generate_source_map) = map.get(file.as_ref()) else {
-        return Ok(ResolvedSourceMapping::NoSourceMap);
-    };
-    let sm = generate_source_map.generate_source_map();
-    let Some(sm) = &*SourceMap::new_from_rope_cached(sm).await? else {
-        return Ok(ResolvedSourceMapping::NoSourceMap);
-    };
-    let trace = trace_source_map(sm, line, column, name.map(|s| &**s));
-    match trace {
-        TraceResult::Found(frame) => {
-            let lib_code = frame.file.contains("/node_modules/");
-            if let Some(project_path) = frame.file.strip_prefix(concatcp!(
-                SOURCE_URL_PROTOCOL_STR,
-                "///[",
-                PROJECT_FILESYSTEM_NAME_STR,
-                "]/"
-            )) {
-                let fs_path = project_dir.join(project_path)?;
-                if lib_code {
-                    return Ok(ResolvedSourceMapping::MappedLibrary {
-                        frame: frame.clone(),
-                        project_path: fs_path.clone(),
-                    });
-                } else {
-                    let lines = fs_path.read().lines().await?;
-                    return Ok(ResolvedSourceMapping::MappedProject {
-                        frame: frame.clone(),
-                        project_path: fs_path.clone(),
-                        lines,
-                    });
+turbo_tasks::dual_fn! {
+    fn resolve_source_mapping(
+        assets_for_source_mapping: Vc<AssetsForSourceMapping>,
+        root: FileSystemPath,
+        project_dir: FileSystemPath,
+        frame: &StackFrame<'_>,
+    ) -> Result<ResolvedSourceMapping> {
+        let Some((line, column)) = frame.get_pos() else {
+            return Ok(ResolvedSourceMapping::NoSourceMap);
+        };
+        let name = frame.name.as_ref();
+        let file = &frame.file;
+        let Some(root) = turbo_tasks::read!(to_sys_path(root))? else {
+            return Ok(ResolvedSourceMapping::NoSourceMap);
+        };
+        let Ok(file) = Path::new(file.as_ref()).strip_prefix(root) else {
+            return Ok(ResolvedSourceMapping::NoSourceMap);
+        };
+        let file = file.to_string_lossy();
+        let file = if MAIN_SEPARATOR != '/' {
+            Cow::Owned(file.replace(MAIN_SEPARATOR, "/"))
+        } else {
+            file
+        };
+        let map = turbo_tasks::read!(assets_for_source_mapping)?;
+        let Some(generate_source_map) = map.get(file.as_ref()) else {
+            return Ok(ResolvedSourceMapping::NoSourceMap);
+        };
+        let sm = generate_source_map.generate_source_map();
+        let Some(sm) = &*turbo_tasks::read!(SourceMap::new_from_rope_cached(sm))? else {
+            return Ok(ResolvedSourceMapping::NoSourceMap);
+        };
+        let trace = trace_source_map(sm, line, column, name.map(|s| &**s));
+        match trace {
+            TraceResult::Found(frame) => {
+                let lib_code = frame.file.contains("/node_modules/");
+                if let Some(project_path) = frame.file.strip_prefix(concatcp!(
+                    SOURCE_URL_PROTOCOL_STR,
+                    "///[",
+                    PROJECT_FILESYSTEM_NAME_STR,
+                    "]/"
+                )) {
+                    let fs_path = project_dir.join(project_path)?;
+                    if lib_code {
+                        return Ok(ResolvedSourceMapping::MappedLibrary {
+                            frame: frame.clone(),
+                            project_path: fs_path.clone(),
+                        });
+                    } else {
+                        let lines = turbo_tasks::read!(fs_path.read().lines())?;
+                        return Ok(ResolvedSourceMapping::MappedProject {
+                            frame: frame.clone(),
+                            project_path: fs_path.clone(),
+                            lines,
+                        });
+                    }
                 }
+                Ok(ResolvedSourceMapping::Mapped {
+                    frame: frame.clone(),
+                })
             }
-            Ok(ResolvedSourceMapping::Mapped {
-                frame: frame.clone(),
-            })
+            TraceResult::NotFound => Ok(ResolvedSourceMapping::Unmapped),
         }
-        TraceResult::NotFound => Ok(ResolvedSourceMapping::Unmapped),
     }
 }
 
@@ -288,59 +291,68 @@ impl StructuredError {
         }
     }
 
-    pub async fn print(
-        &self,
-        assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-        root: FileSystemPath,
-        root_path: FileSystemPath,
-        formatting_mode: FormattingMode,
-    ) -> Result<String> {
-        let mut message = String::new();
+    turbo_tasks::dual_fn! {
+        pub fn print(
+            &self,
+            assets_for_source_mapping: Vc<AssetsForSourceMapping>,
+            root: FileSystemPath,
+            root_path: FileSystemPath,
+            formatting_mode: FormattingMode,
+        ) -> Result<String> {
+            let mut message = String::new();
 
-        let magic = |content| formatting_mode.magic_identifier(content);
+            let magic = |content| formatting_mode.magic_identifier(content);
 
-        write!(
-            message,
-            "{}: {}",
-            self.name,
-            unmangle_identifiers(&self.message, magic)
-        )?;
-
-        let mut first_error = true;
-        let mut visible_code_frames = 0;
-
-        for frame in &self.stack {
-            let frame = frame.unmangle_identifiers(magic);
-            let resolved = resolve_source_mapping(
-                assets_for_source_mapping,
-                root.clone(),
-                root_path.clone(),
-                &frame,
-            )
-            .await;
-            write_resolved(
-                &mut message,
-                resolved,
-                &frame,
-                &mut first_error,
-                &mut visible_code_frames,
-                formatting_mode,
+            write!(
+                message,
+                "{}: {}",
+                self.name,
+                unmangle_identifiers(&self.message, magic)
             )?;
-        }
 
-        if let Some(cause) = &self.cause {
-            message.write_str("\nCaused by: ")?;
-            message.write_str(
-                &Box::pin(cause.print(
+            let mut first_error = true;
+            let mut visible_code_frames = 0;
+
+            for frame in &self.stack {
+                let frame = frame.unmangle_identifiers(magic);
+                let resolved = turbo_tasks::read!(resolve_source_mapping(
+                    assets_for_source_mapping,
+                    root.clone(),
+                    root_path.clone(),
+                    &frame,
+                ));
+                write_resolved(
+                    &mut message,
+                    resolved,
+                    &frame,
+                    &mut first_error,
+                    &mut visible_code_frames,
+                    formatting_mode,
+                )?;
+            }
+
+            if let Some(cause) = &self.cause {
+                message.write_str("\nCaused by: ")?;
+                // Recursive call: the async build must box the recursive future;
+                // the sync build recurses directly.
+                #[cfg(not(feature = "sync"))]
+                let cause_message = turbo_tasks::read!(Box::pin(cause.print(
                     assets_for_source_mapping,
                     root.clone(),
                     root_path.clone(),
                     formatting_mode,
-                ))
-                .await?,
-            )?;
-        }
+                )))?;
+                #[cfg(feature = "sync")]
+                let cause_message = cause.print(
+                    assets_for_source_mapping,
+                    root.clone(),
+                    root_path.clone(),
+                    formatting_mode,
+                )?;
+                message.write_str(&cause_message)?;
+            }
 
-        Ok(message)
+            Ok(message)
+        }
     }
 }

@@ -74,21 +74,19 @@ impl OutputAsset for SourceMapAsset {
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         // NOTE(alexkirsz) We used to include the asset's version id in the path,
         // but this caused `all_assets_map` to be recomputed on every change.
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         Ok(match &this.path_ty {
             PathType::FromIdent {
                 chunking_context,
                 ident_for_path,
-            } => chunking_context
-                .chunk_path(
-                    Some(Vc::upcast(self)),
-                    **ident_for_path,
-                    None,
-                    rcstr!(".js"),
-                )
-                .await?
-                .append(".map")?
-                .cell(),
+            } => turbo_tasks::read!(chunking_context.chunk_path(
+                Some(Vc::upcast(self)),
+                **ident_for_path,
+                None,
+                rcstr!(".js"),
+            ))?
+            .append(".map")?
+            .cell(),
             PathType::Fixed { path } => path.append(".map")?.cell(),
         })
     }
@@ -99,7 +97,7 @@ impl Asset for SourceMapAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
         let content = self.generate_source_map.generate_source_map();
-        if content.await?.is_content() {
+        if turbo_tasks::read!(content)?.is_content() {
             Ok(AssetContent::file(content))
         } else {
             Ok(AssetContent::file(

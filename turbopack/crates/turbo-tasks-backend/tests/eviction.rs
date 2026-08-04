@@ -9,7 +9,8 @@ use std::sync::{
 
 use anyhow::Result;
 use turbo_tasks::{
-    ResolvedVc, State, TurboTasks, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
+    ResolvedVc, State, TurboTasks, Vc, read,
+    unmark_top_level_task_may_leak_eventually_consistent_state,
 };
 use turbo_tasks_backend::{BackendOptions, GitVersionInfo, TurboTasksBackend};
 
@@ -68,7 +69,7 @@ fn create_tt(name: &str) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempD
 
 /// Verify that after eviction, task re-execution produces correct results.
 /// This tests the snapshot → evict → invalidate → restore → re-execute cycle.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn eviction_recompute() {
     let (tt, _persistence_dir) = create_tt("eviction_recompute");
     let tt2 = tt.clone();
@@ -110,7 +111,7 @@ async fn eviction_recompute() {
 /// Verify that eviction works with a deep (4-level) dependency chain.
 /// Multiple intermediate tasks should be evicted and restored correctly.
 /// Chain: create_state → add_one → times_three → plus_ten → deep_chain
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn eviction_deep_chain() {
     let (tt, _persistence_dir) = create_tt("eviction_deep_chain");
     let tt2 = tt.clone();
@@ -167,7 +168,7 @@ async fn eviction_deep_chain() {
 /// Verify that eviction + restore preserves dependency edges correctly.
 /// After eviction, changing a deep dependency should still propagate
 /// through the entire chain.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn eviction_dependency_chain() {
     let (tt, _persistence_dir) = create_tt("eviction_dependency_chain");
     let tt2 = tt.clone();
@@ -235,7 +236,7 @@ struct Output {
 
 #[turbo_tasks::function(operation, root)]
 async fn compute(input: ResolvedVc<Step>) -> Result<Vc<Output>> {
-    let value = *input.await?.get();
+    let value = *read!(input)?.get();
     Ok(Output {
         value,
         random: rand::random(),
@@ -246,7 +247,7 @@ async fn compute(input: ResolvedVc<Step>) -> Result<Vc<Output>> {
 /// Inner function in the dependency chain
 #[turbo_tasks::function(operation)]
 async fn double(input: ResolvedVc<Step>) -> Result<Vc<u32>> {
-    let value = *input.await?.get();
+    let value = *read!(input)?.get();
     Ok(Vc::cell(value * 2))
 }
 
@@ -254,7 +255,7 @@ async fn double(input: ResolvedVc<Step>) -> Result<Vc<u32>> {
 #[turbo_tasks::function(operation, root)]
 async fn compute_chain(input: ResolvedVc<Step>) -> Result<Vc<Output>> {
     let doubled = double(input);
-    let value = *doubled.connect().await?;
+    let value = *read!(doubled.connect())?;
     Ok(Output {
         value,
         random: rand::random(),
@@ -268,19 +269,19 @@ async fn compute_chain(input: ResolvedVc<Step>) -> Result<Vc<Output>> {
 
 #[turbo_tasks::function(operation, root)]
 async fn add_one(input: ResolvedVc<Step>) -> Result<Vc<u32>> {
-    let value = *input.await?.get();
+    let value = *read!(input)?.get();
     Ok(Vc::cell(value + 1))
 }
 
 #[turbo_tasks::function(operation, root)]
 async fn times_three(input: ResolvedVc<u32>) -> Result<Vc<u32>> {
-    let value = *input.await?;
+    let value = *read!(input)?;
     Ok(Vc::cell(value * 3))
 }
 
 #[turbo_tasks::function(operation, root)]
 async fn plus_ten(input: ResolvedVc<u32>) -> Result<Vc<u32>> {
-    let value = *input.await?;
+    let value = *read!(input)?;
     Ok(Vc::cell(value + 10))
 }
 
@@ -288,10 +289,10 @@ async fn plus_ten(input: ResolvedVc<u32>) -> Result<Vc<u32>> {
 async fn deep_chain(input: ResolvedVc<Step>) -> Result<Vc<Output>> {
     // input → add_one → times_three → plus_ten → Output
     // For input=10: (10+1)*3+10 = 43
-    let a = add_one(input).resolve().strongly_consistent().await?;
-    let b = times_three(a).resolve().strongly_consistent().await?;
-    let c = plus_ten(b).resolve().strongly_consistent().await?;
-    let value = *c.await?;
+    let a = read!(add_one(input).resolve().strongly_consistent())?;
+    let b = read!(times_three(a).resolve().strongly_consistent())?;
+    let c = read!(plus_ten(b).resolve().strongly_consistent())?;
+    let value = *read!(c)?;
     Ok(Output {
         value,
         random: rand::random(),
@@ -327,11 +328,12 @@ fn create_session_counter(initial: u32) -> Vc<SessionCounter> {
 /// session-stateful eviction gate).
 #[turbo_tasks::function(operation, root)]
 async fn read_session_counter(initial: u32) -> Result<Vc<Output>> {
-    let counter = create_session_counter(initial)
-        .resolve()
-        .strongly_consistent()
-        .await?;
-    let c = counter.await?;
+    let counter = read!(
+        create_session_counter(initial)
+            .resolve()
+            .strongly_consistent()
+    )?;
+    let c = read!(counter)?;
     Ok(Output {
         value: c.count,
         random: rand::random(),
@@ -345,7 +347,7 @@ async fn read_session_counter(initial: u32) -> Result<Vc<Output>> {
 /// Uses a two-layer chain so that create_session_counter (the task that writes
 /// the session-stateful cell) has no transient dependents — only
 /// read_session_counter reads it, and it is itself a persistent task.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn eviction_session_stateful_survives() {
     let (tt, _persistence_dir) = create_tt("eviction_session_stateful_survives");
     let tt2 = tt.clone();
@@ -398,7 +400,7 @@ async fn eviction_session_stateful_survives() {
 /// The `run_once` closure is itself a transient task. We create persistent
 /// operation tasks, evict them, then mutate state and confirm the transient
 /// reader sees the updated value.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn eviction_transient_reader_invalidated() {
     let (tt, _persistence_dir) = create_tt("eviction_transient_reader_invalidated");
     let tt2 = tt.clone();
@@ -459,14 +461,14 @@ async fn eviction_transient_reader_invalidated() {
 /// memoized task, creating truly independent intermediate tasks for fan-out.
 #[turbo_tasks::function(operation, root)]
 async fn add_offset(input: ResolvedVc<Step>, offset: u32) -> Result<Vc<u32>> {
-    let value = *input.await?.get();
+    let value = *read!(input)?.get();
     Ok(Vc::cell(value.wrapping_add(offset)))
 }
 
 /// Multiplies by a factor — unique per factor argument.
 #[turbo_tasks::function(operation, root)]
 async fn multiply(input: ResolvedVc<u32>, factor: u32) -> Result<Vc<u32>> {
-    let value = *input.await?;
+    let value = *read!(input)?;
     Ok(Vc::cell(value.wrapping_mul(factor)))
 }
 
@@ -478,12 +480,13 @@ async fn multiply(input: ResolvedVc<u32>, factor: u32) -> Result<Vc<u32>> {
 async fn fan_out(input: ResolvedVc<Step>, width: u32) -> Result<Vc<u32>> {
     let mut total = 0u32;
     for i in 0..width {
-        let a = add_offset(input, i).resolve().strongly_consistent().await?;
-        let b = multiply(a, i.wrapping_add(2))
-            .resolve()
-            .strongly_consistent()
-            .await?;
-        total = total.wrapping_add(*b.await?);
+        let a = read!(add_offset(input, i).resolve().strongly_consistent())?;
+        let b = read!(
+            multiply(a, i.wrapping_add(2))
+                .resolve()
+                .strongly_consistent()
+        )?;
+        total = total.wrapping_add(*read!(b)?);
     }
     Ok(Vc::cell(total))
 }
@@ -495,7 +498,11 @@ async fn fan_out(input: ResolvedVc<Step>, width: u32) -> Result<Vc<u32>> {
 ///
 /// Before the restoring-bit fix, this would panic with "Cell no longer exists"
 /// because eviction could clear data on a task mid-restore.
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+// Concurrency-safety regression test. The sync engine is also concurrent (rayon
+// `parallel!` plus the background eviction thread spawned below), so this races eviction
+// against in-flight restores under both runtimes — only the thread/timer APIs differ
+// (`std::thread` + `sleep!`/`timeout!` vs tokio's).
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 4)]
 async fn eviction_stress_concurrent() {
     let (tt, _persistence_dir) = create_tt_with_workers("eviction_stress_concurrent", 4);
     let tt_evict = tt.clone();
@@ -505,15 +512,22 @@ async fn eviction_stress_concurrent() {
     let eviction_cycles = Arc::new(AtomicU64::new(0));
     let eviction_cycles_clone = eviction_cycles.clone();
 
-    // Background thread: snapshot+evict with a short sleep to avoid starving
-    // worker threads, but fast enough to race with restores.
-    let eviction_handle = tokio::task::spawn_blocking(move || {
+    // Background thread: snapshot+evict with a short sleep to avoid starving worker
+    // threads, but fast enough to race with restores. Spawned dual-mode: in async it
+    // must be `tokio::task::spawn_blocking` so `snapshot_and_evict`'s `block_in_place`
+    // (used by `parallel::for_each`) has a multi-thread runtime; in sync `block_in_place`
+    // is a no-op, so a plain `std::thread` is enough (and there is no tokio runtime).
+    let evict_loop = move || {
         while !stop_clone.load(Ordering::Relaxed) {
             tt_evict.backend().snapshot_and_evict_for_testing(&tt_evict);
             eviction_cycles_clone.fetch_add(1, Ordering::Relaxed);
             std::thread::sleep(std::time::Duration::from_millis(1));
         }
-    });
+    };
+    #[cfg(not(feature = "sync"))]
+    let eviction_handle = tokio::task::spawn_blocking(evict_loop);
+    #[cfg(feature = "sync")]
+    let eviction_handle = std::thread::spawn(evict_loop);
 
     let result = turbo_tasks::run_once(tt.clone(), async move {
         unmark_top_level_task_may_leak_eventually_consistent_state();
@@ -540,16 +554,16 @@ async fn eviction_stress_concurrent() {
         let read = *output.read_strongly_consistent().await?;
         assert_eq!(read, expected_for(1));
         // Give the background eviction thread time to run a snapshot+evict cycle.
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        turbo_tasks_testing::sleep!(std::time::Duration::from_millis(50));
 
         // Run invalidation cycles while the background eviction thread is active.
         // The sleep between eviction cycles gives worker threads time to start
         // restoring, then eviction runs and races with in-flight restores.
         for i in 1u32..=50 {
             state.set(i);
-            let read = tokio::time::timeout(
+            let read = turbo_tasks_testing::timeout!(
                 std::time::Duration::from_secs(5),
-                output.read_strongly_consistent(),
+                output.read_strongly_consistent()
             )
             .await
             .unwrap_or_else(|_| {
@@ -572,7 +586,10 @@ async fn eviction_stress_concurrent() {
     .await;
 
     stop.store(true, Ordering::Relaxed);
+    #[cfg(not(feature = "sync"))]
     eviction_handle.await.unwrap();
+    #[cfg(feature = "sync")]
+    eviction_handle.join().unwrap();
     let cycles = eviction_cycles.load(Ordering::Relaxed);
     println!("stress test completed with {cycles} eviction cycles");
 
@@ -618,9 +635,9 @@ fn create_session_alive() -> Vc<SessionAlive> {
 /// writer's cell) without invalidating `create_session_alive` itself.
 #[turbo_tasks::function(operation, root)]
 async fn read_session_alive_id(state: ResolvedVc<Step>) -> Result<Vc<AlivePtr>> {
-    let _state = *state.await?.get();
-    let v = create_session_alive().resolve().await?;
-    let r = v.await?;
+    let _state = *read!(state)?.get();
+    let v = read!(create_session_alive().resolve())?;
+    let r = read!(v)?;
     let alive_now = r.alive.load(Ordering::Relaxed);
     let alive_ptr = Arc::as_ptr(&r.alive) as usize as u64;
     Ok(AlivePtr {
@@ -652,7 +669,7 @@ struct AlivePtr {
 ///      freshly-defaulted (`false`) one.
 ///   4. Read the cell again. With the bug active the value's `alive` flag is now `false` and the
 ///      captured pointer no longer matches the cell's current `alive` Arc.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn eviction_persistable_never_preserves_live_cell() {
     let (tt, _persistence_dir) = create_tt("eviction_persistable_never_preserves_live_cell");
     let tt2 = tt.clone();

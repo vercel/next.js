@@ -8,7 +8,7 @@ use std::{
 use anyhow::{Context, Result, bail};
 use indoc::indoc;
 use turbo_tasks::{
-    PrettyPrintError, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
+    PrettyPrintError, Vc, read, unmark_top_level_task_may_leak_eventually_consistent_state,
 };
 use turbo_tasks_testing::{Registration, register, run};
 
@@ -71,25 +71,25 @@ fn direct_panic_with_context() -> Result<Vc<u32>> {
 
 #[turbo_tasks::function]
 async fn indirect_bail() -> Result<Vc<u32>> {
-    direct_bail().await?;
+    read!(direct_bail())?;
     Ok(Vc::cell(0))
 }
 
 #[turbo_tasks::function]
 async fn indirect_bail_with_context() -> Result<Vc<u32>> {
-    direct_bail().await.context("indirect-context")?;
+    read!(direct_bail()).context("indirect-context")?;
     Ok(Vc::cell(0))
 }
 
 #[turbo_tasks::function]
 async fn indirect_panic() -> Result<Vc<u32>> {
-    direct_panic().await?;
+    read!(direct_panic())?;
     Ok(Vc::cell(0))
 }
 
 #[turbo_tasks::function]
 async fn indirect_panic_with_context() -> Result<Vc<u32>> {
-    direct_panic().await.context("indirect-context")?;
+    read!(direct_panic()).context("indirect-context")?;
     Ok(Vc::cell(0))
 }
 
@@ -97,7 +97,7 @@ async fn indirect_panic_with_context() -> Result<Vc<u32>> {
 // Tests
 // ============================================================================
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_direct_bail() {
     test(async || {
         assert_error(
@@ -114,7 +114,7 @@ async fn test_direct_bail() {
     .await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_direct_bail_with_context() {
     test(async || {
         assert_error(
@@ -135,7 +135,7 @@ async fn test_direct_bail_with_context() {
     .await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_direct_panic() {
     test(async || {
         assert_error(
@@ -152,7 +152,7 @@ async fn test_direct_panic() {
     .await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_direct_panic_with_context() {
     // Note: panic! is synchronous, so .context() cannot wrap it
     test(async || {
@@ -170,7 +170,7 @@ async fn test_direct_panic_with_context() {
     .await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_indirect_bail() {
     test(async || {
         assert_error(
@@ -188,7 +188,7 @@ async fn test_indirect_bail() {
     .await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_indirect_bail_with_context() {
     test(async || {
         assert_error(
@@ -210,7 +210,7 @@ async fn test_indirect_bail_with_context() {
     .await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_indirect_panic() {
     test(async || {
         assert_error(
@@ -228,7 +228,7 @@ async fn test_indirect_panic() {
     .await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_indirect_panic_with_context() {
     test(async || {
         assert_error(
@@ -298,7 +298,7 @@ async fn indirect_panic_with_context_in_context() -> Result<()> {
 // In-context tests
 // ============================================================================
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_direct_bail_in_context() {
     test(async || {
         assert_error(
@@ -319,7 +319,7 @@ async fn test_direct_bail_in_context() {
     .await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_direct_bail_with_context_in_context() {
     test(async || {
         assert_error(
@@ -342,7 +342,7 @@ async fn test_direct_bail_with_context_in_context() {
     .await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_direct_panic_in_context() {
     test(async || {
         assert_error(
@@ -363,7 +363,7 @@ async fn test_direct_panic_in_context() {
     .await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_direct_panic_with_context_in_context() {
     test(async || {
         assert_error(
@@ -384,7 +384,7 @@ async fn test_direct_panic_with_context_in_context() {
     .await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_indirect_bail_in_context() {
     test(async || {
         assert_error(
@@ -406,7 +406,7 @@ async fn test_indirect_bail_in_context() {
     .await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_indirect_bail_with_context_in_context() {
     test(async || {
         assert_error(
@@ -430,7 +430,7 @@ async fn test_indirect_bail_with_context_in_context() {
     .await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_indirect_panic_in_context() {
     test(async || {
         assert_error(
@@ -452,7 +452,7 @@ async fn test_indirect_panic_in_context() {
     .await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_indirect_panic_with_context_in_context() {
     test(async || {
         assert_error(

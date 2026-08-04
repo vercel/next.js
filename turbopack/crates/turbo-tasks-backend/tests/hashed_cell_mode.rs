@@ -5,7 +5,7 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, State, Vc};
+use turbo_tasks::{ResolvedVc, State, Vc, read};
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 use turbo_tasks_testing::{Registration, register, run};
 
@@ -54,7 +54,7 @@ fn create_state_operation() -> Vc<Step> {
 /// but does not affect hash or equality.
 #[turbo_tasks::function(operation, root)]
 async fn produce_hashed(input: ResolvedVc<Step>) -> Result<Vc<HashedValue>> {
-    let value = *input.await?.get();
+    let value = *read!(input)?.get();
     let noise = EXECUTION_COUNTER.fetch_add(1, Ordering::Relaxed) as u64;
     Ok(HashedValue { value, noise }.cell())
 }
@@ -63,14 +63,14 @@ async fn produce_hashed(input: ResolvedVc<Step>) -> Result<Vc<HashedValue>> {
 #[turbo_tasks::function(operation, root)]
 async fn consume_hashed(input: ResolvedVc<Step>) -> Result<Vc<ConsumeResult>> {
     let hashed = produce_hashed(input).connect();
-    let v = hashed.await?;
+    let v = read!(hashed)?;
     let value = v.value;
     let random = EXECUTION_COUNTER.fetch_add(1, Ordering::Relaxed);
     Ok(ConsumeResult { value, random }.cell())
 }
 
 /// Test 1: When the value changes, the consumer SHOULD be invalidated and re-execute.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_hashed_cell_mode_change_triggers_invalidation() {
     run(&REGISTRATION, || async {
         let state_op = create_state_operation();
@@ -101,7 +101,7 @@ async fn test_hashed_cell_mode_change_triggers_invalidation() {
 /// Test 2: When the value stays the same, the consumer should NOT be invalidated.
 /// The producer re-runs (state.set triggers it) but produces an equal HashedValue.
 /// With `serialization = "hash"`, the consumer should not be re-executed.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_hashed_cell_mode_equal_value_no_invalidation() {
     run(&REGISTRATION, || async {
         let state_op = create_state_operation();

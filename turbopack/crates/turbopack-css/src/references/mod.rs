@@ -9,7 +9,9 @@ use lightningcss::{
     visitor::{Visit, Visitor},
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::TryJoinIterExt;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     issue::IssueSource,
     reference::ModuleReference,
@@ -36,26 +38,46 @@ pub type AnalyzedRefs = (
     Vec<(String, ResolvedVc<UrlAssetReference>)>,
 );
 
-/// Returns `(all_references, urls)`.
-pub async fn analyze_references(
-    stylesheet: &mut StyleSheet<'static, 'static>,
-    source: ResolvedVc<Box<dyn Source>>,
-    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-    import_context: Option<ResolvedVc<ImportContext>>,
-) -> Result<AnalyzedRefs> {
-    let mut references = Vec::new();
-    let mut urls = Vec::new();
+turbo_tasks::dual_fn! {
+    /// Returns `(all_references, urls)`.
+    pub fn analyze_references(
+        stylesheet: &mut StyleSheet<'static, 'static>,
+        source: ResolvedVc<Box<dyn Source>>,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        import_context: Option<ResolvedVc<ImportContext>>,
+    ) -> Result<AnalyzedRefs> {
+        let mut references = Vec::new();
+        let mut urls = Vec::new();
 
-    let mut visitor =
-        ModuleReferencesVisitor::new(source, origin, import_context, &mut references, &mut urls);
-    stylesheet.visit(&mut visitor).unwrap();
+        let mut visitor =
+            ModuleReferencesVisitor::new(source, origin, import_context, &mut references, &mut urls);
+        stylesheet.visit(&mut visitor).unwrap();
 
-    tokio::try_join!(
-        references.into_iter().map(|v| v.to_resolved()).try_join(),
-        urls.into_iter()
-            .map(|(k, v)| async move { Ok((k, v.to_resolved().await?)) })
-            .try_join(),
-    )
+        // `.to_resolved()` futures cannot fan out through the sync `parallel!`; keep
+        // the async build concurrent and resolve sequentially under `sync`.
+        #[cfg(not(feature = "sync"))]
+        {
+            Ok((
+                references.into_iter().map(|v| v.to_resolved()).try_join().await?,
+                urls.into_iter()
+                    .map(|(k, v)| async move { Ok((k, turbo_tasks::read!(v.to_resolved())?)) })
+                    .try_join()
+                    .await?,
+            ))
+        }
+        #[cfg(feature = "sync")]
+        {
+            let mut resolved_references = Vec::with_capacity(references.len());
+            for v in references {
+                resolved_references.push(turbo_tasks::read!(v.to_resolved())?);
+            }
+            let mut resolved_urls = Vec::with_capacity(urls.len());
+            for (k, v) in urls {
+                resolved_urls.push((k, turbo_tasks::read!(v.to_resolved())?));
+            }
+            Ok((resolved_references, resolved_urls))
+        }
+    }
 }
 
 struct ModuleReferencesVisitor<'a> {

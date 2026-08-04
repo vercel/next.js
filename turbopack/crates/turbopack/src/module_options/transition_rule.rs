@@ -51,13 +51,15 @@ impl TransitionRule {
         self.transition
     }
 
-    pub async fn matches(
+    turbo_tasks::dual_fn! {
+    pub fn matches(
         &self,
         source: ResolvedVc<Box<dyn Source>>,
         path: &FileSystemPath,
         reference_type: &ReferenceType,
     ) -> Result<bool> {
         Ok(self.match_mode.matches(reference_type)
-            && self.condition.matches(source, path, reference_type).await?)
+            && turbo_tasks::read!(self.condition.matches(source, path, reference_type))?)
+    }
     }
 }

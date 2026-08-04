@@ -51,15 +51,16 @@ const BABEL_PLUGIN_REACT_COMPILER: RcStr = rcstr!("babel-plugin-react-compiler")
 const BABEL_PLUGIN_REACT_COMPILER_PACKAGE_JSON: RcStr =
     rcstr!("babel-plugin-react-compiler/package.json");
 
+turbo_tasks::dual_fn! {
 /// Detect manually-configured babel loaders. This is used to generate a warning, suggesting using
 /// the built-in babel support.
-async fn detect_likely_babel_loader(
+fn detect_likely_babel_loader(
     webpack_rules: &[(RcStr, LoaderRuleItem)],
 ) -> Result<Option<RcStr>> {
     for (glob, rule) in webpack_rules {
-        if rule
-            .loaders
-            .await?
+        if turbo_tasks::read!(rule
+            .loaders)
+            ?
             .iter()
             .any(|item| BABEL_LOADER_RE.is_match(&item.loader))
         {
@@ -68,11 +69,13 @@ async fn detect_likely_babel_loader(
     }
     Ok(None)
 }
+}
 
+turbo_tasks::dual_fn! {
 /// If the user has a babel configuration file (see list above) alongside their `next.config.js`
 /// configuration, automatically add `babel-loader` as a webpack loader for each eligible file type
 /// if it doesn't already exist.
-pub async fn get_babel_loader_rules(
+pub fn get_babel_loader_rules(
     project_path: &FileSystemPath,
     next_config: Vc<NextConfig>,
     builtin_conditions: &BTreeSet<WebpackLoaderBuiltinCondition>,
@@ -85,21 +88,21 @@ pub async fn get_babel_loader_rules(
         return Ok(Vec::new());
     }
 
-    let use_builtin_babel = next_config
-        .experimental_turbopack_use_builtin_babel()
-        .await?;
+    let use_builtin_babel = turbo_tasks::read!(next_config
+        .experimental_turbopack_use_builtin_babel())
+        ?;
 
     if use_builtin_babel.is_none()
-        && let Some(glob) = detect_likely_babel_loader(user_webpack_rules).await?
+        && let Some(glob) = turbo_tasks::read!(detect_likely_babel_loader(user_webpack_rules))?
     {
         ManuallyConfiguredBuiltinLoaderIssue {
             glob,
             loader: rcstr!("babel-loader"),
             config_key: rcstr!("experimental.turbopackUseBuiltinBabel"),
-            config_file_path: next_config
+            config_file_path: turbo_tasks::read!(next_config
                 .config_file_path(project_path.clone())
-                .owned()
-                .await?,
+                .owned())
+                ?,
         }
         .resolved_cell()
         .emit()
@@ -109,7 +112,7 @@ pub async fn get_babel_loader_rules(
     if use_builtin_babel.unwrap_or(true) {
         for &filename in BABEL_CONFIG_FILES {
             let path = project_path.join(filename)?;
-            let filetype = *path.get_type().await?;
+            let filetype = *turbo_tasks::read!(path.get_type())?;
             if matches!(filetype, FileSystemEntryType::File) {
                 babel_config_path = Some(path);
                 break;
@@ -117,8 +120,8 @@ pub async fn get_babel_loader_rules(
         }
     }
 
-    let react_compiler_options = next_config.react_compiler_options().await?;
-    let use_rust_react_compiler = next_config.rust_react_compiler().await?.is_some();
+    let react_compiler_options = turbo_tasks::read!(next_config.react_compiler_options())?;
+    let use_rust_react_compiler = turbo_tasks::read!(next_config.rust_react_compiler())?.is_some();
 
     // bail early: no babel config, no react-compiler, or Rust React Compiler is active (babel has
     // nothing to do).
@@ -138,7 +141,7 @@ pub async fn get_babel_loader_rules(
         // of parsing with SWC after the webpack loader runs, we want to keep running those
         // transforms using SWC, so use `standalone` instead.
         "transformMode": "standalone",
-        "cwd": to_sys_path_str(project_path.clone()).await?,
+        "cwd": turbo_tasks::read!(to_sys_path_str(project_path.clone()))?,
         "isServer": !builtin_conditions.contains(&WebpackLoaderBuiltinCondition::Browser),
     }) else {
         unreachable!("is an object")
@@ -147,7 +150,7 @@ pub async fn get_babel_loader_rules(
     if let Some(babel_config_path) = &babel_config_path {
         loader_options.insert(
             "configFile".to_owned(),
-            to_sys_path_str(babel_config_path.clone()).await?.into(),
+            turbo_tasks::read!(to_sys_path_str(babel_config_path.clone()))?.into(),
         );
     }
 
@@ -155,13 +158,13 @@ pub async fn get_babel_loader_rules(
     if let Some(react_compiler_options) = react_compiler_options.as_ref()
         && !use_rust_react_compiler
         && let Some(babel_plugin_path) =
-            resolve_babel_plugin_react_compiler(next_config, project_path).await?
+            turbo_tasks::read!(resolve_babel_plugin_react_compiler(next_config, project_path))?
     {
-        let react_compiler_options = react_compiler_options.await?;
+        let react_compiler_options = turbo_tasks::read!(react_compiler_options)?;
 
         let mut react_compiler_options_with_target: ReactCompilerOptions =
             (*react_compiler_options).clone();
-        if let Some(target) = detect_react_compiler_target(project_path).await? {
+        if let Some(target) = turbo_tasks::read!(detect_react_compiler_target(project_path))? {
             react_compiler_options_with_target.target = Some(target);
         }
 
@@ -247,8 +250,10 @@ pub async fn get_babel_loader_rules(
         },
     )])
 }
+}
 
-pub async fn detect_react_compiler_target(
+turbo_tasks::dual_fn! {
+pub fn detect_react_compiler_target(
     project_path: &FileSystemPath,
 ) -> Result<Option<ReactCompilerTarget>> {
     #[derive(Deserialize)]
@@ -260,16 +265,16 @@ pub async fn detect_react_compiler_target(
         project_path.clone(),
         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
         Request::parse(Pattern::Constant(rcstr!("react/package.json"))),
-        node_cjs_resolve_options(project_path.root().owned().await?),
+        node_cjs_resolve_options(turbo_tasks::read!(project_path.root().owned())?),
     );
 
-    let Some(source) = react_pkg_result.await?.first_source() else {
+    let Some(source) = turbo_tasks::read!(react_pkg_result)?.first_source() else {
         return Ok(None);
     };
 
-    let ident = source.ident().await?;
+    let ident = turbo_tasks::read!(source.ident())?;
     let path = &ident.path;
-    let FileContent::Content(file) = &*path.read().await? else {
+    let FileContent::Content(file) = &*turbo_tasks::read!(path.read())? else {
         return Ok(None);
     };
 
@@ -297,35 +302,39 @@ pub async fn detect_react_compiler_target(
         _ => Ok(None),
     }
 }
+}
 
+turbo_tasks::dual_fn! {
 /// A system path that can be passed to the webpack loader
-async fn to_sys_path_str(path: FileSystemPath) -> Result<String> {
-    let sys_path = to_sys_path(path)
-        .await?
+fn to_sys_path_str(path: FileSystemPath) -> Result<String> {
+    let sys_path = turbo_tasks::read!(to_sys_path(path))
+        ?
         .context("path should use a DiskFileSystem")?;
     Ok(sys_path
         .to_str()
         .with_context(|| format!("{sys_path:?} is not valid utf-8"))?
         .to_owned())
 }
+}
 
+turbo_tasks::dual_fn! {
 /// Resolve `babel-plugin-react-compiler` relative to `next`. This matches the behavior of the
 /// webpack implementation, which resolves the Babel plugin from within `next`. The Babel plugin is
 /// an optional peer dependency of `next`.
 ///
 /// The returned path is relative to `project_path`. `project_path` should be the value given to
 /// `babel-loader` using the `cwd` option.
-pub async fn resolve_babel_plugin_react_compiler(
+pub fn resolve_babel_plugin_react_compiler(
     next_config: Vc<NextConfig>,
     project_path: &FileSystemPath,
 ) -> Result<Option<RcStr>> {
-    let Some(next_package) = &*try_get_next_package(project_path.clone()).await? else {
+    let Some(next_package) = &*turbo_tasks::read!(try_get_next_package(project_path.clone()))? else {
         BabelPluginReactCompilerResolutionIssue {
             failed_resolution: rcstr!("next"),
-            config_file_path: next_config
+            config_file_path: turbo_tasks::read!(next_config
                 .config_file_path(project_path.clone())
-                .owned()
-                .await?,
+                .owned())
+                ?,
         }
         .resolved_cell()
         .emit();
@@ -336,15 +345,15 @@ pub async fn resolve_babel_plugin_react_compiler(
         next_package.clone(),
         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
         Request::parse(Pattern::Constant(BABEL_PLUGIN_REACT_COMPILER_PACKAGE_JSON)),
-        node_cjs_resolve_options(project_path.root().owned().await?),
+        node_cjs_resolve_options(turbo_tasks::read!(project_path.root().owned())?),
     );
-    let Some(source) = babel_plugin_result.await?.first_source() else {
+    let Some(source) = turbo_tasks::read!(babel_plugin_result)?.first_source() else {
         BabelPluginReactCompilerResolutionIssue {
             failed_resolution: BABEL_PLUGIN_REACT_COMPILER,
-            config_file_path: next_config
+            config_file_path: turbo_tasks::read!(next_config
                 .config_file_path(project_path.clone())
-                .owned()
-                .await?,
+                .owned())
+                ?,
         }
         .resolved_cell()
         .emit();
@@ -355,9 +364,10 @@ pub async fn resolve_babel_plugin_react_compiler(
         // the relative path should only ever fail to resolve when the `fs` is different, which
         // should only happen due to eventual consistency.
         project_path
-            .get_relative_path_to(&source.ident().await?.path.parent())
+            .get_relative_path_to(&turbo_tasks::read!(source.ident())?.path.parent())
             .context("failed to resolve relative path for react compiler plugin")?,
     ))
+}
 }
 
 #[turbo_tasks::value]
@@ -366,6 +376,7 @@ struct BabelPluginReactCompilerResolutionIssue {
     config_file_path: FileSystemPath,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for BabelPluginReactCompilerResolutionIssue {
@@ -406,12 +417,53 @@ impl Issue for BabelPluginReactCompilerResolutionIssue {
     }
 }
 
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for BabelPluginReactCompilerResolutionIssue {
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.config_file_path.clone())
+    }
+
+    fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Line(vec![
+            StyledString::Text(rcstr!("Failed to resolve package ")),
+            StyledString::Code(self.failed_resolution.clone()),
+            StyledString::Text(rcstr!(" while attempting to resolve React Compiler")),
+        ]))
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Line(vec![
+            StyledString::Text(rcstr!("React compiler is enabled in ")),
+            StyledString::Code(self.config_file_path.path.clone()),
+            StyledString::Text(rcstr!(
+                ". We attempted to resolve React Compiler relative to the "
+            )),
+            StyledString::Code(rcstr!("next")),
+            StyledString::Text(rcstr!(" package. Is ")),
+            StyledString::Code(BABEL_PLUGIN_REACT_COMPILER),
+            StyledString::Text(rcstr!(" installed in your ")),
+            StyledString::Code(rcstr!("node_modules")),
+            StyledString::Text(rcstr!(" directory?")),
+        ])))
+    }
+}
+
 #[turbo_tasks::value]
 struct ReactPackageJsonParseIssue {
     file_path: FileSystemPath,
     error: RcStr,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for ReactPackageJsonParseIssue {
@@ -435,6 +487,38 @@ impl Issue for ReactPackageJsonParseIssue {
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Line(vec![
+            StyledString::Text(rcstr!(
+                "Could not determine the React version for React Compiler target detection: "
+            )),
+            StyledString::Text(self.error.clone()),
+        ])))
+    }
+}
+
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for ReactPackageJsonParseIssue {
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Warning
+    }
+
+    fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.file_path.clone())
+    }
+
+    fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Line(vec![
+            StyledString::Text(rcstr!("Failed to parse ")),
+            StyledString::Code(rcstr!("react/package.json")),
+        ]))
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
         Ok(Some(StyledString::Line(vec![
             StyledString::Text(rcstr!(
                 "Could not determine the React version for React Compiler target detection: "

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
+#[cfg(not(feature = "sync"))]
 use async_trait::async_trait;
 use bytes_str::BytesStr;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -30,9 +31,13 @@ use swc_core::{
         visit::{Visit, VisitMutWith, VisitWith, noop_visit_type},
     },
 };
-use tracing::{Instrument, instrument};
+#[cfg(not(feature = "sync"))]
+use tracing::Instrument;
+use tracing::instrument;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{PrettyPrintError, ResolvedVc, ValueToString, Vc, turbofmt, util::WrapFuture};
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::util::WrapFuture;
+use turbo_tasks::{PrettyPrintError, ResolvedVc, ValueToString, Vc, turbofmt};
 use turbo_tasks_fs::{FileContent, FileSystemPath, rope::Rope};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
@@ -42,7 +47,7 @@ use turbopack_core::{
     source::Source,
     source_map::utils::add_default_ignore_list,
 };
-use turbopack_swc_utils::emitter::IssueEmitter;
+use turbopack_swc_utils::emitter::{IssueCollector, IssueEmitter};
 
 use super::EcmascriptModuleAssetType;
 use crate::{
@@ -278,11 +283,12 @@ pub async fn parse(
 ) -> Result<Vc<ParseResult>> {
     let span = tracing::info_span!(
         "parse ecmascript",
-        name = display(source.ident().to_string().await?),
+        name = display(turbo_tasks::read!(source.ident().to_string())?),
         ty = display(&ty)
     );
 
-    match parse_internal(
+    #[cfg(not(feature = "sync"))]
+    let result = parse_internal(
         source,
         ty,
         transforms,
@@ -291,15 +297,31 @@ pub async fn parse(
         inline_helpers,
     )
     .instrument(span)
-    .await
-    {
+    .await;
+    #[cfg(feature = "sync")]
+    let result = {
+        let _enter = span.entered();
+        parse_internal(
+            source,
+            ty,
+            transforms,
+            node_env,
+            is_external_tracing,
+            inline_helpers,
+        )
+    };
+    match result {
         Ok(result) => Ok(result),
         // ast-grep-ignore: no-context-turbofmt
-        Err(error) => Err(error.context(turbofmt!("failed to parse {}", source.ident()).await?)),
+        Err(error) => Err(error.context(turbo_tasks::read!(turbofmt!(
+            "failed to parse {}",
+            source.ident()
+        ))?)),
     }
 }
 
-async fn parse_internal(
+turbo_tasks::dual_fn! {
+fn parse_internal(
     source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
@@ -308,11 +330,11 @@ async fn parse_internal(
     inline_helpers: bool,
 ) -> Result<Vc<ParseResult>> {
     let content = source.content();
-    let source_ident = source.ident().await?;
+    let source_ident = turbo_tasks::read!(source.ident())?;
     let fs_path = &source_ident.path;
-    let ident = &*source.ident().to_string().await?;
+    let ident = &*turbo_tasks::read!(source.ident().to_string())?;
     let file_path_hash = hash_xxh3_hash64(ident) as u128;
-    let content = match content.await {
+    let content = match turbo_tasks::read!(content) {
         Ok(content) => content,
         Err(error) => {
             let error: RcStr = PrettyPrintError(&error).to_string().into();
@@ -335,11 +357,11 @@ async fn parse_internal(
         }
     };
     Ok(match &*content {
-        AssetContent::File(file) => match &*file.await? {
+        AssetContent::File(file) => match &*turbo_tasks::read!(file)? {
             FileContent::NotFound => ParseResult::NotFound.cell(),
             FileContent::Content(file) => {
-                let transforms = &*transforms.await?;
-                match parse_file_content(
+                let transforms = &*turbo_tasks::read!(transforms)?;
+                match turbo_tasks::read!(parse_file_content(
                     file.content().clone(),
                     fs_path,
                     ident,
@@ -351,15 +373,15 @@ async fn parse_internal(
                     node_env.clone(),
                     loose_errors,
                     inline_helpers,
-                )
-                .await
+                ))
+
                 {
                     Ok(result) => result,
                     Err(e) => {
                         // ast-grep-ignore: no-context-turbofmt
                         return Err(e).context(
-                            turbofmt!("Transforming and/or parsing of {} failed", source.ident())
-                                .await?,
+                            turbo_tasks::read!(turbofmt!("Transforming and/or parsing of {} failed", source.ident()))
+                                ?,
                         );
                     }
                 }
@@ -368,8 +390,11 @@ async fn parse_internal(
         AssetContent::Redirect { .. } => ParseResult::Unparsable { messages: None }.cell(),
     })
 }
+}
 
-async fn parse_file_content(
+turbo_tasks::dual_fn! {
+#[allow(clippy::too_many_arguments)]
+fn parse_file_content(
     program_source: Rope,
     fs_path: &FileSystemPath,
     ident: &str,
@@ -428,8 +453,82 @@ async fn parse_file_content(
     let globals = Arc::new(Globals::new());
     let globals_ref = &globals;
 
-    let mut result = WrapFuture::new(
-        async {
+    #[cfg(not(feature = "sync"))]
+    let mut result = turbo_tasks::read!(WrapFuture::new(
+        parse_file_content_inner(
+            program_source,
+            string,
+            fs_path,
+            ident,
+            query,
+            file_path_hash,
+            source,
+            ty,
+            transforms,
+            node_env,
+            inline_helpers,
+            source_map,
+            &parser_handler,
+            &collector_parse,
+        ),
+        |f, cx| GLOBALS.set(globals_ref, || HANDLER.set(&handler, || f.poll(cx))),
+    ))?;
+    #[cfg(feature = "sync")]
+    let mut result = GLOBALS.set(globals_ref, || {
+        HANDLER.set(&handler, || {
+            parse_file_content_inner(
+                program_source,
+                string,
+                fs_path,
+                ident,
+                query,
+                file_path_hash,
+                source,
+                ty,
+                transforms,
+                node_env,
+                inline_helpers,
+                source_map,
+                &parser_handler,
+                &collector_parse,
+            )
+        })
+    })?;
+    if let ParseResult::Ok {
+        globals: ref mut g, ..
+    } = result
+    {
+        // Assign the correct globals
+        *g = globals;
+    }
+    turbo_tasks::read!(collector.emit(loose_errors))?;
+    turbo_tasks::read!(collector_parse.emit(loose_errors))?;
+    Ok(result.cell())
+}
+}
+
+turbo_tasks::dual_fn! {
+/// The main parse/transform computation of [`parse_file_content`], split out so both
+/// modes can wrap it in the SWC `GLOBALS`/`HANDLER` thread-locals: the async build sets
+/// them around every poll via `WrapFuture`, the sync build sets them around the whole
+/// call.
+#[allow(clippy::too_many_arguments)]
+fn parse_file_content_inner(
+    program_source: Rope,
+    string: BytesStr,
+    fs_path: &FileSystemPath,
+    ident: &str,
+    query: RcStr,
+    file_path_hash: u128,
+    source: ResolvedVc<Box<dyn Source>>,
+    ty: EcmascriptModuleAssetType,
+    transforms: &[EcmascriptInputTransform],
+    node_env: RcStr,
+    inline_helpers: bool,
+    source_map: Arc<swc_core::common::SourceMap>,
+    parser_handler: &Handler,
+    collector_parse: &IssueCollector,
+) -> Result<ParseResult> {
             let file_name = FileName::Custom(ident.to_string());
             let fm = source_map.new_source_file(file_name.clone().into(), string);
 
@@ -568,21 +667,33 @@ async fn parse_file_content(
                 node_env,
             };
             let span = tracing::trace_span!("transforms");
-            async {
-                for transform in transforms.iter() {
-                    helpers = transform
-                        .apply(&mut parsed_program, &transform_context, helpers)
-                        .await?;
+            #[cfg(not(feature = "sync"))]
+            {
+                async {
+                    for transform in transforms.iter() {
+                        helpers = turbo_tasks::read!(transform
+                            .apply(&mut parsed_program, &transform_context, helpers))
+                            ?;
+                    }
+                    anyhow::Ok(())
                 }
-                anyhow::Ok(())
+                .instrument(span)
+                .await?;
             }
-            .instrument(span)
-            .await?;
+            #[cfg(feature = "sync")]
+            {
+                let _enter = span.entered();
+                for transform in transforms.iter() {
+                    helpers = turbo_tasks::read!(transform
+                        .apply(&mut parsed_program, &transform_context, helpers))
+                        ?;
+                }
+            }
 
             if parser_handler.has_errors() {
                 let messages = if let Some(error) = collector_parse.last_emitted_issue() {
                     // The emitter created in here only uses StyledString::Text
-                    if let StyledString::Text(xx) = &*error.await?.message.await? {
+                    if let StyledString::Text(xx) = &*turbo_tasks::read!(turbo_tasks::read!(error)?.message)? {
                         Some(vec![xx.clone()])
                     } else {
                         None
@@ -623,20 +734,7 @@ async fn parse_file_content(
                 source_mapping_url: source_mapping_url.map(|s| s.into()),
                 program_source,
             })
-        },
-        |f, cx| GLOBALS.set(globals_ref, || HANDLER.set(&handler, || f.poll(cx))),
-    )
-    .await?;
-    if let ParseResult::Ok {
-        globals: ref mut g, ..
-    } = result
-    {
-        // Assign the correct globals
-        *g = globals;
-    }
-    collector.emit(loose_errors).await?;
-    collector_parse.emit(loose_errors).await?;
-    Ok(result.cell())
+}
 }
 
 #[turbo_tasks::value]
@@ -646,11 +744,12 @@ struct ReadSourceIssue {
     severity: IssueSeverity,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for ReadSourceIssue {
     async fn file_path(&self) -> Result<FileSystemPath> {
-        self.source.file_path().await
+        turbo_tasks::read!(self.source.file_path())
     }
 
     async fn title(&self) -> Result<StyledString> {
@@ -660,6 +759,43 @@ impl Issue for ReadSourceIssue {
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(
+            format!(
+                "An unexpected error happened while trying to read the source code to parse: {}",
+                self.error
+            )
+            .into(),
+        )))
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        self.severity
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Load
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
+    }
+}
+
+/// See the async impl above; the sync engine drops `async`/`#[async_trait]`.
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for ReadSourceIssue {
+    fn file_path(&self) -> Result<FileSystemPath> {
+        turbo_tasks::read!(self.source.file_path())
+    }
+
+    fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Reading source code for parsing failed"
+        )))
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
         Ok(Some(StyledString::Text(
             format!(
                 "An unexpected error happened while trying to read the source code to parse: {}",
@@ -755,10 +891,11 @@ impl Visit for VarDeclWithTsDeclareCollector {
     }
 }
 
+turbo_tasks::dual_fn! {
 /// Re-parses a module directly from saved bytes, bypassing `source.content()`.
 ///
 /// Used by `failsafe_parse` to serve the last good AST when the live file has a syntax error.
-pub async fn parse_from_rope(
+pub fn parse_from_rope(
     rope: Rope,
     source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
@@ -766,12 +903,12 @@ pub async fn parse_from_rope(
     node_env: RcStr,
 ) -> Result<Vc<ParseResult>> {
     let ident_vc = source.ident();
-    let ident_ref = ident_vc.await?;
-    let ident = &*ident_vc.to_string().await?;
+    let ident_ref = turbo_tasks::read!(ident_vc)?;
+    let ident = &*turbo_tasks::read!(ident_vc.to_string())?;
     let file_path_hash = hash_xxh3_hash64(ident) as u128;
     let query = ident_ref.query.clone();
-    let transforms = &*transforms.await?;
-    parse_file_content(
+    let transforms = &*turbo_tasks::read!(transforms)?;
+    turbo_tasks::read!(parse_file_content(
         rope,
         &ident_ref.path,
         ident,
@@ -783,8 +920,8 @@ pub async fn parse_from_rope(
         node_env,
         false,
         false,
-    )
-    .await
+    ))
+}
 }
 
 #[cfg(test)]

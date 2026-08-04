@@ -1,5 +1,7 @@
 use anyhow::{Result, bail};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueDefault, ValueToString, Vc};
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::TryJoinIterExt;
+use turbo_tasks::{ResolvedVc, ValueDefault, ValueToString, Vc};
 use turbopack_core::chunk::{
     AsyncModuleInfo, Chunk, ChunkItem, ChunkItemBatchGroup, ChunkItemOrBatchWithAsyncModuleInfo,
     ChunkType, ChunkingContext, round_chunk_item_size,
@@ -27,13 +29,17 @@ impl ChunkType for EcmascriptChunkType {
         chunk_items: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
         batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
     ) -> Result<Vc<Box<dyn Chunk>>> {
-        let content = EcmascriptChunkContent {
-            chunk_items: chunk_items
+        // The sync `parallel!` only fans out plain `Vc` reads, so the per-item work
+        // runs concurrently in the async build (as before) and sequentially under
+        // `sync`.
+        #[cfg(not(feature = "sync"))]
+        let (chunk_items, batch_groups) = (
+            chunk_items
                 .iter()
                 .map(EcmascriptChunkItemOrBatchWithAsyncInfo::from_chunk_item_or_batch)
                 .try_join()
                 .await?,
-            batch_groups: batch_groups
+            batch_groups
                 .into_iter()
                 .map(|batch_group| {
                     EcmascriptChunkItemBatchGroup::from_chunk_item_batch_group(*batch_group)
@@ -41,6 +47,26 @@ impl ChunkType for EcmascriptChunkType {
                 })
                 .try_join()
                 .await?,
+        );
+        #[cfg(feature = "sync")]
+        let (chunk_items, batch_groups) = {
+            let mut items = Vec::with_capacity(chunk_items.len());
+            for item in chunk_items.iter() {
+                items
+                    .push(EcmascriptChunkItemOrBatchWithAsyncInfo::from_chunk_item_or_batch(item)?);
+            }
+            let mut groups = Vec::with_capacity(batch_groups.len());
+            for batch_group in batch_groups.into_iter() {
+                groups.push(turbo_tasks::read!(
+                    EcmascriptChunkItemBatchGroup::from_chunk_item_batch_group(*batch_group)
+                        .to_resolved()
+                )?);
+            }
+            (items, groups)
+        };
+        let content = EcmascriptChunkContent {
+            chunk_items,
+            batch_groups,
         }
         .cell();
         Ok(Vc::upcast(EcmascriptChunk::new(chunking_context, content)))
@@ -57,13 +83,12 @@ impl ChunkType for EcmascriptChunkType {
         else {
             bail!("Chunk item is not an ecmascript chunk item but reporting chunk type ecmascript");
         };
-        let chunk_item = chunk_item.into_trait_ref().await?;
-        let size = match chunk_item
-            .content_with_async_module_info(async_module_info, true)
-            .await
-        {
+        let chunk_item = turbo_tasks::read!(chunk_item.into_trait_ref())?;
+        let size = match turbo_tasks::read!(
+            chunk_item.content_with_async_module_info(async_module_info, true)
+        ) {
             Ok(content) => {
-                let content = content.await?;
+                let content = turbo_tasks::read!(content)?;
                 round_chunk_item_size(content.inner_code.len())
             }
             Err(_) => 0,

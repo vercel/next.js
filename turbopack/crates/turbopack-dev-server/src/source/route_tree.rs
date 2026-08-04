@@ -4,8 +4,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc, fxindexmap,
-    trace::TraceRawVcs,
+    FxIndexMap, ReadRef, ResolvedVc, ValueToString, Vc, fxindexmap, trace::TraceRawVcs,
 };
 
 use crate::source::{GetContentSourceContent, GetContentSourceContents};
@@ -58,7 +57,7 @@ impl RouteTrees {
         }
 
         // Find common base
-        let mut tree_values = trees.iter().try_join().await?;
+        let mut tree_values = turbo_tasks::parallel!(trees.iter())?;
         let mut common_base = 0;
         let last_tree = tree_values.pop().unwrap();
         'outer: while common_base < last_tree.base.len() {
@@ -88,10 +87,10 @@ impl RouteTrees {
             .collect::<Vec<_>>();
 
         // Flat merge trees
-        let tree_values = trees.into_iter().try_join().await?;
+        let tree_values = turbo_tasks::parallel!(trees.into_iter())?;
         let mut iter = tree_values.iter().map(|rr| &**rr);
         let mut merged = iter.next().unwrap().clone();
-        merged.flat_merge(iter).await?;
+        turbo_tasks::read!(merged.flat_merge(iter))?;
 
         Ok(merged.cell())
     }
@@ -142,7 +141,13 @@ impl RouteTree {
         }
     }
 
-    async fn flat_merge(&mut self, others: impl IntoIterator<Item = &Self> + '_) -> Result<()> {
+    /// Merges the `others` into `self` (except for `static_segments`, which are collected and
+    /// returned to be merged recursively). Contains no `await` points, so it is shared by both
+    /// modes.
+    fn flat_merge_collect<'a>(
+        &mut self,
+        others: impl IntoIterator<Item = &'a Self> + 'a,
+    ) -> FxIndexMap<RcStr, Vec<ResolvedVc<RouteTree>>> {
         let mut static_segments = FxIndexMap::default();
         for other in others {
             debug_assert_eq!(self.base, other.base);
@@ -165,27 +170,53 @@ impl RouteTree {
             self.dynamic_segments
                 .extend(other.dynamic_segments.iter().copied());
         }
+        static_segments
+    }
+
+    // `dual_fn!` cannot parse the `impl IntoIterator` parameter, so the two modes are written
+    // out by hand. The `.to_resolved()` merges cannot fan out through `parallel!` under sync;
+    // the async build keeps the concurrent `try_join`, the sync build merges sequentially.
+    #[cfg(not(feature = "sync"))]
+    async fn flat_merge<'a>(
+        &mut self,
+        others: impl IntoIterator<Item = &'a Self> + 'a,
+    ) -> Result<()> {
+        use turbo_tasks::TryJoinIterExt;
+        let static_segments = self.flat_merge_collect(others);
         self.static_segments.extend(
             static_segments
                 .into_iter()
-                .map(|(key, value)| async {
-                    Ok((
-                        key,
-                        if value.len() == 1 {
-                            value.into_iter().next().unwrap()
-                        } else {
-                            Vc::<RouteTrees>::cell(value).merge().to_resolved().await?
-                        },
-                    ))
-                })
+                .map(|(key, value)| async move { Ok((key, merge_static_segment(value).await?)) })
                 .try_join()
                 .await?,
         );
         Ok(())
     }
 
+    #[cfg(feature = "sync")]
+    fn flat_merge<'a>(&mut self, others: impl IntoIterator<Item = &'a Self> + 'a) -> Result<()> {
+        let static_segments = self.flat_merge_collect(others);
+        let mut merged = Vec::with_capacity(static_segments.len());
+        for (key, value) in static_segments {
+            merged.push((key, merge_static_segment(value)?));
+        }
+        self.static_segments.extend(merged);
+        Ok(())
+    }
+
     fn prepend_base(&mut self, segments: Vec<BaseSegment>) {
         self.base.splice(..0, segments);
+    }
+}
+
+turbo_tasks::dual_fn! {
+    /// Merges a list of sibling [`RouteTree`]s that share a static segment into a single one.
+    fn merge_static_segment(value: Vec<ResolvedVc<RouteTree>>) -> Result<ResolvedVc<RouteTree>> {
+        Ok(if value.len() == 1 {
+            value.into_iter().next().unwrap()
+        } else {
+            turbo_tasks::read!(Vc::<RouteTrees>::cell(value).merge().to_resolved())?
+        })
     }
 }
 
@@ -213,7 +244,7 @@ impl ValueToString for RouteTree {
             result.push_str(", ");
         }
         for (key, tree) in static_segments {
-            let tree = tree.to_string().await?;
+            let tree = turbo_tasks::read!(tree.to_string())?;
             write!(result, "{key}: {tree}, ")?;
         }
         if !sources.is_empty() {
@@ -270,7 +301,7 @@ impl RouteTree {
             catch_all_sources,
             fallback_sources,
             not_found_sources,
-        } = &*self.await?;
+        } = &*turbo_tasks::read!(self)?;
         let mut results = Vec::new();
         if path.is_empty() {
             if !base.is_empty() {
@@ -298,10 +329,18 @@ impl RouteTree {
             if let Some(segment) = segments.next() {
                 let remainder = segments.remainder().unwrap_or("");
                 if let Some(tree) = static_segments.get(segment) {
-                    results.extend(tree.get(remainder.into()).await?.iter().copied());
+                    results.extend(
+                        turbo_tasks::read!(tree.get(remainder.into()))?
+                            .iter()
+                            .copied(),
+                    );
                 }
                 for tree in dynamic_segments.iter() {
-                    results.extend(tree.get(remainder.into()).await?.iter().copied());
+                    results.extend(
+                        turbo_tasks::read!(tree.get(remainder.into()))?
+                            .iter()
+                            .copied(),
+                    );
                 }
             } else {
                 results.extend(sources.iter().copied());
@@ -319,14 +358,14 @@ impl RouteTree {
         self: Vc<Self>,
         segments: Vec<BaseSegment>,
     ) -> Result<Vc<RouteTree>> {
-        let mut this = self.owned().await?;
+        let mut this = turbo_tasks::read!(self.owned())?;
         this.prepend_base(segments);
         Ok(this.cell())
     }
 
     #[turbo_tasks::function]
     async fn with_base_len(self: Vc<Self>, base_len: usize) -> Result<Vc<RouteTree>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         if this.base.len() > base_len {
             let mut inner = ReadRef::into_owned(this);
             let mut drain = inner.base.drain(base_len..);
@@ -360,7 +399,7 @@ impl RouteTree {
         self: Vc<Self>,
         mapper: Vc<Box<dyn MapGetContentSourceContent>>,
     ) -> Result<Vc<Self>> {
-        let mut this = self.owned().await?;
+        let mut this = turbo_tasks::read!(self.owned())?;
         let RouteTree {
             base: _,
             static_segments,
@@ -372,22 +411,22 @@ impl RouteTree {
         } = &mut this;
 
         for s in sources.iter_mut() {
-            *s = mapper.map_get_content(**s).to_resolved().await?;
+            *s = turbo_tasks::read!(mapper.map_get_content(**s).to_resolved())?;
         }
         for s in catch_all_sources.iter_mut() {
-            *s = mapper.map_get_content(**s).to_resolved().await?;
+            *s = turbo_tasks::read!(mapper.map_get_content(**s).to_resolved())?;
         }
         for s in fallback_sources.iter_mut() {
-            *s = mapper.map_get_content(**s).to_resolved().await?;
+            *s = turbo_tasks::read!(mapper.map_get_content(**s).to_resolved())?;
         }
         for s in not_found_sources.iter_mut() {
-            *s = mapper.map_get_content(**s).to_resolved().await?;
+            *s = turbo_tasks::read!(mapper.map_get_content(**s).to_resolved())?;
         }
         for r in static_segments.values_mut() {
-            *r = r.map_routes(mapper).to_resolved().await?;
+            *r = turbo_tasks::read!(r.map_routes(mapper).to_resolved())?;
         }
         for r in dynamic_segments.iter_mut() {
-            *r = r.map_routes(mapper).to_resolved().await?;
+            *r = turbo_tasks::read!(r.map_routes(mapper).to_resolved())?;
         }
 
         Ok(this.cell())

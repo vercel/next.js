@@ -378,8 +378,9 @@ pub(crate) enum Key {
     StarExports,
 }
 
+turbo_tasks::dual_fn! {
 /// Converts [ModulePart] to the index.
-async fn get_part_id(result: &SplitResult, part: &ModulePart) -> Result<u32> {
+fn get_part_id(result: &SplitResult, part: &ModulePart) -> Result<u32> {
     // TODO implement ModulePart::Facade
     let key = match part {
         ModulePart::Evaluation => Key::ModuleEvaluation,
@@ -419,7 +420,7 @@ async fn get_part_id(result: &SplitResult, part: &ModulePart) -> Result<u32> {
     let mut dump = String::new();
 
     for (idx, m) in modules.iter().enumerate() {
-        let ParseResult::Ok { program, .. } = &*m.await? else {
+        let ParseResult::Ok { program, .. } = &*turbo_tasks::read!(m)? else {
             bail!("failed to get module")
         };
 
@@ -435,6 +436,7 @@ async fn get_part_id(result: &SplitResult, part: &ModulePart) -> Result<u32> {
         key,
         entrypoints
     )
+}
 }
 
 #[turbo_tasks::value(shared, serialization = "skip", eq = "manual")]
@@ -471,10 +473,10 @@ impl PartialEq for SplitResult {
 
 #[turbo_tasks::function]
 pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<SplitResult>> {
-    let parsed: ResolvedVc<ParseResult> = asset.failsafe_parse().to_resolved().await?;
-    let ident = asset.source().ident().to_resolved().await?;
+    let parsed: ResolvedVc<ParseResult> = turbo_tasks::read!(asset.failsafe_parse().to_resolved())?;
+    let ident = turbo_tasks::read!(asset.source().ident().to_resolved())?;
     // Do not split already split module
-    if !ident.await?.parts.is_empty() {
+    if !turbo_tasks::read!(ident)?.parts.is_empty() {
         return Ok(SplitResult::Failed {
             parse_result: parsed,
         }
@@ -483,7 +485,7 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
 
     // Turbopack has a bug related to parsing of CJS files where the package.json has
     // a `"type": "module"` and the file is a CJS file.
-    let name = ident.to_string().await?;
+    let name = turbo_tasks::read!(ident.to_string())?;
     if name.ends_with(".cjs") {
         return Ok(SplitResult::Failed {
             parse_result: parsed,
@@ -491,7 +493,7 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
         .cell());
     }
 
-    let parse_result = parsed.await?;
+    let parse_result = turbo_tasks::read!(parsed)?;
 
     match &*parse_result {
         ParseResult::Ok {
@@ -609,7 +611,7 @@ pub(crate) async fn part_of_module(
     split_data: Vc<SplitResult>,
     part: ModulePart,
 ) -> Result<Vc<ParseResult>> {
-    let split_data = split_data.await?;
+    let split_data = turbo_tasks::read!(split_data)?;
 
     match &*split_data {
         SplitResult::Ok {
@@ -630,7 +632,7 @@ pub(crate) async fn part_of_module(
                     source_map,
                     program_source,
                     ..
-                } = &*modules[0].await?
+                } = &*turbo_tasks::read!(modules[0])?
                 {
                     let mut module = Module::dummy();
 
@@ -719,7 +721,7 @@ pub(crate) async fn part_of_module(
                 }
             }
 
-            let part_id = get_part_id(&split_data, &part).await?;
+            let part_id = turbo_tasks::read!(get_part_id(&split_data, &part))?;
 
             if part_id as usize >= modules.len() {
                 turbobail!(

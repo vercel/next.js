@@ -41,24 +41,26 @@ impl EcmascriptBrowserChunk {
 
     #[turbo_tasks::function]
     async fn source_map(self: Vc<Self>) -> Result<Vc<SourceMapAsset>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         Ok(SourceMapAsset::new(
             Vc::upcast(*this.chunking_context),
-            this.ident_for_path().await?,
+            turbo_tasks::read!(this.ident_for_path())?,
             Vc::upcast(self),
         ))
     }
 }
 
 impl EcmascriptBrowserChunk {
-    async fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self
+    turbo_tasks::dual_fn! {
+    fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
+        Ok(turbo_tasks::read!(self
             .chunk
             .ident()
-            .owned()
-            .await?
+            .owned())
+            ?
             .with_modifier(rcstr!("ecmascript dev chunk"))
             .into_vc())
+    }
     }
 }
 
@@ -67,7 +69,7 @@ impl OutputChunk for EcmascriptBrowserChunk {
     #[turbo_tasks::function]
     async fn runtime_info(&self) -> Result<Vc<OutputChunkRuntimeInfo>> {
         Ok(OutputChunkRuntimeInfo {
-            included_ids: Some(self.chunk.entry_ids().to_resolved().await?),
+            included_ids: Some(turbo_tasks::read!(self.chunk.entry_ids().to_resolved())?),
             ..Default::default()
         }
         .cell())
@@ -78,7 +80,7 @@ impl OutputChunk for EcmascriptBrowserChunk {
 impl EcmascriptBrowserChunk {
     #[turbo_tasks::function]
     pub(crate) async fn own_content(self: Vc<Self>) -> Result<Vc<EcmascriptBrowserChunkContent>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         Ok(EcmascriptBrowserChunkContent::new(
             *this.chunking_context,
             self,
@@ -97,20 +99,22 @@ impl EcmascriptBrowserChunk {
 impl OutputAssetsReference for EcmascriptBrowserChunk {
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
-        let this = self.await?;
-        let chunk_references = this.chunk.references().await?;
-        let include_source_map = *this
-            .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
-            .await?;
-        let ref_assets = chunk_references.assets.await?;
+        let this = turbo_tasks::read!(self)?;
+        let chunk_references = turbo_tasks::read!(this.chunk.references())?;
+        let include_source_map = *turbo_tasks::read!(
+            this.chunking_context
+                .reference_chunk_source_maps(Vc::upcast(self))
+        )?;
+        let ref_assets = turbo_tasks::read!(chunk_references.assets)?;
         let mut assets =
             Vec::with_capacity(ref_assets.len() + if include_source_map { 1 } else { 0 });
 
         assets.extend(ref_assets.iter().copied());
 
         if include_source_map {
-            assets.push(ResolvedVc::upcast(self.source_map().to_resolved().await?));
+            assets.push(ResolvedVc::upcast(turbo_tasks::read!(
+                self.source_map().to_resolved()
+            )?));
         }
 
         Ok(OutputAssetsWithReferenced {
@@ -126,8 +130,8 @@ impl OutputAssetsReference for EcmascriptBrowserChunk {
 impl OutputAsset for EcmascriptBrowserChunk {
     #[turbo_tasks::function]
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        let this = self.await?;
-        let ident = this.ident_for_path().await?;
+        let this = turbo_tasks::read!(self)?;
+        let ident = turbo_tasks::read!(this.ident_for_path())?;
         Ok(this
             .chunking_context
             .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".js")))

@@ -20,8 +20,14 @@ use crate::{
     task::{TaskFn, TaskFnInputs, function::NativeTaskFuture},
 };
 
+/// Argument resolution functor. Async mode returns a boxed future; the no-async sync
+/// engine returns the resolved args directly (no future/await).
+#[cfg(not(feature = "sync"))]
 type ResolveFuture<'a> = Pin<Box<dyn Future<Output = Result<Box<dyn DynTaskInputs>>> + Send + 'a>>;
+#[cfg(not(feature = "sync"))]
 type ResolveFunctor = for<'a> fn(&'a dyn DynTaskInputs) -> ResolveFuture<'a>;
+#[cfg(feature = "sync")]
+type ResolveFunctor = fn(&dyn DynTaskInputs) -> Result<Box<dyn DynTaskInputs>>;
 
 /// Filters out arguments that aren't used by the function body, returning the post-filter args
 /// together with the precomputed [`InputResolution`] for those filtered args. Fusing the two
@@ -117,10 +123,17 @@ impl ArgMeta {
         }
     }
 
+    #[cfg(not(feature = "sync"))]
     pub async fn resolve(&self, value: &dyn DynTaskInputs) -> Result<Box<dyn DynTaskInputs>> {
         (self.resolve)(value).await
     }
 
+    #[cfg(feature = "sync")]
+    pub fn resolve(&self, value: &dyn DynTaskInputs) -> Result<Box<dyn DynTaskInputs>> {
+        (self.resolve)(value)
+    }
+
+    #[cfg(not(feature = "sync"))]
     pub async fn filter_and_resolve(
         &self,
         args: &dyn DynTaskInputs,
@@ -131,8 +144,18 @@ impl ArgMeta {
             (self.resolve)(args).await
         }
     }
+
+    #[cfg(feature = "sync")]
+    pub fn filter_and_resolve(&self, args: &dyn DynTaskInputs) -> Result<Box<dyn DynTaskInputs>> {
+        if let Some(filter_and_resolve) = self.filter_and_resolve {
+            (filter_and_resolve)(args)
+        } else {
+            (self.resolve)(args)
+        }
+    }
 }
 
+#[cfg(not(feature = "sync"))]
 fn resolve_functor_impl<T: DynTaskInputs + TaskInput>(
     value: &dyn DynTaskInputs,
 ) -> ResolveFuture<'_> {
@@ -141,6 +164,15 @@ fn resolve_functor_impl<T: DynTaskInputs + TaskInput>(
         let resolved = value.resolve_input().await?;
         Ok(Box::new(resolved) as Box<dyn DynTaskInputs>)
     })
+}
+
+#[cfg(feature = "sync")]
+fn resolve_functor_impl<T: DynTaskInputs + TaskInput>(
+    value: &dyn DynTaskInputs,
+) -> Result<Box<dyn DynTaskInputs>> {
+    let value = downcast_args_ref::<T>(value);
+    let resolved = value.resolve_input()?;
+    Ok(Box::new(resolved) as Box<dyn DynTaskInputs>)
 }
 
 #[cfg(debug_assertions)]
@@ -274,7 +306,10 @@ impl NativeFunction {
     ) -> NativeTaskFuture {
         match (self.implementation).functor(this, arg) {
             Ok(functor) => functor,
+            #[cfg(not(feature = "sync"))]
             Err(err) => Box::pin(async { Err(err) }),
+            #[cfg(feature = "sync")]
+            Err(err) => Box::new(move || Err(err)),
         }
     }
 

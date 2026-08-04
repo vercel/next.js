@@ -5,6 +5,18 @@ description = "TBD"
 license = "MIT"
 edition = "2024"
 
+[features]
+# Validates the sync (inline-engine) codegen path for the macros. This is a
+# sync-WITH-tokio build (tokio stays linked via the workspace deps' default features —
+# the trybuild fixtures require a concrete runtime feature, which a default-features=false
+# / "neither" config breaks). The `#[turbo_tasks::function]`/`read!` codegen still takes
+# its sync form, so this exercises the macro output under the synchronous engine.
+sync = [
+  "turbo-tasks/sync",
+  "turbo-tasks-backend/sync",
+  "turbo-tasks-testing/sync",
+]
+
 [dev-dependencies]
 anyhow = { workspace = true }
 ctor = { workspace = true }

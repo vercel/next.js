@@ -3,7 +3,7 @@
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, read, trace::TraceRawVcs};
 use turbo_tasks_testing::{Registration, register, run_once_without_cache_check};
 
 static REGISTRATION: Registration = register!();
@@ -18,7 +18,7 @@ Adder::add_method (read cell of type u64)
     unknown transient task (read cell of type u16)
     unknown transient task (read cell of type u32)";
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_trace_transient() {
     let result = run_once_without_cache_check(&REGISTRATION, async {
         test_trace_transient_operation(
@@ -41,10 +41,7 @@ async fn test_trace_transient_operation(
     arg2: ResolvedVc<u16>,
     arg3: ResolvedVc<u32>,
 ) -> Result<Vc<u64>> {
-    let resolved = Adder::new(*arg1)
-        .add_method(*arg2, *arg3)
-        .to_resolved()
-        .await?;
+    let resolved = read!(Adder::new(*arg1).add_method(*arg2, *arg3).to_resolved())?;
     Ok(read_incorrect_task_input(IncorrectTaskInput(resolved)))
 }
 
@@ -62,13 +59,15 @@ impl Adder {
     #[turbo_tasks::function]
     async fn add_method(&self, arg1: ResolvedVc<u16>, arg2: ResolvedVc<u32>) -> Result<Vc<u64>> {
         let _ = self; // Make sure unused argument filtering doesn't remove the arg
-        Ok(Vc::cell(u64::from(*arg1.await?) + u64::from(*arg2.await?)))
+        Ok(Vc::cell(
+            u64::from(*read!(arg1)?) + u64::from(*read!(arg2)?),
+        ))
     }
 }
 
 #[turbo_tasks::function]
 async fn read_incorrect_task_input(value: IncorrectTaskInput) -> Result<Vc<u64>> {
-    Ok(Vc::cell(*value.0.await?))
+    Ok(Vc::cell(*read!(value.0)?))
 }
 
 /// Has an intentionally incorrect `TaskInput` implementation, representing some code that the debug

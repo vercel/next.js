@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::rope::RopeBuilder;
 use turbopack_core::{
     chunk::{
@@ -59,22 +59,18 @@ impl SideEffectsModule {
 impl Module for SideEffectsModule {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let mut ident = self
-            .module
-            .ident()
-            .owned()
-            .await?
+        let mut ident = turbo_tasks::read!(self.module.ident().owned())?
             .with_part(self.part.clone())
             .with_asset(
                 rcstr!("resolved"),
-                self.resolved_as.ident().to_resolved().await?,
+                turbo_tasks::read!(self.resolved_as.ident().to_resolved())?,
             )
             .with_modifier(rcstr!("side effects"));
 
         for (i, side_effect) in self.side_effects.iter().enumerate() {
             ident = ident.with_asset(
                 RcStr::from(format!("side effect {i}")),
-                side_effect.ident().to_resolved().await?,
+                turbo_tasks::read!(side_effect.ident().to_resolved())?,
             );
         }
 
@@ -90,33 +86,25 @@ impl Module for SideEffectsModule {
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let mut references = vec![];
 
-        references.extend(
-            self.side_effects
-                .iter()
-                .map(|side_effect| async move {
-                    Ok(ResolvedVc::upcast(
-                        SingleChunkableModuleReference::new(
-                            *ResolvedVc::upcast(*side_effect),
-                            rcstr!("side effect"),
-                            ExportUsage::evaluation(),
-                        )
-                        .to_resolved()
-                        .await?,
-                    ))
-                })
-                .try_join()
-                .await?,
-        );
+        for side_effect in self.side_effects.iter() {
+            references.push(ResolvedVc::upcast(turbo_tasks::read!(
+                SingleChunkableModuleReference::new(
+                    *ResolvedVc::upcast(*side_effect),
+                    rcstr!("side effect"),
+                    ExportUsage::evaluation(),
+                )
+                .to_resolved()
+            )?));
+        }
 
-        references.push(ResolvedVc::upcast(
+        references.push(ResolvedVc::upcast(turbo_tasks::read!(
             SingleChunkableModuleReference::new(
                 *ResolvedVc::upcast(self.resolved_as),
                 rcstr!("resolved as"),
                 ExportUsage::all(),
             )
             .to_resolved()
-            .await?,
-        ));
+        )?));
 
         Ok(Vc::cell(references))
     }
@@ -145,15 +133,15 @@ impl EcmascriptChunkPlaceable for SideEffectsModule {
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let module = self.await?;
+        let module = turbo_tasks::read!(self)?;
         let mut code = RopeBuilder::default();
         let mut has_top_level_await = false;
 
         for &side_effect in module.side_effects.iter() {
             let need_await = 'need_await: {
-                let async_module = *side_effect.get_async_module().await?;
+                let async_module = *turbo_tasks::read!(side_effect.get_async_module())?;
                 if let Some(async_module) = async_module
-                    && async_module.await?.has_top_level_await
+                    && turbo_tasks::read!(async_module)?.has_top_level_await
                 {
                     break 'need_await true;
                 }
@@ -168,7 +156,9 @@ impl EcmascriptChunkPlaceable for SideEffectsModule {
                 format!(
                     "{}{TURBOPACK_IMPORT}({});\n",
                     if need_await { "await " } else { "" },
-                    StringifyModuleId(&side_effect.chunk_item_id(chunking_context).await?)
+                    StringifyModuleId(&turbo_tasks::read!(
+                        side_effect.chunk_item_id(chunking_context)
+                    )?)
                 )
                 .as_bytes(),
             );
@@ -177,7 +167,9 @@ impl EcmascriptChunkPlaceable for SideEffectsModule {
         code.push_bytes(
             format!(
                 "{TURBOPACK_EXPORT_NAMESPACE}({TURBOPACK_IMPORT}({}));\n",
-                StringifyModuleId(&module.resolved_as.chunk_item_id(chunking_context).await?)
+                StringifyModuleId(&turbo_tasks::read!(
+                    module.resolved_as.chunk_item_id(chunking_context)
+                )?)
             )
             .as_bytes(),
         );
@@ -197,11 +189,12 @@ impl EcmascriptChunkPlaceable for SideEffectsModule {
                 } else {
                     None
                 },
-                supports_arrow_functions: *chunking_context
-                    .environment()
-                    .runtime_versions()
-                    .supports_arrow_functions()
-                    .await?,
+                supports_arrow_functions: *turbo_tasks::read!(
+                    chunking_context
+                        .environment()
+                        .runtime_versions()
+                        .supports_arrow_functions()
+                )?,
                 ..Default::default()
             },
             additional_ids: Default::default(),

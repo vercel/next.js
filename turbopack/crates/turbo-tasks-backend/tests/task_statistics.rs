@@ -6,12 +6,12 @@ use std::future::IntoFuture;
 
 use anyhow::Result;
 use serde_json::json;
-use turbo_tasks::{Vc, unmark_top_level_task_may_leak_eventually_consistent_state};
+use turbo_tasks::{Vc, read, unmark_top_level_task_may_leak_eventually_consistent_state};
 use turbo_tasks_testing::{Registration, register, run_without_cache_check};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_simple_task() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
         unmark_top_level_task_may_leak_eventually_consistent_state();
@@ -38,14 +38,14 @@ async fn test_simple_task() -> Result<()> {
     .await
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_await_same_vc_multiple_times() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
         unmark_top_level_task_may_leak_eventually_consistent_state();
         enable_stats();
         let dvc = double(0);
         // this is awaited multiple times, but only resolved once
-        tokio::try_join!(dvc.into_future(), dvc.into_future()).unwrap();
+        turbo_tasks_testing::try_join!(dvc.into_future(), dvc.into_future()).unwrap();
         dvc.await.unwrap();
         assert_eq!(
             stats_json(),
@@ -61,7 +61,7 @@ async fn test_await_same_vc_multiple_times() -> Result<()> {
     .await
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_vc_receiving_task() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
         unmark_top_level_task_may_leak_eventually_consistent_state();
@@ -94,15 +94,20 @@ async fn test_vc_receiving_task() -> Result<()> {
     .await
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_trait_methods() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
         unmark_top_level_task_may_leak_eventually_consistent_state();
         enable_stats();
         for i in 0..10 {
             let wvc = wrap(i);
-            tokio::try_join!(wvc.double().into_future(), wvc.double().into_future()).unwrap();
-            tokio::try_join!(wvc.double_vc().into_future(), wvc.double_vc().into_future()).unwrap();
+            turbo_tasks_testing::try_join!(wvc.double().into_future(), wvc.double().into_future())
+                .unwrap();
+            turbo_tasks_testing::try_join!(
+                wvc.double_vc().into_future(),
+                wvc.double_vc().into_future()
+            )
+            .unwrap();
         }
         // use cached results
         for i in 0..5 {
@@ -132,17 +137,23 @@ async fn test_trait_methods() -> Result<()> {
     .await
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_dyn_trait_methods() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
         unmark_top_level_task_may_leak_eventually_consistent_state();
         enable_stats();
         for i in 0..10 {
             let wvc: Vc<Box<dyn Doublable>> = Vc::upcast(wrap(i));
-            let _ =
-                tokio::try_join!(wvc.double().to_resolved(), wvc.double().to_resolved()).unwrap();
-            let _ = tokio::try_join!(wvc.double_vc().to_resolved(), wvc.double_vc().to_resolved())
-                .unwrap();
+            let _ = turbo_tasks_testing::try_join!(
+                wvc.double().to_resolved(),
+                wvc.double().to_resolved()
+            )
+            .unwrap();
+            let _ = turbo_tasks_testing::try_join!(
+                wvc.double_vc().to_resolved(),
+                wvc.double_vc().to_resolved()
+            )
+            .unwrap();
         }
         // use cached results
         for i in 0..5 {
@@ -179,7 +190,7 @@ async fn test_dyn_trait_methods() -> Result<()> {
 }
 
 // creates Vcs, but doesn't ever execute them
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_no_execution() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
         unmark_top_level_task_may_leak_eventually_consistent_state();
@@ -219,7 +230,7 @@ async fn test_no_execution() -> Result<()> {
     .await
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_inline_definitions() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
         unmark_top_level_task_may_leak_eventually_consistent_state();
@@ -264,7 +275,7 @@ fn double(val: u64) -> Vc<u64> {
 // Internally, this function uses `LocalTaskType::ResolveNative`.
 #[turbo_tasks::function]
 async fn double_vc(val: Vc<u64>) -> Result<Vc<u64>> {
-    let val = *val.await?;
+    let val = *read!(val)?;
     Ok(Vc::cell(val * 2))
 }
 
@@ -278,7 +289,7 @@ fn wrap(val: u64) -> Vc<WrappedU64> {
 
 #[turbo_tasks::function]
 async fn wrap_vc(val: Vc<u64>) -> Result<Vc<WrappedU64>> {
-    Ok(WrappedU64(*val.await?).cell())
+    Ok(WrappedU64(*read!(val)?).cell())
 }
 
 #[turbo_tasks::value_trait]

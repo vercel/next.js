@@ -16,7 +16,25 @@ use super::{
 };
 use crate::analyzer::{Bump, BumpVec, RequireContextValue, ThreadLocal};
 
-pub async fn replace_well_known<'a>(
+/// Emits the hand-written dual pair (see `turbo_tasks::dual_fn!` docs) from a single
+/// body, for functions whose generic list contains a lifetime — which `dual_fn!`
+/// cannot parse. Expands to `async fn` in the async build and a plain `fn` under
+/// `sync`; the body must be mode-agnostic (every await point through
+/// `turbo_tasks::read!`).
+macro_rules! dual_fn_lt {
+    ($(#[$attr:meta])* $vis:vis fn $name:ident <$lt:lifetime> ($($args:tt)*) -> $ret:ty $body:block) => {
+        #[cfg(not(feature = "sync"))]
+        $(#[$attr])*
+        $vis async fn $name <$lt> ($($args)*) -> $ret $body
+
+        #[cfg(feature = "sync")]
+        $(#[$attr])*
+        $vis fn $name <$lt> ($($args)*) -> $ret $body
+    };
+}
+
+dual_fn_lt! {
+pub fn replace_well_known<'a>(
     arena: &'a ThreadLocal<Bump>,
     value: JsValue<'a>,
     compile_time_info: Vc<CompileTimeInfo>,
@@ -29,15 +47,15 @@ pub async fn replace_well_known<'a>(
                 unreachable!()
             };
             (
-                well_known_function_call(
+                turbo_tasks::read!(well_known_function_call(
                     arena,
                     kind,
                     JsValue::unknown_empty(false, rcstr!("this is not analyzed yet")),
                     args,
                     compile_time_info,
                     allow_project_root_tracing,
-                )
-                .await?,
+                ))
+                ?,
                 true,
             )
         }
@@ -55,7 +73,7 @@ pub async fn replace_well_known<'a>(
             let JsValue::WellKnownObject(kind) = take(&mut *obj) else {
                 unreachable!()
             };
-            well_known_object_member(arena, kind, take(&mut *prop), compile_time_info).await?
+            turbo_tasks::read!(well_known_object_member(arena, kind, take(&mut *prop), compile_time_info))?
         }
         JsValue::Member(_, mut obj, mut prop) if matches!(&*obj, JsValue::WellKnownFunction(_)) => {
             let JsValue::WellKnownFunction(kind) = take(&mut *obj) else {
@@ -87,7 +105,7 @@ pub async fn replace_well_known<'a>(
         JsValue::Member(_, obj, prop)
             if matches!(&*obj, JsValue::FreeVar(name) if &**name == "module")
                 && prop.as_str() == Some("hot")
-                && compile_time_info.await?.hot_module_replacement_enabled =>
+                && turbo_tasks::read!(compile_time_info)?.hot_module_replacement_enabled =>
         {
             (
                 JsValue::WellKnownObject(WellKnownObjectKind::ModuleHot),
@@ -97,8 +115,10 @@ pub async fn replace_well_known<'a>(
         _ => (value, false),
     })
 }
+}
 
-pub async fn well_known_function_call<'a>(
+dual_fn_lt! {
+pub fn well_known_function_call<'a>(
     arena: &'a ThreadLocal<Bump>,
     kind: WellKnownFunctionKind<'a>,
     _this: JsValue<'a>,
@@ -127,23 +147,23 @@ pub async fn well_known_function_call<'a>(
             require_context_require_resolve(arena.get_or_default(), value, args)?
         }
         WellKnownFunctionKind::PathToFileUrl => path_to_file_url(arena.get_or_default(), args),
-        WellKnownFunctionKind::OsArch => compile_time_info
+        WellKnownFunctionKind::OsArch => turbo_tasks::read!(compile_time_info
             .environment()
-            .compile_target()
-            .await?
+            .compile_target())
+            ?
             .arch
             .as_str()
             .into(),
-        WellKnownFunctionKind::OsPlatform => compile_time_info
+        WellKnownFunctionKind::OsPlatform => turbo_tasks::read!(compile_time_info
             .environment()
-            .compile_target()
-            .await?
+            .compile_target())
+            ?
             .platform
             .as_str()
             .into(),
         WellKnownFunctionKind::ProcessCwd => {
             if allow_project_root_tracing
-                && let Some(cwd) = &*compile_time_info.environment().cwd().await?
+                && let Some(cwd) = &*turbo_tasks::read!(compile_time_info.environment().cwd())?
             {
                 format!("/ROOT/{}", cwd.path).into()
             } else {
@@ -158,10 +178,10 @@ pub async fn well_known_function_call<'a>(
                 )
             }
         }
-        WellKnownFunctionKind::OsEndianness => compile_time_info
+        WellKnownFunctionKind::OsEndianness => turbo_tasks::read!(compile_time_info
             .environment()
-            .compile_target()
-            .await?
+            .compile_target())
+            ?
             .endianness
             .as_str()
             .into(),
@@ -183,6 +203,7 @@ pub async fn well_known_function_call<'a>(
             rcstr!("unsupported function"),
         ),
     })
+}
 }
 
 fn object_assign<'a>(arena: &'a Bump, args: BumpVec<'a, JsValue<'a>>) -> JsValue<'a> {
@@ -671,7 +692,8 @@ fn well_known_function_member<'a>(
     (new_value, true)
 }
 
-async fn well_known_object_member<'a>(
+dual_fn_lt! {
+fn well_known_object_member<'a>(
     arena: &'a ThreadLocal<Bump>,
     kind: WellKnownObjectKind,
     prop: JsValue<'a>,
@@ -680,7 +702,7 @@ async fn well_known_object_member<'a>(
     let new_value = match kind {
         WellKnownObjectKind::GlobalObject => global_object(arena.get_or_default(), prop),
         WellKnownObjectKind::PathModule | WellKnownObjectKind::PathModuleDefault => {
-            path_module_member(arena, kind, prop, compile_time_info).await?
+            turbo_tasks::read!(path_module_member(arena, kind, prop, compile_time_info))?
         }
         WellKnownObjectKind::FsModule
         | WellKnownObjectKind::FsModuleDefault
@@ -708,14 +730,14 @@ async fn well_known_object_member<'a>(
             os_module_member(arena.get_or_default(), kind, prop)
         }
         WellKnownObjectKind::NodeProcessModule => {
-            node_process_member(arena, prop, compile_time_info).await?
+            turbo_tasks::read!(node_process_member(arena, prop, compile_time_info))?
         }
         WellKnownObjectKind::NodePreGyp => node_pre_gyp(arena.get_or_default(), prop),
         WellKnownObjectKind::NodeExpressApp => express(arena.get_or_default(), prop),
         WellKnownObjectKind::NodeProtobufLoader => protobuf_loader(arena.get_or_default(), prop),
         WellKnownObjectKind::ImportMeta => match prop.as_str() {
             // import.meta.turbopackHot is the ESM equivalent of module.hot for HMR
-            Some("turbopackHot") if compile_time_info.await?.hot_module_replacement_enabled => {
+            Some("turbopackHot") if turbo_tasks::read!(compile_time_info)?.hot_module_replacement_enabled => {
                 JsValue::WellKnownObject(WellKnownObjectKind::ModuleHot)
             }
             // import.meta.glob is the Vite-compatible glob import.
@@ -757,6 +779,7 @@ async fn well_known_object_member<'a>(
     };
     Ok((new_value, true))
 }
+}
 
 fn global_object<'a>(arena: &'a Bump, prop: JsValue<'a>) -> JsValue<'a> {
     match prop.as_str() {
@@ -773,7 +796,8 @@ fn global_object<'a>(arena: &'a Bump, prop: JsValue<'a>) -> JsValue<'a> {
     }
 }
 
-async fn path_module_member<'a>(
+dual_fn_lt! {
+fn path_module_member<'a>(
     arena: &'a ThreadLocal<Bump>,
     kind: WellKnownObjectKind,
     prop: JsValue<'a>,
@@ -788,10 +812,10 @@ async fn path_module_member<'a>(
                 arena.get_or_default().alloc(JsValue::from("")),
             ))
         }
-        (.., Some("sep")) => compile_time_info
+        (.., Some("sep")) => turbo_tasks::read!(compile_time_info
             .environment()
-            .compile_target()
-            .await?
+            .compile_target())
+            ?
             .platform
             .path_separator()
             .into(),
@@ -808,6 +832,7 @@ async fn path_module_member<'a>(
             rcstr!("unsupported property on Node.js path module"),
         ),
     })
+}
 }
 
 fn fs_module_member<'a>(
@@ -1018,23 +1043,24 @@ fn os_module_member<'a>(
     }
 }
 
-async fn node_process_member<'a>(
+dual_fn_lt! {
+fn node_process_member<'a>(
     arena: &'a ThreadLocal<Bump>,
     prop: JsValue<'a>,
     compile_time_info: Vc<CompileTimeInfo>,
 ) -> Result<JsValue<'a>> {
     Ok(match prop.as_str() {
-        Some("arch") => compile_time_info
+        Some("arch") => turbo_tasks::read!(compile_time_info
             .environment()
-            .compile_target()
-            .await?
+            .compile_target())
+            ?
             .arch
             .as_str()
             .into(),
-        Some("platform") => compile_time_info
+        Some("platform") => turbo_tasks::read!(compile_time_info
             .environment()
-            .compile_target()
-            .await?
+            .compile_target())
+            ?
             .platform
             .as_str()
             .into(),
@@ -1051,6 +1077,7 @@ async fn node_process_member<'a>(
             rcstr!("unsupported property on Node.js process object"),
         ),
     })
+}
 }
 
 fn node_pre_gyp<'a>(arena: &'a Bump, prop: JsValue<'a>) -> JsValue<'a> {

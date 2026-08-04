@@ -7,17 +7,16 @@ use std::time::Duration;
 use anyhow::Result;
 use auto_hash_map::AutoSet;
 use rustc_hash::FxHashSet;
-use tokio::time::sleep;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    CollectiblesSource, ResolvedVc, ValueToString, Vc, emit,
+    CollectiblesSource, ResolvedVc, ValueToString, Vc, emit, read,
     unmark_top_level_task_may_leak_eventually_consistent_state,
 };
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_transitive_emitting() {
     run_once(&REGISTRATION, || async {
         unmark_top_level_task_may_leak_eventually_consistent_state();
@@ -36,7 +35,7 @@ async fn test_transitive_emitting() {
     .unwrap()
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_transitive_emitting_indirect() {
     run_once(&REGISTRATION, || async {
         unmark_top_level_task_may_leak_eventually_consistent_state();
@@ -55,7 +54,7 @@ async fn test_transitive_emitting_indirect() {
     .unwrap()
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_multi_emitting() {
     run_once(&REGISTRATION, || async {
         unmark_top_level_task_may_leak_eventually_consistent_state();
@@ -74,7 +73,7 @@ async fn test_multi_emitting() {
     .unwrap()
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn taking_collectibles() {
     run_once(&REGISTRATION, || async {
         let result_op = my_collecting_function();
@@ -90,7 +89,7 @@ async fn taking_collectibles() {
     .unwrap()
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn taking_collectibles_extra_layer() {
     run_once(&REGISTRATION, || async {
         let result_op = my_collecting_function_indirect();
@@ -106,7 +105,7 @@ async fn taking_collectibles_extra_layer() {
     .unwrap()
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn taking_collectibles_parallel() {
     run_once(&REGISTRATION, || async {
         let result_op = my_transitive_emitting_function(rcstr!(""), rcstr!("a"));
@@ -148,7 +147,7 @@ async fn taking_collectibles_parallel() {
     .unwrap()
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn taking_collectibles_with_resolve() {
     run_once(&REGISTRATION, || async {
         let result_op = my_transitive_emitting_function_with_resolve(rcstr!("resolve"));
@@ -169,7 +168,7 @@ struct Collectibles(AutoSet<ResolvedVc<Box<dyn ValueToString>>>);
 async fn my_collecting_function() -> Result<Vc<Thing>> {
     let result_op = my_transitive_emitting_function(rcstr!(""), rcstr!(""));
     let result_vc = result_op.connect();
-    result_vc.await?;
+    read!(result_vc)?;
     result_op.drop_collectibles::<Box<dyn ValueToString>>();
     Ok(result_vc)
 }
@@ -178,7 +177,7 @@ async fn my_collecting_function() -> Result<Vc<Thing>> {
 async fn my_collecting_function_indirect() -> Result<Vc<Thing>> {
     let result_op = my_collecting_function();
     let result_vc = result_op.connect();
-    result_vc.strongly_consistent().await?;
+    read!(result_vc.strongly_consistent())?;
     let list = result_op.peek_collectibles::<Box<dyn ValueToString>>();
     // my_collecting_function already processed the collectibles so the list should
     // be empty
@@ -188,20 +187,16 @@ async fn my_collecting_function_indirect() -> Result<Vc<Thing>> {
 
 #[turbo_tasks::function(operation, root)]
 async fn my_multi_emitting_function() -> Result<Vc<Thing>> {
-    my_transitive_emitting_function(rcstr!(""), rcstr!("a"))
-        .connect()
-        .await?;
-    my_transitive_emitting_function(rcstr!(""), rcstr!("b"))
-        .connect()
-        .await?;
-    my_emitting_function(rcstr!("")).await?;
+    read!(my_transitive_emitting_function(rcstr!(""), rcstr!("a")).connect())?;
+    read!(my_transitive_emitting_function(rcstr!(""), rcstr!("b")).connect())?;
+    read!(my_emitting_function(rcstr!("")))?;
     Ok(Thing::cell(Thing(0)))
 }
 
 #[turbo_tasks::function(operation, root)]
 async fn my_transitive_emitting_function(key: RcStr, key2: RcStr) -> Result<Vc<Thing>> {
     let _ = key2;
-    my_emitting_function(key).await?;
+    read!(my_emitting_function(key))?;
     Ok(Thing::cell(Thing(0)))
 }
 
@@ -225,7 +220,7 @@ async fn my_transitive_emitting_function_with_child_scope(
     let _ = key3;
     let thing_op = my_transitive_emitting_function(key, key2);
     let thing_vc = thing_op.connect();
-    thing_vc.await?;
+    read!(thing_vc)?;
     let list = thing_op.peek_collectibles::<Box<dyn ValueToString>>();
     assert_eq!(list.len(), 2);
     Ok(thing_vc)
@@ -234,7 +229,7 @@ async fn my_transitive_emitting_function_with_child_scope(
 #[turbo_tasks::function]
 async fn my_emitting_function(key: RcStr) -> Result<()> {
     let _ = key;
-    sleep(Duration::from_millis(100)).await;
+    turbo_tasks_testing::sleep!(Duration::from_millis(100));
     emit(ResolvedVc::upcast::<Box<dyn ValueToString>>(Thing::new(
         123,
     )));

@@ -2,7 +2,9 @@ use std::iter::once;
 
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::TryJoinIterExt;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
 use crate::source::{
@@ -53,7 +55,8 @@ fn get_children(
     )
 }
 
-async fn get_introspection_children(
+turbo_tasks::dual_fn! {
+fn get_introspection_children(
     routes: &[(RcStr, ResolvedVc<Box<dyn ContentSource>>)],
     fallback: &ResolvedVc<Box<dyn ContentSource>>,
 ) -> Result<Vc<IntrospectableChildren>> {
@@ -68,12 +71,13 @@ async fn get_introspection_children(
             .collect(),
     ))
 }
+}
 
 #[turbo_tasks::value_impl]
 impl ContentSource for PrefixedRouterContentSource {
     #[turbo_tasks::function]
     async fn get_routes(&self) -> Result<Vc<RouteTree>> {
-        let prefix = &*self.prefix.await?;
+        let prefix = &*turbo_tasks::read!(self.prefix)?;
         if cfg!(debug_assertions) {
             debug_assert!(prefix.is_empty() || prefix.ends_with('/'));
             debug_assert!(!prefix.starts_with('/'));
@@ -102,14 +106,26 @@ impl ContentSource for PrefixedRouterContentSource {
                     .cell(),
                 ))
         });
-        Ok(Vc::<RouteTrees>::cell(
-            inner_trees
-                .chain(once(self.fallback.get_routes()))
-                .map(|v| async move { v.to_resolved().await })
-                .try_join()
-                .await?,
-        )
-        .merge())
+        let route_vcs = inner_trees
+            .chain(once(self.fallback.get_routes()))
+            .collect::<Vec<_>>();
+        // `.to_resolved()` futures cannot fan out through `parallel!` under sync; keep the
+        // concurrent `try_join` in the async build and resolve sequentially under sync.
+        #[cfg(not(feature = "sync"))]
+        let trees = route_vcs
+            .into_iter()
+            .map(|v| v.to_resolved())
+            .try_join()
+            .await?;
+        #[cfg(feature = "sync")]
+        let trees = {
+            let mut trees = Vec::with_capacity(route_vcs.len());
+            for v in route_vcs {
+                trees.push(turbo_tasks::read!(v.to_resolved())?);
+            }
+            trees
+        };
+        Ok(Vc::<RouteTrees>::cell(trees).merge())
     }
 
     #[turbo_tasks::function]
@@ -156,7 +172,7 @@ impl GetContentSourceContent for PrefixedRouterGetContentSourceContent {
 
     #[turbo_tasks::function]
     async fn get(&self, path: RcStr, data: ContentSourceData) -> Result<Vc<ContentSourceContent>> {
-        let prefix = self.mapper.await?.prefix.await?;
+        let prefix = turbo_tasks::read!(turbo_tasks::read!(self.mapper)?.prefix)?;
         if let Some(path) = path.strip_prefix(&**prefix) {
             if path.is_empty() {
                 return Ok(self.get_content.get(RcStr::default(), data));
@@ -179,12 +195,12 @@ impl Introspectable for PrefixedRouterContentSource {
 
     #[turbo_tasks::function]
     async fn details(&self) -> Result<Vc<RcStr>> {
-        let prefix = self.prefix.await?;
+        let prefix = turbo_tasks::read!(self.prefix)?;
         Ok(Vc::cell(format!("prefix: '{prefix}'").into()))
     }
 
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
-        get_introspection_children(&self.routes, &self.fallback).await
+        turbo_tasks::read!(get_introspection_children(&self.routes, &self.fallback))
     }
 }

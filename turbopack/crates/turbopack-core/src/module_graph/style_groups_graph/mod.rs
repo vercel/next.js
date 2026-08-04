@@ -67,7 +67,9 @@ use indexmap::map::Entry;
 use petgraph::graph::NodeIndex;
 use rustc_hash::FxHashSet;
 use tracing::{Instrument, instrument};
-use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::TryJoinIterExt;
+use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, Vc};
 
 use crate::{
     chunk::{
@@ -109,10 +111,11 @@ struct StyleModuleRef {
 /// `None` for non-CSS modules.
 type ClassifiedModule = Option<(usize, ResolvedVc<Box<dyn StyleModule>>)>;
 
+turbo_tasks::dual_fn! {
 /// Build [`StyleGroups`] using the graph-analysis algorithm. See the module-level docs for
 /// details.
 #[instrument(skip(module_graph, chunking_context))]
-pub async fn compute_style_groups_graph(
+pub fn compute_style_groups_graph(
     module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     request_cost: f32,
@@ -121,18 +124,20 @@ pub async fn compute_style_groups_graph(
 ) -> Result<Vc<StyleGroups>> {
     // 1. Walk every chunk group post-order and collect, for each group, the ordered list of CSS
     //    modules. Module ids are densely allocated as we encounter modules for the first time.
-    let (chunk_groups, modules_in_order) = collect_chunk_groups(module_graph, chunking_context)
-        .instrument(tracing::trace_span!("collect_chunk_groups"))
-        .await?;
+    let (chunk_groups, modules_in_order) = turbo_tasks::read!(
+        collect_chunk_groups(module_graph, chunking_context)
+            .instrument(tracing::trace_span!("collect_chunk_groups"))
+    )?;
 
     if modules_in_order.is_empty() {
         return Ok(make_style_groups(FxIndexMap::default()));
     }
 
     // 2. Resolve each module's `ChunkItemWithAsyncModuleInfo` and byte size in parallel.
-    let module_data = resolve_module_data(module_graph, chunking_context, &modules_in_order)
-        .instrument(tracing::trace_span!("resolve_module_data"))
-        .await?;
+    let module_data = turbo_tasks::read!(
+        resolve_module_data(module_graph, chunking_context, &modules_in_order)
+            .instrument(tracing::trace_span!("resolve_module_data"))
+    )?;
 
     let module_sizes: Vec<u64> = module_data.iter().map(|m| m.size).collect();
     let module_style_types: Vec<StyleType> = module_data.iter().map(|m| m.style_type).collect();
@@ -157,24 +162,26 @@ pub async fn compute_style_groups_graph(
     // Optional debug dump controlled by `TURBOPACK_DEBUG_CSS_CHUNKING`. Failures here are
     // logged and otherwise swallowed so a debug toggle never breaks the build.
     if *DEBUG_DUMP_ENABLED
-        && let Err(err) = write_debug_dump(
-            &chunk_groups,
-            &modules_in_order,
-            &module_data,
-            &global_order,
-            &chunks,
+        && let Err(err) = turbo_tasks::read!(
+            write_debug_dump(
+                &chunk_groups,
+                &modules_in_order,
+                &module_data,
+                &global_order,
+                &chunks,
+            )
+            .instrument(tracing::trace_span!("debug_dump"))
         )
-        .instrument(tracing::trace_span!("debug_dump"))
-        .await
     {
         eprintln!("TURBOPACK_DEBUG_CSS_CHUNKING: failed to write debug dump: {err:?}");
     }
 
     // 4. Assemble the result. Each multi-item chunk becomes a `ChunkItemBatch`; singletons get a
     //    `batch = None` entry so the production sort still places them at the right `order`.
-    assemble_style_groups(&chunks, &module_data)
-        .instrument(tracing::trace_span!("assemble"))
-        .await
+    turbo_tasks::read!(
+        assemble_style_groups(&chunks, &module_data).instrument(tracing::trace_span!("assemble"))
+    )
+}
 }
 
 static DEBUG_DUMP_ENABLED: LazyLock<bool> =
@@ -196,10 +203,11 @@ fn cost_to_json(cost: Option<f32>) -> serde_json::Value {
     }
 }
 
+turbo_tasks::dual_fn! {
 /// Write a JSON snapshot of the inputs and outputs of the graph-based CSS chunker to the
 /// current working directory. Each invocation produces a uniquely named file so concurrent or
 /// repeated computations don't overwrite each other.
-async fn write_debug_dump(
+fn write_debug_dump(
     chunk_groups: &[Vec<usize>],
     modules: &[StyleModuleRef],
     module_data: &[ModuleData],
@@ -208,13 +216,11 @@ async fn write_debug_dump(
 ) -> Result<()> {
     // Resolve `ident_string()` for every module up front. Done in parallel to keep this off the
     // critical path even on graphs with thousands of CSS modules.
-    let ident_strings: Vec<String> = modules
-        .iter()
-        .map(async |m| -> Result<String> {
-            Ok(m.chunkable.ident_string().await?.as_str().to_owned())
-        })
-        .try_join()
-        .await?;
+    let ident_strings: Vec<String> =
+        turbo_tasks::parallel!(modules.iter().map(|m| m.chunkable.ident_string()))?
+            .into_iter()
+            .map(|ident| ident.as_str().to_owned())
+            .collect();
 
     let ident = |id: usize| ident_strings[id].as_str();
 
@@ -281,8 +287,10 @@ async fn write_debug_dump(
     );
     Ok(())
 }
+}
 
-async fn assemble_style_groups(
+turbo_tasks::dual_fn! {
+fn assemble_style_groups(
     chunks: &[(Vec<usize>, Option<f32>)],
     module_data: &[ModuleData],
 ) -> Result<Vc<StyleGroups>> {
@@ -317,9 +325,9 @@ async fn assemble_style_groups(
         }
 
         let chunk_items: Vec<_> = chunk.iter().map(|&id| module_data[id].chunk_item).collect();
-        let batch = ChunkItemBatchWithAsyncModuleInfo::new(chunk_items.clone())
-            .to_resolved()
-            .await?;
+        let batch = turbo_tasks::read!(
+            ChunkItemBatchWithAsyncModuleInfo::new(chunk_items.clone()).to_resolved()
+        )?;
         for chunk_item in chunk_items {
             push(&mut shared_chunk_items, chunk_item, Some(batch));
         }
@@ -337,20 +345,21 @@ async fn assemble_style_groups(
 
     Ok(make_style_groups(shared_chunk_items))
 }
+}
 
+turbo_tasks::dual_fn! {
 /// Walk every chunk group post-order, returning `(chunk_groups, modules_in_order)` where:
 /// * `chunk_groups[i]` is the list of CSS module ids loaded by chunk group `i` (after dedup of
 ///   empty groups),
 /// * `modules_in_order` is the densely-numbered list of distinct CSS modules referenced by any
 ///   chunk group, in insertion order.
-async fn collect_chunk_groups(
+fn collect_chunk_groups(
     module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<(Vec<Vec<usize>>, Vec<StyleModuleRef>)> {
-    let chunk_group_info = module_graph.chunk_group_info().await?;
-    let batches_graph = module_graph
-        .module_batches(chunking_context.batching_config())
-        .await?;
+    let chunk_group_info = turbo_tasks::read!(module_graph.chunk_group_info())?;
+    let batches_graph =
+        turbo_tasks::read!(module_graph.module_batches(chunking_context.batching_config()))?;
     // Per discovered chunkable module: `Some((id, sidecast_style))` for CSS modules and `None`
     // for non-CSS modules (which still occupy an entry so we don't repeat the classification).
     // Ids are densely packed in `0..modules_in_order.len()` — assigned via a separate counter
@@ -364,7 +373,7 @@ async fn collect_chunk_groups(
         let ordered_entries = batches_graph.get_ordered_entries(&chunk_group_info, i);
         let mut entries = Vec::with_capacity(chunk_group.entries_count());
         for entry in ordered_entries {
-            entries.push(batches_graph.get_entry_index(entry).await?);
+            entries.push(turbo_tasks::read!(batches_graph.get_entry_index(entry))?);
         }
         let mut visited = FxHashSet::default();
         let mut items_in_postorder = FxIndexSet::default();
@@ -398,7 +407,9 @@ async fn collect_chunk_groups(
         // order.
         let mut ids: Vec<usize> = Vec::new();
         let mut seen: FxHashSet<usize> = FxHashSet::default();
-        let mut handle_module = async |module| -> Result<()> {
+        // This classification is fully synchronous (no cell reads), so a plain closure works
+        // in both the async and the sync build.
+        let mut handle_module = |module| -> Result<()> {
             let id_slot = match module_id_map.entry(module) {
                 Entry::Occupied(e) => *e.get(),
                 Entry::Vacant(e) => {
@@ -423,13 +434,13 @@ async fn collect_chunk_groups(
         for item in items_in_postorder {
             match item {
                 ModuleOrBatch::Batch(batch) => {
-                    for &module in &batch.await?.modules {
-                        handle_module(module).await?;
+                    for &module in &turbo_tasks::read!(batch)?.modules {
+                        handle_module(module)?;
                     }
                 }
                 ModuleOrBatch::Module(module) => {
                     if let Some(chunkable_module) = ResolvedVc::try_downcast(module) {
-                        handle_module(chunkable_module).await?;
+                        handle_module(chunkable_module)?;
                     }
                 }
                 ModuleOrBatch::None(_) => {}
@@ -450,36 +461,56 @@ async fn collect_chunk_groups(
         .collect();
     Ok((chunk_groups, modules_in_order))
 }
+}
 
+turbo_tasks::dual_fn! {
+/// Resolve one module's chunk item and byte size.
+fn resolve_one_module_data(
+    m: &StyleModuleRef,
+    async_module_info: Vc<crate::module_graph::async_module_info::AsyncModulesInfo>,
+    module_graph: Vc<ModuleGraph>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
+) -> Result<ModuleData> {
+    let style_type = *turbo_tasks::read!(m.style.style_type())?;
+    let chunk_item = turbo_tasks::read!(attach_async_info_to_chunkable_module(
+        m.chunkable,
+        async_module_info,
+        module_graph,
+        chunking_context,
+    ))?;
+    let size = *turbo_tasks::read!(chunk_item.chunk_type.chunk_item_size(
+        chunking_context,
+        *chunk_item.chunk_item,
+        None
+    ))?;
+    Ok(ModuleData {
+        style_type,
+        size: size as u64,
+        chunk_item,
+    })
+}
+}
+
+turbo_tasks::dual_fn! {
 /// Resolve each module's chunk item and byte size in parallel. The returned vec is parallel to
 /// `modules`.
-async fn resolve_module_data(
+fn resolve_module_data(
     module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     modules: &[StyleModuleRef],
 ) -> Result<Vec<ModuleData>> {
     let async_module_info = module_graph.async_module_info();
-    modules
+    #[cfg(not(feature = "sync"))]
+    let result = modules
         .iter()
-        .map(async |m| -> Result<ModuleData> {
-            let style_type = *m.style.style_type().await?;
-            let chunk_item = attach_async_info_to_chunkable_module(
-                m.chunkable,
-                async_module_info,
-                module_graph,
-                chunking_context,
-            )
-            .await?;
-            let size = *chunk_item
-                .chunk_type
-                .chunk_item_size(chunking_context, *chunk_item.chunk_item, None)
-                .await?;
-            Ok(ModuleData {
-                style_type,
-                size: size as u64,
-                chunk_item,
-            })
-        })
+        .map(|m| resolve_one_module_data(m, async_module_info, module_graph, chunking_context))
         .try_join()
-        .await
+        .await;
+    #[cfg(feature = "sync")]
+    let result = modules
+        .iter()
+        .map(|m| resolve_one_module_data(m, async_module_info, module_graph, chunking_context))
+        .collect::<Result<Vec<_>>>();
+    result
+}
 }

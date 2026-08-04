@@ -11,15 +11,17 @@ use turbopack_ecmascript::{CustomTransformer, TransformContext, TransformPlugin}
 
 use super::{EcmascriptTransformStage, get_ecma_transform_rule};
 
+turbo_tasks::dual_fn! {
 /// Returns a rule which applies the Next.js font transform.
-pub async fn get_next_font_transform_rule(enable_mdx_rs: bool) -> Result<ModuleRule> {
-    let transformer = next_font_transform_plugin().to_resolved().await?;
+pub fn get_next_font_transform_rule(enable_mdx_rs: bool) -> Result<ModuleRule> {
+    let transformer = turbo_tasks::read!(next_font_transform_plugin().to_resolved())?;
     // TODO: Only match in pages (not pages/api), app/, etc.
     Ok(get_ecma_transform_rule(
         transformer,
         enable_mdx_rs,
         EcmascriptTransformStage::Postprocess,
     ))
+}
 }
 
 #[turbo_tasks::function]
@@ -38,10 +40,25 @@ struct NextJsFont {
     font_loaders: Vec<Wtf8Atom>,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 impl CustomTransformer for NextJsFont {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "next_font", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+        let mut next_font = next_font_loaders(Config {
+            font_loaders: self.font_loaders.clone(),
+            relative_file_path_from_root: ctx.file_name_str.into(),
+        });
+
+        program.visit_mut_with(&mut next_font);
+        Ok(())
+    }
+}
+
+#[cfg(feature = "sync")]
+impl CustomTransformer for NextJsFont {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "next_font", skip_all)]
+    fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         let mut next_font = next_font_loaders(Config {
             font_loaders: self.font_loaders.clone(),
             relative_file_path_from_root: ctx.file_name_str.into(),

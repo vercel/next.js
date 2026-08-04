@@ -42,6 +42,39 @@ use crate::{
 mod heap_queue;
 use heap_queue::HeapQueue;
 
+/// Dedicated tokio runtime that hosts the (still-async) Node process pool in the
+/// sync build. The sync turbo-tasks engine runs on native threads with no
+/// ambient runtime, so the leaf byte-I/O of the pool (TCP transport, child
+/// spawn) is driven here via `block_on`. This is the sanctioned "tokio at the
+/// I/O edge" — core compute stays sync; only the pool's socket work touches it.
+///
+/// `block_on` polls the pool future on the *calling* thread (a sync-engine
+/// worker holding the turbo_tasks context), so the one inline `Vc` read
+/// (`apply_source_mapping`) resolves correctly. Spawned sub-tasks (`pre_warm`)
+/// run on this runtime's own worker threads but touch no `Vc`s.
+#[cfg(feature = "sync")]
+fn edge_rt() -> &'static tokio::runtime::Runtime {
+    use std::sync::OnceLock;
+    static EDGE_RT: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
+    EDGE_RT.get_or_init(|| {
+        // DIAGNOSTIC: the edge runtime drives all node-pool socket I/O. Every sync worker
+        // calls `edge_rt().block_on(..)` on it concurrently; with too few threads the I/O
+        // reactor can be starved so a `recv` wakeup is delayed/lost — a candidate root cause
+        // of the sync-build stall. Override the thread count via `TT_EDGE_RT_THREADS` to test.
+        let worker_threads = std::env::var("TT_EDGE_RT_THREADS")
+            .ok()
+            .and_then(|v| v.parse::<usize>().ok())
+            .filter(|n| *n > 0)
+            .unwrap_or(2);
+        tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .worker_threads(worker_threads)
+            .thread_name("turbopack-node-edge")
+            .build()
+            .expect("failed to build turbopack-node edge runtime")
+    })
+}
+
 struct NodeJsPoolProcess {
     child: Option<Child>,
     connection: TcpStream,
@@ -160,15 +193,19 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
                 let text = unmangle_identifiers(text, |content| {
                     format!("{{{content}}}").italic().to_string()
                 });
-                match apply_source_mapping(
+                // The only genuine turbo-task (`Vc`) read on the pool's hot path.
+                // `read!` = `.await` in async mode; in the sync build this dual_fn
+                // returns its `Result` directly and `read!` is the identity read.
+                // Under the sync bridge this runs inside `edge_rt().block_on(..)` on
+                // the caller's (sync-engine) thread, so the turbo_tasks context needed
+                // by the read is present.
+                match turbo_tasks::read!(apply_source_mapping(
                     text.as_ref(),
                     assets_for_source_mapping,
                     root,
                     project_dir,
                     FormattingMode::AnsiColors,
-                )
-                .await
-                {
+                )) {
                     Err(e) => {
                         write_final(
                             format!("Error applying source mapping: {e}\n").as_bytes(),
@@ -686,6 +723,7 @@ impl ChildProcessPool {
 #[turbo_tasks::value(shared)]
 pub(crate) struct ChildProcessesBackend;
 
+#[cfg(not(feature = "sync"))]
 #[turbo_tasks::value_impl]
 impl NodeBackend for ChildProcessesBackend {
     fn runtime_module_path(&self) -> RcStr {
@@ -733,9 +771,62 @@ impl NodeBackend for ChildProcessesBackend {
     }
 }
 
-#[async_trait::async_trait]
-impl EvaluateOperation for ChildProcessPool {
-    async fn operation(&self) -> Result<Box<dyn Operation>> {
+// Sync build: `create_pool` returns the pool directly. Its body was already
+// synchronous (the async version wrapped a plain `ChildProcessPool::create`),
+// so no `block_on` is needed here — the pool's *operations* are what bridge to
+// the edge runtime (see the `EvaluateOperation`/`Operation` impls above).
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl NodeBackend for ChildProcessesBackend {
+    fn runtime_module_path(&self) -> RcStr {
+        rcstr!("child_process/evaluate.ts")
+    }
+
+    fn globals_module_path(&self) -> RcStr {
+        rcstr!("child_process/globals.ts")
+    }
+
+    fn create_pool(&self, options: CreatePoolOptions) -> Result<EvaluatePool> {
+        let CreatePoolOptions {
+            cwd,
+            entrypoint,
+            env,
+            assets_for_source_mapping,
+            assets_root,
+            project_dir,
+            concurrency,
+            debug,
+        } = options;
+
+        Ok(ChildProcessPool::create(
+            cwd,
+            entrypoint,
+            env,
+            assets_for_source_mapping,
+            assets_root,
+            project_dir,
+            concurrency,
+            debug,
+        ))
+    }
+
+    fn scale_down(&self) -> Result<()> {
+        ChildProcessPool::scale_down();
+        Ok(())
+    }
+
+    fn scale_zero(&self) -> Result<()> {
+        ChildProcessPool::scale_zero();
+        Ok(())
+    }
+}
+
+/// Mode-agnostic implementations of the pool's async operations. These stay
+/// genuine `async fn`s in BOTH build modes so the internal `join!`/`select!`
+/// keep working; the `EvaluateOperation` trait impls below adapt them to each
+/// mode (`.await` for async, `edge_rt().block_on(..)` for the sync bridge).
+impl ChildProcessPool {
+    async fn operation_impl(&self) -> Result<Box<dyn Operation>> {
         // Acquire a running process (handles concurrency limits, boots up the process)
 
         let operation = {
@@ -754,16 +845,15 @@ impl EvaluateOperation for ChildProcessPool {
         Ok(Box::new(operation))
     }
 
-    /// Returns a snapshot of the pool's internal statistics.
-    fn stats(&self) -> PoolStatsSnapshot {
-        self.stats.lock().snapshot()
-    }
-
     /// Eagerly spawn a Node.js process so it's ready when the first
     /// `operation()` is called. The process goes into the idle queue.
     /// If a node request comes in while this is still initializing, it waits
     /// on the bootup semaphore and will resume when the process is ready.
-    fn pre_warm(&self) {
+    ///
+    /// The spawned task does pure I/O + semaphore work and reads no `Vc`s, so
+    /// it is safe to run on the edge runtime's worker threads (which lack the
+    /// turbo_tasks context) in the sync build.
+    fn pre_warm_impl(&self) {
         let args = self.process_args();
         let bootup_semaphore = self.bootup_semaphore.clone();
         let idle_processes = self.idle_processes.clone();
@@ -793,6 +883,49 @@ impl EvaluateOperation for ChildProcessPool {
                 }
             }
         });
+    }
+}
+
+#[cfg(not(feature = "sync"))]
+#[async_trait::async_trait]
+impl EvaluateOperation for ChildProcessPool {
+    async fn operation(&self) -> Result<Box<dyn Operation>> {
+        self.operation_impl().await
+    }
+
+    /// Returns a snapshot of the pool's internal statistics.
+    fn stats(&self) -> PoolStatsSnapshot {
+        self.stats.lock().snapshot()
+    }
+
+    fn pre_warm(&self) {
+        self.pre_warm_impl();
+    }
+}
+
+// Sync bridge (option B): the async pool is kept intact and driven to
+// completion on a dedicated edge runtime via `block_on`. `block_on` polls the
+// future on the CALLING thread — a sync-engine worker that holds the
+// turbo_tasks context — so the inline `apply_source_mapping` `Vc` read resolves
+// correctly. Only the leaf byte-I/O is driven by the edge runtime's threads.
+#[cfg(feature = "sync")]
+impl EvaluateOperation for ChildProcessPool {
+    fn operation(&self) -> Result<Box<dyn Operation>> {
+        turbo_tasks::block_in_place_labeled("node-eval:operation(acquire process)", || {
+            edge_rt().block_on(self.operation_impl())
+        })
+    }
+
+    /// Returns a snapshot of the pool's internal statistics.
+    fn stats(&self) -> PoolStatsSnapshot {
+        self.stats.lock().snapshot()
+    }
+
+    fn pre_warm(&self) {
+        // `pre_warm_impl` calls `tokio::spawn`, which needs an ambient runtime.
+        // On the sync path there is none, so enter the edge runtime first.
+        let _guard = edge_rt().enter();
+        self.pre_warm_impl();
     }
 }
 
@@ -882,9 +1015,10 @@ pub struct ChildProcessOperation {
     allow_process_reuse: bool,
 }
 
-#[async_trait::async_trait]
-impl Operation for ChildProcessOperation {
-    async fn recv(&mut self) -> Result<Bytes> {
+/// Mode-agnostic async implementations; see [`ChildProcessPool`] above for why
+/// these stay `async fn` in both modes.
+impl ChildProcessOperation {
+    async fn recv_impl(&mut self) -> Result<Bytes> {
         let bytes = self
             .with_process(|process| async move {
                 process.recv().await.context("failed to receive message")
@@ -893,7 +1027,7 @@ impl Operation for ChildProcessOperation {
         Ok(bytes)
     }
 
-    async fn send(&mut self, message: Bytes) -> Result<()> {
+    async fn send_impl(&mut self, message: Bytes) -> Result<()> {
         self.with_process(|process| async move {
             timeout(Duration::from_secs(30), process.send(message))
                 .await
@@ -904,7 +1038,7 @@ impl Operation for ChildProcessOperation {
         .await
     }
 
-    async fn wait_or_kill(&mut self) -> Result<ExitStatus> {
+    async fn wait_or_kill_impl(&mut self) -> Result<ExitStatus> {
         let mut process = self
             .process
             .take()
@@ -929,11 +1063,59 @@ impl Operation for ChildProcessOperation {
         Ok(status)
     }
 
-    fn disallow_reuse(&mut self) {
+    fn disallow_reuse_impl(&mut self) {
         if self.allow_process_reuse {
             self.stats.lock().remove_worker();
             self.allow_process_reuse = false;
         }
+    }
+}
+
+#[cfg(not(feature = "sync"))]
+#[async_trait::async_trait]
+impl Operation for ChildProcessOperation {
+    async fn recv(&mut self) -> Result<Bytes> {
+        self.recv_impl().await
+    }
+
+    async fn send(&mut self, message: Bytes) -> Result<()> {
+        self.send_impl(message).await
+    }
+
+    async fn wait_or_kill(&mut self) -> Result<ExitStatus> {
+        self.wait_or_kill_impl().await
+    }
+
+    fn disallow_reuse(&mut self) {
+        self.disallow_reuse_impl();
+    }
+}
+
+// Sync bridge: each blocking request/response step drives the async op to
+// completion on the edge runtime. The `pull_operation` loop calls these
+// sequentially (never nested), so there is no re-entrant `block_on`.
+#[cfg(feature = "sync")]
+impl Operation for ChildProcessOperation {
+    fn recv(&mut self) -> Result<Bytes> {
+        turbo_tasks::block_in_place_labeled("node-eval:recv (awaiting subprocess message)", || {
+            edge_rt().block_on(self.recv_impl())
+        })
+    }
+
+    fn send(&mut self, message: Bytes) -> Result<()> {
+        turbo_tasks::block_in_place_labeled("node-eval:send", || {
+            edge_rt().block_on(self.send_impl(message))
+        })
+    }
+
+    fn wait_or_kill(&mut self) -> Result<ExitStatus> {
+        turbo_tasks::block_in_place_labeled("node-eval:wait_or_kill", || {
+            edge_rt().block_on(self.wait_or_kill_impl())
+        })
+    }
+
+    fn disallow_reuse(&mut self) {
+        self.disallow_reuse_impl();
     }
 }
 

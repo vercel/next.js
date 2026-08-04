@@ -33,6 +33,8 @@ impl<T: Ord> HeapQueue<T> {
         self: &Arc<Self>,
         active_queues: &Mutex<Vec<Arc<Self>>>,
     ) -> Result<T, AcquireError> {
+        // tokio semaphore acquire — a genuine leaf await, not a `Vc` read; stays
+        // `.await` in both modes (driven by the edge runtime's `block_on` in sync).
         self.semaphore.acquire().await?.forget();
         let mut heap = self.heap.lock();
         let item = heap.pop().unwrap();

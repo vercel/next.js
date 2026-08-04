@@ -85,6 +85,11 @@ impl<
     pub fn new(executor: E) -> Self {
         Self {
             executor,
+            // The synchronous engine never drives the runner (tasks execute inline on
+            // read), so it must not require a Tokio runtime to even construct.
+            #[cfg(feature = "sync")]
+            target_workers: 1,
+            #[cfg(not(feature = "sync"))]
             target_workers: tokio::runtime::Handle::current().metrics().num_workers(),
             queue: Mutex::new(BinaryHeap::new()),
             active_workers: AtomicUsize::new(0),

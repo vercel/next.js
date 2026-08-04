@@ -28,14 +28,16 @@ impl SourceMapReference {
 }
 
 impl SourceMapReference {
-    async fn get_file(&self) -> Option<FileSystemPath> {
-        let file_type = self.file.get_type().await;
+    turbo_tasks::dual_fn! {
+    fn get_file(&self) -> Result<Option<FileSystemPath>> {
+        let file_type = turbo_tasks::read!(self.file.get_type());
         if let Ok(file_type_result) = file_type.as_ref()
             && let FileSystemEntryType::File = &**file_type_result
         {
-            return Some(self.file.clone());
+            return Ok(Some(self.file.clone()));
         }
-        None
+        Ok(None)
+    }
     }
 }
 
@@ -43,11 +45,11 @@ impl SourceMapReference {
 impl ModuleReference for SourceMapReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        if let Some(file) = self.get_file().await {
+        if let Some(file) = turbo_tasks::read!(self.get_file())? {
             return Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
-                RawModule::new(Vc::upcast(FileSource::new(file)))
-                    .to_resolved()
-                    .await?,
+                turbo_tasks::read!(
+                    RawModule::new(Vc::upcast(FileSource::new(file))).to_resolved()
+                )?,
             )));
         }
         Ok(*ModuleResolveResult::unresolvable())
@@ -64,13 +66,15 @@ impl ModuleReference for SourceMapReference {
 impl GenerateSourceMap for SourceMapReference {
     #[turbo_tasks::function]
     async fn generate_source_map(&self) -> Result<Vc<FileContent>> {
-        let Some(file) = self.get_file().await else {
+        let Some(file) = turbo_tasks::read!(self.get_file())? else {
             return Ok(FileContent::NotFound.cell());
         };
 
-        let content = file.read().await?;
+        let content = turbo_tasks::read!(file.read())?;
         let content = content.as_content().map(|file| file.content());
-        if let Some(source_map) = resolve_source_map_sources(content, &self.from).await? {
+        if let Some(source_map) =
+            turbo_tasks::read!(resolve_source_map_sources(content, &self.from))?
+        {
             Ok(FileContent::Content(File::from(source_map)).cell())
         } else {
             Ok(FileContent::NotFound.cell())

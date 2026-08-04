@@ -1,6 +1,8 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{OperationVc, ResolvedVc, TryJoinIterExt, Vc};
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::TryJoinIterExt;
+use turbo_tasks::{OperationVc, ResolvedVc, Vc};
 
 use crate::source::{
     ContentSourceContent, ContentSourceData, ContentSourceDataVary, GetContentSourceContent,
@@ -44,20 +46,32 @@ async fn wrap_sources_operation(
     sources: OperationVc<GetContentSourceContents>,
     processor: ResolvedVc<Box<dyn ContentSourceProcessor>>,
 ) -> Result<Vc<GetContentSourceContents>> {
-    Ok(Vc::cell(
-        sources
-            .connect()
-            .await?
-            .iter()
-            .map(|s| {
-                Vc::upcast::<Box<dyn GetContentSourceContent>>(WrappedGetContentSourceContent::new(
-                    **s, *processor,
-                ))
-            })
-            .map(|v| async move { v.to_resolved().await })
-            .try_join()
-            .await?,
-    ))
+    let sources = turbo_tasks::read!(sources.connect())?;
+    let wrapped = sources
+        .iter()
+        .map(|s| {
+            Vc::upcast::<Box<dyn GetContentSourceContent>>(WrappedGetContentSourceContent::new(
+                **s, *processor,
+            ))
+        })
+        .collect::<Vec<_>>();
+    // `.to_resolved()` futures cannot fan out through `parallel!` under sync; keep the
+    // concurrent `try_join` in the async build and resolve sequentially under sync.
+    #[cfg(not(feature = "sync"))]
+    let resolved = wrapped
+        .into_iter()
+        .map(|v| v.to_resolved())
+        .try_join()
+        .await?;
+    #[cfg(feature = "sync")]
+    let resolved = {
+        let mut resolved = Vec::with_capacity(wrapped.len());
+        for v in wrapped {
+            resolved.push(turbo_tasks::read!(v.to_resolved())?);
+        }
+        resolved
+    };
+    Ok(Vc::cell(resolved))
 }
 
 #[turbo_tasks::value_impl]
@@ -70,8 +84,8 @@ impl GetContentSourceContent for WrappedGetContentSourceContent {
     #[turbo_tasks::function]
     async fn get(&self, path: RcStr, data: ContentSourceData) -> Result<Vc<ContentSourceContent>> {
         let res = self.inner.get(path, data);
-        if let ContentSourceContent::Rewrite(rewrite) = &*res.await? {
-            let rewrite = rewrite.await?;
+        if let ContentSourceContent::Rewrite(rewrite) = &*turbo_tasks::read!(res)? {
+            let rewrite = turbo_tasks::read!(rewrite)?;
             return Ok(ContentSourceContent::Rewrite(
                 Rewrite {
                     ty: match &rewrite.ty {

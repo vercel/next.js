@@ -63,19 +63,19 @@ impl EcmascriptBrowserSingleEntryChunk {
 
     #[turbo_tasks::function]
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
 
-        let source_maps = *this
-            .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
-            .await?;
+        let source_maps = *turbo_tasks::read!(
+            this.chunking_context
+                .reference_chunk_source_maps(Vc::upcast(self))
+        )?;
         let mut code = CodeBuilder::new(
             source_maps,
-            *this.chunking_context.debug_ids_enabled().await?,
+            *turbo_tasks::read!(this.chunking_context.debug_ids_enabled())?,
         );
 
         let module_chunk = EcmascriptBrowserChunk::new(*this.chunking_context, *this.chunk);
-        code.push_code(&*module_chunk.own_content().code().await?);
+        code.push_code(&*turbo_tasks::read!(module_chunk.own_content().code())?);
 
         let evaluate_chunk = EcmascriptBrowserEvaluateChunk::new(
             *this.chunking_context,
@@ -84,14 +84,14 @@ impl EcmascriptBrowserSingleEntryChunk {
             *this.evaluatable_assets,
             *this.module_graph,
         );
-        code.push_code(&*evaluate_chunk.code().await?);
+        code.push_code(&*turbo_tasks::read!(evaluate_chunk.code())?);
 
         Ok(Code::cell(code.build()))
     }
 
     #[turbo_tasks::function]
     async fn source_map(self: Vc<Self>) -> Result<Vc<SourceMapAsset>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         Ok(SourceMapAsset::new_fixed(
             this.path.clone(),
             Vc::upcast(self),
@@ -103,15 +103,16 @@ impl EcmascriptBrowserSingleEntryChunk {
 impl OutputAssetsReference for EcmascriptBrowserSingleEntryChunk {
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         let mut assets = Vec::new();
 
-        if *this
-            .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
-            .await?
-        {
-            assets.push(ResolvedVc::upcast(self.source_map().to_resolved().await?));
+        if *turbo_tasks::read!(
+            this.chunking_context
+                .reference_chunk_source_maps(Vc::upcast(self))
+        )? {
+            assets.push(ResolvedVc::upcast(turbo_tasks::read!(
+                self.source_map().to_resolved()
+            )?));
         }
 
         Ok(OutputAssetsWithReferenced {
@@ -136,11 +137,10 @@ impl Asset for EcmascriptBrowserSingleEntryChunk {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         Ok(AssetContent::file(
-            FileContent::Content(File::from(
+            FileContent::Content(File::from(turbo_tasks::read!(
                 self.code()
                     .to_rope_with_magic_comments(|| self.source_map())
-                    .await?,
-            ))
+            )?))
             .cell(),
         ))
     }

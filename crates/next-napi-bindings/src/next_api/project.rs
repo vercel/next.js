@@ -10,6 +10,7 @@ use std::{
 use anyhow::{Context, Result, anyhow, bail};
 use bincode::{Decode, Encode};
 use flate2::write::GzEncoder;
+#[cfg(not(feature = "sync"))]
 use futures_util::TryFutureExt;
 use napi::{
     Env, JsFunction, JsObject, Status,
@@ -44,17 +45,19 @@ use next_core::{
 use rand::RngExt;
 use serde::Serialize;
 use tokio::{io::AsyncWriteExt, runtime::Handle, time::Instant};
+#[cfg(not(feature = "sync"))]
 use tracing::Instrument;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_rcstr::{RcStr, rcstr};
+// The compilation-event queue is tokio-backed (async engine only); the sync
+// build's dev/subscription napi methods bail before touching it.
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::message_queue::{CompilationEvent, Severity};
 use turbo_tasks::{
     Effects, FxIndexSet, OperationValue, OperationVc, PrettyPrintError, ReadRef, ResolvedVc,
     TransientInstance, TryJoinIterExt, TurboTasksApi, TurboTasksCallApi, UpdateInfo, Vc,
-    mark_top_level_task,
-    message_queue::{CompilationEvent, Severity},
-    read_strongly_consistent_and_apply_effects, take_effects,
-    trace::TraceRawVcs,
-    unmark_top_level_task_may_leak_eventually_consistent_state,
+    mark_top_level_task, read_strongly_consistent_and_apply_effects, take_effects,
+    trace::TraceRawVcs, unmark_top_level_task_may_leak_eventually_consistent_state,
 };
 use turbo_tasks_backend::db_invalidation::invalidation_reasons;
 use turbo_tasks_fs::{
@@ -77,6 +80,9 @@ use turbopack_trace_utils::{
 };
 use url::Url;
 
+// `subscribe` drives dev/HMR only; the sync build's subscribe napi methods bail.
+#[cfg(not(feature = "sync"))]
+use crate::next_api::utils::subscribe;
 use crate::{
     next_api::{
         analyze::{WriteAnalyzeResult, write_analyze_data_with_issues_operation},
@@ -87,7 +93,7 @@ use crate::{
         },
         utils::{
             DetachedVc, NapiIssue, NapiUsedFeature, RootTask, TurbopackResult, get_issues,
-            strongly_consistent_catch_collectables, subscribe,
+            strongly_consistent_catch_collectables,
         },
     },
     util::DhatProfilerGuard,
@@ -413,16 +419,9 @@ pub struct ProjectInstance {
     exit_receiver: tokio::sync::Mutex<Option<ExitReceiver>>,
 }
 
-#[napi(ts_return_type = "Promise<{ __napiType: \"Project\" }>")]
-pub fn project_new(
-    env: Env,
-    options: NapiProjectOptions,
-    turbo_engine_options: NapiTurboEngineOptions,
-    napi_callbacks: NapiNextTurbopackCallbacksJsObject,
-) -> napi::Result<JsObject> {
-    let napi_callbacks = NapiNextTurbopackCallbacks::from_js(&env, napi_callbacks)?;
-    let (exit, exit_receiver) = ExitHandler::new_receiver();
-
+// Shared tracing/dhat setup for both `project_new` twins. Pure side effects
+// (installs the tracing subscriber, registers exit handlers); no engine calls.
+fn init_project_new_tracing(exit: &Arc<ExitHandler>, options: &NapiProjectOptions) {
     if let Some(dhat_profiler) = DhatProfilerGuard::try_init() {
         exit.on_exit(async move {
             tokio::task::spawn_blocking(move || drop(dhat_profiler))
@@ -542,16 +541,36 @@ pub fn project_new(
                 .unwrap();
         });
 
-        let trace_server = std::env::var("NEXT_TURBOPACK_TRACE_SERVER").ok();
-        if trace_server.is_some() {
-            thread::spawn(move || {
-                turbopack_trace_server::start_turbopack_trace_server(trace_file, None);
-            });
-            println!("Turbopack trace server started. View trace at https://trace.nextjs.org");
+        // The interactive trace server is async-only (its crate is a `dep:` gated
+        // behind `tokio_runtime`); the sync build still writes the trace file.
+        #[cfg(not(feature = "sync"))]
+        {
+            let trace_server = std::env::var("NEXT_TURBOPACK_TRACE_SERVER").ok();
+            if trace_server.is_some() {
+                thread::spawn(move || {
+                    turbopack_trace_server::start_turbopack_trace_server(trace_file, None);
+                });
+                println!("Turbopack trace server started. View trace at https://trace.nextjs.org");
+            }
         }
+        #[cfg(feature = "sync")]
+        let _ = &trace_file;
 
         subscriber.init();
     }
+}
+
+#[cfg(not(feature = "sync"))]
+#[napi(ts_return_type = "Promise<{ __napiType: \"Project\" }>")]
+pub fn project_new(
+    env: Env,
+    options: NapiProjectOptions,
+    turbo_engine_options: NapiTurboEngineOptions,
+    napi_callbacks: NapiNextTurbopackCallbacksJsObject,
+) -> napi::Result<JsObject> {
+    let napi_callbacks = NapiNextTurbopackCallbacks::from_js(&env, napi_callbacks)?;
+    let (exit, exit_receiver) = ExitHandler::new_receiver();
+    init_project_new_tracing(&exit, &options);
 
     env.spawn_future(
         async move {
@@ -645,12 +664,83 @@ pub fn project_new(
     )
 }
 
+// Sync (no-tokio) twin. Builds the project synchronously via `run_sync` and
+// returns the `ProjectInstance` directly (JS `await`s it); there is no
+// `env.spawn_future`/tokio bridge. The dev-only slow-filesystem benchmark is
+// skipped (sync is build-only).
+#[cfg(feature = "sync")]
+#[napi(ts_return_type = "Promise<{ __napiType: \"Project\" }>")]
+pub fn project_new(
+    env: Env,
+    options: NapiProjectOptions,
+    turbo_engine_options: NapiTurboEngineOptions,
+    napi_callbacks: NapiNextTurbopackCallbacksJsObject,
+) -> napi::Result<External<ProjectInstance>> {
+    let napi_callbacks = NapiNextTurbopackCallbacks::from_js(&env, napi_callbacks)?;
+    let (exit, exit_receiver) = ExitHandler::new_receiver();
+    init_project_new_tracing(&exit, &options);
+
+    let dependency_tracking = turbo_engine_options.dependency_tracking.unwrap_or(true);
+    let is_ci = turbo_engine_options.is_ci.unwrap_or(false);
+    let is_short_session = turbo_engine_options.is_short_session.unwrap_or(false);
+    let skip_compaction = turbo_engine_options.skip_compaction.unwrap_or(false);
+    let turbopack_memory_eviction = turbo_engine_options.turbopack_memory_eviction;
+    let turbo_tasks = create_turbo_tasks(
+        PathBuf::from(&options.dist_dir),
+        &options.next_version,
+        options.is_persistent_caching_enabled,
+        dependency_tracking,
+        is_ci,
+        is_short_session,
+        skip_compaction,
+        turbopack_memory_eviction,
+    )?;
+    let turbopack_ctx = NextTurbopackContext::new(turbo_tasks.clone(), napi_callbacks);
+
+    if let Some(stats_path) = std::env::var_os("NEXT_TURBOPACK_TASK_STATISTICS") {
+        let task_stats = turbo_tasks.task_statistics().enable().clone();
+        exit.on_exit(async move {
+            tokio::task::spawn_blocking(move || {
+                let mut file = std::fs::File::create(&stats_path)
+                    .with_context(|| format!("failed to create or open {stats_path:?}"))?;
+                serde_json::to_writer(&file, &task_stats)
+                    .context("failed to serialize or write task statistics")?;
+                file.flush().context("failed to flush file")
+            })
+            .await
+            .unwrap()
+            .unwrap();
+        });
+    }
+
+    let options = ProjectOptions::from(options);
+    let is_dev = options.dev;
+    let container = turbo_tasks
+        .run_sync(move || {
+            let container_op = ProjectContainer::new_operation(rcstr!("next.js"), is_dev);
+            turbo_tasks::read!(ProjectContainer::initialize(container_op, options))?;
+            turbo_tasks::read!(container_op.resolve().strongly_consistent())
+        })
+        .map_err(|e| turbopack_ctx.throw_turbopack_internal_error_sync(&e))?;
+
+    Ok(External::new(ProjectInstance {
+        turbopack_ctx,
+        container,
+        exit_receiver: tokio::sync::Mutex::new(Some(exit_receiver)),
+    }))
+}
+
+// The slow-filesystem benchmark runs only in the dev branch of `project_new`,
+// reports through the tokio-backed compilation-event queue, and does its I/O on
+// tokio — none of which exist in the sync `next build`.
+#[cfg(not(feature = "sync"))]
 #[derive(Debug, Clone, Serialize)]
 struct SlowFilesystemEvent {
     directory: String,
     duration_ms: u128,
 }
 
+#[cfg(not(feature = "sync"))]
 impl CompilationEvent for SlowFilesystemEvent {
     fn type_name(&self) -> &'static str {
         "SlowFilesystemEvent"
@@ -681,6 +771,7 @@ impl CompilationEvent for SlowFilesystemEvent {
 /// This idea is copied from Bun:
 /// - https://x.com/jarredsumner/status/1637549427677364224
 /// - https://github.com/oven-sh/bun/blob/06a9aa80c38b08b3148bfeabe560/src/install/install.zig#L3038
+#[cfg(not(feature = "sync"))]
 async fn benchmark_file_io(turbo_tasks: &NextTurboTasks, dir: &Path) -> Result<()> {
     let temp_path = dir.join(format!(
         "tmp_file_io_benchmark_{:x}",
@@ -721,6 +812,7 @@ async fn benchmark_file_io(turbo_tasks: &NextTurboTasks, dir: &Path) -> Result<(
     Ok(())
 }
 
+#[cfg(not(feature = "sync"))]
 #[tracing::instrument(level = "info", name = "update project", skip_all)]
 #[napi]
 pub async fn project_update(
@@ -735,6 +827,22 @@ pub async fn project_update(
         .run(async move { container.update(options).await })
         .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
         .await
+}
+
+#[cfg(feature = "sync")]
+#[tracing::instrument(level = "info", name = "update project", skip_all)]
+#[napi]
+pub fn project_update(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    options: NapiPartialProjectOptions,
+) -> napi::Result<()> {
+    let ctx = &project.turbopack_ctx;
+    let options = options.into();
+    let container = project.container;
+
+    ctx.turbo_tasks()
+        .run_sync(move || turbo_tasks::read!(container.update(options)))
+        .map_err(|e| ctx.throw_turbopack_internal_error_sync(&e))
 }
 
 /// Invalidates the filesystem cache so that it will be deleted next time that a turbopack project
@@ -994,9 +1102,10 @@ async fn get_entrypoints_with_issues_operation(
 ) -> Result<Vc<EntrypointsWithIssues>> {
     let entrypoints_operation =
         EntrypointsOperation::new(project_container_entrypoints_operation(container));
-    let filter = container.project().issue_filter().await?;
-    let (entrypoints, issues, effects) =
-        strongly_consistent_catch_collectables(entrypoints_operation, &filter).await?;
+    let filter = turbo_tasks::read!(container.project().issue_filter())?;
+    let (entrypoints, issues, effects) = turbo_tasks::read!(
+        strongly_consistent_catch_collectables(entrypoints_operation, &filter)
+    )?;
     Ok(EntrypointsWithIssues {
         entrypoints,
         issues,
@@ -1177,6 +1286,9 @@ fn compute_deferred_phase_build_paths(
     }
 }
 
+// Only reached from the async deferred-entrypoints path; the sync build bails
+// before deferred handling, so this (and its nested op) is compiled out there.
+#[cfg(not(feature = "sync"))]
 async fn invalidate_deferred_entry_source_dirs_after_callback(
     container: ResolvedVc<ProjectContainer>,
     deferred_invalidation_dirs: Vec<RcStr>,
@@ -1264,6 +1376,11 @@ fn should_include_endpoint_group(
     }
 }
 
+// Plain async helper (no `#[turbo_tasks::function]`), called from within a
+// `#[turbo_tasks::function]` op, so it must be dual: async build awaits it, sync
+// build calls it inline. No generics/lifetimes but the two call shapes differ,
+// so hand-write twins with an identical `read!`-based body.
+#[cfg(not(feature = "sync"))]
 async fn app_route_filter_for_write_phase(
     project: Vc<Project>,
     write_phase: EntrypointsWritePhase,
@@ -1274,11 +1391,9 @@ async fn app_route_filter_for_write_phase(
     }
 
     let include_deferred = write_phase == EntrypointsWritePhase::Deferred;
-    let app_project = project.app_project().await?;
+    let app_project = turbo_tasks::read!(project.app_project())?;
     let app_route_keys = if let Some(app_project) = &*app_project {
-        app_project
-            .route_keys()
-            .await?
+        turbo_tasks::read!(app_project.route_keys())?
             .iter()
             .cloned()
             .collect::<Vec<_>>()
@@ -1297,6 +1412,62 @@ async fn app_route_filter_for_write_phase(
     ))
 }
 
+#[cfg(feature = "sync")]
+fn app_route_filter_for_write_phase(
+    project: Vc<Project>,
+    write_phase: EntrypointsWritePhase,
+    deferred_entries: &[RcStr],
+) -> Result<Option<Vec<RcStr>>> {
+    if matches!(write_phase, EntrypointsWritePhase::All) || deferred_entries.is_empty() {
+        return Ok(None);
+    }
+
+    let include_deferred = write_phase == EntrypointsWritePhase::Deferred;
+    let app_project = turbo_tasks::read!(project.app_project())?;
+    let app_route_keys = if let Some(app_project) = &*app_project {
+        turbo_tasks::read!(app_project.route_keys())?
+            .iter()
+            .cloned()
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
+
+    Ok(Some(
+        app_route_keys
+            .iter()
+            .filter(|route| {
+                is_deferred_app_route(route.as_str(), deferred_entries) == include_deferred
+            })
+            .cloned()
+            .collect::<Vec<_>>(),
+    ))
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn has_deferred_entrypoints_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Result<Vc<bool>> {
+    let project = container.project();
+    let deferred_entries = turbo_tasks::read!(project.deferred_entries().owned())?;
+
+    if deferred_entries.is_empty() {
+        return Ok(Vc::cell(false));
+    }
+
+    let app_project = turbo_tasks::read!(project.app_project())?;
+    let has_deferred = if let Some(app_project) = &*app_project {
+        turbo_tasks::read!(app_project.route_keys())?
+            .iter()
+            .any(|route_key| is_deferred_app_route(route_key.as_str(), &deferred_entries))
+    } else {
+        false
+    };
+
+    Ok(Vc::cell(has_deferred))
+}
+
+#[cfg(not(feature = "sync"))]
 #[tracing::instrument(level = "info", name = "write all entrypoints to disk", skip_all)]
 #[napi]
 pub async fn project_write_all_entrypoints_to_disk(
@@ -1306,31 +1477,6 @@ pub async fn project_write_all_entrypoints_to_disk(
     let ctx = &project.turbopack_ctx;
     let container = project.container;
     let tt = ctx.turbo_tasks();
-
-    #[turbo_tasks::function(operation, root)]
-    async fn has_deferred_entrypoints_operation(
-        container: ResolvedVc<ProjectContainer>,
-    ) -> Result<Vc<bool>> {
-        let project = container.project();
-        let deferred_entries = project.deferred_entries().owned().await?;
-
-        if deferred_entries.is_empty() {
-            return Ok(Vc::cell(false));
-        }
-
-        let app_project = project.app_project().await?;
-        let has_deferred = if let Some(app_project) = &*app_project {
-            app_project
-                .route_keys()
-                .await?
-                .iter()
-                .any(|route_key| is_deferred_app_route(route_key.as_str(), &deferred_entries))
-        } else {
-            false
-        };
-
-        Ok(Vc::cell(has_deferred))
-    }
 
     let has_deferred_entrypoints = tt
         .run(async move {
@@ -1525,6 +1671,91 @@ pub async fn project_write_all_entrypoints_to_disk(
     })
 }
 
+// Sync (no-tokio) twin. Drives the same operation graph through `run_sync` +
+// `read!`. The deferred-entrypoints path depends on the async-only
+// `onBeforeDeferredEntries` JS callback (awaited via a tokio ThreadsafeFunction),
+// so it is not available here; a project that uses deferred entries gets an
+// honest error rather than a silently-wrong build. The common (non-deferred)
+// path — the whole build for projects without deferred routes — runs fully.
+#[cfg(feature = "sync")]
+#[tracing::instrument(level = "info", name = "write all entrypoints to disk", skip_all)]
+#[napi]
+pub fn project_write_all_entrypoints_to_disk(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    app_dir_only: bool,
+) -> napi::Result<TurbopackResult<Option<NapiEntrypoints>>> {
+    let ctx = &project.turbopack_ctx;
+    let container = project.container;
+    let tt = ctx.turbo_tasks();
+
+    let has_deferred_entrypoints = tt
+        .run_sync(move || {
+            Ok(*turbo_tasks::read!(
+                has_deferred_entrypoints_operation(container).read_strongly_consistent()
+            )?)
+        })
+        .map_err(|e| ctx.throw_turbopack_internal_error_sync(&e))?;
+
+    if has_deferred_entrypoints {
+        return Err(napi::Error::from_reason(
+            "deferred entrypoints are not supported in the sync (no-tokio) build: the \
+             `onBeforeDeferredEntries` callback is awaited on the async runtime",
+        ));
+    }
+
+    let (entrypoints, mut issues) = tt
+        .run_sync(move || {
+            let entrypoints_with_issues_op = get_all_written_entrypoints_with_issues_operation(
+                container,
+                app_dir_only,
+                EntrypointsWritePhase::All,
+            );
+            let read = turbo_tasks::read!(read_strongly_consistent_and_apply_effects(
+                entrypoints_with_issues_op,
+                |v| &v.effects
+            ))?;
+            let AllWrittenEntrypointsWithIssues {
+                entrypoints,
+                issues,
+                ..
+            } = &*read;
+
+            Ok((
+                entrypoints.clone(),
+                issues.iter().cloned().collect::<Vec<_>>(),
+            ))
+        })
+        .map_err(|e| ctx.throw_turbopack_internal_error_sync(&e))?;
+
+    let emit_issues = tt
+        .run_sync(move || {
+            let emit_result_op =
+                emit_all_output_assets_once_with_issues_operation(container, app_dir_only, false);
+            let read = turbo_tasks::read!(read_strongly_consistent_and_apply_effects(
+                emit_result_op,
+                |v| &v.effects
+            ))?;
+            let OperationResult { issues, .. } = &*read;
+
+            Ok(issues.clone())
+        })
+        .map_err(|e| ctx.throw_turbopack_internal_error_sync(&e))?;
+
+    issues.extend(emit_issues.iter().cloned());
+
+    Ok(TurbopackResult {
+        result: if let Some(entrypoints) = entrypoints {
+            Some(NapiEntrypoints::from_entrypoints_op(
+                &entrypoints,
+                &project.turbopack_ctx,
+            )?)
+        } else {
+            None
+        },
+        issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
+    })
+}
+
 #[turbo_tasks::function(operation, root)]
 async fn get_all_written_entrypoints_with_issues_operation(
     container: ResolvedVc<ProjectContainer>,
@@ -1536,9 +1767,10 @@ async fn get_all_written_entrypoints_with_issues_operation(
         app_dir_only,
         write_phase,
     ));
-    let filter = container.project().issue_filter().await?;
-    let (entrypoints, issues, effects) =
-        strongly_consistent_catch_collectables(entrypoints_operation, &filter).await?;
+    let filter = turbo_tasks::read!(container.project().issue_filter())?;
+    let (entrypoints, issues, effects) = turbo_tasks::read!(
+        strongly_consistent_catch_collectables(entrypoints_operation, &filter)
+    )?;
     Ok(AllWrittenEntrypointsWithIssues {
         entrypoints,
         issues,
@@ -1555,7 +1787,7 @@ pub async fn all_entrypoints_write_to_disk_operation(
 ) -> Result<Vc<Entrypoints>> {
     // Compute all outputs for this phase but do not emit to disk yet.
     let output_assets_operation = output_assets_operation(project, app_dir_only, write_phase);
-    let _ = output_assets_operation.connect().await?;
+    let _ = turbo_tasks::read!(output_assets_operation.connect())?;
 
     Ok(project.entrypoints())
 }
@@ -1572,14 +1804,13 @@ async fn output_assets_for_single_emit_operation(
         );
     }
 
-    let non_deferred_output_assets =
+    let non_deferred_output_assets = turbo_tasks::read!(
         output_assets_operation(container, app_dir_only, EntrypointsWritePhase::NonDeferred)
             .connect()
-            .await?;
-    let deferred_output_assets =
-        output_assets_operation(container, app_dir_only, EntrypointsWritePhase::Deferred)
-            .connect()
-            .await?;
+    )?;
+    let deferred_output_assets = turbo_tasks::read!(
+        output_assets_operation(container, app_dir_only, EntrypointsWritePhase::Deferred).connect()
+    )?;
 
     let merged_output_assets: FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>> =
         non_deferred_output_assets
@@ -1599,11 +1830,12 @@ async fn emit_all_output_assets_once_operation(
 ) -> Result<Vc<Entrypoints>> {
     let output_assets_operation =
         output_assets_for_single_emit_operation(container, app_dir_only, has_deferred_entrypoints);
-    container
-        .project()
-        .emit_all_output_assets(output_assets_operation)
-        .as_side_effect()
-        .await?;
+    turbo_tasks::read!(
+        container
+            .project()
+            .emit_all_output_assets(output_assets_operation)
+            .as_side_effect()
+    )?;
 
     Ok(container.entrypoints())
 }
@@ -1619,9 +1851,11 @@ async fn emit_all_output_assets_once_with_issues_operation(
         app_dir_only,
         has_deferred_entrypoints,
     ));
-    let filter = container.project().issue_filter().await?;
-    let (_, issues, effects) =
-        strongly_consistent_catch_collectables(entrypoints_operation, &filter).await?;
+    let filter = turbo_tasks::read!(container.project().issue_filter())?;
+    let (_, issues, effects) = turbo_tasks::read!(strongly_consistent_catch_collectables(
+        entrypoints_operation,
+        &filter
+    ))?;
 
     Ok(OperationResult { issues, effects }.cell())
 }
@@ -1633,13 +1867,16 @@ async fn output_assets_operation(
     write_phase: EntrypointsWritePhase,
 ) -> Result<Vc<OutputAssets>> {
     let project = container.project();
-    let deferred_entries = project.deferred_entries().owned().await?;
-    let app_route_filter =
-        app_route_filter_for_write_phase(project, write_phase, &deferred_entries).await?;
+    let deferred_entries = turbo_tasks::read!(project.deferred_entries().owned())?;
+    let app_route_filter = turbo_tasks::read!(app_route_filter_for_write_phase(
+        project,
+        write_phase,
+        &deferred_entries
+    ))?;
 
-    let endpoint_groups = project
-        .get_all_endpoint_groups_with_app_route_filter(app_dir_only, app_route_filter)
-        .await?;
+    let endpoint_groups = turbo_tasks::read!(
+        project.get_all_endpoint_groups_with_app_route_filter(app_dir_only, app_route_filter)
+    )?;
 
     let endpoints = endpoint_groups
         .iter()
@@ -1653,11 +1890,14 @@ async fn output_assets_operation(
         })
         .collect::<Vec<_>>();
 
-    let endpoint_assets = endpoints
-        .iter()
-        .map(|endpoint| async move { endpoint.output().await?.output_assets.await })
-        .try_join()
-        .await?;
+    // Sequentialized `map(async).try_join()` (R3): the per-item body chains two
+    // reads (`.output()` then `.output_assets`), so it can't go through `parallel!`.
+    let mut endpoint_assets = Vec::with_capacity(endpoints.len());
+    for endpoint in endpoints.iter() {
+        endpoint_assets.push(turbo_tasks::read!(
+            turbo_tasks::read!(endpoint.output())?.output_assets
+        )?);
+    }
 
     let output_assets: FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>> = endpoint_assets
         .iter()
@@ -1670,12 +1910,13 @@ async fn output_assets_operation(
 
     let whole_app_module_graphs = project.whole_app_module_graphs();
     // This makes the trace file nicer to look at
-    whole_app_module_graphs.as_side_effect().await?;
+    turbo_tasks::read!(whole_app_module_graphs.as_side_effect())?;
 
-    let nft = next_server_nft_assets(project).await?;
-    let routes_hashes_manifest = routes_hashes_manifest_asset_if_enabled(project).await?;
+    let nft = turbo_tasks::read!(next_server_nft_assets(project))?;
+    let routes_hashes_manifest =
+        turbo_tasks::read!(routes_hashes_manifest_asset_if_enabled(project))?;
     let immutable_hashes_manifest_asset =
-        immutable_hashes_manifest_asset_if_enabled(project).await?;
+        turbo_tasks::read!(immutable_hashes_manifest_asset_if_enabled(project))?;
 
     Ok(Vc::cell(
         output_assets
@@ -1687,6 +1928,7 @@ async fn output_assets_operation(
     ))
 }
 
+#[cfg(not(feature = "sync"))]
 #[tracing::instrument(level = "info", name = "get entrypoints", skip_all)]
 #[napi]
 pub async fn project_entrypoints(
@@ -1728,6 +1970,49 @@ pub async fn project_entrypoints(
     })
 }
 
+#[cfg(feature = "sync")]
+#[tracing::instrument(level = "info", name = "get entrypoints", skip_all)]
+#[napi]
+pub fn project_entrypoints(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) -> napi::Result<TurbopackResult<Option<NapiEntrypoints>>> {
+    let container = project.container;
+
+    let (entrypoints, issues) = project
+        .turbopack_ctx
+        .turbo_tasks()
+        .run_sync(move || {
+            let entrypoints_with_issues_op = get_entrypoints_with_issues_operation(container);
+
+            // Read and compile the files
+            let EntrypointsWithIssues {
+                entrypoints,
+                issues,
+                effects: _,
+            } = &*turbo_tasks::read!(entrypoints_with_issues_op.read_strongly_consistent())?;
+
+            Ok((entrypoints.clone(), issues.clone()))
+        })
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+
+    let result = match entrypoints {
+        Some(entrypoints) => Some(NapiEntrypoints::from_entrypoints_op(
+            &entrypoints,
+            &project.turbopack_ctx,
+        )?),
+        None => None,
+    };
+
+    Ok(TurbopackResult {
+        result,
+        issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
+    })
+}
+
+// Live subscriptions (entrypoints/HMR) drive the dev server through `subscribe`
+// (a spawned root task + tokio ThreadsafeFunction). None of that exists in the
+// sync `next build`; each exported napi method below has a bail twin.
+#[cfg(not(feature = "sync"))]
 #[tracing::instrument(level = "info", name = "subscribe to entrypoints", skip_all)]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_entrypoints_subscribe(
@@ -1777,6 +2062,7 @@ pub fn project_entrypoints_subscribe(
     )
 }
 
+#[cfg(not(feature = "sync"))]
 #[turbo_tasks::value(serialization = "skip")]
 struct HmrUpdateWithIssues {
     update: ReadRef<Update>,
@@ -1784,6 +2070,7 @@ struct HmrUpdateWithIssues {
     effects: Arc<Effects>,
 }
 
+#[cfg(not(feature = "sync"))]
 #[turbo_tasks::function(operation, root)]
 fn project_hmr_update_operation(
     project: ResolvedVc<Project>,
@@ -1800,6 +2087,7 @@ fn project_hmr_update_operation(
     skip_all,
     fields(chunk_name = %chunk_name, target = %target),
 )]
+#[cfg(not(feature = "sync"))]
 #[turbo_tasks::function(operation, root)]
 async fn hmr_update_with_issues_operation(
     project: ResolvedVc<Project>,
@@ -1825,6 +2113,7 @@ async fn hmr_update_with_issues_operation(
     .cell())
 }
 
+#[cfg(not(feature = "sync"))]
 #[tracing::instrument(level = "info", name = "get HMR events", skip(project, func), fields(target = %target, chunk_name = %chunk_name))]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_hmr_events(
@@ -1920,11 +2209,13 @@ pub fn project_hmr_events(
     )
 }
 
+#[cfg(not(feature = "sync"))]
 #[napi(object)]
 struct HmrChunkNames {
     pub chunk_names: Vec<RcStr>,
 }
 
+#[cfg(not(feature = "sync"))]
 #[turbo_tasks::value(serialization = "skip")]
 struct HmrChunkNamesWithIssues {
     chunk_names: ReadRef<Vec<RcStr>>,
@@ -1932,6 +2223,7 @@ struct HmrChunkNamesWithIssues {
     effects: Arc<Effects>,
 }
 
+#[cfg(not(feature = "sync"))]
 #[turbo_tasks::function(operation, root)]
 fn project_hmr_chunk_names_operation(
     container: ResolvedVc<ProjectContainer>,
@@ -1940,6 +2232,7 @@ fn project_hmr_chunk_names_operation(
     container.hmr_chunk_names(target)
 }
 
+#[cfg(not(feature = "sync"))]
 #[turbo_tasks::function(operation, root)]
 async fn get_hmr_chunk_names_with_issues_operation(
     container: ResolvedVc<ProjectContainer>,
@@ -1964,6 +2257,7 @@ async fn get_hmr_chunk_names_with_issues_operation(
     .cell())
 }
 
+#[cfg(not(feature = "sync"))]
 #[tracing::instrument(level = "info", name = "get HMR chunk names", skip(project, func), fields(target = %target))]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_hmr_chunk_names_subscribe(
@@ -2009,6 +2303,48 @@ pub fn project_hmr_chunk_names_subscribe(
             }])
         },
     )
+}
+
+// ---- Sync (no-tokio) bail twins for the live-subscription napi methods ----
+// These stay exported so next's JS binding loads, but a sync `next build` never
+// subscribes; calling them is a programming error and returns an honest error.
+
+#[cfg(feature = "sync")]
+#[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
+pub fn project_entrypoints_subscribe(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] _project: External<ProjectInstance>,
+    _func: JsFunction,
+) -> napi::Result<External<RootTask>> {
+    Err(napi::Error::from_reason(
+        "project_entrypoints_subscribe is unavailable in the sync (no-tokio) build; it drives the \
+         dev server only",
+    ))
+}
+
+#[cfg(feature = "sync")]
+#[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
+pub fn project_hmr_events(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] _project: External<ProjectInstance>,
+    _chunk_name: RcStr,
+    _target: String,
+    _func: JsFunction,
+) -> napi::Result<External<RootTask>> {
+    Err(napi::Error::from_reason(
+        "project_hmr_events is unavailable in the sync (no-tokio) build; HMR is dev-only",
+    ))
+}
+
+#[cfg(feature = "sync")]
+#[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
+pub fn project_hmr_chunk_names_subscribe(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] _project: External<ProjectInstance>,
+    _target: String,
+    _func: JsFunction,
+) -> napi::Result<External<RootTask>> {
+    Err(napi::Error::from_reason(
+        "project_hmr_chunk_names_subscribe is unavailable in the sync (no-tokio) build; HMR is \
+         dev-only",
+    ))
 }
 
 pub enum UpdateMessage {
@@ -2063,6 +2399,7 @@ impl From<UpdateInfo> for NapiUpdateInfo {
 /// the number of tasks that were executed.
 ///
 /// The signature of the `func` is `(update_message: UpdateMessage) => void`.
+#[cfg(not(feature = "sync"))]
 #[napi]
 pub fn project_update_info_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
@@ -2110,7 +2447,23 @@ pub fn project_update_info_subscribe(
     Ok(())
 }
 
+// Update-info subscription drives dev progress reporting over a tokio task; the
+// sync `next build` never subscribes. Kept exported so the JS binding loads.
+#[cfg(feature = "sync")]
+#[napi]
+pub fn project_update_info_subscribe(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] _project: External<ProjectInstance>,
+    _aggregation_ms: u32,
+    _func: JsFunction,
+) -> napi::Result<()> {
+    Err(napi::Error::from_reason(
+        "project_update_info_subscribe is unavailable in the sync (no-tokio) build; it drives dev \
+         progress reporting only",
+    ))
+}
+
 /// Subscribes to all compilation events that are not cached like timing and progress information.
+#[cfg(not(feature = "sync"))]
 #[napi]
 pub fn project_compilation_events_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
@@ -2157,6 +2510,20 @@ pub fn project_compilation_events_subscribe(
     });
 
     Ok(())
+}
+
+// Compilation-event subscription is tokio-backed (message queue + spawned task);
+// the sync build emits no live events. Kept exported so the JS binding loads.
+#[cfg(feature = "sync")]
+#[napi]
+pub fn project_compilation_events_subscribe(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] _project: External<ProjectInstance>,
+    _func: JsFunction,
+    _event_types: Option<Vec<String>>,
+) -> napi::Result<()> {
+    Err(napi::Error::from_reason(
+        "project_compilation_events_subscribe is unavailable in the sync (no-tokio) build",
+    ))
 }
 
 #[napi(object)]
@@ -2206,36 +2573,31 @@ pub async fn get_source_map_rope(
         Err(_) => (source_url.to_string(), None),
     };
 
-    let chunk_base_unix =
-        match file_path_sys.strip_prefix(container.project().dist_dir_absolute().await?.as_str()) {
-            Some(relative_path) => sys_to_unix(relative_path),
-            None => {
-                // File doesn't exist within the dist dir
-                return Ok(FileContent::NotFound.cell());
-            }
-        };
+    let chunk_base_unix = match file_path_sys
+        .strip_prefix(turbo_tasks::read!(container.project().dist_dir_absolute())?.as_str())
+    {
+        Some(relative_path) => sys_to_unix(relative_path),
+        None => {
+            // File doesn't exist within the dist dir
+            return Ok(FileContent::NotFound.cell());
+        }
+    };
 
-    let server_path = container
-        .project()
-        .node_root()
-        .await?
-        .join(&chunk_base_unix)?;
+    let server_path =
+        turbo_tasks::read!(container.project().node_root())?.join(&chunk_base_unix)?;
 
-    let client_path = container
-        .project()
-        .client_relative_path()
-        .await?
-        .join(&chunk_base_unix)?;
+    let client_path =
+        turbo_tasks::read!(container.project().client_relative_path())?.join(&chunk_base_unix)?;
 
     let mut map = container.get_source_map(server_path, module.clone());
 
-    if !map.await?.is_content() {
+    if !turbo_tasks::read!(map)?.is_content() {
         // If the chunk doesn't exist as a server chunk, try a client chunk.
         // TODO: Properly tag all server chunks and use the `isServer` query param.
         // Currently, this is inaccurate as it does not cover RSC server
         // chunks.
         map = container.get_source_map(client_path, module);
-        if !map.await?.is_content() {
+        if !turbo_tasks::read!(map)?.is_content() {
             bail!("chunk/module '{}' is missing a sourcemap", source_url);
         }
     }
@@ -2257,8 +2619,9 @@ pub async fn project_trace_source_operation(
     frame: StackFrame,
     current_directory_file_url: RcStr,
 ) -> Result<Vc<OptionStackFrame>> {
-    let Some(map) =
-        &*SourceMap::new_from_rope_cached(get_source_map_rope(*container, frame.file)).await?
+    let Some(map) = &*turbo_tasks::read!(SourceMap::new_from_rope_cached(get_source_map_rope(
+        *container, frame.file
+    )))?
     else {
         return Ok(Vc::cell(None));
     };
@@ -2292,8 +2655,10 @@ pub async fn project_trace_source_operation(
         }
     };
 
-    let project_root_uri =
-        uri_from_file(container.project().project_root_path().owned().await?, None).await? + "/";
+    let project_root_uri = turbo_tasks::read!(uri_from_file(
+        turbo_tasks::read!(container.project().project_root_path().owned())?,
+        None
+    ))? + "/";
     let (file, original_file) =
         if let Some(source_file) = original_file.strip_prefix(&project_root_uri) {
             // Client code uses file://
@@ -2341,6 +2706,7 @@ pub async fn project_trace_source_operation(
     })))
 }
 
+#[cfg(not(feature = "sync"))]
 #[tracing::instrument(level = "info", name = "apply SourceMap to stack frame", skip_all)]
 #[napi]
 pub async fn project_trace_source(
@@ -2368,6 +2734,32 @@ pub async fn project_trace_source(
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))
 }
 
+#[cfg(feature = "sync")]
+#[tracing::instrument(level = "info", name = "apply SourceMap to stack frame", skip_all)]
+#[napi]
+pub fn project_trace_source(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    frame: StackFrame,
+    current_directory_file_url: String,
+) -> napi::Result<Option<StackFrame>> {
+    let container = project.container;
+    let ctx = &project.turbopack_ctx;
+    ctx.turbo_tasks()
+        .run_sync(move || {
+            let traced_frame = turbo_tasks::read!(
+                project_trace_source_operation(
+                    container,
+                    frame,
+                    RcStr::from(current_directory_file_url),
+                )
+                .read_strongly_consistent()
+            )?;
+            Ok(ReadRef::into_owned(traced_frame))
+        })
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))
+}
+
+#[cfg(not(feature = "sync"))]
 #[tracing::instrument(level = "info", name = "get source content for asset", skip_all)]
 #[napi]
 pub async fn project_get_source_for_asset(
@@ -2378,15 +2770,6 @@ pub async fn project_get_source_for_asset(
     let ctx = &project.turbopack_ctx;
     ctx.turbo_tasks()
         .run(async move {
-            #[turbo_tasks::function(operation, root)]
-            async fn source_content_operation(
-                container: ResolvedVc<ProjectContainer>,
-                file_path: RcStr,
-            ) -> Result<Vc<FileContent>> {
-                let project_path = container.project().project_path().await?;
-                Ok(project_path.fs().root().await?.join(&file_path)?.read())
-            }
-
             let source_content = &*source_content_operation(container, file_path.clone())
                 .read_strongly_consistent()
                 .await?;
@@ -2404,6 +2787,44 @@ pub async fn project_get_source_for_asset(
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))
 }
 
+#[cfg(feature = "sync")]
+#[tracing::instrument(level = "info", name = "get source content for asset", skip_all)]
+#[napi]
+pub fn project_get_source_for_asset(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    file_path: RcStr,
+) -> napi::Result<Option<String>> {
+    let container = project.container;
+    let ctx = &project.turbopack_ctx;
+    ctx.turbo_tasks()
+        .run_sync(move || {
+            let source_content = turbo_tasks::read!(
+                source_content_operation(container, file_path.clone()).read_strongly_consistent()
+            )?;
+            let source_content = &*source_content;
+
+            let FileContent::Content(source_content) = source_content else {
+                bail!("Cannot find source for asset {}", file_path);
+            };
+
+            Ok(Some(source_content.content().to_str()?.into_owned()))
+        })
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))
+}
+
+// Shared operation used by both twins of `project_get_source_for_asset`.
+#[turbo_tasks::function(operation, root)]
+async fn source_content_operation(
+    container: ResolvedVc<ProjectContainer>,
+    file_path: RcStr,
+) -> Result<Vc<FileContent>> {
+    let project_path = turbo_tasks::read!(container.project().project_path())?;
+    Ok(turbo_tasks::read!(project_path.fs().root())?
+        .join(&file_path)?
+        .read())
+}
+
+#[cfg(not(feature = "sync"))]
 #[tracing::instrument(level = "info", name = "get SourceMap for asset", skip_all)]
 #[napi]
 pub async fn project_get_source_map(
@@ -2429,6 +2850,29 @@ pub async fn project_get_source_map(
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))
 }
 
+#[cfg(feature = "sync")]
+#[tracing::instrument(level = "info", name = "get SourceMap for asset", skip_all)]
+#[napi]
+pub fn project_get_source_map(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    file_path: RcStr,
+) -> napi::Result<Option<String>> {
+    let container = project.container;
+    let ctx = &project.turbopack_ctx;
+    ctx.turbo_tasks()
+        .run_sync(move || {
+            let source_map = turbo_tasks::read!(
+                get_source_map_rope_operation(container, file_path).read_strongly_consistent()
+            )?;
+            let Some(map) = source_map.as_content() else {
+                return Ok(None);
+            };
+            Ok(Some(map.content().to_str()?.to_string()))
+        })
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))
+}
+
+#[cfg(not(feature = "sync"))]
 #[napi]
 pub fn project_get_source_map_sync(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
@@ -2439,6 +2883,18 @@ pub fn project_get_source_map_sync(
     })
 }
 
+// In the sync build `project_get_source_map` is already synchronous — no runtime
+// to block on.
+#[cfg(feature = "sync")]
+#[napi]
+pub fn project_get_source_map_sync(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    file_path: RcStr,
+) -> napi::Result<Option<String>> {
+    project_get_source_map(project, file_path)
+}
+
+#[cfg(not(feature = "sync"))]
 #[napi]
 pub async fn project_write_analyze_data(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
@@ -2465,6 +2921,34 @@ pub async fn project_write_analyze_data(
     })
 }
 
+#[cfg(feature = "sync")]
+#[napi]
+pub fn project_write_analyze_data(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    app_dir_only: bool,
+) -> napi::Result<TurbopackResult<()>> {
+    let container = project.container;
+    let issues = project
+        .turbopack_ctx
+        .turbo_tasks()
+        .run_sync(move || {
+            let analyze_data_op = write_analyze_data_with_issues_operation(container, app_dir_only);
+            // Write the files to disk
+            let read = turbo_tasks::read!(read_strongly_consistent_and_apply_effects(
+                analyze_data_op,
+                |v| &v.effects
+            ))?;
+            let WriteAnalyzeResult { issues, .. } = &*read;
+            Ok(issues.clone())
+        })
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+
+    Ok(TurbopackResult {
+        result: (),
+        issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
+    })
+}
+
 #[turbo_tasks::function(operation, root)]
 async fn get_all_compilation_issues_inner_operation(
     container: ResolvedVc<ProjectContainer>,
@@ -2475,10 +2959,11 @@ async fn get_all_compilation_issues_inner_operation(
     // whole_app_module_graphs() because the latter drops issues in development mode
     // (to avoid duplicate per-route HMR noise). The non-dropping variant ensures issues
     // like missing modules and transform errors are properly collected as collectables here.
-    project
-        .whole_app_module_graphs_without_dropping_issues()
-        .as_side_effect()
-        .await?;
+    turbo_tasks::read!(
+        project
+            .whole_app_module_graphs_without_dropping_issues()
+            .as_side_effect()
+    )?;
     Ok(Vc::cell(()))
 }
 
@@ -2487,8 +2972,9 @@ async fn get_all_compilation_issues_operation(
     container: ResolvedVc<ProjectContainer>,
 ) -> Result<Vc<OperationResult>> {
     let inner_op = get_all_compilation_issues_inner_operation(container);
-    let filter = container.project().issue_filter().await?;
-    let (_, issues, effects) = strongly_consistent_catch_collectables(inner_op, &filter).await?;
+    let filter = turbo_tasks::read!(container.project().issue_filter())?;
+    let (_, issues, effects) =
+        turbo_tasks::read!(strongly_consistent_catch_collectables(inner_op, &filter))?;
     Ok(OperationResult { issues, effects }.cell())
 }
 
@@ -2498,6 +2984,14 @@ async fn get_all_compilation_issues_operation(
 /// Intended to be called once at the end of a build, after `writeAllEntrypointsToDisk`. The
 /// summary is computed by walking the whole-app module graph and is cached by turbo-tasks, so the
 /// call is cheap when the graph is already materialized.
+#[turbo_tasks::function(operation, root)]
+fn project_feature_usage_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Vc<ProjectFeatureUsageSummary> {
+    container.project().project_feature_usage()
+}
+
+#[cfg(not(feature = "sync"))]
 #[tracing::instrument(level = "info", name = "get project feature usage", skip_all)]
 #[napi]
 pub async fn project_feature_usage(
@@ -2508,12 +3002,6 @@ pub async fn project_feature_usage(
         .turbopack_ctx
         .turbo_tasks()
         .run_once(async move {
-            #[turbo_tasks::function(operation, root)]
-            async fn project_feature_usage_operation(
-                container: ResolvedVc<ProjectContainer>,
-            ) -> Result<Vc<ProjectFeatureUsageSummary>> {
-                Ok(container.project().project_feature_usage())
-            }
             project_feature_usage_operation(container)
                 .read_strongly_consistent()
                 .await
@@ -2528,6 +3016,31 @@ pub async fn project_feature_usage(
         .collect())
 }
 
+#[cfg(feature = "sync")]
+#[tracing::instrument(level = "info", name = "get project feature usage", skip_all)]
+#[napi]
+pub fn project_feature_usage(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) -> napi::Result<Vec<NapiUsedFeature>> {
+    let container = project.container;
+    let summary = project
+        .turbopack_ctx
+        .turbo_tasks()
+        .run_sync(move || {
+            turbo_tasks::read!(
+                project_feature_usage_operation(container).read_strongly_consistent()
+            )
+        })
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+
+    Ok(summary
+        .features
+        .iter()
+        .map(|(name, count)| NapiUsedFeature::new(name.clone(), *count))
+        .collect())
+}
+
+#[cfg(not(feature = "sync"))]
 #[tracing::instrument(level = "info", name = "get all compilation issues", skip_all)]
 #[napi]
 pub async fn project_get_all_compilation_issues(
@@ -2543,6 +3056,30 @@ pub async fn project_get_all_compilation_issues(
             Ok(issues.clone())
         })
         .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+
+    Ok(TurbopackResult {
+        result: (),
+        issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
+    })
+}
+
+#[cfg(feature = "sync")]
+#[tracing::instrument(level = "info", name = "get all compilation issues", skip_all)]
+#[napi]
+pub fn project_get_all_compilation_issues(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) -> napi::Result<TurbopackResult<()>> {
+    let container = project.container;
+    let issues = project
+        .turbopack_ctx
+        .turbo_tasks()
+        .run_sync(move || {
+            let op = get_all_compilation_issues_operation(container);
+            let OperationResult { issues, effects: _ } =
+                &*turbo_tasks::read!(op.read_strongly_consistent())?;
+            Ok(issues.clone())
+        })
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
 
     Ok(TurbopackResult {

@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use rustc_hash::{FxHashMap, FxHashSet};
-use turbo_tasks::{OperationVc, ResolvedVc, State, Vc};
+use turbo_tasks::{OperationVc, ResolvedVc, State, Vc, read};
 use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
@@ -17,7 +17,7 @@ fn create_state_operation() -> Vc<Step> {
     Step(State::new(0)).cell()
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_invalidation_map() {
     run(&REGISTRATION, || async {
         let state_op = create_state_operation();
@@ -72,7 +72,7 @@ struct Map(FxHashMap<String, u32>);
 
 #[turbo_tasks::function(operation, root)]
 async fn create_map(step: ResolvedVc<Step>) -> Result<Vc<Map>> {
-    let step = step.await?;
+    let step = read!(step)?;
     let step_value = step.get();
 
     Ok(Vc::cell(match *step_value {
@@ -92,12 +92,12 @@ struct GetValueResult {
 #[turbo_tasks::function(operation, root)]
 async fn get_value(map: OperationVc<Map>, key: String) -> Result<Vc<GetValueResult>> {
     let map = map.connect();
-    let value = map.get(&key).await?.as_deref().copied();
+    let value = read!(map.get(&key))?.as_deref().copied();
     let random = rand::random::<u32>();
     Ok(GetValueResult { value, random }.cell())
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_invalidation_set() {
     run(&REGISTRATION, || async {
         let state_op = create_state_operation();
@@ -153,7 +153,7 @@ struct Set(FxHashSet<String>);
 
 #[turbo_tasks::function(operation, root)]
 async fn create_set(step: ResolvedVc<Step>) -> Result<Vc<Set>> {
-    let step = step.await?;
+    let step = read!(step)?;
     let step_value = step.get();
 
     Ok(Vc::cell(match *step_value {
@@ -173,7 +173,7 @@ struct HasValueResult {
 #[turbo_tasks::function(operation, root)]
 async fn has_value(set: OperationVc<Set>, key: String) -> Result<Vc<HasValueResult>> {
     let set = set.connect();
-    let value = set.contains_key(&key).await?;
+    let value = read!(set.contains_key(&key))?;
     let random = rand::random::<u32>();
     Ok(HasValueResult { value, random }.cell())
 }

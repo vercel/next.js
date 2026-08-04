@@ -34,20 +34,19 @@ impl ExportsInfoBinding {
         ExportsInfoBinding {}
     }
 
-    pub async fn code_generation(
+    turbo_tasks::dual_fn! {
+    pub fn code_generation(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         exports: ResolvedVc<EcmascriptExports>,
     ) -> Result<CodeGeneration> {
-        let export_usage_info = chunking_context
-            .module_export_usage(*ResolvedVc::upcast(module))
-            .await?;
-        let export_usage_info = export_usage_info.export_usage.await?;
+        let export_usage_info =
+            turbo_tasks::read!(chunking_context.module_export_usage(*ResolvedVc::upcast(module)))?;
+        let export_usage_info = turbo_tasks::read!(export_usage_info.export_usage)?;
 
-        let props = if let EcmascriptExports::EsmExports(exports) = &*exports.await? {
-            exports
-                .await?
+        let props = if let EcmascriptExports::EsmExports(exports) = &*turbo_tasks::read!(exports)? {
+            turbo_tasks::read!(exports)?
                 .exports
                 .keys()
                 .map(|e| {
@@ -78,6 +77,7 @@ impl ExportsInfoBinding {
             ),
         ))
     }
+    }
 }
 
 impl From<ExportsInfoBinding> for CodeGen {
@@ -103,7 +103,8 @@ impl ExportsInfoRef {
         ExportsInfoRef { ast_path }
     }
 
-    pub async fn code_generation(
+    turbo_tasks::dual_fn! {
+    pub fn code_generation(
         &self,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
@@ -112,6 +113,7 @@ impl ExportsInfoRef {
         });
 
         Ok(CodeGeneration::visitors(vec![visitor]))
+    }
     }
 }
 

@@ -1,8 +1,7 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_tasks::{
-    FxIndexSet, OperationVc, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
-    trace::TraceRawVcs, turbofmt,
+    FxIndexSet, OperationVc, ReadRef, ResolvedVc, ValueToString, Vc, trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
@@ -21,18 +20,20 @@ pub enum AvailableModuleItem {
 }
 
 impl AvailableModuleItem {
-    pub async fn ident_strings(&self) -> Result<IdentStrings> {
+    turbo_tasks::dual_fn! {
+    pub fn ident_strings(&self) -> Result<IdentStrings> {
         Ok(match self {
             AvailableModuleItem::Module(module) => {
-                IdentStrings::Single(module.ident().to_string().owned().await?)
+                IdentStrings::Single(turbo_tasks::read!(module.ident().to_string().owned())?)
             }
             AvailableModuleItem::Batch(batch) => {
-                IdentStrings::Multiple(batch.ident_strings().await?)
+                IdentStrings::Multiple(turbo_tasks::read!(batch.ident_strings())?)
             }
-            AvailableModuleItem::AsyncLoader(module) => {
-                IdentStrings::Single(turbofmt!("async loader {}", module.ident()).await?)
-            }
+            AvailableModuleItem::AsyncLoader(module) => IdentStrings::Single(turbo_tasks::read!(
+                turbofmt!("async loader {}", module.ident())
+            )?),
         })
+    }
     }
 }
 
@@ -90,18 +91,15 @@ impl AvailableModules {
     pub async fn hash(&self) -> Result<Vc<u64>> {
         let mut hasher = Xxh3Hash64Hasher::new();
         if let Some(parent) = self.parent {
-            hasher.write_value(parent.hash().await?);
+            hasher.write_value(turbo_tasks::read!(parent.hash())?);
         } else {
             hasher.write_value(0u64);
         }
-        let item_idents = self
-            .modules
-            .connect()
-            .await?
-            .iter()
-            .map(async |&module| module.ident_strings().await)
-            .try_join()
-            .await?;
+        let item_idents = turbo_tasks::read!(crate::chunk::parallel_reads(
+            turbo_tasks::read!(self.modules.connect())?
+                .iter()
+                .map(|module| module.ident_strings())
+        ))?;
         for idents in item_idents {
             match idents {
                 IdentStrings::Single(ident) => hasher.write_value(ident),
@@ -118,7 +116,7 @@ impl AvailableModules {
 
     #[turbo_tasks::function]
     pub async fn get(&self, item: AvailableModuleItem) -> Result<Vc<bool>> {
-        if self.modules.connect().await?.contains(&item) {
+        if turbo_tasks::read!(self.modules.connect())?.contains(&item) {
             return Ok(Vc::cell(true));
         };
         if let Some(parent) = self.parent {
@@ -129,9 +127,9 @@ impl AvailableModules {
 
     #[turbo_tasks::function]
     pub async fn snapshot(&self) -> Result<Vc<AvailableModulesSnapshot>> {
-        let modules = self.modules.connect().await?;
+        let modules = turbo_tasks::read!(self.modules.connect())?;
         let parent = if let Some(parent) = self.parent {
-            Some(parent.snapshot().await?)
+            Some(turbo_tasks::read!(parent.snapshot())?)
         } else {
             None
         };

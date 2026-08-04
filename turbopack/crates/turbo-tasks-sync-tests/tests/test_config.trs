@@ -1,0 +1,15 @@
+|name, initial| {
+  // In-memory, no-persistence backend for the no-tokio harness proof. `storage_mode:
+  // None` + `noop_backing_storage` keeps every run in memory (the on-disk persistence
+  // path is exercised by the async harness today; the sync snapshot loop is Phase 2).
+  let _ = (name, initial);
+  turbo_tasks::TurboTasks::new(
+    turbo_tasks_backend::TurboTasksBackend::new(
+      turbo_tasks_backend::BackendOptions {
+        storage_mode: None,
+        ..Default::default()
+      },
+      turbo_tasks_backend::noop_backing_storage(),
+    )
+  )
+}

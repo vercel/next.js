@@ -66,12 +66,12 @@ impl EcmascriptBuildNodeEntryChunk {
 
     #[turbo_tasks::function]
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
 
-        let output_root = this.chunking_context.output_root().owned().await?;
-        let chunk_path = self.path().owned().await?;
-        let chunk_directory = self.path().await?.parent();
-        let runtime_path = self.runtime_chunk().path().owned().await?;
+        let output_root = turbo_tasks::read!(this.chunking_context.output_root().owned())?;
+        let chunk_path = turbo_tasks::read!(self.path().owned())?;
+        let chunk_directory = turbo_tasks::read!(self.path())?.parent();
+        let runtime_path = turbo_tasks::read!(self.runtime_chunk().path().owned())?;
         let runtime_relative_path =
             if let Some(path) = chunk_directory.get_relative_path_to(&runtime_path) {
                 path
@@ -98,9 +98,9 @@ impl EcmascriptBuildNodeEntryChunk {
             StringifyJs(chunk_public_path),
         )?;
 
-        let other_chunks = this.other_chunks.await?;
+        let other_chunks = turbo_tasks::read!(this.other_chunks)?;
         for other_chunk in &*other_chunks {
-            let other_chunk_path = &*other_chunk.path().await?;
+            let other_chunk_path = &*turbo_tasks::read!(other_chunk.path())?;
             if let Some(other_chunk_public_path) = output_root.get_path_to(other_chunk_path) {
                 writedoc!(
                     code,
@@ -114,14 +114,14 @@ impl EcmascriptBuildNodeEntryChunk {
             }
         }
 
-        let evaluatable_assets = this.evaluatable_assets.await?;
+        let evaluatable_assets = turbo_tasks::read!(this.evaluatable_assets)?;
         for evaluatable_asset in &*evaluatable_assets {
             if let Some(placeable) =
                 ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*evaluatable_asset)
             {
-                let runtime_module_id = placeable
-                    .chunk_item_id(Vc::upcast(*this.chunking_context))
-                    .await?;
+                let runtime_module_id = turbo_tasks::read!(
+                    placeable.chunk_item_id(Vc::upcast(*this.chunking_context))
+                )?;
 
                 writedoc!(
                     code,
@@ -133,10 +133,10 @@ impl EcmascriptBuildNodeEntryChunk {
             }
         }
 
-        let runtime_module_id = this
-            .exported_module
-            .chunk_item_id(Vc::upcast(*this.chunking_context))
-            .await?;
+        let runtime_module_id = turbo_tasks::read!(
+            this.exported_module
+                .chunk_item_id(Vc::upcast(*this.chunking_context))
+        )?;
 
         writedoc!(
             code,
@@ -154,10 +154,10 @@ impl EcmascriptBuildNodeEntryChunk {
         // Detect async modules from the whole-app graph in production. In development, the graph
         // is per-page. To keep the shared `runtime.js` stable, always include the machinery.
         let has_async_modules = if matches!(
-            *self.chunking_context.runtime_type().await?,
+            *turbo_tasks::read!(self.chunking_context.runtime_type())?,
             RuntimeType::Production
         ) {
-            !self.module_graph.async_module_info().await?.is_empty()
+            !turbo_tasks::read!(self.module_graph.async_module_info())?.is_empty()
         } else {
             true
         };
@@ -169,7 +169,7 @@ impl EcmascriptBuildNodeEntryChunk {
 
     #[turbo_tasks::function]
     async fn source_map(self: Vc<Self>) -> Result<Vc<SourceMapAsset>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         Ok(SourceMapAsset::new_fixed(
             this.path.clone(),
             Vc::upcast(self),
@@ -181,20 +181,21 @@ impl EcmascriptBuildNodeEntryChunk {
 impl OutputAssetsReference for EcmascriptBuildNodeEntryChunk {
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
-        let this = self.await?;
-        let mut assets = vec![ResolvedVc::upcast(
-            self.runtime_chunk().to_resolved().await?,
-        )];
+        let this = turbo_tasks::read!(self)?;
+        let mut assets = vec![ResolvedVc::upcast(turbo_tasks::read!(
+            self.runtime_chunk().to_resolved()
+        )?)];
 
-        if *this
-            .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
-            .await?
-        {
-            assets.push(ResolvedVc::upcast(self.source_map().to_resolved().await?))
+        if *turbo_tasks::read!(
+            this.chunking_context
+                .reference_chunk_source_maps(Vc::upcast(self))
+        )? {
+            assets.push(ResolvedVc::upcast(turbo_tasks::read!(
+                self.source_map().to_resolved()
+            )?))
         }
 
-        let other_chunks = this.other_chunks.await?;
+        let other_chunks = turbo_tasks::read!(this.other_chunks)?;
         assets.extend(other_chunks.iter().copied());
 
         Ok(OutputAssetsWithReferenced {
@@ -218,7 +219,7 @@ impl OutputAsset for EcmascriptBuildNodeEntryChunk {
 impl Asset for EcmascriptBuildNodeEntryChunk {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
-        let code = self.code().await?;
+        let code = turbo_tasks::read!(self.code())?;
         Ok(AssetContent::file(
             FileContent::Content(File::from(code.source_code().clone())).cell(),
         ))

@@ -5,19 +5,19 @@
 use std::sync::Mutex;
 
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc, debug::ValueDebug};
+use turbo_tasks::{ResolvedVc, Vc, debug::ValueDebug, read};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
 #[turbo_tasks::function(operation, root)]
 async fn dbg_operation(value: ResolvedVc<Box<dyn ValueDebug>>) -> anyhow::Result<Vc<RcStr>> {
-    let trait_ref = value.into_trait_ref().await?;
-    let s = trait_ref.dbg().await?;
+    let trait_ref = read!(value.into_trait_ref())?;
+    let s = read!(trait_ref.dbg())?;
     Ok(Vc::cell(s.into()))
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_primitive_debug() {
     run_once(&REGISTRATION, move || async move {
         let a = ResolvedVc::<u32>::cell(42);
@@ -36,7 +36,7 @@ async fn test_primitive_debug() {
     .unwrap()
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_transparent_debug() {
     run_once(&REGISTRATION, move || async move {
         let a = Transparent(42).resolved_cell();
@@ -55,7 +55,7 @@ async fn test_transparent_debug() {
     .unwrap()
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_enum_none_debug() {
     run_once(&REGISTRATION, move || async move {
         let a = Enum::None.resolved_cell();
@@ -74,7 +74,7 @@ async fn test_enum_none_debug() {
     .unwrap()
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_enum_transparent_debug() {
     run_once(&REGISTRATION, move || async move {
         let a = Enum::Transparent(Transparent(42).resolved_cell()).resolved_cell();
@@ -93,7 +93,7 @@ async fn test_enum_transparent_debug() {
     .unwrap()
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_enum_inner_vc_debug() {
     run_once(&REGISTRATION, move || async move {
         let a = Enum::Enum(Enum::None.resolved_cell()).resolved_cell();
@@ -112,7 +112,7 @@ async fn test_enum_inner_vc_debug() {
     .unwrap()
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_struct_unit_debug() {
     run_once(&REGISTRATION, move || async move {
         let a = StructUnit.resolved_cell();
@@ -131,7 +131,7 @@ async fn test_struct_unit_debug() {
     .unwrap()
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_struct_transparent_debug() {
     run_once(&REGISTRATION, move || async move {
         let a = StructWithTransparent {
@@ -153,7 +153,7 @@ async fn test_struct_transparent_debug() {
     .unwrap()
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_struct_option_debug() {
     run_once(&REGISTRATION, || async {
         let a = StructWithOption { option: None }.resolved_cell();
@@ -187,7 +187,7 @@ async fn test_struct_option_debug() {
     .unwrap()
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_struct_vec_debug() {
     run_once(&REGISTRATION, || async {
         let a = StructWithVec { vec: Vec::new() }.resolved_cell();
@@ -221,7 +221,7 @@ async fn test_struct_vec_debug() {
     .unwrap()
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_struct_ignore_debug() {
     run_once(&REGISTRATION, || async {
         let a = StructWithIgnore {

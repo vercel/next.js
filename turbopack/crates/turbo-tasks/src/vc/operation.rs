@@ -52,6 +52,22 @@ impl<T: ?Sized> Future for ResolveOperationVcFuture<T> {
 
 impl<T: ?Sized> Unpin for ResolveOperationVcFuture<T> {}
 
+#[cfg(feature = "sync")]
+impl<T: ?Sized> ResolveOperationVcFuture<T> {
+    /// Direct synchronous resolve (no future/poll) for the no-async sync engine.
+    pub(crate) fn resolve_sync(self) -> anyhow::Result<ResolvedVc<T>> {
+        self.inner.resolve_sync().map(|node| ResolvedVc { node })
+    }
+}
+
+#[cfg(feature = "sync")]
+impl<T: ?Sized> crate::macro_helpers::SyncRead for ResolveOperationVcFuture<T> {
+    type Output = anyhow::Result<ResolvedVc<T>>;
+    fn sync_read(self) -> Self::Output {
+        self.resolve_sync()
+    }
+}
+
 /// A "subtype" (can be converted via [`.connect()`]) of [`Vc`] that
 /// represents a specific call (with arguments) to [a task][macro@crate::function].
 ///

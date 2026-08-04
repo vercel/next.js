@@ -74,12 +74,14 @@ impl EcmascriptClientReferenceModule {
         let mut code = CodeBuilder::default();
         let is_esm: bool;
 
-        let server_module_path = &*self.server_ident.to_string().await?;
+        let server_module_path = &*turbo_tasks::read!(self.server_ident.to_string())?;
 
         // Adapted from https://github.com/facebook/react/blob/c5b9375767e2c4102d7e5559d383523736f1c902/packages/react-server-dom-webpack/src/ReactFlightWebpackNodeLoader.js#L323-L354
-        if let EcmascriptExports::EsmExports(exports) = &*self.client_module.get_exports().await? {
+        if let EcmascriptExports::EsmExports(exports) =
+            &*turbo_tasks::read!(self.client_module.get_exports())?
+        {
             is_esm = true;
-            let exports = exports.expand_exports(ModuleExportUsageInfo::all()).await?;
+            let exports = turbo_tasks::read!(exports.expand_exports(ModuleExportUsageInfo::all()))?;
 
             if !exports.dynamic_exports.is_empty() {
                 // TODO: throw? warn?
@@ -153,7 +155,7 @@ impl EcmascriptClientReferenceModule {
             AssetContent::file(FileContent::Content(File::from(code.source_code().clone())).cell());
 
         let proxy_source = VirtualSource::new(
-            self.server_ident.await?.path.join(
+            turbo_tasks::read!(self.server_ident)?.path.join(
                 // We choose the extension based on the original file because we're placing the
                 // virtual module next to the original code, so its parsing will be
                 // affected by `type` fields in package.json -- a bare `proxy.js`
@@ -173,7 +175,7 @@ impl EcmascriptClientReferenceModule {
             .module();
 
         let Some(proxy_module) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(
-            proxy_module.to_resolved().await?,
+            turbo_tasks::read!(proxy_module.to_resolved())?,
         ) else {
             bail!("proxy asset is not an ecmascript module");
         };
@@ -193,12 +195,9 @@ pub fn ecmascript_client_reference_merge_tag_ssr() -> RcStr {
 impl Module for EcmascriptClientReferenceModule {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self
-            .server_ident
-            .owned()
-            .await?
+        Ok(turbo_tasks::read!(self.server_ident.owned())?
             .with_modifier(rcstr!("client reference proxy"))
-            .with_layer(self.server_asset_context.into_trait_ref().await?.layer())
+            .with_layer(turbo_tasks::read!(self.server_asset_context.into_trait_ref())?.layer())
             .into_vc())
     }
 
@@ -213,15 +212,12 @@ impl Module for EcmascriptClientReferenceModule {
             client_module,
             ssr_module,
             ..
-        } = &*self.await?;
+        } = &*turbo_tasks::read!(self)?;
 
-        let references: Vec<_> = self
-            .proxy_module()
-            .references()
-            .await?
+        let references: Vec<_> = turbo_tasks::read!(self.proxy_module().references())?
             .iter()
             .copied()
-            .chain(once(ResolvedVc::upcast(
+            .chain(once(ResolvedVc::upcast(turbo_tasks::read!(
                 EcmascriptClientReference::new(
                     *ResolvedVc::upcast(*client_module),
                     ChunkGroupType::Evaluated,
@@ -229,9 +225,8 @@ impl Module for EcmascriptClientReferenceModule {
                     rcstr!("ecmascript client reference to client"),
                 )
                 .to_resolved()
-                .await?,
-            )))
-            .chain(once(ResolvedVc::upcast(
+            )?)))
+            .chain(once(ResolvedVc::upcast(turbo_tasks::read!(
                 EcmascriptClientReference::new(
                     *ResolvedVc::upcast(*ssr_module),
                     ChunkGroupType::Entry,
@@ -239,8 +234,7 @@ impl Module for EcmascriptClientReferenceModule {
                     rcstr!("ecmascript client reference to ssr"),
                 )
                 .to_resolved()
-                .await?,
-            )))
+            )?)))
             .collect();
 
         Ok(Vc::cell(references))
@@ -266,9 +260,10 @@ impl ChunkableModule for EcmascriptClientReferenceModule {
         let item = self
             .proxy_module()
             .as_chunk_item(module_graph, *chunking_context);
-        let ecmascript_item =
-            ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(item.to_resolved().await?)
-                .context("EcmascriptModuleAsset must implement EcmascriptChunkItem")?;
+        let ecmascript_item = ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(
+            turbo_tasks::read!(item.to_resolved())?,
+        )
+        .context("EcmascriptModuleAsset must implement EcmascriptChunkItem")?;
 
         Ok(Vc::upcast(
             EcmascriptClientReferenceProxyChunkItem {
@@ -335,6 +330,7 @@ impl ChunkItem for EcmascriptClientReferenceProxyChunkItem {
     }
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for EcmascriptClientReferenceProxyChunkItem {
@@ -343,11 +339,25 @@ impl EcmascriptChunkItem for EcmascriptClientReferenceProxyChunkItem {
         async_module_info: Option<Vc<AsyncModuleInfo>>,
         estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        self.inner_chunk_item
-            .into_trait_ref()
-            .await?
-            .content_with_async_module_info(async_module_info, estimated)
-            .await
+        turbo_tasks::read!(
+            turbo_tasks::read!(self.inner_chunk_item.into_trait_ref())?
+                .content_with_async_module_info(async_module_info, estimated)
+        )
+    }
+}
+
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl EcmascriptChunkItem for EcmascriptClientReferenceProxyChunkItem {
+    fn content_with_async_module_info(
+        &self,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+        estimated: bool,
+    ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        turbo_tasks::read!(
+            turbo_tasks::read!(self.inner_chunk_item.into_trait_ref())?
+                .content_with_async_module_info(async_module_info, estimated)
+        )
     }
 }
 

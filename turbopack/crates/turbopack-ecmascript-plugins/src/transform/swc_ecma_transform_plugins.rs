@@ -1,10 +1,9 @@
 use anyhow::Result;
+#[cfg(not(feature = "sync"))]
 use async_trait::async_trait;
-use swc_core::{
-    ecma::ast::Program,
-    plugin_runner::plugin_module_bytes::{CompiledPluginModuleBytes, RawPluginModuleBytes},
-};
+use swc_core::ecma::ast::Program;
 use swc_plugin_backend_wasmtime::WasmtimeRuntime;
+use swc_plugin_runner::plugin_module_bytes::{CompiledPluginModuleBytes, RawPluginModuleBytes};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, StyledString};
@@ -29,7 +28,7 @@ use turbopack_ecmascript::{CustomTransformer, TransformContext};
 pub struct SwcPluginModule {
     pub name: RcStr,
     #[turbo_tasks(trace_ignore, debug_ignore)]
-    pub plugin: swc_core::plugin_runner::plugin_module_bytes::CompiledPluginModuleBytes,
+    pub plugin: swc_plugin_runner::plugin_module_bytes::CompiledPluginModuleBytes,
 }
 
 impl SwcPluginModule {
@@ -50,6 +49,23 @@ struct SwcEcmaTransformFailureIssue {
     pub description: StyledString,
 }
 
+impl SwcEcmaTransformFailureIssue {
+    fn description_inner(&self) -> Option<StyledString> {
+        Some(StyledString::Stack(vec![
+            StyledString::Text(rcstr!(
+                "An unexpected error occurred when executing an SWC EcmaScript transform plugin."
+            )),
+            StyledString::Text(rcstr!(
+                "This might be due to a version mismatch between the plugin and Next.js. \
+                https://plugins.swc.rs/ can help you find the correct plugin version to use."
+            )),
+            StyledString::Text(Default::default()),
+            self.description.clone(),
+        ]))
+    }
+}
+
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for SwcEcmaTransformFailureIssue {
@@ -70,17 +86,32 @@ impl Issue for SwcEcmaTransformFailureIssue {
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
-        Ok(Some(StyledString::Stack(vec![
-            StyledString::Text(rcstr!(
-                "An unexpected error occurred when executing an SWC EcmaScript transform plugin."
-            )),
-            StyledString::Text(rcstr!(
-                "This might be due to a version mismatch between the plugin and Next.js. \
-                https://plugins.swc.rs/ can help you find the correct plugin version to use."
-            )),
-            StyledString::Text(Default::default()),
-            self.description.clone(),
-        ])))
+        Ok(self.description_inner())
+    }
+}
+
+/// See the async impl above; the sync engine drops `async`/`#[async_trait]`.
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for SwcEcmaTransformFailureIssue {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
+    }
+
+    fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!("Failed to execute SWC plugin")))
+    }
+
+    fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.file_path.clone())
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
+        Ok(self.description_inner())
     }
 }
 
@@ -98,10 +129,10 @@ impl SwcEcmaTransformPluginsTransformer {
     }
 }
 
-#[async_trait]
-impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
+impl SwcEcmaTransformPluginsTransformer {
+    turbo_tasks::dual_fn! {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "swc_ecma_transform_plugin", skip_all)]
-    async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+    fn transform_inner(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         use std::sync::Arc;
 
         use anyhow::Context;
@@ -113,25 +144,24 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                 util::take::Take,
             },
             ecma::ast::Module,
-            plugin::proxies::{COMMENTS, HostCommentsStorage},
-            plugin_runner::plugin_module_bytes::CompiledPluginModuleBytes,
         };
         use swc_plugin_backend_wasmtime::WasmtimeRuntime;
-        use turbo_tasks::TryJoinIterExt;
+        use swc_plugin_proxy::{COMMENTS, HostCommentsStorage};
+        use swc_plugin_runner::plugin_module_bytes::CompiledPluginModuleBytes;
 
-        let plugins = self
-            .plugins
-            .iter()
-            .map(async |(plugin_module, config)| {
-                let plugin_module = plugin_module.await?;
-                Ok((
+        let plugin_reads =
+            turbo_tasks::parallel!(self.plugins.iter().map(|(plugin_module, _)| plugin_module))?;
+        let plugins = plugin_reads
+            .into_iter()
+            .zip(self.plugins.iter())
+            .map(|(plugin_module, (_, config))| {
+                (
                     plugin_module.name.clone(),
                     config.clone(),
                     Box::new(plugin_module.plugin.clone_module(&WasmtimeRuntime)),
-                ))
+                )
             })
-            .try_join()
-            .await?;
+            .collect::<Vec<_>>();
 
         let should_enable_comments_proxy =
             !ctx.comments.leading.is_empty() && !ctx.comments.trailing.is_empty();
@@ -171,7 +201,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
             // transform.
             for (plugin_name, plugin_config, plugin_module) in plugins {
                 let mut transform_plugin_executor =
-                    swc_core::plugin_runner::create_plugin_transform_executor(
+                    swc_plugin_runner::create_plugin_transform_executor(
                         ctx.source_map,
                         &ctx.unresolved_mark,
                         &transform_metadata_context,
@@ -243,5 +273,22 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
         *program = transformed_program;
 
         Ok(())
+    }
+    }
+}
+
+#[cfg(not(feature = "sync"))]
+#[async_trait]
+impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
+    async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+        self.transform_inner(program, ctx).await
+    }
+}
+
+/// See the async impl above; the sync engine drops `async`/`#[async_trait]`.
+#[cfg(feature = "sync")]
+impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
+    fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+        self.transform_inner(program, ctx)
     }
 }

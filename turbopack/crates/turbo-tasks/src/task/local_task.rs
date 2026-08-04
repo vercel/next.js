@@ -50,6 +50,7 @@ impl fmt::Display for LocalTaskType {
 impl LocalTaskType {
     /// Implementation of the LocalTaskType::ResolveNative task.
     /// Resolves all the task inputs and then calls the given function.
+    #[cfg(not(feature = "sync"))]
     pub(crate) async fn run_resolve_native<B: Backend + 'static>(
         native_fn: &'static NativeFunction,
         mut this: Option<RawVc>,
@@ -64,7 +65,27 @@ impl LocalTaskType {
         let mut arg = HeapDynTaskInputsStorage::new(arg);
         Ok(turbo_tasks.native_call(native_fn, this, &mut arg, persistence))
     }
+
+    /// Synchronous counterpart of [`run_resolve_native`](Self::run_resolve_native) for
+    /// the no-async sync engine: resolves `this` and the arguments inline (no future).
+    #[cfg(feature = "sync")]
+    pub(crate) fn run_resolve_native<B: Backend + 'static>(
+        native_fn: &'static NativeFunction,
+        mut this: Option<RawVc>,
+        arg: &dyn DynTaskInputs,
+        persistence: TaskPersistence,
+        turbo_tasks: Arc<TurboTasks<B>>,
+    ) -> Result<RawVc> {
+        if let Some(this) = this.as_mut() {
+            *this = this.resolve().resolve_sync()?;
+        }
+        let arg = native_fn.arg_meta.resolve(arg)?;
+        let mut arg = HeapDynTaskInputsStorage::new(arg);
+        Ok(turbo_tasks.native_call(native_fn, this, &mut arg, persistence))
+    }
+
     /// Implementation of the LocalTaskType::ResolveTrait task.
+    #[cfg(not(feature = "sync"))]
     pub(crate) async fn run_resolve_trait<B: Backend + 'static>(
         trait_method: &'static TraitMethod,
         this: RawVc,
@@ -79,6 +100,27 @@ impl LocalTaskType {
 
         let native_fn = Self::resolve_trait_method_from_value(trait_method, cell_id.type_id())?;
         let arg = native_fn.arg_meta.filter_and_resolve(arg).await?;
+        let mut arg = HeapDynTaskInputsStorage::new(arg);
+        Ok(turbo_tasks.native_call(native_fn, Some(this), &mut arg, persistence))
+    }
+
+    /// Synchronous counterpart of [`run_resolve_trait`](Self::run_resolve_trait) for
+    /// the no-async sync engine: resolves `this` and the arguments inline (no future).
+    #[cfg(feature = "sync")]
+    pub(crate) fn run_resolve_trait<B: Backend + 'static>(
+        trait_method: &'static TraitMethod,
+        this: RawVc,
+        arg: &dyn DynTaskInputs,
+        persistence: TaskPersistence,
+        turbo_tasks: Arc<TurboTasks<B>>,
+    ) -> Result<RawVc> {
+        let this = this.resolve().resolve_sync()?;
+        let Some((_, cell_id)) = this.as_task_cell() else {
+            bail!("Trait method receiver must be a cell");
+        };
+
+        let native_fn = Self::resolve_trait_method_from_value(trait_method, cell_id.type_id())?;
+        let arg = native_fn.arg_meta.filter_and_resolve(arg)?;
         let mut arg = HeapDynTaskInputsStorage::new(arg);
         Ok(turbo_tasks.native_call(native_fn, Some(this), &mut arg, persistence))
     }

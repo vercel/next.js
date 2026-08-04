@@ -174,20 +174,20 @@ pub struct CjsRequireAssetReferenceCodeGen {
 }
 
 impl CjsRequireAssetReferenceCodeGen {
-    pub async fn code_generation(
+    turbo_tasks::dual_fn! {
+    pub fn code_generation(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
-        let reference = self.reference.await?;
+        let reference = turbo_tasks::read!(self.reference)?;
 
-        let pm = PatternMapping::resolve_request(
+        let pm = turbo_tasks::read!(PatternMapping::resolve_request(
             *reference.request,
             *reference.origin,
             chunking_context,
             self.reference.resolve_reference(),
             ResolveType::ChunkItem,
-        )
-        .await?;
+        ))?;
         let mut visitors = Vec::new();
 
         visitors.push(create_visitor!(
@@ -221,6 +221,7 @@ impl CjsRequireAssetReferenceCodeGen {
         ));
 
         Ok(CodeGeneration::visitors(visitors))
+    }
     }
 }
 
@@ -314,20 +315,20 @@ pub struct CjsRequireResolveAssetReferenceCodeGen {
 }
 
 impl CjsRequireResolveAssetReferenceCodeGen {
-    pub async fn code_generation(
+    turbo_tasks::dual_fn! {
+    pub fn code_generation(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
-        let reference = self.reference.await?;
+        let reference = turbo_tasks::read!(self.reference)?;
 
-        let pm = PatternMapping::resolve_request(
+        let pm = turbo_tasks::read!(PatternMapping::resolve_request(
             *reference.request,
             *reference.origin,
             chunking_context,
             self.reference.resolve_reference(),
             ResolveType::ChunkItem,
-        )
-        .await?;
+        ))?;
         let mut visitors = Vec::new();
 
         // Inline the result of the `require.resolve` call as a literal.
@@ -365,6 +366,7 @@ impl CjsRequireResolveAssetReferenceCodeGen {
 
         Ok(CodeGeneration::visitors(visitors))
     }
+    }
 }
 
 #[derive(
@@ -378,7 +380,8 @@ impl CjsRequireCacheAccess {
         CjsRequireCacheAccess { path }
     }
 
-    pub async fn code_generation(
+    turbo_tasks::dual_fn! {
+    pub fn code_generation(
         &self,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
@@ -397,6 +400,7 @@ impl CjsRequireCacheAccess {
         ));
 
         Ok(CodeGeneration::visitors(visitors))
+    }
     }
 }
 

@@ -25,9 +25,10 @@ use crate::{
     util::{NextRuntime, module_styles_rule_condition, styles_rule_condition},
 };
 
+turbo_tasks::dual_fn! {
 /// Returns a list of module rules which apply server-side, Next.js-specific
 /// transforms.
-pub async fn get_next_server_transforms_rules(
+pub fn get_next_server_transforms_rules(
     next_config: Vc<NextConfig>,
     context_ty: ServerContextType,
     mode: Vc<NextMode>,
@@ -38,16 +39,16 @@ pub async fn get_next_server_transforms_rules(
     let mut rules = vec![];
 
     let modularize_imports_config = next_config.modularize_imports();
-    let mdx_rs: bool = next_config.mdx_rs().await?.is_some();
+    let mdx_rs: bool = turbo_tasks::read!(next_config.mdx_rs())?.is_some();
 
     if !foreign_code {
-        rules.push(get_next_lint_transform_rule(mdx_rs).await?);
+        rules.push(turbo_tasks::read!(get_next_lint_transform_rule(mdx_rs))?);
     }
 
-    if !modularize_imports_config.await?.is_empty() {
-        rules.push(get_next_modularize_imports_rule(modularize_imports_config, mdx_rs).await?);
+    if !turbo_tasks::read!(modularize_imports_config)?.is_empty() {
+        rules.push(turbo_tasks::read!(get_next_modularize_imports_rule(modularize_imports_config, mdx_rs))?);
     }
-    rules.push(get_next_font_transform_rule(mdx_rs).await?);
+    rules.push(turbo_tasks::read!(get_next_font_transform_rule(mdx_rs))?);
 
     if !matches!(context_ty, ServerContextType::AppRSC { .. }) {
         rules.extend([
@@ -68,27 +69,27 @@ pub async fn get_next_server_transforms_rules(
         ]);
     }
 
-    let use_cache_enabled = *next_config.enable_use_cache().await?;
-    let cache_kinds = next_config.cache_kinds().to_resolved().await?;
+    let use_cache_enabled = *turbo_tasks::read!(next_config.enable_use_cache())?;
+    let cache_kinds = turbo_tasks::read!(next_config.cache_kinds().to_resolved())?;
     let mut is_app_dir = false;
 
     let is_server_components = match &context_ty {
         ServerContextType::Pages { pages_dir } | ServerContextType::PagesApi { pages_dir } => {
             if !foreign_code {
                 rules.push(
-                    get_next_disallow_export_all_in_page_rule(mdx_rs, pages_dir.clone()).await?,
+                    turbo_tasks::read!(get_next_disallow_export_all_in_page_rule(mdx_rs, pages_dir.clone()))?,
                 );
                 rules.push(
-                    get_next_pages_transforms_rule(
+                    turbo_tasks::read!(get_next_pages_transforms_rule(
                         pages_dir.clone(),
                         ExportFilter::StripDefaultExport,
                         mdx_rs,
                         vec![RuleCondition::ReferenceType(ReferenceTypeCondition::Entry(
                             Some(EntryReferenceSubType::PageData),
                         ))],
-                        &next_config.page_extensions().await?,
-                    )
-                    .await?,
+                        &turbo_tasks::read!(next_config.page_extensions())?,
+                    ))
+                    ?,
                 );
             }
             false
@@ -98,15 +99,15 @@ pub async fn get_next_server_transforms_rules(
             // Yah, this is SSR, but this is still treated as a Client transform layer.
             // need to apply to foreign code too
             rules.push(
-                get_server_actions_transform_rule(
+                turbo_tasks::read!(get_server_actions_transform_rule(
                     mode,
                     ActionsTransform::Client,
                     encryption_key,
                     mdx_rs,
                     use_cache_enabled,
                     cache_kinds,
-                )
-                .await?,
+                ))
+                ?,
             );
 
             is_app_dir = true;
@@ -115,15 +116,15 @@ pub async fn get_next_server_transforms_rules(
         }
         ServerContextType::AppRSC { .. } => {
             rules.push(
-                get_server_actions_transform_rule(
+                turbo_tasks::read!(get_server_actions_transform_rule(
                     mode,
                     ActionsTransform::Server,
                     encryption_key,
                     mdx_rs,
                     use_cache_enabled,
                     cache_kinds,
-                )
-                .await?,
+                ))
+                ?,
             );
 
             is_app_dir = true;
@@ -132,15 +133,15 @@ pub async fn get_next_server_transforms_rules(
         }
         ServerContextType::AppRoute { .. } => {
             rules.push(
-                get_server_actions_transform_rule(
+                turbo_tasks::read!(get_server_actions_transform_rule(
                     mode,
                     ActionsTransform::Server,
                     encryption_key,
                     mdx_rs,
                     use_cache_enabled,
                     cache_kinds,
-                )
-                .await?,
+                ))
+                ?,
             );
 
             is_app_dir = true;
@@ -151,51 +152,51 @@ pub async fn get_next_server_transforms_rules(
     };
 
     if is_app_dir {
-        rules.push(get_next_debug_instant_stack_rule(mdx_rs, next_config.page_extensions()).await?);
+        rules.push(turbo_tasks::read!(get_next_debug_instant_stack_rule(mdx_rs, next_config.page_extensions()))?);
     }
 
     if is_app_dir &&
         // `cacheComponents` is not supported in the edge runtime.
         // (also, the code generated by the dynamic imports transform relies on `CacheSignal`, which uses nodejs-specific APIs)
         next_runtime != NextRuntime::Edge &&
-        *next_config.enable_cache_components().await?
+        *turbo_tasks::read!(next_config.enable_cache_components())?
     {
-        rules.push(get_next_track_dynamic_imports_transform_rule(mdx_rs).await?);
+        rules.push(turbo_tasks::read!(get_next_track_dynamic_imports_transform_rule(mdx_rs))?);
     }
 
     if !foreign_code {
         rules.push(
-            get_next_dynamic_transform_rule(true, is_server_components, is_app_dir, mode, mdx_rs)
-                .await?,
+            turbo_tasks::read!(get_next_dynamic_transform_rule(true, is_server_components, is_app_dir, mode, mdx_rs))
+                ?,
         );
 
-        rules.push(get_next_cjs_optimizer_rule(mdx_rs).await?);
-        rules.push(get_next_pure_rule(mdx_rs).await?);
+        rules.push(turbo_tasks::read!(get_next_cjs_optimizer_rule(mdx_rs))?);
+        rules.push(turbo_tasks::read!(get_next_pure_rule(mdx_rs))?);
 
         // [NOTE]: this rule only works in prod config
         // https://github.com/vercel/next.js/blob/a1d0259ea06592c5ca6df882e9b1d0d0121c5083/packages/next/src/build/swc/options.ts#L409
         // rules.push(get_next_optimize_server_react_rule(enable_mdx_rs,
         // optimize_use_state))
 
-        rules.push(get_next_image_rule().await?);
+        rules.push(turbo_tasks::read!(get_next_image_rule())?);
     }
 
     if let NextRuntime::Edge = next_runtime {
-        let mode = *mode.await?;
+        let mode = *turbo_tasks::read!(mode)?;
 
         if mode == NextMode::Development {
-            rules.push(get_middleware_dynamic_assert_rule(mdx_rs).await?);
+            rules.push(turbo_tasks::read!(get_middleware_dynamic_assert_rule(mdx_rs))?);
         }
 
         if !foreign_code {
             rules.push(
-                next_edge_node_api_assert(
+                turbo_tasks::read!(next_edge_node_api_assert(
                     mdx_rs,
                     matches!(context_ty, ServerContextType::Middleware { .. })
                         && mode == NextMode::Build,
                     mode == NextMode::Build,
-                )
-                .await?,
+                ))
+                ?,
             );
         }
 
@@ -227,10 +228,12 @@ pub async fn get_next_server_transforms_rules(
 
     Ok(rules)
 }
+}
 
+turbo_tasks::dual_fn! {
 /// Returns a list of module rules which apply server-side, Next.js-specific
 /// transforms, but which are only applied to internal modules.
-pub async fn get_next_server_internal_transforms_rules(
+pub fn get_next_server_internal_transforms_rules(
     context_ty: ServerContextType,
     mdx_rs: bool,
 ) -> Result<Vec<ModuleRule>> {
@@ -239,14 +242,14 @@ pub async fn get_next_server_internal_transforms_rules(
     match context_ty {
         ServerContextType::Pages { .. } => {
             // Apply next/font transforms to foreign code
-            rules.push(get_next_font_transform_rule(mdx_rs).await?);
+            rules.push(turbo_tasks::read!(get_next_font_transform_rule(mdx_rs))?);
         }
         ServerContextType::PagesApi { .. } => {}
         ServerContextType::AppSSR { .. } => {
-            rules.push(get_next_font_transform_rule(mdx_rs).await?);
+            rules.push(turbo_tasks::read!(get_next_font_transform_rule(mdx_rs))?);
         }
         ServerContextType::AppRSC { .. } => {
-            rules.push(get_next_font_transform_rule(mdx_rs).await?);
+            rules.push(turbo_tasks::read!(get_next_font_transform_rule(mdx_rs))?);
         }
         ServerContextType::AppRoute { .. } => {}
         ServerContextType::Middleware { .. } => {}
@@ -254,4 +257,5 @@ pub async fn get_next_server_internal_transforms_rules(
     };
 
     Ok(rules)
+}
 }

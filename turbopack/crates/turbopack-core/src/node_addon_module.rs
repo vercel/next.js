@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 use anyhow::{Result, bail};
 use regex::Regex;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{FxIndexSet, ResolvedVc, Vc};
 use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath};
 
 use crate::{
@@ -35,11 +35,7 @@ impl NodeAddonModule {
 impl Module for NodeAddonModule {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self
-            .source
-            .ident()
-            .owned()
-            .await?
+        Ok(turbo_tasks::read!(self.source.ident().owned())?
             .with_modifier(rcstr!("node addon"))
             .into_vc())
     }
@@ -53,7 +49,7 @@ impl Module for NodeAddonModule {
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         static SHARP_PKG_REGEX: LazyLock<Regex> =
             LazyLock::new(|| Regex::new(r"^@img/sharp-([\w-]+)/").unwrap());
-        let ident = self.source.ident().await?;
+        let ident = turbo_tasks::read!(self.source.ident())?;
         let module_path = &ident.path;
 
         // Extract "darwin-arm64" from a path like
@@ -96,7 +92,7 @@ impl Module for NodeAddonModule {
             .filter_map(|p| module_path.parent().join(p).ok()?.join(&package_name).ok())
             {
                 if matches!(
-                    &*folder.get_type().await?,
+                    &*turbo_tasks::read!(folder.get_type())?,
                     FileSystemEntryType::Directory | FileSystemEntryType::Symlink
                 ) {
                     return Ok(dir_references(folder));
@@ -117,45 +113,41 @@ impl Module for NodeAddonModule {
 
 #[turbo_tasks::function]
 async fn dir_references(package_dir: FileSystemPath) -> Result<Vc<ModuleReferences>> {
-    let matches = read_matches(
+    let matches = turbo_tasks::read!(read_matches(
         package_dir.clone(),
         rcstr!(""),
         true,
         Pattern::new(Pattern::Dynamic),
-    )
-    .await?;
+    ))?;
 
     let mut results: FxIndexSet<FileSystemPath> = FxIndexSet::default();
     for pat_match in matches.into_iter() {
         match pat_match {
             PatternMatch::File(_, file) => {
-                let realpath = file.realpath_with_links().await?;
+                let realpath = turbo_tasks::read!(file.realpath_with_links())?;
                 results.extend(realpath.symlinks.iter().cloned());
                 match &realpath.path_result {
                     Ok(path) => {
                         results.insert(path.clone());
                     }
-                    Err(e) => bail!(e.as_error_message(file, &realpath).await?),
+                    Err(e) => bail!(turbo_tasks::read!(e.as_error_message(file, &realpath))?),
                 }
             }
             PatternMatch::Directory(..) => {}
         }
     }
 
-    Ok(Vc::cell(
-        results
-            .into_iter()
-            .map(async |p| {
-                Ok(ResolvedVc::upcast(
-                    TracedModuleReference::new(
-                        Vc::upcast(RawModule::new(Vc::upcast(FileSource::new(p)))),
-                        TracedMode::Entry,
-                    )
-                    .to_resolved()
-                    .await?,
-                ))
-            })
-            .try_join()
-            .await?,
-    ))
+    // Sequential in both modes: this is a rare special case (sharp/libvips) and
+    // `.to_resolved()` futures cannot fan out through `parallel!` under sync.
+    let mut references = Vec::with_capacity(results.len());
+    for p in results {
+        references.push(ResolvedVc::upcast(turbo_tasks::read!(
+            TracedModuleReference::new(
+                Vc::upcast(RawModule::new(Vc::upcast(FileSource::new(p)))),
+                TracedMode::Entry,
+            )
+            .to_resolved()
+        )?));
+    }
+    Ok(Vc::cell(references))
 }

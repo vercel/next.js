@@ -34,23 +34,24 @@ impl AvailabilityInfo {
         self.available_modules
     }
 
-    pub async fn with_modules(self, modules: OperationVc<AvailableModulesSet>) -> Result<Self> {
+    turbo_tasks::dual_fn! {
+    pub fn with_modules(self, modules: OperationVc<AvailableModulesSet>) -> Result<Self> {
         Ok(if let Some(available_modules) = self.available_modules {
             Self {
                 flags: self.flags,
-                available_modules: Some(
-                    available_modules
-                        .with_modules(modules)
-                        .to_resolved()
-                        .await?,
-                ),
+                available_modules: Some(turbo_tasks::read!(
+                    available_modules.with_modules(modules).to_resolved()
+                )?),
             }
         } else {
             Self {
                 flags: self.flags,
-                available_modules: Some(AvailableModules::new(modules).to_resolved().await?),
+                available_modules: Some(turbo_tasks::read!(
+                    AvailableModules::new(modules).to_resolved()
+                )?),
             }
         })
+    }
     }
 
     pub fn in_async_module(self) -> Self {
@@ -66,11 +67,17 @@ impl AvailabilityInfo {
         self.flags.is_in_async_module()
     }
 
-    pub async fn ident(&self) -> Result<Option<RcStr>> {
+    turbo_tasks::dual_fn! {
+    pub fn ident(&self) -> Result<Option<RcStr>> {
         Ok(if let Some(available_modules) = self.available_modules {
-            Some(available_modules.hash().await?.to_string().into())
+            Some(
+                turbo_tasks::read!(available_modules.hash())?
+                    .to_string()
+                    .into(),
+            )
         } else {
             None
         })
+    }
     }
 }

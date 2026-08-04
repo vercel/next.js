@@ -17,6 +17,7 @@ mod expand;
 mod ident;
 mod primitive_input;
 mod self_filter;
+mod test_macro;
 mod turbofmt_macro;
 mod value_trait_arguments;
 
@@ -103,11 +104,12 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
     function_macro::function(args, input)
 }
 
-#[allow_internal_unstable(min_specialization, into_future, trivial_bounds)]
-#[proc_macro_error]
+/// Dual-mode test attribute — see [`test_macro::test`]. Expands to `#[tokio::test]`
+/// in the async build and a synchronous `#[test]` in the `sync` (no-tokio) build,
+/// so one async test body runs under both.
 #[proc_macro_attribute]
-pub fn test_tt(_args: TokenStream, input: TokenStream) -> TokenStream {
-    derive::derive_value_debug(input)
+pub fn test(args: TokenStream, input: TokenStream) -> TokenStream {
+    test_macro::test(args, input)
 }
 
 #[allow_internal_unstable(min_specialization, into_future, trivial_bounds)]

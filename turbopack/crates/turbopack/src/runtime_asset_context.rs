@@ -30,7 +30,7 @@ pub async fn get_runtime_asset_context(
         ..Default::default()
     }
     .cell();
-    let compile_time_info = CompileTimeInfo::builder(environment).cell().await?;
+    let compile_time_info = turbo_tasks::read!(CompileTimeInfo::builder(environment).cell())?;
 
     let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
         Default::default(),

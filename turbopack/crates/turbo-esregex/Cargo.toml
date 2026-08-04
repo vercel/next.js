@@ -4,12 +4,23 @@ version = "0.1.0"
 edition = "2024"
 license = "MIT"
 
+[features]
+default = ["tokio_runtime"]
+# This crate has no async/tokio of its own, but it must forward turbo-tasks'
+# mode features so it resolves to a valid config when built in isolation
+# (turbo-tasks requires exactly one of tokio_runtime / sync; "neither" doesn't
+# compile). In the workspace, feature unification would pick a mode anyway.
+tokio_runtime = ["turbo-tasks/tokio_runtime"]
+sync = ["turbo-tasks/sync"]
+
 [dependencies]
 anyhow = { workspace = true }
 bincode = { workspace = true }
 regex = { workspace = true }
 regress = { workspace = true }
-turbo-tasks = { workspace = true }
+# Direct path dep with default-features = false so a `--features sync` build stays
+# tokio-free; the `tokio_runtime`/`sync` features above select turbo-tasks' mode.
+turbo-tasks = { path = "../turbo-tasks", default-features = false }
 
 [lints]
 workspace = true

@@ -1,4 +1,5 @@
 use anyhow::Result;
+#[cfg(not(feature = "sync"))]
 use async_trait::async_trait;
 use swc_core::ecma::{ast::Program, transforms::base::resolver, visit::VisitMutWith};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
@@ -16,9 +17,8 @@ impl ClientDisallowedDirectiveTransformer {
     }
 }
 
-#[async_trait]
-impl CustomTransformer for ClientDisallowedDirectiveTransformer {
-    async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+impl ClientDisallowedDirectiveTransformer {
+    fn transform_inner(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         if is_client_module(program) {
             *program = create_error_proxy_module(&self.error_proxy_module);
             program.visit_mut_with(&mut resolver(
@@ -29,5 +29,21 @@ impl CustomTransformer for ClientDisallowedDirectiveTransformer {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(not(feature = "sync"))]
+#[async_trait]
+impl CustomTransformer for ClientDisallowedDirectiveTransformer {
+    async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+        self.transform_inner(program, ctx)
+    }
+}
+
+/// See the async impl above; the sync engine drops `async`/`#[async_trait]`.
+#[cfg(feature = "sync")]
+impl CustomTransformer for ClientDisallowedDirectiveTransformer {
+    fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+        self.transform_inner(program, ctx)
     }
 }

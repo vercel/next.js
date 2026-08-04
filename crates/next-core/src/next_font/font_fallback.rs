@@ -69,7 +69,7 @@ impl FontFallbacks {
     #[turbo_tasks::function]
     pub(crate) async fn has_size_adjust(&self) -> Result<Vc<bool>> {
         for fallback in &self.0 {
-            if *fallback.has_size_adjust().await? {
+            if *turbo_tasks::read!(fallback.has_size_adjust())? {
                 return Ok(Vc::cell(true));
             }
         }

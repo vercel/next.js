@@ -18,14 +18,13 @@ pub async fn wrap_edge_entry(
     // Next.js runtime templates. This particular template does not have any imports
     // of its own, so we use the variant that allows templates without relative
     // imports to be rewritten.
-    let template_source = load_next_js_template_no_imports(
+    let template_source = turbo_tasks::read!(load_next_js_template_no_imports(
         "edge-wrapper.js",
         project_root,
         &[("VAR_ENTRY_NAME", &format!("middleware_{pathname}"))],
         &[],
         &[],
-    )
-    .await?;
+    ))?;
 
     let inner_assets = fxindexmap! {
         rcstr!("MODULE") => entry

@@ -162,7 +162,8 @@ impl RuleCondition {
         }
     }
 
-    pub async fn matches(
+    turbo_tasks::dual_fn! {
+    pub fn matches(
         &self,
         source: ResolvedVc<Box<dyn Source>>,
         path: &FileSystemPath,
@@ -176,13 +177,15 @@ impl RuleCondition {
 
         // Evaluates the condition returning the result and possibly pushing additional operations
         // onto the stack as a kind of continuation.
-        async fn process_condition<'a, const SZ: usize>(
+        turbo_tasks::dual_fn! {
+        fn process_condition<'a>(
             source: ResolvedVc<Box<dyn Source + 'static>>,
             path: &FileSystemPath,
             reference_type: &ReferenceType,
-            stack: &mut SmallVec<[Op<'a>; SZ]>,
-            mut cond: &'a RuleCondition,
+            stack: &mut SmallVec<[Op<'a>; 8]>,
+            cond: &'a RuleCondition,
         ) -> Result<bool, anyhow::Error> {
+            let mut cond = cond;
             // Use a loop to avoid recursion and unnecessary stack operations.
             loop {
                 match cond {
@@ -252,13 +255,13 @@ impl RuleCondition {
                         return Ok(path.is_inside_ref(parent_path));
                     }
                     RuleCondition::ContentTypeStartsWith(start) => {
-                        let content_type = &source.ident().await?.content_type;
+                        let content_type = &turbo_tasks::read!(source.ident())?.content_type;
                         return Ok(content_type
                             .as_ref()
                             .is_some_and(|ct| ct.starts_with(start.as_str())));
                     }
                     RuleCondition::ContentTypeEmpty => {
-                        return Ok(source.ident().await?.content_type.is_none());
+                        return Ok(turbo_tasks::read!(source.ident())?.content_type.is_none());
                     }
                     RuleCondition::ResourcePathGlob { glob, base } => {
                         return Ok(if let Some(rel_path) = base.get_relative_path_to(path) {
@@ -278,7 +281,7 @@ impl RuleCondition {
                         return Ok(regex.is_match(&path.path));
                     }
                     RuleCondition::ResourceContentEsRegex(regex) => {
-                        let content = source.content().file_content().await?;
+                        let content = turbo_tasks::read!(source.content().file_content())?;
                         match &*content {
                             FileContent::Content(file_content) => {
                                 return Ok(regex.is_match(&file_content.content().to_str()?));
@@ -287,26 +290,26 @@ impl RuleCondition {
                         }
                     }
                     RuleCondition::ResourceQueryContains(query) => {
-                        let ident = source.ident().await?;
+                        let ident = turbo_tasks::read!(source.ident())?;
                         return Ok(ident.query.contains(query));
                     }
                     RuleCondition::ResourceQueryEquals(query) => {
-                        let ident = source.ident().await?;
+                        let ident = turbo_tasks::read!(source.ident())?;
                         return Ok(ident.query == *query);
                     }
                     RuleCondition::ResourceQueryEsRegex(regex) => {
-                        let ident = source.ident().await?;
+                        let ident = turbo_tasks::read!(source.ident())?;
                         return Ok(regex.is_match(&ident.query));
                     }
                     RuleCondition::ContentTypeGlob(glob) => {
-                        let ident = source.ident().await?;
+                        let ident = turbo_tasks::read!(source.ident())?;
                         return Ok(ident
                             .content_type
                             .as_ref()
                             .is_some_and(|ct| glob.matches(ct)));
                     }
                     RuleCondition::ContentTypeEsRegex(regex) => {
-                        let ident = source.ident().await?;
+                        let ident = turbo_tasks::read!(source.ident())?;
                         return Ok(ident
                             .content_type
                             .as_ref()
@@ -315,12 +318,13 @@ impl RuleCondition {
                 }
             }
         }
+        }
         // Allocate a small inline stack to avoid heap allocations in the common case where
         // conditions are not deeply stacked.  Additionally we take care to avoid stack
         // operations unless strictly necessary.
         const EXPECTED_SIZE: usize = 8;
         let mut stack = SmallVec::<[Op; EXPECTED_SIZE]>::with_capacity(EXPECTED_SIZE);
-        let mut result = process_condition(source, path, reference_type, &mut stack, self).await?;
+        let mut result = turbo_tasks::read!(process_condition(source, path, reference_type, &mut stack, self))?;
         while let Some(op) = stack.pop() {
             match op {
                 Op::All(remaining) => {
@@ -329,14 +333,14 @@ impl RuleCondition {
                         if remaining.len() > 1 {
                             stack.push(Op::All(&remaining[1..]));
                         }
-                        result = process_condition(
+                        result = turbo_tasks::read!(process_condition(
                             source,
                             path,
                             reference_type,
                             &mut stack,
                             &remaining[0],
-                        )
-                        .await?;
+                        ))
+                        ?;
                     }
                 }
                 Op::Any(remaining) => {
@@ -348,14 +352,14 @@ impl RuleCondition {
                         // If the stack didn't change, we can loop inline, but we would still need
                         // to pop the item.  This might be faster since we would avoid the `match`
                         // but overall, that is quite minor for an enum with 3 cases.
-                        result = process_condition(
+                        result = turbo_tasks::read!(process_condition(
                             source,
                             path,
                             reference_type,
                             &mut stack,
                             &remaining[0],
-                        )
-                        .await?;
+                        ))
+                        ?;
                     }
                 }
                 Op::Not => {
@@ -364,6 +368,7 @@ impl RuleCondition {
             }
         }
         Ok(result)
+    }
     }
 }
 
@@ -474,7 +479,7 @@ pub mod tests {
         assert_eq!(rc, RuleCondition::True);
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_rule_condition_leaves() {
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),
@@ -488,126 +493,125 @@ pub mod tests {
     #[turbo_tasks::function(operation, root)]
     pub async fn run_leaves_test_operation() -> Result<()> {
         let fs = VirtualFileSystem::new();
-        let virtual_path = fs.root().await?.join("foo.js")?;
-        let virtual_source = Vc::upcast::<Box<dyn Source>>(VirtualSource::new(
-            virtual_path.clone(),
-            AssetContent::File(FileContent::NotFound.cell().to_resolved().await?).cell(),
-        ))
-        .to_resolved()
-        .await?;
+        let virtual_path = turbo_tasks::read!(fs.root())?.join("foo.js")?;
+        let virtual_source = turbo_tasks::read!(
+            Vc::upcast::<Box<dyn Source>>(VirtualSource::new(
+                virtual_path.clone(),
+                AssetContent::File(turbo_tasks::read!(
+                    FileContent::NotFound.cell().to_resolved()
+                )?)
+                .cell(),
+            ))
+            .to_resolved()
+        )?;
 
-        let non_virtual_path = fs.root().await?.join("bar.js")?;
-        let non_virtual_source =
-            Vc::upcast::<Box<dyn Source>>(FileSource::new(non_virtual_path.clone()))
-                .to_resolved()
-                .await?;
+        let non_virtual_path = turbo_tasks::read!(fs.root())?.join("bar.js")?;
+        let non_virtual_source = turbo_tasks::read!(
+            Vc::upcast::<Box<dyn Source>>(FileSource::new(non_virtual_path.clone())).to_resolved()
+        )?;
 
         {
             let condition = RuleCondition::ReferenceType(ReferenceTypeCondition::Runtime);
             assert!(
-                condition
-                    .matches(virtual_source, &virtual_path, &ReferenceType::Runtime)
-                    .await
-                    .unwrap()
+                turbo_tasks::read!(condition.matches(
+                    virtual_source,
+                    &virtual_path,
+                    &ReferenceType::Runtime
+                ))
+                .unwrap()
             );
             assert!(
-                !condition
-                    .matches(
-                        non_virtual_source,
-                        &non_virtual_path,
-                        &ReferenceType::Css(
-                            turbopack_core::reference_type::CssReferenceSubType::Compose
-                        )
+                !turbo_tasks::read!(condition.matches(
+                    non_virtual_source,
+                    &non_virtual_path,
+                    &ReferenceType::Css(
+                        turbopack_core::reference_type::CssReferenceSubType::Compose
                     )
-                    .await
-                    .unwrap()
+                ))
+                .unwrap()
             );
         }
 
         {
             let condition = RuleCondition::ResourceIsVirtualSource;
             assert!(
-                condition
-                    .matches(virtual_source, &virtual_path, &ReferenceType::Undefined)
-                    .await
-                    .unwrap()
+                turbo_tasks::read!(condition.matches(
+                    virtual_source,
+                    &virtual_path,
+                    &ReferenceType::Undefined
+                ))
+                .unwrap()
             );
             assert!(
-                !condition
-                    .matches(
-                        non_virtual_source,
-                        &non_virtual_path,
-                        &ReferenceType::Undefined
-                    )
-                    .await
-                    .unwrap()
+                !turbo_tasks::read!(condition.matches(
+                    non_virtual_source,
+                    &non_virtual_path,
+                    &ReferenceType::Undefined
+                ))
+                .unwrap()
             );
         }
         {
             let condition = RuleCondition::ResourcePathEquals(virtual_path.clone());
             assert!(
-                condition
-                    .matches(virtual_source, &virtual_path, &ReferenceType::Undefined)
-                    .await
-                    .unwrap()
+                turbo_tasks::read!(condition.matches(
+                    virtual_source,
+                    &virtual_path,
+                    &ReferenceType::Undefined
+                ))
+                .unwrap()
             );
             assert!(
-                !condition
-                    .matches(
-                        non_virtual_source,
-                        &non_virtual_path,
-                        &ReferenceType::Undefined
-                    )
-                    .await
-                    .unwrap()
+                !turbo_tasks::read!(condition.matches(
+                    non_virtual_source,
+                    &non_virtual_path,
+                    &ReferenceType::Undefined
+                ))
+                .unwrap()
             );
         }
         {
             let condition = RuleCondition::ResourcePathHasNoExtension;
             assert!(
-                condition
-                    .matches(
-                        virtual_source,
-                        &fs.root().await?.join("foo")?,
-                        &ReferenceType::Undefined
-                    )
-                    .await
-                    .unwrap()
+                turbo_tasks::read!(condition.matches(
+                    virtual_source,
+                    &turbo_tasks::read!(fs.root())?.join("foo")?,
+                    &ReferenceType::Undefined
+                ))
+                .unwrap()
             );
             assert!(
-                !condition
-                    .matches(
-                        non_virtual_source,
-                        &non_virtual_path,
-                        &ReferenceType::Undefined
-                    )
-                    .await
-                    .unwrap()
+                !turbo_tasks::read!(condition.matches(
+                    non_virtual_source,
+                    &non_virtual_path,
+                    &ReferenceType::Undefined
+                ))
+                .unwrap()
             );
         }
         {
             let condition = RuleCondition::ResourcePathEndsWith("foo.js".to_string());
             assert!(
-                condition
-                    .matches(virtual_source, &virtual_path, &ReferenceType::Undefined)
-                    .await
-                    .unwrap()
+                turbo_tasks::read!(condition.matches(
+                    virtual_source,
+                    &virtual_path,
+                    &ReferenceType::Undefined
+                ))
+                .unwrap()
             );
             assert!(
-                !condition
-                    .matches(
-                        non_virtual_source,
-                        &non_virtual_path,
-                        &ReferenceType::Undefined
-                    )
-                    .await
-                    .unwrap()
+                !turbo_tasks::read!(condition.matches(
+                    non_virtual_source,
+                    &non_virtual_path,
+                    &ReferenceType::Undefined
+                ))
+                .unwrap()
             );
         }
         anyhow::Ok(())
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_rule_condition_tree() {
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),
@@ -625,38 +629,41 @@ pub mod tests {
     #[turbo_tasks::function(operation, root)]
     pub async fn run_rule_condition_tree_test_operation() -> Result<()> {
         let fs = VirtualFileSystem::new();
-        let virtual_path = fs.root().await?.join("foo.js")?;
-        let virtual_source = Vc::upcast::<Box<dyn Source>>(VirtualSource::new(
-            virtual_path.clone(),
-            AssetContent::File(FileContent::NotFound.cell().to_resolved().await?).cell(),
-        ))
-        .to_resolved()
-        .await?;
+        let virtual_path = turbo_tasks::read!(fs.root())?.join("foo.js")?;
+        let virtual_source = turbo_tasks::read!(
+            Vc::upcast::<Box<dyn Source>>(VirtualSource::new(
+                virtual_path.clone(),
+                AssetContent::File(turbo_tasks::read!(
+                    FileContent::NotFound.cell().to_resolved()
+                )?)
+                .cell(),
+            ))
+            .to_resolved()
+        )?;
 
-        let non_virtual_path = fs.root().await?.join("bar.js")?;
-        let non_virtual_source =
-            Vc::upcast::<Box<dyn Source>>(FileSource::new(non_virtual_path.clone()))
-                .to_resolved()
-                .await?;
+        let non_virtual_path = turbo_tasks::read!(fs.root())?.join("bar.js")?;
+        let non_virtual_source = turbo_tasks::read!(
+            Vc::upcast::<Box<dyn Source>>(FileSource::new(non_virtual_path.clone())).to_resolved()
+        )?;
 
         {
             // not
             let condition = RuleCondition::not(RuleCondition::ResourceIsVirtualSource);
             assert!(
-                !condition
-                    .matches(virtual_source, &virtual_path, &ReferenceType::Undefined)
-                    .await
-                    .unwrap()
+                !turbo_tasks::read!(condition.matches(
+                    virtual_source,
+                    &virtual_path,
+                    &ReferenceType::Undefined
+                ))
+                .unwrap()
             );
             assert!(
-                condition
-                    .matches(
-                        non_virtual_source,
-                        &non_virtual_path,
-                        &ReferenceType::Undefined
-                    )
-                    .await
-                    .unwrap()
+                turbo_tasks::read!(condition.matches(
+                    non_virtual_source,
+                    &non_virtual_path,
+                    &ReferenceType::Undefined
+                ))
+                .unwrap()
             );
         }
         {
@@ -668,20 +675,20 @@ pub mod tests {
                 RuleCondition::ResourcePathHasNoExtension,
             ]);
             assert!(
-                condition
-                    .matches(virtual_source, &virtual_path, &ReferenceType::Undefined)
-                    .await
-                    .unwrap()
+                turbo_tasks::read!(condition.matches(
+                    virtual_source,
+                    &virtual_path,
+                    &ReferenceType::Undefined
+                ))
+                .unwrap()
             );
             assert!(
-                !condition
-                    .matches(
-                        non_virtual_source,
-                        &non_virtual_path,
-                        &ReferenceType::Undefined
-                    )
-                    .await
-                    .unwrap()
+                !turbo_tasks::read!(condition.matches(
+                    non_virtual_source,
+                    &non_virtual_path,
+                    &ReferenceType::Undefined
+                ))
+                .unwrap()
             );
         }
         {
@@ -693,20 +700,20 @@ pub mod tests {
                 RuleCondition::ResourcePathEquals(virtual_path.clone()),
             ]);
             assert!(
-                condition
-                    .matches(virtual_source, &virtual_path, &ReferenceType::Undefined)
-                    .await
-                    .unwrap()
+                turbo_tasks::read!(condition.matches(
+                    virtual_source,
+                    &virtual_path,
+                    &ReferenceType::Undefined
+                ))
+                .unwrap()
             );
             assert!(
-                !condition
-                    .matches(
-                        non_virtual_source,
-                        &non_virtual_path,
-                        &ReferenceType::Undefined
-                    )
-                    .await
-                    .unwrap()
+                !turbo_tasks::read!(condition.matches(
+                    non_virtual_source,
+                    &non_virtual_path,
+                    &ReferenceType::Undefined
+                ))
+                .unwrap()
             );
         }
         {
@@ -723,20 +730,20 @@ pub mod tests {
                 ]),
             ]);
             assert!(
-                condition
-                    .matches(virtual_source, &virtual_path, &ReferenceType::Undefined)
-                    .await
-                    .unwrap()
+                turbo_tasks::read!(condition.matches(
+                    virtual_source,
+                    &virtual_path,
+                    &ReferenceType::Undefined
+                ))
+                .unwrap()
             );
             assert!(
-                !condition
-                    .matches(
-                        non_virtual_source,
-                        &non_virtual_path,
-                        &ReferenceType::Undefined
-                    )
-                    .await
-                    .unwrap()
+                !turbo_tasks::read!(condition.matches(
+                    non_virtual_source,
+                    &non_virtual_path,
+                    &ReferenceType::Undefined
+                ))
+                .unwrap()
             );
         }
         anyhow::Ok(())

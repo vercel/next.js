@@ -1,0 +1,38 @@
+[package]
+name = "turbo-tasks-sync-demo"
+version = "0.1.0"
+description = "Configurable incremental-computation-graph demo for the dual-mode (async/no-tokio) turbo-tasks engine."
+license = "MIT"
+edition = "2024"
+publish = false
+
+[[bin]]
+name = "tt-demo"
+path = "src/main.rs"
+
+[features]
+default = ["tokio_runtime"]
+# Async engine (tokio executor + work-stealing). `cargo run --bin tt-demo`.
+tokio_runtime = [
+  "dep:tokio",
+  "turbo-tasks/tokio_runtime",
+  "turbo-tasks-backend/tokio_runtime",
+]
+# No-tokio engine (inline compute + rayon for `parallel!`).
+# `cargo run --bin tt-demo --no-default-features --features sync`.
+sync = [
+  "turbo-tasks/sync",
+  "turbo-tasks-backend/sync",
+]
+
+[dependencies]
+anyhow = { workspace = true }
+# `#[tokio::main]` for the async build only.
+tokio = { workspace = true, optional = true, features = ["macros", "rt-multi-thread"] }
+# Direct path deps + default-features = false so `--no-default-features --features sync`
+# excludes tokio entirely (verify with `cargo tree --bin tt-demo --features sync -i tokio`).
+turbo-tasks = { path = "../turbo-tasks", default-features = false }
+turbo-tasks-backend = { path = "../turbo-tasks-backend", default-features = false }
+
+[lints]
+workspace = true

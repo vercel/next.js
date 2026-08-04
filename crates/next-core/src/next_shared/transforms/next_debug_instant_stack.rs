@@ -9,13 +9,14 @@ use turbopack_ecmascript::{CustomTransformer, TransformContext, TransformPlugin}
 
 use super::{EcmascriptTransformStage, get_ecma_transform_rule};
 
-pub async fn get_next_debug_instant_stack_rule(
+turbo_tasks::dual_fn! {
+pub fn get_next_debug_instant_stack_rule(
     enable_mdx_rs: bool,
     page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<ModuleRule> {
-    let transform = next_debug_instant_stack_transform_plugin(page_extensions)
-        .to_resolved()
-        .await?;
+    let transform = turbo_tasks::read!(next_debug_instant_stack_transform_plugin(page_extensions)
+        .to_resolved())
+        ?;
 
     Ok(get_ecma_transform_rule(
         transform,
@@ -23,13 +24,14 @@ pub async fn get_next_debug_instant_stack_rule(
         EcmascriptTransformStage::Postprocess,
     ))
 }
+}
 
 #[turbo_tasks::function]
 async fn next_debug_instant_stack_transform_plugin(
     page_extensions: ResolvedVc<Vec<RcStr>>,
 ) -> Result<Vc<TransformPlugin>> {
     Ok(Vc::cell(Box::new(NextDebugInstantStack {
-        debug_instant_stack: DebugInstantStack::new(&*page_extensions.await?),
+        debug_instant_stack: DebugInstantStack::new(&*turbo_tasks::read!(page_extensions)?),
     }) as Box<dyn CustomTransformer + Send + Sync>))
 }
 
@@ -38,10 +40,23 @@ struct NextDebugInstantStack {
     debug_instant_stack: DebugInstantStack,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 impl CustomTransformer for NextDebugInstantStack {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "debug_instant_stack", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+        program.mutate(
+            self.debug_instant_stack
+                .get_pass(ctx.file_path_str.to_string()),
+        );
+        Ok(())
+    }
+}
+
+#[cfg(feature = "sync")]
+impl CustomTransformer for NextDebugInstantStack {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "debug_instant_stack", skip_all)]
+    fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         program.mutate(
             self.debug_instant_stack
                 .get_pass(ctx.file_path_str.to_string()),

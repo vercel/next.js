@@ -1,7 +1,7 @@
 use anyhow::Result;
 use indoc::formatdoc;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkData, ChunkableModule, ChunkingContext, ChunkingContextExt,
@@ -74,17 +74,17 @@ impl ManifestAsyncModule {
     pub async fn manifest_chunk_group(
         self: ResolvedVc<Self>,
     ) -> Result<Vc<OutputAssetsWithReferenced>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         if let Some(chunk_items) = this.availability_info.available_modules() {
             let inner_module = ResolvedVc::upcast(this.inner);
-            let batches = this
-                .module_graph
-                .module_batches(this.chunking_context.batching_config())
-                .await?;
-            let module_or_batch = batches.get_entry(inner_module).await?;
+            let batches = turbo_tasks::read!(
+                this.module_graph
+                    .module_batches(this.chunking_context.batching_config())
+            )?;
+            let module_or_batch = turbo_tasks::read!(batches.get_entry(inner_module))?;
             if let Some(chunkable_module_or_batch) =
                 ChunkableModuleOrBatch::from_module_or_batch(module_or_batch)
-                && *chunk_items.get(chunkable_module_or_batch.into()).await?
+                && *turbo_tasks::read!(chunk_items.get(chunkable_module_or_batch.into()))?
             {
                 return Ok(OutputAssetsWithReferenced {
                     assets: ResolvedVc::cell(vec![]),
@@ -112,10 +112,12 @@ impl ManifestAsyncModule {
         let ident = self.inner.ident();
         Ok(
             if let Some(available_modules) = self.availability_info.available_modules() {
-                ident
-                    .owned()
-                    .await?
-                    .with_modifier(available_modules.hash().await?.to_string().into())
+                turbo_tasks::read!(ident.owned())?
+                    .with_modifier(
+                        turbo_tasks::read!(available_modules.hash())?
+                            .to_string()
+                            .into(),
+                    )
                     .into_vc()
             } else {
                 ident
@@ -125,10 +127,10 @@ impl ManifestAsyncModule {
 
     #[turbo_tasks::function]
     async fn chunks_data(self: Vc<Self>) -> Result<Vc<ChunksData>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         Ok(ChunkData::from_assets(
-            this.chunking_context.output_root().owned().await?,
-            *self.chunk_group().await?.assets,
+            turbo_tasks::read!(this.chunking_context.output_root().owned())?,
+            *turbo_tasks::read!(self.chunk_group())?.assets,
         ))
     }
 }
@@ -141,11 +143,7 @@ fn manifest_chunk_reference_description() -> RcStr {
 impl Module for ManifestAsyncModule {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self
-            .inner
-            .ident()
-            .owned()
-            .await?
+        Ok(turbo_tasks::read!(self.inner.ident().owned())?
             .with_modifier(manifest_chunk_reference_description())
             .into_vc())
     }
@@ -188,8 +186,8 @@ impl EcmascriptChunkPlaceable for ManifestAsyncModule {
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let chunks_data = self.chunks_data().await?;
-        let chunks_data = chunks_data.iter().try_join().await?;
+        let chunks_data = turbo_tasks::read!(self.chunks_data())?;
+        let chunks_data = turbo_tasks::parallel!(chunks_data.iter())?;
         let chunks_data: Vec<_> = chunks_data
             .iter()
             .map(|chunk_data| EcmascriptChunkData::new(chunk_data))

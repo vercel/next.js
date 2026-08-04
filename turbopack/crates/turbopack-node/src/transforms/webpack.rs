@@ -1,19 +1,24 @@
 use std::mem::take;
 
 use anyhow::{Context, Result, bail};
+#[cfg(not(feature = "sync"))]
 use async_trait::async_trait;
 use base64::Engine;
 use bincode::{Decode, Encode};
 use either::Either;
+#[cfg(not(feature = "sync"))]
 use futures::try_join;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map as JsonMap, Value as JsonValue, json};
 use serde_with::serde_as;
+#[cfg(not(feature = "sync"))]
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::TryJoinIterExt;
 use turbo_tasks::{
-    Completion, OperationVc, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, ValueToStringRef,
-    Vc, trace::TraceRawVcs,
+    Completion, OperationVc, ReadRef, ResolvedVc, ValueToString, ValueToStringRef, Vc,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{
@@ -156,11 +161,8 @@ impl Source for WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         Ok(
-            if let Some(rename_as) = self.transform.await?.rename_as.as_deref() {
-                self.source
-                    .ident()
-                    .owned()
-                    .await?
+            if let Some(rename_as) = turbo_tasks::read!(self.transform)?.rename_as.as_deref() {
+                turbo_tasks::read!(self.source.ident().owned())?
                     .rename_as(rename_as)
                     .into_vc()
             } else {
@@ -171,8 +173,8 @@ impl Source for WebpackLoadersProcessedAsset {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<Vc<RcStr>> {
-        let inner = self.source.description().await?;
-        let loaders = self.transform.await?.loaders.await?;
+        let inner = turbo_tasks::read!(self.source.description())?;
+        let loaders = turbo_tasks::read!(turbo_tasks::read!(self.transform)?.loaders)?;
         let loader_names: Vec<&str> = loaders.iter().map(|l| l.loader.as_str()).collect();
         Ok(Vc::cell(
             format!(
@@ -189,7 +191,7 @@ impl Source for WebpackLoadersProcessedAsset {
 impl Asset for WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
-        Ok(*self.process().await?.content)
+        Ok(*turbo_tasks::read!(self.process())?.content)
     }
 }
 
@@ -197,7 +199,7 @@ impl Asset for WebpackLoadersProcessedAsset {
 impl GenerateSourceMap for WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
     async fn generate_source_map(self: Vc<Self>) -> Result<Vc<FileContent>> {
-        Ok(*self.process().await?.source_map)
+        Ok(*turbo_tasks::read!(self.process())?.source_map)
     }
 }
 
@@ -213,12 +215,10 @@ async fn webpack_loaders_executor(
     evaluate_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<ProcessResult>> {
     Ok(evaluate_context.process(
-        Vc::upcast(FileSource::new(
-            embed_file_path(rcstr!("transforms/webpack-loaders.ts"))
-                .owned()
-                .await?,
-        )),
-        ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
+        Vc::upcast(FileSource::new(turbo_tasks::read!(
+            embed_file_path(rcstr!("transforms/webpack-loaders.ts")).owned()
+        )?)),
+        ReferenceType::Internal(turbo_tasks::read!(InnerAssets::empty().to_resolved())?),
     ))
 }
 
@@ -226,26 +226,45 @@ async fn webpack_loaders_executor(
 impl WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
     async fn process(&self) -> Result<Vc<ProcessWebpackLoadersResult>> {
-        let transform = self.transform.await?;
-        let loaders = transform.loaders.await?;
+        let transform = turbo_tasks::read!(self.transform)?;
+        let loaders = turbo_tasks::read!(transform.loaders)?;
 
         let webpack_span = tracing::info_span!(
             "webpack loader",
             name = display(ReadRef::<WebpackLoaderItems>::as_raw_ref(&loaders))
         );
 
-        async {
+        #[cfg(not(feature = "sync"))]
+        return self
+            .process_inner(transform, loaders)
+            .instrument(webpack_span)
+            .await;
+        #[cfg(feature = "sync")]
+        {
+            let _span = webpack_span.entered();
+            self.process_inner(transform, loaders)
+        }
+    }
+}
+
+impl WebpackLoadersProcessedAsset {
+    turbo_tasks::dual_fn! {
+        fn process_inner(
+            &self,
+            transform: ReadRef<WebpackLoaders>,
+            loaders: ReadRef<WebpackLoaderItems>,
+        ) -> Result<Vc<ProcessWebpackLoadersResult>> {
             let ExecutionContext {
                 project_path,
                 chunking_context,
                 env,
                 node_backend,
-            } = &*transform.execution_context.await?;
+            } = &*turbo_tasks::read!(transform.execution_context)?;
             let source_content = self.source.content();
-            let AssetContent::File(file) = *source_content.await? else {
+            let AssetContent::File(file) = *turbo_tasks::read!(source_content)? else {
                 bail!("Webpack Loaders transform only support transforming files");
             };
-            let FileContent::Content(file_content) = &*file.await? else {
+            let FileContent::Content(file_content) = &*turbo_tasks::read!(file)? else {
                 return Ok(ProcessWebpackLoadersResult {
                     content: AssetContent::File(FileContent::NotFound.resolved_cell())
                         .resolved_cell(),
@@ -271,28 +290,28 @@ impl WebpackLoadersProcessedAsset {
 
             let webpack_loaders_executor = webpack_loaders_executor(*evaluate_context).module();
 
-            let entries = get_evaluate_entries(
+            let entries = turbo_tasks::read!(get_evaluate_entries(
                 webpack_loaders_executor,
                 *evaluate_context,
                 **node_backend,
                 None,
             )
-            .to_resolved()
-            .await?;
+            .to_resolved())
+            ?;
 
-            let module_graph = ModuleGraph::from_graphs(
+            let module_graph = turbo_tasks::read!(ModuleGraph::from_graphs(
                 vec![SingleModuleGraph::new_with_entries(
-                    entries.graph_entries().to_resolved().await?,
+                    turbo_tasks::read!(entries.graph_entries().to_resolved())?,
                     false,
                     false,
                 )],
                 None,
             )
             .connect()
-            .to_resolved()
-            .await?;
+            .to_resolved())
+            ?;
 
-            let source_ident = self.source.ident().await?;
+            let source_ident = turbo_tasks::read!(self.source.ident())?;
             let resource_fs_path = &source_ident.path;
             let Some(resource_path) = project_path.get_relative_path_to(resource_fs_path) else {
                 bail!(
@@ -302,7 +321,7 @@ impl WebpackLoadersProcessedAsset {
                 );
             };
             let loader_names: Vec<RcStr> = loaders.iter().map(|l| l.loader.clone()).collect();
-            let config_value = evaluate_webpack_loader(WebpackLoaderContext {
+            let config_value = turbo_tasks::read!(evaluate_webpack_loader(WebpackLoaderContext {
                 entries,
                 cwd: project_path.clone(),
                 env: *env,
@@ -317,14 +336,14 @@ impl WebpackLoadersProcessedAsset {
                     ResolvedVc::cell(content),
                     // We need to pass the query string to the loader
                     ResolvedVc::cell(resource_path.to_string().into()),
-                    ResolvedVc::cell(self.source.ident().await?.query.to_string().into()),
+                    ResolvedVc::cell(turbo_tasks::read!(self.source.ident())?.query.to_string().into()),
                     ResolvedVc::cell(json!(*loaders)),
                     ResolvedVc::cell(transform.source_maps.into()),
                 ],
-                additional_invalidation: Completion::immutable().to_resolved().await?,
+                additional_invalidation: turbo_tasks::read!(Completion::immutable().to_resolved())?,
                 loader_names,
-            })
-            .await?;
+            }))
+            ?;
 
             let Some(val) = &*config_value else {
                 // An error happened, which has already been converted into an issue.
@@ -350,13 +369,13 @@ impl WebpackLoadersProcessedAsset {
                     .map(|source_map| Rope::from(source_map.into_owned()))
             };
             let source_map =
-                resolve_source_map_sources(source_map.as_ref(), resource_fs_path).await?;
+                turbo_tasks::read!(resolve_source_map_sources(source_map.as_ref(), resource_fs_path))?;
 
             let file = match processed.source {
                 Either::Left(str) => File::from(str),
                 Either::Right(bytes) => File::from(bytes.binary),
             };
-            let assets = emitted_assets_to_virtual_sources(processed.assets).await?;
+            let assets = turbo_tasks::read!(emitted_assets_to_virtual_sources(processed.assets))?;
 
             let content =
                 AssetContent::File(FileContent::Content(file).resolved_cell()).resolved_cell();
@@ -371,8 +390,6 @@ impl WebpackLoadersProcessedAsset {
             }
             .cell())
         }
-        .instrument(webpack_span)
-        .await
     }
 }
 
@@ -380,7 +397,7 @@ impl WebpackLoadersProcessedAsset {
 pub(crate) async fn evaluate_webpack_loader(
     webpack_loader_context: WebpackLoaderContext,
 ) -> Result<Vc<Option<RcStr>>> {
-    custom_evaluate(webpack_loader_context).await
+    turbo_tasks::read!(custom_evaluate(webpack_loader_context))
 }
 
 #[derive(Deserialize, Debug, PartialEq, Eq, Encode, Decode)]
@@ -540,13 +557,8 @@ impl WebpackLoaderContext {
     }
 }
 
-impl EvaluateContext for WebpackLoaderContext {
-    type InfoMessage = InfoMessage;
-    type RequestMessage = RequestMessage;
-    type ResponseMessage = ResponseMessage;
-    type State = Vec<LogInfo>;
-
-    fn pool(&self) -> OperationVc<EvaluatePool> {
+impl WebpackLoaderContext {
+    fn pool_impl(&self) -> OperationVc<EvaluatePool> {
         get_evaluate_pool(
             self.entries,
             self.cwd.clone(),
@@ -563,43 +575,30 @@ impl EvaluateContext for WebpackLoaderContext {
         )
     }
 
-    fn args(&self) -> &[ResolvedVc<serde_json::Value>] {
-        &self.args
-    }
-
-    fn cwd(&self) -> Vc<turbo_tasks_fs::FileSystemPath> {
-        self.cwd.clone().cell()
-    }
-
-    fn keep_alive(&self) -> bool {
-        true
-    }
-
-    fn crash_context_prefix(&self) -> Option<RcStr> {
-        self.loader_chain_description()
-    }
-
-    async fn emit_error(&self, error: StructuredError, pool: &EvaluatePool) -> Result<()> {
-        EvaluationIssue {
-            error,
-            source: IssueSource::from_source_only(self.context_source_for_issue),
-            assets_for_source_mapping: pool.assets_for_source_mapping,
-            assets_root: pool.assets_root.clone(),
-            root_path: self.chunking_context.root_path().owned().await?,
-            detail: self.loader_chain_description(),
+    turbo_tasks::dual_fn! {
+        fn emit_error_impl(&self, error: StructuredError, pool: &EvaluatePool) -> Result<()> {
+            EvaluationIssue {
+                error,
+                source: IssueSource::from_source_only(self.context_source_for_issue),
+                assets_for_source_mapping: pool.assets_for_source_mapping,
+                assets_root: pool.assets_root.clone(),
+                root_path: turbo_tasks::read!(self.chunking_context.root_path().owned())?,
+                detail: self.loader_chain_description(),
+            }
+            .resolved_cell()
+            .emit();
+            Ok(())
         }
-        .resolved_cell()
-        .emit();
-        Ok(())
     }
 
-    async fn info(
-        &self,
-        state: &mut Self::State,
-        data: Self::InfoMessage,
-        pool: &EvaluatePool,
-    ) -> Result<()> {
-        match data {
+    turbo_tasks::dual_fn! {
+        fn info_impl(
+            &self,
+            state: &mut Vec<LogInfo>,
+            data: InfoMessage,
+            pool: &EvaluatePool,
+        ) -> Result<()> {
+            match data {
             InfoMessage::Dependencies {
                 env_variables,
                 file_paths,
@@ -616,28 +615,56 @@ impl EvaluateContext for WebpackLoaderContext {
 
                     // Track all the subscriptions in parallel, since certain loaders like tailwind
                     // might add thousands of subscriptions.
-                    let env_subscriptions = env_variables
-                        .iter()
-                        .map(|e| self.env.read(e.clone()))
-                        .try_join();
-                    let file_subscriptions = file_paths
-                        .iter()
-                        .map(|p| async move { self.cwd.join(p)?.read().await })
-                        .try_join();
-                    let directory_subscriptions = directories
-                        .iter()
-                        .map(|(dir, glob)| async move {
-                            self.cwd
-                                .join(dir)?
-                                .track_glob(Glob::new(glob.clone(), GlobOptions::default()), false)
-                                .await
-                        })
-                        .try_join();
-                    try_join!(
-                        env_subscriptions,
-                        file_subscriptions,
-                        directory_subscriptions
-                    )?;
+                    #[cfg(not(feature = "sync"))]
+                    {
+                        let env_subscriptions = env_variables
+                            .iter()
+                            .map(|e| self.env.read(e.clone()))
+                            .try_join();
+                        let file_subscriptions = file_paths
+                            .iter()
+                            .map(|p| async move { turbo_tasks::read!(self.cwd.join(p)?.read()) })
+                            .try_join();
+                        let directory_subscriptions = directories
+                            .iter()
+                            .map(|(dir, glob)| async move {
+                                turbo_tasks::read!(self.cwd.join(dir)?.track_glob(
+                                    Glob::new(glob.clone(), GlobOptions::default()),
+                                    false
+                                ))
+                            })
+                            .try_join();
+                        try_join!(
+                            env_subscriptions,
+                            file_subscriptions,
+                            directory_subscriptions
+                        )?;
+                    }
+                    // Sync build: collect the `Vc`s first (path joins are plain
+                    // `Result`s) and fan each group out in parallel.
+                    #[cfg(feature = "sync")]
+                    {
+                        let env_subscriptions: Vec<_> = env_variables
+                            .iter()
+                            .map(|e| self.env.read(e.clone()))
+                            .collect();
+                        let file_subscriptions: Vec<_> = file_paths
+                            .iter()
+                            .map(|p| Ok(self.cwd.join(p)?.read()))
+                            .collect::<Result<_>>()?;
+                        let directory_subscriptions: Vec<_> = directories
+                            .iter()
+                            .map(|(dir, glob)| {
+                                Ok(self.cwd.join(dir)?.track_glob(
+                                    Glob::new(glob.clone(), GlobOptions::default()),
+                                    false,
+                                ))
+                            })
+                            .collect::<Result<_>>()?;
+                        turbo_tasks::parallel!(env_subscriptions)?;
+                        turbo_tasks::parallel!(file_subscriptions)?;
+                        turbo_tasks::parallel!(directory_subscriptions)?;
+                    }
 
                     for build_path in build_file_paths {
                         let build_path = self.cwd.join(&build_path)?;
@@ -657,7 +684,7 @@ impl EvaluateContext for WebpackLoaderContext {
                     severity,
                     assets_for_source_mapping: pool.assets_for_source_mapping,
                     assets_root: pool.assets_root.clone(),
-                    project_dir: self.chunking_context.root_path().owned().await?,
+                    project_dir: turbo_tasks::read!(self.chunking_context.root_path().owned())?,
                 }
                 .resolved_cell()
                 .emit();
@@ -666,16 +693,13 @@ impl EvaluateContext for WebpackLoaderContext {
                 state.extend(logs);
             }
         }
-        Ok(())
+            Ok(())
+        }
     }
 
-    async fn request(
-        &self,
-        _state: &mut Self::State,
-        data: Self::RequestMessage,
-        _pool: &EvaluatePool,
-    ) -> Result<Self::ResponseMessage> {
-        match data {
+    turbo_tasks::dual_fn! {
+        fn request_impl(&self, data: RequestMessage) -> Result<ResponseMessage> {
+            match data {
             RequestMessage::Resolve {
                 options: webpack_options,
                 lookup_path,
@@ -697,28 +721,28 @@ impl EvaluateContext for WebpackLoaderContext {
                     options,
                 );
 
-                if let Some(source) = resolved.await?.first_source() {
-                    if let Some(path) = self.cwd.get_relative_path_to(&source.ident().await?.path) {
+                if let Some(source) = turbo_tasks::read!(resolved)?.first_source() {
+                    if let Some(path) = self.cwd.get_relative_path_to(&turbo_tasks::read!(source.ident())?.path) {
                         Ok(ResponseMessage::Resolve { path })
                     } else {
                         bail!(
                             "Resolving {} in {} ends up on a different filesystem",
-                            request.to_string().await?,
-                            lookup_path.to_string_ref().await?
+                            turbo_tasks::read!(request.to_string())?,
+                            turbo_tasks::read!(lookup_path.to_string_ref())?
                         );
                     }
                 } else {
                     bail!(
                         "Unable to resolve {} in {}",
-                        request.to_string().await?,
-                        lookup_path.to_string_ref().await?
+                        turbo_tasks::read!(request.to_string())?,
+                        turbo_tasks::read!(lookup_path.to_string_ref())?
                     );
                 }
             }
             RequestMessage::TrackFileRead { file } => {
                 // Ignore result, we read on the JS side again to prevent some IPC overhead. Still
                 // await the read though to cover at least one class of race conditions.
-                let _ = &*self.cwd.join(&file)?.read().await?;
+                let _ = &*turbo_tasks::read!(self.cwd.join(&file)?.read())?;
                 Ok(ResponseMessage::TrackFileRead {})
             }
             RequestMessage::ImportModule {
@@ -729,20 +753,20 @@ impl EvaluateContext for WebpackLoaderContext {
 
                 let request_vc = Request::parse(Pattern::Constant(request.clone()));
                 let origin = PlainResolveOrigin::new(*self.asset_context, lookup_path.join("_")?);
-                let resolved = esm_resolve(
+                let resolved = turbo_tasks::read!(esm_resolve(
                     Vc::upcast(origin),
                     request_vc,
                     EcmaScriptModulesReferenceSubType::ImportModule,
                     ResolveErrorMode::Error,
                     Some(IssueSource::from_source_only(self.context_source_for_issue)),
-                )
-                .await?;
+                ))
+                ?;
 
-                let Some(module) = resolved.await?.first_module().await? else {
+                let Some(module) = turbo_tasks::read!(turbo_tasks::read!(resolved)?.first_module())? else {
                     bail!(
                         "importModule: unable to resolve {} in {}",
                         request,
-                        lookup_path.to_string_ref().await?
+                        turbo_tasks::read!(lookup_path.to_string_ref())?
                     );
                 };
 
@@ -757,13 +781,13 @@ impl EvaluateContext for WebpackLoaderContext {
                     false,
                     false,
                 );
-                let import_module_graph = ModuleGraph::from_graphs(vec![single_graph], None)
+                let import_module_graph = turbo_tasks::read!(ModuleGraph::from_graphs(vec![single_graph], None)
                     .connect()
-                    .to_resolved()
-                    .await?;
+                    .to_resolved())
+                    ?;
 
                 // Generate a full Node.js bundle using the real runtime
-                let entry_path = self
+                let entry_path = turbo_tasks::read!(self
                     .chunking_context
                     .chunk_path(
                         None,
@@ -771,8 +795,8 @@ impl EvaluateContext for WebpackLoaderContext {
                         Some(rcstr!("importModule")),
                         rcstr!(".js"),
                     )
-                    .owned()
-                    .await?;
+                    .owned())
+                    ?;
 
                 let bootstrap = self.chunking_context.root_entry_chunk_group_asset(
                     entry_path.clone(),
@@ -783,17 +807,17 @@ impl EvaluateContext for WebpackLoaderContext {
                 );
 
                 // Collect all internal assets as {path, code} pairs
-                let bootstrap_resolved = bootstrap.to_resolved().await?;
-                let all_assets = expand_output_assets(
+                let bootstrap_resolved = turbo_tasks::read!(bootstrap.to_resolved())?;
+                let all_assets = turbo_tasks::read!(expand_output_assets(
                     std::iter::once(ExpandOutputAssetsInput::Asset(bootstrap_resolved)),
                     true,
-                )
-                .await?;
-                let output_root = self.chunking_context.output_root().owned().await?;
+                ))
+                ?;
+                let output_root = turbo_tasks::read!(self.chunking_context.output_root().owned())?;
 
                 let mut chunks = Vec::new();
                 for asset in all_assets {
-                    let asset_path = asset.path().owned().await?;
+                    let asset_path = turbo_tasks::read!(asset.path().owned())?;
                     if !asset_path.is_inside_ref(&output_root) {
                         continue;
                     }
@@ -804,11 +828,11 @@ impl EvaluateContext for WebpackLoaderContext {
                     if rel_path.ends_with(".map") {
                         continue;
                     }
-                    let content = asset.content().await?;
+                    let content = turbo_tasks::read!(asset.content())?;
                     let AssetContent::File(file_vc) = *content else {
                         continue;
                     };
-                    let file_content = file_vc.await?;
+                    let file_content = turbo_tasks::read!(file_vc)?;
                     let FileContent::Content(file) = &*file_content else {
                         continue;
                     };
@@ -845,9 +869,11 @@ impl EvaluateContext for WebpackLoaderContext {
                 })
             }
         }
+        }
     }
 
-    async fn finish(&self, state: Self::State, pool: &EvaluatePool) -> Result<()> {
+    turbo_tasks::dual_fn! {
+        fn finish_impl(&self, state: Vec<LogInfo>, pool: &EvaluatePool) -> Result<()> {
         let has_errors = state.iter().any(|log| log.log_type == LogType::Error);
         let has_warnings = state.iter().any(|log| log.log_type == LogType::Warn);
         if has_errors || has_warnings {
@@ -875,12 +901,121 @@ impl EvaluateContext for WebpackLoaderContext {
                 },
                 assets_for_source_mapping: pool.assets_for_source_mapping,
                 assets_root: pool.assets_root.clone(),
-                project_dir: self.chunking_context.root_path().owned().await?,
+                project_dir: turbo_tasks::read!(self.chunking_context.root_path().owned())?,
             }
             .resolved_cell()
             .emit();
         }
-        Ok(())
+            Ok(())
+        }
+    }
+}
+
+#[cfg(not(feature = "sync"))]
+impl EvaluateContext for WebpackLoaderContext {
+    type InfoMessage = InfoMessage;
+    type RequestMessage = RequestMessage;
+    type ResponseMessage = ResponseMessage;
+    type State = Vec<LogInfo>;
+
+    fn pool(&self) -> OperationVc<EvaluatePool> {
+        self.pool_impl()
+    }
+
+    fn args(&self) -> &[ResolvedVc<serde_json::Value>] {
+        &self.args
+    }
+
+    fn cwd(&self) -> Vc<turbo_tasks_fs::FileSystemPath> {
+        self.cwd.clone().cell()
+    }
+
+    fn keep_alive(&self) -> bool {
+        true
+    }
+
+    fn crash_context_prefix(&self) -> Option<RcStr> {
+        self.loader_chain_description()
+    }
+
+    async fn emit_error(&self, error: StructuredError, pool: &EvaluatePool) -> Result<()> {
+        self.emit_error_impl(error, pool).await
+    }
+
+    async fn info(
+        &self,
+        state: &mut Self::State,
+        data: Self::InfoMessage,
+        pool: &EvaluatePool,
+    ) -> Result<()> {
+        self.info_impl(state, data, pool).await
+    }
+
+    async fn request(
+        &self,
+        _state: &mut Self::State,
+        data: Self::RequestMessage,
+        _pool: &EvaluatePool,
+    ) -> Result<Self::ResponseMessage> {
+        self.request_impl(data).await
+    }
+
+    async fn finish(&self, state: Self::State, pool: &EvaluatePool) -> Result<()> {
+        self.finish_impl(state, pool).await
+    }
+}
+
+#[cfg(feature = "sync")]
+impl EvaluateContext for WebpackLoaderContext {
+    type InfoMessage = InfoMessage;
+    type RequestMessage = RequestMessage;
+    type ResponseMessage = ResponseMessage;
+    type State = Vec<LogInfo>;
+
+    fn pool(&self) -> OperationVc<EvaluatePool> {
+        self.pool_impl()
+    }
+
+    fn args(&self) -> &[ResolvedVc<serde_json::Value>] {
+        &self.args
+    }
+
+    fn cwd(&self) -> Vc<turbo_tasks_fs::FileSystemPath> {
+        self.cwd.clone().cell()
+    }
+
+    fn keep_alive(&self) -> bool {
+        true
+    }
+
+    fn crash_context_prefix(&self) -> Option<RcStr> {
+        self.loader_chain_description()
+    }
+
+    fn emit_error(&self, error: StructuredError, pool: &EvaluatePool) -> Result<()> {
+        self.emit_error_impl(error, pool)
+    }
+
+    fn info(
+        &self,
+        state: &mut Self::State,
+        data: Self::InfoMessage,
+        pool: &EvaluatePool,
+    ) -> Result<()> {
+        self.info_impl(state, data, pool)
+    }
+
+    fn request(
+        &self,
+        _state: &mut Self::State,
+        data: Self::RequestMessage,
+        _pool: &EvaluatePool,
+    ) -> Result<Self::ResponseMessage> {
+        self.request_impl(data)
+    }
+
+    fn finish(&self, state: Self::State, pool: &EvaluatePool) -> Result<()> {
+        self.finish_impl(state, pool)
     }
 }
 
@@ -889,7 +1024,7 @@ async fn apply_webpack_resolve_options(
     resolve_options: Vc<ResolveOptions>,
     webpack_resolve_options: WebpackResolveOptions,
 ) -> Result<Vc<ResolveOptions>> {
-    let mut resolve_options = resolve_options.owned().await?;
+    let mut resolve_options = turbo_tasks::read!(resolve_options.owned())?;
     if let Some(alias_fields) = webpack_resolve_options.alias_fields {
         let mut old = resolve_options
             .in_package
@@ -974,6 +1109,22 @@ pub struct BuildDependencyIssue {
     pub source: IssueSource,
 }
 
+impl BuildDependencyIssue {
+    fn description_impl(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Line(vec![
+            StyledString::Text(rcstr!("The file at ")),
+            StyledString::Code(self.path.to_string().into()),
+            StyledString::Text(
+                " is a build dependency, which is not yet implemented.
+    Changing this file or any dependency will not be recognized and might require restarting the \
+                 server"
+                    .into(),
+            ),
+        ])))
+    }
+}
+
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for BuildDependencyIssue {
@@ -992,20 +1143,41 @@ impl Issue for BuildDependencyIssue {
     }
 
     async fn file_path(&self) -> Result<FileSystemPath> {
-        self.source.file_path().await
+        turbo_tasks::read!(self.source.file_path())
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
-        Ok(Some(StyledString::Line(vec![
-            StyledString::Text(rcstr!("The file at ")),
-            StyledString::Code(self.path.to_string().into()),
-            StyledString::Text(
-                " is a build dependency, which is not yet implemented.
-    Changing this file or any dependency will not be recognized and might require restarting the \
-                 server"
-                    .into(),
-            ),
-        ])))
+        self.description_impl()
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
+    }
+}
+
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for BuildDependencyIssue {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Warning
+    }
+
+    fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Build dependencies are not yet supported"
+        )))
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Unsupported
+    }
+
+    fn file_path(&self) -> Result<FileSystemPath> {
+        turbo_tasks::read!(self.source.file_path())
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
+        self.description_impl()
     }
 
     fn source(&self) -> Option<IssueSource> {
@@ -1023,11 +1195,28 @@ pub struct EvaluateEmittedErrorIssue {
     pub project_dir: FileSystemPath,
 }
 
+impl EvaluateEmittedErrorIssue {
+    turbo_tasks::dual_fn! {
+        fn description_impl(&self) -> Result<Option<StyledString>> {
+            Ok(Some(StyledString::Text(
+                turbo_tasks::read!(self.error.print(
+                    *self.assets_for_source_mapping,
+                    self.assets_root.clone(),
+                    self.project_dir.clone(),
+                    FormattingMode::Plain,
+                ))?
+                .into(),
+            )))
+        }
+    }
+}
+
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for EvaluateEmittedErrorIssue {
     async fn file_path(&self) -> Result<FileSystemPath> {
-        self.source.file_path().await
+        turbo_tasks::read!(self.source.file_path())
     }
 
     fn stage(&self) -> IssueStage {
@@ -1043,17 +1232,35 @@ impl Issue for EvaluateEmittedErrorIssue {
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
-        Ok(Some(StyledString::Text(
-            self.error
-                .print(
-                    *self.assets_for_source_mapping,
-                    self.assets_root.clone(),
-                    self.project_dir.clone(),
-                    FormattingMode::Plain,
-                )
-                .await?
-                .into(),
-        )))
+        self.description_impl().await
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
+    }
+}
+
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for EvaluateEmittedErrorIssue {
+    fn file_path(&self) -> Result<FileSystemPath> {
+        turbo_tasks::read!(self.source.file_path())
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        self.severity
+    }
+
+    fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!("Issue while running loader")))
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
+        self.description_impl()
     }
 
     fn source(&self) -> Option<IssueSource> {
@@ -1072,28 +1279,8 @@ pub struct EvaluateErrorLoggingIssue {
     pub project_dir: FileSystemPath,
 }
 
-#[async_trait]
-#[turbo_tasks::value_impl]
-impl Issue for EvaluateErrorLoggingIssue {
-    async fn file_path(&self) -> Result<FileSystemPath> {
-        self.source.file_path().await
-    }
-
-    fn stage(&self) -> IssueStage {
-        IssueStage::Transform
-    }
-
-    fn severity(&self) -> IssueSeverity {
-        self.severity
-    }
-
-    async fn title(&self) -> Result<StyledString> {
-        Ok(StyledString::Text(rcstr!(
-            "Error logging while running loader"
-        )))
-    }
-
-    async fn description(&self) -> Result<Option<StyledString>> {
+impl EvaluateErrorLoggingIssue {
+    fn description_impl(&self) -> Result<Option<StyledString>> {
         fn fmt_args(prefix: String, args: &[JsonValue]) -> String {
             let mut iter = args.iter();
             let Some(first) = iter.next() else {
@@ -1128,6 +1315,63 @@ impl Issue for EvaluateErrorLoggingIssue {
             })
             .collect::<Vec<_>>();
         Ok(Some(StyledString::Stack(lines)))
+    }
+}
+
+#[cfg(not(feature = "sync"))]
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for EvaluateErrorLoggingIssue {
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        turbo_tasks::read!(self.source.file_path())
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        self.severity
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Error logging while running loader"
+        )))
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        self.description_impl()
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
+    }
+}
+
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for EvaluateErrorLoggingIssue {
+    fn file_path(&self) -> Result<FileSystemPath> {
+        turbo_tasks::read!(self.source.file_path())
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        self.severity
+    }
+
+    fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Error logging while running loader"
+        )))
+    }
+
+    fn description(&self) -> Result<Option<StyledString>> {
+        self.description_impl()
     }
 
     fn source(&self) -> Option<IssueSource> {

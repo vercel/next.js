@@ -17,4 +17,9 @@ bincode = { workspace = true }
 bytes = { workspace = true }
 futures = { workspace = true }
 serde = { workspace = true }
-turbo-tasks = { workspace = true }
+turbo-tasks = { path = "../turbo-tasks", default-features = false }
+
+[features]
+default = ["tokio_runtime"]
+tokio_runtime = ["turbo-tasks/tokio_runtime"]
+sync = ["turbo-tasks/sync"]

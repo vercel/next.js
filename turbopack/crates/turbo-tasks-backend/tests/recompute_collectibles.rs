@@ -5,14 +5,14 @@
 use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    CollectiblesSource, ResolvedVc, State, ValueToString, Vc, emit,
+    CollectiblesSource, ResolvedVc, State, ValueToString, Vc, emit, read,
     unmark_top_level_task_may_leak_eventually_consistent_state,
 };
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
 async fn recompute() {
     run_once(&REGISTRATION, || async {
         unmark_top_level_task_may_leak_eventually_consistent_state();
@@ -86,7 +86,7 @@ async fn inner_compute(
     input2: ResolvedVc<ChangingInput>,
 ) -> Result<Vc<u32>> {
     println!("inner_compute()");
-    Ok(inner_compute2(*input, *input2.await?.state.get()))
+    Ok(inner_compute2(*input, *read!(input2)?.state.get()))
 }
 
 #[turbo_tasks::function]
@@ -95,7 +95,7 @@ async fn inner_compute2(input: Vc<ChangingInput>, innerness: u32) -> Result<Vc<u
     if innerness > 0 {
         return Ok(inner_compute2(input, innerness - 1));
     }
-    let value = *input.await?.state.get();
+    let value = *read!(input)?.state.get();
     let collectible: ResolvedVc<Box<dyn ValueToString>> =
         ResolvedVc::upcast(Collectible { value }.resolved_cell());
     emit(collectible);
@@ -114,13 +114,13 @@ async fn compute(
         return Ok(compute(*input, *input2, innerness - 1));
     }
     let operation = inner_compute(input, input2);
-    let value = *operation.connect().await?;
+    let value = *read!(operation.connect())?;
     let collectibles = operation.peek_collectibles::<Box<dyn ValueToString>>();
     if collectibles.len() != 1 {
         bail!("expected 1 collectible, found {}", collectibles.len());
     }
     let first = *collectibles.iter().next().unwrap();
-    let collectible = first.to_string().await?;
+    let collectible = read!(first.to_string())?;
     Ok(Output {
         value,
         collectible: collectible.to_string(),

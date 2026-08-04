@@ -77,7 +77,8 @@ fn match_metadata_file<'a>(
     })
 }
 
-pub(crate) async fn get_content_type(path: FileSystemPath) -> Result<String> {
+turbo_tasks::dual_fn! {
+pub(crate) fn get_content_type(path: FileSystemPath) -> Result<String> {
     let stem = path.file_stem();
     let mut ext = path.extension();
 
@@ -108,6 +109,7 @@ pub(crate) async fn get_content_type(path: FileSystemPath) -> Result<String> {
     }
 
     Ok("text/plain".to_string())
+}
 }
 
 pub fn match_local_metadata_file<'a>(

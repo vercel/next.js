@@ -183,7 +183,7 @@ impl AssetIdent {
         let mut name = if let Some(inner) = context_path.get_path_to(path) {
             escape_file_path(inner)
         } else {
-            escape_file_path(&self.path.to_string_ref().await?)
+            escape_file_path(&turbo_tasks::read!(self.path.to_string_ref())?)
         };
         let removed_extension = name.ends_with(&*expected_extension);
         if removed_extension {
@@ -228,7 +228,7 @@ impl AssetIdent {
         for (key, ident) in assets.iter() {
             2_u8.deterministic_hash(&mut hasher);
             key.deterministic_hash(&mut hasher);
-            ident.to_string().await?.deterministic_hash(&mut hasher);
+            turbo_tasks::read!(ident.to_string())?.deterministic_hash(&mut hasher);
             has_hash = true;
         }
         for modifier in modifiers.iter() {
@@ -337,8 +337,7 @@ impl ValueToString for AssetIdent {
     async fn to_string(&self) -> Result<Vc<RcStr>> {
         // The query string/fragment is either empty or non-empty starting with
         // `?` so we can just concat
-        let mut s = turbofmt!("{}{}{}", self.path, self.query, self.fragment)
-            .await?
+        let mut s = turbo_tasks::read!(turbofmt!("{}{}{}", self.path, self.query, self.fragment))?
             .into_owned();
 
         if !self.assets.is_empty() {
@@ -349,7 +348,7 @@ impl ValueToString for AssetIdent {
                     s.push(',');
                 }
 
-                let asset_str = asset.to_string().await?;
+                let asset_str = turbo_tasks::read!(asset.to_string())?;
                 write!(s, " {key} => {asset_str:?}")?;
             }
 
@@ -410,7 +409,7 @@ pub mod tests {
 
     use crate::ident::AssetIdent;
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[turbo_tasks::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_output_name_escaping() {
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),
@@ -420,12 +419,14 @@ pub mod tests {
             #[turbo_tasks::function(operation, root)]
             async fn output_name_operation() -> anyhow::Result<Vc<RcStr>> {
                 let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
-                let root = fs.root().owned().await?;
+                let root = turbo_tasks::read!(fs.root().owned())?;
 
                 let asset_ident = AssetIdent::from_path(root.join("a:b?c#d.js")?).into_vc();
-                let output_name = asset_ident
-                    .output_name(root, Some(rcstr!("prefix")), rcstr!(".js"))
-                    .await?;
+                let output_name = turbo_tasks::read!(asset_ident.output_name(
+                    root,
+                    Some(rcstr!("prefix")),
+                    rcstr!(".js")
+                ))?;
                 Ok(Vc::cell((*output_name).clone()))
             }
 

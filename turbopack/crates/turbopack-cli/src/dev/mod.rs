@@ -273,11 +273,11 @@ async fn source(
             .unwrap()
             .into(),
     );
-    let root_path = fs.root().owned().await?;
+    let root_path = turbo_tasks::read!(fs.root().owned())?;
     let project_path = root_path.join(&project_relative)?;
 
     let env = load_env(root_path.clone());
-    let build_output_root = output_fs.root().await?.join(OUTPUT_DIR)?;
+    let build_output_root = turbo_tasks::read!(output_fs.root())?.join(OUTPUT_DIR)?;
 
     let build_output_root_to_root_path = project_path
         .join(OUTPUT_DIR)?
@@ -292,7 +292,7 @@ async fn source(
         build_output_root.clone(),
         build_output_root.join("chunks")?,
         build_output_root.join("assets")?,
-        node_build_environment().to_resolved().await?,
+        turbo_tasks::read!(node_build_environment().to_resolved())?,
         RuntimeType::Development,
     )
     .build();
@@ -306,7 +306,7 @@ async fn source(
     );
 
     let server_fs = Vc::upcast::<Box<dyn FileSystem>>(ServerFileSystem::new());
-    let server_root = server_fs.root().owned().await?;
+    let server_root = turbo_tasks::read!(server_fs.root().owned())?;
     let entry_requests = entry_requests
         .iter()
         .map(|r| match r {
@@ -325,28 +325,28 @@ async fn source(
         })
         .collect();
 
-    let web_source: ResolvedVc<Box<dyn ContentSource>> = create_web_entry_source(
-        root_path.clone(),
-        execution_context,
-        entry_requests,
-        server_root,
-        rcstr!("/ROOT"),
-        env,
-        eager_compile,
-        NodeEnv::Development.cell(),
-        Default::default(),
-        browserslist_query,
-    )
-    .to_resolved()
-    .await?;
-    let static_source = ResolvedVc::upcast(
+    let web_source: ResolvedVc<Box<dyn ContentSource>> = turbo_tasks::read!(
+        create_web_entry_source(
+            root_path.clone(),
+            execution_context,
+            entry_requests,
+            server_root,
+            rcstr!("/ROOT"),
+            env,
+            eager_compile,
+            NodeEnv::Development.cell(),
+            Default::default(),
+            browserslist_query,
+        )
+        .to_resolved()
+    )?;
+    let static_source = ResolvedVc::upcast(turbo_tasks::read!(
         StaticAssetsContentSource::new(Default::default(), project_path.join("public")?)
             .to_resolved()
-            .await?,
-    );
-    let main_source = CombinedContentSource::new(vec![static_source, web_source])
-        .to_resolved()
-        .await?;
+    )?);
+    let main_source = turbo_tasks::read!(
+        CombinedContentSource::new(vec![static_source, web_source]).to_resolved()
+    )?;
     let introspect = ResolvedVc::upcast(
         IntrospectionSource {
             roots: FxHashSet::from_iter([ResolvedVc::upcast(main_source)]),
@@ -447,7 +447,7 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
         server = server.allow_retry(args.allow_retry);
     }
 
-    let server = server.build().await?;
+    let server = turbo_tasks::read!(server.build())?;
 
     {
         let addr = &server.addr;
@@ -498,7 +498,7 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
                 tasks,
                 reasons,
                 ..
-            }) = update_future.await
+            }) = turbo_tasks::read!(update_future)
             {
                 progress_counter = 0;
                 match (args.common.log_detail, !reasons.is_empty()) {
@@ -557,7 +557,9 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
         }
     };
 
-    join!(stats_future, async { server.future.await.unwrap() }).await;
+    turbo_tasks::read!(join!(stats_future, async {
+        turbo_tasks::read!(server.future).unwrap()
+    }));
 
     Ok(())
 }
@@ -575,7 +577,7 @@ async fn profile_timeout<T>(
 
     futures::pin_mut!(future);
     loop {
-        match tokio::time::timeout(PROFILE_EXIT_TIMEOUT, &mut future).await {
+        match turbo_tasks::read!(tokio::time::timeout(PROFILE_EXIT_TIMEOUT, &mut future)) {
             Ok(res) => return res,
             Err(_) => {
                 if tt.get_in_progress_count() == 0 {

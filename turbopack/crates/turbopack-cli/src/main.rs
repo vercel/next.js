@@ -1,24 +1,41 @@
-use std::{cell::RefCell, path::Path, time::Instant};
-
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::Parser;
-use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
-use turbo_tasks::parallel::available_parallelism;
 use turbo_tasks_malloc::TurboMalloc;
 use turbopack_cli::arguments::Arguments;
-use turbopack_trace_utils::{
-    exit::ExitHandler,
-    filter_layer::FilterLayer,
-    raw_trace::RawTraceLayer,
-    trace_writer::TraceWriter,
-    tracing_presets::{
-        TRACING_OVERVIEW_TARGETS, TRACING_TURBO_TASKS_TARGETS, TRACING_TURBOPACK_TARGETS,
+#[cfg(feature = "tokio_runtime")]
+use {
+    anyhow::Context,
+    std::{cell::RefCell, path::Path, time::Instant},
+    tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt},
+    turbo_tasks::parallel::available_parallelism,
+    turbopack_trace_utils::{
+        exit::ExitHandler,
+        filter_layer::FilterLayer,
+        raw_trace::RawTraceLayer,
+        trace_writer::TraceWriter,
+        tracing_presets::{
+            TRACING_OVERVIEW_TARGETS, TRACING_TURBO_TASKS_TARGETS, TRACING_TURBOPACK_TARGETS,
+        },
     },
 };
 
 #[global_allocator]
 static ALLOC: TurboMalloc = TurboMalloc;
 
+/// Sync build: no tokio runtime, no async. `turbopack build` runs directly on the
+/// synchronous engine; the live dev server is async-only and returns an error.
+#[cfg(feature = "sync")]
+fn main() -> Result<()> {
+    match Arguments::parse() {
+        Arguments::Build(args) => turbopack_cli::build::build(&args),
+        Arguments::Dev(_) => anyhow::bail!(
+            "`turbopack dev` (the live dev server) requires the async runtime and is not \
+             available in the no-tokio sync build; use `turbopack build`"
+        ),
+    }
+}
+
+#[cfg(feature = "tokio_runtime")]
 fn main() {
     thread_local! {
         static LAST_SWC_ATOM_GC_TIME: RefCell<Option<Instant>> = const { RefCell::new(None) };
@@ -63,6 +80,7 @@ fn main() {
     rt.build().unwrap().block_on(main_inner(args)).unwrap();
 }
 
+#[cfg(feature = "tokio_runtime")]
 async fn main_inner(args: Arguments) -> Result<()> {
     let exit_handler = ExitHandler::listen();
 
@@ -98,14 +116,15 @@ async fn main_inner(args: Arguments) -> Result<()> {
         let (trace_writer, guard) = TraceWriter::new(trace_writer);
         let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
 
-        exit_handler
-            .on_exit(async move { tokio::task::spawn_blocking(|| drop(guard)).await.unwrap() });
+        exit_handler.on_exit(async move {
+            turbo_tasks::read!(tokio::task::spawn_blocking(|| drop(guard))).unwrap()
+        });
 
         subscriber.init();
     }
 
     match args {
-        Arguments::Build(args) => turbopack_cli::build::build(&args).await,
-        Arguments::Dev(args) => turbopack_cli::dev::start_server(&args).await,
+        Arguments::Build(args) => turbo_tasks::read!(turbopack_cli::build::build(&args)),
+        Arguments::Dev(args) => turbo_tasks::read!(turbopack_cli::dev::start_server(&args)),
     }
 }

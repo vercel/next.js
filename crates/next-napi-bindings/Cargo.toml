@@ -8,6 +8,37 @@ publish = false
 crate-type = ["cdylib"]
 
 [features]
+default = ["tokio_runtime"]
+# Async (production/dev) build: the full napi surface on the tokio-backed engine.
+tokio_runtime = [
+    "next-api/tokio_runtime",
+    "next-api/worker_pool",
+    "next-core/tokio_runtime",
+    "next-build/tokio_runtime",
+    "turbo-tasks/tokio_runtime",
+    "turbo-tasks-backend/tokio_runtime",
+    "turbo-tasks-fs/tokio_runtime",
+    "turbopack-core/tokio_runtime",
+    "turbopack-ecmascript-hmr-protocol/tokio_runtime",
+    "turbopack-node/tokio_runtime",
+    "turbopack-node/worker_pool",
+    # Dev trace server (async-only); excluded from the sync build.
+    "dep:turbopack-trace-server",
+]
+# no-tokio-core `next build`: only the build-path napi methods, driven by run_sync.
+# The node pool uses ChildProcesses (process_pool), not worker_pool (napi-tsfn).
+sync = [
+    "next-api/sync",
+    "next-api/process_pool",
+    "next-core/sync",
+    "next-build/sync",
+    "turbo-tasks/sync",
+    "turbo-tasks-backend/sync",
+    "turbo-tasks-fs/sync",
+    "turbopack-core/sync",
+    "turbopack-ecmascript-hmr-protocol/sync",
+    "turbopack-node/sync",
+]
 image-webp = ["next-core/image-webp"]
 image-avif = ["next-core/image-avif"]
 # Enable all the available image codec support.
@@ -93,13 +124,13 @@ lightningcss = { workspace = true }
 swc_plugin_backend_wasmtime = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 turbo-rcstr = { workspace = true, features = ["napi"] }
-turbo-tasks = { workspace = true }
-turbo-tasks-backend = { workspace = true }
-turbo-tasks-fs = { workspace = true }
+turbo-tasks = { path = "../../turbopack/crates/turbo-tasks", default-features = false }
+turbo-tasks-backend = { path = "../../turbopack/crates/turbo-tasks-backend", default-features = false }
+turbo-tasks-fs = { path = "../../turbopack/crates/turbo-tasks-fs", default-features = false }
 turbo-unix-path = { workspace = true }
-next-api = { workspace = true, features = ["worker_pool"] }
-next-build = { workspace = true }
-next-core = { workspace = true }
+next-api = { path = "../next-api", default-features = false }
+next-build = { path = "../next-build", default-features = false }
+next-core = { path = "../next-core", default-features = false }
 
 mdxjs = { workspace = true, features = ["serializable"] }
 
@@ -107,11 +138,11 @@ turbo-tasks-malloc = { workspace = true, default-features = false, features = [
     "custom_allocator",
 ] }
 
-turbopack-core = { workspace = true }
-turbopack-ecmascript-hmr-protocol = { workspace = true }
+turbopack-core = { path = "../../turbopack/crates/turbopack-core", default-features = false }
+turbopack-ecmascript-hmr-protocol = { path = "../../turbopack/crates/turbopack-ecmascript-hmr-protocol", default-features = false }
 turbopack-trace-utils = { workspace = true }
-turbopack-trace-server = { workspace = true }
-turbopack-node = { workspace = true, default-features = false, features = ["worker_pool"] }
+turbopack-trace-server = { workspace = true, optional = true }
+turbopack-node = { path = "../../turbopack/crates/turbopack-node", default-features = false }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = "0.60"

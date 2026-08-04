@@ -18,8 +18,10 @@ pub(super) async fn build_stylesheet(
     fallbacks: Vc<FontFallbacks>,
     css_properties: Vc<FontCssProperties>,
 ) -> Result<Vc<RcStr>> {
-    let scoped_font_family =
-        get_scoped_font_family(FontFamilyType::WebFont, options.font_family().await?);
+    let scoped_font_family = get_scoped_font_family(
+        FontFamilyType::WebFont,
+        turbo_tasks::read!(options.font_family())?,
+    );
 
     Ok(Vc::cell(
         formatdoc!(
@@ -28,10 +30,13 @@ pub(super) async fn build_stylesheet(
             {}
             {}
         "#,
-            *build_font_face_definitions(scoped_font_family, options, fallbacks.has_size_adjust())
-                .await?,
-            (*build_fallback_definition(fallbacks).await?),
-            *build_font_class_rules(css_properties).await?
+            *turbo_tasks::read!(build_font_face_definitions(
+                scoped_font_family,
+                options,
+                fallbacks.has_size_adjust()
+            ))?,
+            (*turbo_tasks::read!(build_fallback_definition(fallbacks))?),
+            *turbo_tasks::read!(build_font_class_rules(css_properties))?
         )
         .into(),
     ))
@@ -44,7 +49,7 @@ pub(super) async fn build_font_face_definitions(
     options: Vc<NextFontLocalOptions>,
     has_size_adjust: Vc<bool>,
 ) -> Result<Vc<RcStr>> {
-    let options = &*options.await?;
+    let options = &*turbo_tasks::read!(options)?;
 
     let mut definitions = String::new();
     let fonts = match &options.fonts {
@@ -52,7 +57,7 @@ pub(super) async fn build_font_face_definitions(
         FontDescriptors::Many(d) => d.clone(),
     };
 
-    let has_size_adjust = *has_size_adjust.await?;
+    let has_size_adjust = *turbo_tasks::read!(has_size_adjust)?;
 
     for font in fonts {
         let query = NextFontLocalFontFileOptions {

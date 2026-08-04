@@ -17,13 +17,16 @@ pub(super) async fn build_font_family_string(
     let mut font_families = vec![
         format!(
             "'{}'",
-            get_scoped_font_family(FontFamilyType::WebFont, options.font_family().await?)
+            get_scoped_font_family(
+                FontFamilyType::WebFont,
+                turbo_tasks::read!(options.font_family())?
+            )
         )
         .into(),
     ];
 
-    for font_fallback in &*font_fallbacks.await? {
-        match &*font_fallback.await? {
+    for font_fallback in &*turbo_tasks::read!(font_fallbacks)? {
+        match &*turbo_tasks::read!(font_fallback)? {
             FontFallback::Automatic(fallback) => {
                 font_families.push(format!("'{}'", fallback.scoped_font_family).into());
             }

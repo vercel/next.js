@@ -71,7 +71,8 @@ struct HasPath {
     path: RcStr,
 }
 
-pub(crate) async fn can_use_next_font(project_path: FileSystemPath, query: &RcStr) -> Result<bool> {
+turbo_tasks::dual_fn! {
+pub(crate) fn can_use_next_font(project_path: FileSystemPath, query: &RcStr) -> Result<bool> {
     let query_map = qstring::QString::from(query.as_str());
     let request: HasPath = parse_json_with_source_context(
         query_map
@@ -104,4 +105,5 @@ pub(crate) async fn can_use_next_font(project_path: FileSystemPath, query: &RcSt
         .emit();
     }
     Ok(can_use)
+}
 }

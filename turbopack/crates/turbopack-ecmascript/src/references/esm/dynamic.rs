@@ -15,8 +15,7 @@ use turbopack_core::{
     reference::ModuleReference,
     reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{
-        BindingUsage, ExportUsage, ModuleResolveResult, ResolveErrorMode,
-        origin::{ResolveOrigin, ResolveOriginExt},
+        BindingUsage, ExportUsage, ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin,
         parse::Request,
     },
 };
@@ -28,6 +27,7 @@ use crate::{
     create_visitor,
     references::{
         AstPath,
+        esm::base::transitioned_origin,
         pattern_mapping::{PatternMapping, ResolveType},
     },
 };
@@ -49,8 +49,9 @@ pub struct EsmAsyncAssetReference {
 }
 
 impl EsmAsyncAssetReference {
+    turbo_tasks::dual_fn! {
     #[allow(clippy::too_many_arguments)]
-    pub async fn new(
+    pub fn new(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
         issue_source: IssueSource,
@@ -63,11 +64,7 @@ impl EsmAsyncAssetReference {
         // Apply any annotation-driven transition eagerly so the stored origin is final and the
         // `annotations` don't need to be retained on the reference.
         let origin = if let Some(transition) = annotations.transition() {
-            origin
-                .with_transition(transition.into())
-                .await?
-                .to_resolved()
-                .await?
+            turbo_tasks::read!(transitioned_origin(origin, transition.into()))?
         } else {
             origin
         };
@@ -81,6 +78,7 @@ impl EsmAsyncAssetReference {
             resolve_override,
         })
     }
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -91,14 +89,13 @@ impl ModuleReference for EsmAsyncAssetReference {
             return Ok(*ModuleResolveResult::module(*resolved));
         }
 
-        esm_resolve(
+        turbo_tasks::read!(esm_resolve(
             *self.origin,
             *self.request,
             EcmaScriptModulesReferenceSubType::DynamicImport,
             self.error_mode,
             Some(self.issue_source),
-        )
-        .await
+        ))
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
@@ -142,24 +139,25 @@ pub struct EsmAsyncAssetReferenceCodeGen {
 }
 
 impl EsmAsyncAssetReferenceCodeGen {
-    pub async fn code_generation(
+    turbo_tasks::dual_fn! {
+    pub fn code_generation(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
-        let reference = self.reference.await?;
+        let reference = turbo_tasks::read!(self.reference)?;
 
-        let pm = PatternMapping::resolve_request(
+        let pm = turbo_tasks::read!(PatternMapping::resolve_request(
             *reference.request,
             *reference.origin,
             chunking_context,
             self.reference.resolve_reference(),
-            if chunking_context.chunk_loading().await?.can_split_async() {
+            if turbo_tasks::read!(chunking_context.chunk_loading())?.can_split_async() {
                 ResolveType::AsyncChunkLoader
             } else {
                 ResolveType::ChunkItem
             },
-        )
-        .await?;
+        ))
+        ?;
 
         let import_externals = reference.import_externals;
 
@@ -200,5 +198,6 @@ impl EsmAsyncAssetReferenceCodeGen {
         });
 
         Ok(CodeGeneration::visitors(vec![visitor]))
+    }
     }
 }

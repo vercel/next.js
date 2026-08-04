@@ -54,16 +54,18 @@ impl Asset for FontManifest {
             app_dir,
             ..
         } = self;
-        let all_client_output_assets = all_assets_from_entries(**client_assets).await?;
+        let all_client_output_assets =
+            turbo_tasks::read!(all_assets_from_entries(**client_assets))?;
 
         // `_next` gets added again later, so we "strip" it here via
         // `get_font_paths_from_root`.
-        let font_paths: Vec<String> =
-            get_font_paths_from_root(client_root, all_client_output_assets)
-                .await?
-                .iter()
-                .filter_map(|p| p.split("_next/").last().map(|f| f.to_string()))
-                .collect();
+        let font_paths: Vec<String> = turbo_tasks::read!(get_font_paths_from_root(
+            client_root,
+            all_client_output_assets
+        ))?
+        .iter()
+        .filter_map(|p| p.split("_next/").last().map(|f| f.to_string()))
+        .collect();
 
         let has_fonts = !font_paths.is_empty();
         let using_size_adjust = font_paths.iter().any(|path| path.contains("-s"));
@@ -77,7 +79,7 @@ impl Asset for FontManifest {
         let next_font_manifest = if !has_fonts {
             Default::default()
         } else if *app_dir {
-            let page_path = turbofmt!("{dir}{original_name}").await?;
+            let page_path = turbo_tasks::read!(turbofmt!("{dir}{original_name}"))?;
 
             NextFontManifest {
                 app: [(page_path, font_paths)].into_iter().collect(),

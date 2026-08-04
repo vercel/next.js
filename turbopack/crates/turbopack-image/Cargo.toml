@@ -14,6 +14,9 @@ bench = false
 # [NOTE]: Before enable this, ensure this can build all of the target platforms we support.
 avif = ["image/avif"]
 webp = ["image/webp"]
+default = ["tokio_runtime"]
+tokio_runtime = ["turbo-tasks/tokio_runtime", "turbo-tasks-fs/tokio_runtime", "turbopack-core/tokio_runtime"]
+sync = ["turbo-tasks/sync", "turbo-tasks-fs/sync", "turbopack-core/sync"]
 
 [lints]
 workspace = true
@@ -37,7 +40,7 @@ regex = { workspace = true }
 serde = { workspace = true }
 turbo-bincode = { workspace = true }
 turbo-rcstr = { workspace = true }
-turbo-tasks = { workspace = true }
-turbo-tasks-fs = { workspace = true }
-turbopack-core = { workspace = true }
+turbo-tasks = { path = "../turbo-tasks", default-features = false }
+turbo-tasks-fs = { path = "../turbo-tasks-fs", default-features = false }
+turbopack-core = { path = "../turbopack-core", default-features = false }
 

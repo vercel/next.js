@@ -54,7 +54,8 @@ pub mod parse;
 pub mod react_compiler;
 pub mod rspack;
 pub mod transform;
-#[cfg(not(target_arch = "wasm32"))]
+// Dev trace server is async-only (tokio) and not part of a sync `next build`.
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "sync")))]
 pub mod turbo_trace_server;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod turbopack;

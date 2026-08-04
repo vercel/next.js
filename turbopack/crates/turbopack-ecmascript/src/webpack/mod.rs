@@ -54,11 +54,7 @@ impl WebpackModuleAsset {
 impl Module for WebpackModuleAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self
-            .source
-            .ident()
-            .owned()
-            .await?
+        Ok(turbo_tasks::read!(self.source.ident().owned())?
             .with_modifier(rcstr!("webpack"))
             .into_vc())
     }
@@ -110,7 +106,7 @@ impl WebpackChunkAssetReference {
 impl ModuleReference for WebpackChunkAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let runtime = self.runtime.await?;
+        let runtime = turbo_tasks::read!(self.runtime)?;
         Ok(match &*runtime {
             WebpackRuntime::Webpack5 { context_path } => {
                 // TODO: Determine the filename from the chunk filename in `webpack_runtime()`,
@@ -123,7 +119,7 @@ impl ModuleReference for WebpackChunkAssetReference {
                 let filename = format!("./chunks/{chunk_id}.js");
                 let source = Vc::upcast(FileSource::new(context_path.join(&filename)?));
 
-                *ModuleResolveResult::module(ResolvedVc::upcast(
+                *ModuleResolveResult::module(ResolvedVc::upcast(turbo_tasks::read!(
                     WebpackModuleAsset::new(
                         source,
                         *self.runtime,
@@ -131,8 +127,7 @@ impl ModuleReference for WebpackChunkAssetReference {
                         *self.compile_time_info,
                     )
                     .to_resolved()
-                    .await?,
-                ))
+                )?))
             }
             WebpackRuntime::None => *ModuleResolveResult::unresolvable(),
         })
@@ -160,14 +155,15 @@ impl ModuleReference for WebpackEntryAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
-            WebpackModuleAsset::new(
-                *self.source,
-                *self.runtime,
-                *self.transforms,
-                *self.compile_time_info,
-            )
-            .to_resolved()
-            .await?,
+            turbo_tasks::read!(
+                WebpackModuleAsset::new(
+                    *self.source,
+                    *self.runtime,
+                    *self.transforms,
+                    *self.compile_time_info,
+                )
+                .to_resolved()
+            )?,
         )))
     }
 
@@ -193,7 +189,7 @@ pub struct WebpackRuntimeAssetReference {
 impl ModuleReference for WebpackRuntimeAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let origin = self.origin.into_trait_ref().await?;
+        let origin = turbo_tasks::read!(self.origin.into_trait_ref())?;
         let options = origin.resolve_options();
 
         let options = apply_cjs_specific_options(options);
@@ -205,10 +201,13 @@ impl ModuleReference for WebpackRuntimeAssetReference {
             options,
         );
 
-        Ok(resolved
-            .await?
-            .map_module(|source| async move {
-                Ok(ModuleResolveResultItem::Module(ResolvedVc::upcast(
+        let resolved = turbo_tasks::read!(resolved)?;
+        // `map_module` is dual: the async build takes a future-returning mapper, the
+        // sync build a plain `Result`-returning one (cf. core's `as_raw_module_result`).
+        #[cfg(not(feature = "sync"))]
+        let result = turbo_tasks::read!(resolved.map_module(|source| async move {
+            Ok(ModuleResolveResultItem::Module(ResolvedVc::upcast(
+                turbo_tasks::read!(
                     WebpackModuleAsset::new(
                         *source,
                         *self.runtime,
@@ -216,11 +215,24 @@ impl ModuleReference for WebpackRuntimeAssetReference {
                         *self.compile_time_info,
                     )
                     .to_resolved()
-                    .await?,
-                )))
-            })
-            .await?
-            .cell())
+                )?,
+            )))
+        }))?;
+        #[cfg(feature = "sync")]
+        let result = resolved.map_module(|source| {
+            Ok(ModuleResolveResultItem::Module(ResolvedVc::upcast(
+                turbo_tasks::read!(
+                    WebpackModuleAsset::new(
+                        *source,
+                        *self.runtime,
+                        *self.transforms,
+                        *self.compile_time_info,
+                    )
+                    .to_resolved()
+                )?,
+            )))
+        })?;
+        Ok(result.cell())
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {

@@ -32,20 +32,18 @@ enum ServerNftType {
 
 #[turbo_tasks::function]
 pub async fn next_server_nft_assets(project: Vc<Project>) -> Result<Vc<OutputAssets>> {
-    if *project.next_config().is_using_adapter().await? {
+    if *turbo_tasks::read!(project.next_config().is_using_adapter())? {
         // When using an adapter, we don't need to generate any server NFTs as build-complete
         // doesn't use them at all.
         return Ok(Vc::cell(vec![]));
     }
 
-    let has_next_support = *project.ci_has_next_support().await?;
-    let is_standalone = *project.next_config().is_standalone().await?;
+    let has_next_support = *turbo_tasks::read!(project.ci_has_next_support())?;
+    let is_standalone = *turbo_tasks::read!(project.next_config().is_standalone())?;
 
-    let minimal = ResolvedVc::upcast(
-        ServerNftJsonAsset::new(project, ServerNftType::Minimal)
-            .to_resolved()
-            .await?,
-    );
+    let minimal = ResolvedVc::upcast(turbo_tasks::read!(
+        ServerNftJsonAsset::new(project, ServerNftType::Minimal).to_resolved()
+    )?);
 
     if has_next_support && !is_standalone {
         // When deploying to Vercel, we only need next-minimal-server.js.nft.json
@@ -53,11 +51,9 @@ pub async fn next_server_nft_assets(project: Vc<Project>) -> Result<Vc<OutputAss
     } else {
         Ok(Vc::cell(vec![
             minimal,
-            ResolvedVc::upcast(
-                ServerNftJsonAsset::new(project, ServerNftType::Full)
-                    .to_resolved()
-                    .await?,
-            ),
+            ResolvedVc::upcast(turbo_tasks::read!(
+                ServerNftJsonAsset::new(project, ServerNftType::Full).to_resolved()
+            )?),
         ]))
     }
 }
@@ -88,7 +84,9 @@ impl OutputAsset for ServerNftJsonAsset {
             ServerNftType::Full => "next-server.js.nft.json",
         };
 
-        Ok(self.project.node_root().await?.join(name)?.cell())
+        Ok(turbo_tasks::read!(self.project.node_root())?
+            .join(name)?
+            .cell())
     }
 }
 
@@ -96,18 +94,16 @@ impl OutputAsset for ServerNftJsonAsset {
 impl Asset for ServerNftJsonAsset {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
 
         // Example: [project]/apps/my-website/.next/
-        let base_dir = this
-            .project
-            .project_root_path()
-            .await?
-            .join(&this.project.node_root().await?.path)?;
+        let base_dir = turbo_tasks::read!(this.project.project_root_path())?
+            .join(&turbo_tasks::read!(this.project.node_root())?.path)?;
 
         let module_graph = ModuleGraph::from_graphs(
             vec![SingleModuleGraph::new_with_entries(
-                GraphEntries::new(vec![], self.entries().owned().await?).resolved_cell(),
+                GraphEntries::new(vec![], turbo_tasks::read!(self.entries().owned())?)
+                    .resolved_cell(),
                 true,
                 false,
             )],
@@ -115,32 +111,63 @@ impl Asset for ServerNftJsonAsset {
         )
         .connect();
 
-        let mut server_output_assets = traced_modules_for_entries(
-            module_graph,
-            Modules::empty(),
-            self.entries(),
-            Some(self.ignores()),
-            None,
-        )
-        .await?
-        .iter()
-        .map(async |m| {
-            Ok((
-                base_dir
-                    .get_relative_path_to(&m.ident().await?.path)
-                    .context("failed to compute relative path for server NFT JSON")?,
-                m.source()
-                    .await?
-                    .context("NFT module has no content")?
-                    .content()
-                    .hash(HashAlgorithm::Xxh3Hash128Hex)
-                    .await?,
-            ))
-        })
-        .try_join()
-        .await?;
+        #[cfg(not(feature = "sync"))]
+        let mut server_output_assets = turbo_tasks::read!(
+            turbo_tasks::read!(traced_modules_for_entries(
+                module_graph,
+                Modules::empty(),
+                self.entries(),
+                Some(self.ignores()),
+                None,
+            ))?
+            .iter()
+            .map(async |m| {
+                Ok((
+                    base_dir
+                        .get_relative_path_to(&turbo_tasks::read!(m.ident())?.path)
+                        .context("failed to compute relative path for server NFT JSON")?,
+                    turbo_tasks::read!(
+                        turbo_tasks::read!(m.source())?
+                            .context("NFT module has no content")?
+                            .content()
+                            .hash(HashAlgorithm::Xxh3Hash128Hex)
+                    )?,
+                ))
+            })
+            .try_join()
+        )?;
+        #[cfg(feature = "sync")]
+        let mut server_output_assets = {
+            let mut server_output_assets = Vec::new();
+            for m in turbo_tasks::read!(traced_modules_for_entries(
+                module_graph,
+                Modules::empty(),
+                self.entries(),
+                Some(self.ignores()),
+                None,
+            ))?
+            .iter()
+            {
+                server_output_assets.push({
+                    Ok::<_, anyhow::Error>((
+                        base_dir
+                            .get_relative_path_to(&turbo_tasks::read!(m.ident())?.path)
+                            .context("failed to compute relative path for server NFT JSON")?,
+                        turbo_tasks::read!(
+                            turbo_tasks::read!(m.source())?
+                                .context("NFT module has no content")?
+                                .content()
+                                .hash(HashAlgorithm::Xxh3Hash128Hex)
+                        )?,
+                    ))
+                }?);
+            }
+            server_output_assets
+        };
 
-        let next_dir = get_next_package(this.project.project_path().owned().await?).await?;
+        let next_dir = turbo_tasks::read!(get_next_package(turbo_tasks::read!(
+            this.project.project_path().owned()
+        )?))?;
         for ty in ["app-page", "pages"] {
             let dir = next_dir.join(&format!("dist/server/route-modules/{ty}"))?;
             let module_path = dir.join("module.compiled.js")?;
@@ -148,14 +175,13 @@ impl Asset for ServerNftJsonAsset {
                 base_dir
                     .get_relative_path_to(&module_path)
                     .context("failed to compute relative path for server NFT JSON")?,
-                module_path
-                    .read()
-                    .hash(HashAlgorithm::Xxh3Hash128Hex)
-                    .await?,
+                turbo_tasks::read!(module_path.read().hash(HashAlgorithm::Xxh3Hash128Hex))?,
             ));
 
             let contexts_dir = dir.join("vendored/contexts")?;
-            let DirectoryContent::Entries(contexts_files) = &*contexts_dir.read_dir().await? else {
+            let DirectoryContent::Entries(contexts_files) =
+                &*turbo_tasks::read!(contexts_dir.read_dir())?
+            else {
                 bail!(
                     "Expected contexts directory to be a directory, found: {:?}",
                     contexts_dir
@@ -170,7 +196,7 @@ impl Asset for ServerNftJsonAsset {
                         base_dir
                             .get_relative_path_to(file)
                             .context("failed to compute relative path for server NFT JSON")?,
-                        file.read().hash(HashAlgorithm::Xxh3Hash128Hex).await?,
+                        turbo_tasks::read!(file.read().hash(HashAlgorithm::Xxh3Hash128Hex))?,
                     ))
                 }
             }
@@ -199,18 +225,18 @@ impl Asset for ServerNftJsonAsset {
 impl ServerNftJsonAsset {
     #[turbo_tasks::function]
     async fn entries(&self) -> Result<Vc<Modules>> {
-        let is_standalone = *self.project.next_config().is_standalone().await?;
+        let is_standalone = *turbo_tasks::read!(self.project.next_config().is_standalone())?;
 
         let asset_context = Vc::upcast(externals_tracing_module_context(
             get_tracing_compile_time_info(),
             false,
         ));
 
-        let project_path = self.project.project_path().owned().await?;
+        let project_path = turbo_tasks::read!(self.project.project_path().owned())?;
 
         let next_resolve_origin = Vc::upcast(PlainResolveOrigin::new(
             asset_context,
-            get_next_package(project_path.clone()).await?.join("_")?,
+            turbo_tasks::read!(get_next_package(project_path.clone()))?.join("_")?,
         ));
 
         // These are used by packages/next/src/server/require-hook.ts
@@ -237,44 +263,68 @@ impl ServerNftJsonAsset {
             )),
         };
 
-        Ok(Vc::cell(
-            shared_entries
-                .into_iter()
-                .chain(entries)
-                .map(async |path| {
-                    Ok(cjs_resolve(
-                        next_resolve_origin,
-                        Request::parse_string(path.into()),
-                        CommonJsReferenceSubType::Undefined,
-                        None,
-                        ResolveErrorMode::Error,
+        #[cfg(not(feature = "sync"))]
+        {
+            Ok(Vc::cell(turbo_tasks::read!(
+                shared_entries
+                    .into_iter()
+                    .chain(entries)
+                    .map(async |path| {
+                        Ok(turbo_tasks::read!(
+                            turbo_tasks::read!(cjs_resolve(
+                                next_resolve_origin,
+                                Request::parse_string(path.into()),
+                                CommonJsReferenceSubType::Undefined,
+                                None,
+                                ResolveErrorMode::Error,
+                            ))?
+                            .primary_modules()
+                        )?
+                        .into_iter())
+                    })
+                    .try_flat_join()
+            )?))
+        }
+        #[cfg(feature = "sync")]
+        {
+            let mut modules = Vec::new();
+            for path in shared_entries.into_iter().chain(entries) {
+                modules.extend({
+                    Ok::<_, anyhow::Error>(
+                        turbo_tasks::read!(
+                            turbo_tasks::read!(cjs_resolve(
+                                next_resolve_origin,
+                                Request::parse_string(path.into()),
+                                CommonJsReferenceSubType::Undefined,
+                                None,
+                                ResolveErrorMode::Error,
+                            ))?
+                            .primary_modules()
+                        )?
+                        .into_iter(),
                     )
-                    .await?
-                    .primary_modules()
-                    .await?
-                    .into_iter())
-                })
-                .try_flat_join()
-                .await?,
-        ))
+                }?);
+            }
+            Ok(Vc::cell(modules))
+        }
     }
 
     #[turbo_tasks::function]
     async fn ignores(&self) -> Result<Vc<Glob>> {
-        let is_standalone = *self.project.next_config().is_standalone().await?;
-        let has_next_support = *self.project.ci_has_next_support().await?;
-        let project_path = self.project.project_path().owned().await?;
+        let is_standalone = *turbo_tasks::read!(self.project.next_config().is_standalone())?;
+        let has_next_support = *turbo_tasks::read!(self.project.ci_has_next_support())?;
+        let project_path = turbo_tasks::read!(self.project.project_path().owned())?;
 
-        let output_file_tracing_excludes = self
-            .project
-            .next_config()
-            .output_file_tracing_excludes(project_path)
-            .await?;
+        let output_file_tracing_excludes = turbo_tasks::read!(
+            self.project
+                .next_config()
+                .output_file_tracing_excludes(project_path)
+        )?;
         let mut additional_ignores = BTreeSet::new();
 
         for (route_glob, exclude_patterns) in output_file_tracing_excludes.iter() {
             // Check if the route matches the glob pattern
-            if route_glob.await?.matches("next-server") {
+            if turbo_tasks::read!(route_glob)?.matches("next-server") {
                 for (glob, root) in exclude_patterns {
                     additional_ignores.insert(if root.path.is_empty() {
                         glob.to_string()

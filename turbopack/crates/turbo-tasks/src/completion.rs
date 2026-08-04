@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use crate::{self as turbo_tasks, ResolvedVc, TryJoinIterExt, Vc};
+use crate::{self as turbo_tasks, ResolvedVc, Vc};
 
 /// Just an empty type, but it's never equal to itself.
 ///
@@ -55,20 +55,13 @@ impl Completions {
             let right = Vc::<Completions>::cell(right.to_vec());
             let left = left.completed();
             let right = right.completed();
-            left.await?;
-            right.await?;
+            crate::read!(left)?;
+            crate::read!(right)?;
             Ok(Completion::new())
         } else {
-            self.0
-                .iter()
-                .map(|&c| async move {
-                    // Wraps the completion in a new completion. This makes it cheaper to restore
-                    // since it doesn't need to restore the original task resp task chain.
-                    wrap(*c).await?;
-                    Ok(())
-                })
-                .try_join()
-                .await?;
+            // Wraps each completion in a new completion. This makes it cheaper to restore
+            // since it doesn't need to restore the original task resp task chain.
+            crate::parallel!(self.0.iter().map(|&c| wrap(*c)))?;
             Ok(Completion::new())
         }
     }
@@ -76,6 +69,6 @@ impl Completions {
 
 #[turbo_tasks::function]
 async fn wrap(completion: Vc<Completion>) -> Result<Vc<Completion>> {
-    completion.await?;
+    crate::read!(completion)?;
     Ok(Completion::new())
 }

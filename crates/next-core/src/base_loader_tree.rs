@@ -53,6 +53,7 @@ impl AppDirModuleType {
     }
 }
 
+#[cfg(not(feature = "sync"))]
 impl BaseLoaderTreeBuilder {
     pub fn new(
         module_asset_context: ResolvedVc<ModuleAssetContext>,
@@ -109,10 +110,10 @@ impl BaseLoaderTreeBuilder {
             .into(),
         ));
 
-        let module = self
-            .process_source(Vc::upcast(FileSource::new(path.clone())))
-            .to_resolved()
-            .await?;
+        let module = turbo_tasks::read!(
+            self.process_source(Vc::upcast(FileSource::new(path.clone())))
+                .to_resolved()
+        )?;
 
         self.inner_assets
             .insert(format!("MODULE_{i}").into(), module);
@@ -120,7 +121,84 @@ impl BaseLoaderTreeBuilder {
         // Use the original source path, not the transformed module path.
         // This is important for MDX files where page.mdx becomes page.mdx.tsx after
         // transformation, but the font manifest uses the original source path.
-        let module_path = path.to_string_ref().await?;
+        let module_path = turbo_tasks::read!(path.to_string_ref())?;
+
+        Ok(format!(
+            "[{identifier}, {path}]",
+            path = StringifyJs(&module_path),
+        ))
+    }
+}
+
+#[cfg(feature = "sync")]
+impl BaseLoaderTreeBuilder {
+    pub fn new(
+        module_asset_context: ResolvedVc<ModuleAssetContext>,
+        server_component_transition: ResolvedVc<Box<dyn Transition>>,
+    ) -> Self {
+        BaseLoaderTreeBuilder {
+            inner_assets: FxIndexMap::default(),
+            counter: 0,
+            imports: Vec::new(),
+            module_asset_context,
+            server_component_transition,
+        }
+    }
+
+    pub fn unique_number(&mut self) -> usize {
+        let i = self.counter;
+        self.counter += 1;
+        i
+    }
+
+    pub fn process_source(&self, source: Vc<Box<dyn Source>>) -> Vc<Box<dyn Module>> {
+        let reference_type =
+            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined);
+
+        self.server_component_transition
+            .process(source, *self.module_asset_context, reference_type)
+            .module()
+    }
+
+    pub fn process_module(&self, module: Vc<Box<dyn Module>>) -> Vc<Box<dyn Module>> {
+        self.server_component_transition
+            .process_module(module, *self.module_asset_context)
+    }
+
+    pub fn create_module_tuple_code(
+        &mut self,
+        module_type: AppDirModuleType,
+        path: FileSystemPath,
+        position: u32,
+    ) -> Result<String> {
+        let name = module_type.name();
+        let i = self.unique_number();
+        let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
+
+        self.imports.push((
+            position,
+            formatdoc!(
+                r#"
+                const {} = () => require(/*turbopackChunkingType: shared*/"MODULE_{}");
+                "#,
+                identifier,
+                i
+            )
+            .into(),
+        ));
+
+        let module = turbo_tasks::read!(
+            self.process_source(Vc::upcast(FileSource::new(path.clone())))
+                .to_resolved()
+        )?;
+
+        self.inner_assets
+            .insert(format!("MODULE_{i}").into(), module);
+
+        // Use the original source path, not the transformed module path.
+        // This is important for MDX files where page.mdx becomes page.mdx.tsx after
+        // transformation, but the font manifest uses the original source path.
+        let module_path = turbo_tasks::read!(path.to_string_ref())?;
 
         Ok(format!(
             "[{identifier}, {path}]",

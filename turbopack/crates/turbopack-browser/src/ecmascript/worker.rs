@@ -40,24 +40,26 @@ impl EcmascriptBrowserWorkerEntrypoint {
     ) -> Result<Vc<Self>> {
         Ok(EcmascriptBrowserWorkerEntrypoint {
             chunking_context,
-            forwarded_globals: forwarded_globals.to_resolved().await?,
+            forwarded_globals: turbo_tasks::read!(forwarded_globals.to_resolved())?,
         }
         .cell())
     }
 
     #[turbo_tasks::function]
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
 
-        let source_maps = *this
-            .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
-            .await?;
+        let source_maps = *turbo_tasks::read!(
+            this.chunking_context
+                .reference_chunk_source_maps(Vc::upcast(self))
+        )?;
 
-        let forwarded_globals = this.forwarded_globals.await?;
+        let forwarded_globals = turbo_tasks::read!(this.forwarded_globals)?;
         let mut code = generate_worker_bootstrap_code(&forwarded_globals)?;
 
-        if let MinifyType::Minify { mangle } = *this.chunking_context.minify_type().await? {
+        if let MinifyType::Minify { mangle } =
+            *turbo_tasks::read!(this.chunking_context.minify_type())?
+        {
             code = minify(code, source_maps, mangle)?;
         }
 
@@ -66,8 +68,8 @@ impl EcmascriptBrowserWorkerEntrypoint {
 
     #[turbo_tasks::function]
     async fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
-        let chunk_root_path = self.chunking_context.chunk_root_path().owned().await?;
-        let forwarded_globals = self.forwarded_globals.await?;
+        let chunk_root_path = turbo_tasks::read!(self.chunking_context.chunk_root_path().owned())?;
+        let forwarded_globals = turbo_tasks::read!(self.forwarded_globals)?;
         let globals_hash = hash_xxh3_hash64(&*forwarded_globals);
         let ident = AssetIdent::from_path(chunk_root_path)
             .with_modifier(rcstr!("turbopack worker entrypoint"))
@@ -77,7 +79,7 @@ impl EcmascriptBrowserWorkerEntrypoint {
 
     #[turbo_tasks::function]
     async fn source_map(self: Vc<Self>) -> Result<Vc<SourceMapAsset>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         Ok(SourceMapAsset::new(
             *this.chunking_context,
             self.ident_for_path(),
@@ -91,7 +93,7 @@ impl OutputAssetsReference for EcmascriptBrowserWorkerEntrypoint {
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
         Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(vec![
-            ResolvedVc::upcast(self.source_map().to_resolved().await?),
+            ResolvedVc::upcast(turbo_tasks::read!(self.source_map().to_resolved())?),
         ])))
     }
 }
@@ -100,7 +102,7 @@ impl OutputAssetsReference for EcmascriptBrowserWorkerEntrypoint {
 impl OutputAsset for EcmascriptBrowserWorkerEntrypoint {
     #[turbo_tasks::function]
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
         let ident = self.ident_for_path();
         Ok(this.chunking_context.chunk_path(
             Some(Vc::upcast(self)),
@@ -116,11 +118,10 @@ impl Asset for EcmascriptBrowserWorkerEntrypoint {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         Ok(AssetContent::file(
-            FileContent::Content(File::from(
+            FileContent::Content(File::from(turbo_tasks::read!(
                 self.code()
                     .to_rope_with_magic_comments(|| self.source_map())
-                    .await?,
-            ))
+            )?))
             .cell(),
         ))
     }

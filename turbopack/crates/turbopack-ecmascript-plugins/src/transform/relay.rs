@@ -1,6 +1,7 @@
 use std::{path::PathBuf, sync::Arc};
 
 use anyhow::{Context, Result};
+#[cfg(not(feature = "sync"))]
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use serde::Deserialize;
@@ -58,10 +59,8 @@ impl RelayTransformer {
     }
 }
 
-#[async_trait]
-impl CustomTransformer for RelayTransformer {
-    #[tracing::instrument(level = tracing::Level::TRACE, name = "relay", skip_all)]
-    async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+impl RelayTransformer {
+    fn transform_inner(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         // If user supplied artifact_directory, it should be resolvable already.
         // Otherwise, supply default relative path (./__generated__)
         let path_to_proj = PathBuf::from(
@@ -82,5 +81,23 @@ impl CustomTransformer for RelayTransformer {
         ));
 
         Ok(())
+    }
+}
+
+#[cfg(not(feature = "sync"))]
+#[async_trait]
+impl CustomTransformer for RelayTransformer {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "relay", skip_all)]
+    async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+        self.transform_inner(program, ctx)
+    }
+}
+
+/// See the async impl above; the sync engine drops `async`/`#[async_trait]`.
+#[cfg(feature = "sync")]
+impl CustomTransformer for RelayTransformer {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "relay", skip_all)]
+    fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+        self.transform_inner(program, ctx)
     }
 }

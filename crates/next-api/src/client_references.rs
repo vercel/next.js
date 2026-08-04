@@ -31,44 +31,87 @@ pub struct ClientReferenceData(FxHashMap<ResolvedVc<Box<dyn Module>>, ClientMani
 pub async fn map_client_references(
     graph: ResolvedVc<ModuleGraphLayer>,
 ) -> Result<Vc<ClientReferenceData>> {
-    let manifest = graph
-        .await?
-        .iter_reachable_modules()?
-        .map(|module| async move {
-            if let Some(client_reference_module) =
-                ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(module)
-            {
-                Ok(Some((
-                    module,
-                    ClientManifestEntryType::EcmascriptClientReference {
-                        module: client_reference_module,
-                        ssr_module: ResolvedVc::upcast(client_reference_module.await?.ssr_module),
-                    },
-                )))
-            } else if let Some(client_reference_module) =
-                ResolvedVc::try_downcast_type::<CssClientReferenceModule>(module)
-            {
-                Ok(Some((
-                    module,
-                    ClientManifestEntryType::CssClientReference(
-                        client_reference_module.await?.client_module,
-                    ),
-                )))
-            } else if let Some(server_component) =
-                ResolvedVc::try_downcast_type::<NextServerComponentModule>(module)
-            {
-                Ok(Some((
-                    module,
-                    ClientManifestEntryType::ServerComponent(server_component),
-                )))
-            } else {
-                Ok(None)
-            }
-        })
-        .try_flat_join()
-        .await?
-        .into_iter()
-        .collect::<FxHashMap<_, _>>();
+    #[cfg(not(feature = "sync"))]
+    let manifest = turbo_tasks::read!(
+        turbo_tasks::read!(graph)?
+            .iter_reachable_modules()?
+            .map(|module| async move {
+                if let Some(client_reference_module) =
+                    ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(module)
+                {
+                    Ok(Some((
+                        module,
+                        ClientManifestEntryType::EcmascriptClientReference {
+                            module: client_reference_module,
+                            ssr_module: ResolvedVc::upcast(
+                                turbo_tasks::read!(client_reference_module)?.ssr_module,
+                            ),
+                        },
+                    )))
+                } else if let Some(client_reference_module) =
+                    ResolvedVc::try_downcast_type::<CssClientReferenceModule>(module)
+                {
+                    Ok(Some((
+                        module,
+                        ClientManifestEntryType::CssClientReference(
+                            turbo_tasks::read!(client_reference_module)?.client_module,
+                        ),
+                    )))
+                } else if let Some(server_component) =
+                    ResolvedVc::try_downcast_type::<NextServerComponentModule>(module)
+                {
+                    Ok(Some((
+                        module,
+                        ClientManifestEntryType::ServerComponent(server_component),
+                    )))
+                } else {
+                    Ok(None)
+                }
+            })
+            .try_flat_join()
+    )?
+    .into_iter()
+    .collect::<FxHashMap<_, _>>();
+    #[cfg(feature = "sync")]
+    let manifest = {
+        let mut manifest = FxHashMap::default();
+        for module in turbo_tasks::read!(graph)?.iter_reachable_modules()? {
+            manifest.extend({
+                if let Some(client_reference_module) =
+                    ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(module)
+                {
+                    Ok::<_, anyhow::Error>(Some((
+                        module,
+                        ClientManifestEntryType::EcmascriptClientReference {
+                            module: client_reference_module,
+                            ssr_module: ResolvedVc::upcast(
+                                turbo_tasks::read!(client_reference_module)?.ssr_module,
+                            ),
+                        },
+                    )))
+                } else if let Some(client_reference_module) =
+                    ResolvedVc::try_downcast_type::<CssClientReferenceModule>(module)
+                {
+                    Ok(Some((
+                        module,
+                        ClientManifestEntryType::CssClientReference(
+                            turbo_tasks::read!(client_reference_module)?.client_module,
+                        ),
+                    )))
+                } else if let Some(server_component) =
+                    ResolvedVc::try_downcast_type::<NextServerComponentModule>(module)
+                {
+                    Ok(Some((
+                        module,
+                        ClientManifestEntryType::ServerComponent(server_component),
+                    )))
+                } else {
+                    Ok(None)
+                }
+            }?);
+        }
+        manifest
+    };
 
     Ok(Vc::cell(manifest))
 }

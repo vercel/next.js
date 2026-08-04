@@ -59,7 +59,7 @@ impl OutputAsset for AssetHashesManifestAsset {
 impl Asset for AssetHashesManifestAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
-        let files = self.asset_paths.await?;
+        let files = turbo_tasks::read!(self.asset_paths)?;
 
         struct Manifest<'a> {
             asset_paths: &'a Vec<AssetPath>,

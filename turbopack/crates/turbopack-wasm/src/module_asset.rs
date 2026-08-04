@@ -51,7 +51,7 @@ impl WebAssemblyModuleAsset {
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
     ) -> Result<Vc<Self>> {
         Ok(Self::cell(WebAssemblyModuleAsset {
-            origin_path: source.ident().await?.path.clone(),
+            origin_path: turbo_tasks::read!(source.ident())?.path.clone(),
             source,
             asset_context,
         }))
@@ -64,14 +64,14 @@ impl WebAssemblyModuleAsset {
 
     #[turbo_tasks::function]
     async fn loader_as_module(&self) -> Result<Vc<Box<dyn Module>>> {
-        let query = &self.source.ident().await?.query;
+        let query = &turbo_tasks::read!(self.source.ident())?.query;
 
-        let chunk_loading = self
-            .asset_context
-            .compile_time_info()
-            .environment()
-            .chunk_loading()
-            .await?;
+        let chunk_loading = turbo_tasks::read!(
+            self.asset_context
+                .compile_time_info()
+                .environment()
+                .chunk_loading()
+        )?;
 
         let is_edge = matches!(*chunk_loading, ChunkLoading::Edge);
 
@@ -91,27 +91,27 @@ impl WebAssemblyModuleAsset {
             ),
         };
 
-        let helper = self
-            .asset_context
-            .process(
-                Vc::upcast(FileSource::new(
-                    embed::embed_fs().root().await?.join(&helper_path)?,
-                )),
-                /*
-                   TODO (@sampoder): ideally, we would have some sort of hint
-                   here that suggests whether we are using `compileModule()` or
-                   `instantiate()` to avoid loading the other unused function.
-                */
-                ReferenceType::Runtime,
-            )
-            .module()
-            .to_resolved()
-            .await?;
+        let helper = turbo_tasks::read!(
+            self.asset_context
+                .process(
+                    Vc::upcast(FileSource::new(
+                        turbo_tasks::read!(embed::embed_fs().root())?.join(&helper_path)?,
+                    )),
+                    /*
+                       TODO (@sampoder): ideally, we would have some sort of hint
+                       here that suggests whether we are using `compileModule()` or
+                       `instantiate()` to avoid loading the other unused function.
+                    */
+                    ReferenceType::Runtime,
+                )
+                .module()
+                .to_resolved()
+        )?;
 
         let module = self.asset_context.process(
             loader_source,
             ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
-                rcstr!("WASM_PATH") => ResolvedVc::upcast(RawWebAssemblyModuleAsset::new(*self.source, *self.asset_context).to_resolved().await?),
+                rcstr!("WASM_PATH") => ResolvedVc::upcast(turbo_tasks::read!(RawWebAssemblyModuleAsset::new(*self.source, *self.asset_context).to_resolved())?),
                 rcstr!("WASM_HELPER") => helper,
             })),
         ).module();
@@ -122,9 +122,9 @@ impl WebAssemblyModuleAsset {
     async fn loader_as_resolve_origin(self: Vc<Self>) -> Result<Vc<Box<dyn ResolveOrigin>>> {
         let module = self.loader_as_module();
 
-        let Some(esm_asset) =
-            ResolvedVc::try_sidecast::<Box<dyn ResolveOrigin>>(module.to_resolved().await?)
-        else {
+        let Some(esm_asset) = ResolvedVc::try_sidecast::<Box<dyn ResolveOrigin>>(
+            turbo_tasks::read!(module.to_resolved())?,
+        ) else {
             bail!("WASM loader was not processed into an EcmascriptModuleAsset");
         };
 
@@ -136,7 +136,7 @@ impl WebAssemblyModuleAsset {
         let module = self.loader_as_module();
 
         let Some(esm_asset) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(
-            module.to_resolved().await?,
+            turbo_tasks::read!(module.to_resolved())?,
         ) else {
             bail!("WASM loader was not processed into an EcmascriptModuleAsset");
         };
@@ -146,15 +146,14 @@ impl WebAssemblyModuleAsset {
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        Ok(Vc::cell(vec![ResolvedVc::upcast(
+        Ok(Vc::cell(vec![ResolvedVc::upcast(turbo_tasks::read!(
             SingleChunkableModuleReference::new(
                 Vc::upcast(self.loader()),
                 rcstr!("wasm loader"),
                 ExportUsage::all(),
             )
             .to_resolved()
-            .await?,
-        )]))
+        )?)]))
     }
 }
 
@@ -162,13 +161,9 @@ impl WebAssemblyModuleAsset {
 impl Module for WebAssemblyModuleAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self
-            .source
-            .ident()
-            .owned()
-            .await?
+        Ok(turbo_tasks::read!(self.source.ident().owned())?
             .with_modifier(rcstr!("wasm module"))
-            .with_layer(self.asset_context.into_trait_ref().await?.layer())
+            .with_layer(turbo_tasks::read!(self.asset_context.into_trait_ref())?.layer())
             .into_vc())
     }
 
@@ -229,7 +224,7 @@ impl EcmascriptChunkPlaceable for WebAssemblyModuleAsset {
         estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         if matches!(
-            *chunking_context.chunk_loading().await?,
+            *turbo_tasks::read!(chunking_context.chunk_loading())?,
             ChunkLoading::SingleChunk
         ) {
             bail!(
@@ -253,7 +248,7 @@ impl EcmascriptChunkPlaceable for WebAssemblyModuleAsset {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         _module_graph: Vc<ModuleGraph>,
     ) -> Result<Vc<OutputAssetsWithReferenced>> {
-        let wasm_asset = self.wasm_asset(chunking_context).to_resolved().await?;
+        let wasm_asset = turbo_tasks::read!(self.wasm_asset(chunking_context).to_resolved())?;
         Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(vec![
             ResolvedVc::upcast(wasm_asset),
         ])))

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
@@ -32,7 +32,7 @@ impl ChunksData {
     pub async fn hash(&self) -> Result<Vc<u64>> {
         let mut hasher = Xxh3Hash64Hasher::new();
         for chunk in self.0.iter() {
-            hasher.write_value(chunk.await?.path.as_str());
+            hasher.write_value(turbo_tasks::read!(chunk)?.path.as_str());
         }
         Ok(Vc::cell(hasher.finish()))
     }
@@ -62,7 +62,7 @@ impl ChunkData {
         output_root: FileSystemPath,
         chunk: Vc<Box<dyn OutputAsset>>,
     ) -> Result<Vc<ChunkDataOption>> {
-        let path = chunk.path().await?;
+        let path = turbo_tasks::read!(chunk.path())?;
         // The "path" in this case is the chunk's path, not the chunk item's path.
         // The difference is a chunk is a file served by the dev server, and an
         // item is one of several that are contained in that chunk file.
@@ -71,9 +71,9 @@ impl ChunkData {
         };
         let path = path.to_string();
 
-        let Some(output_chunk) =
-            ResolvedVc::try_sidecast::<Box<dyn OutputChunk>>(chunk.to_resolved().await?)
-        else {
+        let Some(output_chunk) = ResolvedVc::try_sidecast::<Box<dyn OutputChunk>>(
+            turbo_tasks::read!(chunk.to_resolved())?,
+        ) else {
             return Ok(Vc::cell(Some(
                 ChunkData {
                     path,
@@ -85,7 +85,7 @@ impl ChunkData {
             )));
         };
 
-        let runtime_info = output_chunk.runtime_info().await?;
+        let runtime_info = turbo_tasks::read!(output_chunk.runtime_info())?;
 
         let OutputChunkRuntimeInfo {
             included_ids,
@@ -95,32 +95,28 @@ impl ChunkData {
         } = &*runtime_info;
 
         let included = if let Some(included_ids) = included_ids {
-            included_ids.owned().await?
+            turbo_tasks::read!(included_ids.owned())?
         } else {
             Vec::new()
         };
         let excluded = if let Some(excluded_ids) = excluded_ids {
-            excluded_ids.owned().await?
+            turbo_tasks::read!(excluded_ids.owned())?
         } else {
             Vec::new()
         };
         let module_chunks = if let Some(module_chunks) = module_chunks {
-            module_chunks
-                .await?
-                .iter()
-                .copied()
-                .map(|chunk| {
-                    let output_root = output_root.clone();
-
-                    async move {
-                        let chunk_path = chunk.path().await?;
-                        Ok(output_root
-                            .get_path_to(&chunk_path)
-                            .map(|path| path.to_owned()))
-                    }
-                })
-                .try_flat_join()
-                .await?
+            turbo_tasks::parallel!(
+                turbo_tasks::read!(module_chunks)?
+                    .iter()
+                    .map(|chunk| chunk.path())
+            )?
+            .into_iter()
+            .filter_map(|chunk_path| {
+                output_root
+                    .get_path_to(&chunk_path)
+                    .map(|path| path.to_owned())
+            })
+            .collect()
         } else {
             Vec::new()
         };
@@ -142,15 +138,14 @@ impl ChunkData {
         chunks: Vc<OutputAssets>,
     ) -> Result<Vc<ChunksData>> {
         Ok(Vc::cell(
-            chunks
-                .await?
-                .iter()
-                .map(|&chunk| ChunkData::from_asset(output_root.clone(), *chunk))
-                .try_join()
-                .await?
-                .into_iter()
-                .flat_map(|chunk| *chunk)
-                .collect(),
+            turbo_tasks::parallel!(
+                turbo_tasks::read!(chunks)?
+                    .iter()
+                    .map(|&chunk| ChunkData::from_asset(output_root.clone(), *chunk))
+            )?
+            .into_iter()
+            .flat_map(|chunk| *chunk)
+            .collect(),
         ))
     }
 }

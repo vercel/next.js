@@ -51,7 +51,7 @@ pub async fn get_browser_runtime_code(
         }
     }
 
-    let chunk_loading = &*chunk_loading.await?;
+    let chunk_loading = &*turbo_tasks::read!(chunk_loading)?;
 
     let mut runtime_backend_code = vec![];
     match (chunk_loading, runtime_type) {
@@ -87,18 +87,14 @@ pub async fn get_browser_runtime_code(
 
     let mut code: CodeBuilder = CodeBuilder::default();
     let relative_root_path = output_root_to_root_path;
-    let chunk_base_path = chunk_base_path.await?;
+    let chunk_base_path = turbo_tasks::read!(chunk_base_path)?;
     let chunk_base_path = chunk_base_path.as_ref().map_or_else(|| "", |f| f.as_str());
-    let asset_suffix = asset_suffix.await?;
-    let chunk_loading_global = chunk_loading_global.await?;
-    let cross_origin = *cross_origin.await?;
+    let asset_suffix = turbo_tasks::read!(asset_suffix)?;
+    let chunk_loading_global = turbo_tasks::read!(chunk_loading_global)?;
+    let cross_origin = *turbo_tasks::read!(cross_origin)?;
     let chunk_lists_global = format!("{}_CHUNK_LISTS", chunk_loading_global);
 
-    if *environment
-        .runtime_versions()
-        .supports_arrow_functions()
-        .await?
-    {
+    if *turbo_tasks::read!(environment.runtime_versions().supports_arrow_functions())? {
         code += "(() => {\n";
     } else {
         code += "(function(){\n";
@@ -175,7 +171,7 @@ pub async fn get_browser_runtime_code(
 
     // The chunk-load retry policy is owned by the framework (e.g. Next.js) and
     // passed in via the chunking context, so the runtime never hard-codes it.
-    let chunk_load_retry = *chunk_load_retry.await?;
+    let chunk_load_retry = *turbo_tasks::read!(chunk_load_retry)?;
     writedoc!(
         code,
         r#"
@@ -188,48 +184,43 @@ pub async fn get_browser_runtime_code(
         chunk_load_retry.max_jitter_ms,
     )?;
 
-    code.push_code(&*shared_runtime_utils_code.await?);
+    code.push_code(&*turbo_tasks::read!(shared_runtime_utils_code)?);
     // Only include the async-module (top-level await) machinery when the app uses it.
     if has_async_modules {
-        code.push_code(
-            &*embed_static_code(
-                asset_context,
-                rcstr!("shared/runtime/async-module.ts"),
-                generate_source_map,
-            )
-            .await?,
-        );
+        code.push_code(&*turbo_tasks::read!(embed_static_code(
+            asset_context,
+            rcstr!("shared/runtime/async-module.ts"),
+            generate_source_map,
+        ))?);
     }
     for runtime_code in runtime_base_code {
-        code.push_code(
-            &*embed_static_code(asset_context, runtime_code.into(), generate_source_map).await?,
-        );
+        code.push_code(&*turbo_tasks::read!(embed_static_code(
+            asset_context,
+            runtime_code.into(),
+            generate_source_map
+        ))?);
     }
 
-    if *environment.supports_commonjs_externals().await? {
-        code.push_code(
-            &*embed_static_code(
-                asset_context,
-                rcstr!("shared-node/base-externals-utils.ts"),
-                generate_source_map,
-            )
-            .await?,
-        );
+    if *turbo_tasks::read!(environment.supports_commonjs_externals())? {
+        code.push_code(&*turbo_tasks::read!(embed_static_code(
+            asset_context,
+            rcstr!("shared-node/base-externals-utils.ts"),
+            generate_source_map,
+        ))?);
     }
-    if *environment.node_externals().await? {
-        code.push_code(
-            &*embed_static_code(
-                asset_context,
-                rcstr!("shared-node/node-externals-utils.ts"),
-                generate_source_map,
-            )
-            .await?,
-        );
+    if *turbo_tasks::read!(environment.node_externals())? {
+        code.push_code(&*turbo_tasks::read!(embed_static_code(
+            asset_context,
+            rcstr!("shared-node/node-externals-utils.ts"),
+            generate_source_map,
+        ))?);
     }
     for backend_code in runtime_backend_code {
-        code.push_code(
-            &*embed_static_code(asset_context, backend_code.into(), generate_source_map).await?,
-        );
+        code.push_code(&*turbo_tasks::read!(embed_static_code(
+            asset_context,
+            backend_code.into(),
+            generate_source_map
+        ))?);
     }
 
     // Registering chunks and chunk lists depends on the BACKEND variable, which is set by the

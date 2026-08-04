@@ -92,14 +92,15 @@ fn bench_startup_internal(
                             let mut value = m.zero();
 
                             for _ in 0..iters {
-                                let mut app =
-                                    PreparedApp::new(bundler, test_app.path().to_path_buf())
-                                        .await?;
+                                let mut app = turbo_tasks::read!(PreparedApp::new(
+                                    bundler,
+                                    test_app.path().to_path_buf()
+                                ))?;
                                 let start = m.start();
                                 app.start_server()?;
-                                let mut guard = app.with_page(browser).await?;
+                                let mut guard = turbo_tasks::read!(app.with_page(browser))?;
                                 if wait_for_hydration {
-                                    guard.wait_for_hydration().await?;
+                                    turbo_tasks::read!(guard.wait_for_hydration())?;
                                 }
                                 let duration = m.end(start);
                                 value = m.add(&value, &duration);
@@ -184,42 +185,39 @@ fn bench_hmr_internal(
                         b.to_async(&runtime).try_iter_async(
                             &runtime,
                             || async {
-                                let mut app = PreparedApp::new_without_copy(
+                                let mut app = turbo_tasks::read!(PreparedApp::new_without_copy(
                                     bundler,
                                     test_app.path().to_path_buf(),
-                                )
-                                .await?;
+                                ))?;
                                 app.start_server()?;
-                                let mut guard = app.with_page(browser).await?;
+                                let mut guard = turbo_tasks::read!(app.with_page(browser))?;
                                 if bundler.has_hydration_event() {
-                                    guard.wait_for_hydration().await?;
+                                    turbo_tasks::read!(guard.wait_for_hydration())?;
                                 } else {
-                                    guard.page().wait_for_navigation().await?;
+                                    turbo_tasks::read!(guard.page().wait_for_navigation())?;
                                 }
-                                guard
-                                    .page()
-                                    .evaluate_expression("globalThis.HMR_IS_HAPPENING = true")
-                                    .await
-                                    .context(
-                                        "Unable to evaluate JavaScript in the page for HMR check \
-                                         flag",
-                                    )?;
+                                turbo_tasks::read!(
+                                    guard
+                                        .page()
+                                        .evaluate_expression("globalThis.HMR_IS_HAPPENING = true")
+                                )
+                                .context(
+                                    "Unable to evaluate JavaScript in the page for HMR check flag",
+                                )?;
 
                                 // There's a possible race condition between hydration and
                                 // connection to the HMR server. We attempt to make updates with an
                                 // exponential backoff until one succeeds.
                                 let mut exponential_duration = Duration::from_millis(100);
                                 loop {
-                                    match make_change(
+                                    match turbo_tasks::read!(make_change(
                                         &modules[0].0,
                                         bundler,
                                         &mut guard,
                                         location,
                                         exponential_duration,
                                         &WallTime,
-                                    )
-                                    .await
-                                    {
+                                    )) {
                                         Ok(_) => {
                                             break;
                                         }
@@ -239,16 +237,14 @@ fn bench_hmr_internal(
                                 let mut hmr_warmup_iter = 0;
                                 let mut hmr_warmup_dropped = 0;
                                 while hmr_warmup_iter < hmr_warmup {
-                                    match make_change(
+                                    match turbo_tasks::read!(make_change(
                                         &modules[0].0,
                                         bundler,
                                         &mut guard,
                                         location,
                                         max_update_timeout,
                                         &WallTime,
-                                    )
-                                    .await
-                                    {
+                                    )) {
                                         Err(_) => {
                                             // We don't care about dropped updates during warmup.
                                             hmr_warmup_dropped += 1;
@@ -276,16 +272,14 @@ fn bench_hmr_internal(
                                     let mut iter = 0;
                                     while iter < iters {
                                         let module = module_picker.pick();
-                                        let duration = match make_change(
+                                        let duration = match turbo_tasks::read!(make_change(
                                             module,
                                             bundler,
                                             &mut guard,
                                             location,
                                             max_update_timeout,
                                             &m,
-                                        )
-                                        .await
-                                        {
+                                        )) {
                                             Err(_) => {
                                                 // Some bundlers (e.g. Turbopack and Vite) can drop
                                                 // updates under certain conditions. We don't want
@@ -319,11 +313,12 @@ fn bench_hmr_internal(
                                 }
                             },
                             |guard| async move {
-                                let hmr_is_happening = guard
-                                    .page()
-                                    .evaluate_expression("globalThis.HMR_IS_HAPPENING")
-                                    .await
-                                    .unwrap();
+                                let hmr_is_happening = turbo_tasks::read!(
+                                    guard
+                                        .page()
+                                        .evaluate_expression("globalThis.HMR_IS_HAPPENING")
+                                )
+                                .unwrap();
                                 // Make sure that we are really measuring HMR and not accidentally
                                 // full refreshing the page
                                 assert!(hmr_is_happening.value().unwrap().as_bool().unwrap());
@@ -409,15 +404,17 @@ async fn make_change(
 
     // Wait for the change introduced above to be reflected at runtime.
     // This expects HMR or automatic reloading to occur.
-    timeout(timeout_duration, guard.wait_for_binding(&msg))
-        .await
+    turbo_tasks::read!(timeout(timeout_duration, guard.wait_for_binding(&msg)))
         .context(CHANGE_TIMEOUT_MESSAGE)??;
 
     let duration = measurement.end(start);
 
     if cfg!(target_os = "linux") {
         // TODO(sokra) triggering HMR updates too fast can have weird effects on Linux
-        tokio::time::sleep(std::cmp::max(duration, Duration::from_millis(100))).await;
+        turbo_tasks::read!(tokio::time::sleep(std::cmp::max(
+            duration,
+            Duration::from_millis(100)
+        )));
     }
     Ok(duration)
 }
@@ -486,20 +483,22 @@ fn bench_startup_cached_internal(
                         let browser = &*browser;
                         b.to_async(&runtime).try_iter_custom(|iters, m| async move {
                             // Run a complete build, shut down, and test running it again
-                            let mut app =
-                                PreparedApp::new(bundler, test_app.path().to_path_buf()).await?;
+                            let mut app = turbo_tasks::read!(PreparedApp::new(
+                                bundler,
+                                test_app.path().to_path_buf()
+                            ))?;
                             app.start_server()?;
-                            let mut guard = app.with_page(browser).await?;
+                            let mut guard = turbo_tasks::read!(app.with_page(browser))?;
                             if bundler.has_hydration_event() {
-                                guard.wait_for_hydration().await?;
+                                turbo_tasks::read!(guard.wait_for_hydration())?;
                             } else {
-                                guard.page().wait_for_navigation().await?;
+                                turbo_tasks::read!(guard.page().wait_for_navigation())?;
                             }
 
-                            let mut app = guard.close_page().await?;
+                            let mut app = turbo_tasks::read!(guard.close_page())?;
 
                             // Give it 4 seconds time to store the cache
-                            sleep(Duration::from_secs(4)).await;
+                            turbo_tasks::read!(sleep(Duration::from_secs(4)));
 
                             app.stop_server()?;
 
@@ -507,14 +506,14 @@ fn bench_startup_cached_internal(
                             for _ in 0..iters {
                                 let start = m.start();
                                 app.start_server()?;
-                                let mut guard = app.with_page(browser).await?;
+                                let mut guard = turbo_tasks::read!(app.with_page(browser))?;
                                 if wait_for_hydration {
-                                    guard.wait_for_hydration().await?;
+                                    turbo_tasks::read!(guard.wait_for_hydration())?;
                                 }
                                 let duration = m.end(start);
                                 value = m.add(&value, &duration);
 
-                                app = guard.close_page().await?;
+                                app = turbo_tasks::read!(guard.close_page())?;
                                 app.stop_server()?;
                             }
 

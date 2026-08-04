@@ -9,8 +9,9 @@ use turbopack_ecmascript::{CustomTransformer, TransformContext, TransformPlugin}
 use super::{EcmascriptTransformStage, get_ecma_transform_rule};
 use crate::mode::NextMode;
 
+turbo_tasks::dual_fn! {
 /// Returns a rule which applies the Next.js dynamic transform.
-pub async fn get_next_dynamic_transform_rule(
+pub fn get_next_dynamic_transform_rule(
     is_server_compiler: bool,
     is_react_server_layer: bool,
     is_app_dir: bool,
@@ -18,14 +19,15 @@ pub async fn get_next_dynamic_transform_rule(
     enable_mdx_rs: bool,
 ) -> Result<ModuleRule> {
     let dynamic_transform =
-        next_dynamic_transform_plugin(is_server_compiler, is_react_server_layer, is_app_dir, mode)
-            .to_resolved()
-            .await?;
+        turbo_tasks::read!(next_dynamic_transform_plugin(is_server_compiler, is_react_server_layer, is_app_dir, mode)
+            .to_resolved())
+            ?;
     Ok(get_ecma_transform_rule(
         dynamic_transform,
         enable_mdx_rs,
         EcmascriptTransformStage::Postprocess,
     ))
+}
 }
 
 #[turbo_tasks::function]
@@ -39,7 +41,7 @@ async fn next_dynamic_transform_plugin(
         is_server_compiler,
         is_react_server_layer,
         is_app_dir,
-        mode: *mode.await?,
+        mode: *turbo_tasks::read!(mode)?,
     }) as Box<dyn CustomTransformer + Send + Sync>))
 }
 
@@ -51,10 +53,31 @@ struct NextJsDynamic {
     mode: NextMode,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 impl CustomTransformer for NextJsDynamic {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "next_dynamic", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+        program.mutate(next_dynamic(
+            self.mode.is_development(),
+            self.is_server_compiler,
+            self.is_react_server_layer,
+            self.is_app_dir,
+            NextDynamicMode::Turbopack {
+                dynamic_client_transition_name: atom!("next-dynamic-client"),
+                dynamic_transition_name: atom!("next-dynamic"),
+            },
+            FileName::Real(ctx.file_path_str.into()).into(),
+            None,
+        ));
+        Ok(())
+    }
+}
+
+#[cfg(feature = "sync")]
+impl CustomTransformer for NextJsDynamic {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "next_dynamic", skip_all)]
+    fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         program.mutate(next_dynamic(
             self.mode.is_development(),
             self.is_server_compiler,

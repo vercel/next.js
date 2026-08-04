@@ -46,8 +46,9 @@ impl ChunkListUpdate<'_> {
     }
 }
 
+turbo_tasks::dual_fn! {
 /// Computes the update of a chunk list from one version to another.
-pub(super) async fn update_chunk_list(
+pub(super) fn update_chunk_list(
     content: ResolvedVc<EcmascriptDevChunkListContent>,
     from_version: ResolvedVc<Box<dyn Version>>,
 ) -> Result<Vc<Update>> {
@@ -59,15 +60,15 @@ pub(super) async fn update_chunk_list(
     } else {
         // It's likely `from_version` is `NotFoundVersion`.
         return Ok(Update::Total(TotalUpdate {
-            to: Vc::upcast::<Box<dyn Version>>(to_version)
-                .into_trait_ref()
-                .await?,
+            to: turbo_tasks::read!(Vc::upcast::<Box<dyn Version>>(to_version)
+                .into_trait_ref())
+                ?,
         })
         .cell());
     };
 
-    let to = to_version.await?;
-    let from = from_version.await?;
+    let to = turbo_tasks::read!(to_version)?;
+    let from = turbo_tasks::read!(from_version)?;
 
     // When to and from point to the same value we can skip comparing them. This will happen since
     // `TraitRef::<Box<dyn Version>>::cell` will not clone the value, but only make the cell point
@@ -76,7 +77,7 @@ pub(super) async fn update_chunk_list(
         return Ok(Update::None.cell());
     }
 
-    let content = content.await?;
+    let content = turbo_tasks::read!(content)?;
 
     // There are two kind of updates nested within a chunk list update:
     // * merged updates; and
@@ -92,7 +93,7 @@ pub(super) async fn update_chunk_list(
         if let Some(mergeable) =
             ResolvedVc::try_sidecast::<Box<dyn MergeableVersionedContent>>(*chunk_content)
         {
-            let merger = mergeable.get_merger().to_resolved().await?;
+            let merger = turbo_tasks::read!(mergeable.get_merger().to_resolved())?;
             by_merger.entry(merger).or_default().push(*chunk_content);
         } else {
             by_path.insert(chunk_path, chunk_content);
@@ -103,9 +104,9 @@ pub(super) async fn update_chunk_list(
 
     for (chunk_path, from_chunk_version) in &from.by_path {
         if let Some(chunk_content) = by_path.swap_remove(chunk_path) {
-            let chunk_update = chunk_content
-                .update(TraitRef::cell(from_chunk_version.clone()))
-                .await?;
+            let chunk_update = turbo_tasks::read!(chunk_content
+                .update(TraitRef::cell(from_chunk_version.clone())))
+                ?;
 
             match &*chunk_update {
                 Update::Total(_) => {
@@ -136,7 +137,7 @@ pub(super) async fn update_chunk_list(
         if let Some(from_version) = from.by_merger.get(&merger) {
             let content = merger.merge(Vc::cell(chunks_contents));
 
-            let chunk_update = content.update(TraitRef::cell(from_version.clone())).await?;
+            let chunk_update = turbo_tasks::read!(content.update(TraitRef::cell(from_version.clone())))?;
 
             match &*chunk_update {
                 // Getting a total or not found update from a merger is unexpected. If it
@@ -144,9 +145,9 @@ pub(super) async fn update_chunk_list(
                 // the update.
                 Update::Total(_) => {
                     return Ok(Update::Total(TotalUpdate {
-                        to: Vc::upcast::<Box<dyn Version>>(to_version)
-                            .into_trait_ref()
-                            .await?,
+                        to: turbo_tasks::read!(Vc::upcast::<Box<dyn Version>>(to_version)
+                            .into_trait_ref())
+                            ?,
                     })
                     .cell());
                 }
@@ -163,12 +164,13 @@ pub(super) async fn update_chunk_list(
         Update::None
     } else {
         Update::Partial(PartialUpdate {
-            to: Vc::upcast::<Box<dyn Version>>(to_version)
-                .into_trait_ref()
-                .await?,
+            to: turbo_tasks::read!(Vc::upcast::<Box<dyn Version>>(to_version)
+                .into_trait_ref())
+                ?,
             instruction: Arc::new(serde_json::to_value(&update)?),
         })
     };
 
     Ok(update.cell())
+}
 }

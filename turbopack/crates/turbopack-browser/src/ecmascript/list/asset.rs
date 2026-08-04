@@ -76,11 +76,8 @@ impl OutputAssetsReference for EcmascriptDevChunkList {
 impl OutputAsset for EcmascriptDevChunkList {
     #[turbo_tasks::function]
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        let this = self.await?;
-        let mut ident = this
-            .ident
-            .owned()
-            .await?
+        let this = turbo_tasks::read!(self)?;
+        let mut ident = turbo_tasks::read!(this.ident.owned())?
             .with_modifier(rcstr!("ecmascript dev chunk list"));
 
         match this.source {

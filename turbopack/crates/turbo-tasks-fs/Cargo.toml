@@ -11,9 +11,36 @@ bench = false
 [[bench]]
 name = "mod"
 harness = false
+required-features = ["tokio_runtime"]
+
+# The examples drive the file watcher + tokio main; they are async-build-only.
+[[example]]
+name = "hash_directory"
+required-features = ["tokio_runtime"]
+
+[[example]]
+name = "hash_glob"
+required-features = ["tokio_runtime"]
 
 [features]
-default = []
+default = ["tokio_runtime"]
+# The async execution runtime (tokio + the `notify` file watcher). On by default;
+# disable for a tokio-free sync build: `--no-default-features --features sync`.
+# Forwards to the dual-mode deps' equivalent features so the whole graph flips.
+tokio_runtime = [
+    "dep:tokio",
+    "turbo-tasks/tokio_runtime",
+    "turbo-tasks-backend/tokio_runtime",
+    "turbo-tasks-testing/tokio_runtime",
+]
+# Synchronous (inline-compute, no-tokio) engine; pair with --no-default-features
+# for a tokio-free build: `--no-default-features --features sync`. Forwards to the
+# (dev-dependency) test harness + backend so the integration tests build no-tokio too.
+sync = [
+    "turbo-tasks/sync",
+    "turbo-tasks-backend/sync",
+    "turbo-tasks-testing/sync",
+]
 # Enables dynamic linking (and hot reloading) of embedded files/dirs.
 # A binary built with this option **is not portable**, the directory
 # path will be embedded into the binary.
@@ -45,12 +72,17 @@ serde = { workspace = true, features = ["rc"] }
 serde_json = { workspace = true }
 serde_path_to_error = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true }
+# Optional so a `--no-default-features --features sync` build links zero tokio.
+# Enabled by the `tokio_runtime` feature (which is in `default`).
+tokio = { workspace = true, optional = true }
 tracing = { workspace = true }
 triomphe = { workspace = true }
 turbo-bincode = { workspace = true }
 turbo-rcstr = { workspace = true }
-turbo-tasks = { workspace = true }
+# Direct path dep (not workspace-inherited) so we can set `default-features = false`
+# — cargo forbids overriding default-features on inherited deps. The `tokio_runtime`
+# feature re-enables turbo-tasks' async runtime; a no-tokio build leaves it off.
+turbo-tasks = { path = "../turbo-tasks", default-features = false }
 turbo-tasks-hash = { workspace = true }
 turbo-unix-path = { workspace = true }
 urlencoding = { workspace = true }
@@ -61,6 +93,9 @@ rand = { workspace = true }
 rstest = { workspace = true }
 sha2 = { workspace = true }
 tempfile = { workspace = true }
-turbo-tasks-testing = { workspace = true }
-turbo-tasks-backend = { workspace = true }
+# Direct path deps with default-features = false so `--no-default-features
+# --features sync` builds the integration tests/benches no-tokio. The fs
+# `sync`/`tokio_runtime` features forward to these dev-deps' equivalents.
+turbo-tasks-testing = { path = "../turbo-tasks-testing", default-features = false }
+turbo-tasks-backend = { path = "../turbo-tasks-backend", default-features = false }
 

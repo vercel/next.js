@@ -36,7 +36,7 @@ pub async fn node_file_trace(
     max_depth: Option<usize>,
 ) -> Result<()> {
     let op = node_file_trace_operation(project_root.clone(), input.clone(), graph, max_depth);
-    let result = op.read_strongly_consistent().await?;
+    let result = turbo_tasks::read!(op.read_strongly_consistent())?;
 
     if show_issues {
         let issue_reporter: Vc<Box<dyn IssueReporter>> =
@@ -48,7 +48,13 @@ pub async fn node_file_trace(
                 log_level: IssueSeverity::Hint,
             })));
 
-        handle_issues(op, issue_reporter, IssueSeverity::Error, None, None).await?;
+        turbo_tasks::read!(handle_issues(
+            op,
+            issue_reporter,
+            IssueSeverity::Error,
+            None,
+            None
+        ))?;
     }
 
     println!("FILELIST:");
@@ -70,7 +76,7 @@ async fn node_file_trace_operation(
         rcstr!("workspace"),
         Vc::cell(project_root.clone()),
     ));
-    let input_dir = workspace_fs.root().owned().await?;
+    let input_dir = turbo_tasks::read!(workspace_fs.root().owned())?;
     let input = input_dir.join(&format!("{input}"))?;
 
     let source = FileSource::new(input);
@@ -124,13 +130,14 @@ async fn node_file_trace_operation(
         .module();
 
     Ok(Vc::cell(if graph {
-        to_graph(module, max_depth.unwrap_or(usize::MAX)).await?
+        turbo_tasks::read!(to_graph(module, max_depth.unwrap_or(usize::MAX)))?
     } else {
-        to_list(module).await?
+        turbo_tasks::read!(to_list(module))?
     }))
 }
 
-async fn to_list(asset: Vc<Box<dyn Module>>) -> Result<Vec<RcStr>> {
+turbo_tasks::dual_fn! {
+fn to_list(asset: Vc<Box<dyn Module>>) -> Result<Vec<RcStr>> {
     let mut assets = vec![];
 
     let mut visited = FxHashSet::default();
@@ -138,8 +145,8 @@ async fn to_list(asset: Vc<Box<dyn Module>>) -> Result<Vec<RcStr>> {
     queue.push(asset);
 
     while let Some(asset) = queue.pop() {
-        let references = referenced_modules_and_affecting_sources(asset, false).await?;
-        let path = &asset.ident().await?.path;
+        let references = turbo_tasks::read!(referenced_modules_and_affecting_sources(asset, false))?;
+        let path = &turbo_tasks::read!(asset.ident())?.path;
         if visited.insert(asset) {
             for (_, references) in references.iter().rev() {
                 for asset in references.modules.iter() {
@@ -155,20 +162,22 @@ async fn to_list(asset: Vc<Box<dyn Module>>) -> Result<Vec<RcStr>> {
 
     Ok(assets)
 }
+}
 
-async fn to_graph(asset: Vc<Box<dyn Module>>, max_depth: usize) -> Result<Vec<RcStr>> {
+turbo_tasks::dual_fn! {
+fn to_graph(asset: Vc<Box<dyn Module>>, max_depth: usize) -> Result<Vec<RcStr>> {
     let mut visited = FxHashSet::default();
     let mut queue = Vec::new();
     queue.push((0, asset));
 
     let mut result = vec![];
     while let Some((depth, asset)) = queue.pop() {
-        let references = referenced_modules_and_affecting_sources(asset, false).await?;
+        let references = turbo_tasks::read!(referenced_modules_and_affecting_sources(asset, false))?;
         let mut indent = String::new();
         for _ in 0..depth {
             indent.push_str("  ");
         }
-        let path = &asset.ident().await?.path;
+        let path = &turbo_tasks::read!(asset.ident())?.path;
         if visited.insert(asset) {
             if depth < max_depth {
                 for (_, references) in references.iter().rev() {
@@ -177,15 +186,16 @@ async fn to_graph(asset: Vc<Box<dyn Module>>, max_depth: usize) -> Result<Vec<Rc
                     }
                 }
             }
-            result.push(turbofmt!("{indent}{}", path.path).await?);
+            result.push(turbo_tasks::read!(turbofmt!("{indent}{}", path.path))?);
         } else if references.is_empty() {
-            result.push(turbofmt!("{indent}{} *", path.path).await?);
+            result.push(turbo_tasks::read!(turbofmt!("{indent}{} *", path.path))?);
         } else {
-            result.push(turbofmt!("{indent}{} *...", path.path).await?);
+            result.push(turbo_tasks::read!(turbofmt!("{indent}{} *...", path.path))?);
         }
     }
     result.push("".into());
     result.push("*    : revisited and no references".into());
     result.push("*... : revisited and references were already printed".into());
     Ok(result)
+}
 }

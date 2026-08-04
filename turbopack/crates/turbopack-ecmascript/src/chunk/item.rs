@@ -1,6 +1,7 @@
 use std::io::Write;
 
 use anyhow::{Result, bail};
+#[cfg(not(feature = "sync"))]
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use smallvec::SmallVec;
@@ -61,31 +62,33 @@ impl EcmascriptChunkItemContent {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         async_module_options: Vc<OptionAsyncModuleOptions>,
     ) -> Result<Vc<Self>> {
-        let supports_arrow_functions = *chunking_context
-            .environment()
-            .runtime_versions()
-            .supports_arrow_functions()
-            .await?;
-        let externals = *chunking_context
-            .environment()
-            .supports_commonjs_externals()
-            .await?;
+        let supports_arrow_functions = *turbo_tasks::read!(
+            chunking_context
+                .environment()
+                .runtime_versions()
+                .supports_arrow_functions()
+        )?;
+        let externals =
+            *turbo_tasks::read!(chunking_context.environment().supports_commonjs_externals())?;
 
-        let content = content.await?;
-        let async_module = async_module_options.owned().await?;
+        let content = turbo_tasks::read!(content)?;
+        let async_module = turbo_tasks::read!(async_module_options.owned())?;
         let strict = content.strict;
 
         Ok(EcmascriptChunkItemContent {
-            rewrite_source_path: match *chunking_context.source_map_source_type().await? {
-                SourceMapSourceType::AbsoluteFileUri => {
-                    RewriteSourcePath::AbsoluteFilePath(chunking_context.root_path().owned().await?)
-                }
+            rewrite_source_path: match *turbo_tasks::read!(
+                chunking_context.source_map_source_type()
+            )? {
+                SourceMapSourceType::AbsoluteFileUri => RewriteSourcePath::AbsoluteFilePath(
+                    turbo_tasks::read!(chunking_context.root_path().owned())?,
+                ),
                 SourceMapSourceType::RelativeUri => RewriteSourcePath::RelativeFilePath(
-                    chunking_context.root_path().owned().await?,
-                    chunking_context
-                        .relative_path_from_chunk_root_to_project_root()
-                        .owned()
-                        .await?,
+                    turbo_tasks::read!(chunking_context.root_path().owned())?,
+                    turbo_tasks::read!(
+                        chunking_context
+                            .relative_path_from_chunk_root_to_project_root()
+                            .owned()
+                    )?,
                 ),
                 SourceMapSourceType::TurbopackUri => RewriteSourcePath::None,
             },
@@ -121,7 +124,8 @@ impl EcmascriptChunkItemContent {
 }
 
 impl EcmascriptChunkItemContent {
-    async fn module_factory(&self) -> Result<ResolvedVc<PersistedCode>> {
+    turbo_tasks::dual_fn! {
+    fn module_factory(&self) -> Result<ResolvedVc<PersistedCode>> {
         let mut code = CodeBuilder::default();
         for additional_id in self.additional_ids.iter() {
             writeln!(code, "{}, ", StringifyJs(&additional_id))?;
@@ -166,16 +170,15 @@ impl EcmascriptChunkItemContent {
         }
 
         let source_map = match &self.rewrite_source_path {
-            RewriteSourcePath::AbsoluteFilePath(path) => {
-                absolute_fileify_source_map(self.source_map.as_ref(), path.clone()).await?
-            }
+            RewriteSourcePath::AbsoluteFilePath(path) => turbo_tasks::read!(
+                absolute_fileify_source_map(self.source_map.as_ref(), path.clone())
+            )?,
             RewriteSourcePath::RelativeFilePath(path, relative_path) => {
-                relative_fileify_source_map(
+                turbo_tasks::read!(relative_fileify_source_map(
                     self.source_map.as_ref(),
                     path.clone(),
                     relative_path.clone(),
-                )
-                .await?
+                ))?
             }
             RewriteSourcePath::None => self.source_map.clone(),
         };
@@ -194,6 +197,7 @@ impl EcmascriptChunkItemContent {
         code += "})";
 
         Ok(code.build().cell_persisted())
+    }
     }
 }
 
@@ -244,6 +248,7 @@ impl EcmascriptChunkItemWithAsyncInfo {
     }
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_trait]
 pub trait EcmascriptChunkItem: ChunkItem + OutputAssetsReference {
@@ -252,6 +257,21 @@ pub trait EcmascriptChunkItem: ChunkItem + OutputAssetsReference {
     /// compute the chunking. When `estimated` is true, this function should not invoke other
     /// chunking operations that would cause cycles.
     async fn content_with_async_module_info(
+        &self,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+        estimated: bool,
+    ) -> Result<Vc<EcmascriptChunkItemContent>>;
+}
+
+/// See the async definition above; the sync engine drops `async`/`#[async_trait]`.
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_trait]
+pub trait EcmascriptChunkItem: ChunkItem + OutputAssetsReference {
+    /// Fetches the content of the chunk item with async module info.
+    /// When `estimated` is true, it's ok to provide an estimated content, since it's only used for
+    /// compute the chunking. When `estimated` is true, this function should not invoke other
+    /// chunking operations that would cause cycles.
+    fn content_with_async_module_info(
         &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
         estimated: bool,
@@ -279,22 +299,24 @@ async fn module_factory_with_code_generation_issue(
     chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
     async_module_info: Option<Vc<AsyncModuleInfo>>,
 ) -> Result<Vc<PersistedCode>> {
-    async fn get_content(
+    turbo_tasks::dual_fn! {
+    fn get_content(
         chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<ResolvedVc<PersistedCode>> {
-        let chunk_item_ref = chunk_item.into_trait_ref().await?;
-        let content = chunk_item_ref
-            .content_with_async_module_info(async_module_info, false)
-            .await?
-            .await?;
-        content.module_factory().await
+        let chunk_item_ref = turbo_tasks::read!(chunk_item.into_trait_ref())?;
+        let content = turbo_tasks::read!(turbo_tasks::read!(chunk_item_ref
+            .content_with_async_module_info(async_module_info, false))
+            ?)
+            ?;
+        turbo_tasks::read!(content.module_factory())
     }
-    let content = get_content(chunk_item, async_module_info).await;
+    }
+    let content = turbo_tasks::read!(get_content(chunk_item, async_module_info));
     Ok(match content {
         Ok(factory) => *factory,
         Err(error) => {
-            let id = chunk_item.asset_ident().to_string().await;
+            let id = turbo_tasks::read!(chunk_item.asset_ident().to_string());
             let id = id.as_ref().map_or_else(|_| "unknown", |id| &**id);
 
             // ast-grep-ignore: no-context-format
@@ -305,7 +327,7 @@ async fn module_factory_with_code_generation_issue(
             let js_error_message = serde_json::to_string(&error_message)?;
             CodeGenerationIssue {
                 severity: IssueSeverity::Error,
-                path: chunk_item.asset_ident().await?.path.clone(),
+                path: turbo_tasks::read!(chunk_item.asset_ident())?.path.clone(),
                 title: StyledString::Text(rcstr!("Code generation for chunk item errored"))
                     .resolved_cell(),
                 message: StyledString::Text(error_message).resolved_cell(),
@@ -384,10 +406,29 @@ impl OutputAssetsReference for EcmascriptModuleChunkItem {
     }
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for EcmascriptModuleChunkItem {
     async fn content_with_async_module_info(
+        &self,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+        estimated: bool,
+    ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        Ok(self.module.chunk_item_content(
+            *self.chunking_context,
+            *self.module_graph,
+            async_module_info,
+            estimated,
+        ))
+    }
+}
+
+/// See the async impl above; the sync engine drops `async`/`#[async_trait]`.
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl EcmascriptChunkItem for EcmascriptModuleChunkItem {
+    fn content_with_async_module_info(
         &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
         estimated: bool,

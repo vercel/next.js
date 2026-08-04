@@ -64,35 +64,35 @@ next-taskless = { workspace = true }
 
 turbo-bincode = { workspace = true }
 turbo-rcstr = { workspace = true }
-turbo-esregex = { workspace = true }
-turbo-tasks = { workspace = true }
-turbo-tasks-bytes = { workspace = true }
-turbo-tasks-env = { workspace = true }
-turbo-tasks-fetch = { workspace = true }
-turbo-tasks-fs = { workspace = true }
+turbo-esregex = { path = "../../turbopack/crates/turbo-esregex", default-features = false }
+turbo-tasks = { path = "../../turbopack/crates/turbo-tasks", default-features = false }
+turbo-tasks-bytes = { path = "../../turbopack/crates/turbo-tasks-bytes", default-features = false }
+turbo-tasks-env = { path = "../../turbopack/crates/turbo-tasks-env", default-features = false }
+turbo-tasks-fetch = { path = "../../turbopack/crates/turbo-tasks-fetch", default-features = false }
+turbo-tasks-fs = { path = "../../turbopack/crates/turbo-tasks-fs", default-features = false }
 turbo-tasks-hash = { workspace = true }
-turbopack = { workspace = true }
-turbopack-browser = { workspace = true }
-turbopack-core = { workspace = true }
-turbopack-css = { workspace = true }
-turbopack-ecmascript = { workspace = true }
-turbopack-ecmascript-plugins = { workspace = true, features = [
+turbopack = { path = "../../turbopack/crates/turbopack", default-features = false }
+turbopack-browser = { path = "../../turbopack/crates/turbopack-browser", default-features = false }
+turbopack-core = { path = "../../turbopack/crates/turbopack-core", default-features = false }
+turbopack-css = { path = "../../turbopack/crates/turbopack-css", default-features = false }
+turbopack-ecmascript = { path = "../../turbopack/crates/turbopack-ecmascript", default-features = false }
+turbopack-ecmascript-plugins = { path = "../../turbopack/crates/turbopack-ecmascript-plugins", default-features = false, features = [
   "transform_emotion",
 ] }
-turbopack-ecmascript-runtime = { workspace = true }
-turbopack-image = { workspace = true }
-turbopack-node = { workspace = true, default-features = false }
-turbopack-nodejs = { workspace = true }
-turbopack-resolve = { workspace = true }
-turbopack-static = { workspace = true }
+turbopack-ecmascript-runtime = { path = "../../turbopack/crates/turbopack-ecmascript-runtime", default-features = false }
+turbopack-image = { path = "../../turbopack/crates/turbopack-image", default-features = false }
+turbopack-node = { path = "../../turbopack/crates/turbopack-node", default-features = false }
+turbopack-nodejs = { path = "../../turbopack/crates/turbopack-nodejs", default-features = false }
+turbopack-resolve = { path = "../../turbopack/crates/turbopack-resolve", default-features = false }
+turbopack-static = { path = "../../turbopack/crates/turbopack-static", default-features = false }
 turbopack-trace-utils = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
-turbo-tasks-backend = { workspace = true }
+turbo-tasks-backend = { path = "../../turbopack/crates/turbo-tasks-backend", default-features = false }
 
 [features]
-default = ["process_pool"]
+default = ["tokio_runtime", "process_pool"]
 process_pool = ["turbopack-node/process_pool"]
 worker_pool = ["turbopack-node/worker_pool"]
 next-font-local = []
@@ -104,3 +104,5 @@ dynamic_embed_contents = [
   "turbo-tasks-fs/dynamic_embed_contents",
   "turbopack-browser/dynamic_embed_contents",
 ]
+tokio_runtime = ["turbo-esregex/tokio_runtime", "turbo-tasks/tokio_runtime", "turbo-tasks-backend/tokio_runtime", "turbo-tasks-bytes/tokio_runtime", "turbo-tasks-env/tokio_runtime", "turbo-tasks-fetch/tokio_runtime", "turbo-tasks-fs/tokio_runtime", "turbopack/tokio_runtime", "turbopack-browser/tokio_runtime", "turbopack-core/tokio_runtime", "turbopack-css/tokio_runtime", "turbopack-ecmascript/tokio_runtime", "turbopack-ecmascript-plugins/tokio_runtime", "turbopack-ecmascript-runtime/tokio_runtime", "turbopack-image/tokio_runtime", "turbopack-node/tokio_runtime", "turbopack-nodejs/tokio_runtime", "turbopack-resolve/tokio_runtime", "turbopack-static/tokio_runtime"]
+sync = ["turbo-esregex/sync", "turbo-tasks/sync", "turbo-tasks-backend/sync", "turbo-tasks-bytes/sync", "turbo-tasks-env/sync", "turbo-tasks-fetch/sync", "turbo-tasks-fs/sync", "turbopack/sync", "turbopack-browser/sync", "turbopack-core/sync", "turbopack-css/sync", "turbopack-ecmascript/sync", "turbopack-ecmascript-plugins/sync", "turbopack-ecmascript-runtime/sync", "turbopack-image/sync", "turbopack-node/sync", "turbopack-nodejs/sync", "turbopack-resolve/sync", "turbopack-static/sync"]

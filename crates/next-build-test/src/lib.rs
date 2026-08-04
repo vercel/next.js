@@ -5,20 +5,27 @@
 use std::{str::FromStr, time::Instant};
 
 use anyhow::{Context, Result, bail};
+#[cfg(not(feature = "sync"))]
 use futures_util::{StreamExt, TryStreamExt};
+#[cfg(not(feature = "sync"))]
+use next_api::project::HmrTarget;
 use next_api::{
     entrypoints::Entrypoints,
-    project::{HmrTarget, ProjectContainer, ProjectOptions},
+    project::{ProjectContainer, ProjectOptions},
     route::{Endpoint, EndpointOutputPaths, Route, endpoint_write_to_disk},
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Effects, ReadConsistency, ReadRef, ResolvedVc, TransientInstance, TurboTasks, Vc,
-    read_strongly_consistent_and_apply_effects, take_effects,
+    Effects, ReadRef, ResolvedVc, TurboTasks, Vc, read_strongly_consistent_and_apply_effects,
+    take_effects,
 };
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::{ReadConsistency, TransientInstance};
 use turbo_tasks_backend::TurboTasksBackend;
+#[cfg(not(feature = "sync"))]
 use turbo_tasks_malloc::TurboMalloc;
 
+#[cfg(not(feature = "sync"))]
 pub async fn main_inner(
     tt: &TurboTasks<TurboTasksBackend>,
     strategy: Strategy,
@@ -103,6 +110,251 @@ pub async fn main_inner(
     Ok(())
 }
 
+// ---- Sync (no-tokio) production build driver ----
+//
+// Mirrors the async `main_inner`/`render_routes`/`endpoint_write_to_disk_with_apply`
+// above, but drives everything through the sync engine's `run_sync` + `read!`
+// (no futures, no `.await`, no tokio runtime — tokio only survives at the node-pool
+// I/O edge). Only the sequential strategy is supported; the concurrent/parallel
+// tokio-stream paths and dev HMR remain async-only.
+#[cfg(feature = "sync")]
+pub fn main_inner(
+    tt: &TurboTasks<TurboTasksBackend>,
+    strategy: Strategy,
+    _factor: usize,
+    limit: usize,
+    files: Option<Vec<String>>,
+) -> Result<()> {
+    use turbo_tasks::read;
+
+    if matches!(strategy, Strategy::Development { .. }) {
+        bail!("the sync build does not support the `development` strategy (dev/HMR is async-only)");
+    }
+
+    let path = std::env::current_dir()?.join("project_options.json");
+    let mut file = std::fs::File::open(&path)
+        .with_context(|| format!("loading file at {}", path.display()))?;
+    let mut options: ProjectOptions = serde_json::from_reader(&mut file)?;
+    options.dev = false;
+    options.watch.enable = false;
+
+    let project = tt.run_sync(move || {
+        let container_op = ProjectContainer::new_operation(rcstr!("next.js"), options.dev);
+        read!(ProjectContainer::initialize(container_op, options))?;
+        read!(container_op.resolve().strongly_consistent())
+    })?;
+
+    tracing::info!("collecting endpoints");
+
+    #[turbo_tasks::function(operation, root)]
+    fn project_entrypoints_operation(project: ResolvedVc<ProjectContainer>) -> Vc<Entrypoints> {
+        project.entrypoints()
+    }
+    let entrypoints = tt.run_sync(move || {
+        read!(project_entrypoints_operation(project).read_strongly_consistent())
+    })?;
+
+    let routes: Box<dyn Iterator<Item = (RcStr, Route)> + Send + Sync> = if let Some(files) = files
+    {
+        tracing::info!("building only the files:");
+        for file in &files {
+            tracing::info!("  {}", file);
+        }
+        Box::new(files.into_iter().filter_map(|f| {
+            entrypoints
+                .routes
+                .iter()
+                .find(|(name, _)| f.as_str() == name.as_str())
+                .map(|(name, route)| (name.clone(), route.clone()))
+        }))
+    } else {
+        Box::new(entrypoints.routes.clone().into_iter())
+    };
+    let routes: Box<dyn Iterator<Item = (RcStr, Route)> + Send + Sync> = if strategy.randomized() {
+        Box::new(shuffle(routes))
+    } else {
+        routes
+    };
+
+    let start = Instant::now();
+    let count = render_routes(tt, routes, strategy, limit)?;
+    tracing::info!("rendered {} pages in {:?}", count, start.elapsed());
+
+    if count == 0 {
+        tracing::info!("No pages found, these pages exist:");
+        for (route, _) in entrypoints.routes.iter() {
+            tracing::info!("  {}", route);
+        }
+    }
+
+    Ok(())
+}
+
+#[cfg(feature = "sync")]
+pub fn render_routes(
+    tt: &TurboTasks<TurboTasksBackend>,
+    routes: impl Iterator<Item = (RcStr, Route)>,
+    strategy: Strategy,
+    limit: usize,
+) -> Result<usize> {
+    let items: Vec<(RcStr, Route)> = routes.take(limit).collect();
+    let count = items.len();
+
+    // Concurrent driver: every route is an independent root, so building them together gives
+    // the pool that many independent demand chains. This is the sync counterpart of the async
+    // driver's `buffer_unordered(factor)`, and it matters more here than it does there: a sync
+    // worker cannot suspend on a dependency, so the number of chains in flight *is* the
+    // achievable parallelism.
+    //
+    // The outer `run_sync` both bootstraps the fan-out onto the worker pool and binds the
+    // `TURBO_TASKS` scope `sync_parallel_map` needs (calling it bare from the main thread
+    // panics with "sync task-local accessed outside of a scope"). Each route still gets its
+    // own `run_sync` root Once task — same isolation as the sequential driver below.
+    if !matches!(strategy, Strategy::Sequential { .. }) {
+        tracing::info!("rendering {count} routes (sync, concurrent)");
+        let start = Instant::now();
+        let this = tt.pin();
+        let results = tt.run_sync(move || {
+            Ok(turbo_tasks::sync_parallel_map(
+                items,
+                move |(name, route)| {
+                    let this = this.clone();
+                    this.run_sync(move || render_one(name, route))
+                },
+            ))
+        })?;
+        for r in results {
+            r?;
+        }
+        tracing::info!("rendered {count} routes in {:?}", start.elapsed());
+        return Ok(count);
+    }
+
+    tracing::info!("rendering routes (sync, sequential)");
+    let mut count = 0;
+    for (name, route) in items {
+        tracing::info!("{name}...");
+        let start = Instant::now();
+        let name_for_task = name.clone();
+        tt.run_sync(move || {
+            match route {
+                Route::Page {
+                    html_endpoint,
+                    data_endpoint: _,
+                } => {
+                    endpoint_write_to_disk_with_apply(html_endpoint)?;
+                }
+                Route::PageApi { endpoint } => {
+                    endpoint_write_to_disk_with_apply(endpoint)?;
+                }
+                Route::AppPage(routes) => {
+                    for route in routes {
+                        endpoint_write_to_disk_with_apply(route.html_endpoint)?;
+                    }
+                }
+                Route::AppRoute {
+                    original_name: _,
+                    endpoint,
+                } => {
+                    endpoint_write_to_disk_with_apply(endpoint)?;
+                }
+                Route::Conflict => {
+                    tracing::info!("WARN: conflict {}", name_for_task);
+                }
+            }
+            Ok(())
+        })?;
+        count += 1;
+        tracing::info!("{name} {:?}", start.elapsed());
+    }
+    Ok(count)
+}
+
+/// One route's build, shared by the sequential and concurrent sync drivers.
+#[cfg(feature = "sync")]
+fn render_one(name: RcStr, route: Route) -> Result<()> {
+    match route {
+        Route::Page {
+            html_endpoint,
+            data_endpoint: _,
+        } => {
+            endpoint_write_to_disk_with_apply(html_endpoint)?;
+        }
+        Route::PageApi { endpoint } => {
+            endpoint_write_to_disk_with_apply(endpoint)?;
+        }
+        Route::AppPage(routes) => {
+            for route in routes {
+                endpoint_write_to_disk_with_apply(route.html_endpoint)?;
+            }
+        }
+        Route::AppRoute {
+            original_name: _,
+            endpoint,
+        } => {
+            endpoint_write_to_disk_with_apply(endpoint)?;
+        }
+        Route::Conflict => {
+            tracing::info!("WARN: conflict {}", name);
+        }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "sync")]
+fn endpoint_write_to_disk_with_apply(
+    endpoint: ResolvedVc<Box<dyn Endpoint>>,
+) -> Result<ReadRef<EndpointOutputPaths>> {
+    use turbo_tasks::read;
+
+    #[turbo_tasks::function(operation, root)]
+    fn inner_operation(endpoint: ResolvedVc<Box<dyn Endpoint>>) -> Vc<EndpointOutputPaths> {
+        endpoint_write_to_disk(*endpoint)
+    }
+
+    #[turbo_tasks::value(serialization = "skip")]
+    struct WithEffects {
+        output_paths: ReadRef<EndpointOutputPaths>,
+        effects: Effects,
+    }
+
+    #[turbo_tasks::function(operation, root)]
+    fn inner_operation_with_effects(
+        endpoint: ResolvedVc<Box<dyn Endpoint>>,
+    ) -> Result<Vc<WithEffects>> {
+        let op = inner_operation(endpoint);
+        // Surface turbopack build Issues (opt-in via TURBO_PRINT_ISSUES=1); see the
+        // async counterpart. Peeked before propagating so a failing build shows its
+        // real cause.
+        let read_result = read!(op.read_strongly_consistent());
+        if std::env::var("TURBO_PRINT_ISSUES").is_ok() {
+            use turbopack_core::issue::{CollectibleIssuesExt, IssueFilter};
+            for issue in read!(
+                op.peek_issues()
+                    .get_plain_issues(&IssueFilter::everything())
+            )?
+            .iter()
+            {
+                eprintln!(
+                    "== TURBOPACK ISSUE [{:?} @ {:?}] {}\n   title: {:?}\n   description: {:?}",
+                    issue.severity, issue.stage, issue.file_path, issue.title, issue.description
+                );
+            }
+        }
+        let output_paths = read_result?;
+        let effects = read!(take_effects(op))?;
+        Ok(WithEffects {
+            output_paths,
+            effects,
+        }
+        .cell())
+    }
+
+    let op = inner_operation_with_effects(endpoint);
+    let read = read!(read_strongly_consistent_and_apply_effects(op, |v| &v.effects))?;
+    Ok(read.output_paths.clone())
+}
+
 #[derive(PartialEq, Copy, Clone)]
 pub enum Strategy {
     Sequential { randomized: bool },
@@ -161,6 +413,7 @@ pub fn shuffle<'a, T: 'a>(items: impl Iterator<Item = T>) -> impl Iterator<Item 
     input.into_iter()
 }
 
+#[cfg(not(feature = "sync"))]
 pub async fn render_routes(
     tt: &TurboTasks<TurboTasksBackend>,
     routes: impl Iterator<Item = (RcStr, Route)>,
@@ -246,6 +499,7 @@ pub async fn render_routes(
     Ok(stream.len())
 }
 
+#[cfg(not(feature = "sync"))]
 async fn endpoint_write_to_disk_with_apply(
     endpoint: ResolvedVc<Box<dyn Endpoint>>,
 ) -> Result<ReadRef<EndpointOutputPaths>> {
@@ -266,7 +520,26 @@ async fn endpoint_write_to_disk_with_apply(
         endpoint: ResolvedVc<Box<dyn Endpoint>>,
     ) -> Result<Vc<WithEffects>> {
         let op = inner_operation(endpoint);
-        let output_paths = op.read_strongly_consistent().await?;
+        // Surface turbopack build Issues (which the harness otherwise swallows),
+        // opt-in via TURBO_PRINT_ISSUES=1. Peeked whether or not the read below
+        // succeeds, so a failing build shows its real cause instead of an opaque
+        // "Execution of ... failed".
+        let read_result = op.read_strongly_consistent().await;
+        if std::env::var("TURBO_PRINT_ISSUES").is_ok() {
+            use turbopack_core::issue::{CollectibleIssuesExt, IssueFilter};
+            for issue in op
+                .peek_issues()
+                .get_plain_issues(&IssueFilter::everything())
+                .await?
+                .iter()
+            {
+                eprintln!(
+                    "== TURBOPACK ISSUE [{:?} @ {:?}] {}\n   title: {:?}\n   description: {:?}",
+                    issue.severity, issue.stage, issue.file_path, issue.title, issue.description
+                );
+            }
+        }
+        let output_paths = read_result?;
         let effects = take_effects(op).await?;
         Ok(WithEffects {
             output_paths,
@@ -281,6 +554,7 @@ async fn endpoint_write_to_disk_with_apply(
     Ok(read.output_paths.clone())
 }
 
+#[cfg(not(feature = "sync"))]
 async fn hmr(
     tt: &TurboTasks<TurboTasksBackend>,
     project: ResolvedVc<ProjectContainer>,

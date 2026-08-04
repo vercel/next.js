@@ -13,11 +13,21 @@ bench = false
 workspace = true
 
 [features]
-default = []
+default = ["tokio_runtime"]
+# The async execution runtime (tokio + background snapshot/GC jobs). On by default;
+# disable for a tokio-free sync build. Forwards to turbo-tasks' equivalent feature.
+tokio_runtime = ["dep:tokio", "turbo-tasks/tokio_runtime", "turbo-tasks-testing/tokio_runtime"]
+# Synchronous (inline-compute) engine; pair with --no-default-features for a
+# tokio-free build: `--no-default-features --features sync`. Forwards to the
+# (dev-dependency) test harness so the integration tests build no-tokio too.
+sync = ["turbo-tasks/sync", "turbo-tasks-testing/sync"]
 print_cache_item_size_with_compressed = ["print_cache_item_size", "dep:lzzzz"]
 print_cache_item_size = []
 no_fast_stale = []
 aggregation_update_no_batch = []
+# Force the consistent pair-locked aggregation classifier in either executor mode.
+# Sync enables this behavior automatically; this feature lets async tests exercise the same path.
+force_pair_locked_aggregation = []
 verify_serialization = []
 verify_aggregation_graph = []
 verify_immutable = []
@@ -53,12 +63,15 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 serde_path_to_error = { workspace = true }
 smallvec = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, optional = true }
 tracing = { workspace = true }
 turbo-bincode = { workspace = true }
 turbo-persistence = { workspace = true }
 turbo-rcstr = { workspace = true }
-turbo-tasks = { workspace = true }
+# Direct path dep (not workspace-inherited) so we can set `default-features = false`
+# — cargo forbids overriding default-features on inherited deps. The `tokio_runtime`
+# feature re-enables turbo-tasks' async runtime; a no-tokio backend leaves it off.
+turbo-tasks = { path = "../turbo-tasks", default-features = false }
 turbo-tasks-hash = { workspace = true }
 turbo-tasks-malloc = { workspace = true, default-features = false }
 thread_local = { workspace = true }
@@ -74,7 +87,10 @@ triomphe = { workspace = true }
 thiserror = { workspace = true }
 turbo-tasks-malloc = { workspace = true , features = ["custom_allocator"]}
 rstest = { workspace = true }
-turbo-tasks-testing = { workspace = true }
+# Direct path dep with default-features = false so `--no-default-features --features
+# sync` builds the integration tests no-tokio. The backend `sync`/`tokio_runtime`
+# features forward to this dev-dep's equivalents.
+turbo-tasks-testing = { path = "../turbo-tasks-testing", default-features = false }
 
 
 [[bench]]

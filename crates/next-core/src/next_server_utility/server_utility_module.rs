@@ -37,17 +37,25 @@ impl NextServerUtilityModule {
 
     #[turbo_tasks::function]
     pub async fn server_path(&self) -> Result<Vc<FileSystemPath>> {
-        Ok(self.module.ident().await?.path.clone().cell())
+        Ok(turbo_tasks::read!(self.module.ident())?.path.clone().cell())
     }
 }
 
+#[cfg(not(feature = "sync"))]
 impl NextServerUtilityModule {
     async fn module_reference(&self) -> Result<ResolvedVc<Box<dyn ModuleReference>>> {
-        Ok(ResolvedVc::upcast(
-            NextServerUtilityModuleReference::new(Vc::upcast(*self.module))
-                .to_resolved()
-                .await?,
-        ))
+        Ok(ResolvedVc::upcast(turbo_tasks::read!(
+            NextServerUtilityModuleReference::new(Vc::upcast(*self.module)).to_resolved()
+        )?))
+    }
+}
+
+#[cfg(feature = "sync")]
+impl NextServerUtilityModule {
+    fn module_reference(&self) -> Result<ResolvedVc<Box<dyn ModuleReference>>> {
+        Ok(ResolvedVc::upcast(turbo_tasks::read!(
+            NextServerUtilityModuleReference::new(Vc::upcast(*self.module)).to_resolved()
+        )?))
     }
 }
 
@@ -55,11 +63,7 @@ impl NextServerUtilityModule {
 impl Module for NextServerUtilityModule {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self
-            .module
-            .ident()
-            .owned()
-            .await?
+        Ok(turbo_tasks::read!(self.module.ident().owned())?
             .with_modifier(rcstr!("Next.js server utility"))
             .into_vc())
     }
@@ -71,7 +75,7 @@ impl Module for NextServerUtilityModule {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        Ok(Vc::cell(vec![self.module_reference().await?]))
+        Ok(Vc::cell(vec![turbo_tasks::read!(self.module_reference())?]))
     }
 
     #[turbo_tasks::function]
@@ -111,7 +115,7 @@ impl EcmascriptChunkPlaceable for NextServerUtilityModule {
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let module_id = self.module.chunk_item_id(chunking_context).await?;
+        let module_id = turbo_tasks::read!(self.module.chunk_item_id(chunking_context))?;
         Ok(EcmascriptChunkItemContent {
             inner_code: formatdoc!(
                 r#"

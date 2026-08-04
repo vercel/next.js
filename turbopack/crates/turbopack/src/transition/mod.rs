@@ -79,7 +79,7 @@ pub trait Transition {
         self: Vc<Self>,
         module_asset_context: Vc<ModuleAssetContext>,
     ) -> Result<Vc<ModuleAssetContext>> {
-        let module_asset_context = module_asset_context.await?;
+        let module_asset_context = turbo_tasks::read!(module_asset_context)?;
         let compile_time_info =
             self.process_compile_time_info(*module_asset_context.compile_time_info);
         let module_options_context =
@@ -108,18 +108,14 @@ pub trait Transition {
     ) -> Result<Vc<ProcessResult>> {
         let source = self.process_source(source);
         let module_asset_context = self.process_context(module_asset_context);
-        let source = source.to_resolved().await?;
+        let source = turbo_tasks::read!(source.to_resolved())?;
 
-        Ok(match &*module_asset_context
-            .process_default(source, reference_type)
-            .await?
-            .await?
-        {
-            ProcessResult::Module(m) => ProcessResult::Module(
-                self.process_module(**m, module_asset_context)
-                    .to_resolved()
-                    .await?,
-            ),
+        Ok(match &*turbo_tasks::read!(turbo_tasks::read!(
+            module_asset_context.process_default(source, reference_type)
+        )?)? {
+            ProcessResult::Module(m) => ProcessResult::Module(turbo_tasks::read!(
+                self.process_module(**m, module_asset_context).to_resolved()
+            )?),
             ProcessResult::Unknown(source) => ProcessResult::Unknown(*source),
             ProcessResult::Ignore => ProcessResult::Ignore,
         }
@@ -148,7 +144,8 @@ impl TransitionOptions {
         self.named_transitions.get(&name).copied()
     }
 
-    pub async fn get_by_rules(
+    turbo_tasks::dual_fn! {
+    pub fn get_by_rules(
         &self,
         source: ResolvedVc<Box<dyn Source>>,
         reference_type: &ReferenceType,
@@ -156,12 +153,13 @@ impl TransitionOptions {
         if self.transition_rules.is_empty() {
             return Ok(None);
         }
-        let path = &source.ident().await?.path;
+        let path = &turbo_tasks::read!(source.ident())?.path;
         for rule in &self.transition_rules {
-            if rule.matches(source, path, reference_type).await? {
+            if turbo_tasks::read!(rule.matches(source, path, reference_type))? {
                 return Ok(Some(rule.transition()));
             }
         }
         Ok(None)
+    }
     }
 }

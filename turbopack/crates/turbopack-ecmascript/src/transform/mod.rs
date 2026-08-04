@@ -1,6 +1,7 @@
 use std::{fmt::Debug, hash::Hash, sync::Arc};
 
 use anyhow::{Result, bail};
+#[cfg(not(feature = "sync"))]
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use swc_core::{
@@ -137,9 +138,16 @@ impl ReactCompilerTarget {
 
 /// The CustomTransformer trait allows you to implement your own custom SWC
 /// transformer to run over all ECMAScript files imported in the graph.
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 pub trait CustomTransformer: Debug {
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()>;
+}
+
+/// See the async definition above; the sync engine drops `async`/`#[async_trait]`.
+#[cfg(feature = "sync")]
+pub trait CustomTransformer: Debug {
+    fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()>;
 }
 
 /// A wrapper around a TransformPlugin instance, allowing it to operate with
@@ -148,10 +156,19 @@ pub trait CustomTransformer: Debug {
 #[derive(Debug)]
 pub struct TransformPlugin(#[turbo_tasks(trace_ignore)] Box<dyn CustomTransformer + Send + Sync>);
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 impl CustomTransformer for TransformPlugin {
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
-        self.0.transform(program, ctx).await
+        turbo_tasks::read!(self.0.transform(program, ctx))
+    }
+}
+
+/// See the async impl above; the sync engine drops `async`/`#[async_trait]`.
+#[cfg(feature = "sync")]
+impl CustomTransformer for TransformPlugin {
+    fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+        turbo_tasks::read!(self.0.transform(program, ctx))
     }
 }
 
@@ -168,8 +185,8 @@ impl EcmascriptInputTransforms {
 
     #[turbo_tasks::function]
     pub async fn extend(self: Vc<Self>, other: Vc<EcmascriptInputTransforms>) -> Result<Vc<Self>> {
-        let mut transforms = self.owned().await?;
-        transforms.extend(other.owned().await?);
+        let mut transforms = turbo_tasks::read!(self.owned())?;
+        transforms.extend(turbo_tasks::read!(other.owned())?);
         Ok(Vc::cell(transforms))
     }
 }
@@ -194,7 +211,8 @@ pub struct TransformContext<'a> {
 }
 
 impl EcmascriptInputTransform {
-    pub async fn apply(
+    turbo_tasks::dual_fn! {
+    pub fn apply(
         &self,
         program: &mut Program,
         ctx: &TransformContext<'_>,
@@ -216,7 +234,7 @@ impl EcmascriptInputTransform {
                 runtime,
             } => {
                 use swc_core::ecma::transforms::react::{Options, Runtime};
-                let runtime = if let Some(runtime) = &*runtime.await? {
+                let runtime = if let Some(runtime) = &*turbo_tasks::read!(runtime)? {
                     match runtime.as_str() {
                         "classic" => Runtime::Classic,
                         "automatic" => Runtime::Automatic,
@@ -234,7 +252,7 @@ impl EcmascriptInputTransform {
                 let config = Options {
                     runtime: Some(runtime),
                     development: Some(*development),
-                    import_source: import_source.await?.as_deref().map(Atom::from),
+                    import_source: turbo_tasks::read!(import_source)?.as_deref().map(Atom::from),
                     refresh: if *refresh {
                         debug_assert_eq!(TURBOPACK_REFRESH.full, "__turbopack_context__.k");
                         Some(swc_core::ecma::transforms::react::RefreshOptions {
@@ -286,8 +304,8 @@ impl EcmascriptInputTransform {
                 helpers
             }
             EcmascriptInputTransform::PresetEnv(env, preset_env_config) => {
-                let versions = env.runtime_versions().await?;
-                let extra = preset_env_config.await?;
+                let versions = turbo_tasks::read!(env.runtime_versions())?;
+                let extra = turbo_tasks::read!(preset_env_config)?;
 
                 let mode = match extra.mode.as_deref() {
                     Some("usage") => Some(preset_env::Mode::Usage),
@@ -400,15 +418,14 @@ impl EcmascriptInputTransform {
             EcmascriptInputTransform::ReactCompilerRust {
                 compilation_mode,
                 target,
-            } => {
-                apply_rust_react_compiler(program, ctx, helpers, *compilation_mode, *target).await?
-            }
+            } => apply_rust_react_compiler(program, ctx, helpers, *compilation_mode, *target)?,
             EcmascriptInputTransform::Plugin(transform) => {
                 // We cannot pass helpers to plugins, so we return them as is
-                transform.await?.transform(program, ctx).await?;
+                turbo_tasks::read!(turbo_tasks::read!(transform)?.transform(program, ctx))?;
                 helpers
             }
         })
+    }
     }
 }
 
@@ -419,6 +436,7 @@ struct ReactCompilerIssue {
     severity: IssueSeverity,
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for ReactCompilerIssue {
@@ -427,7 +445,7 @@ impl Issue for ReactCompilerIssue {
     }
 
     async fn file_path(&self) -> anyhow::Result<FileSystemPath> {
-        self.source.file_path().await
+        turbo_tasks::read!(self.source.file_path())
     }
 
     fn source(&self) -> Option<IssueSource> {
@@ -447,7 +465,37 @@ impl Issue for ReactCompilerIssue {
     }
 }
 
-async fn apply_rust_react_compiler(
+/// See the async impl above; the sync engine drops `async`/`#[async_trait]`.
+#[cfg(feature = "sync")]
+#[turbo_tasks::value_impl]
+impl Issue for ReactCompilerIssue {
+    fn severity(&self) -> IssueSeverity {
+        self.severity
+    }
+
+    fn file_path(&self) -> anyhow::Result<FileSystemPath> {
+        turbo_tasks::read!(self.source.file_path())
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
+    }
+
+    fn title(&self) -> anyhow::Result<StyledString> {
+        Ok(StyledString::Text(rcstr!("React Compiler")))
+    }
+
+    fn description(&self) -> anyhow::Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(self.message.clone())))
+    }
+}
+
+// Contains no await points, so it is a plain `fn` in both modes.
+fn apply_rust_react_compiler(
     program: &mut Program,
     ctx: &TransformContext<'_>,
     helpers: HelperData,

@@ -7,14 +7,14 @@ use smallvec::{SmallVec, smallvec};
 use tracing::{Instrument, Level};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, ValueToString, Vc,
     debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 
 use crate::{
     chunk::{
-        Chunk, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext, Chunks,
-        batch_info,
+        Chunk, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingConfig, ChunkingContext,
+        Chunks, batch_info,
         chunk_item_batch::{
             ChunkItemBatchGroup, ChunkItemBatchGroups, ChunkItemBatchWithAsyncModuleInfo,
             ChunkItemOrBatchWithAsyncModuleInfo, ChunkItemOrBatchWithAsyncModuleInfos,
@@ -24,6 +24,7 @@ use crate::{
             production::make_production_chunks,
             style_production::make_style_production_chunks,
         },
+        parallel_reads,
     },
     module_graph::ModuleGraph,
 };
@@ -77,29 +78,24 @@ async fn batch_size(
     ty: ResolvedVc<Box<dyn ChunkType>>,
     batch: Vc<ChunkItemBatchWithAsyncModuleInfo>,
 ) -> Result<Vc<usize>> {
-    let size = batch
-        .await?
-        .chunk_items
-        .iter()
-        .map(
-            |&ChunkItemWithAsyncModuleInfo {
-                 chunk_item,
-                 chunk_type: _,
-                 async_info,
-                 module: _,
-             }| {
-                ty.chunk_item_size(chunking_context, *chunk_item, async_info.map(|info| *info))
-            },
-        )
-        .try_join()
-        .await?
-        .into_iter()
-        .map(|size| *size)
-        .sum();
+    let size = turbo_tasks::parallel!(turbo_tasks::read!(batch)?.chunk_items.iter().map(
+        |&ChunkItemWithAsyncModuleInfo {
+             chunk_item,
+             chunk_type: _,
+             async_info,
+             module: _,
+         }| {
+            ty.chunk_item_size(chunking_context, *chunk_item, async_info.map(|info| *info))
+        },
+    ))?
+    .into_iter()
+    .map(|size| *size)
+    .sum();
     Ok(Vc::cell(size))
 }
 
-async fn plain_chunk_items_with_info(
+turbo_tasks::dual_fn! {
+fn plain_chunk_items_with_info(
     chunk_item_or_batch: ChunkItemOrBatchWithAsyncModuleInfo,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<ChunkItemsWithInfo> {
@@ -124,16 +120,16 @@ async fn plain_chunk_items_with_info(
                     chunk_type,
                     smallvec![ChunkItemOrBatchWithInfo::ChunkItem {
                         chunk_item: chunk_item_with_info,
-                        size: *chunk_item_size.await?,
-                        asset_ident: asset_ident.owned().await?,
+                        size: *turbo_tasks::read!(chunk_item_size)?,
+                        asset_ident: turbo_tasks::read!(asset_ident.owned())?,
                     }],
                     SmallVec::new(),
                 )],
             }
         }
         ChunkItemOrBatchWithAsyncModuleInfo::Batch(batch) => {
-            let batch_by_type = batch.split_by_chunk_type().await?;
-            let by_type = batch_by_type
+            let batch_by_type = turbo_tasks::read!(batch.split_by_chunk_type())?;
+            let by_type = turbo_tasks::read!(parallel_reads(batch_by_type
                 .iter()
                 .map(|&(ty, ref chunk_item_or_batch)| {
                     plain_chunk_items_with_info_with_type(
@@ -142,17 +138,17 @@ async fn plain_chunk_items_with_info(
                         None,
                         chunking_context,
                     )
-                })
-                .try_join()
-                .await?;
+                })))?;
             ChunkItemsWithInfo {
                 by_type: by_type.into_iter().collect(),
             }
         }
     })
 }
+}
 
-async fn plain_chunk_items_with_info_with_type(
+turbo_tasks::dual_fn! {
+fn plain_chunk_items_with_info_with_type(
     chunk_item_or_batch: &ChunkItemOrBatchWithAsyncModuleInfo,
     ty: ResolvedVc<Box<dyn ChunkType>>,
     batch_group: Option<ResolvedVc<ChunkItemBatchGroup>>,
@@ -178,14 +174,14 @@ async fn plain_chunk_items_with_info_with_type(
                 ty,
                 smallvec![ChunkItemOrBatchWithInfo::ChunkItem {
                     chunk_item: *chunk_item_with_info,
-                    size: *chunk_item_size.await?,
-                    asset_ident: asset_ident.owned().await?,
+                    size: *turbo_tasks::read!(chunk_item_size)?,
+                    asset_ident: turbo_tasks::read!(asset_ident.owned())?,
                 }],
                 batch_group.into_iter().collect(),
             ))
         }
         &ChunkItemOrBatchWithAsyncModuleInfo::Batch(batch) => {
-            let size = *batch_size(chunking_context, *ty, *batch).await?;
+            let size = *turbo_tasks::read!(batch_size(chunking_context, *ty, *batch))?;
             Ok((
                 ty,
                 smallvec![ChunkItemOrBatchWithInfo::Batch { batch, size }],
@@ -194,14 +190,17 @@ async fn plain_chunk_items_with_info_with_type(
         }
     }
 }
+}
 
 #[turbo_tasks::function]
 async fn chunk_items_with_info(
     chunk_item_or_batch: ChunkItemOrBatchWithAsyncModuleInfo,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<ChunkItemsWithInfo>> {
-    let chunk_items_with_info =
-        plain_chunk_items_with_info(chunk_item_or_batch, chunking_context).await?;
+    let chunk_items_with_info = turbo_tasks::read!(plain_chunk_items_with_info(
+        chunk_item_or_batch,
+        chunking_context
+    ))?;
     Ok(chunk_items_with_info.cell())
 }
 
@@ -212,13 +211,12 @@ async fn chunk_items_with_info_with_type(
     batch_group: Option<ResolvedVc<ChunkItemBatchGroup>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<ChunkItemsWithInfo>> {
-    let result = plain_chunk_items_with_info_with_type(
+    let result = turbo_tasks::read!(plain_chunk_items_with_info_with_type(
         &chunk_item_or_batch,
         ty,
         batch_group,
         chunking_context,
-    )
-    .await?;
+    ))?;
     Ok(ChunkItemsWithInfo {
         by_type: smallvec![result],
     }
@@ -230,7 +228,7 @@ async fn batch_chunk_items_with_info(
     batch_group: Vc<ChunkItemBatchGroup>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<BatchChunkItemsWithInfo>> {
-    let split_batch_group = batch_group.split_by_chunk_type().await?;
+    let split_batch_group = turbo_tasks::read!(batch_group.split_by_chunk_type())?;
     if split_batch_group.len() == 1 {
         let (ty, batch) = split_batch_group.into_iter().next().unwrap();
         Ok(batch_chunk_items_with_info_with_type(
@@ -239,11 +237,9 @@ async fn batch_chunk_items_with_info(
             chunking_context,
         ))
     } else {
-        let maps = split_batch_group
-            .into_iter()
-            .map(|(ty, batch)| batch_chunk_items_with_info_with_type(*batch, *ty, chunking_context))
-            .try_join()
-            .await?;
+        let maps = turbo_tasks::parallel!(split_batch_group.into_iter().map(|(ty, batch)| {
+            batch_chunk_items_with_info_with_type(*batch, *ty, chunking_context)
+        }))?;
         Ok(Vc::cell(
             maps.iter()
                 .flatten()
@@ -259,27 +255,12 @@ async fn batch_chunk_items_with_info_with_type(
     ty: Vc<Box<dyn ChunkType>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<BatchChunkItemsWithInfo>> {
-    let map = batch_group
-        .await?
-        .items
-        .iter()
-        .map(async |item| {
-            Ok((
-                item.clone(),
-                chunk_items_with_info_with_type(
-                    item.clone(),
-                    ty,
-                    Some(batch_group),
-                    chunking_context,
-                )
-                .to_resolved()
-                .await?,
-            ))
-        })
-        .try_join()
-        .await?
-        .into_iter()
-        .collect();
+    let batch_group_ref = turbo_tasks::read!(batch_group)?;
+    let infos = turbo_tasks::read!(parallel_reads(batch_group_ref.items.iter().map(|item| {
+        chunk_items_with_info_with_type(item.clone(), ty, Some(batch_group), chunking_context)
+            .to_resolved()
+    })))?;
+    let map = batch_group_ref.items.iter().cloned().zip(infos).collect();
     Ok(Vc::cell(map))
 }
 
@@ -292,26 +273,26 @@ pub async fn make_chunks(
     batch_groups: ResolvedVc<ChunkItemBatchGroups>,
     key_prefix: RcStr,
 ) -> Result<Vc<Chunks>> {
-    let chunking_configs = &*chunking_context.chunking_configs().await?;
-    let chunk_items_or_batches = chunk_items_or_batches.await?;
-    let batch_groups = batch_groups.await?;
+    let chunking_configs = &*turbo_tasks::read!(chunking_context.chunking_configs())?;
+    let chunk_items_or_batches = turbo_tasks::read!(chunk_items_or_batches)?;
+    let batch_groups = turbo_tasks::read!(batch_groups)?;
 
     let span = tracing::trace_span!(
         "get chunk item info",
         chunk_items_or_batches = chunk_items_or_batches.len(),
         batch_groups = batch_groups.len()
     );
-    let chunk_items: Vec<ReadRef<ChunkItemsWithInfo>> = batch_info(
-        &batch_groups,
-        &chunk_items_or_batches,
-        |batch_group| batch_chunk_items_with_info(batch_group, *chunking_context).into_future(),
-        |c| chunk_items_with_info(c.clone(), *chunking_context).to_resolved(),
-    )
-    .instrument(span)
-    .await?
-    .into_iter()
-    .try_join()
-    .await?;
+    let chunk_items: Vec<ReadRef<ChunkItemsWithInfo>> =
+        turbo_tasks::parallel!(turbo_tasks::read!(
+            batch_info(
+                &batch_groups,
+                &chunk_items_or_batches,
+                |batch_group| batch_chunk_items_with_info(batch_group, *chunking_context)
+                    .into_future(),
+                |c| chunk_items_with_info(c.clone(), *chunking_context).to_resolved(),
+            )
+            .instrument(span)
+        )?)?;
 
     let mut map = FxIndexMap::<_, (Vec<_>, FxIndexSet<_>)>::default();
     for result in chunk_items.iter() {
@@ -324,73 +305,91 @@ pub async fn make_chunks(
 
     let mut chunks = Vec::new();
     for (ty, (chunk_items, batch_groups)) in map {
-        let ty_name = ty.to_string().await?;
-        let span = tracing::trace_span!("make chunks for type", name = display(&ty_name));
-        async {
-            let mut split_context = SplitContext {
-                ty,
-                chunking_context,
-                chunks: &mut chunks,
-            };
-
-            if let Some(chunking_config) = chunking_configs.get(&ty) {
-                // Production chunking
-                if *ty.is_style().await? {
-                    make_style_production_chunks(
-                        chunk_items,
-                        batch_groups.into_iter().collect(),
-                        module_graph,
-                        chunking_context,
-                        chunking_config,
-                        split_context,
-                    )
-                    .await?;
-                } else {
-                    make_production_chunks(
-                        chunk_items,
-                        batch_groups.into_iter().collect(),
-                        module_graph,
-                        chunking_config,
-                        split_context,
-                    )
-                    .await?;
-                }
-            } else {
-                // Development chunking
-                if *ty.is_style().await? {
-                    make_chunk(
-                        chunk_items,
-                        Vec::new(),
-                        &mut format!("{key_prefix}{ty_name}"),
-                        &mut split_context,
-                    )
-                    .await?;
-                } else {
-                    let chunk_items = expand_batches(chunk_items, ty, chunking_context).await?;
-                    let chunk_items = chunk_items.iter().collect();
-                    app_vendors_split(
-                        chunk_items,
-                        format!("{key_prefix}{ty_name}"),
-                        &mut split_context,
-                    )
-                    .await?;
-                }
-            }
-
-            anyhow::Ok(())
-        }
-        .instrument(span)
-        .await?
+        let ty_name = turbo_tasks::read!(ty.to_string())?;
+        turbo_tasks::read!(make_chunks_for_type(
+            ty,
+            &ty_name,
+            chunk_items,
+            batch_groups,
+            module_graph,
+            chunking_context,
+            chunking_configs,
+            &key_prefix,
+            &mut chunks,
+        ))?
     }
 
     // Resolve all chunks before returning
-    let resolved_chunks = chunks
-        .into_iter()
-        .map(|chunk| chunk.to_resolved())
-        .try_join()
-        .await?;
+    let resolved_chunks = turbo_tasks::read!(parallel_reads(
+        chunks.into_iter().map(|chunk| chunk.to_resolved())
+    ))?;
 
     Ok(Vc::cell(resolved_chunks))
+}
+
+turbo_tasks::dual_fn! {
+/// Creates the chunks for all chunk items of a single chunk type (the per-type body of
+/// [`make_chunks`]'s loop).
+#[tracing::instrument(level = Level::TRACE, skip_all, name = "make chunks for type", fields(name = display(&ty_name)))]
+fn make_chunks_for_type(
+    ty: ResolvedVc<Box<dyn ChunkType>>,
+    ty_name: &RcStr,
+    chunk_items: Vec<&ChunkItemOrBatchWithInfo>,
+    batch_groups: FxIndexSet<ResolvedVc<ChunkItemBatchGroup>>,
+    module_graph: Vc<ModuleGraph>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    chunking_configs: &FxHashMap<ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig>,
+    key_prefix: &RcStr,
+    chunks: &mut Vec<Vc<Box<dyn Chunk>>>,
+) -> Result<()> {
+    let mut split_context = SplitContext {
+        ty,
+        chunking_context,
+        chunks,
+    };
+
+    if let Some(chunking_config) = chunking_configs.get(&ty) {
+        // Production chunking
+        if *turbo_tasks::read!(ty.is_style())? {
+            turbo_tasks::read!(make_style_production_chunks(
+                chunk_items,
+                batch_groups.into_iter().collect(),
+                module_graph,
+                chunking_context,
+                chunking_config,
+                split_context,
+            ))?;
+        } else {
+            turbo_tasks::read!(make_production_chunks(
+                chunk_items,
+                batch_groups.into_iter().collect(),
+                module_graph,
+                chunking_config,
+                split_context,
+            ))?;
+        }
+    } else {
+        // Development chunking
+        if *turbo_tasks::read!(ty.is_style())? {
+            turbo_tasks::read!(make_chunk(
+                chunk_items,
+                Vec::new(),
+                &mut format!("{key_prefix}{ty_name}"),
+                &mut split_context,
+            ))?;
+        } else {
+            let chunk_items = turbo_tasks::read!(expand_batches(chunk_items, ty, chunking_context))?;
+            let chunk_items = chunk_items.iter().collect();
+            turbo_tasks::read!(app_vendors_split(
+                chunk_items,
+                format!("{key_prefix}{ty_name}"),
+                &mut split_context,
+            ))?;
+        }
+    }
+
+    Ok(())
+}
 }
 
 struct SplitContext<'a> {
@@ -401,9 +400,10 @@ struct SplitContext<'a> {
     chunks: &'a mut Vec<Vc<Box<dyn Chunk>>>,
 }
 
+turbo_tasks::dual_fn! {
 /// Creates a chunk with the given `chunk_items. `key` should be unique.
 #[tracing::instrument(level = Level::TRACE, skip_all, fields(key = display(key)))]
-async fn make_chunk(
+fn make_chunk(
     chunk_items: Vec<&'_ ChunkItemOrBatchWithInfo>,
     batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
     key: &mut String,
@@ -427,4 +427,5 @@ async fn make_chunk(
         ),
     );
     Ok(())
+}
 }

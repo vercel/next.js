@@ -17,7 +17,7 @@ pub(crate) async fn instantiating_loader_source(
     source: Vc<WebAssemblySource>,
     is_edge: bool,
 ) -> Result<Vc<Box<dyn Source>>> {
-    let analysis = analyze(source).await?;
+    let analysis = turbo_tasks::read!(analyze(source))?;
 
     let mut code = String::new();
 
@@ -46,7 +46,10 @@ pub(crate) async fn instantiating_loader_source(
     // Omitted entirely when `is_edge` is false. As the node and browser
     // implementations do not use this parameter.
     let edge_arg = if is_edge {
-        format!(", () => {}", wasm_edge_var_name(Vc::upcast(source)).await?)
+        format!(
+            ", () => {}",
+            turbo_tasks::read!(wasm_edge_var_name(Vc::upcast(source)))?
+        )
     } else {
         String::new()
     };
@@ -66,7 +69,9 @@ pub(crate) async fn instantiating_loader_source(
     let code: RcStr = code.into();
 
     Ok(Vc::upcast(VirtualSource::new(
-        source.ident().await?.path.append("_.loader.mjs")?,
+        turbo_tasks::read!(source.ident())?
+            .path
+            .append("_.loader.mjs")?,
         AssetContent::file(FileContent::Content(File::from(code)).cell()),
     )))
 }
@@ -81,7 +86,10 @@ pub(crate) async fn compiling_loader_source(
     // Omitted entirely when `is_edge` is false. As the node and browser
     // implementations do not use this parameter.
     let edge_arg = if is_edge {
-        format!(", () => {}", wasm_edge_var_name(Vc::upcast(source)).await?)
+        format!(
+            ", () => {}",
+            turbo_tasks::read!(wasm_edge_var_name(Vc::upcast(source)))?
+        )
     } else {
         String::new()
     };
@@ -100,7 +108,9 @@ pub(crate) async fn compiling_loader_source(
     .into();
 
     Ok(Vc::upcast(VirtualSource::new(
-        source.ident().await?.path.append("_.loader.mjs")?,
+        turbo_tasks::read!(source.ident())?
+            .path
+            .append("_.loader.mjs")?,
         AssetContent::file(FileContent::Content(File::from(code)).cell()),
     )))
 }

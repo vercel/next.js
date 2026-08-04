@@ -42,6 +42,8 @@ pub use crate::vc::{
     resolved::ResolvedVc,
     traits::{Dynamic, Upcast, UpcastStrict, VcValueTrait, VcValueType},
 };
+#[cfg(feature = "sync")]
+pub use crate::vc::{raw::SyncProbe, read::SyncParallelRead};
 use crate::{
     keyed::{KeyedAccess, KeyedEq},
     registry,
@@ -80,6 +82,25 @@ impl<T: ?Sized> Future for ResolveVcFuture<T> {
 }
 
 impl<T: ?Sized> Unpin for ResolveVcFuture<T> {}
+
+#[cfg(feature = "sync")]
+impl<T: ?Sized> ResolveVcFuture<T> {
+    /// Direct synchronous resolve (no future/poll) for the no-async sync engine.
+    pub(crate) fn resolve_sync(self) -> Result<Vc<T>> {
+        self.inner.resolve_sync().map(|node| Vc {
+            node,
+            _t: PhantomData,
+        })
+    }
+}
+
+#[cfg(feature = "sync")]
+impl<T: ?Sized> crate::macro_helpers::SyncRead for ResolveVcFuture<T> {
+    type Output = Result<Vc<T>>;
+    fn sync_read(self) -> Self::Output {
+        self.resolve_sync()
+    }
+}
 
 /// A future returned by [`Vc::to_resolved`] that resolves a [`Vc<T>`] to a [`ResolvedVc<T>`].
 ///
@@ -120,6 +141,27 @@ impl<T: ?Sized> Future for ToResolvedVcFuture<T> {
 }
 
 impl<T: ?Sized> Unpin for ToResolvedVcFuture<T> {}
+
+#[cfg(feature = "sync")]
+impl<T: ?Sized> ToResolvedVcFuture<T> {
+    /// Direct synchronous resolve (no future/poll) for the no-async sync engine.
+    pub(crate) fn resolve_sync(self) -> Result<ResolvedVc<T>> {
+        self.inner.resolve_sync().map(|node| ResolvedVc {
+            node: Vc {
+                node,
+                _t: PhantomData,
+            },
+        })
+    }
+}
+
+#[cfg(feature = "sync")]
+impl<T: ?Sized> crate::macro_helpers::SyncRead for ToResolvedVcFuture<T> {
+    type Output = Result<ResolvedVc<T>>;
+    fn sync_read(self) -> Self::Output {
+        self.resolve_sync()
+    }
+}
 
 type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 
@@ -354,8 +396,20 @@ where
     T: ?Sized,
 {
     /// Returns a debug identifier for this `Vc`.
+    #[cfg(not(feature = "sync"))]
     pub async fn debug_identifier(vc: Self) -> Result<String> {
         let resolved = vc.to_resolved().await?;
+        Self::debug_identifier_from_resolved(resolved)
+    }
+
+    /// Returns a debug identifier for this `Vc`.
+    #[cfg(feature = "sync")]
+    pub fn debug_identifier(vc: Self) -> Result<String> {
+        let resolved = vc.to_resolved().resolve_sync()?;
+        Self::debug_identifier_from_resolved(resolved)
+    }
+
+    fn debug_identifier_from_resolved(resolved: ResolvedVc<T>) -> Result<String> {
         let raw_vc: RawVc = resolved.node.node;
         if let Some((task_id, cell_id)) = raw_vc.as_task_cell() {
             let value_name = registry::get_value_type(cell_id.type_id()).ty.name;
@@ -416,8 +470,17 @@ where
     }
     /// Runs the operation, but ignores the returned Vc. Use that when only interested in running
     /// the task for side effects.
+    #[cfg(not(feature = "sync"))]
     pub async fn as_side_effect(self) -> Result<()> {
         self.node.resolve().await?;
+        Ok(())
+    }
+
+    /// Runs the operation, but ignores the returned Vc. Use that when only interested in running
+    /// the task for side effects.
+    #[cfg(feature = "sync")]
+    pub fn as_side_effect(self) -> Result<()> {
+        self.node.resolve().resolve_sync()?;
         Ok(())
     }
 
@@ -518,6 +581,30 @@ into_future!(Vc<T>, |this| this.node.into_read().into());
 into_future!(&Vc<T>, |this| this.node.into_read().into());
 into_future!(&mut Vc<T>, |this| this.node.into_read().into());
 
+#[cfg(feature = "sync")]
+macro_rules! sync_read_vc {
+    ($ty:ty) => {
+        impl<T> crate::macro_helpers::SyncRead for $ty
+        where
+            T: crate::VcValueType,
+        {
+            type Output = <crate::ReadVcFuture<T> as ::std::future::Future>::Output;
+            fn sync_read(self) -> Self::Output {
+                // Build the same `ReadVcFuture` that `.await` would, then read it
+                // directly (no future/poll) via the sync engine.
+                let future: crate::ReadVcFuture<T> = self.node.into_read().into();
+                future.read_sync()
+            }
+        }
+    };
+}
+#[cfg(feature = "sync")]
+sync_read_vc!(Vc<T>);
+#[cfg(feature = "sync")]
+sync_read_vc!(&Vc<T>);
+#[cfg(feature = "sync")]
+sync_read_vc!(&mut Vc<T>);
+
 impl<T> Vc<T>
 where
     T: VcValueType,
@@ -606,6 +693,7 @@ where
     }
 }
 
+#[cfg(not(feature = "sync"))]
 pub trait OptionVcExt<T>
 where
     T: VcValueType,
@@ -613,6 +701,7 @@ where
     fn to_resolved(self) -> impl Future<Output = Result<Option<ResolvedVc<T>>>> + Send;
 }
 
+#[cfg(not(feature = "sync"))]
 impl<T> OptionVcExt<T> for Option<Vc<T>>
 where
     T: VcValueType,
@@ -620,6 +709,28 @@ where
     async fn to_resolved(self) -> Result<Option<ResolvedVc<T>>> {
         if let Some(vc) = self {
             Ok(Some(vc.to_resolved().await?))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+#[cfg(feature = "sync")]
+pub trait OptionVcExt<T>
+where
+    T: VcValueType,
+{
+    fn to_resolved(self) -> Result<Option<ResolvedVc<T>>>;
+}
+
+#[cfg(feature = "sync")]
+impl<T> OptionVcExt<T> for Option<Vc<T>>
+where
+    T: VcValueType,
+{
+    fn to_resolved(self) -> Result<Option<ResolvedVc<T>>> {
+        if let Some(vc) = self {
+            Ok(Some(vc.to_resolved().resolve_sync()?))
         } else {
             Ok(None)
         }

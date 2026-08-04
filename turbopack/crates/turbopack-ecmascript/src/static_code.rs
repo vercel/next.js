@@ -29,14 +29,15 @@ impl StaticEcmascriptCode {
         asset_path: FileSystemPath,
         generate_source_map: bool,
     ) -> Result<Vc<Self>> {
-        let module = asset_context
-            .process(
-                Vc::upcast(FileSource::new(asset_path.clone())),
-                ReferenceType::Runtime,
-            )
-            .module()
-            .to_resolved()
-            .await?;
+        let module = turbo_tasks::read!(
+            asset_context
+                .process(
+                    Vc::upcast(FileSource::new(asset_path.clone())),
+                    ReferenceType::Runtime,
+                )
+                .module()
+                .to_resolved()
+        )?;
         let Some(asset) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(module) else {
             bail!("asset is not an Ecmascript module")
         };
@@ -50,10 +51,10 @@ impl StaticEcmascriptCode {
     /// the code builder, including the source map if available.
     #[turbo_tasks::function]
     pub async fn code(&self) -> Result<Vc<Code>> {
-        let runtime_base_content = self
-            .asset
-            .module_content_without_analysis(self.generate_source_map)
-            .await?;
+        let runtime_base_content = turbo_tasks::read!(
+            self.asset
+                .module_content_without_analysis(self.generate_source_map)
+        )?;
         let mut code = CodeBuilder::default();
         code.push_source(
             &runtime_base_content.inner_code,

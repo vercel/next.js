@@ -44,11 +44,12 @@ pub async fn create_page_ssr_entry_module(
     let definition_page = next_original_name;
     let definition_pathname = pathname;
 
-    let ssr_module = ssr_module_context
-        .process(source, reference_type.clone())
-        .module()
-        .to_resolved()
-        .await?;
+    let ssr_module = turbo_tasks::read!(
+        ssr_module_context
+            .process(source, reference_type.clone())
+            .module()
+            .to_resolved()
+    )?;
 
     let template_file = match &reference_type {
         ReferenceType::Entry(EntryReferenceSubType::Page)
@@ -96,7 +97,7 @@ pub async fn create_page_ssr_entry_module(
         }
     }
 
-    let pages_structure_ref = pages_structure.await?;
+    let pages_structure_ref = turbo_tasks::read!(pages_structure)?;
     let mut cache_handler_inner_assets = fxindexmap! {};
     let mut cache_handler_imports = String::new();
     let mut cache_handler_registration = String::new();
@@ -104,7 +105,7 @@ pub async fn create_page_ssr_entry_module(
 
     if runtime == NextRuntime::Edge {
         if is_page {
-            let cache_handlers = next_config.cache_handlers_map().owned().await?;
+            let cache_handlers = turbo_tasks::read!(next_config.cache_handlers_map().owned())?;
             for (index, (kind, handler_path)) in cache_handlers.iter().enumerate() {
                 let cache_handler_inner: RcStr = format!("INNER_CACHE_HANDLER_{index}").into();
                 let cache_handler_var = format!("cacheHandler{index}");
@@ -117,33 +118,33 @@ pub async fn create_page_ssr_entry_module(
                     serde_json::to_string(kind.as_str())?
                 ));
 
-                let cache_handler_module = ssr_module_context
-                    .process(
-                        Vc::upcast(FileSource::new(project_root.join(handler_path)?)),
-                        ReferenceType::Undefined,
-                    )
-                    .module()
-                    .to_resolved()
-                    .await?;
+                let cache_handler_module = turbo_tasks::read!(
+                    ssr_module_context
+                        .process(
+                            Vc::upcast(FileSource::new(project_root.join(handler_path)?)),
+                            ReferenceType::Undefined,
+                        )
+                        .module()
+                        .to_resolved()
+                )?;
                 cache_handler_inner_assets.insert(cache_handler_inner, cache_handler_module);
             }
         }
 
-        for cache_handler_path in next_config
-            .cache_handler(project_root.clone())
-            .await?
-            .into_iter()
+        for cache_handler_path in
+            turbo_tasks::read!(next_config.cache_handler(project_root.clone()))?.into_iter()
         {
             let cache_handler_inner = rcstr!("INNER_INCREMENTAL_CACHE_HANDLER");
             incremental_cache_handler_import = Some(cache_handler_inner.clone());
-            let cache_handler_module = ssr_module_context
-                .process(
-                    Vc::upcast(FileSource::new(cache_handler_path.clone())),
-                    ReferenceType::Undefined,
-                )
-                .module()
-                .to_resolved()
-                .await?;
+            let cache_handler_module = turbo_tasks::read!(
+                ssr_module_context
+                    .process(
+                        Vc::upcast(FileSource::new(cache_handler_path.clone())),
+                        ReferenceType::Undefined,
+                    )
+                    .module()
+                    .to_resolved()
+            )?;
             cache_handler_inner_assets.insert(cache_handler_inner, cache_handler_module);
         }
     }
@@ -191,7 +192,7 @@ pub async fn create_page_ssr_entry_module(
     };
 
     // Load the file from the next.js codebase.
-    let mut source = load_next_js_template(
+    let mut source = turbo_tasks::read!(load_next_js_template(
         template_file,
         project_root.clone(),
         replacements,
@@ -199,8 +200,7 @@ pub async fn create_page_ssr_entry_module(
         imports
             .iter()
             .map(|(k, v)| (*k, v.as_ref().map(|value| value.as_str()))),
-    )
-    .await?;
+    ))?;
 
     // When we're building the instrumentation page (only when the
     // instrumentation file conflicts with a page also labeled
@@ -208,7 +208,7 @@ pub async fn create_page_ssr_entry_module(
     if is_page
         && (definition_page == "/instrumentation" || definition_page == "/src/instrumentation")
     {
-        let file = &*file_content_rope(source.content().file_content()).await?;
+        let file = &*turbo_tasks::read!(file_content_rope(source.content().file_content()))?;
 
         let mut result = RopeBuilder::default();
         result += file;
@@ -234,53 +234,57 @@ pub async fn create_page_ssr_entry_module(
     // for PagesData we apply a ?server-data query parameter to avoid conflicts with the Page
     // module.
     // We need to copy that to all the modules we create.
-    let source_query = source.ident().await?.query.clone();
+    let source_query = turbo_tasks::read!(source.ident())?.query.clone();
 
     let (app_module, document_module) = if is_page {
         // We process the document and app modules in the same context and reference type.
-        let document_module = process_global_item(
-            *pages_structure_ref.document,
-            reference_type.clone(),
-            source_query.clone(),
-            ssr_module_context,
-        )
-        .to_resolved()
-        .await?;
-        let app_module = process_global_item(
-            *pages_structure_ref.app,
-            reference_type.clone(),
-            source_query.clone(),
-            ssr_module_context,
-        )
-        .to_resolved()
-        .await?;
+        let document_module = turbo_tasks::read!(
+            process_global_item(
+                *pages_structure_ref.document,
+                reference_type.clone(),
+                source_query.clone(),
+                ssr_module_context,
+            )
+            .to_resolved()
+        )?;
+        let app_module = turbo_tasks::read!(
+            process_global_item(
+                *pages_structure_ref.app,
+                reference_type.clone(),
+                source_query.clone(),
+                ssr_module_context,
+            )
+            .to_resolved()
+        )?;
         inner_assets.insert(inner_document, document_module);
         inner_assets.insert(inner_app, app_module);
 
         if is_page && runtime == NextRuntime::Edge {
             inner_assets.insert(
                 inner_error,
-                process_global_item(
-                    *pages_structure_ref.error,
-                    reference_type.clone(),
-                    source_query.clone(),
-                    ssr_module_context,
-                )
-                .to_resolved()
-                .await?,
-            );
-
-            if let Some(error_500) = pages_structure_ref.error_500 {
-                inner_assets.insert(
-                    inner_error_500,
+                turbo_tasks::read!(
                     process_global_item(
-                        *error_500,
+                        *pages_structure_ref.error,
                         reference_type.clone(),
                         source_query.clone(),
                         ssr_module_context,
                     )
                     .to_resolved()
-                    .await?,
+                )?,
+            );
+
+            if let Some(error_500) = pages_structure_ref.error_500 {
+                inner_assets.insert(
+                    inner_error_500,
+                    turbo_tasks::read!(
+                        process_global_item(
+                            *error_500,
+                            reference_type.clone(),
+                            source_query.clone(),
+                            ssr_module_context,
+                        )
+                        .to_resolved()
+                    )?,
                 );
             }
         }
@@ -306,7 +310,7 @@ pub async fn create_page_ssr_entry_module(
     }
 
     Ok(PageSsrEntryModule {
-        ssr_module: ssr_module.to_resolved().await?,
+        ssr_module: turbo_tasks::read!(ssr_module.to_resolved())?,
         app_module,
         document_module,
     }
@@ -321,7 +325,7 @@ async fn process_global_item(
     module_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<Box<dyn Module>>> {
     let source = Vc::upcast(FileSource::new_with_query(
-        item.file_path().owned().await?,
+        turbo_tasks::read!(item.file_path().owned())?,
         source_query,
     ));
     Ok(module_context.process(source, reference_type).module())

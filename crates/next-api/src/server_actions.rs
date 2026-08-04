@@ -71,12 +71,13 @@ pub(crate) async fn create_server_actions_manifest(
 ) -> Result<Vc<ServerActionsManifest>> {
     let loader =
         build_server_actions_loader(project_path, page_name.clone(), actions, rsc_asset_context);
-    let evaluable =
-        ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(loader.to_resolved().await?)
-            .context("loader module must be evaluatable")?;
+    let evaluable = ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(turbo_tasks::read!(
+        loader.to_resolved()
+    )?)
+    .context("loader module must be evaluatable")?;
 
     let chunk_item = loader.as_chunk_item(module_graph, chunking_context);
-    let manifest = ResolvedVc::upcast(
+    let manifest = ResolvedVc::upcast(turbo_tasks::read!(
         ServerActionManifestAsset::new(
             node_root,
             page_name,
@@ -86,8 +87,7 @@ pub(crate) async fn create_server_actions_manifest(
             module_graph.async_module_info(),
         )
         .to_resolved()
-        .await?,
-    );
+    )?);
     Ok(ServerActionsManifest {
         loader: evaluable,
         manifest,
@@ -108,7 +108,7 @@ pub(crate) async fn build_server_actions_loader(
     actions: Vc<AllActions>,
     asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
-    let actions = actions.await?;
+    let actions = turbo_tasks::read!(actions)?;
 
     // Every module which exports an action (that is accessible starting from
     // our app page entry point) will be present. We generate a single loader
@@ -144,9 +144,9 @@ pub(crate) async fn build_server_actions_loader(
         )
         .module();
 
-    let Some(placeable) =
-        ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module.to_resolved().await?)
-    else {
+    let Some(placeable) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(
+        turbo_tasks::read!(module.to_resolved())?,
+    ) else {
         bail!("internal module must be evaluatable");
     };
 
@@ -211,8 +211,8 @@ impl Asset for ServerActionManifestAsset {
 
         let key = format!("app{}", self.page_name);
 
-        let actions_value = self.actions.await?;
-        let loader_id = self.chunk_item.id().await?;
+        let actions_value = turbo_tasks::read!(self.actions)?;
+        let loader_id = turbo_tasks::read!(self.chunk_item.id())?;
         let loader_id = match &loader_id {
             ModuleId::Number(id) => ActionManifestModuleId::Number(*id),
             ModuleId::String(id) => ActionManifestModuleId::String(id),
@@ -227,28 +227,53 @@ impl Asset for ServerActionManifestAsset {
             filename: Cow<'a, str>,
         }
 
-        let action_metadata: Vec<(&str, ActionMetadata<'_>)> = actions_value
-            .iter()
-            .map(async |(hash_id, (_layer, meta, module))| {
+        #[cfg(not(feature = "sync"))]
+        let action_metadata: Vec<(&str, ActionMetadata<'_>)> = turbo_tasks::read!(
+            actions_value
+                .iter()
+                .map(async |(hash_id, (_layer, meta, module))| {
+                    // Use source_path from the action comment if available (contains original
+                    // .ts/.tsx path), otherwise fall back to
+                    // module.ident().path() (may be compiled .js path)
+                    let filename = if !meta.source_path.is_empty() {
+                        Cow::Borrowed(&*meta.source_path)
+                    } else {
+                        Cow::Owned(turbo_tasks::read!(module.ident())?.path.to_string())
+                    };
+
+                    Ok((
+                        &**hash_id,
+                        ActionMetadata {
+                            exported_name: &meta.name,
+                            filename,
+                        },
+                    ))
+                })
+                .try_join()
+        )?;
+        #[cfg(feature = "sync")]
+        let action_metadata: Vec<(&str, ActionMetadata<'_>)> = {
+            let mut action_metadata = Vec::new();
+            for (hash_id, (_layer, meta, module)) in actions_value.iter() {
                 // Use source_path from the action comment if available (contains original .ts/.tsx
                 // path), otherwise fall back to module.ident().path() (may be compiled .js
                 // path)
                 let filename = if !meta.source_path.is_empty() {
                     Cow::Borrowed(&*meta.source_path)
                 } else {
-                    Cow::Owned(module.ident().await?.path.to_string())
+                    Cow::Owned(turbo_tasks::read!(module.ident())?.path.to_string())
                 };
 
-                Ok((
+                action_metadata.push((
                     &**hash_id,
                     ActionMetadata {
                         exported_name: &meta.name,
                         filename,
                     },
-                ))
-            })
-            .try_join()
-            .await?;
+                ));
+            }
+            action_metadata
+        };
 
         // Now create the manifest entries
         for (
@@ -264,10 +289,10 @@ impl Asset for ServerActionManifestAsset {
                 &key,
                 ActionManifestWorkerEntry {
                     module_id: loader_id.clone(),
-                    is_async: self
-                        .async_module_info
-                        .is_async(self.chunk_item.module().to_resolved().await?)
-                        .await?,
+                    is_async: turbo_tasks::read!(
+                        self.async_module_info
+                            .is_async(turbo_tasks::read!(self.chunk_item.module().to_resolved())?)
+                    )?,
                     exported_name,
                     filename: filename.as_ref(),
                 },
@@ -284,9 +309,10 @@ impl Asset for ServerActionManifestAsset {
     }
 }
 
+turbo_tasks::dual_fn! {
 /// The ActionBrowser layer's module is in the Client context, and we need to
 /// bring it into the RSC context.
-pub async fn to_rsc_context(
+pub fn to_rsc_context(
     client_module: Vc<Box<dyn Module>>,
     entry_path: &str,
     entry_query: &str,
@@ -296,24 +322,25 @@ pub async fn to_rsc_context(
     // opposed to the following hack to construct the RSC module corresponding to this client
     // module.
     let source = FileSource::new_with_query(
-        client_module
-            .ident()
-            .await?
+        turbo_tasks::read!(turbo_tasks::read!(client_module
+            .ident())
+            ?
             .path
-            .root()
-            .await?
+            .root())
+            ?
             .join(entry_path)?,
         entry_query.into(),
     );
-    let module = asset_context
+    let module = turbo_tasks::read!(asset_context
         .process(
             Vc::upcast(source),
             ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
         )
         .module()
-        .to_resolved()
-        .await?;
+        .to_resolved())
+        ?;
     Ok(module)
+}
 }
 
 /// Server action info for JSON parsing
@@ -395,7 +422,7 @@ async fn parse_actions(module: ResolvedVc<Box<dyn Module>>) -> Result<Vc<OptionA
 
     let original_asset =
         if let Some(module) = ResolvedVc::try_downcast_type::<EcmascriptModulePartAsset>(module) {
-            let module = module.await?;
+            let module = turbo_tasks::read!(module)?;
             if matches!(module.part, ModulePart::Evaluation | ModulePart::Facade) {
                 return Ok(Vc::cell(None));
             }
@@ -404,13 +431,13 @@ async fn parse_actions(module: ResolvedVc<Box<dyn Module>>) -> Result<Vc<OptionA
             ecmascript_asset
         };
 
-    let original_parsed = original_asset.failsafe_parse().to_resolved().await?;
+    let original_parsed = turbo_tasks::read!(original_asset.failsafe_parse().to_resolved())?;
 
     let ParseResult::Ok {
         program: original,
         comments,
         ..
-    } = &*original_parsed.await?
+    } = &*turbo_tasks::read!(original_parsed)?
     else {
         // The file might be parse-able, but this is reported separately.
         return Ok(Vc::cell(None));
@@ -423,10 +450,10 @@ async fn parse_actions(module: ResolvedVc<Box<dyn Module>>) -> Result<Vc<OptionA
 
     // If this is a module-fragment, filter the exports
     if original_asset != ecmascript_asset {
-        let fragment = ecmascript_asset.failsafe_parse().to_resolved().await?;
+        let fragment = turbo_tasks::read!(ecmascript_asset.failsafe_parse().to_resolved())?;
         let ParseResult::Ok {
             program: fragment, ..
-        } = &*fragment.await?
+        } = &*turbo_tasks::read!(fragment)?
         else {
             // The file might be be parse-able, but this is reported separately.
             return Ok(Vc::cell(None));
@@ -583,26 +610,49 @@ pub async fn map_server_actions(
     graph: OperationVc<ModuleGraphLayer>,
 ) -> Result<Vc<AllModuleActions>> {
     let graph = graph.connect();
-    let actions = graph
-        .await?
-        .iter_reachable_modules()?
-        .map(async |module| {
+    #[cfg(not(feature = "sync"))]
+    let actions = turbo_tasks::read!(
+        turbo_tasks::read!(graph)?
+            .iter_reachable_modules()?
+            .map(async |module| {
+                // TODO: compare module contexts instead?
+                let layer = match turbo_tasks::read!(module.ident())?.layer.as_ref() {
+                    Some(layer) if layer.name() == "app-rsc" || layer.name() == "app-edge-rsc" => {
+                        ActionLayer::Rsc
+                    }
+                    Some(layer) if layer.name() == "app-client" => ActionLayer::ActionBrowser,
+                    // TODO really ignore SSR?
+                    _ => return Ok(None),
+                };
+                // TODO the old implementation did parse_actions(to_rsc_context(module))
+                // is that really necessary?
+                Ok(turbo_tasks::read!(parse_actions(*module))?
+                    .map(|action_map| (module, (layer, action_map))))
+            })
+            .try_flat_join()
+    )?;
+    #[cfg(feature = "sync")]
+    let actions = {
+        let graph_ref = turbo_tasks::read!(graph)?;
+        let mut actions = Vec::new();
+        for module in graph_ref.iter_reachable_modules()? {
             // TODO: compare module contexts instead?
-            let layer = match module.ident().await?.layer.as_ref() {
+            let layer = match turbo_tasks::read!(module.ident())?.layer.as_ref() {
                 Some(layer) if layer.name() == "app-rsc" || layer.name() == "app-edge-rsc" => {
                     ActionLayer::Rsc
                 }
                 Some(layer) if layer.name() == "app-client" => ActionLayer::ActionBrowser,
                 // TODO really ignore SSR?
-                _ => return Ok(None),
+                _ => continue,
             };
             // TODO the old implementation did parse_actions(to_rsc_context(module))
             // is that really necessary?
-            Ok(parse_actions(*module)
-                .await?
-                .map(|action_map| (module, (layer, action_map))))
-        })
-        .try_flat_join()
-        .await?;
+            actions.extend(
+                turbo_tasks::read!(parse_actions(*module))?
+                    .map(|action_map| (module, (layer, action_map))),
+            );
+        }
+        actions
+    };
     Ok(Vc::cell(actions.into_iter().collect()))
 }

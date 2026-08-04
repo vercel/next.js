@@ -1,0 +1,35 @@
+[workspace]
+[package]
+name = "sync-codemod"
+version = "0.0.0"
+edition = "2021"
+
+[[bin]]
+name = "sync-codemod"
+path = "src/main.rs"
+
+[[bin]]
+name = "sync-cargo-scaffold"
+path = "src/bin/scaffold.rs"
+
+[[bin]]
+name = "scaffold-next"
+path = "src/bin/scaffold_next.rs"
+
+[[bin]]
+name = "dualfn"
+path = "src/bin/dualfn.rs"
+
+[[bin]]
+name = "dualtrait"
+path = "src/bin/dualtrait.rs"
+
+[[bin]]
+name = "dualimpl"
+path = "src/bin/dualimpl.rs"
+
+[dependencies]
+proc-macro2 = { version = "1", features = ["span-locations"] }
+syn = { version = "2", features = ["full", "extra-traits", "visit", "parsing"] }
+quote = "1"
+toml_edit = "0.22"

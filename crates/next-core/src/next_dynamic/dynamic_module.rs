@@ -50,11 +50,7 @@ impl NextDynamicEntryModule {
 impl Module for NextDynamicEntryModule {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self
-            .module
-            .ident()
-            .owned()
-            .await?
+        Ok(turbo_tasks::read!(self.module.ident().owned())?
             .with_modifier(rcstr!("next/dynamic entry"))
             .into_vc())
     }
@@ -66,7 +62,9 @@ impl Module for NextDynamicEntryModule {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        Ok(Vc::cell(vec![self.module_reference().to_resolved().await?]))
+        Ok(Vc::cell(vec![turbo_tasks::read!(
+            self.module_reference().to_resolved()
+        )?]))
     }
 
     #[turbo_tasks::function]
@@ -104,7 +102,7 @@ impl EcmascriptChunkPlaceable for NextDynamicEntryModule {
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let module_id = self.module.chunk_item_id(chunking_context).await?;
+        let module_id = turbo_tasks::read!(self.module.chunk_item_id(chunking_context))?;
         Ok(EcmascriptChunkItemContent {
             inner_code: formatdoc!(
                 r#"

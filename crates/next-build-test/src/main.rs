@@ -1,24 +1,11 @@
-use std::{
-    cell::RefCell,
-    convert::Infallible,
-    str::FromStr,
-    time::{Duration, Instant},
-};
+use std::{convert::Infallible, str::FromStr, time::Instant};
 
 use next_api::project::{DefineEnv, ProjectOptions};
 use next_build_test::{Strategy, main_inner};
-use next_core::tracing_presets::{
-    TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBO_TASKS_TARGETS,
-    TRACING_NEXT_TURBOPACK_TARGETS,
-};
-use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_rcstr::rcstr;
 use turbo_tasks::TurboTasks;
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_malloc::TurboMalloc;
-use turbopack_trace_utils::{
-    exit::ExitGuard, filter_layer::FilterLayer, raw_trace::RawTraceLayer, trace_writer::TraceWriter,
-};
 
 #[global_allocator]
 static ALLOC: TurboMalloc = TurboMalloc;
@@ -76,83 +63,7 @@ fn main() {
                 factor = 1;
             }
 
-            thread_local! {
-                static LAST_SWC_ATOM_GC_TIME: RefCell<Option<Instant>> = const { RefCell::new(None) };
-            }
-            tokio::runtime::Builder::new_multi_thread()
-                .enable_all()
-                .on_thread_stop(|| {
-                    TurboMalloc::thread_stop();
-                    tracing::debug!("threads stopped");
-                })
-                .on_thread_park(|| {
-                    LAST_SWC_ATOM_GC_TIME.with_borrow_mut(|cell| {
-                        if cell.is_none_or(|t| t.elapsed() > Duration::from_secs(2)) {
-                            swc_core::ecma::atoms::hstr::global_atom_store_gc();
-                            *cell = Some(Instant::now());
-                        }
-                    });
-                    TurboMalloc::thread_park();
-                })
-                .build()
-                .unwrap()
-                .block_on(async {
-                    let trace = std::env::var("NEXT_TURBOPACK_TRACING").ok();
-
-                    let _guard = if let Some(mut trace) = trace.filter(|v| !v.is_empty()) {
-                        // Trace presets
-                        match trace.as_str() {
-                            "overview" | "1" => {
-                                trace = TRACING_NEXT_OVERVIEW_TARGETS.join(",");
-                            }
-                            "next" => {
-                                trace = TRACING_NEXT_TARGETS.join(",");
-                            }
-                            "turbopack" => {
-                                trace = TRACING_NEXT_TURBOPACK_TARGETS.join(",");
-                            }
-                            "turbo-tasks" => {
-                                trace = TRACING_NEXT_TURBO_TASKS_TARGETS.join(",");
-                            }
-                            _ => {}
-                        }
-
-                        let subscriber = Registry::default();
-
-                        let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
-                        let trace_file = "trace.log";
-                        let trace_writer = std::fs::File::create(trace_file).unwrap();
-                        let (trace_writer, guard) = TraceWriter::new(trace_writer);
-                        let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
-
-                        let guard = ExitGuard::new(guard).unwrap();
-
-                        subscriber.init();
-
-                        Some(guard)
-                    } else {
-                        tracing_subscriber::fmt::init();
-
-                        None
-                    };
-
-                    let tt = TurboTasks::new(TurboTasksBackend::new(
-                        BackendOptions {
-                            dependency_tracking: false,
-                            storage_mode: None,
-                            ..Default::default()
-                        },
-                        noop_backing_storage(),
-                    ));
-                    let result = main_inner(&tt, strategy, factor, limit, files).await;
-                    let memory = TurboMalloc::memory_usage();
-                    tracing::info!("memory usage: {} MiB", memory / 1024 / 1024);
-                    let start = Instant::now();
-                    drop(tt);
-                    tracing::info!("drop {:?}", start.elapsed());
-                    result
-                })
-                .unwrap();
+            run_build(strategy, factor, limit, files);
         }
         Cmd::Generate => {
             let project_path = std::env::args().nth(2).unwrap_or(".".to_string());
@@ -196,4 +107,128 @@ fn main() {
             println!("{json}");
         }
     }
+}
+
+/// Async driver: build on a tokio multi-thread runtime, driving the turbo-tasks
+/// engine via `run`/`.await` (the original behavior).
+#[cfg(not(feature = "sync"))]
+fn run_build(strategy: Strategy, factor: usize, limit: usize, files: Option<Vec<String>>) {
+    use std::{cell::RefCell, time::Duration};
+
+    use next_core::tracing_presets::{
+        TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBO_TASKS_TARGETS,
+        TRACING_NEXT_TURBOPACK_TARGETS,
+    };
+    use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
+    use turbopack_trace_utils::{
+        exit::ExitGuard, filter_layer::FilterLayer, raw_trace::RawTraceLayer,
+        trace_writer::TraceWriter,
+    };
+
+    thread_local! {
+        static LAST_SWC_ATOM_GC_TIME: RefCell<Option<Instant>> = const { RefCell::new(None) };
+    }
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .on_thread_stop(|| {
+            TurboMalloc::thread_stop();
+            tracing::debug!("threads stopped");
+        })
+        .on_thread_park(|| {
+            LAST_SWC_ATOM_GC_TIME.with_borrow_mut(|cell| {
+                if cell.is_none_or(|t| t.elapsed() > Duration::from_secs(2)) {
+                    swc_core::ecma::atoms::hstr::global_atom_store_gc();
+                    *cell = Some(Instant::now());
+                }
+            });
+            TurboMalloc::thread_park();
+        })
+        .build()
+        .unwrap()
+        .block_on(async {
+            let trace = std::env::var("NEXT_TURBOPACK_TRACING").ok();
+
+            let _guard = if let Some(mut trace) = trace.filter(|v| !v.is_empty()) {
+                // Trace presets
+                match trace.as_str() {
+                    "overview" | "1" => {
+                        trace = TRACING_NEXT_OVERVIEW_TARGETS.join(",");
+                    }
+                    "next" => {
+                        trace = TRACING_NEXT_TARGETS.join(",");
+                    }
+                    "turbopack" => {
+                        trace = TRACING_NEXT_TURBOPACK_TARGETS.join(",");
+                    }
+                    "turbo-tasks" => {
+                        trace = TRACING_NEXT_TURBO_TASKS_TARGETS.join(",");
+                    }
+                    _ => {}
+                }
+
+                let subscriber = Registry::default();
+
+                let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
+                let trace_file = "trace.log";
+                let trace_writer = std::fs::File::create(trace_file).unwrap();
+                let (trace_writer, guard) = TraceWriter::new(trace_writer);
+                let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
+
+                let guard = ExitGuard::new(guard).unwrap();
+
+                subscriber.init();
+
+                Some(guard)
+            } else {
+                tracing_subscriber::fmt::init();
+
+                None
+            };
+
+            let tt = TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions {
+                    dependency_tracking: false,
+                    storage_mode: None,
+                    ..Default::default()
+                },
+                noop_backing_storage(),
+            ));
+            let result = main_inner(&tt, strategy, factor, limit, files).await;
+            let memory = TurboMalloc::memory_usage();
+            tracing::info!("memory usage: {} MiB", memory / 1024 / 1024);
+            let start = Instant::now();
+            drop(tt);
+            tracing::info!("drop {:?}", start.elapsed());
+            result
+        })
+        .unwrap();
+}
+
+/// Sync driver: no tokio runtime — the turbo-tasks engine runs synchronously on
+/// native threads via `run_sync` (tokio survives only at the node-pool I/O edge).
+#[cfg(feature = "sync")]
+fn run_build(strategy: Strategy, factor: usize, limit: usize, files: Option<Vec<String>>) {
+    tracing_subscriber::fmt::init();
+
+    let tt = TurboTasks::new(TurboTasksBackend::new(
+        BackendOptions {
+            dependency_tracking: false,
+            storage_mode: None,
+            ..Default::default()
+        },
+        noop_backing_storage(),
+    ));
+
+    let total = Instant::now();
+    let result = main_inner(&tt, strategy, factor, limit, files);
+    tracing::info!(
+        "memory usage: {} MiB",
+        TurboMalloc::memory_usage() / 1024 / 1024
+    );
+    let start = Instant::now();
+    drop(tt);
+    tracing::info!("drop {:?}", start.elapsed());
+    tracing::info!("total build {:?}", total.elapsed());
+    turbo_tasks::sync_stats::dump();
+    result.unwrap();
 }

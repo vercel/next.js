@@ -11,9 +11,10 @@ use swc_core::{
     quote, quote_expr,
 };
 use turbo_rcstr::{RcStr, rcstr};
+#[cfg(not(feature = "sync"))]
+use turbo_tasks::TryJoinIterExt;
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, Vc, debug::ValueDebugFormat,
-    trace::TraceRawVcs,
+    FxIndexMap, NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{ChunkableModule, ChunkingContext, ModuleChunkItemIdExt, ModuleId},
@@ -299,7 +300,8 @@ impl PatternMapping {
     }
 }
 
-async fn to_single_pattern_mapping(
+turbo_tasks::dual_fn! {
+fn to_single_pattern_mapping(
     origin: Vc<Box<dyn ResolveOrigin>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     resolve_item: &ModuleResolveResultItem,
@@ -313,22 +315,25 @@ async fn to_single_pattern_mapping(
         }
         ModuleResolveResultItem::Ignore => return Ok(SinglePatternMapping::Ignored),
         ModuleResolveResultItem::Unknown(source) => {
-            emit_unknown_module_type_error(**source).await?;
+            turbo_tasks::read!(emit_unknown_module_type_error(**source))?;
             return Ok(SinglePatternMapping::Unresolvable(
                 "unknown module type".to_string(),
             ));
         }
         ModuleResolveResultItem::Error(issue) => {
             return Ok(SinglePatternMapping::Unresolvable(
-                issue
-                    .into_trait_ref()
-                    .await?
-                    .title()
-                    .await?
+                turbo_tasks::read!(turbo_tasks::read!(issue
+                    .into_trait_ref())
+                    ?
+                    .title())
+                    ?
                     .to_unstyled_string(),
             ));
         }
         ModuleResolveResultItem::Duplicate(first) => {
+            // Recursion: the async build must box the recursive future; the sync build
+            // simply recurses on the worker stack.
+            #[cfg(not(feature = "sync"))]
             return Box::pin(to_single_pattern_mapping(
                 origin,
                 chunking_context,
@@ -337,6 +342,14 @@ async fn to_single_pattern_mapping(
                 resolve_type,
             ))
             .await;
+            #[cfg(feature = "sync")]
+            return to_single_pattern_mapping(
+                origin,
+                chunking_context,
+                &primary[*first].1,
+                primary,
+                resolve_type,
+            );
         }
         ModuleResolveResultItem::Empty | ModuleResolveResultItem::Custom(_) => {
             // TODO implement mapping
@@ -354,7 +367,7 @@ async fn to_single_pattern_mapping(
                     .into(),
                 )
                 .resolved_cell(),
-                path: origin.into_trait_ref().await?.origin_path(),
+                path: turbo_tasks::read!(origin.into_trait_ref())?.origin_path(),
                 source: None,
             }
             .resolved_cell()
@@ -366,15 +379,15 @@ async fn to_single_pattern_mapping(
         match resolve_type {
             ResolveType::AsyncChunkLoader => {
                 let ident = chunking_context.async_loader_chunk_item_ident(*chunkable);
-                let loader_id = chunking_context
-                    .chunk_item_id_strategy()
-                    .await?
-                    .get_id_from_ident(ident)
-                    .await?;
+                let loader_id = turbo_tasks::read!(turbo_tasks::read!(chunking_context
+                    .chunk_item_id_strategy())
+                    ?
+                    .get_id_from_ident(ident))
+                    ?;
                 return Ok(SinglePatternMapping::ModuleLoader(loader_id));
             }
             ResolveType::ChunkItem => {
-                let item_id = chunkable.chunk_item_id(chunking_context).await?;
+                let item_id = turbo_tasks::read!(chunkable.chunk_item_id(chunking_context))?;
                 return Ok(SinglePatternMapping::Module(item_id));
             }
         }
@@ -386,12 +399,13 @@ async fn to_single_pattern_mapping(
             "asset is not placeable in ESM chunks, so it doesn't have a module id"
         ))
         .resolved_cell(),
-        path: origin.into_trait_ref().await?.origin_path(),
+        path: turbo_tasks::read!(origin.into_trait_ref())?.origin_path(),
         source: None,
     }
     .resolved_cell()
     .emit();
     Ok(SinglePatternMapping::Invalid)
+}
 }
 
 #[turbo_tasks::value_impl]
@@ -407,22 +421,21 @@ impl PatternMapping {
         resolve_result: Vc<ModuleResolveResult>,
         resolve_type: ResolveType,
     ) -> Result<Vc<PatternMapping>> {
-        let result = resolve_result.await?;
+        let result = turbo_tasks::read!(resolve_result)?;
         match result.primary.len() {
             0 => Ok(PatternMapping::Single(SinglePatternMapping::Unresolvable(
-                request_to_string(request).await?.to_string(),
+                turbo_tasks::read!(request_to_string(request))?.to_string(),
             ))
             .cell()),
-            1 if !request.request_pattern().await?.has_dynamic_parts() => {
+            1 if !turbo_tasks::read!(request.request_pattern())?.has_dynamic_parts() => {
                 let resolve_item = &result.primary.first().unwrap().1;
-                let single_pattern_mapping = to_single_pattern_mapping(
+                let single_pattern_mapping = turbo_tasks::read!(to_single_pattern_mapping(
                     origin,
                     chunking_context,
                     resolve_item,
                     &result.primary,
                     resolve_type,
-                )
-                .await?;
+                ))?;
                 Ok(PatternMapping::Single(single_pattern_mapping).cell())
             }
             _ => {
@@ -435,6 +448,10 @@ impl PatternMapping {
                         set.insert(request).then(|| (request.clone(), v))
                     })
                     .collect();
+                // The sync `parallel!` only fans out plain `Vc` reads, so the multi-step
+                // per-item helper runs concurrently in the async build (as before) and
+                // sequentially under `sync`.
+                #[cfg(not(feature = "sync"))]
                 let map = items
                     .into_iter()
                     .map(|(k, v)| async move {
@@ -452,6 +469,21 @@ impl PatternMapping {
                     .await?
                     .into_iter()
                     .collect();
+                #[cfg(feature = "sync")]
+                let map = {
+                    let mut entries = Vec::with_capacity(items.len());
+                    for (k, v) in items {
+                        let single_pattern_mapping = to_single_pattern_mapping(
+                            origin,
+                            chunking_context,
+                            v,
+                            primary,
+                            resolve_type,
+                        )?;
+                        entries.push((k, single_pattern_mapping));
+                    }
+                    entries.into_iter().collect()
+                };
                 Ok(PatternMapping::Map(map).cell())
             }
         }

@@ -35,12 +35,13 @@ impl ModuleReference for TsConfigReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
-            TsConfigModuleAsset::new(
-                *self.origin,
-                Vc::upcast(FileSource::new(self.tsconfig.clone())),
-            )
-            .to_resolved()
-            .await?,
+            turbo_tasks::read!(
+                TsConfigModuleAsset::new(
+                    *self.origin,
+                    Vc::upcast(FileSource::new(self.tsconfig.clone())),
+                )
+                .to_resolved()
+            )?,
         )))
     }
 
@@ -71,18 +72,19 @@ impl TsReferencePathAssetReference {
 impl ModuleReference for TsReferencePathAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let origin = self.origin.into_trait_ref().await?;
+        let origin = turbo_tasks::read!(self.origin.into_trait_ref())?;
         Ok(
             if let Some(path) = origin.origin_path().parent().try_join(&self.path) {
-                let module = origin
-                    .asset_context()
-                    .process(
-                        Vc::upcast(FileSource::new(path.clone())),
-                        ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined),
-                    )
-                    .module()
-                    .to_resolved()
-                    .await?;
+                let module = turbo_tasks::read!(
+                    origin
+                        .asset_context()
+                        .process(
+                            Vc::upcast(FileSource::new(path.clone())),
+                            ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined),
+                        )
+                        .module()
+                        .to_resolved()
+                )?;
                 *ModuleResolveResult::module(module)
             } else {
                 *ModuleResolveResult::unresolvable()

@@ -33,7 +33,7 @@ impl Transition for NextServerUtilityTransition {
         _context: Vc<ModuleAssetContext>,
     ) -> Result<Vc<Box<dyn Module>>> {
         let Some(module) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(
-            module.to_resolved().await?,
+            turbo_tasks::read!(module.to_resolved())?,
         ) else {
             bail!("not an ecmascript module");
         };

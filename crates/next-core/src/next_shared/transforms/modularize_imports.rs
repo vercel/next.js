@@ -60,26 +60,28 @@ pub enum Transform {
     Vec(Vec<(String, String)>),
 }
 
+turbo_tasks::dual_fn! {
 /// Returns a rule which applies the Next.js modularize imports transform.
-pub async fn get_next_modularize_imports_rule(
+pub fn get_next_modularize_imports_rule(
     modularize_imports_config: Vc<ModularizeImports>,
     enable_mdx_rs: bool,
 ) -> Result<ModuleRule> {
-    let transformer = modularize_imports_transform_plugin(modularize_imports_config)
-        .to_resolved()
-        .await?;
+    let transformer = turbo_tasks::read!(modularize_imports_transform_plugin(modularize_imports_config)
+        .to_resolved())
+        ?;
     Ok(get_ecma_transform_rule(
         transformer,
         enable_mdx_rs,
         EcmascriptTransformStage::Postprocess,
     ))
 }
+}
 
 #[turbo_tasks::function]
 async fn modularize_imports_transform_plugin(
     config: Vc<ModularizeImports>,
 ) -> Result<Vc<TransformPlugin>> {
-    let config = config.await?;
+    let config = turbo_tasks::read!(config)?;
     Ok(Vc::cell(
         Box::new(ModularizeImportsTransformer::new(&config))
             as Box<dyn CustomTransformer + Send + Sync>,
@@ -126,10 +128,21 @@ impl ModularizeImportsTransformer {
     }
 }
 
+#[cfg(not(feature = "sync"))]
 #[async_trait]
 impl CustomTransformer for ModularizeImportsTransformer {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "modularize_imports", skip_all)]
     async fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
+        program.mutate(modularize_imports(&self.config));
+
+        Ok(())
+    }
+}
+
+#[cfg(feature = "sync")]
+impl CustomTransformer for ModularizeImportsTransformer {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "modularize_imports", skip_all)]
+    fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
         program.mutate(modularize_imports(&self.config));
 
         Ok(())

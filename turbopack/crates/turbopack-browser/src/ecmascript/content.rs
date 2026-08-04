@@ -65,40 +65,42 @@ impl EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
     pub(crate) async fn own_version(&self) -> Result<Vc<EcmascriptBrowserChunkVersion>> {
         Ok(EcmascriptBrowserChunkVersion::new(
-            self.chunking_context.output_root().owned().await?,
-            self.chunk.path().owned().await?,
+            turbo_tasks::read!(self.chunking_context.output_root().owned())?,
+            turbo_tasks::read!(self.chunk.path().owned())?,
             *self.content,
         ))
     }
 
     #[turbo_tasks::function]
     pub(crate) async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
-        let this = self.await?;
-        let source_maps = *this
-            .chunking_context
-            .reference_chunk_source_maps(*ResolvedVc::upcast(this.chunk))
-            .await?;
+        let this = turbo_tasks::read!(self)?;
+        let source_maps = *turbo_tasks::read!(
+            this.chunking_context
+                .reference_chunk_source_maps(*ResolvedVc::upcast(this.chunk))
+        )?;
         // Lifetime hack to pull out the var into this scope
         let chunk_path;
-        let script_or_path = match *this.chunking_context.current_chunk_method().await? {
-            CurrentChunkMethod::StringLiteral => {
-                let output_root = this.chunking_context.output_root().await?;
-                let chunk_path_vc = this.chunk.path();
-                chunk_path = chunk_path_vc.await?;
-                let chunk_server_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
-                    path
-                } else {
-                    turbobail!("chunk path {chunk_path} is not in output root {output_root}");
-                };
-                Either::Left(StringifyJs(chunk_server_path))
-            }
-            CurrentChunkMethod::DocumentCurrentScript => {
-                Either::Right(CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR)
-            }
-        };
+        let script_or_path =
+            match *turbo_tasks::read!(this.chunking_context.current_chunk_method())? {
+                CurrentChunkMethod::StringLiteral => {
+                    let output_root = turbo_tasks::read!(this.chunking_context.output_root())?;
+                    let chunk_path_vc = this.chunk.path();
+                    chunk_path = turbo_tasks::read!(chunk_path_vc)?;
+                    let chunk_server_path = if let Some(path) = output_root.get_path_to(&chunk_path)
+                    {
+                        path
+                    } else {
+                        turbobail!("chunk path {chunk_path} is not in output root {output_root}");
+                    };
+                    Either::Left(StringifyJs(chunk_server_path))
+                }
+                CurrentChunkMethod::DocumentCurrentScript => {
+                    Either::Right(CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR)
+                }
+            };
         let mut code = CodeBuilder::new(
             source_maps,
-            *this.chunking_context.debug_ids_enabled().await?,
+            *turbo_tasks::read!(this.chunking_context.debug_ids_enabled())?,
         );
 
         // When a chunk is executed, it will either register itself with the current
@@ -108,7 +110,8 @@ impl EcmascriptBrowserChunkContent {
         // When the runtime executes (see the `evaluate` module), it will pick up and
         // register all pending chunks, and replace the list of pending chunks
         // with itself so later chunks can register directly with it.
-        let chunk_loading_global = this.chunking_context.chunk_loading_global().await?;
+        let chunk_loading_global =
+            turbo_tasks::read!(this.chunking_context.chunk_loading_global())?;
         write!(
             code,
             // `||=` would be better but we need to be es2020 compatible
@@ -117,8 +120,8 @@ impl EcmascriptBrowserChunkContent {
             chunk_loading_global = StringifyJs(&chunk_loading_global),
         )?;
 
-        let content = this.content.await?;
-        let mut chunk_items = content.chunk_item_code_module_ids_and_paths().await?;
+        let content = turbo_tasks::read!(this.content)?;
+        let mut chunk_items = turbo_tasks::read!(content.chunk_item_code_module_ids_and_paths())?;
         // Sort items by their module path so that similar modules stay
         // together so that the chunks gzips better.
         chunk_items.sort_by(|a, b| {
@@ -138,7 +141,9 @@ impl EcmascriptBrowserChunkContent {
 
         let mut code = code.build();
 
-        if let MinifyType::Minify { mangle } = *this.chunking_context.minify_type().await? {
+        if let MinifyType::Minify { mangle } =
+            *turbo_tasks::read!(this.chunking_context.minify_type())?
+        {
             code = minify(code, source_maps, mangle)?;
         }
 
@@ -150,14 +155,12 @@ impl EcmascriptBrowserChunkContent {
 impl VersionedContent for EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
-        let this = self.await?;
+        let this = turbo_tasks::read!(self)?;
 
         Ok(AssetContent::file(
-            FileContent::Content(File::from(
-                self.code()
-                    .to_rope_with_magic_comments(|| *this.source_map)
-                    .await?,
-            ))
+            FileContent::Content(File::from(turbo_tasks::read!(
+                self.code().to_rope_with_magic_comments(|| *this.source_map)
+            )?))
             .cell(),
         ))
     }
@@ -188,7 +191,7 @@ impl GenerateSourceMap for EcmascriptBrowserChunkContent {
         // Weirdly, the ContentSource will have already URL decoded the ModuleId, and we
         // can't reparse that via serde.
         if let Ok(id) = ModuleId::parse(&section) {
-            let entries = self.entries().await?;
+            let entries = turbo_tasks::read!(self.entries())?;
             for (entry_id, entry) in entries.iter() {
                 if id == *entry_id {
                     let sm = entry.code.generate_source_map();
