@@ -3315,6 +3315,10 @@ export default async function build(
             // pattern.
             const htmlLimitedBotsRegexString =
               config.htmlLimitedBots || HTML_LIMITED_BOT_UA_RE_STRING
+            // Route `has` matchers anchor header values. Add surrounding
+            // wildcards to preserve RegExp.test() substring semantics for
+            // complete user-agent strings.
+            const htmlLimitedBotsBypassRegexString = `.*(?:${htmlLimitedBotsRegexString}).*`
 
             // this flag is used to selectively bypass the static cache and invoke the lambda directly
             // to enable server actions on static routes
@@ -3332,7 +3336,7 @@ export default async function build(
                     {
                       type: 'header' as const,
                       key: 'user-agent',
-                      value: htmlLimitedBotsRegexString,
+                      value: htmlLimitedBotsBypassRegexString,
                     },
                   ]
                 : []),
