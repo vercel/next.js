@@ -19,7 +19,7 @@ declare var TURBOPACK_ASSET_SUFFIX: string
 declare var TURBOPACK_NEXT_CHUNK_URLS: ChunkUrl[] | undefined
 // Used in WebWorkers to override the regular chunk base path with the base
 // used for the worker entrypoint and its initial chunks.
-declare var TURBOPACK_WORKER_CHUNK_BASE_PATH: string | undefined
+declare var TURBOPACK_CHUNK_BASE_PATH: string | undefined
 
 // Injected by rust code
 declare var CHUNK_BASE_PATH: string
