@@ -24,6 +24,7 @@ describe('request-insights-route-preparation', () => {
   }
 
   const routePreparationSpanType = 'DevRouteMatcherManager.ensureRoute'
+  const matcherReloadSpanType = 'DevRouteMatcherManager.reloadMatchers'
 
   async function getRequestInsights() {
     return (await next
@@ -62,6 +63,10 @@ describe('request-insights-route-preparation', () => {
           insight.spans.some(
             (span) =>
               span.attributes?.['next.span_type'] === routePreparationSpanType
+          ) &&
+          insight.spans.some(
+            (span) =>
+              span.attributes?.['next.span_type'] === matcherReloadSpanType
           )
       )
 
@@ -84,21 +89,36 @@ describe('request-insights-route-preparation', () => {
     const routePreparationSpans = request.spans.filter(
       (span) => span.attributes?.['next.span_type'] === routePreparationSpanType
     )
+    const matcherReloadSpans = request.spans.filter(
+      (span) => span.attributes?.['next.span_type'] === matcherReloadSpanType
+    )
 
     expect(rootSpan?.spanId).toBeDefined()
     expect(rootSpan?.traceId).toBeDefined()
     expect(routePreparationSpans).toHaveLength(1)
+    expect(matcherReloadSpans).toHaveLength(1)
+    expect(routePreparationSpans[0].spanId).toBeDefined()
+    expect(matcherReloadSpans[0].spanId).toBeDefined()
+    expect(matcherReloadSpans[0].spanId).not.toBe(
+      routePreparationSpans[0].spanId
+    )
+    expect(matcherReloadSpans[0].parentSpanId).toBe(
+      routePreparationSpans[0].parentSpanId
+    )
 
-    for (const span of routePreparationSpans) {
+    for (const [span, name, type] of [
+      [routePreparationSpans[0], 'prepare route', routePreparationSpanType],
+      [matcherReloadSpans[0], 'reload route matchers', matcherReloadSpanType],
+    ] as const) {
       expect(span).toEqual(
         expect.objectContaining({
-          name: 'prepare route',
+          name,
           durationMs: expect.any(Number),
           status: 'ok',
           attributes: {
             'next.span_category': 'nextjs',
-            'next.span_name': 'prepare route',
-            'next.span_type': routePreparationSpanType,
+            'next.span_name': name,
+            'next.span_type': type,
           },
         })
       )

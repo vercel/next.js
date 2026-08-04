@@ -292,6 +292,16 @@ describe('request insights trace viewer', () => {
           },
         },
         {
+          name: 'reload route matchers',
+          spanId: 'reload-matchers',
+          parentSpanId: 'match',
+          startTime: 109,
+          durationMs: 1,
+          attributes: {
+            'next.span_type': 'DevRouteMatcherManager.reloadMatchers',
+          },
+        },
+        {
           name: 'render',
           spanId: 'base-render',
           parentSpanId: 'match',
@@ -393,6 +403,7 @@ describe('request insights trace viewer', () => {
       { label: 'GET', depth: 0 },
       { label: 'match route', depth: 1 },
       { label: 'prepare route', depth: 2 },
+      { label: 'reload route matchers', depth: 2 },
       { label: 'render', depth: 2 },
       { label: 'load components', depth: 3 },
       { label: 'prepare app page response', depth: 3 },
@@ -409,6 +420,7 @@ describe('request insights trace viewer', () => {
       'match route',
       'prepare route',
       'compile route',
+      'reload route matchers',
       'render',
       'resolve page components',
       'load components',

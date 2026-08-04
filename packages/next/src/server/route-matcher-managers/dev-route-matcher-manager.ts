@@ -77,10 +77,14 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
         {
           spanName: 'prepare route',
         },
-        async () => {
-          await this.ensurer.ensure(developmentMatch, pathname)
-          await this.production.reload()
-        }
+        () => this.ensurer.ensure(developmentMatch, pathname)
+      )
+      await getTracer().trace(
+        DevRouteMatcherManagerSpan.reloadMatchers,
+        {
+          spanName: 'reload route matchers',
+        },
+        () => this.production.reload()
       )
 
       // Iterate over the production matches again, this time we should be able

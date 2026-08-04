@@ -96,6 +96,7 @@ enum AppRenderSpan {
 
 enum DevRouteMatcherManagerSpan {
   ensureRoute = 'DevRouteMatcherManager.ensureRoute',
+  reloadMatchers = 'DevRouteMatcherManager.reloadMatchers',
 }
 
 enum RouterSpan {
