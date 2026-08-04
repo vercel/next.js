@@ -1053,6 +1053,7 @@ pub struct ServerChunkingContextOptions {
     pub css_url_suffix: Vc<Option<RcStr>>,
     pub hash_salt: ResolvedVc<RcStr>,
     pub style_groups_algorithm: StyleGroupsAlgorithm,
+    pub per_page_module_graph: Vc<bool>,
 }
 
 /// Like `get_server_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -1081,6 +1082,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         css_url_suffix,
         hash_salt,
         style_groups_algorithm,
+        per_page_module_graph,
     } = options;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
 
@@ -1127,6 +1129,9 @@ pub async fn get_server_chunking_context_with_client_assets(
     .debug_ids(*debug_ids.await?)
     .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
+    // Per-page graphs each see only one page, so none of them can decide what the shared runtime
+    // chunk may leave out.
+    .shared_runtime_chunk(*per_page_module_graph.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
 
     builder = builder.source_map_source_type(if next_mode.is_development() {
@@ -1185,6 +1190,7 @@ pub async fn get_server_chunking_context(
         css_url_suffix,
         hash_salt,
         style_groups_algorithm,
+        per_page_module_graph,
     } = options;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
     let next_mode = mode.await?;
@@ -1234,6 +1240,9 @@ pub async fn get_server_chunking_context(
     .debug_ids(*debug_ids.await?)
     .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
+    // Per-page graphs each see only one page, so none of them can decide what the shared runtime
+    // chunk may leave out.
+    .shared_runtime_chunk(*per_page_module_graph.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
 
     if next_mode.is_development() {
