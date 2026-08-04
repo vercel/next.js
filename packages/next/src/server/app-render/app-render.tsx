@@ -3296,6 +3296,7 @@ async function renderToStream(
   } = renderOpts
 
   const { cachedNavigations } = renderOpts.experimental
+  const waitForAllReady = supportsDynamicResponse !== true
 
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
     createServerInsertedHTML()
@@ -3886,8 +3887,6 @@ async function renderToStream(
           tracingMetadata: tracingMetadata,
         })
 
-        const generateStaticHTML = supportsDynamicResponse !== true
-
         const appElement = (
           <App
             reactServerStream={reactServerResult.tee()}
@@ -3923,7 +3922,7 @@ async function renderToStream(
               renderToNodeFizzStream,
               appElement,
               fizzOptions,
-              { waitForAllReady: generateStaticHTML }
+              { waitForAllReady }
             )
         )
 
@@ -3938,7 +3937,7 @@ async function renderToStream(
             nonce,
             formState
           ),
-          isStaticGeneration: generateStaticHTML,
+          waitForAllReady,
           allReady,
           deploymentId: ctx.sharedContext.deploymentId,
           getServerInsertedHTML,
@@ -4029,8 +4028,6 @@ async function renderToStream(
           tracingMetadata: tracingMetadata,
         })
 
-        const generateStaticHTML = supportsDynamicResponse !== true
-
         const appElement = (
           <App
             reactServerStream={reactServerResult.tee()}
@@ -4075,7 +4072,7 @@ async function renderToStream(
             nonce,
             formState
           ),
-          isStaticGeneration: generateStaticHTML,
+          waitForAllReady,
           allReady,
           deploymentId: ctx.sharedContext.deploymentId,
           getServerInsertedHTML,
@@ -4206,8 +4203,6 @@ async function renderToStream(
         }
 
         try {
-          const generateStaticHTML = supportsDynamicResponse !== true
-
           const { stream: errorHtmlStream, allReady: errorAllReady } =
             await workUnitAsyncStorage.run(
               requestStore,
@@ -4225,7 +4220,7 @@ async function renderToStream(
                 bootstrapScripts: [errorBootstrapScript],
                 formState,
               },
-              { waitForAllReady: generateStaticHTML }
+              { waitForAllReady }
             )
 
           errorAllReady.finally(() => {
@@ -4241,7 +4236,7 @@ async function renderToStream(
               nonce,
               formState
             ),
-            isStaticGeneration: generateStaticHTML,
+            waitForAllReady,
             deploymentId: ctx.sharedContext.deploymentId,
             getServerInsertedHTML: makeGetServerInsertedHTML({
               polyfills,
@@ -4304,8 +4299,6 @@ async function renderToStream(
         }
 
         try {
-          const generateStaticHTML = supportsDynamicResponse !== true
-
           const { stream: errorHtmlStream, allReady: errorAllReady } =
             await workUnitAsyncStorage.run(
               requestStore,
@@ -4338,7 +4331,7 @@ async function renderToStream(
               nonce,
               formState
             ),
-            isStaticGeneration: generateStaticHTML,
+            waitForAllReady,
             deploymentId: ctx.sharedContext.deploymentId,
             getServerInsertedHTML: makeGetServerInsertedHTML({
               polyfills,
@@ -8144,18 +8137,6 @@ type PrerenderToStreamResult = {
   renderResumeDataCache?: RenderResumeDataCache
 }
 
-/**
- * Determines whether we should generate static flight data.
- */
-// TODO: This helper used to exclude fallback route params. It now only checks
-// static generation inside prerenderToStream and can be removed. LOE: low.
-function shouldGenerateStaticFlightData(workStore: WorkStore): boolean {
-  const { isStaticGeneration } = workStore
-  if (!isStaticGeneration) return false
-
-  return true
-}
-
 async function continueStaticPrerenderWithInlinedData(
   htmlStream: AnyStream,
   reactServerResult: ReactServerPrerenderResult,
@@ -8836,12 +8817,10 @@ async function prerenderToStream(
         finalServerPayload.s = staleTimeIterable
       }
 
-      if (shouldGenerateStaticFlightData(workStore)) {
-        // Embed the runtime data access tracking in the payload so
-        // collectSegmentData can replay it per stage. Only needed when the
-        // Flight data will be decomposed into segment prefetches below.
-        finalServerPayload.u = runtimeDataAccessed.promise
-      }
+      // Embed the runtime data access tracking in the payload so
+      // collectSegmentData can replay it per stage. Only needed when the
+      // Flight data will be decomposed into segment prefetches below.
+      finalServerPayload.u = runtimeDataAccessed.promise
 
       const serverDynamicTracking = createDynamicTrackingState(
         isDebugDynamicAccesses
@@ -9056,30 +9035,28 @@ async function prerenderToStream(
       reactServerPrerenderResultIsDynamic = resultIsPartial
       reactServerPrerenderStore = finalServerPrerenderStore
 
-      if (shouldGenerateStaticFlightData(workStore)) {
-        metadata.flightData = Buffer.concat(
-          cachedNavigations
-            ? prependIsPartialByteToChunks(
-                reactServerResult.asChunks(),
-                resultIsPartial
-              )
-            : reactServerResult.asChunks()
-        )
+      metadata.flightData = Buffer.concat(
+        cachedNavigations
+          ? prependIsPartialByteToChunks(
+              reactServerResult.asChunks(),
+              resultIsPartial
+            )
+          : reactServerResult.asChunks()
+      )
 
-        // collectSegmentData needs the raw flight data without the marker byte.
-        const flightData = cachedNavigations
-          ? metadata.flightData.subarray(1)
-          : metadata.flightData
+      // collectSegmentData needs the raw flight data without the marker byte.
+      const flightData = cachedNavigations
+        ? metadata.flightData.subarray(1)
+        : metadata.flightData
 
-        await collectSegmentData(
-          flightData,
-          finalServerPrerenderStore,
-          ComponentMod,
-          renderOpts,
-          ctx.pagePath,
-          metadata
-        )
-      }
+      await collectSegmentData(
+        flightData,
+        finalServerPrerenderStore,
+        ComponentMod,
+        renderOpts,
+        ctx.pagePath,
+        metadata
+      )
 
       const clientDynamicTracking = createDynamicTrackingState(
         isDebugDynamicAccesses
@@ -9407,17 +9384,15 @@ async function prerenderToStream(
       // parts of the React Server render that might not be used in the SSR render.
       const flightData = await streamToBuffer(reactServerResult.asStream())
 
-      if (shouldGenerateStaticFlightData(workStore)) {
-        metadata.flightData = flightData
-        await collectSegmentData(
-          flightData,
-          ssrPrerenderStore,
-          ComponentMod,
-          renderOpts,
-          ctx.pagePath,
-          metadata
-        )
-      }
+      metadata.flightData = flightData
+      await collectSegmentData(
+        flightData,
+        ssrPrerenderStore,
+        ComponentMod,
+        renderOpts,
+        ctx.pagePath,
+        metadata
+      )
 
       const { prelude, preludeIsEmpty } =
         await processPreludeOp(unprocessedPrelude)
@@ -9619,18 +9594,16 @@ async function prerenderToStream(
         { waitForAllReady: true }
       )
 
-      if (shouldGenerateStaticFlightData(workStore)) {
-        const flightData = await streamToBuffer(reactServerResult.asStream())
-        metadata.flightData = flightData
-        await collectSegmentData(
-          flightData,
-          prerenderLegacyStore,
-          ComponentMod,
-          renderOpts,
-          ctx.pagePath,
-          metadata
-        )
-      }
+      const flightData = await streamToBuffer(reactServerResult.asStream())
+      metadata.flightData = flightData
+      await collectSegmentData(
+        flightData,
+        prerenderLegacyStore,
+        ComponentMod,
+        renderOpts,
+        ctx.pagePath,
+        metadata
+      )
 
       const getServerInsertedHTML = makeGetServerInsertedHTML({
         polyfills,
@@ -9648,7 +9621,7 @@ async function prerenderToStream(
             nonce,
             formState
           ),
-          isStaticGeneration: true,
+          waitForAllReady: true,
           getServerInsertedHTML,
           getServerInsertedMetadata,
           deploymentId: ctx.sharedContext.deploymentId,
@@ -10165,20 +10138,18 @@ async function prerenderToStream(
         { waitForAllReady: true }
       )
 
-      if (shouldGenerateStaticFlightData(workStore)) {
-        const flightData = await streamToBuffer(
-          reactServerPrerenderResult.asStream()
-        )
-        metadata.flightData = flightData
-        await collectSegmentData(
-          flightData,
-          prerenderLegacyStore,
-          ComponentMod,
-          renderOpts,
-          ctx.pagePath,
-          metadata
-        )
-      }
+      const flightData = await streamToBuffer(
+        reactServerPrerenderResult.asStream()
+      )
+      metadata.flightData = flightData
+      await collectSegmentData(
+        flightData,
+        prerenderLegacyStore,
+        ComponentMod,
+        renderOpts,
+        ctx.pagePath,
+        metadata
+      )
 
       return {
         digestErrorsMap: reactServerErrorsByDigest,
@@ -10189,7 +10160,7 @@ async function prerenderToStream(
             nonce,
             formState
           ),
-          isStaticGeneration: true,
+          waitForAllReady: true,
           getServerInsertedHTML: makeGetServerInsertedHTML({
             polyfills,
             renderServerInsertedHTML,
