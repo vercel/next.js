@@ -105,7 +105,10 @@ import { createRequestResponseMocks } from './lib/mock-request'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import { signalFromNodeResponse } from './web/spec-extension/adapters/next-request'
 import { loadManifest } from './load-manifest.external'
-import { lazyRenderAppPage } from './route-modules/app-page/module.render'
+import {
+  lazyPrerenderAppPage,
+  lazyRenderAppPage,
+} from './route-modules/app-page/module.render'
 import { lazyRenderPagesPage } from './route-modules/pages/module.render'
 import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
@@ -643,7 +646,14 @@ export default class NextNodeServer extends BaseServer<
       renderOpts.nextFontManifest = this.nextFontManifest
 
       if (this.enabledDirectories.app && renderOpts.isAppPath) {
-        return lazyRenderAppPage(
+        const renderAppPage =
+          !renderOpts.supportsDynamicResponse &&
+          !renderOpts.isDraftMode &&
+          !renderOpts.isPossibleServerAction
+            ? lazyPrerenderAppPage
+            : lazyRenderAppPage
+
+        return renderAppPage(
           req,
           res,
           pathname,
@@ -651,11 +661,6 @@ export default class NextNodeServer extends BaseServer<
           // This code path does not service revalidations for unknown param
           // shells. As a result, we don't need to pass in the unknown params.
           null,
-          !renderOpts.supportsDynamicResponse &&
-            !renderOpts.isDraftMode &&
-            !renderOpts.isPossibleServerAction
-            ? 'prerender'
-            : 'request',
           renderOpts as LoadedRenderOpts<AppPageModule>,
           this.getServerComponentsHmrCache(),
           {

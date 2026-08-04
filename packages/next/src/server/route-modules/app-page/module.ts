@@ -6,6 +6,7 @@ import type { LoaderTree } from '../../lib/app-dir-module'
 import type { PrerenderManifest } from '../../../build'
 
 import {
+  prerenderToHTMLOrFlight,
   renderToHTMLOrFlight,
   runValidationInDevFromSnapshot,
   type AppSharedContext,
@@ -22,7 +23,6 @@ import type { ServerComponentsHmrCache } from '../../response-cache'
 import type { OpaqueFallbackRouteParams } from '../../request/fallback-params'
 import { PrerenderManifestMatcher } from './helpers/prerender-manifest-matcher'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
-import type { WorkStoreExecutionMode } from '../../app-render/work-async-storage.external'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
@@ -75,7 +75,6 @@ export interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
   page: string
   query: NextParsedUrlQuery
   fallbackRouteParams: OpaqueFallbackRouteParams | null
-  executionMode: WorkStoreExecutionMode
   renderOpts: RenderOpts
   serverComponentsHmrCache?: ServerComponentsHmrCache
   sharedContext: AppSharedContext
@@ -167,7 +166,23 @@ export class AppPageRouteModule extends RouteModule<
       context.page,
       context.query,
       context.fallbackRouteParams,
-      context.executionMode,
+      context.renderOpts,
+      context.serverComponentsHmrCache,
+      context.sharedContext
+    )
+  }
+
+  public prerender(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    context: AppPageRouteHandlerContext
+  ): Promise<RenderResult> {
+    return prerenderToHTMLOrFlight(
+      req,
+      res,
+      context.page,
+      context.query,
+      context.fallbackRouteParams,
       context.renderOpts,
       context.serverComponentsHmrCache,
       context.sharedContext
@@ -230,6 +245,6 @@ const vendored = {
   contexts: vendoredContexts,
 }
 
-export { renderToHTMLOrFlight, vendored }
+export { prerenderToHTMLOrFlight, renderToHTMLOrFlight, vendored }
 
 export default AppPageRouteModule

@@ -2593,7 +2593,8 @@ async function renderToHTMLOrFlightImpl(
   serverComponentsHmrCache: ServerComponentsHmrCache | undefined,
   sharedContext: AppSharedContext,
   interpolatedParams: Params,
-  fallbackRouteParams: OpaqueFallbackRouteParams | null
+  fallbackRouteParams: OpaqueFallbackRouteParams | null,
+  isPrerendering: boolean
 ) {
   const isNotFoundPath = pagePath === '/404'
   if (isNotFoundPath) {
@@ -2704,7 +2705,6 @@ async function renderToHTMLOrFlightImpl(
   query = { ...query }
   stripInternalQueries(query)
 
-  const isStaticGeneration = workStore.executionMode === 'prerender'
   const isRoutePPREnabled = renderOpts.experimental.isRoutePPREnabled === true
 
   let requestId: string
@@ -2732,7 +2732,7 @@ async function renderToHTMLOrFlightImpl(
     requestId = requestInsightsIdentity.requestId
   } else {
     // Otherwise we generate a new request ID.
-    if (isStaticGeneration) {
+    if (isPrerendering) {
       requestId = Buffer.from(
         await crypto.subtle.digest('SHA-1', Buffer.from(req.url))
       ).toString('hex')
@@ -2785,16 +2785,16 @@ async function renderToHTMLOrFlightImpl(
     workStore,
     missingPrefetchHintPolicy: getMissingPrefetchHintPolicy(
       renderOpts.isBuildTimePrerendering ?? false,
-      isStaticGeneration,
+      isPrerendering,
       renderOpts.cacheComponents
     ),
     // These are distinct rendering and protocol properties even though they
     // are both determined by route-level PPR support today.
     renderCapabilities: {
-      canPostpone: isStaticGeneration && isRoutePPREnabled,
-      isPossiblyPartialResponse: isStaticGeneration && isRoutePPREnabled,
+      canPostpone: isPrerendering && isRoutePPREnabled,
+      isPossiblyPartialResponse: isPrerendering && isRoutePPREnabled,
       supportsPerSegmentPrefetching:
-        isStaticGeneration || renderOpts.cacheComponents,
+        isPrerendering || renderOpts.cacheComponents,
     },
     parsedRequestHeaders,
     getDynamicParamFromSegment,
@@ -2819,7 +2819,7 @@ async function renderToHTMLOrFlightImpl(
 
   getTracer().setRootSpanAttribute('next.route', pagePath)
 
-  if (isStaticGeneration) {
+  if (isPrerendering) {
     // We're either building or revalidating. In either case we need to
     // prerender our page rather than render it.
     const prerenderToStreamWithTracing = getTracer().wrap(
@@ -3128,13 +3128,24 @@ export type AppPageRender = (
   pagePath: string,
   query: NextParsedUrlQuery,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
+  renderOpts: RenderOpts,
+  serverComponentsHmrCache: ServerComponentsHmrCache | undefined,
+  sharedContext: AppSharedContext
+) => Promise<RenderResult<AppPageRenderResultMetadata>>
+
+type AppPageRenderWithExecutionMode = (
+  req: BaseNextRequest,
+  res: BaseNextResponse,
+  pagePath: string,
+  query: NextParsedUrlQuery,
+  fallbackRouteParams: OpaqueFallbackRouteParams | null,
   executionMode: WorkStoreExecutionMode,
   renderOpts: RenderOpts,
   serverComponentsHmrCache: ServerComponentsHmrCache | undefined,
   sharedContext: AppSharedContext
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
 
-export const renderToHTMLOrFlight: AppPageRender = (
+const renderAppPage: AppPageRenderWithExecutionMode = (
   req,
   res,
   pagePath,
@@ -3232,9 +3243,54 @@ export const renderToHTMLOrFlight: AppPageRender = (
     serverComponentsHmrCache,
     sharedContext,
     interpolatedParams,
-    fallbackRouteParams
+    fallbackRouteParams,
+    executionMode === 'prerender'
   )
 }
+
+export const renderToHTMLOrFlight: AppPageRender = (
+  req,
+  res,
+  pagePath,
+  query,
+  fallbackRouteParams,
+  renderOpts,
+  serverComponentsHmrCache,
+  sharedContext
+) =>
+  renderAppPage(
+    req,
+    res,
+    pagePath,
+    query,
+    fallbackRouteParams,
+    'request',
+    renderOpts,
+    serverComponentsHmrCache,
+    sharedContext
+  )
+
+export const prerenderToHTMLOrFlight: AppPageRender = (
+  req,
+  res,
+  pagePath,
+  query,
+  fallbackRouteParams,
+  renderOpts,
+  serverComponentsHmrCache,
+  sharedContext
+) =>
+  renderAppPage(
+    req,
+    res,
+    pagePath,
+    query,
+    fallbackRouteParams,
+    'prerender',
+    renderOpts,
+    serverComponentsHmrCache,
+    sharedContext
+  )
 
 function applyMetadataFromPrerenderResult(
   response: Pick<

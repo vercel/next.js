@@ -1,6 +1,7 @@
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { FallbackRouteParam } from '../static-paths/types'
+import type { WorkStoreExecutionMode } from '../../server/app-render/work-async-storage.external'
 
 import {
   AppPageRouteModule,
@@ -741,12 +742,18 @@ export function createAppPageEntrypoint({
       let parentSpan: Span | undefined
       const invokeRouteModule = async (
         span: Span | undefined,
-        context: AppPageRouteHandlerContext
+        context: AppPageRouteHandlerContext,
+        executionMode: WorkStoreExecutionMode
       ) => {
         const nextReq = new NodeNextRequest(req)
         const nextRes = new NodeNextResponse(res)
 
-        return routeModule.render(nextReq, nextRes, context).finally(() => {
+        const result =
+          executionMode === 'prerender'
+            ? routeModule.prerender(nextReq, nextRes, context)
+            : routeModule.render(nextReq, nextRes, context)
+
+        return result.finally(() => {
           if (!span) return
 
           span.setAttributes({
@@ -837,7 +844,7 @@ export function createAppPageEntrypoint({
          */
         fallbackRouteParams: OpaqueFallbackRouteParams | null
 
-        executionMode: AppPageRouteHandlerContext['executionMode']
+        executionMode: WorkStoreExecutionMode
       }): Promise<ResponseCacheEntry> => {
         const context: AppPageRouteHandlerContext = {
           query,
@@ -853,7 +860,6 @@ export function createAppPageEntrypoint({
             'serverComponentsHmrCache'
           ),
           fallbackRouteParams,
-          executionMode,
           renderOpts: {
             App: () => null,
             Document: () => null,
@@ -985,7 +991,7 @@ export function createAppPageEntrypoint({
           },
         }
 
-        const result = await invokeRouteModule(span, context)
+        const result = await invokeRouteModule(span, context, executionMode)
 
         const { metadata } = result
 

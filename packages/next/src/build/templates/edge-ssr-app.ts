@@ -118,7 +118,6 @@ async function requestHandler(
       clientAssetToken,
     },
     fallbackRouteParams: null,
-    executionMode: 'request',
 
     renderOpts: {
       App: () => null,

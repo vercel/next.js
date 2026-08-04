@@ -11,3 +11,15 @@ export const lazyRenderAppPage: AppPageRender = (...args) => {
     return render(...args)
   }
 }
+
+export const lazyPrerenderAppPage: AppPageRender = (...args) => {
+  if (process.env.NEXT_MINIMAL) {
+    throw new Error("Can't use lazyPrerenderAppPage in minimal mode")
+  } else {
+    const prerender: AppPageRender = (
+      require('./module.compiled') as typeof import('./module.compiled')
+    ).prerenderToHTMLOrFlight
+
+    return prerender(...args)
+  }
+}
