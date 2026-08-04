@@ -1,9 +1,8 @@
 import execa from 'execa'
-import { readFileSync } from 'fs'
-import glob from 'glob'
 import { join } from 'path'
 import { spawn } from 'child_process'
 import { fetchViaHTTP, findPort, killApp } from 'next-test-utils'
+import webdriver from 'next-webdriver'
 import {
   resolveTestPkgPaths,
   serializeTestPkgPathsEnv,
@@ -116,16 +115,6 @@ export async function tryNextDev({
   })
   expect(buildResult.exitCode).toBe(0)
 
-  if (tailwind && !process.env.NEXT_RSPACK) {
-    const stylesheets = glob.sync('.next/static/**/*.css', { cwd: dir })
-    expect(stylesheets.length).toBeGreaterThan(0)
-
-    const css = stylesheets
-      .map((stylesheet) => readFileSync(join(dir, stylesheet), 'utf8'))
-      .join('\n')
-    expect(css).toMatch(/\.flex\s*\{[^}]*display:\s*flex(?:;|(?=\s*}))/)
-  }
-
   const port = await findPort()
   const server = spawn(
     'node',
@@ -142,6 +131,8 @@ export async function tryNextDev({
   // under webpack where the built output is larger. Give them generous
   // headroom so these tests aren't flaky on loaded CI machines.
   const startServerTimeout = 60_000
+
+  let browser: Awaited<ReturnType<typeof webdriver>> | undefined
 
   try {
     await new Promise<void>((resolve, reject) => {
@@ -178,6 +169,13 @@ export async function tryNextDev({
       })
     })
 
+    if (tailwind) {
+      browser = await webdriver(port, '/')
+      expect(await browser.elementByCss('main').getComputedCss('display')).toBe(
+        'flex'
+      )
+    }
+
     const res = await fetchViaHTTP(port, '/')
     if (isEmpty || isApi) {
       expect(await res.text()).toContain('Hello world!')
@@ -204,6 +202,7 @@ export async function tryNextDev({
       expect(apiRes.status).toBe(200)
     }
   } finally {
+    await browser?.close()
     await killApp(server).catch(() => {})
   }
 }
