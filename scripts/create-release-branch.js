@@ -8,6 +8,13 @@ const {
   getGitHubTokenMissingMessage,
   verifyGitHubApiAccess,
 } = require('./release-github-auth')
+const {
+  createSignedCommit,
+  upsertBranchRef,
+} = require('./github-utils/signed-commit')
+
+const REPO_OWNER = 'vercel'
+const REPO_NAME = 'next.js'
 
 async function main() {
   const args = process.argv
@@ -32,8 +39,8 @@ async function main() {
   await configureGitHubAuth(githubToken)
   await verifyGitHubApiAccess(
     githubToken,
-    '/repos/vercel/next.js/environments/release-stable/deployment-branch-policies?per_page=1',
-    'release-stable deployment branch policies'
+    `/repos/${REPO_OWNER}/${REPO_NAME}`,
+    'repository access'
   )
 
   await execa(`git checkout -b "${branchName}"`, {
@@ -89,44 +96,49 @@ async function main() {
 
   await fs.promises.writeFile(buildAndTestPath, buildAndTest)
 
+  const commitMessage = 'setup release branch'
+
   await execa(`git add .`, {
     stdio: 'inherit',
     shell: true,
   })
-  await execa(`git commit -m "setup release branch"`, {
+  await execa(`git commit -m "${commitMessage}"`, {
     stdio: 'inherit',
     shell: true,
   })
 
-  await execa(`git push origin "${branchName}"`, {
-    stdio: 'inherit',
-    shell: true,
+  // Branch protection requires signed commits, so create the commit on the
+  // remote as a GitHub-signed commit via the REST API instead of running
+  // `git push` (which would push the unsigned local commit).
+  //
+  // Release tags are annotated tag objects, so dereference to the underlying
+  // commit -- the tag object's SHA is not valid as a commit parent.
+  const { stdout: baseSha } = await execa('git', [
+    'rev-parse',
+    `${tagName}^{commit}`,
+  ])
+  const { stdout: localCommitSha } = await execa('git', ['rev-parse', 'HEAD'])
+
+  const signedCommit = await createSignedCommit({
+    token: githubToken,
+    owner: REPO_OWNER,
+    repo: REPO_NAME,
+    baseSha: baseSha.trim(),
+    localCommitSha: localCommitSha.trim(),
+    message: commitMessage,
   })
 
-  console.log(`Waiting 5s before updating branch rules`)
-  await new Promise((resolve) => setTimeout(resolve, 5_000))
+  await upsertBranchRef({
+    token: githubToken,
+    owner: REPO_OWNER,
+    repo: REPO_NAME,
+    branch: branchName,
+    sha: signedCommit.sha,
+  })
 
-  const updateEnvironmentRes = await fetch(
-    'https://api.github.com/repos/vercel/next.js/environments/release-stable/deployment-branch-policies',
-    {
-      method: 'POST',
-      headers: {
-        Accept: 'application/vnd.github+json',
-        Authorization: `Bearer ${githubToken}`,
-        'X-GitHub-Api-Version': '2022-11-28',
-      },
-      body: JSON.stringify({ name: branchName }),
-    }
+  console.log(
+    `Created branch ${branchName} at signed commit ${signedCommit.sha}`
   )
-
-  if (!updateEnvironmentRes.ok) {
-    console.error(
-      { status: updateEnvironmentRes.status },
-      await updateEnvironmentRes.text()
-    )
-    throw new Error(`Failed to update environment branch rules`)
-  }
-  console.log(`Successfully updated deployment environment branch rules`)
 }
 
 main()
