@@ -57,11 +57,22 @@ async fn gc_re_rooting_stays_flat() {
     let (tt, _persistence_dir) = create_tt("gc_re_rooting_stays_flat");
     let tt2 = tt.clone();
 
+    // This test asserts on *how much* GC collects, so it must not race the interrupt heuristic.
+    // `gc_for_testing` already pins the floor for its own pass, but each round also runs
+    // `snapshot_and_evict_for_testing`, whose GC pass is fully interruptible: on a loaded machine
+    // it can wind down as soon as an operation blocks behind it, collecting less through no fault
+    // of GC. Pin the floor beyond any plausible pass so the counts are deterministic; the
+    // interrupt path has its own tests.
+    tt.backend().set_gc_min_progress_for_testing(u64::MAX / 2);
+
     const ROUNDS: u32 = 20;
 
     // Each round runs in its own `run_once` so the root's activeness is released before GC (a
     // `run_once` root keeps everything it touched active until it returns).
-    async fn round(tt: &Arc<TurboTasks<TurboTasksBackend>>, gen_value: u32) -> (usize, usize) {
+    async fn round(
+        tt: &Arc<TurboTasks<TurboTasksBackend>>,
+        gen_value: u32,
+    ) -> (usize, usize, bool) {
         let tt_inner = tt.clone();
         turbo_tasks::run_once(tt.clone(), async move {
             // `create_generation` is a cached root operation, so this returns the same task each
@@ -85,34 +96,48 @@ async fn gc_re_rooting_stays_flat() {
         // first would drop the garbage to disk-only where the in-memory GC can't collect or
         // tombstone it.
         let collected = tt.backend().gc_for_testing(tt);
+        // This runs a *second*, interruptible GC pass inside `snapshot_and_persist` (unlike
+        // `gc_for_testing`, which pins `min_progress` so high it can never trip). On a loaded
+        // machine that pass can wind down early, which shows up as a collection shortfall rather
+        // than a bug — so report it instead of letting it look like GC failing to collect.
         tt.backend().snapshot_and_evict_for_testing(tt);
+        let interrupted = tt
+            .backend()
+            .last_gc_stats_for_testing()
+            .is_some_and(|(_, _, interrupted)| interrupted);
         // Measure the *persistent* resident count: GC only collects persistent tasks. Transient
         // roots (each round's `run_once`/Once task) are never collected and accumulate
         // independently of GC — including them would mask the real signal.
         (
             collected,
             tt.backend().resident_persistent_task_count_for_testing(),
+            interrupted,
         )
     }
 
     // Warm up: build generation 0, then measure the steady-state baseline after one full cycle.
-    let (_, baseline) = round(&tt2, 0).await;
+    let (_, baseline, _) = round(&tt2, 0).await;
     println!("baseline persistent resident after gen 0: {baseline}");
 
     // Churn: swap the whole dependency set many times.
     let mut max_resident = baseline;
     let mut total_collected = 0usize;
+    let mut interrupted_rounds = 0usize;
     for gen_value in 1..=ROUNDS {
-        let (collected, resident) = round(&tt2, gen_value).await;
-        println!("gen {gen_value}: collected={collected} persistent_resident={resident}");
+        let (collected, resident, interrupted) = round(&tt2, gen_value).await;
+        println!(
+            "gen {gen_value}: collected={collected} persistent_resident={resident} \
+             snapshot_gc_interrupted={interrupted}"
+        );
         max_resident = max_resident.max(resident);
         total_collected += collected;
+        interrupted_rounds += usize::from(interrupted);
     }
 
     let no_gc_growth = baseline + (2 * WIDTH as usize) * (ROUNDS as usize);
     println!(
         "baseline={baseline} max_resident={max_resident} total_collected={total_collected} \
-         no_gc_growth_would_be={no_gc_growth}"
+         interrupted_rounds={interrupted_rounds} no_gc_growth_would_be={no_gc_growth}"
     );
     // Without GC the persistent resident set would climb by ~2*WIDTH per round (each generation's
     // intermediates + leaves persisted forever), so a bound within a small constant of the baseline
@@ -129,7 +154,10 @@ async fn gc_re_rooting_stays_flat() {
     assert!(
         total_collected >= expected_min_collected,
         "GC collected too little ({total_collected}); expected >= {expected_min_collected} across \
-         {ROUNDS} re-rootings — GC is not doing the collection"
+         {ROUNDS} re-rootings — GC is not doing the collection. snapshot-pass interrupts: \
+         {interrupted_rounds}/{ROUNDS} (a non-zero count means the interruptible pass inside \
+         `snapshot_and_persist` wound down early under load, which is a flaky-environment signal \
+         rather than a GC defect)"
     );
 
     // The live graph must still compute correctly after all the churn.

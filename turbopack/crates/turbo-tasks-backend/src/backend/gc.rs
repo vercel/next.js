@@ -19,7 +19,8 @@
 use std::{
     fmt::Display,
     ops::ControlFlow,
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    sync::atomic::{AtomicBool, Ordering},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 use bincode::{Decode, Encode};
@@ -28,12 +29,12 @@ use turbo_tasks::{TaskId, TurboTasks, scope_unbounded::scope_unbounded_with};
 
 use crate::{
     backend::{
-        AnyOperation, TurboTasksBackend,
+        AnyOperation, GC_MIN_PROGRESS, TurboTasksBackend,
         operation::{
             AggregationUpdateQueue, CleanupOldEdgesOperation, ExecuteContext, ExecuteContextImpl,
             TaskGuard, capture_all_outgoing_edges,
         },
-        snapshot_coordinator::SnapshotPhase,
+        snapshot_coordinator::{SnapshotCoordinator, SnapshotPhase},
         storage::{SpecificTaskDataCategory, TaskDataCategory},
         storage_schema::TaskStorageAccessors,
     },
@@ -70,6 +71,37 @@ enum GcJob {
     Collect(TaskId),
 }
 
+/// Decides when a GC pass should stop early because it is delaying real work.
+struct GcBudget<'a> {
+    coord: &'a SnapshotCoordinator<AnyOperation>,
+    started: Instant,
+    min_progress: Duration,
+    /// Latched on the first trip. Re-polling per job would let a waiter that arrives and leaves
+    /// produce a ragged pass that stops and starts; once we have decided to wind down, we commit.
+    /// Also reports whether the pass was interrupted, for [`GcStats`].
+    stopped: AtomicBool,
+}
+
+impl GcBudget<'_> {
+    fn should_stop(&self) -> bool {
+        if self.stopped.load(Ordering::Relaxed) {
+            return true;
+        }
+        if self.started.elapsed() < self.min_progress {
+            return false;
+        }
+        if !self.coord.operations_waiting() {
+            return false;
+        }
+        self.stopped.store(true, Ordering::Relaxed);
+        true
+    }
+
+    fn was_interrupted(&self) -> bool {
+        self.stopped.load(Ordering::Relaxed)
+    }
+}
+
 /// Observability counters for one [`TurboTasksBackend::gc_collect`] pass.
 #[derive(Default, Debug)]
 pub(crate) struct GcStats {
@@ -83,6 +115,38 @@ pub(crate) struct GcStats {
     pub aged_out_roots: usize,
     /// Persisted roots that this pass collected, to be dropped from the roots map.
     pub deleted_roots: Vec<TaskId>,
+    /// Whether the pass wound down early because an operation was waiting on the exclusion (see
+    /// [`GcBudget`]). An interrupted pass is not an error — the work it skipped is re-derived by
+    /// the next pass — but a dev session where this is always true means GC is never finishing and
+    /// the floor may need raising.
+    pub interrupted: bool,
+    /// Jobs dropped by the interrupt: queued work the pass chose not to start. Distinct from jobs
+    /// skipped because the task was no longer collectible, which is ordinary concurrent
+    /// re-validation rather than lost progress.
+    pub abandoned: usize,
+}
+
+/// Test-only snapshot of the most recent [`GcStats`]. Production reads these off the `gc` span; a
+/// unit test can't, so [`TurboTasksBackend`] stashes this after each pass. Kept as a small `Copy`
+/// struct so it can be cloned out from behind the mutex cheaply.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct LastGcStats {
+    /// Tasks collected this pass (soft-deleted). See [`GcStats::collected`].
+    pub collected: usize,
+    /// Queued work the pass abandoned when it wound down early. See [`GcStats::abandoned`].
+    pub abandoned: usize,
+    /// Whether the pass was interrupted by a waiting operation. See [`GcStats::interrupted`].
+    pub interrupted: bool,
+}
+
+impl From<&GcStats> for LastGcStats {
+    fn from(stats: &GcStats) -> Self {
+        Self {
+            collected: stats.collected,
+            abandoned: stats.abandoned,
+            interrupted: stats.interrupted,
+        }
+    }
 }
 
 impl Display for GcStats {
@@ -90,11 +154,14 @@ impl Display for GcStats {
         write!(
             f,
             "gc_roots = {gc_roots}, collected: {collected}, edges_deleted: {edges_deleted}, \
-             aged_out_roots = {aged_out_roots}",
+             aged_out_roots = {aged_out_roots}, interrupted = {interrupted}, abandoned = \
+             {abandoned}",
             gc_roots = self.gc_roots,
             collected = self.collected,
             edges_deleted = self.edges_deleted,
-            aged_out_roots = self.aged_out_roots
+            aged_out_roots = self.aged_out_roots,
+            interrupted = self.interrupted,
+            abandoned = self.abandoned
         )
     }
 }
@@ -113,6 +180,7 @@ impl GcStats {
         } else {
             self.deleted_roots.append(&mut other.deleted_roots);
         }
+        self.abandoned += other.abandoned;
         self
     }
 }
@@ -147,6 +215,15 @@ impl TurboTasksBackend {
 
         let aged_out_count = aged_out.len();
         // TODO(perf): recycle the task ids of collected tasks.
+        let budget = GcBudget {
+            coord: &self.snapshot_coord,
+            started: Instant::now(),
+            min_progress: self.gc_min_progress(),
+            stopped: AtomicBool::new(false),
+        };
+
+        // Each job builds its own GC `ExecuteContext`; see the doc above for the concurrency
+        // argument. No root classification happens in here — that is the post-drain scan below.
         let mut stats: GcStats = scope_unbounded_with(
             // Start by scanning all shards and collecting the aged out roots from prior sessions
             (0..self.storage.shard_count())
@@ -154,6 +231,18 @@ impl TurboTasksBackend {
                 .chain(aged_out.into_iter().map(GcJob::Collect)),
             GcStats::default,
             |spawner, job, stats| {
+                // The **only** interrupt point: at job entry, before any mutation. Everything past
+                // here runs to completion, which is what makes a partial pass safe to hand to
+                // `into_snapshot` — every task we marked deleted also had its edges torn down and
+                // its children's `parent_count` decremented, so the graph the snapshot sees is
+                // consistent. Never check the budget between `set_deleted` and `CleanupOldEdges`.
+                //
+                // `Break` closes the queue: remaining jobs are discarded without being dispatched,
+                // and in-flight jobs cannot re-grow it as they finish.
+                if budget.should_stop() {
+                    stats.abandoned += 1;
+                    return ControlFlow::Break(());
+                }
                 let collector = |task_id| spawner.spawn(GcJob::Collect(task_id));
                 let task_id = match job {
                     GcJob::ScanShard(index) => {
@@ -224,11 +313,30 @@ impl TurboTasksBackend {
 
         stats.gc_roots = roots.len();
         stats.aged_out_roots = aged_out_count;
+        stats.interrupted = budget.was_interrupted();
 
         // Only persist the roots map if it actually changed
         let roots_to_persist: Option<Vec<_>> =
             (roots != roots_before).then(|| roots.into_iter().collect());
         (stats, roots_to_persist)
+    }
+
+    /// The min-progress floor for this pass — how long GC runs before it will honour an interrupt.
+    /// Same precedence chain as [`Self::gc_root_ttl`]: the per-backend test override
+    /// (`set_gc_min_progress_for_testing`, race-free across parallel tests) → the
+    /// `TURBO_ENGINE_GC_MIN_PROGRESS_MS` env → [`GC_MIN_PROGRESS`].
+    fn gc_min_progress(&self) -> Duration {
+        let override_ms = self.gc_min_progress_override_ms.load(Ordering::Relaxed);
+        if override_ms != u64::MAX {
+            return Duration::from_millis(override_ms);
+        }
+        match std::env::var("TURBO_ENGINE_GC_MIN_PROGRESS_MS") {
+            Ok(v) => match v.parse::<u64>() {
+                Ok(ms) => Duration::from_millis(ms),
+                Err(_) => GC_MIN_PROGRESS,
+            },
+            Err(_) => GC_MIN_PROGRESS,
+        }
     }
 
     /// Compute which persisted roots have expired their TTL
@@ -321,7 +429,20 @@ impl TurboTasksBackend {
         );
         let _serialize = self.snapshot_in_progress.lock();
         let phase = self.snapshot_coord.begin_snapshot();
+        // Save/restore rather than set-and-leave: the caller may run further passes and expect its
+        // own override (e.g. a TTL test) to still apply.
+        let prev = self.gc_min_progress_override_ms.load(Ordering::Relaxed);
+        // Far beyond any real pass, so `should_stop`'s floor check never elapses.
+        self.gc_min_progress_override_ms
+            .store(u64::MAX / 2, Ordering::Relaxed);
         let (stats, roots) = self.gc_collect(turbo_tasks, &phase);
+        self.gc_min_progress_override_ms
+            .store(prev, Ordering::Relaxed);
+
+        // Record the pass stats so the test-only hook (`last_gc_stats_for_testing`) reflects this
+        // direct pass too — production records these in `snapshot_and_persist`, which this hook
+        // bypasses.
+        *self.last_gc_stats.lock() = Some((&stats).into());
 
         // Persist the roots map this pass produced. Some tests query the roots set and GC itself
         // does as well, this ensures it is available to the next cycle.
