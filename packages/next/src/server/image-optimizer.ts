@@ -99,6 +99,7 @@ export function getSharp(
         'VipsForeignLoadJpeg',
         'VipsForeignLoadNsgif',
         'VipsForeignLoadPng',
+        'VipsForeignLoadSvg', // blocking is process-wide and next/og renders svg
         'VipsForeignLoadTiff',
         'VipsForeignLoadWebp',
       ],
