@@ -6,15 +6,51 @@ const {
   configureGitHubAuth,
   getGitHubToken,
   getGitHubTokenMissingMessage,
-  verifyGitHubApiAccess,
 } = require('./release-github-auth')
 const {
+  githubRequest,
   createSignedCommit,
   upsertBranchRef,
 } = require('./github-utils/signed-commit')
 
 const REPO_OWNER = 'vercel'
 const REPO_NAME = 'next.js'
+
+/**
+ * Fail fast, before any file mutation, if the branch already exists.
+ *
+ * This doubles as the API preflight: it exercises the same git-data path the
+ * script later writes to (blobs/trees/commits/refs), so a token missing those
+ * grants fails here rather than midway through creating objects. A plain
+ * repository GET would succeed with any valid installation token and so could
+ * never catch that.
+ */
+async function verifyBranchIsAvailable(token, branch) {
+  let existing
+
+  try {
+    existing = await githubRequest(
+      token,
+      'GET',
+      `/repos/${REPO_OWNER}/${REPO_NAME}/git/ref/heads/${branch}`
+    )
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+
+    // A 404 is the expected, successful outcome: the branch is available.
+    if (message.includes('failed (404)')) {
+      console.log(`Verified GitHub API access; branch ${branch} is available`)
+      return
+    }
+
+    throw error
+  }
+
+  throw new Error(
+    `Branch ${branch} already exists (at ${existing.object?.sha}). ` +
+      `Delete it or choose a different branch name before re-running.`
+  )
+}
 
 async function main() {
   const args = process.argv
@@ -37,23 +73,16 @@ async function main() {
   }
 
   await configureGitHubAuth(githubToken)
-  await verifyGitHubApiAccess(
-    githubToken,
-    `/repos/${REPO_OWNER}/${REPO_NAME}`,
-    'repository access'
-  )
+  await verifyBranchIsAvailable(githubToken, branchName)
 
-  await execa(`git checkout -b "${branchName}"`, {
+  await execa('git', ['checkout', '-b', branchName], {
     stdio: 'inherit',
-    shell: true,
   })
-  await execa(`git fetch origin ${tagName} --tags`, {
+  await execa('git', ['fetch', 'origin', tagName, '--tags'], {
     stdio: 'inherit',
-    shell: true,
   })
-  await execa(`git reset --hard ${tagName}`, {
+  await execa('git', ['reset', '--hard', tagName], {
     stdio: 'inherit',
-    shell: true,
   })
   const lernaPath = path.join(__dirname, '..', 'lerna.json')
   const existingLerna = JSON.parse(
@@ -98,13 +127,11 @@ async function main() {
 
   const commitMessage = 'setup release branch'
 
-  await execa(`git add .`, {
+  await execa('git', ['add', '.'], {
     stdio: 'inherit',
-    shell: true,
   })
-  await execa(`git commit -m "${commitMessage}"`, {
+  await execa('git', ['commit', '-m', commitMessage], {
     stdio: 'inherit',
-    shell: true,
   })
 
   // Branch protection requires signed commits, so create the commit on the
