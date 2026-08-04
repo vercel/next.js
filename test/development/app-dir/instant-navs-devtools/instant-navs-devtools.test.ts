@@ -69,10 +69,11 @@ describe('instant-nav-panel', () => {
     })
   }
 
-  async function clickLink(browser: Playwright, href: string) {
-    await browser.eval((page) => {
-      document.querySelector<HTMLAnchorElement>(`[href="${page}"]`)!.click()
-    }, href)
+  async function clickLink(browser: Playwright, href: string, id?: string) {
+    const selector = id ? `#${id}` : `[href="${href}"]`
+    await browser.eval((selector) => {
+      document.querySelector<HTMLAnchorElement>(selector)!.click()
+    }, selector)
   }
 
   function getInstantNavPanel(browser: Playwright) {
@@ -698,16 +699,44 @@ describe('instant-nav-panel', () => {
 
       await openInstantNavPanel(browser)
       await clickStartCapturing(browser)
-      // The prefetch link shares its href with #link-to-target, so select it
-      // by id rather than by href.
-      await browser.eval(() => {
-        document
-          .querySelector<HTMLAnchorElement>('#link-to-target-prefetch')!
-          .click()
-      })
+      await clickLink(
+        browser,
+        '/target-page/my-post?search=foo',
+        'link-to-target-prefetch'
+      )
       await expectSpaPanel(browser)
 
       await expectTargetPageSpaShellWithRuntimeData(browser)
+    })
+
+    it('works for repeat clicks to links with prefetch={true} (regression)', async () => {
+      const browser = await openHomeWithTargetPageWarmup()
+
+      // 1. Enable the Nav Inspector and click the link
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await clickLink(
+        browser,
+        '/target-page/my-post?search=foo',
+        'link-to-target-prefetch'
+      )
+      await expectSpaPanel(browser)
+
+      // 2. Close the Nav Inspector and navigate home
+      await closePanelViaHeader(browser)
+      await clickLink(browser, '/')
+      await browser.waitForElementByCss('[data-testid="home-title"]')
+
+      // 3. Enable the inspector and click the link again
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await clickLink(
+        browser,
+        '/target-page/my-post?search=foo',
+        'link-to-target-prefetch'
+      )
+      await expectSpaPanel(browser)
+      // 🔴 The app gets stuck in a compiling/pending state, and starts firing requests in a loop
     })
 
     it('should restart capture and return to awaiting navigation after resuming from SPA state', async () => {
