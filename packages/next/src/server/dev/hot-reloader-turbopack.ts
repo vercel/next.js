@@ -570,6 +570,15 @@ export async function createHotReloaderTurbopack(
   setNativeCodeFrameRenderer((frame, source, colors) =>
     getCodeFrameFromTurbopack(project, frame, source, colors)
   )
+  // On-demand source-content frames strip to paths relative to the turbopack root (the content
+  // endpoint maps to `project_root_path()`, i.e. `rootPath` — the monorepo root in a non-root
+  // project, not the app dir). Give the error-display path that root so it can rebase them onto the
+  // cwd (matching the native `traceSource`, which relativizes `project_root + source` against cwd).
+  // Read from `globalThis` so every bundled copy of the resolver (dev server, app-page runtime, dev
+  // worker) sees it — see `setProjectRootForErrorDisplay`.
+  const { setProjectRootForErrorDisplay } =
+    require('../lib/source-maps') as typeof import('../lib/source-maps')
+  setProjectRootForErrorDisplay(rootPath)
 
   opts.onDevServerCleanup?.(async () => {
     setBundlerFindSourceMapImplementation(() => undefined)

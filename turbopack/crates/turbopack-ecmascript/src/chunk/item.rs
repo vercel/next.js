@@ -22,7 +22,10 @@ use turbopack_core::{
     output::OutputAssetsReference,
     source_map::{
         structured::StructuredSourceMap,
-        utils::{absolute_fileify_source_map, dev_server_source_map, relative_fileify_source_map},
+        utils::{
+            absolute_fileify_source_map, absolute_fileify_source_map_without_content,
+            dev_server_source_map, relative_fileify_source_map,
+        },
     },
 };
 
@@ -38,6 +41,9 @@ use crate::{
 #[derive(Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, Default, Encode, Decode)]
 pub enum RewriteSourcePath {
     AbsoluteFilePath(FileSystemPath),
+    /// Like [`Self::AbsoluteFilePath`] (`[project]` sources rewritten to absolute `file://` URIs),
+    /// but their inlined content is dropped so the consumer reads it from disk on demand.
+    AbsoluteFilePathWithoutContent(FileSystemPath),
     RelativeFilePath(FileSystemPath, RcStr),
     /// Relativize `[project]` sources and point `sourceRoot` at the contained base URL, dropping
     /// their inlined content so it is fetched on demand. Carries the project root path and the
@@ -86,6 +92,11 @@ impl EcmascriptChunkItemContent {
             rewrite_source_path: match &*chunking_context.source_map_source_type().await? {
                 SourceMapSourceType::AbsoluteFileUri => {
                     RewriteSourcePath::AbsoluteFilePath(chunking_context.root_path().owned().await?)
+                }
+                SourceMapSourceType::AbsoluteFileUriWithoutContent => {
+                    RewriteSourcePath::AbsoluteFilePathWithoutContent(
+                        chunking_context.root_path().owned().await?,
+                    )
                 }
                 SourceMapSourceType::RelativeUri => RewriteSourcePath::RelativeFilePath(
                     chunking_context.root_path().owned().await?,
@@ -181,6 +192,9 @@ impl EcmascriptChunkItemContent {
         let source_map = match (&self.rewrite_source_path, &self.source_map) {
             (RewriteSourcePath::AbsoluteFilePath(path), Some(map)) => {
                 Some(absolute_fileify_source_map(map, path.clone()).await?)
+            }
+            (RewriteSourcePath::AbsoluteFilePathWithoutContent(path), Some(map)) => {
+                Some(absolute_fileify_source_map_without_content(map, path.clone()).await?)
             }
             (RewriteSourcePath::RelativeFilePath(path, relative_path), Some(map)) => {
                 Some(relative_fileify_source_map(map, path.clone(), relative_path.clone()).await?)

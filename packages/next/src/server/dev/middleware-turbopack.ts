@@ -22,6 +22,8 @@ import {
   SOURCE_CONTENT_ENDPOINT_PREFIX,
   devirtualizeReactServerURL,
   findApplicableSourceMapPayload,
+  readSourceContentFromFileUri,
+  resolveProjectScopedDisplayPath,
   stripSourceRoot,
 } from '../lib/source-maps'
 import { findSourceMap, type SourceMap } from 'node:module'
@@ -300,6 +302,14 @@ async function nativeTraceSource(
       // un-stripped `originalPosition.source`.
       const rawSource = stripSourceRoot(source, applicableSourceMap?.sourceRoot)
 
+      // For project-scoped sources (the on-demand content endpoint, or the virtual
+      // `turbopack:///[project]/` prefix) the stripped `rawSource` is project-root-relative; rebase
+      // it onto the cwd for a cwd-relative displayed frame — otherwise a non-root project (a monorepo
+      // app whose cwd is a subdirectory) would display project-root-relative paths (`apps/web/app/x.ts`)
+      // instead of cwd-relative ones (`app/x.ts`). Otherwise `displayFile === rawSource`. The native
+      // code-frame lookup below still uses the raw project-relative `rawSource` as the asset path.
+      const displayFile = resolveProjectScopedDisplayPath(rawSource, source)
+
       // TODO(veil): Upstream a method to sourcemap consumer that immediately says if a frame is ignored or not.
       let ignored = false
       if (applicableSourceMap === undefined) {
@@ -330,7 +340,7 @@ async function nativeTraceSource(
           frame.methodName
             ?.replace('__WEBPACK_DEFAULT_EXPORT__', 'default')
             ?.replace('__webpack_exports__.', '') || '<unknown>',
-        file: rawSource,
+        file: displayFile,
         line1: originalPosition.line,
         column1:
           originalPosition.column === null ? null : originalPosition.column + 1,
@@ -343,29 +353,40 @@ async function nativeTraceSource(
         frame: originalStackFrame,
         getCodeFrame: (options: CodeFrameOptions) => {
           // When the map inlines content, render it in-process. When it omits
-          // content (dev with `experimental.turbopackServeSourceContent`), the
-          // resolved source is prefixed with the on-demand content `sourceRoot`;
-          // read + render it from turbopack in one native call instead. Detect the
-          // feature from the un-stripped resolved source (the display `file` has had
-          // the `sourceRoot` removed) and use the stripped `rawSource` as the asset path.
-          if (
-            sourceContent === null &&
-            source.startsWith(SOURCE_CONTENT_MIDDLEWARE_PREFIX) &&
-            originalStackFrame.line1 != null
-          ) {
-            return project.getCodeFrameForAsset(
-              rawSource,
-              {
-                start: {
-                  line: originalStackFrame.line1,
-                  column: originalStackFrame.column1 ?? undefined,
+          // content (dev with `experimental.turbopackServeSourceContent`) the
+          // source form tells us where to read it from:
+          //
+          // - Client maps prefix the resolved source with the on-demand content
+          //   `sourceRoot` (`SOURCE_CONTENT_MIDDLEWARE_PREFIX`). Read + render it
+          //   from turbopack in one native call so the (potentially large) source
+          //   never crosses the napi boundary; use the stripped `rawSource` as the
+          //   asset path (the display `file` has had the `sourceRoot` removed).
+          // - Server maps use an absolute `file://` source URI. Read it straight
+          //   from disk and render in-process.
+          if (sourceContent === null && originalStackFrame.line1 != null) {
+            if (source.startsWith(SOURCE_CONTENT_MIDDLEWARE_PREFIX)) {
+              return project.getCodeFrameForAsset(
+                rawSource,
+                {
+                  start: {
+                    line: originalStackFrame.line1,
+                    column: originalStackFrame.column1 ?? undefined,
+                  },
                 },
-              },
-              {
-                color: options.colors ?? process.stdout?.isTTY ?? false,
-                maxWidth: options.maxWidth,
-              }
-            )
+                {
+                  color: options.colors ?? process.stdout?.isTTY ?? false,
+                  maxWidth: options.maxWidth,
+                }
+              )
+            }
+            const diskContent = readSourceContentFromFileUri(source)
+            if (diskContent !== null) {
+              return getOriginalCodeFrame(
+                originalStackFrame,
+                diskContent,
+                options
+              )
+            }
           }
           return getOriginalCodeFrame(
             originalStackFrame,

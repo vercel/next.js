@@ -8,6 +8,8 @@ import {
   findApplicableSourceMapPayload,
   findSourceMapPayload,
   ignoreListAnonymousStackFramesIfSandwiched as ignoreListAnonymousStackFramesIfSandwichedGeneric,
+  readSourceContentFromFileUri,
+  resolveProjectScopedDisplayPath,
   sourceMapIgnoreListsEverything,
   stripSourceRoot,
 } from './lib/source-maps'
@@ -403,6 +405,14 @@ function getSourcemappedFrameIfPossible(
     applicableSourceMap?.sourceRoot
   )
 
+  // For on-demand source-content maps the stripped `rawSource` is project-root-relative (the content
+  // endpoint maps to the project root); rebase it onto the cwd for a cwd-relative displayed frame.
+  // Otherwise `displayFile === rawSource` (flag-off path byte-identical).
+  const displayFile = resolveProjectScopedDisplayPath(
+    rawSource,
+    sourcePosition.source
+  )
+
   // TODO(veil): Upstream a method to sourcemap consumer that immediately says if a frame is ignored or not.
   if (applicableSourceMap === undefined) {
     console.error('No applicable source map found in sections for frame', frame)
@@ -433,9 +443,11 @@ function getSourcemappedFrameIfPossible(
       ?.replace('__WEBPACK_DEFAULT_EXPORT__', 'default')
       ?.replace('__webpack_exports__.', ''),
     // Use the `sourceRoot`-stripped source so the user-facing `file` is the clean project-relative
-    // path, not the endpoint URL of a dev `sourceRoot` (e.g. on-demand source-content). The native
-    // code-frame renderer below still receives the un-stripped `sourcePosition.source`.
-    file: rawSource,
+    // path, not the endpoint URL of a dev `sourceRoot` (e.g. on-demand source-content). For
+    // on-demand maps this is resolved to an absolute path so `frameToString` relativizes it against
+    // the cwd. The native code-frame renderer below still receives the un-stripped
+    // `sourcePosition.source`.
+    file: displayFile,
     line1: sourcePosition.line,
     column1: sourcePosition.column + 1,
     // TODO: c&p from async createOriginalStackFrame but why not frame.arguments?
@@ -450,7 +462,7 @@ function getSourcemappedFrameIfPossible(
     stack: originalFrame,
     get code() {
       if (codeFrame === undefined) {
-        const sourceContent: string | null =
+        let sourceContent: string | null =
           sourceMapConsumer.sourceContentFor(
             sourcePosition.source,
             /* returnNullOnMissing */ true
@@ -464,7 +476,15 @@ function getSourcemappedFrameIfPossible(
             sourcePosition.source,
             inspectOptions.colors ?? false
           )
-        } else {
+        }
+        if (codeFrame == null) {
+          if (sourceContent === null) {
+            // Content was omitted from the map and the native renderer was unavailable (or declined,
+            // e.g. the dev validation worker, whose copy of this module has no Turbopack handle).
+            // Server maps use absolute `file://` source URIs, so read the original content directly
+            // from disk and render from it.
+            sourceContent = readSourceContentFromFileUri(sourcePosition.source)
+          }
           codeFrame = getOriginalCodeFrame(
             originalFrame,
             sourceContent,

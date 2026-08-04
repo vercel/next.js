@@ -297,6 +297,11 @@ pub struct ChunkingConfigs(FxHashMap<ResolvedVc<Box<dyn ChunkType>>, ChunkingCon
 #[derive(Debug, Clone, Hash, Default, Deserialize)]
 pub enum SourceMapSourceType {
     AbsoluteFileUri,
+    /// Like [`Self::AbsoluteFileUri`] (project sources emitted as absolute `file://` URIs), but the
+    /// inlined `sourcesContent` for those sources is dropped so the consumer reads file content
+    /// from disk on demand. For consumers that resolve sources from the filesystem (e.g.
+    /// server-side error tooling), inlining the content only bloats the map.
+    AbsoluteFileUriWithoutContent,
     RelativeUri,
     #[default]
     TurbopackUri,

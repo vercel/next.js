@@ -37,13 +37,27 @@ const NEXT_TEMPLATE_PATH: &str = "dist/esm/build/templates";
 /// cross-language) that must be kept in sync with this value.
 pub const SOURCE_CONTENT_ENDPOINT_PREFIX: &str = "/__nextjs_source-content/[project]/";
 
-/// The [`SourceMapSourceType`] a dev chunking context should use given whether on-demand source
-/// content serving is enabled. When enabled, project sources are emitted relative to the on-demand
-/// content endpoint with their inlined content dropped; otherwise they keep absolute `file://` URIs
-/// with inlined content.
+/// The [`SourceMapSourceType`] a dev **client** chunking context should use given whether on-demand
+/// source content serving is enabled. When enabled, project sources are emitted relative to the
+/// on-demand content endpoint with their inlined content dropped (browser devtools fetch content
+/// over HTTP); otherwise they keep absolute `file://` URIs with inlined content.
 pub fn dev_source_map_source_type(serve_source_content: bool) -> SourceMapSourceType {
     if serve_source_content {
         SourceMapSourceType::DevServerContentEndpoint(rcstr!("/__nextjs_source-content/[project]/"))
+    } else {
+        SourceMapSourceType::AbsoluteFileUri
+    }
+}
+
+/// The [`SourceMapSourceType`] a dev **server** chunking context should use given whether on-demand
+/// source content serving is enabled. Server maps always keep absolute `file://` URIs (server-side
+/// error tooling — stack tracing, code frames, ignore-list matching — reads sources directly from
+/// the filesystem, so it needs neither the HTTP content endpoint nor inlined content). When
+/// enabled, the inlined `sourcesContent` is dropped to keep the maps small; otherwise it is kept
+/// inline.
+pub fn dev_server_source_map_source_type(serve_source_content: bool) -> SourceMapSourceType {
+    if serve_source_content {
+        SourceMapSourceType::AbsoluteFileUriWithoutContent
     } else {
         SourceMapSourceType::AbsoluteFileUri
     }

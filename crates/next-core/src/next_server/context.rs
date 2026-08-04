@@ -1044,8 +1044,10 @@ pub struct ServerChunkingContextOptions {
     pub minify: Vc<bool>,
     pub source_maps: Vc<SourceMapsType>,
     /// When true (dev only), server source maps omit inlined `sourcesContent` for project files
-    /// and point `sourceRoot` at the on-demand dev-server content endpoint, matching the
-    /// client chunking context. See [`SourceMapSourceType::DevServerContentEndpoint`].
+    /// while keeping absolute `file://` source URIs, so server-side error tooling reads content
+    /// from disk on demand. Unlike the client chunking context, server maps do not use the
+    /// on-demand dev-server content endpoint. See
+    /// [`SourceMapSourceType::AbsoluteFileUriWithoutContent`].
     pub serve_source_content: Vc<bool>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
@@ -1140,7 +1142,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     .worker_forwarded_globals(worker_forwarded_globals());
 
     builder = builder.source_map_source_type(if next_mode.is_development() {
-        crate::util::dev_source_map_source_type(*serve_source_content.await?)
+        crate::util::dev_server_source_map_source_type(*serve_source_content.await?)
     } else {
         SourceMapSourceType::RelativeUri
     });
@@ -1252,7 +1254,7 @@ pub async fn get_server_chunking_context(
     .worker_forwarded_globals(worker_forwarded_globals());
 
     if next_mode.is_development() {
-        builder = builder.source_map_source_type(crate::util::dev_source_map_source_type(
+        builder = builder.source_map_source_type(crate::util::dev_server_source_map_source_type(
             *serve_source_content.await?,
         ));
     } else {

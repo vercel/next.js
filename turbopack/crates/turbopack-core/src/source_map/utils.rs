@@ -279,6 +279,44 @@ pub async fn absolute_fileify_source_map(
     .await
 }
 
+/// Like [`absolute_fileify_source_map`], but drops the inlined `sourcesContent` for the rewritten
+/// `turbopack:///[project]` sources so the consumer reads file content from disk on demand via the
+/// absolute `file://` URI. Used for dev **server** maps: server-side error tooling (stack-frame
+/// tracing, code frames, ignore-list matching) resolves sources from the filesystem, so shipping
+/// the content inline only bloats the map. Unlike [`dev_server_source_map`], no `sourceRoot` is set
+/// (the `file://` URIs are self-contained) and `node_modules` sources are rewritten too — their
+/// content lives on disk and ignore-list matching keys off the source path, not the inlined
+/// content.
+pub async fn absolute_fileify_source_map_without_content(
+    map: &StructuredSourceMap,
+    context_path: FileSystemPath,
+) -> Result<StructuredSourceMap> {
+    let context_fs = context_path.fs;
+    let context_fs = &*ResolvedVc::try_downcast_type::<DiskFileSystem>(context_fs)
+        .context("Expected the chunking context to have a DiskFileSystem")?
+        .await?;
+
+    let prefix = format!("{}///[{}]/", SOURCE_URL_PROTOCOL_STR, context_fs.name());
+
+    map.rewrite_and_drop_content(None, |src| {
+        let Some(src_rest) = src.strip_prefix(&prefix) else {
+            return Ok(None);
+        };
+        let path = context_path.join(src_rest)?;
+
+        // `to_sys_path` returns a win32 path on Windows. `Url::from_file_path` can also handle
+        // verbatim (`\\?\`-prefixed) disk and UNC paths, in case that conversion failed.
+        let sys_path = context_fs.to_sys_path(&path);
+        Ok(Some(
+            Url::from_file_path(&sys_path)
+                .map_err(|()| {
+                    anyhow::anyhow!("path {sys_path:?} cannot be converted to a file:// URI")
+                })?
+                .into(),
+        ))
+    })
+}
+
 /// Turns `turbopack:///[project]` references in the map's sources into `./`-relative uris.
 /// This is useful in server environments and especially build environments.
 pub async fn relative_fileify_source_map(
@@ -331,7 +369,7 @@ pub async fn dev_server_source_map(
 
     let prefix = format!("{}///[{}]/", SOURCE_URL_PROTOCOL_STR, context_fs.name());
 
-    map.rewrite_for_dev_server_content(&source_root_base, |src| {
+    map.rewrite_and_drop_content(Some(&source_root_base), |src| {
         match src.strip_prefix(&prefix) {
             // `node_modules` files live under the project root but are ignore-listed and should
             // keep their `turbopack:///[project]/` URI + inlined content, so that stack-frame

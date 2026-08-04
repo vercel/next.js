@@ -361,20 +361,25 @@ impl StructuredSourceMap {
         Ok(result)
     }
 
-    /// Rewrites sources for on-demand dev-server source content: for every source that
-    /// `rewrite` maps to a new value, the source string is replaced and its `sourcesContent`
-    /// entry is dropped (so the consumer fetches it on demand), and the map's `sourceRoot` is
-    /// set to `source_root` (only if at least one source was rewritten). Sources that `rewrite`
-    /// returns `None` for keep their URL and inlined content untouched.
+    /// Rewrites sources while dropping their inlined content, so the consumer fetches file content
+    /// on demand instead: for every source that `rewrite` maps to a new value, the source string is
+    /// replaced and its `sourcesContent` entry is dropped. Sources that `rewrite` returns `None`
+    /// for keep their URL and inlined content untouched.
+    ///
+    /// When `source_root` is `Some`, the map's `sourceRoot` is set to it (only if at least one
+    /// source was rewritten) — used when rewritten sources are relative paths resolved against a
+    /// URL prefix (e.g. a dev-server content endpoint). When `source_root` is `None`, no
+    /// `sourceRoot` is set — used when rewritten sources are self-contained absolute `file://` URIs read directly
+    /// from disk (server maps).
     ///
     /// Unlike [`Self::rewrite_sources`], this drops the shared content ropes for rewritten
     /// sources rather than sharing them. It requires `sourcesContent` in the per-source
     /// [`SourcesContentField::Escaped`] form (produced by [`Self::from_swc_map`], the form of all
     /// internally generated module maps); maps whose content is still a raw blob, or whose
     /// `sources` cannot be decoded, are returned unchanged.
-    pub fn rewrite_for_dev_server_content(
+    pub fn rewrite_and_drop_content(
         &self,
-        source_root: &str,
+        source_root: Option<&str>,
         mut rewrite: impl FnMut(&str) -> Result<Option<String>>,
     ) -> Result<Self> {
         let mut result = self.clone();
@@ -421,9 +426,11 @@ impl StructuredSourceMap {
             if let Some(contents) = contents {
                 result.sources_content = Some(SourcesContentField::Escaped(contents));
             }
-            result.source_root = Some(Rope::from(
-                serde_json::to_vec(source_root).expect("string serialization is infallible"),
-            ));
+            if let Some(source_root) = source_root {
+                result.source_root = Some(Rope::from(
+                    serde_json::to_vec(source_root).expect("string serialization is infallible"),
+                ));
+            }
         }
         Ok(result)
     }
@@ -678,7 +685,7 @@ mod tests {
     }
 
     #[test]
-    fn rewrite_for_dev_server_content_drops_content_and_sets_source_root() -> Result<()> {
+    fn rewrite_and_drop_content_drops_content_and_sets_source_root() -> Result<()> {
         // A map with one project source (rewritten + content dropped) and one that stays.
         let mut builder = swc_sourcemap::SourceMapBuilder::new(None);
         let a = builder.add_source("turbopack:///[project]/app/page.tsx".into());
@@ -689,8 +696,8 @@ mod tests {
         builder.add_raw(0, 1, 0, 0, Some(b), None, false);
         let structured = StructuredSourceMap::from_swc_map(builder.into_sourcemap())?;
 
-        let rewritten = structured.rewrite_for_dev_server_content(
-            "/__nextjs_source-content/[project]/",
+        let rewritten = structured.rewrite_and_drop_content(
+            Some("/__nextjs_source-content/[project]/"),
             |src| {
                 Ok(src
                     .strip_prefix("turbopack:///[project]/")
@@ -710,12 +717,35 @@ mod tests {
     }
 
     #[test]
-    fn rewrite_for_dev_server_content_noop_leaves_map_untouched() -> Result<()> {
+    fn rewrite_and_drop_content_without_source_root_leaves_source_root_unset() -> Result<()> {
+        // With `source_root: None` (absolute `file://` URIs), content is dropped but no
+        // `sourceRoot` is added — the rewritten sources are self-contained absolute paths.
+        let mut builder = swc_sourcemap::SourceMapBuilder::new(None);
+        let a = builder.add_source("turbopack:///[project]/app/page.tsx".into());
+        builder.set_source_contents(a, Some("first party source".into()));
+        builder.add_raw(0, 0, 0, 0, Some(a), None, false);
+        let structured = StructuredSourceMap::from_swc_map(builder.into_sourcemap())?;
+
+        let rewritten = structured.rewrite_and_drop_content(None, |src| {
+            Ok(src
+                .strip_prefix("turbopack:///[project]/")
+                .map(|rest| format!("file:///root/{rest}")))
+        })?;
+
+        let json: serde_json::Value = serde_json::from_slice(&rewritten.to_rope().to_bytes())?;
+        assert_eq!(json["sources"][0], "file:///root/app/page.tsx");
+        assert_eq!(json["sourcesContent"][0], serde_json::Value::Null);
+        assert!(json.get("sourceRoot").is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn rewrite_and_drop_content_noop_leaves_map_untouched() -> Result<()> {
         // No source matches the rewrite → map is byte-identical (no sourceRoot added).
         let input = r#"{"version":3,"sources":["turbopack:///[next]/a.js"],"sourcesContent":["x"],"mappings":"AAAA"}"#;
         let structured = StructuredSourceMap::from_json(&Rope::from(input))?;
         // `from_json` produces a `Raw` content field, which this method leaves untouched.
-        let rewritten = structured.rewrite_for_dev_server_content("/root/", |_| Ok(None))?;
+        let rewritten = structured.rewrite_and_drop_content(Some("/root/"), |_| Ok(None))?;
         assert_eq!(rewritten.to_rope().to_bytes().as_ref(), input.as_bytes());
         Ok(())
     }
