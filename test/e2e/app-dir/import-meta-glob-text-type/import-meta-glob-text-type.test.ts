@@ -1,9 +1,18 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('turbopack `text` / `raw` module types', () => {
-  const { next } = nextTestSetup({
+// `turbopack.rules` is a Turbopack-only feature; skip under webpack
+const testFn =
+  process.env.IS_WEBPACK_TEST || process.env.NEXT_RSPACK
+    ? describe.skip
+    : describe
+
+testFn('turbopack `text` / `raw` module types', () => {
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
+    skipDeployment: true,
   })
+
+  if (skipped) return
 
   it('should load matched files as strings through a `?raw` rule', async () => {
     const $ = await next.render$('/raw')
