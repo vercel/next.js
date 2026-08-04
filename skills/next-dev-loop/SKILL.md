@@ -81,16 +81,21 @@ Once per session, confirm both views are live.
    and restore context; `agent-browser close` saves the cookie state so
    the next `open` restores it.
 
-2. Probe `/_next/mcp` (`tools/list`) — confirm it's reachable and
+2. Resolve the dev server port before probing anything. `/_next/mcp`
+   defaults to port 3000; if the `next dev` banner (or the `dev` script
+   in `package.json`) reports another port, export
+   `NEXT_MCP_URL=http://localhost:<port>/_next/mcp` now. Skip this and
+   every probe below hits an empty port and reads as a dead endpoint.
+3. Probe `/_next/mcp` (`tools/list`) — confirm it's reachable and
    lists `get_compilation_issues`:
    - Unreachable → either `next dev` isn't running, or Next.js is
      below 16.3. Check `package.json` to disambiguate, then refuse.
    - `get_compilation_issues` not in the list → Next.js below 16.3.
      Refuse and tell the user to upgrade.
-3. `get_compilation_issues` doubles as a Turbopack probe. An error
+4. `get_compilation_issues` doubles as a Turbopack probe. An error
    response of `"Turbopack project is not available..."` means the
    user is on webpack. Refuse — Turbopack is required.
-4. `get_routes` → your route map for the rest of the session.
+5. `get_routes` → your route map for the rest of the session.
 
 ## loop
 
@@ -149,8 +154,6 @@ manual rather than from memory.
 - `/_next/mcp` replies are SSE — read the JSON off the `data:` line
   with `sed -n 's/^data: //p'` (a plain `sed 's/^data: //'` leaves the
   `event:` line and the parse fails).
-- Non-3000 dev server: read the `next dev` banner; set
-  `NEXT_MCP_URL=http://localhost:<port>/_next/mcp`.
 - `get_errors` and `get_page_metadata` need at least one navigation
   to populate.
 

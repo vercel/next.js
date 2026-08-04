@@ -17,6 +17,14 @@ Enable Cache Components on an app and walk it to a passing build. This skill seq
 
 - **App Router project.** Cache Components is an App Router feature; `cacheComponents: true` does nothing for `pages/` routes. If the project has a `pages/` or `src/pages/` tree but no `app/` or `src/app/` tree, stop and tell the user — Pages → App migration is its own project, not part of this skill. A hybrid app (both `pages/` and `app/`) is fine: the flag affects the `app/` routes; `pages/` routes are unaffected and don't need opt-outs.
 
+  Resolve the App Router root once, before running anything else, and reuse it everywhere below:
+
+  ```bash
+  APP_DIR=$([ -d src/app ] && echo src/app || echo app)
+  ```
+
+  Every command, glob and check in this skill is written against `$APP_DIR` for a reason: hardcoding `app` on a `src/app` project matches zero routes, so the codemod edits nothing and the completion greps come back empty. That reads as success when nothing has happened.
+
 - **A runnable app.** The whole loop verifies against `next dev` and a browser, so the app has to boot. If it reads a database or required env at import (e.g. an `env.ts` that throws on a missing `DATABASE_URL`), confirm it actually starts — with the real environment, or local data you stand up — before step 1. Adoption can't be verified against an app that won't run.
 
 - **Next.js 16.3 or later.** That release is where the pieces this skill relies on land: top-level `cacheComponents`, `export const instant`, the dev-overlay instant-navigation validation warnings, and the `cache-components-instant-false` codemod. If `next --version` reports below 16.3, upgrade first:
@@ -106,7 +114,7 @@ If there's no user to ask, default to **Incremental** and document the choice.
 
 Before invoking the codemod, fix the two classes of blocker it can't.
 
-1. **Sync-IO at module/render time.** Grep the whole repo for `new Date()`, `Date.now()`, `Math.random()`, and `crypto.randomUUID()` (not only `app/**/layout.{js,jsx,ts,tsx}` — the read might live in any component imported by a layout). Unblock each match with the `await connection()` + `<Suspense>` fix from its `blocking-prerender-*` error card: it defers the value to request time, exactly as it behaved before the migration, so it needs no product decision. Add this exact comment on the line above the `await connection()`:
+1. **Sync-IO at module/render time.** Grep the whole repo for `new Date()`, `Date.now()`, `Math.random()`, and `crypto.randomUUID()` (not only `$APP_DIR/**/layout.{js,jsx,ts,tsx}` — the read might live in any component imported by a layout). Unblock each match with the `await connection()` + `<Suspense>` fix from its `blocking-prerender-*` error card: it defers the value to request time, exactly as it behaved before the migration, so it needs no product decision. Add this exact comment on the line above the `await connection()`:
 
    ```tsx
    // TODO: Cache Components adoption. Added to unblock the build: remove this connection() to re-trigger the error and review the fix options.
@@ -114,17 +122,17 @@ Before invoking the codemod, fix the two classes of blocker it can't.
 
    It shares the `TODO: Cache Components adoption` prefix with the comments the codemod writes, so the check-in grep finds both. Removing the `await connection()` makes the error fire again with its fix cards — the same motion as removing an opt-out in the loop.
 
-2. **Incompatible segment configs.** Grep for `^export const (revalidate|dynamic|fetchCache)` across `app/` and translate per the `requires` note above. The codemod does not touch them; leaving them in place fails the build after the codemod.
+2. **Incompatible segment configs.** Grep for `^export const (revalidate|dynamic|fetchCache)` across `$APP_DIR` and translate per the `requires` note above. The codemod does not touch them; leaving them in place fails the build after the codemod.
 
 The codemod refuses to run on a dirty working tree. Commit or stash unrelated work first, or pass `--force` to let its edits land alongside your WIP. Common false positive: if you recently upgraded Next.js, `package.json` and the lockfile will already be dirty — commit those first.
 
 ```bash
-npx @next/codemod@latest cache-components-instant-false ./app
+npx @next/codemod@latest cache-components-instant-false "./$APP_DIR"
 ```
 
-Inserts `export const instant = false` (with a `// TODO: Cache Components adoption` comment) into every `app/**/{page,layout,default}` file, skipping files that already declare `instant` and any module marked `"use client"` or `"use server"`. Then set `cacheComponents: true`. The TODO comments are the work queue for the loop.
+Inserts `export const instant = false` (with a `// TODO: Cache Components adoption` comment) into every `$APP_DIR/**/{page,layout,default}` file, skipping files that already declare `instant` and any module marked `"use client"` or `"use server"`. Then set `cacheComponents: true`. The TODO comments are the work queue for the loop.
 
-If the codemod isn't available (older `@next/codemod`, sandboxed environment, offline run), reproduce it by hand: for every `app/**/{page,layout,default}.{js,jsx,ts,tsx}` that isn't `"use client"` or `"use server"` and doesn't already declare `instant`, insert this after the imports:
+If the codemod isn't available (older `@next/codemod`, sandboxed environment, offline run), reproduce it by hand: for every `$APP_DIR/**/{page,layout,default}.{js,jsx,ts,tsx}` that isn't `"use client"` or `"use server"` and doesn't already declare `instant`, insert this after the imports:
 
 ```ts
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
@@ -138,7 +146,7 @@ Because the highest opt-out wins, remove them top-down (root layout first, then 
 
 Confirm the pre-step with `next build`. The build is the proof, not the codemod run — a shared layout that calls `new Date()` / `Math.random()` directly still fails regardless of the opt-out (see [background](#background)).
 
-After the build passes, confirm the root layout got an opt-out (`grep -n "export const instant" app/layout.*`). The root layout renders every route, including framework routes like `/_not-found`, so if it was missed, add `export const instant = false` to it by hand.
+After the build passes, confirm the root layout got an opt-out (`grep -n "export const instant" "$APP_DIR"/layout.*`). The root layout renders every route, including framework routes like `/_not-found`, so if it was missed, add `export const instant = false` to it by hand.
 
 Synthetic routes like `/_not-found` have no user file — when they block, fix the root layout's opt-out, not the synthetic route. Client Components (`"use client"`) get no opt-out (it's a build error — `E1344` — to export `instant` from them), but they are not a rare blocker. The high-frequency case is a client component in the root layout's nav or header calling `usePathname()`/`useSearchParams()`: it blocks _every_ dynamic route with `blocking-prerender-client-hook`, and static routes pass (the pathname is known at prerender), which masks it until you reach a dynamic segment. It's not an ancestor-data fix — follow the [error's docs page](https://nextjs.org/docs/messages/blocking-prerender-client-hook) for the `<Suspense>` recipe. Only when a client route blocks on _server_ data do you fix that data in its ancestor.
 
@@ -184,7 +192,7 @@ Used when there's no way to drive a browser — CI, sandbox, the user has no `ne
 Per route:
 
 - Remove the opt-out (Incremental) or target the failing route (Direct).
-- Rebuild with `--debug-build-paths app/<route>/**` (only that route) or `--debug-prerender` (full build, but past the first failure). Route passing? Move on. Still blocking? Fix.
+- Rebuild with `--debug-build-paths $APP_DIR/<route>/**` (only that route) or `--debug-prerender` (full build, but past the first failure). Route passing? Move on. Still blocking? Fix.
 - Fix — fetch the docs page linked from the error (`https://nextjs.org/docs/messages/<slug>`), apply the recipe from there.
 - Re-check siblings if the fix touched shared code.
 - Flag the route as build-only-verified when you hand the feature off. Each `◐` route still needs a browser pass before the feature is done.
@@ -217,7 +225,7 @@ Then check in with the user. Same rule as the pre-step: speak their language. Do
 
 **Trivial features can skip the check-in.** If adopting a feature only meant removing its `// TODO: Cache Components adoption` opt-out (no `<Suspense>` added, no `'use cache'` introduced, no render order change), the user sees nothing different. Move on to the next feature without stopping; mention it in passing the next time you do check in.
 
-When the loop has run on every feature — every remaining `instant = false` sits under a reason comment, `grep -rln "TODO: Cache Components adoption" app` returns nothing — point the user at [further reading](#further-reading) if they want to push the experience further, or stop and ship.
+When the loop has run on every feature — every remaining `instant = false` sits under a reason comment, `grep -rln "TODO: Cache Components adoption" "$APP_DIR"` returns nothing — point the user at [further reading](#further-reading) if they want to push the experience further, or stop and ship.
 
 ### route table glyphs
 
