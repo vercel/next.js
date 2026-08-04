@@ -17,7 +17,6 @@ use turbopack_core::{
     version::VersionedContent,
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs};
-use turbopack_ecmascript_runtime::RuntimeType;
 
 use super::{
     chunk_list_content::EcmascriptBuildNodeChunkListContent,
@@ -155,22 +154,13 @@ impl EcmascriptBuildNodeEntryChunk {
 
     #[turbo_tasks::function]
     async fn runtime_chunk(&self) -> Result<Vc<EcmascriptBuildNodeRuntimeChunk>> {
-        // Detect async modules from the whole-app graph in production. In development, the graph
-        // is per-page, and some contexts (e.g. the shared node execution context used to evaluate
-        // postcss configs and webpack loaders) are shared by several independent per-transform
-        // graphs. In both cases a single graph doesn't see everything that ends up next to the
-        // shared `runtime.js`, so omitting the machinery based on it would break chunks from the
-        // other graphs. Always include it there.
-        let include_async_module_runtime =
-            if matches!(
-                *self.chunking_context.runtime_type().await?,
-                RuntimeType::Production
-            ) && !*self.chunking_context.shared_runtime_chunk().await?
-            {
-                !self.module_graph.async_module_info().await?.is_empty()
-            } else {
-                true
-            };
+        // Only omit the machinery when this graph sees every chunk that shares the runtime. When
+        // the runtime chunk is shared (per-page graphs, or contexts like the node execution
+        // context that several independent per-transform graphs write to), a graph without async
+        // modules would strip a helper that another graph's chunks call, and which variant lands
+        // on disk depends on emission order.
+        let include_async_module_runtime = *self.chunking_context.shared_runtime_chunk().await?
+            || !self.module_graph.async_module_info().await?.is_empty();
         Ok(EcmascriptBuildNodeRuntimeChunk::new(
             *self.chunking_context,
             include_async_module_runtime,

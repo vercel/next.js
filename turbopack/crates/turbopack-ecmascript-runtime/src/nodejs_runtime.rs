@@ -42,8 +42,6 @@ pub async fn get_nodejs_runtime_code(
 
     let mut code = CodeBuilder::default();
     code.push_code(&*shared_runtime_utils_code.await?);
-    // Only include the async-module (top-level await) machinery when it may be used. Callers that
-    // can't see every chunk sharing this runtime must pass `true`.
     if include_async_module_runtime {
         code.push_code(
             &*embed_static_code(
