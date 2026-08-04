@@ -1,4 +1,6 @@
 import execa from 'execa'
+import { readFileSync } from 'fs'
+import glob from 'glob'
 import { join } from 'path'
 import { spawn } from 'child_process'
 import { fetchViaHTTP, findPort, killApp } from 'next-test-utils'
@@ -84,12 +86,14 @@ export async function tryNextDev({
   isApp = true,
   isApi = false,
   isEmpty = false,
+  tailwind = false,
 }: {
   cwd: string
   projectName: string
   isApp?: boolean
   isApi?: boolean
   isEmpty?: boolean
+  tailwind?: boolean
 }) {
   // The caller wraps this in `useTempDir`, so `cwd` (and the CNA project
   // inside it) is already an isolated temp directory that gets removed
@@ -111,6 +115,16 @@ export async function tryNextDev({
     reject: false,
   })
   expect(buildResult.exitCode).toBe(0)
+
+  if (tailwind && !process.env.NEXT_RSPACK) {
+    const stylesheets = glob.sync('.next/static/**/*.css', { cwd: dir })
+    expect(stylesheets.length).toBeGreaterThan(0)
+
+    const css = stylesheets
+      .map((stylesheet) => readFileSync(join(dir, stylesheet), 'utf8'))
+      .join('\n')
+    expect(css).toMatch(/\.flex\s*\{[^}]*display:\s*flex(?:;|(?=\s*}))/)
+  }
 
   const port = await findPort()
   const server = spawn(
