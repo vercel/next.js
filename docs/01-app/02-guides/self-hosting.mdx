@@ -110,7 +110,7 @@ By default, generated cache assets will be stored in memory (defaults to 50mb) a
 
 To configure the cache location when self-hosting, you can configure a custom handler in your `next.config.js` file:
 
-For production deployments, use this as a starting point and extend it with durable storage, eviction policies, error handling, and distributed tag coordination. See [Custom Next.js Cache Handler](/docs/app/api-reference/config/next-config-js/incrementalCacheHandlerPath) and the [Redis `cacheHandler` example](https://github.com/vercel/next.js/tree/canary/examples/cache-handler-redis). If you are configuring backends for `'use cache'` directives, use [`cacheHandlers`](/docs/app/api-reference/config/next-config-js/cacheHandlers).
+For production deployments, use this as a starting point and extend it with durable storage, eviction policies, error handling, and distributed tag coordination. See [Custom Next.js Cache Handler](/docs/app/api-reference/config/next-config-js/incrementalCacheHandlerPath) and the [Redis `cacheHandler` example](https://github.com/vercel/next.js/tree/canary/examples/cache-handler-redis). For a Cache Components example that covers both `cacheHandler` and `cacheHandlers` with Redis, see the [`cache-handler-redis-turbo` example](https://github.com/vercel/next.js/tree/canary/examples/cache-handler-redis-turbo). If you are configuring backends for `'use cache'` directives, use [`cacheHandlers`](/docs/app/api-reference/config/next-config-js/cacheHandlers).
 
 ```jsx filename="next.config.js"
 module.exports = {
