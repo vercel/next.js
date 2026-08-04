@@ -195,9 +195,16 @@ async fn get_glob_includes(
     while let Some(glob_result) = stack.pop_back() {
         // Process direct results (files and directories at this level)
         for entry in glob_result.results.values() {
-            let (DirectoryEntry::File(file_path) | DirectoryEntry::Symlink(file_path)) = entry
-            else {
-                continue;
+            let file_path = match entry {
+                DirectoryEntry::File(file_path) => file_path,
+                DirectoryEntry::Symlink(symlink_path) => {
+                    match entry.clone().resolve_symlink().await? {
+                        DirectoryEntry::File(_) => symlink_path,
+                        // Symlinks to directories are traversed via `glob_result.inner`.
+                        _ => continue,
+                    }
+                }
+                _ => continue,
             };
 
             result.push(file_path.clone());
@@ -538,5 +545,84 @@ impl Issue for ForbiddenTracedFileIssue {
             StyledString::Text(rcstr!("- remove them.")),
         ];
         Ok(Some(StyledString::Stack(stack)))
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use std::{
+        fs::{File, create_dir},
+        io::prelude::*,
+        os::unix::fs::symlink,
+    };
+
+    use anyhow::Result;
+    use turbo_rcstr::{RcStr, rcstr};
+    use turbo_tasks::Vc;
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+    use turbo_tasks_fs::{
+        DiskFileSystem, FileSystem,
+        glob::{Glob, GlobOptions},
+    };
+
+    use super::get_glob_includes;
+
+    #[turbo_tasks::function(operation, root)]
+    async fn assert_glob_includes_directory_symlink_operation(path: RcStr) -> Result<()> {
+        let fs = DiskFileSystem::new(rcstr!("temp"), Vc::cell(path));
+        let root = fs.root().owned().await?;
+        let includes = get_glob_includes(
+            root.clone(),
+            Glob::new(
+                rcstr!("data/**/*"),
+                GlobOptions {
+                    contains: true,
+                    ..Default::default()
+                },
+            ),
+        )
+        .await?;
+
+        assert_eq!(
+            includes,
+            vec![
+                root.join("data/dir-link/index.js")?,
+                root.join("data/real-dir/index.js")?,
+            ]
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn glob_includes_skips_directory_symlinks() {
+        let scratch = tempfile::tempdir().unwrap();
+        {
+            // data/real-dir/index.js
+            // data/dir-link -> data/real-dir
+            let path = scratch.path();
+            create_dir(path.join("data")).unwrap();
+            let real_dir = path.join("data/real-dir");
+            create_dir(&real_dir).unwrap();
+            File::create_new(real_dir.join("index.js"))
+                .unwrap()
+                .write_all(b"index")
+                .unwrap();
+            symlink(&real_dir, path.join("data/dir-link")).unwrap();
+        }
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        let path: RcStr = scratch.path().to_str().unwrap().into();
+        tt.run_once(async {
+            assert_glob_includes_directory_symlink_operation(path)
+                .read_strongly_consistent()
+                .await?;
+
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
     }
 }
