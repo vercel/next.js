@@ -2100,6 +2100,7 @@ async function getRSCPayload(
   ctx: AppRenderContext,
   options: {
     is404: boolean
+    isPrerendering: boolean
     staleTimeIterable?: AsyncIterable<number>
     staticStageByteLengthPromise?: Promise<number>
     shellByteLengthPromise?: Promise<number | null>
@@ -2108,6 +2109,7 @@ async function getRSCPayload(
 ): Promise<InitialRSCPayload & { P: ReactNode }> {
   const {
     is404,
+    isPrerendering,
     staleTimeIterable,
     staticStageByteLengthPromise,
     shellByteLengthPromise,
@@ -2178,6 +2180,7 @@ async function getRSCPayload(
     preloadCallbacks,
     authInterrupts: ctx.renderOpts.experimental.authInterrupts,
     MetadataOutlet,
+    isPrerendering,
   })
 
   // When the `vary` response header is present with `Next-URL`, that means there's a chance
@@ -2259,10 +2262,9 @@ async function getRSCPayload(
     // authoritative.
     // TODO: Move this to the prefetch hints file so we don't have to walk
     // the tree on every render.
-    d:
-      workUnitAsyncStorage.getStore()?.type === 'request'
-        ? ((await getDynamicStaleTime(tree)) ?? undefined)
-        : undefined,
+    d: !isPrerendering
+      ? ((await getDynamicStaleTime(tree)) ?? undefined)
+      : undefined,
   } satisfies InitialRSCPayload & { P: ReactNode })
 }
 
@@ -3697,7 +3699,7 @@ async function renderToStream(
               getRSCPayload,
               tree,
               ctx,
-              { is404: res.statusCode === 404 }
+              { is404: res.statusCode === 404, isPrerendering: false }
             )
 
           if (isBypassingCachesInDev(requestStore, workStore)) {
@@ -3881,6 +3883,7 @@ async function renderToStream(
           ctx,
           {
             is404: res.statusCode === 404,
+            isPrerendering: false,
             staleTimeIterable,
             shellByteLengthPromise: shellByteLengthDeferred.promise,
             staticStageByteLengthPromise: staticStageByteLengthDeferred.promise,
@@ -3950,7 +3953,7 @@ async function renderToStream(
               getRSCPayload,
               tree,
               ctx,
-              { is404: res.statusCode === 404 }
+              { is404: res.statusCode === 404, isPrerendering: false }
             )
 
           const debugChannel = setReactDebugChannel && createNodeDebugChannel()
@@ -3992,7 +3995,7 @@ async function renderToStream(
               getRSCPayload,
               tree,
               ctx,
-              { is404: res.statusCode === 404 }
+              { is404: res.statusCode === 404, isPrerendering: false }
             )
 
           const debugChannel = setReactDebugChannel && createWebDebugChannel()
@@ -8284,7 +8287,7 @@ async function validateInstantConfigInBuildWithSample(
           getRSCPayload,
           loaderTree,
           validationCtx,
-          { is404: false }
+          { is404: false, isPrerendering: true }
         ),
       (signal) =>
         function onError(err) {
@@ -8734,7 +8737,7 @@ async function prerenderToStream(
         getRSCPayload,
         tree,
         ctx,
-        { is404: res.statusCode === 404 }
+        { is404: res.statusCode === 404, isPrerendering: true }
       )
 
       const initialServerPrerenderStore: PrerenderStore = (prerenderStore = {
@@ -9048,6 +9051,7 @@ async function prerenderToStream(
         ctx,
         {
           is404: res.statusCode === 404,
+          isPrerendering: true,
           shellByteLengthPromise: shellByteLengthDeferred.promise,
         }
       )
@@ -9556,7 +9560,7 @@ async function prerenderToStream(
         getRSCPayload,
         tree,
         ctx,
-        { is404: res.statusCode === 404 }
+        { is404: res.statusCode === 404, isPrerendering: true }
       )
       let reactServerResult: ReactServerPrerenderResult
       reactServerResult = reactServerPrerenderResult =
@@ -9794,7 +9798,7 @@ async function prerenderToStream(
         getRSCPayload,
         tree,
         ctx,
-        { is404: res.statusCode === 404 }
+        { is404: res.statusCode === 404, isPrerendering: true }
       )
 
       let reactServerResult: ReactServerPrerenderResult

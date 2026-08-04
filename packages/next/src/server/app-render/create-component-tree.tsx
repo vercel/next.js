@@ -26,6 +26,7 @@ import {
   workUnitAsyncStorage,
   type WorkUnitStore,
 } from './work-unit-async-storage.external'
+import { InvariantError } from '../../shared/lib/invariant-error'
 import {
   createVaryParamsAccumulator,
   emptyVaryParamsAccumulator,
@@ -62,8 +63,12 @@ export function createComponentTree(props: {
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
   MetadataOutlet: ComponentType
+  isPrerendering: boolean
 }): Promise<CacheNodeSeedData> {
   const workUnitStore = workUnitAsyncStorage.getStore()
+  if (!workUnitStore) {
+    throw new InvariantError('Missing workUnitStore in createComponentTree')
+  }
 
   return getTracer().trace(
     NextNodeServerSpan.createComponentTree,
@@ -86,33 +91,6 @@ function errorMissingDefaultExport(
 
 const cacheNodeKey = 'c'
 
-function isPrerenderWorkUnit(
-  workUnitStore: WorkUnitStore | undefined
-): boolean {
-  if (!workUnitStore) {
-    return false
-  }
-
-  switch (workUnitStore.type) {
-    case 'prerender':
-    case 'prerender-runtime':
-    case 'prerender-client':
-    case 'prerender-ppr':
-    case 'prerender-legacy':
-      return true
-    case 'request':
-    case 'validation-client':
-    case 'cache':
-    case 'private-cache':
-    case 'unstable-cache':
-    case 'generate-static-params':
-      return false
-    default:
-      workUnitStore satisfies never
-      return false
-  }
-}
-
 async function createComponentTreeInternal(
   {
     loaderTree: tree,
@@ -127,6 +105,7 @@ async function createComponentTreeInternal(
     preloadCallbacks,
     authInterrupts,
     MetadataOutlet,
+    isPrerendering,
   }: {
     loaderTree: LoaderTree
     parentParams: Params
@@ -140,9 +119,10 @@ async function createComponentTreeInternal(
     preloadCallbacks: PreloadCallbacks
     authInterrupts: boolean
     MetadataOutlet: ComponentType | null
+    isPrerendering: boolean
   },
   isRoot: boolean,
-  workUnitStore: WorkUnitStore | undefined
+  workUnitStore: WorkUnitStore
 ): Promise<CacheNodeSeedData> {
   const {
     renderOpts: { nextConfigOutput, experimental, cacheComponents },
@@ -170,9 +150,6 @@ async function createComponentTreeInternal(
     query,
   } = ctx
 
-  // A WorkStore can span several request and prerender work units during
-  // staged rendering, so component-tree behavior follows the active work unit.
-  const isPrerendering = isPrerenderWorkUnit(workUnitStore)
   const { canPostpone, isPossiblyPartialResponse } = renderCapabilities
 
   const { page, conventionPath, segment, modules, parallelRoutes } =
@@ -339,30 +316,28 @@ async function createComponentTreeInternal(
   if (typeof layoutOrPageMod?.revalidate === 'number') {
     const defaultRevalidate = layoutOrPageMod.revalidate as number
 
-    if (workUnitStore) {
-      switch (workUnitStore.type) {
-        case 'prerender':
-        case 'prerender-runtime':
-        case 'prerender-legacy':
-        case 'prerender-ppr':
-          if (workUnitStore.revalidate > defaultRevalidate) {
-            workUnitStore.revalidate = defaultRevalidate
-          }
-          break
-        case 'request':
-          // A request store doesn't have a revalidate property.
-          break
-        // createComponentTree is not called for these stores:
-        case 'cache':
-        case 'private-cache':
-        case 'prerender-client':
-        case 'validation-client':
-        case 'unstable-cache':
-        case 'generate-static-params':
-          break
-        default:
-          workUnitStore satisfies never
-      }
+    switch (workUnitStore.type) {
+      case 'prerender':
+      case 'prerender-runtime':
+      case 'prerender-legacy':
+      case 'prerender-ppr':
+        if (workUnitStore.revalidate > defaultRevalidate) {
+          workUnitStore.revalidate = defaultRevalidate
+        }
+        break
+      case 'request':
+        // A request store doesn't have a revalidate property.
+        break
+      // createComponentTree is not called for these stores:
+      case 'cache':
+      case 'private-cache':
+      case 'prerender-client':
+      case 'validation-client':
+      case 'unstable-cache':
+      case 'generate-static-params':
+        break
+      default:
+        workUnitStore satisfies never
     }
 
     if (
@@ -388,35 +363,33 @@ async function createComponentTreeInternal(
     typeof layoutOrPageMod?.unstable_dynamicStaleTime === 'number'
   ) {
     const pageStaleTime = layoutOrPageMod.unstable_dynamicStaleTime
-    if (workUnitStore) {
-      switch (workUnitStore.type) {
-        case 'prerender':
-        case 'prerender-runtime':
-        case 'prerender-legacy':
-        case 'prerender-ppr':
-          if (workUnitStore.stale > pageStaleTime) {
-            workUnitStore.stale = pageStaleTime
-          }
-          break
-        case 'request':
-          if (
-            workUnitStore.stale === undefined ||
-            workUnitStore.stale > pageStaleTime
-          ) {
-            workUnitStore.stale = pageStaleTime
-          }
-          break
-        // createComponentTree is not called for these stores:
-        case 'cache':
-        case 'private-cache':
-        case 'prerender-client':
-        case 'validation-client':
-        case 'unstable-cache':
-        case 'generate-static-params':
-          break
-        default:
-          workUnitStore satisfies never
-      }
+    switch (workUnitStore.type) {
+      case 'prerender':
+      case 'prerender-runtime':
+      case 'prerender-legacy':
+      case 'prerender-ppr':
+        if (workUnitStore.stale > pageStaleTime) {
+          workUnitStore.stale = pageStaleTime
+        }
+        break
+      case 'request':
+        if (
+          workUnitStore.stale === undefined ||
+          workUnitStore.stale > pageStaleTime
+        ) {
+          workUnitStore.stale = pageStaleTime
+        }
+        break
+      // createComponentTree is not called for these stores:
+      case 'cache':
+      case 'private-cache':
+      case 'prerender-client':
+      case 'validation-client':
+      case 'unstable-cache':
+      case 'generate-static-params':
+        break
+      default:
+        workUnitStore satisfies never
     }
   }
 
@@ -616,6 +589,7 @@ async function createComponentTreeInternal(
                 // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
                 // but we only want to throw on the first one.
                 MetadataOutlet: isChildrenRouteKey ? MetadataOutlet : null,
+                isPrerendering,
               },
               false,
               workUnitStore
