@@ -6322,11 +6322,16 @@
                 ) {
                   resource = new WeakRef(resource);
                   var request = resolveRequest();
-                  null !== request &&
-                    ((triggerAsyncId = parseStackTracePrivate(Error(), 5)),
+                  if (null !== request) {
+                    var previousStackTraceLimit = Error.stackTraceLimit;
+                    Error.stackTraceLimit = 10;
+                    triggerAsyncId = Error();
+                    Error.stackTraceLimit = previousStackTraceLimit;
+                    triggerAsyncId = parseStackTracePrivate(triggerAsyncId, 5);
                     null === triggerAsyncId ||
                       isAwaitInUserspace(request, triggerAsyncId) ||
-                      (triggerAsyncId = null));
+                      (triggerAsyncId = null);
+                  }
                 } else
                   (triggerAsyncId = emptyStack),
                     (resource =
@@ -6346,11 +6351,20 @@
                 };
               } else
                 (type = resolveOwner()),
+                  (triggerAsyncId = null),
+                  null !== type &&
+                    ((request = Error.stackTraceLimit),
+                    (Error.stackTraceLimit = 10),
+                    (triggerAsyncId = Error()),
+                    (Error.stackTraceLimit = request),
+                    (triggerAsyncId = parseStackTracePrivate(
+                      triggerAsyncId,
+                      5
+                    ))),
                   (trigger = {
                     tag: 3,
                     owner: type,
-                    stack:
-                      null === type ? null : parseStackTracePrivate(Error(), 5),
+                    stack: triggerAsyncId,
                     start: performance.now(),
                     end: -1.1,
                     promise: new WeakRef(resource),
