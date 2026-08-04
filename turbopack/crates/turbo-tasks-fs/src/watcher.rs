@@ -1929,3 +1929,390 @@ impl InvalidationReasonKind for InvalidateRescanKind {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use turbo_rcstr::{RcStr, rcstr};
+    use turbo_tasks::Vc;
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+
+    use super::*;
+    use crate::DiskFileSystem;
+
+    #[turbo_tasks::function(operation, root)]
+    async fn assert_edit_transaction_lease_starts_after_idle(root: RcStr) -> Result<()> {
+        let fs_vc = DiskFileSystem::new_with_denied_paths(
+            rcstr!("test"),
+            Vc::cell(root),
+            vec![rcstr!(".next")],
+        )
+        .to_resolved()
+        .await?;
+        let fs = fs_vc.await?;
+        let error = fs
+            .begin_edit_transaction(vec![PathBuf::new()])
+            .await
+            .expect_err("empty declarations must not invalidate the filesystem root");
+        assert!(
+            error
+                .to_string()
+                .contains("is not filesystem-root-relative")
+        );
+        fs.start_watching(None).await?;
+
+        // Reproduce the blocking-receive path, then renew inside the newly advertised lease but
+        // after the stale pre-receive lease would already have expired.
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        let token = fs
+            .begin_edit_transaction(vec![PathBuf::from("src/new/file.ts")])
+            .await?
+            .expect("idle watcher should accept a transaction");
+        tokio::time::sleep(EDIT_TRANSACTION_LEASE - Duration::from_secs(1)).await;
+        assert!(fs.renew_edit_transaction(token).await?);
+        assert!(fs.end_edit_transaction(token).await?);
+        fs.stop_watching().await;
+
+        Ok(())
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn edit_transaction_lease_starts_after_an_idle_receive() {
+        let scratch = tempfile::tempdir().unwrap();
+        let root = std::fs::canonicalize(scratch.path()).unwrap();
+        let root = RcStr::from(root.to_string_lossy().into_owned());
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+
+        tt.run_once(async move {
+            assert_edit_transaction_lease_starts_after_idle(root)
+                .read_strongly_consistent()
+                .await?;
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[test]
+    fn stopped_watcher_generation_is_visible_to_stale_senders() {
+        let (event_tx, _event_rx) = channel();
+        let (control_tx, _control_rx) = channel();
+        let senders = WatchSenders {
+            event_tx: Arc::new(event_tx),
+            control_tx,
+            generation_running: Arc::new(Mutex::new(true)),
+        };
+        let stale_senders = senders.clone();
+
+        senders.stop_generation();
+
+        assert!(!*stale_senders.generation_running.lock().unwrap());
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn edit_transaction_controls_bypass_the_watcher_state_lock() {
+        let watcher = Arc::new(DiskWatcher::new());
+        let (event_tx, event_rx) = channel();
+        let (control_tx, control_rx) = channel();
+        *watcher.control_senders.write().await = Some(WatchSenders {
+            event_tx: Arc::new(event_tx),
+            control_tx,
+            generation_running: Arc::new(Mutex::new(true)),
+        });
+
+        // PollWatcher may hold this lock while installing a watch and performing a blocking scan.
+        // A timely renew or end must still reach the priority channel before the native lease.
+        let _state_guard = watcher.state.write().await;
+
+        let renew_watcher = watcher.clone();
+        let renew = tokio::spawn(async move { renew_watcher.renew_edit_transaction(7).await });
+        let EditTransactionMessage::Renew {
+            token,
+            acknowledged,
+        } = control_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("renew should not wait for the watcher state lock")
+        else {
+            panic!("expected a renewal");
+        };
+        assert_eq!(token, 7);
+        assert!(matches!(
+            event_rx.recv_timeout(Duration::from_secs(1)),
+            Ok(WatchEventMessage::ControlReady)
+        ));
+        acknowledged.send(true).unwrap();
+        assert!(renew.await.unwrap().unwrap());
+
+        let end_watcher = watcher.clone();
+        let end = tokio::spawn(async move { end_watcher.end_edit_transaction(7).await });
+        let EditTransactionMessage::End {
+            token,
+            acknowledged,
+        } = control_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("end should not wait for the watcher state lock")
+        else {
+            panic!("expected an end");
+        };
+        assert_eq!(token, 7);
+        assert!(matches!(
+            event_rx.recv_timeout(Duration::from_secs(1)),
+            Ok(WatchEventMessage::ControlReady)
+        ));
+        acknowledged.send(true).unwrap();
+        assert!(end.await.unwrap().unwrap());
+    }
+
+    fn filesystem_message() -> WatchEventMessage {
+        WatchEventMessage::Filesystem(Ok(notify::Event::new(EventKind::Any)))
+    }
+
+    fn rescan_message() -> WatchEventMessage {
+        WatchEventMessage::Filesystem(Ok(
+            notify::Event::new(EventKind::Any).set_flag(notify::event::Flag::Rescan)
+        ))
+    }
+
+    #[test]
+    fn rescan_boundary_discards_the_complete_pre_rescan_queue() {
+        let (event_tx, event_rx) = channel();
+        // Keep this above the former bounded-drain size. Every message before the FIFO boundary
+        // was covered by the global invalidation and must be discarded.
+        for _ in 0..8 * 1024 {
+            event_tx.send(filesystem_message()).unwrap();
+        }
+        event_tx.send(WatchEventMessage::RescanBoundary).unwrap();
+        event_tx.send(filesystem_message()).unwrap();
+        drop(event_tx);
+
+        let mut discarding_rescan_events = true;
+        let mut pending_rescan = false;
+        for _ in 0..8 * 1024 {
+            assert!(
+                retain_after_rescan_boundary(
+                    event_rx.recv().unwrap(),
+                    &mut discarding_rescan_events,
+                    &mut pending_rescan,
+                )
+                .is_none()
+            );
+        }
+        assert!(!pending_rescan);
+        assert!(matches!(
+            retain_after_rescan_boundary(
+                event_rx.recv().unwrap(),
+                &mut discarding_rescan_events,
+                &mut pending_rescan,
+            ),
+            Some(WatchEventMessage::RescanBoundary)
+        ));
+        assert!(!discarding_rescan_events);
+        assert!(matches!(
+            retain_after_rescan_boundary(
+                event_rx.recv().unwrap(),
+                &mut discarding_rescan_events,
+                &mut pending_rescan,
+            ),
+            Some(WatchEventMessage::Filesystem(_))
+        ));
+
+        // A stale or duplicate marker is always consumed rather than reaching the main match.
+        assert!(
+            retain_after_rescan_boundary(
+                WatchEventMessage::RescanBoundary,
+                &mut discarding_rescan_events,
+                &mut pending_rescan,
+            )
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn rescan_boundary_preserves_an_overflow_during_watch_restoration() {
+        let mut discarding_rescan_events = true;
+        let mut pending_rescan = false;
+
+        assert!(
+            retain_after_rescan_boundary(
+                rescan_message(),
+                &mut discarding_rescan_events,
+                &mut pending_rescan,
+            )
+            .is_none()
+        );
+        assert!(pending_rescan);
+        assert!(matches!(
+            retain_after_rescan_boundary(
+                WatchEventMessage::RescanBoundary,
+                &mut discarding_rescan_events,
+                &mut pending_rescan,
+            ),
+            Some(WatchEventMessage::RescanBoundary)
+        ));
+        assert!(!discarding_rescan_events);
+    }
+
+    #[test]
+    fn edit_transaction_renewal_has_an_absolute_deadline() {
+        let started_at = Instant::now();
+        let mut transaction = ActiveEditTransaction::new(7, started_at);
+
+        assert!(!transaction.renew(8, started_at + Duration::from_secs(1)));
+        for seconds in (4..60).step_by(4) {
+            assert!(transaction.renew(7, started_at + Duration::from_secs(seconds)));
+        }
+        assert_eq!(
+            transaction.expiration,
+            started_at + EDIT_TRANSACTION_MAX_DURATION
+        );
+        assert!(transaction.is_active(
+            7,
+            started_at + EDIT_TRANSACTION_MAX_DURATION - Duration::from_nanos(1)
+        ));
+        assert!(!transaction.is_active(8, started_at + Duration::from_secs(1)));
+        assert!(!transaction.is_active(7, started_at + EDIT_TRANSACTION_MAX_DURATION));
+        assert!(!transaction.renew(7, started_at + EDIT_TRANSACTION_MAX_DURATION));
+    }
+
+    #[test]
+    fn edit_transaction_settle_covers_one_poll_interval() {
+        assert_eq!(edit_transaction_settle_delay(None), BATCH_DELAY);
+        assert_eq!(
+            edit_transaction_settle_delay(Some(Duration::from_millis(250))),
+            Duration::from_millis(250) + BATCH_DELAY
+        );
+        assert_eq!(
+            edit_transaction_barrier_timeout(Some(Duration::from_secs(3))),
+            Duration::from_secs(3) + BATCH_DELAY
+        );
+        assert_eq!(
+            edit_transaction_barrier_timeout(Some(Duration::from_millis(250))),
+            EDIT_TRANSACTION_BARRIER_TIMEOUT
+        );
+    }
+
+    #[test]
+    fn edit_transaction_rescan_retries_are_bounded() {
+        assert!(should_repeat_rescan(true, false, usize::MAX));
+        assert!(should_repeat_rescan(true, true, 0));
+        assert!(should_repeat_rescan(
+            true,
+            true,
+            EDIT_TRANSACTION_MAX_RESCAN_PASSES - 1
+        ));
+        assert!(!should_repeat_rescan(
+            true,
+            true,
+            EDIT_TRANSACTION_MAX_RESCAN_PASSES
+        ));
+        assert!(!should_repeat_rescan(
+            false,
+            true,
+            EDIT_TRANSACTION_MAX_RESCAN_PASSES
+        ));
+    }
+
+    #[test]
+    fn edit_transaction_settling_has_a_hard_deadline() {
+        let started_at = Instant::now();
+        let mut settling = EditTransactionSettling::new(started_at, BATCH_DELAY);
+
+        for milliseconds in 1..=1_000 {
+            settling.extend(started_at + Duration::from_millis(milliseconds));
+        }
+
+        assert_eq!(settling.deadline, settling.limit);
+        assert_eq!(
+            settling.deadline,
+            started_at + BATCH_DELAY + EDIT_TRANSACTION_MAX_SETTLE_EXTENSION
+        );
+    }
+
+    #[test]
+    fn controller_paths_restore_ancestor_watches_and_invalidate_conservatively() {
+        let scratch = tempfile::tempdir().unwrap();
+        let root = std::fs::canonicalize(scratch.path()).unwrap();
+        let existing_ancestor = root.join("app");
+        std::fs::create_dir(&existing_ancestor).unwrap();
+        let mut batch = BatchedInvalidations::new(RecursiveMode::NonRecursive);
+        let path = existing_ancestor.join("generated/deep/page.tsx");
+        assert!(!batch.add_changed_paths(vec![path.clone()], &root));
+
+        assert!(!batch.is_empty());
+
+        assert!(batch.paths[&*path].contains(
+            InvalidationFlags::PATH_AND_CHILDREN | InvalidationFlags::PATH_AND_CHILDREN_DIR
+        ));
+        let ancestors = [
+            existing_ancestor.join("generated/deep"),
+            existing_ancestor.join("generated"),
+            existing_ancestor,
+        ];
+        for ancestor in &ancestors {
+            assert!(batch.paths[&**ancestor].contains(InvalidationFlags::PATH_DIR));
+        }
+        let new_paths = batch.new_paths.as_ref().unwrap();
+        for path in ancestors.iter().chain([&path]) {
+            assert!(new_paths.contains(&**path));
+        }
+        assert!(!batch.paths.contains_key(&*root));
+        assert!(!new_paths.contains(&*root));
+    }
+
+    #[test]
+    fn edit_transaction_path_retention_is_bounded() {
+        let mut batch = BatchedInvalidations::new(RecursiveMode::Recursive);
+        for index in 0..EDIT_TRANSACTION_MAX_RETAINED_PATHS {
+            batch.mark(
+                PathBuf::from(format!("/project/{index}")).into_boxed_path(),
+                InvalidationFlags::PATH,
+            );
+        }
+        assert!(batch.add_changed_paths(
+            vec![PathBuf::from("/project/new/deep/file.ts")],
+            Path::new("/project"),
+        ));
+        assert!(batch.is_empty());
+        assert!(!batch.exceeds_transaction_limits());
+    }
+
+    #[test]
+    fn edit_transaction_end_barrier_retention_is_bounded() {
+        let mut batch = BatchedInvalidations::new(RecursiveMode::Recursive);
+        for index in 0..=EDIT_TRANSACTION_MAX_RETAINED_PATHS {
+            batch.mark(
+                PathBuf::from(format!("/project/{index}")).into_boxed_path(),
+                InvalidationFlags::PATH,
+            );
+        }
+        assert!(transaction_retention_overflowed(
+            &mut batch, false, true, false,
+        ));
+        assert!(batch.is_empty());
+    }
+
+    #[test]
+    fn unrelated_watcher_paths_do_not_block_a_transaction() {
+        let mut batch = BatchedInvalidations::new(RecursiveMode::NonRecursive);
+        assert!(!batch.add_changed_paths(
+            vec![PathBuf::from("/project/node_modules/package/index.js")],
+            Path::new("/project"),
+        ));
+
+        batch.retain_relevant(&InvalidatorMap::new(), &InvalidatorMap::new());
+
+        assert!(batch.is_empty());
+    }
+
+    #[test]
+    fn a_filtered_paired_rename_is_conservatively_invalidated() {
+        let mut batch = BatchedInvalidations::new(RecursiveMode::Recursive);
+        assert!(batch.add_event(notify::Event {
+            kind: EventKind::Modify(ModifyKind::Name(RenameMode::Both)),
+            paths: vec![PathBuf::from("/project/build.old")],
+            attrs: Default::default(),
+        }));
+        assert!(batch.paths.contains_key(Path::new("/project/build.old")));
+    }
+}
