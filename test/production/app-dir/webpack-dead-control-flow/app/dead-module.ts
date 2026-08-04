@@ -1,0 +1,1 @@
+export const marker = 'WEBPACK_DEAD_CONTROL_FLOW_DEAD_MARKER'
