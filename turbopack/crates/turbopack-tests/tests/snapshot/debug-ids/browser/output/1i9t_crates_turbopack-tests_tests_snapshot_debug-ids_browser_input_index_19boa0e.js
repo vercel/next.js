@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="8be33d93-70f0-5795-483a-8e4593e9e07e")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="04b1427b-110c-9192-a663-c7030fbf9d41")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/1i9t_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js",
     {"otherChunks":["output/1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvs.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -683,6 +683,15 @@ contextPrototype.a = asyncModule;
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../base/globals.d.ts" />
 /// <reference path="../../../shared/runtime/runtime-utils.ts" />
 // Used in WebWorkers to tell the runtime about the chunk suffix
+/**
+ * The base path the chunk URLs this runtime sees were built with.
+ *
+ * Normally that is `CHUNK_BASE_PATH`, but a worker is handed URLs built with
+ * `experimental.turbopackWorkerAssetPrefix` when that is set, and its bootstrap
+ * forwards the prefix it used. Normalizing with the other one would leave
+ * `registerChunk` resolving and awaiting two different keys of the same
+ * resolver map, and the entrypoint's chunks would never resolve.
+ */ const EFFECTIVE_CHUNK_BASE_PATH = typeof TURBOPACK_CHUNK_BASE_PATH === 'string' ? TURBOPACK_CHUNK_BASE_PATH : CHUNK_BASE_PATH;
 const browserContextPrototype = Context.prototype;
 const moduleFactories = new Map();
 contextPrototype.M = moduleFactories;
@@ -863,7 +872,7 @@ function loadChunkByUrlInternal(sourceType, sourceData, chunkEntry) {
 // match the keys stored in `chunkComponents`.
 function chunkUrlToPath(chunkUrl) {
     const src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''));
-    return src.startsWith(CHUNK_BASE_PATH) ? src.slice(CHUNK_BASE_PATH.length) : src;
+    return src.startsWith(EFFECTIVE_CHUNK_BASE_PATH) ? src.slice(EFFECTIVE_CHUNK_BASE_PATH.length) : src;
 }
 /**
  * When a merged chunk finishes registering (e.g. an initial-load `<script>`), mark its
@@ -955,7 +964,7 @@ browserContextPrototype.q = exportUrl;
  */ const CHUNK_PATH_NEEDS_ENCODING = /[^A-Za-z0-9\-_.!~*'()/]/;
 /**
  * Returns the URL relative to the origin where a chunk can be fetched from.
- */ function getChunkRelativeUrl(chunkPath, basePath = CHUNK_BASE_PATH) {
+ */ function getChunkRelativeUrl(chunkPath, basePath = EFFECTIVE_CHUNK_BASE_PATH) {
     // Most chunk paths need no escaping.
     const encodedPath = CHUNK_PATH_NEEDS_ENCODING.test(chunkPath) ? chunkPath.split('/').map(encodeURIComponent).join('/') : chunkPath;
     return `${basePath}${encodedPath}${ASSET_SUFFIX}`;
@@ -973,7 +982,7 @@ function getPathFromScript(chunkScript) {
     }
     const chunkUrl = chunkScript.src;
     const src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''));
-    const path = src.startsWith(CHUNK_BASE_PATH) ? src.slice(CHUNK_BASE_PATH.length) : src;
+    const path = src.startsWith(EFFECTIVE_CHUNK_BASE_PATH) ? src.slice(EFFECTIVE_CHUNK_BASE_PATH.length) : src;
     return path;
 }
 /**
@@ -2481,5 +2490,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=8be33d93-70f0-5795-483a-8e4593e9e07e
+//# debugId=04b1427b-110c-9192-a663-c7030fbf9d41
 //# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js.map

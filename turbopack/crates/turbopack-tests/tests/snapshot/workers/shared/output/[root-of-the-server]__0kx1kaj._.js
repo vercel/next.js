@@ -48,7 +48,7 @@ __turbopack_context__.s([
  * which module chunks to load and which module to run as the entry point.
  *
  * The params are a JSON array of the following structure:
- * `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, ...workerForwardedGlobals values]`
+ * `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, CHUNK_BASE_PATH, ...workerForwardedGlobals values]`
  *
  * @param WorkerConstructor The Worker or SharedWorker constructor
  * @param entrypoint path to the worker entrypoint chunk
@@ -62,9 +62,15 @@ __turbopack_context__.s([
     // `null` falls back; an empty string is treated as a literal empty prefix.
     const workerBasePath = null ?? /*TURBOPACK member replacement*/ __turbopack_context__.b;
     const chunkUrls = moduleChunks.map((chunk)=>/*TURBOPACK member replacement*/ __turbopack_context__.h(typeof chunk === 'string' ? chunk : chunk.path, workerBasePath)).reverse();
+    // The worker's own runtime has `CHUNK_BASE_PATH` baked in from `assetPrefix`,
+    // but every chunk URL it sees was built with `workerBasePath`. Forward the
+    // latter so the runtime normalizes chunk URLs the same way we did here —
+    // otherwise its chunk-resolver map is keyed two different ways and the
+    // entrypoint's chunks are awaited forever. See `registerChunk`.
     const params = [
         chunkUrls,
-        /*TURBOPACK member replacement*/ __turbopack_context__.X
+        /*TURBOPACK member replacement*/ __turbopack_context__.X,
+        workerBasePath
     ];
     const globals = [];
     for(let i = 0; i < globals.length; i++){
