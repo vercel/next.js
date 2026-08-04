@@ -24,7 +24,7 @@ export const hookPropertyMap = new Map()
  * styled-jsx module instance, so user code importing a *different* copy (which
  * happens as soon as the app depends on another styled-jsx version) silently
  * renders no styles at all during SSR. Whatever assembles a deployment has to
- * ship the files these resolve to - see `styledJsxRequireHookEntries()`.
+ * ship the files these resolve to - see `requireHookEntries()`.
  */
 export const defaultOverrides: Record<string, string> = {}
 
@@ -49,14 +49,14 @@ try {
 }
 
 /**
- * The files the `styled-jsx` aliases above resolve to, resolved from Next.js'
- * own location. The Pages Router renderer needs them at runtime, but no module
- * graph references them directly (user code references the app's own copy), so
- * build output tracing has to add them explicitly - otherwise the hook cannot
- * register its aliases in the deployment and styled-jsx styles silently
- * disappear from the server-rendered HTML.
+ * The files the aliases above resolve to (currently all of styled-jsx), resolved
+ * from Next.js' own location. The Pages Router renderer needs them at runtime,
+ * but no module graph references them directly (user code references the app's
+ * own copy), so build output tracing has to add them explicitly - otherwise the
+ * hook cannot register its aliases in the deployment and styled-jsx styles
+ * silently disappear from the server-rendered HTML.
  */
-export function styledJsxRequireHookEntries(): string[] {
+export function requireHookEntries(): string[] {
   const entries = new Set<string>()
 
   for (const request of Object.keys(defaultOverrides)) {

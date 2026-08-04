@@ -40,11 +40,11 @@ describe('adapter output - styled-jsx', () => {
     // Note that requiring it installs the hook in this process, which is what
     // Next.js itself does at runtime as well.
     const appRequire = createRequire(path.join(next.testDir, 'noop.js'))
-    const { styledJsxRequireHookEntries } = appRequire(
+    const { requireHookEntries } = appRequire(
       'next/dist/server/require-hook'
     ) as typeof import('next/dist/server/require-hook')
 
-    const requiredFiles = styledJsxRequireHookEntries().map((file) =>
+    const requiredFiles = requireHookEntries().map((file) =>
       path.relative(repoRoot, file)
     )
     expect(requiredFiles.length).toBeGreaterThan(0)

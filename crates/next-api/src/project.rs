@@ -102,7 +102,7 @@ use crate::{
     entrypoints::Entrypoints,
     instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
-    next_server_nft::styled_jsx_require_hook_modules,
+    next_server_nft::require_hook_modules,
     pages::PagesProject,
     route::{
         Endpoint, EndpointGroup, EndpointGroupEntry, EndpointGroupKey, EndpointGroups, Endpoints,
@@ -2811,7 +2811,7 @@ impl Project {
 
     /// Returns modules that have to be traced for every endpoint even though nothing references
     /// them: any modules specified as `nextConfig.cacheHandler` and/or `nextConfig.cacheHandlers`,
-    /// plus the `styled-jsx` modules `next/dist/server/require-hook` resolves at runtime.
+    /// plus the modules `next/dist/server/require-hook` resolves at runtime.
     #[turbo_tasks::function]
     pub async fn additional_traced_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
         let project_path = self.project_path().owned().await?;
@@ -2827,9 +2827,7 @@ impl Project {
         let asset_context =
             externals_tracing_module_context(get_tracing_compile_time_info(), false);
 
-        let styled_jsx_modules = styled_jsx_require_hook_modules(project_path)
-            .owned()
-            .await?;
+        let hook_modules = require_hook_modules(project_path).owned().await?;
 
         Ok(Vc::cell(
             cache_handler
@@ -2847,7 +2845,7 @@ impl Project {
                 .try_join()
                 .await?
                 .into_iter()
-                .chain(styled_jsx_modules)
+                .chain(hook_modules)
                 .collect(),
         ))
     }

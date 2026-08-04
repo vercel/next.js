@@ -23,19 +23,18 @@ use turbopack_resolve::ecmascript::cjs_resolve;
 
 use crate::{nft::traced_modules_for_entries, project::Project};
 
-/// The modules `next/dist/server/require-hook` resolves `styled-jsx` requests to at runtime so
-/// that the Pages Router renderer and user code share a single `styled-jsx` module instance (see
-/// that file for why they otherwise wouldn't). Nothing in any module graph references these -
-/// user code only ever imports its own copy of `styled-jsx` - so whatever assembles a
-/// deployment's file list has to include them explicitly, or the hook fails to register its
-/// aliases and all styled-jsx styles silently disappear from the server-rendered HTML.
+/// The modules `next/dist/server/require-hook` resolves its aliased requests to at runtime
+/// (currently all of styled-jsx), so that the Pages Router renderer and user code share a single
+/// `styled-jsx` module instance (see that file for why they otherwise wouldn't). Nothing in any
+/// module graph references these - user code only ever imports its own copy of `styled-jsx` - so
+/// whatever assembles a deployment's file list has to include them explicitly, or the hook fails
+/// to register its aliases and all styled-jsx styles silently disappear from the server-rendered
+/// HTML.
 ///
 /// Used by the server NFTs below and, so that they are part of every endpoint's trace regardless
 /// of how the output is assembled, by [`Project::additional_traced_modules`].
 #[turbo_tasks::function]
-pub(crate) async fn styled_jsx_require_hook_modules(
-    project_path: FileSystemPath,
-) -> Result<Vc<Modules>> {
+pub(crate) async fn require_hook_modules(project_path: FileSystemPath) -> Result<Vc<Modules>> {
     let asset_context = Vc::upcast(externals_tracing_module_context(
         get_tracing_compile_time_info(),
         false,
@@ -286,15 +285,13 @@ impl ServerNftJsonAsset {
             )),
         };
 
-        // The `styled-jsx` modules the require hook needs are part of every endpoint's trace (see
+        // The modules the require hook needs are part of every endpoint's trace (see
         // `Project::additional_traced_modules`), but `next-server.js` / `next-minimal-server.js`
         // are traced on their own for `output: 'standalone'`, so they have to be added here too.
-        let styled_jsx_modules = styled_jsx_require_hook_modules(project_path)
-            .owned()
-            .await?;
+        let hook_modules = require_hook_modules(project_path).owned().await?;
 
         Ok(Vc::cell(
-            styled_jsx_modules
+            hook_modules
                 .into_iter()
                 .chain(
                     entries

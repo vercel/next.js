@@ -51,7 +51,7 @@ import { getRedirectStatus, modifyRouteRegex } from '../../lib/redirect-status'
 import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
 import { sortSortableRoutes } from '../../shared/lib/router/utils/sortable-routes'
-import { styledJsxRequireHookEntries } from '../../server/require-hook'
+import { requireHookEntries } from '../../server/require-hook'
 import { generateRoutesManifest } from '../generate-routes-manifest'
 import { Bundler } from '../../lib/bundler'
 import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-import-path'
@@ -2445,7 +2445,7 @@ async function getSharedNodeAssets({
       require.resolve('next/dist/server/node-polyfill-crypto'),
       // Nothing references these, the require hook resolves them at runtime.
       // Turbopack traces them via `Project::additional_traced_modules`.
-      ...styledJsxRequireHookEntries(),
+      ...requireHookEntries(),
     ]
 
     const { cacheHandler, cacheHandlers } = config
