@@ -208,6 +208,8 @@ turbopack-test-utils = { path = "turbopack/crates/turbopack-test-utils" }
 turbopack-trace-server = { path = "turbopack/crates/turbopack-trace-server" }
 turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
+ast-facade-core = { path = "../../oxc-fascade/crates/ast-facade-core" }
+ast-facade-swc = { path = "../../oxc-fascade/crates/ast-facade-swc" }
 
 swc_ecma_react_compiler = "20.1.0"
 react_compiler = { version = "0.2", package = "forked_react_compiler" }

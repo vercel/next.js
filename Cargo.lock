@@ -327,6 +327,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "ast-facade-core"
+version = "0.0.0"
+
+[[package]]
+name = "ast-facade-swc"
+version = "0.0.0"
+dependencies = [
+ "ast-facade-core",
+ "swc_common",
+ "swc_ecma_ast",
+ "swc_ecma_parser",
+]
+
+[[package]]
 name = "ast_node"
 version = "5.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10680,6 +10694,8 @@ name = "turbopack-ecmascript-plugins"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "ast-facade-core",
+ "ast-facade-swc",
  "async-trait",
  "bincode 2.0.1",
  "either",
