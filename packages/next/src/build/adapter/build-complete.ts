@@ -51,7 +51,7 @@ import { getRedirectStatus, modifyRouteRegex } from '../../lib/redirect-status'
 import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
 import { sortSortableRoutes } from '../../shared/lib/router/utils/sortable-routes'
-import { defaultOverrides } from '../../server/require-hook'
+import { styledJsxRequireHookEntries } from '../../server/require-hook'
 import { generateRoutesManifest } from '../generate-routes-manifest'
 import { Bundler } from '../../lib/bundler'
 import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-import-path'
@@ -2410,7 +2410,7 @@ async function getSharedNodeAssets({
     salt
   )
 
-  // Turbopack handles this automatically and these files are listed in the nft.json files.
+  // Turbopack traces these itself, they are listed in the nft.json files.
   if (bundler !== Bundler.Turbopack) {
     const { nodeFileTrace } =
       require('next/dist/compiled/@vercel/nft') as typeof import('next/dist/compiled/@vercel/nft')
@@ -2443,7 +2443,9 @@ async function getSharedNodeAssets({
       require.resolve('next/dist/server/node-environment'),
       require.resolve('next/dist/server/require-hook'),
       require.resolve('next/dist/server/node-polyfill-crypto'),
-      ...Object.values(defaultOverrides).filter((item) => path.extname(item)),
+      // Nothing references these, the require hook resolves them at runtime.
+      // Turbopack traces them via `Project::additional_traced_modules`.
+      ...styledJsxRequireHookEntries(),
     ]
 
     const { cacheHandler, cacheHandlers } = config

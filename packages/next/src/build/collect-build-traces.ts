@@ -16,7 +16,7 @@ import { nonNullable } from '../lib/non-nullable'
 import * as ciEnvironment from '../server/ci-info'
 import debugOriginal from 'next/dist/compiled/debug'
 import picomatch from 'next/dist/compiled/picomatch'
-import { defaultOverrides } from '../server/require-hook'
+import { styledJsxRequireHookEntries } from '../server/require-hook'
 import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
@@ -137,11 +137,7 @@ export async function collectBuildTraces({
       // Under standalone mode, we need to trace the extra IPC server and
       // worker files.
       const isStandalone = config.output === 'standalone'
-      const sharedEntriesSet = Object.keys(defaultOverrides).map((value) =>
-        require.resolve(value, {
-          paths: [require.resolve('next/dist/server/require-hook')],
-        })
-      )
+      const sharedEntriesSet = styledJsxRequireHookEntries()
 
       const { cacheHandler, cacheHandlers } = config
 
