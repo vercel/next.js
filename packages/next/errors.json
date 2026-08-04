@@ -1465,5 +1465,17 @@
   "1464": "\\`experimental.turbopackChunkingHeuristics\\` has been renamed to \\`experimental.turbopackChunking\\`. Please update your next.config.js file accordingly.",
   "1465": "\\`experimental.useCache\\` cannot be disabled when \\`cacheComponents\\` is enabled, because Cache Components relies on the \\`\"use cache\"\\` directive. Please remove it from %s.",
   "1466": "TypeScript %s does not provide the compiler API required by Next.js. Set %s to true in your Next.js config to use the TypeScript CLI, or install TypeScript 6 instead.",
-  "1467": "TypeScript %s does not provide the compiler API required by Next.js. Set %s back to true in your Next.js config to use the TypeScript CLI, or install TypeScript 6 instead."
+  "1467": "TypeScript %s does not provide the compiler API required by Next.js. Set %s back to true in your Next.js config to use the TypeScript CLI, or install TypeScript 6 instead.",
+  "1468": "Changed paths exceed %s characters",
+  "1469": "Turbopack project is not available. This tool requires the Turbopack bundler.",
+  "1470": "Changed path leaves the Turbopack filesystem root: %s",
+  "1471": "Changed path is watched outside the Turbopack source transaction: %s",
+  "1472": "Changed path must be project-relative: %s",
+  "1473": "Edit transaction acknowledgement timed out; retry",
+  "1474": "Changed path leaves the project root: %s",
+  "1475": "Too many active edit transactions (limit %s)",
+  "1476": "Changed path traverses a symbolic link: %s",
+  "1477": "Changed path must identify a file, not a directory: %s",
+  "1478": "Changed path would activate TypeScript through an independent dev-server watcher: %s",
+  "1479": "Changed path must not contain parent-directory segments: %s"
 }

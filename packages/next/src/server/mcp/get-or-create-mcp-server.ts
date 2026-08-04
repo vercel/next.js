@@ -6,6 +6,7 @@ import { registerGetLogsTool } from './tools/get-logs'
 import { registerGetActionByIdTool } from './tools/get-server-action-by-id'
 import { registerGetRoutesTool } from './tools/get-routes'
 import { registerGetCompilationIssuesTool } from './tools/get-compilation-issues'
+import { registerEditTransactionTools } from './tools/edit-transaction'
 import { registerCompileRouteTool } from './tools/compile-route'
 import { registerGetRequestInsightsTool } from './tools/get-request-insights'
 import type { HmrMessageSentToBrowser } from '../dev/hot-reloader-types'
@@ -68,6 +69,22 @@ export const getOrCreateMcpServer = (options: McpServerOptions) => {
 
   if (options.getTurbopackProject) {
     registerGetCompilationIssuesTool(mcpServer, options.getTurbopackProject)
+    if (process.env.__NEXT_EXPERIMENTAL_EDIT_TRANSACTIONS === 'true') {
+      registerEditTransactionTools(
+        mcpServer,
+        options.projectPath,
+        options.nextConfig.turbopack?.root ||
+          options.nextConfig.outputFileTracingRoot ||
+          options.projectPath,
+        {
+          appDir: options.appDir,
+          pagesDir: options.pagesDir,
+          pageExtensions: options.nextConfig.pageExtensions,
+          tsconfigPath: options.nextConfig.typescript.tsconfigPath,
+        },
+        options.getTurbopackProject
+      )
+    }
   }
 
   if (options.compileRoute) {
