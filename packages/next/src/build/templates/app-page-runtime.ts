@@ -1,7 +1,6 @@
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { FallbackRouteParam } from '../static-paths/types'
-import type { WorkStoreExecutionMode } from '../../server/app-render/work-async-storage.external'
 
 import {
   AppPageRouteModule,
@@ -93,6 +92,8 @@ import { InvariantError } from '../../shared/lib/invariant-error' with { 'turbop
 import { scheduleOnNextTick } from '../../lib/scheduler' with { 'turbopack-transition': 'next-server-utility' }
 import { isInterceptionRouteAppPath } from '../../shared/lib/router/utils/interception-routes' with { 'turbopack-transition': 'next-server-utility' }
 import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param' with { 'turbopack-transition': 'next-server-utility' }
+
+type AppPageRenderOperation = 'render' | 'prerender'
 
 /**
  * Builds the cache key for the most complete prerenderable shell we can derive
@@ -743,13 +744,13 @@ export function createAppPageEntrypoint({
       const invokeRouteModule = async (
         span: Span | undefined,
         context: AppPageRouteHandlerContext,
-        executionMode: WorkStoreExecutionMode
+        renderOperation: AppPageRenderOperation
       ) => {
         const nextReq = new NodeNextRequest(req)
         const nextRes = new NodeNextResponse(res)
 
         const result =
-          executionMode === 'prerender'
+          renderOperation === 'prerender'
             ? routeModule.prerender(nextReq, nextRes, context)
             : routeModule.render(nextReq, nextRes, context)
 
@@ -827,7 +828,7 @@ export function createAppPageEntrypoint({
         span,
         postponed,
         fallbackRouteParams,
-        executionMode,
+        renderOperation,
         allowEmptyStaticShell,
       }: {
         span?: Span
@@ -844,7 +845,7 @@ export function createAppPageEntrypoint({
          */
         fallbackRouteParams: OpaqueFallbackRouteParams | null
 
-        executionMode: WorkStoreExecutionMode
+        renderOperation: AppPageRenderOperation
       }): Promise<ResponseCacheEntry> => {
         const context: AppPageRouteHandlerContext = {
           query,
@@ -874,7 +875,7 @@ export function createAppPageEntrypoint({
             allowEmptyStaticShell,
             serveStreamingMetadata,
             supportsDynamicResponse:
-              executionMode === 'request' &&
+              renderOperation === 'render' &&
               (typeof postponed === 'string' || supportsDynamicResponse),
             buildManifest,
             nextFontManifest,
@@ -991,7 +992,7 @@ export function createAppPageEntrypoint({
           },
         }
 
-        const result = await invokeRouteModule(span, context, executionMode)
+        const result = await invokeRouteModule(span, context, renderOperation)
 
         const { metadata } = result
 
@@ -1263,7 +1264,7 @@ export function createAppPageEntrypoint({
                     // the background path below will complete the shell into a
                     // more specific cache entry for later requests.
                     fallbackRouteParams,
-                    executionMode: 'prerender',
+                    renderOperation: 'prerender',
                     allowEmptyStaticShell: isInstantNavigationTest || undefined,
                   }),
                 waitUntil: ctx.waitUntil,
@@ -1321,7 +1322,7 @@ export function createAppPageEntrypoint({
                                     remainingFallbackRouteParams
                                   )
                                 : null,
-                            executionMode: 'prerender',
+                            renderOperation: 'prerender',
                           })
                         },
                         // We don't have a prior entry for this param-specific shell.
@@ -1579,7 +1580,7 @@ export function createAppPageEntrypoint({
             span,
             postponed,
             fallbackRouteParams,
-            executionMode: isRequestSpecificRender ? 'request' : 'prerender',
+            renderOperation: isRequestSpecificRender ? 'render' : 'prerender',
             allowEmptyStaticShell: isInstantNavigationTest || undefined,
           })
         } catch (err) {
@@ -2122,7 +2123,7 @@ export function createAppPageEntrypoint({
           // This is a resume render, not a fallback render. Fallback params
           // (for cacheComponents routes) are plumbed via request meta above.
           fallbackRouteParams: null,
-          executionMode: 'request',
+          renderOperation: 'render',
         })
           .then(async (result) => {
             if (!result) {
