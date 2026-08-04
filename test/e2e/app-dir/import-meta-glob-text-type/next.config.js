@@ -7,7 +7,7 @@ const nextConfig = {
       // Turbopack has no built-in `?raw` handling, the query is matched by a
       // rule. `raw` and `text` are aliases, both load the file as a string.
       '*.txt': { condition: { query: '?raw' }, type: 'text' },
-      '*.log': { condition: { query: '?raw' }, type: 'raw' },
+      '*.rst': { condition: { query: '?raw' }, type: 'raw' },
       '*.md': { type: 'raw' },
       '*.mdx': { type: 'text' },
     },

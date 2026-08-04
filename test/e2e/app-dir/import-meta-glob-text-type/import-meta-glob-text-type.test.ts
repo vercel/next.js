@@ -33,8 +33,8 @@ testFn('turbopack `text` / `raw` module types', () => {
       .get()
 
     expect(items).toEqual([
-      './content/delta.log: delta contents',
-      './content/gamma.log: gamma contents',
+      './content/delta.rst: delta contents',
+      './content/gamma.rst: gamma contents',
     ])
   })
 
