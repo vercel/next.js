@@ -156,18 +156,24 @@ impl EcmascriptBuildNodeEntryChunk {
     #[turbo_tasks::function]
     async fn runtime_chunk(&self) -> Result<Vc<EcmascriptBuildNodeRuntimeChunk>> {
         // Detect async modules from the whole-app graph in production. In development, the graph
-        // is per-page. To keep the shared `runtime.js` stable, always include the machinery.
-        let has_async_modules = if matches!(
-            *self.chunking_context.runtime_type().await?,
-            RuntimeType::Production
-        ) {
-            !self.module_graph.async_module_info().await?.is_empty()
-        } else {
-            true
-        };
+        // is per-page, and some contexts (e.g. the shared node execution context used to evaluate
+        // postcss configs and webpack loaders) are shared by several independent per-transform
+        // graphs. In both cases a single graph doesn't see everything that ends up next to the
+        // shared `runtime.js`, so omitting the machinery based on it would break chunks from the
+        // other graphs. Always include it there.
+        let include_async_module_runtime =
+            if matches!(
+                *self.chunking_context.runtime_type().await?,
+                RuntimeType::Production
+            ) && !*self.chunking_context.shared_runtime_chunk().await?
+            {
+                !self.module_graph.async_module_info().await?.is_empty()
+            } else {
+                true
+            };
         Ok(EcmascriptBuildNodeRuntimeChunk::new(
             *self.chunking_context,
-            has_async_modules,
+            include_async_module_runtime,
         ))
     }
 
