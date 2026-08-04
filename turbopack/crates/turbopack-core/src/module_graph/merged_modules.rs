@@ -71,6 +71,70 @@ impl MergedModuleInfo {
     }
 }
 
+/// Drops modules from merged groups if there's a strongly connected component that
+/// is split between two groups. For example, if a module (A) that is scope-hoisted
+/// depends on (B) and (B) depends on another module that is scope-hoisted with (A).
+/// This leads to double-execution of these modules.
+#[allow(clippy::type_complexity)]
+fn drop_split_cycles(
+    module_graph: &ModuleGraph,
+    lists: FxHashSet<Vec<ResolvedVc<Box<dyn MergeableModule>>>>,
+) -> Result<FxHashSet<Vec<ResolvedVc<Box<dyn MergeableModule>>>>> {
+    let mut lists = lists.into_iter().collect::<Vec<_>>();
+    loop {
+        let mut group_of: FxHashMap<ResolvedVc<Box<dyn Module>>, usize> = FxHashMap::default();
+        for (group, list) in lists.iter().enumerate() {
+            for module in list {
+                group_of.insert(ResolvedVc::upcast(*module), group);
+            }
+        }
+
+        let mut modules_to_drop: FxHashSet<ResolvedVc<Box<dyn Module>>> = FxHashSet::default();
+        module_graph.traverse_cycles(
+            |ref_data| {
+                matches!(
+                    ref_data.chunking_type,
+                    ChunkingType::Parallel { .. } | ChunkingType::Shared { .. }
+                )
+            },
+            |scc| {
+                let mut groups = scc.iter().map(|m| group_of.get(&**m).copied());
+                // An SCC always has a member; `None` means that member is not merged at all.
+                let first_group = groups.next().unwrap();
+                if first_group.is_none() || groups.any(|group| group != first_group) {
+                    modules_to_drop
+                        .extend(scc.iter().map(|m| **m).filter(|m| group_of.contains_key(m)));
+                }
+                Ok(())
+            },
+        )?;
+
+        if modules_to_drop.is_empty() {
+            return Ok(lists.into_iter().collect());
+        }
+
+        // Dropping a module splits its group in two; previously, a SCC that was contained
+        // to just one group could be split between groups.
+        let mut remaining = Vec::with_capacity(lists.len());
+        for list in lists {
+            let mut part = Vec::new();
+            for module in list {
+                if modules_to_drop.contains(&ResolvedVc::upcast(module)) {
+                    if !part.is_empty() {
+                        remaining.push(std::mem::take(&mut part));
+                    }
+                } else {
+                    part.push(module);
+                }
+            }
+            if !part.is_empty() {
+                remaining.push(part);
+            }
+        }
+        lists = remaining;
+    }
+}
+
 /// Determine which modules can be merged together:
 /// - if all chunks execute a sequence of modules in the same order, they can be merged together and
 ///   treated as one.
@@ -700,6 +764,10 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         let lists = lists.into_iter().flatten().collect::<FxHashSet<_>>();
 
         drop(inner_span);
+        let inner_span = tracing::info_span!("drop split cycles").entered();
+        let lists = drop_split_cycles(&module_graph, lists)?;
+        drop(inner_span);
+
         let inner_span = tracing::info_span!("merging");
         // Call MergeableModule impl to merge the modules.
         let result = lists
