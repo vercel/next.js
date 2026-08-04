@@ -8,6 +8,7 @@ export default function ClientComponent() {
   const [pageOrigin, setPageOrigin] = useState<string>(NONE)
   const [workerCtorUrl, setWorkerCtorUrl] = useState<string>(NONE)
   const [workerCtorError, setWorkerCtorError] = useState<string>(NONE)
+  const [workerMessage, setWorkerMessage] = useState<string>(NONE)
 
   useEffect(() => {
     setPageOrigin(window.location.origin)
@@ -35,7 +36,11 @@ export default function ClientComponent() {
       // Trigger the turbopack `new Worker(new URL(..., import.meta.url))`
       // pattern. Result is intercepted by the patched Worker above.
 
-      new Worker(new URL('./worker.ts', import.meta.url))
+      const worker = new Worker(new URL('./worker.ts', import.meta.url))
+      // The worker posts at module evaluation time, so receiving anything at
+      // all proves its entry module actually ran — loading its chunks is not
+      // enough.
+      worker.onmessage = (event) => setWorkerMessage(String(event.data))
     } catch {
       // Already captured by the patched constructor; React state will
       // reflect it on the next render.
@@ -51,6 +56,8 @@ export default function ClientComponent() {
       <pre id="worker-ctor-url">{workerCtorUrl}</pre>
       <p>Worker constructor error (if any):</p>
       <pre id="worker-ctor-error">{workerCtorError}</pre>
+      <p>origin posted back by the worker:</p>
+      <pre id="worker-message">{workerMessage}</pre>
     </>
   )
 }

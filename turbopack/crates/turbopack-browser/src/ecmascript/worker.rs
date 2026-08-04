@@ -21,7 +21,7 @@ use crate::BrowserChunkingContext;
 /// A pre-compiled worker entrypoint that bootstraps workers by reading config from URL params.
 ///
 /// The worker receives a JSON array via URL params of the following structure:
-/// `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, ...forwarded_global_values]`
+/// `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, CHUNK_BASE_PATH, ...forwarded_global_values]`
 #[turbo_tasks::value(shared)]
 #[derive(ValueToString)]
 #[value_to_string("Ecmascript Browser Worker Entrypoint")]
@@ -29,7 +29,7 @@ pub struct EcmascriptBrowserWorkerEntrypoint {
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     /// Global variable names to forward from main thread to worker.
     /// These are assigned to `self` in the worker scope before loading chunks.
-    /// Values are passed via URL params at indices 2+.
+    /// Values are passed via URL params at indices 3+.
     forwarded_globals: ResolvedVc<Vec<RcStr>>,
 }
 
@@ -148,7 +148,7 @@ impl GenerateSourceMap for EcmascriptBrowserWorkerEntrypoint {
 /// Generates the worker bootstrap code as inline JavaScript.
 ///
 /// The worker receives a JSON array via URL params of the following structure:
-/// `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, ...forwarded_global_values]`
+/// `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, CHUNK_BASE_PATH, ...forwarded_global_values]`
 fn generate_worker_bootstrap_code(
     forwarded_globals: &[RcStr],
     shared_runtime: bool,
@@ -156,14 +156,18 @@ fn generate_worker_bootstrap_code(
     let mut code: CodeBuilder = CodeBuilder::default();
 
     // Generate the Object.assign properties for forwarded globals
-    // params[0] = chunk URLs, params[1] = ASSET_SUFFIX, params[2+] = forwarded globals
+    // params[0] = chunk URLs, params[1] = ASSET_SUFFIX, params[2] = CHUNK_BASE_PATH,
+    // params[3+] = forwarded globals
     let mut global_assignments = vec![
         "TURBOPACK_NEXT_CHUNK_URLS: chunkUrls".to_string(),
         "TURBOPACK_ASSET_SUFFIX: param(1)".to_string(),
+        // The chunk URLs above were built with the worker asset prefix, which may
+        // differ from the `CHUNK_BASE_PATH` baked into the worker's runtime.
+        "TURBOPACK_CHUNK_BASE_PATH: param(2)".to_string(),
     ];
     for (i, name) in forwarded_globals.iter().enumerate() {
-        // Forwarded globals start at params[2]
-        global_assignments.push(format!("{name}: param({n})", n = i + 2));
+        // Forwarded globals start at params[3]
+        global_assignments.push(format!("{name}: param({n})", n = i + 3));
     }
     let globals_js = global_assignments.join(",\n    ");
 

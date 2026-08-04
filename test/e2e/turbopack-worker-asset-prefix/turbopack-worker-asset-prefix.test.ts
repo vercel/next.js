@@ -103,6 +103,15 @@ describeTurbopack('turbopack-worker-asset-prefix', () => {
 
       const error = await browser.elementByCss('#worker-ctor-error').text()
       expect(error).toBe('(none)')
+
+      // The worker posts at module evaluation time. Its chunk URLs were built
+      // with the override prefix while its runtime has `CHUNK_BASE_PATH` from
+      // `assetPrefix`; if the two are not reconciled the runtime waits forever
+      // on its own already-loaded chunks and the entry module never runs.
+      await retry(async () => {
+        const message = await browser.elementByCss('#worker-message').text()
+        expect(message).toBe(`http://localhost:${forcedPort}`)
+      })
     })
   })
 
@@ -147,6 +156,11 @@ describeTurbopack('turbopack-worker-asset-prefix', () => {
 
       const error = await browser.elementByCss('#worker-ctor-error').text()
       expect(error).toBe('(none)')
+
+      await retry(async () => {
+        const message = await browser.elementByCss('#worker-message').text()
+        expect(message).toBe(`http://localhost:${forcedPort}`)
+      })
     })
   })
 })
