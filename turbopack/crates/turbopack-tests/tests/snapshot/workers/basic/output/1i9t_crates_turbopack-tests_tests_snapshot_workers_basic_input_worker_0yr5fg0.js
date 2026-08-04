@@ -683,7 +683,7 @@ contextPrototype.a = asyncModule;
 /// <reference path="../../../shared/runtime/runtime-utils.ts" />
 // Used in WebWorkers to tell the runtime about the chunk suffix
 const browserContextPrototype = Context.prototype;
-const RUNTIME_CHUNK_BASE_PATH = typeof TURBOPACK_WORKER_CHUNK_BASE_PATH === 'string' ? TURBOPACK_WORKER_CHUNK_BASE_PATH : CHUNK_BASE_PATH;
+const RUNTIME_CHUNK_BASE_PATH = typeof TURBOPACK_CHUNK_BASE_PATH === 'string' ? TURBOPACK_CHUNK_BASE_PATH : CHUNK_BASE_PATH;
 const moduleFactories = new Map();
 contextPrototype.M = moduleFactories;
 const availableModules = new Map();

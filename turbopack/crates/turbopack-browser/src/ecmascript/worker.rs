@@ -161,7 +161,7 @@ fn generate_worker_bootstrap_code(
     let mut global_assignments = vec![
         "TURBOPACK_NEXT_CHUNK_URLS: chunkUrls".to_string(),
         "TURBOPACK_ASSET_SUFFIX: param(1)".to_string(),
-        "TURBOPACK_WORKER_CHUNK_BASE_PATH: param(2)".to_string(),
+        "TURBOPACK_CHUNK_BASE_PATH: param(2)".to_string(),
     ];
     for (i, name) in forwarded_globals.iter().enumerate() {
         // Forwarded globals start at params[3]

@@ -26,7 +26,7 @@ var chunkUrls = Array.isArray(params[0]) ? params[0] : [];
 Object.assign(self, {
     TURBOPACK_NEXT_CHUNK_URLS: chunkUrls,
     TURBOPACK_ASSET_SUFFIX: param(1),
-    TURBOPACK_WORKER_CHUNK_BASE_PATH: param(2)
+    TURBOPACK_CHUNK_BASE_PATH: param(2)
 });
 
 if (chunkUrls.length > 0) {
