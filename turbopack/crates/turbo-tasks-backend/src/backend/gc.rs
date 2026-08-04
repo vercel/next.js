@@ -19,20 +19,51 @@ use std::{
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
+use bincode::{Decode, Encode};
 use parking_lot::Mutex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_tasks::{TaskId, TurboTasks, scope::scope_unbounded};
 
-use crate::backend::{
-    AnyOperation, GC_MIN_PROGRESS, GC_ROOT_TTL, TurboTasksBackend,
-    operation::{
-        AggregationUpdateQueue, CleanupOldEdgesOperation, ExecuteContext, ExecuteContextImpl,
-        TaskGuard, capture_all_outgoing_edges,
+use crate::{
+    backend::{
+        AnyOperation, GC_MIN_PROGRESS, GC_ROOT_TTL, TurboTasksBackend,
+        operation::{
+            AggregationUpdateQueue, CleanupOldEdgesOperation, ExecuteContext, ExecuteContextImpl,
+            TaskGuard, capture_all_outgoing_edges,
+        },
+        snapshot_coordinator::SnapshotCoordinator,
+        storage::{SpecificTaskDataCategory, TaskDataCategory},
+        storage_schema::TaskStorageAccessors,
     },
-    snapshot_coordinator::SnapshotCoordinator,
-    storage::{SpecificTaskDataCategory, TaskDataCategory},
-    storage_schema::TaskStorageAccessors,
+    backing_storage::SnapshotItem,
 };
+
+/// How long a GC root has gone without being observed live, as stored in the persisted roots map.
+///
+/// This replaces a bare "last anchored at" timestamp that every pass had to *rewrite* to assert
+/// liveness. Rewriting was both fragile and wasteful:
+/// - Restoring a task from disk does not dirty it, so a fully cached session could observe a root
+///   live and still persist nothing — the refresh was silently dropped and the root eventually aged
+///   out despite being alive in every session.
+/// - A fresh timestamp per pass meant the encoded map differed every time, so the write could never
+///   be skipped even in perfect steady state.
+///
+/// [`TtlCounter::MostRecent`] is a *stable* value: a root that stays live re-encodes identically
+/// across passes and sessions, so there is nothing to rewrite and the TTL clock simply never
+/// starts. The clock starts only when a root stops being live, which is what the TTL is meant to
+/// measure.
+#[derive(Encode, Decode, Clone, Copy, PartialEq, Eq, Debug)]
+pub enum TtlCounter {
+    /// Observed live (a durable, anchored root) in the most recent session. Never ages out.
+    MostRecent,
+    /// The root was not live as of the first GC pass of some session; the value is that pass's
+    /// wall-clock millis since the Unix epoch. The TTL runs from here. Re-observing the root
+    /// promotes it back to [`Self::MostRecent`].
+    ///
+    /// If it later proves useful to distinguish "live one session ago" from "live many sessions
+    /// ago", `MostRecent` can gain a small generation counter without changing these transitions.
+    FirstStale(u64),
+}
 
 /// One unit of GC work. Parallelism is *across* jobs (the unbounded pool in
 /// [`TurboTasksBackend::gc_collect`] runs many on different workers); each job is internally
@@ -188,23 +219,23 @@ impl TurboTasksBackend {
     /// tasks are left resident with their `deleted` flag set, and the next snapshot derives the
     /// tombstones from that flag (see `snapshot_and_persist`).
     /// Runs a GC pass and returns its stats plus the reconciled GC roots map (task ->
-    /// last-anchored-ms) to persist in the same snapshot commit. The roots map is loaded from disk
-    /// at the start of the pass and lives only for its duration — it's per-pass state, not backend
-    /// state, so nothing is held resident between passes (and a backend that never GCs never reads
-    /// it).
+    /// [`TtlCounter`]) to persist in the same snapshot commit, or `None` when the set is unchanged
+    /// and the write can be skipped. The roots map is loaded from disk at the start of the pass and
+    /// lives only for its duration — it's per-pass state, not backend state, so nothing is held
+    /// resident between passes (and a backend that never GCs never reads it).
     pub(crate) fn gc_collect(
         &self,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
-    ) -> (GcStats, Vec<(TaskId, u64)>) {
+    ) -> (GcStats, Option<Vec<(TaskId, TtlCounter)>>) {
         // A single wall-clock reading for the whole pass: every root touched here (scan-time
         // resident roots, refreshed roots, and cascade-discovered roots) is stamped with the *same*
         // `now`, so within one pass all timestamps are consistent (and it's one syscall, not
         // three).
         let now = Self::now_ms();
 
-        // Load the previous session's roots map (task id -> last-anchored millis; empty on a fresh
-        // or non-persistent database). Maintained locally through this pass and returned
-        // for persistence.
+        // Load the previous session's roots map (task id -> `TtlCounter`; empty on a fresh or
+        // non-persistent database). Maintained locally through this pass and returned for
+        // persistence.
         let mut roots = self
             .backing_storage
             .roots()
@@ -216,7 +247,15 @@ impl TurboTasksBackend {
                 Vec::new()
             })
             .into_iter()
-            .collect::<FxHashMap<TaskId, u64>>();
+            .collect::<FxHashMap<TaskId, TtlCounter>>();
+        // Snapshot of what is on disk, so the pass can skip rewriting an unchanged set. Cheap
+        // because `TtlCounter::MostRecent` is stable: a steady-state session produces an identical
+        // map, unlike the old "stamp `now` on every live root" scheme, which differed every pass.
+        //
+        // Safe under the degraded read above: an unreadable key leaves this empty, so anything the
+        // pass rediscovers compares as *changed* and gets written, repairing the key rather than
+        // skipping past it.
+        let roots_before = roots.clone();
 
         // Seed the pool with the resident-map scan, split one job per shard. Each shard job applies
         // the cheap `gc_maybe_collectible` pre-filter (a handful of field reads per task under a
@@ -249,7 +288,10 @@ impl TurboTasksBackend {
         // the same `gc_is_root` predicate the scan uses, so a resident still-root is refreshed here
         // regardless. Roots the scan newly discovers are folded into the map after the pool drains,
         // which is what keeps the scan off the critical path.
-        let aged_out = self.gc_roots_refresh_and_age_out(&mut roots, now);
+        // Only the first pass of a session may demote a live root to `FirstStale`; see that
+        // function's doc. `swap` so exactly one pass observes `true`, whichever runs first.
+        let first_pass_of_session = self.first_gc_pass_of_session.swap(false, Ordering::Relaxed);
+        let aged_out = self.gc_roots_refresh_and_age_out(&mut roots, now, first_pass_of_session);
 
         // Aged-out roots are candidates for collection, but — unlike the pre-filtered resident
         // candidates the scan produces — they are not guaranteed collectible: one may have been
@@ -445,21 +487,28 @@ impl TurboTasksBackend {
             ControlFlow::Continue(())
         });
 
-        // Fold in the roots the shard scans found. Deferred to here (rather than passed into
-        // `gc_roots_refresh_and_age_out`) so the scan never blocks the cascade: `or_insert` leaves
-        // an already-tracked root's refreshed timestamp alone and only adds roots new to the map
-        // this session.
+        // Fold in the roots the shard scans found, plus those the cascade discovered
+        // (orphaned-but-not-collected children — anchored, so they just became durable roots).
+        // Deferred to here rather than passed into `gc_roots_refresh_and_age_out` so the scan never
+        // blocks the cascade.
         //
-        // Then fold in roots discovered during the cascade (orphaned-but-not-collected children),
-        // same rule: new to the map → `now`; already tracked → keep the existing timestamp, since a
-        // cascade re-orphaning doesn't reset an already-running clock.
+        // Both sets were observed **live during this pass**, so both `insert` `MostRecent`
+        // unconditionally rather than `or_insert`.
+        //
+        // Today the two are equivalent: the `retain` above ran first over the carried-forward map
+        // using the *same* `gc_is_root` predicate on the same storage under the same exclusion, so
+        // any id the scan reports as anchored was already promoted there, and ids not in the map
+        // have no entry for `or_insert` to preserve. `insert` is still what we want — it states
+        // "this root was observed live" directly instead of silently depending on that coincidence,
+        // so it stays correct if the retain is ever narrowed or the scan learns to report roots the
+        // retain skipped.
         {
-            let map: &mut FxHashMap<TaskId, u64> = &mut roots;
+            let map: &mut FxHashMap<TaskId, TtlCounter> = &mut roots;
             for id in scanned_roots.into_inner() {
-                map.entry(id).or_insert(now);
+                map.insert(id, TtlCounter::MostRecent);
             }
             for id in discovered_roots.into_inner() {
-                map.entry(id).or_insert(now);
+                map.insert(id, TtlCounter::MostRecent);
             }
         };
 
@@ -475,7 +524,7 @@ impl TurboTasksBackend {
         // collected task fails `gc_is_root` so the scan won't report it), but ordering it this way
         // means a collect always wins, which is the safe direction: the task no longer exists.
         {
-            let map: &mut FxHashMap<TaskId, u64> = &mut roots;
+            let map: &mut FxHashMap<TaskId, TtlCounter> = &mut roots;
             for id in collected_ids.into_inner() {
                 map.remove(&id);
             }
@@ -489,7 +538,15 @@ impl TurboTasksBackend {
             interrupted: budget.was_interrupted(),
             abandoned: abandoned.into_inner(),
         };
-        (stats, roots.into_iter().collect())
+
+        // Skip the write when nothing about the root set changed. This is only worth doing because
+        // `MostRecent` is stable: under the old scheme every live root was stamped with a fresh
+        // `now` each pass, so the map always differed and the write was unskippable. Now the steady
+        // state — same roots, all still live — compares equal and leaves the `GcRoots` key
+        // untouched. Comparing two small in-memory maps is far cheaper than the encode + write it
+        // avoids.
+        let roots_to_persist = (roots != roots_before).then(|| roots.into_iter().collect());
+        (stats, roots_to_persist)
     }
 
     /// The GC root TTL for this pass. Precedence: the per-backend test override
@@ -554,15 +611,18 @@ impl TurboTasksBackend {
     /// `with_task`), which is both correct and the point — the roots we most want to age out are
     /// the non-resident ones, and we must not pull them back into memory just to look:
     /// - **resident and still a root** ([`TaskStorage::gc_is_root`]: `parent_count == 0 &&
-    ///   transient_ref_count > 0`) → refresh `last_anchored_ms = now`. Using the *full*
-    ///   `gc_is_root` predicate — not just `transient_ref_count > 0` — is what stops a resident
-    ///   task that regained a persistent parent from being refreshed forever as a stale "root" (it
-    ///   fails `gc_is_root`, so it ages out and is dropped).
-    /// - **resident but no longer a root**, or **not resident** → un-anchored: a non-resident task
+    ///   transient_ref_count > 0`) → [`TtlCounter::MostRecent`]. Using the *full* `gc_is_root`
+    ///   predicate — not just `transient_ref_count > 0` — is what stops a resident task that
+    ///   regained a persistent parent from being kept live forever as a stale "root" (it fails
+    ///   `gc_is_root`, so it goes stale and eventually ages out).
+    /// - **resident but no longer a root**, or **not resident** → not live: a non-resident task
     ///   holds no `transient_ref_count` (transient state is in-memory only) and was not re-anchored
-    ///   this session (re-anchoring restores it), so it is correctly treated as orphaned. Keep its
-    ///   timestamp; if `now - last_anchored_ms > TTL`, return it as a collection seed (the aged-out
-    ///   path in `gc_collect` restores + re-validates it before collecting).
+    ///   this session (re-anchoring restores it), so it is correctly treated as orphaned. A
+    ///   `MostRecent` entry becomes [`TtlCounter::FirstStale`]`(now)` — but **only when
+    ///   `first_pass_of_session`**, since a single pass missing a root does not mean the session
+    ///   did. An already-stale entry keeps its timestamp, and once `now - since > TTL` it is
+    ///   returned as a collection seed (the aged-out path in `gc_collect` restores + re-validates
+    ///   it before collecting).
     ///
     /// **The map is monotone: this function never removes an entry.** An aged-out root is only
     /// *seeded*; `gc_collect` removes it from the map after the collect job actually marked it
@@ -579,28 +639,28 @@ impl TurboTasksBackend {
     /// pins.
     fn gc_roots_refresh_and_age_out(
         &self,
-        map: &mut FxHashMap<TaskId, u64>,
+        map: &mut FxHashMap<TaskId, TtlCounter>,
         now: u64,
+        first_pass_of_session: bool,
     ) -> Vec<TaskId> {
         let ttl_ms = self.gc_root_ttl().as_millis() as u64;
 
         // Reconcile the carried-forward map (prior-session entries) first. Every entry is
         // re-classified by the *same* `gc_is_root` predicate the scan uses, so a resident root that
-        // is still a root is refreshed here — we don't need `resident_roots` to touch it.
+        // is still a root is promoted here — we don't need `resident_roots` to touch it.
         let mut aged_out = Vec::new();
-        map.retain(|&id, last_anchored| {
-            // Non-inserting: a non-resident root reads as `None` → un-anchored → ages (which is
-            // what we want; we don't restore disk-only orphans just to check them). A
-            // resident task is a still-live root only if it passes the full
-            // `gc_is_root` (parent_count 0 AND anchored), so a re-parented resident
-            // task fails here and ages out of the map.
+        map.retain(|&id, counter| {
+            // Non-inserting: a non-resident root reads as `None` → not live (which is what we want;
+            // we don't restore disk-only orphans just to check them). A resident task is a
+            // still-live root only if it passes the full `gc_is_root` (parent_count 0 AND
+            // anchored), so a re-parented resident task fails here.
             match self
                 .storage
                 .with_task(id, |t| (t.gc_is_root(), t.gc_is_deleted()))
             {
                 // Already collected (soft-deleted, resident until the tombstone commit + hard
                 // delete). It is not a root any more and there is nothing left to collect, so drop
-                // the entry outright rather than letting it fall through to the aged-out branch —
+                // the entry outright rather than letting it fall through to the stale branch —
                 // which would re-seed it every pass forever (the revalidation always rejects a
                 // deleted task) and keep a dead id in the persisted set. This is the one case where
                 // an entry leaves the map *here* rather than via the collected-ids removal in
@@ -608,26 +668,42 @@ impl TurboTasksBackend {
                 // collected by an earlier pass in the same session is still resident when the next
                 // pass reads the map.
                 Some((_, true)) => return false,
-                // Still a live durable root: refresh its clock.
+                // Live: (re)assert `MostRecent`. Unconditional, so this both keeps a live root live
+                // and *promotes* one that had started aging — a root re-requested after a stale
+                // session gets its clock cleared, not merely paused. Writing the same value for an
+                // already-`MostRecent` root is what makes a steady-state map byte-identical.
                 Some((true, false)) => {
-                    *last_anchored = now;
+                    *counter = TtlCounter::MostRecent;
                     return true;
                 }
-                // Resident but no longer a root, or not resident at all: fall through to the
-                // age-out check below.
+                // Resident but no longer a root, or not resident at all: fall through.
                 Some((false, false)) | None => {}
             }
-            // Un-anchored: has it aged past the TTL? `now < last_anchored` (clock skew across
-            // sessions) is treated as not-yet-aged (saturating), never negative.
-            if now.saturating_sub(*last_anchored) > ttl_ms {
-                aged_out.push(id);
+            match *counter {
+                // Not live, and the previous session had it live. Start the clock — but only on the
+                // **first pass of this session**. GC runs on the snapshot cadence (many passes per
+                // session), and a live root can easily be missed by any single pass: it may be
+                // evicted, or simply not yet re-requested. Demoting on every pass would make the
+                // TTL measure idleness within a session rather than "was not live in a session",
+                // which is the property we actually want.
+                TtlCounter::MostRecent => {
+                    if first_pass_of_session {
+                        *counter = TtlCounter::FirstStale(now);
+                    }
+                }
+                // Already stale: leave the timestamp alone so the clock keeps running from when it
+                // first went stale, and seed it for collection once it is past the TTL.
+                // `now < since` (clock skew across sessions) is treated as not-yet-aged
+                // (saturating), never negative.
+                TtlCounter::FirstStale(since) => {
+                    if now.saturating_sub(since) > ttl_ms {
+                        aged_out.push(id);
+                    }
+                }
             }
             // Keep the entry either way — see the "monotone map" note in the doc comment. An
             // aged-out root is only *seeded* for collection here; the entry is removed by
-            // `gc_collect` after the task is actually marked deleted. Keeping its existing
-            // timestamp (rather than refreshing to `now`) means a root that repeatedly fails to be
-            // collected stays aged-out and is re-seeded every pass, instead of restarting its TTL
-            // clock.
+            // `gc_collect` after the task is actually marked deleted.
             true
         });
 
@@ -708,9 +784,25 @@ impl TurboTasksBackend {
         // Far beyond any real pass, so `should_stop`'s floor check never elapses.
         self.gc_min_progress_override_ms
             .store(u64::MAX / 2, Ordering::Relaxed);
-        let collected = self.gc_collect(turbo_tasks).0.collected;
+        let (stats, roots) = self.gc_collect(turbo_tasks);
         self.gc_min_progress_override_ms
             .store(prev, Ordering::Relaxed);
-        collected
+
+        // Persist the roots map this pass produced. Production does it via the `into_snapshot`
+        // handoff; this hook has no snapshot, so without an explicit write the pass's roots work
+        // would be computed and thrown away. That matters because the pass also *consumed* the
+        // session's one demotion opportunity (`first_gc_pass_of_session`): dropping the result
+        // would leave a root that went stale this session still marked `MostRecent`, and no later
+        // pass in this session would demote it again.
+        if let Some(roots) = roots
+            && let Err(err) = self.backing_storage.save_snapshot(
+                Vec::new(),
+                Some(roots),
+                Vec::<Vec<SnapshotItem>>::new(),
+            )
+        {
+            panic!("gc_for_testing: failed to persist GC roots: {err:?}");
+        }
+        stats.collected
     }
 }

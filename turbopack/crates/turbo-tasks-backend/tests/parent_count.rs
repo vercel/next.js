@@ -9,7 +9,9 @@ use turbo_tasks::{
     GcRoot, ResolvedVc, State, TaskId, TurboTasks, Vc, prevent_gc,
     unmark_top_level_task_may_leak_eventually_consistent_state,
 };
-use turbo_tasks_backend::{BackendOptions, EvictionMode, GitVersionInfo, TurboTasksBackend};
+use turbo_tasks_backend::{
+    BackendOptions, EvictionMode, GitVersionInfo, TtlCounter, TurboTasksBackend,
+};
 
 /// Creates a fresh per-call persistence directory rooted under `CARGO_TARGET_TMPDIR/.cache/`.
 fn create_test_persistence_dir(name: &str) -> tempfile::TempDir {
@@ -877,27 +879,48 @@ async fn gc_collects_cross_session_orphan_root() {
     };
 
     // Session 2: reopen, but NEVER request `root_with_child(42)` — it's a cross-session orphan.
-    // With TTL 0 the first GC pass ages it out of the roots map and collects it + its subtree.
+    //
+    // Two things have to happen for it to be reclaimed, and with `TURBO_ENGINE_GC_ROOT_TTL_MS = 0`
+    // both fit in this session: the session's *first* pass finds it un-anchored and demotes it from
+    // `MostRecent` to `FirstStale(now)`, starting its clock; a later pass (here, the shutdown
+    // snapshot) sees a `FirstStale` that is already past a zero TTL and collects it plus its
+    // subtree. With a production TTL the second step would instead wait out the deadline, so a root
+    // that was live last session always gets at least one full stale session of grace.
     {
         let tt = open_tt_at(dir.path());
         tt.backend().set_gc_root_ttl_for_testing(0);
         let tt2 = tt.clone();
         turbo_tasks::run_once(tt.clone(), async move {
             unmark_top_level_task_may_leak_eventually_consistent_state();
+            // The first pass only starts the clock — a root live in the previous session is never
+            // collected by the very pass that notices it went away.
             let collected = tt2.backend().gc_for_testing(&tt2);
-            assert!(
-                collected >= 2,
-                "the orphaned root and its child should be collected (got {collected})"
+            assert_eq!(
+                collected, 0,
+                "the first stale pass only starts the TTL clock (got {collected})"
             );
-            let _ = root_id;
             anyhow::Ok(())
         })
         .await
         .unwrap();
+        let roots = tt.backend().persisted_gc_roots_for_testing();
+        assert!(
+            roots
+                .iter()
+                .any(|(id, c)| *id == root_id && matches!(c, TtlCounter::FirstStale(_))),
+            "the un-anchored root should have started its TTL clock; got {roots:?}"
+        );
+
+        // The shutdown snapshot's pass then ages it out and collects it.
         tt.stop_and_wait().await;
+        let roots = tt.backend().persisted_gc_roots_for_testing();
+        assert!(
+            !roots.iter().any(|(id, _)| *id == root_id),
+            "a collected root must be dropped from the map; got {roots:?}"
+        );
     }
 
-    // Session 3: reopen and confirm re-requesting recomputes cleanly (no dangling refs from the
+    // Session 4: reopen and confirm re-requesting recomputes cleanly (no dangling refs from the
     // cross-session collection).
     {
         let tt = open_tt_at(dir.path());
@@ -978,7 +1001,10 @@ async fn gc_keeps_uncollected_aged_out_root_in_roots_map() {
         .await
         .unwrap();
 
-        // Outside the `run_once`, so this is the only GC pass between here and the assertions.
+        // Two passes: the first demotes both never-anchored roots to `FirstStale` (a root live in
+        // the previous session is never collected by the pass that first notices it is gone), the
+        // second sees a zero TTL already expired and collects the collectible one.
+        tt.backend().snapshot_and_evict_for_testing(&tt);
         tt.backend().snapshot_and_evict_for_testing(&tt);
 
         let roots = tt.backend().persisted_gc_roots_for_testing();
@@ -999,98 +1025,363 @@ async fn gc_keeps_uncollected_aged_out_root_in_roots_map() {
     }
 }
 
-/// A root that is restored and observed **live** must have its refreshed timestamp persisted, even
-/// when the session modified nothing.
+/// A root that stays anchored **across** a session boundary keeps [`TtlCounter::MostRecent`], so
+/// its TTL clock never starts and it cannot age out however long the cache lives.
 ///
-/// Restoring a task from disk does not dirty it, so a perfectly cached graph can be reopened,
-/// re-read (cache hit, no recompute), and observed anchored while leaving `has_modifications`
-/// false. `snapshot_and_persist` used to return early in that case *before* handing the roots map
-/// to `save_snapshot`, silently dropping every refresh the pass computed.
+/// The roots map only exists for roots that *survive* a session — the pinned `ProjectContainer` op,
+/// a live endpoint. A root whose anchor is dropped mid-session is not "missed": the decref is
+/// authoritative, and the task becomes ordinary parentless garbage that the resident scan collects
+/// in-session, never reaching the roots map at all.
 ///
-/// That is a correctness bug, not a missed optimization: a rarely-changing route (an API route that
-/// is restored every session but never modified) would keep its original timestamp forever and
-/// eventually age out of the roots map — collected as a "cross-session orphan" even though every
-/// session had seen it alive. This test pins the sequence: session 2 refreshes-without-modifying,
-/// and session 3 must find the root still live rather than aged out.
+/// This replaced a per-pass timestamp refresh, which was fragile in exactly this case: restoring a
+/// task from disk does not dirty it, so a fully cached session could observe a root live and still
+/// leave `has_modifications` false — and the refresh was silently dropped. A long-lived anchored
+/// root would keep its original timestamp forever and eventually age out despite being alive in
+/// every session. With `MostRecent` there is nothing to refresh: a live root re-encodes to the same
+/// value, so a steady-state session has nothing to write and the root simply never ages.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn gc_persists_root_refresh_when_nothing_was_modified() {
-    let dir = create_test_persistence_dir("gc_persists_root_refresh_clean_pass");
+async fn gc_keeps_anchored_root_most_recent_across_sessions() {
+    let dir = create_test_persistence_dir("gc_anchored_root_stays_most_recent");
 
-    // Session 1: create the root and persist it, capturing its initial timestamp.
-    let (root_id, first_ts) = {
+    fn counter_of(tt: &Arc<TurboTasks<TurboTasksBackend>>, id: TaskId) -> Option<TtlCounter> {
+        tt.backend()
+            .persisted_gc_roots_for_testing()
+            .into_iter()
+            .find(|(r, _)| *r == id)
+            .map(|(_, c)| c)
+    }
+
+    // Session 1: create a parentless task and hold it with a `GcRoot` across the shutdown snapshot
+    // — the shape of a root that outlives a session (as a pinned container op does).
+    let root_id = {
         let tt = open_tt_at(dir.path());
-        let root_id = turbo_tasks::run_once(tt.clone(), async move {
-            unmark_top_level_task_may_leak_eventually_consistent_state();
-            let output = root_with_child(11);
-            assert_eq!(*output.read_strongly_consistent().await?, 12);
-            anyhow::Ok(output.task_id())
-        })
-        .await
-        .unwrap();
+        let tt2 = tt.clone();
+        let leaf_id = tt
+            .run(async move {
+                unmark_top_level_task_may_leak_eventually_consistent_state();
+                let leaf_vc = orphan_leaf(21);
+                let _ = *leaf_vc.await?;
+                Ok(task_id_of(leaf_vc.resolve().await?))
+            })
+            .await
+            .unwrap();
+        let guard = GcRoot::pin(tt2.clone(), leaf_id);
         tt.stop_and_wait().await;
-        let roots = tt.backend().persisted_gc_roots_for_testing();
-        let ts = roots
-            .iter()
-            .find(|(id, _)| *id == root_id)
-            .map(|(_, ts)| *ts)
-            .expect("session 1 should persist the root");
-        (root_id, ts)
+        drop(guard);
+        assert_eq!(
+            counter_of(&tt, leaf_id),
+            Some(TtlCounter::MostRecent),
+            "a root anchored across the shutdown snapshot should be tracked as MostRecent"
+        );
+        leaf_id
     };
 
-    // The stored timestamp is wall-clock millis, so make sure a later refresh is distinguishable
-    // from the original. This is the only place the test depends on real time passing.
-    std::thread::sleep(std::time::Duration::from_millis(5));
-
-    // Session 2: reopen and re-read the *same* value. The graph is fully cached, so the root is
-    // restored and reused without being modified — `has_modifications` is false. The GC pass must
-    // still persist the refreshed timestamp.
-    {
+    // Sessions 2 and 3: re-anchor the same task and hold the pin across each session's snapshot.
+    // Nothing is recomputed — the graph is fully cached — so under the old scheme the refresh would
+    // have been dropped here.
+    for session in 2..=3 {
         let tt = open_tt_at(dir.path());
+        let tt2 = tt.clone();
         turbo_tasks::run_once(tt.clone(), async move {
             unmark_top_level_task_may_leak_eventually_consistent_state();
-            // Identical read: a cache hit, no recompute, nothing dirtied.
-            assert_eq!(*root_with_child(11).read_strongly_consistent().await?, 12);
+            // Restore it so it has a resident entry to pin.
+            tt2.backend().assert_task_exists_for_testing(root_id, &tt2);
             anyhow::Ok(())
         })
         .await
         .unwrap();
+        let guard = GcRoot::pin(tt.clone(), root_id);
         tt.backend().snapshot_and_evict_for_testing(&tt);
-        tt.stop_and_wait().await;
-
-        let roots = tt.backend().persisted_gc_roots_for_testing();
-        let ts = roots
-            .iter()
-            .find(|(id, _)| *id == root_id)
-            .map(|(_, ts)| *ts)
-            .expect("the live root must still be tracked after a clean session");
-        assert!(
-            ts > first_ts,
-            "a restored, still-live root must have its refreshed timestamp persisted even when \
-             the session modified nothing (was {first_ts}, still {ts}); otherwise its TTL clock \
-             never restarts and it eventually ages out despite being alive every session"
+        assert_eq!(
+            counter_of(&tt, root_id),
+            Some(TtlCounter::MostRecent),
+            "a root still anchored in session {session} must stay MostRecent"
         );
+        tt.stop_and_wait().await;
+        drop(guard);
     }
 
-    // Session 3: with a zero TTL, an un-refreshed root would age out and be collected here. The
-    // refresh from session 2 is what keeps it alive — and re-reading it refreshes it again.
+    // Session 4: still anchored, and with a zero TTL anything that had started aging would be
+    // collected. A `MostRecent` root has no clock to run out, so it survives.
     {
         let tt = open_tt_at(dir.path());
         tt.backend().set_gc_root_ttl_for_testing(0);
         let tt2 = tt.clone();
         turbo_tasks::run_once(tt.clone(), async move {
             unmark_top_level_task_may_leak_eventually_consistent_state();
-            assert_eq!(*root_with_child(11).read_strongly_consistent().await?, 12);
-            let collected = tt2.backend().gc_for_testing(&tt2);
+            tt2.backend().assert_task_exists_for_testing(root_id, &tt2);
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+        let guard = GcRoot::pin(tt.clone(), root_id);
+        let collected = tt.backend().gc_for_testing(&tt);
+        assert_eq!(
+            collected, 0,
+            "an anchored root must not be collected even at TTL 0 (got {collected})"
+        );
+        assert_eq!(
+            counter_of(&tt, root_id).or(Some(TtlCounter::MostRecent)),
+            Some(TtlCounter::MostRecent),
+            "the anchored root must still be MostRecent"
+        );
+        tt.stop_and_wait().await;
+        drop(guard);
+    }
+}
+
+/// Demotion is **first-pass-only**: within one session, later passes must not restart or advance a
+/// root's TTL clock.
+///
+/// GC runs on the snapshot cadence, so a session contains many passes and a live root can easily be
+/// missed by any single one (evicted, or not yet re-requested). If every pass demoted, the TTL
+/// would measure idleness *within* a session rather than "was not live across a whole session".
+/// This pins the intended behaviour: several passes in one session produce exactly one `FirstStale`
+/// stamp, and its timestamp does not move.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn gc_demotes_only_on_the_first_pass_of_a_session() {
+    let dir = create_test_persistence_dir("gc_demotes_only_first_pass");
+
+    // Session 1: persist an anchored root so it starts as `MostRecent`.
+    let root_id = {
+        let tt = open_tt_at(dir.path());
+        let tt2 = tt.clone();
+        let leaf_id = tt
+            .run(async move {
+                unmark_top_level_task_may_leak_eventually_consistent_state();
+                let leaf_vc = orphan_leaf(31);
+                let _ = *leaf_vc.await?;
+                Ok(task_id_of(leaf_vc.resolve().await?))
+            })
+            .await
+            .unwrap();
+        let guard = GcRoot::pin(tt2.clone(), leaf_id);
+        tt.stop_and_wait().await;
+        drop(guard);
+        leaf_id
+    };
+
+    // Session 2: never re-anchor it. Use a long TTL so nothing is ever collected here — this test
+    // is only about *when* the clock starts, not about aging out.
+    {
+        let tt = open_tt_at(dir.path());
+        tt.backend().set_gc_root_ttl_for_testing(60_000);
+
+        let stale_after = |tt: &Arc<TurboTasks<TurboTasksBackend>>| {
+            tt.backend()
+                .persisted_gc_roots_for_testing()
+                .into_iter()
+                .find(|(r, _)| *r == root_id)
+                .and_then(|(_, c)| match c {
+                    TtlCounter::FirstStale(ts) => Some(ts),
+                    TtlCounter::MostRecent => None,
+                })
+        };
+
+        let tt2 = tt.clone();
+        turbo_tasks::run_once(tt.clone(), async move {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+            assert_eq!(tt2.backend().gc_for_testing(&tt2), 0);
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+        let first = stale_after(&tt).expect("the first pass of the session must start the clock");
+
+        // Several more passes in the *same* session. None may re-stamp the counter.
+        for pass in 2..=4 {
+            let tt2 = tt.clone();
+            turbo_tasks::run_once(tt.clone(), async move {
+                unmark_top_level_task_may_leak_eventually_consistent_state();
+                assert_eq!(tt2.backend().gc_for_testing(&tt2), 0);
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
             assert_eq!(
-                collected, 0,
-                "a root that is live in this session must not be collected (got {collected})"
+                stale_after(&tt),
+                Some(first),
+                "pass {pass} of the same session moved the TTL clock; only the first pass may \
+                 demote"
             );
+        }
+
+        tt.stop_and_wait().await;
+    }
+}
+
+/// A root that went stale and is then re-anchored is **promoted** back to `MostRecent`, clearing
+/// its clock rather than merely pausing it. Without this a route left alone for a while would stay
+/// permanently close to its deadline and could be collected on a later unlucky session despite
+/// being in active use again.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn gc_promotes_a_stale_root_back_to_most_recent() {
+    let dir = create_test_persistence_dir("gc_promotes_stale_root");
+
+    fn counter_of(tt: &Arc<TurboTasks<TurboTasksBackend>>, id: TaskId) -> Option<TtlCounter> {
+        tt.backend()
+            .persisted_gc_roots_for_testing()
+            .into_iter()
+            .find(|(r, _)| *r == id)
+            .map(|(_, c)| c)
+    }
+
+    // Session 1: anchored across shutdown -> MostRecent.
+    let root_id = {
+        let tt = open_tt_at(dir.path());
+        let tt2 = tt.clone();
+        let leaf_id = tt
+            .run(async move {
+                unmark_top_level_task_may_leak_eventually_consistent_state();
+                let leaf_vc = orphan_leaf(41);
+                let _ = *leaf_vc.await?;
+                Ok(task_id_of(leaf_vc.resolve().await?))
+            })
+            .await
+            .unwrap();
+        let guard = GcRoot::pin(tt2.clone(), leaf_id);
+        tt.stop_and_wait().await;
+        drop(guard);
+        assert_eq!(counter_of(&tt, leaf_id), Some(TtlCounter::MostRecent));
+        leaf_id
+    };
+
+    // Session 2: not anchored, long TTL -> demoted to FirstStale but not collected.
+    {
+        let tt = open_tt_at(dir.path());
+        tt.backend().set_gc_root_ttl_for_testing(60_000);
+        let tt2 = tt.clone();
+        turbo_tasks::run_once(tt.clone(), async move {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+            assert_eq!(tt2.backend().gc_for_testing(&tt2), 0);
             anyhow::Ok(())
         })
         .await
         .unwrap();
         tt.stop_and_wait().await;
+        assert!(
+            matches!(counter_of(&tt, root_id), Some(TtlCounter::FirstStale(_))),
+            "an un-anchored root should have started its clock"
+        );
     }
+
+    // Session 3: re-anchor it. The pass must promote it back to `MostRecent`.
+    {
+        let tt = open_tt_at(dir.path());
+        tt.backend().set_gc_root_ttl_for_testing(60_000);
+        let tt2 = tt.clone();
+        turbo_tasks::run_once(tt.clone(), async move {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+            tt2.backend().assert_task_exists_for_testing(root_id, &tt2);
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+        let guard = GcRoot::pin(tt.clone(), root_id);
+        tt.backend().snapshot_and_evict_for_testing(&tt);
+        assert_eq!(
+            counter_of(&tt, root_id),
+            Some(TtlCounter::MostRecent),
+            "re-anchoring a stale root must clear its clock, not just pause it"
+        );
+
+        tt.stop_and_wait().await;
+        drop(guard);
+    }
+
+    // Session 4: at TTL 0 a root still carrying a stale timestamp would be collected immediately.
+    // The promotion in session 3 is what saves it.
+    {
+        let tt = open_tt_at(dir.path());
+        tt.backend().set_gc_root_ttl_for_testing(0);
+        let tt2 = tt.clone();
+        turbo_tasks::run_once(tt.clone(), async move {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+            tt2.backend().assert_task_exists_for_testing(root_id, &tt2);
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+        let guard = GcRoot::pin(tt.clone(), root_id);
+        assert_eq!(
+            tt.backend().gc_for_testing(&tt),
+            0,
+            "a promoted, re-anchored root must not be collected"
+        );
+        tt.stop_and_wait().await;
+        drop(guard);
+    }
+}
+
+/// A pass whose root set is unchanged must not rewrite the `GcRoots` key.
+///
+/// This is the payoff of `MostRecent` being a *stable* value: the old scheme stamped every live
+/// root with a fresh `now` each pass, so the encoded map always differed and the write could never
+/// be skipped. Asserted by byte-identity of the persisted set across repeated steady-state passes —
+/// which is exactly what "nothing to write" looks like from outside.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn gc_skips_the_roots_write_when_the_set_is_unchanged() {
+    let (tt, _persistence_dir) = create_tt("gc_skips_unchanged_roots_write");
+
+    // An anchored root, held for the whole test so the set is genuinely steady.
+    let leaf_id = tt
+        .run(async move {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+            let leaf_vc = orphan_leaf(51);
+            let _ = *leaf_vc.await?;
+            Ok(task_id_of(leaf_vc.resolve().await?))
+        })
+        .await
+        .unwrap();
+    let _guard = GcRoot::pin(tt.clone(), leaf_id);
+
+    // Settle: one pass to establish the steady-state set.
+    tt.backend().snapshot_and_evict_for_testing(&tt);
+    let baseline = tt.backend().persisted_gc_roots_for_testing();
+    assert!(
+        baseline
+            .iter()
+            .any(|(id, c)| *id == leaf_id && matches!(c, TtlCounter::MostRecent)),
+        "the anchored root should be tracked as MostRecent; got {baseline:?}"
+    );
+
+    // Further passes change nothing, so each must skip the write entirely. Counting writes is the
+    // load-bearing assertion: comparing the persisted set can't distinguish "skipped" from
+    // "rewrote the same bytes", which is what the old scheme could never do.
+    let writes_before = tt.backend().gc_roots_writes_for_testing();
+    for pass in 1..=3 {
+        tt.backend().snapshot_and_evict_for_testing(&tt);
+        assert_eq!(
+            tt.backend().gc_roots_writes_for_testing(),
+            writes_before,
+            "pass {pass} rewrote the roots set despite nothing changing; a stable MostRecent must \
+             compare equal so the write can be skipped"
+        );
+        assert_eq!(
+            tt.backend().persisted_gc_roots_for_testing(),
+            baseline,
+            "the persisted set must also be unchanged after pass {pass}"
+        );
+    }
+
+    // A real change must still be written, so the skip isn't just "never writes".
+    let extra_id = tt
+        .run(async move {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+            let leaf_vc = orphan_leaf(52);
+            let _ = *leaf_vc.await?;
+            Ok(task_id_of(leaf_vc.resolve().await?))
+        })
+        .await
+        .unwrap();
+    let _guard2 = GcRoot::pin(tt.clone(), extra_id);
+    tt.backend().snapshot_and_evict_for_testing(&tt);
+    assert!(
+        tt.backend().gc_roots_writes_for_testing() > writes_before,
+        "adding a root must produce a write; the skip must be conditional, not unconditional"
+    );
+
+    tt.stop_and_wait().await;
 }
 
 /// A root re-requested in the next session must NOT be collected: re-anchoring refreshes its
@@ -1178,6 +1469,15 @@ async fn gc_collect_scrubs_disk_only_forward_dep_target() {
         turbo_tasks::run_once(tt.clone(), async move {
             unmark_top_level_task_may_leak_eventually_consistent_state();
             // No panic in this pass is the assertion (the old guard fired inside CleanupOldEdges).
+            // Two passes: the first demotes the never-re-requested root from `MostRecent` to
+            // `FirstStale` (a root live last session always gets that grace), the second sees a
+            // zero TTL already expired and collects the subtree. The point of this test is the
+            // *cascade* — an `A` scrubbing a disk-only `B` — so it needs the collect to happen.
+            assert_eq!(
+                tt2.backend().gc_for_testing(&tt2),
+                0,
+                "the first stale pass only starts the TTL clock"
+            );
             let collected = tt2.backend().gc_for_testing(&tt2);
             assert!(
                 collected >= 1,
