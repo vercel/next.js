@@ -60,6 +60,12 @@ export function DevToolsHeader({
           justifyContent: 'center',
           borderRadius: '4px',
           color: 'var(--color-gray-900)',
+          // The 4px padding above is hit area, not spacing. Without this
+          // compensation the button's *box* sits flush against the header's
+          // 20px padding, leaving the visible X 24px from the panel's edge
+          // while the title's text starts at 20px. Pull it back so the icon
+          // optically aligns with the title and the panel content below it.
+          marginRight: '-4px',
         }}
       >
         <XIcon />
