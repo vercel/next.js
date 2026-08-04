@@ -2,8 +2,6 @@ import type { PrerenderManifest } from '../../../build'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
 import type { CacheControl } from '../cache-control'
 
-import { removeVariantsPrefix } from '../../variants/prefix'
-
 /**
  * A shared cache of cache controls for routes. This cache is used so we don't
  * have to modify the prerender manifest when we want to update the cache
@@ -42,20 +40,12 @@ export class SharedCacheControls {
     let cacheControl = SharedCacheControls.cacheControls.get(route)
     if (cacheControl) return cacheControl
 
-    // A variant combination is cached under its own key, so prefer the manifest
-    // entry for that exact combination. Combinations of one route genuinely do
-    // differ here: a variant value read outside a cache scope and passed into
-    // one can select a different `cacheLife`, which then describes the whole
-    // prerender, so the entries must not be shared.
-    //
-    // The fallback to the route's own entry is provisional, for a combination
-    // that has none — currently only an undeclared one, which is hashed into
-    // the path as though it had been declared. It disappears once an undeclared
-    // variant no longer partitions the cache and the route has a real
-    // variant-agnostic entry to answer with.
-    const prerenderData =
-      this.prerenderManifest.routes[route] ??
-      this.prerenderManifest.routes[removeVariantsPrefix(route)]
+    // A variant combination is cached under its own key and has a manifest
+    // entry under that same key, so the plain lookup finds it. Combinations of
+    // one route genuinely do differ here: a variant value read outside a cache
+    // scope and passed into one can select a different `cacheLife`, which then
+    // describes the whole prerender, so the entries must not be shared.
+    const prerenderData = this.prerenderManifest.routes[route]
 
     if (prerenderData) {
       const { initialRevalidateSeconds, initialExpireSeconds } = prerenderData
@@ -68,9 +58,7 @@ export class SharedCacheControls {
       }
     }
 
-    const dynamicPrerenderData =
-      this.prerenderManifest.dynamicRoutes[route] ??
-      this.prerenderManifest.dynamicRoutes[removeVariantsPrefix(route)]
+    const dynamicPrerenderData = this.prerenderManifest.dynamicRoutes[route]
 
     if (dynamicPrerenderData) {
       const { fallbackRevalidate, fallbackExpire } = dynamicPrerenderData

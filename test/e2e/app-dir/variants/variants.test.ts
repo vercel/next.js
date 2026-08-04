@@ -1,5 +1,6 @@
 import { isNextStart, nextTestSetup } from 'e2e-utils'
 import { findPort } from 'next-test-utils'
+import { hashVariants } from 'next/dist/server/variants/hash'
 
 import { startExternalServer } from './external-server.mjs'
 
@@ -107,7 +108,7 @@ describe('variants', () => {
     // The route declares combinations but has no params, so it builds no static
     // paths and the combinations are the only axis it is prerendered against.
     // Reading a variant above a boundary is only possible because of them: the
-    // value is baked, so there is nothing to postpone.
+    // value is baked, so it leaves no hole to resume.
     const dark = await next.render$('/paramless', undefined, {
       headers: { cookie: 'theme=dark' },
     })
@@ -146,6 +147,40 @@ describe('variants', () => {
         expect(response.headers.get('x-nextjs-cache')).toBe('HIT')
         expect(await response.text()).toContain(`<p id="theme">${theme}</p>`)
       }
+    })
+  }
+
+  if (isNextStart) {
+    it('should write one prerender manifest entry per declared combination', async () => {
+      const prerenderManifest = JSON.parse(
+        await next.readFile('.next/prerender-manifest.json')
+      )
+
+      const paramlessRoutes = Object.keys(prerenderManifest.routes)
+        .filter((route) => route.endsWith('/paramless'))
+        .sort()
+
+      // `paramless` declares two combinations and has no params, so the
+      // combinations are the only axis it is prerendered against. Each is
+      // written under its own hash, because each bakes different values and an
+      // entry describes the render that produced it, down to its cache control.
+      expect(paramlessRoutes).toEqual(
+        [
+          `/__variants/${hashVariants({
+            'theme@variants.ts': 'dark',
+            'locale@variants.ts': 'en',
+          })}/paramless`,
+          `/__variants/${hashVariants({
+            'theme@variants.ts': 'light',
+            'locale@variants.ts': 'en',
+          })}/paramless`,
+          // The clean path holds the prerender that omits every variant, which
+          // is what an undeclared combination is served from. Omitting a
+          // variant leaves a hole that only a resume can fill, so this entry
+          // exists only where the route is partially prerendered.
+          ...(process.env.__NEXT_CACHE_COMPONENTS ? ['/paramless'] : []),
+        ].sort()
+      )
     })
   }
 

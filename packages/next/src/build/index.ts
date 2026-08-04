@@ -478,28 +478,6 @@ function getPprAppPageClassification(
   }
 }
 
-/**
- * Whether `candidate` expires sooner than `current`, treating a missing value
- * and `false` (never revalidate) as the longest lifetime there is.
- *
- * Provisional, and used for one thing: choosing the safest lifetime for the
- * shared entry a route with variant combinations gets. See its only call site.
- */
-function revalidatesSooner(
-  candidate: Revalidate,
-  current: Revalidate | undefined
-): boolean {
-  if (candidate === false) {
-    return false
-  }
-
-  if (current === undefined || current === false) {
-    return true
-  }
-
-  return candidate < current
-}
-
 function getStaticAppPageClassification(
   route: string,
   result: { htmlSize?: number } | undefined
@@ -3697,7 +3675,15 @@ export default async function build(
                   }
                 }
 
-                const manifestRoute = {
+                // Keyed by the path the artifact was written to, so that each
+                // entry describes the render that produced it. A combination
+                // lands on its prefixed path and the route that omits variants
+                // on the clean one, which is what an undeclared combination
+                // resolves to. A route without variants writes the clean path
+                // as before.
+                prerenderManifest.routes[
+                  getVariantOutputPath(route.pathname, route.variantValues)
+                ] = {
                   initialStatus: status,
                   initialHeaders: meta.headers,
                   renderingMode: isAppPPREnabled
@@ -3714,44 +3700,6 @@ export default async function build(
                   dataRoute,
                   prefetchDataRoute,
                   allowHeader,
-                }
-
-                if (route.variantValues) {
-                  // A combination is looked up at runtime by the path its
-                  // artifact was written to, so it needs an entry of its own.
-                  // Without one it resolves to the entry below and inherits
-                  // another combination's cache control.
-                  prerenderManifest.routes[
-                    getVariantOutputPath(route.pathname, route.variantValues)
-                  ] = manifestRoute
-                }
-
-                // PROVISIONAL. This entry exists only because an *undeclared*
-                // combination is currently hashed into the path like a declared
-                // one, so it finds no entry of its own and needs something to
-                // fall back to. The route it describes has no artifact of its
-                // own: every combination was written under a hash.
-                //
-                // Since it stands for no particular combination, no
-                // combination's lifetime is the right value, and the shortest
-                // is merely the safe one: falling back can then only revalidate
-                // more often than a declared combination would, never less.
-                // Taking whichever combination was written last would instead
-                // make the value depend on `generateStaticVariants` order.
-                //
-                // Once an undeclared variant stops partitioning the cache, the
-                // route gets a real variant-agnostic render with a cache
-                // control of its own, and this, `revalidatesSooner`, and the
-                // fallback in `SharedCacheControls.get` all go away together.
-                if (
-                  !prerenderManifest.routes[route.pathname] ||
-                  revalidatesSooner(
-                    cacheControl.revalidate,
-                    prerenderManifest.routes[route.pathname]
-                      .initialRevalidateSeconds
-                  )
-                ) {
-                  prerenderManifest.routes[route.pathname] = manifestRoute
                 }
               } else {
                 hasRevalidateZero = true

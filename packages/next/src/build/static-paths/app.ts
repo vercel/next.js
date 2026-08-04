@@ -798,14 +798,6 @@ export async function generateRouteStaticParams(
 }
 
 /**
- * Collects the variant combinations a route declares, normalized to records
- * keyed by variant identity.
- *
- * Declared on the page rather than per params row, because a combination
- * applies to the whole route including its fallback shell, and a shell exists
- * precisely where no params are known.
- */
-/**
  * Multiplies the routes a page prerenders by the variant combinations it
  * declared, in place.
  *
@@ -820,12 +812,11 @@ export async function generateRouteStaticParams(
  * to carry. Without it a high-cardinality variant would grow the cache in
  * proportion to traffic rather than to what the route declared.
  *
- * Only where the route can postpone, though. Omitting a variant leaves a hole
- * that something has to fill, and without partial prerendering there is no
- * resume to fill it: whatever were prerendered would bake one combination and
- * then be served for every other. Such a route gets no shared entry, so an
- * undeclared combination renders per request instead, which is correct if
- * slower.
+ * Only where the route is partially prerendered, though. Omitting a variant
+ * leaves a hole that something has to fill, and without PPR there is no resume
+ * to fill it: whatever were prerendered would bake one combination and then be
+ * served for every other. Such a route gets no shared entry, so an undeclared
+ * combination renders per request instead, which is correct if slower.
  */
 export function expandPrerenderedRoutesByVariants(
   prerenderedRoutesByPathname: Map<string, PrerenderedRoute>,
@@ -855,6 +846,14 @@ export function expandPrerenderedRoutesByVariants(
   }
 }
 
+/**
+ * Collects the variant combinations a route declares, normalized to records
+ * keyed by variant identity.
+ *
+ * Declared on the page rather than per params row, because a combination
+ * applies to the whole route including its fallback shell, and a shell exists
+ * precisely where no params are known.
+ */
 export async function collectVariantCombinations(
   segments: ReadonlyArray<Readonly<Pick<AppSegment, 'generateStaticVariants'>>>,
   route: string

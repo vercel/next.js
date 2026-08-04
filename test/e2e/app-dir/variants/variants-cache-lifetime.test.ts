@@ -1,4 +1,5 @@
 import { isNextStart, nextTestSetup } from 'e2e-utils'
+import { hashVariants } from 'next/dist/server/variants/hash'
 
 describe('variants with a cache lifetime per combination', () => {
   const { next, skipped } = nextTestSetup({
@@ -42,6 +43,34 @@ describe('variants with a cache lifetime per combination', () => {
 
       expect(await light.text()).toContain('<p id="theme">light</p>')
       expect(light.headers.get('cache-control')).toContain('s-maxage=60')
+    })
+
+    it('should describe the prerender that omits variants on the clean path', async () => {
+      const prerenderManifest = JSON.parse(
+        await next.readFile('.next/prerender-manifest.json')
+      )
+
+      const lifetimeOf = (route: string) =>
+        prerenderManifest.routes[route]?.initialRevalidateSeconds
+
+      // The clean path is not a stand-in for the combinations: it holds the
+      // prerender that omits every variant, and that render never reaches the
+      // `cacheLife` call because the value selecting it is a hole. So its
+      // lifetime is the default rather than either combination's, and an entry
+      // means what the render under it produced.
+      expect(lifetimeOf('/lifetime/a')).toBe(false)
+
+      expect(
+        lifetimeOf(
+          `/__variants/${hashVariants({ 'theme@variants.ts': 'dark' })}/lifetime/a`
+        )
+      ).toBe(3600)
+
+      expect(
+        lifetimeOf(
+          `/__variants/${hashVariants({ 'theme@variants.ts': 'light' })}/lifetime/a`
+        )
+      ).toBe(60)
     })
   }
 })

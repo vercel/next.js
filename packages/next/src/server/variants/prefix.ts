@@ -27,9 +27,10 @@ export function hasVariantsPrefix(pathname: string): boolean {
 /**
  * Removes a variant prefix, yielding the route the path belongs to.
  *
- * Needed wherever something is keyed by route rather than by combination, such
- * as the prerender manifest: every combination of a route shares its cache
- * control, so a lookup there has to ask about the route, not the artifact.
+ * The prefix is transport, not part of any route's declared path, so it comes
+ * off before the request is matched. What the combination selects is decided
+ * afterwards from the values that travelled beside it, by keying the artifact
+ * rather than by matching a different route.
  */
 export function removeVariantsPrefix(pathname: string): string {
   const withoutPrefix = pathname.replace(VARIANTS_PREFIX_PATTERN, '')
