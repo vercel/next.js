@@ -897,11 +897,11 @@ export async function buildAppStaticPaths({
 
   const store = createWorkStore({
     page,
+    executionMode: 'request',
     renderOpts: {
       incrementalCache,
       cacheLifeProfiles,
       staticPageGenerationTimeout,
-      supportsDynamicResponse: true,
       cacheComponents,
       // generateStaticParams evaluation doesn't render pages, so instant
       // validation never runs here. The level value is irrelevant.

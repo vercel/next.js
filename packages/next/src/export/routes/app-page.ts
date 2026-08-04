@@ -81,6 +81,7 @@ export async function exportAppPage(
       pathname,
       query,
       fallbackRouteParams,
+      'prerender',
       renderOpts,
       undefined,
       sharedContext

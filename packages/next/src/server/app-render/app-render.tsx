@@ -18,6 +18,7 @@ import type { Readable } from 'node:stream'
 import {
   workAsyncStorage,
   type WorkStore,
+  type WorkStoreExecutionMode,
 } from '../app-render/work-async-storage.external'
 import type {
   InstantValidationSamples,
@@ -3127,6 +3128,7 @@ export type AppPageRender = (
   pagePath: string,
   query: NextParsedUrlQuery,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
+  executionMode: WorkStoreExecutionMode,
   renderOpts: RenderOpts,
   serverComponentsHmrCache: ServerComponentsHmrCache | undefined,
   sharedContext: AppSharedContext
@@ -3138,6 +3140,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
   pagePath,
   query,
   fallbackRouteParams,
+  executionMode,
   renderOpts,
   serverComponentsHmrCache,
   sharedContext
@@ -3202,6 +3205,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
 
   const workStore = createWorkStore({
     page: renderOpts.routeModule.definition.page,
+    executionMode,
     renderOpts,
     // @TODO move to workUnitStore of type Request
     isPrefetchRequest,
