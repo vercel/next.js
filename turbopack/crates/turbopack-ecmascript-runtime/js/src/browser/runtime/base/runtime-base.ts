@@ -13,6 +13,11 @@
 
 // Used in WebWorkers to tell the runtime about the chunk suffix
 declare var TURBOPACK_ASSET_SUFFIX: string
+// Used in WebWorkers to tell the runtime the base path the chunk URLs it was
+// handed were built with. Workers may be routed through a different prefix than
+// `assetPrefix` (`experimental.turbopackWorkerAssetPrefix`), in which case it
+// differs from the `CHUNK_BASE_PATH` baked into this runtime.
+declare var TURBOPACK_CHUNK_BASE_PATH: string | undefined
 // Used in WebWorkers to tell the runtime about the current chunk url since it
 // can't be detected via `document.currentScript`. Note it's stored in reversed
 // order to use `push` and `pop`
@@ -26,6 +31,20 @@ declare var CHUNK_LOAD_RETRY_MAX_ATTEMPTS: number
 declare var CHUNK_LOAD_RETRY_BASE_DELAY_MS: number
 declare var CHUNK_LOAD_RETRY_MAX_JITTER_MS: number
 declare const SUPPORT_COMPONENT_CHUNKS: boolean
+
+/**
+ * The base path the chunk URLs this runtime sees were built with.
+ *
+ * Normally that is `CHUNK_BASE_PATH`, but a worker is handed URLs built with
+ * `experimental.turbopackWorkerAssetPrefix` when that is set, and its bootstrap
+ * forwards the prefix it used. Normalizing with the other one would leave
+ * `registerChunk` resolving and awaiting two different keys of the same
+ * resolver map, and the entrypoint's chunks would never resolve.
+ */
+const EFFECTIVE_CHUNK_BASE_PATH =
+  typeof TURBOPACK_CHUNK_BASE_PATH === 'string'
+    ? TURBOPACK_CHUNK_BASE_PATH
+    : CHUNK_BASE_PATH
 
 interface TurbopackBrowserBaseContext<M> extends TurbopackBaseContext<M> {
   R: ResolvePathFromModule
@@ -341,7 +360,9 @@ function loadChunkByUrlInternal(
 function chunkUrlToPath(chunkUrl: ChunkUrl): ChunkPath {
   const src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''))
   return (
-    src.startsWith(CHUNK_BASE_PATH) ? src.slice(CHUNK_BASE_PATH.length) : src
+    src.startsWith(EFFECTIVE_CHUNK_BASE_PATH)
+      ? src.slice(EFFECTIVE_CHUNK_BASE_PATH.length)
+      : src
   ) as ChunkPath
 }
 
@@ -486,7 +507,7 @@ const CHUNK_PATH_NEEDS_ENCODING = /[^A-Za-z0-9\-_.!~*'()/]/
  */
 function getChunkRelativeUrl(
   chunkPath: ChunkPath | ChunkListPath,
-  basePath: string = CHUNK_BASE_PATH
+  basePath: string = EFFECTIVE_CHUNK_BASE_PATH
 ): ChunkUrl {
   // Most chunk paths need no escaping.
   const encodedPath = CHUNK_PATH_NEEDS_ENCODING.test(chunkPath)
@@ -519,8 +540,8 @@ function getPathFromScript(
   }
   const chunkUrl = chunkScript.src!
   const src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''))
-  const path = src.startsWith(CHUNK_BASE_PATH)
-    ? src.slice(CHUNK_BASE_PATH.length)
+  const path = src.startsWith(EFFECTIVE_CHUNK_BASE_PATH)
+    ? src.slice(EFFECTIVE_CHUNK_BASE_PATH.length)
     : src
   return path as ChunkPath | ChunkListPath
 }
