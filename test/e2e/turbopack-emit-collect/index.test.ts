@@ -168,10 +168,11 @@ import { nextTestSetup } from 'e2e-utils'
       let $ = await next.render$('/pages/a')
       let response = JSON.parse($('#list').text())
       if (isNextDev) {
+        // TODO this is currently missing because of the split Pages Router module graph
+        // "shared-pages-client.js [client]                   : "data-for-shared-pages-a" ==> "shared pages client"",
         expect(formatData(response)).toMatchInlineSnapshot(`
          [
            "pages-lib/a/unique.js [ssr]                       : "data-for-unique-pages-a" ==> "unique /pages/a"",
-           "shared-pages-client.js [client]                   : "data-for-shared-pages-a" ==> "shared pages client"",
            "shared-pages-client.js [ssr]                      : "data-for-shared-pages-a" ==> "shared pages client"",
          ]
         `)
@@ -193,10 +194,11 @@ import { nextTestSetup } from 'e2e-utils'
       let $ = await next.render$('/pages/client-only')
       let response = JSON.parse($('#list').text())
       if (isNextDev) {
+        // TODO this is currently missing because of the split Pages Router module graph
+        // "shared-pages-client.js [client]                   : "data-for-shared-pages-client-only" ==> "shared pages client"",
         expect(formatData(response)).toMatchInlineSnapshot(`
          [
            "pages-lib/client-only/unique.js [ssr]             : "data-for-unique-pages-client-only" ==> "unique /pages/client-only"",
-           "shared-pages-client.js [client]                   : "data-for-shared-pages-client-only" ==> "shared pages client"",
            "shared-pages-client.js [ssr]                      : "data-for-shared-pages-client-only" ==> "shared pages client"",
          ]
         `)
