@@ -441,6 +441,8 @@ To coordinate tags across instances:
 2. **`refreshTags()`** is called before each request. Your handler should read recent invalidation events from shared storage and update its local tag state.
 3. **`getExpiration()`** returns the most recent revalidation timestamp across all provided tags. The default implementation returns `Math.max(...timestamps, 0)`.
 
+Both this pattern and the in-`get()` tag check shown in the [external storage example](#external-storage-pattern) keep Redis as the single source of truth — the difference is where reads pay for it. Checking tags inside `get()` adds a storage round-trip to every cache read, which is the simplest correct setup. The local mirror instead syncs tag state once per request via `refreshTags()` (which is why that method exists), letting every cache read and `getExpiration()` call in the request check tags at memory speed. The trade-off is a propagation window of at most one request boundary for invalidations issued by other instances.
+
 Here's an example using Redis for distributed tag coordination:
 
 ```js filename="cache-handlers/distributed-tags.js"
