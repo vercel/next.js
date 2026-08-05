@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
-import { getAnnouncements, getUserNotes } from "@/lib/data";
+import { getAnnouncements, getNotes } from "@/lib/data";
 import { addNote, logout } from "./actions";
 import { UserProvider } from "./user-provider";
 import { UserBadge } from "./user-badge";
@@ -22,11 +22,8 @@ async function Announcements() {
 }
 
 async function Notes() {
-  // A Server Component reads the user for itself. `getCurrentUser()` is awaited
-  // here because it needs `user.id`; the private cache reuses the session
-  // instead of reading the cookie a second time.
-  const user = await getCurrentUser();
-  const notes = await getUserNotes(user.id);
+  // `getNotes()` resolves the user from the session, so there is no id to pass.
+  const notes = await getNotes();
 
   return (
     <section>
@@ -34,7 +31,9 @@ async function Notes() {
       <ul>
         {notes.map((note) => (
           <li key={note.id}>
-            <Link href={`/notes/${note.id}`}>{note.text}</Link>
+            <Link href={`/notes/${note.id}`} prefetch={true}>
+              {note.text}
+            </Link>
           </li>
         ))}
       </ul>

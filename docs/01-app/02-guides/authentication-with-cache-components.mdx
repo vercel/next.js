@@ -15,7 +15,7 @@ related:
     - app/api-reference/config/next-config-js/cacheComponents
 ---
 
-This guide shows how to read the user's session, show authenticated UI without slowing down the rest of the page, and cache data derived from the session, all with [Cache Components](/docs/app/getting-started/caching) enabled.
+With [Cache Components](/docs/app/getting-started/caching) enabled, a session read happens at request time, so it can't be prerendered into the static shell. Authenticated UI streams in behind a `<Suspense>` boundary instead, and data derived from the session can still be cached.
 
 The examples use [iron-session](https://github.com/vvo/iron-session) for encrypted cookie sessions, but the patterns apply to any session or authentication library. For a complete, runnable version, see the [with-iron-session-cache-components example](https://github.com/vercel/next.js/tree/canary/examples/with-iron-session-cache-components).
 
@@ -219,13 +219,21 @@ export function UserBadge() {
 
 ## Step 4: Cache session-derived data
 
-Now that you have the user, fetching their data is further work you can cache, either of two ways. Passing the user id into a plain [`use cache`](/docs/app/api-reference/directives/use-cache) function keeps the result on the server, keyed by the id (it becomes part of the [cache key](/docs/app/api-reference/directives/use-cache#cache-keys)), where a [`cacheTag`](/docs/app/api-reference/functions/cacheTag) can invalidate it later. Reading it inside a [`use cache: private`](/docs/app/api-reference/directives/use-cache-private) scope keeps it in the browser only, never on the server, which matters when requirements forbid storing certain data server-side, even ephemerally. The example passes the id, since these notes are tagged and refreshed when they change:
+Now that you have the user, fetching their data is further work you can cache, either of two ways. Passing the user id into a plain [`use cache`](/docs/app/api-reference/directives/use-cache) function keeps the result on the server, keyed by the id (it becomes part of the [cache key](/docs/app/api-reference/directives/use-cache#cache-keys)), where a [`cacheTag`](/docs/app/api-reference/functions/cacheTag) can invalidate it later. Reading it inside a [`use cache: private`](/docs/app/api-reference/directives/use-cache-private) scope keeps it in the browser only, never on the server, which matters when requirements forbid storing certain data server-side, even ephemerally. The example passes the id, since these notes are tagged and refreshed when they change.
+
+A plain `use cache` scope can't read `cookies()`, so the exported function resolves the user and passes the id inward:
 
 ```tsx filename="lib/data.ts"
 import 'server-only'
 import { cacheLife, cacheTag } from 'next/cache'
+import { getCurrentUser } from './auth'
 
-export async function getUserNotes(userId: string) {
+export async function getNotes() {
+  const user = await getCurrentUser()
+  return getNotesByUserId(user.id)
+}
+
+async function getNotesByUserId(userId: string) {
   'use cache'
   cacheTag(`notes:${userId}`)
   cacheLife('minutes')
@@ -236,12 +244,13 @@ export async function getUserNotes(userId: string) {
 }
 ```
 
-Call it from a Server Component that reads the user for its own rendering. Awaiting `getCurrentUser()` here is fine because it needs `user.id`, and the private cache means this reuses the session rather than reading it again:
+Keep `getNotesByUserId` unexported. An exported getter that takes a user id trusts its caller to pass the right one, and the wrong id returns another user's data. See [Data Access Layer](/docs/app/guides/data-security#data-access-layer).
+
+Call it from a Server Component that renders the notes. There's no user id to pass, and the `getCurrentUser()` call inside the getter hits the private cache, so the session isn't read again:
 
 ```tsx filename="app/page.tsx"
 async function Notes() {
-  const user = await getCurrentUser()
-  const notes = await getUserNotes(user.id)
+  const notes = await getNotes()
   // ...
 }
 ```
@@ -282,13 +291,15 @@ Cached reads already have a lifetime, so this mostly happens on its own. A `use 
 Two things keep it that way:
 
 - If you tune the lifetime with [`cacheLife`](/docs/app/api-reference/functions/cacheLife), keep `stale` at 30 seconds or more. Below that, the scope drops out of prefetching. See [`cacheLife` client cache behavior](/docs/app/api-reference/functions/cacheLife#client-cache-behavior).
-- A route that _also_ depends on the URL (a `params` or `searchParams` value) needs one more opt-in: set [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) so the router resolves that per-link data at prefetch time too.
+- A route that _also_ depends on the URL (a `params` or `searchParams` value) needs [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) on the links pointing at it. That opts into [runtime prefetching](/docs/app/guides/runtime-prefetching), which resolves the per-link data ahead of the click.
 
-```tsx filename="app/notes/[id]/page.tsx"
-export const prefetch = 'allow-runtime'
+```tsx filename="app/page.tsx"
+<Link href={`/notes/${note.id}`} prefetch={true}>
+  {note.text}
+</Link>
 ```
 
-A runtime prefetch fires as each link enters the viewport, one server invocation per link, so a page with many links to the same route (a sidebar of `/chat/[id]` links) triggers a prefetch per link. The [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) flag changes this, fetching one [App Shell](/docs/app/glossary#app-shell) per route instead. See [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching).
+The destination needs [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) for this, so enable the [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) flag or set `prefetch = 'partial'` on the segment. Add the prop where the wait is worth it: a runtime prefetch costs one server invocation per link, so a sidebar of `/chat/[id]` links pays that cost per item.
 
 ## Common pitfalls
 

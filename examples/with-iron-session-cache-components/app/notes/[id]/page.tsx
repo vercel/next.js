@@ -1,13 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
 import { getNote } from "@/lib/data";
-
-// This route depends on both the session cookie and the `id` param. Cookies are
-// already in the App Shell; `allow-runtime` also resolves the param at prefetch
-// time, so the note is ready before the click instead of streaming in after it.
-export const prefetch = "allow-runtime";
 
 async function Note({
   params,
@@ -15,8 +9,9 @@ async function Note({
   params: PageProps<"/notes/[id]">["params"];
 }) {
   const { id } = await params;
-  const user = await getCurrentUser();
-  const note = await getNote(user.id, id);
+  // `getNote()` resolves the user from the session, so a guessed id cannot
+  // reach another user's note.
+  const note = await getNote(id);
 
   if (!note) {
     notFound();

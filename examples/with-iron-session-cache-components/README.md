@@ -5,8 +5,8 @@ This example shows how to combine per-user authentication with [Cache Components
 The home page renders a shared, prerendered shell, then renders content that reads the session behind a `Suspense` boundary:
 
 - **Shared data** (`getAnnouncements`) uses [`use cache`](https://nextjs.org/docs/app/api-reference/directives/use-cache) and is part of the static shell.
-- **The current user** (`getCurrentUser`) uses [`use cache: private`](https://nextjs.org/docs/app/api-reference/directives/use-cache-private) so it can read the session cookie while staying out of the shared, server-stored cache.
-- **Per-user data** (`getUserNotes`) uses plain `use cache` with a [`cacheTag`](https://nextjs.org/docs/app/api-reference/functions/cacheTag), receiving the `userId` as an argument so it can be cached safely and invalidated with [`updateTag`](https://nextjs.org/docs/app/api-reference/functions/updateTag).
+- **The current user** (`getCurrentUser`) uses [`use cache: private`](https://nextjs.org/docs/app/api-reference/directives/use-cache-private) so it can read the session cookie while staying out of the shared, server-stored cache. It redirects when there is no signed-in user, so reads that start from it are protected.
+- **Per-user data** (`lib/data.ts`) exports getters that take no user id. They call `getCurrentUser` and pass the resolved id to an unexported plain `use cache` function with a [`cacheTag`](https://nextjs.org/docs/app/api-reference/functions/cacheTag), so it caches on the server and is invalidated with [`updateTag`](https://nextjs.org/docs/app/api-reference/functions/updateTag).
 
 The user data lives in memory (`lib/data.ts`) so the example runs without a database. Replace those functions with your own database queries, and verify passwords with a hashing library such as bcrypt.
 

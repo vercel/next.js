@@ -1,6 +1,7 @@
 import "server-only";
 
 import { cacheLife, cacheTag, updateTag } from "next/cache";
+import { getCurrentUser } from "./auth";
 
 // This file stands in for your database. The data lives in memory and resets
 // when the server restarts. In a real app, replace these functions with calls
@@ -14,7 +15,7 @@ type UserRecord = {
   password: string;
 };
 
-type Note = {
+export type Note = {
   id: string;
   text: string;
 };
@@ -60,10 +61,10 @@ export async function getAnnouncements() {
   ];
 }
 
-// Session-derived data. The user id is passed in as an argument instead of read from
-// the request, so this stays a plain `use cache` scope: the result is stored
-// on the server, keyed by `userId`, and tagged for targeted invalidation.
-export async function getUserNotes(userId: string): Promise<Note[]> {
+// Takes the id as an argument instead of reading the request, so this stays a
+// plain `use cache` scope. The result is stored on the server, keyed by
+// `userId`, and tagged for targeted invalidation.
+async function getNotesByUserId(userId: string): Promise<Note[]> {
   "use cache";
   cacheTag(`notes:${userId}`);
   cacheLife("minutes");
@@ -71,7 +72,7 @@ export async function getUserNotes(userId: string): Promise<Note[]> {
   return notesByUserId.get(userId) ?? [];
 }
 
-export async function getNote(
+async function getNoteById(
   userId: string,
   noteId: string,
 ): Promise<Note | null> {
@@ -83,6 +84,20 @@ export async function getNote(
   return notes.find((note) => note.id === noteId) ?? null;
 }
 
+// The exported readers resolve the user from the session, so there is no id for
+// a caller to get wrong.
+export async function getNotes(): Promise<Note[]> {
+  const user = await getCurrentUser();
+  return getNotesByUserId(user.id);
+}
+
+export async function getNote(noteId: string): Promise<Note | null> {
+  const user = await getCurrentUser();
+  return getNoteById(user.id, noteId);
+}
+
+// Writes go through a Server Action that has already checked the session, so
+// this takes the verified id. See Step 5 of the guide.
 export async function addUserNote(userId: string, text: string) {
   const existing = notesByUserId.get(userId) ?? [];
   const note: Note = { id: crypto.randomUUID(), text };
