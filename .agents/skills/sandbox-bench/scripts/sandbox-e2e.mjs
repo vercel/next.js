@@ -50,12 +50,9 @@ import {
 
 // Runtime provenance: the compiled server files prod app-page runtimes
 // are bundled from — BOTH bundlers, so changes touching only one still
-// move the fingerprint. Covers every server-side React layer the
-// runtime executes — Flight (react-server-dom-*), Fizz (react-dom
-// server), and the shared react-server runtime (hooks/cache) — because
-// a change confined to one layer leaves the other layers' files
-// byte-identical, and two genuinely different arms would fingerprint
-// the same.
+// move the fingerprint. One file per server-side React layer (Flight,
+// Fizz, shared react-server runtime): a change confined to one layer
+// leaves the other layers' files byte-identical.
 const FP_FILES = [
   'packages/next/dist/compiled/react-server-dom-turbopack-experimental/cjs/react-server-dom-turbopack-server.node.production.js',
   'packages/next/dist/compiled/react-server-dom-webpack-experimental/cjs/react-server-dom-webpack-server.node.production.js',
@@ -585,10 +582,8 @@ for arm in ${base} ${cand}; do
   echo "tree $arm ver=$V fp=$F"; [ "$V" != MISSING ]
   eval "VER_$arm=$V; FP_$arm=$F"
 done
-# Identical fingerprints are legitimate only when the arms differ in
-# files outside FP_FILES (e.g. client-only changes) — say so loudly at
-# boot instead of leaving it for the analysis footer, so a bad A/B is
-# caught before VM-hours are spent.
+# Identical fingerprints can be legitimate (arms differing only in
+# files outside FP_FILES, e.g. client-only changes), so warn, not fail.
 if [ "$FP_${base}" = "$FP_${cand}" ]; then
   echo "WARNING: arms fingerprint identically ($FP_${base}) — the hashed server bundles are byte-identical; verify the arms differ where intended"
 fi
@@ -687,11 +682,10 @@ wc -l /vercel/sandbox/results.jsonl`
       })
       // Profiled passes run strictly AFTER the timed runs — profiling
       // overhead must never touch the numbers.
-      // Alternate the arm order by VM index: within one VM the second
-      // arm runs warmer (page cache, CPU governor), which shows up as a
-      // uniform few-percent deflation of every function in that arm's
-      // profile. Balancing the order across VMs cancels the drift in
-      // cross-VM aggregates, so untouched code diffs to ~zero.
+      // Within one VM the second arm runs warmer (page cache, CPU
+      // governor) — a uniform few-percent deflation of every function
+      // in its profile. Alternating order across VMs cancels the drift
+      // in cross-VM aggregates.
       const profOrder = index % 2 === 1 ? `${cand} ${base}` : `${base} ${cand}`
       const prof = `set -e
 for arm in ${profOrder}; do
@@ -702,9 +696,8 @@ for arm in ${profOrder}; do
     || (tail -10 /tmp/prof.log; exit 1)
   echo "profiled $arm"
 done
-# Self-describing artifacts: record this VM's capture order so profile
-# analysis can split by order (order-drift check) without re-deriving
-# it from VM index parity.
+# Lets profile analysis split by capture order without re-deriving it
+# from VM index parity.
 echo "${profOrder}" > /vercel/sandbox/prof-order.txt
 cd /vercel/sandbox && tar -czf profiles.tgz prof-*`
       // Profile capture is best-effort: a failed pass or transfer on one VM
@@ -980,9 +973,9 @@ try {
   })
   const expSnap = await ensureExperimentSnapshot(cfg)
   if (cfg.prepare) {
-    // Terminal phase, not 'measuring': a prepare run launches no
-    // measurement VMs, and a stale 'measuring' status makes
-    // bench-status prescribe collecting data that never existed.
+    // A prepare run launches no measurement VMs; anything but a
+    // terminal phase here makes bench-status prescribe collecting
+    // data that never existed.
     writeStatus({ phase: 'prepared (caches only, no measurement)', expSnap })
     console.error(
       `prepared: arms + experiment snapshot ${expSnap}; exiting (--prepare)`

@@ -352,8 +352,8 @@ for arm in ${base} ${cand}; do
   echo "arm $arm ver=$V fp=$F"
   eval "VER_$arm=$V; FP_$arm=$F"
 done
-# Loud early warning; identical fingerprints are legitimate only when
-# the arms differ outside the hashed files (see sandbox-e2e.mjs).
+# Identical fingerprints can be legitimate (arms differing only in
+# files outside FP_FILES), so warn, not fail.
 if [ "$FP_${base}" = "$FP_${cand}" ]; then
   echo "WARNING: arms fingerprint identically ($FP_${base}) — the hashed React builds are byte-identical; verify the arms differ where intended"
 fi
@@ -423,8 +423,8 @@ wc -l /vercel/sandbox/results.jsonl`
       })
       // Strictly AFTER the timed runs — profiling never touches the
       // numbers. Best-effort: a failed pass must not kill collection.
-      // Alternate the arm order by VM index so the second-arm-runs-warmer
-      // drift cancels in cross-VM aggregates (see sandbox-e2e.mjs).
+      // Second-arm-runs-warmer drift cancels across VMs (see
+      // sandbox-e2e.mjs).
       const profOrder = index % 2 === 1 ? `${cand} ${base}` : `${base} ${cand}`
       const prof = `set -e
 cd /vercel/sandbox/fixture
@@ -435,7 +435,7 @@ for arm in ${profOrder}; do
   mkdir -p /vercel/sandbox/prof-$arm && mv build/profiles/* /vercel/sandbox/prof-$arm/
   echo "profiled $arm"
 done
-# Record capture order for order-drift checks (see sandbox-e2e.mjs).
+# Lets profile analysis split by capture order (see sandbox-e2e.mjs).
 echo "${profOrder}" > /vercel/sandbox/prof-order.txt
 cd /vercel/sandbox && tar -czf profiles.tgz prof-*`
       try {
