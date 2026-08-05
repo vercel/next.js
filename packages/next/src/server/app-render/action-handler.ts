@@ -81,6 +81,7 @@ import {
 import { computeCacheBustingSearchParam } from '../../shared/lib/router/utils/cache-busting-search-param'
 
 const INLINE_ACTION_PREFIX = '$$RSC_SERVER_ACTION_'
+const INVALID_ORIGIN_SENTINEL = '\x00INVALID_ORIGIN'
 
 /**
  * Checks if the app has any server actions defined in any runtime.
@@ -564,6 +565,17 @@ type HandleActionResult =
   /** The request turned out not to be a server action. */
   | null
 
+function parseOriginHost(originHeader: string): string {
+  if (originHeader === 'null') {
+    return 'null'
+  }
+  try {
+    return new URL(originHeader).host
+  } catch {
+    return INVALID_ORIGIN_SENTINEL
+  }
+}
+
 export async function handleAction({
   req,
   res,
@@ -657,14 +669,7 @@ export async function handleAction({
 
   const originHeader = req.headers['origin']
   const originHost =
-    typeof originHeader === 'string'
-      ? // 'null' is a valid origin e.g. from privacy-sensitive contexts like sandboxed iframes.
-        // However, these contexts can still send along credentials like cookies,
-        // so we need to check if they're allowed cross-origin requests.
-        originHeader === 'null'
-        ? 'null'
-        : new URL(originHeader).host
-      : undefined
+    typeof originHeader === 'string' ? parseOriginHost(originHeader) : undefined
   const host = parseHostHeader(req.headers)
 
   let warning: string | undefined = undefined
