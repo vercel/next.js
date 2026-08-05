@@ -54,20 +54,6 @@ export function hashVariants(variants: Record<string, string>): string {
 }
 
 /**
- * Hashes a combination that is already in its transport encoding.
- *
- * This exists for the edge adapter, which needs the path segment but never the
- * values: it receives them encoded and passes them on encoded. Going through
- * the canonical form directly rather than `hashVariants(decodeVariants(…))`
- * keeps it exact — the encoding *is* the canonical form, percent-escaped — and
- * avoids introducing a parse failure the adapter would have no sensible way to
- * handle, given it produced the value itself moments earlier.
- */
-export function hashEncodedVariants(encoded: string): string {
-  return hashCanonicalVariants(decodeURIComponent(encoded))
-}
-
-/**
  * Encodes a combination for transport in `NEXT_VARIANTS_HEADER`.
  *
  * Percent-encoding rather than base64 so the result is ASCII-safe for a header

@@ -32,6 +32,8 @@ import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-p
 import { NextDataPathnameNormalizer } from '../../normalizers/request/next-data'
 import { BasePathPathnameNormalizer } from '../../normalizers/request/base-path'
 import { VariantsPathnameNormalizer } from '../../normalizers/request/variants'
+import { readVariantsPrefixHash } from '../../variants/prefix'
+import { NEXT_VARIANTS_QUERY_PARAM } from '../../../lib/constants'
 
 import { addRequestMeta } from '../../request-meta'
 import { isRSCRequestHeader } from '../is-rsc-request'
@@ -761,12 +763,22 @@ export function getResolveRoutes(
               // detection because the prefix wraps the entire remaining public
               // path, locale included.
               //
-              // Only the path is dealt with here. The values it stands for are
-              // read from the internal header by the route module that renders
-              // the request, which is the one place a self-hosted and a
-              // deployed request both pass through: a deployment routes at the
-              // CDN and never runs this.
+              // The hash the prefix carries moves into the query as it comes
+              // off, because the route module that renders the request is what
+              // needs it and this strips the only other place it was written. A
+              // deployed request arrives with the same query parameter already
+              // set, by the routing rule that matched the prefix or by the
+              // platform's own matcher lifting the capture group, so the
+              // renderer reads one channel rather than one per mode.
               if (normalizers.variants) {
+                const variantsHash = readVariantsPrefixHash(
+                  parsedUrl.pathname || ''
+                )
+
+                if (variantsHash) {
+                  parsedUrl.query[NEXT_VARIANTS_QUERY_PARAM] = variantsHash
+                }
+
                 parsedUrl.pathname = normalizers.variants.normalize(
                   parsedUrl.pathname || ''
                 )

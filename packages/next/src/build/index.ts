@@ -38,6 +38,8 @@ import {
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   MATCHED_PATH_HEADER,
   NEXT_VARIANTS_HEADER,
+  NEXT_VARIANTS_QUERY_PARAM,
+  VARIANTS_PATH_PREFIX,
   type RSC_SEGMENTS_DIR_SUFFIX,
   type RSC_SEGMENT_SUFFIX,
 } from '../lib/constants'
@@ -83,6 +85,7 @@ import {
   SERVER_REFERENCE_MANIFEST,
   FUNCTIONS_CONFIG_MANIFEST,
   DYNAMIC_CSS_MANIFEST,
+  VARIANTS_MANIFEST,
   TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
   PREVIEW_PROPS_MANIFEST,
 } from '../shared/lib/constants'
@@ -100,6 +103,7 @@ import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getPagePath } from '../server/require'
 import { getVariantOutputPath } from '../server/variants/prefix'
 import type { VariantCombinationGroups } from '../server/variants/combinations'
+import type { VariantsManifest } from '../server/variants/manifest'
 import * as ciEnvironment from '../server/ci-info'
 import {
   turborepoTraceAccess,
@@ -156,7 +160,10 @@ import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
 import { installBindings } from './swc/install-bindings'
-import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
+import {
+  getNamedRouteRegex,
+  getRouteRegex,
+} from '../shared/lib/router/utils/route-regex'
 import { getFilesInDir } from '../lib/get-files-in-dir'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import {
@@ -478,6 +485,101 @@ function getPprAppPageClassification(
   }
 }
 
+/**
+ * Turns the per-page combination groups into the form the proxy matches
+ * against.
+ *
+ * Static routes are separated from dynamic ones so the proxy can answer the
+ * common case by lookup, and so a concrete page is never shadowed by a dynamic
+ * route that happens to match the same pathname. Dynamic routes keep the order
+ * `sortPages` gives them, which is the order route matching resolves them in
+ * everywhere else.
+ */
+function buildVariantsManifest(
+  groupsByPage: ReadonlyMap<string, VariantCombinationGroups>
+): VariantsManifest {
+  const manifest: VariantsManifest = {
+    version: 1,
+    staticRoutes: {},
+    dynamicRoutes: [],
+  }
+
+  const dynamicPages: string[] = []
+
+  for (const page of groupsByPage.keys()) {
+    if (isDynamicRoute(page)) {
+      dynamicPages.push(page)
+    } else {
+      const groups = groupsByPage.get(page)
+
+      if (groups) {
+        manifest.staticRoutes[page] = groups
+      }
+    }
+  }
+
+  for (const page of sortPages(dynamicPages)) {
+    const groups = groupsByPage.get(page)
+
+    if (groups) {
+      manifest.dynamicRoutes.push({
+        regex: getRouteRegex(page).re.source,
+        groups,
+      })
+    }
+  }
+
+  return manifest
+}
+
+/**
+ * Aliases of each variant route, matching the same page under a combination's
+ * prefix.
+ *
+ * A request normally reaches the origin with the prefix already translated
+ * away, because the routing output carries a rule whose source matches the
+ * prefix and whose destination is the bare page. But a request can also reach
+ * the origin having never been routed: a platform filling or revalidating a
+ * prerender builds that request from the artifact's own path, which is
+ * prefixed, so nothing translates it. The page still has to be resolvable then,
+ * and route matching is where that is decided.
+ *
+ * `page` stays bare so it names a real page with a real module, and only the
+ * regexes carry the prefix. The prefix is captured under the same name the
+ * routing rule uses, so a matcher that lifts capture groups into the query
+ * hands the combination on exactly as a routed request would have.
+ *
+ * The hash is matched by shape rather than enumerated, matching how the prefix
+ * is recognized everywhere else, and one alias therefore covers every
+ * combination of its page.
+ */
+function buildVariantRouteAliases(
+  pages: Iterable<string>
+): DynamicManifestRoute[] {
+  const aliases: DynamicManifestRoute[] = []
+
+  for (const page of pages) {
+    const routeRegex = getNamedRouteRegex(page, { prefixRouteKeys: true })
+
+    aliases.push({
+      page,
+      sourcePage: undefined,
+      regex: normalizeRouteRegex(
+        routeRegex.re.source.replace('^', `^/${VARIANTS_PATH_PREFIX}/[^/]+`)
+      ),
+      routeKeys: routeRegex.routeKeys,
+      namedRegex: routeRegex.namedRegex.replace(
+        '^',
+        `^/${VARIANTS_PATH_PREFIX}/(?<${NEXT_VARIANTS_QUERY_PARAM}>[^/]+)`
+      ),
+      skipInternalRouting: true,
+      variantsPrefixed: true,
+    })
+  }
+
+  return aliases
+}
+
 function getStaticAppPageClassification(
   route: string,
   result: { htmlSize?: number } | undefined
@@ -555,6 +657,15 @@ export type ManifestRoute = ManifestBuiltRoute & {
    * routers.
    */
   skipInternalRouting?: boolean
+
+  /**
+   * If true, this route matches an alternate path for its page rather than the
+   * page's own, so `regex` and `namedRegex` cannot be re-derived from `page`
+   * and have to be read from the entry. Set on the variant-prefixed aliases,
+   * which exist so a router outside Next.js can resolve a request that arrived
+   * under a combination's prefix.
+   */
+  variantsPrefixed?: boolean
 }
 
 type ManifestDataRoute = {
@@ -3059,6 +3170,22 @@ export default async function build(
         ),
       }
 
+      // The same combinations again, in the form the proxy needs. It runs
+      // before any routing of ours, so where the origin looks its route's
+      // groups up by name, the proxy has to match a pathname first and needs
+      // the regexes to do it.
+      //
+      // Written whenever the flag is on, empty map included, so that the proxy
+      // reads a file that is either present and current or absent because the
+      // feature is off, rather than having to tell a stale one from a missing
+      // one.
+      if (config.experimental.variants) {
+        await writeManifest(
+          path.join(distDir, SERVER_DIRECTORY, `${VARIANTS_MANIFEST}.json`),
+          buildVariantsManifest(variantCombinationGroupsByPage)
+        )
+      }
+
       // The variants header is only meaningful to a project that has variants,
       // and every route's `allowHeader` is part of the build output, so adding
       // it unconditionally would change the output of every project that does
@@ -3494,6 +3621,22 @@ export default async function build(
                       value: htmlLimitedBotsBypassRegexString,
                     },
                   ]
+                : []),
+              // A combination nobody declared cannot be served from any
+              // prerender of this route: without partial prerendering there is
+              // no hole to leave the variant in, so the request has to be
+              // rendered for itself. Bypassing is what keeps it out of the
+              // prerender's entry, so that a value nobody declared never seeds
+              // one and every such request shares no cached answer.
+              //
+              // The header is present in exactly that case. What a declared
+              // combination assigns is recovered at the origin from the hash in
+              // the path, so the proxy sends only what no combination covers,
+              // and a route that can be prerendered here at all is one whose
+              // every variant read is declared.
+              ...(!isRoutePPREnabled &&
+              variantCombinationGroupsByPage.get(page)?.length
+                ? [{ type: 'header' as const, key: NEXT_VARIANTS_HEADER }]
                 : []),
             ]
 
@@ -3965,6 +4108,11 @@ export default async function build(
                     ? cacheControl
                     : undefined
 
+                // Names the shell that was written for this combination, not
+                // the route it belongs to. An external router serves this file
+                // as it stands, so the bare pathname would hand every
+                // combination the shell that omits variants, which for a route
+                // reading one above its boundary is empty.
                 const fallback: Fallback = fallbackModeToFallbackField(
                   fallbackMode,
                   route.pathname
@@ -4387,6 +4535,12 @@ export default async function build(
 
           await writeManifest(pagesManifestPath, pagesManifest)
         })
+
+        if (config.experimental.variants) {
+          dynamicRoutes.push(
+            ...buildVariantRouteAliases(variantCombinationGroupsByPage.keys())
+          )
+        }
 
         // As we may have modified the dynamicRoutes, we need to sort the
         // dynamic routes by page.

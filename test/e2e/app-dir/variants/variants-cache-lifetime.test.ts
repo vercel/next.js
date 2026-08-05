@@ -1,20 +1,52 @@
 import { isNextStart, nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 import { hashVariants } from 'next/dist/server/variants/hash'
 
 describe('variants with a cache lifetime per combination', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/cache-lifetime',
-    // The proxy rewrites to an internal `/__variants/<hash>` path, which the
-    // Next.js router strips before it matches a route. Deployments route at the
-    // CDN instead, and the build output declares nothing for that prefix, so
-    // the rewritten request resolves to the 404 route. Enable once the build
-    // output carries the prefix.
-    skipDeployment: true,
+    skipDeployment: false,
   })
 
   if (skipped) {
     return
   }
+
+  it('should resolve a variant while revalidating a stale prerender', async () => {
+    // Revalidating rebuilds the request the origin sees, and a variant value
+    // has to survive that rebuild the same way it survives the first render.
+    // Nothing else in the suite lets an entry go stale, so this is the only
+    // place that path is taken: the tag makes it immediate rather than
+    // waiting out the route's lifetime.
+    const before = await next.render$('/lifetime/r', undefined, {
+      headers: { cookie: 'theme=dark' },
+    })
+
+    expect(before('#theme').text()).toBe('dark')
+
+    const renderedAt = before('#rendered-at').text()
+    expect(renderedAt).not.toBe('')
+
+    const revalidateRes = await next.fetch('/revalidate?tag=lifetime-r')
+    expect(revalidateRes.status).toBe(200)
+
+    // Waits for the entry to actually be replaced, which the variant value
+    // cannot show because it is `dark` before and after. A response still
+    // carrying the old stamp is the stale one being served while the
+    // revalidation runs behind it, and asserting on that would pass without
+    // the revalidating render ever having happened.
+    await retry(async () => {
+      const after = await next.render$('/lifetime/r', undefined, {
+        headers: { cookie: 'theme=dark' },
+      })
+
+      expect(after('#rendered-at').text()).not.toBe(renderedAt)
+
+      // The point of the test: the render that produced the replacement still
+      // resolved the variant.
+      expect(after('#theme').text()).toBe('dark')
+    })
+  })
 
   it('should resolve the variant the cache lifetime is selected from', async () => {
     const $ = await next.render$('/lifetime/a', undefined, {

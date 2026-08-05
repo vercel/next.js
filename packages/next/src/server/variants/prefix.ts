@@ -10,7 +10,7 @@ import { hashVariants } from './hash'
  * being applied at each site.
  */
 const VARIANTS_PREFIX_PATTERN = new RegExp(
-  `^/${VARIANTS_PATH_PREFIX}/[0-9a-z]+`
+  `^/${VARIANTS_PATH_PREFIX}/([0-9a-z]+)`
 )
 
 /**
@@ -22,6 +22,17 @@ const VARIANTS_PREFIX_PATTERN = new RegExp(
  */
 export function hasVariantsPrefix(pathname: string): boolean {
   return VARIANTS_PREFIX_PATTERN.test(pathname)
+}
+
+/**
+ * The combination hash a pathname's prefix names, or null when it carries none.
+ *
+ * Read before the prefix comes off, so that stripping the path does not also
+ * discard which combination the request resolved to. The hash is what the
+ * origin recovers the declared values from.
+ */
+export function readVariantsPrefixHash(pathname: string): string | null {
+  return VARIANTS_PREFIX_PATTERN.exec(pathname)?.[1] ?? null
 }
 
 /**

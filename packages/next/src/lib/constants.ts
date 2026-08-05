@@ -5,6 +5,22 @@ export const HTML_CONTENT_TYPE_HEADER = 'text/html; charset=utf-8'
 export const JSON_CONTENT_TYPE_HEADER = 'application/json; charset=utf-8'
 export const NEXT_QUERY_PARAM_PREFIX = 'nxtP'
 export const NEXT_INTERCEPTION_MARKER_PREFIX = 'nxtI'
+/**
+ * Carries the variant combination a request resolved to, as a capture group in
+ * the routing rules the build emits and therefore as a cache key input for a
+ * CDN that keys on them.
+ *
+ * Deliberately not `nxtP`-prefixed: that prefix means "route param", and
+ * `normalizeNextQueryParam` would turn this into a param named `variants`. This
+ * names no param, only the combination.
+ *
+ * It is also how the combination reaches the origin, which recovers the values
+ * it stands for from the build's own record of it. That makes this the one
+ * channel a request rebuilt from an artifact still arrives on, since such a
+ * request carries no headers of ours. The route module removes it from the
+ * query once read, so it never reaches a page's `searchParams`.
+ */
+export const NEXT_VARIANTS_QUERY_PARAM = 'nxtV'
 
 export const MATCHED_PATH_HEADER = 'x-matched-path'
 export const PRERENDER_REVALIDATE_HEADER = 'x-prerender-revalidate'

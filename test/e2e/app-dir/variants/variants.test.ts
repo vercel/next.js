@@ -1,20 +1,14 @@
-import { isNextStart, nextTestSetup } from 'e2e-utils'
+import { isNextDeploy, isNextStart, nextTestSetup } from 'e2e-utils'
 import { findPort } from 'next-test-utils'
 import { hashVariants } from 'next/dist/server/variants/hash'
+import { findVariantGroupsForPathname } from 'next/dist/server/variants/manifest'
 
 import { startExternalServer } from './external-server.mjs'
 
 describe('variants', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/default',
-    // The build output is right: a deployment declares a routable output per
-    // combination, and requesting one directly serves the artifact it was
-    // prerendered for. The proxy is what misses it, hashing every value it
-    // resolved into the path prefix while the build names an artifact by the
-    // declared subset alone, so the rewrite target has no output and resolves
-    // to the 404 route. Enable once the proxy projects onto the declared
-    // combination before hashing.
-    skipDeployment: true,
+    skipDeployment: false,
     // The proxy rewrites `/external` to a port that only exists once the
     // external server is listening, so Next.js is started by hand below.
     skipStart: true,
@@ -153,6 +147,41 @@ describe('variants', () => {
   }
 
   if (isNextStart) {
+    it('should let the proxy resolve a pathname to the combinations its route declared', async () => {
+      // The proxy runs before any routing of ours and has only a pathname, so
+      // it matches against this manifest rather than looking a route up by
+      // name. Getting that wrong is silent: the proxy would hash against the
+      // wrong key set and send the request to an output nobody wrote.
+      const variantsManifest = JSON.parse(
+        await next.readFile('.next/server/variants-manifest.json')
+      )
+
+      const keysFor = (pathname: string) =>
+        findVariantGroupsForPathname(variantsManifest, pathname)?.map(
+          (group) => group.keys
+        ) ?? null
+
+      const theme = 'theme@variants.ts'
+      const locale = 'locale@variants.ts'
+
+      // A route without dynamic segments is matched by pathname.
+      expect(keysFor('/paramless')).toEqual([[locale, theme]])
+
+      // One with them is matched by its route regex, for any param value.
+      expect(keysFor('/enumerated/anything')).toEqual([[locale, theme]])
+      expect(keysFor('/shell/anything')).toEqual([[locale, theme]])
+
+      // Declaring a different set of variants gives a different key set, which
+      // is what the proxy projects onto. Projecting onto another route's keys
+      // would produce a hash naming a combination this route never declared.
+      expect(keysFor('/on-demand/anything')).toEqual([[theme]])
+
+      // A route that declares nothing gets no prefix at all, and is served the
+      // artifact that bakes no variant.
+      expect(keysFor('/plain')).toBeNull()
+      expect(keysFor('/enumerated/a/deeper')).toBeNull()
+    })
+
     it('should derive every data route from the entry it belongs to', async () => {
       // An entry is keyed by the path its artifacts were written to, so its
       // `dataRoute` has to be derived from that same path. Deriving it from the
@@ -310,12 +339,28 @@ describe('variants', () => {
     expect($('#slug').last().text()).toBe('undeclared')
   })
 
+  it('should not expose the internal combination query parameter to the page', async () => {
+    // The combination travels to the origin as a query parameter, because that
+    // is the one channel both a routed request and one a platform rebuilt from
+    // an artifact arrive on. It names no param and is not the page's to see, so
+    // it must not reach `searchParams` the way a real query value does.
+    const $ = await next.render$('/search-params?q=1', undefined, {
+      headers: { cookie: 'theme=dark' },
+    })
+
+    expect($('#theme').text()).toBe('dark')
+    expect($('#search-params').last().text()).toBe('q')
+  })
+
   it('should resolve an undeclared combination when the param is read without a boundary', async () => {
     // No prerender exists for this combination, and `enumerated/[slug]` awaits
     // its param at the top level with no boundary above it, so there is nothing
-    // static to serve. The request resolves to the prerender that omits every
-    // variant, whose shell is empty for exactly that reason, and the resume
-    // renders the page against the values the request carries.
+    // static to serve either way. How the values reach the render differs by
+    // mode, which is the point of asserting it in both: with Cache Components
+    // the request takes the prerender that omits every variant, whose shell is
+    // empty for exactly that reason, and a resume fills it. Without them there
+    // are no holes to fill, so the request has to be rendered for itself and
+    // must not seed the entry the declared combinations are served from.
     const $ = await next.render$('/enumerated/a', undefined, {
       headers: { cookie: 'theme=dark; locale=de' },
     })
@@ -325,12 +370,16 @@ describe('variants', () => {
     expect($('#slug').text()).toBe('a')
   })
 
-  it('should not decorate a rewrite to another origin', async () => {
-    const $ = await next.render$('/external')
+  // The other origin is a server on this machine's loopback interface, which a
+  // deployment cannot reach, so this one is inherently self-hosted.
+  if (!isNextDeploy) {
+    it('should not decorate a rewrite to another origin', async () => {
+      const $ = await next.render$('/external')
 
-    expect($('#external').text()).toBe('external')
-    // A decorated destination would arrive as `/__variants/<packed>/external`,
-    // which the other origin knows nothing about and would not strip.
-    expect(externalServer.getReceivedUrls()).toEqual(['/external'])
-  })
+      expect($('#external').text()).toBe('external')
+      // A decorated destination would arrive as `/__variants/<hash>/external`,
+      // which the other origin knows nothing about and would not strip.
+      expect(externalServer.getReceivedUrls()).toEqual(['/external'])
+    })
+  }
 })

@@ -38,7 +38,11 @@ import { getEdgePreviewProps } from './get-edge-preview-props'
 import { getBuiltinRequestContext } from '../after/builtin-request-context'
 import { getImplicitTags } from '../lib/implicit-tags'
 import { NEXT_VARIANTS_HEADER } from '../../lib/constants'
-import { hashEncodedVariants } from '../variants/hash'
+import { decodeVariants, encodeVariants } from '../variants/hash'
+import { getProxyTarget } from '../variants/target'
+import { findMatchingVariantCombination } from '../variants/combinations'
+import type { VariantsManifest } from '../variants/manifest'
+import { findVariantGroupsForPathname } from '../variants/manifest'
 import { insertVariantsPrefix } from '../variants/prefix'
 import { isRSCRequestHeader } from '../lib/is-rsc-request'
 import { setRequestMeta } from '../request-meta'
@@ -96,6 +100,76 @@ export type AdapterOptions = {
   IncrementalCache?: typeof import('../lib/incremental-cache').IncrementalCache
   incrementalCacheHandler?: typeof import('../lib/incremental-cache').CacheHandler
   bypassNextUrl?: boolean
+  /**
+   * The combinations each route declared, supplied by the entry that loaded it
+   * from disk. Absent for an edge proxy, which has no filesystem, and for a
+   * project without variants.
+   */
+  variantsManifest?: VariantsManifest
+}
+
+/**
+ * The combination a request matched for the route that will render it, or null
+ * when it matched none.
+ *
+ * Null covers three cases that are the same to a caller: the route declared no
+ * combinations, the resolved values match none it declared, or nothing was
+ * loaded to match against. Each means no artifact is named by these values, so
+ * the request is served the one that bakes no variant.
+ */
+function matchVariantsForTarget(
+  manifest: VariantsManifest | undefined,
+  targetPathname: string,
+  variants: Record<string, string>,
+  basePath: string | undefined
+): { values: Record<string, string>; hash: string } | null {
+  if (!manifest) {
+    return null
+  }
+
+  // The manifest is keyed by route, which carries no base path, while the
+  // target does.
+  const pathname =
+    basePath && basePath !== '/' && targetPathname.startsWith(basePath)
+      ? targetPathname.slice(basePath.length) || '/'
+      : targetPathname
+
+  const groups = findVariantGroupsForPathname(manifest, pathname)
+
+  if (!groups) {
+    return null
+  }
+
+  return findMatchingVariantCombination(groups, variants)
+}
+
+/**
+ * Re-encodes the resolved values without the ones the matched combination
+ * already fixes, or null when it fixes all of them.
+ *
+ * What the combination assigns is recorded in the build and recovered at the
+ * origin from the hash in the path, so carrying it in the header too would send
+ * the same decision twice over a channel that does not always survive. What is
+ * left is the part no artifact can stand for, and it is the only part a render
+ * cannot obtain any other way.
+ */
+function encodeUndeclaredVariants(
+  variants: Record<string, string>,
+  declared: Record<string, string>
+): string | null {
+  const undeclared: Record<string, string> = {}
+  let hasUndeclared = false
+
+  for (const [key, value] of Object.entries(variants)) {
+    if (key in declared) {
+      continue
+    }
+
+    undeclared[key] = value
+    hasUndeclared = true
+  }
+
+  return hasUndeclared ? encodeVariants(undeclared) : null
 }
 
 // This has to be compatible with what the Vercel builder does as well:
@@ -534,13 +608,22 @@ export async function adapter(
    * internal protocol header that tells routing which path to serve. Nothing on
    * the client reads it.
    *
-   * The path receives only the combination's hash, which is what selects the
-   * prerender to serve. The values themselves continue to the origin as a
-   * request header, because a hash cannot be read back and a render needs the
-   * values: it is what lets a combination nobody enumerated still render.
+   * The path receives only the hash of the combination the request *matched*,
+   * which is what names the artifact to serve.
    *
-   * The wrapper hands them over as a *response* header, which is dropped here
-   * in favour of the request header override, so that the values reach the
+   * Only the values that hash covers are left out of the header. The origin
+   * recovers those from the build's own record of the combination, so sending
+   * them again would be a second copy of something already decided, and a
+   * request rebuilt from an artifact carries no header at all yet still has to
+   * resolve them. What the hash cannot express does travel, because a variant
+   * nobody declared has no other way to reach the render.
+   *
+   * A route whose every read is declared therefore sends no header once it
+   * matches, and that absence is meaningful: it says the request is one a
+   * prerender can serve.
+   *
+   * The wrapper hands the values over as a *response* header, which is dropped
+   * here in favour of the request header override, so that they reach the
    * origin without also reaching the CDN or the browser.
    */
   if (response) {
@@ -549,31 +632,50 @@ export async function adapter(
     if (encodedVariants) {
       response.headers.delete(NEXT_VARIANTS_HEADER)
 
-      // Decorate the existing rewrite target when the proxy rewrote, otherwise
-      // turn the request URL into a self-rewrite so the prefix has somewhere to
-      // live.
-      const existingRewrite = response.headers.get('x-middleware-rewrite')
-      const target = new URL(existingRewrite ?? requestURL.toString())
-
       // An external rewrite is served by another origin, which knows nothing
       // about the prefix and will not strip it, so leave it undecorated. The
       // variant values are simply dropped: no route of ours renders this
       // request.
-      if (target.origin === requestURL.origin) {
-        target.pathname = insertVariantsPrefix(
+      const target = getProxyTarget(requestURL, response)
+      const resolvedVariants = decodeVariants(encodedVariants)
+
+      if (target && resolvedVariants) {
+        // Matched against the target rather than the incoming path, because a
+        // rewrite decides which route renders and routes declare different
+        // combinations. The proxy's own rewrite is therefore the thing that
+        // picks the key set to project onto.
+        const matchedVariants = matchVariantsForTarget(
+          params.variantsManifest,
           target.pathname,
-          hashEncodedVariants(encodedVariants),
+          resolvedVariants,
           params.request.nextConfig?.basePath
         )
 
-        response.headers.set('x-middleware-rewrite', target.toString())
+        // Only a declared combination names an artifact, so only it goes in the
+        // path. Anything else keeps the undecorated path and is served whatever
+        // that route bakes no variant into.
+        if (matchedVariants) {
+          target.pathname = insertVariantsPrefix(
+            target.pathname,
+            matchedVariants.hash,
+            params.request.nextConfig?.basePath
+          )
 
-        setRequestHeaderOverride(
-          response,
-          requestHeaders,
-          NEXT_VARIANTS_HEADER,
-          encodedVariants
-        )
+          response.headers.set('x-middleware-rewrite', target.toString())
+        }
+
+        const undeclaredVariants = matchedVariants
+          ? encodeUndeclaredVariants(resolvedVariants, matchedVariants.values)
+          : encodedVariants
+
+        if (undeclaredVariants) {
+          setRequestHeaderOverride(
+            response,
+            requestHeaders,
+            NEXT_VARIANTS_HEADER,
+            undeclaredVariants
+          )
+        }
       }
     }
   }

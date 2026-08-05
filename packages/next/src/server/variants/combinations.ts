@@ -2,11 +2,27 @@ import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import { hashVariants } from './hash'
 
 /**
- * The declared combinations that assign one particular set of variants, and the
- * hash of each. A combination need not assign every variant the route reads, so
- * a route can declare several groups: `[[theme, 'dark']]` and `[[theme,
- * 'light'], [locale, 'de']]` are two, and the variants a group leaves out stay
- * dynamic holes in the prerenders it produces.
+ * One declared combination: which values it assigns, and the hash naming the
+ * prerender produced for it.
+ */
+export interface VariantCombination {
+  /**
+   * Names the combination's prerender. Membership in a group is what makes a
+   * request's combination one that was declared.
+   */
+  hash: string
+  /**
+   * The values assigned, positional against the group's `keys`.
+   */
+  values: string[]
+}
+
+/**
+ * The declared combinations that assign one particular set of variants. A
+ * combination need not assign every variant the route reads, so a route can
+ * declare several groups: `[[theme, 'dark']]` and `[[theme, 'light'], [locale,
+ * 'de']]` are two, and the variants a group leaves out stay dynamic holes in
+ * the prerenders it produces.
  */
 export interface VariantCombinationGroup {
   /**
@@ -15,11 +31,16 @@ export interface VariantCombinationGroup {
    */
   keys: string[]
   /**
-   * The hash of each declared combination, which is also what names its
-   * prerender. Membership here is what makes a request's combination one that
-   * was declared.
+   * Every combination declared for this shape.
+   *
+   * The values are carried rather than only their hashes because a request does
+   * not always arrive with values beside it. A platform filling or revalidating
+   * a prerender rebuilds the request from the artifact, and all that survives
+   * that is the hash in the path. What a declared combination assigns is fixed
+   * at build time, so the origin can recover it here instead of depending on
+   * the request to carry it.
    */
-  hashes: string[]
+  combinations: VariantCombination[]
 }
 
 /**
@@ -51,11 +72,14 @@ export function groupVariantCombinations(
     let group = groupsBySignature.get(signature)
 
     if (!group) {
-      group = { keys, hashes: [] }
+      group = { keys, combinations: [] }
       groupsBySignature.set(signature, group)
     }
 
-    group.hashes.push(hashVariants(combination))
+    group.combinations.push({
+      hash: hashVariants(combination),
+      values: group.keys.map((key) => combination[key]),
+    })
   }
 
   return [...groupsBySignature.values()].sort(
@@ -64,26 +88,40 @@ export function groupVariantCombinations(
 }
 
 /**
- * Set of a group's hashes, built once per group rather than per request.
+ * A group's combinations by hash, with the values zipped back against the
+ * group's keys, built once per group rather than per request.
  *
  * The groups arrive as JSON from the prerender manifest, which is read once per
- * server, so the group objects are stable enough to key on and rebuilding the
- * set for every request would defeat the point of storing hashes at all.
+ * server, so the group objects are stable enough to key on and rebuilding this
+ * for every request would defeat the point of storing the combinations at all.
  */
-const hashesByGroup = new WeakMap<
+const combinationsByGroup = new WeakMap<
   DeepReadonly<VariantCombinationGroup>,
-  Set<string>
+  Map<string, Record<string, string>>
 >()
 
-function getHashes(group: DeepReadonly<VariantCombinationGroup>): Set<string> {
-  let hashes = hashesByGroup.get(group)
+function getCombinations(
+  group: DeepReadonly<VariantCombinationGroup>
+): Map<string, Record<string, string>> {
+  let combinations = combinationsByGroup.get(group)
 
-  if (!hashes) {
-    hashes = new Set(group.hashes)
-    hashesByGroup.set(group, hashes)
+  if (!combinations) {
+    combinations = new Map()
+
+    for (const { hash, values } of group.combinations) {
+      const assigned: Record<string, string> = {}
+
+      group.keys.forEach((key, index) => {
+        assigned[key] = values[index]
+      })
+
+      combinations.set(hash, assigned)
+    }
+
+    combinationsByGroup.set(group, combinations)
   }
 
-  return hashes
+  return combinations
 }
 
 /**
@@ -128,8 +166,36 @@ export function findMatchingVariantCombination(
 
     const hash = hashVariants(values)
 
-    if (getHashes(group).has(hash)) {
+    if (getCombinations(group).has(hash)) {
       return { values, hash }
+    }
+  }
+
+  return null
+}
+
+/**
+ * Recovers a declared combination from the hash that names it, or null when the
+ * hash names none of this route's combinations.
+ *
+ * This is how the origin learns what a request's artifact bakes. The hash
+ * travels in the path and survives everything, including a request a platform
+ * rebuilt from the artifact rather than routed, whereas the values travel in a
+ * header that such a request does not carry. Since only a declared combination
+ * ever reaches a hash, going through the build's own record of them is both
+ * sufficient and the one answer that cannot disagree with what was prerendered.
+ */
+export function findVariantCombinationByHash(
+  groups: DeepReadonly<VariantCombinationGroups>,
+  hash: string
+): { values: Record<string, string>; hash: string } | null {
+  for (const group of groups) {
+    const values = getCombinations(group).get(hash)
+
+    if (values) {
+      // Copied because the map is shared across requests and what a render
+      // receives should not be able to alter what the next one does.
+      return { values: { ...values }, hash }
     }
   }
 
@@ -143,6 +209,11 @@ export function findMatchingVariantCombination(
  * The split is what stores are seeded from, so that a render is given only what
  * it may bake: a static prerender receives the first half and nothing else, and
  * a variant it must not bake becomes one it does not have.
+ *
+ * The halves come from different places, so neither implies the other. The
+ * fixed half is the combination the build declared, recovered from the hash
+ * naming the artifact; the rest is whatever else the request carried. A render
+ * rebuilt from an artifact carries nothing, and still has a fixed half.
  */
 export function splitVariantsByTier(
   resolved: Readonly<Record<string, string>> | undefined,
@@ -151,20 +222,18 @@ export function splitVariantsByTier(
   staticVariants: Record<string, string> | null
   runtimeVariants: Record<string, string> | null
 } {
-  if (!resolved) {
-    return { staticVariants: null, runtimeVariants: null }
-  }
-
   const runtimeVariants: Record<string, string> = {}
   let hasRuntimeVariants = false
 
-  for (const key of Object.keys(resolved)) {
-    if (matched && key in matched.values) {
-      continue
-    }
+  if (resolved) {
+    for (const [key, value] of Object.entries(resolved)) {
+      if (matched && key in matched.values) {
+        continue
+      }
 
-    runtimeVariants[key] = resolved[key]
-    hasRuntimeVariants = true
+      runtimeVariants[key] = value
+      hasRuntimeVariants = true
+    }
   }
 
   return {

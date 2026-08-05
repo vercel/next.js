@@ -33,7 +33,7 @@ import { isNonHtmlSecFetchDest } from '../../server/lib/is-non-html-sec-fetch-de
 import { insertVariantsPrefix } from '../../server/variants/prefix' with { 'turbopack-transition': 'next-server-utility' }
 import { decodeVariants } from '../../server/variants/hash' with { 'turbopack-transition': 'next-server-utility' }
 import {
-  findMatchingVariantCombination,
+  findVariantCombinationByHash,
   splitVariantsByTier,
 } from '../../server/variants/combinations' with { 'turbopack-transition': 'next-server-utility' }
 import { UNDERSCORE_NOT_FOUND_ROUTE } from '../../shared/lib/entry-constants' with { 'turbopack-transition': 'next-server-utility' }
@@ -78,6 +78,7 @@ import {
   NEXT_RESUME_HEADER,
   NEXT_RESUME_STATE_LENGTH_HEADER,
   NEXT_VARIANTS_HEADER,
+  NEXT_VARIANTS_QUERY_PARAM,
 } from '../../lib/constants' with { 'turbopack-transition': 'next-server-utility' }
 import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags' with { 'turbopack-transition': 'next-server-utility' }
@@ -305,10 +306,8 @@ export function createAppPageEntrypoint({
     // one place instead of leaving a value to be produced by one server and
     // trusted by another.
     //
-    // The header carries the values while the pathname carries only their hash,
-    // which names a prerender but cannot be read back. Both are needed and
-    // neither implies the other: a variant nobody declared a combination for
-    // never reaches the path, and the render still has to resolve it.
+    // Only the variants no combination declared are taken from here. The rest
+    // come from the build, below.
     const encodedVariants = process.env.__NEXT_VARIANTS
       ? req.headers[NEXT_VARIANTS_HEADER]
       : undefined
@@ -318,12 +317,41 @@ export function createAppPageEntrypoint({
         ? (decodeVariants(encodedVariants) ?? undefined)
         : undefined
 
-    const matchedVariants = variantCombinationGroups?.length
-      ? findMatchingVariantCombination(
-          variantCombinationGroups,
-          resolvedVariants ?? {}
-        )
-      : null
+    // The combination is recovered from its hash against what the build
+    // declared, rather than by matching the values the request carried.
+    //
+    // A hash reaches this route only because a proxy resolved a declared
+    // combination and prefixed the path with it, so its presence already
+    // answers whether one matched, and the build's own record of that
+    // combination is what the artifact under that hash was prerendered from.
+    // Deriving it from the request instead would mean the values a render bakes
+    // could disagree with the ones its artifact was built for.
+    //
+    // It also has to work for a request that carries no values at all: a
+    // platform filling or revalidating a prerender rebuilds the request from
+    // the artifact, so the header is gone and the hash in the path is all that
+    // is left. The prefix is translated away before the origin matches a route,
+    // and the hash lands in this query parameter as it goes.
+    //
+    // Read from the routing query rather than the URL's, because the two modes
+    // disagree about where routing's own values live: deployed they are added
+    // to the URL the function is called with, self-hosted they are kept beside
+    // it so they stay out of `asPath`. This is the merge of both.
+    const variantsHash = process.env.__NEXT_VARIANTS
+      ? query[NEXT_VARIANTS_QUERY_PARAM]
+      : undefined
+
+    // Taken out of the query once read. It is transport, like the prefix it was
+    // lifted from, and `searchParams` is the page's view of what the client
+    // asked for rather than of how the request was routed.
+    if (typeof variantsHash === 'string') {
+      delete query[NEXT_VARIANTS_QUERY_PARAM]
+    }
+
+    const matchedVariants =
+      variantCombinationGroups?.length && typeof variantsHash === 'string'
+        ? findVariantCombinationByHash(variantCombinationGroups, variantsHash)
+        : null
 
     // Names the artifact a path stands for rather than the route it belongs to.
     // A combination's artifacts are written under its hash, so every cache key
@@ -1304,6 +1332,11 @@ export function createAppPageEntrypoint({
               // that every combination resolves to the same shell and a request
               // is served content prerendered for a combination other than its
               // own.
+              //
+              // `prerenderInfo.fallback` already names one, because the entry
+              // it came from is the one keyed by this combination. Only the
+              // route pattern fallen back to below is bare and needs the
+              // combination folded in.
               const fallbackCacheKey =
                 isProduction && typeof prerenderInfo?.fallback === 'string'
                   ? prerenderInfo.fallback
