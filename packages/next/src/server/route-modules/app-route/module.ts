@@ -14,6 +14,7 @@ import {
 } from '../route-module'
 import { createRequestStoreForAPI } from '../../async-storage/request-store'
 import {
+  createPrerenderWorkStore,
   createWorkStore,
   type WorkStoreContext,
 } from '../../async-storage/work-store'
@@ -1074,7 +1075,6 @@ export class AppRouteRouteModule extends RouteModule<
     const prepared = await this.prepareExecution(req, context)
     const workStore = createWorkStore({
       page: this.definition.page,
-      executionMode: 'request',
       renderOpts: context.renderOpts,
       buildId: context.sharedContext.buildId,
       deploymentId: context.sharedContext.deploymentId,
@@ -1089,9 +1089,8 @@ export class AppRouteRouteModule extends RouteModule<
     context: AppRouteRouteHandlerContext
   ): Promise<Response> {
     const prepared = await this.prepareExecution(req, context)
-    const workStore = createWorkStore({
+    const workStore = createPrerenderWorkStore({
       page: this.definition.page,
-      executionMode: 'prerender',
       renderOpts: context.renderOpts,
       buildId: context.sharedContext.buildId,
       deploymentId: context.sharedContext.deploymentId,

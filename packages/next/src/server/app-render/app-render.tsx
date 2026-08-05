@@ -87,7 +87,10 @@ import {
   createRequestStoreForRender,
 } from '../async-storage/request-store'
 import { isRSCRequestHeader } from '../lib/is-rsc-request'
-import { createWorkStore } from '../async-storage/work-store'
+import {
+  createPrerenderWorkStore,
+  createWorkStore,
+} from '../async-storage/work-store'
 import { formatValidationEvent } from './dev-validation-events'
 import { createSnapshot } from './async-local-storage'
 import {
@@ -3354,7 +3357,6 @@ export const renderToHTMLOrFlight: AppPageRender = (
     parsedRequestHeaders
   const workStore = createWorkStore({
     page: renderOpts.routeModule.definition.page,
-    executionMode: 'request',
     renderOpts,
     // @TODO move to workUnitStore of type Request
     isPrefetchRequest,
@@ -3401,9 +3403,8 @@ export const prerenderToHTMLOrFlight: AppPageRender = (
   )
   const { isPrefetchRequest, previouslyRevalidatedTags, nonce } =
     parsedRequestHeaders
-  const workStore = createWorkStore({
+  const workStore = createPrerenderWorkStore({
     page: renderOpts.routeModule.definition.page,
-    executionMode: 'prerender',
     renderOpts,
     // @TODO move to workUnitStore of type Request
     isPrefetchRequest,
@@ -6554,7 +6555,6 @@ function buildDevValidationWorkStore(
   })
 
   return {
-    executionMode: 'request',
     page: message.page,
     route: message.route,
     forceStatic: message.forceStatic,
@@ -8137,7 +8137,6 @@ async function validateInstantConfigInBuildWithSample(
 
   // NOTE: Matching the field order in `createWorkStore` to avoid deopting.
   const workStore: WorkStore = {
-    executionMode: 'request',
     page: outerWorkStore.page,
     route: outerWorkStore.route,
     incrementalCache: outerWorkStore.incrementalCache,

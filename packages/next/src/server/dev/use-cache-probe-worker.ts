@@ -197,7 +197,6 @@ function buildProbeWorkStore(msg: ProbeMessage): WorkStore {
   })
 
   return {
-    executionMode: 'request',
     page: msg.page,
     route: msg.route,
     useCacheProbeMode: { timeoutMs: msg.timeoutMs },
