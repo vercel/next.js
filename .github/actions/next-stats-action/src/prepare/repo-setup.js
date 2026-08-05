@@ -8,9 +8,18 @@ module.exports = (actionInfo) => {
   return {
     async cloneRepo(repoPath = '', dest = '', branch = '', depth = '20') {
       await fs.promises.rm(dest, { recursive: true, force: true })
-      await exec(
-        `git clone ${actionInfo.gitRoot}${repoPath} --single-branch --branch ${branch} --depth=${depth} ${dest}`
-      )
+      await exec.spawnPromise('git', {
+        args: [
+          'clone',
+          `${actionInfo.gitRoot}${repoPath}`,
+          '--single-branch',
+          '--branch',
+          branch,
+          `--depth=${depth}`,
+          dest,
+        ],
+        stdio: 'pipe',
+      })
     },
     async getLastStable() {
       const res = await fetch(
@@ -31,24 +40,66 @@ module.exports = (actionInfo) => {
       return data.tag_name
     },
     async getCommitId(repoDir = '') {
-      const { stdout } = await exec(`cd ${repoDir} && git rev-parse HEAD`)
+      const child = exec.spawn('git', {
+        args: ['rev-parse', 'HEAD'],
+        cwd: repoDir,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      })
+
+      let stdout = ''
+      child.stdout.on('data', (chunk) => {
+        stdout += chunk.toString()
+      })
+
+      await new Promise((resolve, reject) => {
+        child.on('error', reject)
+        child.on('exit', (code, signal) => {
+          if (code || signal) {
+            return reject(
+              new Error(`bad exit code/signal code: ${code} signal: ${signal}`)
+            )
+          }
+          resolve()
+        })
+      })
+
       return stdout.trim()
     },
     async resetToRef(ref = '', repoDir = '') {
-      await exec(`cd ${repoDir} && git reset --hard ${ref}`)
+      await exec.spawnPromise('git', {
+        args: ['reset', '--hard', ref],
+        cwd: repoDir,
+        stdio: 'pipe',
+      })
     },
     async mergeBranch(ref = '', origRepoDir = '', destRepoDir = '') {
-      await exec(`cd ${destRepoDir} && git remote add upstream ${origRepoDir}`)
-      await exec(`cd ${destRepoDir} && git fetch upstream`)
+      await exec.spawnPromise('git', {
+        args: ['remote', 'add', 'upstream', origRepoDir],
+        cwd: destRepoDir,
+        stdio: 'pipe',
+      })
+      await exec.spawnPromise('git', {
+        args: ['fetch', 'upstream'],
+        cwd: destRepoDir,
+        stdio: 'pipe',
+      })
 
       try {
-        await exec(`cd ${destRepoDir} && git merge upstream/${ref}`)
+        await exec.spawnPromise('git', {
+          args: ['merge', `upstream/${ref}`],
+          cwd: destRepoDir,
+          stdio: 'pipe',
+        })
         logger('Auto merge of main branch successful')
       } catch (err) {
         logger.error('Failed to auto merge main branch:', err)
 
         if (err.stdout && err.stdout.includes('CONFLICT')) {
-          await exec(`cd ${destRepoDir} && git merge --abort`)
+          await exec.spawnPromise('git', {
+            args: ['merge', '--abort'],
+            cwd: destRepoDir,
+            stdio: 'pipe',
+          })
           logger('aborted auto merge')
         }
       }
