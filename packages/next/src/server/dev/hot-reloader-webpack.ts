@@ -103,6 +103,7 @@ import {
   setReactDebugChannelForHtmlRequest,
   type ReactDebugChannelForBrowser,
 } from './debug-channel'
+import { setWithExpiry } from './expiring-map'
 import {
   getVersionInfo,
   matchNextPageBundleRequest,
@@ -1778,8 +1779,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       })
     } else {
       // If the client is not connected, store the status so that we can send it
-      // when the client connects.
-      this.cacheStatusesByRequestId.set(htmlRequestId, status)
+      // when the client connects. The entry expires if no client ever
+      // connects (e.g. curl or no-JS page loads).
+      setWithExpiry(this.cacheStatusesByRequestId, htmlRequestId, status)
     }
   }
 
