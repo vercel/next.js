@@ -248,12 +248,14 @@ export default class DevServer extends Server {
       process.env.TURBOPACK &&
       this.nextConfig.experimental.devValidationWorker !== false
     ) {
-      installDevValidationWorker({
-        distDir: this.distDir,
-        buildId: this.buildId,
-        deploymentId: this.deploymentId,
-        nextConfig: this.nextConfig,
-      })
+      this.onServerClose(
+        installDevValidationWorker({
+          distDir: this.distDir,
+          buildId: this.buildId,
+          deploymentId: this.deploymentId,
+          nextConfig: this.nextConfig,
+        })
+      )
     }
   }
 
