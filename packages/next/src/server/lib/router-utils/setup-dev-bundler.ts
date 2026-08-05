@@ -30,6 +30,7 @@ import { verifyAndRunTypeScript } from '../../../lib/verify-typescript-setup'
 import { verifyPartytownSetup } from '../../../lib/verify-partytown-setup'
 import { getNamedRouteRegex } from '../../../shared/lib/router/utils/route-regex'
 import { buildDataRoute } from './build-data-route'
+import { waitForInitialScan } from './watchpack-initial-scan'
 import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { createClientRouterFilter } from '../../../lib/create-client-router-filter'
@@ -421,7 +422,7 @@ async function startWatcher(
     const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
 
     let initialWatchTime = performance.now() + performance.timeOrigin
-    wp.on('aggregated', async () => {
+    const processAggregatedChanges = async () => {
       let writeEnvDefinitions = false
       let typescriptStatusFromLastAggregation = enabledTypeScript
       let middlewareMatchers: ProxyMatcher[] | undefined
@@ -1215,6 +1216,25 @@ async function startWatcher(
           Log.warn('Failed to reload dynamic routes:', e)
         }
       }
+    }
+
+    // `aggregated` can fire while the initial scan is still in flight (any
+    // event lull longer than `aggregateTimeout` triggers it), which would
+    // build the route tables from a partial file list and report the server
+    // ready while dynamic routes 404. Wait for the scan to finish before
+    // processing, and coalesce events that arrive while a run is queued.
+    let aggregationQueued = false
+    let aggregationChain: Promise<void> = Promise.resolve()
+    wp.on('aggregated', () => {
+      if (aggregationQueued) {
+        return
+      }
+      aggregationQueued = true
+      aggregationChain = aggregationChain.then(async () => {
+        aggregationQueued = false
+        await waitForInitialScan(wp)
+        await processAggregatedChanges()
+      })
     })
 
     wp.watch({ directories: [dir], startTime: 0 })
