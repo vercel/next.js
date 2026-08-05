@@ -442,6 +442,29 @@ export default class DevServer extends Server {
     return Boolean(appFile || pagesFile)
   }
 
+  /**
+   * Called by the router server before it renders a 404 for a request
+   * pathname that its filesystem route info does not include. That info is
+   * updated when the file watcher has processed a change, so it can lag
+   * behind the filesystem when a request arrives right after a file was
+   * written. The development route matchers re-scan the filesystem when they
+   * don't have a match, so this reflects the routes that exist on disk at
+   * the time of the call.
+   */
+  public async testRouteMatch(pathname: string): Promise<boolean> {
+    const { basePath } = this.nextConfig
+    if (basePath) {
+      if (!pathHasPrefix(pathname, basePath)) {
+        return false
+      }
+      pathname = removePathPrefix(pathname, basePath) || '/'
+    }
+
+    return this.matchers.test(pathname, {
+      i18n: this.i18nProvider?.analyze(pathname),
+    })
+  }
+
   async runMiddleware(params: {
     request: NodeNextRequest
     response: NodeNextResponse

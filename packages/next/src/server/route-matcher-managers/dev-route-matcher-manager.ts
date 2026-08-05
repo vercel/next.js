@@ -22,13 +22,14 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
   }
 
   public async test(pathname: string, options: MatchOptions): Promise<boolean> {
-    // Try to find a match within the developer routes.
-    const match = await super.match(pathname, options)
+    // Try to find a match within the developer routes. Unlike the
+    // implementation of `match` which uses `matchAll` here, this does not
+    // call `ensure` on the match found via the development matches.
+    for await (const match of this.developmentMatchAll(pathname, options)) {
+      if (match) return true
+    }
 
-    // Return if the match wasn't null. Unlike the implementation of `match`
-    // which uses `matchAll` here, this does not call `ensure` on the match
-    // found via the development matches.
-    return match !== null
+    return false
   }
 
   protected validate(
@@ -61,13 +62,42 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
     return match
   }
 
+  /**
+   * Iterates over the development matches for the request path. The
+   * development matchers are reloaded when the file watcher has processed a
+   * change, so they can lag behind the filesystem when a request arrives
+   * right after a file was written. On a miss, this re-scans the filesystem
+   * once and retries before treating the request path as unmatched.
+   */
+  private async *developmentMatchAll(
+    pathname: string,
+    options: MatchOptions
+  ): AsyncGenerator<RouteMatch<RouteDefinition<RouteKind>>, null, undefined> {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      let matched = false
+      for await (const developmentMatch of super.matchAll(pathname, options)) {
+        matched = true
+        yield developmentMatch
+      }
+
+      if (matched || attempt === 1) break
+
+      await super.reload()
+    }
+
+    return null
+  }
+
   public async *matchAll(
     pathname: string,
     options: MatchOptions
   ): AsyncGenerator<RouteMatch<RouteDefinition<RouteKind>>, null, undefined> {
     // Iterate over the development matches to see if one of them match the
     // request path.
-    for await (const developmentMatch of super.matchAll(pathname, options)) {
+    for await (const developmentMatch of this.developmentMatchAll(
+      pathname,
+      options
+    )) {
       // We're here, which means that we haven't seen this match yet, so we
       // should try to ensure it and recompile the production matcher.
       await this.ensurer.ensure(developmentMatch, pathname)
