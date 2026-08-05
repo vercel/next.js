@@ -32,17 +32,60 @@ export function isInternalRequestInsight(
   return getRequestInsightKind(request) !== 'request'
 }
 
-export type RequestListEntry = {
+export type RequestListEntry = Readonly<{
   request: RequestInsight
-}
+  instantInsights: readonly RequestInsight[]
+}>
 
 export function getRequestListEntries(
   requests: readonly RequestInsight[],
   showInternal: boolean
 ): RequestListEntry[] {
-  return requests
-    .filter((request) => showInternal || !isInternalRequestInsight(request))
-    .map((request) => ({ request }))
+  const requestIds = new Set(
+    requests
+      .filter((request) => !isInternalRequestInsight(request))
+      .map((request) => request.requestId)
+  )
+  const instantInsightsByOwner = new Map<string, RequestInsight[]>()
+  for (const request of requests) {
+    if (getRequestInsightKind(request) !== 'instant-insights') {
+      continue
+    }
+    const owned = instantInsightsByOwner.get(request.requestId)
+    if (owned) {
+      owned.push(request)
+    } else {
+      instantInsightsByOwner.set(request.requestId, [request])
+    }
+  }
+
+  return requests.flatMap((request) => {
+    if (isInternalRequestInsight(request)) {
+      return showInternal && !requestIds.has(request.requestId)
+        ? [{ request, instantInsights: [] }]
+        : []
+    }
+
+    return [
+      {
+        request,
+        instantInsights: instantInsightsByOwner.get(request.requestId) ?? [],
+      },
+    ]
+  })
+}
+
+export function getRequestListEntriesForPage(
+  entries: readonly RequestListEntry[],
+  htmlRequestId: string | undefined
+): RequestListEntry[] {
+  if (!htmlRequestId) {
+    return []
+  }
+
+  return entries.filter(
+    (entry) => entry.request.htmlRequestId === htmlRequestId
+  )
 }
 
 export type RequestInsightRowType =
