@@ -39,9 +39,23 @@ export declare function registerWorkerScheduler(
   creator: (arg: NapiWorkerCreation) => any,
   terminator: (arg: NapiWorkerTermination) => any
 ): void
-export declare function workerCreated(workerId: number): void
+export declare function workerCreated(
+  workerId: number,
+  nonce: number,
+  options: NapiWorkerOptions
+): void
+export declare function workerExited(
+  termination: NapiWorkerTermination,
+  nonce: number
+): void
 export interface NapiWorkerCreation {
   options: NapiWorkerOptions
+  /**
+   * Opaque creation nonce (a u64 passed as f64). The JS creator forwards
+   * it to the worker's `workerData`; the booted worker announces it back
+   * in `workerCreated`, and the exit handler reports it in `workerExited`.
+   */
+  nonce: number
 }
 export interface NapiWorkerOptions {
   filename: RcStr
