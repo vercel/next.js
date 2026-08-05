@@ -1,5 +1,4 @@
 import type { NextConfigComplete } from '../../config-shared'
-import type { FilesystemDynamicRoute } from './filesystem'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
 import type { ProxyMatcher } from '../../../build/analysis/get-page-static-info'
 import type { RoutesManifest } from '../../../build'
@@ -28,9 +27,7 @@ import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { sortByPageExts } from '../../../build/sort-by-page-exts'
 import { verifyAndRunTypeScript } from '../../../lib/verify-typescript-setup'
 import { verifyPartytownSetup } from '../../../lib/verify-partytown-setup'
-import { getNamedRouteRegex } from '../../../shared/lib/router/utils/route-regex'
-import { buildDataRoute } from './build-data-route'
-import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
+import { buildDevDynamicRoutes } from './build-dev-dynamic-routes'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { createClientRouterFilter } from '../../../lib/create-client-router-filter'
 import { absolutePathToPage } from '../../../shared/lib/page-path/absolute-path-to-page'
@@ -1036,49 +1033,10 @@ async function startWatcher(
         // before it has been built and is populated in the _buildManifest
         const sortedRoutes = getSortedRoutes(routedPages)
 
-        opts.fsChecker.dynamicRoutes = sortedRoutes.map(
-          (page): FilesystemDynamicRoute => {
-            const regex = getNamedRouteRegex(page, {
-              prefixRouteKeys: true,
-            })
-            return {
-              regex: regex.re.toString(),
-              namedRegex: regex.namedRegex,
-              routeKeys: regex.routeKeys,
-              match: getRouteMatcher(regex),
-              page,
-            }
-          }
+        opts.fsChecker.dynamicRoutes = buildDevDynamicRoutes(
+          sortedRoutes,
+          opts.nextConfig.i18n
         )
-
-        const dataRoutes: typeof opts.fsChecker.dynamicRoutes = []
-
-        for (const page of sortedRoutes) {
-          const route = buildDataRoute(page, 'development')
-          const routeRegex = getNamedRouteRegex(route.page, {
-            prefixRouteKeys: true,
-          })
-          dataRoutes.push({
-            ...route,
-            regex: routeRegex.re.toString(),
-            namedRegex: routeRegex.namedRegex,
-            routeKeys: routeRegex.routeKeys,
-            match: getRouteMatcher({
-              // TODO: fix this in the manifest itself, must also be fixed in
-              // upstream builder that relies on this
-              re: opts.nextConfig.i18n
-                ? new RegExp(
-                    route.dataRouteRegex.replace(
-                      `/development/`,
-                      `/development/(?<nextLocale>[^/]+?)/`
-                    )
-                  )
-                : new RegExp(route.dataRouteRegex),
-              groups: routeRegex.groups,
-            }),
-          })
-        }
-        opts.fsChecker.dynamicRoutes.unshift(...dataRoutes)
 
         // For Turbopack ADDED_PAGE and REMOVED_PAGE are implemented in hot-reloader-turbopack.ts
         // in order to avoid a race condition where ADDED_PAGE and REMOVED_PAGE are sent before Turbopack picked up the file change.
