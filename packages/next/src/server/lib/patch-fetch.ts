@@ -22,10 +22,10 @@ import type { FetchMetric } from '../base-http'
 import { createDedupeFetch } from './dedupe-fetch'
 import {
   getCacheSignal,
-  shouldRevalidateStaleCacheEntryInForeground,
   type RevalidateStore,
   type WorkUnitAsyncStorage,
   type WorkUnitStore,
+  willConsumerServerCache,
 } from '../app-render/work-unit-async-storage.external'
 import {
   CachedRouteKind,
@@ -1120,12 +1120,9 @@ export function createPatchedFetcher(
             }
 
             if (entry?.value && entry.value.kind === CachedRouteKind.FETCH) {
-              // when stale and is revalidating we wait for fresh data
-              // so the revalidated entry has the updated data
-              if (
-                shouldRevalidateStaleCacheEntryInForeground(workUnitStore) &&
-                entry.isStale
-              ) {
+              // If the consumer will persist this result in a server cache,
+              // wait for fresh data so it doesn't persist a stale value.
+              if (willConsumerServerCache(workUnitStore) && entry.isStale) {
                 isForegroundRevalidate = true
               } else {
                 if (entry.isStale) {
