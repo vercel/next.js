@@ -113,22 +113,24 @@ export function createWorkStore({
    * These rules help ensure that other existing features like request caching,
    * coalescing, and ISR continue working as intended.
    */
-  const isStaticGeneration =
+  const executionMode =
     !renderOpts.supportsDynamicResponse &&
     !renderOpts.isDraftMode &&
     !renderOpts.isPossibleServerAction
+      ? 'prerender'
+      : 'request'
 
   const shouldTrackFetchMetrics =
     !!process.env.__NEXT_DEV_SERVER ||
     // The only times we want to track fetch metrics outside of development is
     // when we are performing a static generation and we either are in debug
     // mode, or tracking fetch metrics was specifically opted into.
-    (isStaticGeneration &&
+    (executionMode === 'prerender' &&
       (!!process.env.NEXT_DEBUG_BUILD ||
         process.env.NEXT_SSG_FETCH_METRICS === '1'))
 
   const store: WorkStore = {
-    isStaticGeneration,
+    executionMode,
     page,
     route: normalizeAppPath(page),
     incrementalCache:
