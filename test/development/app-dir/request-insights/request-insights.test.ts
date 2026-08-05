@@ -528,6 +528,7 @@ describe('request insights', () => {
     await browser.elementByCss('.request-insights-settings-trigger').click()
     await retry(async () => {
       expect(await getSettingsMenuItems()).toEqual([
+        { label: 'Pause updates', checked: null },
         { label: 'Internal activity', checked: null },
         { label: 'Verbose traces', checked: null },
       ])
@@ -545,26 +546,26 @@ describe('request insights', () => {
       .click()
 
     await retry(async () => {
-      const nestedRows = await browser.eval(() => {
+      const internalRows = await browser.eval(() => {
         const root = document.querySelector('nextjs-portal')?.shadowRoot
         return Array.from(
-          root?.querySelectorAll('.request-insights-row[data-nested="true"]') ??
-            []
+          root?.querySelectorAll(
+            '.request-insights-row[data-internal="true"]'
+          ) ?? []
         ).map((row) => ({
-          internal: row.getAttribute('data-internal'),
-          hasArrow: !!row.querySelector('.request-insights-nested-arrow'),
+          nested: row.hasAttribute('data-nested'),
           label: row.textContent ?? '',
         }))
       })
 
       expect(await getSettingsMenuItems()).toEqual([
+        { label: 'Pause updates', checked: null },
         { label: 'Internal activity', checked: 'true' },
         { label: 'Verbose traces', checked: 'true' },
       ])
-      expect(nestedRows.length).toBeGreaterThan(0)
-      for (const row of nestedRows) {
-        expect(row.internal).toBe('true')
-        expect(row.hasArrow).toBe(true)
+      expect(internalRows.length).toBeGreaterThan(0)
+      for (const row of internalRows) {
+        expect(row.nested).toBe(false)
         expect(row.label).toContain('Instant Insights')
       }
     })
@@ -586,9 +587,76 @@ describe('request insights', () => {
 
     await retry(async () => {
       expect(await getSettingsMenuItems()).toEqual([
+        { label: 'Pause updates', checked: null },
         { label: 'Internal activity', checked: 'true' },
         { label: 'Verbose traces', checked: 'true' },
       ])
+    })
+  })
+
+  it('filters typed request rows and pauses live updates', async () => {
+    const browser = await next.browser('/instant-insights')
+    expect((await next.fetch('/api/source?before=pause')).status).toBe(200)
+
+    await openRequestInsightsPanel(browser)
+    await browser.elementByCss('.request-insights-filter-trigger').click()
+    await browser
+      .elementByCss(
+        '.request-insights-filter-item[data-filter-value="source:api"]'
+      )
+      .click()
+
+    await retry(async () => {
+      const rowTypes = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        return Array.from(
+          root?.querySelectorAll('.request-insights-request-type') ?? []
+        ).map((type) => type.textContent?.trim())
+      })
+      expect(rowTypes.length).toBeGreaterThan(0)
+      expect(new Set(rowTypes)).toEqual(new Set(['API']))
+    })
+
+    await browser.elementByCss('.request-insights-details').click()
+    await browser.elementByCss('.request-insights-settings-trigger').click()
+    await browser
+      .elementByCss('.request-insights-settings-item:has-text("Pause updates")')
+      .click()
+
+    const pausedRowCount = await browser.eval(() => {
+      const root = document.querySelector('nextjs-portal')?.shadowRoot
+      return root?.querySelectorAll('.request-insights-row').length ?? 0
+    })
+    expect((await next.fetch('/api/source?while=paused')).status).toBe(200)
+
+    await retry(async () => {
+      const pausedState = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        return {
+          paused: root?.querySelector('.request-insights-paused-state')
+            ?.textContent,
+          rowCount: root?.querySelectorAll('.request-insights-row').length ?? 0,
+        }
+      })
+      expect(pausedState).toEqual({
+        paused: 'Paused',
+        rowCount: pausedRowCount,
+      })
+    })
+
+    await browser
+      .elementByCss('.request-insights-settings-item:has-text("Pause updates")')
+      .click()
+    await retry(async () => {
+      const state = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        return {
+          paused: root?.querySelector('.request-insights-paused-state'),
+          rowCount: root?.querySelectorAll('.request-insights-row').length ?? 0,
+        }
+      })
+      expect(state.paused).toBeNull()
+      expect(state.rowCount).toBeGreaterThan(pausedRowCount)
     })
   })
 

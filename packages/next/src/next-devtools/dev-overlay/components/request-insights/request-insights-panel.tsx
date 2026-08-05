@@ -13,7 +13,16 @@ import { CopyButton } from '../copy-button'
 import GearIcon from '../../icons/gear-icon'
 import { formatDuration } from './format-duration'
 import {
+  getRequestInsightFilterResult,
+  REQUEST_INSIGHT_FILTER_GROUPS,
+  toggleRequestInsightFilter,
+  type RequestInsightFilter,
+} from './request-filters'
+import {
   getActiveRequestKey,
+  getRequestInsightRowType,
+  getRequestInsightStatusCode,
+  getRequestInsightSummaryTypeLabel,
   getRequestListEntries,
   isInternalRequestInsight,
   isPageLoadRequest,
@@ -30,10 +39,18 @@ const TRACE_TICK_COUNT = 5
 
 export function RequestInsightsPanel() {
   const { dispatch, state, shadowRoot } = useDevOverlayContext()
+  const [activeFilters, setActiveFilters] = useState<
+    readonly RequestInsightFilter[]
+  >([])
+  const [pausedRequests, setPausedRequests] = useState<
+    readonly RequestInsight[] | null
+  >(null)
+  const displayedRequests = pausedRequests ?? state.requestInsights
   const requests = useMemo(
-    () => [...state.requestInsights].reverse(),
-    [state.requestInsights]
+    () => [...displayedRequests].reverse(),
+    [displayedRequests]
   )
+  const isPaused = pausedRequests !== null
   const { showInternal, verbose } = state.requestInsightsConfig
   const setRequestInsightsConfig = (patch: {
     showInternal?: boolean
@@ -45,9 +62,15 @@ export function RequestInsightsPanel() {
     })
     saveDevToolsConfig({ requestInsights: patch })
   }
+  const filterResult = useMemo(
+    () => getRequestInsightFilterResult(requests, activeFilters, showInternal),
+    [activeFilters, requests, showInternal]
+  )
+  const showInternalInList =
+    showInternal || activeFilters.includes('activity:instant-insights')
   const listEntries = useMemo(
-    () => getRequestListEntries(requests, showInternal),
-    [requests, showInternal]
+    () => getRequestListEntries(filterResult.requests, showInternalInList),
+    [filterResult.requests, showInternalInList]
   )
   const visibleRequests = useMemo(
     () => listEntries.map((entry) => entry.request),
@@ -76,7 +99,7 @@ export function RequestInsightsPanel() {
   // internal activity to reveal.
   const showInternalToggle = internalRequests.length > 0
 
-  if (requests.length === 0) {
+  if (displayedRequests.length === 0) {
     return (
       <div className="request-insights-empty">
         Request insights will appear after the next App Router request.
@@ -89,81 +112,143 @@ export function RequestInsightsPanel() {
       <div className="request-insights-list">
         <div className="request-insights-list-toolbar">
           <strong>Requests</strong>
-          <div className="request-insights-settings">
-            {hiddenInternalErrorCount > 0 ? (
-              <span
-                aria-label={`${hiddenInternalErrorCount} hidden internal error${hiddenInternalErrorCount === 1 ? '' : 's'}`}
-                className="request-insights-settings-dot"
-                role="img"
-              />
-            ) : null}
-            <Menu.Root delay={0} modal={false}>
-              <Menu.Trigger
-                aria-label="Request list settings"
-                className="request-insights-settings-trigger"
+          <div className="request-insights-list-controls">
+            {isPaused ? (
+              <div
+                aria-atomic="true"
+                aria-live="polite"
+                className="request-insights-update-status"
+                role="status"
               >
-                <GearIcon />
-              </Menu.Trigger>
-              <Menu.Portal container={shadowRoot}>
-                <Menu.Positioner
-                  align="end"
-                  className="request-insights-settings-positioner"
-                  side="bottom"
-                  sideOffset={4}
+                <span className="request-insights-paused-state">Paused</span>
+              </div>
+            ) : null}
+            <RequestFiltersMenu
+              activeFilters={activeFilters}
+              onReset={() => setActiveFilters([])}
+              onToggle={(filter) =>
+                setActiveFilters((filters) =>
+                  toggleRequestInsightFilter(filters, filter)
+                )
+              }
+              optionCounts={filterResult.optionCounts}
+              shadowRoot={shadowRoot}
+            />
+            <div className="request-insights-settings">
+              {hiddenInternalErrorCount > 0 ? (
+                <span
+                  aria-label={`${hiddenInternalErrorCount} hidden internal error${hiddenInternalErrorCount === 1 ? '' : 's'}`}
+                  className="request-insights-settings-dot"
+                  role="img"
+                />
+              ) : null}
+              <Menu.Root delay={0} modal={false}>
+                <Menu.Trigger
+                  aria-label="Request list settings"
+                  className="request-insights-settings-trigger"
                 >
-                  <Menu.Popup className="request-insights-settings-menu">
-                    {showInternalToggle ? (
+                  <GearIcon />
+                </Menu.Trigger>
+                <Menu.Portal container={shadowRoot}>
+                  <Menu.Positioner
+                    align="end"
+                    className="request-insights-settings-positioner"
+                    side="bottom"
+                    sideOffset={4}
+                  >
+                    <Menu.Popup className="request-insights-settings-menu">
                       <Menu.CheckboxItem
-                        checked={showInternal}
+                        checked={isPaused}
                         className="request-insights-settings-item"
                         closeOnClick={false}
                         onCheckedChange={(checked) =>
-                          setRequestInsightsConfig({ showInternal: checked })
+                          setPausedRequests(
+                            checked ? [...state.requestInsights] : null
+                          )
                         }
                       >
                         <span
                           className="request-insights-settings-checkbox"
-                          data-checked={showInternal || undefined}
+                          data-checked={isPaused || undefined}
                         >
-                          {showInternal ? <CheckIcon /> : null}
+                          {isPaused ? <CheckIcon /> : null}
                         </span>
-                        Internal activity
+                        Pause updates
                       </Menu.CheckboxItem>
-                    ) : null}
-                    <Menu.CheckboxItem
-                      checked={verbose}
-                      className="request-insights-settings-item"
-                      closeOnClick={false}
-                      onCheckedChange={(checked) =>
-                        setRequestInsightsConfig({ verbose: checked })
-                      }
-                    >
-                      <span
-                        className="request-insights-settings-checkbox"
-                        data-checked={verbose || undefined}
+                      {showInternalToggle ? (
+                        <Menu.CheckboxItem
+                          checked={showInternal}
+                          className="request-insights-settings-item"
+                          closeOnClick={false}
+                          onCheckedChange={(checked) =>
+                            setRequestInsightsConfig({ showInternal: checked })
+                          }
+                        >
+                          <span
+                            className="request-insights-settings-checkbox"
+                            data-checked={showInternal || undefined}
+                          >
+                            {showInternal ? <CheckIcon /> : null}
+                          </span>
+                          Internal activity
+                        </Menu.CheckboxItem>
+                      ) : null}
+                      <Menu.CheckboxItem
+                        checked={verbose}
+                        className="request-insights-settings-item"
+                        closeOnClick={false}
+                        onCheckedChange={(checked) =>
+                          setRequestInsightsConfig({ verbose: checked })
+                        }
                       >
-                        {verbose ? <CheckIcon /> : null}
-                      </span>
-                      Verbose traces
-                    </Menu.CheckboxItem>
-                  </Menu.Popup>
-                </Menu.Positioner>
-              </Menu.Portal>
-            </Menu.Root>
+                        <span
+                          className="request-insights-settings-checkbox"
+                          data-checked={verbose || undefined}
+                        >
+                          {verbose ? <CheckIcon /> : null}
+                        </span>
+                        Verbose traces
+                      </Menu.CheckboxItem>
+                    </Menu.Popup>
+                  </Menu.Positioner>
+                </Menu.Portal>
+              </Menu.Root>
+            </div>
           </div>
         </div>
+        {activeFilters.length > 0 ? (
+          <div className="request-insights-filter-status">
+            <span>
+              {filterResult.matchingRequestCount} of{' '}
+              {filterResult.totalRequestCount} requests
+            </span>
+            <button onClick={() => setActiveFilters([])} type="button">
+              Reset
+            </button>
+          </div>
+        ) : null}
         {listEntries.length === 0 ? (
           <div className="request-insights-list-empty">
-            Only internal activity has been captured. Enable “Internal activity”
-            to view it.
+            {activeFilters.length > 0 ? (
+              <>
+                No requests match the active filters.{' '}
+                <button onClick={() => setActiveFilters([])} type="button">
+                  Reset filters
+                </button>
+              </>
+            ) : (
+              <>
+                Only internal activity has been captured. Enable “Internal
+                activity” to view it.
+              </>
+            )}
           </div>
         ) : (
-          listEntries.map(({ request, nested }) => {
+          listEntries.map(({ request }) => {
             const requestKey = getRequestInsightKey(request)
             return (
               <RequestRow
                 key={requestKey}
-                nested={nested}
                 request={request}
                 pageLoad={isPageLoadRequest(request, initialRequestId)}
                 selected={requestKey === activeRequestKey}
@@ -181,15 +266,99 @@ export function RequestInsightsPanel() {
   )
 }
 
+function RequestFiltersMenu({
+  activeFilters,
+  onReset,
+  onToggle,
+  optionCounts,
+  shadowRoot,
+}: {
+  activeFilters: readonly RequestInsightFilter[]
+  onReset: () => void
+  onToggle: (filter: RequestInsightFilter) => void
+  optionCounts: Readonly<Record<RequestInsightFilter, number>>
+  shadowRoot: ShadowRoot
+}) {
+  return (
+    <Menu.Root delay={0} modal={false}>
+      <Menu.Trigger
+        aria-label={`Filter requests${activeFilters.length > 0 ? `, ${activeFilters.length} active` : ''}`}
+        className="request-insights-filter-trigger"
+      >
+        Filter
+        {activeFilters.length > 0 ? (
+          <span className="request-insights-filter-active-count">
+            {activeFilters.length}
+          </span>
+        ) : null}
+      </Menu.Trigger>
+      <Menu.Portal container={shadowRoot}>
+        <Menu.Positioner
+          align="end"
+          className="request-insights-filter-positioner"
+          side="bottom"
+          sideOffset={4}
+        >
+          <Menu.Popup
+            aria-label="Request filters"
+            className="request-insights-filter-menu"
+          >
+            {REQUEST_INSIGHT_FILTER_GROUPS.map((group) => (
+              <Menu.Group key={group.label}>
+                <Menu.GroupLabel className="request-insights-filter-group-label">
+                  {group.label}
+                </Menu.GroupLabel>
+                {group.options.map((option) => {
+                  const checked = activeFilters.includes(option.value)
+                  const count = optionCounts[option.value]
+                  return (
+                    <Menu.CheckboxItem
+                      key={option.value}
+                      checked={checked}
+                      className="request-insights-filter-item"
+                      closeOnClick={false}
+                      data-filter-value={option.value}
+                      disabled={!checked && count === 0}
+                      onCheckedChange={() => onToggle(option.value)}
+                    >
+                      <span
+                        className="request-insights-settings-checkbox"
+                        data-checked={checked || undefined}
+                      >
+                        {checked ? <CheckIcon /> : null}
+                      </span>
+                      <span className="request-insights-filter-option-label">
+                        {option.label}
+                      </span>
+                      <span className="request-insights-filter-option-count">
+                        {count}
+                      </span>
+                    </Menu.CheckboxItem>
+                  )
+                })}
+              </Menu.Group>
+            ))}
+            <Menu.Item
+              className="request-insights-filter-reset"
+              disabled={activeFilters.length === 0}
+              onClick={onReset}
+            >
+              Reset filters
+            </Menu.Item>
+          </Menu.Popup>
+        </Menu.Positioner>
+      </Menu.Portal>
+    </Menu.Root>
+  )
+}
+
 function RequestRow({
   request,
-  nested,
   pageLoad,
   selected,
   onSelect,
 }: {
   request: RequestInsight
-  nested: boolean
   pageLoad: boolean
   selected: boolean
   onSelect: () => void
@@ -197,12 +366,15 @@ function RequestRow({
   const isInstantInsights =
     getRequestInsightKind(request) === 'instant-insights'
   const route = request.route ?? request.url ?? 'Unknown route'
+  const requestType = getRequestInsightRowType(request, pageLoad)
+  const clockTime = formatClockTime(request.startTime)
+  const bypassesProxy = request.proxyStatus === 'bypassed'
 
   return (
     <button
+      aria-label={`${isInstantInsights ? `Instant Insights for ${route}` : route}, ${requestType.accessibleLabel}, ${bypassesProxy ? 'Did not match the configured proxy, ' : ''}${formatDuration(request.durationMs)}, ${clockTime}`}
       className="request-insights-row"
       data-internal={isInstantInsights || undefined}
-      data-nested={nested || undefined}
       data-page-load={pageLoad}
       data-selected={selected}
       onClick={onSelect}
@@ -210,24 +382,30 @@ function RequestRow({
     >
       <span className="request-insights-status" data-status={request.status} />
       <span className="request-insights-route">
-        {nested ? <NestedArrowIcon /> : null}
-        {isInstantInsights && !nested ? (
-          <span className="request-insights-internal-badge">Internal</span>
-        ) : null}
         <span className="request-insights-route-label">
           {isInstantInsights ? 'Instant Insights' : route}
         </span>
-        {isInstantInsights && !nested ? (
-          <span className="request-insights-item-context">{route}</span>
-        ) : pageLoad ? (
-          <span className="request-insights-page-load">Page load</span>
-        ) : null}
       </span>
       <span className="request-insights-duration">
         {formatDuration(request.durationMs)}
       </span>
-      <span className="request-insights-meta">
-        {formatClockTime(request.startTime)}
+      <span className="request-insights-meta request-insights-row-metadata">
+        <span
+          className="request-insights-request-type"
+          data-type={requestType.type}
+          title={requestType.accessibleLabel}
+        >
+          {requestType.label}
+        </span>
+        {bypassesProxy ? (
+          <span
+            className="request-insights-request-activity"
+            title="This request did not match the configured proxy"
+          >
+            No proxy
+          </span>
+        ) : null}
+        <span>{clockTime}</span>
       </span>
       <span className="request-insights-meta request-insights-fetch-summary">
         {request.fetches.length
@@ -235,25 +413,6 @@ function RequestRow({
           : 'No fetches'}
       </span>
     </button>
-  )
-}
-
-function NestedArrowIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="request-insights-nested-arrow"
-      fill="none"
-      height="12"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="1.5"
-      viewBox="0 0 16 16"
-      width="12"
-    >
-      <path d="M4 3v5.5A2.5 2.5 0 0 0 6.5 11H12M12 11l-3-3m3 3-3 3" />
-    </svg>
   )
 }
 
@@ -492,8 +651,7 @@ function getRequestOverview(request: RequestInsight) {
     : (getFirstStringAttribute(request, 'http.method') ??
       getMethodFromName(request.spans[0]?.name) ??
       'GET')
-  const statusCode = getFirstNumberAttribute(request, 'http.status_code')
-  const isRsc = getFirstBooleanAttribute(request, 'next.rsc')
+  const statusCode = getRequestInsightStatusCode(request)
   const erroredSpan = request.spans.find(
     (span) => span.status === 'error' || span.error
   )
@@ -516,11 +674,7 @@ function getRequestOverview(request: RequestInsight) {
     method,
     statusCode,
     statusLabel: statusCode ?? request.status,
-    kind: isInstantInsights
-      ? 'Instant Insights'
-      : isRsc
-        ? 'RSC request'
-        : 'HTML request',
+    kind: getRequestInsightSummaryTypeLabel(request),
     fetchSummary: request.fetches.length
       ? `${request.fetches.length} fetch${request.fetches.length === 1 ? '' : 'es'}`
       : 'No fetches',
@@ -592,30 +746,6 @@ function getFirstStringAttribute(
   for (const span of request.spans) {
     const value = span.attributes?.[key]
     if (typeof value === 'string') {
-      return value
-    }
-  }
-}
-
-function getFirstNumberAttribute(
-  request: RequestInsight,
-  key: string
-): number | undefined {
-  for (const span of request.spans) {
-    const value = span.attributes?.[key]
-    if (typeof value === 'number') {
-      return value
-    }
-  }
-}
-
-function getFirstBooleanAttribute(
-  request: RequestInsight,
-  key: string
-): boolean | undefined {
-  for (const span of request.spans) {
-    const value = span.attributes?.[key]
-    if (typeof value === 'boolean') {
       return value
     }
   }
