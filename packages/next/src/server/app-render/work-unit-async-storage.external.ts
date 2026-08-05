@@ -342,11 +342,11 @@ export type StaticPrerenderStore = Exclude<
 export interface CommonCacheStore
   extends Omit<CommonWorkUnitStore, 'implicitTags'> {
   /**
-   * Whether a stale cache entry must be revalidated before the outer work unit
-   * can continue. This is copied from the outer work unit because entering a
-   * cache scope intentionally hides that store.
+   * Whether this work unit will persist the results it consumes in a server
+   * cache. This only describes the immediate consumer; it is not inherited
+   * from outer scopes.
    */
-  readonly shouldRevalidateStaleCacheEntryInForeground: boolean
+  readonly consumerWillServerCache: boolean
   /**
    * A cache work unit store might not always have an outer work unit store,
    * from which implicit tags could be inherited.
@@ -445,7 +445,7 @@ export type WorkUnitStore =
   | PrerenderStore
   | GenerateStaticParamsStore
 
-export function shouldRevalidateStaleCacheEntryInForeground(
+export function willConsumerServerCache(
   workUnitStore: WorkUnitStore | undefined
 ): boolean {
   if (!workUnitStore) {
@@ -456,7 +456,7 @@ export function shouldRevalidateStaleCacheEntryInForeground(
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
-      return workUnitStore.shouldRevalidateStaleCacheEntryInForeground
+      return workUnitStore.consumerWillServerCache
     case 'prerender':
     case 'prerender-client':
     case 'prerender-ppr':

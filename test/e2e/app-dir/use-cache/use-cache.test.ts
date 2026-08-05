@@ -433,6 +433,31 @@ describe('use-cache', () => {
     })
   })
 
+  it('should refresh a stale cache before storing it in an outer cache', async () => {
+    const browser = await next.browser(
+      '/cache-consumer-foreground-revalidate/first'
+    )
+    const firstValue = await browser.elementById('inner-value').text()
+
+    const response = await next.fetch('/api/revalidate-cache-consumer', {
+      method: 'POST',
+    })
+    expect(response.status).toBe(204)
+
+    // Use a different outer key to force a cache miss. Because that outer
+    // scope will cache what it consumes, it must wait for the stale inner
+    // entry to revalidate instead of persisting the stale value.
+    await browser.loadPage(
+      new URL(
+        '/cache-consumer-foreground-revalidate/second',
+        next.url
+      ).toString()
+    )
+    const secondValue = await browser.elementById('inner-value').text()
+
+    expect(secondValue).not.toBe(firstValue)
+  })
+
   it('should revalidate caches during on-demand revalidation', async () => {
     const browser = await next.browser('/on-demand-revalidate')
     const initial = await browser.elementById('value').text()

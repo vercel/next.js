@@ -9,7 +9,7 @@ import {
 import {
   getCacheSignal,
   getDraftModeProviderForCacheScope,
-  shouldRevalidateStaleCacheEntryInForeground,
+  willConsumerServerCache,
   workUnitAsyncStorage,
 } from '../../app-render/work-unit-async-storage.external'
 import {
@@ -147,8 +147,7 @@ export function unstable_cache<T extends Callback>(
       const innerCacheStore: UnstableCacheStore = {
         type: 'unstable-cache',
         phase: 'render',
-        shouldRevalidateStaleCacheEntryInForeground:
-          shouldRevalidateStaleCacheEntryInForeground(workUnitStore),
+        consumerWillServerCache: true,
         implicitTags,
         draftMode:
           workUnitStore &&
@@ -283,9 +282,7 @@ export function unstable_cache<T extends Callback>(
 
                   // Attach the empty catch here so we don't get a "unhandled promise
                   // rejection" warning. (Behavior is matched with patch-fetch)
-                  if (
-                    shouldRevalidateStaleCacheEntryInForeground(workUnitStore)
-                  ) {
+                  if (willConsumerServerCache(workUnitStore)) {
                     revalidationPromise.catch(() => {})
                   }
 
@@ -294,15 +291,14 @@ export function unstable_cache<T extends Callback>(
                 }
 
                 // Check if we need to do foreground revalidation
-                if (
-                  shouldRevalidateStaleCacheEntryInForeground(workUnitStore)
-                ) {
-                  // When the page is revalidating and the cache entry is stale,
-                  // we need to wait for fresh data (blocking revalidate). The
-                  // `await` here keeps `cacheSignal.endRead` (in the outer
-                  // `finally`) suspended until the recompute + cacheNewResult
-                  // actually complete, so the prospective prerender's
-                  // `cacheSignal` doesn't resolve `cacheReady` prematurely.
+                if (willConsumerServerCache(workUnitStore)) {
+                  // When the consumer will persist this result in a server
+                  // cache, wait for fresh data so it doesn't persist a stale
+                  // value. The `await` here also keeps `cacheSignal.endRead` (in
+                  // the outer `finally`) suspended until the recompute +
+                  // cacheNewResult actually complete, so a prospective
+                  // prerender's `cacheSignal` doesn't resolve `cacheReady`
+                  // prematurely.
                   return await workStore.pendingRevalidates[invocationKey]
                 }
                 // Otherwise, we're doing background revalidation - return stale immediately
