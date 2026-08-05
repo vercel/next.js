@@ -102,6 +102,30 @@ static MARKER_STR: &str = "TURBOPACK_OUTPUT_";
 /// before completing a recv.
 const RECENT_OUTPUT_LINES: usize = 100;
 
+/// Maximum number of distinct output entries retained for cross-process
+/// deduplication. Beyond this, the oldest entries are evicted (FIFO), which
+/// may cause a previously seen line to be printed again — an acceptable
+/// tradeoff to bound the memory retained for the pool's lifetime.
+const SHARED_OUTPUT_SET_MAX_ENTRIES: usize = 10_000;
+
+/// Inserts one output occurrence into the shared cross-process dedupe set,
+/// returning true when it was not seen before. The set lives for the pool's
+/// lifetime, so entries past [`SHARED_OUTPUT_SET_MAX_ENTRIES`] are evicted
+/// oldest-first to bound the retained memory; an evicted line may be printed
+/// again if it reoccurs.
+fn insert_output_entry(
+    shared: &SharedOutputSet,
+    entry: OutputEntry,
+    occurrence_number: u32,
+) -> bool {
+    let mut shared = shared.lock();
+    let new_entry = shared.insert((entry, occurrence_number));
+    while shared.len() > SHARED_OUTPUT_SET_MAX_ENTRIES {
+        shared.shift_remove_index(0);
+    }
+    new_entry
+}
+
 /// A bounded ring buffer of recent lines from a child stream. Shared with the
 /// owning [`NodeJsPoolProcess`] so that the post-mortem code on a recv failure
 /// can read what the child wrote even if the handler future has already
@@ -249,10 +273,8 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
                                 .entry(entry.clone())
                                 .and_modify(|c| *c += 1)
                                 .or_insert(0);
-                            let new_entry = {
-                                let mut shared = shared.lock();
-                                shared.insert((entry.clone(), occurrence_number))
-                            };
+                            let new_entry =
+                                insert_output_entry(shared, entry.clone(), occurrence_number);
                             if !new_entry {
                                 // This line has been printed by another process, so we don't need
                                 // to print it again.
@@ -976,5 +998,38 @@ impl Drop for ChildProcessOperation {
                 self.idle_processes.push(process, &ACTIVE_POOLS);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The shared dedupe set lives for the pool's lifetime; without a bound it
+    /// retains every distinct output occurrence forever. It must evict the
+    /// oldest entries (FIFO) past a fixed cap.
+    #[test]
+    fn shared_output_dedupe_set_is_bounded() {
+        let shared: SharedOutputSet = Arc::new(Mutex::new(FxIndexSet::default()));
+        let total = SHARED_OUTPUT_SET_MAX_ENTRIES + 100;
+        for i in 0..total {
+            let entry = OutputEntry {
+                data: Arc::from(format!("line-{i}").into_bytes().into_boxed_slice()),
+                stack_trace: None,
+            };
+            assert!(insert_output_entry(&shared, entry, 0));
+        }
+        let set = shared.lock();
+        assert_eq!(set.len(), SHARED_OUTPUT_SET_MAX_ENTRIES);
+        let last = format!("line-{}", total - 1).into_bytes();
+        let first = b"line-0".to_vec();
+        assert!(
+            !set.iter().any(|(e, _)| e.data.as_ref() == first.as_slice()),
+            "the oldest entry must be evicted"
+        );
+        assert!(
+            set.iter().any(|(e, _)| e.data.as_ref() == last.as_slice()),
+            "the newest entry must be retained"
+        );
     }
 }
