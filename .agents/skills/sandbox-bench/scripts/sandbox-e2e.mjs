@@ -50,14 +50,17 @@ import {
 
 // Runtime provenance: the compiled server files prod app-page runtimes
 // are bundled from — BOTH bundlers, so changes touching only one still
-// move the fingerprint. Covers both the Flight layer and the Fizz
-// layer: a Fizz-only React change leaves the react-server-dom-* files
-// byte-identical, so without the react-dom server file two genuinely
-// different arms fingerprint the same.
+// move the fingerprint. Covers every server-side React layer the
+// runtime executes — Flight (react-server-dom-*), Fizz (react-dom
+// server), and the shared react-server runtime (hooks/cache) — because
+// a change confined to one layer leaves the other layers' files
+// byte-identical, and two genuinely different arms would fingerprint
+// the same.
 const FP_FILES = [
   'packages/next/dist/compiled/react-server-dom-turbopack-experimental/cjs/react-server-dom-turbopack-server.node.production.js',
   'packages/next/dist/compiled/react-server-dom-webpack-experimental/cjs/react-server-dom-webpack-server.node.production.js',
   'packages/next/dist/compiled/react-dom-experimental/cjs/react-dom-server.node.production.js',
+  'packages/next/dist/compiled/react-experimental/cjs/react.react-server.production.js',
 ]
 
 function parseArgs() {
@@ -582,6 +585,13 @@ for arm in ${base} ${cand}; do
   echo "tree $arm ver=$V fp=$F"; [ "$V" != MISSING ]
   eval "VER_$arm=$V; FP_$arm=$F"
 done
+# Identical fingerprints are legitimate only when the arms differ in
+# files outside FP_FILES (e.g. client-only changes) — say so loudly at
+# boot instead of leaving it for the analysis footer, so a bad A/B is
+# caught before VM-hours are spent.
+if [ "$FP_${base}" = "$FP_${cand}" ]; then
+  echo "WARNING: arms fingerprint identically ($FP_${base}) — the hashed server bundles are byte-identical; verify the arms differ where intended"
+fi
 for run in $(seq 1 ${total}); do
   # Alternate within the boot AND stagger by VM index: with an odd run
   # count, otherwise every boot gives the same arm the cold first slot
@@ -692,6 +702,10 @@ for arm in ${profOrder}; do
     || (tail -10 /tmp/prof.log; exit 1)
   echo "profiled $arm"
 done
+# Self-describing artifacts: record this VM's capture order so profile
+# analysis can split by order (order-drift check) without re-deriving
+# it from VM index parity.
+echo "${profOrder}" > /vercel/sandbox/prof-order.txt
 cd /vercel/sandbox && tar -czf profiles.tgz prof-*`
       // Profile capture is best-effort: a failed pass or transfer on one VM
       // must not kill collection for the whole run (the timed results are

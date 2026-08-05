@@ -46,13 +46,16 @@ import {
 const FIXTURE_DIR = 'fixtures/flight-ssr-bench'
 // Provenance: the Flight server/client files the fixture actually
 // executes — Node and Edge entry points, so changes touching only one
-// stream flavor still move the fingerprint.
+// stream flavor still move the fingerprint — plus the shared
+// react-server runtime (hooks/cache), which none of the layer files
+// reflect.
 const FP_FILES = [
   'react-server-dom-webpack/cjs/react-server-dom-webpack-server.node.production.js',
   'react-server-dom-webpack/cjs/react-server-dom-webpack-server.edge.production.js',
   'react-server-dom-webpack/cjs/react-server-dom-webpack-client.edge.production.js',
   'react-dom/cjs/react-dom-server.node.production.js',
   'react-dom/cjs/react-dom-server.edge.production.js',
+  'react/cjs/react.react-server.production.js',
 ]
 
 function parseArgs() {
@@ -349,6 +352,11 @@ for arm in ${base} ${cand}; do
   echo "arm $arm ver=$V fp=$F"
   eval "VER_$arm=$V; FP_$arm=$F"
 done
+# Loud early warning; identical fingerprints are legitimate only when
+# the arms differ outside the hashed files (see sandbox-e2e.mjs).
+if [ "$FP_${base}" = "$FP_${cand}" ]; then
+  echo "WARNING: arms fingerprint identically ($FP_${base}) — the hashed React builds are byte-identical; verify the arms differ where intended"
+fi
 for run in $(seq 1 ${cfg.runs}); do
   # Alternate within the boot AND stagger by VM index so no arm owns
   # the cold first slot across the fleet.
@@ -427,6 +435,8 @@ for arm in ${profOrder}; do
   mkdir -p /vercel/sandbox/prof-$arm && mv build/profiles/* /vercel/sandbox/prof-$arm/
   echo "profiled $arm"
 done
+# Record capture order for order-drift checks (see sandbox-e2e.mjs).
+echo "${profOrder}" > /vercel/sandbox/prof-order.txt
 cd /vercel/sandbox && tar -czf profiles.tgz prof-*`
       try {
         await sbExec(vm, '40m', prof, `${tag}:prof`)
