@@ -11,7 +11,7 @@ import {
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
   throwToInterruptStaticGeneration,
-  postponeWithTracking,
+  postponeWithTrackingForLegacyPPR,
   annotateDynamicAccess,
 } from '../app-render/dynamic-rendering'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
@@ -19,7 +19,7 @@ import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-st
 import {
   workUnitAsyncStorage,
   type PrerenderStoreLegacy,
-  type PrerenderStorePPR,
+  type PrerenderStoreLegacyPPR,
   type PrerenderStoreModern,
   type PrerenderStoreModernRuntime,
   type StaticPrerenderStore,
@@ -463,7 +463,7 @@ function makeHangingSearchParams(
 
 function makeErroringSearchParams(
   workStore: WorkStore,
-  prerenderStore: PrerenderStoreLegacy | PrerenderStorePPR
+  prerenderStore: PrerenderStoreLegacy | PrerenderStoreLegacyPPR
 ): Promise<SearchParams> {
   const cachedSearchParams = CachedSearchParams.get(workStore)
   if (cachedSearchParams) {
@@ -495,7 +495,7 @@ function makeErroringSearchParams(
           )
         } else if (prerenderStore.type === 'prerender-ppr') {
           // PPR Prerender (no cacheComponents)
-          postponeWithTracking(
+          postponeWithTrackingForLegacyPPR(
             workStore.route,
             expression,
             prerenderStore.dynamicTracking

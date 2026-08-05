@@ -4,5 +4,5 @@ Files in the rsc directory are meant to be packaged as part of the RSC graph usi
 
 */
 
-// When postpone is available in canary React we can switch to importing it directly
-export { Postpone } from '../dynamic-rendering'
+// Legacy PPR packages this component into the RSC graph through entry-base.
+export { LegacyPostpone } from '../dynamic-rendering'

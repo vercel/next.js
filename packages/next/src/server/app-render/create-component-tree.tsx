@@ -177,7 +177,7 @@ async function createComponentTreeInternal(
       createServerParamsForServerSegment,
       createPrerenderParamsForClientSegment,
       serverHooks: { DynamicServerError },
-      Postpone,
+      LegacyPostpone,
     },
     pagePath,
     getDynamicParamFromSegment,
@@ -186,7 +186,7 @@ async function createComponentTreeInternal(
     query,
   } = ctx
 
-  const { canPostpone, isPossiblyPartialResponse } = renderCapabilities
+  const { isLegacyPPR, isPossiblyPartialResponse } = renderCapabilities
 
   const { page, conventionPath, segment, modules, parallelRoutes } =
     parseLoaderTree(tree)
@@ -328,9 +328,9 @@ async function createComponentTreeInternal(
       workStore.forceDynamic = true
 
       // TODO: (PPR) remove this bailout once PPR is the default
-      if (isPrerendering && !canPostpone) {
-        // If the postpone API isn't available, we can't postpone the render and
-        // therefore we can't use the dynamic API.
+      if (isPrerendering && !isLegacyPPR) {
+        // Without legacy PPR, this route cannot postpone the render and
+        // therefore cannot use the dynamic API.
         const err = new DynamicServerError(
           `Page with \`dynamic = "force-dynamic"\` won't be rendered statically.`
         )
@@ -383,9 +383,9 @@ async function createComponentTreeInternal(
       !workStore.forceStatic &&
       isPrerendering &&
       defaultRevalidate === 0 &&
-      // If the postpone API isn't available, we can't postpone the render and
-      // therefore we can't use the dynamic API.
-      !canPostpone
+      // Without legacy PPR, this route cannot postpone the render and
+      // therefore cannot use the dynamic API.
+      !isLegacyPPR
     ) {
       const dynamicUsageDescription = `revalidate: 0 configured ${segment}`
       workStore.dynamicUsageDescription = dynamicUsageDescription
@@ -821,10 +821,9 @@ async function createComponentTreeInternal(
   }
 
   const Component = MaybeComponent
-  // If force-dynamic is used and the current render supports postponing, we
-  // replace it with a node that will postpone the render. This ensures that the
-  // postpone is invoked during the react render phase and not during the next
-  // render phase.
+  // If force-dynamic is used with legacy PPR, replace it with a node that will
+  // postpone the render. This ensures that postpone is invoked during the React
+  // render phase and not during the Next.js render phase.
   // @TODO this does not actually do what it seems like it would or should do. The idea is that
   // if we are rendering in a force-dynamic mode and we can postpone we should only make the segments
   // that ask for force-dynamic to be dynamic, allowing other segments to still prerender. However
@@ -832,7 +831,7 @@ async function createComponentTreeInternal(
   // along the parent path of a force-dynamic segment will hit this condition effectively making the entire
   // render force-dynamic. We should refactor this function so that we can correctly track which segments
   // need to be dynamic
-  if (canPostpone && workStore.forceDynamic) {
+  if (isLegacyPPR && workStore.forceDynamic) {
     return createTransportNode(
       ctx,
       transportSegment,
@@ -842,7 +841,7 @@ async function createComponentTreeInternal(
         {
           key: cacheNodeKey,
         },
-        createElement(Postpone, {
+        createElement(LegacyPostpone, {
           reason: 'dynamic = "force-dynamic" was used',
           route: workStore.route,
         }),

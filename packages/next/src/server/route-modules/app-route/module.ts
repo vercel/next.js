@@ -61,7 +61,7 @@ import { StaticGenBailoutError } from '../../../client/components/static-generat
 import { isStaticGenEnabled } from './helpers/is-static-gen-enabled'
 import {
   abortAndThrowOnSynchronousRequestDataAccess,
-  postponeWithTracking,
+  postponeWithTrackingForLegacyPPR,
   createDynamicTrackingState,
   getFirstDynamicReason,
 } from '../../app-render/dynamic-rendering'
@@ -1476,7 +1476,7 @@ function trackDynamic(
           'A runtime prerender store should not be used for a route handler.'
         )
       case 'prerender-ppr':
-        return postponeWithTracking(
+        return postponeWithTrackingForLegacyPPR(
           store.route,
           expression,
           workUnitStore.dynamicTracking

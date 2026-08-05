@@ -63,7 +63,7 @@ export { RootLayoutBoundary } from '../../lib/framework/boundary-components'
 
 export { preloadStyle, preloadFont, preconnect } from './rsc/preloads'
 export { isEmptyHTMLPrelude } from './postponed-state'
-export { Postpone } from './rsc/postpone'
+export { LegacyPostpone } from './rsc/postpone'
 export { taintObjectReference } from './rsc/taint'
 export {
   collectSegmentData,

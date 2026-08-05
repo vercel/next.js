@@ -12,12 +12,12 @@ import {
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
   throwToInterruptStaticGeneration,
-  postponeWithTracking,
+  postponeWithTrackingForLegacyPPR,
 } from '../app-render/dynamic-rendering'
 
 import {
   workUnitAsyncStorage,
-  type PrerenderStorePPR,
+  type PrerenderStoreLegacyPPR,
   type PrerenderStoreLegacy,
   type StaticPrerenderStoreModern,
   type StaticPrerenderStore,
@@ -768,7 +768,7 @@ function makeErroringParams(
   underlyingParams: Params,
   fallbackParams: OpaqueFallbackRouteParams,
   workStore: WorkStore,
-  prerenderStore: PrerenderStorePPR | PrerenderStoreLegacy
+  prerenderStore: PrerenderStoreLegacyPPR | PrerenderStoreLegacy
 ): Promise<Params> {
   const cachedParams = CachedParams.get(underlyingParams)
   if (cachedParams) {
@@ -800,7 +800,7 @@ function makeErroringParams(
             // will be no `dynamic = "error"`
             if (prerenderStore.type === 'prerender-ppr') {
               // PPR Prerender (no cacheComponents)
-              postponeWithTracking(
+              postponeWithTrackingForLegacyPPR(
                 workStore.route,
                 expression,
                 prerenderStore.dynamicTracking

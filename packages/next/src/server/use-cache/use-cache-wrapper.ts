@@ -95,7 +95,7 @@ import {
 } from './use-cache-errors'
 import {
   createHangingInputAbortSignal,
-  postponeWithTracking,
+  postponeWithTrackingForLegacyPPR,
   throwToInterruptStaticGeneration,
 } from '../app-render/dynamic-rendering'
 import {
@@ -1872,7 +1872,7 @@ export async function cache(
           workUnitStore
         )
       case 'prerender-ppr':
-        return postponeWithTracking(
+        return postponeWithTrackingForLegacyPPR(
           workStore.route,
           expression,
           workUnitStore.dynamicTracking

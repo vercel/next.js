@@ -1,6 +1,6 @@
 import {
   abortAndThrowOnSynchronousRequestDataAccess,
-  postponeWithTracking,
+  postponeWithTrackingForLegacyPPR,
 } from '../../app-render/dynamic-rendering'
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import {
@@ -177,7 +177,7 @@ function revalidate(
           `${expression} must not be used within a client component. Next.js should be preventing ${expression} from being included in client components statically, but did not in this case.`
         )
       case 'prerender-ppr':
-        return postponeWithTracking(
+        return postponeWithTrackingForLegacyPPR(
           store.route,
           expression,
           workUnitStore.dynamicTracking
