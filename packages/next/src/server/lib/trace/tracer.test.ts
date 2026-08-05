@@ -10,6 +10,7 @@ import type {
 } from '@opentelemetry/api'
 import type { WorkStore } from '../../app-render/work-async-storage.external'
 import type { WorkUnitStore } from '../../app-render/work-unit-async-storage.external'
+import { PassThrough } from 'node:stream'
 import {
   ROOT_CONTEXT,
   context,
@@ -30,12 +31,19 @@ import {
   NextNodeServerSpan,
   NodeSpan,
 } from './constants'
+import { createOneShotTracePhase } from './phase'
 import { SpanKind, SpanStatusCode, getTracer } from './tracer'
+import {
+  createTrackedStream,
+  ReactServerResult,
+  type AnyStream,
+} from '../../app-render/app-render-prerender-utils'
 
 const customContextKey = createContextKey('next.tracer.test.custom-context')
 const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
 const originalDevServer = process.env.__NEXT_DEV_SERVER
 const originalOtelVerbose = process.env.NEXT_OTEL_VERBOSE
+const originalUseNodeStreams = process.env.__NEXT_USE_NODE_STREAMS
 const spanRecords: SpanStoreRecord[] = []
 
 function getSpanRecords(filter: { name?: string } = {}): SpanStoreRecord[] {
@@ -186,6 +194,11 @@ describe('local span recording', () => {
     } else {
       process.env.NEXT_OTEL_VERBOSE = originalOtelVerbose
     }
+    if (originalUseNodeStreams === undefined) {
+      delete process.env.__NEXT_USE_NODE_STREAMS
+    } else {
+      process.env.__NEXT_USE_NODE_STREAMS = originalUseNodeStreams
+    }
     context.disable()
     trace.disable()
     setSpanRecorderForTest(undefined)
@@ -199,6 +212,150 @@ describe('local span recording', () => {
 
     expect(result).toBe('result')
     expect(getSpanRecords()).toEqual([])
+  })
+
+  it('does not create internal phases when their recording modes are disabled', () => {
+    const finishPhase = createOneShotTracePhase(
+      AppRenderSpan.initializeRender,
+      'initialize app render'
+    )
+
+    finishPhase()
+
+    expect(getSpanRecords()).toEqual([])
+  })
+
+  it('records a one-shot phase with its captured parent and elapsed timing', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    let finishPhase: ReturnType<typeof createOneShotTracePhase>
+
+    getTracer().trace(BaseServerSpan.render, () => {
+      finishPhase = createOneShotTracePhase(
+        AppRenderSpan.initializeRender,
+        'initialize app render'
+      )
+    })
+
+    finishPhase!()
+    finishPhase!()
+
+    const parentSpan = getSpanRecords({ name: BaseServerSpan.render })[0]
+    const phaseSpans = getSpanRecords({ name: 'initialize app render' })
+    expect(phaseSpans).toHaveLength(1)
+    expect(phaseSpans[0]).toEqual(
+      expect.objectContaining({
+        startTime: expect.any(Number),
+        durationMs: expect.any(Number),
+        parentSpanId: parentSpan.spanId,
+        status: 'ok',
+        attributes: expect.objectContaining({
+          'next.span_name': 'initialize app render',
+          'next.span_type': AppRenderSpan.initializeRender,
+        }),
+      })
+    )
+    expect(phaseSpans[0].startTime).toBeLessThanOrEqual(parentSpan.timestamp)
+    expect(phaseSpans[0].durationMs).toBeGreaterThanOrEqual(0)
+  })
+
+  it('records Error and non-Error phase failures without throwing them', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+
+    const finishErrorPhase = createOneShotTracePhase(
+      AppRenderSpan.prepareAppPageResponse,
+      'prepare app page response'
+    )
+    finishErrorPhase({ error: new TypeError('prepare failed') })
+
+    const finishNonErrorPhase = createOneShotTracePhase(
+      AppRenderSpan.initializeRender,
+      'initialize app render'
+    )
+    finishNonErrorPhase({ error: 'initialize failed' })
+
+    expect(getSpanRecords({ name: 'prepare app page response' })[0]).toEqual(
+      expect.objectContaining({
+        status: 'error',
+        error: {
+          type: 'TypeError',
+          message: 'prepare failed',
+        },
+        events: [
+          expect.objectContaining({
+            name: 'exception',
+          }),
+        ],
+      })
+    )
+    expect(getSpanRecords({ name: 'initialize app render' })[0]).toEqual(
+      expect.objectContaining({
+        status: 'error',
+      })
+    )
+  })
+
+  async function createTrackedReactServerResult(
+    createStream: () => AnyStream | Promise<AnyStream>
+  ) {
+    return getTracer().trace(BaseServerSpan.render, async () => {
+      const finishPhase = createOneShotTracePhase(
+        AppRenderSpan.renderRSCResponse,
+        'render RSC response'
+      )
+      const stream = await createTrackedStream(createStream, finishPhase)
+      return new ReactServerResult(stream)
+    })
+  }
+
+  function expectSingleFailedRSCPhase() {
+    const parentSpan = getSpanRecords({ name: BaseServerSpan.render })[0]
+    const phaseSpans = getSpanRecords({ name: 'render RSC response' })
+
+    expect(phaseSpans).toHaveLength(1)
+    expect(phaseSpans[0]).toEqual(
+      expect.objectContaining({
+        parentSpanId: parentSpan.spanId,
+        status: 'error',
+        attributes: expect.objectContaining({
+          'next.span_type': AppRenderSpan.renderRSCResponse,
+        }),
+      })
+    )
+  }
+
+  it('records one failed RSC phase when a ReactServerResult source errors', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    process.env.__NEXT_USE_NODE_STREAMS = '1'
+    const source = new PassThrough()
+    const result = await createTrackedReactServerResult(() => source)
+    const replay = result.tee() as PassThrough
+    const replayError = new Promise<Error>((resolve) => {
+      replay.on('error', resolve)
+    })
+    const error = new TypeError('RSC render failed')
+
+    source.destroy(error)
+
+    await expect(replayError).resolves.toBe(error)
+    expectSingleFailedRSCPhase()
+  })
+
+  it('records one failed RSC phase when both tee branches are cancelled', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    delete process.env.__NEXT_USE_NODE_STREAMS
+    const cancel = jest.fn()
+    const source = new ReadableStream<Uint8Array>(
+      { cancel },
+      { highWaterMark: 0 }
+    )
+    const result = await createTrackedReactServerResult(() => source)
+    const branch = result.tee() as ReadableStream<Uint8Array>
+    const remaining = result.consume() as ReadableStream<Uint8Array>
+
+    await Promise.all([branch.cancel('branch'), remaining.cancel('remaining')])
+
+    expect(cancel).toHaveBeenCalledTimes(1)
+    expectSingleFailedRSCPhase()
   })
 
   it('records non-vanilla trace and wrapped spans for request insights', () => {

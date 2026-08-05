@@ -1,5 +1,9 @@
 import { PassThrough } from 'node:stream'
-import { ReplayableNodeStream } from './app-render-prerender-utils'
+import {
+  createTrackedStream,
+  ReplayableNodeStream,
+  trackWebStreamCompletion,
+} from './app-render-prerender-utils'
 
 function collectBytes(
   stream: import('node:stream').Readable
@@ -17,6 +21,117 @@ function tick(): Promise<void> {
 }
 
 describe('ReplayableNodeStream', () => {
+  describe('tracked source completion', () => {
+    it('reports a clean end once', async () => {
+      const source = new PassThrough()
+      const onComplete = jest.fn()
+      await createTrackedStream(() => source, onComplete)
+
+      const closed = new Promise<void>((resolve) => source.on('close', resolve))
+      source.resume()
+      source.end()
+      await closed
+
+      expect(onComplete).toHaveBeenCalledTimes(1)
+      expect(onComplete).toHaveBeenCalledWith()
+    })
+
+    it('attaches completion listeners before a direct stream ends on the next tick', async () => {
+      const source = new PassThrough()
+      const onComplete = jest.fn()
+      const trackedSource = createTrackedStream(() => {
+        process.nextTick(() => source.end())
+        return source
+      }, onComplete)
+
+      expect(trackedSource).toBe(source)
+      const closed = new Promise<void>((resolve) => source.on('close', resolve))
+      source.resume()
+      await closed
+
+      expect(onComplete).toHaveBeenCalledTimes(1)
+      expect(onComplete).toHaveBeenCalledWith()
+    })
+
+    it('reports source errors once', async () => {
+      const source = new PassThrough()
+      const onComplete = jest.fn()
+      await createTrackedStream(() => source, onComplete)
+
+      const error = new Error('RSC render failed')
+      const closed = new Promise<void>((resolve) => source.on('close', resolve))
+      source.destroy(error)
+      await closed
+
+      expect(onComplete).toHaveBeenCalledTimes(1)
+      expect(onComplete).toHaveBeenCalledWith({ error })
+    })
+
+    it('attaches error listeners before a direct stream errors on the next tick', async () => {
+      const source = new PassThrough()
+      const onComplete = jest.fn()
+      const error = new Error('RSC render failed')
+      const trackedSource = createTrackedStream(() => {
+        process.nextTick(() => source.destroy(error))
+        return source
+      }, onComplete)
+
+      expect(trackedSource).toBe(source)
+      const closed = new Promise<void>((resolve) => source.on('close', resolve))
+      await closed
+
+      expect(onComplete).toHaveBeenCalledTimes(1)
+      expect(onComplete).toHaveBeenCalledWith({ error })
+    })
+
+    it('rejects replay consumers when the source closes prematurely', async () => {
+      const source = new PassThrough()
+      const onComplete = jest.fn()
+      const trackedSource = await createTrackedStream(() => source, onComplete)
+      const replayable = new ReplayableNodeStream(trackedSource)
+      const replayResult = collectBytes(replayable.createReplayStream())
+
+      const closed = new Promise<void>((resolve) => source.on('close', resolve))
+      source.destroy()
+      await closed
+
+      await expect(replayResult).rejects.toEqual(
+        expect.objectContaining({ name: 'AbortError' })
+      )
+      expect(onComplete).toHaveBeenCalledTimes(1)
+      expect(onComplete).toHaveBeenCalledWith({
+        error: expect.objectContaining({ name: 'AbortError' }),
+      })
+      expect((replayable as any)._subscribers.size).toBe(0)
+    })
+
+    it('reports synchronous stream creation failures', () => {
+      const onComplete = jest.fn()
+      const error = new Error('RSC render failed')
+
+      expect(() =>
+        createTrackedStream(() => {
+          throw error
+        }, onComplete)
+      ).toThrow(error)
+
+      expect(onComplete).toHaveBeenCalledTimes(1)
+      expect(onComplete).toHaveBeenCalledWith({ error })
+    })
+
+    it('reports asynchronous stream creation failures', async () => {
+      const onComplete = jest.fn()
+      const error = new Error('RSC render failed')
+
+      await expect(
+        createTrackedStream(() => Promise.reject(error), onComplete)
+      ).rejects.toBe(error)
+
+      expect(onComplete).toHaveBeenCalledTimes(1)
+      expect(onComplete).toHaveBeenCalledWith({ error })
+    })
+  })
+
   describe('construction and buffering', () => {
     it('buffers Uint8Array chunks from the source', async () => {
       const source = new PassThrough()
@@ -387,6 +502,62 @@ describe('ReplayableNodeStream', () => {
         [1, 2],
         [3, 4],
       ])
+    })
+  })
+})
+
+describe('trackWebStreamCompletion', () => {
+  it('forwards chunks and reports a clean end', async () => {
+    const onComplete = jest.fn()
+    const stream = trackWebStreamCompletion(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new Uint8Array([1, 2, 3]))
+          controller.close()
+        },
+      }),
+      onComplete
+    )
+
+    const reader = stream.getReader()
+    expect(await reader.read()).toEqual({
+      done: false,
+      value: new Uint8Array([1, 2, 3]),
+    })
+    expect(await reader.read()).toEqual({ done: true, value: undefined })
+    expect(onComplete).toHaveBeenCalledTimes(1)
+    expect(onComplete).toHaveBeenCalledWith()
+  })
+
+  it('reports source errors', async () => {
+    const onComplete = jest.fn()
+    const error = new Error('RSC render failed')
+    const stream = trackWebStreamCompletion(
+      new ReadableStream<Uint8Array>({
+        pull() {
+          throw error
+        },
+      }),
+      onComplete
+    )
+
+    await expect(stream.getReader().read()).rejects.toBe(error)
+    expect(onComplete).toHaveBeenCalledWith({ error })
+  })
+
+  it('reports cancellation as an abort', async () => {
+    const onComplete = jest.fn()
+    const cancel = jest.fn()
+    const stream = trackWebStreamCompletion(
+      new ReadableStream<Uint8Array>({ cancel }, { highWaterMark: 0 }),
+      onComplete
+    )
+
+    await stream.cancel('not needed')
+
+    expect(cancel).toHaveBeenCalledWith('not needed')
+    expect(onComplete).toHaveBeenCalledWith({
+      error: expect.objectContaining({ name: 'AbortError' }),
     })
   })
 })

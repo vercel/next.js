@@ -1,9 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import {
+  NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_RSC_UNION_QUERY,
   RSC_HEADER,
 } from 'next/dist/client/components/app-router-headers'
+import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
 
 describe('request-insights-route-preparation', () => {
   const { next } = nextTestSetup({
@@ -33,6 +35,8 @@ describe('request-insights-route-preparation', () => {
   const routeCompilationSpanType = 'DevBundlerService.ensurePage'
   const appPagePreparationSpanType = 'AppRender.prepareAppPageResponse'
   const renderInitializationSpanType = 'AppRender.initializeRender'
+  const renderRSCResponseSpanType = 'AppRender.renderRSCResponse'
+  const waitForRSCSpanType = 'AppRender.waitForRSC'
 
   async function getRequestInsights() {
     return (await next
@@ -44,7 +48,8 @@ describe('request-insights-route-preparation', () => {
 
   async function captureRequest(
     route: string,
-    request: () => Promise<unknown>
+    request: () => Promise<unknown>,
+    requiredSpanTypes: string[] = []
   ) {
     const existingRequestIds = new Set(
       (await getRequestInsights()).requests
@@ -79,6 +84,11 @@ describe('request-insights-route-preparation', () => {
           insight.spans.some(
             (span) =>
               span.attributes?.['next.span_type'] === routeCompilationSpanType
+          ) &&
+          requiredSpanTypes.every((spanType) =>
+            insight.spans.some(
+              (span) => span.attributes?.['next.span_type'] === spanType
+            )
           )
       )
 
@@ -86,6 +96,70 @@ describe('request-insights-route-preparation', () => {
     }, 10_000)
 
     return capturedRequest!
+  }
+
+  function expectAppPageRSCSpans(
+    request: RequestInsight,
+    { expectWaitSpan = true }: { expectWaitSpan?: boolean } = {}
+  ) {
+    const bodyRenderSpan = request.spans.find(
+      (span) =>
+        span.attributes?.['next.span_type'] === 'AppRender.getBodyResult'
+    )
+    const renderRSCSpans = request.spans.filter(
+      (span) =>
+        span.attributes?.['next.span_type'] === renderRSCResponseSpanType
+    )
+    const waitForRSCSpans = request.spans.filter(
+      (span) => span.attributes?.['next.span_type'] === waitForRSCSpanType
+    )
+
+    expect(renderRSCSpans).toHaveLength(1)
+    expect(waitForRSCSpans).toHaveLength(expectWaitSpan ? 1 : 0)
+
+    const renderRSCSpan = renderRSCSpans[0]
+    const renderRSCParent = request.spans.find(
+      (span) => span.spanId === renderRSCSpan.parentSpanId
+    )
+    expect(renderRSCParent).toBeDefined()
+    if (expectWaitSpan) {
+      expect(bodyRenderSpan?.spanId).toBeDefined()
+      expect(renderRSCParent?.spanId).toBe(bodyRenderSpan?.spanId)
+    }
+
+    const expectedSpans = [
+      [renderRSCSpan, 'render RSC response', renderRSCResponseSpanType],
+      ...(expectWaitSpan
+        ? ([
+            [
+              waitForRSCSpans[0],
+              'wait for RSC render task',
+              waitForRSCSpanType,
+            ],
+          ] as const)
+        : []),
+    ] as const
+
+    for (const [span, name, type] of expectedSpans) {
+      expect(span).toEqual(
+        expect.objectContaining({
+          name,
+          startTime: expect.any(Number),
+          durationMs: expect.any(Number),
+          status: 'ok',
+          traceId: renderRSCParent?.traceId,
+          parentSpanId: renderRSCParent?.spanId,
+          attributes: {
+            'next.span_category': 'nextjs',
+            'next.span_name': name,
+            'next.span_type': type,
+          },
+        })
+      )
+      expect(Number.isFinite(span.startTime)).toBe(true)
+      expect(Number.isFinite(span.durationMs)).toBe(true)
+      expect(span.durationMs).toBeGreaterThanOrEqual(0)
+    }
   }
 
   function expectRoutePreparationSpans(request: RequestInsight) {
@@ -297,43 +371,92 @@ describe('request-insights-route-preparation', () => {
   }
 
   it('records route preparation for first and subsequent App Page requests', async () => {
-    const coldRequest = await captureRequest('/', async () => {
-      const response = await next.fetch('/')
-      expect(response.status).toBe(200)
-      expect(await response.text()).toContain('route preparation page')
-    })
-    const warmRequest = await captureRequest('/', async () => {
-      const response = await next.fetch('/')
-      expect(response.status).toBe(200)
-      await response.text()
-    })
+    const requiredSpanTypes = [renderRSCResponseSpanType, waitForRSCSpanType]
+    const coldRequest = await captureRequest(
+      '/',
+      async () => {
+        const response = await next.fetch('/')
+        expect(response.status).toBe(200)
+        expect(await response.text()).toContain('route preparation page')
+      },
+      requiredSpanTypes
+    )
+    const warmRequest = await captureRequest(
+      '/',
+      async () => {
+        const response = await next.fetch('/')
+        expect(response.status).toBe(200)
+        await response.text()
+      },
+      requiredSpanTypes
+    )
 
     expectRoutePreparationSpans(coldRequest)
     expectRoutePreparationSpans(warmRequest)
     expectAppPageRenderPreparationSpans(coldRequest)
     expectAppPageRenderPreparationSpans(warmRequest)
+    expectAppPageRSCSpans(coldRequest)
+    expectAppPageRSCSpans(warmRequest)
   })
 
   it('records App Page preparation and initialization for RSC requests', async () => {
-    const request = await captureRequest('/', async () => {
-      const response = await next.fetch(`/?${NEXT_RSC_UNION_QUERY}`, {
-        headers: {
-          [RSC_HEADER]: '1',
-        },
-      })
-      expect(response.status).toBe(200)
-      expect(response.headers.get('content-type')).toContain('text/x-component')
-      await response.text()
-    })
+    const request = await captureRequest(
+      '/',
+      async () => {
+        const response = await next.fetch(`/?${NEXT_RSC_UNION_QUERY}`, {
+          headers: {
+            [RSC_HEADER]: '1',
+          },
+        })
+        expect(response.status).toBe(200)
+        expect(response.headers.get('content-type')).toContain(
+          'text/x-component'
+        )
+        await response.text()
+      },
+      [renderRSCResponseSpanType]
+    )
 
     expectRoutePreparationSpans(request)
     expectAppPageRenderPreparationSpans(request, { expectBodyRender: false })
+    expectAppPageRSCSpans(request, { expectWaitSpan: false })
     expect(
       request.spans.find(
         (span) =>
           span.attributes?.['next.span_type'] === 'BaseServer.handleRequest'
       )?.attributes?.['next.rsc']
     ).toBe(true)
+  })
+
+  it('records RSC rendering for runtime prefetch requests', async () => {
+    const cacheBustingSearchParam = await computeCacheBustingSearchParam(
+      '2',
+      undefined,
+      undefined,
+      undefined
+    )
+    const request = await captureRequest(
+      '/',
+      async () => {
+        const response = await next.fetch(
+          `/?${NEXT_RSC_UNION_QUERY}=${cacheBustingSearchParam}`,
+          {
+            headers: {
+              [RSC_HEADER]: '1',
+              [NEXT_ROUTER_PREFETCH_HEADER]: '2',
+            },
+          }
+        )
+        expect(response.status).toBe(200)
+        expect(response.headers.get('content-type')).toContain(
+          'text/x-component'
+        )
+        await response.text()
+      },
+      [renderRSCResponseSpanType]
+    )
+
+    expectAppPageRSCSpans(request, { expectWaitSpan: false })
   })
 
   it('records route preparation for first and subsequent App Route requests', async () => {
