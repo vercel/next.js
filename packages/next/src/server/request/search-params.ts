@@ -169,7 +169,7 @@ export function createPrerenderSearchParamsForClientPage(): Promise<SearchParams
   if (workStore.forceStatic) {
     // When using forceStatic we override all other logic and always just return an empty
     // dictionary object.
-    return Promise.resolve({})
+    return workStore.runInCleanSnapshot(() => Promise.resolve({}))
   }
 
   const workUnitStore = workUnitAsyncStorage.getStore()
@@ -206,7 +206,7 @@ export function createPrerenderSearchParamsForClientPage(): Promise<SearchParams
       case 'prerender-ppr':
       case 'prerender-legacy':
       case 'request':
-        return Promise.resolve({})
+        return workStore.runInCleanSnapshot(() => Promise.resolve({}))
       default:
         workUnitStore satisfies never
     }
@@ -221,7 +221,7 @@ function createStaticPrerenderSearchParams(
   if (workStore.forceStatic) {
     // When using forceStatic we override all other logic and always just return an empty
     // dictionary object.
-    return Promise.resolve({})
+    return workStore.runInCleanSnapshot(() => Promise.resolve({}))
   }
 
   switch (prerenderStore.type) {
@@ -304,7 +304,7 @@ function createRenderSearchParams(
   if (workStore.forceStatic) {
     // When using forceStatic we override all other logic and always just return an empty
     // dictionary object.
-    return Promise.resolve({})
+    return workStore.runInCleanSnapshot(() => Promise.resolve({}))
   }
 
   if (process.env.NODE_ENV === 'development') {
@@ -461,24 +461,16 @@ function makeHangingSearchParams(
   return proxiedPromise
 }
 
-function makeErroringSearchParams(
-  workStore: WorkStore,
-  prerenderStore: PrerenderStoreLegacy | PrerenderStorePPR
-): Promise<SearchParams> {
-  const cachedSearchParams = CachedSearchParams.get(workStore)
-  if (cachedSearchParams) {
-    return cachedSearchParams
-  }
+function createErroringSearchParamsProxyHandler(
+  originatingWorkStore: WorkStore,
+  originatingPrerenderStore: PrerenderStoreLegacy | PrerenderStorePPR
+): ProxyHandler<Promise<SearchParams>> {
+  const workStoreRef = new WeakRef(originatingWorkStore)
+  const prerenderStoreRef = new WeakRef(originatingPrerenderStore)
 
-  const underlyingSearchParams = {}
-  // For search params we don't construct a ReactPromise because we want to interrupt
-  // rendering on any property access that was not set from outside and so we only want
-  // to have properties like value and status if React sets them.
-  const promise = Promise.resolve(underlyingSearchParams)
-
-  const proxiedPromise = new Proxy(promise, {
+  return {
     get(target, prop, receiver) {
-      if (Object.hasOwn(promise, prop)) {
+      if (Object.hasOwn(target, prop)) {
         // The promise has this property directly. we must return it.
         // We know it isn't a dynamic access because it can only be something
         // that was previously written to the promise and thus not an underlying searchParam value
@@ -488,6 +480,14 @@ function makeErroringSearchParams(
       if (typeof prop === 'string' && prop === 'then') {
         const expression =
           '`await searchParams`, `searchParams.then`, or similar'
+        const workStore = workStoreRef.deref()
+        const prerenderStore = prerenderStoreRef.deref()
+        if (!workStore || !prerenderStore) {
+          throw new InvariantError(
+            'Expected workStore and prerenderStore to still be available when accessing searchParams'
+          )
+        }
+
         if (workStore.dynamicShouldError) {
           throwWithStaticGenerationBailoutErrorWithDynamicError(
             workStore.route,
@@ -511,7 +511,30 @@ function makeErroringSearchParams(
       }
       return ReflectAdapter.get(target, prop, receiver)
     },
-  })
+  }
+}
+
+function makeErroringSearchParams(
+  workStore: WorkStore,
+  prerenderStore: PrerenderStoreLegacy | PrerenderStorePPR
+): Promise<SearchParams> {
+  const cachedSearchParams = CachedSearchParams.get(workStore)
+  if (cachedSearchParams) {
+    return cachedSearchParams
+  }
+
+  const underlyingSearchParams = {}
+  // For search params we don't construct a ReactPromise because we want to interrupt
+  // rendering on any property access that was not set from outside and so we only want
+  // to have properties like value and status if React sets them.
+  const promise = workStore.runInCleanSnapshot(() =>
+    Promise.resolve(underlyingSearchParams)
+  )
+
+  const proxiedPromise = new Proxy(
+    promise,
+    createErroringSearchParamsProxyHandler(workStore, prerenderStore)
+  )
 
   CachedSearchParams.set(workStore, proxiedPromise)
   return proxiedPromise
@@ -532,11 +555,12 @@ export function makeErroringSearchParamsForUseCache(): Promise<SearchParams> {
     return cachedSearchParams
   }
 
-  const promise = Promise.resolve({})
+  const promise = workStore.runInCleanSnapshot(() => Promise.resolve({}))
+  const workStoreRef = new WeakRef(workStore)
 
   const proxiedPromise = new Proxy(promise, {
     get: function get(target, prop, receiver) {
-      if (Object.hasOwn(promise, prop)) {
+      if (Object.hasOwn(target, prop)) {
         // The promise has this property directly. we must return it. We know it
         // isn't a dynamic access because it can only be something that was
         // previously written to the promise and thus not an underlying
@@ -548,7 +572,14 @@ export function makeErroringSearchParamsForUseCache(): Promise<SearchParams> {
         typeof prop === 'string' &&
         (prop === 'then' || !wellKnownProperties.has(prop))
       ) {
-        throwForSearchParamsAccessInUseCache(workStore, get)
+        const liveWorkStore = workStoreRef.deref()
+        if (!liveWorkStore) {
+          throw new InvariantError(
+            'Expected workStore to still be available when accessing searchParams in a cache scope'
+          )
+        }
+
+        throwForSearchParamsAccessInUseCache(liveWorkStore, get)
       }
 
       return ReflectAdapter.get(target, prop, receiver)
@@ -567,7 +598,13 @@ function makeUntrackedSearchParams(
     return cachedSearchParams
   }
 
-  const promise = Promise.resolve(underlyingSearchParams)
+  const workStore = workAsyncStorage.getStore()
+  if (!workStore) {
+    throw new InvariantError('Expected workStore to be initialized')
+  }
+  const promise = workStore.runInCleanSnapshot(() =>
+    Promise.resolve(underlyingSearchParams)
+  )
   CachedSearchParams.set(underlyingSearchParams, promise)
 
   return promise
@@ -789,5 +826,7 @@ function createClientSearchParamsInValidation(
     declaredKeys,
     workStore.route
   )
-  return Promise.resolve(underlyingSearchParams)
+  return workStore.runInCleanSnapshot(() =>
+    Promise.resolve(underlyingSearchParams)
+  )
 }
