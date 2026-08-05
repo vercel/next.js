@@ -112,6 +112,21 @@ export interface WorkStore {
   pendingCacheInvocations?: Map<string, Promise<SharedCacheResult>>
 
   /**
+   * Invocations from this request that have already completed, keyed the same
+   * way as `pendingCacheInvocations`. Entries move here when their fill
+   * finishes rather than being dropped, so a later invocation of the same cache
+   * function reuses the entry instead of repeating the cache handler lookup
+   * and, on a miss, the work.
+   *
+   * Only populated for kinds where that saves something real: private caches,
+   * which have no cache handler in production, and kinds whose handler was
+   * supplied by the platform or by `cacheHandlers` config, whose reads may be
+   * remote. A built-in handler read is a map lookup, so retaining its entries
+   * would cost memory for nothing.
+   */
+  completedCacheInvocations?: Map<string, Promise<SharedCacheResult>>
+
+  /**
    * Set by the dev-server's hang-detection probe worker (see
    * `use-cache-probe-worker.ts`) to switch `cache()` into a one-shot fill
    * path: run `generateCacheEntry` as for a cold fill, drain the resulting
