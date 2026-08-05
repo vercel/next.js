@@ -38,30 +38,36 @@ import {
 } from '../../shared/lib/turbopack/utils'
 import { MIDDLEWARE_FILENAME, PROXY_FILENAME } from '../../lib/constants'
 
-const onceErrorSet = new Set()
+// Keys of once-warnings already emitted. Keyed by stable issue content (not
+// object identity): fresh issue objects arrive on every subscription
+// emission, so identity-based storage both defeated deduplication across
+// recompiles and retained every Issue object forever.
+const onceErrorSet = new Set<string>()
 /**
  * Check if given issue is a warning to be display only once.
  * This mimics behavior of get-page-static-info's warnOnce.
  * @param issue
  * @returns
  */
-function shouldEmitOnceWarning(issue: Issue): boolean {
+export function shouldEmitOnceWarning(issue: Issue): boolean {
   const { severity, title, stage } = issue
   if (severity === 'warning' && title.value === 'Invalid page configuration') {
-    if (onceErrorSet.has(issue)) {
+    const key = getIssueKey(issue)
+    if (onceErrorSet.has(key)) {
       return false
     }
-    onceErrorSet.add(issue)
+    onceErrorSet.add(key)
   }
   if (
     severity === 'warning' &&
     stage === 'config' &&
     renderStyledStringToErrorAnsi(issue.title).includes("can't be external")
   ) {
-    if (onceErrorSet.has(issue)) {
+    const key = getIssueKey(issue)
+    if (onceErrorSet.has(key)) {
       return false
     }
-    onceErrorSet.add(issue)
+    onceErrorSet.add(key)
   }
 
   return true
