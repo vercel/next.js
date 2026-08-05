@@ -41,6 +41,7 @@ import {
   getRequestInsightStatusCode,
   getRequestInsightSummaryTypeLabel,
   getRequestListEntries,
+  getRequestListEntriesForPage,
   isInternalRequestInsight,
   isPageLoadRequest,
 } from './request-list'
@@ -54,6 +55,7 @@ import {
 import './request-insights-panel.css'
 
 const TRACE_TICK_COUNT = 5
+type RequestScope = 'all' | 'page'
 
 export function RequestInsightsPanel() {
   const { dispatch, state, shadowRoot } = useDevOverlayContext()
@@ -63,11 +65,13 @@ export function RequestInsightsPanel() {
   const [pausedRequests, setPausedRequests] = useState<
     readonly RequestInsight[] | null
   >(null)
+  const [requestScope, setRequestScope] = useState<RequestScope>('all')
   const displayedRequests = pausedRequests ?? state.requestInsights
   const requests = useMemo(
     () => [...displayedRequests].reverse(),
     [displayedRequests]
   )
+  const initialRequestId = self.__next_r
   const isPaused = pausedRequests !== null
   const { showInternal, verbose } = state.requestInsightsConfig
   const setRequestInsightsConfig = (patch: {
@@ -80,16 +84,30 @@ export function RequestInsightsPanel() {
     })
     saveDevToolsConfig({ requestInsights: patch })
   }
+  const retainedEntries = useMemo(
+    () => getRequestListEntries(requests, true),
+    [requests]
+  )
+  const allListEntries = useMemo(
+    () =>
+      showInternal
+        ? retainedEntries
+        : retainedEntries.filter(
+            ({ request }) => !isInternalRequestInsight(request)
+          ),
+    [retainedEntries, showInternal]
+  )
+  const currentPageEntries = useMemo(
+    () => getRequestListEntriesForPage(allListEntries, initialRequestId),
+    [allListEntries, initialRequestId]
+  )
+  const scopedEntries =
+    requestScope === 'page' ? currentPageEntries : allListEntries
   const filterResult = useMemo(
-    () => getRequestInsightFilterResult(requests, activeFilters, showInternal),
-    [activeFilters, requests, showInternal]
+    () => getRequestInsightFilterResult(scopedEntries, activeFilters),
+    [activeFilters, scopedEntries]
   )
-  const showInternalInList =
-    showInternal || activeFilters.includes('activity:instant-insights')
-  const listEntries = useMemo(
-    () => getRequestListEntries(filterResult.requests, showInternalInList),
-    [filterResult.requests, showInternalInList]
-  )
+  const listEntries = filterResult.entries
   const visibleRequests = useMemo(
     () => listEntries.map((entry) => entry.request),
     [listEntries]
@@ -101,21 +119,23 @@ export function RequestInsightsPanel() {
     visibleRequests,
     selectedRequestKey
   )
-  const selectedRequest =
-    visibleRequests.find(
-      (request) => getRequestInsightKey(request) === activeRequestKey
+  const selectedEntry =
+    listEntries.find(
+      ({ request }) => getRequestInsightKey(request) === activeRequestKey
     ) ?? null
-  const initialRequestId = self.__next_r
-  const internalRequests = useMemo(
-    () => requests.filter((request) => isInternalRequestInsight(request)),
-    [requests]
+  const selectedRequest = selectedEntry?.request ?? null
+  const orphanedInternalRequests = useMemo(
+    () =>
+      retainedEntries
+        .filter(({ request }) => isInternalRequestInsight(request))
+        .map(({ request }) => request),
+    [retainedEntries]
   )
   const hiddenInternalErrorCount = showInternal
     ? 0
-    : internalRequests.filter((request) => request.status === 'error').length
-  // Only offer the internal-activity toggle once the session has captured
-  // internal activity to reveal.
-  const showInternalToggle = internalRequests.length > 0
+    : orphanedInternalRequests.filter((request) => request.status === 'error')
+        .length
+  const showInternalToggle = orphanedInternalRequests.length > 0
 
   if (displayedRequests.length === 0) {
     return (
@@ -236,6 +256,28 @@ export function RequestInsightsPanel() {
             </div>
           </div>
         </div>
+        <div
+          aria-label="Request scope"
+          className="request-insights-scope-switcher"
+          role="group"
+        >
+          <button
+            aria-pressed={requestScope === 'all'}
+            onClick={() => setRequestScope('all')}
+            type="button"
+          >
+            All
+          </button>
+          <button
+            aria-pressed={requestScope === 'page'}
+            disabled={currentPageEntries.length === 0}
+            onClick={() => setRequestScope('page')}
+            title="Show requests correlated to this browser document"
+            type="button"
+          >
+            This page
+          </button>
+        </div>
         {activeFilters.length > 0 ? (
           <div className="request-insights-filter-status">
             <span>
@@ -256,6 +298,8 @@ export function RequestInsightsPanel() {
                   Reset filters
                 </button>
               </>
+            ) : requestScope === 'page' ? (
+              <>No requests are correlated to this browser document.</>
             ) : (
               <>
                 Only internal activity has been captured. Enable “Internal
@@ -264,10 +308,11 @@ export function RequestInsightsPanel() {
             )}
           </div>
         ) : (
-          listEntries.map(({ request }) => {
+          listEntries.map(({ request, instantInsights }) => {
             const requestKey = getRequestInsightKey(request)
             return (
               <RequestRow
+                instantInsights={instantInsights}
                 key={requestKey}
                 request={request}
                 pageLoad={isPageLoadRequest(request, initialRequestId)}
@@ -280,7 +325,11 @@ export function RequestInsightsPanel() {
       </div>
 
       {selectedRequest && (
-        <RequestDetails request={selectedRequest} verbose={verbose} />
+        <RequestDetails
+          instantInsights={selectedEntry?.instantInsights ?? []}
+          request={selectedRequest}
+          verbose={verbose}
+        />
       )}
     </div>
   )
@@ -373,11 +422,13 @@ function RequestFiltersMenu({
 }
 
 function RequestRow({
+  instantInsights,
   request,
   pageLoad,
   selected,
   onSelect,
 }: {
+  instantInsights: readonly RequestInsight[]
   request: RequestInsight
   pageLoad: boolean
   selected: boolean
@@ -392,10 +443,21 @@ function RequestRow({
   )
   const clockTime = formatClockTime(request.startTime)
   const bypassesProxy = request.proxyStatus === 'bypassed'
+  const hasInstantInsightsError = instantInsights.some(
+    (item) =>
+      item.status === 'error' ||
+      item.spans.some((span) => span.status === 'error' || span.error)
+  )
+  const hasRequestError =
+    request.status === 'error' ||
+    request.spans.some((span) => span.status === 'error' || span.error)
+  const hasVisibleError = hasRequestError || hasInstantInsightsError
+  const statusLabel = getRequestInsightStatusCode(request) ?? request.status
 
   return (
     <button
-      aria-label={`${isInstantInsights ? `Instant Insights for ${requestUrl}` : requestUrl}, ${requestType.accessibleLabel}, ${bypassesProxy ? 'Did not match the configured proxy, ' : ''}${formatDuration(request.durationMs)}, ${clockTime}`}
+      aria-label={`${isInstantInsights ? `Instant Insights for ${requestUrl}` : requestUrl}, ${requestType.accessibleLabel}, Status ${statusLabel}, ${instantInsights.length > 0 ? `Includes Instant Insights${hasInstantInsightsError ? ' with errors' : ''}, ` : ''}${bypassesProxy ? 'Did not match the configured proxy, ' : ''}${formatDuration(request.durationMs)}, ${clockTime}`}
+      aria-pressed={selected}
       className="request-insights-row"
       data-internal={isInstantInsights || undefined}
       data-page-load={pageLoad}
@@ -405,7 +467,7 @@ function RequestRow({
     >
       <span className="request-insights-status" data-status={request.status} />
       <span className="request-insights-route">
-        <span className="request-insights-route-label">
+        <span className="request-insights-route-label" title={requestUrl}>
           {isInstantInsights ? 'Instant Insights' : requestUrl}
         </span>
       </span>
@@ -420,6 +482,16 @@ function RequestRow({
         >
           {requestType.label}
         </span>
+        {instantInsights.length > 0 ? (
+          <span
+            className="request-insights-request-activity"
+            data-activity="instant-insights"
+            data-status={hasInstantInsightsError ? 'error' : 'ok'}
+            title={`${instantInsights.length} Instant Insights record${instantInsights.length === 1 ? '' : 's'}${hasInstantInsightsError ? ' with errors' : ''}`}
+          >
+            Instant
+          </span>
+        ) : null}
         {bypassesProxy ? (
           <span
             className="request-insights-request-activity"
@@ -427,6 +499,9 @@ function RequestRow({
           >
             No proxy
           </span>
+        ) : null}
+        {hasVisibleError ? (
+          <span className="request-insights-request-error">Error</span>
         ) : null}
         <span>{clockTime}</span>
       </span>
@@ -454,9 +529,11 @@ function CheckIcon() {
 }
 
 function RequestDetails({
+  instantInsights,
   request,
   verbose,
 }: {
+  instantInsights: readonly RequestInsight[]
   request: RequestInsight
   verbose: boolean
 }) {
@@ -478,7 +555,7 @@ function RequestDetails({
       <div className="request-insights-summary">
         <div className="request-insights-heading">
           <div className="request-insights-title-row">
-            <div className="request-insights-title">
+            <div className="request-insights-title" title={requestUrl}>
               {getRequestInsightKind(request) === 'instant-insights'
                 ? `Instant Insights · ${requestUrl}`
                 : requestUrl}
@@ -508,6 +585,65 @@ function RequestDetails({
         request={request}
       />
 
+      <FetchTable fetches={request.fetches} />
+
+      {instantInsights.length > 0 ? (
+        <InstantInsightsSection requests={instantInsights} verbose={verbose} />
+      ) : null}
+    </div>
+  )
+}
+
+function InstantInsightsSection({
+  requests,
+  verbose,
+}: {
+  requests: readonly RequestInsight[]
+  verbose: boolean
+}) {
+  return (
+    <details className="request-insights-instant-section">
+      <summary>
+        <span>Instant Insights</span>
+        <span className="request-insights-section-note">
+          {requests.length} record{requests.length === 1 ? '' : 's'}
+        </span>
+      </summary>
+      {requests.map((request) => (
+        <InstantInsightsRecord
+          key={getRequestInsightKey(request)}
+          request={request}
+          verbose={verbose}
+        />
+      ))}
+    </details>
+  )
+}
+
+function InstantInsightsRecord({
+  request,
+  verbose,
+}: {
+  request: RequestInsight
+  verbose: boolean
+}) {
+  const traceItems = useMemo(
+    () =>
+      getTraceItems(
+        request,
+        verbose,
+        typeof window === 'undefined' ? undefined : window.location.origin
+      ),
+    [request, verbose]
+  )
+
+  return (
+    <div className="request-insights-instant-record">
+      <div className="request-insights-instant-record-summary">
+        <span>Status {request.status}</span>
+        <span>{formatDuration(request.durationMs)}</span>
+      </div>
+      <Trace items={traceItems} request={request} />
       <FetchTable fetches={request.fetches} />
     </div>
   )
@@ -782,14 +918,17 @@ function FetchTable({ fetches }: { fetches: RequestInsightFetch[] }) {
           No server fetches captured.
         </div>
       ) : (
-        <div className="request-insights-fetch-table">
-          <div className="request-insights-fetch request-insights-fetch-header">
-            <span>Method</span>
-            <span>URL</span>
-            <span>Duration</span>
-            <span>Status</span>
-            <span>Cache</span>
-            <span>Reason</span>
+        <div className="request-insights-fetch-table" role="table">
+          <div
+            className="request-insights-fetch request-insights-fetch-header"
+            role="row"
+          >
+            <span role="columnheader">Method</span>
+            <span role="columnheader">URL</span>
+            <span role="columnheader">Duration</span>
+            <span role="columnheader">Status</span>
+            <span role="columnheader">Cache</span>
+            <span role="columnheader">Reason</span>
           </div>
           {fetches.map((fetch, index) => {
             const url = getFetchUrlPresentation(fetch.url, currentOrigin)
@@ -798,11 +937,12 @@ function FetchTable({ fetches }: { fetches: RequestInsightFetch[] }) {
                 className="request-insights-fetch"
                 data-origin={url.originKind}
                 key={index}
+                role="row"
               >
-                <span className="request-insights-method">
+                <span className="request-insights-method" role="cell">
                   {fetch.method ?? 'GET'}
                 </span>
-                <span className="request-insights-fetch-url">
+                <span className="request-insights-fetch-url" role="cell">
                   <Tooltip
                     className="request-insights-fetch-tooltip"
                     title={url.fullUrl}
@@ -820,10 +960,10 @@ function FetchTable({ fetches }: { fetches: RequestInsightFetch[] }) {
                     </span>
                   </Tooltip>
                 </span>
-                <span>{formatDuration(fetch.durationMs)}</span>
-                <span>{fetch.statusCode ?? '-'}</span>
-                <span>{fetch.cacheStatus ?? 'unknown'}</span>
-                <span className="request-insights-cache-reason">
+                <span role="cell">{formatDuration(fetch.durationMs)}</span>
+                <span role="cell">{fetch.statusCode ?? '-'}</span>
+                <span role="cell">{fetch.cacheStatus ?? 'unknown'}</span>
+                <span className="request-insights-cache-reason" role="cell">
                   {fetch.cacheReason ?? '-'}
                 </span>
               </div>
