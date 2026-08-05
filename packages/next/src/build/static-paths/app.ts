@@ -897,7 +897,6 @@ export async function buildAppStaticPaths({
 
   const store = createWorkStore({
     page,
-    executionMode: 'request',
     renderOpts: {
       incrementalCache,
       cacheLifeProfiles,
