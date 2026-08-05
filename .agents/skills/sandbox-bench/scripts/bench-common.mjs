@@ -596,12 +596,13 @@ export async function ensureReactBuildSnapshot(refSha) {
       '-q',
       'java-21-amazon-corretto-headless',
     ])
-    await sbExec(
+    await runDetached(
       vm,
-      '20m',
-      `set -e; mkdir -p /vercel/sandbox/react && cd /vercel/sandbox/react && tar -xzf ../src.tgz && rm -f ../src.tgz && ` +
+      'react-snap',
+      `mkdir -p /vercel/sandbox/react && cd /vercel/sandbox/react && tar -xzf ../src.tgz && rm -f ../src.tgz && ` +
         `npm i -g yarn >/dev/null 2>&1 && yarn install --frozen-lockfile --ignore-engines >/dev/null 2>&1 && echo react env ready`,
-      'react-snap'
+      null,
+      25
     )
     return await takeSnapshot(vm, REACT_SNAP_CACHE, key)
   } finally {
@@ -758,15 +759,12 @@ export async function ensureRefArm(arm) {
     }
     await sb(['cp', src, `${vm}:/vercel/sandbox/src.tgz`])
     fs.rmSync(src, { force: true })
-    // The exec stream drops on long silent commands; heartbeat keeps it
-    // alive during the ~10min dual-channel build. Newline before the
-    // backgrounded heartbeat: a trailing & after && backgrounds the
-    // whole chain.
-    await sbExec(
+    // Newline before the backgrounded heartbeat: a trailing & after &&
+    // backgrounds the whole chain.
+    await runDetached(
       vm,
-      '40m',
-      `set -e
-ls /vercel/sandbox/react/node_modules >/dev/null
+      `armbuild:${arm.name}`,
+      `ls /vercel/sandbox/react/node_modules >/dev/null
 cd /vercel/sandbox/react
 find . -mindepth 1 -maxdepth 1 ! -name node_modules -exec rm -rf {} +
 tar -xzf ../src.tgz
@@ -776,7 +774,8 @@ yarn build "${E2E_BUILD_TARGETS}" >/tmp/build.log 2>&1 || (kill $HB; tail -20 /t
 kill $HB
 tar -czf /vercel/sandbox/arm.tgz build/oss-stable build/oss-experimental
 echo arm built`,
-      `armbuild:${arm.name}`
+      null,
+      45
     )
     fs.mkdirSync(CACHE, { recursive: true })
     const armTmp = `${cached}.tmp-${process.pid}`
