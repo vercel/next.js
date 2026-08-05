@@ -54,7 +54,7 @@ const BYPASS_TYPES = [SVG, ICO, ICNS, BMP, JXL, HEIC]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const BLUR_QUALITY = 70 // should match `next-image-loader`
 
-let _sharp: typeof import('sharp')
+let _sharp: typeof import('sharp').default
 
 async function initCacheEntries(
   cacheDir: string
@@ -84,7 +84,7 @@ export function getSharp(concurrency: number | null | undefined) {
     return _sharp
   }
   try {
-    _sharp = require('sharp') as typeof import('sharp')
+    _sharp = require('sharp') as typeof import('sharp').default
     if (_sharp && _sharp.concurrency() > 1) {
       // Reducing concurrency should reduce the memory usage too.
       // We more aggressively reduce in dev but also reduce in prod.
@@ -739,7 +739,10 @@ export async function optimizeImage({
 
   if (contentType === AVIF) {
     transformer.avif({
-      quality: Math.max(quality - 20, 1),
+      // Scale the quality to try and match webp. This ratio was derived
+      // from sharp's default 80 (webp) and 50 (avif), and then verified
+      // using dssim and ssimulacra2 visual quality tests.
+      quality: Math.max(Math.round(quality * (50 / 80)), 1),
       effort: 3,
     })
   } else if (contentType === WEBP) {
