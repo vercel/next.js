@@ -65,6 +65,15 @@ pub(crate) struct PoolState {
     pub(crate) waiters: Mutex<Vec<oneshot::Sender<u32>>>,
 }
 
+/// Registers a waiter for the next released worker, first pruning any
+/// waiters whose receivers were canceled. Without pruning, canceled
+/// acquisitions accumulate until some unrelated worker is released — and
+/// forever if none is.
+pub(crate) fn push_waiter(waiters: &mut Vec<oneshot::Sender<u32>>, tx: oneshot::Sender<u32>) {
+    waiters.retain(|tx| !tx.is_closed());
+    waiters.push(tx);
+}
+
 #[turbo_tasks::value(cell = "new", serialization = "skip", eq = "manual", shared)]
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub(super) struct WorkerOptions {
@@ -343,5 +352,22 @@ mod tests {
         );
         // Clean up the worker channel created by TaskChannels::new.
         WORKER_POOL_OPERATION.remove_worker_channel(worker_id);
+    }
+
+    /// Waiters whose receivers were canceled must not linger until the next
+    /// worker release: they are pruned eagerly when a new waiter registers.
+    #[test]
+    fn canceled_waiters_are_pruned_on_push() {
+        let mut waiters: Vec<oneshot::Sender<u32>> = Vec::new();
+        let (stale_tx, stale_rx) = oneshot::channel();
+        drop(stale_rx);
+        push_waiter(&mut waiters, stale_tx);
+        let (live_tx, _live_rx) = oneshot::channel::<u32>();
+        push_waiter(&mut waiters, live_tx);
+        assert_eq!(
+            waiters.len(),
+            1,
+            "canceled waiters must be pruned when a new waiter registers"
+        );
     }
 }
