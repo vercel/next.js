@@ -99,12 +99,7 @@ async function createFlightRouterStateFromLoaderTreeImpl(
     }
   }
 
-  const isInstant =
-    instantConfig === true ||
-    (typeof instantConfig === 'object' && instantConfig !== null)
-  if (isInstant) {
-    prefetchHints |= PrefetchHint.SubtreeHasPartialPrefetching
-  } else if (instantConfig === false) {
+  if (instantConfig === false) {
     // The segment explicitly opts out of Partial Prefetching. We don't change
     // the prefetch behavior, but we record it so the dev-time
     // `<Link prefetch={true}>` warning can be suppressed for this route.
@@ -125,11 +120,10 @@ async function createFlightRouterStateFromLoaderTreeImpl(
   }
 
   // Mark the segment as "eager" unless its effective prefetch strategy is
-  // 'partial'. A truthy instant is treated as 'partial' (not eager).
-  // 'unstable_eager' already set the bit above. Under App Shells, a subtree
-  // with no eager segment skips its Speculative prefetch and relies on the
-  // shared app shell instead.
-  if (!isInstant && prefetchConfig !== 'partial') {
+  // 'partial'. 'unstable_eager' already set the bit above. Under App Shells,
+  // a subtree with no eager segment skips its Speculative prefetch and relies
+  // on the shared app shell instead.
+  if (prefetchConfig !== 'partial') {
     prefetchHints |= PrefetchHint.SubtreeHasEagerPrefetch
   }
 

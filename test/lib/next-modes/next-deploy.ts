@@ -2,10 +2,11 @@ import os from 'os'
 import path from 'path'
 import execa from 'execa'
 import fs from 'fs-extra'
-import { NextInstance } from './base'
+import { NextInstance, type NextInstanceOpts } from './base'
 import * as projectEnv from '../../../scripts/reset-project.mjs'
 import { Span } from 'next/dist/trace'
 import { setTimeout } from 'timers/promises'
+import { FileRef } from '../e2e-utils'
 
 export class NextDeployInstance extends NextInstance {
   private _cliOutput: string
@@ -13,6 +14,17 @@ export class NextDeployInstance extends NextInstance {
   private _deploymentId: string | undefined
   private _supportsImmutableAssets: boolean = false
   private _writtenHostsLine: string | null = null
+
+  constructor(opts: NextInstanceOpts) {
+    super(opts)
+
+    if (typeof opts.files === 'string' || opts.files instanceof FileRef) {
+      this.env = {
+        NEXT_PRIVATE_LOCAL_DEV: '1',
+        ...this.env,
+      }
+    }
+  }
 
   protected throwIfUnavailable(): void | never {
     if (this.isStopping !== null) {
