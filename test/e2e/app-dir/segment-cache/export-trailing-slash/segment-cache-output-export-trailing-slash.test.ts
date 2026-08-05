@@ -96,12 +96,15 @@ describe('segment cache (output: "export", trailingSlash: true)', () => {
       },
     })
 
-    await act(async () => {
-      const checkbox = await browser.elementByCss(
-        '[data-link-accordion="target-page-eager"]'
-      )
-      await checkbox.click()
-    })
+    await act(
+      async () => {
+        const checkbox = await browser.elementByCss(
+          '[data-link-accordion="target-page-eager"]'
+        )
+        await checkbox.click()
+      },
+      { includes: 'Target page', kind: 'static' }
+    )
 
     // This pins the exact filename on purpose: it is the one assertion that
     // catches the prefetch and navigation encodings drifting apart under

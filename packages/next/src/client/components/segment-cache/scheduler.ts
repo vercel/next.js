@@ -856,10 +856,11 @@ function pingRootRouteTree(
         fetchStrategy = FetchStrategy.PPR
       } else if (isOutputExportMode) {
         // Static export can only serve the per-segment files the exporter wrote
-        // to disk. Any other strategy would issue a dynamic request, which in
-        // this mode reads the page's HTML document and fails to decode, wasting
-        // the download and leaving nothing prefetched. All data is static here,
-        // so PPR is equivalent to a full prefetch anyway.
+        // to disk. Any other strategy issues a dynamic request, which here
+        // returns the page's HTML document; the Flight client never finishes
+        // decoding it, so the prefetch hangs and the link is permanently dead.
+        // All data is static in this mode, so PPR is equivalent to a full
+        // prefetch anyway.
         fetchStrategy = FetchStrategy.PPR
       } else if (task.fetchStrategy === FetchStrategy.PPR) {
         fetchStrategy = route.supportsPerSegmentPrefetching

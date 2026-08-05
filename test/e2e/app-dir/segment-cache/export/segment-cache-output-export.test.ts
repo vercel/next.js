@@ -150,7 +150,7 @@ describe('segment cache (output: "export")', () => {
         )
         await checkbox.click()
       },
-      { includes: 'Dynamic page: first' }
+      { includes: 'Dynamic page: first', kind: 'static' }
     )
 
     expect(fetched).not.toContain('/dynamic/first')
@@ -178,7 +178,7 @@ describe('segment cache (output: "export")', () => {
         )
         await checkbox.click()
       },
-      { includes: 'Nested inner page' }
+      { includes: 'Nested inner page', kind: 'static' }
     )
 
     // Whatever the router decides to request, at any depth, it has to be a file

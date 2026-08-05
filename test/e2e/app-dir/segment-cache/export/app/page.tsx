@@ -65,6 +65,21 @@ export default function OutputExport() {
           </LinkAccordion>
         </li>
       </ul>
+      <p>
+        The following link points at a dynamic param that was not exported, so
+        none of its segment files exist on disk:
+      </p>
+      <ul>
+        <li>
+          <LinkAccordion
+            href="/dynamic/second"
+            prefetch
+            name="dynamic-missing-eager"
+          >
+            Missing dynamic page
+          </LinkAccordion>
+        </li>
+      </ul>
       <p>The following link points at a page below two nested layouts:</p>
       <ul>
         <li>
