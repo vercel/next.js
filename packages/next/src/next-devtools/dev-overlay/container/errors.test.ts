@@ -10,6 +10,9 @@ import {
   createRuntimeBodyErrorInNavigation,
   createRuntimeMetadataError,
   createRuntimeViewportError,
+  createLinkBodyErrorInNavigation,
+  createLinkMetadataError,
+  createLinkViewportError,
 } from '../../../server/app-render/blocking-route-messages'
 import {
   createSyncIOClientError,
@@ -17,53 +20,79 @@ import {
   createSyncIORuntimeError,
   type SyncIOApiType,
 } from '../../../server/app-render/sync-io-messages'
-import {
-  ClientHookDynamicError,
-  ParamClientHookDynamicError,
-} from '../../../server/dynamic-rendering-utils'
+import { ClientHookDynamicError } from '../../../server/dynamic-rendering-utils'
 import { getCards } from '../components/instant/instant-guidance-data'
 import {
+  deriveCauseFromCodeFrame,
   getBlockingRouteErrorDetails,
+  getLinkPrefetchPartialErrorDetails,
   getUnrenderedSegmentErrorDetails,
   isInstantNavigationError,
-  isRuntimeVariant,
+  getGuidanceVariant,
   isSyncIOClientError,
   isSyncIOError,
 } from './errors'
 
 const ROUTE = '/example'
 
-describe('isRuntimeVariant', () => {
-  it('returns true for runtime body factory output', () => {
-    expect(isRuntimeVariant(createRuntimeBodyError(ROUTE).message)).toBe(true)
+describe('getGuidanceVariant', () => {
+  describe('classifies runtime messages as runtime', () => {
+    describe('classifies link messages as link', () => {
+      it.each([
+        {
+          description: 'body',
+          error: () => createLinkBodyErrorInNavigation(ROUTE),
+        },
+        {
+          description: 'metadata',
+          error: () => createLinkMetadataError(ROUTE),
+        },
+        {
+          description: 'viewport',
+          error: () => createLinkViewportError(ROUTE),
+        },
+      ])('$description', ({ error }) => {
+        expect(getGuidanceVariant(error().message)).toBe('link')
+      })
+    })
+
+    it.each([
+      { description: 'body', error: () => createRuntimeBodyError(ROUTE) },
+      {
+        description: 'body in navigation',
+        error: () => createRuntimeBodyErrorInNavigation(ROUTE),
+      },
+      {
+        description: 'metadata',
+        error: () => createRuntimeMetadataError(ROUTE),
+      },
+      {
+        description: 'viewport',
+        error: () => createRuntimeViewportError(ROUTE),
+      },
+    ])('$description', ({ error }) => {
+      expect(getGuidanceVariant(error().message)).toBe('runtime')
+    })
   })
 
-  it('returns false for dynamic body factory output', () => {
-    expect(isRuntimeVariant(createDynamicBodyError(ROUTE).message)).toBe(false)
-  })
-
-  it('returns true for runtime metadata factory output', () => {
-    expect(isRuntimeVariant(createRuntimeMetadataError(ROUTE).message)).toBe(
-      true
-    )
-  })
-
-  it('returns false for dynamic metadata factory output', () => {
-    expect(isRuntimeVariant(createDynamicMetadataError(ROUTE).message)).toBe(
-      false
-    )
-  })
-
-  it('returns true for runtime viewport factory output', () => {
-    expect(isRuntimeVariant(createRuntimeViewportError(ROUTE).message)).toBe(
-      true
-    )
-  })
-
-  it('returns false for dynamic viewport factory output', () => {
-    expect(isRuntimeVariant(createDynamicViewportError(ROUTE).message)).toBe(
-      false
-    )
+  describe('classifies dynamic messages as dynamic', () => {
+    it.each([
+      { description: 'body', error: () => createDynamicBodyError(ROUTE) },
+      {
+        description: 'body in navigation',
+        error: () => createDynamicBodyErrorInNavigation(ROUTE),
+      },
+      {
+        description: 'metadata',
+        error: () => createDynamicMetadataError(ROUTE),
+      },
+      {
+        description: 'viewport',
+        error: () => createDynamicViewportError(ROUTE),
+      },
+    ])('$description', ({ error }) => {
+      expect(getGuidanceVariant(error().message)).toBe('dynamic')
+    })
   })
 })
 
@@ -140,10 +169,10 @@ describe('getBlockingRouteErrorDetails', () => {
     })
   })
 
-  it('classifies param-derived client hook errors separately', () => {
+  it('classifies useParams() client hook errors', () => {
     expect(
       getBlockingRouteErrorDetails(
-        new ParamClientHookDynamicError(ROUTE, 'useParams()')
+        new ClientHookDynamicError(ROUTE, 'useParams()')
       )
     ).toEqual({
       type: 'client-hook',
@@ -179,6 +208,16 @@ describe('getBlockingRouteErrorDetails', () => {
     ).toEqual({
       type: 'blocking-route',
       variant: 'dynamic',
+      inNavigation: true,
+    })
+  })
+
+  it('classifies createLinkBodyErrorInNavigation as blocking-route + link + inNavigation', () => {
+    expect(
+      getBlockingRouteErrorDetails(createLinkBodyErrorInNavigation(ROUTE))
+    ).toEqual({
+      type: 'blocking-route',
+      variant: 'link',
       inNavigation: true,
     })
   })
@@ -293,21 +332,16 @@ describe('client hook guidance', () => {
     expect(cards.map((card) => card.group)).toEqual(['stream', 'block'])
   })
 
-  it('shows Stream, GSP, and Block cards for useParams', () => {
+  it('shows Stream and Block cards for useParams', () => {
     const cards = getCards('client-hook', 'runtime', 'useParams()')
     expect(cards.map((card) => card.id)).toEqual([
       'wrap-in-or-move-into-suspense',
-      'for-known-params-prerender',
       'allow-blocking-route',
     ])
-    expect(cards.map((card) => card.group)).toEqual([
-      'stream',
-      'cache',
-      'block',
-    ])
+    expect(cards.map((card) => card.group)).toEqual(['stream', 'block'])
   })
 
-  it('shows Stream and Block cards for hooks without GSP', () => {
+  it('shows Stream and Block cards for hooks (no GSP)', () => {
     const expected = ['wrap-in-or-move-into-suspense', 'allow-blocking-route']
     expect(
       getCards('client-hook', 'runtime', 'usePathname()').map((c) => c.id)
@@ -329,35 +363,43 @@ describe('card sets for all error families', () => {
   it('blocking-route runtime', () => {
     expect(
       getCards('blocking-route', 'runtime').map((card) => card.id)
-    ).toEqual([
-      'wrap-in-or-move-into-suspense',
-      'for-known-params-prerender',
-      'allow-blocking-route',
-    ])
+    ).toEqual(['wrap-in-or-move-into-suspense', 'allow-blocking-route'])
   })
 
   it('blocking-route dynamic', () => {
     expect(
       getCards('blocking-route', 'dynamic').map((card) => card.id)
     ).toEqual([
-      'cache-the-component-or-data',
       'wrap-in-or-move-into-suspense',
+      'cache-the-component-or-data',
       'allow-blocking-route',
     ])
+  })
+
+  it('blocking-route dynamic with connection() drops the cache card', () => {
+    expect(
+      getCards('blocking-route', 'dynamic', 'connection').map((card) => card.id)
+    ).toEqual(['wrap-in-or-move-into-suspense', 'allow-blocking-route'])
   })
 
   it('metadata runtime', () => {
     expect(getCards('metadata', 'runtime').map((card) => card.id)).toEqual([
       'use-static-metadata',
-      'render-page-at-request-time',
+      'mark-the-route-as-dynamic',
     ])
   })
 
   it('metadata dynamic', () => {
     expect(getCards('metadata', 'dynamic').map((card) => card.id)).toEqual([
       'cache-the-metadata',
-      'render-page-at-request-time',
+      'mark-the-route-as-dynamic',
     ])
+  })
+
+  it('metadata dynamic with connection() drops the cache card', () => {
+    expect(
+      getCards('metadata', 'dynamic', 'connection').map((card) => card.id)
+    ).toEqual(['mark-the-route-as-dynamic'])
   })
 
   it('viewport runtime', () => {
@@ -369,15 +411,31 @@ describe('card sets for all error families', () => {
 
   it('viewport dynamic', () => {
     expect(getCards('viewport', 'dynamic').map((card) => card.id)).toEqual([
-      'cache-viewport-data',
+      'cache-the-viewport-data',
       'allow-blocking-route',
     ])
+  })
+
+  it('viewport dynamic with connection() drops the cache card', () => {
+    expect(
+      getCards('viewport', 'dynamic', 'connection').map((card) => card.id)
+    ).toEqual(['allow-blocking-route'])
   })
 
   it('unrendered-segment', () => {
     expect(
       getCards('unrendered-segment', 'runtime').map((card) => card.id)
     ).toEqual(['render-the-dropped-segment', 'skip-validation-on-the-segment'])
+  })
+
+  it('link-prefetch-partial', () => {
+    expect(
+      getCards('link-prefetch-partial', 'runtime').map((card) => card.id)
+    ).toEqual([
+      'opt-into-partial-prefetching',
+      'use-the-default-prefetch',
+      'disable-validation-on-this-route',
+    ])
   })
 
   it('sync-io math', () => {
@@ -512,6 +570,42 @@ describe('getUnrenderedSegmentErrorDetails', () => {
   })
 })
 
+describe('getLinkPrefetchPartialErrorDetails', () => {
+  function createLinkPrefetchPartialError(pathname: string): Error {
+    return new Error(
+      `Next.js encountered dynamic data during prefetching for "${pathname}".\n\n` +
+        `This will lead to slower, more expensive prefetches.`
+    )
+  }
+
+  it('parses the pathname', () => {
+    expect(
+      getLinkPrefetchPartialErrorDetails(
+        createLinkPrefetchPartialError('/dashboard')
+      )
+    ).toEqual({
+      type: 'link-prefetch-partial',
+      pathname: '/dashboard',
+    })
+  })
+
+  it('returns null for an unrelated error', () => {
+    expect(getLinkPrefetchPartialErrorDetails(new Error('regular bug'))).toBe(
+      null
+    )
+  })
+
+  it('returns null when the headline matches but the prefix is wrong', () => {
+    expect(
+      getLinkPrefetchPartialErrorDetails(
+        new Error(
+          'Some preamble: Next.js encountered dynamic data during prefetching for "/x".'
+        )
+      )
+    ).toBe(null)
+  })
+})
+
 describe('isInstantNavigationError', () => {
   function createUnrenderedSegmentError(route: string): Error {
     return new Error(
@@ -526,12 +620,22 @@ describe('isInstantNavigationError', () => {
     expect(
       isInstantNavigationError(createDynamicBodyErrorInNavigation(ROUTE))
     ).toBe(true)
+    expect(
+      isInstantNavigationError(createLinkBodyErrorInNavigation(ROUTE))
+    ).toBe(true)
   })
 
   it('returns true for unrendered-segment errors', () => {
     expect(isInstantNavigationError(createUnrenderedSegmentError(ROUTE))).toBe(
       true
     )
+  })
+
+  it('returns true for link-prefetch-partial warnings', () => {
+    const error = new Error(
+      `Next.js encountered dynamic data during prefetching for "/dashboard".`
+    )
+    expect(isInstantNavigationError(error)).toBe(true)
   })
 
   it('returns false for prerender-phase blocking-route errors', () => {
@@ -555,5 +659,59 @@ describe('isInstantNavigationError', () => {
 
   it('returns false for unrelated errors', () => {
     expect(isInstantNavigationError(new Error('regular bug'))).toBe(false)
+  })
+})
+
+describe('deriveCauseFromCodeFrame', () => {
+  const connectionFrame = `  3 | export default async function Page() {\n> 4 |   await connection();\n    |                   ^\n  5 |   return <p>OK</p>;`
+  const fetchFrame = `  1 | export default async function Page() {\n> 2 |   const r = await fetch("/api");\n    |                     ^\n  3 |   return <p>{r.status}</p>;`
+
+  it('returns "connection" when the highlighted line calls connection()', () => {
+    expect(
+      deriveCauseFromCodeFrame('blocking-route', 'dynamic', connectionFrame)
+    ).toBe('connection')
+    expect(
+      deriveCauseFromCodeFrame('metadata', 'dynamic', connectionFrame)
+    ).toBe('connection')
+    expect(
+      deriveCauseFromCodeFrame('viewport', 'dynamic', connectionFrame)
+    ).toBe('connection')
+  })
+
+  it('returns undefined when the highlighted line is a fetch/db call', () => {
+    expect(
+      deriveCauseFromCodeFrame('blocking-route', 'dynamic', fetchFrame)
+    ).toBeUndefined()
+  })
+
+  it('returns undefined for runtime variant even if connection() is in scope', () => {
+    expect(
+      deriveCauseFromCodeFrame('blocking-route', 'runtime', connectionFrame)
+    ).toBeUndefined()
+  })
+
+  it('returns undefined for kinds that do not show a cache card', () => {
+    expect(
+      deriveCauseFromCodeFrame('client-hook', 'dynamic', connectionFrame)
+    ).toBeUndefined()
+    expect(
+      deriveCauseFromCodeFrame('sync-io', 'dynamic', connectionFrame)
+    ).toBeUndefined()
+  })
+
+  it('returns undefined when there is no code frame', () => {
+    expect(
+      deriveCauseFromCodeFrame('blocking-route', 'dynamic', null)
+    ).toBeUndefined()
+    expect(
+      deriveCauseFromCodeFrame('blocking-route', 'dynamic', undefined)
+    ).toBeUndefined()
+  })
+
+  it('does not match when connection() appears only in a non-highlighted line', () => {
+    const frame = `  1 | import { connection } from "next/server";\n> 2 |   await fetch("/api");\n    |         ^`
+    expect(
+      deriveCauseFromCodeFrame('blocking-route', 'dynamic', frame)
+    ).toBeUndefined()
   })
 })

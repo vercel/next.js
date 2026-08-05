@@ -4,7 +4,7 @@ import { splitResponseWithPPRSentinel } from 'e2e-utils/ppr'
 import { retry, waitFor } from 'next-test-utils'
 import path from 'path'
 
-const isAdapterTest = Boolean(process.env.NEXT_ENABLE_ADAPTER)
+const isAdapterTest = process.env.NEXT_ENABLE_ADAPTER === '1'
 
 type NextInstance = ReturnType<typeof nextTestSetup>['next']
 
@@ -34,6 +34,8 @@ function createSplitHTMLFetcher(next: NextInstance) {
 
 describe('partial-fallback-shell-upgrade', () => {
   const { next, isNextDev } = nextTestSetup({
+    // Deployed shell upgrades require `partialFallback` metadata, which the
+    // adapter only emits when Partial Prefetching is enabled in the fixture.
     files: path.join(__dirname, 'fixtures', 'default'),
     // The latest changes to support this behavior on deployed infra are available in the adapter,
     // and are not being backported to the CLI

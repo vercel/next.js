@@ -3,6 +3,11 @@ import { Suspense, cacheSignal } from 'react'
 import { setTimeout } from 'timers/promises'
 import { cookies } from 'next/headers'
 
+// `allow-runtime` opts the route into Partial Prefetching (the two-phase Shell
+// then Speculative flow) and marks it as needing a runtime request pass. A full
+// prefetch (the Link below uses prefetch={true}) resolves the params-dependent
+// content via a per-request runtime prefetch (PPRRuntime), which is what
+// exercises the non-deterministic cache args during a runtime prefetch.
 export const prefetch = 'allow-runtime'
 
 const callCounts = new Map<string, number>()
@@ -67,7 +72,14 @@ export default async function Page({
   const { slug } = await params
 
   if (slug === 'with-runtime-prefetch') {
-    return <Link href="/known">Go to runtime-prefetchable page</Link>
+    // Use a full prefetch so the per-request runtime prefetch (PPRRuntime)
+    // fires during the Speculative phase. An auto prefetch of an allow-runtime
+    // route only warms the reusable shell (RuntimeShell) instead.
+    return (
+      <Link href="/known" prefetch={true}>
+        Go to runtime-prefetchable page
+      </Link>
+    )
   }
 
   return (

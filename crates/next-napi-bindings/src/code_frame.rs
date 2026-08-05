@@ -5,7 +5,15 @@ use next_code_frame::{
 };
 
 /// Default max width when the caller doesn't provide one (e.g., no terminal).
-const DEFAULT_MAX_WIDTH: u32 = 100;
+///
+/// When output is captured to a log file or build container, there is no
+/// terminal width to read. A log/build-log viewer can soft-wrap or scroll, so
+/// the cost of wrapping too narrow (scattering the caret line away from the
+/// code) is worse than being a bit wide. We pick a generous value — roughly 2x
+/// a typical editor width — that fits nearly all hand-written source, while
+/// still bounding per-frame output so a minified/generated line can't dump
+/// kilobytes into the log.
+const DEFAULT_MAX_WIDTH: u32 = 240;
 
 #[napi(object)]
 pub struct NapiLocation {
@@ -52,7 +60,7 @@ pub struct NapiCodeFrameOptions {
     pub lines_above: Option<u32>,
     /// Number of lines to show below the error (default: 3)
     pub lines_below: Option<u32>,
-    /// Maximum width of the output in columns (default: 100)
+    /// Maximum width of the output in columns (default: 240)
     pub max_width: Option<u32>,
     /// Whether to use ANSI colors (default: false)
     pub color: Option<Either<NapiCodeFrameColorMode, bool>>,

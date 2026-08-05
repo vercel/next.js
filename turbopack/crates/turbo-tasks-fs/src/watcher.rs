@@ -6,18 +6,19 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         Arc, LazyLock,
-        mpsc::{Receiver, TryRecvError, channel},
+        mpsc::{Receiver, RecvTimeoutError, channel},
     },
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
+use bitflags::bitflags;
 use notify::{
     Config, EventKind, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher,
     event::{MetadataKind, ModifyKind, RenameMode},
 };
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use tokio::sync::{RwLock, RwLockWriteGuard};
 use tracing::instrument;
 use turbo_rcstr::RcStr;
@@ -29,7 +30,7 @@ use turbo_tasks::{
 use crate::{
     DiskFileSystemInner, format_absolute_fs_path,
     invalidation::{WatchChange, WatchStart},
-    invalidator_map::LockedInvalidatorMap,
+    invalidator_map::InvalidatorMap,
     path_map::OrderedPathMapExt,
 };
 
@@ -60,6 +61,15 @@ static WATCH_RECURSIVE_MODE: LazyLock<RecursiveMode> = LazyLock::new(|| {
         RecursiveMode::NonRecursive
     }
 });
+
+/// How long to extend an invalidation batch by when receiving new events, before flushing. This
+/// reduces invalidations if the same file or directory is modified many times.
+///
+/// Linux watching is too fast, so we need a longer delay there to avoid reading wip files.
+#[cfg(target_os = "linux")]
+const BATCH_DELAY: Duration = Duration::from_millis(10);
+#[cfg(not(target_os = "linux"))]
+const BATCH_DELAY: Duration = Duration::from_millis(1);
 
 #[derive(Encode, Decode)]
 pub(crate) struct DiskWatcher {
@@ -99,6 +109,13 @@ impl State {
         match self {
             Self::Recursive(state) => StateWriteGuard::Recursive(state.write().await),
             Self::NonRecursive(state) => StateWriteGuard::NonRecursive(state.write().await),
+        }
+    }
+
+    fn recursive_mode(&self) -> RecursiveMode {
+        match self {
+            Self::Recursive(_) => RecursiveMode::Recursive,
+            Self::NonRecursive(_) => RecursiveMode::NonRecursive,
         }
     }
 }
@@ -481,21 +498,17 @@ impl DiskWatcher {
         fs_inner: Arc<DiskFileSystemInner>,
         report_invalidation_reason: bool,
     ) {
-        let mut batched_invalidate_path = FxHashSet::default();
-        let mut batched_invalidate_path_dir = FxHashSet::default();
-        let mut batched_invalidate_path_and_children = FxHashSet::default();
-        let mut batched_invalidate_path_and_children_dir = FxHashSet::default();
-
-        let mut batched_new_paths = if let State::NonRecursive(_) = self.state {
-            Some(FxHashSet::default())
-        } else {
-            None
-        };
+        let mut batch = BatchedInvalidations::new(self.state.recursive_mode());
 
         'outer: loop {
-            let mut event_result = rx.recv().or(Err(TryRecvError::Disconnected));
-            // this inner loop batches events using `try_recv`
+            let mut deadline: Option<Instant> = None;
             loop {
+                let event_result = match deadline {
+                    None => rx.recv().map_err(|_| RecvTimeoutError::Disconnected),
+                    Some(deadline) => {
+                        rx.recv_timeout(deadline.saturating_duration_since(Instant::now()))
+                    }
+                };
                 match event_result {
                     Ok(Ok(event)) => {
                         // TODO: We might benefit from some user-facing diagnostics if it rescans
@@ -510,10 +523,15 @@ impl DiskWatcher {
                         if event.need_rescan() {
                             let _lock = fs_inner.invalidation_lock.blocking_write();
 
+                            // flush the whole mpsc queue, we're about to rescan, we don't need to
+                            // process any other update events that have already happened
+                            while rx.try_recv().is_ok() {}
+
                             if let State::NonRecursive(non_recursive) = &self.state {
                                 // we can't narrow this down to a smaller set of paths: Rescan
-                                // events (at least when tested on Linux) come with no `paths`, and
-                                // we use only one global `notify::Watcher` instance.
+                                // events (at least when tested on
+                                // Linux) come with no `paths`, and we use
+                                // only one global `notify::Watcher` instance.
                                 //
                                 // TODO: Report diagnostics if an error happens
                                 fs_inner.tokio_handle.block_on(
@@ -522,9 +540,6 @@ impl DiskWatcher {
                                         fs_inner.root_path(),
                                     ),
                                 );
-                                if let Some(batched_new_paths) = &mut batched_new_paths {
-                                    batched_new_paths.clear();
-                                }
                             }
 
                             if report_invalidation_reason {
@@ -538,162 +553,54 @@ impl DiskWatcher {
 
                             // no need to process the rest of the batch as we just
                             // invalidated everything
-                            batched_invalidate_path.clear();
-                            batched_invalidate_path_dir.clear();
-                            batched_invalidate_path_and_children.clear();
-                            batched_invalidate_path_and_children_dir.clear();
-
+                            batch.clear();
                             break;
                         }
 
-                        let paths: Vec<PathBuf> = event.paths;
-                        if paths.is_empty() {
-                            // this event isn't useful, but keep trying to process the batch
-                            event_result = rx.try_recv();
-                            continue;
-                        }
-
-                        // [NOTE] there is attrs in the `Event` struct, which contains few
-                        // more metadata like process_id who triggered the event,
-                        // or the source we may able to utilize later.
-                        match event.kind {
-                            // [NOTE] Observing `ModifyKind::Metadata(MetadataKind::Any)` is
-                            // not a mistake, fix for PACK-2437.
-                            // In here explicitly subscribes to the `ModifyKind::Data` which
-                            // indicates file content changes - in case of fsevents backend,
-                            // this is `kFSEventStreamEventFlagItemModified`.
-                            // Also meanwhile we subscribe to ModifyKind::Metadata as well.
-                            // This is due to in some cases fsevents does not emit explicit
-                            // kFSEventStreamEventFlagItemModified kernel events,
-                            // but only emits kFSEventStreamEventFlagItemInodeMetaMod. While
-                            // this could cause redundant invalidation,
-                            // it's the way to reliably detect file content changes.
-                            // ref other implementation, i.e libuv does same thing to
-                            // trigger UV_CHANEGS https://github.com/libuv/libuv/commit/73cf3600d75a5884b890a1a94048b8f3f9c66876#diff-e12fdb1f404f1c97bbdcc0956ac90d7db0d811d9fa9ca83a3deef90c937a486cR95-R99
-                            EventKind::Modify(
-                                ModifyKind::Data(_) | ModifyKind::Metadata(MetadataKind::Any),
-                            ) => {
-                                batched_invalidate_path.extend(paths);
-                            }
-                            EventKind::Create(_) => {
-                                batched_invalidate_path_and_children.extend(paths.clone());
-                                batched_invalidate_path_and_children_dir.extend(paths.clone());
-                                paths.iter().for_each(|path| {
-                                    if let Some(parent) = path.parent() {
-                                        batched_invalidate_path_dir.insert(PathBuf::from(parent));
-                                    }
-                                });
-
-                                if let Some(batched_new_paths) = &mut batched_new_paths {
-                                    batched_new_paths.extend(paths.clone());
-                                }
-                            }
-                            EventKind::Remove(_) => {
-                                batched_invalidate_path_and_children.extend(paths.clone());
-                                batched_invalidate_path_and_children_dir.extend(paths.clone());
-                                paths.iter().for_each(|path| {
-                                    if let Some(parent) = path.parent() {
-                                        batched_invalidate_path_dir.insert(PathBuf::from(parent));
-                                    }
-                                });
-                            }
-                            // A single event emitted with both the `From` and `To` paths.
-                            EventKind::Modify(ModifyKind::Name(RenameMode::Both)) => {
-                                // For the rename::both, notify provides an array of paths
-                                // in given order
-                                if let [source, destination, ..] = &paths[..] {
-                                    batched_invalidate_path_and_children.insert(source.clone());
-                                    if let Some(parent) = source.parent() {
-                                        batched_invalidate_path_dir.insert(PathBuf::from(parent));
-                                    }
-                                    batched_invalidate_path_and_children
-                                        .insert(destination.clone());
-                                    if let Some(parent) = destination.parent() {
-                                        batched_invalidate_path_dir.insert(PathBuf::from(parent));
-                                    }
-                                    if let Some(batched_new_paths) = &mut batched_new_paths {
-                                        batched_new_paths.insert(destination.clone());
-                                    }
-                                } else {
-                                    // If we hit here, we expect this as a bug either in
-                                    // notify or system weirdness.
-                                    panic!(
-                                        "Rename event does not contain source and destination \
-                                         paths {paths:#?}"
-                                    );
-                                }
-                            }
-                            // We expect `RenameMode::Both` to cover most of the cases we
-                            // need to invalidate,
-                            // but we also check other RenameModes
-                            // to cover cases where notify couldn't match the two rename
-                            // events.
-                            EventKind::Any
-                            | EventKind::Modify(ModifyKind::Any | ModifyKind::Name(..)) => {
-                                batched_invalidate_path.extend(paths.clone());
-                                batched_invalidate_path_and_children.extend(paths.clone());
-                                batched_invalidate_path_and_children_dir.extend(paths.clone());
-                                for parent in paths.iter().filter_map(|path| path.parent()) {
-                                    batched_invalidate_path_dir.insert(PathBuf::from(parent));
-                                }
-                            }
-                            EventKind::Modify(ModifyKind::Metadata(..) | ModifyKind::Other)
-                            | EventKind::Access(_)
-                            | EventKind::Other => {
-                                // ignored
-                            }
+                        // Only an event that contributes to the batch keeps it open for another
+                        // `BATCH_DELAY`.
+                        if batch.add_event(event) {
+                            deadline = Some(Instant::now() + BATCH_DELAY);
                         }
                     }
                     // Error raised by notify watcher itself
                     Ok(Err(notify::Error { kind, paths })) => {
                         println!("watch error ({paths:?}): {kind:?} ");
 
+                        let flags = InvalidationFlags::PATH_AND_CHILDREN
+                            | InvalidationFlags::PATH_AND_CHILDREN_DIR;
                         if paths.is_empty() {
-                            batched_invalidate_path_and_children
-                                .insert(fs_inner.root_path().to_path_buf());
-                            batched_invalidate_path_and_children_dir
-                                .insert(fs_inner.root_path().to_path_buf());
+                            batch.mark(fs_inner.root_path().into(), flags);
                         } else {
-                            batched_invalidate_path_and_children.extend(paths.clone());
-                            batched_invalidate_path_and_children_dir.extend(paths.clone());
+                            for path in paths {
+                                batch.mark(path.into_boxed_path(), flags);
+                            }
                         }
+                        deadline = Some(Instant::now() + BATCH_DELAY);
                     }
-                    Err(TryRecvError::Disconnected) => {
-                        // Sender has been disconnected
-                        // which means DiskFileSystem has been dropped
+                    Err(RecvTimeoutError::Timeout) => {
+                        // The batch is complete: break out to invalidate the collected paths.
+                        break;
+                    }
+                    Err(RecvTimeoutError::Disconnected) => {
+                        // Sender has been disconnected, which means DiskFileSystem has been dropped
                         // exit thread
                         break 'outer;
                     }
-                    Err(TryRecvError::Empty) => {
-                        // Linux watching is too fast, so we need to throttle it a bit to avoid
-                        // reading wip files
-                        #[cfg(target_os = "linux")]
-                        let delay = Duration::from_millis(10);
-                        #[cfg(not(target_os = "linux"))]
-                        let delay = Duration::from_millis(1);
-                        match rx.recv_timeout(delay) {
-                            Ok(result) => {
-                                event_result = Ok(result);
-                                continue;
-                            }
-                            Err(_) => break,
-                        }
-                    }
                 }
-                event_result = rx.try_recv();
             }
 
             // We need to start watching first before invalidating the changed paths...
             // This is only needed on platforms we don't do recursive watching on.
             if let State::NonRecursive(non_recursive) = &self.state {
-                for path in batched_new_paths.as_mut().unwrap().drain() {
+                for path in batch.new_paths() {
                     // TODO: Report diagnostics if this error happens
                     let _ =
                         fs_inner
                             .tokio_handle
                             .block_on(non_recursive_helpers::restore_if_watched(
                                 non_recursive,
-                                &path,
+                                path,
                                 fs_inner.root_path(),
                             ));
                 }
@@ -706,40 +613,19 @@ impl DiskWatcher {
             let _guard = fs_inner.tokio_handle.enter();
 
             let _lock = fs_inner.invalidation_lock.blocking_write();
-            {
-                let mut invalidator_map = fs_inner.invalidator_map.lock().unwrap();
-                invalidate_path(
-                    &fs_inner,
-                    &*turbo_tasks,
-                    report_invalidation_reason,
-                    &mut invalidator_map,
-                    batched_invalidate_path.drain(),
-                );
-                invalidate_path_and_children_execute(
-                    &fs_inner,
-                    &*turbo_tasks,
-                    report_invalidation_reason,
-                    &mut invalidator_map,
-                    batched_invalidate_path_and_children.drain(),
-                );
-            }
-            {
-                let mut dir_invalidator_map = fs_inner.dir_invalidator_map.lock().unwrap();
-                invalidate_path(
-                    &fs_inner,
-                    &*turbo_tasks,
-                    report_invalidation_reason,
-                    &mut dir_invalidator_map,
-                    batched_invalidate_path_dir.drain(),
-                );
-                invalidate_path_and_children_execute(
-                    &fs_inner,
-                    &*turbo_tasks,
-                    report_invalidation_reason,
-                    &mut dir_invalidator_map,
-                    batched_invalidate_path_and_children_dir.drain(),
-                );
-            }
+            batch.execute(
+                &fs_inner.invalidator_map,
+                &fs_inner.dir_invalidator_map,
+                |invalidation_reason_path, invalidator| {
+                    invalidate(
+                        &fs_inner,
+                        &*turbo_tasks,
+                        report_invalidation_reason,
+                        invalidation_reason_path,
+                        invalidator,
+                    )
+                },
+            );
         }
     }
 
@@ -763,59 +649,240 @@ impl DiskWatcher {
     }
 }
 
+bitflags! {
+    /// Describes how a single path in a [`BatchedInvalidations`] should be invalidated. A path may
+    /// carry any combination of these (accumulated across the events in a batch).
+    struct InvalidationFlags: u8 {
+        /// Invalidate exactly this path in the file-content invalidator map.
+        const PATH = 1 << 0;
+        /// Invalidate exactly this path in the directory-listing invalidator map.
+        const PATH_DIR = 1 << 1;
+        /// Invalidate this path and all of its children in the file-content invalidator map.
+        const PATH_AND_CHILDREN = 1 << 2;
+        /// Invalidate this path and all of its children in the directory-listing invalidator map.
+        const PATH_AND_CHILDREN_DIR = 1 << 3;
+    }
+}
+
+/// A set of deferred invalidations. Because one or more files may be updated many times in quick
+/// succession, we don't want to perform invalidations until we think the filesystem has settled.
+///
+/// This avoids reading partially-written files which might generate transient errors, and reduces
+/// CPU and memory usage by producing less wasted work.
+///
+/// Paths are stored once in a flag-keyed map, with a set of [`InvalidationFlags`] describing what
+/// needs to happen for each, rather than in several separate sets. This avoids cloning each
+/// `PathBuf` into multiple collections.
+struct BatchedInvalidations {
+    paths: FxHashMap<Box<Path>, InvalidationFlags>,
+    /// See [`Self::new_paths`]). Stored as [`None`] in non-recursive mode.
+    new_paths: Option<FxHashSet<Box<Path>>>,
+}
+
+impl BatchedInvalidations {
+    fn new(recursive_mode: RecursiveMode) -> Self {
+        Self {
+            paths: FxHashMap::default(),
+            new_paths: match recursive_mode {
+                RecursiveMode::NonRecursive => Some(FxHashSet::default()),
+                RecursiveMode::Recursive => None,
+            },
+        }
+    }
+
+    fn clear(&mut self) {
+        self.paths.clear();
+        if let Some(new_paths) = &mut self.new_paths {
+            new_paths.clear();
+        }
+    }
+
+    /// Records `path` as newly-created so its watch can be (re-)established. No-op in recursive
+    /// watching mode.
+    fn mark_new_path(&mut self, path: &Path) {
+        if let Some(new_paths) = &mut self.new_paths {
+            new_paths.insert(Box::from(path));
+        }
+    }
+
+    fn mark(&mut self, path: Box<Path>, flags: InvalidationFlags) {
+        *self.paths.entry(path).or_insert(InvalidationFlags::empty()) |= flags;
+    }
+
+    fn mark_parent_dir(&mut self, path: &Path) {
+        if let Some(parent) = path.parent() {
+            self.mark(Box::from(parent), InvalidationFlags::PATH_DIR);
+        }
+    }
+
+    /// Iterates over the newly-created paths in this batch. In non-recursive watching mode, these
+    /// must have their watches (re-)established before [`Self::execute`] is called (see the note
+    /// there). Always empty in recursive mode.
+    fn new_paths(&self) -> impl Iterator<Item = &Path> {
+        self.new_paths.iter().flatten().map(|path| &**path)
+    }
+
+    /// Updates the batch to contain updated paths from the given event. Does not perform any
+    /// invalidations.
+    ///
+    /// Returns `true` if the event contained relevant events, or `false` if it was filtered out.
+    #[must_use]
+    fn add_event(&mut self, event: notify::Event) -> bool {
+        let paths: Vec<PathBuf> = event.paths;
+        if paths.is_empty() {
+            return false;
+        }
+        match event.kind {
+            // [NOTE] Observing `ModifyKind::Metadata(MetadataKind::Any)` is not a mistake, fix for
+            // PACK-2437.
+            // In here explicitly subscribes to the `ModifyKind::Data` which indicates file content
+            // changes - in case of fsevents backend, this is `kFSEventStreamEventFlagItemModified`.
+            // Also meanwhile we subscribe to `ModifyKind::Metadata` as well.
+            // This is due to in some cases fsevents does not emit explicit
+            // `kFSEventStreamEventFlagItemModified` kernel events, but only emits
+            // `kFSEventStreamEventFlagItemInodeMetaMod`. While this could cause redundant
+            // invalidation, it's the way to reliably detect file content changes.
+            // ref other implementation, i.e libuv does same thing to trigger `UV_CHANGES`
+            // https://github.com/libuv/libuv/commit/73cf3600d75a5884b890a1a94048b8f3f9c66876
+            EventKind::Modify(ModifyKind::Data(_) | ModifyKind::Metadata(MetadataKind::Any)) => {
+                for path in paths {
+                    self.mark(path.into_boxed_path(), InvalidationFlags::PATH);
+                }
+                true
+            }
+            EventKind::Create(_) => {
+                for path in paths {
+                    self.mark_parent_dir(&path);
+                    self.mark_new_path(&path);
+                    self.mark(
+                        path.into_boxed_path(),
+                        InvalidationFlags::PATH_AND_CHILDREN
+                            | InvalidationFlags::PATH_AND_CHILDREN_DIR,
+                    );
+                }
+                true
+            }
+            EventKind::Remove(_) => {
+                for path in paths {
+                    self.mark_parent_dir(&path);
+                    self.mark(
+                        path.into_boxed_path(),
+                        InvalidationFlags::PATH_AND_CHILDREN
+                            | InvalidationFlags::PATH_AND_CHILDREN_DIR,
+                    );
+                }
+                true
+            }
+            // A single event emitted with both the `From` and `To` paths.
+            EventKind::Modify(ModifyKind::Name(RenameMode::Both)) => {
+                let [source, destination] = <[PathBuf; 2]>::try_from(paths)
+                    .expect("RenameMode::Both event must contain exactly two paths");
+                self.mark_parent_dir(&source);
+                self.mark(
+                    source.into_boxed_path(),
+                    InvalidationFlags::PATH_AND_CHILDREN,
+                );
+                self.mark_parent_dir(&destination);
+                self.mark_new_path(&destination);
+                self.mark(
+                    destination.into_boxed_path(),
+                    InvalidationFlags::PATH_AND_CHILDREN,
+                );
+                true
+            }
+            // We expect `RenameMode::Both` to cover most of the cases we need to invalidate,
+            // but we also check other RenameModes to cover cases where notify couldn't match the
+            // two rename events.
+            EventKind::Any | EventKind::Modify(ModifyKind::Any | ModifyKind::Name(..)) => {
+                for path in paths {
+                    self.mark_parent_dir(&path);
+                    self.mark(
+                        path.into_boxed_path(),
+                        InvalidationFlags::PATH_AND_CHILDREN
+                            | InvalidationFlags::PATH_AND_CHILDREN_DIR,
+                    );
+                }
+                true
+            }
+            EventKind::Modify(ModifyKind::Metadata(..) | ModifyKind::Other)
+            | EventKind::Access(_)
+            | EventKind::Other => {
+                // ignored
+                false
+            }
+        }
+    }
+
+    /// Performs all batched invalidations, calling `invalidate` once for each `(path, invalidator)`
+    /// pair that needs to be invalidated, then clears the batch.
+    ///
+    /// In non-recursive watching mode, [`Self::new_paths`] must be processed (to (re-)establish
+    /// watches) *before* calling this.
+    ///
+    /// For each path, a recursive invalidation subsumes an exact one, as
+    /// [`extract_path_with_children`][OrderedPathMapExt::extract_path_with_children] removes the
+    /// path itself in addition to its children.
+    fn execute(
+        &mut self,
+        invalidator_map: &InvalidatorMap,
+        dir_invalidator_map: &InvalidatorMap,
+        invalidate: impl Fn(&Path, Invalidator),
+    ) {
+        for (map, exact_flag, recursive_flag) in [
+            (
+                invalidator_map,
+                InvalidationFlags::PATH,
+                InvalidationFlags::PATH_AND_CHILDREN,
+            ),
+            (
+                dir_invalidator_map,
+                InvalidationFlags::PATH_DIR,
+                InvalidationFlags::PATH_AND_CHILDREN_DIR,
+            ),
+        ] {
+            let mut map = map.lock().unwrap();
+            for (path, flags) in &self.paths {
+                if flags.contains(recursive_flag) {
+                    for (_, invalidators) in map.extract_path_with_children(path) {
+                        for invalidator in invalidators {
+                            invalidate(path, invalidator);
+                        }
+                    }
+                } else if flags.contains(exact_flag)
+                    && let Some(invalidators) = map.remove(&**path)
+                {
+                    for invalidator in invalidators {
+                        invalidate(path, invalidator);
+                    }
+                }
+            }
+        }
+        self.clear();
+    }
+}
+
 #[instrument(
     parent = None,
     level = "info",
     name = "file change",
     skip_all,
-    fields(name = %path.display())
+    fields(name = %invalidation_reason_path.display())
 )]
 fn invalidate(
     inner: &DiskFileSystemInner,
     turbo_tasks: &dyn TurboTasksApi,
     report_invalidation_reason: bool,
-    path: &Path,
+    invalidation_reason_path: &Path,
     invalidator: Invalidator,
 ) {
     if report_invalidation_reason
-        && let Some(path) = format_absolute_fs_path(path, &inner.name, inner.root_path())
+        && let Some(path) =
+            format_absolute_fs_path(invalidation_reason_path, &inner.name, inner.root_path())
     {
         invalidator.invalidate_with_reason(turbo_tasks, WatchChange { path });
         return;
     }
     invalidator.invalidate(turbo_tasks);
-}
-
-fn invalidate_path(
-    inner: &DiskFileSystemInner,
-    turbo_tasks: &dyn TurboTasksApi,
-    report_invalidation_reason: bool,
-    invalidator_map: &mut LockedInvalidatorMap,
-    paths: impl Iterator<Item = PathBuf>,
-) {
-    for path in paths {
-        if let Some(invalidators) = invalidator_map.remove(&path) {
-            invalidators
-                .into_iter()
-                .for_each(|i| invalidate(inner, turbo_tasks, report_invalidation_reason, &path, i));
-        }
-    }
-}
-
-fn invalidate_path_and_children_execute(
-    inner: &DiskFileSystemInner,
-    turbo_tasks: &dyn TurboTasksApi,
-    report_invalidation_reason: bool,
-    invalidator_map: &mut LockedInvalidatorMap,
-    paths: impl Iterator<Item = PathBuf>,
-) {
-    for path in paths {
-        for (_, invalidators) in invalidator_map.extract_path_with_children(&path) {
-            invalidators
-                .into_iter()
-                .for_each(|i| invalidate(inner, turbo_tasks, report_invalidation_reason, &path, i));
-        }
-    }
 }
 
 /// Invalidation was caused by a watcher rescan event. This will likely invalidate *every* watched

@@ -28,9 +28,9 @@
 //!
 //! ```text
 //! cost_per_group(chunk, group)
-//!   = chunk_size
-//!   + (chunk_size / group_total_size) * module_factor_cost
-//!   + request_cost
+//!   = chunk_group_weight * (chunk_size + request_cost)
+//!
+//! chunk_group_weight = group_total_size ^ (-weight_distribution)
 //! ```
 //!
 //! where `chunk_size` is the sum of module byte sizes in the chunk and `group_total_size` is the
@@ -40,11 +40,13 @@
 //! `request_cost` (in bytes — same unit as module sizes) charges for every CSS request a chunk
 //! group makes. Larger values bias toward fewer, larger shared chunks.
 //!
-//! `module_factor_cost` controls how much the algorithm cares about small chunk groups:
+//! `weight_distribution` controls how a chunk's cost is distributed across the chunk groups that
+//! load it, via the per-group weight `group_total_size ^ (-weight_distribution)`:
 //!
-//! * `0` distributes overshipped bytes evenly across chunk groups.
-//! * Higher values penalize overshipping in small chunk groups proportionally more, so small pages
-//!   ship fewer unrelated styles at the expense of more requests overall.
+//! * `0` weights every chunk group equally (the chunk's bytes/requests are spread evenly).
+//! * Higher values give smaller chunk groups a larger weight, so the algorithm cares proportionally
+//!   more about what it ships to them and overships less to small pages — at the expense of more
+//!   requests overall.
 //!
 //! # Constraints
 //!
@@ -54,8 +56,17 @@
 //!   that would put a global item into a chunk loaded by a chunk group not currently loading that
 //!   item is treated as `+infinity` cost.
 
+use std::{
+    sync::{
+        LazyLock,
+        atomic::{AtomicU64, Ordering},
+    },
+    time::{SystemTime, UNIX_EPOCH},
+};
+
 use anyhow::Result;
 use indexmap::map::Entry;
+use petgraph::graph::NodeIndex;
 use rustc_hash::FxHashSet;
 use tracing::{Instrument, instrument};
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
@@ -65,7 +76,7 @@ use crate::{
         ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo, ChunkType,
         ChunkableModule, ChunkingContext, chunk_item_batch::attach_async_info_to_chunkable_module,
     },
-    module::{StyleModule, StyleType},
+    module::{Module, StyleModule, StyleType},
     module_graph::{
         GraphTraversalAction, ModuleGraph,
         module_batch::ModuleOrBatch,
@@ -107,7 +118,7 @@ pub async fn compute_style_groups_graph(
     module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     request_cost: f32,
-    module_factor_cost: f32,
+    weight_distribution: f32,
     max_chunk_size: u64,
 ) -> Result<Vc<StyleGroups>> {
     // 1. Walk every chunk group post-order and collect, for each group, the ordered list of CSS
@@ -129,10 +140,11 @@ pub async fn compute_style_groups_graph(
     let module_style_types: Vec<StyleType> = module_data.iter().map(|m| m.style_type).collect();
 
     // 3. Run the synchronous chunking pipeline.
-    let mut graph = tracing::trace_span!("create_graph")
+    let (mut graph, module_to_groups) = tracing::trace_span!("create_graph")
         .in_scope(|| algorithm::create_graph(&chunk_groups, modules_in_order.len()));
     tracing::trace_span!("make_acyclic").in_scope(|| algorithm::make_acyclic(&mut graph));
-    let global_order = tracing::trace_span!("linearize").in_scope(|| algorithm::linearize(&graph));
+    let global_order = tracing::trace_span!("linearize")
+        .in_scope(|| algorithm::linearize(&graph, &module_to_groups));
     let chunks = tracing::trace_span!("split_into_chunks").in_scope(|| {
         algorithm::split_into_chunks(
             &global_order,
@@ -140,10 +152,26 @@ pub async fn compute_style_groups_graph(
             &module_sizes,
             &module_style_types,
             request_cost,
-            module_factor_cost,
+            weight_distribution,
             max_chunk_size,
         )
     });
+
+    // Optional debug dump controlled by `TURBOPACK_DEBUG_CSS_CHUNKING`. Failures here are
+    // logged and otherwise swallowed so a debug toggle never breaks the build.
+    if *DEBUG_DUMP_ENABLED
+        && let Err(err) = write_debug_dump(
+            &chunk_groups,
+            &modules_in_order,
+            &module_data,
+            &global_order,
+            &chunks,
+        )
+        .instrument(tracing::trace_span!("debug_dump"))
+        .await
+    {
+        eprintln!("TURBOPACK_DEBUG_CSS_CHUNKING: failed to write debug dump: {err:?}");
+    }
 
     // 4. Assemble the result. Each multi-item chunk becomes a `ChunkItemBatch`; singletons get a
     //    `batch = None` entry so the production sort still places them at the right `order`.
@@ -152,8 +180,113 @@ pub async fn compute_style_groups_graph(
         .await
 }
 
+static DEBUG_DUMP_ENABLED: LazyLock<bool> =
+    LazyLock::new(|| match std::env::var("TURBOPACK_DEBUG_CSS_CHUNKING") {
+        Ok(v) => !v.is_empty() && v != "0" && !v.eq_ignore_ascii_case("false"),
+        Err(_) => false,
+    });
+
+/// Serialize a split cost metric for the debug dump. `serde_json` renders non-finite floats as
+/// `null`, which would be indistinguishable from the genuine `None` of the last chunk, so the
+/// non-finite cases are emitted as strings instead.
+fn cost_to_json(cost: Option<f32>) -> serde_json::Value {
+    match cost {
+        None => serde_json::Value::Null,
+        Some(c) if c.is_finite() => serde_json::json!(c),
+        Some(c) if c == f32::NEG_INFINITY => serde_json::json!("-Infinity"),
+        Some(c) if c == f32::INFINITY => serde_json::json!("Infinity"),
+        Some(_) => serde_json::json!("NaN"),
+    }
+}
+
+/// Write a JSON snapshot of the inputs and outputs of the graph-based CSS chunker to the
+/// current working directory. Each invocation produces a uniquely named file so concurrent or
+/// repeated computations don't overwrite each other.
+async fn write_debug_dump(
+    chunk_groups: &[Vec<usize>],
+    modules: &[StyleModuleRef],
+    module_data: &[ModuleData],
+    global_order: &[NodeIndex],
+    chunks: &[(Vec<usize>, Option<f32>)],
+) -> Result<()> {
+    // Resolve `ident_string()` for every module up front. Done in parallel to keep this off the
+    // critical path even on graphs with thousands of CSS modules.
+    let ident_strings: Vec<String> = modules
+        .iter()
+        .map(async |m| -> Result<String> {
+            Ok(m.chunkable.ident_string().await?.as_str().to_owned())
+        })
+        .try_join()
+        .await?;
+
+    let ident = |id: usize| ident_strings[id].as_str();
+
+    let chunk_groups_json: Vec<Vec<&str>> = chunk_groups
+        .iter()
+        .map(|g| g.iter().map(|&id| ident(id)).collect())
+        .collect();
+
+    // Each chunk carries the cost-delta of merging it with the following chunk (`None`/`null` for
+    // the last chunk). A finite value is the surviving split metric; `"Infinity"` marks a boundary
+    // a hard constraint forbade merging across.
+    let mut chunks_json: Vec<serde_json::Value> = chunks
+        .iter()
+        .flat_map(|(chunk, merge_cost_to_next)| {
+            [
+                serde_json::json!(chunk.iter().map(|&id| ident(id)).collect::<Vec<_>>()),
+                serde_json::json!(cost_to_json(*merge_cost_to_next)),
+            ]
+        })
+        .collect();
+
+    // last chunk has no merge cost
+    chunks_json.pop();
+
+    let global_order_flat_json: Vec<&str> = global_order.iter().map(|n| ident(n.index())).collect();
+
+    let modules_json: Vec<serde_json::Value> = modules
+        .iter()
+        .enumerate()
+        .map(|(i, _)| {
+            serde_json::json!({
+                "ident": ident(i),
+                "size": module_data[i].size,
+                "style_type": match module_data[i].style_type {
+                    StyleType::GlobalStyle => "GlobalStyle",
+                    StyleType::IsolatedStyle => "IsolatedStyle",
+                },
+            })
+        })
+        .collect();
+
+    let dump = serde_json::json!({
+        "chunk_groups": chunk_groups_json,
+        "global_order": global_order_flat_json,
+        "chunks": chunks_json,
+        "modules": modules_json,
+    });
+
+    let now_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let seq = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let path =
+        std::env::current_dir()?.join(format!("turbopack-css-chunking-debug-{now_ms}-{seq}.json"));
+
+    let bytes = serde_json::to_vec_pretty(&dump)?;
+    std::fs::write(&path, &bytes)?;
+    eprintln!(
+        "TURBOPACK_DEBUG_CSS_CHUNKING: wrote {} bytes to {}",
+        bytes.len(),
+        path.display()
+    );
+    Ok(())
+}
+
 async fn assemble_style_groups(
-    chunks: &[Vec<usize>],
+    chunks: &[(Vec<usize>, Option<f32>)],
     module_data: &[ModuleData],
 ) -> Result<Vc<StyleGroups>> {
     let mut shared_chunk_items: FxIndexMap<ChunkItemWithAsyncModuleInfo, StyleItemInfo> =
@@ -173,7 +306,7 @@ async fn assemble_style_groups(
             order_counter += 1;
         };
 
-    for chunk in chunks {
+    for (chunk, _cost) in chunks {
         if chunk.is_empty() {
             continue;
         }

@@ -59,6 +59,10 @@ pub struct SnapshotMeta {
     pub data_items: usize,
     pub meta_items: usize,
     pub task_cache_items: usize,
+    /// Physical on-disk bytes written by the commit.
+    pub bytes_written: u64,
+    /// Physical on-disk bytes of files removed by the commit.
+    pub bytes_deleted: u64,
     pub max_next_task_id: u32,
 }
 
@@ -69,7 +73,28 @@ impl SnapshotMeta {
             data_items: self.data_items + rhs.data_items,
             meta_items: self.meta_items + rhs.meta_items,
             task_cache_items: self.task_cache_items + rhs.task_cache_items,
+            bytes_written: self.bytes_written + rhs.bytes_written,
+            bytes_deleted: self.bytes_deleted + rhs.bytes_deleted,
             max_next_task_id: max(self.max_next_task_id, rhs.max_next_task_id),
         }
+    }
+}
+
+impl std::fmt::Display for SnapshotMeta {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let SnapshotMeta {
+            data_items,
+            meta_items,
+            task_cache_items,
+            bytes_written,
+            bytes_deleted,
+            max_next_task_id,
+        } = self;
+        write!(
+            f,
+            "data_items={data_items} meta_items={meta_items} task_cache_items={task_cache_items} \
+             bytes_written={bytes_written} bytes_deleted={bytes_deleted} \
+             next_task_id={max_next_task_id}"
+        )
     }
 }

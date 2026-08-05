@@ -36,11 +36,11 @@ use turbo_tasks::{PrettyPrintError, ResolvedVc, ValueToString, Vc, turbofmt, uti
 use turbo_tasks_fs::{FileContent, FileSystemPath, rope::Rope};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
-    SOURCE_URL_PROTOCOL,
+    SOURCE_URL_PROTOCOL_STR,
     asset::{Asset, AssetContent},
     issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
     source::Source,
-    source_map::utils::add_default_ignore_list,
+    source_map::{structured::StructuredSourceMap, utils::add_default_ignore_list},
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
 
@@ -171,6 +171,11 @@ pub enum ParseResult {
     NotFound,
 }
 
+/// Generates a [`StructuredSourceMap`] for the transformed code, whose `sourcesContent`
+/// entries are individual shared ropes instead of being embedded in the serialized JSON. This
+/// keeps later `sources` URL rewrites and map embedding from copying the source text of every
+/// module. Serialize with [`StructuredSourceMap::to_rope`] where raw bytes are needed.
+///
 /// `original_source_maps_complete` indicates whether the `original_source_maps` cover the whole
 /// map, i.e. whether every module that ended up in `mappings` had an original sourcemap.
 #[instrument(level = "info", name = "generate source map", skip_all)]
@@ -181,7 +186,7 @@ pub fn generate_js_source_map<'a>(
     original_source_maps_complete: bool,
     inline_sources_content: bool,
     names: FxHashMap<BytePos, Atom>,
-) -> Result<Rope> {
+) -> Result<StructuredSourceMap> {
     let original_source_maps = original_source_maps
         .into_iter()
         .map(|map| map.to_bytes())
@@ -211,14 +216,8 @@ pub fn generate_js_source_map<'a>(
     );
 
     if original_source_maps.is_empty() {
-        // We don't convert sourcemap::SourceMap into raw_sourcemap::SourceMap because we don't
-        // need to adjust mappings
-
         add_default_ignore_list(&mut new_mappings);
-
-        let mut result = vec![];
-        new_mappings.to_writer(&mut result)?;
-        Ok(Rope::from(result))
+        StructuredSourceMap::from_swc_map(new_mappings)
     } else if fast_path_single_original_source_map {
         let mut map = original_source_maps.into_iter().next().unwrap();
         // TODO: Make this more efficient
@@ -227,16 +226,15 @@ pub fn generate_js_source_map<'a>(
         // TODO: Enable this when we have a way to handle the ignore list
         // add_default_ignore_list(&mut map);
         let map = map.into_raw_sourcemap();
-        let result = serde_json::to_vec(&map)?;
-        Ok(Rope::from(result))
+        // The fallback covers raw maps with fields the structured form does not know.
+        StructuredSourceMap::from_serialize(&map)
+            .or_else(|_| StructuredSourceMap::from_json_slice(&serde_json::to_vec(&map)?))
     } else {
         let mut map = new_mappings.adjust_mappings_from_multiple(original_source_maps);
 
         add_default_ignore_list(&mut map);
 
-        let mut result = vec![];
-        map.to_writer(&mut result)?;
-        Ok(Rope::from(result))
+        StructuredSourceMap::from_swc_map(map)
     }
 }
 
@@ -252,7 +250,14 @@ impl SourceMapGenConfig for InlineSourcesContentConfig {
     fn file_name_to_source(&self, f: &FileName) -> String {
         match f {
             FileName::Custom(s) => {
-                format!("{SOURCE_URL_PROTOCOL}///{s}")
+                // format! here is suboptimal and allocates over and over again.
+                // On a random test next test project this one spot accounted for
+                // 10% of allocations, hence the more verbose approach.
+                let mut out = String::with_capacity(SOURCE_URL_PROTOCOL_STR.len() + 3 + s.len());
+                out.push_str(SOURCE_URL_PROTOCOL_STR);
+                out.push_str("///");
+                out.push_str(s);
+                out
             }
             _ => f.to_string(),
         }

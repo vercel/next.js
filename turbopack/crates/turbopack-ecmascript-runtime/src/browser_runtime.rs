@@ -27,6 +27,8 @@ pub async fn get_browser_runtime_code(
     cross_origin: Vc<CrossOrigin>,
     chunk_load_retry: Vc<ChunkLoadRetry>,
     has_async_modules: bool,
+    chunk_loading: Vc<ChunkLoading>,
+    support_component_chunks: bool,
 ) -> Result<Vc<Code>> {
     let asset_context = *asset_context;
     let environment = asset_context.compile_time_info().environment();
@@ -50,20 +52,21 @@ pub async fn get_browser_runtime_code(
         }
     }
 
-    let chunk_loading = &*asset_context
-        .compile_time_info()
-        .environment()
-        .chunk_loading()
-        .await?;
+    let chunk_loading = &*chunk_loading.await?;
 
     let mut runtime_backend_code = vec![];
     match (chunk_loading, runtime_type) {
-        (ChunkLoading::Edge, RuntimeType::Development) => {
-            runtime_backend_code.push("browser/runtime/edge/runtime-backend-edge.ts");
-            runtime_backend_code.push("browser/runtime/edge/dev-backend-edge.ts");
+        // The self-contained backend performs no runtime chunk loading and registers chunks only
+        // via `globalThis`/`self` (no DOM).
+        (ChunkLoading::Edge | ChunkLoading::SingleChunk, RuntimeType::Development) => {
+            runtime_backend_code
+                .push("browser/runtime/self-contained/runtime-backend-self-contained.ts");
+            runtime_backend_code
+                .push("browser/runtime/self-contained/dev-backend-self-contained.ts");
         }
-        (ChunkLoading::Edge, RuntimeType::Production) => {
-            runtime_backend_code.push("browser/runtime/edge/runtime-backend-edge.ts");
+        (ChunkLoading::Edge | ChunkLoading::SingleChunk, RuntimeType::Production) => {
+            runtime_backend_code
+                .push("browser/runtime/self-contained/runtime-backend-self-contained.ts");
         }
         // This case should never be hit.
         (ChunkLoading::NodeJs, _) => {
@@ -112,11 +115,13 @@ pub async fn get_browser_runtime_code(
             var CHUNK_BASE_PATH = {};
             var RELATIVE_ROOT_PATH = {};
             var RUNTIME_PUBLIC_PATH = {};
+            const SUPPORT_COMPONENT_CHUNKS = {};
         "#,
         StringifyJs(&chunk_loading_global),
         StringifyJs(chunk_base_path),
         StringifyJs(relative_root_path.as_str()),
         StringifyJs(chunk_base_path),
+        support_component_chunks,
     )?;
 
     match &*asset_suffix {
@@ -138,8 +143,11 @@ pub async fn get_browser_runtime_code(
             )?;
         }
         AssetSuffix::Inferred => {
-            if chunk_loading == &ChunkLoading::Edge {
-                panic!("AssetSuffix::Inferred is not supported in Edge runtimes");
+            if matches!(
+                chunk_loading,
+                ChunkLoading::Edge | ChunkLoading::SingleChunk
+            ) {
+                panic!("AssetSuffix::Inferred is not supported in Edge or single-chunk runtimes");
             }
             writedoc!(
                 code,
@@ -227,8 +235,9 @@ pub async fn get_browser_runtime_code(
         );
     }
 
-    // Registering chunks and chunk lists depends on the BACKEND variable, which is set by the
-    // specific runtime code, hence it must be appended after it.
+    // Registering chunks/chunk lists depends on the BACKEND variable set by the specific
+    // runtime code, so it must be appended after it. `registerChunk` handles both queued forms:
+    // chunk-registration arrays and inlined entry-only params objects.
     writedoc!(
         code,
         r#"

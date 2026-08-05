@@ -10,6 +10,7 @@ import {
 import { matchSegment } from '../match-segments'
 import {
   readOrCreateRouteCacheEntry,
+  readRouteCacheEntry,
   readOrCreateSegmentCacheEntry,
   fetchRouteOnCacheMiss,
   fetchSegmentsOnCacheMiss,
@@ -27,10 +28,10 @@ import {
   canNewFetchStrategyProvideMoreContent,
   attemptToFulfillDynamicSegmentFromBFCache,
   attemptToUpgradeSegmentFromBFCache,
-  MetadataOnlyRequestTree,
 } from './cache'
 import type { RouteCacheKey } from './cache-key'
 import { createCacheKey } from './cache-key'
+import { urlSearchParamsToParsedUrlQuery } from '../../route-params'
 import {
   FetchStrategy,
   type PrefetchTaskFetchStrategy,
@@ -40,6 +41,7 @@ import {
   getCurrentRouteCacheVersion,
   getCurrentSegmentCacheVersion,
 } from './cache'
+import type { NavigationLockPrefetch } from './navigation-testing-lock'
 import {
   addSearchParamsIfPageSegment,
   PAGE_SEGMENT_KEY,
@@ -130,12 +132,46 @@ export type PrefetchTask = {
    * They are reset after each iteration of the task queue.
    */
   hasBackgroundWork: boolean
+  /**
+   * Set during a pass when the task spawned a segment request, or encountered
+   * one that was already in flight (a Pending entry) — i.e. a response the
+   * pass cares about but hasn't received yet. The task blocks instead of
+   * advancing, and is re-pinged as each awaited entry settles; see
+   * blockTaskOnPendingResponse for the full rationale. Each ping re-runs a
+   * full traversal for the task, so expect roughly one re-pass per settling
+   * entry. Re-runs don't re-spawn revalidations: when a completed
+   * revalidation was re-keyed, its upsert evicts any superseded entry that
+   * would shadow it (see upsertSegmentEntry in cache.ts), and when its upsert
+   * was declined, the settled entry left in the revalidation slot dedupes
+   * further attempts (see pingFullSegmentRevalidation).
+   */
+  hasPendingResponses: boolean
   spawnedRuntimePrefetches: Set<SegmentRequestKey> | null
 
   /**
    * True if the prefetch was cancelled.
    */
   isCanceled: boolean
+
+  /**
+   * Tracks whether the task has attempted to upgrade a fallback ISR response
+   * to one based on concrete params.
+   *
+   * When the server serves an upgradeable fallback shell (the page hadn't been
+   * prerendered with concrete params yet, but the route can be upgraded), we
+   * poll the server a few times until the upgrade is complete, or until we
+   * reach a limit and give up.
+   *
+   * - `Empty`: no loop has run yet.
+   * - `Pending`: a loop is currently running.
+   * - `Fulfilled`: a loop completed and obtained the upgraded version.
+   * - `Rejected`: a loop ran but gave up (exhausted its retries, hit an error,
+   *   or the task was canceled).
+   *
+   * To prevent against unbounded upgrade attempts, the loop is only attempted
+   * once per task, even a Link's prefetch is rescheduled many times.
+   */
+  fallbackRetryStatus: EntryStatus
 
   /**
    * The callback passed to `router.prefetch`, if given.
@@ -154,15 +190,13 @@ export type PrefetchTask = {
   _heapIndex: number
 
   /**
-   * Called when the prefetch task finishes (either completed or canceled).
-   * Used by the Instant Navigation Testing API to await prefetch completion.
-   * Not exposed in production builds by default.
-   *
-   * Note: "Complete" means the scheduler has no more work to do for this task
-   * — all network requests have been spawned. It does not mean all data has
-   * been retrieved; responses may still be in flight.
+   * Instant Navigation Testing API only. Non-null when this prefetch task drives
+   * a locked navigation (the `ensurePrefetchThenNavigate` path). Holds that
+   * navigation's "wait for prefetch to fulfill" state: each spawned pending entry
+   * is tracked against it (see `upgradeToPendingSegment`), and the scheduler
+   * signals it when done spawning. See navigation-testing-lock.ts.
    */
-  _onComplete?: () => void
+  _navigationLockPrefetch?: NavigationLockPrefetch | null
 }
 
 const enum PrefetchTaskExitStatus {
@@ -173,10 +207,6 @@ const enum PrefetchTaskExitStatus {
 
   /**
    * The task is blocked. It needs more data before it can proceed.
-   *
-   * Currently the only reason this happens is we're still waiting to receive a
-   * route tree from the server, because we can't start prefetching the segments
-   * until we know what to prefetch.
    */
   Blocked,
 
@@ -266,7 +296,9 @@ export type IncludeDynamicData = null | 'full' | 'dynamic'
  * @param treeAtTimeOfPrefetch The app's current FlightRouterState
  * @param fetchStrategy Whether to prefetch dynamic data, in addition to
  * static data. This is used by `<Link prefetch={true}>`.
- * @param _onComplete Called when the prefetch task finishes. Testing API only.
+ * @param navigationLockPrefetch Testing API only. Non-null when this prefetch
+ * drives a locked navigation (from `ensurePrefetchThenNavigate`); carries that
+ * navigation's "wait for prefetch to fulfill" state. Null otherwise.
  */
 export function schedulePrefetchTask(
   key: RouteCacheKey,
@@ -274,7 +306,7 @@ export function schedulePrefetchTask(
   fetchStrategy: PrefetchTaskFetchStrategy,
   priority: PrefetchPriority,
   onInvalidate: null | (() => void),
-  _onComplete?: () => void
+  navigationLockPrefetch: NavigationLockPrefetch | null
 ): PrefetchTask {
   // Spawn a new prefetch task
   const task: PrefetchTask = {
@@ -285,15 +317,17 @@ export function schedulePrefetchTask(
     priority,
     phase: PrefetchPhase.RouteTree,
     hasBackgroundWork: false,
+    hasPendingResponses: false,
     spawnedRuntimePrefetches: null,
     fetchStrategy,
     sortId: sortIdCounter++,
     isCanceled: false,
+    fallbackRetryStatus: EntryStatus.Empty,
     onInvalidate,
     _heapIndex: -1,
   }
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
-    task._onComplete = _onComplete
+    task._navigationLockPrefetch = navigationLockPrefetch
   }
 
   trackMostRecentlyHoveredLink(task)
@@ -319,15 +353,9 @@ export function cancelPrefetchTask(task: PrefetchTask): void {
   // We must also explicitly mark the task as canceled so that a blocked task
   // does not get added back to the queue when it's pinged by the network.
   task.isCanceled = true
+  // A running fallback-retry loop notices `isCanceled` when it next wakes and
+  // bails (settling its status to Rejected), so there's nothing to clean up here.
   heapDelete(taskHeap, task)
-  if (process.env.__NEXT_EXPOSE_TESTING_API) {
-    // Call completion callback. In practice this shouldn't be reached for
-    // test-initiated prefetches since cancellation is only used by the Link
-    // component when elements scroll out of viewport.
-    const onComplete = task._onComplete
-    task._onComplete = undefined
-    onComplete?.()
-  }
 }
 
 export function reschedulePrefetchTask(
@@ -342,14 +370,15 @@ export function reschedulePrefetchTask(
   //
   // The primary use case is to increase the priority of a Link-initated
   // prefetch on hover.
-  //
-  // Note: _onComplete is not reset here because it's preserved on the same
-  // task object. When the rescheduled task completes, the original callback
-  // will still be invoked.
 
   // Un-cancel the task, in case it was previously canceled.
   task.isCanceled = false
   task.phase = PrefetchPhase.RouteTree
+
+  // Note: fallback-retry state is deliberately NOT reset here. A retry loop runs
+  // at most once per task, even across reschedules, so a re-hover never starts a
+  // second loop. A loop already running simply continues (it only stops on
+  // cancel); `fallbackRetryStatus` never returns to `Empty` once it leaves it.
 
   // Assign a new sort ID to move it ahead of all other tasks at the same
   // priority level. (Higher sort IDs are processed first.)
@@ -538,10 +567,13 @@ function processQueueInMicrotask() {
 
     const exitStatus = pingRoute(now, task)
 
-    // These fields are only valid for a single attempt. Reset them after each
-    // iteration of the task queue.
+    // These fields are only valid for a single "pass" — one pingRoute
+    // invocation for a task, which is what the comments here also call an
+    // attempt or an iteration. Reset them after each iteration of the
+    // task queue.
     const hasBackgroundWork = task.hasBackgroundWork
     task.hasBackgroundWork = false
+    task.hasPendingResponses = false
     task.spawnedRuntimePrefetches = null
 
     switch (exitStatus) {
@@ -558,14 +590,31 @@ function processQueueInMicrotask() {
         continue
       case PrefetchTaskExitStatus.Done:
         if (task.phase === PrefetchPhase.RouteTree) {
-          // Finished prefetching the route tree. If App Shells are enabled,
-          // run the Shell phase next; otherwise go straight to Speculative.
-          task.phase = process.env.__NEXT_APP_SHELLS
+          // Finished prefetching the route tree. The two-phase (Shell then
+          // Speculative) flow only applies to routes that have opted into
+          // Partial Prefetching — either globally via the `partialPrefetching`
+          // config or per segment (`instant`, `prefetch: 'partial'`,
+          // `'unstable_eager'`, or `'allow-runtime'`), all surfaced as the
+          // `SubtreeHasPartialPrefetching` hint on the route tree. Every other
+          // route skips the Shell phase and goes straight to Speculative.
+          //
+          // The route entry is fulfilled at this point (the RouteTree phase
+          // just completed), so its prefetch hints are available.
+          const route = readRouteCacheEntry(now, task.key)
+          const routeHasPartialPrefetching =
+            route !== null &&
+            route.status === EntryStatus.Fulfilled &&
+            (route.tree.prefetchHints &
+              PrefetchHint.SubtreeHasPartialPrefetching) !==
+              0
+          task.phase = routeHasPartialPrefetching
             ? PrefetchPhase.Shell
             : PrefetchPhase.Speculative
           heapResift(taskHeap, task)
         } else if (task.phase === PrefetchPhase.Shell) {
-          // Shell phase complete. Always advance to Speculative regardless
+          // Shell phase complete — a Done exit means the pass observed every
+          // response it cares about (otherwise it would have exited Blocked;
+          // see hasPendingResponses). Always advance to Speculative regardless
           // of whether Shell-phase work fired — Speculative is responsible
           // for the per-link concrete work and runs even on routes whose
           // shell phase was a no-op.
@@ -578,12 +627,39 @@ function processQueueInMicrotask() {
           heapResift(taskHeap, task)
         } else {
           // The prefetch is complete. Continue to the next task.
-          if (process.env.__NEXT_EXPOSE_TESTING_API) {
-            // Notify the Instant Navigation Testing API that the prefetch has
-            // completed, so it can proceed with navigation.
-            const onComplete = task._onComplete
-            task._onComplete = undefined
-            onComplete?.()
+          //
+          // Completion is terminal in the normal flow: a task only completes
+          // after a full pass observed every response it cares about. In rare
+          // cases, though, a task can complete while still registered on an
+          // entry from an earlier pass whose subtree the final pass no longer
+          // reached; when that entry later settles, it re-pings the completed
+          // task. The re-run is a harmless idempotent no-op, but any
+          // per-completion side effect added here must be idempotent or
+          // once-guarded — in particular, the navigation-lock release below
+          // must not fire twice (hence the nulling).
+          if (
+            process.env.__NEXT_EXPOSE_TESTING_API &&
+            task._navigationLockPrefetch != null
+          ) {
+            // The scheduler has spawned every request for this locked-navigation
+            // prefetch, so release its "still spawning" reference. The prefetch's
+            // promise (awaited by `ensurePrefetchThenNavigate`) resolves once the
+            // count reaches 0 — i.e. every spawned entry has also fulfilled, so
+            // the navigation reads present data rather than a still-in-flight
+            // entry. If everything already fulfilled, it resolves synchronously.
+            //
+            // TODO: Now that a task only completes after a full pass observes
+            // every segment response it spawned or found in flight, the
+            // navigation-testing lock's per-entry ref counting (pendingCount /
+            // trackNavigationLockPrefetchEntry) is redundant — a single resolve
+            // fired here would suffice.
+            const { finishNavigationLockPrefetchSpawning } =
+              require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
+            finishNavigationLockPrefetchSpawning(task._navigationLockPrefetch)
+            // Release at most once per task: a stale registration from an
+            // earlier pass can re-ping a completed task (see above), so it can
+            // pass through here again.
+            task._navigationLockPrefetch = null
           }
           heapPop(taskHeap)
         }
@@ -671,6 +747,13 @@ function pingRoute(now: number, task: PrefetchTask): PrefetchTaskExitStatus {
       default:
         routeWithoutSearch satisfies never
     }
+  }
+
+  if (exitStatus === PrefetchTaskExitStatus.Done && task.hasPendingResponses) {
+    // The pass traversed the whole tree, but some segment responses haven't
+    // arrived yet, so the current phase isn't actually complete. Block until
+    // they do (see blockTaskOnPendingResponse for the full rationale).
+    return PrefetchTaskExitStatus.Blocked
   }
 
   return exitStatus
@@ -779,7 +862,10 @@ function pingRootRouteTree(
 
           if (
             task.phase === PrefetchPhase.Speculative &&
-            !subtreeHasSpeculativePrefetch(task, tree.prefetchHints)
+            !subtreeHasSpeculativePrefetch(
+              task.fetchStrategy,
+              tree.prefetchHints
+            )
           ) {
             // Nothing in the target route needs to be speculatively prefetched.
             // Bail out.
@@ -812,10 +898,15 @@ function pingRootRouteTree(
             // opt-in because the Shell for a given route is reusable across
             // all given params, by definition. So it does not lead to an
             // explosion in prefetching costs.
-            // TODO: In the future, the server could emit a hint to tell us
-            // *not* to prefetch via a runtime request, via build-time
-            // heuristics, like if no `cookies()` call was detected. We'll
-            // leave this optimization for later.
+            // TODO: The server now emits signals for skipping unnecessary
+            // runtime prefetch requests: an advisory
+            // PrefetchHint.ShouldAttemptStaticPrefetch bit on the route
+            // tree, and a load-bearing response-level `needsRuntimeRequest`
+            // promise on the static segment responses (fulfilled `true`
+            // visible in the decode means a runtime request would return
+            // more; rewindable at the shell boundary; combined with each
+            // segment's `isPartial`). They aren't consumed yet; wiring them
+            // up is left for a follow-up.
             task.phase === PrefetchPhase.Shell
           ) {
             const runtimeStrategy =
@@ -823,18 +914,22 @@ function pingRootRouteTree(
                 ? FetchStrategy.RuntimeShell
                 : FetchStrategy.PPRRuntime
 
-            // Always ping the runtime head — it may need to be fetched
-            // independently even if all runtime segments are already
-            // cached (e.g. navigating between siblings under a shared
-            // runtime layout).
-            const spawnedEntries = new Map<
-              SegmentRequestKey,
-              PendingSegmentCacheEntry
-            >()
-            pingRuntimeHead(now, task, route, spawnedEntries, runtimeStrategy)
-
+            // spawnedRuntimePrefetches was populated during the traversal
+            // above: every segment in the new part of the tree that is a
+            // candidate for runtime prefetching. It's derived purely from
+            // server hints, not cache state — it tells us whether a runtime
+            // request would be needed even if the cache were completely empty.
+            //
+            // If it's null, nothing in the new part of the tree is a candidate
+            // for runtime prefetching, and we don't fetch the head, either —
+            // the head is runtime prefetched only if one of the segments is.
             const spawnedRuntimePrefetches = task.spawnedRuntimePrefetches
             if (spawnedRuntimePrefetches !== null) {
+              const spawnedEntries = new Map<
+                SegmentRequestKey,
+                PendingSegmentCacheEntry
+              >()
+              pingRuntimeHead(now, task, route, spawnedEntries, runtimeStrategy)
               const requestTree = pingRuntimePrefetches(
                 now,
                 task,
@@ -851,25 +946,6 @@ function pingRootRouteTree(
                     route,
                     runtimeStrategy,
                     requestTree,
-                    spawnedEntries
-                  )
-                )
-              }
-            } else {
-              // No segments spawned a runtime prefetch; however, the head might
-              // have. If there are any spawned entries, it must have come from
-              // the head. Request the metadata only.
-              // TODO: Refactor the "request tree" format so that the metadata
-              // is less of a special case. Right now the logic for this is
-              // spread across both here
-              // and fetchSegmentPrefetchesUsingDynamicRequest.
-              if (spawnedEntries.size > 0) {
-                spawnPrefetchSubtask(
-                  fetchSegmentPrefetchesUsingDynamicRequest(
-                    task,
-                    route,
-                    runtimeStrategy,
-                    MetadataOnlyRequestTree,
                     spawnedEntries
                   )
                 )
@@ -963,11 +1039,12 @@ function pingStaticHead(
     entry: readOrCreateSegmentCacheEntry(
       now,
       FetchStrategy.PPR,
-      route.metadata
+      route.metadata,
+      task._navigationLockPrefetch ?? null
     ),
     parent: null,
   }
-  pingSegmentBundle(now, route, task.key, route.metadata, segments)
+  pingSegmentBundle(now, task, route, task.key, route.metadata, segments)
 }
 
 function pingRuntimeHead(
@@ -1029,12 +1106,11 @@ function pingSharedPartOfCacheComponentsTree(
   const oldTreeChildren = oldTree[1]
   const newTreeChildren = newTree.slots
   if (newTreeChildren !== null) {
-    for (const parallelRouteKey in newTreeChildren) {
+    for (const [parallelRouteKey, newTreeChild] of newTreeChildren) {
       if (!hasNetworkBandwidth(task)) {
         // Stop prefetching segments until there's more bandwidth.
         return PrefetchTaskExitStatus.InProgress
       }
-      const newTreeChild = newTreeChildren[parallelRouteKey]
       const newTreeChildSegment = newTreeChild.segment
       const oldTreeChild: FlightRouterState | void =
         oldTreeChildren[parallelRouteKey]
@@ -1111,10 +1187,14 @@ function pingNewPartOfCacheComponentsTree(
   // runtime shell request. For fully static pages, it doesn't matter since
   // server will respond to even a runtime request with a static response. For
   // a partially static page, we can send down a hint from the server.
+  // The server-side hints for this now exist
+  // (PrefetchHint.ShouldAttemptStaticPrefetch on the route tree, the
+  // `needsRuntimeRequest` promise + per-segment `isPartial` on static
+  // segment responses) but aren't consumed yet.
 
   if (
     task.phase === PrefetchPhase.Speculative &&
-    !subtreeHasSpeculativePrefetch(task, tree.prefetchHints)
+    !subtreeHasSpeculativePrefetch(task.fetchStrategy, tree.prefetchHints)
   ) {
     // Nothing in the new part of the tree needs to be speculatively prefetched.
     // Bail out.
@@ -1152,8 +1232,7 @@ function pingNewPartOfCacheComponentsTree(
       return PrefetchTaskExitStatus.InProgress
     }
     // Recursively ping the children.
-    for (const parallelRouteKey in tree.slots) {
-      const childTree = tree.slots[parallelRouteKey]
+    for (const childTree of tree.slots.values()) {
       // Only pass the bundle to the child that accepts it. A parent is
       // only ever bundled into one child.
       const bundleForChild =
@@ -1204,8 +1283,7 @@ function diffRouteTreeAgainstCurrent(
   const newTreeChildren = newTree.slots
   let requestTreeChildren: Record<string, FlightRouterState> = {}
   if (newTreeChildren !== null) {
-    for (const parallelRouteKey in newTreeChildren) {
-      const newTreeChild = newTreeChildren[parallelRouteKey]
+    for (const [parallelRouteKey, newTreeChild] of newTreeChildren) {
       const newTreeChildSegment = newTreeChild.segment
       const oldTreeChild: FlightRouterState | void =
         oldTreeChildren[parallelRouteKey]
@@ -1352,7 +1430,12 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
   let refetchMarker: 'refetch' | 'inside-shared-layout' | null =
     refetchMarkerContext === null ? 'inside-shared-layout' : null
 
-  const segment = readOrCreateSegmentCacheEntry(now, task.fetchStrategy, tree)
+  const segment = readOrCreateSegmentCacheEntry(
+    now,
+    task.fetchStrategy,
+    tree,
+    task._navigationLockPrefetch ?? null
+  )
   switch (segment.status) {
     case EntryStatus.Empty: {
       // This segment is not cached. Add a refetch marker so the server knows
@@ -1364,16 +1447,18 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
       // of a larger redesign of the request protocol.
 
       // Add the pending cache entry to the result map.
-      spawnedEntries.set(
-        tree.requestKey,
-        upgradeToPendingSegment(
-          segment,
-          // Set the fetch strategy to LoadingBoundary to indicate that the server
-          // might not include it in the pending response. If another route is able
-          // to issue a per-segment request, we'll do that in the background.
-          FetchStrategy.LoadingBoundary
-        )
+      const pendingSegment = upgradeToPendingSegment(
+        segment,
+        // Set the fetch strategy to LoadingBoundary to indicate that the server
+        // might not include it in the pending response. If another route is able
+        // to issue a per-segment request, we'll do that in the background.
+        FetchStrategy.LoadingBoundary,
+        task._navigationLockPrefetch ?? null
       )
+      spawnedEntries.set(tree.requestKey, pendingSegment)
+      // The pass blocks on every request it spawns, not just requests it
+      // finds already in flight.
+      blockTaskOnPendingResponse(task, pendingSegment)
       if (refetchMarkerContext !== 'refetch') {
         refetchMarker = refetchMarkerContext = 'refetch'
       } else {
@@ -1403,11 +1488,17 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
     case EntryStatus.Pending: {
       // There's another prefetch currently in progress. Don't add the refetch
       // marker yet, so the server knows it can skip rendering this segment.
+      // The pass still depends on the in-flight response, so wait for it
+      // before the phase can complete.
+      blockTaskOnPendingResponse(task, segment)
       break
     }
     case EntryStatus.Rejected: {
-      // The segment failed to load. We shouldn't issue another request until
-      // the stale time has elapsed.
+      // The segment failed to load, or the server intentionally omitted it
+      // from a response (both are encoded as Rejected). Skip it and keep
+      // prefetching the rest of the tree; the entry's staleAt governs when it
+      // may be retried. Don't register the task on the rejected entry —
+      // nothing ever pings a Rejected entry.
       break
     }
     default:
@@ -1415,8 +1506,7 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
   }
   const requestTreeChildren: Record<string, FlightRouterState> = {}
   if (tree.slots !== null) {
-    for (const parallelRouteKey in tree.slots) {
-      const childTree = tree.slots[parallelRouteKey]
+    for (const [parallelRouteKey, childTree] of tree.slots) {
       requestTreeChildren[parallelRouteKey] =
         pingPPRDisabledRouteTreeUpToLoadingBoundary(
           now,
@@ -1438,6 +1528,39 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
     requestTree[4] = tree.prefetchHints
   }
   return requestTree
+}
+
+/**
+ * Called during a pass when a segment's response hasn't been received yet —
+ * whether the request was just spawned by this pass or was already in flight.
+ * Marks the task as blocked: a phase only completes once a full pass observes
+ * every segment response it cares about, because later decisions (like
+ * whether a segment needs a follow-up runtime request) are made against the
+ * contents of those responses, and a phase may need to restart its work based
+ * on what they contain. The task is re-pinged (via pingBlockedTasks in
+ * cache.ts) when the entry resolves, re-running the pass against the
+ * received data. Only a pass that observes every response may advance the
+ * phase or complete the task.
+ *
+ * Never call this for an entry that's already Rejected — nothing ever pings
+ * a Rejected entry, so registering on one would strand the task. A rejected
+ * segment is simply skipped: the pass keeps prefetching the rest of the tree
+ * without it.
+ */
+function blockTaskOnPendingResponse(
+  task: PrefetchTask,
+  segment: { blockedTasks: Set<PrefetchTask> | null }
+): void {
+  // This state is reset after each iteration of the task queue. We use it to
+  // inform the scheduler that the task is blocked.
+  task.hasPendingResponses = true
+  // Add the task to this segment's blocked tasks, so it can be rescheduled
+  // once the segment finishes loading.
+  if (segment.blockedTasks === null) {
+    segment.blockedTasks = new Set([task])
+  } else {
+    segment.blockedTasks.add(task)
+  }
 }
 
 function pingRouteTreeAndIncludeDynamicData(
@@ -1468,7 +1591,8 @@ function pingRouteTreeAndIncludeDynamicData(
     // always use runtime prefetching (via `export const prefetch`), and those should check for
     // entries that include search params.
     fetchStrategy,
-    tree
+    tree,
+    task._navigationLockPrefetch ?? null
   )
 
   let spawnedSegment: PendingSegmentCacheEntry | null = null
@@ -1489,7 +1613,11 @@ function pingRouteTreeAndIncludeDynamicData(
         }
       }
       // Include it in the request.
-      spawnedSegment = upgradeToPendingSegment(segment, fetchStrategy)
+      spawnedSegment = upgradeToPendingSegment(
+        segment,
+        fetchStrategy,
+        task._navigationLockPrefetch ?? null
+      )
       break
     }
     case EntryStatus.Fulfilled: {
@@ -1517,7 +1645,12 @@ function pingRouteTreeAndIncludeDynamicData(
             break
           }
         }
-        spawnedSegment = pingFullSegmentRevalidation(now, tree, fetchStrategy)
+        spawnedSegment = pingFullSegmentRevalidation(
+          now,
+          task,
+          tree,
+          fetchStrategy
+        )
       }
       break
     }
@@ -1531,17 +1664,46 @@ function pingRouteTreeAndIncludeDynamicData(
           fetchStrategy
         )
       ) {
-        spawnedSegment = pingFullSegmentRevalidation(now, tree, fetchStrategy)
+        spawnedSegment = pingFullSegmentRevalidation(
+          now,
+          task,
+          tree,
+          fetchStrategy
+        )
+      }
+      if (segment.status === EntryStatus.Pending) {
+        // A response for this segment is still in flight. The pass must
+        // observe it before the phase can complete.
+        blockTaskOnPendingResponse(task, segment)
+      } else {
+        // The segment failed to load, or the server intentionally omitted it
+        // from a response (both are encoded as Rejected). Skip it and keep
+        // prefetching the rest of the tree; the entry's staleAt governs when
+        // it may be retried. Don't register the task on the rejected entry —
+        // nothing ever pings a Rejected entry.
+        //
+        // TODO: The cache encodes real failures and intentional server
+        // omissions identically (both Rejected); with per-segment skipping
+        // this has no task-lifecycle consequence, but distinguishing them
+        // could still be useful someday.
       }
       break
     }
     default:
       segment satisfies never
   }
+
+  if (spawnedSegment !== null) {
+    // A pass must observe the response for every request it spawns before
+    // its phase can complete — not just requests it finds already in flight.
+    // Block on the entry we just spawned; the task is re-pinged when it's
+    // fulfilled or rejected.
+    blockTaskOnPendingResponse(task, spawnedSegment)
+  }
+
   const requestTreeChildren: Record<string, FlightRouterState> = {}
   if (tree.slots !== null) {
-    for (const parallelRouteKey in tree.slots) {
-      const childTree = tree.slots[parallelRouteKey]
+    for (const [parallelRouteKey, childTree] of tree.slots) {
       requestTreeChildren[parallelRouteKey] =
         pingRouteTreeAndIncludeDynamicData(
           now,
@@ -1606,8 +1768,7 @@ function pingRuntimePrefetches(
   let requestTreeChildren: Record<string, FlightRouterState> = {}
   const slots = tree.slots
   if (slots !== null) {
-    for (const parallelRouteKey in slots) {
-      const childTree = slots[parallelRouteKey]
+    for (const [parallelRouteKey, childTree] of slots) {
       requestTreeChildren[parallelRouteKey] = pingRuntimePrefetches(
         now,
         task,
@@ -1639,6 +1800,7 @@ function pingRuntimePrefetches(
  */
 function pingSegmentBundle(
   now: number,
+  task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
   routeKey: RouteCacheKey,
   tree: RouteTree,
@@ -1657,8 +1819,15 @@ function pingSegmentBundle(
     }
     switch (nodeEntry.status) {
       case EntryStatus.Empty:
-        upgradeToPendingSegment(nodeEntry, FetchStrategy.PPR)
+        upgradeToPendingSegment(
+          nodeEntry,
+          FetchStrategy.PPR,
+          task._navigationLockPrefetch ?? null
+        )
         needsFetch = true
+        // The pass blocks on every request it spawns, not just requests it
+        // finds already in flight.
+        blockTaskOnPendingResponse(task, nodeEntry)
         break
       case EntryStatus.Pending:
         if (
@@ -1673,15 +1842,23 @@ function pingSegmentBundle(
             nodeTree
           )
           if (revalidatingEntry.status === EntryStatus.Empty) {
-            upgradeToPendingSegment(revalidatingEntry, FetchStrategy.PPR)
+            upgradeToPendingSegment(
+              revalidatingEntry,
+              FetchStrategy.PPR,
+              task._navigationLockPrefetch ?? null
+            )
             node.entry = revalidatingEntry
             needsFetch = true
+            // Block on the revalidation request we just spawned, in
+            // addition to the original in-flight entry (blocked below).
+            blockTaskOnPendingResponse(task, revalidatingEntry)
           } else {
             node.entry = null
           }
         } else {
           node.entry = null
         }
+        blockTaskOnPendingResponse(task, nodeEntry)
         break
       case EntryStatus.Rejected:
         if (
@@ -1696,28 +1873,60 @@ function pingSegmentBundle(
             nodeTree
           )
           if (revalidatingEntry.status === EntryStatus.Empty) {
-            upgradeToPendingSegment(revalidatingEntry, FetchStrategy.PPR)
+            upgradeToPendingSegment(
+              revalidatingEntry,
+              FetchStrategy.PPR,
+              task._navigationLockPrefetch ?? null
+            )
             node.entry = revalidatingEntry
             needsFetch = true
+            // Block on the retry revalidation we just spawned, like any
+            // other pending response. If the retry succeeds, its upsert
+            // evicts the rejected entry (see evictShadowingSegmentEntries
+            // in cache.ts) and the re-run pass reads the healed data. If it
+            // rejects too, the re-run observes a settled revalidation and
+            // moves on.
+            blockTaskOnPendingResponse(task, revalidatingEntry)
           } else {
             node.entry = null
           }
         } else {
           node.entry = null
         }
+        // The segment failed to load, or the server intentionally omitted it
+        // from a response (both are encoded as Rejected). Skip it and keep
+        // prefetching the rest of the bundle; the entry's staleAt governs
+        // when it may be retried. Don't register the task on the rejected
+        // entry itself — nothing ever pings a Rejected entry.
         break
-      case EntryStatus.Fulfilled:
+      case EntryStatus.Fulfilled: {
         // For shell entries (less specific than PPR), upgrade during the
         // Speculative phase itself — no background deferral, since the
         // whole point of the Speculative phase is to bring the cache up
         // to the per-link-concrete tier. `isPartial` ensures a complete
         // entry isn't re-fetched.
+
+        // Check if we should attempt to upgrade a fallback ISR response to
+        // a concrete version.
+        const isUpgradeableISRFallbackRetry =
+          nodeEntry.isUpgradeableISRFallback &&
+          // If the status is empty, then we haven't yet attempted to upgrade
+          // the fallback.
+          //
+          // If the status is fulfilled, then the fallback was
+          // successfully upgraded to a concrete version.
+          //
+          // Do not attempt to upgrade if the status is Pending or Rejected.
+          (task.fallbackRetryStatus === EntryStatus.Empty ||
+            task.fallbackRetryStatus === EntryStatus.Fulfilled)
+
         if (
-          nodeEntry.isPartial &&
-          canNewFetchStrategyProvideMoreContent(
-            nodeEntry.fetchStrategy,
-            FetchStrategy.PPR
-          )
+          (nodeEntry.isPartial &&
+            canNewFetchStrategyProvideMoreContent(
+              nodeEntry.fetchStrategy,
+              FetchStrategy.PPR
+            )) ||
+          isUpgradeableISRFallbackRetry
         ) {
           const revalidatingEntry = readOrCreateRevalidatingSegmentEntry(
             now,
@@ -1725,16 +1934,36 @@ function pingSegmentBundle(
             nodeTree
           )
           if (revalidatingEntry.status === EntryStatus.Empty) {
-            upgradeToPendingSegment(revalidatingEntry, FetchStrategy.PPR)
+            upgradeToPendingSegment(
+              revalidatingEntry,
+              FetchStrategy.PPR,
+              task._navigationLockPrefetch ?? null
+            )
             node.entry = revalidatingEntry
             needsFetch = true
+            // The pass blocks on every request it spawns, including
+            // revalidations of an already-fulfilled entry.
+            blockTaskOnPendingResponse(task, revalidatingEntry)
           } else {
+            // A non-empty revalidating entry means a request is already in
+            // flight (or recently settled), so we dedupe and don't issue a
+            // competing one — including for ISR-fallback upgrades, which then
+            // share the same revalidation across tasks.
             node.entry = null
+            if (revalidatingEntry.status === EntryStatus.Pending) {
+              // The deduped-against revalidation is still in flight, and this
+              // pass depends on its response. Wait for it before the phase
+              // can complete. (A settled revalidation we chose not to use
+              // needs no waiting and is not a prefetch failure — the base
+              // entry here is already Fulfilled.)
+              blockTaskOnPendingResponse(task, revalidatingEntry)
+            }
           }
         } else {
           node.entry = null
         }
         break
+      }
       default:
         nodeEntry satisfies never
     }
@@ -1744,7 +1973,14 @@ function pingSegmentBundle(
     return
   }
   spawnPrefetchSubtask(
-    fetchSegmentsOnCacheMiss(route, routeKey, tree, segments, segmentCount)
+    fetchSegmentsOnCacheMiss(
+      task,
+      route,
+      routeKey,
+      tree,
+      segments,
+      segmentCount
+    )
   )
 }
 
@@ -1784,7 +2020,12 @@ function accumulateSegmentBundle(
     // vary-path placement we need for Fallback reuse). Skip entirely.
     return null
   }
-  const segment = readOrCreateSegmentCacheEntry(now, task.fetchStrategy, tree)
+  const segment = readOrCreateSegmentCacheEntry(
+    now,
+    task.fetchStrategy,
+    tree,
+    task._navigationLockPrefetch ?? null
+  )
 
   if (
     process.env.__NEXT_PREFETCH_INLINING &&
@@ -1810,7 +2051,8 @@ function accumulateSegmentBundle(
       entry: readOrCreateSegmentCacheEntry(
         now,
         FetchStrategy.PPR,
-        route.metadata
+        route.metadata,
+        task._navigationLockPrefetch ?? null
       ),
       parent: parentBundle,
     }
@@ -1822,7 +2064,7 @@ function accumulateSegmentBundle(
     parent: effectiveParent,
   }
 
-  pingSegmentBundle(now, route, task.key, tree, segments)
+  pingSegmentBundle(now, task, route, task.key, tree, segments)
   return null
 }
 
@@ -1846,8 +2088,7 @@ function finishStaticBundleOnRuntimeBailout(
     return
   }
   if (tree.slots !== null) {
-    for (const parallelRouteKey in tree.slots) {
-      const childTree = tree.slots[parallelRouteKey]
+    for (const childTree of tree.slots.values()) {
       if (childTree.prefetchHints & PrefetchHint.ParentInlinedIntoSelf) {
         finishStaticBundleOnRuntimeBailout(now, task, route, childTree, bundle)
         return
@@ -1858,6 +2099,7 @@ function finishStaticBundleOnRuntimeBailout(
 
 function pingFullSegmentRevalidation(
   now: number,
+  task: PrefetchTask,
   tree: RouteTree,
   fetchStrategy:
     | FetchStrategy.Full
@@ -1877,7 +2119,8 @@ function pingFullSegmentRevalidation(
     // the server.
     const pendingSegment = upgradeToPendingSegment(
       revalidatingSegment,
-      fetchStrategy
+      fetchStrategy,
+      task._navigationLockPrefetch ?? null
     )
     // The upsert is handled by fulfillEntrySpawnedByRuntimePrefetch
     // when the dynamic prefetch response is written into the cache.
@@ -1900,7 +2143,8 @@ function pingFullSegmentRevalidation(
       )
       const pendingSegment = upgradeToPendingSegment(
         emptySegment,
-        fetchStrategy
+        fetchStrategy,
+        task._navigationLockPrefetch ?? null
       )
       // The upsert is handled by fulfillEntrySpawnedByRuntimePrefetch
       // when the dynamic prefetch response is written into the cache.
@@ -1909,6 +2153,9 @@ function pingFullSegmentRevalidation(
     switch (nonEmptyRevalidatingSegment.status) {
       case EntryStatus.Pending:
         // There's already an in-progress prefetch that includes this segment.
+        // The pass needs the contents of that response, too. Wait for it
+        // before the phase can complete.
+        blockTaskOnPendingResponse(task, nonEmptyRevalidatingSegment)
         return null
       case EntryStatus.Fulfilled:
       case EntryStatus.Rejected:
@@ -1943,7 +2190,9 @@ function doesCurrentSegmentMatchCachedSegment(
       currentSegment ===
       addSearchParamsIfPageSegment(
         PAGE_SEGMENT_KEY,
-        Object.fromEntries(new URLSearchParams(route.renderedSearch))
+        urlSearchParamsToParsedUrlQuery(
+          new URLSearchParams(route.renderedSearch)
+        )
       )
     )
   }
@@ -1957,21 +2206,17 @@ function doesCurrentSegmentMatchCachedSegment(
  * true. However, we also will do a speculative prefetch if the prefetching
  * mode of the segment is set to "unstable_eager".
  */
-function subtreeHasSpeculativePrefetch(
-  task: PrefetchTask,
+export function subtreeHasSpeculativePrefetch(
+  fetchStrategy: FetchStrategy,
   prefetchHints: number
 ): boolean {
-  if (!process.env.__NEXT_APP_SHELLS) {
-    // When App Shells is disabled, all prefetches implicitly include the
-    // speculative (non-shell) part of the target.
-    return true
-  }
-
   return (
     // Check if this is a "full" prefetch (<Link prefetch={true}>).
-    task.fetchStrategy === FetchStrategy.Full ||
+    fetchStrategy === FetchStrategy.Full ||
     // Check if something in this subtree is configured to be eagerly
-    // prefetched at the route level.
+    // prefetched at the route level. Segments that don't opt into Partial
+    // Prefetching are marked eager, so a route without any Partial Prefetching
+    // still speculatively prefetches everything.
     (prefetchHints & PrefetchHint.SubtreeHasEagerPrefetch) !== 0
   )
 }

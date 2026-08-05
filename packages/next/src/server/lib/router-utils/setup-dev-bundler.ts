@@ -165,6 +165,7 @@ async function verifyTypeScript(opts: SetupOpts) {
     hasPagesDir: !!opts.pagesDir,
     appDir: opts.appDir,
     pagesDir: opts.pagesDir,
+    useTypeScriptCli: Boolean(opts.nextConfig.experimental.useTypeScriptCli),
   })
 
   if (verifyResult.version) {
@@ -200,11 +201,12 @@ async function startWatcher(
 
     // Create server info to store in the lockfile itself
     // This allows other processes to discover the running server
-    const appUrl = `http://localhost:${opts.port}`
+    const appUrl =
+      process.env.__NEXT_PRIVATE_ORIGIN ?? `http://localhost:${opts.port}`
     const serverInfo: DevServerInfo = {
       pid: process.pid,
       port: opts.port,
-      hostname: 'localhost',
+      hostname: new URL(appUrl).hostname,
       appUrl,
       startedAt: Date.now(),
     }

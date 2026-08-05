@@ -8,7 +8,7 @@ import { getFlightDataPartsFromPath } from '../../flight-data-helpers'
 import { createInitialCacheNodeForHydration } from './ppr-navigations'
 import {
   convertRootFlightRouterStateToRouteTree,
-  getStaleAt,
+  resolveStaleAt,
   processRuntimePrefetchStream,
   writeDynamicRenderResponseIntoCache,
   writePrerenderResponseIntoCache,
@@ -142,7 +142,7 @@ export function createInitialRouterState({
                 undefined
               )
             const now = Date.now()
-            const staleAt = await getStaleAt(now, staticStageResponse.s)
+            const staleAt = await resolveStaleAt(now, staticStageResponse.s)
 
             writePrerenderResponseIntoCache(
               now,
@@ -169,7 +169,7 @@ export function createInitialRouterState({
         // hydration and write it into the cache directly.
         const now = Date.now()
 
-        getStaleAt(now, initialStaleTime)
+        resolveStaleAt(now, initialStaleTime)
           .then((staleAt) => {
             writePrerenderResponseIntoCache(
               now,
