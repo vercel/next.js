@@ -73,7 +73,7 @@ describe('TypeScript with error handling options', () => {
                 )
                 expect(buildResult.cliOutput).toContain('Failed to type check.')
                 expect(buildResult.cliOutput).toContain(
-                  './pages/index.tsx:2:31'
+                  'pages/index.tsx(2,31): error TS2322'
                 )
                 expect(buildResult.cliOutput).toContain(
                   "not assignable to type 'boolean'"

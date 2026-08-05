@@ -29,7 +29,8 @@ import path from 'path'
 
         expect(cliOutput).toContain('webpackBuildWorker')
         expect(exitCode).toBe(1)
-        expect(cliOutput).toContain(`"/asdfasdfasdf" is not an existing route.`)
+        expect(cliOutput).toContain('error TS2322')
+        expect(cliOutput).toContain('"/asdfasdfasdf"')
       })
     })
   }
