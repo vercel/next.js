@@ -25,6 +25,7 @@ import type { PagesManifest } from '../../build/webpack/plugins/pages-manifest-p
 import * as React from 'react'
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
+import writeFileAtomic from 'next/dist/compiled/write-file-atomic'
 import { installUseCacheProbe } from './use-cache-probe-pool'
 import { installDevValidationWorker } from './dev-validation-worker-pool'
 import { join as pathJoin } from 'path'
@@ -146,6 +147,7 @@ export default class DevServer extends Server {
   private staticPathsCache: LRUCache<
     UnwrapPromise<ReturnType<DevServer['getStaticPaths']>>
   >
+  private prerenderManifestUpdate: Promise<void> = Promise.resolve()
   private startServerSpan: Span
   private readonly serverComponentsHmrCache:
     | ServerComponentsHmrCache
@@ -928,53 +930,46 @@ export default class DevServer extends Server {
           // This matches the hasGenerateStaticParams logic we do during build.
           (!isAppPath || (prerenderedRoutes && prerenderedRoutes.length > 0))
         ) {
+          const fallbackField = fallbackModeToFallbackField(
+            res.value.fallbackMode,
+            page
+          )
+
           // we write the static paths to partial manifest for
           // fallback handling inside of entry handler's
-          const rawExistingManifest = await fs.promises.readFile(
-            pathJoin(this.distDir, PRERENDER_MANIFEST),
-            'utf8'
-          )
-          const existingManifest: PrerenderManifest =
-            JSON.parse(rawExistingManifest)
-          for (const staticPath of value.staticPaths || []) {
-            existingManifest.routes[staticPath] = {} as any
-          }
+          await this.updatePrerenderManifest((existingManifest) => {
+            for (const staticPath of value.staticPaths || []) {
+              existingManifest.routes[staticPath] = {} as any
+            }
 
-          // Find the fallback route from the prerendered routes. This is
-          // the route whose pathname matches the page pattern (e.g.
-          // /dynamic-params/[slug]) and has fallback route params describing
-          // which params are unknown at build time.
-          const fallbackPrerenderedRoute = prerenderedRoutes?.find(
-            (route) => route.pathname === pathname
-          )
-
-          existingManifest.dynamicRoutes[pathname] = {
-            dataRoute: null,
-            dataRouteRegex: null,
-            fallback: fallbackModeToFallbackField(res.value.fallbackMode, page),
-            fallbackRevalidate: false,
-            fallbackExpire: undefined,
-            fallbackHeaders: undefined,
-            fallbackStatus: undefined,
-            fallbackRootParams: fallbackPrerenderedRoute?.fallbackRootParams,
-            fallbackRouteParams: fallbackPrerenderedRoute?.fallbackRouteParams,
-            fallbackSourceRoute: pathname,
-            prefetchDataRoute: undefined,
-            prefetchDataRouteRegex: undefined,
-            routeRegex: getRouteRegex(pathname).re.source,
-            experimentalPPR: undefined,
-            renderingMode: undefined,
-            allowHeader: [],
-          }
-
-          const updatedManifest = JSON.stringify(existingManifest)
-
-          if (updatedManifest !== rawExistingManifest) {
-            await fs.promises.writeFile(
-              pathJoin(this.distDir, PRERENDER_MANIFEST),
-              updatedManifest
+            // Find the fallback route from the prerendered routes. This is
+            // the route whose pathname matches the page pattern (e.g.
+            // /dynamic-params/[slug]) and has fallback route params describing
+            // which params are unknown at build time.
+            const fallbackPrerenderedRoute = prerenderedRoutes?.find(
+              (route) => route.pathname === pathname
             )
-          }
+
+            existingManifest.dynamicRoutes[pathname] = {
+              dataRoute: null,
+              dataRouteRegex: null,
+              fallback: fallbackField,
+              fallbackRevalidate: false,
+              fallbackExpire: undefined,
+              fallbackHeaders: undefined,
+              fallbackStatus: undefined,
+              fallbackRootParams: fallbackPrerenderedRoute?.fallbackRootParams,
+              fallbackRouteParams:
+                fallbackPrerenderedRoute?.fallbackRouteParams,
+              fallbackSourceRoute: pathname,
+              prefetchDataRoute: undefined,
+              prefetchDataRouteRegex: undefined,
+              routeRegex: getRouteRegex(pathname).re.source,
+              experimentalPPR: undefined,
+              renderingMode: undefined,
+              allowHeader: [],
+            }
+          })
         }
         this.staticPathsCache.set(pathname, value)
 
@@ -1011,6 +1006,35 @@ export default class DevServer extends Server {
       return result
     }
     return nextInvoke as NonNullable<typeof result>
+  }
+
+  private updatePrerenderManifest(
+    update: (manifest: PrerenderManifest) => void
+  ): Promise<void> {
+    // Several routes can resolve their static paths at the same time, so the
+    // read-modify-write is queued and the write is atomic to keep concurrent
+    // updates from tearing the manifest or dropping each other's entries.
+    const pending = this.prerenderManifestUpdate.then(async () => {
+      const manifestPath = pathJoin(this.distDir, PRERENDER_MANIFEST)
+      const rawExistingManifest = await fs.promises.readFile(
+        manifestPath,
+        'utf8'
+      )
+      const existingManifest: PrerenderManifest =
+        JSON.parse(rawExistingManifest)
+
+      update(existingManifest)
+
+      const updatedManifest = JSON.stringify(existingManifest)
+
+      if (updatedManifest !== rawExistingManifest) {
+        await writeFileAtomic(manifestPath, updatedManifest)
+      }
+    })
+
+    this.prerenderManifestUpdate = pending.catch(() => {})
+
+    return pending
   }
 
   protected async ensurePage(opts: {

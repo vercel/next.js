@@ -798,13 +798,17 @@ declare module 'next/dist/compiled/web-vitals' {
 declare module 'next/dist/compiled/web-vitals-attribution' {}
 
 declare module 'next/dist/compiled/write-file-atomic' {
-  function writeFileAtomicSync(
+  function writeFileAtomic(
+    filename: string,
+    data: string | Buffer,
+    options?: { mode?: number; chown?: { uid: number; gid: number } }
+  ): Promise<void>
+  export function sync(
     filename: string,
     data: string | Buffer,
     options?: { mode?: number; chown?: { uid: number; gid: number } }
   ): void
-  export const sync: typeof writeFileAtomicSync
-  export default writeFileAtomicSync
+  export default writeFileAtomic
 }
 
 declare module 'next/dist/compiled/ws' {
