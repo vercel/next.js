@@ -1670,7 +1670,7 @@ export interface NextConfig {
    * Path to a custom adapter module for deployment platform integration.
    * Can also be set via the `NEXT_ADAPTER_PATH` environment variable.
    */
-  adapterPath?: string | undefined
+  adapterPath?: string
 
   cacheHandlers?: {
     default?: string
