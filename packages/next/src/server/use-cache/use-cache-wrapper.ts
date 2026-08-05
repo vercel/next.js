@@ -73,6 +73,7 @@ import {
   getCacheHandler,
   getDevTieredCacheHandler,
   getPrivateCacheHandler,
+  isBuiltInCacheHandler,
   isCustomCacheHandler,
   isMemoryCacheDisabled,
 } from './handlers'
@@ -257,17 +258,35 @@ class ResolvableSharedCacheResult {
   private readonly registrations: Array<{
     map: Map<string, Promise<SharedCacheResult>>
     key: string
+    /**
+     * Where to move the entry once the invocation completes, instead of
+     * dropping it. Only set for the request-scoped map, and only for kinds
+     * whose entries are worth retaining; the module-scope cross-request map
+     * must never retain, since its entries would outlive the request that
+     * produced them.
+     */
+    retentionMap?: Map<string, Promise<SharedCacheResult>>
   }> = []
 
-  registerIn(map: Map<string, Promise<SharedCacheResult>>, key: string): void {
+  registerIn(
+    map: Map<string, Promise<SharedCacheResult>>,
+    key: string,
+    retentionMap?: Map<string, Promise<SharedCacheResult>>
+  ): void {
     map.set(key, this.deferred.promise)
-    this.registrations.push({ map, key })
+    this.registrations.push({ map, key, retentionMap })
   }
 
   resolve(result: SharedCacheResult): void {
     this.deferred.resolve(result)
     if (result.type === 'cached') {
-      result.entry.pendingMetadata.finally(this.cleanup.bind(this))
+      // Retain only an entry that collected successfully. A failed collection
+      // leaves metadata a later invocation cannot read, so it is dropped like
+      // any other failure and the next invocation regenerates.
+      result.entry.pendingMetadata.then(
+        () => this.cleanupAndRetain(),
+        () => this.cleanup()
+      )
     } else {
       this.cleanup()
     }
@@ -283,9 +302,27 @@ class ResolvableSharedCacheResult {
     this.cleanup()
   }
 
+  /**
+   * Drops the pending registrations, leaving nothing for a later invocation to
+   * join. Used when the invocation produced no entry that a later one could
+   * serve: an error has no value, and a 'prerender-dynamic' result is a hanging
+   * promise bound to the leader's render signal.
+   */
   private cleanup(): void {
     for (const { map, key } of this.registrations) {
       map.delete(key)
+    }
+  }
+
+  /**
+   * Drops the pending registrations and moves the entry into the retention map
+   * where one was given, so a later invocation in the same request can reuse it
+   * instead of repeating the lookup and, on a miss, the work.
+   */
+  private cleanupAndRetain(): void {
+    for (const { map, key, retentionMap } of this.registrations) {
+      map.delete(key)
+      retentionMap?.set(key, this.deferred.promise)
     }
   }
 }
@@ -519,6 +556,51 @@ function saveSharedCacheEntryToResumeDataCache(
 
   resumeDataCache.cache.set(serializedCacheKey, rdcResult)
   debug?.('Resume Data Cache entry saved by joiner', serializedCacheKey)
+}
+
+/**
+ * Completes a join onto another invocation's entry, whether that invocation is
+ * still filling or has already finished: forks the stream, saves to this
+ * invocation's RDC if the leader had none, and balances the cache signal read
+ * once the entry is fully collected.
+ */
+function serveJoinedCacheEntry(
+  sharedCacheEntry: SharedCacheEntry,
+  serializedCacheKey: string,
+  resumeDataCache: ResumeDataCache | null,
+  cacheContext: CacheContext,
+  cacheSignal: CacheSignal | null
+): ReadableStream<Uint8Array> {
+  const stream = sharedCacheEntry.fork()
+
+  // If the leader was nested inside another cache (no accessible RDC), it
+  // couldn't save to the RDC. This joiner may be top-level with an RDC, in
+  // which case it must save here; otherwise the RDC lookup during the final
+  // prerender will miss.
+  saveSharedCacheEntryToResumeDataCache(
+    serializedCacheKey,
+    sharedCacheEntry,
+    resumeDataCache
+  )
+
+  // End the cache signal read when the result is fully collected, not when the
+  // stream is available. A failed collection has no metadata to propagate but
+  // must still balance the read, so both settlements end it; leaving it open
+  // would stall a prerender waiting for its cache reads. The trailing .catch()
+  // covers propagation itself throwing after the rendering stream resolved.
+  sharedCacheEntry.pendingMetadata
+    .then(
+      (metadata) => {
+        cacheSignal?.endRead()
+        maybePropagateCacheEntryMetadata(cacheContext, metadata)
+      },
+      () => {
+        cacheSignal?.endRead()
+      }
+    )
+    .catch(() => {})
+
+  return stream
 }
 
 function saveToCacheHandler(
@@ -2702,15 +2784,27 @@ export async function cache(
   // doing redundant work. This also saves cache handler `get` calls which may
   // be HTTP round-trips for remote handlers.
   if (stream === undefined) {
-    const intraRequestPendingCacheInvocation =
+    const pendingInvocation =
       workStore.pendingCacheInvocations?.get(serializedCacheKey)
 
-    if (intraRequestPendingCacheInvocation) {
+    // A pending invocation is joined unconditionally: its fill is shared, so
+    // every joiner receives whatever that fill produces. A completed one is a
+    // stored entry instead, so it is only reused when the caller hasn't asked
+    // to bypass caches, and only if nothing has invalidated it since.
+    const completedInvocation =
+      pendingInvocation === undefined &&
+      !shouldForceRevalidate(workStore, workUnitStore)
+        ? workStore.completedCacheInvocations?.get(serializedCacheKey)
+        : undefined
+
+    const joinedInvocation = pendingInvocation ?? completedInvocation
+
+    if (joinedInvocation) {
       const cacheSignal = getCacheSignal(workUnitStore)
       cacheSignal?.beginRead()
 
-      debug?.('joining pending intra-request invocation', serializedCacheKey)
-      const sharedCacheResult = await intraRequestPendingCacheInvocation
+      debug?.('joining intra-request invocation', serializedCacheKey)
+      const sharedCacheResult = await joinedInvocation
 
       if (sharedCacheResult.type === 'prerender-dynamic') {
         debug?.('joined invocation is prerender-dynamic', serializedCacheKey)
@@ -2718,33 +2812,49 @@ export async function cache(
         return sharedCacheResult.hangingPromise
       }
 
-      debug?.(
-        'joined invocation resolved with cached entry',
-        serializedCacheKey
-      )
+      // A completed entry may have been invalidated since it was produced, by
+      // an `updateTag()` in a server action earlier in this request. The
+      // implicit tags expiration is passed as 0 because it cannot apply to a
+      // retained entry: it is memoized for the request, so re-checking it
+      // against an unchanged entry timestamp only repeats the answer the leader
+      // already got.
+      const metadata =
+        completedInvocation === undefined
+          ? undefined
+          : await sharedCacheResult.entry.pendingMetadata
 
-      stream = sharedCacheResult.entry.fork()
+      if (
+        metadata !== undefined &&
+        shouldDiscardCacheEntry(
+          metadata,
+          workStore,
+          workUnitStore,
+          implicitTags,
+          0
+        )
+      ) {
+        debug?.('discarding completed invocation', serializedCacheKey)
+        workStore.completedCacheInvocations?.delete(serializedCacheKey)
 
-      // If the leader was nested inside another cache (no accessible RDC), it
-      // couldn't save to the RDC. This joiner may be top-level with an RDC, in
-      // which case it must save here; otherwise the RDC lookup during the
-      // final prerender will miss.
-      saveSharedCacheEntryToResumeDataCache(
-        serializedCacheKey,
-        sharedCacheResult.entry,
-        resumeDataCache
-      )
+        // This can take the signal's count to zero. The leader path below opens
+        // a read again synchronously, before it awaits anything, which is what
+        // stops a prerender from concluding that every cache read has settled
+        // while a fill is still about to start.
+        cacheSignal?.endRead()
+      } else {
+        debug?.(
+          'joined invocation resolved with cached entry',
+          serializedCacheKey
+        )
 
-      // End the cache signal read when the result is fully collected, not when
-      // the stream is available. Fire-and-forget propagation runs in the same
-      // .then() callback. .catch() prevents unhandled rejection if collection
-      // fails after the rendering stream was already resolved.
-      sharedCacheResult.entry.pendingMetadata
-        .then((metadata) => {
-          cacheSignal?.endRead()
-          maybePropagateCacheEntryMetadata(cacheContext, metadata)
-        })
-        .catch(() => {})
+        stream = serveJoinedCacheEntry(
+          sharedCacheResult.entry,
+          serializedCacheKey,
+          resumeDataCache,
+          cacheContext,
+          cacheSignal
+        )
+      }
     }
   }
 
@@ -2762,9 +2872,25 @@ export async function cache(
         string,
         Promise<SharedCacheResult>
       >())
+
+    // Retain the completed entry for the rest of the request where a later
+    // invocation would otherwise repeat real work: private caches have no cache
+    // handler to fall back on in production, and a platform- or config-supplied
+    // handler may be remote, so a second `get` can be a round trip. A built-in
+    // handler read is a map lookup, so retaining its entries would hold a
+    // forked stream buffer for nothing.
+    const completedCacheInvocations =
+      isPrivate || !isBuiltInCacheHandler(kind)
+        ? (workStore.completedCacheInvocations ??= new Map<
+            string,
+            Promise<SharedCacheResult>
+          >())
+        : undefined
+
     resolvableSharedCacheResult.registerIn(
       intraRequestPendingCacheInvocations,
-      serializedCacheKey
+      serializedCacheKey,
+      completedCacheInvocations
     )
 
     // Cross-request deduplication lets concurrent requests for the same key
@@ -3510,7 +3636,7 @@ function shouldForceRevalidate(
 }
 
 function shouldDiscardCacheEntry(
-  entry: CacheEntry,
+  entry: Pick<CacheEntry, 'tags' | 'timestamp'>,
   workStore: WorkStore,
   workUnitStore: WorkUnitStore,
   implicitTags: string[],
