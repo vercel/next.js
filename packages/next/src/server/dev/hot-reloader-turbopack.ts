@@ -547,6 +547,11 @@ export async function createHotReloaderTurbopack(
 
   // Dev specific
   const changeSubscriptions: ChangeSubscriptions = new Map()
+  // Baselines for deciding whether an applied server HMR update changed any
+  // entry's compiled output. Seeded when an entry's change subscription
+  // starts; advanced only by the apply loop (`onApplied` below).
+  const serverContentHashEndpoints = new Map<EntryKey, Endpoint>()
+  const appliedServerContentHashes = new Map<EntryKey, string>()
   const serverPathState = new Map<string, string>()
   const readyIds: ReadyIds = new Set()
   let currentEntriesHandlingResolve: ((value?: unknown) => void) | undefined
@@ -927,6 +932,7 @@ export async function createHotReloaderTurbopack(
    * advance the hash when it actually changed.
    */
   async function* serverChanges(
+    key: EntryKey,
     changedPromise: Promise<
       AsyncIterableIterator<TurbopackResult<ServerChanged>>
     >,
@@ -934,6 +940,11 @@ export async function createHotReloaderTurbopack(
   ) {
     const changed = await changedPromise
     let contentHash = await endpoint.serverContentHash()
+
+    serverContentHashEndpoints.set(key, endpoint)
+    if (contentHash !== null && !appliedServerContentHashes.has(key)) {
+      appliedServerContentHashes.set(key, contentHash)
+    }
 
     for await (const change of changed) {
       // A null hash means the entry has no compiled output (it was removed,
@@ -988,7 +999,7 @@ export async function createHotReloaderTurbopack(
     if (side === 'server') {
       const changedPromise = endpoint.serverChanged(includeIssues)
       changeSubscriptions.set(key, changedPromise)
-      changes = serverChanges(changedPromise, endpoint)
+      changes = serverChanges(key, changedPromise, endpoint)
     } else {
       const changedPromise = endpoint.clientChanged()
       changeSubscriptions.set(key, changedPromise)
@@ -1005,6 +1016,8 @@ export async function createHotReloaderTurbopack(
       }
     } catch (e) {
       changeSubscriptions.delete(key)
+      serverContentHashEndpoints.delete(key)
+      appliedServerContentHashes.delete(key)
       const payload = await onError?.(e as Error)
       if (payload) {
         sendHmr(key, payload)
@@ -1012,6 +1025,8 @@ export async function createHotReloaderTurbopack(
       return
     }
     changeSubscriptions.delete(key)
+    serverContentHashEndpoints.delete(key)
+    appliedServerContentHashes.delete(key)
   }
 
   async function unsubscribeFromClientChanges(key: EntryKey) {
@@ -1020,6 +1035,8 @@ export async function createHotReloaderTurbopack(
       await subscription.return?.()
       changeSubscriptions.delete(key)
     }
+    serverContentHashEndpoints.delete(key)
+    appliedServerContentHashes.delete(key)
     currentEntryIssues.delete(key)
   }
 
@@ -2195,7 +2212,7 @@ export async function createHotReloaderTurbopack(
 
         notifyServerComponentChanges()
       },
-      onApplied: (chunkPaths: string[]) => {
+      onApplied: async (chunkPaths: string[]) => {
         // Clear the evalManifest() shared cache for each updated chunk so the
         // next RSC render picks up the HMR-applied module changes. Unlike
         // a full restart, this does NOT clear require.cache — the HMR-applied
@@ -2204,7 +2221,29 @@ export async function createHotReloaderTurbopack(
           clearManifestCache(join(distDir, chunkPath))
         }
 
-        notifyServerComponentChanges()
+        // An apply doesn't imply anything a browser renders changed — e.g.
+        // removing a page applies a throwing stub for its module while every
+        // other entry's output stays identical. Announce only when some
+        // entry's compiled output actually differs.
+        const changes = await Promise.allSettled(
+          [...serverContentHashEndpoints].map(async ([key, endpoint]) => {
+            const previousHash = appliedServerContentHashes.get(key)
+            if (previousHash === undefined) {
+              return false
+            }
+            const hash = await endpoint.serverContentHash()
+            // A null (removed or failing) hash keeps the baseline, so output
+            // coming back changed is still announced.
+            if (hash === null || hash === previousHash) {
+              return false
+            }
+            appliedServerContentHashes.set(key, hash)
+            return true
+          })
+        )
+        if (changes.some((c) => c.status === 'rejected' || c.value === true)) {
+          notifyServerComponentChanges()
+        }
       },
     })
   }
