@@ -2,9 +2,13 @@ import {
   clearRequestInsightsForTest,
   getRequestInsightsSnapshot,
   recordRequestInsightFetch,
+  recordRequestInsightRouterActivity,
+  recordRequestInsightServerAction,
+  recordRequestInsightSource,
   subscribeRequestInsights,
 } from './request-insights'
 import { recordSpan } from './span-store'
+import { getRequestInsightRouterActivity } from './request-insights-router-activity'
 
 const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
 const originalDevServer = process.env.__NEXT_DEV_SERVER
@@ -183,6 +187,224 @@ describe('request insights', () => {
         durationMs: 50,
       })
     )
+  })
+
+  it('classifies framework request sources without letting the root span erase a specific source', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+
+    recordSpan({
+      name: 'run app route',
+      requestId: 'req_source',
+      attributes: {
+        'next.span_type': 'AppRouteRouteHandlers.runHandler',
+      },
+    })
+    recordSpan({
+      name: 'GET /api/items',
+      requestId: 'req_source',
+      attributes: {
+        'next.span_type': 'BaseServer.handleRequest',
+      },
+    })
+
+    expect(getRequestInsightsSnapshot().requests[0]).toEqual(
+      expect.objectContaining({ source: 'app-route' })
+    )
+  })
+
+  it.each([
+    ['Node.runHandler', 'pages-api'],
+    ['NextNodeServer.imageOptimizer', 'image'],
+    ['Middleware.execute', 'proxy'],
+  ] as const)('classifies %s spans as %s requests', (spanType, source) => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+
+    recordSpan({
+      name: spanType,
+      requestId: `req_${source}`,
+      attributes: {
+        'next.span_type': spanType,
+      },
+    })
+
+    expect(getRequestInsightsSnapshot().requests[0]).toEqual(
+      expect.objectContaining({ source })
+    )
+  })
+
+  it('records an authoritative static asset source after tracing starts', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const identity: Parameters<typeof recordRequestInsightSource>[0] = {
+      requestId: 'req_asset',
+    }
+
+    recordSpan({
+      name: 'GET /asset.svg',
+      requestId: identity.requestId,
+      attributes: {
+        'next.span_type': 'BaseServer.handleRequest',
+      },
+    })
+    recordRequestInsightSource(identity, 'asset')
+
+    expect(identity.source).toBe('asset')
+    expect(getRequestInsightsSnapshot().requests[0]).toEqual(
+      expect.objectContaining({ source: 'asset' })
+    )
+  })
+
+  it('does not create a request only because a source was recorded', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+
+    recordRequestInsightSource({ requestId: 'untraced-asset' }, 'asset')
+
+    expect(getRequestInsightsSnapshot().requests).toEqual([])
+  })
+
+  it('does not classify the middleware pass as a page before an App Route runs', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const identity = {
+      requestId: 'middleware-app-route',
+      source: 'proxy' as const,
+    }
+
+    recordSpan({
+      name: 'proxy POST /api/stream',
+      requestId: identity.requestId,
+      requestInsightSource: identity.source,
+      startTime: 1,
+      attributes: {
+        'next.span_type': 'Middleware.execute',
+      },
+    })
+    recordSpan({
+      name: 'POST /api/stream',
+      requestId: identity.requestId,
+      requestInsightSource: identity.source,
+      startTime: 2,
+      attributes: {
+        'next.span_type': 'BaseServer.handleRequest',
+      },
+    })
+
+    expect(getRequestInsightsSnapshot().requests).toEqual([
+      expect.objectContaining({
+        requestId: identity.requestId,
+        source: 'proxy',
+      }),
+    ])
+
+    recordRequestInsightSource(identity, 'app-route')
+    recordSpan({
+      name: 'execute route handler',
+      requestId: identity.requestId,
+      startTime: 3,
+      attributes: {
+        'next.span_type': 'AppRouteRouteHandlers.runHandler',
+      },
+    })
+
+    const requests = getRequestInsightsSnapshot().requests
+    expect(requests).toHaveLength(1)
+    expect(requests[0]).toEqual(
+      expect.objectContaining({
+        requestId: identity.requestId,
+        source: 'app-route',
+      })
+    )
+    expect(
+      requests[0].spans.map((span) => span.attributes?.['next.span_type'])
+    ).toEqual([
+      'Middleware.execute',
+      'BaseServer.handleRequest',
+      'AppRouteRouteHandlers.runHandler',
+    ])
+  })
+
+  it('classifies the route pass as a page after middleware completes', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const identity = {
+      requestId: 'middleware-page',
+      source: 'proxy' as 'proxy' | undefined,
+    }
+
+    recordSpan({
+      name: 'proxy GET /products',
+      requestId: identity.requestId,
+      requestInsightSource: identity.source,
+      startTime: 1,
+      attributes: {
+        'next.span_type': 'Middleware.execute',
+      },
+    })
+    recordSpan({
+      name: 'GET /products',
+      requestId: identity.requestId,
+      requestInsightSource: identity.source,
+      startTime: 2,
+      attributes: {
+        'next.span_type': 'BaseServer.handleRequest',
+      },
+    })
+    identity.source = undefined
+    recordSpan({
+      name: 'GET /products',
+      requestId: identity.requestId,
+      requestInsightSource: identity.source,
+      startTime: 3,
+      attributes: {
+        'next.span_type': 'BaseServer.handleRequest',
+      },
+    })
+
+    expect(getRequestInsightsSnapshot().requests).toEqual([
+      expect.objectContaining({
+        requestId: identity.requestId,
+        source: 'page',
+      }),
+    ])
+  })
+
+  it('records normalized router activity and confirmed Server Actions', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const identity = { requestId: 'req_activity' }
+
+    recordSpan({
+      name: 'render route (app) /dashboard',
+      requestId: identity.requestId,
+    })
+
+    recordRequestInsightRouterActivity(identity, 'segment-prefetch')
+    recordRequestInsightServerAction(identity)
+
+    expect(getRequestInsightsSnapshot().requests[0]).toEqual(
+      expect.objectContaining({
+        source: 'unknown',
+        routerActivity: 'segment-prefetch',
+        serverAction: true,
+      })
+    )
+  })
+
+  it('derives router activity only from valid RSC protocol headers', () => {
+    expect(
+      getRequestInsightRouterActivity({
+        rsc: '1',
+        'next-router-prefetch': '1',
+        'next-router-segment-prefetch': '/dashboard',
+      })
+    ).toBe('segment-prefetch')
+    expect(
+      getRequestInsightRouterActivity({
+        'next-router-prefetch': '1',
+      })
+    ).toBeUndefined()
+    expect(
+      getRequestInsightRouterActivity({
+        rsc: '1',
+        'next-hmr-refresh': '1',
+      })
+    ).toBe('hmr-refresh')
   })
 
   it('keeps request and Instant Insights data separate for the same request ID', () => {
