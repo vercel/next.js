@@ -19,11 +19,10 @@ Set up an agentic optimization loop that drives a Next.js route from "not
 instant" to "instant" and keeps it there. The loop is test-driven: encode the
 goal as a failing `@next/playwright` `instant()` test, work it to green, and
 ship the test as the regression guard. Run it once per target route. Work the
-phases P → G in order; each ends in a gate. Two lazily-read references keep the
-workflow-specific decisions close while linking framework recipes back to the
-docs: `reference/patterns.md` maps blocker types to their fixes,
-and `reference/real-app-patterns.md` covers parallel routes, authorization
-gates, and shell-quality failure modes. Read one only when its phase points
+phases P → G in order; each ends in a gate. Fix recipes live in two lazily-read
+references — `reference/patterns.md` (before→after for each blocker type) and
+`reference/real-app-patterns.md` (parallel routes, auth gates, the empty-shell
+and responsive-skeleton failure modes). Read one only when its phase points
 there.
 
 ## What is invariant, and what is yours
@@ -107,9 +106,6 @@ scaffolding; the user never needs to hear those words.
 - **Present a run as a list of results the user can click through** — one line
   per navigation: the route, what commits instantly, and what streams in — not a
   transcript of the loop.
-- **Give the user a click-through table:** source URL/link, destination URL,
-  what commits instantly, and what streams afterward. This is the manual
-  verification checklist they can follow in the production run.
 - **Only surface a question for a genuine fork:** a fix that would change
   behavior, a security-sensitive read, or a route that's dynamic by design (a
   runtime-prefetch candidate, not a shell to grow). A clean instant fix is not a
@@ -233,7 +229,7 @@ untrustworthy REDs. Scaffold and run command: **`test-template.md`**.
 
 ## C. RED (locked) + the VERIFY-RED gate
 
-Wrap the same navigation in `instant()` and assert the shell commits under the
+Wrap the same navigation in `instant()`; assert the shell commits under the
 lock. A RED here is the gap. **This is the test that ships**
 (`test-template.md`).
 
@@ -274,22 +270,34 @@ reused as-is.
 **Rule:** if an element renders in both the fallback and the resolved tree,
 hoist it above the boundary.
 
-### The most common blocker: a top-level `await`
+### The most common blocker: a top-level `await` in a layout on a fallback route
 
-A top-level request or data read can keep its entire subtree out of the shell.
-Use the fix for [runtime data](https://nextjs.org/docs/messages/blocking-prerender-runtime)
-or [uncached data](https://nextjs.org/docs/messages/blocking-prerender-dynamic).
+```
+app/[locale]/(app)/[tenant]/dashboard/...
+       │ generateStaticParams ✅   │ no generateStaticParams → fallback route
+```
 
-An authorization gate is a product and security boundary, not a mechanical
-Suspense refactor. Never render protected children
-unconditionally to make the test green. If the gate owns the whole subtree and
-there is no safe public shell, retain the gate and use the insight's
-blocking-route choice.
+When any dynamic segment in the route lacks `generateStaticParams`, the route
+is a fallback route, and **all** params defer to request time, including the
+enumerated ones. A top-level `await` in a layout (`await params`, a
+request-time session read, an auth gate) then blocks the whole subtree out of
+the static shell, even when it reads a statically known param. Minimal shape: a
+dynamic-segment route with one segment lacking `generateStaticParams`, plus a
+top-level `await` in the layout above it.
 
-See: [Authentication and Authorization](https://nextjs.org/docs/app/guides/authentication#authorization)
-and `reference/real-app-patterns.md`.
+### The fix: defer the gate, render children
 
-Every blocker shape — `cookies()`/`headers()`, uncached fetch or database
+Render `children` unconditionally; move the top-level `await` into a
+`<Suspense fallback={null}>`-wrapped child. Mechanism and before→after:
+`reference/real-app-patterns.md`, "Deferring an auth gate".
+
+**Fix the page below the shell too, not only the layout.** A page-level
+top-level `await` (commonly `await params`) blocks the same way the layout's
+does, so make the page sync and push its dynamic reads into a
+`<Suspense>`-wrapped leaf as well. `fallback={null}` is correct only when a gate renders nothing on
+success; for data, the fallback must be a real loading skeleton (see D1).
+
+Every other blocker shape — `cookies()`/`headers()`, uncached fetch or database
 reads, `searchParams`, metadata, viewport, non-deterministic values (`Date.now()`,
 `Math.random()`, `crypto.randomUUID()`) — surfaces its own insight when you hit
 it: the build prints a `https://nextjs.org/docs/messages/<slug>` link. The
@@ -299,7 +307,8 @@ past the first. Scope the build to the route you're on with
 `next build --debug-build-paths "app/<route>/**"` rather than rebuilding the app.
 Open that page and apply its recipe; don't improvise from the inline message.
 
-`reference/patterns.md` links each shape to its fix.
+The before→after recipe for each shape is in `reference/patterns.md`, which maps it to the insight
+that explains it.
 
 A few things those per-error pages don't stress for the instant-navigation goal:
 
@@ -362,12 +371,12 @@ this gate is as machine-checkable as the others. Detail:
 
 **When URL data can't be pushed down** (for example, the whole page depends on
 `params`, `searchParams`, or the full URL), there may be no meaningful static
-shell to grow. Don't force one. Runtime prefetching can add that URL-specific
-content to a soft navigation after Partial Prefetching adoption. Hand the
-navigation to the experimental
-[`next-partial-prefetching-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-optimizer),
-which preserves this shell test and adds a second assertion for the exact
-link's prefetched UI. Do not add per-link prefetching in this loop.
+shell to grow. Don't force one. Runtime prefetching can make the soft
+navigation instant, but it is outside this optimizer loop: it requires Partial
+Prefetching, a `<Link prefetch={true}>`, and cached URL-dependent content. See
+[Runtime Prefetching](https://nextjs.org/docs/app/guides/runtime-prefetching)
+and pattern 10 in `reference/patterns.md` for the requirements, cost trade-offs,
+manual prefetch caveat, and `instant()` test gotchas.
 
 ## E. PARITY: the refactor changed only whether the route is instant
 
@@ -442,15 +451,31 @@ three hold, you are not done.
 
 ## After optimization
 
-The work below is optional and belongs to separate skills. Point the user at
-the relevant next step and let them decide; do not inspect, configure, or run
-either workflow inside this optimizer.
+Once the target routes are instant, check whether the app has already adopted
+Partial Prefetching (`partialPrefetching: true`, or the relevant destination
+still uses `prefetch = 'partial'` during an incremental rollout).
 
-- If the app has not adopted Partial Prefetching, suggest
-  [`next-partial-prefetching-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-adoption).
-- If Partial Prefetching is already adopted and the user wants selected
-  URL-specific UI added to a link's prefetched result, suggest the experimental
+Make that check mechanically:
+
+```bash
+rg -n "partialPrefetching|prefetch\s*=\s*['\"]partial['\"]" --glob 'next.config.*' --glob 'app/**' --glob 'src/app/**'
+```
+
+If `partialPrefetching: true` is in config, the app is globally adopted. If only
+`prefetch = 'partial'` matches, treat those destination segments as adopted
+during an incremental rollout and keep checking any other target routes.
+
+- **Already adopted:** for any URL-data route that stopped at the limitation
+  above, suggest the experimental
   [`next-partial-prefetching-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-optimizer).
-
-Stop after the suggestion. Adoption and per-link optimization should each be a
-separate user-approved change.
+  It adds the selected URL-specific content to that exact link's prefetched
+  result and locks it in with `instant()`. Don't add per-link prefetching from
+  this loop. Keep the default link behavior everywhere else so the shared App
+  Shell remains the low-cost baseline.
+- **Not adopted yet:** recommend
+  [`next-partial-prefetching-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-adoption).
+  That skill moves the app onto the better prefetching model: shared App Shell
+  prefetches by default, fewer duplicated full-prefetch requests for visible
+  links, a link audit for existing `<Link prefetch={true}>` usage, and optional
+  per-link runtime prefetching only where URL-specific content is worth the
+  extra server work.

@@ -33,9 +33,7 @@ build/run obstacles, accumulated as you first hit them).
 
 1. **BUILD**: how is a production build of this app produced and served?
    A per-push preview deploy, a staging container, or bare
-   `next build && next start`. Anything but `next dev`. Use the
-   [Building guide](https://nextjs.org/docs/app/guides/building) to interpret
-   the build output and route table.
+   `next build && next start`. Anything but `next dev`.
 2. **EXPOSE**: what condition turns on
    `experimental.exposeTestingApiInProductionBuild` for every measured build,
    and never for real production? Spellings: an explicit
@@ -94,9 +92,7 @@ cannot capture.
 **No CI / local-only.** BUILD: `EXPOSE_TESTING_API=1 next build && next
 start`. EXPOSE: that env var. RUN: `BASE_URL=http://localhost:3000 playwright
 test`. LOOP: build → start → test on one machine; fully agent-drivable, with
-nothing to push, no secrets, and no deploy wait. Stop the prior server, treat
-`EADDRINUSE` as a failed start, and verify the new process owns port 3000 before
-testing.
+nothing to push, no secrets, and no deploy wait.
 
 **Generic CI + container.** BUILD: the pipeline builds an image and deploys it
 to a staging namespace. EXPOSE: `process.env.DEPLOY_ENV === 'staging'`. RUN: a
