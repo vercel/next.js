@@ -1,5 +1,10 @@
 import type { AttributeValue } from 'next/dist/compiled/@opentelemetry/api'
 import type { RequestInsightKind } from '../../../next-devtools/shared/request-insights'
+import type {
+  RequestInsightProxyStatus,
+  RequestInsightRouterActivity,
+  RequestInsightSource,
+} from '../../../shared/lib/request-insights'
 
 export type SpanStoreAttributes = Record<string, AttributeValue>
 
@@ -26,6 +31,10 @@ export type SpanStoreRecord = {
   parentSpanId?: string
   requestId?: string
   requestInsightKind?: RequestInsightKind
+  requestInsightSource?: RequestInsightSource
+  requestInsightProxyStatus?: RequestInsightProxyStatus
+  requestInsightRouterActivity?: RequestInsightRouterActivity
+  requestInsightServerAction?: true
   htmlRequestId?: string
   route?: string
   url?: string

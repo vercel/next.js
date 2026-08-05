@@ -1,10 +1,19 @@
-import type { RequestInsightKind } from '../../shared/lib/request-insights'
+import type {
+  RequestInsightKind,
+  RequestInsightProxyStatus,
+  RequestInsightRouterActivity,
+  RequestInsightSource,
+} from '../../shared/lib/request-insights'
 
 export {
   getRequestInsightKey,
   getRequestInsightKind,
+  getRequestInsightSource,
   type RequestInsightIdentity,
   type RequestInsightKind,
+  type RequestInsightProxyStatus,
+  type RequestInsightRouterActivity,
+  type RequestInsightSource,
 } from '../../shared/lib/request-insights'
 
 type RequestInsightAttributeValue =
@@ -54,6 +63,10 @@ export type RequestInsightFetch = {
 export type RequestInsight = {
   requestId: string
   kind?: RequestInsightKind
+  source: RequestInsightSource
+  proxyStatus?: RequestInsightProxyStatus
+  routerActivity?: RequestInsightRouterActivity
+  serverAction?: true
   htmlRequestId: string
   route?: string
   url?: string
