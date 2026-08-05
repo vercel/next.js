@@ -699,6 +699,21 @@ function bindingToApi(
       )
     }
 
+    beginEditTransaction(changedPaths: string[]): Promise<number | null> {
+      return binding.projectBeginEditTransaction(
+        this._nativeProject,
+        changedPaths
+      )
+    }
+
+    renewEditTransaction(token: number): Promise<boolean> {
+      return binding.projectRenewEditTransaction(this._nativeProject, token)
+    }
+
+    endEditTransaction(token: number): Promise<boolean> {
+      return binding.projectEndEditTransaction(this._nativeProject, token)
+    }
+
     async writeAnalyzeData(
       appDirOnly: boolean
     ): Promise<TurbopackResult<void>> {
