@@ -88,9 +88,7 @@ get(cacheKey: string, softTags: string[]): Promise<CacheEntry | undefined>
 
 Returns a `CacheEntry` object if found, or `undefined` if not found or expired.
 
-Your `get` method should retrieve the cache entry from storage, check if it has expired based on the `expire` time, and return `undefined` for missing or expired entries.
-
-Return the entry even when it is past its `revalidate` time. `revalidate` marks the entry as stale, not expired: Next.js serves the stale entry and schedules a background refresh. Only `expire` means the entry can no longer be used.
+Your `get` method should retrieve the cache entry from storage and return `undefined` only for missing entries or entries past their `expire` time. Return entries that are only past `revalidate`, since those are stale rather than expired, and returning them lets Next.js serve them while refreshing in the background.
 
 ```js
 const cacheHandler = {
@@ -98,9 +96,7 @@ const cacheHandler = {
     const entry = cache.get(cacheKey)
     if (!entry) return undefined
 
-    // Only `expire` means the entry is unusable. An entry past its
-    // `revalidate` time is stale, not expired: return it so Next.js can
-    // serve it while refreshing in the background.
+    // Check if expired
     const now = Date.now()
     if (now > entry.timestamp + entry.expire * 1000) {
       return undefined
@@ -281,8 +277,7 @@ module.exports = {
       return undefined
     }
 
-    // Only drop the entry once it is past `expire`. Past `revalidate` it is
-    // stale, and returning it lets Next.js serve it while it refreshes.
+    // Check if entry has expired
     const now = Date.now()
     if (now > entry.timestamp + entry.expire * 1000) {
       return undefined
@@ -350,6 +345,17 @@ module.exports = {
     // Deserialize the entry
     const data = JSON.parse(stored)
 
+    // Check tags: explicit tags travel inside the stored entry, while soft
+    // tags (implicit route tags, see [Soft Tags](#soft-tags)) arrive as the
+    // second argument. A tag revalidated after this entry was stored
+    // invalidates the entry.
+    const tags = [...data.tags, ...softTags]
+    if (tags.length > 0) {
+      const stamps = await client.mGet(tags.map((tag) => `tag:${tag}`))
+      const latest = Math.max(...stamps.map((stamp) => Number(stamp) || 0))
+      if (latest > data.timestamp) return undefined
+    }
+
     // Reconstruct the ReadableStream from stored data
     return {
       value: new ReadableStream({
@@ -396,9 +402,9 @@ module.exports = {
         expire: entry.expire,
         revalidate: entry.revalidate,
       }),
-      // Use Redis TTL for automatic expiration. `EX` requires a positive
-      // integer, while `expire` can be fractional or `Infinity` (the
-      // never-expire sentinel), so clamp before passing it through.
+      // `EX` needs a positive integer.
+      // By definition `expire: Infinity` ("never expire")
+      // maps to no TTL at all, so omit `EX` and let Redis persist the key.
       Number.isFinite(entry.expire)
         ? { EX: Math.max(1, Math.ceil(entry.expire)) }
         : {}
@@ -411,14 +417,16 @@ module.exports = {
   },
 
   async getExpiration(tags) {
-    // Return 0 to indicate no tags have been revalidated
-    // Could query Redis for tag expiration timestamps if tracking them
-    return 0
+    // `Infinity` tells Next.js that soft tags are checked in `get()`
+    // instead (see the tag check there), so no lookup is needed here
+    return Infinity
   },
 
-  async updateTags(tags, durations) {
-    // Implement tag-based invalidation if needed
-    // Could iterate over keys with matching tags and delete them
+  async updateTags(tags) {
+    // Record when each tag was revalidated; `get()` compares these
+    // stamps against each entry's `timestamp`
+    const now = String(Date.now())
+    await Promise.all(tags.map((tag) => client.set(`tag:${tag}`, now)))
   },
 }
 ```
@@ -448,29 +456,45 @@ module.exports = {
   // ... get() and set() methods ...
 
   async refreshTags() {
-    // Sync tag invalidation timestamps from Redis
+    // Sync tag invalidation markers from Redis
     // Using a dedicated set to track tag keys avoids scanning the keyspace
     const tagKeys = await client.sMembers('revalidated-tags')
     if (tagKeys.length > 0) {
       const values = await client.mGet(tagKeys.map((k) => `tag:${k}`))
       for (let i = 0; i < tagKeys.length; i++) {
-        localTagTimestamps.set(tagKeys[i], Number(values[i]))
+        localTagTimestamps.set(tagKeys[i], JSON.parse(values[i]))
       }
     }
   },
 
   async getExpiration(tags) {
-    const timestamps = tags.map((tag) => localTagTimestamps.get(tag) || 0)
-    return Math.max(...timestamps, 0)
+    // Report the hard-expiration stamps; Next.js discards entries older
+    // than the returned value. Stale stamps are consumed in `get()`
+    // instead: serve the entry, but return it with `revalidate: -1` to
+    // force a background refresh (this mirrors the built-in handler).
+    const stamps = tags.map((tag) => localTagTimestamps.get(tag)?.expired ?? 0)
+    return Math.max(...stamps, 0)
   },
 
   async updateTags(tags, durations) {
     const now = Date.now()
+    // Without `durations` (for example `updateTag()`), the tag expires
+    // immediately: entries carrying it must not be served again. With
+    // `durations` (profile-based, for example `revalidateTag(tag, 'max')`),
+    // entries turn stale now — keep serving them while they refresh in the
+    // background — and only hard-expire `durations.expire` seconds later.
+    const expired =
+      durations === undefined
+        ? now
+        : Number.isFinite(durations.expire)
+          ? now + durations.expire * 1000
+          : 0 // `expire: Infinity` — never hard-expire
+    const marker = JSON.stringify({ stale: now, expired })
     const pipeline = client.multi()
     for (const tag of tags) {
-      pipeline.set(`tag:${tag}`, String(now))
+      pipeline.set(`tag:${tag}`, marker)
       pipeline.sAdd('revalidated-tags', tag)
-      localTagTimestamps.set(tag, now)
+      localTagTimestamps.set(tag, { stale: now, expired })
     }
     await pipeline.exec()
   },
