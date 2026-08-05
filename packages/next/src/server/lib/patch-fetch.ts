@@ -1082,7 +1082,7 @@ export function createPatchedFetcher(
             if (entry?.value && entry.value.kind === CachedRouteKind.FETCH) {
               // when stale and is revalidating we wait for fresh data
               // so the revalidated entry has the updated data
-              if (workStore.isStaticGeneration && entry.isStale) {
+              if (workStore.executionMode === 'prerender' && entry.isStale) {
                 isForegroundRevalidate = true
               } else {
                 if (entry.isStale) {
@@ -1143,7 +1143,7 @@ export function createPatchedFetcher(
         }
 
         if (
-          (workStore.isStaticGeneration ||
+          (workStore.executionMode === 'prerender' ||
             (process.env.NODE_ENV === 'development' &&
               process.env.__NEXT_CACHE_COMPONENTS &&
               workUnitStore &&

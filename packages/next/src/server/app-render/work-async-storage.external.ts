@@ -15,7 +15,12 @@ import type { DigestedError } from './create-error-handler'
 import type { ActionRevalidationKind } from '../../shared/lib/action-revalidation-kind'
 
 export interface WorkStore {
-  readonly isStaticGeneration: boolean
+  /**
+   * Whether this invocation produces reusable prerender output or renders a
+   * response for the current request. Prerendering includes both build-time
+   * generation and runtime revalidation.
+   */
+  readonly executionMode: 'prerender' | 'request'
 
   /**
    * The page that is being rendered. This relates to the path to the page file.

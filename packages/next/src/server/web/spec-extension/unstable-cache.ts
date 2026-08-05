@@ -280,7 +280,7 @@ export function unstable_cache<T extends Callback>(
 
                   // Attach the empty catch here so we don't get a "unhandled promise
                   // rejection" warning. (Behavior is matched with patch-fetch)
-                  if (workStore.isStaticGeneration) {
+                  if (workStore.executionMode === 'prerender') {
                     revalidationPromise.catch(() => {})
                   }
 
@@ -289,7 +289,7 @@ export function unstable_cache<T extends Callback>(
                 }
 
                 // Check if we need to do foreground revalidation
-                if (workStore.isStaticGeneration) {
+                if (workStore.executionMode === 'prerender') {
                   // When the page is revalidating and the cache entry is stale,
                   // we need to wait for fresh data (blocking revalidate). The
                   // `await` here keeps `cacheSignal.endRead` (in the outer
