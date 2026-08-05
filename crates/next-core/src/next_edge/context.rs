@@ -27,7 +27,6 @@ use crate::{
     app_structure::CollectedRootParams,
     mode::NextMode,
     next_config::NextConfig,
-    next_font::local::NextFontLocalResolvePlugin,
     next_import_map::{get_next_edge_and_server_fallback_import_map, get_next_edge_import_map},
     next_server::context::ServerContextType,
     next_shared::resolve::NextSharedRuntimeResolvePlugin,
@@ -114,21 +113,6 @@ pub async fn get_edge_resolve_options_context(
             .to_resolved()
             .await?;
 
-    let before_resolve_plugins = if matches!(
-        ty,
-        ServerContextType::Pages { .. }
-            | ServerContextType::AppSSR { .. }
-            | ServerContextType::AppRSC { .. }
-    ) {
-        vec![ResolvedVc::upcast(
-            NextFontLocalResolvePlugin::new(project_path.clone())
-                .to_resolved()
-                .await?,
-        )]
-    } else {
-        vec![]
-    };
-
     let after_resolve_plugins = vec![ResolvedVc::upcast(
         NextSharedRuntimeResolvePlugin::new(project_path.clone())
             .to_resolved()
@@ -156,7 +140,6 @@ pub async fn get_edge_resolve_options_context(
         module: true,
         browser: true,
         after_resolve_plugins,
-        before_resolve_plugins,
 
         ..Default::default()
     };
