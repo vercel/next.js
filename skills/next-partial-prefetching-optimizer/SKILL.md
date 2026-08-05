@@ -244,6 +244,16 @@ Read the route tree, source links, destination components, data access, current
 | Large/high-cardinality lists, feeds, or grids                 | Prefer intent-triggered full prefetch, or keep shell-only                        |
 | Rarely used links                                             | Skip; paying before click is unlikely to help                                    |
 
+If adoption left `TODO(runtime-prefetch)` markers, they're a good place to start
+when the user hasn't named a link:
+
+```bash
+rg -n -A2 "TODO\(runtime-prefetch\)" --glob 'app/**' --glob 'src/app/**'
+```
+
+Each hit is a candidate adoption left undecided. There may be none, which is
+fine. The user's chosen navigation is the scope either way.
+
 Produce a short inspection record before the question:
 
 - **Navigation inventory:** source route, exact link component, destination,
@@ -381,7 +391,10 @@ change:
    hovered/focused link using
    [hover-triggered prefetch](https://nextjs.org/docs/app/guides/prefetching#hover-triggered-prefetch)
    as the base pattern.
-5. Re-run the locked test after every coherent edit until both markers are
+5. Remove that link's `TODO(runtime-prefetch)` marker, and its `// See:` line,
+   once the locked test is GREEN. That marker is the only record the work is
+   outstanding, so it stays until then.
+6. Re-run the locked test after every coherent edit until both markers are
    GREEN. No sleeps, manual warming, or custom time threshold.
 
 Work one accepted navigation at a time. After each GREEN, immediately run its
