@@ -22,6 +22,7 @@ import type { FetchMetric } from '../base-http'
 import { createDedupeFetch } from './dedupe-fetch'
 import {
   getCacheSignal,
+  shouldRevalidateStaleCacheEntryInForeground,
   type RevalidateStore,
   type WorkUnitAsyncStorage,
 } from '../app-render/work-unit-async-storage.external'
@@ -1082,7 +1083,10 @@ export function createPatchedFetcher(
             if (entry?.value && entry.value.kind === CachedRouteKind.FETCH) {
               // when stale and is revalidating we wait for fresh data
               // so the revalidated entry has the updated data
-              if (workStore.executionMode === 'prerender' && entry.isStale) {
+              if (
+                shouldRevalidateStaleCacheEntryInForeground(workUnitStore) &&
+                entry.isStale
+              ) {
                 isForegroundRevalidate = true
               } else {
                 if (entry.isStale) {
