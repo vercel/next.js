@@ -958,6 +958,7 @@ function _ts_generator(thisArg, body) {
     }
 }
 var browserContextPrototype = Context.prototype;
+var RUNTIME_CHUNK_BASE_PATH = typeof TURBOPACK_CHUNK_BASE_PATH === 'string' ? TURBOPACK_CHUNK_BASE_PATH : CHUNK_BASE_PATH;
 var moduleFactories = new Map();
 contextPrototype.M = moduleFactories;
 var availableModules = new Map();
@@ -1237,7 +1238,7 @@ function loadChunkByUrlInternal(sourceType, sourceData, chunkEntry) {
 // match the keys stored in `chunkComponents`.
 function chunkUrlToPath(chunkUrl) {
     var src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''));
-    return src.startsWith(CHUNK_BASE_PATH) ? src.slice(CHUNK_BASE_PATH.length) : src;
+    return src.startsWith(RUNTIME_CHUNK_BASE_PATH) ? src.slice(RUNTIME_CHUNK_BASE_PATH.length) : src;
 }
 /**
  * When a merged chunk finishes registering (e.g. an initial-load `<script>`), mark its
@@ -1350,14 +1351,14 @@ browserContextPrototype.q = exportUrl;
 /**
  * Returns the URL relative to the origin where a chunk can be fetched from.
  */ function getChunkRelativeUrl(chunkPath) {
-    var basePath = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : CHUNK_BASE_PATH;
+    var basePath = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : RUNTIME_CHUNK_BASE_PATH;
     // Most chunk paths need no escaping.
     var encodedPath = CHUNK_PATH_NEEDS_ENCODING.test(chunkPath) ? chunkPath.split('/').map(encodeURIComponent).join('/') : chunkPath;
     return `${basePath}${encodedPath}${ASSET_SUFFIX}`;
 }
 // Shared runtime primitives consumed by the bundled `createWorker` helper,
 // exposed as `__turbopack_chunk_base_path__` and `__turbopack_chunk_asset_suffix__`.
-browserContextPrototype.b = CHUNK_BASE_PATH;
+browserContextPrototype.b = RUNTIME_CHUNK_BASE_PATH;
 browserContextPrototype.X = ASSET_SUFFIX;
 // Shared runtime primitive: build a chunk's URL. Used by the bundled worker
 // helper and the WASM helper, exposed as `__turbopack_chunk_relative_url__`.
@@ -1368,7 +1369,7 @@ function getPathFromScript(chunkScript) {
     }
     var chunkUrl = chunkScript.src;
     var src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''));
-    var path = src.startsWith(CHUNK_BASE_PATH) ? src.slice(CHUNK_BASE_PATH.length) : src;
+    var path = src.startsWith(RUNTIME_CHUNK_BASE_PATH) ? src.slice(RUNTIME_CHUNK_BASE_PATH.length) : src;
     return path;
 }
 /**

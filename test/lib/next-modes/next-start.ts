@@ -7,6 +7,7 @@ import stripAnsi from 'strip-ansi'
 import { quote as shellQuote } from 'shell-quote'
 import { shouldUseTurbopack } from 'next-test-utils'
 import { RequiredServerFilesManifest } from 'next/dist/build'
+import { FileRef } from '../e2e-utils'
 
 export class NextStartInstance extends NextInstance {
   private _buildId: string
@@ -23,6 +24,15 @@ export class NextStartInstance extends NextInstance {
 
   constructor(opts: NextInstanceOpts) {
     super(opts)
+
+    if (typeof opts.files === 'string' || opts.files instanceof FileRef) {
+      // Directory fixtures can include their test runner. Keep it in the
+      // generated app while excluding it from TypeScript checks.
+      this.env = {
+        NEXT_PRIVATE_LOCAL_DEV: '1',
+        ...this.env,
+      }
+    }
 
     if (!opts.disableAutoSkewProtection && shouldUseTurbopack()) {
       this.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
