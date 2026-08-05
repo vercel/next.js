@@ -241,6 +241,14 @@ impl EvaluateOperation for WorkerThreadPool {
                 worker_id,
                 state: state.clone(),
                 on_drop: Some(Box::new(move |worker_id| {
+                    if !WORKER_POOL_OPERATION.is_worker_alive(worker_id) {
+                        // The worker died or was terminated while checked out;
+                        // it must not be handed out again. Account for it here
+                        // instead: idle workers are reaped by `worker_exited`,
+                        // checked-out ones by this teardown.
+                        state.stats.lock().remove_worker();
+                        return;
+                    }
                     let mut waiters = state.waiters.lock();
                     loop {
                         if let Some(tx) = waiters.pop() {

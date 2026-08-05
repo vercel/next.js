@@ -7,10 +7,13 @@ use anyhow::{Context, Result};
 use bytes::Bytes;
 use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
-use tokio::sync::{
-    Mutex as AsyncMutex,
-    mpsc::{self, UnboundedReceiver, UnboundedSender},
-    oneshot,
+use tokio::{
+    select,
+    sync::{
+        Mutex as AsyncMutex,
+        mpsc::{self, UnboundedReceiver, UnboundedSender},
+        oneshot, watch,
+    },
 };
 use turbo_rcstr::RcStr;
 
@@ -94,6 +97,12 @@ pub(crate) struct WorkerPoolOperation {
     worker_routed_channel: Mutex<FxHashMap<u32, Arc<MessageChannel<(u32, Bytes)>>>>,
     #[allow(clippy::type_complexity)]
     task_routed_channel: Mutex<FxHashMap<u32, Arc<MessageChannel<Bytes>>>>,
+    /// Per-worker death notification, set to `true` when the worker exits
+    /// unexpectedly or is terminated. Wakes tasks blocked in
+    /// [`TaskChannels::recv_from_worker`] so they fail instead of waiting
+    /// forever for a response that can never arrive. Entries are retained
+    /// for the process lifetime (one tiny entry per worker ever created).
+    worker_death: Mutex<FxHashMap<u32, watch::Sender<bool>>>,
     pub(crate) pools: Mutex<FxHashMap<Arc<WorkerOptions>, Arc<PoolState>>>,
 }
 
@@ -161,8 +170,60 @@ impl WorkerPoolOperation {
         worker_id: u32,
     ) -> Result<()> {
         self.remove_worker_channel(worker_id);
+        self.signal_worker_death(worker_id);
         worker_thread::terminate_worker(worker_options, worker_id);
         Ok(())
+    }
+
+    /// Handles an unexpected worker exit reported by the JS side: wakes tasks
+    /// blocked on the worker, removes its routed channel so the dead worker
+    /// is never handed out again, and reaps it from the idle pool. A worker
+    /// that was checked out is accounted for by its task's teardown path
+    /// (see [`WorkerOperation`]'s drop), not here.
+    pub(crate) fn worker_exited(&self, worker_options: Arc<WorkerOptions>, worker_id: u32) {
+        self.remove_worker_channel(worker_id);
+        // Tombstone: create the entry even if no task ever subscribed, so a
+        // later subscriber observes the death immediately instead of waiting
+        // forever.
+        let death = {
+            let mut map = self.worker_death.lock();
+            map.entry(worker_id)
+                .or_insert_with(|| watch::channel(false).0)
+                .clone()
+        };
+        let _ = death.send(true);
+
+        let pools = self.pools.lock();
+        if let Some(state) = pools.get(&worker_options) {
+            let mut idle = state.idle_workers.lock();
+            let len_before = idle.len();
+            idle.retain(|&id| id != worker_id);
+            if idle.len() != len_before {
+                state.stats.lock().remove_worker();
+            }
+        }
+    }
+
+    /// Whether the worker is still expected to be usable: its routed channel
+    /// is removed when the worker is terminated or exits.
+    pub(crate) fn is_worker_alive(&self, worker_id: u32) -> bool {
+        self.worker_routed_channel.lock().contains_key(&worker_id)
+    }
+
+    /// Subscribes to the death signal for `worker_id`; `true` means the
+    /// worker exited or was terminated.
+    fn worker_death_receiver(&self, worker_id: u32) -> watch::Receiver<bool> {
+        self.worker_death
+            .lock()
+            .entry(worker_id)
+            .or_insert_with(|| watch::channel(false).0)
+            .subscribe()
+    }
+
+    fn signal_worker_death(&self, worker_id: u32) {
+        if let Some(death) = self.worker_death.lock().get(&worker_id) {
+            let _ = death.send(true);
+        }
     }
 
     fn remove_worker_channel(&self, worker_id: u32) {
@@ -219,6 +280,10 @@ pub(crate) struct TaskChannels {
     /// Channel for Worker -> Rust communication (data)
     task_channel: Arc<MessageChannel<Bytes>>,
     task_id: u32,
+    worker_id: u32,
+    /// Set when the worker exits or is terminated; see
+    /// [`WorkerPoolOperation::worker_death`].
+    death: watch::Receiver<bool>,
 }
 
 impl TaskChannels {
@@ -239,10 +304,14 @@ impl TaskChannels {
                 .clone()
         };
 
+        let death = WORKER_POOL_OPERATION.worker_death_receiver(worker_id);
+
         Self {
             worker_channel,
             task_channel,
             task_id,
+            worker_id,
+            death,
         }
     }
 
@@ -255,11 +324,23 @@ impl TaskChannels {
     }
 
     /// Receive message from worker (JS Worker -> Rust)
+    ///
+    /// Fails promptly when the worker dies or is terminated, instead of
+    /// waiting forever for a response that can never arrive.
     pub(crate) async fn recv_from_worker(&self) -> Result<Bytes> {
-        self.task_channel
-            .recv()
-            .await
-            .context("failed to recv task message")
+        if *self.death.borrow() {
+            anyhow::bail!("worker {} exited", self.worker_id);
+        }
+        let mut death = self.death.clone();
+        select! {
+            biased;
+            message = self.task_channel.recv() => {
+                message.context("failed to recv task message")
+            }
+            _ = death.changed() => {
+                anyhow::bail!("worker {} exited", self.worker_id)
+            }
+        }
     }
 }
 
@@ -369,5 +450,71 @@ mod tests {
             1,
             "canceled waiters must be pruned when a new waiter registers"
         );
+    }
+
+    fn test_worker_options(tag: &str) -> Arc<WorkerOptions> {
+        Arc::new(WorkerOptions {
+            filename: tag.into(),
+            cwd: "/".into(),
+        })
+    }
+
+    /// An unexpected worker exit must reap the worker from the idle pool,
+    /// fail its in-flight task promptly (instead of hanging forever), and
+    /// keep the dead id from ever being handed out again.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn worker_exited_reaps_pool_and_fails_inflight_task() {
+        let options = test_worker_options("exited-pool.js");
+        let worker_id = 4_000_001_101;
+        let task_id = 4_000_001_102;
+
+        let state = WORKER_POOL_OPERATION.get_pool_state(options.clone()).await;
+        state.idle_workers.lock().push(worker_id);
+        {
+            let mut stats = state.stats.lock();
+            stats.add_booting_worker();
+            stats.finished_booting_worker();
+        }
+
+        // An in-flight task blocked in recv on the dying worker.
+        let channels = TaskChannels::new(task_id, worker_id);
+        let recv = channels.recv_from_worker();
+
+        WORKER_POOL_OPERATION.worker_exited(options.clone(), worker_id);
+
+        tokio::time::timeout(std::time::Duration::from_secs(5), recv)
+            .await
+            .expect("recv must not hang after worker exit")
+            .expect_err("recv must fail after worker exit");
+
+        // The idle worker was reaped and accounted for exactly once.
+        assert!(state.idle_workers.lock().is_empty());
+        assert_eq!(state.stats.lock().workers, 0);
+        // And the dead id can never be handed out again.
+        assert!(!WORKER_POOL_OPERATION.is_worker_alive(worker_id));
+        // A channel created after the death observes the tombstone.
+        let late = TaskChannels::new(4_000_001_103, worker_id);
+        assert!(*late.death.borrow());
+    }
+
+    /// Terminating a worker (scale-down, non-reusable operation, wait/kill)
+    /// must also wake tasks blocked on it.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn terminate_worker_wakes_inflight_task() {
+        let options = test_worker_options("terminated-pool.js");
+        let worker_id = 4_000_002_101;
+        let task_id = 4_000_002_102;
+
+        let channels = TaskChannels::new(task_id, worker_id);
+        let recv = channels.recv_from_worker();
+
+        WORKER_POOL_OPERATION
+            .terminate_worker(options, worker_id)
+            .unwrap();
+
+        tokio::time::timeout(std::time::Duration::from_secs(5), recv)
+            .await
+            .expect("recv must not hang after terminate")
+            .expect_err("recv must fail after terminate");
     }
 }

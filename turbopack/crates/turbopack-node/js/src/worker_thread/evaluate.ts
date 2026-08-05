@@ -11,7 +11,13 @@ const binding: Binding = require(
   /* turbopackIgnore: true */ workerData.bindingPath
 )
 
-binding.workerCreated(workerId)
+// Check in with the pool, echoing the creation nonce and pool identity the
+// creator placed in workerData so the creation is paired with exactly one
+// acquirer (and an unclaimed worker is terminated instead of retained).
+binding.workerCreated(workerId, workerData.creationNonce, {
+  filename: workerData.filename,
+  cwd: workerData.cwd,
+})
 
 export const run = async (
   moduleFactory: () => Promise<{
