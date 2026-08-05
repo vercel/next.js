@@ -2,6 +2,8 @@ import type { Readable } from 'node:stream'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
 export type AnyStream = ReadableStream<Uint8Array> | Readable
+export type StreamCompletion = { error: unknown }
+type OnStreamComplete = (completion?: StreamCompletion) => void
 
 function isWebStream(stream: AnyStream): stream is ReadableStream<Uint8Array> {
   return typeof (stream as ReadableStream).tee === 'function'
@@ -133,6 +135,17 @@ export class ReplayableNodeStream {
       }
       this._subscribers.clear()
     })
+
+    stream.on('close', () => {
+      if (!this._done && !this._error) {
+        const error = createPrematureStreamCloseError('RSC')
+        this._error = error
+        for (const sub of this._subscribers) {
+          sub.onError(error)
+        }
+        this._subscribers.clear()
+      }
+    })
   }
 
   /**
@@ -230,6 +243,136 @@ export class ReplayableNodeStream {
   dispose(): void {
     this._chunks = null
   }
+}
+
+export function createTrackedStream<T extends AnyStream>(
+  createStream: () => T,
+  onComplete: OnStreamComplete
+): T
+export function createTrackedStream<T extends AnyStream>(
+  createStream: () => Promise<T>,
+  onComplete: OnStreamComplete
+): Promise<T>
+export function createTrackedStream<T extends AnyStream>(
+  createStream: () => T | Promise<T>,
+  onComplete: OnStreamComplete
+): T | Promise<T>
+export function createTrackedStream<T extends AnyStream>(
+  createStream: () => T | Promise<T>,
+  onComplete: OnStreamComplete
+): T | Promise<T> {
+  let stream: T | Promise<T>
+  try {
+    stream = createStream()
+  } catch (error) {
+    onComplete({ error })
+    throw error
+  }
+
+  if (isThenable(stream)) {
+    return stream.then(
+      (resolvedStream) => trackStreamCompletion(resolvedStream, onComplete),
+      (error) => {
+        onComplete({ error })
+        throw error
+      }
+    )
+  }
+
+  return trackStreamCompletion(stream, onComplete)
+}
+
+function isThenable<T>(value: T | Promise<T>): value is Promise<T> {
+  return typeof (value as Promise<T>).then === 'function'
+}
+
+function trackStreamCompletion<T extends AnyStream>(
+  stream: T,
+  onComplete: OnStreamComplete
+): T {
+  if (isWebStream(stream)) {
+    return trackWebStreamCompletion(stream, onComplete) as T
+  }
+
+  trackNodeStreamCompletion(stream, onComplete)
+  return stream
+}
+
+function trackNodeStreamCompletion(
+  stream: Readable,
+  onComplete: OnStreamComplete
+): void {
+  const complete = createOneShotCompletion(onComplete)
+
+  stream.on('end', () => complete())
+  stream.on('error', (error) => complete({ error }))
+  stream.on('close', () => {
+    if (!stream.readableEnded && !stream.errored) {
+      complete({ error: createPrematureStreamCloseError('RSC') })
+    }
+  })
+}
+
+/**
+ * Ends the render phase when the RSC source stream finishes producing without
+ * eagerly reading from the stream or adding another buffer.
+ */
+export function trackWebStreamCompletion(
+  stream: ReadableStream<Uint8Array>,
+  onComplete: OnStreamComplete
+): ReadableStream<Uint8Array> {
+  const reader = stream.getReader()
+  const complete = createOneShotCompletion(onComplete)
+
+  return new ReadableStream<Uint8Array>(
+    {
+      async pull(controller) {
+        let result: ReadableStreamReadResult<Uint8Array>
+        try {
+          result = await reader.read()
+        } catch (error) {
+          complete({ error })
+          controller.error(error)
+          return
+        }
+
+        if (result.done) {
+          complete()
+          controller.close()
+        } else {
+          controller.enqueue(result.value)
+        }
+      },
+      cancel(reason) {
+        complete({ error: createPrematureStreamCloseError('RSC') })
+        return reader.cancel(reason)
+      },
+    },
+    { highWaterMark: 0 }
+  )
+}
+
+function createOneShotCompletion(
+  onComplete: OnStreamComplete
+): OnStreamComplete {
+  let isComplete = false
+  return (completion) => {
+    if (isComplete) {
+      return
+    }
+    isComplete = true
+    if (completion) {
+      onComplete(completion)
+    } else {
+      onComplete()
+    }
+  }
+}
+
+function createPrematureStreamCloseError(streamName: string): Error {
+  const error = new Error(`${streamName} stream closed before completion`)
+  error.name = 'AbortError'
+  return error
 }
 
 export type ReactServerPrerenderResolveToType = {

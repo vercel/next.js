@@ -85,6 +85,8 @@ enum RenderSpan {
 enum AppRenderSpan {
   prepareAppPageResponse = 'AppRender.prepareAppPageResponse',
   initializeRender = 'AppRender.initializeRender',
+  renderRSCResponse = 'AppRender.renderRSCResponse',
+  waitForRSC = 'AppRender.waitForRSC',
   renderToString = 'AppRender.renderToString',
   renderToReadableStream = 'AppRender.renderToReadableStream',
   getBodyResult = 'AppRender.getBodyResult',

@@ -116,6 +116,7 @@ import {
   runWithRequestInsightsIdentity,
 } from '../lib/trace/request-insights-identity'
 import { getTracer, SpanStatusCode } from '../lib/trace/tracer'
+import { createOneShotTracePhase } from '../lib/trace/phase'
 import { traceLocalSpan } from '../lib/trace/local-span-recorder'
 import { isRequestInsightsEnabled } from '../lib/trace/request-insights'
 import { FlightRenderResult } from './flight-render-result'
@@ -234,6 +235,7 @@ import {
   createReactServerPrerenderResult,
   ReactServerResult,
   ReplayableNodeStream,
+  createTrackedStream,
   createReactServerPrerenderResultFromRender,
 } from './app-render-prerender-utils'
 import {
@@ -966,19 +968,21 @@ async function generateDynamicFlightRenderResult(
       options
     )
 
-    const flightStream = workUnitAsyncStorage.run(
-      requestStore,
-      renderToNodeFlightStream,
-      ctx.componentMod,
-      rscPayload,
-      clientModules,
-      {
-        onError,
-        temporaryReferences: options?.temporaryReferences,
-        filterStackFrame,
-        debugChannel: debugChannel?.serverSide,
-        signal: requestAbortSignal,
-      }
+    const flightStream = createTrackedRSCStream(() =>
+      workUnitAsyncStorage.run(
+        requestStore,
+        renderToNodeFlightStream,
+        ctx.componentMod,
+        rscPayload,
+        clientModules,
+        {
+          onError,
+          temporaryReferences: options?.temporaryReferences,
+          filterStackFrame,
+          debugChannel: debugChannel?.serverSide,
+          signal: requestAbortSignal,
+        }
+      )
     )
 
     return new FlightRenderResult(
@@ -1002,19 +1006,21 @@ async function generateDynamicFlightRenderResult(
       options
     )
 
-    const flightStream = workUnitAsyncStorage.run(
-      requestStore,
-      renderToWebFlightStream,
-      ctx.componentMod,
-      rscPayload,
-      clientModules,
-      {
-        onError,
-        temporaryReferences: options?.temporaryReferences,
-        filterStackFrame,
-        debugChannel: debugChannel?.serverSide,
-        signal: requestAbortSignal,
-      }
+    const flightStream = createTrackedRSCStream(() =>
+      workUnitAsyncStorage.run(
+        requestStore,
+        renderToWebFlightStream,
+        ctx.componentMod,
+        rscPayload,
+        clientModules,
+        {
+          onError,
+          temporaryReferences: options?.temporaryReferences,
+          filterStackFrame,
+          debugChannel: debugChannel?.serverSide,
+          signal: requestAbortSignal,
+        }
+      )
     )
 
     return new FlightRenderResult(
@@ -1150,14 +1156,17 @@ async function generateStagedDynamicFlightRenderResultNode(
     () => {
       stageController.advanceStage(RenderStage.ShellStatic)
 
-      const sourceStream = workUnitAsyncStorage.run(
-        requestStore,
-        renderToNodeFlightStream,
-        ctx.componentMod,
-        rscPayload,
-        clientModules,
-        { onError, filterStackFrame }
-      ) as Readable
+      const sourceStream = createTrackedRSCStream(
+        () =>
+          workUnitAsyncStorage.run(
+            requestStore,
+            renderToNodeFlightStream,
+            ctx.componentMod,
+            rscPayload,
+            clientModules,
+            { onError, filterStackFrame }
+          ) as Readable
+      )
 
       const replayable = new ReplayableNodeStream(sourceStream)
       const dynamicStream = replayable.createReplayStream()
@@ -1303,16 +1312,18 @@ async function stagedRenderWithoutCachesInDevNode(
     () => {
       stageController.advanceStage(RenderStage.ShellStatic)
 
-      return workUnitAsyncStorage.run(
-        requestStore,
-        renderToNodeFlightStream,
-        ctx.componentMod,
-        rscPayload,
-        clientModules,
-        {
-          ...options,
-          environmentName,
-        }
+      return createTrackedRSCStream(() =>
+        workUnitAsyncStorage.run(
+          requestStore,
+          renderToNodeFlightStream,
+          ctx.componentMod,
+          rscPayload,
+          clientModules,
+          {
+            ...options,
+            environmentName,
+          }
+        )
       )
     },
     () => {
@@ -1947,17 +1958,19 @@ async function finalRuntimeServerPrerender(
     async () => {
       finalStageController.advanceStage(RenderStage.ShellStatic)
 
-      let stream = workUnitAsyncStorage.run(
-        finalServerPrerenderStore,
-        ComponentMod.renderToReadableStream,
-        finalRSCPayload,
-        clientModules,
-        {
-          filterStackFrame,
-          onError,
-          signal: finalServerController.signal,
-          debugChannel,
-        }
+      const stream = createTrackedRSCStream(() =>
+        workUnitAsyncStorage.run(
+          finalServerPrerenderStore,
+          ComponentMod.renderToReadableStream,
+          finalRSCPayload,
+          clientModules,
+          {
+            filterStackFrame,
+            onError,
+            signal: finalServerController.signal,
+            debugChannel,
+          }
+        )
       )
 
       // Note: this await will only resolve after the last task (unless sync IO aborts the render earlier)
@@ -3498,6 +3511,30 @@ type RSCInitialPayloadPartialDev = {
   c?: InitialRSCPayload['c']
 }
 
+/**
+ * Traces React's RSC stream production only. Payload preparation happens
+ * before this boundary, and response delivery happens after it.
+ */
+function createTrackedRSCStream<T extends AnyStream>(createStream: () => T): T
+function createTrackedRSCStream<T extends AnyStream>(
+  createStream: () => Promise<T>
+): Promise<T>
+function createTrackedRSCStream<T extends AnyStream>(
+  createStream: () => T | Promise<T>
+): T | Promise<T> {
+  if (!isRequestInsightsEnabled() && process.env.NEXT_OTEL_VERBOSE !== '1') {
+    return createStream()
+  }
+
+  return createTrackedStream(
+    createStream,
+    createOneShotTracePhase(
+      AppRenderSpan.renderRSCResponse,
+      'render RSC response'
+    )
+  )
+}
+
 async function renderToStream(
   requestStore: RequestStore,
   req: BaseNextRequest,
@@ -3781,17 +3818,18 @@ async function renderToStream(
 
           const debugChannel = setReactDebugChannel && createNodeDebugChannel()
 
-          const serverStream = await stagedRenderWithoutCachesInDevNode(
-            ctx,
-            requestStore,
-            getPayload,
-            {
-              onError: serverComponentsErrorHandler,
-              filterStackFrame,
-              debugChannel: debugChannel?.serverSide,
-            }
+          reactServerResult = new ReactServerResult(
+            await stagedRenderWithoutCachesInDevNode(
+              ctx,
+              requestStore,
+              getPayload,
+              {
+                onError: serverComponentsErrorHandler,
+                filterStackFrame,
+                debugChannel: debugChannel?.serverSide,
+              }
+            )
           )
-          reactServerResult = new ReactServerResult(serverStream)
 
           if (debugChannel) {
             debugChannelClientStream = new ReplayableNodeStream(
@@ -3906,17 +3944,20 @@ async function renderToStream(
           () => {
             stageController.advanceStage(RenderStage.ShellStatic)
 
-            const stream = workUnitAsyncStorage.run(
-              requestStore,
-              renderToNodeFlightStream,
-              ctx.componentMod,
-              RSCPayload,
-              clientModules,
-              {
-                onError: serverComponentsErrorHandler,
-                filterStackFrame,
-              }
-            ) as Readable
+            const stream = createTrackedRSCStream(
+              () =>
+                workUnitAsyncStorage.run(
+                  requestStore,
+                  renderToNodeFlightStream,
+                  ctx.componentMod,
+                  RSCPayload,
+                  clientModules,
+                  {
+                    onError: serverComponentsErrorHandler,
+                    filterStackFrame,
+                  }
+                ) as Readable
+            )
 
             const replayable = new ReplayableNodeStream(stream)
             const dynamicStream = replayable.createReplayStream()
@@ -3984,17 +4025,19 @@ async function renderToStream(
           }
 
           reactServerResult = new ReactServerResult(
-            workUnitAsyncStorage.run(
-              requestStore,
-              renderToNodeFlightStream,
-              ctx.componentMod,
-              RSCPayload,
-              clientModules,
-              {
-                filterStackFrame,
-                onError: serverComponentsErrorHandler,
-                debugChannel: debugChannel?.serverSide,
-              }
+            createTrackedRSCStream(() =>
+              workUnitAsyncStorage.run(
+                requestStore,
+                renderToNodeFlightStream,
+                ctx.componentMod,
+                RSCPayload,
+                clientModules,
+                {
+                  filterStackFrame,
+                  onError: serverComponentsErrorHandler,
+                  debugChannel: debugChannel?.serverSide,
+                }
+              )
             )
           )
         } else {
@@ -4026,17 +4069,19 @@ async function renderToStream(
           }
 
           reactServerResult = new ReactServerResult(
-            workUnitAsyncStorage.run(
-              requestStore,
-              renderToWebFlightStream,
-              ctx.componentMod,
-              RSCPayload,
-              clientModules,
-              {
-                filterStackFrame,
-                onError: serverComponentsErrorHandler,
-                debugChannel: debugChannel?.serverSide,
-              }
+            createTrackedRSCStream(() =>
+              workUnitAsyncStorage.run(
+                requestStore,
+                renderToWebFlightStream,
+                ctx.componentMod,
+                RSCPayload,
+                clientModules,
+                {
+                  filterStackFrame,
+                  onError: serverComponentsErrorHandler,
+                  debugChannel: debugChannel?.serverSide,
+                }
+              )
             )
           )
         }
@@ -4045,7 +4090,11 @@ async function renderToStream(
       // React doesn't start rendering synchronously but we want the RSC render to have a chance to start
       // before we begin SSR rendering because we want to capture any available preload headers so we tick
       // one task before continuing
-      await waitAtLeastOneReactRenderTask()
+      await getTracer().trace(
+        AppRenderSpan.waitForRSC,
+        { spanName: 'wait for RSC render task' },
+        waitAtLeastOneReactRenderTask
+      )
 
       // MARK: nodeStreams HTML
       if (process.env.__NEXT_USE_NODE_STREAMS) {
@@ -5562,23 +5611,25 @@ async function streamStagedRenderInDev({
       stageController.advanceStage(RenderStage.ShellStatic)
       startTime = performance.now() + performance.timeOrigin
 
-      const replayable = new ReplayableNodeStream(
-        workUnitAsyncStorage.run(
-          requestStore,
-          renderToNodeFlightStream,
-          ComponentMod,
-          rscPayload,
-          clientModules,
-          {
-            onError,
-            environmentName,
-            startTime,
-            filterStackFrame,
-            debugChannel: debugChannel?.serverSide,
-            signal: requestAbortSignal,
-          }
-        ) as Readable
+      const sourceStream = createTrackedRSCStream(
+        () =>
+          workUnitAsyncStorage.run(
+            requestStore,
+            renderToNodeFlightStream,
+            ComponentMod,
+            rscPayload,
+            clientModules,
+            {
+              onError,
+              environmentName,
+              startTime,
+              filterStackFrame,
+              debugChannel: debugChannel?.serverSide,
+              signal: requestAbortSignal,
+            }
+          ) as Readable
       )
+      const replayable = new ReplayableNodeStream(sourceStream)
 
       streamReady.resolve({
         stream: replayable.createReplayStream(),
