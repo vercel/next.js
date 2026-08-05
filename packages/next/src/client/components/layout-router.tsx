@@ -74,20 +74,14 @@ function findDOMNode(
   return internal_reactDOMfindDOMNode(instance)
 }
 
-const rectProperties = [
-  'bottom',
-  'height',
-  'left',
-  'right',
-  'top',
-  'width',
-  'x',
-  'y',
-] as const
 /**
  * Check if a HTMLElement is hidden or fixed/sticky position
  */
 function shouldSkipElement(element: HTMLElement) {
+  if (element.tagName === 'HTML' || element.tagName === 'BODY') {
+    return false
+  }
+
   // we ignore fixed or sticky positioned elements since they'll likely pass the "in-viewport" check
   // and will result in a situation we bail on scroll because of something like a fixed nav,
   // even though the actual page content is offscreen
@@ -95,10 +89,7 @@ function shouldSkipElement(element: HTMLElement) {
     return true
   }
 
-  // Uses `getBoundingClientRect` to check if the element is hidden instead of `offsetParent`
-  // because `offsetParent` doesn't consider document/body
-  const rect = element.getBoundingClientRect()
-  return rectProperties.every((item) => rect[item] === 0)
+  return element.offsetParent === null
 }
 
 const enum ScrollTargetState {
