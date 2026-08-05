@@ -836,26 +836,52 @@ async function generateDynamicRSCPayload(
     baseResponse.p = options.runtimePrefetchStream
   }
 
-  // Include the per-page dynamic stale time from unstable_dynamicStaleTime, but only
-  // for dynamic renders (not prerenders/static generation). The client treats
-  // its presence as authoritative.
+  // Include the per-page dynamic stale time from unstable_dynamicStaleTime. This
+  // function only generates payloads for dynamic requests, and the client treats
+  // the field's presence as authoritative.
   // TODO: Move this to the prefetch hints file so we don't have to walk the
   // tree on every render.
-  if (workStore.executionMode !== 'prerender') {
-    const dynamicStaleTime = await getDynamicStaleTime(
-      ctx.componentMod.routeModule.userland.loaderTree
-    )
-    if (dynamicStaleTime !== null) {
-      baseResponse.d = dynamicStaleTime
-    }
+  const dynamicStaleTime = await getDynamicStaleTime(
+    ctx.componentMod.routeModule.userland.loaderTree
+  )
+  if (dynamicStaleTime !== null) {
+    baseResponse.d = dynamicStaleTime
   }
 
   return baseResponse
 }
 
-function createErrorContext(
+function createRequestErrorContext(
   ctx: AppRenderContext,
   renderSource: RequestErrorContext['renderSource']
+): RequestErrorContext {
+  return createErrorContext(
+    ctx,
+    renderSource,
+    getRevalidateReason({
+      isOnDemandRevalidate: ctx.workStore.isOnDemandRevalidate,
+    })
+  )
+}
+
+function createPrerenderErrorContext(
+  ctx: AppRenderContext,
+  renderSource: RequestErrorContext['renderSource']
+): RequestErrorContext {
+  return createErrorContext(
+    ctx,
+    renderSource,
+    getRevalidateReason({
+      isOnDemandRevalidate: ctx.workStore.isOnDemandRevalidate,
+      isStaticGeneration: true,
+    })
+  )
+}
+
+function createErrorContext(
+  ctx: AppRenderContext,
+  renderSource: RequestErrorContext['renderSource'],
+  revalidateReason: RequestErrorContext['revalidateReason']
 ): RequestErrorContext {
   return {
     routerKind: 'App Router',
@@ -863,10 +889,7 @@ function createErrorContext(
     // TODO: is this correct if `isPossibleServerAction` is a false positive?
     routeType: ctx.isPossibleServerAction ? 'action' : 'render',
     renderSource,
-    revalidateReason: getRevalidateReason({
-      isOnDemandRevalidate: ctx.workStore.isOnDemandRevalidate,
-      isStaticGeneration: ctx.workStore.executionMode === 'prerender',
-    }),
+    revalidateReason,
   }
 }
 
@@ -899,7 +922,7 @@ async function generateDynamicFlightRenderResult(
     return onInstrumentationRequestError?.(
       err,
       req,
-      createErrorContext(ctx, 'react-server-components-payload'),
+      createRequestErrorContext(ctx, 'react-server-components-payload'),
       silenceLog
     )
   }
@@ -1018,7 +1041,7 @@ async function generateStagedDynamicFlightRenderResultNode(
     return onInstrumentationRequestError?.(
       err,
       req,
-      createErrorContext(ctx, 'react-server-components-payload'),
+      createRequestErrorContext(ctx, 'react-server-components-payload'),
       silenceLog
     )
   }
@@ -1353,7 +1376,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     return onInstrumentationRequestError?.(
       err,
       req,
-      createErrorContext(ctx, 'react-server-components-payload'),
+      createRequestErrorContext(ctx, 'react-server-components-payload'),
       silenceLog
     )
   }
@@ -1538,7 +1561,7 @@ async function generateRuntimePrefetchResult(
       err,
       req,
       // TODO(runtime-ppr): should we use a different value?
-      createErrorContext(ctx, 'react-server-components-payload'),
+      createRequestErrorContext(ctx, 'react-server-components-payload'),
       silenceLog
     )
   }
@@ -2077,6 +2100,7 @@ async function getRSCPayload(
   ctx: AppRenderContext,
   options: {
     is404: boolean
+    isPrerendering: boolean
     staleTimeIterable?: AsyncIterable<number>
     staticStageByteLengthPromise?: Promise<number>
     shellByteLengthPromise?: Promise<number | null>
@@ -2085,6 +2109,7 @@ async function getRSCPayload(
 ): Promise<InitialRSCPayload & { P: ReactNode }> {
   const {
     is404,
+    isPrerendering,
     staleTimeIterable,
     staticStageByteLengthPromise,
     shellByteLengthPromise,
@@ -2106,7 +2131,6 @@ async function getRSCPayload(
     appUsingSizeAdjustment,
     componentMod: { createMetadataComponents, createElement, Fragment },
     url,
-    workStore,
   } = ctx
 
   const hints = ctx.renderOpts.prefetchHints?.[ctx.pagePath] ?? null
@@ -2156,6 +2180,7 @@ async function getRSCPayload(
     preloadCallbacks,
     authInterrupts: ctx.renderOpts.experimental.authInterrupts,
     MetadataOutlet,
+    isPrerendering,
   })
 
   // When the `vary` response header is present with `Next-URL`, that means there's a chance
@@ -2237,10 +2262,9 @@ async function getRSCPayload(
     // authoritative.
     // TODO: Move this to the prefetch hints file so we don't have to walk
     // the tree on every render.
-    d:
-      workStore.executionMode !== 'prerender'
-        ? ((await getDynamicStaleTime(tree)) ?? undefined)
-        : undefined,
+    d: !isPrerendering
+      ? ((await getDynamicStaleTime(tree)) ?? undefined)
+      : undefined,
   } satisfies InitialRSCPayload & { P: ReactNode })
 }
 
@@ -3616,7 +3640,7 @@ async function renderToStream(
       return onInstrumentationRequestError?.(
         err,
         req,
-        createErrorContext(ctx, 'react-server-components'),
+        createRequestErrorContext(ctx, 'react-server-components'),
         silenceLog
       )
     }
@@ -3635,7 +3659,7 @@ async function renderToStream(
       return onInstrumentationRequestError?.(
         err,
         req,
-        createErrorContext(ctx, 'server-rendering'),
+        createRequestErrorContext(ctx, 'server-rendering'),
         silenceLog
       )
     }
@@ -3675,7 +3699,7 @@ async function renderToStream(
               getRSCPayload,
               tree,
               ctx,
-              { is404: res.statusCode === 404 }
+              { is404: res.statusCode === 404, isPrerendering: false }
             )
 
           if (isBypassingCachesInDev(requestStore, workStore)) {
@@ -3859,6 +3883,7 @@ async function renderToStream(
           ctx,
           {
             is404: res.statusCode === 404,
+            isPrerendering: false,
             staleTimeIterable,
             shellByteLengthPromise: shellByteLengthDeferred.promise,
             staticStageByteLengthPromise: staticStageByteLengthDeferred.promise,
@@ -3928,7 +3953,7 @@ async function renderToStream(
               getRSCPayload,
               tree,
               ctx,
-              { is404: res.statusCode === 404 }
+              { is404: res.statusCode === 404, isPrerendering: false }
             )
 
           const debugChannel = setReactDebugChannel && createNodeDebugChannel()
@@ -3970,7 +3995,7 @@ async function renderToStream(
               getRSCPayload,
               tree,
               ctx,
-              { is404: res.statusCode === 404 }
+              { is404: res.statusCode === 404, isPrerendering: false }
             )
 
           const debugChannel = setReactDebugChannel && createWebDebugChannel()
@@ -8262,7 +8287,7 @@ async function validateInstantConfigInBuildWithSample(
           getRSCPayload,
           loaderTree,
           validationCtx,
-          { is404: false }
+          { is404: false, isPrerendering: true }
         ),
       (signal) =>
         function onError(err) {
@@ -8557,7 +8582,7 @@ async function prerenderToStream(
       return onInstrumentationRequestError?.(
         err,
         req,
-        createErrorContext(ctx, 'react-server-components'),
+        createPrerenderErrorContext(ctx, 'react-server-components'),
         silenceLog
       )
     }
@@ -8577,7 +8602,7 @@ async function prerenderToStream(
       return onInstrumentationRequestError?.(
         err,
         req,
-        createErrorContext(ctx, 'server-rendering'),
+        createPrerenderErrorContext(ctx, 'server-rendering'),
         silenceLog
       )
     }
@@ -8712,7 +8737,7 @@ async function prerenderToStream(
         getRSCPayload,
         tree,
         ctx,
-        { is404: res.statusCode === 404 }
+        { is404: res.statusCode === 404, isPrerendering: true }
       )
 
       const initialServerPrerenderStore: PrerenderStore = (prerenderStore = {
@@ -9026,6 +9051,7 @@ async function prerenderToStream(
         ctx,
         {
           is404: res.statusCode === 404,
+          isPrerendering: true,
           shellByteLengthPromise: shellByteLengthDeferred.promise,
         }
       )
@@ -9534,7 +9560,7 @@ async function prerenderToStream(
         getRSCPayload,
         tree,
         ctx,
-        { is404: res.statusCode === 404 }
+        { is404: res.statusCode === 404, isPrerendering: true }
       )
       let reactServerResult: ReactServerPrerenderResult
       reactServerResult = reactServerPrerenderResult =
@@ -9772,7 +9798,7 @@ async function prerenderToStream(
         getRSCPayload,
         tree,
         ctx,
-        { is404: res.statusCode === 404 }
+        { is404: res.statusCode === 404, isPrerendering: true }
       )
 
       let reactServerResult: ReactServerPrerenderResult
