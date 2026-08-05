@@ -621,9 +621,259 @@ describe('request insights', () => {
     })
   })
 
+  it('shows concrete request URLs, route params, and fetch origins', async () => {
+    const browser = await next.browser('/products/blue?tab=details')
+
+    await retry(async () => {
+      expect(await browser.elementById('product-id').text()).toBe('blue')
+    })
+    await openRequestInsightsPanel(browser)
+
+    await retry(async () => {
+      const selected = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        const row = Array.from(
+          root?.querySelectorAll<HTMLButtonElement>('.request-insights-row') ??
+            []
+        ).find((candidate) =>
+          candidate.textContent?.includes('/products/blue?query=redacted')
+        )
+        row?.click()
+        return row !== undefined
+      })
+      expect(selected).toBe(true)
+    })
+
+    await retry(async () => {
+      const details = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        const panel = root?.querySelector('.request-insights-details')
+        return {
+          text: panel?.textContent ?? '',
+          paramsLabel:
+            panel?.querySelector('.request-insights-params-trigger')
+              ?.textContent ?? '',
+          fetchOrigins: Array.from(
+            panel?.querySelectorAll('.request-insights-fetch-origin') ?? []
+          ).map((element) => element.textContent ?? ''),
+          fetchTraceLabels: Array.from(
+            panel?.querySelectorAll(
+              '.request-insights-span-row[data-kind="fetch"] .request-insights-span-label'
+            ) ?? []
+          ).map((element) => element.textContent ?? ''),
+        }
+      })
+
+      expect(details.text).toContain('/products/blue?query=redacted')
+      expect(details.text).toContain('Route /products/[id]')
+      expect(details.paramsLabel).toBe('Params id')
+      expect(details.fetchOrigins).toContain('Same origin')
+      expect(
+        details.fetchTraceLabels.some((label) => label.includes('Same origin'))
+      ).toBe(true)
+      expect(details.text).not.toContain('Q2_SECRET_SENTINEL')
+    })
+  })
+
+  it('keeps trace inspection anchored while the panel is resized', async () => {
+    const browser = await next.browser('/products/blue?tab=details')
+    await openRequestInsightsPanel(browser)
+
+    await retry(async () => {
+      const selected = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        const row = Array.from(
+          root?.querySelectorAll<HTMLButtonElement>('.request-insights-row') ??
+            []
+        ).find((candidate) =>
+          candidate.textContent?.includes('/products/blue?query=redacted')
+        )
+        row?.click()
+        return row !== undefined
+      })
+      expect(selected).toBe(true)
+    })
+
+    await browser
+      .locator('nextjs-portal .request-insights-span-row[data-active="true"]')
+      .hover()
+    await browser.locator('nextjs-portal .request-insights-trace-rows').focus()
+
+    const readTraceState = () =>
+      browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        const panel = root?.querySelector<HTMLElement>(
+          '.request-insights-panel-container'
+        )
+        const listbox = root?.querySelector<HTMLElement>(
+          '.request-insights-trace-rows'
+        )
+        const activeDescendant = listbox?.getAttribute('aria-activedescendant')
+        const activeRow = listbox?.querySelector<HTMLElement>(
+          '.request-insights-span-row[data-active="true"]'
+        )
+        const firstRow = listbox?.querySelector<HTMLElement>(
+          '.request-insights-span-row'
+        )
+        const tooltip = root?.querySelector<HTMLElement>(
+          '.request-insights-trace-tooltip'
+        )
+        const panelRect = panel?.getBoundingClientRect()
+        const rowRect = activeRow?.getBoundingClientRect()
+        const tooltipRect = tooltip?.getBoundingClientRect()
+
+        return {
+          activeDescendant,
+          activeRowId: activeRow?.id ?? null,
+          activeTraceItemId: activeRow?.dataset.traceItemId ?? null,
+          firstRowId: firstRow?.id ?? null,
+          activeLabel: activeRow?.getAttribute('aria-label') ?? null,
+          focused: root?.activeElement === listbox,
+          horizontalOverlap:
+            !!rowRect &&
+            !!tooltipRect &&
+            tooltipRect.right >= rowRect.left &&
+            tooltipRect.left <= rowRect.right,
+          tooltipLabel: tooltip?.textContent?.trim() ?? null,
+          tooltipNearPanel:
+            !!panelRect &&
+            !!tooltipRect &&
+            tooltipRect.right >= panelRect.left - 100 &&
+            tooltipRect.left <= panelRect.right + 100 &&
+            tooltipRect.bottom >= panelRect.top - 100 &&
+            tooltipRect.top <= panelRect.bottom + 100,
+          verticalGap:
+            rowRect && tooltipRect
+              ? Math.min(
+                  Math.abs(tooltipRect.bottom - rowRect.top),
+                  Math.abs(tooltipRect.top - rowRect.bottom)
+                )
+              : Number.POSITIVE_INFINITY,
+        }
+      })
+
+    const expectAnchoredTrace = async (expectedTraceItemId?: string | null) =>
+      retry(async () => {
+        const state = await readTraceState()
+        expect(state.activeDescendant).toEqual(expect.any(String))
+        if (expectedTraceItemId !== undefined) {
+          expect(state.activeTraceItemId).toBe(expectedTraceItemId)
+        }
+        expect(state.activeRowId).toBe(state.activeDescendant)
+        expect(state.activeLabel).toBe(state.tooltipLabel)
+        expect(state.focused).toBe(true)
+        expect(state.horizontalOverlap).toBe(true)
+        expect(state.tooltipNearPanel).toBe(true)
+        expect(state.verticalGap).toBeLessThan(160)
+        return state
+      })
+
+    const initialState = await expectAnchoredTrace()
+
+    await browser.eval(() => {
+      const root = document.querySelector('nextjs-portal')?.shadowRoot
+      root
+        ?.querySelector<HTMLElement>('.request-insights-trace-rows')
+        ?.dispatchEvent(
+          new KeyboardEvent('keydown', {
+            altKey: true,
+            bubbles: true,
+            key: 'ArrowDown',
+          })
+        )
+    })
+    expect((await readTraceState()).activeTraceItemId).toBe(
+      initialState.activeTraceItemId
+    )
+
+    await browser.keydown('ArrowDown')
+    await browser.keyup('ArrowDown')
+
+    const nextState = await retry(async () => {
+      const state = await readTraceState()
+      expect(state.activeTraceItemId).not.toBe(initialState.activeTraceItemId)
+      return state
+    })
+    await expectAnchoredTrace(nextState.activeTraceItemId)
+
+    const columnCountAtPanelWidth = async (width: number): Promise<number> => {
+      return await browser.eval(`(() => {
+        const root = document.querySelector('nextjs-portal').shadowRoot
+        const panelContainer = root.querySelector('.dynamic-panel-container')
+        panelContainer.style.width = '${width}px'
+        const panel = root.querySelector('.request-insights-panel')
+        return getComputedStyle(panel).gridTemplateColumns.split(' ').length
+      })()`)
+    }
+
+    await retry(async () => {
+      expect(await columnCountAtPanelWidth(760)).toBe(2)
+    })
+    await expectAnchoredTrace()
+    await retry(async () => {
+      expect(await columnCountAtPanelWidth(560)).toBe(1)
+    })
+    await expectAnchoredTrace()
+    await retry(async () => {
+      expect(await columnCountAtPanelWidth(760)).toBe(2)
+    })
+    await expectAnchoredTrace()
+
+    await browser
+      .locator('nextjs-portal .request-insights-row[aria-label^="/api/source"]')
+      .first()
+      .click()
+
+    await retry(async () => {
+      const selection = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        const row = Array.from(
+          root?.querySelectorAll<HTMLButtonElement>('.request-insights-row') ??
+            []
+        ).find((candidate) => candidate.textContent?.includes('/api/source'))
+        return {
+          found: row !== undefined,
+          selected: row?.dataset.selected,
+          title: root
+            ?.querySelector<HTMLElement>('.request-insights-title')
+            ?.textContent?.trim(),
+          activeRowId: root?.querySelector<HTMLElement>(
+            '.request-insights-span-row[data-active="true"]'
+          )?.id,
+          firstRowId: root?.querySelector<HTMLElement>(
+            '.request-insights-span-row'
+          )?.id,
+        }
+      })
+      expect(selection.found).toBe(true)
+      expect(selection.selected).toBe('true')
+      expect(selection.title).toBe('/api/source?query=redacted')
+      expect(selection.firstRowId).toEqual(expect.any(String))
+      expect(selection.activeRowId).toBe(selection.firstRowId)
+    })
+
+    await browser
+      .locator('nextjs-portal .request-insights-span-row[data-active="true"]')
+      .hover()
+    await browser.locator('nextjs-portal .request-insights-trace-rows').focus()
+
+    const switchedState = await expectAnchoredTrace()
+    expect(switchedState.activeDescendant).toBe(switchedState.firstRowId)
+  })
+
   it('classifies an App Route before its handler completes', async () => {
+    const existingRequestIds = new Set(
+      (
+        (await next
+          .fetch('/_next/development/request-insights')
+          .then((response) => response.json())) as {
+          requests: RequestInsight[]
+        }
+      ).requests.map((request) => request.requestId)
+    )
     const waitKey = `active-${Date.now()}`
     const requestPath = `/api/app-stream-lifecycle?wait=${waitKey}`
+    const recordedRequestPath = '/api/app-stream-lifecycle?query=redacted'
     const responsePromise = next.fetch(requestPath)
 
     try {
@@ -634,7 +884,10 @@ describe('request insights', () => {
           requests: RequestInsight[]
         }
         const matchingRequests = snapshot.requests.filter(
-          (request) => request.url === requestPath
+          (request) =>
+            !existingRequestIds.has(request.requestId) &&
+            request.url === recordedRequestPath &&
+            request.kind !== 'instant-insights'
         )
 
         expect(matchingRequests).toHaveLength(1)
@@ -665,7 +918,12 @@ describe('request insights', () => {
       }
       const matchingRequests = snapshot.requests.filter(
         (request) =>
-          request.url === requestPath && request.kind !== 'instant-insights'
+          !existingRequestIds.has(request.requestId) &&
+          request.url === recordedRequestPath &&
+          request.kind !== 'instant-insights' &&
+          request.spans.some(
+            (span) => span.attributes?.['http.method'] === 'GET'
+          )
       )
 
       expect(matchingRequests).toHaveLength(1)
@@ -684,7 +942,17 @@ describe('request insights', () => {
   })
 
   it('classifies a Page after proxy completes', async () => {
+    const existingRequestIds = new Set(
+      (
+        (await next
+          .fetch('/_next/development/request-insights')
+          .then((response) => response.json())) as {
+          requests: RequestInsight[]
+        }
+      ).requests.map((request) => request.requestId)
+    )
     const requestPath = `/api/proxied-page?run=${Date.now()}`
+    const recordedRequestPath = '/api/proxied-page?query=redacted'
     const response = await next.fetch(requestPath)
     expect(response.status).toBe(200)
     expect(await response.text()).toContain('proxied page')
@@ -697,7 +965,9 @@ describe('request insights', () => {
       }
       const matchingRequests = snapshot.requests.filter(
         (request) =>
-          request.url === requestPath && request.kind !== 'instant-insights'
+          !existingRequestIds.has(request.requestId) &&
+          request.url === recordedRequestPath &&
+          request.kind !== 'instant-insights'
       )
 
       expect(matchingRequests).toHaveLength(1)

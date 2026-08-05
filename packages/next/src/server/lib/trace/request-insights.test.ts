@@ -493,17 +493,18 @@ describe('request insights', () => {
   it('redacts sensitive request insight payload fields', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
 
+    const secret = 'Q2_SECRET_SENTINEL'
     recordSpan({
-      name: 'fetch GET https://example.vercel.sh/api',
+      name: `fetch GET https://example.vercel.sh/api?token=${secret}`,
       startTime: 100,
       durationMs: 10,
       requestId: 'req_4',
       route: '/account',
       attributes: {
         'next.span_type': 'AppRender.fetch',
-        'http.url':
-          'https://user:pass@example.vercel.sh/api?access_token=abc&delay=1&signature=sig',
+        'http.url': `https://user:pass@example.vercel.sh/api?access_token=${secret}&delay=1&signature=sig`,
         'http.method': 'GET',
+        'next.span_name': `fetch GET https://user:pass@example.vercel.sh/api?access_token=${secret}`,
         'custom.secret': 'should not be exposed',
       },
       events: [
@@ -543,11 +544,13 @@ describe('request insights', () => {
       expect.objectContaining({
         spans: [
           expect.objectContaining({
+            name: 'fetch GET https://example.vercel.sh/api?query=redacted',
             attributes: {
               'next.span_type': 'AppRender.fetch',
-              'http.url':
-                'https://example.vercel.sh/api?access_token=redacted&delay=1&signature=redacted',
+              'http.url': 'https://example.vercel.sh/api?query=redacted',
               'http.method': 'GET',
+              'next.span_name':
+                'fetch GET https://example.vercel.sh/api?query=redacted',
             },
             events: [
               {
@@ -569,13 +572,95 @@ describe('request insights', () => {
         ],
         fetches: [
           expect.objectContaining({
-            url: 'https://example.vercel.sh/api?access_token=redacted&delay=1&signature=redacted',
+            url: 'https://example.vercel.sh/api?query=redacted',
           }),
           expect.objectContaining({
-            url: 'https://example.vercel.sh/api?token=redacted&keep=1',
+            url: 'https://example.vercel.sh/api?query=redacted',
           }),
         ],
       })
     )
+    expect(JSON.stringify(getRequestInsightsSnapshot())).not.toContain(secret)
+  })
+
+  it('only exposes bounded URLs without query payloads', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+
+    const cases = [
+      {
+        requestId: 'relative',
+        input: '/products/blue?sort=price#details',
+        expected: '/products/blue?query=redacted',
+      },
+      {
+        requestId: 'protocol-relative',
+        input: '//example.com/items?cursor=secret',
+        expected: '//example.com/items?query=redacted',
+      },
+      {
+        requestId: 'absolute',
+        input: 'https://user:password@example.com/items?visible=value#details',
+        expected: 'https://example.com/items?query=redacted',
+      },
+      {
+        requestId: 'opaque',
+        input: 'data:text/plain,secret',
+        expected: 'data:redacted',
+      },
+      {
+        requestId: 'untrusted-relative',
+        input: 'items?token=secret',
+        expected: undefined,
+      },
+    ] as const
+
+    for (const testCase of cases) {
+      recordRequestInsightFetch(
+        { requestId: testCase.requestId },
+        { url: testCase.input, startTime: 100, durationMs: 1 }
+      )
+    }
+
+    const requests = new Map(
+      getRequestInsightsSnapshot().requests.map((request) => [
+        request.requestId,
+        request,
+      ])
+    )
+    for (const testCase of cases) {
+      expect(requests.get(testCase.requestId)?.fetches[0]?.url).toBe(
+        testCase.expected
+      )
+    }
+
+    recordRequestInsightFetch(
+      { requestId: 'oversized' },
+      {
+        url: `https://example.com/${'x'.repeat(64 * 1024)}`,
+        startTime: 100,
+        durationMs: 1,
+      }
+    )
+    expect(
+      getRequestInsightsSnapshot().requests.find(
+        (request) => request.requestId === 'oversized'
+      )?.fetches[0]?.url
+    ).toBeUndefined()
+
+    recordRequestInsightFetch(
+      { requestId: 'query-name' },
+      {
+        url: 'https://example.com/items?sk_live_SENTINEL',
+        startTime: 100,
+        durationMs: 1,
+      }
+    )
+    expect(
+      JSON.stringify(
+        getRequestInsightsSnapshot().requests.find(
+          (request) => request.requestId === 'query-name'
+        )
+      )
+    ).not.toContain('sk_live_SENTINEL')
   })
 })

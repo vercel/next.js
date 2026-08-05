@@ -18,6 +18,8 @@ import type { SpanStoreRecord } from './span-store'
 export { isRequestInsightsEnabled } from './span-store'
 
 const MAX_REQUEST_INSIGHTS = 100
+const MAX_REQUEST_INSIGHT_URL_LENGTH = 2048
+const MAX_REQUEST_INSIGHT_RAW_URL_LENGTH = 64 * 1024
 const REQUEST_INSIGHTS_STORE_KEY = Symbol.for('@next/request-insights-store')
 const CLIENT_COMPONENT_LOADING_SPAN_TYPE =
   'NextNodeServer.clientComponentLoading'
@@ -52,9 +54,6 @@ const SAFE_SPAN_ATTRIBUTE_KEYS = new Set([
   'next.span_name',
   'next.span_type',
 ])
-const SENSITIVE_PARAM_NAME_RE =
-  /(?:^|[_-])(?:access[_-]?token|api[_-]?key|auth|authorization|code|cookie|credential|id[_-]?token|jwt|key|password|secret|session|signature|sig|token)(?:$|[_-])/i
-
 class InMemoryRequestInsightsStore {
   private readonly requests = new Map<string, RequestInsight>()
   private readonly requestTimings = new Map<
@@ -109,7 +108,7 @@ class InMemoryRequestInsightsStore {
           : insight.status
 
     insight.spans.push({
-      name: span.name,
+      name: sanitizeSpanName(span),
       startTime: spanStartTime,
       durationMs: span.durationMs,
       status: span.status,
@@ -435,15 +434,43 @@ function sanitizeSpanAttributes(
   }
 
   const sanitized: NonNullable<SpanStoreRecord['attributes']> = {}
+  const sanitizedFetchSpanName =
+    attributes['next.span_type'] === 'AppRender.fetch'
+      ? getSanitizedFetchSpanName(attributes)
+      : undefined
   for (const [key, value] of Object.entries(attributes)) {
     if (!SAFE_SPAN_ATTRIBUTE_KEYS.has(key)) {
       continue
     }
 
-    sanitized[key] = key === 'http.url' ? sanitizeUrlAttribute(value) : value
+    sanitized[key] =
+      key === 'http.url'
+        ? sanitizeUrlAttribute(value)
+        : key === 'next.span_name' && sanitizedFetchSpanName
+          ? sanitizedFetchSpanName
+          : value
   }
 
   return Object.keys(sanitized).length > 0 ? sanitized : undefined
+}
+
+function sanitizeSpanName(span: SpanStoreRecord): string {
+  if (span.attributes?.['next.span_type'] !== 'AppRender.fetch') {
+    return span.name
+  }
+
+  return getSanitizedFetchSpanName(span.attributes, span.url)
+}
+
+function getSanitizedFetchSpanName(
+  attributes: NonNullable<SpanStoreRecord['attributes']>,
+  fallbackUrl?: string
+): string {
+  const method = getStringAttribute(attributes['http.method'])
+  const url = sanitizeUrl(
+    getStringAttribute(attributes['http.url']) ?? fallbackUrl
+  )
+  return ['fetch', method, url].filter(Boolean).join(' ')
 }
 
 function sanitizeSpanEvents(
@@ -473,24 +500,67 @@ function sanitizeUrl(value: string | undefined): string | undefined {
     return value
   }
 
-  const isRelativeUrl = value.startsWith('/')
+  if (value.length > MAX_REQUEST_INSIGHT_RAW_URL_LENGTH) {
+    return undefined
+  }
+
+  const isProtocolRelativeUrl = value.startsWith('//')
+  const isRootRelativeUrl = !isProtocolRelativeUrl && value.startsWith('/')
+  const hasProtocol = /^[a-z][a-z\d+.-]*:/i.test(value)
+
+  if (!isProtocolRelativeUrl && !isRootRelativeUrl && !hasProtocol) {
+    return undefined
+  }
 
   try {
-    const url = isRelativeUrl ? new URL(value, 'http://n') : new URL(value)
+    const url =
+      isProtocolRelativeUrl || isRootRelativeUrl
+        ? new URL(value, 'http://n')
+        : new URL(value)
+
+    if (
+      url.protocol !== 'http:' &&
+      url.protocol !== 'https:' &&
+      !isProtocolRelativeUrl &&
+      !isRootRelativeUrl
+    ) {
+      return `${url.protocol}${REDACTED_VALUE}`
+    }
 
     url.username = ''
     url.password = ''
+    url.hash = ''
 
-    for (const name of Array.from(url.searchParams.keys())) {
-      if (SENSITIVE_PARAM_NAME_RE.test(name)) {
-        url.searchParams.set(name, REDACTED_VALUE)
-      }
-    }
+    const hasApplicationQuery = Array.from(url.searchParams.keys()).some(
+      (name) => name !== '_rsc'
+    )
+    url.search = hasApplicationQuery ? `?query=${REDACTED_VALUE}` : ''
 
-    return isRelativeUrl ? `${url.pathname}${url.search}${url.hash}` : url.href
+    const sanitizedUrl = isProtocolRelativeUrl
+      ? `//${url.host}${url.pathname}${url.search}`
+      : isRootRelativeUrl
+        ? `${url.pathname}${url.search}`
+        : url.href
+
+    return truncateText(sanitizedUrl, MAX_REQUEST_INSIGHT_URL_LENGTH)
   } catch {
+    return undefined
+  }
+}
+
+function truncateText(value: string, maxLength: number): string {
+  if (value.length <= maxLength) {
     return value
   }
+
+  let end = Math.max(0, maxLength - 1)
+  if (end > 0) {
+    const lastCharCode = value.charCodeAt(end - 1)
+    if (lastCharCode >= 0xd800 && lastCharCode <= 0xdbff) {
+      end--
+    }
+  }
+  return `${value.slice(0, end)}…`
 }
 
 function getStringAttribute(value: AttributeValue | undefined) {
