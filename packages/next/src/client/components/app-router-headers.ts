@@ -12,13 +12,12 @@ export const NEXT_ROUTER_PREFETCH_HEADER = 'next-router-prefetch' as const
 export const NEXT_ROUTER_SEGMENT_PREFETCH_HEADER =
   'next-router-segment-prefetch' as const
 export const NEXT_HMR_REFRESH_HEADER = 'next-hmr-refresh' as const
-export const NEXT_HMR_REFRESH_HASH_COOKIE = '__next_hmr_refresh_hash__' as const
 export const NEXT_URL = 'next-url' as const
 export const RSC_CONTENT_TYPE_HEADER = 'text/x-component' as const
 
 // Cookie for the Instant Navigation Testing API. Sent automatically with all
 // requests while a navigation lock is held; the server uses its presence to
-// render only the static shell. Not exposed in production builds by default.
+// render only the shell. Not exposed in production builds by default.
 export const NEXT_INSTANT_TEST_COOKIE =
   'next-instant-navigation-testing' as const
 

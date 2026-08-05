@@ -34,6 +34,7 @@ export default globalIgnores([
   'packages/create-next-app/templates/**/*',
   'test/development/basic/legacy-decorators/**/*.js',
   'test/production/emit-decorator-metadata/**/*.js',
+  'test/**/*.graphql.ts',
   '!test/**/*.test.*',
   'test/e2e/app-dir/rsc-errors/app/swc/use-client/page.js',
   '**/test-timings.json',

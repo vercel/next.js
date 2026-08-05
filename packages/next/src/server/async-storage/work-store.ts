@@ -4,8 +4,10 @@ import type { RenderOpts } from '../app-render/types'
 import type { FetchMetric } from '../base-http'
 import type { RequestLifecycleOpts } from '../base-server'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
-import type { CacheLife } from '../use-cache/cache-life'
-import type { ValidationLevel } from '../config-shared'
+import type {
+  ValidationLevel,
+  ResolvedCacheLifeProfiles,
+} from '../config-shared'
 
 import { AfterContext } from '../after/after-context'
 
@@ -23,9 +25,15 @@ export type WorkStoreContext = {
   isPrefetchRequest?: boolean
   nonce?: string
   renderOpts: {
-    cacheLifeProfiles?: { [profile: string]: CacheLife }
+    cacheLifeProfiles: ResolvedCacheLifeProfiles
     staticPageGenerationTimeout: number
     incrementalCache?: IncrementalCache
+    /**
+     * The hash of the most recent server component change (dev only). Included
+     * in `"use cache"` cache keys so that cached entries are revalidated after
+     * an edit, for every client, regardless of whether it runs the HMR client.
+     */
+    hmrRefreshHash?: string
     isOnDemandRevalidate?: boolean
     cacheComponents: boolean
     validationLevel: ValidationLevel
@@ -57,7 +65,6 @@ export type WorkStoreContext = {
     RenderOpts,
     | 'assetPrefix'
     | 'supportsDynamicResponse'
-    | 'shouldWaitOnAllReady'
     | 'isBuildTimePrerendering'
     | 'isDraftMode'
     | 'isDebugDynamicAccesses'
@@ -107,7 +114,6 @@ export function createWorkStore({
    * coalescing, and ISR continue working as intended.
    */
   const isStaticGeneration =
-    !renderOpts.shouldWaitOnAllReady &&
     !renderOpts.supportsDynamicResponse &&
     !renderOpts.isDraftMode &&
     !renderOpts.isPossibleServerAction
@@ -135,6 +141,8 @@ export function createWorkStore({
     isBuildTimePrerendering: renderOpts.isBuildTimePrerendering,
     fetchCache: renderOpts.fetchCache,
     isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
+    requestId: undefined,
+    htmlRequestId: undefined,
 
     isDraftMode: renderOpts.isDraftMode,
 

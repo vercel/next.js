@@ -1,46 +1,54 @@
 use anyhow::{Context, Result, bail};
+use async_trait::async_trait;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, ResolvedVc, TaskInput, TryJoinIterExt, Upcast, ValueToString, Vc};
+use turbo_tasks::{
+    FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, Upcast, ValueToString, ValueToStringRef, Vc,
+};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
-        ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing, CrossOrigin,
-        EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets, MinifyType,
+        AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkLoadRetry, ChunkType,
+        ChunkableModule, ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing,
+        CrossOrigin, EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets, MinifyType,
         SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
+        WorkerConfigurationOptions,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
     },
-    environment::Environment,
+    environment::{ChunkLoading, Environment},
     ident::AssetIdent,
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     module::Module,
     module_graph::{
         ModuleGraph,
         binding_usage_info::{BindingUsageInfo, ModuleExportUsage},
         chunk_group_info::ChunkGroup,
     },
-    output::{OutputAsset, OutputAssets},
+    output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
 };
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
-    chunk::EcmascriptChunk,
+    chunk::{EcmascriptChunk, EcmascriptChunkContent, EcmascriptChunkType},
     manifest::{chunk_asset::ManifestAsyncModule, loader_module::ManifestLoaderModule},
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 
 use crate::ecmascript::{
     chunk::EcmascriptBrowserChunk,
-    evaluate::chunk::EcmascriptBrowserEvaluateChunk,
+    evaluate::{
+        chunk::EcmascriptBrowserEvaluateChunk, runtime::EcmascriptBrowserRuntimeChunk,
+        single_entry_chunk::EcmascriptBrowserSingleEntryChunk,
+    },
     list::asset::{EcmascriptDevChunkList, EcmascriptDevChunkListSource},
     worker::EcmascriptBrowserWorkerEntrypoint,
 };
 
 #[turbo_tasks::value]
-#[derive(Debug, Clone, Copy, Hash, TaskInput)]
+#[derive(Debug, Clone, Copy, Hash)]
 pub enum CurrentChunkMethod {
     StringLiteral,
     DocumentCurrentScript,
@@ -69,11 +77,6 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
-    pub fn tracing(mut self, enable_tracing: bool) -> Self {
-        self.chunking_context.enable_tracing = enable_tracing;
-        self
-    }
-
     pub fn nested_async_availability(mut self, enable_nested_async_availability: bool) -> Self {
         self.chunking_context.enable_nested_async_availability = enable_nested_async_availability;
         self
@@ -95,6 +98,14 @@ impl BrowserChunkingContextBuilder {
 
     pub fn asset_base_path(mut self, asset_base_path: Option<RcStr>) -> Self {
         self.chunking_context.asset_base_path = asset_base_path;
+        self
+    }
+
+    pub fn service_worker_scope_base_path(
+        mut self,
+        service_worker_scope_base_path: Option<RcStr>,
+    ) -> Self {
+        self.chunking_context.service_worker_scope_base_path = service_worker_scope_base_path;
         self
     }
 
@@ -155,6 +166,23 @@ impl BrowserChunkingContextBuilder {
 
     pub fn debug_ids(mut self, debug_ids: bool) -> Self {
         self.chunking_context.debug_ids = debug_ids;
+        self
+    }
+
+    pub fn shared_runtime(mut self, shared_runtime: bool) -> Self {
+        self.chunking_context.shared_runtime = shared_runtime;
+        self
+    }
+
+    /// Marks this context as being shared by multiple independent module graphs (e.g. per-page
+    /// graphs), each of which only sees part of what is written to `chunk_root_path`.
+    ///
+    /// The runtime chunk is emitted to a fixed path, so every graph sharing this context writes
+    /// the same file. Optional runtime features must therefore not be decided from a single
+    /// graph: one graph would omit a helper that another graph's chunks call, and which variant
+    /// lands on disk depends on emission order.
+    pub fn shared_runtime_chunk(mut self, shared_runtime_chunk: bool) -> Self {
+        self.chunking_context.shared_runtime_chunk = shared_runtime_chunk;
         self
     }
 
@@ -234,6 +262,28 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn chunk_load_retry(mut self, chunk_load_retry: ChunkLoadRetry) -> Self {
+        self.chunking_context.chunk_load_retry = chunk_load_retry;
+        self
+    }
+
+    pub async fn single_chunk(mut self) -> Result<Self> {
+        self.chunking_context.single_chunk = true;
+        // Force every ECMAScript chunk item into a single output chunk.
+        let ecmascript_ty: ResolvedVc<Box<dyn ChunkType>> =
+            ResolvedVc::upcast(Vc::<EcmascriptChunkType>::default().to_resolved().await?);
+        self.chunking_context.chunking_configs.push((
+            ecmascript_ty,
+            ChunkingConfig {
+                min_chunk_size: usize::MAX,
+                max_chunk_count_per_group: 1,
+                max_merge_chunk_size: usize::MAX,
+                ..Default::default()
+            },
+        ));
+        Ok(self)
+    }
+
     pub fn build(self) -> Vc<BrowserChunkingContext> {
         BrowserChunkingContext::cell(self.chunking_context)
     }
@@ -290,6 +340,9 @@ pub struct BrowserChunkingContext {
     /// them.
     #[bincode(with = "turbo_bincode::indexmap")]
     asset_base_paths: FxIndexMap<RcStr, RcStr>,
+    /// This is the base path used to generate the service worker scope, it is
+    /// not used for output subdirectory logic
+    service_worker_scope_base_path: Option<RcStr>,
     /// URL behavior overrides for different tags.
     #[bincode(with = "turbo_bincode::indexmap")]
     url_behaviors: FxIndexMap<RcStr, UrlBehavior>,
@@ -297,8 +350,6 @@ pub struct BrowserChunkingContext {
     default_url_behavior: Option<UrlBehavior>,
     /// Enable HMR for this chunking
     enable_hot_module_replacement: bool,
-    /// Enable tracing for this chunking
-    enable_tracing: bool,
     /// Enable nested async availability for this chunking
     enable_nested_async_availability: bool,
     /// Enable module merging
@@ -307,6 +358,13 @@ pub struct BrowserChunkingContext {
     enable_dynamic_chunk_content_loading: bool,
     /// Enable debug IDs for chunks and source maps.
     debug_ids: bool,
+    /// Share the browser runtime across routes as a single `runtime.js` asset and expose each
+    /// entrypoint's chunk group bootstrap params via
+    /// `ChunkGroupResult.chunk_group_bootstrap_params`.
+    shared_runtime: bool,
+    /// Whether the runtime chunk is shared with other module graphs using this context.
+    /// See [`BrowserChunkingContextBuilder::shared_runtime_chunk`].
+    shared_runtime_chunk: bool,
     /// The environment chunks will be evaluated in.
     environment: ResolvedVc<Environment>,
     /// The kind of runtime to include in the output.
@@ -342,6 +400,11 @@ pub struct BrowserChunkingContext {
     hash_salt: ResolvedVc<RcStr>,
     /// The crossorigin mode for dynamically loaded chunks.
     cross_origin: CrossOrigin,
+    /// The retry policy for transient chunk load failures in the browser runtime.
+    chunk_load_retry: ChunkLoadRetry,
+    /// When enabled, module closure is inlined into a single output chunk
+    /// (no runtime chunk loading).
+    single_chunk: bool,
 }
 
 impl BrowserChunkingContext {
@@ -372,14 +435,16 @@ impl BrowserChunkingContext {
                 asset_suffix: None,
                 asset_base_path: None,
                 asset_base_paths: Default::default(),
+                service_worker_scope_base_path: None,
                 url_behaviors: Default::default(),
                 default_url_behavior: None,
                 enable_hot_module_replacement: false,
-                enable_tracing: false,
                 enable_nested_async_availability: false,
                 enable_module_merging: false,
                 enable_dynamic_chunk_content_loading: false,
                 debug_ids: false,
+                shared_runtime: false,
+                shared_runtime_chunk: false,
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
@@ -397,6 +462,8 @@ impl BrowserChunkingContext {
                 chunk_loading_global: Default::default(),
                 hash_salt: ResolvedVc::cell(RcStr::default()),
                 cross_origin: Default::default(),
+                chunk_load_retry: Default::default(),
+                single_chunk: false,
             },
         }
     }
@@ -407,17 +474,36 @@ impl BrowserChunkingContext {
         ident: Vc<AssetIdent>,
         other_chunks: Vc<OutputAssets>,
         evaluatable_assets: Vc<EvaluatableAssets>,
-        // TODO(sokra) remove this argument and pass chunk items instead
         module_graph: Vc<ModuleGraph>,
-    ) -> Vc<Box<dyn OutputAsset>> {
-        Vc::upcast(EcmascriptBrowserEvaluateChunk::new(
+    ) -> Vc<EcmascriptBrowserEvaluateChunk> {
+        EcmascriptBrowserEvaluateChunk::new(
             self,
             ident,
             other_chunks,
             evaluatable_assets,
             module_graph,
+        )
+    }
+
+    /// The shared browser runtime chunk for this chunking context.
+    ///
+    /// Returns the same asset every time: [`EcmascriptBrowserRuntimeChunk::new`] is a
+    /// `#[turbo_tasks::function]` memoized on `(chunking_context, include_async_module_runtime)`.
+    pub(crate) async fn generate_runtime_chunk(
+        self: Vc<Self>,
+        module_graph: Vc<ModuleGraph>,
+    ) -> Result<Vc<EcmascriptBrowserRuntimeChunk>> {
+        // Only omit the machinery when this graph sees every chunk that shares the runtime. With
+        // per-page graphs it doesn't, and this asset is emitted to a fixed path, so a graph
+        // without async modules would otherwise strip a helper another page's chunks call.
+        let include_async_module_runtime =
+            self.await?.shared_runtime_chunk || !module_graph.async_module_info().await?.is_empty();
+        Ok(EcmascriptBrowserRuntimeChunk::new(
+            self,
+            include_async_module_runtime,
         ))
     }
+
     fn generate_chunk_list_register_chunk(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
@@ -477,18 +563,26 @@ impl BrowserChunkingContext {
         self.runtime_type.cell()
     }
 
+    /// Whether the browser runtime is shared across routes (as a single `runtime.js` asset) and
+    /// the chunk-group bootstrap is inlined by the consumer. When `false`, the runtime is emitted
+    /// inline in each route's evaluate chunk (the pre-shared-runtime behavior).
+    #[turbo_tasks::function]
+    pub fn shared_runtime(&self) -> Vc<bool> {
+        Vc::cell(self.shared_runtime)
+    }
+
+    /// Whether the runtime chunk is shared with other module graphs using this context, meaning no
+    /// single graph may decide which optional runtime features to omit.
+    /// See [`BrowserChunkingContextBuilder::shared_runtime_chunk`].
+    #[turbo_tasks::function]
+    pub fn shared_runtime_chunk(&self) -> Vc<bool> {
+        Vc::cell(self.shared_runtime_chunk)
+    }
+
     /// Returns the asset base path.
     #[turbo_tasks::function]
     pub fn chunk_base_path(&self) -> Vc<Option<RcStr>> {
         Vc::cell(self.chunk_base_path.clone())
-    }
-
-    /// Returns the worker base-path override. When `Some`, takes precedence
-    /// over `chunk_base_path` for the entrypoint URL and the module chunks
-    /// loaded inside the worker.
-    #[turbo_tasks::function]
-    pub fn worker_asset_prefix(&self) -> Vc<Option<RcStr>> {
-        Vc::cell(self.worker_asset_prefix.clone())
     }
 
     /// Returns the asset suffix path.
@@ -538,6 +632,21 @@ impl BrowserChunkingContext {
     #[turbo_tasks::function]
     pub fn cross_origin(&self) -> Vc<CrossOrigin> {
         self.cross_origin.cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn chunk_load_retry(&self) -> Vc<ChunkLoadRetry> {
+        self.chunk_load_retry.cell()
+    }
+
+    /// Whether the ECMAScript chunking config emits component chunks alongside merged chunks.
+    #[turbo_tasks::function]
+    pub async fn generate_component_chunks(&self) -> Result<Vc<bool>> {
+        let ecmascript_ty: ResolvedVc<Box<dyn ChunkType>> =
+            ResolvedVc::upcast(Vc::<EcmascriptChunkType>::default().to_resolved().await?);
+        Ok(Vc::cell(self.chunking_configs.iter().any(
+            |(ty, config)| *ty == ecmascript_ty && config.generate_component_chunks,
+        )))
     }
 }
 
@@ -653,6 +762,15 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
+    fn service_worker_scope_base_path(&self) -> Vc<RcStr> {
+        Vc::cell(
+            self.service_worker_scope_base_path
+                .clone()
+                .unwrap_or_default(),
+        )
+    }
+
+    #[turbo_tasks::function]
     fn reference_chunk_source_maps(&self, _chunk: Vc<Box<dyn OutputAsset>>) -> Vc<bool> {
         Vc::cell(match self.source_maps_type {
             SourceMapsType::Full => true,
@@ -719,18 +837,13 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn chunking_configs(&self) -> Result<Vc<ChunkingConfigs>> {
-        Ok(Vc::cell(self.chunking_configs.iter().cloned().collect()))
+    fn chunking_configs(&self) -> Vc<ChunkingConfigs> {
+        Vc::cell(self.chunking_configs.iter().cloned().collect())
     }
 
     #[turbo_tasks::function]
     fn source_map_source_type(&self) -> Vc<SourceMapSourceType> {
         self.source_map_source_type.cell()
-    }
-
-    #[turbo_tasks::function]
-    fn is_tracing_enabled(&self) -> Vc<bool> {
-        Vc::cell(self.enable_tracing)
     }
 
     #[turbo_tasks::function]
@@ -763,21 +876,18 @@ impl ChunkingContext for BrowserChunkingContext {
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
         chunk_group: ChunkGroup,
-        module_graph: Vc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
         let span = tracing::info_span!("chunking", name = display(ident.to_string().await?));
         async move {
-            let this = self.await?;
-            let entries = chunk_group.entries();
             let input_availability_info = availability_info;
             let MakeChunkGroupResult {
                 chunks,
-                referenced_output_assets,
                 references,
                 availability_info,
             } = make_chunk_group(
-                entries,
+                chunk_group,
                 module_graph,
                 ResolvedVc::upcast(self),
                 input_availability_info,
@@ -786,42 +896,18 @@ impl ChunkingContext for BrowserChunkingContext {
 
             let chunks = chunks.await?;
 
-            let mut assets = chunks
+            let assets = chunks
                 .iter()
                 .map(|chunk| self.generate_chunk(*chunk))
                 .try_join()
                 .await?;
 
-            if this.enable_hot_module_replacement {
-                let ident = if let Some(input_availability_info_ident) =
-                    input_availability_info.ident().await?
-                {
-                    ident
-                        .owned()
-                        .await?
-                        .with_modifier(input_availability_info_ident)
-                        .into_vc()
-                } else {
-                    ident
-                };
-                let other_assets = Vc::cell(assets.clone());
-                assets.push(
-                    self.generate_chunk_list_register_chunk(
-                        ident,
-                        EvaluatableAssets::empty(),
-                        other_assets,
-                        EcmascriptDevChunkListSource::Dynamic,
-                    )
-                    .to_resolved()
-                    .await?,
-                );
-            }
-
             Ok(ChunkGroupResult {
                 assets: ResolvedVc::cell(assets),
-                referenced_assets: ResolvedVc::cell(referenced_output_assets),
+                referenced_assets: OutputAssets::empty_resolved(),
                 references: ResolvedVc::cell(references),
                 availability_info,
+                chunk_group_bootstrap_params: None,
             }
             .cell())
         }
@@ -834,7 +920,10 @@ impl ChunkingContext for BrowserChunkingContext {
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
         chunk_group: ChunkGroup,
-        module_graph: Vc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
+        // Extra chunks to include in the HMR chunk list beyond what is reachable from this chunk
+        // group. Used to cover RSC client reference chunks that are built separately.
+        extra_chunks: Vc<OutputAssets>,
         input_availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
         let span = tracing::info_span!(
@@ -844,14 +933,12 @@ impl ChunkingContext for BrowserChunkingContext {
         );
         async move {
             let this = self.await?;
-            let entries = chunk_group.entries();
             let MakeChunkGroupResult {
                 chunks,
-                referenced_output_assets,
                 references,
                 availability_info,
             } = make_chunk_group(
-                entries,
+                chunk_group.clone(),
                 module_graph,
                 ResolvedVc::upcast(self),
                 input_availability_info,
@@ -866,6 +953,10 @@ impl ChunkingContext for BrowserChunkingContext {
                 .try_join()
                 .await?;
 
+            // The evaluate chunk loads `other_assets` as `SourceType.Runtime` (without script
+            // tags), so it must contain only the directly-generated chunks for this chunk group.
+            // `extra_chunks` are loaded separately (already in the HTML), so excluding them here
+            // prevents the runtime from blocking on a load that will never happen.
             let other_assets = Vc::cell(assets.clone());
 
             let entries = Vc::cell(
@@ -879,6 +970,29 @@ impl ChunkingContext for BrowserChunkingContext {
             );
 
             if this.enable_hot_module_replacement {
+                // Follow references (async loaders) to get actual dynamic component chunks, so
+                // the single HMR chunk list covers all lazily-loaded modules.
+                // inner=false: we only follow Reference inputs transitively, not Asset inputs,
+                // to avoid pulling in source maps and other asset-adjacent files that can't be
+                // reloaded by the DOM backend (which only handles CSS chunks via reloadChunk).
+                let all_dynamic_chunks = expand_output_assets(
+                    references
+                        .iter()
+                        .copied()
+                        .map(ExpandOutputAssetsInput::Reference)
+                        .chain(assets.iter().copied().map(ExpandOutputAssetsInput::Asset)),
+                    false,
+                )
+                .await?;
+
+                // Combine direct chunks, transitively-reachable dynamic chunks, and any caller-
+                // provided extras (e.g. RSC client reference chunks built outside this graph).
+                let extra_chunks_ref = extra_chunks.await?;
+                let mut hmr_chunks: FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>> =
+                    all_dynamic_chunks.into_iter().collect();
+                hmr_chunks.extend(extra_chunks_ref.iter().copied());
+                let hmr_other_assets = Vc::cell(hmr_chunks.into_iter().collect());
+
                 let ident = if let Some(input_availability_info_ident) =
                     input_availability_info.ident().await?
                 {
@@ -894,7 +1008,7 @@ impl ChunkingContext for BrowserChunkingContext {
                     self.generate_chunk_list_register_chunk(
                         ident,
                         entries,
-                        other_assets,
+                        hmr_other_assets,
                         EcmascriptDevChunkListSource::Entry,
                     )
                     .to_resolved()
@@ -902,17 +1016,53 @@ impl ChunkingContext for BrowserChunkingContext {
                 );
             }
 
-            assets.push(
-                self.generate_evaluate_chunk(ident, other_assets, entries, module_graph)
-                    .to_resolved()
-                    .await?,
-            );
+            // The evaluate chunk registers this entry's chunks/modules onto the
+            // `globalThis[TURBOPACK]` queue. When `shared_runtime` is enabled we return that chunk
+            // group's bootstrap params for Next to inline into the HTML and skip emitting the
+            // per-route evaluate chunk file. Only `ChunkGroup::Entry` groups (the page/app client
+            // entries Next renders into HTML) can be inlined. When `shared_runtime` is disabled the
+            // evaluate chunk itself carries the runtime, so it is always emitted as an asset.
+            let evaluate_chunk = self
+                .generate_evaluate_chunk(ident, other_assets, entries, *module_graph)
+                .to_resolved()
+                .await?;
+            let chunk_group_bootstrap_params =
+                if this.shared_runtime && matches!(chunk_group, ChunkGroup::Entry(_)) {
+                    Some(
+                        evaluate_chunk
+                            .chunk_group_bootstrap_params()
+                            .owned()
+                            .await?,
+                    )
+                } else {
+                    assets.push(ResolvedVc::upcast(evaluate_chunk));
+                    None
+                };
+
+            // The shared runtime chunk must be the LAST asset of the group. It drains
+            // the registration queue set up by the chunks above, so it has to load
+            // after them: on a page it is the last `<script>`, and in a web worker the
+            // bootstrap relies on it being last to load it after the module chunks and
+            // to keep it out of `TURBOPACK_NEXT_CHUNK_URLS` (see
+            // `EcmascriptBrowserWorkerEntrypoint`).
+            //
+            // Only emitted when `shared_runtime` is enabled; otherwise the runtime lives inline in
+            // the evaluate chunk above.
+            if this.shared_runtime {
+                assets.push(ResolvedVc::upcast(
+                    self.generate_runtime_chunk(*module_graph)
+                        .await?
+                        .to_resolved()
+                        .await?,
+                ));
+            }
 
             Ok(ChunkGroupResult {
                 assets: ResolvedVc::cell(assets),
-                referenced_assets: ResolvedVc::cell(referenced_output_assets),
+                referenced_assets: OutputAssets::empty_resolved(),
                 references: ResolvedVc::cell(references),
                 availability_info,
+                chunk_group_bootstrap_params,
             }
             .cell())
         }
@@ -921,16 +1071,129 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn entry_chunk_group(
+    async fn hmr_chunk_list(
         self: Vc<Self>,
-        _path: FileSystemPath,
-        _chunk_group: ChunkGroup,
-        _module_graph: Vc<ModuleGraph>,
-        _extra_chunks: Vc<OutputAssets>,
-        _extra_referenced_assets: Vc<OutputAssets>,
-        _availability_info: AvailabilityInfo,
+        ident: Vc<AssetIdent>,
+        chunks: Vc<OutputAssets>,
+    ) -> Result<Vc<OutputAssets>> {
+        let this = self.await?;
+        if !this.enable_hot_module_replacement {
+            unreachable!("hmr_chunk_list called with enable_hot_module_replacement disabled");
+        }
+        if chunks.await?.is_empty() {
+            return Ok(OutputAssets::empty());
+        }
+        Ok(Vc::cell(vec![
+            self.generate_chunk_list_register_chunk(
+                ident,
+                EvaluatableAssets::empty(),
+                chunks,
+                EcmascriptDevChunkListSource::Entry,
+            )
+            .to_resolved()
+            .await?,
+        ]))
+    }
+
+    #[turbo_tasks::function]
+    async fn entry_chunk_group(
+        self: ResolvedVc<Self>,
+        path: FileSystemPath,
+        chunk_group: ChunkGroup,
+        module_graph: ResolvedVc<ModuleGraph>,
+        extra_chunks: Vc<OutputAssets>,
+        extra_referenced_assets: Vc<OutputAssets>,
+        availability_info: AvailabilityInfo,
     ) -> Result<Vc<EntryChunkGroupResult>> {
-        bail!("Browser chunking context does not support entry chunk groups")
+        if !self.await?.single_chunk {
+            bail!("Browser chunking context only supports entry chunk groups in single-chunk mode");
+        }
+
+        if !extra_chunks.await?.is_empty() {
+            bail!("single-chunk entry does not support extra chunks");
+        }
+
+        let span = tracing::info_span!(
+            "chunking",
+            name = display(path.to_string_ref().await?),
+            chunking_type = "single-chunk entry",
+        );
+        async move {
+            let MakeChunkGroupResult {
+                chunks,
+                references,
+                availability_info,
+            } = make_chunk_group(
+                chunk_group.clone(),
+                module_graph,
+                ResolvedVc::upcast(self),
+                availability_info,
+            )
+            .await?;
+
+            let chunks = chunks.await?;
+
+            let ecmascript_chunk = chunks
+                .iter()
+                .find_map(|chunk| ResolvedVc::try_downcast_type::<EcmascriptChunk>(*chunk));
+
+            if chunks.len() != 1 || ecmascript_chunk.is_none() {
+                SingleChunkProducedMultipleChunksIssue {
+                    path: path.clone(),
+                    chunk_count: chunks.len(),
+                }
+                .resolved_cell()
+                .emit();
+            }
+
+            // use a stub if chunks == 0, we already emitted an issue
+            let ecmascript_chunk = match ecmascript_chunk {
+                Some(ecmascript_chunk) => ecmascript_chunk,
+                None => {
+                    EcmascriptChunk::new(
+                        Vc::upcast(*self),
+                        EcmascriptChunkContent {
+                            chunk_items: Vec::new(),
+                            batch_groups: Vec::new(),
+                        }
+                        .cell(),
+                        Vec::new(),
+                    )
+                    .to_resolved()
+                    .await?
+                }
+            };
+
+            let evaluatable_assets = chunk_group
+                .entries()
+                .map(|entry| {
+                    ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(entry)
+                        .context("entry_chunk_group entries must be evaluatable assets")
+                })
+                .collect::<Result<Vec<_>>>()?;
+
+            let asset = ResolvedVc::upcast(
+                EcmascriptBrowserSingleEntryChunk::new(
+                    *self,
+                    path,
+                    *ecmascript_chunk,
+                    Vc::cell(evaluatable_assets),
+                    extra_referenced_assets,
+                    Vc::cell(references),
+                    *module_graph,
+                )
+                .to_resolved()
+                .await?,
+            );
+
+            Ok(EntryChunkGroupResult {
+                asset,
+                availability_info,
+            }
+            .cell())
+        }
+        .instrument(span)
+        .await
     }
 
     #[turbo_tasks::function]
@@ -948,6 +1211,16 @@ impl ChunkingContext for BrowserChunkingContext {
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<Box<dyn ChunkItem>>> {
         let chunking_context = ResolvedVc::upcast::<Box<dyn ChunkingContext>>(self);
+        if self.await?.single_chunk {
+            // Single-chunk (eg. service-workers) entries cannot split a
+            // separate async chunk.
+            SingleChunkAsyncLoaderIssue {
+                path: module.ident().await?.path.clone(),
+            }
+            .resolved_cell()
+            .emit();
+            return Ok(module.as_chunk_item(module_graph, *chunking_context));
+        }
         Ok(if self.await?.manifest_chunks {
             let manifest_asset = ManifestAsyncModule::new(
                 module,
@@ -1002,17 +1275,30 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn worker_forwarded_globals(&self) -> Vc<Vec<RcStr>> {
-        Vc::cell(self.worker_forwarded_globals.clone())
+    fn worker_configuration_options(&self) -> Vc<WorkerConfigurationOptions> {
+        WorkerConfigurationOptions {
+            asset_prefix: self.worker_asset_prefix.clone(),
+            forwarded_globals: self.worker_forwarded_globals.clone(),
+        }
+        .cell()
     }
 
     #[turbo_tasks::function]
     async fn worker_entrypoint(self: Vc<Self>) -> Result<Vc<Box<dyn OutputAsset>>> {
         let chunking_context: Vc<Box<dyn ChunkingContext>> = Vc::upcast(self);
         let resolved = chunking_context.to_resolved().await?;
-        let forwarded_globals = chunking_context.worker_forwarded_globals();
+        let forwarded_globals = Vc::cell(self.await?.worker_forwarded_globals.clone());
         let entrypoint = EcmascriptBrowserWorkerEntrypoint::new(*resolved, forwarded_globals);
         Ok(Vc::upcast(entrypoint))
+    }
+
+    #[turbo_tasks::function]
+    fn chunk_loading(&self) -> Vc<ChunkLoading> {
+        if self.single_chunk {
+            ChunkLoading::SingleChunk.cell()
+        } else {
+            self.environment.chunk_loading()
+        }
     }
 }
 
@@ -1021,4 +1307,84 @@ struct ChunkPathInfo {
     root_path: FileSystemPath,
     chunk_root_path: FileSystemPath,
     chunk_content_hashing: Option<ContentHashing>,
+}
+
+#[turbo_tasks::value(shared)]
+struct SingleChunkProducedMultipleChunksIssue {
+    path: FileSystemPath,
+    chunk_count: usize,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for SingleChunkProducedMultipleChunksIssue {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.path.clone())
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::CodeGen
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Single-chunk entry could not be reduced to a single ECMAScript chunk"
+        )))
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Stack(vec![
+            StyledString::Line(vec![
+                StyledString::Text(rcstr!(
+                    "A single-chunk entry must produce exactly one ECMAScript chunk, but it \
+                     produced "
+                )),
+                StyledString::Strong(RcStr::from(format!("{}", self.chunk_count))),
+                StyledString::Text(rcstr!(" chunk(s).")),
+            ]),
+            StyledString::Text(rcstr!(
+                "This usually means the module graph contains non-ECMAScript chunkable items \
+                 (e.g. CSS, image or font imports), which cannot be inlined into a single chunk."
+            )),
+        ])))
+    }
+}
+
+#[turbo_tasks::value(shared)]
+struct SingleChunkAsyncLoaderIssue {
+    path: FileSystemPath,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for SingleChunkAsyncLoaderIssue {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.path.clone())
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::CodeGen
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Async loaders are not supported in single-chunk mode"
+        )))
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Stack(vec![StyledString::Text(rcstr!(
+            "The dynamically imported module is inlined into the single chunk and cannot be \
+             code-split. Remove the dynamic import (import the module statically) if separate \
+             loading is not required."
+        ))])))
+    }
 }

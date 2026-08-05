@@ -4,6 +4,7 @@ description: Simultaneously render one or more pages in the same view that can b
 related:
   links:
     - app/api-reference/file-conventions/default
+    - app/guides/authentication
 ---
 
 Parallel Routes allows you to simultaneously or conditionally render one or more pages within the same layout. They are useful for highly dynamic sections of an app, such as dashboards and feeds on social sites.
@@ -166,6 +167,26 @@ import { checkUserRole } from '@/lib/auth'
 export default function Layout({ user, admin }) {
   const role = checkUserRole()
   return role === 'admin' ? admin : user
+}
+```
+
+Both slots render on the server, regardless of which one the layout returns. The conditional decides what the user sees, not what runs: `@admin/page.js` executes its data fetches for every user, and its output is included in the response sent to the browser. Authorize inside each slot's page, or in your [Data Access Layer](/docs/app/guides/authentication#creating-a-data-access-layer-dal):
+
+```tsx filename="app/dashboard/@admin/page.tsx" switcher
+import { getAdminStats } from '@/lib/dal'
+
+export default async function AdminPage() {
+  const stats = await getAdminStats()
+  return <Stats stats={stats} />
+}
+```
+
+```jsx filename="app/dashboard/@admin/page.js" switcher
+import { getAdminStats } from '@/lib/dal'
+
+export default async function AdminPage() {
+  const stats = await getAdminStats()
+  return <Stats stats={stats} />
 }
 ```
 

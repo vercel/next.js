@@ -18,7 +18,7 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueDefault, Vc, trace::TraceRawVcs,
+    NonLocalValue, ResolvedVc, TryJoinIterExt, ValueDefault, Vc, trace::TraceRawVcs,
     util::WrapFuture,
 };
 use turbo_tasks_fs::FileSystemPath;
@@ -30,7 +30,9 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     EcmascriptInputTransforms, EcmascriptModuleAssetType,
-    analyzer::{ConstantNumber, ConstantValue, JsValue, ObjectPart, graph::EvalContext},
+    analyzer::{
+        Bump, ConstantNumber, ConstantValue, JsValue, ObjectPart, ThreadLocal, graph::EvalContext,
+    },
     parse::{ParseResult, parse},
 };
 
@@ -119,10 +121,10 @@ pub struct NextSegmentConfig {
     pub generate_static_params: Option<Span>,
     #[turbo_tasks(trace_ignore)]
     #[bincode(with_serde)]
-    pub unstable_instant: Option<Span>,
+    pub instant: Option<Span>,
     #[turbo_tasks(trace_ignore)]
     #[bincode(with_serde)]
-    pub unstable_prefetch: Option<Span>,
+    pub prefetch: Option<Span>,
 }
 
 #[turbo_tasks::value_impl]
@@ -288,9 +290,8 @@ impl Issue for NextSegmentConfigParsingIssue {
     }
 }
 
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, TaskInput, NonLocalValue, TraceRawVcs, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub enum ParseSegmentMode {
     Base,
     // Disallows "use client + generateStatic" and ignores/warns about `export const config`
@@ -414,12 +415,25 @@ pub async fn parse_segment_config_from_source(
         return Ok(Default::default());
     };
 
+    // Arena for the `JsValue`s produced while evaluating config expressions;
+    // freed when this function returns.
+    let arena = ThreadLocal::new();
     let config = WrapFuture::new(
         async {
             let mut config = NextSegmentConfig::default();
 
             let mut parse = async |ident, init, span| {
-                parse_config_value(source, mode, &mut config, eval_context, ident, init, span).await
+                parse_config_value(
+                    source,
+                    mode,
+                    &mut config,
+                    eval_context,
+                    &arena,
+                    ident,
+                    init,
+                    span,
+                )
+                .await
             };
 
             for item in &module_ast.body {
@@ -535,15 +549,15 @@ pub async fn parse_segment_config_from_source(
             .await?;
         }
 
-        if let Some(span) = config.unstable_instant {
+        if let Some(span) = config.instant {
             invalid_config(
                 source,
-                "unstable_instant",
+                "instant",
                 span,
                 rcstr!(
-                    "\"unstable_instant\" is a route segment config and can only be used when the \
-                     segment is a Server Component module. Remove the \"use client\" directive to \
-                     use this API."
+                    "\"instant\" is a route segment config and can only be used when the segment \
+                     is a Server Component module. Remove the \"use client\" directive to use \
+                     this API."
                 ),
                 None,
                 IssueSeverity::Error,
@@ -551,15 +565,15 @@ pub async fn parse_segment_config_from_source(
             .await?;
         }
 
-        if let Some(span) = config.unstable_prefetch {
+        if let Some(span) = config.prefetch {
             invalid_config(
                 source,
-                "unstable_prefetch",
+                "prefetch",
                 span,
                 rcstr!(
-                    "\"unstable_prefetch\" is a route segment config and can only be used when \
-                     the segment is a Server Component module. Remove the \"use client\" \
-                     directive to use this API."
+                    "\"prefetch\" is a route segment config and can only be used when the segment \
+                     is a Server Component module. Remove the \"use client\" directive to use \
+                     this API."
                 ),
                 None,
                 IssueSeverity::Error,
@@ -576,7 +590,7 @@ async fn invalid_config(
     key: &str,
     span: Span,
     error: RcStr,
-    value: Option<&JsValue>,
+    value: Option<&JsValue<'_>>,
     severity: IssueSeverity,
 ) -> Result<()> {
     let detail = if let Some(value) = value {
@@ -605,6 +619,7 @@ async fn parse_config_value(
     mode: ParseSegmentMode,
     config: &mut NextSegmentConfig,
     eval_context: &EvalContext,
+    arena: &ThreadLocal<Bump>,
     key: Cow<'_, str>,
     init: Option<Cow<'_, Expr>>,
     span: Span,
@@ -620,17 +635,18 @@ async fn parse_config_value(
             | Some(Expr::TsSatisfies(TsSatisfiesExpr { expr, .. })) => Some(&**expr),
             _ => init,
         };
-        init.map(|init| eval_context.eval(init)).map(|v| {
-            // Special case, as we don't call `link` here: assume that `undefined` is a free
-            // variable.
-            if let JsValue::FreeVar(name) = &v
-                && name == "undefined"
-            {
-                JsValue::Constant(ConstantValue::Undefined)
-            } else {
-                v
-            }
-        })
+        init.map(|init| eval_context.eval(arena.get_or_default(), init))
+            .map(|v| {
+                // Special case, as we don't call `link` here: assume that `undefined` is a free
+                // variable.
+                if let JsValue::FreeVar(name) = &v
+                    && name == "undefined"
+                {
+                    JsValue::Constant(ConstantValue::Undefined)
+                } else {
+                    v
+                }
+            })
     };
 
     match &*key {
@@ -847,9 +863,9 @@ async fn parse_config_value(
             };
 
             match value {
-                JsValue::Constant(ConstantValue::Num(ConstantNumber(val))) if *val >= 0.0 => {
+                JsValue::Constant(ConstantValue::Num(ConstantNumber(val))) if val >= 0.0 => {
                     config.revalidate = Some(NextRevalidate::Frequency {
-                        seconds: *val as u32,
+                        seconds: val as u32,
                     });
                 }
                 JsValue::Constant(ConstantValue::False) => {
@@ -985,11 +1001,11 @@ async fn parse_config_value(
         "generateStaticParams" => {
             config.generate_static_params = Some(span);
         }
-        "unstable_instant" => {
-            config.unstable_instant = Some(span);
+        "instant" => {
+            config.instant = Some(span);
         }
-        "unstable_prefetch" => {
-            config.unstable_prefetch = Some(span);
+        "prefetch" => {
+            config.prefetch = Some(span);
         }
         _ => {}
     }
@@ -1002,7 +1018,7 @@ async fn parse_static_string_or_array_from_js_value(
     span: Span,
     key: &str,
     sub_key: &str,
-    value: &JsValue,
+    value: &JsValue<'_>,
 ) -> Result<Option<Vec<RcStr>>> {
     Ok(match value {
         // Single value is turned into a single-element Vec.
@@ -1055,129 +1071,130 @@ async fn parse_static_string_or_array_from_js_value(
 async fn parse_route_matcher_from_js_value(
     source: ResolvedVc<Box<dyn Source>>,
     span: Span,
-    value: &JsValue,
+    value: &JsValue<'_>,
 ) -> Result<Option<Vec<MiddlewareMatcherKind>>> {
-    let parse_matcher_kind_matcher = async |value: &JsValue, sub_key: &str, matcher_idx: usize| {
-        let mut route_has = vec![];
-        if let JsValue::Array { items, .. } = value {
-            for (i, item) in items.iter().enumerate() {
-                if let JsValue::Object { parts, .. } = item {
-                    let mut route_type = None;
-                    let mut route_key = None;
-                    let mut route_value = None;
+    let parse_matcher_kind_matcher =
+        async |value: &JsValue<'_>, sub_key: &str, matcher_idx: usize| {
+            let mut route_has = vec![];
+            if let JsValue::Array { items, .. } = value {
+                for (i, item) in items.iter().enumerate() {
+                    if let JsValue::Object { parts, .. } = item {
+                        let mut route_type = None;
+                        let mut route_key = None;
+                        let mut route_value = None;
 
-                    for matcher_part in parts {
-                        if let ObjectPart::KeyValue(part_key, part_value) = matcher_part {
-                            match part_key.as_str() {
-                                Some("type") => {
-                                    if let Some(part_value) = part_value.as_str().filter(|v| {
-                                        *v == "header"
-                                            || *v == "cookie"
-                                            || *v == "query"
-                                            || *v == "host"
-                                    }) {
-                                        route_type = Some(part_value);
-                                    } else {
+                        for matcher_part in parts {
+                            if let ObjectPart::KeyValue(part_key, part_value) = matcher_part {
+                                match part_key.as_str() {
+                                    Some("type") => {
+                                        if let Some(part_value) = part_value.as_str().filter(|v| {
+                                            *v == "header"
+                                                || *v == "cookie"
+                                                || *v == "query"
+                                                || *v == "host"
+                                        }) {
+                                            route_type = Some(part_value);
+                                        } else {
+                                            invalid_config(
+                                                source,
+                                                "config",
+                                                span,
+                                                format!(
+                                                    "`matcher[{matcher_idx}].{sub_key}[{i}].type` \
+                                                     must be one of the strings: 'header', \
+                                                     'cookie', 'query', 'host'"
+                                                )
+                                                .into(),
+                                                Some(part_value),
+                                                IssueSeverity::Error,
+                                            )
+                                            .await?;
+                                        }
+                                    }
+                                    Some("key") => {
+                                        if let Some(part_value) = part_value.as_str() {
+                                            route_key = Some(part_value);
+                                        } else {
+                                            invalid_config(
+                                                source,
+                                                "config",
+                                                span,
+                                                format!(
+                                                    "`matcher[{matcher_idx}].{sub_key}[{i}].key` \
+                                                     must be a string"
+                                                )
+                                                .into(),
+                                                Some(part_value),
+                                                IssueSeverity::Error,
+                                            )
+                                            .await?;
+                                        }
+                                    }
+                                    Some("value") => {
+                                        if let Some(part_value) = part_value.as_str() {
+                                            route_value = Some(part_value);
+                                        } else {
+                                            invalid_config(
+                                                source,
+                                                "config",
+                                                span,
+                                                format!(
+                                                    "`matcher[{matcher_idx}].{sub_key}[{i}].\
+                                                     value` must be a string"
+                                                )
+                                                .into(),
+                                                Some(part_value),
+                                                IssueSeverity::Error,
+                                            )
+                                            .await?;
+                                        }
+                                    }
+                                    _ => {
                                         invalid_config(
                                             source,
                                             "config",
                                             span,
                                             format!(
-                                                "`matcher[{matcher_idx}].{sub_key}[{i}].type` \
-                                                 must be one of the strings: 'header', 'cookie', \
-                                                 'query', 'host'"
+                                                "Unexpected property in \
+                                                 `matcher[{matcher_idx}].{sub_key}[{i}]` object"
                                             )
                                             .into(),
-                                            Some(part_value),
+                                            Some(part_key),
                                             IssueSeverity::Error,
                                         )
                                         .await?;
                                     }
-                                }
-                                Some("key") => {
-                                    if let Some(part_value) = part_value.as_str() {
-                                        route_key = Some(part_value);
-                                    } else {
-                                        invalid_config(
-                                            source,
-                                            "config",
-                                            span,
-                                            format!(
-                                                "`matcher[{matcher_idx}].{sub_key}[{i}].key` must \
-                                                 be a string"
-                                            )
-                                            .into(),
-                                            Some(part_value),
-                                            IssueSeverity::Error,
-                                        )
-                                        .await?;
-                                    }
-                                }
-                                Some("value") => {
-                                    if let Some(part_value) = part_value.as_str() {
-                                        route_value = Some(part_value);
-                                    } else {
-                                        invalid_config(
-                                            source,
-                                            "config",
-                                            span,
-                                            format!(
-                                                "`matcher[{matcher_idx}].{sub_key}[{i}].value` \
-                                                 must be a string"
-                                            )
-                                            .into(),
-                                            Some(part_value),
-                                            IssueSeverity::Error,
-                                        )
-                                        .await?;
-                                    }
-                                }
-                                _ => {
-                                    invalid_config(
-                                        source,
-                                        "config",
-                                        span,
-                                        format!(
-                                            "Unexpected property in \
-                                             `matcher[{matcher_idx}].{sub_key}[{i}]` object"
-                                        )
-                                        .into(),
-                                        Some(part_key),
-                                        IssueSeverity::Error,
-                                    )
-                                    .await?;
                                 }
                             }
                         }
-                    }
-                    let r = match route_type {
-                        Some("header") => route_key.map(|route_key| RouteHas::Header {
-                            key: route_key.into(),
-                            value: route_value.map(From::from),
-                        }),
-                        Some("cookie") => route_key.map(|route_key| RouteHas::Cookie {
-                            key: route_key.into(),
-                            value: route_value.map(From::from),
-                        }),
-                        Some("query") => route_key.map(|route_key| RouteHas::Query {
-                            key: route_key.into(),
-                            value: route_value.map(From::from),
-                        }),
-                        Some("host") => route_value.map(|route_value| RouteHas::Host {
-                            value: route_value.into(),
-                        }),
-                        _ => None,
-                    };
+                        let r = match route_type {
+                            Some("header") => route_key.map(|route_key| RouteHas::Header {
+                                key: route_key.into(),
+                                value: route_value.map(From::from),
+                            }),
+                            Some("cookie") => route_key.map(|route_key| RouteHas::Cookie {
+                                key: route_key.into(),
+                                value: route_value.map(From::from),
+                            }),
+                            Some("query") => route_key.map(|route_key| RouteHas::Query {
+                                key: route_key.into(),
+                                value: route_value.map(From::from),
+                            }),
+                            Some("host") => route_value.map(|route_value| RouteHas::Host {
+                                value: route_value.into(),
+                            }),
+                            _ => None,
+                        };
 
-                    if let Some(r) = r {
-                        route_has.push(r);
+                        if let Some(r) = r {
+                            route_has.push(r);
+                        }
                     }
                 }
             }
-        }
 
-        anyhow::Ok(route_has)
-    };
+            anyhow::Ok(route_has)
+        };
 
     let mut matchers = vec![];
 

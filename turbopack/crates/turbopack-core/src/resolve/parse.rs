@@ -720,8 +720,8 @@ impl Request {
     /// Turns the request into a pattern, similar to [Request::request()] but
     /// more complete.
     #[turbo_tasks::function]
-    pub async fn request_pattern(self: Vc<Self>) -> Result<Vc<Pattern>> {
-        Ok(Pattern::new(match &*self.await? {
+    pub async fn request_pattern(&self) -> Result<Vc<Pattern>> {
+        Ok(Pattern::new(match self {
             Request::Raw { path, .. } => path.clone(),
             Request::Relative { path, .. } => path.clone(),
             Request::Module { module, path, .. } => {

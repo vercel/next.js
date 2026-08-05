@@ -22,10 +22,10 @@ use tracing::span::Span;
     feature = "trace_find_and_schedule"
 ))]
 use tracing::trace_span;
+#[cfg(feature = "task_dirty_cause")]
+use turbo_tasks::TaskDirtyCause;
 use turbo_tasks::{FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, event::EventDescription};
 
-#[cfg(feature = "trace_task_dirty")]
-use crate::backend::operation::invalidate::TaskDirtyCause;
 use crate::{
     backend::{
         TaskDataCategory,
@@ -285,7 +285,7 @@ pub enum AggregationUpdateJob {
     /// Invalidates tasks that are dependent on a collectible type.
     InvalidateDueToCollectiblesChange {
         task_ids: TaskIdVec,
-        #[cfg(feature = "trace_task_dirty")]
+        #[cfg(feature = "task_dirty_cause")]
         collectible_type: turbo_tasks::TraitTypeId,
     },
     /// Increases the active counter of the task
@@ -491,25 +491,22 @@ impl AggregatedDataUpdate {
             }
 
             // Update AggregatedSessionDependentCleanContainer
-            let old_single_container_current_session_clean_count;
             let new_single_container_current_session_clean_count;
-            if *current_session_clean_update != 0 {
-                new_single_container_current_session_clean_count = task
-                    .update_and_get_aggregated_current_session_clean_containers(
-                        dirty_container_id,
-                        *current_session_clean_update,
-                    );
-                old_single_container_current_session_clean_count =
+            let old_single_container_current_session_clean_count =
+                if *current_session_clean_update != 0 {
+                    new_single_container_current_session_clean_count = task
+                        .update_and_get_aggregated_current_session_clean_containers(
+                            dirty_container_id,
+                            *current_session_clean_update,
+                        );
+                    new_single_container_current_session_clean_count - *current_session_clean_update
+                } else {
+                    new_single_container_current_session_clean_count = task
+                        .get_aggregated_current_session_clean_containers(&dirty_container_id)
+                        .copied()
+                        .unwrap_or_default();
                     new_single_container_current_session_clean_count
-                        - *current_session_clean_update;
-            } else {
-                new_single_container_current_session_clean_count = task
-                    .get_aggregated_current_session_clean_containers(&dirty_container_id)
-                    .copied()
-                    .unwrap_or_default();
-                old_single_container_current_session_clean_count =
-                    new_single_container_current_session_clean_count;
-            }
+                };
 
             // compute aggregated update
             let was_single_container_clean = old_dirty_single_container_count > 0
@@ -527,40 +524,36 @@ impl AggregatedDataUpdate {
                 let task_id = task.id();
 
                 // Update AggregatedDirtyContainerCount and compute aggregate value
-                let old_dirty_container_count;
                 let new_dirty_container_count;
-                if dirty_container_count_update != 0 {
+                let old_dirty_container_count = if dirty_container_count_update != 0 {
                     new_dirty_container_count = task
                         .update_and_get_aggregated_dirty_container_count(
                             dirty_container_count_update,
                         );
-                    old_dirty_container_count =
-                        new_dirty_container_count - dirty_container_count_update;
+                    new_dirty_container_count - dirty_container_count_update
                 } else {
                     new_dirty_container_count = task
                         .get_aggregated_dirty_container_count()
                         .copied()
                         .unwrap_or_default();
-                    old_dirty_container_count = new_dirty_container_count;
+                    new_dirty_container_count
                 };
 
                 // Update AggregatedSessionDependentCleanContainerCount and compute aggregate value
                 let new_current_session_clean_container_count;
-                let old_current_session_clean_container_count;
-                if current_session_clean_update != 0 {
+                let old_current_session_clean_container_count = if current_session_clean_update != 0
+                {
                     new_current_session_clean_container_count = task
                         .update_and_get_aggregated_current_session_clean_container_count(
                             current_session_clean_update,
                         );
-                    old_current_session_clean_container_count =
-                        new_current_session_clean_container_count - current_session_clean_update;
+                    new_current_session_clean_container_count - current_session_clean_update
                 } else {
                     new_current_session_clean_container_count = task
                         .get_aggregated_current_session_clean_container_count()
                         .copied()
                         .unwrap_or_default();
-                    old_current_session_clean_container_count =
-                        new_current_session_clean_container_count;
+                    new_current_session_clean_container_count
                 };
 
                 let compute_result = ComputeDirtyAndCleanUpdate {
@@ -616,7 +609,7 @@ impl AggregatedDataUpdate {
                 if !dependent.is_empty() {
                     queue.push(AggregationUpdateJob::InvalidateDueToCollectiblesChange {
                         task_ids: dependent,
-                        #[cfg(feature = "trace_task_dirty")]
+                        #[cfg(feature = "task_dirty_cause")]
                         collectible_type: ty,
                     })
                 }
@@ -1432,13 +1425,13 @@ impl AggregationUpdateQueue {
                 }
                 AggregationUpdateJob::InvalidateDueToCollectiblesChange {
                     task_ids,
-                    #[cfg(feature = "trace_task_dirty")]
+                    #[cfg(feature = "task_dirty_cause")]
                     collectible_type,
                 } => {
                     for task_id in task_ids {
                         make_task_dirty(
                             task_id,
-                            #[cfg(feature = "trace_task_dirty")]
+                            #[cfg(feature = "task_dirty_cause")]
                             TaskDirtyCause::CollectiblesChange { collectible_type },
                             self,
                             ctx,
@@ -3431,16 +3424,6 @@ impl AggregationUpdateQueue {
             ctx.operation_suspend_point(&self);
             if self.process(ctx) {
                 return self.stats;
-            }
-        }
-    }
-
-    #[cfg(not(feature = "trace_aggregation_update_stats"))]
-    pub fn execute_with_stats(mut self, ctx: &mut impl ExecuteContext<'_>) {
-        loop {
-            ctx.operation_suspend_point(&self);
-            if self.process(ctx) {
-                return;
             }
         }
     }

@@ -2,7 +2,7 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 
-use std::{str::FromStr, time::Instant};
+use std::{path::Path, str::FromStr, time::Instant};
 
 use anyhow::{Context, Result, bail};
 use futures_util::{StreamExt, TryStreamExt};
@@ -13,13 +13,15 @@ use next_api::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Effects, ReadConsistency, ReadRef, ResolvedVc, TransientInstance, TurboTasks, Vc, take_effects,
+    Effects, ReadConsistency, ReadRef, ResolvedVc, TransientInstance, TurboTasks, Vc,
+    read_strongly_consistent_and_apply_effects, take_effects,
 };
-use turbo_tasks_backend::{NoopBackingStorage, TurboTasksBackend};
+use turbo_tasks_backend::TurboTasksBackend;
+use turbo_tasks_fs::canonicalize_to_rcstr;
 use turbo_tasks_malloc::TurboMalloc;
 
 pub async fn main_inner(
-    tt: &TurboTasks<TurboTasksBackend<NoopBackingStorage>>,
+    tt: &TurboTasks<TurboTasksBackend>,
     strategy: Strategy,
     factor: usize,
     limit: usize,
@@ -30,6 +32,7 @@ pub async fn main_inner(
         .with_context(|| format!("loading file at {}", path.display()))?;
 
     let mut options: ProjectOptions = serde_json::from_reader(&mut file)?;
+    options.root_path = canonicalize_to_rcstr(Path::new(&*options.root_path))?;
 
     if matches!(strategy, Strategy::Development { .. }) {
         options.dev = true;
@@ -161,7 +164,7 @@ pub fn shuffle<'a, T: 'a>(items: impl Iterator<Item = T>) -> impl Iterator<Item 
 }
 
 pub async fn render_routes(
-    tt: &TurboTasks<TurboTasksBackend<NoopBackingStorage>>,
+    tt: &TurboTasks<TurboTasksBackend>,
     routes: impl Iterator<Item = (RcStr, Route)>,
     strategy: Strategy,
     factor: usize,
@@ -275,17 +278,13 @@ async fn endpoint_write_to_disk_with_apply(
     }
 
     let op = inner_operation_with_effects(endpoint);
-    let WithEffects {
-        output_paths,
-        effects,
-    } = &*op.read_strongly_consistent().await?;
-    effects.apply().await?;
+    let read = read_strongly_consistent_and_apply_effects(op, |v| &v.effects).await?;
 
-    Ok(output_paths.clone())
+    Ok(read.output_paths.clone())
 }
 
 async fn hmr(
-    tt: &TurboTasks<TurboTasksBackend<NoopBackingStorage>>,
+    tt: &TurboTasks<TurboTasksBackend>,
     project: ResolvedVc<ProjectContainer>,
 ) -> Result<()> {
     tracing::info!("HMR...");
@@ -305,14 +304,16 @@ async fn hmr(
         .await?;
 
     let start = Instant::now();
-    for ident in idents {
+    for ident in &idents {
         if !ident.ends_with(".js") {
             continue;
         }
         let session = session.clone();
         let start = Instant::now();
+        let ident_for_task = ident.clone();
         let task = tt.spawn_root_task(move || {
             let session = session.clone();
+            let ident = ident_for_task.clone();
             async move {
                 let project = project.project();
                 let state = project.hmr_version_state(ident.clone(), HmrTarget::Client, session);

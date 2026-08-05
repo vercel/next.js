@@ -17,9 +17,8 @@
  * where network responses haven't reached the client yet.
  */
 
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { createRouterAct } from 'router-act'
-import type { Playwright } from 'next-webdriver'
 
 /**
  * Reads the rendered route history from the page and returns an array of

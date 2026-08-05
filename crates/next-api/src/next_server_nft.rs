@@ -4,12 +4,8 @@ use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use either::Either;
 use next_core::{get_next_package, next_server::get_tracing_compile_time_info};
-use serde_json::{Value, json};
-use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, Vc,
-    trace::TraceRawVcs,
-};
+use serde_json::json;
+use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, File, FileContent, FileSystemPath, glob::Glob,
 };
@@ -17,23 +13,18 @@ use turbo_tasks_hash::HashAlgorithm;
 use turbopack::externals_tracing_module_context;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    context::AssetContext,
-    file_source::FileSource,
+    module::{Module, Modules},
+    module_graph::{GraphEntries, ModuleGraph, SingleModuleGraph},
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
-    reference_type::{CommonJsReferenceSubType, ReferenceType},
+    reference_type::CommonJsReferenceSubType,
     resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request},
-    traced_asset::TracedAsset,
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
 
-use crate::{
-    nft_json::{all_assets_from_entries_filtered, relativize_glob},
-    project::Project,
-};
+use crate::{nft::traced_modules_for_entries, project::Project};
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Hash, TaskInput, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(PartialEq, Eq, TraceRawVcs, Debug, Clone, Hash, Encode, Decode)]
 enum ServerNftType {
     Minimal,
     Full,
@@ -106,6 +97,7 @@ impl Asset for ServerNftJsonAsset {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let this = self.await?;
+
         // Example: [project]/apps/my-website/.next/
         let base_dir = this
             .project
@@ -113,20 +105,43 @@ impl Asset for ServerNftJsonAsset {
             .await?
             .join(&this.project.node_root().await?.path)?;
 
-        let mut server_output_assets =
-            all_assets_from_entries_filtered(self.entries(), None, Some(self.ignores()))
-                .await?
-                .iter()
-                .map(async |m| {
-                    Ok((
-                        base_dir
-                            .get_relative_path_to(&*m.path().await?)
-                            .context("failed to compute relative path for server NFT JSON")?,
-                        m.content().hash(HashAlgorithm::Xxh3Hash128Hex).await?,
-                    ))
-                })
-                .try_join()
-                .await?;
+        let module_graph = ModuleGraph::from_graphs(
+            vec![SingleModuleGraph::new_with_entries(
+                GraphEntries::new(vec![], self.entries().owned().await?).resolved_cell(),
+                true,
+                false,
+            )],
+            None,
+        )
+        .connect();
+
+        let hash_salt = this.project.next_config().output_hash_salt();
+
+        let mut server_output_assets = traced_modules_for_entries(
+            module_graph,
+            Modules::empty(),
+            self.entries(),
+            Some(self.ignores()),
+            None,
+            hash_salt,
+        )
+        .await?
+        .iter()
+        .map(async |m| {
+            Ok((
+                base_dir
+                    .get_relative_path_to(&m.ident().await?.path)
+                    .context("failed to compute relative path for server NFT JSON")?,
+                m.source()
+                    .await?
+                    .context("NFT module has no content")?
+                    .content()
+                    .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
+                    .await?,
+            ))
+        })
+        .try_join()
+        .await?;
 
         let next_dir = get_next_package(this.project.project_path().owned().await?).await?;
         for ty in ["app-page", "pages"] {
@@ -138,7 +153,7 @@ impl Asset for ServerNftJsonAsset {
                     .context("failed to compute relative path for server NFT JSON")?,
                 module_path
                     .read()
-                    .hash(HashAlgorithm::Xxh3Hash128Hex)
+                    .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
                     .await?,
             ));
 
@@ -158,7 +173,9 @@ impl Asset for ServerNftJsonAsset {
                         base_dir
                             .get_relative_path_to(file)
                             .context("failed to compute relative path for server NFT JSON")?,
-                        file.read().hash(HashAlgorithm::Xxh3Hash128Hex).await?,
+                        file.read()
+                            .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
+                            .await?,
                     ))
                 }
             }
@@ -186,7 +203,7 @@ impl Asset for ServerNftJsonAsset {
 #[turbo_tasks::value_impl]
 impl ServerNftJsonAsset {
     #[turbo_tasks::function]
-    async fn entries(&self) -> Result<Vc<OutputAssets>> {
+    async fn entries(&self) -> Result<Vc<Modules>> {
         let is_standalone = *self.project.next_config().is_standalone().await?;
 
         let asset_context = Vc::upcast(externals_tracing_module_context(
@@ -201,28 +218,8 @@ impl ServerNftJsonAsset {
             get_next_package(project_path.clone()).await?.join("_")?,
         ));
 
-        let cache_handler = self
-            .project
-            .next_config()
-            .cache_handler(project_path.clone())
-            .await?;
-        let cache_handlers = self
-            .project
-            .next_config()
-            .cache_handlers(project_path.clone())
-            .await?;
-
         // These are used by packages/next/src/server/require-hook.ts
         let shared_entries = ["styled-jsx", "styled-jsx/style", "styled-jsx/style.js"];
-
-        let cache_handler_entries = cache_handler.into_iter().chain(cache_handlers).map(|f| {
-            asset_context
-                .process(
-                    Vc::upcast(FileSource::new(f.clone())),
-                    ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
-                )
-                .module()
-        });
 
         let entries = match self.ty {
             ServerNftType::Full => Either::Left(
@@ -246,30 +243,23 @@ impl ServerNftJsonAsset {
         };
 
         Ok(Vc::cell(
-            cache_handler_entries
-                .chain(
-                    shared_entries
-                        .into_iter()
-                        .chain(entries)
-                        .map(async |path| {
-                            Ok(cjs_resolve(
-                                next_resolve_origin,
-                                Request::parse_string(path.into()),
-                                CommonJsReferenceSubType::Undefined,
-                                None,
-                                ResolveErrorMode::Error,
-                            )
-                            .await?
-                            .primary_modules()
-                            .await?
-                            .into_iter()
-                            .map(|m| *m))
-                        })
-                        .try_flat_join()
-                        .await?,
-                )
-                .map(|m| Vc::upcast::<Box<dyn OutputAsset>>(TracedAsset::new(m)).to_resolved())
-                .try_join()
+            shared_entries
+                .into_iter()
+                .chain(entries)
+                .map(async |path| {
+                    Ok(cjs_resolve(
+                        next_resolve_origin,
+                        Request::parse_string(path.into()),
+                        CommonJsReferenceSubType::Undefined,
+                        None,
+                        ResolveErrorMode::Error,
+                    )
+                    .await?
+                    .primary_modules()
+                    .await?
+                    .into_iter())
+                })
+                .try_flat_join()
                 .await?,
         ))
     }
@@ -283,30 +273,19 @@ impl ServerNftJsonAsset {
         let output_file_tracing_excludes = self
             .project
             .next_config()
-            .output_file_tracing_excludes()
+            .output_file_tracing_excludes(project_path)
             .await?;
         let mut additional_ignores = BTreeSet::new();
-        if let Some(output_file_tracing_excludes) = output_file_tracing_excludes
-            .as_ref()
-            .and_then(Value::as_object)
-        {
-            for (glob_pattern, exclude_patterns) in output_file_tracing_excludes {
-                // Check if the route matches the glob pattern
-                let glob = Glob::new(RcStr::from(glob_pattern.clone()), Default::default()).await?;
-                if glob.matches("next-server")
-                    && let Some(patterns) = exclude_patterns.as_array()
-                {
-                    for pattern in patterns {
-                        if let Some(pattern_str) = pattern.as_str() {
-                            let (glob, root) = relativize_glob(pattern_str, project_path.clone())?;
-                            let glob = if root.path.is_empty() {
-                                glob.to_string()
-                            } else {
-                                format!("{root}/{glob}")
-                            };
-                            additional_ignores.insert(glob);
-                        }
-                    }
+
+        for (route_glob, exclude_patterns) in output_file_tracing_excludes.iter() {
+            // Check if the route matches the glob pattern
+            if route_glob.await?.matches("next-server") {
+                for (glob, root) in exclude_patterns {
+                    additional_ignores.insert(if root.path.is_empty() {
+                        glob.to_string()
+                    } else {
+                        format!("{root}/{glob}")
+                    });
                 }
             }
         }
@@ -320,6 +299,13 @@ impl ServerNftJsonAsset {
             "**/next/dist/compiled/webpack/*",
             "**/node_modules/webpack5/**/*",
             "**/next/dist/server/lib/route-resolver*",
+            // The testmode interceptors bundle reads its HTTP parser WASM with a
+            // dynamic path, making the tracer include the bundle's whole
+            // directory. Test proxying is not supported in standalone output, so
+            // keep the parser asset (and the license file picked up by the
+            // directory glob) out of production traces.
+            "**/next/dist/compiled/@mswjs/interceptors/ClientRequest/LICENSE",
+            "**/next/dist/compiled/@mswjs/interceptors/ClientRequest/llhttp/**",
             "**/next/dist/compiled/semver/semver/**/*.js",
             "**/next/dist/compiled/jest-worker/**/*",
             // -- The following were added for Turbopack specifically --

@@ -13,7 +13,7 @@ import {
   type PrerenderStoreModernServer,
   type PrerenderStorePPR,
 } from '../app-render/work-unit-async-storage.external'
-import { makeHangingPromise } from '../dynamic-rendering-utils'
+import { makeFallbackParamsHangingPromise } from '../dynamic-rendering-utils'
 import type { ParamValue } from './params'
 import { describeStringPropertyAccess } from '../../shared/lib/utils/reflect-utils'
 import { actionAsyncStorage } from '../app-render/action-async-storage.external'
@@ -108,7 +108,14 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
       }
       break
     }
-    case 'private-cache':
+    case 'private-cache': {
+      // In dev, private caches are persisted and keyed by root params (like
+      // public caches), so we track which ones were read.
+      if (workUnitStore.readRootParamNames) {
+        workUnitStore.readRootParamNames.add(paramName)
+      }
+      break
+    }
     case 'prerender-runtime': {
       break
     }
@@ -155,10 +162,11 @@ function createPrerenderRootParamPromise(
         prerenderStore.fallbackRouteParams &&
         prerenderStore.fallbackRouteParams.has(paramName)
       ) {
-        return makeHangingPromise<ParamValue>(
+        return makeFallbackParamsHangingPromise<ParamValue>(
           prerenderStore.renderSignal,
           workStore.route,
-          apiName
+          apiName,
+          prerenderStore
         )
       }
       break

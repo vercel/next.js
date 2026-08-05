@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
+  expectBuildValidationSkipped,
   expectNoBuildValidationErrors,
   extractBuildValidationError,
   parseValidationMessages,
@@ -63,16 +64,16 @@ describe('instant-validation-build', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/invalid-missing-suspense-around-runtime": Next.js encountered uncached data during the initial render.
+         "Error: Route "/invalid-missing-suspense-around-runtime": Next.js encountered uncached data during prerendering or a navigation.
 
-         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
-           - Cache the data access with \`"use cache"\`
-           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-           - Set \`export const instant = false\` to allow a blocking route
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [block] Set \`export const instant = false\` to allow a blocking route
 
-         Learn more: https://nextjs.org/docs/messages/blocking-route
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
              at main (<anonymous>)
              at body (<anonymous>)
              at html (<anonymous>)
@@ -100,7 +101,7 @@ describe('instant-validation-build', () => {
       const result = await prerender('/(default)/server-errors/page-throws')
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/server-errors/page-throws": Could not validate \`unstable_instant\` because an error prevented the target segment from rendering.
+       "Error: Route "/server-errors/page-throws": Could not validate \`instant\` because an error prevented the target segment from rendering.
            at main (<anonymous>)
            at body (<anonymous>)
            at html (<anonymous>) {
@@ -130,7 +131,7 @@ describe('instant-validation-build', () => {
       )
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/server-errors/page-throws-with-suspense": Could not validate \`unstable_instant\` because an error prevented the target segment from rendering.
+       "Error: Route "/server-errors/page-throws-with-suspense": Could not validate \`instant\` because an error prevented the target segment from rendering.
            at main (<anonymous>)
            at a (<anonymous>)
            at body (<anonymous>)
@@ -161,7 +162,7 @@ describe('instant-validation-build', () => {
       const result = await prerender('/(default)/client-errors/page-throws')
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/client-errors/page-throws": Could not validate \`unstable_instant\` because an error prevented the target segment from rendering.
+       "Error: Route "/client-errors/page-throws": Could not validate \`instant\` because an error prevented the target segment from rendering.
            at <unknown> (app/(default)/client-errors/page-throws/client.tsx:6:3)
            at main (<anonymous>)
            at body (<anonymous>)
@@ -197,7 +198,7 @@ describe('instant-validation-build', () => {
       )
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/client-errors/page-throws-with-suspense": Could not validate \`unstable_instant\` because an error prevented the target segment from rendering.
+       "Error: Route "/client-errors/page-throws-with-suspense": Could not validate \`instant\` because an error prevented the target segment from rendering.
            at <unknown> (app/(default)/client-errors/page-throws-with-suspense/client.tsx:6:3)
            at main (<anonymous>)
            at a (<anonymous>)
@@ -244,7 +245,7 @@ describe('instant-validation-build', () => {
       )
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/search-params/invalid-undeclared-search-param" accessed searchParam "undeclared" which is not defined in the \`unstable_samples\` of \`unstable_instant\`. Add it to the sample's \`searchParams\` object, or \`{ "undeclared": null }\` if it should be absent.
+       "Error: Route "/search-params/invalid-undeclared-search-param" accessed searchParam "undeclared" which is not defined in the \`unstable_samples\` of \`instant\`. Add it to the sample's \`searchParams\` object, or \`{ "undeclared": null }\` if it should be absent.
            at <unknown> (app/(default)/search-params/invalid-undeclared-search-param/page.tsx:32:14)
            at <unknown> (ensure-error.ts:11:5)
            at a (app/(default)/search-params/invalid-undeclared-search-param/page.tsx:31:3)
@@ -281,7 +282,7 @@ describe('instant-validation-build', () => {
       )
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/search-params/invalid-undeclared-search-param-caught" accessed searchParam "undeclared" which is not defined in the \`unstable_samples\` of \`unstable_instant\`. Add it to the sample's \`searchParams\` object, or \`{ "undeclared": null }\` if it should be absent.
+       "Error: Route "/search-params/invalid-undeclared-search-param-caught" accessed searchParam "undeclared" which is not defined in the \`unstable_samples\` of \`instant\`. Add it to the sample's \`searchParams\` object, or \`{ "undeclared": null }\` if it should be absent.
            at <unknown> (app/(default)/search-params/invalid-undeclared-search-param-caught/page.tsx:36:16)
            at <unknown> (ensure-error.ts:11:5)
            at a (app/(default)/search-params/invalid-undeclared-search-param-caught/page.tsx:35:5)
@@ -310,7 +311,7 @@ describe('instant-validation-build', () => {
       )
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/search-params/invalid-undeclared-use-search-params" accessed searchParam "undeclared" which is not defined in the \`unstable_samples\` of \`unstable_instant\`. Add it to the sample's \`searchParams\` object, or \`{ "undeclared": null }\` if it should be absent.
+       "Error: Route "/search-params/invalid-undeclared-use-search-params" accessed searchParam "undeclared" which is not defined in the \`unstable_samples\` of \`instant\`. Add it to the sample's \`searchParams\` object, or \`{ "undeclared": null }\` if it should be absent.
            at <unknown> (app/(default)/search-params/invalid-undeclared-use-search-params/search-params-reader.tsx:9:14)
            at <unknown> (ensure-error.ts:11:5)
            at <unknown> (app/(default)/search-params/invalid-undeclared-use-search-params/search-params-reader.tsx:8:3)
@@ -339,7 +340,7 @@ describe('instant-validation-build', () => {
       )
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/search-params/invalid-undeclared-use-search-params-caught" accessed searchParam "undeclared" which is not defined in the \`unstable_samples\` of \`unstable_instant\`. Add it to the sample's \`searchParams\` object, or \`{ "undeclared": null }\` if it should be absent.
+       "Error: Route "/search-params/invalid-undeclared-use-search-params-caught" accessed searchParam "undeclared" which is not defined in the \`unstable_samples\` of \`instant\`. Add it to the sample's \`searchParams\` object, or \`{ "undeclared": null }\` if it should be absent.
            at <unknown> (app/(default)/search-params/invalid-undeclared-use-search-params-caught/search-params-reader.tsx:10:16)
            at <unknown> (ensure-error.ts:11:5)
            at <unknown> (app/(default)/search-params/invalid-undeclared-use-search-params-caught/search-params-reader.tsx:9:5)
@@ -394,7 +395,7 @@ describe('instant-validation-build', () => {
       )
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/headers/invalid-undeclared-header-get" accessed header "undeclaredheader" which is not defined in the \`unstable_samples\` of \`unstable_instant\`. Add it to the sample's \`headers\` array, or \`["undeclaredheader", null]\` if it should be absent.
+       "Error: Route "/headers/invalid-undeclared-header-get" accessed header "undeclaredheader" which is not defined in the \`unstable_samples\` of \`instant\`. Add it to the sample's \`headers\` array, or \`["undeclaredheader", null]\` if it should be absent.
            at <unknown> (app/(default)/headers/invalid-undeclared-header-get/page.tsx:28:24)
            at <unknown> (ensure-error.ts:11:5)
            at a (app/(default)/headers/invalid-undeclared-header-get/page.tsx:27:3)
@@ -423,7 +424,7 @@ describe('instant-validation-build', () => {
       )
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/headers/invalid-undeclared-header-get-caught" accessed header "undeclaredheader" which is not defined in the \`unstable_samples\` of \`unstable_instant\`. Add it to the sample's \`headers\` array, or \`["undeclaredheader", null]\` if it should be absent.
+       "Error: Route "/headers/invalid-undeclared-header-get-caught" accessed header "undeclaredheader" which is not defined in the \`unstable_samples\` of \`instant\`. Add it to the sample's \`headers\` array, or \`["undeclaredheader", null]\` if it should be absent.
            at <unknown> (app/(default)/headers/invalid-undeclared-header-get-caught/page.tsx:31:25)
            at <unknown> (ensure-error.ts:11:5)
            at a (app/(default)/headers/invalid-undeclared-header-get-caught/page.tsx:30:5)
@@ -451,7 +452,7 @@ describe('instant-validation-build', () => {
       )
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/headers/invalid-undeclared-header-has" accessed header "undeclaredheader" which is not defined in the \`unstable_samples\` of \`unstable_instant\`. Add it to the sample's \`headers\` array, or \`["undeclaredheader", null]\` if it should be absent.
+       "Error: Route "/headers/invalid-undeclared-header-has" accessed header "undeclaredheader" which is not defined in the \`unstable_samples\` of \`instant\`. Add it to the sample's \`headers\` array, or \`["undeclaredheader", null]\` if it should be absent.
            at <unknown> (app/(default)/headers/invalid-undeclared-header-has/page.tsx:28:23)
            at <unknown> (ensure-error.ts:11:5)
            at a (app/(default)/headers/invalid-undeclared-header-has/page.tsx:27:3)
@@ -506,7 +507,7 @@ describe('instant-validation-build', () => {
       )
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/cookies/invalid-undeclared-cookie-get" accessed cookie "undeclaredCookie" which is not defined in the \`unstable_samples\` of \`unstable_instant\`. Add it to the sample's \`cookies\` array, or \`{ name: "undeclaredCookie", value: null }\` if it should be absent.
+       "Error: Route "/cookies/invalid-undeclared-cookie-get" accessed cookie "undeclaredCookie" which is not defined in the \`unstable_samples\` of \`instant\`. Add it to the sample's \`cookies\` array, or \`{ name: "undeclaredCookie", value: null }\` if it should be absent.
            at <unknown> (app/(default)/cookies/invalid-undeclared-cookie-get/page.tsx:26:23)
            at <unknown> (ensure-error.ts:11:5)
            at a (app/(default)/cookies/invalid-undeclared-cookie-get/page.tsx:25:3)
@@ -535,7 +536,7 @@ describe('instant-validation-build', () => {
       )
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/cookies/invalid-undeclared-cookie-get-caught" accessed cookie "undeclaredCookie" which is not defined in the \`unstable_samples\` of \`unstable_instant\`. Add it to the sample's \`cookies\` array, or \`{ name: "undeclaredCookie", value: null }\` if it should be absent.
+       "Error: Route "/cookies/invalid-undeclared-cookie-get-caught" accessed cookie "undeclaredCookie" which is not defined in the \`unstable_samples\` of \`instant\`. Add it to the sample's \`cookies\` array, or \`{ name: "undeclaredCookie", value: null }\` if it should be absent.
            at <unknown> (app/(default)/cookies/invalid-undeclared-cookie-get-caught/page.tsx:28:25)
            at <unknown> (ensure-error.ts:11:5)
            at a (app/(default)/cookies/invalid-undeclared-cookie-get-caught/page.tsx:27:5)
@@ -564,7 +565,7 @@ describe('instant-validation-build', () => {
       )
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/cookies/invalid-undeclared-cookie-has" accessed cookie "undeclaredCookie" which is not defined in the \`unstable_samples\` of \`unstable_instant\`. Add it to the sample's \`cookies\` array, or \`{ name: "undeclaredCookie", value: null }\` if it should be absent.
+       "Error: Route "/cookies/invalid-undeclared-cookie-has" accessed cookie "undeclaredCookie" which is not defined in the \`unstable_samples\` of \`instant\`. Add it to the sample's \`cookies\` array, or \`{ name: "undeclaredCookie", value: null }\` if it should be absent.
            at <unknown> (app/(default)/cookies/invalid-undeclared-cookie-has/page.tsx:25:23)
            at <unknown> (ensure-error.ts:11:5)
            at a (app/(default)/cookies/invalid-undeclared-cookie-has/page.tsx:24:3)
@@ -611,7 +612,7 @@ describe('instant-validation-build', () => {
       )
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/params/invalid-param-not-provided/[one]/[two]" accessed param "two" which is not defined in the \`unstable_samples\` of \`unstable_instant\`. Add it to the sample's \`params\` object.
+       "Error: Route "/params/invalid-param-not-provided/[one]/[two]" accessed param "two" which is not defined in the \`unstable_samples\` of \`instant\`. Add it to the sample's \`params\` object.
            at <unknown> (app/(default)/params/invalid-param-not-provided/[one]/[two]/page.tsx:48:24)
            at <unknown> (ensure-error.ts:11:5)
            at a (app/(default)/params/invalid-param-not-provided/[one]/[two]/page.tsx:48:3)
@@ -640,7 +641,7 @@ describe('instant-validation-build', () => {
       )
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/params/invalid-param-not-provided-caught/[one]/[two]" accessed param "two" which is not defined in the \`unstable_samples\` of \`unstable_instant\`. Add it to the sample's \`params\` object.
+       "Error: Route "/params/invalid-param-not-provided-caught/[one]/[two]" accessed param "two" which is not defined in the \`unstable_samples\` of \`instant\`. Add it to the sample's \`params\` object.
            at <unknown> (app/(default)/params/invalid-param-not-provided-caught/[one]/[two]/page.tsx:46:26)
            at <unknown> (ensure-error.ts:11:5)
            at a (app/(default)/params/invalid-param-not-provided-caught/[one]/[two]/page.tsx:46:5)
@@ -677,7 +678,7 @@ describe('instant-validation-build', () => {
       )
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/params/invalid-undeclared-use-params/[one]/[two]" accessed param "two" which is not defined in the \`unstable_samples\` of \`unstable_instant\`. Add it to the sample's \`params\` object.
+       "Error: Route "/params/invalid-undeclared-use-params/[one]/[two]" accessed param "two" which is not defined in the \`unstable_samples\` of \`instant\`. Add it to the sample's \`params\` object.
            at <unknown> (app/(default)/params/invalid-undeclared-use-params/[one]/[two]/params-reader.tsx:10:18)
            at <unknown> (ensure-error.ts:11:5)
            at <unknown> (app/(default)/params/invalid-undeclared-use-params/[one]/[two]/params-reader.tsx:9:3)
@@ -706,7 +707,7 @@ describe('instant-validation-build', () => {
       )
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/params/invalid-undeclared-use-params-caught/[one]/[two]" accessed param "two" which is not defined in the \`unstable_samples\` of \`unstable_instant\`. Add it to the sample's \`params\` object.
+       "Error: Route "/params/invalid-undeclared-use-params-caught/[one]/[two]" accessed param "two" which is not defined in the \`unstable_samples\` of \`instant\`. Add it to the sample's \`params\` object.
            at <unknown> (app/(default)/params/invalid-undeclared-use-params-caught/[one]/[two]/params-reader.tsx:11:20)
            at <unknown> (ensure-error.ts:11:5)
            at <unknown> (app/(default)/params/invalid-undeclared-use-params-caught/[one]/[two]/params-reader.tsx:10:5)
@@ -793,7 +794,7 @@ describe('instant-validation-build', () => {
       )
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/pathname/invalid-use-pathname-missing-params/[one]/[two]" called usePathname() but param "two" is not defined in the \`unstable_samples\` of \`unstable_instant\`. usePathname() requires all route params to be provided.
+       "Error: Route "/pathname/invalid-use-pathname-missing-params/[one]/[two]" called usePathname() but param "two" is not defined in the \`unstable_samples\` of \`instant\`. usePathname() requires all route params to be provided.
            at <unknown> (app/(default)/pathname/invalid-use-pathname-missing-params/[one]/[two]/pathname-reader.tsx:9:11)
            at <unknown> (ensure-error.ts:11:5)
            at <unknown> (app/(default)/pathname/invalid-use-pathname-missing-params/[one]/[two]/pathname-reader.tsx:7:3)
@@ -836,7 +837,7 @@ describe('instant-validation-build', () => {
       )
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/root-params/[lang]/invalid-root-param-not-provided" accessed root param "lang" which is not defined in the \`unstable_samples\` of \`unstable_instant\`. Add it to the sample's \`params\` object.
+       "Error: Route "/root-params/[lang]/invalid-root-param-not-provided" accessed root param "lang" which is not defined in the \`unstable_samples\` of \`instant\`. Add it to the sample's \`params\` object.
            at <unknown> (app/root-params/[lang]/invalid-root-param-not-provided/page.tsx:18:11)
            at a (ensure-error.ts:48:11)
            at b (app/root-params/[lang]/invalid-root-param-not-provided/page.tsx:17:9)
@@ -865,7 +866,7 @@ describe('instant-validation-build', () => {
       )
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
-       "Error: Route "/root-params/[lang]/invalid-root-param-not-provided-caught" accessed root param "lang" which is not defined in the \`unstable_samples\` of \`unstable_instant\`. Add it to the sample's \`params\` object.
+       "Error: Route "/root-params/[lang]/invalid-root-param-not-provided-caught" accessed root param "lang" which is not defined in the \`unstable_samples\` of \`instant\`. Add it to the sample's \`params\` object.
            at <unknown> (app/root-params/[lang]/invalid-root-param-not-provided-caught/page.tsx:19:13)
            at a (ensure-error.ts:48:11)
            at b (app/root-params/[lang]/invalid-root-param-not-provided-caught/page.tsx:18:11)
@@ -950,6 +951,14 @@ describe('instant-validation-build', () => {
         '/(default)/valid-await-cache-without-suspense/private'
       )
       expectNoBuildValidationErrors(result)
+    })
+
+    it('valid - a page with "use cache" and `instant = false` still prerenders as a fully static shell', async () => {
+      const result = await prerender('/(instant-false-static)/use-cache')
+      expectBuildValidationSkipped(result)
+      // A fully static shell is non-empty and contains the closing </html> tag.
+      const html = await next.readFile('.next/server/app/use-cache.html')
+      expect(html).toContain('</html>')
     })
   })
 })

@@ -5,9 +5,8 @@ const config: NextConfig = {
     // Removed serverActions due to TypeScript compatibility
     typedRoutes: true,
 
-    turbopackMemoryLimit: 4096,
     turbopackMinify: true,
-    turbopackTreeShaking: false,
+    turbopackModuleFragments: false,
     turbopackSourceMaps: true
   },
 

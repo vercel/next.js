@@ -258,6 +258,13 @@ describe('app-root-param-getters - private cache', () => {
 
       await waitForNoRedbox(browser)
       expect(await browser.elementById('param').text()).toBe('en us')
+
+      // A different set of root params must produce a separate entry. Since
+      // private caches are persisted in dev, this confirms the entry is keyed
+      // by root params and isn't reused for a different `[lang]/[locale]`.
+      await browser.loadPage(next.url + '/es/es/use-cache-private')
+      await waitForNoRedbox(browser)
+      expect(await browser.elementById('param').text()).toBe('es es')
     })
   } else {
     it('should allow using root params within a "use cache: private" - start', async () => {
@@ -287,7 +294,7 @@ describe('app-root-param-getters - cache - at build', () => {
 })
 
 describe('app-root-param-getters - cache dedup with root params', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next, skipped, isNextDev } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'use-cache-dedup'),
     // In deploy mode, concurrent requests could hit different lambdas.
     skipDeployment: true,
@@ -315,5 +322,35 @@ describe('app-root-param-getters - cache dedup with root params', () => {
 
     // Both ca/fr requests should have the same result (deduped).
     expect(randomFr1).toBe(randomFr2)
+  })
+
+  it('should dedupe same root params and isolate different root params for private caches', async () => {
+    // Three concurrent requests: ca/en, ca/fr, ca/fr.
+    const [$en, $fr1, $fr2] = await Promise.all([
+      next.render$('/ca/en/use-cache-private'),
+      next.render$('/ca/fr/use-cache-private'),
+      next.render$('/ca/fr/use-cache-private'),
+    ])
+
+    const randomEn = $en('#random').text()
+    const randomFr1 = $fr1('#random').text()
+    const randomFr2 = $fr2('#random').text()
+
+    expect(randomEn).toBeTruthy()
+    expect(randomFr1).toBeTruthy()
+
+    // Different root params produce different entries, in dev and production.
+    expect(randomEn).not.toBe(randomFr1)
+
+    if (isNextDev) {
+      // In dev, private caches are persisted and participate in cross-request
+      // deduplication keyed by root params, so the two ca/fr requests join one
+      // in-flight invocation and share a single fill.
+      expect(randomFr1).toBe(randomFr2)
+    } else {
+      // In production, private caches are not persisted and are never deduped
+      // across requests, so each ca/fr request generates its own value.
+      expect(randomFr1).not.toBe(randomFr2)
+    }
   })
 })

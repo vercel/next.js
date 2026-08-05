@@ -132,6 +132,7 @@ import {
 } from './lib/router-utils/router-server-context'
 import { installGlobalBehaviors } from './node-environment-extensions/global-behaviors'
 import { installProcessErrorHandlers } from './node-environment-extensions/process-error-handlers'
+import type { DeepReadonly } from '../shared/lib/deep-readonly'
 
 export * from './base-server'
 
@@ -222,8 +223,13 @@ export default class NextNodeServer extends BaseServer<
     if (this.renderOpts.nextScriptWorkers) {
       process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
     }
-    if (this.nextConfig.experimental.useNodeStreams) {
-      process.env.__NEXT_USE_NODE_STREAMS = 'true'
+    if (
+      (isDev || process.env.__NEXT_DEV_SERVER) &&
+      this.nextConfig.experimental.requestInsights
+    ) {
+      process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    } else {
+      delete process.env.__NEXT_REQUEST_INSIGHTS
     }
 
     if (!this.minimalMode) {
@@ -586,6 +592,7 @@ export default class NextNodeServer extends BaseServer<
         res: ServerResponse,
         ctx: {
           waitUntil: ReturnType<BaseServer['getWaitUntil']>
+          requestMeta?: RequestMeta
         }
       ) => Promise<void>
     }
@@ -597,6 +604,11 @@ export default class NextNodeServer extends BaseServer<
     addRequestMeta(req.originalRequest, 'distDir', this.distDir)
     await module.handler(req.originalRequest, res.originalResponse, {
       waitUntil: this.getWaitUntil(),
+      requestMeta: {
+        ...getRequestMeta(req.originalRequest),
+        query,
+        params: match.params,
+      },
     })
     return true
   }
@@ -645,8 +657,7 @@ export default class NextNodeServer extends BaseServer<
           {
             buildId: this.buildId,
             deploymentId: this.deploymentId,
-            clientAssetToken: this.nextConfig.experimental
-              .supportsImmutableAssets
+            clientAssetToken: this.nextConfig.supportsImmutableAssets
               ? ''
               : this.deploymentId,
           }
@@ -664,8 +675,7 @@ export default class NextNodeServer extends BaseServer<
           {
             buildId: this.buildId,
             deploymentId: this.deploymentId,
-            clientAssetToken: this.nextConfig.experimental
-              .supportsImmutableAssets
+            clientAssetToken: this.nextConfig.supportsImmutableAssets
               ? undefined
               : this.deploymentId,
             customServer: this.serverOptions.customServer || undefined,
@@ -909,14 +919,14 @@ export default class NextNodeServer extends BaseServer<
     return null
   }
 
-  protected getNextFontManifest(): NextFontManifest | undefined {
-    return loadManifest(
+  protected getNextFontManifest(): DeepReadonly<NextFontManifest> | undefined {
+    return loadManifest<NextFontManifest>(
       join(
         /* turbopackIgnore: true */ this.distDir,
         'server',
         NEXT_FONT_MANIFEST + '.json'
       )
-    ) as NextFontManifest
+    )
   }
 
   protected handleNextImageRequest: NodeRouteHandler = async (
@@ -1727,19 +1737,25 @@ export default class NextNodeServer extends BaseServer<
         Boolean(requestData.body)
 
       try {
-        result = await adapterFn({
-          handler:
-            middlewareModule.proxy ||
-            middlewareModule.middleware ||
-            middlewareModule,
-          request: {
-            ...requestData,
-            body: hasRequestBody
-              ? requestData.body.cloneBodyStream()
-              : undefined,
-          },
-          page: 'middleware',
-        })
+        // Node.js middleware runs in-process, inside the active
+        // `handleRequest` span. Detach that span so the middleware span
+        // becomes a sibling root (or parents to an incoming traceparent),
+        // matching edge middleware which runs in a detached sandbox.
+        result = await getTracer().runWithDetachedContext(() =>
+          adapterFn({
+            handler:
+              middlewareModule.proxy ||
+              middlewareModule.middleware ||
+              middlewareModule,
+            request: {
+              ...requestData,
+              body: hasRequestBody
+                ? requestData.body.cloneBodyStream()
+                : undefined,
+            },
+            page: 'middleware',
+          })
+        )
       } finally {
         if (hasRequestBody) {
           await requestData.body.finalize()
@@ -1756,7 +1772,7 @@ export default class NextNodeServer extends BaseServer<
         request: requestData,
         useCache: true,
         onWarning: params.onWarning,
-        clientAssetToken: this.nextConfig.experimental.supportsImmutableAssets
+        clientAssetToken: this.nextConfig.supportsImmutableAssets
           ? ''
           : this.deploymentId,
       })
@@ -1908,15 +1924,15 @@ export default class NextNodeServer extends BaseServer<
     return result.finished
   }
 
-  private _cachedPreviewManifest: PrerenderManifest | undefined
-  protected getPrerenderManifest(): PrerenderManifest {
+  private _cachedPreviewManifest: DeepReadonly<PrerenderManifest> | undefined
+  protected getPrerenderManifest(): DeepReadonly<PrerenderManifest> {
     if (this._cachedPreviewManifest) {
       return this._cachedPreviewManifest
     }
 
-    this._cachedPreviewManifest = loadManifest(
+    this._cachedPreviewManifest = loadManifest<PrerenderManifest>(
       join(/* turbopackIgnore: true */ this.distDir, PRERENDER_MANIFEST)
-    ) as PrerenderManifest
+    )
 
     return this._cachedPreviewManifest
   }
@@ -1928,7 +1944,7 @@ export default class NextNodeServer extends BaseServer<
     }
 
     this._cachedPrefetchHints =
-      (loadManifest(
+      loadManifest<Record<string, PrefetchHints>>(
         join(
           /* turbopackIgnore: true */ this.distDir,
           SERVER_DIRECTORY,
@@ -1938,7 +1954,7 @@ export default class NextNodeServer extends BaseServer<
         undefined,
         false,
         true // handleMissing: don't crash if the file doesn't exist
-      ) as Record<string, PrefetchHints>) ?? {}
+      ) ?? {}
 
     return this._cachedPrefetchHints
   }
@@ -2078,7 +2094,7 @@ export default class NextNodeServer extends BaseServer<
         params.req,
         'serverComponentsHmrCache'
       ),
-      clientAssetToken: this.nextConfig.experimental.supportsImmutableAssets
+      clientAssetToken: this.nextConfig.supportsImmutableAssets
         ? ''
         : this.deploymentId,
     })

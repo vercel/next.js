@@ -15,6 +15,54 @@ interface NextjsVersionResult {
   error?: string
 }
 
+const AGENT_RULES_START_MARKER = '<!-- BEGIN:nextjs-agent-rules -->'
+
+/**
+ * After an upgrade, refresh the managed agent-rules block in
+ * AGENTS.md / CLAUDE.md so its content matches the Next.js version
+ * that is now installed.
+ *
+ * Delegates to the installed package's own generator
+ * (`next/dist/server/lib/generate-agent-files`), so the block text is
+ * always the one shipped with that version — this codemod never
+ * carries its own copy. Returns `'refreshed'` when a file was
+ * rewritten, `'current'` when the block was already up to date, and
+ * `'skipped'` when there is nothing to do: the project never adopted
+ * the managed block, or the installed Next.js predates the generator
+ * (< 16.3).
+ */
+export function refreshAgentRulesBlock(
+  cwd: string
+): 'refreshed' | 'current' | 'skipped' {
+  const hostsBlock = ['AGENTS.md', 'CLAUDE.md'].some((file) => {
+    try {
+      return fs
+        .readFileSync(path.join(cwd, file), 'utf-8')
+        .includes(AGENT_RULES_START_MARKER)
+    } catch {
+      return false
+    }
+  })
+  if (!hostsBlock) return 'skipped'
+
+  let writeAgentFiles: (dir: string) => { agentsMd: string; claudeMd: string }
+  try {
+    const generatorPath = require.resolve(
+      'next/dist/server/lib/generate-agent-files',
+      { paths: [cwd] }
+    )
+    writeAgentFiles = require(generatorPath).writeAgentFiles
+    if (typeof writeAgentFiles !== 'function') return 'skipped'
+  } catch {
+    return 'skipped'
+  }
+
+  const result = writeAgentFiles(cwd)
+  return result.agentsMd === 'updated' || result.claudeMd === 'updated'
+    ? 'refreshed'
+    : 'current'
+}
+
 export function getNextjsVersion(cwd: string): NextjsVersionResult {
   try {
     const nextPkgPath = require.resolve('next/package.json', { paths: [cwd] })
@@ -41,6 +89,42 @@ export function getNextjsVersion(cwd: string): NextjsVersionResult {
       error: 'Next.js is not installed in this project.',
     }
   }
+}
+
+interface BundledDocsInfo {
+  docsPath: string
+  version: string
+}
+
+/**
+ * Next.js ships its documentation inside the published package (at
+ * `dist/docs`) since 16.2.0. When the install resolved from `cwd` has
+ * bundled docs, the index can point at them directly instead of
+ * downloading a copy into `.next-docs`.
+ */
+export function getBundledDocsInfo(cwd: string): BundledDocsInfo | null {
+  try {
+    const nextPkgPath = require.resolve('next/package.json', { paths: [cwd] })
+    const pkg = JSON.parse(fs.readFileSync(nextPkgPath, 'utf-8'))
+    const docsPath = path.join(path.dirname(nextPkgPath), 'dist', 'docs')
+    if (!pkg.version || collectDocFiles(docsPath).length === 0) {
+      return null
+    }
+    return { docsPath, version: pkg.version }
+  } catch {
+    return null
+  }
+}
+
+export function getBundledDocsLinkPath(cwd: string, docsPath: string): string {
+  // Prefer the conventional path when it resolves from the project
+  // (covers hoisted installs; pnpm exposes next via a node_modules symlink).
+  const conventional = path.join(cwd, 'node_modules', 'next', 'dist', 'docs')
+  if (fs.existsSync(conventional)) {
+    return './node_modules/next/dist/docs'
+  }
+  const relative = path.relative(cwd, docsPath).replace(/\\/g, '/')
+  return relative.startsWith('.') ? relative : `./${relative}`
 }
 
 function versionToGitHubTag(version: string): string {

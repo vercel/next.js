@@ -12,11 +12,14 @@ import type {
   TraceServerHandle,
   TraceQueryOptions,
   TraceQueryResult,
+  MemoryEvictionMode,
 } from './generated-native'
 
 export type { TraceServerHandle, TraceQueryOptions, TraceQueryResult }
 
 export type { NapiTurboEngineOptions as TurboEngineOptions }
+
+export type { MemoryEvictionMode }
 
 export type Lockfile = { __napiType: 'Lockfile' }
 
@@ -29,7 +32,7 @@ export interface Binding {
   turbo: {
     createProject(
       options: ProjectOptions,
-      turboEngineOptions?: NapiTurboEngineOptions,
+      turboEngineOptions: NapiTurboEngineOptions,
       callbacks?: TurbopackProjectCallbacks
     ): Promise<Project>
     startTurbopackTraceServerHandle(
@@ -55,6 +58,7 @@ export interface Binding {
   parse(src: string, options: any): Promise<string>
 
   getTargetTriple(): string | undefined
+  turbopackCacheVersion(nextVersion: string): string | undefined
 
   initCustomTraceSubscriber?(traceOutFilePath?: string): ExternalObject<RefCell>
   teardownTraceSubscriber?(guardExternal: ExternalObject<RefCell>): void
@@ -231,16 +235,28 @@ export type Update = IssuesUpdate | PartialUpdate
  * The runtime file cannot import from this ES module without triggering module semantics,
  * so we maintain a copy there. Please keep both definitions in sync.
  */
+export interface NodeJsEcmascriptMergedUpdate {
+  type: 'EcmascriptMergedUpdate'
+  entries?: Record<
+    string,
+    { code: string; url: string; map?: string | undefined }
+  >
+  chunks?: Record<
+    string,
+    | { type: 'added' | 'deleted'; modules?: string[] }
+    | { type: 'partial'; added?: string[]; deleted?: string[] }
+  >
+}
+
+export interface NodeJsChunkListUpdate {
+  type: 'ChunkListUpdate'
+  merged?: NodeJsEcmascriptMergedUpdate[]
+  chunks?: Record<string, { type: 'added' | 'deleted' | 'total' | 'partial' }>
+}
+
 export interface NodeJsPartialHmrUpdate extends BaseUpdate {
   type: 'partial'
-  instruction: {
-    type: 'EcmascriptMergedUpdate'
-    entries: Record<
-      string,
-      { code: string; url: string; map?: string | undefined }
-    >
-    chunks?: Record<string, { type: 'partial' }>
-  }
+  instruction: NodeJsEcmascriptMergedUpdate | NodeJsChunkListUpdate
 }
 
 export interface NodeJsRestartHmrUpdate {
@@ -318,6 +334,12 @@ export interface Project {
     TurbopackResult<RawEntrypoints | {}>
   >
 
+  // Note: only the Server target is implemented in the native binding;
+  // add a Client overload once `all_hmr_update` supports it.
+  allHmrEvents(
+    target: import('./index').HmrTarget.Server
+  ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
+
   hmrEvents(
     identifier: string,
     target: import('./index').HmrTarget.Client
@@ -365,7 +387,7 @@ export type Route =
       pages: {
         originalName: string
         htmlEndpoint: Endpoint
-        rscEndpoint: Endpoint
+        rscHmrEndpoint: Endpoint
       }[]
     }
   | {
@@ -511,7 +533,7 @@ export type AppRoute =
   | {
       type: 'app-page'
       htmlEndpoint: Endpoint
-      rscEndpoint: Endpoint
+      rscHmrEndpoint: Endpoint
     }
   | {
       type: 'app-route'

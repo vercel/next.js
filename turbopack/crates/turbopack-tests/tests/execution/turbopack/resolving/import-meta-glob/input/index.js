@@ -112,6 +112,8 @@ it('should include dotfile directories with wildcard patterns', () => {
   const keys = Object.keys(dotfileGlob).sort()
   expect(keys).toEqual([
     './.foo/hidden.js',
+    './CaseDir/ModuleUpper.js',
+    './CaseDir/module-lower.js',
     './dir/bar.js',
     './dir/foo.js',
     './other/baz.js',
@@ -124,4 +126,59 @@ const dotfileExplicit = import.meta.glob('./.foo/*.js', { eager: true })
 it('should include dotfile directories when explicitly targeted', () => {
   const keys = Object.keys(dotfileExplicit)
   expect(keys).toEqual(['./.foo/hidden.js'])
+})
+
+const caseSensitiveDefault = import.meta.glob('./CaseDir/module*.js', {
+  eager: true,
+})
+const caseSensitiveExplicit = import.meta.glob('./CaseDir/Module*.js', {
+  eager: true,
+  caseSensitive: true,
+})
+const caseInsensitive = import.meta.glob('./CaseDir/module*.js', {
+  eager: true,
+  caseSensitive: false,
+})
+const caseInsensitiveDirectory = import.meta.glob('./casedir/module*.js', {
+  eager: true,
+  caseSensitive: false,
+})
+const caseInsensitiveNegative = import.meta.glob(
+  ['./casedir/*.js', '!./casedir/moduleupper.js'],
+  {
+    eager: true,
+    caseSensitive: false,
+  }
+)
+
+it('should match case-sensitively by default and when explicitly enabled', () => {
+  expect(Object.keys(caseSensitiveDefault)).toEqual([
+    './CaseDir/module-lower.js',
+  ])
+  expect(Object.keys(caseSensitiveExplicit)).toEqual([
+    './CaseDir/ModuleUpper.js',
+  ])
+})
+
+it('should match file names case-insensitively when disabled', () => {
+  const keys = Object.keys(caseInsensitive).sort()
+  expect(keys).toEqual([
+    './CaseDir/ModuleUpper.js',
+    './CaseDir/module-lower.js',
+  ])
+  expect(caseInsensitive['./CaseDir/ModuleUpper.js'].default).toBe('upper')
+})
+
+it('should traverse directories case-insensitively when disabled', () => {
+  const keys = Object.keys(caseInsensitiveDirectory).sort()
+  expect(keys).toEqual([
+    './CaseDir/ModuleUpper.js',
+    './CaseDir/module-lower.js',
+  ])
+})
+
+it('should apply case-insensitive matching to negative patterns', () => {
+  expect(Object.keys(caseInsensitiveNegative)).toEqual([
+    './CaseDir/module-lower.js',
+  ])
 })

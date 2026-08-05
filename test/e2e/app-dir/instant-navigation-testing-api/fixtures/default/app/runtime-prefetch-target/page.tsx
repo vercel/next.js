@@ -1,10 +1,10 @@
 import { Suspense } from 'react'
 import { connection } from 'next/server'
 
-export const unstable_instant = {
+export const instant = {
   unstable_samples: [{ searchParams: { myParam: 'testValue' } }],
 }
-export const unstable_prefetch = 'force-runtime'
+export const prefetch = 'partial'
 
 type SearchParams = { [key: string]: string | string[] | undefined }
 

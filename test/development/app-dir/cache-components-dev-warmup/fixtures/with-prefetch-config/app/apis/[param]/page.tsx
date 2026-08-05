@@ -3,8 +3,8 @@ import { CachedData } from '../../data-fetching'
 import { connection } from 'next/server'
 import { Suspense } from 'react'
 
-export const unstable_instant = true
-export const unstable_prefetch = 'force-runtime'
+export const instant = true
+export const prefetch = 'partial'
 
 const CACHE_KEY = __dirname + '/__PAGE__'
 

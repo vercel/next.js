@@ -30,12 +30,11 @@ pub enum Pattern {
     Concatenation(Vec<Pattern>),
 }
 
-/// manually implement TaskInput to avoid recursion in the implementation of `resolve_input` in the
-/// derived implementation.  We can instead use the default implementation since `Pattern` contains
-/// no VCs.
+// Use a manual impl since llvm cannot prove the default generated recursive impl always returns
+// false from `is_transient`
 impl TaskInput for Pattern {
     fn is_transient(&self) -> bool {
-        // We contain no vcs so they cannot be transient.
+        // contains no vcs
         false
     }
 }
