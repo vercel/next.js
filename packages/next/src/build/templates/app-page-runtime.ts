@@ -1,6 +1,7 @@
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { FallbackRouteParam } from '../static-paths/types'
+import type { WorkStoreExecutionMode } from '../../server/app-render/work-async-storage.external'
 
 import {
   AppPageRouteModule,
@@ -481,6 +482,8 @@ export function createAppPageEntrypoint({
       isDebugStaticShell && routeModule.isDev === true
 
     const isDebugFallbackShell = hasDebugFallbackShellQuery && isRoutePPREnabled
+    const isDebugPrerender =
+      isDebugStaticShell || isDebugDynamicAccesses || isDebugFallbackShell
 
     // If we're in minimal mode, then try to get the postponed information from
     // the request metadata. If available, use it for resuming the postponed
@@ -739,12 +742,18 @@ export function createAppPageEntrypoint({
       let parentSpan: Span | undefined
       const invokeRouteModule = async (
         span: Span | undefined,
-        context: AppPageRouteHandlerContext
+        context: AppPageRouteHandlerContext,
+        executionMode: WorkStoreExecutionMode
       ) => {
         const nextReq = new NodeNextRequest(req)
         const nextRes = new NodeNextResponse(res)
 
-        return routeModule.render(nextReq, nextRes, context).finally(() => {
+        const result =
+          executionMode === 'prerender'
+            ? routeModule.prerender(nextReq, nextRes, context)
+            : routeModule.render(nextReq, nextRes, context)
+
+        return result.finally(() => {
           if (!span) return
 
           span.setAttributes({
@@ -818,7 +827,7 @@ export function createAppPageEntrypoint({
         span,
         postponed,
         fallbackRouteParams,
-        forceStaticRender,
+        executionMode,
         allowEmptyStaticShell,
       }: {
         span?: Span
@@ -835,14 +844,7 @@ export function createAppPageEntrypoint({
          */
         fallbackRouteParams: OpaqueFallbackRouteParams | null
 
-        /**
-         * When true, this indicates that the response generator is being called
-         * in a context where the response must be generated statically.
-         *
-         * CRITICAL: This should only currently be used when revalidating due to a
-         * dynamic RSC request.
-         */
-        forceStaticRender: boolean
+        executionMode: WorkStoreExecutionMode
       }): Promise<ResponseCacheEntry> => {
         const context: AppPageRouteHandlerContext = {
           query,
@@ -872,7 +874,8 @@ export function createAppPageEntrypoint({
             allowEmptyStaticShell,
             serveStreamingMetadata,
             supportsDynamicResponse:
-              typeof postponed === 'string' || supportsDynamicResponse,
+              executionMode === 'request' &&
+              (typeof postponed === 'string' || supportsDynamicResponse),
             buildManifest,
             nextFontManifest,
             reactLoadableManifest,
@@ -920,7 +923,6 @@ export function createAppPageEntrypoint({
             isDebugFallbackShell
               ? {
                   isBuildTimePrerendering: true,
-                  supportsDynamicResponse: false,
                   isDebugDynamicAccesses: isDebugDynamicAccesses,
                 }
               : {}),
@@ -989,13 +991,7 @@ export function createAppPageEntrypoint({
           },
         }
 
-        // When we're revalidating in the background, we should not allow dynamic
-        // responses.
-        if (forceStaticRender) {
-          context.renderOpts.supportsDynamicResponse = false
-        }
-
-        const result = await invokeRouteModule(span, context)
+        const result = await invokeRouteModule(span, context, executionMode)
 
         const { metadata } = result
 
@@ -1267,7 +1263,7 @@ export function createAppPageEntrypoint({
                     // the background path below will complete the shell into a
                     // more specific cache entry for later requests.
                     fallbackRouteParams,
-                    forceStaticRender: true,
+                    executionMode: 'prerender',
                     allowEmptyStaticShell: isInstantNavigationTest || undefined,
                   }),
                 waitUntil: ctx.waitUntil,
@@ -1325,7 +1321,7 @@ export function createAppPageEntrypoint({
                                     remainingFallbackRouteParams
                                   )
                                 : null,
-                            forceStaticRender: true,
+                            executionMode: 'prerender',
                           })
                         },
                         // We don't have a prior entry for this param-specific shell.
@@ -1571,12 +1567,19 @@ export function createAppPageEntrypoint({
             }
           }
 
+          // Forced static and debug renders are prerenders even when the
+          // surrounding request otherwise supports dynamic rendering.
+          const isRequestSpecificRender =
+            !forceStaticRender &&
+            !isDebugPrerender &&
+            (supportsDynamicResponse || isPossibleServerAction)
+
           // Perform the render.
           return doRender({
             span,
             postponed,
             fallbackRouteParams,
-            forceStaticRender,
+            executionMode: isRequestSpecificRender ? 'request' : 'prerender',
             allowEmptyStaticShell: isInstantNavigationTest || undefined,
           })
         } catch (err) {
@@ -2119,7 +2122,7 @@ export function createAppPageEntrypoint({
           // This is a resume render, not a fallback render. Fallback params
           // (for cacheComponents routes) are plumbed via request meta above.
           fallbackRouteParams: null,
-          forceStaticRender: false,
+          executionMode: 'request',
         })
           .then(async (result) => {
             if (!result) {

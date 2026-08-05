@@ -1,4 +1,7 @@
-import type { WorkStore } from '../app-render/work-async-storage.external'
+import type {
+  WorkStore,
+  WorkStoreExecutionMode,
+} from '../app-render/work-async-storage.external'
 import type { IncrementalCache } from '../lib/incremental-cache'
 import type { RenderOpts } from '../app-render/types'
 import type { FetchMetric } from '../base-http'
@@ -22,6 +25,12 @@ export type WorkStoreContext = {
    */
   page: string
 
+  /**
+   * Whether this invocation produces reusable prerender output or renders a
+   * response for the current request.
+   */
+  executionMode: WorkStoreExecutionMode
+
   isPrefetchRequest?: boolean
   nonce?: string
   renderOpts: {
@@ -38,7 +47,6 @@ export type WorkStoreContext = {
     cacheComponents: boolean
     validationLevel: ValidationLevel
     fetchCache?: AppSegmentConfig['fetchCache']
-    isPossibleServerAction?: boolean
     pendingWaitUntil?: Promise<any>
     experimental: Pick<
       RenderOpts['experimental'],
@@ -64,7 +72,6 @@ export type WorkStoreContext = {
     // mirrored.
     RenderOpts,
     | 'assetPrefix'
-    | 'supportsDynamicResponse'
     | 'isBuildTimePrerendering'
     | 'isDraftMode'
     | 'isDebugDynamicAccesses'
@@ -89,6 +96,7 @@ export type WorkStoreContext = {
 
 export function createWorkStore({
   page,
+  executionMode,
   renderOpts,
   isPrefetchRequest,
   buildId,
@@ -96,30 +104,6 @@ export function createWorkStore({
   previouslyRevalidatedTags,
   nonce,
 }: WorkStoreContext): WorkStore {
-  /**
-   * Rules of Static & Dynamic HTML:
-   *
-   *    1.) We must generate static HTML unless the caller explicitly opts
-   *        in to dynamic HTML support.
-   *
-   *    2.) If dynamic HTML support is requested, we must honor that request
-   *        or throw an error. It is the sole responsibility of the caller to
-   *        ensure they aren't e.g. requesting dynamic HTML for a static page.
-   *
-   *    3.) If the request is in draft mode, we must generate dynamic HTML.
-   *
-   *    4.) If the request is a server action, we must generate dynamic HTML.
-   *
-   * These rules help ensure that other existing features like request caching,
-   * coalescing, and ISR continue working as intended.
-   */
-  const executionMode =
-    !renderOpts.supportsDynamicResponse &&
-    !renderOpts.isDraftMode &&
-    !renderOpts.isPossibleServerAction
-      ? 'prerender'
-      : 'request'
-
   const shouldTrackFetchMetrics =
     !!process.env.__NEXT_DEV_SERVER ||
     // The only times we want to track fetch metrics outside of development is

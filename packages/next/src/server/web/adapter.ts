@@ -321,6 +321,7 @@ export async function adapter(
 
             const workStore = createWorkStore({
               page,
+              executionMode: 'request',
               renderOpts: {
                 cacheLifeProfiles: proxyCacheLifeProfiles,
                 // Proxy doesn't do static generation, so this value does not
@@ -343,7 +344,6 @@ export async function adapter(
                   // bug.
                   useCacheTimeout: 0,
                 },
-                supportsDynamicResponse: true,
                 waitUntil,
                 onClose: closeController.onClose.bind(closeController),
                 onAfterTaskError: undefined,

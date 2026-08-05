@@ -197,18 +197,7 @@ export async function handler(
     cacheKey = cacheKey === '/index' ? '/' : cacheKey
   }
 
-  const supportsDynamicResponse: boolean =
-    // If we're in development, we always support dynamic HTML
-    routeModule.isDev === true ||
-    // If this is not SSG or does not have static paths, then it supports
-    // dynamic HTML.
-    !isIsr
-
-  // This is a revalidation request if the request is for a static
-  // page and it is not being resumed from a postponed render and
-  // it is not a dynamic RSC request then it is a revalidation
-  // request.
-  const isStaticGeneration = isIsr && !supportsDynamicResponse
+  const executionMode = cacheKey !== null ? 'prerender' : 'request'
 
   // Before rendering (which initializes component tree modules), we have to
   // set the reference manifests to our global store so Server Action's
@@ -244,6 +233,7 @@ export async function handler(
   const context: AppRouteRouteHandlerContext = {
     params,
     previewProps: prerenderManifest.preview,
+    executionMode,
     renderOpts: {
       experimental: {
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
@@ -251,7 +241,7 @@ export async function handler(
       },
       cacheComponents: Boolean(nextConfig.cacheComponents),
       validationLevel: nextConfig.experimental.instantInsights.validationLevel,
-      supportsDynamicResponse,
+      isDraftMode,
       incrementalCache,
       hmrRefreshHash: getRequestMeta(req, 'hmrRefreshHash'),
       cacheLifeProfiles: nextConfig.cacheLife,
@@ -388,7 +378,7 @@ export async function handler(
             routePath: srcPage,
             routeType: 'route',
             revalidateReason: getRevalidateReason({
-              isStaticGeneration,
+              isStaticGeneration: executionMode === 'prerender',
               isOnDemandRevalidate,
             }),
           },
@@ -492,7 +482,7 @@ export async function handler(
             routePath: normalizedSrcPage,
             routeType: 'route',
             revalidateReason: getRevalidateReason({
-              isStaticGeneration,
+              isStaticGeneration: executionMode === 'prerender',
               isOnDemandRevalidate,
             }),
           },

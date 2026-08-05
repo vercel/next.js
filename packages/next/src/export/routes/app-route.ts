@@ -71,6 +71,7 @@ export async function exportAppRoute(
       previewModeId: '',
       previewModeSigningKey: '',
     },
+    executionMode: 'prerender',
     renderOpts: {
       cacheComponents,
       // app-route handlers don't run instant validation, so the level
@@ -79,7 +80,6 @@ export async function exportAppRoute(
       validationLevel: 'warning',
       experimental,
       isBuildTimePrerendering: true,
-      supportsDynamicResponse: false,
       incrementalCache,
       waitUntil: afterRunner.context.waitUntil,
       onClose: afterRunner.context.onClose,
