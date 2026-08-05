@@ -92,6 +92,18 @@ export function getSharp(
   }
   try {
     _sharp = require('sharp') as typeof import('sharp').default
+    _sharp.block({ operation: ['VipsForeignLoad'] })
+    _sharp.unblock({
+      operation: [
+        'VipsForeignLoadHeif', // avif
+        'VipsForeignLoadJpeg',
+        'VipsForeignLoadNsgif',
+        'VipsForeignLoadPng',
+        'VipsForeignLoadSvg',
+        'VipsForeignLoadTiff',
+        'VipsForeignLoadWebp',
+      ],
+    })
     if (typeof operationCache === 'boolean') {
       _sharp.cache(operationCache)
     }

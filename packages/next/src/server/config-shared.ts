@@ -16,8 +16,6 @@ import { INFINITE_CACHE } from '../lib/constants'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 import type { MemoryEvictionMode } from '../build/swc/types'
 import type { CacheLife } from './use-cache/cache-life'
-import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
-import { isCI } from './ci-info'
 
 /**
  * The `cacheLife` profiles after config normalization. `config.ts` always
@@ -496,12 +494,9 @@ export interface ExperimentalConfig {
   /**
    * Caches subsets of a route, seeded from actual navigations, so subsequent
    * navigations to the same or similar pages can be served instantly. Requires
-   * Cache Components. `true` caches the static stage only (the runtime stage is
-   * opted into per segment via `export const prefetch = 'allow-runtime'`).
-   * `'allow-runtime'` additionally treats every segment as runtime-cached,
-   * regardless of its per-segment `prefetch` config.
+   * Cache Components.
    */
-  cachedNavigations?: boolean | 'allow-runtime'
+  cachedNavigations?: boolean
   dynamicOnHover?: boolean
   useOffline?: boolean
   optimisticRouting?: boolean
@@ -600,6 +595,11 @@ export interface ExperimentalConfig {
    *       styles at the expense of more requests overall.
    */
   cssChunking?: CssChunkingConfig
+  /**
+   * Controls whether the development server automatically restarts when its
+   * heap usage exceeds the memory threshold. Defaults to `true`.
+   */
+  devMemoryThresholdRestart?: boolean
   disablePostcssPresetEnv?: boolean
   cpus?: number
   memoryBasedWorkersCount?: boolean
@@ -762,13 +762,6 @@ export interface ExperimentalConfig {
   turbopackScopeHoisting?: boolean
 
   /**
-   * (`next --turbopack` only) Emit each merged production chunk's constituent component chunks
-   * alongside it, so the browser runtime can load only the ones it doesn't already have.
-   * Defaults to `false`. Only applies in build mode.
-   */
-  turbopackGenerateComponentChunks?: boolean
-
-  /**
    * Share the browser runtime across routes in a single `runtime.js` asset and inline the
    * per-route chunk-group bootstrap into the HTML, dropping the per-route runtime. Defaults to
    * false. Only applies to production builds; has no effect in development mode.
@@ -776,10 +769,10 @@ export interface ExperimentalConfig {
   turbopackSharedRuntime?: boolean
 
   /**
-   * (`next --turbopack` only) Traffic-related hints for the production chunker. These change the
-   * assumptions Turbopack makes when making chunk merging decisions.
+   * (`next --turbopack` only) These options change the assumptions Turbopack makes when
+   * making chunk merging decisions and the raw size thresholds it uses.
    */
-  turbopackChunkingHeuristics?: {
+  turbopackChunking?: {
     /**
      * This is a number between `0..1`, when higher, we weight the benefits of
      * merging chunks for a signal page load higher. If you don't know a good
@@ -801,11 +794,37 @@ export interface ExperimentalConfig {
     priorityBoost?: number
     /**
      * Estimated cost of an additional request, in bytes (uncompressed
-     * and unminfified bytes of code, default is 200 KB and the max is 1 MB), used by the chunker to
+     * and unminfified bytes of code, default is 200 KB), used by the chunker to
      * trade off request count against preventing double-fetching. Uncompressed and unminfified code
      * is approximately 5x the size of compressed and minified code.
      */
     requestCost?: number
+    /**
+     * Avoid creating more than one chunk smaller than this size, in bytes. Smaller
+     * chunks are merged into bigger ones to avoid that. Defaults to `50000` (50 KB).
+     */
+    minChunkSize?: number
+    /**
+     * Avoid creating more than this number of chunks per chunk group. Chunks are
+     * merged into bigger ones to avoid that. Defaults to `40`.
+     */
+    maxChunkCountPerGroup?: number
+    /**
+     * Never merge chunks bigger than this size, in bytes, with other chunks. This keeps code
+     * in big chunks from being duplicated across multiple chunks. Defaults to `200000` (200 KB).
+     */
+    maxMergeChunkSize?: number
+    /**
+     * Emit each merged production chunk's constituent component chunks alongside it, so the
+     * browser runtime can load only the ones it doesn't already have. Defaults to `false`.
+     */
+    generateComponentChunks?: boolean
+    /**
+     * Minimum size, in bytes, for a component chunk to be emitted on its own when
+     * `generateComponentChunks` is enabled. Component chunks smaller than this are folded into a
+     * single remainder chunk. Defaults to `20000` (20 KB).
+     */
+    minComponentChunkSize?: number
   }
 
   /**
@@ -861,9 +880,18 @@ export interface ExperimentalConfig {
   /**
    * Enable filesystem cache for the turbopack build.
    *
-   * Defaults to `true` in canary/preview builds, `false` in production.
+   * Defaults to `true`.
    */
   turbopackFileSystemCacheForBuild?: boolean
+
+  /**
+   * When running inside a git worktree, warm-start this worktree's Turbopack
+   * filesystem cache by seeding it from the main checkout's cache if the
+   * worktree doesn't have one yet. This is best-effort and never fails a build.
+   *
+   * Defaults to `false`.
+   */
+  turbopackSeedCacheFromWorktree?: boolean
 
   /**
    * Enable source maps. Defaults to true.
@@ -1184,6 +1212,21 @@ export interface ExperimentalConfig {
      */
     validationLevel?: ValidationLevel
   }
+
+  /**
+   * Runs development Cache Components validation on a worker thread rather than
+   * the main thread, keeping the dev server's event loop responsive during
+   * rapid navigation. This covers static-shell validation (which runs on
+   * initial load and HMR refresh) as well as instant-navigation validation
+   * (when `instant` is configured). Enabled by default; set to `false` to run
+   * validation in-process, as an escape hatch to isolate a problem or fall back
+   * if the worker misbehaves.
+   *
+   * Has no effect with Webpack, where validation always runs in process. The
+   * worker's thread cannot reach Webpack's dev source maps, so validation
+   * errors would be reported without a source location.
+   */
+  devValidationWorker?: boolean
 
   /**
    * The number of times to retry static generation (per page) before giving up.
@@ -2115,6 +2158,7 @@ export const defaultConfig = Object.freeze({
   experimental: {
     appNewScrollHandler: true,
     coldCacheBadge: false,
+    devValidationWorker: true,
     useSkewCookie: false,
     cssChunking: true,
     multiZoneDraftMode: false,
@@ -2156,6 +2200,7 @@ export const defaultConfig = Object.freeze({
     nextScriptWorkers: false,
     scrollRestoration: false,
     externalDir: false,
+    devMemoryThresholdRestart: true,
     disableOptimizedLoading: false,
     gzipSize: true,
     craCompat: false,
@@ -2178,7 +2223,7 @@ export const defaultConfig = Object.freeze({
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
     strictRouteTypes: false,
-    useTypeScriptCli: false,
+    useTypeScriptCli: true,
     removeUncaughtErrorAndRejectionListeners: false,
     validateRSCRequestHeaders: true,
     staleTimes: {
@@ -2204,22 +2249,13 @@ export const defaultConfig = Object.freeze({
     hideLogsAfterAbort: false,
     mcpServer: true,
     turbopackFileSystemCacheForDev: true,
-    turbopackFileSystemCacheForBuild: turbopackFileSystemCacheForBuildDefault(),
+    turbopackFileSystemCacheForBuild: true,
     turbopackInferModuleSideEffects: true,
     turbopackPluginRuntimeStrategy: 'childProcesses',
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
 } satisfies NextConfig)
-
-function turbopackFileSystemCacheForBuildDefault() {
-  if (isStableBuild()) return false
-  if (isCI && process.env.NOW_BUILDER) {
-    // Assume caching is available on vercel
-    return true
-  }
-  return false
-}
 
 export async function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {

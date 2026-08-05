@@ -909,31 +909,52 @@ function resolveRequest() {
   return store ? store : null;
 }
 function serializeThenable(request, task, thenable) {
-  var newTask = createTask(
-    request,
-    thenable,
-    task.keyPath,
-    task.implicitSlot,
-    task.formatContext,
-    request.abortableTasks
-  );
   switch (thenable.status) {
     case "fulfilled":
       return (
-        (newTask.model = thenable.value), pingTask(request, newTask), newTask.id
+        (task = createTask(
+          request,
+          thenable,
+          task.keyPath,
+          task.implicitSlot,
+          task.formatContext,
+          request.abortableTasks
+        )),
+        (task.model = thenable.value),
+        pingTask(request, task),
+        task.id
       );
     case "rejected":
-      return erroredTask(request, newTask, thenable.reason), newTask.id;
+      return (
+        (task = createTask(
+          request,
+          thenable,
+          task.keyPath,
+          task.implicitSlot,
+          task.formatContext,
+          request.abortableTasks
+        )),
+        erroredTask(request, task, thenable.reason),
+        task.id
+      );
     default:
+      var newTask$12 = createTask(
+        request,
+        thenable,
+        task.keyPath,
+        task.implicitSlot,
+        task.formatContext,
+        request.abortableTasks
+      );
       if (12 === request.status)
         return (
-          request.abortableTasks.delete(newTask),
+          request.abortableTasks.delete(newTask$12),
           21 === request.type
-            ? (haltTask(newTask), finishHaltedTask(newTask, request))
+            ? (haltTask(newTask$12), finishHaltedTask(newTask$12, request))
             : ((task = request.fatalError),
-              abortTask(newTask),
-              finishAbortedTask(newTask, request, task)),
-          newTask.id
+              abortTask(newTask$12),
+              finishAbortedTask(newTask$12, request, task)),
+          newTask$12.id
         );
       "string" !== typeof thenable.status &&
         ((thenable.status = "pending"),
@@ -948,18 +969,18 @@ function serializeThenable(request, task, thenable) {
               ((thenable.status = "rejected"), (thenable.reason = error));
           }
         ));
+      thenable.then(
+        function (value) {
+          newTask$12.model = value;
+          pingTask(request, newTask$12);
+        },
+        function (reason) {
+          0 === newTask$12.status &&
+            (erroredTask(request, newTask$12, reason), enqueueFlush(request));
+        }
+      );
+      return newTask$12.id;
   }
-  thenable.then(
-    function (value) {
-      newTask.model = value;
-      pingTask(request, newTask);
-    },
-    function (reason) {
-      0 === newTask.status &&
-        (erroredTask(request, newTask, reason), enqueueFlush(request));
-    }
-  );
-  return newTask.id;
 }
 function serializeReadableStream(request, task, stream) {
   function progress(entry) {
@@ -990,8 +1011,8 @@ function serializeReadableStream(request, task, stream) {
               : tryStreamTask(request, streamTask),
             enqueueFlush(request),
             reader.read().then(progress, error);
-        } catch (x$11) {
-          error(x$11);
+        } catch (x$13) {
+          error(x$13);
         }
   }
   function error(reason) {
@@ -1076,8 +1097,8 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
             tryStreamTask(request, streamTask),
             enqueueFlush(request),
             iterator.next().then(progress, error);
-        } catch (x$12) {
-          error(x$12);
+        } catch (x$14) {
+          error(x$14);
         }
   }
   function error(reason) {
@@ -1319,8 +1340,26 @@ function createTask(
   formatContext,
   abortSet
 ) {
+  return createTaskWithID(
+    request,
+    request.nextChunkId++,
+    model,
+    keyPath,
+    implicitSlot,
+    formatContext,
+    abortSet
+  );
+}
+function createTaskWithID(
+  request,
+  id,
+  model,
+  keyPath,
+  implicitSlot,
+  formatContext,
+  abortSet
+) {
   request.pendingChunks++;
-  var id = request.nextChunkId++;
   "object" !== typeof model ||
     null === model ||
     null !== keyPath ||
@@ -1420,39 +1459,39 @@ function resolveModel(request, task, parent, parentPropertyName, value) {
   value = JSCompiler_inline_result;
   if (null === value || "object" !== typeof value) return value;
   if (isArrayImpl(value)) {
-    var resolved$14 = [];
+    var resolved$16 = [];
     for (
       prevImplicitSlot = 0;
       prevImplicitSlot < value.length;
       prevImplicitSlot++
     )
-      resolved$14[prevImplicitSlot] = resolveModel(
+      resolved$16[prevImplicitSlot] = resolveModel(
         request,
         task,
         value,
         "" + prevImplicitSlot,
         value[prevImplicitSlot]
       );
-    return resolved$14;
+    return resolved$16;
   }
   prevImplicitSlot = {};
-  for (resolved$14 in value)
-    hasOwnProperty.call(value, resolved$14) &&
+  for (resolved$16 in value)
+    hasOwnProperty.call(value, resolved$16) &&
       ((parent = resolveModel(
         request,
         task,
         value,
-        resolved$14,
-        value[resolved$14]
+        resolved$16,
+        value[resolved$16]
       )),
-      "__proto__" === resolved$14
-        ? Object.defineProperty(prevImplicitSlot, resolved$14, {
+      "__proto__" === resolved$16
+        ? Object.defineProperty(prevImplicitSlot, resolved$16, {
             value: parent,
             enumerable: !0,
             writable: !0,
             configurable: !0
           })
-        : (prevImplicitSlot[resolved$14] = parent));
+        : (prevImplicitSlot[resolved$16] = parent));
   return prevImplicitSlot;
 }
 function serializeByValueID(id) {
@@ -2295,9 +2334,9 @@ function abort(request, reason) {
         onAllReady();
         flushCompletedChunks(request);
       }
-    } catch (error$26) {
-      logRecoverableError(request, error$26, null),
-        fatalError(request, error$26);
+    } catch (error$28) {
+      logRecoverableError(request, error$28, null),
+        fatalError(request, error$28);
     }
 }
 function resolveServerReference(bundlerConfig, id) {
@@ -2386,50 +2425,56 @@ function ReactPromise(status, value, reason) {
   this.reason = reason;
 }
 ReactPromise.prototype = Object.create(Promise.prototype);
-ReactPromise.prototype.then = function (resolve, reject) {
-  switch (this.status) {
-    case "resolved_model":
-      initializeModelChunk(this);
-  }
-  switch (this.status) {
-    case "fulfilled":
-      if ("function" === typeof resolve) {
-        for (
-          var inspectedValue = this.value,
-            cycleProtection = 0,
-            visited = new Set();
-          inspectedValue instanceof ReactPromise;
+Object.defineProperty(ReactPromise.prototype, "then", {
+  writable: !0,
+  enumerable: !0,
+  configurable: !0,
+  value: function (resolve, reject) {
+    switch (this.status) {
+      case "resolved_model":
+        initializeModelChunk(this);
+    }
+    switch (this.status) {
+      case "fulfilled":
+        if ("function" === typeof resolve) {
+          for (
+            var inspectedValue = this.value,
+              cycleProtection = 0,
+              visited = new Set();
+            inspectedValue instanceof ReactPromise;
 
-        ) {
-          cycleProtection++;
-          if (
-            inspectedValue === this ||
-            visited.has(inspectedValue) ||
-            1e3 < cycleProtection
           ) {
-            "function" === typeof reject &&
-              reject(Error("Cannot have cyclic thenables."));
-            return;
+            cycleProtection++;
+            if (
+              inspectedValue === this ||
+              visited.has(inspectedValue) ||
+              1e3 < cycleProtection
+            ) {
+              "function" === typeof reject &&
+                reject(Error("Cannot have cyclic thenables."));
+              return;
+            }
+            visited.add(inspectedValue);
+            if ("fulfilled" === inspectedValue.status)
+              inspectedValue = inspectedValue.value;
+            else break;
           }
-          visited.add(inspectedValue);
-          if ("fulfilled" === inspectedValue.status)
-            inspectedValue = inspectedValue.value;
-          else break;
+          resolve(this.value);
         }
-        resolve(this.value);
-      }
-      break;
-    case "pending":
-    case "blocked":
-      "function" === typeof resolve &&
-        (null === this.value && (this.value = []), this.value.push(resolve));
-      "function" === typeof reject &&
-        (null === this.reason && (this.reason = []), this.reason.push(reject));
-      break;
-    default:
-      "function" === typeof reject && reject(this.reason);
+        break;
+      case "pending":
+      case "blocked":
+        "function" === typeof resolve &&
+          (null === this.value && (this.value = []), this.value.push(resolve));
+        "function" === typeof reject &&
+          (null === this.reason && (this.reason = []),
+          this.reason.push(reject));
+        break;
+      default:
+        "function" === typeof reject && reject(this.reason);
+    }
   }
-};
+});
 var ObjectPrototype = Object.prototype,
   ArrayPrototype = Array.prototype;
 function wakeChunk(response, listeners, value, chunk) {
@@ -3072,12 +3117,12 @@ function parseReadableStream(response, reference, type) {
               (previousBlockedChunk = chunk));
         } else {
           chunk = previousBlockedChunk;
-          var chunk$31 = new ReactPromise("pending", null, null);
-          chunk$31.then(enqueue, flightController.error);
-          previousBlockedChunk = chunk$31;
+          var chunk$33 = new ReactPromise("pending", null, null);
+          chunk$33.then(enqueue, flightController.error);
+          previousBlockedChunk = chunk$33;
           chunk.then(function () {
-            previousBlockedChunk === chunk$31 && (previousBlockedChunk = null);
-            resolveModelChunk(response, chunk$31, json, -1);
+            previousBlockedChunk === chunk$33 && (previousBlockedChunk = null);
+            resolveModelChunk(response, chunk$33, json, -1);
           });
         }
       },

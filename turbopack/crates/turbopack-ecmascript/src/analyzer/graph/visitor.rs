@@ -23,8 +23,8 @@ use crate::{
     analyzer::{
         Bump, BumpVec, ConstantValue, ImportMap, JsValue, WellKnownFunctionKind,
         cjs_ast::{
-            as_exports_define_property, define_property_sets_es_module, is_exports_object,
-            is_global,
+            as_exports_define_property, as_module_exports_object_literal,
+            define_property_sets_es_module, is_exports_object, is_global, is_module_exports_chain,
         },
         graph::{ConditionalKind, Effect, EffectArg, EffectsBlock, EvalContext, VarGraph},
         is_unresolved_id,
@@ -103,8 +103,12 @@ pub(super) struct Analyzer<'arena, 'eval> {
 struct CjsExportsCollector {
     /// Recognized `exports.NAME = …` writes, each removable if `NAME` is unused.
     writes: Vec<DroppableCjsExportAssignment>,
+    /// Writes to an exports object a literal discarded, removable whatever the usage.
+    dead_writes: Vec<DroppableCjsExportAssignment>,
     /// Whether the `exports.__esModule = true` interop marker is set.
     has_es_module: bool,
+    /// Whether a `module.exports = { … }` literal has replaced the exports object.
+    exports_object_replaced: bool,
 }
 
 trait FunctionLike {
@@ -651,6 +655,21 @@ mod analyzer_state {
             self.state.cjs_exports = None;
         }
 
+        pub(super) fn cjs_exports_object_replaced(&self) -> bool {
+            self.state
+                .cjs_exports
+                .as_ref()
+                .is_some_and(|c| c.exports_object_replaced)
+        }
+
+        pub(super) fn replace_cjs_exports_object(&mut self) {
+            if let Some(c) = &mut self.state.cjs_exports {
+                c.dead_writes.append(&mut c.writes);
+                c.has_es_module = false;
+                c.exports_object_replaced = true;
+            }
+        }
+
         /// Records the `exports.__esModule = true` interop marker.
         pub(super) fn set_cjs_has_es_module(&mut self) {
             if let Some(c) = &mut self.state.cjs_exports {
@@ -659,20 +678,45 @@ mod analyzer_state {
         }
 
         pub(super) fn record_cjs_export(&mut self, name: RcStr, path: AstPath) {
+            self.push_cjs_export(DroppableCjsExportAssignment::Write { name, path });
+        }
+
+        pub(super) fn record_dead_cjs_write(&mut self, name: RcStr, path: AstPath) {
             if let Some(c) = &mut self.state.cjs_exports {
-                c.writes.push(DroppableCjsExportAssignment { name, path });
+                c.dead_writes
+                    .push(DroppableCjsExportAssignment::Write { name, path });
             }
         }
 
-        /// Returns the removable writes and whether the `__esModule` flag is set.
+        /// Records the named exports of a `module.exports = { … }` object literal. They
+        /// share `path` (the assignment); the code-gen removes each unused property.
+        pub(super) fn record_cjs_object_literal_exports(
+            &mut self,
+            names: Vec<RcStr>,
+            path: AstPath,
+        ) {
+            self.push_cjs_export(DroppableCjsExportAssignment::ObjectLiteral { names, path });
+        }
+
+        fn push_cjs_export(&mut self, drop: DroppableCjsExportAssignment) {
+            if let Some(c) = &mut self.state.cjs_exports {
+                c.writes.push(drop);
+            }
+        }
+
+        /// Returns the removable and always-removable writes, and the `__esModule` flag.
         pub(super) fn droppable_cjs_exports(
             &mut self,
-        ) -> Option<(Vec<DroppableCjsExportAssignment>, bool)> {
+        ) -> Option<(
+            Vec<DroppableCjsExportAssignment>,
+            Vec<DroppableCjsExportAssignment>,
+            bool,
+        )> {
             let c = self.state.cjs_exports.take()?;
-            if c.writes.is_empty() {
+            if c.writes.is_empty() && c.dead_writes.is_empty() {
                 return None;
             }
-            Some((c.writes, c.has_es_module))
+            Some((c.writes, c.dead_writes, c.has_es_module))
         }
 
         /// Whether `target` is a static named CommonJS export write —
@@ -1313,6 +1357,9 @@ impl<'a> Analyzer<'a, '_> {
         let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &n.left else {
             return;
         };
+        // After a replacement only `module.exports` still reaches the exports object.
+        let dead = self.cjs_exports_object_replaced()
+            && !is_module_exports_chain(&member.obj, self.eval_context.unresolved_mark);
         let MemberProp::Ident(name) = &member.prop else {
             return;
         };
@@ -1320,7 +1367,7 @@ impl<'a> Analyzer<'a, '_> {
         // Transpilers use this to signal that this is transpiled esm.
         // Which in turn changes the behavior of default exports. such that `import foo from
         // 'transpiled-esm-cjs'` gets the `default` export instead of the namespace
-        if name.sym.as_ref() == "__esModule" {
+        if !dead && name.sym.as_ref() == "__esModule" {
             // Only a literal `true` is the interop marker.
             if matches!(unparen(&n.right), Expr::Lit(Lit::Bool(b)) if b.value) {
                 self.set_cjs_has_es_module();
@@ -1329,10 +1376,13 @@ impl<'a> Analyzer<'a, '_> {
         }
 
         // The RHS isn't inspected; the code-gen keeps it as `<value>`.
-        self.record_cjs_export(
-            RcStr::from(name.sym.as_str()),
-            as_parent_path(ast_path).into(),
-        );
+        let name = RcStr::from(name.sym.as_str());
+        let path = as_parent_path(ast_path).into();
+        if dead {
+            self.record_dead_cjs_write(name, path);
+        } else {
+            self.record_cjs_export(name, path);
+        }
     }
 
     /// Records a top-level `Object.defineProperty(exports, "NAME", …)` export so
@@ -1348,13 +1398,90 @@ impl<'a> Analyzer<'a, '_> {
             self.taint_cjs_exports();
             return;
         }
-        if name == "__esModule" {
+        let dead = self.cjs_exports_object_replaced()
+            && !n.args.first().is_some_and(|target| {
+                is_module_exports_chain(&target.expr, self.eval_context.unresolved_mark)
+            });
+        if !dead && name == "__esModule" {
             if define_property_sets_es_module(n) {
                 self.set_cjs_has_es_module();
             }
             return;
         }
-        self.record_cjs_export(RcStr::from(name), as_parent_path(ast_path).into());
+        let (name, path) = (RcStr::from(name), as_parent_path(ast_path).into());
+        if dead {
+            self.record_dead_cjs_write(name, path);
+        } else {
+            self.record_cjs_export(name, path);
+        }
+    }
+
+    /// Records the droppable named exports of a top-level `module.exports = { … }`
+    /// literal. A spread or computed key taints; `__esModule: true` sets the flag.
+    fn recognize_cjs_object_exports(
+        &mut self,
+        n: &AssignExpr,
+        ast_path: &AstNodePath<AstParentNodeRef<'_>>,
+    ) {
+        // Only a top-level assignment defines the module's exports.
+        if self.is_in_fn() || self.is_in_nested_block_scope() {
+            self.taint_cjs_exports();
+            return;
+        }
+        let Some(obj) = as_module_exports_object_literal(n, self.eval_context.unresolved_mark)
+        else {
+            return;
+        };
+        // Only a statement-position assignment definitely runs.
+        if matches!(
+            ast_path.len().checked_sub(2).and_then(|i| ast_path.get(i)),
+            Some(AstParentNodeRef::ExprStmt(_, ExprStmtField::Expr))
+        ) {
+            self.replace_cjs_exports_object();
+        }
+        let mut names = Vec::new();
+        for prop in &obj.props {
+            // A spread makes the export set unknowable.
+            let PropOrSpread::Prop(prop) = prop else {
+                self.taint_cjs_exports();
+                return;
+            };
+            // Only a data property has an eager value (preserved by the code-gen);
+            // getters/setters/methods have none and are removed outright.
+            let value = match &**prop {
+                Prop::KeyValue(kv) => Some(&*kv.value),
+                _ => None,
+            };
+            let name = match &**prop {
+                Prop::Shorthand(id) => RcStr::from(id.sym.as_str()),
+                Prop::KeyValue(KeyValueProp { key, .. })
+                | Prop::Getter(GetterProp { key, .. })
+                | Prop::Setter(SetterProp { key, .. })
+                | Prop::Method(MethodProp { key, .. }) => match key {
+                    PropName::Ident(i) => RcStr::from(i.sym.as_str()),
+                    PropName::Str(s) => RcStr::from(s.value.to_string_lossy().into_owned()),
+                    // computed / numeric / bigint key → unknowable
+                    _ => {
+                        self.taint_cjs_exports();
+                        return;
+                    }
+                },
+                Prop::Assign(_) => continue, // should never happen for a literal
+            };
+            // `__esModule: true` is the interop marker, not a droppable export.
+            if &*name == "__esModule" {
+                if let Some(Expr::Lit(Lit::Bool(b))) = value.map(unparen)
+                    && b.value
+                {
+                    self.set_cjs_has_es_module();
+                }
+                continue;
+            }
+            names.push(name);
+        }
+        if !names.is_empty() {
+            self.record_cjs_object_literal_exports(names, as_parent_path(ast_path).into());
+        }
     }
 }
 
@@ -1388,8 +1515,22 @@ impl VisitAstPath for Analyzer<'_, '_> {
         // and visit the target inside a `cjs_export_target` scope so `exports` / `module`
         // don't taint the module (see `visit_ident`).
         let is_cjs_export = self.cjs_exports_enabled() && self.is_named_cjs_export_target(&n.left);
+        // `module.exports = { a, b, c }` — a whole-exports object literal whose
+        // properties are the module's named exports.
+        let is_cjs_object_export = !is_cjs_export
+            && self.cjs_exports_enabled()
+            && as_module_exports_object_literal(n, self.eval_context.unresolved_mark).is_some();
         if is_cjs_export {
             self.maybe_recognize_cjs_export(n, ast_path);
+            let mut ast_path =
+                ast_path.with_guard(AstParentNodeRef::AssignExpr(n, AssignExprField::Left));
+            self.with_cjs_export_target(|this| {
+                n.left.visit_children_with_ast_path(this, &mut ast_path)
+            });
+        } else if is_cjs_object_export {
+            self.recognize_cjs_object_exports(n, ast_path);
+            // Visit the `module.exports` target under the export-target guard so the
+            // `module` read doesn't taint the module.
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::AssignExpr(n, AssignExprField::Left));
             self.with_cjs_export_target(|this| {
@@ -1424,8 +1565,9 @@ impl VisitAstPath for Analyzer<'_, '_> {
         {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::AssignExpr(n, AssignExprField::Right));
-            // A function assigned directly to a CommonJS export can see `exports` as `this`.
-            if is_cjs_export && matches!(&*n.right, Expr::Fn(_)) {
+            // A function assigned directly to a CommonJS export can see `exports` as
+            // `this`; likewise for functions inside a `module.exports = { … }` literal.
+            if (is_cjs_export && matches!(&*n.right, Expr::Fn(_))) || is_cjs_object_export {
                 self.with_cjs_export_value(|this| this.visit_expr(&n.right, &mut ast_path));
             } else {
                 self.visit_expr(&n.right, &mut ast_path);
@@ -1458,7 +1600,8 @@ impl VisitAstPath for Analyzer<'_, '_> {
         // `Object.defineProperty(exports, …)` is a CommonJS export write; recognize
         // it so unused entries drop (its `exports` argument is guarded below).
         let is_cjs_define_property = if self.cjs_exports_enabled()
-            && let Some(name) = as_exports_define_property(n, self.eval_context.unresolved_mark)
+            && let Some((name, _)) =
+                as_exports_define_property(n, self.eval_context.unresolved_mark)
         {
             self.recognize_cjs_define_property(&name, n, ast_path);
             true
@@ -2294,9 +2437,9 @@ impl VisitAstPath for Analyzer<'_, '_> {
         self.data.effects = take(&mut self.effects).into_iter().collect();
 
         // Emit the CommonJS unused-export drop code-gen, if any.
-        if let Some((drops, has_es_module)) = self.droppable_cjs_exports() {
+        if let Some((drops, dead_writes, has_es_module)) = self.droppable_cjs_exports() {
             self.code_gens
-                .push(CjsExportsDropCodeGen::new(drops, has_es_module).into());
+                .push(CjsExportsDropCodeGen::new(drops, dead_writes, has_es_module).into());
         }
 
         self.data.code_gens = take(&mut self.code_gens);

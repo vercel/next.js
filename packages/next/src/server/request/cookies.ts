@@ -22,7 +22,7 @@ import {
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
   makeDevtoolsIOAwarePromise,
-  makeHangingPromise,
+  makeRuntimeHangingPromise,
   RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
@@ -174,10 +174,11 @@ function makeHangingCookies(
     return cachedPromise
   }
 
-  const promise = makeHangingPromise<ReadonlyRequestCookies>(
+  const promise = makeRuntimeHangingPromise<ReadonlyRequestCookies>(
     prerenderStore.renderSignal,
     workStore.route,
-    '`cookies()`'
+    '`cookies()`',
+    prerenderStore
   )
   CachedCookies.set(prerenderStore, promise)
 

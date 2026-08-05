@@ -5052,6 +5052,7 @@ dependencies = [
  "turbopack-resolve",
  "turbopack-static",
  "turbopack-trace-utils",
+ "turbopack-wasm",
 ]
 
 [[package]]
@@ -10636,6 +10637,7 @@ dependencies = [
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",
+ "serde_qs",
  "smallvec",
  "strsim 0.11.1",
  "swc_core",

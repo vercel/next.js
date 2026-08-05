@@ -101,17 +101,56 @@ function shouldSkipElement(element: HTMLElement) {
   return rectProperties.every((item) => rect[item] === 0)
 }
 
+const enum ScrollTargetState {
+  NoClientRects,
+  InViewport,
+  OutOfViewport,
+}
+
 /**
- * Check if the top corner of the HTMLElement is in the viewport.
+ * Resolve the root scroll padding used by the viewport check.
+ *
+ * Computed lengths serialize as pixels, but percentages remain relative to
+ * the scrollport. Preserve the existing behavior for values that still
+ * contain unresolved CSS math.
  */
-function topOfElementInViewport(
-  instance: HTMLElement | FragmentInstance,
+function getScrollPaddingTopInPixels(
+  htmlElement: HTMLElement,
   viewportHeight: number
-): boolean {
+): number {
+  const scrollPaddingTop = getComputedStyle(htmlElement).scrollPaddingTop
+  const value = Number.parseFloat(scrollPaddingTop)
+
+  if (!Number.isFinite(value) || value < 0) {
+    return 0
+  }
+
+  if (scrollPaddingTop.endsWith('px')) {
+    return value
+  }
+
+  if (scrollPaddingTop.endsWith('%')) {
+    return (value / 100) * viewportHeight
+  }
+
+  return 0
+}
+
+/**
+ * Check where the top corner of the HTMLElement is relative to the usable
+ * viewport.
+ *
+ * Scroll padding is resolved lazily so an empty Fragment does not trigger a
+ * computed style read. The caller caches the value for the second check.
+ */
+function getScrollTargetState(
+  instance: HTMLElement | FragmentInstance,
+  viewportHeight: number,
+  getScrollPaddingTop: () => number
+): ScrollTargetState {
   const rects = instance.getClientRects()
   if (rects.length === 0) {
-    // Just to be explicit.
-    return false
+    return ScrollTargetState.NoClientRects
   }
   let elementTop = Number.POSITIVE_INFINITY
   for (let i = 0; i < rects.length; i++) {
@@ -120,7 +159,9 @@ function topOfElementInViewport(
       elementTop = rect.top
     }
   }
-  return elementTop >= 0 && elementTop <= viewportHeight
+  return elementTop >= getScrollPaddingTop() && elementTop <= viewportHeight
+    ? ScrollTargetState.InViewport
+    : ScrollTargetState.OutOfViewport
 }
 
 /**
@@ -139,7 +180,8 @@ function getHashFragmentDomNode(hashFragment: string) {
   return (
     document.getElementById(hashFragment) ??
     // If the hash fragment is a name, the page has to scroll to the first element with that name.
-    document.getElementsByName(hashFragment)[0]
+    document.getElementsByName(hashFragment)[0] ??
+    null
   )
 }
 interface ScrollAndMaybeFocusHandlerProps {
@@ -164,6 +206,14 @@ class InnerScrollAndFocusHandlerOld extends React.Component<ScrollAndMaybeFocusH
 
     if (hashFragment) {
       domNode = getHashFragmentDomNode(hashFragment)
+      if (domNode === null) {
+        // A missing hash target is still a handled scroll intent. Do not
+        // fall back to the route segment or leave the intent pending.
+        scrollRef.current = false
+        focusAndScrollRef.onlyHashChange = false
+        focusAndScrollRef.hashFragment = null
+        return
+      }
     }
 
     // `findDOMNode` is tricky because it returns just the first child if the component is a fragment.
@@ -210,9 +260,23 @@ class InnerScrollAndFocusHandlerOld extends React.Component<ScrollAndMaybeFocusH
         // and it won't change during this function.
         const htmlElement = document.documentElement
         const viewportHeight = htmlElement.clientHeight
+        let scrollPaddingTop: number | null = null
+        const getScrollPaddingTop = () => {
+          if (scrollPaddingTop === null) {
+            // Reuse the style and layout update from the geometry read above.
+            scrollPaddingTop = getScrollPaddingTopInPixels(
+              htmlElement,
+              viewportHeight
+            )
+          }
+          return scrollPaddingTop
+        }
 
         // If the element's top edge is already in the viewport, exit early.
-        if (topOfElementInViewport(domNode, viewportHeight)) {
+        if (
+          getScrollTargetState(domNode, viewportHeight, getScrollPaddingTop) ===
+          ScrollTargetState.InViewport
+        ) {
           return
         }
 
@@ -223,7 +287,10 @@ class InnerScrollAndFocusHandlerOld extends React.Component<ScrollAndMaybeFocusH
         htmlElement.scrollTop = 0
 
         // Scroll to domNode if domNode is not in viewport when scrolled to top of document
-        if (!topOfElementInViewport(domNode, viewportHeight)) {
+        if (
+          getScrollTargetState(domNode, viewportHeight, getScrollPaddingTop) !==
+          ScrollTargetState.InViewport
+        ) {
           // Scroll into view doesn't scroll horizontally by default when not needed
           domNode.scrollIntoView()
         }
@@ -277,9 +344,15 @@ function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
 
       if (hashFragment) {
         instance = getHashFragmentDomNode(hashFragment)
-      }
-
-      if (!instance) {
+        if (instance === null) {
+          // A missing hash target is still a handled scroll intent. Do not
+          // fall back to the route Fragment or leave the intent pending.
+          scrollRef.current = false
+          focusAndScrollRef.onlyHashChange = false
+          focusAndScrollRef.hashFragment = null
+          return
+        }
+      } else {
         instance = childrenRef.current
       }
 
@@ -288,40 +361,60 @@ function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
         return
       }
 
-      // Mark as scrolled so no other segment scrolls for this navigation.
-      scrollRef.current = false
-
-      const activeElement = document.activeElement
-      if (
-        activeElement !== null &&
-        'blur' in activeElement &&
-        typeof activeElement.blur === 'function'
-      ) {
-        // Trying to match hard navigations.
-        // Ideally we'd move the internal focus cursor either to the top
-        // or at least before the segment. But there's no DOM API to do that,
-        // so we just blur.
-        // We could workaround this by moving focus to a temporary element in
-        // the body. But adding elements might trigger layout or other effects
-        // so it should be well motivated.
-        activeElement.blur()
-      }
+      let didHandleScroll = false
 
       disableSmoothScrollDuringRouteTransition(
         () => {
+          const htmlElement = document.documentElement
+          let viewportHeight: number | null = null
+          let initialTargetState: ScrollTargetState | null = null
+          let scrollPaddingTop: number | null = null
+          const getScrollPaddingTop = () => {
+            if (scrollPaddingTop === null) {
+              // Reuse the style and layout update from the geometry read.
+              scrollPaddingTop = getScrollPaddingTopInPixels(
+                htmlElement,
+                viewportHeight!
+              )
+            }
+            return scrollPaddingTop
+          }
+
+          if (!hashFragment) {
+            // Store the current viewport height because reading `clientHeight` causes a reflow,
+            // and it won't change during this function.
+            viewportHeight = htmlElement.clientHeight
+            initialTargetState = getScrollTargetState(
+              instance,
+              viewportHeight,
+              getScrollPaddingTop
+            )
+
+            // An empty Fragment is not a scroll target. In particular, avoid
+            // React's sibling fallback and leave the scroll signal available
+            // for another changed segment.
+            if (initialTargetState === ScrollTargetState.NoClientRects) {
+              return
+            }
+          }
+
+          didHandleScroll = true
+
+          // Mark as scrolled so no other segment scrolls for this navigation.
+          scrollRef.current = false
+
+          // This handler intentionally leaves focus untouched; resetting focus on
+          // navigation is deferred.
+
           // In case of hash scroll, we only need to scroll the element into view
           if (hashFragment) {
             instance.scrollIntoView()
 
             return
           }
-          // Store the current viewport height because reading `clientHeight` causes a reflow,
-          // and it won't change during this function.
-          const htmlElement = document.documentElement
-          const viewportHeight = htmlElement.clientHeight
 
           // If the element's top edge is already in the viewport, exit early.
-          if (topOfElementInViewport(instance, viewportHeight)) {
+          if (initialTargetState === ScrollTargetState.InViewport) {
             return
           }
 
@@ -332,7 +425,13 @@ function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
           htmlElement.scrollTop = 0
 
           // Scroll to domNode if domNode is not in viewport when scrolled to top of document
-          if (!topOfElementInViewport(instance, viewportHeight)) {
+          if (
+            getScrollTargetState(
+              instance,
+              viewportHeight!,
+              getScrollPaddingTop
+            ) === ScrollTargetState.OutOfViewport
+          ) {
             // Scroll into view doesn't scroll horizontally by default when not needed
             instance.scrollIntoView()
           }
@@ -343,6 +442,10 @@ function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
           onlyHashChange: focusAndScrollRef.onlyHashChange,
         }
       )
+
+      if (!didHandleScroll) {
+        return
+      }
 
       // Mutate after scrolling so that it can be read by `disableSmoothScrollDuringRouteTransition`
       focusAndScrollRef.onlyHashChange = false

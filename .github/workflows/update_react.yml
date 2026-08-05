@@ -19,6 +19,11 @@ env:
 jobs:
   create-pull-request:
     runs-on: ubuntu-latest
+    permissions:
+      # The built-in token is only used to read the facebook/react compare API
+      # for the changelog. Everything that writes to this repository
+      # authenticates as the release app instead.
+      contents: read
     steps:
       - name: Create GitHub App token
         id: release-app-token
@@ -29,6 +34,10 @@ jobs:
           owner: ${{ github.repository_owner }}
           repositories: next.js
           permission-contents: write
+          # To open the Pull Request, request reviewers, and apply labels and
+          # assignees. `actions/create-github-app-token` narrows the token to
+          # exactly the permissions requested here.
+          permission-pull-requests: write
 
       - name: Get GitHub App user ID
         id: release-app-user
@@ -67,7 +76,10 @@ jobs:
         shell: bash
         run: pnpm sync-react --actor "${{ github.actor }}" --commit --create-pull --version "${{ inputs.version }}"
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
+          # Only used to authenticate the facebook/react compare API request
+          # that builds the changelog, so it doesn't hit anonymous rate limits.
+          # The commits, branch, and Pull Request all use the app token below.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
           RELEASE_GITHUB_APP_SLUG: ${{ steps.release-app-token.outputs.app-slug }}
           RELEASE_GITHUB_APP_USER_ID: ${{ steps.release-app-user.outputs.user-id }}

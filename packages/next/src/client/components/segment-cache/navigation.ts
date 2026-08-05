@@ -28,7 +28,7 @@ import {
   readRouteCacheEntry,
   deprecated_requestOptimisticRouteCacheEntry,
   convertRootFlightRouterStateToRouteTree,
-  getStaleAt,
+  resolveStaleAt,
   writePrerenderResponseIntoCache,
   processRuntimePrefetchStream,
   writeDynamicRenderResponseIntoCache,
@@ -534,7 +534,9 @@ async function navigateToUnknownRoute(
       navigationSeed.routeTree,
       metadataVaryPath,
       couldBeIntercepted,
-      createHrefFromUrl(canonicalUrl),
+      // Store a hashless canonical URL: the entry is shared across hashes, and
+      // a later same-route hash nav appends `url.hash` to it.
+      createHrefFromUrl(canonicalUrl, false),
       supportsPerSegmentPrefetching,
       false // hasDynamicRewrite - not a retry, rewrite detection happens during traversal
     )
@@ -545,7 +547,7 @@ async function navigateToUnknownRoute(
 
       // Write the static stage of the response into the segment cache so that
       // subsequent navigations can serve cached static segments instantly.
-      getStaleAt(now, staticStageResponse.s)
+      resolveStaleAt(now, staticStageResponse.s)
         .then((staleAt) => {
           const buildId =
             responseHeaders.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ??

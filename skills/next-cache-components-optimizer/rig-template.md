@@ -62,7 +62,9 @@ build/run obstacles, accumulated as you first hit them).
    `/healthz` route or a response header, or fall back to polling the deploy
    platform's API for the deployment whose `commitSha === HEAD`. Record the
    chosen mechanism. For a local `build && start` rig the artifact is the one
-   freshly built, so no probe is needed.
+   freshly built, so no SHA probe is needed. Record the port, stop the previous
+   server before starting, fail the loop on `EADDRINUSE`, and verify the newly
+   started process owns the port before running the test.
 
 ## The file: copy, fill, commit as `instant-nav.rig.md`
 

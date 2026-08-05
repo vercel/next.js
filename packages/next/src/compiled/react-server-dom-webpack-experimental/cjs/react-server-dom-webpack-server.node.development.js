@@ -1341,8 +1341,8 @@
         }
       );
     }
-    function serializeThenable(request, task, thenable) {
-      var newTask = createTask(
+    function createThenableTask(request, task, thenable) {
+      return createTask(
         request,
         thenable,
         task.keyPath,
@@ -1354,42 +1354,89 @@
         task.debugStack,
         task.debugTask
       );
+    }
+    function serializeThenable(request, task, thenable) {
       switch (thenable.status) {
         case "fulfilled":
           return (
-            forwardDebugInfoFromThenable(
-              request,
-              newTask,
-              thenable,
-              null,
-              null
-            ),
-            (newTask.model = thenable.value),
-            pingTask(request, newTask),
-            newTask.id
+            (task = createThenableTask(request, task, thenable)),
+            forwardDebugInfoFromThenable(request, task, thenable, null, null),
+            (task.model = thenable.value),
+            pingTask(request, task),
+            task.id
           );
         case "rejected":
           return (
-            forwardDebugInfoFromThenable(
-              request,
-              newTask,
-              thenable,
-              null,
-              null
-            ),
-            erroredTask(request, newTask, thenable.reason),
-            newTask.id
+            (task = createThenableTask(request, task, thenable)),
+            forwardDebugInfoFromThenable(request, task, thenable, null, null),
+            erroredTask(request, task, thenable.reason),
+            task.id
           );
+        case "pending_weak":
+          var id = request.nextChunkId++,
+            keyPath = task.keyPath,
+            implicitSlot = task.implicitSlot,
+            formatContext = task.formatContext,
+            lastTimestamp = task.time,
+            debugOwner = task.debugOwner,
+            debugStack = task.debugStack,
+            debugTask = task.debugTask,
+            settled = !1;
+          thenable.then(
+            function (value) {
+              settled ||
+                request.status > OPEN ||
+                ((settled = !0),
+                (value = createTaskWithID(
+                  request,
+                  id,
+                  value,
+                  keyPath,
+                  implicitSlot,
+                  formatContext,
+                  request.abortableTasks,
+                  lastTimestamp,
+                  debugOwner,
+                  debugStack,
+                  debugTask
+                )),
+                forwardDebugInfoFromCurrentContext(request, value, thenable),
+                pingTask(request, value));
+            },
+            function (reason) {
+              if (!(settled || request.status > OPEN)) {
+                settled = !0;
+                var newTask = createTaskWithID(
+                  request,
+                  id,
+                  thenable,
+                  keyPath,
+                  implicitSlot,
+                  formatContext,
+                  request.abortableTasks,
+                  lastTimestamp,
+                  debugOwner,
+                  debugStack,
+                  debugTask
+                );
+                newTask.timed = !0;
+                erroredTask(request, newTask, reason);
+                enqueueFlush(request);
+              }
+            }
+          );
+          return id;
         default:
+          var _newTask2 = createThenableTask(request, task, thenable);
           if (request.status === ABORTING)
             return (
-              request.abortableTasks.delete(newTask),
+              request.abortableTasks.delete(_newTask2),
               request.type === PRERENDER
-                ? (haltTask(newTask), finishHaltedTask(newTask, request))
+                ? (haltTask(_newTask2), finishHaltedTask(_newTask2, request))
                 : ((task = request.fatalError),
-                  abortTask(newTask),
-                  finishAbortedTask(newTask, request, task)),
-              newTask.id
+                  abortTask(_newTask2),
+                  finishAbortedTask(_newTask2, request, task)),
+              _newTask2.id
             );
           "string" !== typeof thenable.status &&
             ((thenable.status = "pending"),
@@ -1404,21 +1451,21 @@
                   ((thenable.status = "rejected"), (thenable.reason = error));
               }
             ));
+          thenable.then(
+            function (value) {
+              forwardDebugInfoFromCurrentContext(request, _newTask2, thenable);
+              _newTask2.model = value;
+              pingTask(request, _newTask2);
+            },
+            function (reason) {
+              _newTask2.status === PENDING$1 &&
+                ((_newTask2.timed = !0),
+                erroredTask(request, _newTask2, reason),
+                enqueueFlush(request));
+            }
+          );
+          return _newTask2.id;
       }
-      thenable.then(
-        function (value) {
-          forwardDebugInfoFromCurrentContext(request, newTask, thenable);
-          newTask.model = value;
-          pingTask(request, newTask);
-        },
-        function (reason) {
-          newTask.status === PENDING$1 &&
-            ((newTask.timed = !0),
-            erroredTask(request, newTask, reason),
-            enqueueFlush(request));
-        }
-      );
-      return newTask.id;
     }
     function serializeReadableStream(request, task, stream) {
       function progress(entry) {
@@ -2308,8 +2355,34 @@
       debugStack,
       debugTask
     ) {
+      return createTaskWithID(
+        request,
+        request.nextChunkId++,
+        model,
+        keyPath,
+        implicitSlot,
+        formatContext,
+        abortSet,
+        lastTimestamp,
+        debugOwner,
+        debugStack,
+        debugTask
+      );
+    }
+    function createTaskWithID(
+      request,
+      id,
+      model,
+      keyPath,
+      implicitSlot,
+      formatContext,
+      abortSet,
+      lastTimestamp,
+      debugOwner,
+      debugStack,
+      debugTask
+    ) {
       request.pendingChunks++;
-      var id = request.nextChunkId++;
       "object" !== typeof model ||
         null === model ||
         null !== keyPath ||
@@ -2866,12 +2939,19 @@
           if (void 0 !== _writtenObjects) {
             if (null !== task.keyPath || task.implicitSlot)
               return (
-                "$@" + serializeThenable(request, task, value).toString(16)
+                (request = serializeThenable(request, task, value)),
+                "pending_weak" === value.status
+                  ? "$w" + request.toString(16)
+                  : "$@" + request.toString(16)
               );
             if (modelRoot === value) modelRoot = null;
             else return _writtenObjects;
           }
-          request = "$@" + serializeThenable(request, task, value).toString(16);
+          request = serializeThenable(request, task, value);
+          request =
+            "pending_weak" === value.status
+              ? "$w" + request.toString(16)
+              : "$@" + request.toString(16);
           elementReference.set(value, request);
           return request;
         }
@@ -4387,7 +4467,7 @@
         requestStorage.run(request, performWork, request);
       });
       setImmediate(function () {
-        request.status === OPENING && (request.status = 11);
+        request.status === OPENING && (request.status = OPEN);
       });
     }
     function enqueueFlush(request) {
@@ -4453,7 +4533,7 @@
       }
     }
     function abort(request, reason) {
-      if (!(11 < request.status))
+      if (!(request.status > OPEN))
         try {
           request.status = ABORTING;
           request.abortTime = performance.now();
@@ -6548,6 +6628,7 @@
       RENDERING = 5,
       __PROTO__$1 = "__proto__",
       OPENING = 10,
+      OPEN = 11,
       ABORTING = 12,
       CLOSING = 13,
       CLOSED = 14,
@@ -6572,52 +6653,57 @@
       chunkCache = new Map(),
       RESPONSE_SYMBOL = Symbol();
     ReactPromise.prototype = Object.create(Promise.prototype);
-    ReactPromise.prototype.then = function (resolve, reject) {
-      switch (this.status) {
-        case "resolved_model":
-          initializeModelChunk(this);
-      }
-      switch (this.status) {
-        case "fulfilled":
-          if ("function" === typeof resolve) {
-            for (
-              var inspectedValue = this.value,
-                cycleProtection = 0,
-                visited = new Set();
-              inspectedValue instanceof ReactPromise;
+    Object.defineProperty(ReactPromise.prototype, "then", {
+      writable: !0,
+      enumerable: !0,
+      configurable: !0,
+      value: function (resolve, reject) {
+        switch (this.status) {
+          case "resolved_model":
+            initializeModelChunk(this);
+        }
+        switch (this.status) {
+          case "fulfilled":
+            if ("function" === typeof resolve) {
+              for (
+                var inspectedValue = this.value,
+                  cycleProtection = 0,
+                  visited = new Set();
+                inspectedValue instanceof ReactPromise;
 
-            ) {
-              cycleProtection++;
-              if (
-                inspectedValue === this ||
-                visited.has(inspectedValue) ||
-                1e3 < cycleProtection
               ) {
-                "function" === typeof reject &&
-                  reject(Error("Cannot have cyclic thenables."));
-                return;
+                cycleProtection++;
+                if (
+                  inspectedValue === this ||
+                  visited.has(inspectedValue) ||
+                  1e3 < cycleProtection
+                ) {
+                  "function" === typeof reject &&
+                    reject(Error("Cannot have cyclic thenables."));
+                  return;
+                }
+                visited.add(inspectedValue);
+                if ("fulfilled" === inspectedValue.status)
+                  inspectedValue = inspectedValue.value;
+                else break;
               }
-              visited.add(inspectedValue);
-              if ("fulfilled" === inspectedValue.status)
-                inspectedValue = inspectedValue.value;
-              else break;
+              resolve(this.value);
             }
-            resolve(this.value);
-          }
-          break;
-        case "pending":
-        case "blocked":
-          "function" === typeof resolve &&
-            (null === this.value && (this.value = []),
-            this.value.push(resolve));
-          "function" === typeof reject &&
-            (null === this.reason && (this.reason = []),
-            this.reason.push(reject));
-          break;
-        default:
-          "function" === typeof reject && reject(this.reason);
+            break;
+          case "pending":
+          case "blocked":
+            "function" === typeof resolve &&
+              (null === this.value && (this.value = []),
+              this.value.push(resolve));
+            "function" === typeof reject &&
+              (null === this.reason && (this.reason = []),
+              this.reason.push(reject));
+            break;
+          default:
+            "function" === typeof reject && reject(this.reason);
+        }
       }
-    };
+    });
     var ObjectPrototype = Object.prototype,
       ArrayPrototype = Array.prototype,
       initializingHandler = null;

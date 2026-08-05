@@ -130,7 +130,6 @@ async function requestHandler(
       params,
       page: srcPage,
       postponed: undefined,
-      shouldWaitOnAllReady: false,
       serveStreamingMetadata: true,
       supportsDynamicResponse: true,
       buildManifest,

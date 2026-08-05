@@ -152,7 +152,10 @@ pub async fn trace_endpoint(
                 .map(|(root, globs)| {
                     let glob = Glob::new(
                         format!("{{{}}}", globs.join(",")).into(),
-                        GlobOptions { contains: true },
+                        GlobOptions {
+                            contains: true,
+                            ..Default::default()
+                        },
                     );
                     get_glob_includes(root, glob)
                 })
@@ -254,7 +257,10 @@ pub async fn tracing_exclude_glob(
                         .join(",")
                 )
                 .into(),
-                GlobOptions { contains: true },
+                GlobOptions {
+                    contains: true,
+                    ..Default::default()
+                },
             )
             .to_resolved()
             .await?;

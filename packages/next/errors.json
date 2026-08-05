@@ -1479,5 +1479,15 @@
   "1478": "Page \"%s\" returned incomplete params from \"generateStaticParams()\". With \"output: export\", every params object must include all dynamic route parameters. Missing: %s. See more info here: https://nextjs.org/docs/messages/generate-static-params",
   "1479": "Expected an HTML size for prerendered app route \"%s\"",
   "1480": "Expected prerender classification data for PPR route \"%s\"",
-  "1481": "Expected complete prerender classification for route \"%s\""
+  "1481": "Expected complete prerender classification for route \"%s\"",
+  "1482": "[Server HMR] unreachable: unknown HMR instruction type %s",
+  "1483": "[Server HMR] unreachable: unexpected update instruction type %s",
+  "1484": "Expected segment cache to have data for stage '%s'",
+  "1485": "Unexpected chunk emitted in Before stage",
+  "1486": "\\`experimental.turbopackGenerateComponentChunks\\` has been moved to \\`experimental.turbopackChunking.generateComponentChunks\\`. Please update your next.config.js file accordingly.",
+  "1487": "\\`experimental.turbopackChunkingHeuristics\\` has been renamed to \\`experimental.turbopackChunking\\`. Please update your next.config.js file accordingly.",
+  "1488": "\\`experimental.useCache\\` cannot be disabled when \\`cacheComponents\\` is enabled, because Cache Components relies on the \\`\"use cache\"\\` directive. Please remove it from %s.",
+  "1489": "TypeScript %s does not provide the compiler API required by Next.js. Set %s to true in your Next.js config to use the TypeScript CLI, or install TypeScript 6 instead.",
+  "1490": "TypeScript %s does not provide the compiler API required by Next.js. Set %s back to true in your Next.js config to use the TypeScript CLI, or install TypeScript 6 instead.",
+  "1491": "Missing workUnitStore in createComponentTree"
 }

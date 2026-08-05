@@ -901,7 +901,6 @@ export async function buildAppStaticPaths({
       incrementalCache,
       cacheLifeProfiles,
       staticPageGenerationTimeout,
-      supportsDynamicResponse: true,
       cacheComponents,
       // generateStaticParams evaluation doesn't render pages, so instant
       // validation never runs here. The level value is irrelevant.

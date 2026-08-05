@@ -200,13 +200,6 @@ export type SegmentStage =
 /** The stages that a prefetched segment can be in. */
 type PrefetchedSegmentStage = Exclude<SegmentStage, RenderStage.Dynamic>
 
-const SEGMENT_STAGE_ORDER = [
-  RenderStage.Static,
-  RenderStage.ShellRuntime,
-  RenderStage.Runtime,
-  RenderStage.Dynamic,
-] as const satisfies readonly SegmentStage[]
-
 export type StageChunks = Record<SegmentStage, Uint8Array[]>
 
 export type StageEndTimes = Record<PrefetchedSegmentStage, number>
@@ -223,14 +216,72 @@ type RenderToFlightStream = (
  * into separate staged streams (also in arrays-of-chunks form), one for each segment.
  * */
 export async function collectStagedSegmentData(
+  prefetchKind: ValidationPrefetchKind,
   ComponentMod: FlightComponentMod,
   renderFlightStream: RenderToFlightStream,
   fullPageChunks: StageChunks,
   fullPageDebugChunks: Uint8Array[] | null,
   startTime: number,
+  stageEndTimes: StageEndTimes,
   clientReferenceManifest: ClientReferenceManifest,
   createDebugChannel: () => DebugChannelPair | undefined
-) {
+): Promise<{ cache: SegmentCache; payload: InitialRSCPayload }> {
+  const cache = createSegmentCache()
+
+  let partialStages: SegmentStage[]
+  switch (prefetchKind) {
+    case ValidationPrefetchKind.Shell: {
+      partialStages = [RenderStage.ShellRuntime, RenderStage.Runtime]
+      break
+    }
+    case ValidationPrefetchKind.LegacySpeculative: {
+      partialStages = [RenderStage.Static, RenderStage.Runtime]
+      break
+    }
+  }
+
+  const doStage = async (targetStage: SegmentStage) => {
+    const endTime =
+      targetStage !== RenderStage.Dynamic
+        ? stageEndTimes[targetStage]
+        : undefined
+    const firstStage = partialStages[0]
+    return await collectSegmentDataForStage(
+      ComponentMod,
+      renderFlightStream,
+      fullPageChunks,
+      fullPageDebugChunks,
+      clientReferenceManifest,
+      createDebugChannel,
+      cache,
+      firstStage,
+      targetStage,
+      startTime,
+      endTime
+    )
+  }
+
+  for (const targetStage of partialStages) {
+    await doStage(targetStage)
+  }
+  const payload = await doStage(RenderStage.Dynamic)
+
+  return { cache, payload }
+}
+
+async function collectSegmentDataForStage(
+  ComponentMod: FlightComponentMod,
+  renderFlightStream: RenderToFlightStream,
+  fullPageChunks: StageChunks,
+  fullPageDebugChunks: Uint8Array[] | null,
+  clientReferenceManifest: ClientReferenceManifest,
+  createDebugChannel: () => DebugChannelPair | undefined,
+  cache: SegmentCache,
+  firstStage: SegmentStage,
+  targetStage: SegmentStage,
+  startTime: number,
+  endTime: number | undefined
+): Promise<InitialRSCPayload> {
   const debugChannelAbortController = new AbortController()
   const debugStream = fullPageDebugChunks
     ? createNodeStreamFromChunks(
@@ -251,6 +302,7 @@ export async function collectStagedSegmentData(
   const environmentName = () => {
     const currentStage = controller.currentStage
     switch (currentStage) {
+      case RenderStage.Before:
       case RenderStage.Static:
         return 'Prerender'
       case RenderStage.ShellRuntime: // TODO(app-shells) - proper environmentName
@@ -264,26 +316,39 @@ export async function collectStagedSegmentData(
     }
   }
 
-  // Deserialize the payload.
-  // NOTE: the stream will initially be in the static stage, so that's as far as we get here.
-  // We still expect the outer structure of the payload to be readable in this state.
+  // Deserialize the payload partially so that we can traverse the structure.
+
   const serverConsumerManifest = {
     moduleLoading: null,
     moduleMap: clientReferenceManifest.rscModuleMapping,
     serverModuleMap: getServerModuleMap(),
   }
 
-  const payload = await createFromNodeStream<InitialRSCPayload>(
+  const payloadPromise = createFromNodeStream<InitialRSCPayload>(
     stream,
     serverConsumerManifest,
     {
       findSourceMapURL,
       debugChannel: debugStream ?? undefined,
-      // Do not pass start/end timings - we do not want to omit any debug info.
-      startTime: undefined,
-      endTime: undefined,
+      startTime,
+      // Each stage is decoded with an `endTime` corresponding to
+      // when it finished rendering, so that we can avoid pointing to
+      // IO that finished after the stage is done.
+      // This needs to happen during the first deserialization, because
+      // when we serialize the segments afterwards, React will clamp the
+      // timestamps of IO to the current time, and we will lose the ability
+      // to omit info about IO that hasn't resolved in this stage.
+      endTime,
     }
   )
+
+  // We expect the outer structure of the payload to be readable in any stage,
+  // even if the segments are incomplete.
+  // NOTE: This must be done after the `createFromNodeStream` call but *before*
+  // the result is awaited, otherwise we'll deadlock.
+  controller.advanceStage(firstStage)
+
+  const payload = await payloadPromise
 
   // Deconstruct the payload into separate streams per segment.
   // We have to preserve the stage information for each of them,
@@ -296,21 +361,13 @@ export async function collectStagedSegmentData(
     segments.set(segmentPath, createSegmentData(seedData))
   })
 
-  const cache = createSegmentCache()
   const pendingTasks: Promise<void>[] = []
 
-  /** Track when we advance stages so we can pass them as `endTime` later. */
-  const stageEndTimes: StageEndTimes = {
-    [RenderStage.Static]: Infinity,
-    [RenderStage.ShellRuntime]: Infinity,
-    [RenderStage.Runtime]: Infinity,
-  }
-
-  const renderIntoCacheItem = async (
+  const renderIntoStageEntry = async (
     data: HeadData | SegmentData,
-    cacheEntry: SegmentCacheItem
+    stageEntry: SegmentCacheItemStageEntry
   ): Promise<void> => {
-    const segmentDebugChannel = cacheEntry.debugChunks
+    const segmentDebugChannel = stageEntry.debugChunks
       ? createDebugChannel()
       : undefined
 
@@ -323,36 +380,7 @@ export async function collectStagedSegmentData(
         debugChannel: segmentDebugChannel?.serverSide,
         environmentName,
         startTime,
-        onError(error: unknown) {
-          const digest = getDigestForWellKnownError(error)
-          if (digest) {
-            return digest
-          }
-
-          // Forward existing digests
-          if (
-            error &&
-            typeof error === 'object' &&
-            'digest' in error &&
-            typeof error.digest === 'string'
-          ) {
-            return error.digest
-          }
-
-          // We don't need to log the errors because we would have already done that
-          // when generating the original Flight stream for the whole page.
-          if (
-            process.env.NEXT_DEBUG_BUILD ||
-            process.env.__NEXT_VERBOSE_LOGGING
-          ) {
-            const workStore = workAsyncStorage.getStore()
-            printDebugThrownValueForProspectiveRender(
-              error,
-              workStore?.route ?? 'unknown route',
-              Phase.InstantValidation
-            )
-          }
-        },
+        onError: onFlightRenderError,
       }
     )
 
@@ -360,50 +388,97 @@ export async function collectStagedSegmentData(
       // accumulate Flight chunks
       (async () => {
         for await (const chunk of itemStream) {
-          writeChunk(cacheEntry.chunks, controller.currentStage, chunk)
+          if (controller.currentStage === RenderStage.Before) {
+            throw new InvariantError('Unexpected chunk emitted in Before stage')
+          }
+          writeChunk(stageEntry, controller.currentStage, targetStage, chunk)
         }
       })(),
       // accumulate Debug chunks
       segmentDebugChannel &&
         (async () => {
           for await (const chunk of segmentDebugChannel.clientSide.readable) {
-            cacheEntry.debugChunks!.push(chunk)
+            stageEntry.debugChunks!.push(chunk)
           }
         })(),
     ])
   }
 
-  const advanceStage = (
-    targetStage: Exclude<SegmentStage, RenderStage.Static>
-  ) => {
-    const { currentStage } = controller
-    if (currentStage !== RenderStage.Dynamic) {
-      stageEndTimes[currentStage] = performance.now() + performance.timeOrigin
-    }
-    controller.advanceStage(targetStage)
-  }
-
+  // Each stage is rendered in a separate pass (passed in as targetStage),
+  // so we only need two stages:
+  // 1. the target stage
+  // 2. the dynamic stage (for late-release debug info)
   await runInSequentialTasks(
     () => {
+      if (targetStage !== RenderStage.Dynamic) {
+        controller.advanceStage(targetStage)
+      }
+
+      const withDebugChunks = !!fullPageDebugChunks
+
       {
-        const headCacheItem = createSegmentCacheItem(!!fullPageDebugChunks)
-        cache.head = headCacheItem
-        pendingTasks.push(renderIntoCacheItem(head, headCacheItem))
+        let headCacheItem = cache.head
+        if (!headCacheItem) {
+          headCacheItem = createSegmentCacheItem()
+          cache.head = headCacheItem
+        }
+        const stageEntry = getOrCreateStageEntry(
+          headCacheItem,
+          targetStage,
+          withDebugChunks
+        )
+        pendingTasks.push(renderIntoStageEntry(head, stageEntry))
       }
 
       for (const [segmentPath, segmentData] of segments) {
-        const segmentCacheItem = createSegmentCacheItem(!!fullPageDebugChunks)
-        cache.segments.set(segmentPath, segmentCacheItem)
-        pendingTasks.push(renderIntoCacheItem(segmentData, segmentCacheItem))
+        let segmentCacheItem = cache.segments.get(segmentPath)
+        if (!segmentCacheItem) {
+          segmentCacheItem = createSegmentCacheItem()
+          cache.segments.set(segmentPath, segmentCacheItem)
+        }
+        const stageEntry = getOrCreateStageEntry(
+          segmentCacheItem,
+          targetStage,
+          withDebugChunks
+        )
+        pendingTasks.push(renderIntoStageEntry(segmentData, stageEntry))
       }
     },
-    () => advanceStage(RenderStage.ShellRuntime),
-    () => advanceStage(RenderStage.Runtime),
-    () => advanceStage(RenderStage.Dynamic)
+    () => {
+      controller.advanceStage(RenderStage.Dynamic)
+    }
   )
   await Promise.all(pendingTasks)
 
-  return { cache, payload, stageEndTimes }
+  return payload
+}
+
+function onFlightRenderError(error: unknown): string | undefined {
+  const digest = getDigestForWellKnownError(error)
+  if (digest) {
+    return digest
+  }
+
+  // Forward existing digests
+  if (
+    error &&
+    typeof error === 'object' &&
+    'digest' in error &&
+    typeof error.digest === 'string'
+  ) {
+    return error.digest
+  }
+
+  // We don't need to log the errors because we would have already done that
+  // when generating the original Flight stream for the whole page.
+  if (process.env.NEXT_DEBUG_BUILD || process.env.__NEXT_VERBOSE_LOGGING) {
+    const workStore = workAsyncStorage.getStore()
+    printDebugThrownValueForProspectiveRender(
+      error,
+      workStore?.route ?? 'unknown route',
+      Phase.InstantValidation
+    )
+  }
 }
 
 /**
@@ -420,7 +495,7 @@ function createStagedStreamFromChunks(stageChunks: StageChunks) {
   const allChunks = stageChunks[RenderStage.Dynamic]
 
   let chunkIx = 0
-  let currentStage: SegmentStage = RenderStage.Static
+  let currentStage: SegmentStage | RenderStage.Before = RenderStage.Before
   let closed = false
 
   function emitNewChunks(chunks: Uint8Array[]) {
@@ -434,22 +509,9 @@ function createStagedStreamFromChunks(stageChunks: StageChunks) {
     stream.push(null)
   }
 
-  const stream = new Readable({
-    read() {
-      // Emit static chunks
-      emitNewChunks(stageChunks[RenderStage.Static])
+  const stream = new Readable({ read() {} })
 
-      // If there's no more chunks after this stage, finish the stream.
-      if (chunkIx >= allChunks.length) {
-        close()
-        return
-      }
-    },
-  })
-
-  function advanceStage(
-    stage: Exclude<SegmentStage, RenderStage.Static>
-  ): boolean {
+  function advanceStage(stage: SegmentStage): boolean {
     if (closed) return true
 
     // NOTE: we don't special handling for skipping stages,
@@ -478,24 +540,15 @@ function createStagedStreamFromChunks(stageChunks: StageChunks) {
 }
 
 function writeChunk(
-  stageChunks: StageChunks,
+  stageData: SegmentCacheItemStageEntry,
   currentStage: SegmentStage,
+  targetStage: SegmentStage,
   chunk: Uint8Array
 ) {
-  // Add the chunk to every stage that's greater or equal to the current stage.
-  // Iterate in reverse (descending order) so that we can easily skip the stages
-  // that are already completed.
-  for (let i = SEGMENT_STAGE_ORDER.length - 1; i >= 0; i--) {
-    const stage = SEGMENT_STAGE_ORDER[i]
-    if (stage >= currentStage) {
-      stageChunks[stage].push(chunk)
-    } else {
-      // Found the first stage that's less than the current stage
-      // (i.e. one that ended and shouldn't get this chunk).
-      // Skip it and the rest.
-      break
-    }
+  if (currentStage <= targetStage) {
+    stageData.chunks.push(chunk)
   }
+  stageData.allChunks.push(chunk)
 }
 
 //===============================================================
@@ -612,9 +665,16 @@ export async function createCombinedPayloadStream(
 }
 
 function getRootDataFromPayload(initialRSCPayload: InitialRSCPayload) {
-  // FlightDataPath is an unsound type, hence the additional checks.
+  // FlightDataPath is an unsound type, hence the additional checks. The
+  // valid shapes are a single root path with no segment prefix: 4 elements
+  // ([tree, seedData, head, isHeadPartial], per getRSCPayload) or 3 when
+  // reconstructed without the isHeadPartial flag (see the payload literals
+  // in this module).
   const flightDataPaths = initialRSCPayload.f
-  if (flightDataPaths.length !== 1 && flightDataPaths[0].length !== 3) {
+  if (
+    flightDataPaths.length !== 1 ||
+    (flightDataPaths[0].length !== 3 && flightDataPaths[0].length !== 4)
+  ) {
     throw new InvariantError(
       'InitialRSCPayload does not match the expected shape during instant validation.'
     )
@@ -631,20 +691,22 @@ async function createValidationHead(
   cache: SegmentCache,
   releaseSignal: AbortSignal,
   clientReferenceManifest: ClientReferenceManifest,
-  stageEndTimes: StageEndTimes,
   stage: PrefetchedSegmentStage
 ): Promise<HeadData> {
   const segmentCacheItem = cache.head
   if (!segmentCacheItem) {
     throw new InvariantError(`Missing segment data: <head>`)
   }
+  const stageEntry = getStageEntry(segmentCacheItem, stage)
   return await deserializeFromChunks<HeadData>(
-    segmentCacheItem.chunks[stage],
-    segmentCacheItem.chunks[RenderStage.Dynamic],
-    segmentCacheItem.debugChunks,
+    stageEntry.chunks,
+    stageEntry.allChunks,
+    stageEntry.debugChunks,
     releaseSignal,
     clientReferenceManifest,
-    { startTime: undefined, endTime: stageEndTimes[stage] }
+    // NOTE: We're not passing an endTime, because the debug info has already been
+    // truncated to the appropriate `endTime` when the segment cache was filled.
+    { startTime: undefined, endTime: undefined }
   )
 }
 
@@ -740,16 +802,50 @@ function createSegmentCache(): SegmentCache {
   return { head: null, segments: new Map() }
 }
 
-function createSegmentCacheItem(withDebugChunks: boolean): SegmentCacheItem {
+function createSegmentCacheItem(): SegmentCacheItem {
   return {
-    chunks: {
-      [RenderStage.Static]: [],
-      [RenderStage.ShellRuntime]: [],
-      [RenderStage.Runtime]: [],
-      [RenderStage.Dynamic]: [],
-    },
+    [RenderStage.Static]: null,
+    [RenderStage.ShellRuntime]: null,
+    [RenderStage.Runtime]: null,
+    [RenderStage.Dynamic]: null,
+  }
+}
+
+function createSegmentCacheItemStageEntry(
+  withDebugChunks: boolean
+): SegmentCacheItemStageEntry {
+  return {
+    allChunks: [],
+    chunks: [],
     debugChunks: withDebugChunks ? [] : null,
   }
+}
+
+function getOrCreateStageEntry(
+  segmentCacheItem: SegmentCacheItem,
+  stage: SegmentStage,
+  withDebugChunks: boolean
+): SegmentCacheItemStageEntry {
+  let data = segmentCacheItem[stage]
+  if (!data) {
+    data = createSegmentCacheItemStageEntry(withDebugChunks)
+    segmentCacheItem[stage] = data
+  }
+  return data
+}
+
+function getStageEntry(
+  segmentCacheItem: SegmentCacheItem,
+  stage: SegmentStage
+): SegmentCacheItemStageEntry {
+  const data = segmentCacheItem[stage]
+  if (!data) {
+    // Indicates that we didn't fill the cache at this stage.
+    throw new InvariantError(
+      `Expected segment cache to have data for stage '${RenderStage[stage]}'`
+    )
+  }
+  return data
 }
 
 export type SegmentCache = {
@@ -757,8 +853,11 @@ export type SegmentCache = {
   segments: Map<SegmentPath, SegmentCacheItem>
 }
 
-type SegmentCacheItem = {
-  chunks: StageChunks
+type SegmentCacheItem = Record<SegmentStage, SegmentCacheItemStageEntry | null>
+
+type SegmentCacheItemStageEntry = {
+  chunks: Uint8Array[]
+  allChunks: Uint8Array[]
   debugChunks: Uint8Array[] | null
 }
 
@@ -932,7 +1031,6 @@ export async function createCombinedPayloadAtDepth(
   releaseSignal: AbortSignal,
   boundaryState: ValidationBoundaryTracking,
   clientReferenceManifest: ClientReferenceManifest,
-  stageEndTimes: StageEndTimes,
   useRuntimeStageForPartialSegments: boolean
 ): Promise<ValidationPayloadResult | null> {
   const workStore = workAsyncStorage.getStore()
@@ -1014,10 +1112,12 @@ export async function createCombinedPayloadAtDepth(
       throw new InvariantError(`Missing segment data: ${path}`)
     }
 
+    const stageEntry = getStageEntry(segmentCacheItem, RenderStage.Dynamic)
+    const dynamicChunks = stageEntry.chunks
     const segmentData = await deserializeFromChunks<SegmentData>(
-      segmentCacheItem.chunks[RenderStage.Dynamic],
-      segmentCacheItem.chunks[RenderStage.Dynamic],
-      segmentCacheItem.debugChunks,
+      dynamicChunks,
+      dynamicChunks,
+      stageEntry.debugChunks,
       releaseSignal,
       clientReferenceManifest,
       null
@@ -1077,7 +1177,6 @@ export async function createCombinedPayloadAtDepth(
           parallelRoutes[parallelRouteKey],
           path,
           parallelRouteKey,
-          false /* isInsideRuntimePrefetch */,
           0 /* segmentDepth */
         )
         slotResults.set(parallelRouteKey, result)
@@ -1167,7 +1266,6 @@ export async function createCombinedPayloadAtDepth(
     lt: LoaderTree,
     parentPath: SegmentPath | null,
     key: string | null,
-    isInsideRuntimePrefetch: boolean,
     segmentDepth: number
   ): Promise<TreeResult> {
     const { parallelRoutes } = parseLoaderTree(lt)
@@ -1182,11 +1280,9 @@ export async function createCombinedPayloadAtDepth(
         : createChildSegmentPath(parentPath, key!, segment)
 
     let instantConfig: Instant | null = null
-    let prefetchConfig: AppSegmentConfig['prefetch'] | null = null
     let localCreateInstantStack: (() => Error) | null = null
     if (layoutOrPageMod !== undefined) {
       instantConfig = (layoutOrPageMod as AppSegmentConfig).instant ?? null
-      prefetchConfig = (layoutOrPageMod as AppSegmentConfig).prefetch ?? null
 
       // When the default validation level is active and this is a page or
       // default segment without an explicit config, treat it as if
@@ -1219,7 +1315,6 @@ export async function createCombinedPayloadAtDepth(
     }
 
     let stage: PrefetchedSegmentStage
-    let childIsInsideRuntimePrefetch = isInsideRuntimePrefetch
 
     switch (prefetchKind) {
       case ValidationPrefetchKind.Shell: {
@@ -1228,30 +1323,16 @@ export async function createCombinedPayloadAtDepth(
         } else {
           stage = RenderStage.ShellRuntime
         }
-        // We do not set or track
-        // - `[child]isInsideRuntimePrefetch`
-        // - `has{Static,Runtime}Segments`
-        // because they do not affect shell prefetches.
+        // We do not track `has{Static,Runtime}Segments` because they do not
+        // affect shell prefetches.
         break
       }
       case ValidationPrefetchKind.LegacySpeculative: {
-        const segmentHasRuntimePrefetch = prefetchConfig === 'allow-runtime'
-
-        if (!isInsideRuntimePrefetch) {
-          if (segmentHasRuntimePrefetch) {
-            stage = RenderStage.Runtime
-            childIsInsideRuntimePrefetch = true
-          } else {
-            if (useRuntimeStageForPartialSegments) {
-              stage = RenderStage.Runtime
-            } else {
-              // In legacy speculative prefetches, we always use static
-              // for segments that aren't under an allow-runtime boundary.
-              stage = RenderStage.Static
-            }
-          }
-        } else {
+        if (useRuntimeStageForPartialSegments) {
           stage = RenderStage.Runtime
+        } else {
+          // In legacy speculative prefetches, we always use static.
+          stage = RenderStage.Static
         }
         break
       }
@@ -1273,13 +1354,16 @@ export async function createCombinedPayloadAtDepth(
 
     debug?.(`    ${path || '/'} - ${RenderStage[stage]}`)
 
+    const stageEntry = getStageEntry(segmentCacheItem, stage)
     const segmentData = await deserializeFromChunks<SegmentData>(
-      segmentCacheItem.chunks[stage],
-      segmentCacheItem.chunks[RenderStage.Dynamic],
-      segmentCacheItem.debugChunks,
+      stageEntry.chunks,
+      stageEntry.allChunks,
+      stageEntry.debugChunks,
       releaseSignal,
       clientReferenceManifest,
-      { startTime: undefined, endTime: stageEndTimes[stage] }
+      // NOTE: We're not passing an endTime, because the debug info has already been
+      // truncated to the appropriate `endTime` when the segment cache was filled.
+      { startTime: undefined, endTime: undefined }
     )
 
     // Build children first, then determine requiresInstantUI.
@@ -1297,7 +1381,6 @@ export async function createCombinedPayloadAtDepth(
         parallelRoutes[parallelRouteKey],
         path,
         parallelRouteKey,
-        childIsInsideRuntimePrefetch,
         childSegmentDepth
       )
       slotResults.set(parallelRouteKey, result)
@@ -1412,7 +1495,6 @@ export async function createCombinedPayloadAtDepth(
     cache,
     releaseSignal,
     clientReferenceManifest,
-    stageEndTimes,
     headStage
   )
 
