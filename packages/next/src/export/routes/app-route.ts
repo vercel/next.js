@@ -71,7 +71,6 @@ export async function exportAppRoute(
       previewModeId: '',
       previewModeSigningKey: '',
     },
-    executionMode: 'prerender',
     renderOpts: {
       cacheComponents,
       // app-route handlers don't run instant validation, so the level
@@ -115,7 +114,7 @@ export async function exportAppRoute(
       return { cacheControl: { revalidate: 0, expire: undefined } }
     }
 
-    const response = await module.handle(request, context)
+    const response = await module.prerender(request, context)
 
     const isValidStatus = response.status < 400 || response.status === 404
     if (!isValidStatus) {
