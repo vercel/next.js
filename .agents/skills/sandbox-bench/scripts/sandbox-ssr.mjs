@@ -415,9 +415,12 @@ wc -l /vercel/sandbox/results.jsonl`
       })
       // Strictly AFTER the timed runs — profiling never touches the
       // numbers. Best-effort: a failed pass must not kill collection.
+      // Alternate the arm order by VM index so the second-arm-runs-warmer
+      // drift cancels in cross-VM aggregates (see sandbox-e2e.mjs).
+      const profOrder = index % 2 === 1 ? `${cand} ${base}` : `${base} ${cand}`
       const prof = `set -e
 cd /vercel/sandbox/fixture
-for arm in ${base} ${cand}; do
+for arm in ${profOrder}; do
   for p in /vercel/sandbox/arm-$arm/build/oss-experimental/*; do rm -rf node_modules/$(basename $p); done
   cp -r /vercel/sandbox/arm-$arm/build/oss-experimental/* node_modules/
   NODE_ENV=production node --expose-gc bench.js --profile >/tmp/prof.log 2>&1 || (tail -10 /tmp/prof.log; exit 1)

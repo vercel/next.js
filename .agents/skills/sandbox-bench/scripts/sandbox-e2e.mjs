@@ -50,10 +50,14 @@ import {
 
 // Runtime provenance: the compiled server files prod app-page runtimes
 // are bundled from — BOTH bundlers, so changes touching only one still
-// move the fingerprint.
+// move the fingerprint. Covers both the Flight layer and the Fizz
+// layer: a Fizz-only React change leaves the react-server-dom-* files
+// byte-identical, so without the react-dom server file two genuinely
+// different arms fingerprint the same.
 const FP_FILES = [
   'packages/next/dist/compiled/react-server-dom-turbopack-experimental/cjs/react-server-dom-turbopack-server.node.production.js',
   'packages/next/dist/compiled/react-server-dom-webpack-experimental/cjs/react-server-dom-webpack-server.node.production.js',
+  'packages/next/dist/compiled/react-dom-experimental/cjs/react-dom-server.node.production.js',
 ]
 
 function parseArgs() {
@@ -673,8 +677,14 @@ wc -l /vercel/sandbox/results.jsonl`
       })
       // Profiled passes run strictly AFTER the timed runs — profiling
       // overhead must never touch the numbers.
+      // Alternate the arm order by VM index: within one VM the second
+      // arm runs warmer (page cache, CPU governor), which shows up as a
+      // uniform few-percent deflation of every function in that arm's
+      // profile. Balancing the order across VMs cancels the drift in
+      // cross-VM aggregates, so untouched code diffs to ~zero.
+      const profOrder = index % 2 === 1 ? `${cand} ${base}` : `${base} ${cand}`
       const prof = `set -e
-for arm in ${base} ${cand}; do
+for arm in ${profOrder}; do
   if [ "$arm" = "${base}" ]; then PORT=3720; else PORT=3721; fi
   cd /vercel/sandbox/next-$arm
   pnpm bench:render-pipeline ${benchArgs('--capture-cpu')} \
@@ -955,18 +965,22 @@ try {
     arms: cfg.arms.map((a) => `${a.name}=${armId(a)}`),
   })
   const expSnap = await ensureExperimentSnapshot(cfg)
+  if (cfg.prepare) {
+    // Terminal phase, not 'measuring': a prepare run launches no
+    // measurement VMs, and a stale 'measuring' status makes
+    // bench-status prescribe collecting data that never existed.
+    writeStatus({ phase: 'prepared (caches only, no measurement)', expSnap })
+    console.error(
+      `prepared: arms + experiment snapshot ${expSnap}; exiting (--prepare)`
+    )
+    process.exit(0)
+  }
   writeStatus({
     phase: 'measuring',
     expSnap,
     rowsExpected:
       cfg.vms * cfg.blocks * cfg.runs * 2 * cfg.routes.split(',').length * 2,
   })
-  if (cfg.prepare) {
-    console.error(
-      `prepared: arms + experiment snapshot ${expSnap}; exiting (--prepare)`
-    )
-    process.exit(0)
-  }
   await Promise.all(
     Array.from({ length: cfg.vms }, (_, i) => runVm(i, cfg, expSnap, outDir))
   )
