@@ -106,11 +106,14 @@ export async function sbCpToVm(vm, localPath, vmDest) {
       await execFileP('shasum', ['-a', '256', localPath])
     ).stdout.split(' ')[0]
     const catList = parts.map((p) => `'${vmDest}.${p}'`).join(' ')
-    const out = await sbExec(
+    const tag = `cp:${path.basename(vmDest)}`
+    // Parts are deleted only after the sha verifies, so a dropped exec
+    // stream mid-concat can safely re-run from the same parts.
+    const out = await sbExecRetry(
       vm,
       '10m',
-      `cat ${catList} > '${vmDest}' && rm -f ${catList} && sha256sum '${vmDest}' | cut -d' ' -f1`,
-      `cp:${path.basename(vmDest)}`
+      `cat ${catList} > '${vmDest}' && sha256sum '${vmDest}' | cut -d' ' -f1`,
+      tag
     )
     // sbExec output interleaves stderr (CLI banners); take the last
     // sha-shaped token rather than the last line.
@@ -121,6 +124,8 @@ export async function sbCpToVm(vm, localPath, vmDest) {
         `chunked upload of ${localPath} corrupt: local ${localSha} != remote ${remoteSha}`
       )
     }
+    // Leaked parts would be captured into snapshots taken from this VM.
+    await sbExecRetry(vm, '2m', `rm -f ${catList}`, tag)
   } finally {
     fs.rmSync(partDir, { recursive: true, force: true })
   }
@@ -430,6 +435,21 @@ ${script}`
   })
 }
 
+// The exec stream drops flakily; short idempotent commands are safe to
+// just re-run. Anything that runs for minutes belongs in runDetached.
+export async function sbExecRetry(vm, timeout, script, tag, attempts = 3) {
+  for (let i = 1; ; i++) {
+    try {
+      return await sbExec(vm, timeout, script, tag)
+    } catch (e) {
+      if (i >= attempts) throw e
+      process.stderr.write(
+        `${tag}: exec attempt ${i}/${attempts} failed, retrying: ${String(e.message).split('\n')[0].slice(0, 120)}\n`
+      )
+    }
+  }
+}
+
 export async function rmVm(name) {
   try {
     await sb(['rm', name])
@@ -465,9 +485,13 @@ export async function runDetached(vm, tag, script, onLine, deadlineMin) {
   ])
   let offset = 0
   let failures = 0
+  let pollDelay = 3_000
   const deadline = Date.now() + deadlineMin * 60_000
   while (true) {
-    await new Promise((r) => setTimeout(r, 45_000))
+    await new Promise((r) => setTimeout(r, pollDelay))
+    // Backing off to the cap keeps short commands cheap (first poll at 3s)
+    // without hammering long builds with exec round trips.
+    pollDelay = Math.min(pollDelay * 2, 45_000)
     if (Date.now() > deadline)
       throw new Error(`${tag}: detached loop deadline exceeded`)
     let out
@@ -583,19 +607,31 @@ export async function ensureReactBuildSnapshot(refSha) {
     ])
     await sb(['cp', src, `${vm}:/vercel/sandbox/src.tgz`])
     fs.rmSync(src, { force: true })
-    await sb([
-      'exec',
-      vm,
-      '--timeout',
-      '10m',
-      '--sudo',
-      '--',
-      'dnf',
-      'install',
-      '-y',
-      '-q',
-      'java-21-amazon-corretto-headless',
-    ])
+    // dnf runs for a minute or two through the same drop-prone exec
+    // stream, and installs are idempotent.
+    for (let attempt = 1; ; attempt++) {
+      try {
+        await sb([
+          'exec',
+          vm,
+          '--timeout',
+          '10m',
+          '--sudo',
+          '--',
+          'dnf',
+          'install',
+          '-y',
+          '-q',
+          'java-21-amazon-corretto-headless',
+        ])
+        break
+      } catch (e) {
+        if (attempt >= 3) throw e
+        process.stderr.write(
+          `react-snap: dnf attempt ${attempt}/3 failed, retrying: ${String(e.message).split('\n')[0].slice(0, 120)}\n`
+        )
+      }
+    }
     await runDetached(
       vm,
       'react-snap',

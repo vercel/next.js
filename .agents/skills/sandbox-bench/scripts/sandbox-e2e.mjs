@@ -34,7 +34,7 @@ import {
   writeStatus,
   sb,
   sbCpToVm,
-  sbExec,
+  sbExecRetry,
   rmVm,
   runDetached,
   resolvePrArms,
@@ -499,7 +499,7 @@ echo "tree ${a.name} ready"`
         }
       }
     }
-    await sbExec(
+    await sbExecRetry(
       vm,
       '5m',
       `rm -f /vercel/sandbox/tree-*.tgz /vercel/sandbox/tree-*-out.tgz; echo cleaned`,
