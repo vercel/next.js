@@ -309,8 +309,27 @@ describe('route-change-refetch - App Router refetch count', () => {
     return browser.eval(() => (window as any).__refetches)
   }
 
-  it('refetches an open tab exactly once when a page is added', async () => {
-    const browser = await next.browser('/counted')
+  it('refetches an open tab exactly once per page addition, removal, and edit', async () => {
+    // Adding or removing a page changes no other page's server components,
+    // so nothing may announce that they changed.
+    const serverComponentChangeAnnouncements: string[] = []
+    const browser = await next.browser('/counted', {
+      beforePageLoad(page: any) {
+        page.on('websocket', (socket: any) => {
+          socket.on('framereceived', (frame: { payload: string | Buffer }) => {
+            let message
+            try {
+              message = JSON.parse(String(frame.payload))
+            } catch {
+              return
+            }
+            if (message.type === 'serverComponentChanges') {
+              serverComponentChangeAnnouncements.push(String(frame.payload))
+            }
+          })
+        })
+      },
+    })
     expect(await browser.elementById('counted').text()).toBe('counted')
     await startCountingRefetches(browser)
 
@@ -327,6 +346,35 @@ describe('route-change-refetch - App Router refetch count', () => {
     // A later one would mean the change was announced more than once.
     await waitFor(1000)
     expect(await countRefetches(browser)).toBe(1)
+
+    await next.deleteFile('app/zz-added/page.tsx')
+    await retry(async () => {
+      expect((await next.fetch('/zz-added')).status).toBe(404)
+    }, 15_000)
+    await retry(async () => {
+      expect(await countRefetches(browser)).toBe(2)
+    }, 15_000)
+    await waitFor(1000)
+    expect(await countRefetches(browser)).toBe(2)
+
+    expect(serverComponentChangeAnnouncements).toEqual([])
+
+    // Editing the page the tab is showing must announce changed server
+    // components, exactly once. This also proves the capture above works.
+    await next.patchFile(
+      'app/counted/page.tsx',
+      `export default function Page() { return <p id="counted">counted!</p> }`
+    )
+    await retry(async () => {
+      expect(await browser.elementById('counted').text()).toBe('counted!')
+    }, 15_000)
+    await retry(async () => {
+      expect(serverComponentChangeAnnouncements.length).toBe(1)
+      expect(await countRefetches(browser)).toBe(3)
+    }, 15_000)
+    await waitFor(1000)
+    expect(serverComponentChangeAnnouncements.length).toBe(1)
+    expect(await countRefetches(browser)).toBe(3)
   })
 })
 
