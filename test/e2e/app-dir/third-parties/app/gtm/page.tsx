@@ -10,12 +10,12 @@ const Page = () => {
 
   return (
     <div className="container">
-      <GoogleTagManager gtmId="GTM-XYZ" />
+      <GoogleTagManager gtmId="GTM-XYZ" fetchPriority="low" />
       <h1>GTM</h1>
       <button id="gtm-send" onClick={onClick}>
         Click
       </button>
-      <GoogleTagManager gtmId="GTM-XYZ" />
+      <GoogleTagManager gtmId="GTM-XYZ" fetchPriority="low" />
     </div>
   )
 }
