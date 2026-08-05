@@ -6565,6 +6565,7 @@ function buildDevValidationWorkStore(
     cacheLifeProfiles: message.nextConfigSerializable.cacheLifeProfiles,
     buildId: message.buildId,
     deploymentId: message.deploymentId,
+    requestStartTime: message.request.requestStartTime,
     previouslyRevalidatedTags: [],
     refreshTagsByCacheKind: new Map(),
     runInCleanSnapshot: createSnapshot(),
@@ -8139,6 +8140,7 @@ async function validateInstantConfigInBuildWithSample(
   const workStore: WorkStore = {
     page: outerWorkStore.page,
     route: outerWorkStore.route,
+    requestStartTime: outerWorkStore.requestStartTime,
     incrementalCache: outerWorkStore.incrementalCache,
     cacheLifeProfiles: outerWorkStore.cacheLifeProfiles,
     useCacheTimeout: outerWorkStore.useCacheTimeout,

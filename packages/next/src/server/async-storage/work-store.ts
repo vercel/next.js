@@ -139,6 +139,7 @@ function createWorkStoreImpl(
     cacheComponentsEnabled: renderOpts.cacheComponents,
     validationLevel: renderOpts.validationLevel,
     previouslyRevalidatedTags,
+    requestStartTime: performance.timeOrigin + performance.now(),
     refreshTagsByCacheKind: createRefreshTagsByCacheKind(),
     runInCleanSnapshot: createSnapshot(),
     shouldTrackFetchMetrics,

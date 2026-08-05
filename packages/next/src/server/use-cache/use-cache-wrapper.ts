@@ -2293,11 +2293,15 @@ export async function cache(
       // tags. When a server action calls updateTag(), the re-render should see
       // fresh data instead of stale RDC data.
       if (rdcResult !== undefined) {
+        const { timestamp } = rdcResult.entry
+
         if (
           rdcResult.entry.tags.some((tag) =>
-            isRecentlyRevalidatedTag(tag, workStore)
+            isRevalidatedAfter(tag, timestamp, workStore)
           ) ||
-          implicitTags.some((tag) => isRecentlyRevalidatedTag(tag, workStore))
+          implicitTags.some((tag) =>
+            isRevalidatedAfter(tag, timestamp, workStore)
+          )
         ) {
           debug?.(
             'discarding RDC entry due to recently revalidated tags',
@@ -3550,24 +3554,50 @@ function shouldDiscardCacheEntry(
 
   // If the cache entry contains revalidated tags that the cache handler might
   // not know about yet, we need to discard it.
-  if (entry.tags.some((tag) => isRecentlyRevalidatedTag(tag, workStore))) {
+  if (
+    entry.tags.some((tag) =>
+      isRevalidatedAfter(tag, entry.timestamp, workStore)
+    )
+  ) {
     return true
   }
 
   // Finally, if any of the implicit tags have been revalidated recently, we
   // also need to discard the cache entry.
-  if (implicitTags.some((tag) => isRecentlyRevalidatedTag(tag, workStore))) {
+  if (
+    implicitTags.some((tag) =>
+      isRevalidatedAfter(tag, entry.timestamp, workStore)
+    )
+  ) {
     return true
   }
 
   return false
 }
 
-function isRecentlyRevalidatedTag(tag: string, workStore: WorkStore): boolean {
-  const { previouslyRevalidatedTags, pendingRevalidatedTags } = workStore
+/**
+ * Whether `tag` was revalidated after an entry created at `entryTimestamp`,
+ * which makes that entry stale. An entry produced after the revalidation
+ * already reflects it and is still usable.
+ */
+function isRevalidatedAfter(
+  tag: string,
+  entryTimestamp: number,
+  workStore: WorkStore
+): boolean {
+  const {
+    previouslyRevalidatedTags,
+    pendingRevalidatedTags,
+    requestStartTime,
+  } = workStore
 
   // Was the tag previously revalidated (e.g. by a redirecting server action)?
-  if (previouslyRevalidatedTags.includes(tag)) {
+  // That happened in an earlier request and carries no timestamp of its own, so
+  // it counts as having happened when this request started.
+  if (
+    entryTimestamp <= requestStartTime &&
+    previouslyRevalidatedTags.includes(tag)
+  ) {
     debug?.('tag', tag, 'was previously revalidated')
 
     return true
@@ -3577,7 +3607,11 @@ function isRecentlyRevalidatedTag(tag: string, workStore: WorkStore): boolean {
   // In this case the revalidation might not have been fully propagated by a
   // remote cache handler yet, so we read it from the pending tags in the work
   // store.
-  if (pendingRevalidatedTags?.some((item) => item.tag === tag)) {
+  if (
+    pendingRevalidatedTags?.some(
+      (item) => item.tag === tag && item.revalidatedAt > entryTimestamp
+    )
+  ) {
     debug?.('tag', tag, 'was just revalidated')
 
     return true
