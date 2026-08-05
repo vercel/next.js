@@ -95,7 +95,7 @@ You don't have to migrate every route at once. `instant = false` lets you get th
    npx @next/codemod@canary cache-components-instant-false ./app
    ```
 
-   Pass `./src/app` in a `src/` project. A wrong path reports `0 ok` instead of failing, so check the file count.
+   > **Good to know**: Pass `./src/app` in a `src/` project. A wrong path reports `0 ok` instead of failing, so check the file count.
 
    The app keeps building and serving, now with validation deferred for the opted-out routes.
 
