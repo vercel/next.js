@@ -116,6 +116,7 @@ export function setupProbeScheduler(
         isDraftMode: workStore.isDraftMode ?? false,
         isHmrRefresh: outerRequestStore.isHmrRefresh ?? false,
         hmrRefreshHash: outerRequestStore.hmrRefreshHash,
+        requestStartTime: workStore.requestStartTime,
       },
       timeoutMs: probeInternalTimeoutMs,
     }).then(
