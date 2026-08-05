@@ -1,6 +1,33 @@
-import { nextTestSetup } from 'e2e-utils'
+import { isNextDev, nextTestSetup, type NextInstance } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { getOutputLogJson } from '../_testing/utils'
+
+async function expectClientAbortNotReported(
+  next: NextInstance,
+  headers: Record<string, string> = {}
+) {
+  const getOutput = next.getCliOutputFromHere()
+  const abortController = new AbortController()
+  const response = await next.fetch('/rsc-client-abort', {
+    headers: { rsc: '1', ...headers },
+    signal: abortController.signal,
+  })
+
+  expect(response.status).toBe(200)
+
+  const iterator = response.body[Symbol.asyncIterator]()
+  const firstChunk = await iterator.next()
+  expect(firstChunk.done).toBe(false)
+
+  abortController.abort()
+
+  await retry(() => {
+    expect(getOutput()).toContain('[rsc-client-abort] response closed')
+  })
+  expect(getOutput()).not.toContain(
+    '[instrumentation] onRequestError:/rsc-client-abort'
+  )
+}
 
 describe('on-request-error - basic', () => {
   const { next, skipped } = nextTestSetup({
@@ -72,6 +99,10 @@ describe('on-request-error - basic', () => {
         url: '/server-page/edge',
         renderSource: 'react-server-components',
       })
+    })
+
+    it('should not report a client-aborted RSC stream', async () => {
+      await expectClientAbortNotReported(next)
     })
 
     it('should catch client component page error in node runtime', async () => {
@@ -162,3 +193,25 @@ describe('on-request-error - basic', () => {
     })
   })
 })
+
+if (isNextDev) {
+  describe('on-request-error - Cache Components client abort', () => {
+    const { next, skipped } = nextTestSetup({
+      files: __dirname,
+      overrideFiles: {
+        'next.config.js': 'module.exports = { cacheComponents: true }',
+      },
+      skipDeployment: true,
+    })
+
+    if (skipped) {
+      return
+    }
+
+    it('should not report a client-aborted RSC stream while bypassing caches', async () => {
+      await expectClientAbortNotReported(next, {
+        'cache-control': 'no-cache',
+      })
+    })
+  })
+}

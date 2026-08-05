@@ -887,20 +887,13 @@ async function generateDynamicFlightRenderResult(
     onFlightDataRenderError
   )
 
-  // With Server Components HMR cancellation enabled, a superseded HMR refresh
-  // aborts its own client fetch, which closes this response. We use that
-  // response-close to abort the discarded render. This is the
-  // non-Cache-Components dev RSC path; unlike the Cache Components staged path
-  // it has no detached validation, so the render is the only work to cancel.
-  const requestAbortSignal =
-    process.env.__NEXT_DEV_SERVER &&
-    renderOpts.experimental.serverComponentsHmrCancellation === true &&
-    requestStore.isHmrRefresh === true &&
-    isNodeNextResponse(ctx.res)
+  if (process.env.__NEXT_USE_NODE_STREAMS) {
+    // Abort the React render before response piping destroys its destination.
+    // This preserves the ResponseAborted reason when a client disconnects.
+    const requestAbortSignal = isNodeNextResponse(ctx.res)
       ? signalFromNodeResponse(ctx.res.originalResponse)
       : undefined
 
-  if (process.env.__NEXT_USE_NODE_STREAMS) {
     const debugChannel = setReactDebugChannel && createNodeDebugChannel()
 
     if (debugChannel) {
@@ -937,6 +930,17 @@ async function generateDynamicFlightRenderResult(
       options?.waitUntil
     )
   } else {
+    // With Server Components HMR cancellation enabled, a superseded HMR refresh
+    // aborts its own client fetch, which closes this response. We use that
+    // response-close to abort the discarded render.
+    const requestAbortSignal =
+      process.env.__NEXT_DEV_SERVER &&
+      renderOpts.experimental.serverComponentsHmrCancellation === true &&
+      requestStore.isHmrRefresh === true &&
+      isNodeNextResponse(ctx.res)
+        ? signalFromNodeResponse(ctx.res.originalResponse)
+        : undefined
+
     const debugChannel = setReactDebugChannel && createWebDebugChannel()
 
     if (debugChannel) {
@@ -1475,6 +1479,12 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
 
     debugChannel = setReactDebugChannel && createNodeDebugChannel()
 
+    // This stream is piped directly to the response, unlike the replayable
+    // staged render above, so abort it when the response closes.
+    const requestAbortSignal = isNodeNextResponse(ctx.res)
+      ? signalFromNodeResponse(ctx.res.originalResponse)
+      : undefined
+
     stream = await stagedRenderWithoutCachesInDevNode(
       ctx,
       initialRequestStore,
@@ -1483,6 +1493,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
         onError: onError,
         filterStackFrame,
         debugChannel: debugChannel?.serverSide,
+        signal: requestAbortSignal,
       }
     )
   }

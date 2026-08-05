@@ -5,6 +5,8 @@ export const onRequestError: Instrumentation.onRequestError = (
   request,
   context
 ) => {
+  console.log(`[instrumentation] onRequestError:${request.path}`)
+
   fetch(`http://localhost:${process.env.PORT}/write-log`, {
     method: 'POST',
     body: JSON.stringify({
