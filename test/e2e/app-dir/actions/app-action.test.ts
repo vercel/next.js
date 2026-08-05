@@ -1034,11 +1034,11 @@ describe('app-dir action handling', () => {
           if (isTurbopack) {
             // The import trace for the other bundlers is truncated and not particularly interesting
             expect(source).toMatchInlineSnapshot(`
-             "./app/client-error/actions-lib.js (3:1)
+             "./app/client-error/actions-lib.js (7:1)
              Error: Expression expected
-               1 | export const value = 123
-               2 |
-             > 3 | }}}
+               5 | export const value = 123
+               6 |
+             > 7 | }}}
                  | ^
 
              Parsing ecmascript source code failed
@@ -1056,6 +1056,29 @@ describe('app-dir action handling', () => {
         }
       )
     })
+
+    if (isTurbopack) {
+      // Only relevant for Turbopack, and the other bundlers don't output that edge error.
+      it('should only compile for edge when page runtime is set', async () => {
+        await next.browser('/client-error')
+        expect(next.cliOutput).not.toContain(
+          'which is not supported in the Edge Runtime.'
+        )
+        const output = next.getCliOutputFromHere()
+        await next.patchFile(
+          'app/client-error/page.js',
+          (origContent) => origContent + `\nexport const runtime = "edge";`,
+          async () => {
+            await retry(async () => {
+              await next.browser('/client-error')
+              expect(output()).toContain(
+                'which is not supported in the Edge Runtime.'
+              )
+            })
+          }
+        )
+      })
+    }
 
     describe('HMR', () => {
       it('should support updating the action', async () => {
