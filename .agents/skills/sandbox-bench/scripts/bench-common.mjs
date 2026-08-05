@@ -106,17 +106,15 @@ export async function sbCpToVm(vm, localPath, vmDest) {
       await execFileP('shasum', ['-a', '256', localPath])
     ).stdout.split(' ')[0]
     const catList = parts.map((p) => `'${vmDest}.${p}'`).join(' ')
-    const tag = `cp:${path.basename(vmDest)}`
-    // Parts are deleted only after the sha verifies, so a dropped exec
-    // stream mid-concat can safely re-run from the same parts.
-    const out = await sbExecRetry(
+    const out = await runDetached(
       vm,
-      '10m',
-      `cat ${catList} > '${vmDest}' && sha256sum '${vmDest}' | cut -d' ' -f1`,
-      tag
+      `cp:${path.basename(vmDest)}`,
+      `cat ${catList} > '${vmDest}' && sha256sum '${vmDest}' | cut -d' ' -f1 && rm -f ${catList}`,
+      null,
+      12
     )
-    // sbExec output interleaves stderr (CLI banners); take the last
-    // sha-shaped token rather than the last line.
+    // The transcript interleaves other lines; take the last sha-shaped
+    // token rather than the last line.
     const shaTokens = out.match(/\b[0-9a-f]{64}\b/g)
     const remoteSha = shaTokens ? shaTokens[shaTokens.length - 1] : ''
     if (remoteSha !== localSha) {
@@ -124,8 +122,6 @@ export async function sbCpToVm(vm, localPath, vmDest) {
         `chunked upload of ${localPath} corrupt: local ${localSha} != remote ${remoteSha}`
       )
     }
-    // Leaked parts would be captured into snapshots taken from this VM.
-    await sbExecRetry(vm, '2m', `rm -f ${catList}`, tag)
   } finally {
     fs.rmSync(partDir, { recursive: true, force: true })
   }
@@ -366,90 +362,6 @@ export function pairedP(deltas) {
   return Math.min(1, integral / norm)
 }
 
-export function sbExec(vm, timeout, script, tag, onRow) {
-  return new Promise((resolve, reject) => {
-    // The CLI does not reliably propagate the remote exit code (observed
-    // exit 0 after a remote `exit 1`, CLI 56.3.x), so the script reports
-    // its own exit through an EXIT-trap marker; no marker means the
-    // transport died mid-run. Both are failures.
-    const wrapped = `trap 'echo "@@EXEC_EXIT $?"' EXIT
-${script}`
-    const child = spawn(
-      VERCEL,
-      [
-        'sandbox',
-        'exec',
-        vm,
-        ...SCOPE,
-        '--timeout',
-        timeout,
-        '--',
-        'bash',
-        '-c',
-        wrapped,
-      ],
-      { stdio: ['ignore', 'pipe', 'pipe'] }
-    )
-    let out = ''
-    let buf = ''
-    child.stdout.on('data', (c) => {
-      out += c
-      buf += c
-      const lines = buf.split('\n')
-      buf = lines.pop()
-      for (const l of lines) {
-        if (!l) continue
-        if (l.startsWith('ROW ') && onRow) {
-          try {
-            onRow(JSON.parse(l.slice(4)))
-          } catch {}
-        } else {
-          process.stderr.write(`[${tag}] ${l}\n`)
-        }
-      }
-    })
-    child.stderr.on('data', (c) => {
-      out += c
-      process.stderr.write(
-        String(c)
-          .split('\n')
-          .filter(Boolean)
-          .map((l) => `[${tag}!] ${l}\n`)
-          .join('')
-      )
-    })
-    child.on('exit', (code) => {
-      const marker = out.match(/@@EXEC_EXIT (\d+)\s*$/m)
-      if (code === 0 && marker && marker[1] === '0') {
-        resolve(out)
-      } else {
-        const why =
-          code !== 0
-            ? `cli exit ${code}`
-            : marker
-              ? `remote exit ${marker[1]}`
-              : 'no exit marker (transport died mid-run)'
-        reject(new Error(`${tag}: ${why}\n${out.slice(-2000)}`))
-      }
-    })
-  })
-}
-
-// The exec stream drops flakily; short idempotent commands are safe to
-// just re-run. Anything that runs for minutes belongs in runDetached.
-export async function sbExecRetry(vm, timeout, script, tag, attempts = 3) {
-  for (let i = 1; ; i++) {
-    try {
-      return await sbExec(vm, timeout, script, tag)
-    } catch (e) {
-      if (i >= attempts) throw e
-      process.stderr.write(
-        `${tag}: exec attempt ${i}/${attempts} failed, retrying: ${String(e.message).split('\n')[0].slice(0, 120)}\n`
-      )
-    }
-  }
-}
-
 export async function rmVm(name) {
   try {
     await sb(['rm', name])
@@ -458,9 +370,13 @@ export async function rmVm(name) {
   }
 }
 
-// Long-running remote work detached from the exec stream (streams drop
-// flakily on multi-minute silences): nohup the script on the VM, then
-// poll its log with short execs. Immune to transport hiccups.
+// Remote execution: nohup the script on the VM, then poll its log with
+// short execs. The exec stream drops flakily on multi-minute commands and
+// the CLI does not reliably propagate remote exit codes, so executions are
+// detached (they run exactly once and survive the transport) and the
+// stream is only used for kicks and polls, which are safe to repeat.
+// One detached command per VM at a time: the fixed loop.* paths are the
+// crash-recovery contract (bench-collect.mjs, SKILL.md).
 export async function runDetached(vm, tag, script, onLine, deadlineMin) {
   let transcript = ''
   const local = path.join(os.tmpdir(), `loop-${vm}.sh`)
@@ -569,13 +485,24 @@ export async function takeSnapshot(vm, cacheDir, key) {
 
 // React build environment (repo + node_modules + JDK), shared with
 // sandbox-ab.mjs. Keyed on the arm's yarn.lock.
+const reactSnapPromises = new Map()
 export async function ensureReactBuildSnapshot(refSha) {
+  // Raw bytes, exactly as cached snapshots hashed it: a trim here would
+  // silently fork the cache key and build every snapshot twice.
   const lock = await execFileP(
     'git',
     ['-C', REACT_REPO_LAZY(), 'show', `${refSha}:yarn.lock`],
     { maxBuffer: 1 << 28 }
   )
   const key = await sha256(SETUP_VERSION + lock.stdout)
+  // Concurrent callers with the same lockfile share one build.
+  if (!reactSnapPromises.has(key)) {
+    reactSnapPromises.set(key, ensureReactBuildSnapshotForKey(refSha, key))
+  }
+  return reactSnapPromises.get(key)
+}
+
+async function ensureReactBuildSnapshotForKey(refSha, key) {
   let id = await snapshotIdFor(REACT_SNAP_CACHE, key)
   if (id) return id
   const vm = `react-snap-build-${Date.now().toString(36)}`
@@ -607,38 +534,15 @@ export async function ensureReactBuildSnapshot(refSha) {
     ])
     await sb(['cp', src, `${vm}:/vercel/sandbox/src.tgz`])
     fs.rmSync(src, { force: true })
-    // dnf runs for a minute or two through the same drop-prone exec
-    // stream, and installs are idempotent.
-    for (let attempt = 1; ; attempt++) {
-      try {
-        await sb([
-          'exec',
-          vm,
-          '--timeout',
-          '10m',
-          '--sudo',
-          '--',
-          'dnf',
-          'install',
-          '-y',
-          '-q',
-          'java-21-amazon-corretto-headless',
-        ])
-        break
-      } catch (e) {
-        if (attempt >= 3) throw e
-        process.stderr.write(
-          `react-snap: dnf attempt ${attempt}/3 failed, retrying: ${String(e.message).split('\n')[0].slice(0, 120)}\n`
-        )
-      }
-    }
+    // The default user has passwordless sudo (verified on node24 VMs).
     await runDetached(
       vm,
       'react-snap',
-      `mkdir -p /vercel/sandbox/react && cd /vercel/sandbox/react && tar -xzf ../src.tgz && rm -f ../src.tgz && ` +
+      `sudo dnf install -y -q java-21-amazon-corretto-headless && ` +
+        `mkdir -p /vercel/sandbox/react && cd /vercel/sandbox/react && tar -xzf ../src.tgz && rm -f ../src.tgz && ` +
         `npm i -g yarn >/dev/null 2>&1 && yarn install --frozen-lockfile --ignore-engines >/dev/null 2>&1 && echo react env ready`,
       null,
-      25
+      30
     )
     return await takeSnapshot(vm, REACT_SNAP_CACHE, key)
   } finally {
