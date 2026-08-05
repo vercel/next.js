@@ -1647,11 +1647,21 @@ describe('use-cache', () => {
     expect(randA).toBe(randB)
   })
 
-  it('should dedupe private caches within a single request', async () => {
+  it('should dedupe private caches for concurrent calls within a single request', async () => {
     const browser = await next.browser('/private-dedup')
     const first = await browser.elementByCss('.rand:nth-of-type(1)').text()
     const second = await browser.elementByCss('.rand:nth-of-type(2)').text()
     expect(first).toBe(second)
+  })
+
+  it('should dedupe private caches for sequential calls within a single request', async () => {
+    const $ = await next.render$('/private-dedup-sequential')
+    expect($('.first').text()).toBe($('.second').text())
+  })
+
+  it('should dedupe caches for sequential calls within a single request', async () => {
+    const $ = await next.render$('/dedup-sequential')
+    expect($('.first').text()).toBe($('.second').text())
   })
 
   it('should dedupe sequential calls in a server action and its subsequent render', async () => {
