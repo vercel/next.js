@@ -118,15 +118,13 @@ Before invoking the codemod, fix the two classes of blocker it can't.
 
 The codemod refuses to run on a dirty working tree. Commit or stash unrelated work first, or pass `--force` to let its edits land alongside your WIP. Common false positive: if you recently upgraded Next.js, `package.json` and the lockfile will already be dirty — commit those first.
 
-The path argument is the app directory, which is `./src/app` in a `src/` project and `./app` otherwise. Check which one exists before you run it:
-
 ```bash
 npx @next/codemod@latest cache-components-instant-false ./app
 ```
 
-Inserts `export const instant = false` (with a `// TODO: Cache Components adoption` comment) into every `{page,layout,default}` file under that directory, skipping files that already declare `instant` and any module marked `"use client"` or `"use server"`. Then set `cacheComponents: true`. The TODO comments are the work queue for the loop.
+Pass `./src/app` in a `src/` project. A wrong path is not an error: it reports `0 ok` and exits `0`, so read the file count and treat zero as a failed run, not an adopted app.
 
-Read the file count it reports back. A path that doesn't exist is not an error: the run prints `No files selected, nothing to do`, reports `0 ok`, and exits `0`, so pointing it at the wrong directory looks exactly like a successful migration. `0 ok` means nothing matched, which is a wrong path far more often than an app that's already adopted.
+Inserts `export const instant = false` (with a `// TODO: Cache Components adoption` comment) into every `{page,layout,default}` file under that directory, skipping files that already declare `instant` and any module marked `"use client"` or `"use server"`. Then set `cacheComponents: true`. The TODO comments are the work queue for the loop.
 
 If the codemod isn't available (older `@next/codemod`, sandboxed environment, offline run), reproduce it by hand: for every `{page,layout,default}.{js,jsx,ts,tsx}` in the app directory that isn't `"use client"` or `"use server"` and doesn't already declare `instant`, insert this after the imports:
 
