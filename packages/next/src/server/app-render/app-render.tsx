@@ -354,10 +354,26 @@ export type AppSharedContext = {
   clientAssetToken: string
 }
 
+type AppRenderCapabilities = {
+  /** Whether this render may postpone dynamic subtrees. */
+  canPostpone: boolean
+  /**
+   * Whether the response may contain postponed holes. This is conservatively
+   * true for prerenders with PPR enabled, even when the response turns out to
+   * be fully static, because a false negative could cause the client to skip
+   * fetching dynamic data. Per-segment prefetch responses replace this with a
+   * more precise value during segment-data collection.
+   */
+  isPossiblyPartialResponse: boolean
+  /** Whether this route supports per-segment prefetching in the client protocol. */
+  supportsPerSegmentPrefetching: boolean
+}
+
 export type AppRenderContext = {
   sharedContext: AppSharedContext
   workStore: WorkStore
   missingPrefetchHintPolicy: MissingPrefetchHintPolicy
+  renderCapabilities: AppRenderCapabilities
   url: ReturnType<typeof parseRelativeUrl>
   componentMod: AppPageModule
   renderOpts: RenderOpts
@@ -796,9 +812,7 @@ async function generateDynamicRSCPayload(
       // With Cache Components, all routes support it. Without it, only fully
       // static pages do, because their per-segment prefetch responses are
       // generated during static generation (build or ISR).
-      S:
-        workStore.executionMode === 'prerender' ||
-        ctx.renderOpts.cacheComponents,
+      S: ctx.renderCapabilities.supportsPerSegmentPrefetching,
       h: getMetadataVaryParamsAccumulator(),
       r: getRootParamsVaryParamsAccumulator() ?? undefined,
     }
@@ -2186,10 +2200,8 @@ async function getRSCPayload(
   // client Segment Cache after a prefetch to determine if it can skip the
   // second request to fill in the dynamic data.
   //
-  // See similar comment in create-component-tree.tsx for more context.
-  const isPossiblyPartialHead =
-    workStore.executionMode === 'prerender' &&
-    ctx.renderOpts.experimental.isRoutePPREnabled === true
+  // See AppRenderCapabilities.isPossiblyPartialResponse for more context.
+  const isPossiblyPartialHead = ctx.renderCapabilities.isPossiblyPartialResponse
 
   return maybeAppendBuildIdToRSCPayload(ctx, {
     // See the comment above the `Preloads` component (below) for why this is part of the payload
@@ -2213,8 +2225,7 @@ async function getRSCPayload(
     // With Cache Components, all routes support it. Without it, only fully
     // static pages do, because their per-segment prefetch responses are
     // generated during static generation (build or ISR).
-    S:
-      workStore.executionMode === 'prerender' || ctx.renderOpts.cacheComponents,
+    S: ctx.renderCapabilities.supportsPerSegmentPrefetching,
     h: getMetadataVaryParamsAccumulator(),
     r: getRootParamsVaryParamsAccumulator() ?? undefined,
     s: staleTimeIterable,
@@ -2257,7 +2268,6 @@ async function getErrorRSCPayload(
     query,
     componentMod: { createMetadataComponents, createElement, Fragment },
     url,
-    workStore,
   } = ctx
 
   let Viewport: ComponentType | null = null
@@ -2348,9 +2358,7 @@ async function getErrorRSCPayload(
     ctx
   )
 
-  const isPossiblyPartialHead =
-    workStore.executionMode === 'prerender' &&
-    ctx.renderOpts.experimental.isRoutePPREnabled === true
+  const isPossiblyPartialHead = ctx.renderCapabilities.isPossiblyPartialResponse
 
   return maybeAppendBuildIdToRSCPayload(ctx, {
     c: prepareInitialCanonicalUrl(url),
@@ -2370,8 +2378,7 @@ async function getErrorRSCPayload(
     // With Cache Components, all routes support it. Without it, only fully
     // static pages do, because their per-segment prefetch responses are
     // generated during static generation (build or ISR).
-    S:
-      workStore.executionMode === 'prerender' || ctx.renderOpts.cacheComponents,
+    S: ctx.renderCapabilities.supportsPerSegmentPrefetching,
     h: getMetadataVaryParamsAccumulator(),
     r: getRootParamsVaryParamsAccumulator() ?? undefined,
   } satisfies InitialRSCPayload)
@@ -2697,6 +2704,7 @@ async function renderToHTMLOrFlightImpl(
   stripInternalQueries(query)
 
   const isStaticGeneration = workStore.executionMode === 'prerender'
+  const isRoutePPREnabled = renderOpts.experimental.isRoutePPREnabled === true
 
   let requestId: string
   let htmlRequestId: string
@@ -2779,6 +2787,14 @@ async function renderToHTMLOrFlightImpl(
       isStaticGeneration,
       renderOpts.cacheComponents
     ),
+    // These are distinct rendering and protocol properties even though they
+    // are both determined by route-level PPR support today.
+    renderCapabilities: {
+      canPostpone: isStaticGeneration && isRoutePPREnabled,
+      isPossiblyPartialResponse: isStaticGeneration && isRoutePPREnabled,
+      supportsPerSegmentPrefetching:
+        isStaticGeneration || renderOpts.cacheComponents,
+    },
     parsedRequestHeaders,
     getDynamicParamFromSegment,
     interpolatedParams,
@@ -7974,6 +7990,12 @@ async function validateInstantConfigInBuildWithSample(
         false,
         outerCtx.renderOpts.cacheComponents
       ),
+      renderCapabilities: {
+        canPostpone: false,
+        isPossiblyPartialResponse: false,
+        supportsPerSegmentPrefetching:
+          outerCtx.renderCapabilities.supportsPerSegmentPrefetching,
+      },
       parsedRequestHeaders: outerCtx.parsedRequestHeaders,
       getDynamicParamFromSegment,
       interpolatedParams: sampleParams,

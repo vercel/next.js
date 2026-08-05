@@ -133,8 +133,12 @@ async function createComponentTreeInternal(
     pagePath,
     getDynamicParamFromSegment,
     isPrefetch,
+    renderCapabilities,
     query,
   } = ctx
+
+  const { executionMode } = workStore
+  const { canPostpone, isPossiblyPartialResponse } = renderCapabilities
 
   const { page, conventionPath, segment, modules, parallelRoutes } =
     parseLoaderTree(tree)
@@ -273,10 +277,7 @@ async function createComponentTreeInternal(
       workStore.forceDynamic = true
 
       // TODO: (PPR) remove this bailout once PPR is the default
-      if (
-        workStore.executionMode === 'prerender' &&
-        !experimental.isRoutePPREnabled
-      ) {
+      if (executionMode === 'prerender' && !canPostpone) {
         // If the postpone API isn't available, we can't postpone the render and
         // therefore we can't use the dynamic API.
         const err = new DynamicServerError(
@@ -333,11 +334,11 @@ async function createComponentTreeInternal(
 
     if (
       !workStore.forceStatic &&
-      workStore.executionMode === 'prerender' &&
+      executionMode === 'prerender' &&
       defaultRevalidate === 0 &&
       // If the postpone API isn't available, we can't postpone the render and
       // therefore we can't use the dynamic API.
-      !experimental.isRoutePPREnabled
+      !canPostpone
     ) {
       const dynamicUsageDescription = `revalidate: 0 configured ${segment}`
       workStore.dynamicUsageDescription = dynamicUsageDescription
@@ -388,24 +389,6 @@ async function createComponentTreeInternal(
     }
   }
 
-  const isStaticGeneration = workStore.executionMode === 'prerender'
-
-  // Assume the segment we're rendering contains only partial data if PPR is
-  // enabled and this is a statically generated response. This is used by the
-  // client Segment Cache after a prefetch to determine if it can skip the
-  // second request to fill in the dynamic data.
-  //
-  // It's OK for this to be `true` when the data is actually fully static, but
-  // it's not OK for this to be `false` when the data possibly contains holes.
-  // Although the value here is overly pessimistic, for prefetches, it will be
-  // replaced by a more specific value when the data is later processed into
-  // per-segment responses (see collect-segment-data.tsx)
-  //
-  // For dynamic requests, this must always be `false` because dynamic responses
-  // are never partial.
-  const isPossiblyPartialResponse =
-    isStaticGeneration && experimental.isRoutePPREnabled === true
-
   const LayoutOrPage: ComponentType<any> | undefined = layoutOrPageMod
     ? interopDefault(layoutOrPageMod)
     : undefined
@@ -415,7 +398,7 @@ async function createComponentTreeInternal(
    */
   let MaybeComponent = LayoutOrPage
 
-  if (process.env.NODE_ENV === 'development' || isStaticGeneration) {
+  if (process.env.NODE_ENV === 'development' || executionMode === 'prerender') {
     const { isValidElementType } =
       require('next/dist/compiled/react-is') as typeof import('next/dist/compiled/react-is')
     if (
@@ -770,11 +753,7 @@ async function createComponentTreeInternal(
   // along the parent path of a force-dynamic segment will hit this condition effectively making the entire
   // render force-dynamic. We should refactor this function so that we can correctly track which segments
   // need to be dynamic
-  if (
-    workStore.executionMode === 'prerender' &&
-    workStore.forceDynamic &&
-    experimental.isRoutePPREnabled
-  ) {
+  if (canPostpone && workStore.forceDynamic) {
     return createSeedData(
       ctx,
       createElement(
@@ -829,7 +808,7 @@ async function createComponentTreeInternal(
           Component: PageComponent,
           serverProvidedParams: null,
         })
-      } else if (isStaticGeneration) {
+      } else if (executionMode === 'prerender') {
         const promiseOfParams =
           createPrerenderParamsForClientSegment(currentParams)
         const promiseOfSearchParams = createPrerenderSearchParamsForClientPage()
@@ -938,7 +917,7 @@ async function createComponentTreeInternal(
           slots: parallelRouteProps,
           serverProvidedParams: null,
         })
-      } else if (isStaticGeneration) {
+      } else if (executionMode === 'prerender') {
         const promiseOfParams =
           createPrerenderParamsForClientSegment(currentParams)
 
