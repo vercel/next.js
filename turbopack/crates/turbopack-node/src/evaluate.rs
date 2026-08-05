@@ -587,7 +587,18 @@ async fn pull_operation<T: EvaluateContext>(
                 return Ok(None);
             }
         };
-        let message = serde_json::from_slice(&bytes)?;
+        // From here on the JS worker may have an evaluation in flight (it is
+        // either still running or waiting for a response from us). Any early
+        // error exit must therefore mark the operation non-reusable —
+        // returning the runtime to the pool would hand a poisoned or wedged
+        // worker to the next task and retain the in-flight evaluation.
+        let message = match serde_json::from_slice(&bytes) {
+            Ok(message) => message,
+            Err(err) => {
+                operation.disallow_reuse();
+                return Err(err.into());
+            }
+        };
 
         match message {
             EvalJavaScriptIncomingMessage::Error(error) => {
@@ -599,28 +610,51 @@ async fn pull_operation<T: EvaluateContext>(
             }
             EvalJavaScriptIncomingMessage::End { data } => return Ok(data),
             EvalJavaScriptIncomingMessage::Info { data } => {
-                evaluate_context
-                    .info(state, serde_json::from_value(data)?, pool)
-                    .await?;
+                let data = match serde_json::from_value(data) {
+                    Ok(data) => data,
+                    Err(err) => {
+                        operation.disallow_reuse();
+                        return Err(err.into());
+                    }
+                };
+                if let Err(err) = evaluate_context.info(state, data, pool).await {
+                    operation.disallow_reuse();
+                    return Err(err);
+                }
             }
             EvalJavaScriptIncomingMessage::Request { id, data } => {
-                match evaluate_context
-                    .request(state, serde_json::from_value(data)?, pool)
-                    .await
-                {
+                let data = match serde_json::from_value(data) {
+                    Ok(data) => data,
+                    Err(err) => {
+                        operation.disallow_reuse();
+                        return Err(err.into());
+                    }
+                };
+                match evaluate_context.request(state, data, pool).await {
                     Ok(response) => {
-                        operation
+                        let response = match serde_json::to_value(response) {
+                            Ok(response) => response,
+                            Err(err) => {
+                                operation.disallow_reuse();
+                                return Err(err.into());
+                            }
+                        };
+                        if let Err(err) = operation
                             .send(Bytes::from(serde_json::to_vec(
                                 &EvalJavaScriptOutgoingMessage::Result {
                                     id,
                                     error: None,
-                                    data: Some(serde_json::to_value(response)?),
+                                    data: Some(response),
                                 },
                             )?))
-                            .await?;
+                            .await
+                        {
+                            operation.disallow_reuse();
+                            return Err(err);
+                        }
                     }
                     Err(e) => {
-                        operation
+                        if let Err(err) = operation
                             .send(Bytes::from(serde_json::to_vec(
                                 &EvalJavaScriptOutgoingMessage::Result {
                                     id,
@@ -628,7 +662,11 @@ async fn pull_operation<T: EvaluateContext>(
                                     data: None,
                                 },
                             )?))
-                            .await?;
+                            .await
+                        {
+                            operation.disallow_reuse();
+                            return Err(err);
+                        }
                     }
                 }
             }
@@ -767,5 +805,227 @@ impl Issue for EvaluationIssue {
 
     fn source(&self) -> Option<IssueSource> {
         Some(self.source)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        collections::VecDeque,
+        path::PathBuf,
+        sync::{
+            Arc,
+            atomic::{AtomicBool, AtomicUsize, Ordering},
+        },
+    };
+
+    use turbo_tasks::Vc;
+    use turbo_tasks_fs::VirtualFileSystem;
+    use turbo_tasks_testing::{Registration, register, run_once_without_cache_check};
+
+    use super::*;
+    use crate::process_pool::ChildProcessPool;
+
+    static REGISTRATION: Registration = register!();
+
+    #[derive(Clone, Default)]
+    struct MockFlags {
+        disallow_reuse: Arc<AtomicBool>,
+        sends: Arc<AtomicUsize>,
+    }
+
+    /// A scripted [`Operation`] that replays canned worker→Rust messages and
+    /// records lifecycle calls.
+    struct MockOperation {
+        incoming: VecDeque<Bytes>,
+        flags: MockFlags,
+    }
+
+    #[async_trait]
+    impl Operation for MockOperation {
+        async fn recv(&mut self) -> Result<Bytes> {
+            self.incoming
+                .pop_front()
+                .ok_or_else(|| anyhow::anyhow!("script exhausted"))
+        }
+
+        async fn send(&mut self, _data: Bytes) -> Result<()> {
+            self.flags.sends.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+
+        async fn wait_or_kill(&mut self) -> Result<ExitStatus> {
+            Ok(ExitStatus::default())
+        }
+
+        fn disallow_reuse(&mut self) {
+            self.flags.disallow_reuse.store(true, Ordering::SeqCst);
+        }
+    }
+
+    /// A nested-request payload shape that arbitrary worker JSON fails to
+    /// deserialize into.
+    #[derive(Deserialize)]
+    struct StrictRequest {
+        _required_field: u32,
+    }
+
+    struct MockContext {
+        fail_info: bool,
+    }
+
+    impl EvaluateContext for MockContext {
+        type InfoMessage = JsonValue;
+        type RequestMessage = StrictRequest;
+        type ResponseMessage = JsonValue;
+        type State = ();
+
+        fn pool(&self) -> OperationVc<EvaluatePool> {
+            unreachable!("pull_operation receives the pool directly")
+        }
+
+        fn args(&self) -> &[ResolvedVc<JsonValue>] {
+            &[]
+        }
+
+        fn cwd(&self) -> Vc<FileSystemPath> {
+            unreachable!()
+        }
+
+        async fn emit_error(&self, _error: StructuredError, _pool: &EvaluatePool) -> Result<()> {
+            Ok(())
+        }
+
+        async fn info(
+            &self,
+            _state: &mut (),
+            _data: JsonValue,
+            _pool: &EvaluatePool,
+        ) -> Result<()> {
+            if self.fail_info {
+                bail!("injected info handler failure")
+            }
+            Ok(())
+        }
+
+        async fn request(
+            &self,
+            _state: &mut (),
+            _data: StrictRequest,
+            _pool: &EvaluatePool,
+        ) -> Result<JsonValue> {
+            Ok(JsonValue::Null)
+        }
+
+        async fn finish(&self, _state: (), _pool: &EvaluatePool) -> Result<()> {
+            Ok(())
+        }
+    }
+
+    async fn create_test_pool() -> Result<EvaluatePool> {
+        let vfs = VirtualFileSystem::new();
+        let fs: Vc<Box<dyn turbo_tasks_fs::FileSystem>> = Vc::upcast(vfs);
+        let fs = fs.to_resolved().await?;
+        let root_path = FileSystemPath {
+            fs,
+            path: RcStr::default(),
+        };
+        let assets: Vc<AssetsForSourceMapping> = Vc::cell(Default::default());
+        let assets = assets.to_resolved().await?;
+        Ok(ChildProcessPool::create(
+            std::env::current_dir()?,
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/pool_test_worker.js"),
+            Default::default(),
+            assets,
+            root_path.clone(),
+            root_path,
+            1,
+            false,
+        ))
+    }
+
+    /// Once an evaluation may be in flight on the JS side, exiting the pull
+    /// loop with an error must mark the operation non-reusable: the worker is
+    /// still running the aborted evaluation (or waiting for a response that
+    /// will never arrive), so returning it to the pool would poison later
+    /// tasks and retain the in-flight runtime.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn protocol_decode_failure_disallows_reuse() {
+        run_once_without_cache_check(&REGISTRATION, async {
+            let pool = create_test_pool().await.unwrap();
+            let flags = MockFlags::default();
+            let mut operation: Box<dyn Operation> = Box::new(MockOperation {
+                incoming: VecDeque::from([Bytes::from_static(b"not-json")]),
+                flags: flags.clone(),
+            });
+            let context = MockContext { fail_info: false };
+            let mut state = ();
+            let result = pull_operation(&mut operation, &pool, &context, &mut state).await;
+            assert!(result.is_err());
+            assert!(
+                flags.disallow_reuse.load(Ordering::SeqCst),
+                "mid-evaluation protocol failure must disallow reuse"
+            );
+        })
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn info_handler_failure_disallows_reuse() {
+        run_once_without_cache_check(&REGISTRATION, async {
+            let pool = create_test_pool().await.unwrap();
+            let flags = MockFlags::default();
+            let message = Bytes::from(
+                serde_json::to_vec(&serde_json::json!({"type": "info", "data": {}})).unwrap(),
+            );
+            let mut operation: Box<dyn Operation> = Box::new(MockOperation {
+                incoming: VecDeque::from([message]),
+                flags: flags.clone(),
+            });
+            let context = MockContext { fail_info: true };
+            let mut state = ();
+            let result = pull_operation(&mut operation, &pool, &context, &mut state).await;
+            assert!(result.is_err());
+            assert!(
+                flags.disallow_reuse.load(Ordering::SeqCst),
+                "info handler failure must disallow reuse"
+            );
+        })
+        .await;
+    }
+
+    /// A nested request the Rust side cannot decode must never leave the JS
+    /// worker waiting for a response that will never arrive while the worker
+    /// is handed back to the pool as healthy.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn undecodable_request_disallows_reuse_without_response() {
+        run_once_without_cache_check(&REGISTRATION, async {
+            let pool = create_test_pool().await.unwrap();
+            let flags = MockFlags::default();
+            let message = Bytes::from(
+                serde_json::to_vec(
+                    &serde_json::json!({"type": "request", "id": 7, "data": "bogus"}),
+                )
+                .unwrap(),
+            );
+            let mut operation: Box<dyn Operation> = Box::new(MockOperation {
+                incoming: VecDeque::from([message]),
+                flags: flags.clone(),
+            });
+            let context = MockContext { fail_info: false };
+            let mut state = ();
+            let result = pull_operation(&mut operation, &pool, &context, &mut state).await;
+            assert!(result.is_err());
+            assert!(
+                flags.disallow_reuse.load(Ordering::SeqCst),
+                "undecodable request must disallow reuse"
+            );
+            assert_eq!(
+                flags.sends.load(Ordering::SeqCst),
+                0,
+                "no response can be sent for an undecodable request"
+            );
+        })
+        .await;
     }
 }
