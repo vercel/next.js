@@ -45,7 +45,10 @@ describe('og-api', () => {
       `/_next/image?url=${imageUrl}&w=640&q=75`
     )
     expect(optimized.status).toBe(200)
-    expect(optimized.headers.get('x-vercel-cache') || optimized.headers.get('x-nextjs-cache')).toBe('MISS')
+    expect(
+      optimized.headers.get('x-vercel-cache') ||
+        optimized.headers.get('x-nextjs-cache')
+    ).toBe('MISS')
 
     const after = await fetchViaHTTP(next.url, '/og-node')
     expect(after.status).toBe(200)
