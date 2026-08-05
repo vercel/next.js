@@ -1346,6 +1346,12 @@ impl AppEndpoint {
             *client_chunking_context,
             availability_info,
             ssr_chunking_context.map(|ctx| *ctx),
+            *this
+                .app_project
+                .project()
+                .next_config()
+                .turbopack_separate_async_client_references()
+                .await?,
         )
         .to_resolved()
         .await?;

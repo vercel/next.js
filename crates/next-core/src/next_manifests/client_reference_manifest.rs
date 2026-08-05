@@ -200,6 +200,7 @@ async fn build_manifest(
         let ClientReferencesChunks {
             client_component_client_chunks,
             layout_segment_client_chunks,
+            layout_segment_async_client_chunks,
             client_component_ssr_chunks,
         } = &*client_references_chunks.await?;
         let client_relative_path = client_relative_path.clone();
@@ -450,7 +451,18 @@ async fn build_manifest(
         }
 
         // per layout segment chunks need to be emitted into the manifest too
-        for (server_component, client_assets) in layout_segment_client_chunks.iter() {
+        // Async-only chunks are visited too, but contribute CSS only.
+        for (server_component, client_assets, eager) in layout_segment_client_chunks
+            .iter()
+            .map(|(server_component, client_assets)| (server_component, client_assets, true))
+            .chain(
+                layout_segment_async_client_chunks
+                    .iter()
+                    .map(|(server_component, client_assets)| {
+                        (server_component, client_assets, false)
+                    }),
+            )
+        {
             // Use source_path() to get the original source path (e.g., page.mdx) instead of
             // server_path() which returns the transformed path (e.g., page.mdx.tsx).
             // This ensures the manifest key matches what the LoaderTree stores and what
@@ -506,9 +518,10 @@ async fn build_manifest(
                             inlined: inlined_css,
                             content,
                         });
-                    } else if !mode.is_production()
-                        || !generate_component_chunks
-                        || !client_reference_chunk_paths.contains(&path)
+                    } else if eager
+                        && (!mode.is_production()
+                            || !generate_component_chunks
+                            || !client_reference_chunk_paths.contains(&path))
                     {
                         entry_js_files.insert(path);
                     }

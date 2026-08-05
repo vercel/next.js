@@ -1393,6 +1393,7 @@ pub struct ExperimentalConfig {
     turbopack_input_source_maps: Option<bool>,
     turbopack_module_fragments: Option<bool>,
     turbopack_scope_hoisting: Option<bool>,
+    turbopack_separate_async_client_references: Option<bool>,
     turbopack_shared_runtime: Option<bool>,
     /// Custom URL prefix for Web Worker URLs (the entrypoint and the module
     /// chunks loaded inside the worker) produced by
@@ -2544,6 +2545,15 @@ impl NextConfig {
             NextMode::Development => false,
             NextMode::Build => self.experimental.turbopack_scope_hoisting.unwrap_or(true),
         }))
+    }
+
+    #[turbo_tasks::function]
+    pub fn turbopack_separate_async_client_references(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_separate_async_client_references
+                .unwrap_or(false),
+        )
     }
 
     #[turbo_tasks::function]
