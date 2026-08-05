@@ -60,14 +60,9 @@ export async function walkTreeWithFlightRouterState({
     isPrefetch,
     getDynamicParamFromSegment,
     parsedRequestHeaders,
-    workStore,
   } = ctx
   const prefetchInliningEnabled = Boolean(experimental.prefetchInlining)
-  const cacheComponents = ctx.renderOpts.cacheComponents
   const partialPrefetching = ctx.renderOpts.partialPrefetching
-  const isStaticGeneration = workStore.isStaticGeneration
-  const isBuildTimePrerendering =
-    ctx.renderOpts.isBuildTimePrerendering ?? false
 
   const [segment, parallelRoutes, modules] = loaderTreeToFilter
 
@@ -163,10 +158,8 @@ export async function walkTreeWithFlightRouterState({
           loaderTreeToFilter,
           hintTree,
           prefetchInliningEnabled,
-          cacheComponents,
+          ctx.missingPrefetchHintPolicy,
           partialPrefetching,
-          isStaticGeneration,
-          isBuildTimePrerendering,
           getDynamicParamFromSegment,
           rootLayoutIncluded
         )
@@ -174,10 +167,8 @@ export async function walkTreeWithFlightRouterState({
           loaderTreeToFilter,
           hintTree,
           prefetchInliningEnabled,
-          cacheComponents,
+          ctx.missingPrefetchHintPolicy,
           partialPrefetching,
-          isStaticGeneration,
-          isBuildTimePrerendering,
           getDynamicParamFromSegment,
           query,
           rootLayoutIncluded
@@ -207,20 +198,16 @@ export async function walkTreeWithFlightRouterState({
           loaderTreeToFilter,
           hintTree,
           prefetchInliningEnabled,
-          cacheComponents,
+          ctx.missingPrefetchHintPolicy,
           partialPrefetching,
-          isStaticGeneration,
-          isBuildTimePrerendering,
           getDynamicParamFromSegment
         )
       : await createFlightRouterStateFromLoaderTree(
           loaderTreeToFilter,
           hintTree,
           prefetchInliningEnabled,
-          cacheComponents,
+          ctx.missingPrefetchHintPolicy,
           partialPrefetching,
-          isStaticGeneration,
-          isBuildTimePrerendering,
           getDynamicParamFromSegment,
           query,
           rootLayoutIncluded
@@ -251,10 +238,8 @@ export async function walkTreeWithFlightRouterState({
       loaderTreeToFilter,
       hintTree,
       prefetchInliningEnabled,
-      cacheComponents,
+      ctx.missingPrefetchHintPolicy,
       partialPrefetching,
-      isStaticGeneration,
-      isBuildTimePrerendering,
       getDynamicParamFromSegment,
       query,
       rootLayoutIncluded
@@ -277,6 +262,7 @@ export async function walkTreeWithFlightRouterState({
         preloadCallbacks,
         authInterrupts: experimental.authInterrupts,
         MetadataOutlet,
+        isPrerendering: false,
       }
     )
 
@@ -375,7 +361,6 @@ export async function createFullTreeFlightDataForNavigation({
     query,
     getDynamicParamFromSegment,
     pagePath,
-    workStore: workStoreForInitialRender,
   } = ctx
 
   const hintTreeForInitialRender =
@@ -385,10 +370,8 @@ export async function createFullTreeFlightDataForNavigation({
     loaderTree,
     hintTreeForInitialRender,
     Boolean(experimental.prefetchInlining),
-    ctx.renderOpts.cacheComponents,
+    ctx.missingPrefetchHintPolicy,
     ctx.renderOpts.partialPrefetching,
-    workStoreForInitialRender.isStaticGeneration,
-    ctx.renderOpts.isBuildTimePrerendering ?? false,
     getDynamicParamFromSegment,
     query
   )
@@ -407,6 +390,7 @@ export async function createFullTreeFlightDataForNavigation({
     preloadCallbacks,
     authInterrupts: experimental.authInterrupts,
     MetadataOutlet,
+    isPrerendering: false,
   })
 
   return [

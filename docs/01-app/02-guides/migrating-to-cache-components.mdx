@@ -95,6 +95,8 @@ You don't have to migrate every route at once. `instant = false` lets you get th
    npx @next/codemod@canary cache-components-instant-false ./app
    ```
 
+   > **Good to know**: Pass `./src/app` in a `src/` project. A wrong path reports `0 ok` instead of failing, so check the file count.
+
    The app keeps building and serving, now with validation deferred for the opted-out routes.
 
 3. **Fix synchronous IO. It can't be deferred.** Calls like `new Date()`, `Date.now()`, `Math.random()`, and `crypto.randomUUID()` during prerender throw a build error that `instant = false` does not clear, so a route that uses them won't build until you address it, opt-out or not. Move the call out of the prerendered shell so it runs at request time: wrap the part that needs it in [`<Suspense>`](https://react.dev/reference/react/Suspense) and call [`connection()`](/docs/app/api-reference/functions/connection) before the call, or move it into a Client Component.

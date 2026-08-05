@@ -563,6 +563,7 @@ describe('use-cache', () => {
           '/react-cache',
           '/referential-equality',
           '/revalidate-and-redirect/redirect',
+          '/revalidate-tag-form-data-no-refresh',
           '/revalidate-tag-no-refresh',
           '/rsc-payload',
           '/static-class-method',
@@ -810,6 +811,26 @@ describe('use-cache', () => {
       // The key assertion: after 3 clicks, the value should still be the same
       // This proves revalidateTag with profile does NOT cause read-your-own-writes
       // (Unlike the bug where click 3 would show a different stale value)
+    })
+
+    it('should return successful responses for repeated FormData actions after revalidateTag with profile', async () => {
+      const browser = await next.browser('/revalidate-tag-form-data-no-refresh')
+      const initial = await browser.elementByCss('#random').text()
+      const actionStatuses: number[] = []
+
+      browser.on('response', (response) => {
+        if (response.request().method() === 'POST') {
+          actionStatuses.push(response.status())
+        }
+      })
+
+      for (let click = 1; click <= 3; click++) {
+        await browser.elementByCss('#revalidate-tag-with-profile').click()
+        await retry(() => expect(actionStatuses).toHaveLength(click))
+        expect(await browser.elementByCss('#random').text()).toBe(initial)
+      }
+
+      expect(actionStatuses).toEqual([200, 200, 200])
     })
   }
 
