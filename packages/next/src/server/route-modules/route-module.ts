@@ -1158,6 +1158,12 @@ export abstract class RouteModule<
         prerenderManifest,
         isMinimalMode
       ),
+      // `staticPageGenerationTimeout` already bounds page data collection at
+      // build time; apply the same budget to background revalidations so a
+      // request that never settles cannot freeze a route indefinitely.
+      revalidationTimeout: nextConfig.staticPageGenerationTimeout
+        ? nextConfig.staticPageGenerationTimeout * 1000
+        : undefined,
       waitUntil,
     })
 
