@@ -1197,6 +1197,28 @@ describe('instant-navigation-testing-api', () => {
   })
 })
 
+describe('instant-navigation-testing-api - without Cache Components', () => {
+  const { next } = nextTestSetup({
+    files: join(__dirname, 'fixtures', 'no-cache-components'),
+  })
+
+  it('does not enable instant navigation', async () => {
+    const page = await openPage(next, '/target')
+
+    const dynamicContent = page.locator('[data-testid="dynamic-content"]')
+    await dynamicContent.waitFor({ state: 'visible' })
+
+    await instant(page, async () => {
+      const response = await page.reload()
+      expect(response?.status()).toBe(200)
+
+      const loadingShell = page.locator('[data-testid="loading-shell"]')
+      expect(await loadingShell.count()).toBe(0)
+      await dynamicContent.waitFor({ state: 'visible' })
+    })
+  })
+})
+
 describe('instant-navigation-testing-api - root params', () => {
   const { next } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'root-params'),
