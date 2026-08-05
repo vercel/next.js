@@ -14,7 +14,7 @@ export async function getVersionInfo(): Promise<VersionInfo> {
     let res
 
     try {
-      const registry = getRegistry()
+      const registry = await getRegistry()
       // use NPM registry regardless user using Yarn
       res = await fetch(`${registry}-/package/next/dist-tags`)
     } catch {
