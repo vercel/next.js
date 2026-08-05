@@ -1,5 +1,6 @@
 import path from 'path'
 import { pathToFileURL } from 'url'
+import { subscribe as createSubscription } from './subscribe'
 import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-import-path'
 import { arch, platform } from 'os'
 import { platformArchTriples } from 'next/dist/compiled/@napi-rs/triples'
@@ -563,8 +564,6 @@ function bindingToApi(
       }
   )
 
-  const cancel = new (class Cancel extends Error {})()
-
   /**
    * Utility function to ensure all variants of an enum are handled.
    */
@@ -579,79 +578,18 @@ function bindingToApi(
    * Calls a native function and streams the result.
    * If useBuffer is true, all values will be preserved, potentially buffered
    * if consumed slower than produced. Else, only the latest value will be
-   * preserved.
+   * preserved. The implementation lives in ./subscribe so it can be unit
+   * tested; the wrapper binds the native root-task disposer.
    */
-  function subscribe<T>(
+  const subscribe = <T>(
     useBuffer: boolean,
     nativeFunction:
       | NativeFunction<T>
       | ((callback: (err: Error, value: T) => void) => Promise<void>)
-  ): AsyncIterableIterator<T> {
-    type BufferItem =
-      | { err: Error; value: undefined }
-      | { err: undefined; value: T }
-    // A buffer of produced items. This will only contain values if the
-    // consumer is slower than the producer.
-    let buffer: BufferItem[] = []
-    // A deferred value waiting for the next produced item. This will only
-    // exist if the consumer is faster than the producer.
-    let waiting:
-      | {
-          resolve: (value: T) => void
-          reject: (error: Error) => void
-        }
-      | undefined
-    let canceled = false
-
-    // The native function will call this every time it emits a new result. We
-    // either need to notify a waiting consumer, or buffer the new result until
-    // the consumer catches up.
-    function emitResult(err: Error | undefined, value: T | undefined) {
-      if (waiting) {
-        let { resolve, reject } = waiting
-        waiting = undefined
-        if (err) reject(err)
-        else resolve(value!)
-      } else {
-        const item = { err, value } as BufferItem
-        if (useBuffer) buffer.push(item)
-        else buffer[0] = item
-      }
-    }
-
-    async function* createIterator() {
-      const task = await nativeFunction(emitResult)
-      try {
-        while (!canceled) {
-          if (buffer.length > 0) {
-            const item = buffer.shift()!
-            if (item.err) throw item.err
-            yield item.value
-          } else {
-            // eslint-disable-next-line no-loop-func
-            yield new Promise<T>((resolve, reject) => {
-              waiting = { resolve, reject }
-            })
-          }
-        }
-      } catch (e) {
-        if (e === cancel) return
-        throw e
-      } finally {
-        if (task) {
-          binding.rootTaskDispose(task)
-        }
-      }
-    }
-
-    const iterator = createIterator()
-    iterator.return = async () => {
-      canceled = true
-      if (waiting) waiting.reject(cancel)
-      return { value: undefined, done: true } as IteratorReturnResult<never>
-    }
-    return iterator
-  }
+  ): AsyncIterableIterator<T> =>
+    createSubscription(useBuffer, nativeFunction, (task: any) =>
+      binding.rootTaskDispose(task)
+    )
 
   async function rustifyProjectOptions(
     options: ProjectOptions
