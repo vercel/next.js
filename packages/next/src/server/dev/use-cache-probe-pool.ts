@@ -60,7 +60,9 @@ async function toEncodedArgumentsForProbe(
  * when a fill stalls. Workers are spawned lazily — no process is forked until
  * the first probe actually fires.
  */
-export function installUseCacheProbe(options: InstallOptions): void {
+export function installUseCacheProbe(
+  options: InstallOptions
+): () => Promise<void> {
   const { distDir, buildId, deploymentId, nextConfig } = options
 
   // The deadlock pattern we're detecting requires the outer render's
@@ -161,7 +163,7 @@ export function installUseCacheProbe(options: InstallOptions): void {
   // whenever the parent's caches are invalidated. The next probe lazy-spawns a
   // fresh worker with empty caches. No path-level bookkeeping — cache
   // invalidation in dev is infrequent and pool startup is cheap.
-  onCacheInvalidation(() => {
+  const offCacheInvalidation = onCacheInvalidation(() => {
     void tearDownPool()
   })
 
@@ -192,4 +194,13 @@ export function installUseCacheProbe(options: InstallOptions): void {
       timeoutMs: args.timeoutMs,
     })
   })
+
+  // Tears down everything installed above: the cache-invalidation listener
+  // (otherwise it is retained for the process lifetime per dev server
+  // creation), the global probe hook, and any lazily-spawned worker pool.
+  return async () => {
+    offCacheInvalidation()
+    setUseCacheProbe(undefined)
+    await tearDownPool()
+  }
 }

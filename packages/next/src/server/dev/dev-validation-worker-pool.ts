@@ -29,7 +29,9 @@ type ValidationPool = { [key: string]: any } & {
  * a render has settled. The worker thread is spawned lazily, so nothing is
  * created until the first navigation actually validates.
  */
-export function installDevValidationWorker(options: InstallOptions): void {
+export function installDevValidationWorker(
+  options: InstallOptions
+): () => Promise<void> {
   const { distDir, buildId, deploymentId, nextConfig } = options
 
   // A single worker, not a pool. Validation for one navigation runs its depth
@@ -173,9 +175,18 @@ export function installDevValidationWorker(options: InstallOptions): void {
   // manifest caches, so we drop the worker whenever the parent's caches are
   // invalidated (HMR, route recompile). The next validation lazy-spawns a fresh
   // worker with empty caches.
-  onCacheInvalidation(() => {
+  const offCacheInvalidation = onCacheInvalidation(() => {
     void tearDownPool()
   })
 
   setDevValidationWorker(runValidation)
+
+  // Tears down everything installed above: the cache-invalidation listener
+  // (otherwise it is retained for the process lifetime per dev server
+  // creation), the global worker hook, and any lazily-spawned worker.
+  return async () => {
+    offCacheInvalidation()
+    setDevValidationWorker(undefined)
+    await tearDownPool()
+  }
 }

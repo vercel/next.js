@@ -75,6 +75,11 @@ export function onCacheInvalidation(
   }
 }
 
+/** Number of registered cache-invalidation listeners (for tests). */
+export function getCacheInvalidationListenerCount(): number {
+  return cacheInvalidationListeners.size
+}
+
 export function deleteCache(filePaths: string[]) {
   for (const filePath of filePaths) {
     clearManifestCache(filePath)
