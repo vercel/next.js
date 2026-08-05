@@ -1,3 +1,9 @@
+.request-insights-panel-container {
+  container-type: inline-size;
+  height: 100%;
+  min-height: 0;
+}
+
 .request-insights-panel {
   display: grid;
   grid-template-columns: minmax(210px, 320px) minmax(420px, 1fr);
@@ -464,13 +470,61 @@
 }
 
 .request-insights-overview span {
+  overflow: hidden;
+  max-width: 100%;
   min-width: 0;
   border: 1px solid var(--color-gray-400);
   border-radius: 4px;
   padding: 2px 6px;
   color: var(--color-gray-900);
   font-size: var(--size-12);
+  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.request-insights-overview .request-insights-route-template {
+  border-style: dashed;
+  font-family: var(--font-mono);
+}
+
+.request-insights-params-trigger {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  cursor: help;
+  font: inherit;
+}
+
+.request-insights-params-trigger:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.request-insights-params-tooltip,
+.request-insights-fetch-tooltip,
+.request-insights-trace-tooltip {
+  --tooltip-background: var(--color-background-100);
+
+  border: 1px solid var(--color-gray-alpha-400);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 16%);
+  color: var(--color-gray-1000);
+}
+
+.request-insights-params-tooltip {
+  max-width: min(420px, calc(100vw - 32px));
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+  text-align: left;
+  white-space: pre-wrap;
+}
+
+.request-insights-fetch-tooltip,
+.request-insights-trace-tooltip {
+  max-width: min(640px, calc(100vw - 32px));
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .request-insights-error {
@@ -598,9 +652,18 @@
   flex-direction: column;
 }
 
+.request-insights-trace-rows:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: -1px;
+}
+
 .request-insights-span-row {
   min-height: 28px;
   border-bottom: 1px solid var(--color-gray-300);
+}
+
+.request-insights-span-row[data-active='true'] {
+  background: var(--color-gray-200);
 }
 
 .request-insights-span-row:last-child {
@@ -644,7 +707,6 @@
   background: var(--color-red-800);
 }
 
-.request-insights-fetch-host,
 .request-insights-cache-reason {
   min-width: 0;
   overflow: hidden;
@@ -722,7 +784,52 @@
   gap: 8px;
 }
 
-@media (max-width: 900px) {
+.request-insights-fetch-url-trigger {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  cursor: help;
+}
+
+.request-insights-fetch-path,
+.request-insights-fetch-origin {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.request-insights-fetch-path {
+  color: var(--color-gray-1000);
+  text-overflow: ellipsis;
+}
+
+.request-insights-fetch-origin {
+  max-width: 240px;
+  flex-shrink: 0;
+  border: 1px solid var(--color-gray-400);
+  border-radius: 999px;
+  padding: 0 5px;
+  color: var(--color-gray-800);
+  font-family: inherit;
+  font-size: var(--size-10);
+  text-overflow: ellipsis;
+}
+
+.request-insights-fetch-origin[data-origin='external'] {
+  border-color: var(--color-purple-500);
+  color: var(--color-purple-900);
+}
+
+@media (forced-colors: active) {
+  .request-insights-trace-rows:focus-visible,
+  .request-insights-span-row[data-active='true'] {
+    outline: 1px solid Highlight;
+    outline-offset: -1px;
+  }
+}
+
+@container (width <= 900px) {
   .request-insights-summary {
     align-items: flex-start;
   }
@@ -732,7 +839,7 @@
   }
 }
 
-@media (max-width: 700px) {
+@container (width < 630px) {
   .request-insights-panel {
     grid-template-columns: 1fr;
   }

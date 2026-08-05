@@ -1,4 +1,13 @@
-import { useMemo, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type PointerEvent,
+} from 'react'
 import { Menu } from '@base-ui-components/react/menu'
 import {
   getRequestInsightKey,
@@ -10,7 +19,9 @@ import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import { ACTION_DEVTOOLS_CONFIG } from '../../shared'
 import { saveDevToolsConfig } from '../../utils/save-devtools-config'
 import { CopyButton } from '../copy-button'
+import { Tooltip } from '../tooltip/tooltip'
 import GearIcon from '../../icons/gear-icon'
+import { getFetchUrlPresentation } from './fetch-label'
 import { formatDuration } from './format-duration'
 import {
   getRequestInsightFilterResult,
@@ -18,6 +29,12 @@ import {
   toggleRequestInsightFilter,
   type RequestInsightFilter,
 } from './request-filters'
+import {
+  formatRequestRouteParams,
+  getRequestDisplayUrl,
+  getRequestListDisplayUrl,
+  getRequestRouteParams,
+} from './request-label'
 import {
   getActiveRequestKey,
   getRequestInsightRowType,
@@ -29,6 +46,7 @@ import {
 } from './request-list'
 import {
   getTraceItems,
+  getTraceNavigationIndex,
   getTracePosition,
   getTraceRange,
   type TraceItem,
@@ -181,7 +199,9 @@ export function RequestInsightsPanel() {
                           className="request-insights-settings-item"
                           closeOnClick={false}
                           onCheckedChange={(checked) =>
-                            setRequestInsightsConfig({ showInternal: checked })
+                            setRequestInsightsConfig({
+                              showInternal: checked,
+                            })
                           }
                         >
                           <span
@@ -368,14 +388,17 @@ function RequestRow({
 }) {
   const isInstantInsights =
     getRequestInsightKind(request) === 'instant-insights'
-  const route = request.route ?? request.url ?? 'Unknown route'
   const requestType = getRequestInsightRowType(request, pageLoad)
+  const requestUrl = getRequestListDisplayUrl(
+    request,
+    requestType.type === 'rsc'
+  )
   const clockTime = formatClockTime(request.startTime)
   const bypassesProxy = request.proxyStatus === 'bypassed'
 
   return (
     <button
-      aria-label={`${isInstantInsights ? `Instant Insights for ${route}` : route}, ${requestType.accessibleLabel}, ${bypassesProxy ? 'Did not match the configured proxy, ' : ''}${formatDuration(request.durationMs)}, ${clockTime}`}
+      aria-label={`${isInstantInsights ? `Instant Insights for ${requestUrl}` : requestUrl}, ${requestType.accessibleLabel}, ${bypassesProxy ? 'Did not match the configured proxy, ' : ''}${formatDuration(request.durationMs)}, ${clockTime}`}
       className="request-insights-row"
       data-internal={isInstantInsights || undefined}
       data-nested={nested || undefined}
@@ -388,7 +411,7 @@ function RequestRow({
       <span className="request-insights-route">
         {nested ? <NestedArrowIcon /> : null}
         <span className="request-insights-route-label">
-          {isInstantInsights ? 'Instant Insights' : route}
+          {isInstantInsights ? 'Instant Insights' : requestUrl}
         </span>
       </span>
       <span className="request-insights-duration">
@@ -462,11 +485,17 @@ function RequestDetails({
   verbose: boolean
 }) {
   const traceItems = useMemo(
-    () => getTraceItems(request, verbose),
+    () =>
+      getTraceItems(
+        request,
+        verbose,
+        typeof window === 'undefined' ? undefined : window.location.origin
+      ),
     [request, verbose]
   )
   const overview = useMemo(() => getRequestOverview(request), [request])
   const diagnosis = verbose ? getDiagnosis(request, traceItems) : null
+  const requestUrl = getRequestDisplayUrl(request)
 
   return (
     <div className="request-insights-details">
@@ -475,8 +504,8 @@ function RequestDetails({
           <div className="request-insights-title-row">
             <div className="request-insights-title">
               {getRequestInsightKind(request) === 'instant-insights'
-                ? `Instant Insights · ${request.route ?? request.url ?? request.requestId}`
-                : (request.route ?? request.url ?? request.requestId)}
+                ? `Instant Insights · ${requestUrl}`
+                : requestUrl}
             </div>
             <CopyButton
               actionLabel="Copy request JSON"
@@ -499,7 +528,11 @@ function RequestDetails({
         <div className="request-insights-diagnosis">{diagnosis}</div>
       ) : null}
 
-      <Trace items={traceItems} request={request} />
+      <Trace
+        items={traceItems}
+        key={getRequestInsightKey(request)}
+        request={request}
+      />
 
       <FetchTable fetches={request.fetches} />
     </div>
@@ -519,6 +552,27 @@ function RequestOverview({
       <span>{overview.fetchSummary}</span>
       <span>{overview.cacheSummary}</span>
       <span>{overview.spanSummary}</span>
+      {overview.route ? (
+        <span className="request-insights-route-template">
+          Route {overview.route}
+        </span>
+      ) : null}
+      {overview.routeParams?.length ? (
+        <Tooltip
+          className="request-insights-params-tooltip"
+          title={formatRequestRouteParams(overview.routeParams)}
+        >
+          <button
+            aria-label={`Route parameters: ${overview.routeParams
+              .map(({ name }) => name)
+              .join(', ')}`}
+            className="request-insights-params-trigger"
+            type="button"
+          >
+            Params {overview.routeParams.map(({ name }) => name).join(', ')}
+          </button>
+        </Tooltip>
+      ) : null}
     </div>
   )
 }
@@ -530,7 +584,41 @@ function Trace({
   request: RequestInsight
   items: TraceItem[]
 }) {
+  const [activeItemId, setActiveItemId] = useState<string | null>(
+    items[0]?.id ?? null
+  )
+  const [activeTraceRow, setActiveTraceRow] = useState<HTMLElement | null>(null)
+  const traceRowsRef = useRef<HTMLDivElement>(null)
+  const shouldScrollActiveItemIntoViewRef = useRef(false)
+  const traceId = useId()
   const range = getTraceRange(request)
+  const activeItemIndex = items.findIndex((item) => item.id === activeItemId)
+  const safeActiveItemIndex =
+    items.length === 0 ? -1 : Math.max(activeItemIndex, 0)
+  const activeItem = items[safeActiveItemIndex]
+  const activeItemDescription = activeItem
+    ? getTraceItemDescription(activeItem, range)
+    : null
+
+  useEffect(() => {
+    if (
+      !shouldScrollActiveItemIntoViewRef.current ||
+      safeActiveItemIndex === -1
+    ) {
+      return
+    }
+
+    shouldScrollActiveItemIntoViewRef.current = false
+    const activeOption =
+      traceRowsRef.current?.children.item(safeActiveItemIndex)
+    if (activeOption instanceof HTMLElement) {
+      activeOption.scrollIntoView({
+        block: 'nearest',
+        inline: 'nearest',
+      })
+    }
+  }, [safeActiveItemIndex])
+
   const ticks = Array.from({ length: TRACE_TICK_COUNT }, (_, index) => {
     const position = index / (TRACE_TICK_COUNT - 1)
     return {
@@ -538,6 +626,52 @@ function Trace({
       position: position * 100,
     }
   })
+  const handleTraceKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+        return
+      }
+
+      const nextIndex = getTraceNavigationIndex(
+        activeItemIndex,
+        items.length,
+        event.key
+      )
+      if (nextIndex === undefined) {
+        return
+      }
+
+      event.preventDefault()
+      shouldScrollActiveItemIntoViewRef.current = true
+      setActiveItemId(items[nextIndex]?.id ?? null)
+    },
+    [activeItemIndex, items]
+  )
+  const handleTracePointerOver = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      const target = event.target
+      if (!(target instanceof Element)) {
+        return
+      }
+
+      const row = target.closest<HTMLElement>('[data-trace-index]')
+      if (row === null || !event.currentTarget.contains(row)) {
+        return
+      }
+
+      const index = Number(row.dataset.traceIndex)
+      if (Number.isSafeInteger(index)) {
+        shouldScrollActiveItemIntoViewRef.current = false
+        const itemId = items[index]?.id
+        if (itemId !== undefined) {
+          setActiveItemId((currentItemId) =>
+            currentItemId === itemId ? currentItemId : itemId
+          )
+        }
+      }
+    },
+    [items]
+  )
 
   return (
     <div className="request-insights-section">
@@ -574,54 +708,98 @@ function Trace({
               Duration
             </span>
           </div>
-          <div className="request-insights-trace-rows">
-            {items.map((item) => {
-              const position = getTracePosition(item, range)
+          <Tooltip
+            anchor={activeTraceRow}
+            asChild
+            className="request-insights-trace-tooltip"
+            direction="top"
+            title={activeItemDescription}
+          >
+            <div
+              aria-activedescendant={
+                safeActiveItemIndex === -1
+                  ? undefined
+                  : `${traceId}-item-${safeActiveItemIndex}`
+              }
+              aria-label={`Trace spans, ${items.length} item${items.length === 1 ? '' : 's'}. Use arrow keys to inspect timing.`}
+              className="request-insights-trace-rows"
+              onKeyDown={handleTraceKeyDown}
+              onPointerOver={handleTracePointerOver}
+              ref={traceRowsRef}
+              role="listbox"
+              tabIndex={items.length === 0 ? undefined : 0}
+            >
+              {items.map((item, index) => {
+                const position = getTracePosition(item, range)
+                const description = getTraceItemDescription(item, range)
 
-              return (
-                <div
-                  className="request-insights-span-row"
-                  data-kind={item.kind}
-                  key={item.id}
-                  title={`${item.label} · +${formatDuration(position.offsetMs)} · ${formatDuration(item.durationMs)}`}
-                >
-                  <span
-                    className="request-insights-span-name"
-                    style={{ paddingLeft: `${item.depth * 14 + 4}px` }}
+                return (
+                  <div
+                    aria-label={description}
+                    aria-selected={index === safeActiveItemIndex}
+                    className="request-insights-span-row"
+                    data-active={index === safeActiveItemIndex || undefined}
+                    data-kind={item.kind}
+                    data-trace-item-id={item.id}
+                    data-trace-index={index}
+                    id={`${traceId}-item-${index}`}
+                    key={item.id}
+                    ref={
+                      index === safeActiveItemIndex
+                        ? setActiveTraceRow
+                        : undefined
+                    }
+                    role="option"
                   >
-                    <span className="request-insights-span-label">
-                      <span
-                        className="request-insights-span-marker"
-                        data-kind={item.kind}
-                        data-status={item.status}
-                      />
-                      <span>{item.label}</span>
-                    </span>
-                  </span>
-                  <span className="request-insights-span-track">
                     <span
-                      className="request-insights-span-bar"
-                      data-status={item.status}
-                      style={{
-                        left: `${position.left}%`,
-                        width: `${position.width}%`,
-                      }}
-                    />
-                  </span>
-                  <span className="request-insights-span-duration">
-                    {formatDuration(item.durationMs)}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
+                      className="request-insights-span-name"
+                      style={{ paddingLeft: `${item.depth * 14 + 4}px` }}
+                    >
+                      <span className="request-insights-span-label">
+                        <span
+                          className="request-insights-span-marker"
+                          data-kind={item.kind}
+                          data-status={item.status}
+                        />
+                        <span>{item.label}</span>
+                      </span>
+                    </span>
+                    <span className="request-insights-span-track">
+                      <span
+                        className="request-insights-span-bar"
+                        data-status={item.status}
+                        style={{
+                          left: `${position.left}%`,
+                          width: `${position.width}%`,
+                        }}
+                      />
+                    </span>
+                    <span className="request-insights-span-duration">
+                      {formatDuration(item.durationMs)}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </Tooltip>
         </div>
       </div>
     </div>
   )
 }
 
+function getTraceItemDescription(
+  item: TraceItem,
+  range: ReturnType<typeof getTraceRange>
+): string {
+  const position = getTracePosition(item, range)
+  return `${item.fullLabel ?? item.label} · +${formatDuration(position.offsetMs)} · ${formatDuration(item.durationMs)}`
+}
+
 function FetchTable({ fetches }: { fetches: RequestInsightFetch[] }) {
+  const currentOrigin =
+    typeof window === 'undefined' ? undefined : window.location.origin
+
   return (
     <div className="request-insights-section">
       <div className="request-insights-section-title">Fetches</div>
@@ -640,19 +818,33 @@ function FetchTable({ fetches }: { fetches: RequestInsightFetch[] }) {
             <span>Reason</span>
           </div>
           {fetches.map((fetch, index) => {
-            const urlParts = formatUrl(fetch.url)
+            const url = getFetchUrlPresentation(fetch.url, currentOrigin)
             return (
-              <div className="request-insights-fetch" key={index}>
+              <div
+                className="request-insights-fetch"
+                data-origin={url.originKind}
+                key={index}
+              >
                 <span className="request-insights-method">
                   {fetch.method ?? 'GET'}
                 </span>
                 <span className="request-insights-fetch-url">
-                  <span>{urlParts.path}</span>
-                  {urlParts.host ? (
-                    <span className="request-insights-fetch-host">
-                      {urlParts.host}
+                  <Tooltip
+                    className="request-insights-fetch-tooltip"
+                    title={url.fullUrl}
+                  >
+                    <span className="request-insights-fetch-url-trigger">
+                      <span className="request-insights-fetch-path">
+                        {url.path}
+                      </span>
+                      <span
+                        className="request-insights-fetch-origin"
+                        data-origin={url.originKind}
+                      >
+                        {url.originLabel}
+                      </span>
                     </span>
-                  ) : null}
+                  </Tooltip>
                 </span>
                 <span>{formatDuration(fetch.durationMs)}</span>
                 <span>{fetch.statusCode ?? '-'}</span>
@@ -713,6 +905,8 @@ function getRequestOverview(request: RequestInsight) {
               cacheCounts.unknown ? `, ${cacheCounts.unknown} unknown` : ''
             }`,
     spanSummary: `${request.spans.length} span${request.spans.length === 1 ? '' : 's'}`,
+    route: request.route,
+    routeParams: getRequestRouteParams(request),
     errorSummary,
   }
 }
@@ -745,8 +939,11 @@ function getDiagnosis(
     (!criticalItem ||
       (slowestFetch.durationMs ?? 0) >= (criticalItem.durationMs ?? 0))
   ) {
-    const urlParts = formatUrl(slowestFetch.url)
-    return `Slowest recorded operation: ${urlParts.path} · ${formatDuration(slowestFetch.durationMs)}${getCacheSummary(slowestFetch)}.`
+    const url = getFetchUrlPresentation(
+      slowestFetch.url,
+      typeof window === 'undefined' ? undefined : window.location.origin
+    )
+    return `Slowest recorded operation: ${url.path} · ${formatDuration(slowestFetch.durationMs)}${getCacheSummary(slowestFetch)}.`
   }
 
   if (criticalItem) {
@@ -782,24 +979,6 @@ function getMethodFromName(name: string | undefined): string | undefined {
     /^(?:RSC )?(GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS)\b/
   )
   return match?.[1]
-}
-
-function formatUrl(url: string | undefined): { path: string; host?: string } {
-  if (!url) {
-    return { path: 'Unknown URL' }
-  }
-
-  try {
-    const parsedUrl = new URL(url, window.location.origin)
-    const path = `${parsedUrl.pathname}${parsedUrl.search}`
-    const sameHost = parsedUrl.host === window.location.host
-    return {
-      path,
-      host: sameHost ? undefined : parsedUrl.host,
-    }
-  } catch {
-    return { path: url }
-  }
 }
 
 function formatClockTime(timestamp: number): string {
