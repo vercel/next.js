@@ -47,7 +47,6 @@ use crate::{
     mode::NextMode,
     next_build::get_postcss_package_mapping,
     next_config::NextConfig,
-    next_font::local::NextFontLocalResolvePlugin,
     next_import_map::{get_next_edge_and_server_fallback_import_map, get_next_server_import_map},
     next_server::{
         resolve::{ExternalCjsModulesResolvePlugin, ExternalPredicate},
@@ -231,24 +230,6 @@ pub async fn get_server_resolve_options_context(
             .to_resolved()
             .await?;
 
-    let before_resolve_plugins = match &ty {
-        ServerContextType::Pages { .. }
-        | ServerContextType::AppSSR { .. }
-        | ServerContextType::AppRSC { .. } => {
-            vec![ResolvedVc::upcast(
-                NextFontLocalResolvePlugin::new(project_path.clone())
-                    .to_resolved()
-                    .await?,
-            )]
-        }
-        ServerContextType::PagesApi { .. }
-        | ServerContextType::AppRoute { .. }
-        | ServerContextType::Middleware { .. }
-        | ServerContextType::Instrumentation { .. } => {
-            vec![]
-        }
-    };
-
     let after_resolve_plugins = match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {
             vec![
@@ -283,7 +264,6 @@ pub async fn get_server_resolve_options_context(
         custom_conditions,
         import_map: Some(next_server_import_map),
         fallback_import_map: Some(next_server_fallback_import_map),
-        before_resolve_plugins,
         after_resolve_plugins,
         ..Default::default()
     };
@@ -1053,6 +1033,7 @@ pub struct ServerChunkingContextOptions {
     pub css_url_suffix: Vc<Option<RcStr>>,
     pub hash_salt: ResolvedVc<RcStr>,
     pub style_groups_algorithm: StyleGroupsAlgorithm,
+    pub per_page_module_graph: Vc<bool>,
 }
 
 /// Like `get_server_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -1081,6 +1062,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         css_url_suffix,
         hash_salt,
         style_groups_algorithm,
+        per_page_module_graph,
     } = options;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
 
@@ -1127,6 +1109,9 @@ pub async fn get_server_chunking_context_with_client_assets(
     .debug_ids(*debug_ids.await?)
     .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
+    // Per-page graphs each see only one page, so none of them can decide what the shared runtime
+    // chunk may leave out.
+    .shared_runtime_chunk(*per_page_module_graph.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
 
     builder = builder.source_map_source_type(if next_mode.is_development() {
@@ -1185,6 +1170,7 @@ pub async fn get_server_chunking_context(
         css_url_suffix,
         hash_salt,
         style_groups_algorithm,
+        per_page_module_graph,
     } = options;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
     let next_mode = mode.await?;
@@ -1234,6 +1220,9 @@ pub async fn get_server_chunking_context(
     .debug_ids(*debug_ids.await?)
     .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
+    // Per-page graphs each see only one page, so none of them can decide what the shared runtime
+    // chunk may leave out.
+    .shared_runtime_chunk(*per_page_module_graph.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
 
     if next_mode.is_development() {

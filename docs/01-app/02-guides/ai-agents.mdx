@@ -150,7 +150,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
 
 In `next dev` the stack frame resolves to your source, in both the dev overlay and the terminal. A production build minifies server code, so when the build error alone isn't enough, [`next build --debug-prerender`](/docs/app/guides/building#debugging-build-errors) turns on server source maps and continues past the first failure.
 
-The `Learn more` link resolves to a per-error page under [`/docs/messages`](https://nextjs.org/docs/messages/blocking-prerender-dynamic) written for agents to read. Each page follows the same shape, with the canonical patterns for every fix, the trade-offs against the other fixes, and the gotchas an agent is likely to miss on a first attempt. The [Instant navigation guide](/docs/app/guides/instant-navigation#ai-workflow) shows the full observe-fix-iterate loop an agent runs on these errors, from reading the insight to asserting on the result with an `instant()` test.
+The `Learn more` link resolves to a per-error page under [`/docs/messages`](https://nextjs.org/docs/messages/blocking-prerender-dynamic) written for agents to read. Each page follows the same shape, with the canonical patterns for every fix, the trade-offs against the other fixes, and the gotchas an agent is likely to miss on a first attempt. The [Instant navigation guide](/docs/app/guides/instant-navigation#ai-workflow) walks through the full loop an agent runs on these errors, from reading the insight to writing an `instant()` test that fails before the fix and passes once it's in place.
 
 ## Step 4: Hand multi-step workflows to Skills
 
@@ -161,8 +161,8 @@ You can [browse the source for these Skills](https://github.com/vercel/next.js/t
 The Skills serve three different workflow types:
 
 - **Runtime foundations** such as `next-dev-loop` give any coding task a repeatable inspect, edit, and verify cycle.
-- **Adoption Skills** are user-facing migrations tied to framework docs and development insights. They explain app-wide behavior changes, work through surfaced issues, and show the user the result.
-- **Optimizer Skills** are unattended, test-driven loops. After the user sets the product goal, they use `instant()` to verify and guard the result.
+- **Interactive workflows** make broader changes with user checkpoints, such as adopting Cache Components or Partial Prefetching across an app.
+- **Unattended loops** work toward a verifiable goal and stop only for genuine decisions.
 
 ### `next-dev-loop`
 
@@ -180,7 +180,7 @@ After every edit, verify the page still works at runtime using the next-dev-loop
 
 ### `next-cache-components-adoption`
 
-The [`next-cache-components-adoption`](https://www.skills.sh/vercel/next.js/next-cache-components-adoption) adoption Skill turns on [Cache Components](/docs/app/getting-started/caching) and resolves blocking routes until the app builds.
+The [`next-cache-components-adoption`](https://www.skills.sh/vercel/next.js/next-cache-components-adoption) Skill turns on [Cache Components](/docs/app/getting-started/caching) and resolves blocking routes until the app builds.
 
 ```bash filename="Terminal"
 npx skills add vercel/next.js --skill next-cache-components-adoption
@@ -194,21 +194,21 @@ Adopt Cache Components in this project using the next-cache-components-adoption 
 
 ### `next-cache-components-optimizer`
 
-The [`next-cache-components-optimizer`](https://www.skills.sh/vercel/next.js/next-cache-components-optimizer) optimizer maximizes the meaningful UI available on an exact navigation and guards it with an `@next/playwright` `instant()` test.
+The [`next-cache-components-optimizer`](https://www.skills.sh/vercel/next.js/next-cache-components-optimizer) Skill maximizes the meaningful UI available on an exact navigation and guards it with an `@next/playwright` `instant()` test.
 
 ```bash filename="Terminal"
 npx skills add vercel/next.js --skill next-cache-components-optimizer
 ```
 
-Then give the agent this prompt:
+For example, give the agent this prompt:
 
 ```prompt
-Make the navigation from the dashboard to settings instant using the next-cache-components-optimizer Skill.
+Make the navigation to `/settings` instant using the next-cache-components-optimizer Skill.
 ```
 
 ### `next-partial-prefetching-adoption`
 
-The [`next-partial-prefetching-adoption`](https://www.skills.sh/vercel/next.js/next-partial-prefetching-adoption) adoption Skill turns on [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) and resolves its insights until all routes reuse a shared App Shell.
+The [`next-partial-prefetching-adoption`](https://www.skills.sh/vercel/next.js/next-partial-prefetching-adoption) Skill turns on [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) and resolves its insights until all routes reuse a shared App Shell.
 
 ```bash filename="Terminal"
 npx skills add vercel/next.js --skill next-partial-prefetching-adoption

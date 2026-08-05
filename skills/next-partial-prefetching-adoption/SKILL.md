@@ -61,12 +61,22 @@ Enumerate the prefetch sites across the whole source tree, not only `app/` — t
 Then, for each one:
 
 1. **Click each `<Link>` in `next dev`.** The insight fires at navigation time, not when the link prefetches, so a link sitting in the viewport won't trip it — you have to navigate through it. This click is _verification_: it confirms the insight fires before you adopt and clears after. Imperative `router.prefetch()` sites have no equivalent insight, so audit them from source and verify them in production ([step 4](#step-4-verify)). Without a browser, skip the click and adopt from [`link-prefetch-partial`](https://nextjs.org/docs/messages/instant-link-prefetch-partial) and the audit table below — the destination's structure tells you the row, and type-check gates the edit — then leave the live confirmation for the hand-off.
-2. **Adopt the destination.** Add `export const prefetch = 'partial'`. That clears the insight for every link pointing at it. If the route reads URL data (`params`, `searchParams`), the default link still warms only its skeleton (the guide's [URL data](https://nextjs.org/docs/app/guides/adopting-partial-prefetching#url-data) section). Classify the existing full-prefetch call before changing its data behavior:
+2. **Adopt the destination.** Add the temporary route config with a link to the migration guide. That clears the insight for every link pointing at it:
+
+   ```tsx
+   // See: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
+   export const prefetch = 'partial'
+   ```
+
+   If the route reads URL data (`params`, `searchParams`), the default link still warms only its skeleton (the guide's [URL data](https://nextjs.org/docs/app/guides/adopting-partial-prefetching#url-data) section), so it's a runtime-prefetch candidate for step 5, not a finished adoption. Keep `prefetch={true}` on its links and mark the route:
+
+   Classify the existing full-prefetch call before changing its data behavior:
    - **Preservation:** the link already delivered specific URL-dependent UI before migration and the user confirms that behavior is part of the existing contract. Keep `prefetch={true}`, apply the guide's audit-table row including any documented caching needed to preserve that UI, verify it under `next start`, and record it as **preserved / already optimized**. Do not add a marker or send it through the optimizer.
    - **Net-new or undecided:** the desired UI was not an established pre-migration contract, or preserving it requires a product/freshness decision that has not been made. Do not add caching in adoption. Keep `prefetch={true}` while the migration is in progress and mark the route for the separate selection step:
 
    ```tsx
-   // TODO(runtime-prefetch): assess whether this link should prefetch URL data.
+   // TODO(runtime-prefetch): assess with the user whether URL data should resolve before click.
+   // See: https://nextjs.org/docs/app/guides/runtime-prefetching
    export const prefetch = 'partial'
    ```
 
@@ -83,15 +93,13 @@ Then, for each one:
 Once every audited destination has `prefetch = 'partial'`, finish in two moves.
 
 1. **Enable the flag globally.** Set `partialPrefetching: true` in `next.config.ts` (alongside `cacheComponents: true`). Every route is adopted now, so every link is good.
-2. **Strip the redundant `prefetch = 'partial'` exports.** Run the first-party `remove-partial-prefetch` codemod rather than a text find-and-replace. It removes only `export const prefetch = 'partial'` and leaves other values such as `prefetch = 'force-disabled'` in place, along with your `TODO(runtime-prefetch)` markers, which wait for step 5.
-
-   Use the `@canary` channel, not `@latest`. The `remove-partial-prefetch` transform isn't in the stable `@next/codemod` release yet, and `@next/codemod@latest` errors with `Invalid transform choice`.
+2. **Strip the redundant `prefetch = 'partial'` exports.** Run the first-party `remove-partial-prefetch` codemod rather than a text find-and-replace. It removes only `export const prefetch = 'partial'` and its generated Partial Prefetching guide comment. It leaves other values such as `prefetch = 'force-disabled'` in place, along with your `TODO(runtime-prefetch)` markers and their Runtime Prefetching guide links, which wait for step 5.
 
    ```bash
-   npx @next/codemod@canary remove-partial-prefetch ./app
+   npx @next/codemod@latest remove-partial-prefetch ./app
    ```
 
-   The codemod refuses to run on a dirty working tree. Commit or stash unrelated work first, or pass `--force` to let its edits land alongside your WIP. If the codemod isn't available (older `@next/codemod`, sandboxed environment, offline run), reproduce it by hand by removing `export const prefetch = 'partial'` from every `app/**/{page,layout}.{js,jsx,ts,tsx}` — leave other `prefetch` values in place, and leave the `TODO(runtime-prefetch)` markers where they are. Don't hand-edit when the codemod can run.
+   The codemod refuses to run on a dirty working tree. Commit or stash unrelated work first, or pass `--force` to let its edits land alongside your WIP. If the codemod isn't available (older `@next/codemod`, sandboxed environment, offline run), reproduce it by hand by removing `export const prefetch = 'partial'` and its generated Partial Prefetching guide comment from every `app/**/{page,layout}.{js,jsx,ts,tsx}` — leave other `prefetch` values in place, and leave the `TODO(runtime-prefetch)` markers and Runtime Prefetching guide links where they are. Don't hand-edit when the codemod can run.
 
 ## step 3: sweep for URL-data insights (after enabling)
 

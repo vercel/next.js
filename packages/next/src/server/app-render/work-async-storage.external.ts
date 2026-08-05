@@ -15,8 +15,6 @@ import type { DigestedError } from './create-error-handler'
 import type { ActionRevalidationKind } from '../../shared/lib/action-revalidation-kind'
 
 export interface WorkStore {
-  readonly isStaticGeneration: boolean
-
   /**
    * The page that is being rendered. This relates to the path to the page file.
    */

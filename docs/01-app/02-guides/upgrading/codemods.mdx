@@ -76,7 +76,9 @@ npx @next/codemod upgrade canary --yes
 npx @next/codemod@canary cache-components-instant-false ./app
 ```
 
-This codemod adds `export const instant = false` to every `app/**/{page,layout,default}` file that doesn't already export `instant`, so you can enable [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) and then remove the opt-outs route by route. It skips Client Components (`"use client"`) and files that already declare `instant`.
+This codemod adds `export const instant = false` to every `{page,layout,default}` file in your app directory that doesn't already export `instant`, so you can enable [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) and then remove the opt-outs route by route. It skips Client Components (`"use client"`) and files that already declare `instant`.
+
+> **Good to know**: Pass `./src/app` in a `src/` project. A wrong path reports `0 ok` instead of failing, so check the file count.
 
 ```diff filename="app/page.tsx"
 + // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
@@ -98,7 +100,9 @@ See the [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-comp
 npx @next/codemod@canary remove-partial-prefetch ./app
 ```
 
-This codemod removes `export const prefetch = 'partial'` from `app/**/{page,layout}` files, so you can enable [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) globally and then drop the now-redundant per-route opt-ins. It removes only the `'partial'` value and leaves other values such as `prefetch = 'force-disabled'` in place.
+This codemod removes `export const prefetch = 'partial'` from the `{page,layout}` files in your app directory, so you can enable [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) globally and then drop the now-redundant per-route opt-ins. It removes only the `'partial'` value and leaves other values such as `prefetch = 'force-disabled'` in place.
+
+> **Good to know**: Pass `./src/app` in a `src/` project. A wrong path reports `0 ok` instead of failing, so check the file count.
 
 ```diff filename="app/products/[slug]/page.tsx"
 - export const prefetch = 'partial'

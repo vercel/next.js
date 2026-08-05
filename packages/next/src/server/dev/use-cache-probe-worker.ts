@@ -197,7 +197,6 @@ function buildProbeWorkStore(msg: ProbeMessage): WorkStore {
   })
 
   return {
-    isStaticGeneration: false,
     page: msg.page,
     route: msg.route,
     useCacheProbeMode: { timeoutMs: msg.timeoutMs },

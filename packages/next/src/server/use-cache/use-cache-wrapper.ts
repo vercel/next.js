@@ -34,6 +34,7 @@ import {
   getCacheSignal,
   isHmrRefresh,
   getServerComponentsHmrCache,
+  shouldRevalidateStaleCacheEntryInForeground,
 } from '../app-render/work-unit-async-storage.external'
 
 import {
@@ -42,6 +43,7 @@ import {
   makeDynamicHangingPromise,
   makeRuntimeHangingPromise,
   makeStageHangingPromise,
+  makeUntrackedHangingPromise,
   RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
 
@@ -669,6 +671,8 @@ function createUseCacheStore(
     return {
       type: 'private-cache',
       phase: 'render',
+      shouldRevalidateStaleCacheEntryInForeground:
+        shouldRevalidateStaleCacheEntryInForeground(outerWorkUnitStore),
       implicitTags: outerWorkUnitStore?.implicitTags,
       revalidate: defaultCacheLife.revalidate,
       expire: defaultCacheLife.expire,
@@ -718,6 +722,8 @@ function createUseCacheStore(
     return {
       type: 'cache',
       phase: 'render',
+      shouldRevalidateStaleCacheEntryInForeground:
+        shouldRevalidateStaleCacheEntryInForeground(outerWorkUnitStore),
       implicitTags: outerWorkUnitStore.implicitTags,
       revalidate: defaultCacheLife.revalidate,
       expire: defaultCacheLife.expire,
@@ -1283,7 +1289,7 @@ async function generateCacheEntryImpl(
 
   switch (outerWorkUnitStore.type) {
     case 'prerender-runtime':
-    case 'prerender':
+    case 'prerender': {
       const timeoutAbortController = new AbortController()
       const timer = setTimeout(
         () => {
@@ -1299,7 +1305,6 @@ async function generateCacheEntryImpl(
       const abortSignal = dynamicAccessAbortSignal
         ? AbortSignal.any([
             dynamicAccessAbortSignal,
-            outerWorkUnitStore.renderSignal,
             timeoutAbortController.signal,
           ])
         : timeoutAbortController.signal
@@ -1357,6 +1362,7 @@ async function generateCacheEntryImpl(
         stream = prelude
       }
       break
+    }
     case 'request':
       // TODO: We should just check if the render is abandonable. This is
       // relevant in restart-on-cache-miss in general, so when we implement that
@@ -1640,6 +1646,51 @@ export async function cache(
     )
   }
 
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  if (workUnitStore === undefined) {
+    throw new InvariantError(
+      '"use cache" cannot be used outside of App Router. Expected a WorkUnitStore.'
+    )
+  }
+
+  // In a prerender, tasky IO may result in cache reads that start
+  // after the prerender has already been aborted:
+  //
+  //   await setTimeout(100)  // we can't abort this uncached IO...
+  //   await cachedData()     // ...so we'll still get here even though the prerender aborted
+  //
+  // The prerender is over, so we should just return an erroring promise.
+  // (NOTE: we also shouldn't fill this cache, because it's behind uncached IO,
+  // so semantically it is not part of the prerender)
+  switch (workUnitStore.type) {
+    case 'prerender':
+    case 'prerender-runtime': {
+      if (workUnitStore.renderSignal.aborted) {
+        // We don't know if the cache itself is dynamic or runtime data,
+        // but the prerender is over, so it doesn't need to participate
+        // in runtime data tracking at all.
+        return makeUntrackedHangingPromise<never>(
+          workUnitStore.renderSignal,
+          workStore.route,
+          '"use cache" called after prerender ended'
+        )
+      }
+      break
+    }
+    case 'prerender-ppr':
+    case 'prerender-legacy':
+    case 'prerender-client':
+    case 'validation-client':
+    case 'request':
+    case 'cache':
+    case 'private-cache':
+    case 'unstable-cache':
+    case 'generate-static-params':
+      break
+    default:
+      workUnitStore satisfies never
+  }
+
   // Probe re-executions (the dev-server's hang-detection worker) short-circuit
   // further down before any handler is consulted, so we skip handler selection
   // entirely and the worker can boot without registering handlers at all.
@@ -1703,13 +1754,6 @@ export async function cache(
     workStore.invalidDynamicUsageError ??= error
 
     return error
-  }
-
-  const workUnitStore = workUnitAsyncStorage.getStore()
-  if (workUnitStore === undefined) {
-    throw new InvariantError(
-      '"use cache" cannot be used outside of App Router. Expected a WorkUnitStore.'
-    )
   }
 
   const outerOwnerStack =
@@ -3081,15 +3125,15 @@ export async function cache(
                 ? Math.max(entry.expire, MIN_PRERENDERABLE_EXPIRE)
                 : entry.expire) *
                 1000 ||
-          (workStore.isStaticGeneration &&
+          (shouldRevalidateStaleCacheEntryInForeground(workUnitStore) &&
             currentTime > entry.timestamp + entry.revalidate * 1000)
         ) {
           // Miss. Generate a new result.
 
-          // If the cache entry is stale and we're prerendering, we don't want
-          // to use the stale entry since it would unnecessarily need to shorten
-          // the lifetime of the prerender. We're not time constrained here so
-          // we can re-generated it now.
+          // If the cache entry is stale and the outer work unit requires
+          // foreground revalidation, don't use the stale entry since it would
+          // unnecessarily shorten the lifetime of the generated result. We're
+          // not time constrained here, so regenerate it now.
 
           // We need to run this inside a clean AsyncLocalStorage snapshot so
           // that the cache generation cannot read anything from the context
@@ -3105,10 +3149,13 @@ export async function cache(
             }
 
             if (
-              workStore.isStaticGeneration &&
+              shouldRevalidateStaleCacheEntryInForeground(workUnitStore) &&
               currentTime > entry.timestamp + entry.revalidate * 1000
             ) {
-              debug?.('static generation, entry is stale', cacheHandlerKey)
+              debug?.(
+                'foreground revalidation, entry is stale',
+                cacheHandlerKey
+              )
             }
           }
 

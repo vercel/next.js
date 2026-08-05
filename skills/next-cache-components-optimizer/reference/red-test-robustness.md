@@ -16,6 +16,21 @@ spend a few minutes verifying the RED is trustworthy first.
 
 Everything below serves answering that question honestly.
 
+## When the blocked route will not build
+
+With Cache Components, a top-level blocking read can fail the build before the
+test can produce a RED. Add `export const instant = false` to the target route
+as part of the temporary RED scaffold. It lets the known blocker build without
+making the navigation instant. Remove the opt-out with the fix, and include it
+when reverting the fix for the differential.
+
+## Cookie and session reads are not lock probes
+
+Do not manufacture a RED with `cookies()` or a session read alone. The testing
+lock restricts the navigation to its shell; it does not make request cookies
+unavailable. Use the route's real blocking uncached data, and prefer the
+self-validating test variant when deferred content exists.
+
 ## The robustness checklist (all must hold)
 
 1. **Red on baseline**: fails on the unfixed route.
