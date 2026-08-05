@@ -787,7 +787,11 @@ async function generateDynamicRSCPayload(
       f: flightData,
       q: getRenderedSearch(query),
       i: !!couldBeIntercepted,
-      S: workStore.isStaticGeneration,
+      // Tells the client whether this route supports per-segment prefetching.
+      // With Cache Components, all routes support it. Without it, only fully
+      // static pages do, because their per-segment prefetch responses are
+      // generated during static generation (build or ISR).
+      S: workStore.isStaticGeneration || ctx.renderOpts.cacheComponents,
       h: getMetadataVaryParamsAccumulator(),
       r: getRootParamsVaryParamsAccumulator() ?? undefined,
     }
