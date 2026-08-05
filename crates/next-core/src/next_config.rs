@@ -1135,7 +1135,7 @@ const DEFAULT_REQUEST_COST: f32 = 20_000.0;
 /// Default `weightDistribution` for the graph algorithm.
 const DEFAULT_WEIGHT_DISTRIBUTION: f32 = 0.1;
 
-/// `experimental.chunkingHeuristics`: hints for Turbopack's production chunker.
+/// `experimental.turbopackChunking`: hints for Turbopack's production chunker.
 #[derive(
     Clone,
     Debug,
@@ -1149,7 +1149,7 @@ const DEFAULT_WEIGHT_DISTRIBUTION: f32 = 0.1;
     Decode,
 )]
 #[serde(rename_all = "camelCase")]
-pub struct ChunkingHeuristicsConfig {
+pub struct TurbopackChunkingConfig {
     /// A number between `0.0..=1.0`. Higher values weight the benefit of merging
     /// chunks for a single page load more heavily. A site's bounce rate is a good
     /// approximation if you don't have a better value.
@@ -1165,10 +1165,24 @@ pub struct ChunkingHeuristicsConfig {
     /// bytes of code, default is 200 KB), used by the chunker to trade off request
     /// count against preventing double-fetching.
     request_cost: Option<u64>,
+    /// Avoid creating more than one chunk smaller than this size, in bytes (default `50000`).
+    /// Smaller chunks are merged into larger chunks.
+    min_chunk_size: Option<usize>,
+    /// Avoid creating more than this number of chunks per chunk group (default `40`).
+    max_chunk_count_per_group: Option<usize>,
+    /// Don't merge chunks bigger than this size, in bytes (default `200000`), with other
+    /// chunks. This keeps code in big chunks from being duplicated across multiple chunks.
+    max_merge_chunk_size: Option<usize>,
+    /// Emit each merged production chunk's constituent component chunks alongside it, so the
+    /// browser runtime can load only the chunks it doesn't already have (default `false`).
+    generate_component_chunks: Option<bool>,
+    /// Minimum size, in bytes (default `20000`), for a component chunk to be emitted on its
+    /// own when `generate_component_chunks` is enabled.
+    min_component_chunk_size: Option<usize>,
 }
 
 #[turbo_tasks::value]
-pub struct ChunkingHeuristics {
+pub struct TurbopackChunking {
     /// First-page-load priority as an integer percentage (`0..=100`), or `None` if unset.
     pub first_page_load_priority: Option<u32>,
     /// Route-matching regexes for priority routes.
@@ -1178,9 +1192,19 @@ pub struct ChunkingHeuristics {
     pub priority_boost_percent: Option<u32>,
     /// Global estimated cost of an additional request, in bytes, or `None` if unset.
     pub request_cost: Option<u64>,
+    /// Override for the client JS `min_chunk_size`, or `None` to use the default.
+    pub min_chunk_size: Option<usize>,
+    /// Override for the client JS `max_chunk_count_per_group`, or `None` to use the default.
+    pub max_chunk_count_per_group: Option<usize>,
+    /// Override for the client JS `max_merge_chunk_size`, or `None` to use the default.
+    pub max_merge_chunk_size: Option<usize>,
+    /// Override for the client JS `min_component_chunk_size`, or `None` to use the default.
+    pub min_component_chunk_size: Option<usize>,
+    /// Whether to emit component chunks alongside merged chunks (default `false`).
+    pub generate_component_chunks: bool,
 }
 
-impl ChunkingHeuristics {
+impl TurbopackChunking {
     /// Compute the [`EntryHeuristics`] for a route `pathname` by matching it against the configured
     /// priority-route regexes.
     pub fn entry_heuristics_for(&self, pathname: &str) -> EntryHeuristics {
@@ -1206,7 +1230,7 @@ fn parse_route_regexes(patterns: &[RegexComponents]) -> Result<Vec<EsRegex>> {
         .cloned()
         .map(|pattern| {
             EsRegex::try_from(pattern)
-                .context("Invalid route pattern in `experimental.turbopackChunkingHeuristics`")
+                .context("Invalid route pattern in `experimental.turbopackChunking`")
         })
         .collect()
 }
@@ -1300,8 +1324,7 @@ pub struct ExperimentalConfig {
     /// CSS chunking strategy. See [`CssChunkingConfig`] for the accepted shapes.
     css_chunking: Option<CssChunkingConfig>,
 
-    /// Traffic-shape hints for the production chunker. See [`ChunkingHeuristicsConfig`].
-    turbopack_chunking_heuristics: Option<ChunkingHeuristicsConfig>,
+    turbopack_chunking: Option<TurbopackChunkingConfig>,
 
     // ---
     // UNSUPPORTED
@@ -1370,7 +1393,6 @@ pub struct ExperimentalConfig {
     turbopack_input_source_maps: Option<bool>,
     turbopack_module_fragments: Option<bool>,
     turbopack_scope_hoisting: Option<bool>,
-    turbopack_generate_component_chunks: Option<bool>,
     turbopack_shared_runtime: Option<bool>,
     /// Custom URL prefix for Web Worker URLs (the entrypoint and the module
     /// chunks loaded inside the worker) produced by
@@ -2099,14 +2121,14 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn chunking_heuristics(&self) -> Result<Vc<ChunkingHeuristics>> {
-        let config = self.experimental.turbopack_chunking_heuristics.as_ref();
+    pub fn turbopack_chunking(&self) -> Result<Vc<TurbopackChunking>> {
+        let config = self.experimental.turbopack_chunking.as_ref();
         let priority_routes = parse_route_regexes(
             config
                 .and_then(|c| c.priority_routes.as_deref())
                 .unwrap_or_default(),
         )?;
-        Ok(ChunkingHeuristics {
+        Ok(TurbopackChunking {
             first_page_load_priority: config
                 .and_then(|c| c.first_page_load_priority)
                 .map(|priority| (priority.clamp(0.0, 1.0) * 100.0).round() as u32),
@@ -2115,6 +2137,13 @@ impl NextConfig {
                 .and_then(|c| c.priority_boost)
                 .map(|boost| (boost.max(0.0) * 100.0).round() as u32),
             request_cost: config.and_then(|c| c.request_cost),
+            min_chunk_size: config.and_then(|c| c.min_chunk_size),
+            max_chunk_count_per_group: config.and_then(|c| c.max_chunk_count_per_group),
+            max_merge_chunk_size: config.and_then(|c| c.max_merge_chunk_size),
+            min_component_chunk_size: config.and_then(|c| c.min_component_chunk_size),
+            generate_component_chunks: config
+                .and_then(|c| c.generate_component_chunks)
+                .unwrap_or(false),
         }
         .cell())
     }
@@ -2521,7 +2550,9 @@ impl NextConfig {
     pub fn turbopack_generate_component_chunks(&self) -> Vc<bool> {
         Vc::cell(
             self.experimental
-                .turbopack_generate_component_chunks
+                .turbopack_chunking
+                .as_ref()
+                .and_then(|c| c.generate_component_chunks)
                 .unwrap_or(false),
         )
     }

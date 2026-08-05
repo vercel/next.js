@@ -34,12 +34,26 @@ export const enum PrefetchPriority {
 export const enum FetchStrategy {
   // Deliberately ordered so we can easily compare two segments
   // and determine if one segment is "more specific" than another
-  // (i.e. if it's likely that it contains more data)
+  // (i.e. if it's likely that it contains more data). See
+  // canNewFetchStrategyProvideMoreContent in cache.ts for what each tier can
+  // contain relative to the others.
+  //
+  // These numeric values are client-internal and never cross the wire — the
+  // `next-router-prefetch` request header values are mapped explicitly in
+  // fetchSegmentPrefetchesUsingDynamicRequest (cache.ts) — so the members can
+  // be renumbered freely as long as the relative order is preserved.
   LoadingBoundary = 0,
-  RuntimeShell = 1,
-  PPR = 2,
-  PPRRuntime = 3,
-  Full = 4,
+  // The App Shell variant extracted from a static per-segment prefetch
+  // response: every segment's param-dependent content is reduced to pending
+  // references that render as the param fallback. Less complete than
+  // RuntimeShell — a static response can't include content that depends on
+  // session data (cookies, headers) — and less complete than PPR at concrete
+  // paths, which includes prerendered param-dependent content.
+  StaticShell = 1,
+  RuntimeShell = 2,
+  PPR = 3,
+  PPRRuntime = 4,
+  Full = 5,
 }
 
 /**

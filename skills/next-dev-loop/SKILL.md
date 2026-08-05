@@ -82,7 +82,9 @@ Once per session, confirm both views are live.
    the next `open` restores it.
 
 2. Probe `/_next/mcp` (`tools/list`) — confirm it's reachable and
-   lists `get_compilation_issues`:
+   lists `get_compilation_issues`. First read the port off the
+   `next dev` banner; if it isn't 3000, set
+   `NEXT_MCP_URL=http://localhost:<port>/_next/mcp` before probing:
    - Unreachable → either `next dev` isn't running, or Next.js is
      below 16.3. Check `package.json` to disambiguate, then refuse.
    - `get_compilation_issues` not in the list → Next.js below 16.3.
@@ -149,8 +151,6 @@ manual rather than from memory.
 - `/_next/mcp` replies are SSE — read the JSON off the `data:` line
   with `sed -n 's/^data: //p'` (a plain `sed 's/^data: //'` leaves the
   `event:` line and the parse fails).
-- Non-3000 dev server: read the `next dev` banner; set
-  `NEXT_MCP_URL=http://localhost:<port>/_next/mcp`.
 - `get_errors` and `get_page_metadata` need at least one navigation
   to populate.
 

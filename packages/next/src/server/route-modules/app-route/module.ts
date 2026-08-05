@@ -42,6 +42,7 @@ import { DynamicServerError } from '../../../client/components/hooks-server-cont
 import {
   workAsyncStorage,
   type WorkStore,
+  type WorkStoreExecutionMode,
 } from '../../app-render/work-async-storage.external'
 import {
   workUnitAsyncStorage,
@@ -113,6 +114,7 @@ export type AppRouteSharedContext = {
  * handler for app routes.
  */
 export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
+  executionMode: WorkStoreExecutionMode
   renderOpts: WorkStoreContext['renderOpts'] &
     Pick<RenderOptsPartial, 'onInstrumentationRequestError'> &
     CollectedCacheInfo
@@ -378,7 +380,7 @@ export class AppRouteRouteModule extends RouteModule<
     request: NextRequest,
     context: AppRouteRouteHandlerContext
   ) {
-    const isStaticGeneration = workStore.isStaticGeneration
+    const isStaticGeneration = workStore.executionMode === 'prerender'
     const cacheComponentsEnabled = !!context.renderOpts.cacheComponents
 
     // Patch the global fetch.
@@ -778,9 +780,9 @@ export class AppRouteRouteModule extends RouteModule<
       ? this.resolveHandlerFromUserland(req.method, liveUserland)
       : this.resolveHandler(req.method)
 
-    // Get the context for the static generation.
-    const staticGenerationContext: WorkStoreContext = {
+    const workStoreContext: WorkStoreContext = {
       page: this.definition.page,
+      executionMode: context.executionMode,
       renderOpts: context.renderOpts,
       buildId: context.sharedContext.buildId,
       deploymentId: context.sharedContext.deploymentId,
@@ -792,7 +794,7 @@ export class AppRouteRouteModule extends RouteModule<
     const userland = liveUserland ?? this.userland
 
     // Add the fetchCache option to the renderOpts.
-    staticGenerationContext.renderOpts.fetchCache = userland.fetchCache
+    workStoreContext.renderOpts.fetchCache = userland.fetchCache
 
     const actionStore: ActionStore = {
       isAppRoute: true,
@@ -815,7 +817,7 @@ export class AppRouteRouteModule extends RouteModule<
       context.renderOpts.hmrRefreshHash
     )
 
-    const workStore = createWorkStore(staticGenerationContext)
+    const workStore = createWorkStore(workStoreContext)
 
     // Run the handler with the request AsyncLocalStorage to inject the helper
     // support. We set this to `unknown` because the type is not known until
@@ -832,7 +834,7 @@ export class AppRouteRouteModule extends RouteModule<
               ? hasNonStaticMethods(liveUserland)
               : this._hasNonStaticMethods
             if (hasNonStatic) {
-              if (workStore.isStaticGeneration) {
+              if (workStore.executionMode === 'prerender') {
                 const err = new DynamicServerError(
                   'Route is configured with methods that cannot be statically generated.'
                 )
@@ -855,7 +857,7 @@ export class AppRouteRouteModule extends RouteModule<
               case 'force-dynamic': {
                 // Routes of generated paths should be dynamic
                 workStore.forceDynamic = true
-                if (workStore.isStaticGeneration) {
+                if (workStore.executionMode === 'prerender') {
                   const err = new DynamicServerError(
                     'Route is configured with dynamic = error which cannot be statically generated.'
                   )
@@ -877,7 +879,7 @@ export class AppRouteRouteModule extends RouteModule<
                 // The dynamic property is set to error, so we should throw an
                 // error if the page is being statically generated.
                 workStore.dynamicShouldError = true
-                if (workStore.isStaticGeneration)
+                if (workStore.executionMode === 'prerender')
                   request = new Proxy(req, requireStaticRequestHandlers)
                 break
               case undefined:

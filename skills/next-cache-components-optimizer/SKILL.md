@@ -37,9 +37,9 @@ command, platform, or env var below as a requirement.
   production-like build and must not be able to pass vacuously. Stand the loop
   up once; every later optimization is then verifiable by construction. The
   loop is the deliverable, not any one route.
-- **The mechanism: `@next/playwright` `instant()`.** This skill locks with
-  [`instant()`](https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant#testing-instant-navigation):
-  a ruler, not a stopwatch (phase A). It comes from
+- **The mechanism: `@next/playwright` `instant()`.** This skill uses
+  [`instant()`](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests)
+  as a ruler, not a stopwatch (phase A). It comes from
   `@next/playwright` (installed alongside `@playwright/test`, on the same
   release line as `next`), so it isn't tied to any host. Keep it. Timing a
   navigation by hand is too flaky to trust, and is the failure mode this skill
@@ -88,10 +88,12 @@ trustworthy.
 ## Reporting to the user
 
 This loop is meant to run unattended — ideally across many navigations in one
-pass — so it doesn't stop to ask after each route. What matters is how you word
-and present the results, not how often you interrupt. The mechanics below — the
-rig, RED, GREEN, the gates — are your scaffolding; the user never needs to hear
-those words.
+pass — so it doesn't stop to ask after each route. If the user names one route,
+finish it and stop. If they ask to make the app or its navigations instant, work
+the whole route queue without pausing between routes. What matters is how you
+word and present the results, not how often you
+interrupt. The mechanics below — the rig, RED, GREEN, the gates — are your
+scaffolding; the user never needs to hear those words.
 
 - **Speak their language.** Describe the gap and the result in terms of what the
   user sees: "navigating to the dashboard waited on the charts query before
@@ -101,8 +103,9 @@ those words.
   before/after screenshots) so the user watches the shell commit immediately and
   the data stream in, rather than reading a claim. Identical before and after
   means the fix did nothing — roll it back.
-- **Present a run as a list of results,** one line per navigation — which route,
-  what's now instant, what streams — not a transcript of the loop.
+- **Present a run as a list of results the user can click through** — one line
+  per navigation: the route, what commits instantly, and what streams in — not a
+  transcript of the loop.
 - **Only surface a question for a genuine fork:** a fix that would change
   behavior, a security-sensitive read, or a route that's dynamic by design (a
   runtime-prefetch candidate, not a shell to grow). A clean instant fix is not a
@@ -230,6 +233,10 @@ Wrap the same navigation in `instant()`; assert the shell commits under the
 lock. A RED here is the gap. **This is the test that ships**
 (`test-template.md`).
 
+Prefer the self-validating variant when the route has deferred content. If the
+route cannot build while blocked, or a cookie/session read stays GREEN, use the
+RED recipes in `reference/red-test-robustness.md`.
+
 > **C-gate: do not start optimizing until the RED is verified trustworthy.** A
 > RED that is red for the wrong reason sends you optimizing a route that was
 > never broken.
@@ -340,6 +347,9 @@ layout: it duplicates structure, drifts as the page changes, and pulls the
 design back toward a single coarse boundary. Reusing the component's own
 skeleton also keeps the prefetched shell consistent with the loaded UI.
 
+See: [Streaming](https://nextjs.org/docs/app/guides/streaming#push-dynamic-access-down)
+and [loading states](https://nextjs.org/docs/app/guides/instant-navigation#iterate-on-loading-states).
+
 Exception: if the deferred component renders `null` for some users (for
 example, a flag-gated control), `fallback={null}` is correct, since a skeleton
 would flash and then collapse.
@@ -359,31 +369,14 @@ this gate is as machine-checkable as the others. Detail:
 > under the lock on the production-build rig**, not when the code compiles. That
 > GREEN is the deterministic stop for the fix loop; proceed to E.
 
-**When the read can't be pushed down** (an ID minted per request, an
-all-dynamic page, a per-request auth/scope read the whole subtree needs), there
-is no shell to grow. Don't force one: opt the route into **runtime prefetching**
-so the prefetch runs the dynamic render ahead of the click and the soft nav
-commits the real content. See [Runtime Prefetching](https://nextjs.org/docs/app/guides/runtime-prefetching)
-for the mechanism (`prefetch = 'allow-runtime'` on the route plus a full
-`<Link prefetch={true}>`) and the [dynamic-data-during-prefetching insight](https://nextjs.org/docs/messages/instant-link-prefetch-partial)
-for adoption. The `instant()`-specific gotchas the docs don't cover:
-
-- **The full prefetch is mandatory.** An auto/PPR prefetch bails before the
-  runtime spawn (`subtreeHasSpeculativePrefetch`); only `prefetch={true}` /
-  `kind: 'full'` reaches it. If you set `prefetch = 'allow-runtime'` and it's
-  still RED, the link is doing an auto prefetch.
-- **All leaf slots must agree.** `allow-runtime` on the content segment but
-  nothing on a sibling `@header`/`@sidebar` leaf leaves the route's runtime entry
-  incomplete, so the lock falls back to the shell. Flip every leaf together.
-- **Prefetch the canonical URL.** A link whose href 307-redirects can't be
-  prefetched — the prefetch receives the redirect, not the tree. Point the link
-  and the prefetch at the final URL.
-- **Don't blanket the full prefetch.** It fetches _all_ the target's dynamic
-  data; issuing it on hover for every link is wasteful. Scope `kind: 'full'` to
-  the runtime-prefetch targets only.
-- **Marker must be a committed node, not RSC bytes.** The content is often a
-  client component, so its text isn't in the prefetch response. Assert a
-  `data-testid` that renders when the client subtree commits.
+**When URL data can't be pushed down** (for example, the whole page depends on
+`params`, `searchParams`, or the full URL), there may be no meaningful static
+shell to grow. Don't force one. Runtime prefetching can make the soft
+navigation instant, but it is outside this optimizer loop: it requires Partial
+Prefetching, a `<Link prefetch={true}>`, and cached URL-dependent content. See
+[Runtime Prefetching](https://nextjs.org/docs/app/guides/runtime-prefetching)
+and pattern 10 in `reference/patterns.md` for the requirements, cost trade-offs,
+manual prefetch caveat, and `instant()` test gotchas.
 
 ## E. PARITY: the refactor changed only whether the route is instant
 
@@ -402,6 +395,9 @@ now commits instantly. Verify:
 - **Client state survives.** Because the layout UI is hoisted into the stable
   shell rather than swapped on resolve, open menus, scroll position, focus,
   and input state persist across the stream.
+- **Pre-existing failures stay separate.** If the route errors after the
+  change, reproduce it on the base branch. The same failure there is an
+  environment or data problem, not an optimizer regression.
 
 If anything other than whether the route is instant changed, reduce the refactor.
 
@@ -422,6 +418,7 @@ PR-specific items:
 - [ ] **Parity confirmed (E)**: same content, redirects, and state.
 - [ ] **Existing loading UI reused (D1)**: no new page-mirroring skeleton.
 - [ ] **Shell matches the real render at desktop and mobile widths (D2)**.
+- [ ] **Baseline removed**: only the locked test from C remains.
 
 **Stop condition for the whole workflow:** the locked test from C is GREEN on
 the rig, the differential (F) holds, and every item above is checked. Until all
@@ -451,3 +448,32 @@ three hold, you are not done.
 - `reference/real-app-patterns.md`: parallel routes, deferring an auth gate,
   initial-load vs soft-navigation shells, the empty-shell failure mode, the
   responsive-skeleton mismatch, edge cases.
+
+## After optimization
+
+Once the target routes are instant, check whether the app has already adopted
+Partial Prefetching (`partialPrefetching: true`, or the relevant destination
+still uses `prefetch = 'partial'` during an incremental rollout).
+
+Make that check mechanically:
+
+```bash
+rg -n "partialPrefetching|prefetch\s*=\s*['\"]partial['\"]" --glob 'next.config.*' --glob 'app/**' --glob 'src/app/**'
+```
+
+If `partialPrefetching: true` is in config, the app is globally adopted. If only
+`prefetch = 'partial'` matches, treat those destination segments as adopted
+during an incremental rollout and keep checking any other target routes.
+
+- **Already adopted:** for any URL-data route that stopped at the limitation
+  above, consider a targeted `<Link prefetch={true}>` on the links where having
+  that URL-specific content ready before the click is worth the per-link server
+  work. Keep the default link behavior everywhere else so the shared App Shell
+  remains the low-cost baseline.
+- **Not adopted yet:** recommend
+  [`next-partial-prefetching-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-adoption).
+  That skill moves the app onto the better prefetching model: shared App Shell
+  prefetches by default, fewer duplicated full-prefetch requests for visible
+  links, a link audit for existing `<Link prefetch={true}>` usage, and optional
+  per-link runtime prefetching only where URL-specific content is worth the
+  extra server work.
