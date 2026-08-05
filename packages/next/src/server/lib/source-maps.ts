@@ -11,6 +11,26 @@ const findSourceMap =
     ? noSourceMap
     : (require('module') as typeof import('module')).findSourceMap
 
+// `fs`/`path`/`url` are Node builtins with no edge-runtime implementation. These `require()`s must
+// live in a branch that constant-folds away for edge (`DefinePlugin` replaces
+// `process.env.NEXT_RUNTIME` with the literal `'edge'`, then DCE drops the dead branch) so the edge
+// bundler never tries to resolve them — a runtime `if` guard is not enough, as the bundler still
+// resolves `require()` calls in reachable code. Mirrors `findSourceMap` above. This module is
+// bundled into the edge SSR runtime via `patch-error-inspect.ts`, so these paths must stay
+// resolution-free there.
+const nodeFs =
+  process.env.NEXT_RUNTIME === 'edge'
+    ? undefined
+    : (require('fs') as typeof import('fs'))
+const nodePath =
+  process.env.NEXT_RUNTIME === 'edge'
+    ? undefined
+    : (require('path') as typeof import('path'))
+const nodeFileURLToPath =
+  process.env.NEXT_RUNTIME === 'edge'
+    ? undefined
+    : (require('url') as typeof import('url')).fileURLToPath
+
 /**
  * https://tc39.es/source-map/#index-map
  */
@@ -404,13 +424,18 @@ export function isProjectScopedSourcePath(source: string): boolean {
  * or any read error (missing/binary file), so callers fall back to a frame without a code frame.
  */
 export function readSourceContentFromFileUri(source: string): string | null {
-  if (process.env.NEXT_RUNTIME === 'edge' || !source.startsWith('file://')) {
+  // `nodeFs`/`nodeFileURLToPath` are undefined on edge (see their declarations); the guard keeps
+  // TypeScript's narrowing honest and preserves the edge-returns-null behavior.
+  if (
+    process.env.NEXT_RUNTIME === 'edge' ||
+    nodeFs === undefined ||
+    nodeFileURLToPath === undefined ||
+    !source.startsWith('file://')
+  ) {
     return null
   }
   try {
-    const fs = require('fs') as typeof import('fs')
-    const { fileURLToPath } = require('url') as typeof import('url')
-    return fs.readFileSync(fileURLToPath(source), 'utf8')
+    return nodeFs.readFileSync(nodeFileURLToPath(source), 'utf8')
   } catch {
     return null
   }
@@ -459,13 +484,16 @@ export function resolveProjectScopedDisplayPath(
   const projectRoot = (globalThis as GlobalWithProjectRoot)[
     PROJECT_ROOT_FOR_DISPLAY
   ]
-  if (projectRoot === undefined || !isProjectScopedSourcePath(source)) {
+  // `nodePath` is undefined on edge (see its declaration). The project root is never set on edge,
+  // so this branch is unreachable there; the guard keeps TypeScript's narrowing honest.
+  if (
+    projectRoot === undefined ||
+    nodePath === undefined ||
+    !isProjectScopedSourcePath(source)
+  ) {
     return rawSource
   }
-  // Only reached in the dev server (never edge, where the project root is never set), so a lazy
-  // `require('path')` here keeps this module's edge load free of a Node builtin dependency.
-  const path = require('path') as typeof import('path')
-  return path.relative(process.cwd(), path.join(projectRoot, rawSource))
+  return nodePath.relative(process.cwd(), nodePath.join(projectRoot, rawSource))
 }
 
 function isAnonymousFrameLikelyJSNative(methodName: string): boolean {
