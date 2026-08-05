@@ -6,12 +6,16 @@ import { runInNewContext } from 'node:vm'
 import { setFlagsFromString } from 'node:v8'
 import { SpanStatusCode, trace } from 'next/dist/compiled/@opentelemetry/api'
 import { createLocalSpan, traceLocalSpan } from './local-span-recorder'
-import { runWithRequestInsightsIdentity } from './request-insights-identity'
+import {
+  resolveRequestInsightsIdentity,
+  runWithRequestInsightsIdentity,
+} from './request-insights-identity'
 import { setSpanRecorderForTest, type SpanStoreRecord } from './span-store'
 import {
   workAsyncStorage,
   type WorkStore,
 } from '../../app-render/work-async-storage.external'
+import { filterInvalidDevRequestIdHeaders } from '../dev-request-id'
 
 const originalDevServer = process.env.__NEXT_DEV_SERVER
 const spanRecords: SpanStoreRecord[] = []
@@ -67,6 +71,98 @@ describe('local recording span', () => {
         },
       }),
     ])
+  })
+
+  it('keeps browser debug IDs separate from server-owned storage IDs', () => {
+    const identity = resolveRequestInsightsIdentity({
+      previousIdentity: undefined,
+      requestIdHeader: '1a2b3c4d',
+      htmlRequestIdHeader: 'html_request',
+      url: '/dashboard',
+      createRequestId: () => 'server_request',
+    })
+
+    expect(identity).toEqual({
+      requestId: 'server_request',
+      debugRequestId: '1a2b3c4d',
+      htmlRequestId: 'html_request',
+      url: '/dashboard',
+    })
+    expect(
+      resolveRequestInsightsIdentity({
+        previousIdentity: identity,
+        requestIdHeader: 'ffffffff',
+        htmlRequestIdHeader: 'other_html',
+        url: '/rewritten',
+        createRequestId: () => 'other_server_request',
+      })
+    ).toBe(identity)
+  })
+
+  it('records the framework-owned request source from the request identity', () => {
+    runWithRequestInsightsIdentity(
+      {
+        requestId: 'asset-request',
+        source: 'asset',
+        htmlRequestId: 'asset-request',
+        url: '/asset.svg',
+      },
+      () => {
+        const span = createLocalSpan({ name: 'serve static asset' })
+        span.end()
+      }
+    )
+
+    expect(spanRecords).toEqual([
+      expect.objectContaining({
+        requestId: 'asset-request',
+        requestInsightSource: 'asset',
+        url: '/asset.svg',
+      }),
+    ])
+  })
+
+  it('rejects malformed browser IDs instead of using them as storage keys', () => {
+    expect(
+      resolveRequestInsightsIdentity({
+        previousIdentity: undefined,
+        requestIdHeader: 'not a request id',
+        htmlRequestIdHeader: '../not-safe',
+        url: '/',
+        createRequestId: () => 'server_request',
+      })
+    ).toEqual({
+      requestId: 'server_request',
+      debugRequestId: undefined,
+      htmlRequestId: 'server_request',
+      url: '/',
+    })
+  })
+
+  it('drops malformed development correlation headers at router ingress', () => {
+    const headers = {
+      'x-nextjs-request-id': 'not a request id',
+      'x-nextjs-html-request-id': '../not-safe',
+    }
+
+    filterInvalidDevRequestIdHeaders(headers)
+
+    expect(headers).toEqual({})
+  })
+
+  it('does not merge independent requests that reuse a valid browser ID', () => {
+    const createIdentity = (requestId: string) =>
+      resolveRequestInsightsIdentity({
+        previousIdentity: undefined,
+        requestIdHeader: '1a2b3c4d',
+        htmlRequestIdHeader: undefined,
+        url: '/',
+        createRequestId: () => requestId,
+      })
+
+    expect(createIdentity('server_request_1').requestId).not.toBe(
+      createIdentity('server_request_2').requestId
+    )
   })
 
   it('ignores undefined values when setting attributes', () => {

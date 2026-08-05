@@ -65,6 +65,7 @@ import {
   extractInfoFromServerReferenceId,
   mightBeServerReferenceId,
 } from '../../shared/lib/server-reference-info'
+import { isUseCacheFunction } from '../../lib/client-and-server-references'
 import type { ServerActionLogInfo } from '../dev/server-action-logger'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { synchronizeMutableCookies } from '../async-storage/request-store'
@@ -752,6 +753,9 @@ export async function handleAction({
     // action in the current handler, so we forward the request to a worker that
     // has the action.
     if (forwardedWorker) {
+      if (extractInfoFromServerReferenceId(actionId).type === 'server-action') {
+        markServerActionRequest()
+      }
       return {
         type: 'done',
         result: await createForwardedActionResponse(
@@ -869,6 +873,10 @@ export async function handleAction({
               const action = await decodeAction(formData, serverModuleMap)
               if (typeof action === 'function') {
                 // an MPA action.
+
+                if (!isUseCacheFunction(action)) {
+                  markServerActionRequest()
+                }
 
                 // Only warn if it's a server action, otherwise skip for other post requests
                 warnBadServerActionRequest()
@@ -1079,6 +1087,10 @@ export async function handleAction({
               if (typeof action === 'function') {
                 // an MPA action.
 
+                if (!isUseCacheFunction(action)) {
+                  markServerActionRequest()
+                }
+
                 // Only warn if it's a server action, otherwise skip for other post requests
                 warnBadServerActionRequest()
 
@@ -1175,6 +1187,9 @@ export async function handleAction({
         // Log server action call in development when enabled
         let logInfo: ServerActionLogInfo | null = null
         const { type: actionType } = extractInfoFromServerReferenceId(actionId!)
+        if (actionType !== 'use-cache') {
+          markServerActionRequest()
+        }
         if (
           process.env.NODE_ENV === 'development' &&
           ctx.renderOpts.logServerFunctions &&
@@ -1372,6 +1387,19 @@ export async function handleAction({
  * stack overflow during `action.apply()` from malicious requests.
  */
 const SERVER_ACTION_ARGS_LIMIT = 1000
+
+function markServerActionRequest(): void {
+  if (process.env.__NEXT_DEV_SERVER && process.env.NEXT_RUNTIME !== 'edge') {
+    const { getRequestInsightsIdentity } =
+      require('../lib/trace/request-insights-identity') as typeof import('../lib/trace/request-insights-identity')
+    const identity = getRequestInsightsIdentity()
+    if (identity) {
+      const { recordRequestInsightServerAction } =
+        require('../lib/trace/request-insights') as typeof import('../lib/trace/request-insights')
+      recordRequestInsightServerAction(identity)
+    }
+  }
+}
 
 async function executeActionAndPrepareForRender<
   TFn extends (...args: any[]) => Promise<any>,
