@@ -3,6 +3,7 @@ import type {
   RequestInsightFetch,
   RequestInsightSpan,
 } from '../../../shared/request-insights'
+import { getFetchUrlPresentation } from './fetch-label'
 
 export type TraceItem = {
   id: string
@@ -11,6 +12,7 @@ export type TraceItem = {
   spanType?: string
   category: 'nextjs' | 'application'
   label: string
+  fullLabel?: string
   startTime: number
   durationMs?: number
   status: 'ok' | 'error' | 'pending'
@@ -21,6 +23,32 @@ export type TraceItem = {
 export type TraceRange = {
   startTime: number
   durationMs: number
+}
+
+export function getTraceNavigationIndex(
+  currentIndex: number,
+  itemCount: number,
+  key: string
+): number | undefined {
+  if (itemCount <= 0) {
+    return undefined
+  }
+
+  const lastIndex = itemCount - 1
+  const safeCurrentIndex = Math.min(Math.max(currentIndex, 0), lastIndex)
+
+  switch (key) {
+    case 'ArrowDown':
+      return Math.min(safeCurrentIndex + 1, lastIndex)
+    case 'ArrowUp':
+      return Math.max(safeCurrentIndex - 1, 0)
+    case 'Home':
+      return 0
+    case 'End':
+      return lastIndex
+    default:
+      return undefined
+  }
 }
 
 type UnnestedTraceItem = Omit<TraceItem, 'depth'>
@@ -76,7 +104,8 @@ const SPAN_WORD_CASE: Record<string, string> = {
 
 export function getTraceItems(
   request: RequestInsight,
-  verbose: boolean
+  verbose: boolean,
+  currentOrigin?: string
 ): TraceItem[] {
   const fetchSpansByIndex = new Map<number, RequestInsightSpan>()
 
@@ -110,7 +139,7 @@ export function getTraceItems(
   request.fetches.forEach((fetch, index) => {
     const matchingSpan =
       fetch.index === undefined ? undefined : fetchSpansByIndex.get(fetch.index)
-    const item = getFetchTraceItem(fetch, index, matchingSpan)
+    const item = getFetchTraceItem(fetch, index, matchingSpan, currentOrigin)
     if (item) {
       items.push(item)
     }
@@ -173,12 +202,16 @@ function getSpanTraceItem(
 function getFetchTraceItem(
   fetch: RequestInsightFetch,
   index: number,
-  matchingSpan: RequestInsightSpan | undefined
+  matchingSpan: RequestInsightSpan | undefined,
+  currentOrigin: string | undefined
 ): UnnestedTraceItem | null {
   const startTime = fetch.startTime ?? matchingSpan?.startTime
   if (startTime === undefined) {
     return null
   }
+
+  const method = fetch.method ?? 'GET'
+  const url = getFetchUrlPresentation(fetch.url, currentOrigin)
 
   return {
     id: `fetch:${matchingSpan?.spanId ?? fetch.index ?? index}:${startTime}`,
@@ -186,7 +219,8 @@ function getFetchTraceItem(
     parentSpanId: matchingSpan?.parentSpanId,
     spanType: FETCH_SPAN_TYPE,
     category: matchingSpan ? getSpanCategory(matchingSpan) : 'application',
-    label: `${fetch.method ?? 'GET'} ${getUrlPath(fetch.url)}`,
+    label: `${method} ${url.path}${currentOrigin ? ` · ${url.originLabel}` : ''}`,
+    fullLabel: `${method} ${url.fullUrl}`,
     startTime,
     durationMs: fetch.durationMs ?? matchingSpan?.durationMs,
     status:
@@ -393,17 +427,4 @@ function getSpanLabel(span: RequestInsightSpan): string {
   }
 
   return words.join(' ')
-}
-
-function getUrlPath(url: string | undefined): string {
-  if (!url) {
-    return 'Unknown URL'
-  }
-
-  try {
-    const parsedUrl = new URL(url, 'http://localhost')
-    return `${parsedUrl.pathname}${parsedUrl.search}`
-  } catch {
-    return url
-  }
 }
