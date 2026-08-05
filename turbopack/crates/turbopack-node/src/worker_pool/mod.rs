@@ -25,7 +25,7 @@ use crate::{
     worker_pool::{
         operation::{
             PoolState, TaskChannels, WORKER_POOL_OPERATION, WorkerOperation, WorkerOptions,
-            get_pool_state,
+            get_pool_state, push_waiter,
         },
         worker_thread::create_worker,
     },
@@ -121,7 +121,7 @@ impl WorkerThreadPool {
                     },
                 ));
             }
-            waiters.push(tx);
+            push_waiter(&mut waiters, tx);
         }
 
         let bootup = async {
