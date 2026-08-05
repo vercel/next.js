@@ -197,8 +197,6 @@ export async function handler(
     cacheKey = cacheKey === '/index' ? '/' : cacheKey
   }
 
-  const executionMode = cacheKey !== null ? 'prerender' : 'request'
-
   // Before rendering (which initializes component tree modules), we have to
   // set the reference manifests to our global store so Server Action's
   // encryption util can access to them at the top level of the page module.
@@ -233,7 +231,6 @@ export async function handler(
   const context: AppRouteRouteHandlerContext = {
     params,
     previewProps: prerenderManifest.preview,
-    executionMode,
     renderOpts: {
       experimental: {
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
@@ -295,7 +292,10 @@ export async function handler(
         return null
       }
 
-      const response = await routeModule.handle(nextReq, context)
+      const response =
+        cacheKey === null
+          ? await routeModule.handle(nextReq, context)
+          : await routeModule.prerender(nextReq, context)
 
       ;(req as any).fetchMetrics = (context.renderOpts as any).fetchMetrics
       let pendingWaitUntil = context.renderOpts.pendingWaitUntil
@@ -378,7 +378,7 @@ export async function handler(
             routePath: srcPage,
             routeType: 'route',
             revalidateReason: getRevalidateReason({
-              isStaticGeneration: executionMode === 'prerender',
+              isStaticGeneration: cacheKey !== null,
               isOnDemandRevalidate,
             }),
           },
@@ -482,7 +482,7 @@ export async function handler(
             routePath: normalizedSrcPage,
             routeType: 'route',
             revalidateReason: getRevalidateReason({
-              isStaticGeneration: executionMode === 'prerender',
+              isStaticGeneration: cacheKey !== null,
               isOnDemandRevalidate,
             }),
           },
