@@ -118,8 +118,8 @@ export class EdgeRouteModuleWrapper {
     const context: AppRouteRouteHandlerContext = {
       params,
       previewProps,
+      executionMode: 'request',
       renderOpts: {
-        supportsDynamicResponse: true,
         waitUntil,
         onClose: closeController.onClose.bind(closeController),
         onAfterTaskError: undefined,

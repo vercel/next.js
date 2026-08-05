@@ -6,6 +6,7 @@ import type { LoaderTree } from '../../lib/app-dir-module'
 import type { PrerenderManifest } from '../../../build'
 
 import {
+  prerenderToHTMLOrFlight,
   renderToHTMLOrFlight,
   runValidationInDevFromSnapshot,
   type AppSharedContext,
@@ -171,6 +172,23 @@ export class AppPageRouteModule extends RouteModule<
     )
   }
 
+  public prerender(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    context: AppPageRouteHandlerContext
+  ): Promise<RenderResult> {
+    return prerenderToHTMLOrFlight(
+      req,
+      res,
+      context.page,
+      context.query,
+      context.fallbackRouteParams,
+      context.renderOpts,
+      context.serverComponentsHmrCache,
+      context.sharedContext
+    )
+  }
+
   /**
    * Worker entry point for dev Cache Components dev validation. The dev
    * validation worker reloads this route's module and calls this so the whole
@@ -227,6 +245,6 @@ const vendored = {
   contexts: vendoredContexts,
 }
 
-export { renderToHTMLOrFlight, vendored }
+export { prerenderToHTMLOrFlight, renderToHTMLOrFlight, vendored }
 
 export default AppPageRouteModule

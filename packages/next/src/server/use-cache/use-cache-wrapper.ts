@@ -3120,7 +3120,7 @@ export async function cache(
                 ? Math.max(entry.expire, MIN_PRERENDERABLE_EXPIRE)
                 : entry.expire) *
                 1000 ||
-          (workStore.isStaticGeneration &&
+          (workStore.executionMode === 'prerender' &&
             currentTime > entry.timestamp + entry.revalidate * 1000)
         ) {
           // Miss. Generate a new result.
@@ -3144,7 +3144,7 @@ export async function cache(
             }
 
             if (
-              workStore.isStaticGeneration &&
+              workStore.executionMode === 'prerender' &&
               currentTime > entry.timestamp + entry.revalidate * 1000
             ) {
               debug?.('static generation, entry is stale', cacheHandlerKey)

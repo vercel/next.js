@@ -644,7 +644,7 @@ export async function handleAction({
     return handleUnrecognizedFetchAction(error)
   }
 
-  if (workStore.isStaticGeneration) {
+  if (workStore.executionMode === 'prerender') {
     throw new Error(
       "Invariant: server actions can't be handled during static rendering"
     )

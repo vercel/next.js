@@ -6,7 +6,7 @@ import { workAsyncStorage } from './server-async-storage'
 export function handleISRError({ error }: { error: any }) {
   if (workAsyncStorage) {
     const store = workAsyncStorage.getStore()
-    if (store?.isStaticGeneration) {
+    if (store?.executionMode === 'prerender') {
       if (error) {
         console.error(error)
       }

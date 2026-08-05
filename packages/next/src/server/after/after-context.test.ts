@@ -706,7 +706,7 @@ const createMockWorkStore = (afterContext: AfterContext): WorkStore => {
     forceStatic: false,
     forceDynamic: false,
     dynamicShouldError: false,
-    isStaticGeneration: false,
+    executionMode: 'request',
     pendingRevalidatedTags: [],
     pendingRevalidates: undefined,
     pendingRevalidateWrites: undefined,
