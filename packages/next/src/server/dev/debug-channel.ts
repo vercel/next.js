@@ -6,6 +6,7 @@ import {
   type HmrMessageSentToBrowser,
 } from './hot-reloader-types'
 import type { AnyStream } from '../app-render/stream-ops'
+import { setWithExpiry } from './expiring-map'
 
 // Chunks are sent to the browser in batches to reduce overhead, flushing
 // synchronously once this many bytes have accumulated.
@@ -115,9 +116,9 @@ export function setReactDebugChannelForHtmlRequest(
   htmlRequestId: string,
   debugChannel: ReactDebugChannelForBrowser
 ) {
-  // TODO: Clean up after a timeout, in case the client never connects, e.g.
-  // when CURL'ing the page, or loading the page with JavaScript disabled etc.
-  reactDebugChannelsByHtmlRequestId.set(htmlRequestId, debugChannel)
+  // Expire entries whose client never connects, e.g. when CURL'ing the page,
+  // or loading the page with JavaScript disabled etc.
+  setWithExpiry(reactDebugChannelsByHtmlRequestId, htmlRequestId, debugChannel)
 }
 
 export function deleteReactDebugChannelForHtmlRequest(htmlRequestId: string) {

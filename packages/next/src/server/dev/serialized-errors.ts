@@ -4,6 +4,7 @@ import {
 } from './hot-reloader-types'
 import type { AnyStream } from '../app-render/stream-ops'
 import { streamToUint8Array } from '../stream-utils/node-web-streams-helper'
+import { setWithExpiry } from './expiring-map'
 
 const errorsRscStreamsByHtmlRequestId = new Map<string, AnyStream>()
 
@@ -43,9 +44,9 @@ export function setErrorsRscStreamForHtmlRequest(
   htmlRequestId: string,
   errorsRscStream: AnyStream
 ) {
-  // TODO: Clean up after a timeout, in case the client never connects, e.g.
-  // when CURL'ing the page, or loading the page with JavaScript disabled etc.
-  errorsRscStreamsByHtmlRequestId.set(htmlRequestId, errorsRscStream)
+  // Expire entries whose client never connects, e.g. when CURL'ing the page,
+  // or loading the page with JavaScript disabled etc.
+  setWithExpiry(errorsRscStreamsByHtmlRequestId, htmlRequestId, errorsRscStream)
 }
 
 export function deleteErrorsRscStreamForHtmlRequest(htmlRequestId: string) {
