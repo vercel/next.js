@@ -37,7 +37,12 @@ export type PrefetchInliningConfig =
   | false
   | { maxSize: number; maxBundleSize: number }
 
-export type NextConfigComplete = Required<
+// Like Required, but retains explicit `| undefined` in the values
+type NonOptional<T> = {
+  [K in keyof Required<T>]: Exclude<T[K], undefined>
+}
+
+export type NextConfigComplete = NonOptional<
   Omit<NextConfig, 'configFile' | 'cacheLife'>
 > & {
   images: Required<ImageConfigComplete>
