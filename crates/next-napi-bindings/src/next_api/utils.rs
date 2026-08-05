@@ -84,7 +84,13 @@ pub struct RootTask {
 
 impl Drop for RootTask {
     fn drop(&mut self) {
-        // TODO stop the root task
+        // GC backstop: JavaScript is expected to call `root_task_dispose` in a
+        // `try...finally`, but if the `External` is finalized without that
+        // (e.g. a torn-down iterator), stop the root task instead of leaking
+        // the subscription computation.
+        if let Some(task) = self.task_id.take() {
+            self.turbopack_ctx.turbo_tasks().dispose_root_task(task);
+        }
     }
 }
 

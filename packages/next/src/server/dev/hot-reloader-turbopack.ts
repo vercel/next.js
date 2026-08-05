@@ -122,6 +122,7 @@ import {
   deleteReactDebugChannelForHtmlRequest,
   setReactDebugChannelForHtmlRequest,
 } from './debug-channel'
+import { setWithExpiry } from './expiring-map'
 import {
   getVersionInfo,
   matchNextPageBundleRequest,
@@ -211,9 +212,13 @@ function setupServerHmr(
     reEvaluateAllModulesExpensive: () => void | Promise<void>
     onApplied: (chunkPaths: string[]) => void | Promise<void>
   }
-) {
+): () => void {
+  let currentSubscription: { return?: () => Promise<unknown> } | undefined
+  let stopped = false
+
   async function runSubscription() {
     const subscription = project.allHmrEvents(HmrTarget.Server)
+    currentSubscription = subscription
 
     // Subscribing immediately emits one event describing the current state.
     // There's no previous state to diff it against, so it never carries anything
@@ -288,16 +293,28 @@ function setupServerHmr(
   // initial read) from hot-looping through reEvaluateAllModulesExpensive().
   ;(async () => {
     for (;;) {
+      if (stopped) {
+        return
+      }
       try {
         await runSubscription()
         return
       } catch (err) {
+        if (stopped) {
+          return
+        }
         console.error('[Server HMR] Subscription error, resubscribing:', err)
         await reEvaluateAllModulesExpensive()
         await new Promise((resolve) => setTimeout(resolve, 1000))
       }
     }
   })()
+
+  // Stops the background loop and disposes the current native subscription.
+  return () => {
+    stopped = true
+    currentSubscription?.return?.()
+  }
 }
 
 function getSourceMapFromTurbopack(
@@ -1014,6 +1031,10 @@ export async function createHotReloaderTurbopack(
 
     const subscription = state.subscriptions.get(id)
     subscription?.return!()
+    // Delete the dead iterator as well: returning it disposes the native
+    // subscription, but keeping the map entry would retain it (and re-return
+    // it) until the whole client disconnects.
+    state.subscriptions.delete(id)
 
     const key = getEntryKey('assets', 'client', id)
     state.clientIssues.delete(key)
@@ -1661,8 +1682,9 @@ export async function createHotReloaderTurbopack(
         })
       } else {
         // If the client is not connected, store the status so that we can send it
-        // when the client connects.
-        cacheStatusesByHtmlRequestId.set(htmlRequestId, status)
+        // when the client connects. The entry expires if no client ever
+        // connects (e.g. curl or no-JS page loads).
+        setWithExpiry(cacheStatusesByHtmlRequestId, htmlRequestId, status)
       }
     },
 
@@ -1971,6 +1993,20 @@ export async function createHotReloaderTurbopack(
       // Report MCP telemetry if MCP server is enabled
       recordMcpTelemetry(opts.telemetry)
 
+      // Tear down every long-lived subscription so the native root tasks
+      // behind them are disposed instead of leaking past the dev server's
+      // lifetime.
+      entrypointsSubscription.return?.()
+      updateInfoSubscription.return?.()
+      teardownServerHmr?.()
+      for (const changedPromise of changeSubscriptions.values()) {
+        void changedPromise.then(
+          (subscription) => subscription?.return?.(),
+          () => {}
+        )
+      }
+      changeSubscriptions.clear()
+
       for (const wsClient of [
         ...clientsWithoutHtmlRequestId,
         ...clientsByHtmlRequestId.values(),
@@ -1996,9 +2032,11 @@ export async function createHotReloaderTurbopack(
     entrypoints: currentEntrypoints,
   })
 
+  const updateInfoSubscription = project.updateInfoSubscribe(30)
+
   async function handleProjectUpdates() {
     const BUILDING_MESSAGE_DEFER_MS = 100
-    for await (const updateMessage of project.updateInfoSubscribe(30)) {
+    for await (const updateMessage of updateInfoSubscription) {
       switch (updateMessage.updateType) {
         case 'start': {
           updateInProgress = true
@@ -2116,8 +2154,9 @@ export async function createHotReloaderTurbopack(
     })
   }
 
+  let teardownServerHmr: (() => void) | undefined
   if (serverFastRefresh) {
-    setupServerHmr(project, {
+    teardownServerHmr = setupServerHmr(project, {
       reEvaluateAllModulesExpensive: async () => {
         // Evict every server-HMR-managed chunk from `require.cache`.
         // Trailing `sep` so e.g. `server/chunks-other/...` doesn't match.
