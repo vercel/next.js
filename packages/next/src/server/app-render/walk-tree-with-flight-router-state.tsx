@@ -262,6 +262,7 @@ export async function walkTreeWithFlightRouterState({
         preloadCallbacks,
         authInterrupts: experimental.authInterrupts,
         MetadataOutlet,
+        isPrerendering: false,
       }
     )
 
@@ -389,6 +390,7 @@ export async function createFullTreeFlightDataForNavigation({
     preloadCallbacks,
     authInterrupts: experimental.authInterrupts,
     MetadataOutlet,
+    isPrerendering: false,
   })
 
   return [

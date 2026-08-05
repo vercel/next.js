@@ -644,12 +644,6 @@ export async function handleAction({
     return handleUnrecognizedFetchAction(error)
   }
 
-  if (workStore.executionMode === 'prerender') {
-    throw new Error(
-      "Invariant: server actions can't be handled during static rendering"
-    )
-  }
-
   let temporaryReferences: TemporaryReferenceSet | undefined
 
   // When running actions the default is no-store, you can still `cache: 'force-cache'`
