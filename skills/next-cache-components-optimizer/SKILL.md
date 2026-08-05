@@ -87,13 +87,11 @@ trustworthy.
 
 ## Reporting to the user
 
-This loop is meant to run unattended — ideally across many navigations in one
-pass — so it doesn't stop to ask after each route. If the user names one route,
-finish it and stop. If they ask to make the app or its navigations instant, work
-the whole route queue without pausing between routes. What matters is how you
-word and present the results, not how often you
-interrupt. The mechanics below — the rig, RED, GREEN, the gates — are your
-scaffolding; the user never needs to hear those words.
+This loop is meant to run unattended, so it doesn't stop to ask between steps.
+Work the navigation the user named, finish it, and stop. What matters is how you
+word and present the results, not how often you interrupt. The mechanics below —
+the rig, RED, GREEN, the gates — are your scaffolding; the user never needs to
+hear those words.
 
 - **Speak their language.** Describe the gap and the result in terms of what the
   user sees: "navigating to the dashboard waited on the charts query before
