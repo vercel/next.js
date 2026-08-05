@@ -1453,7 +1453,10 @@ impl Project {
                 .chain(std::iter::once(self.client_main_modules().owned().await?))
                 .chain(std::iter::once(GraphEntries::new(
                     vec![],
-                    self.additional_traced_modules().owned().await?,
+                    // The superset of what any endpoint traces, so that these modules and their
+                    // references are part of the graph. Which endpoint actually traces them is
+                    // decided by what is passed to `trace_endpoint`.
+                    self.pages_traced_modules().owned().await?,
                 ))),
         );
 
@@ -2809,9 +2812,7 @@ impl Project {
         .cell())
     }
 
-    /// Returns modules that have to be traced for every endpoint even though nothing references
-    /// them: any modules specified as `nextConfig.cacheHandler` and/or `nextConfig.cacheHandlers`,
-    /// plus the modules `next/dist/server/require-hook` resolves at runtime.
+    /// Returns any modules specified as `nextConfig.cacheHandler` and/or `nextConfig.cacheHandlers`
     #[turbo_tasks::function]
     pub async fn additional_traced_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
         let project_path = self.project_path().owned().await?;
@@ -2827,8 +2828,6 @@ impl Project {
         let asset_context =
             externals_tracing_module_context(get_tracing_compile_time_info(), false);
 
-        let hook_modules = require_hook_modules(project_path).owned().await?;
-
         Ok(Vc::cell(
             cache_handler
                 .iter()
@@ -2843,6 +2842,23 @@ impl Project {
                 })
                 .map(|m| m.to_resolved())
                 .try_join()
+                .await?,
+        ))
+    }
+
+    /// [`Project::additional_traced_modules`] plus the modules
+    /// `next/dist/server/require-hook` resolves at runtime. Only the Pages Router needs the
+    /// latter, so this is the traced module list for pages endpoints, while other endpoints use
+    /// [`Project::additional_traced_modules`].
+    #[turbo_tasks::function]
+    pub async fn pages_traced_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
+        let hook_modules = require_hook_modules(self.project_path().owned().await?)
+            .owned()
+            .await?;
+
+        Ok(Vc::cell(
+            self.additional_traced_modules()
+                .owned()
                 .await?
                 .into_iter()
                 .chain(hook_modules)
