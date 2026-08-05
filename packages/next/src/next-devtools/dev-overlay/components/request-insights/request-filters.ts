@@ -8,6 +8,7 @@ import {
   getRequestInsightRouterActivity,
   getRequestInsightStatusCode,
   hasRequestInsightProxyActivity,
+  type RequestListEntry,
 } from './request-list'
 
 export type RequestInsightFilter =
@@ -105,46 +106,37 @@ const ALL_FILTERS = REQUEST_INSIGHT_FILTER_GROUPS.flatMap((group) =>
 )
 
 type RequestInsightFilterResult = Readonly<{
-  requests: RequestInsight[]
+  entries: RequestListEntry[]
   matchingRequestCount: number
   totalRequestCount: number
   optionCounts: Readonly<Record<RequestInsightFilter, number>>
 }>
 
 export function getRequestInsightFilterResult(
-  requests: readonly RequestInsight[],
-  activeFilters: readonly RequestInsightFilter[],
-  showInternal = false
+  entries: readonly RequestListEntry[],
+  activeFilters: readonly RequestInsightFilter[]
 ): RequestInsightFilterResult {
-  const revealInternal =
-    showInternal || activeFilters.includes('activity:instant-insights')
-  const visibleRequests = requests.filter(
-    (request) => getRequestInsightKind(request) === 'request' || revealInternal
-  )
   const activeFiltersByFacet = groupFiltersByFacet(activeFilters)
   const optionCounts = Object.fromEntries(
     ALL_FILTERS.map((filter) => [filter, 0])
   ) as Record<RequestInsightFilter, number>
 
-  for (const request of requests) {
-    const tags = getRequestInsightTags(request)
-    if (getRequestInsightKind(request) === 'request' || showInternal) {
-      for (const tag of tags) {
-        optionCounts[tag] += 1
-      }
-    } else if (tags.has('activity:instant-insights')) {
-      optionCounts['activity:instant-insights'] += 1
+  for (const entry of entries) {
+    const tags = getRequestInsightTags(entry)
+    for (const tag of tags) {
+      optionCounts[tag] += 1
     }
   }
 
-  const matchingRequests = visibleRequests.filter((request) =>
-    matchesActiveFilters(getRequestInsightTags(request), activeFiltersByFacet)
-  )
+  const matchingEntries = entries.filter((entry) => {
+    const tags = getRequestInsightTags(entry)
+    return matchesActiveFilters(tags, activeFiltersByFacet)
+  })
 
   return {
-    requests: matchingRequests,
-    matchingRequestCount: matchingRequests.length,
-    totalRequestCount: visibleRequests.length,
+    entries: matchingEntries,
+    matchingRequestCount: matchingEntries.length,
+    totalRequestCount: entries.length,
     optionCounts,
   }
 }
@@ -159,8 +151,9 @@ export function toggleRequestInsightFilter(
 }
 
 function getRequestInsightTags(
-  request: RequestInsight
+  entry: RequestListEntry
 ): Set<RequestInsightFilter> {
+  const { request } = entry
   const tags = new Set<RequestInsightFilter>()
   const source = getRequestSourceFilter(request)
   if (source) {
@@ -188,13 +181,19 @@ function getRequestInsightTags(
   if (routerActivity) {
     tags.add(`activity:${routerActivity}`)
   }
-  if (getRequestInsightKind(request) === 'instant-insights') {
+  if (
+    entry.instantInsights.length > 0 ||
+    getRequestInsightKind(request) === 'instant-insights'
+  ) {
     tags.add('activity:instant-insights')
   }
 
   if (
-    request.status === 'error' ||
-    request.spans.some((span) => span.status === 'error' || span.error)
+    [request, ...entry.instantInsights].some(
+      (item) =>
+        item.status === 'error' ||
+        item.spans.some((span) => span.status === 'error' || span.error)
+    )
   ) {
     tags.add('status:error')
   }

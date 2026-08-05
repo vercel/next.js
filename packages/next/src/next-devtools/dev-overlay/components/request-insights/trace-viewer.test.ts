@@ -7,6 +7,7 @@ import {
   getActiveRequestKey,
   getRequestInsightRowType,
   getRequestListEntries,
+  getRequestListEntriesForPage,
   isPageLoadRequest,
 } from './request-list'
 import {
@@ -80,11 +81,12 @@ describe('request insights trace viewer', () => {
     })
 
     expect(getRequestListEntries([instantInsights, request], false)).toEqual([
-      { request },
+      { request, instantInsights: [instantInsights] },
     ])
+    expect(getRequestListEntries([instantInsights], false)).toEqual([])
   })
 
-  it('keeps internal records flat and in capture order', () => {
+  it('keeps owned internal activity off the list and reveals only orphans', () => {
     const newerRequest = createRequest({ requestId: 'newer' })
     const olderRequest = createRequest({ requestId: 'older' })
     const newerInstantInsights = createRequest({
@@ -95,6 +97,10 @@ describe('request insights trace viewer', () => {
       requestId: 'older',
       kind: 'instant-insights',
     })
+    const orphanedInstantInsights = createRequest({
+      requestId: 'orphaned',
+      kind: 'instant-insights',
+    })
 
     expect(
       getRequestListEntries(
@@ -103,15 +109,51 @@ describe('request insights trace viewer', () => {
           newerRequest,
           olderInstantInsights,
           olderRequest,
+          orphanedInstantInsights,
         ],
         true
       )
     ).toEqual([
-      { request: newerInstantInsights },
-      { request: newerRequest },
-      { request: olderInstantInsights },
-      { request: olderRequest },
+      { request: newerRequest, instantInsights: [newerInstantInsights] },
+      { request: olderRequest, instantInsights: [olderInstantInsights] },
+      { request: orphanedInstantInsights, instantInsights: [] },
     ])
+  })
+
+  it('scopes requests to an exact document identity', () => {
+    const currentPage = createRequest({
+      requestId: 'current-page',
+      htmlRequestId: 'current-document',
+    })
+    const currentNavigation = createRequest({
+      requestId: 'current-navigation',
+      htmlRequestId: 'current-document',
+    })
+    const earlierPage = createRequest({
+      requestId: 'earlier-page',
+      htmlRequestId: 'earlier-document',
+    })
+    const currentPageInstantInsights = createRequest({
+      requestId: 'current-page',
+      kind: 'instant-insights',
+      htmlRequestId: 'different-correlation-metadata',
+    })
+    const entries = getRequestListEntries(
+      [currentNavigation, earlierPage, currentPageInstantInsights, currentPage],
+      true
+    )
+
+    expect(getRequestListEntriesForPage(entries, 'current-document')).toEqual([
+      { request: currentNavigation, instantInsights: [] },
+      {
+        request: currentPage,
+        instantInsights: [currentPageInstantInsights],
+      },
+    ])
+    expect(getRequestListEntriesForPage(entries, 'missing-document')).toEqual(
+      []
+    )
+    expect(getRequestListEntriesForPage(entries, undefined)).toEqual([])
   })
 
   it('labels and filters normalized request activity', () => {
@@ -142,6 +184,29 @@ describe('request insights trace viewer', () => {
     })
     const api = createRequest({ requestId: 'api', source: 'app-route' })
     const asset = createRequest({ requestId: 'asset', source: 'asset' })
+    const instantInsights = createRequest({
+      requestId: 'page',
+      kind: 'instant-insights',
+      source: 'instant-insights',
+      status: 'error',
+    })
+    const entries = getRequestListEntries(
+      [page, instantInsights, rsc, action, api, asset],
+      false
+    )
+    const orphanedInstantInsights = createRequest({
+      requestId: 'orphaned',
+      kind: 'instant-insights',
+      source: 'instant-insights',
+    })
+    const entriesWithOrphan = getRequestListEntries(
+      [page, instantInsights, orphanedInstantInsights, rsc, action, api, asset],
+      true
+    )
+    const entriesWithHiddenOrphan = getRequestListEntries(
+      [page, instantInsights, orphanedInstantInsights, rsc, action, api, asset],
+      false
+    )
 
     expect(getRequestInsightRowType(page, true).label).toBe('Page load')
     expect(getRequestInsightRowType(rsc).label).toBe('RSC')
@@ -149,23 +214,37 @@ describe('request insights trace viewer', () => {
     expect(getRequestInsightRowType(api).label).toBe('API')
     expect(getRequestInsightRowType(asset).label).toBe('Asset')
     expect(
-      getRequestInsightFilterResult(
-        [page, rsc, action, api],
-        ['source:page', 'cache:miss']
-      ).requests
+      getRequestInsightFilterResult(entries, [
+        'source:page',
+        'cache:miss',
+      ]).entries.map(({ request }) => request)
     ).toEqual([page])
     expect(
-      getRequestInsightFilterResult(
-        [page, rsc, action, api, asset],
-        ['source:action', 'source:api']
-      ).requests
+      getRequestInsightFilterResult(entries, [
+        'source:action',
+        'source:api',
+      ]).entries.map(({ request }) => request)
     ).toEqual([action, api])
     expect(
-      getRequestInsightFilterResult(
-        [page, rsc, action, api, asset],
-        ['source:asset']
-      ).requests
+      getRequestInsightFilterResult(entries, ['source:asset']).entries.map(
+        ({ request }) => request
+      )
     ).toEqual([asset])
+    expect(
+      getRequestInsightFilterResult(entriesWithHiddenOrphan, [
+        'activity:instant-insights',
+      ]).entries.map(({ request }) => request)
+    ).toEqual([page])
+    expect(
+      getRequestInsightFilterResult(entriesWithOrphan, [
+        'activity:instant-insights',
+      ]).entries.map(({ request }) => request)
+    ).toEqual([page, orphanedInstantInsights])
+    expect(
+      getRequestInsightFilterResult(entries, ['status:error']).entries.map(
+        ({ request }) => request
+      )
+    ).toEqual([page])
   })
 
   it('only marks the exact initial document request as the page load', () => {

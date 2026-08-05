@@ -712,113 +712,118 @@ describe('request insights', () => {
     })
   })
 
-  it('hides internal activity behind the settings menu', async () => {
+  it('relates owned Instant Insights to the foreground request', async () => {
     const browser = await next.browser('/instant-insights')
     shouldResetRequestInsightsConfig = true
 
-    function getSettingsMenuItems(): Promise<
-      Array<{ label: string | undefined; checked: string | null }>
-    > {
-      return browser.eval(() => {
-        const root = document.querySelector('nextjs-portal')?.shadowRoot
-        return Array.from(
-          root?.querySelectorAll('.request-insights-settings-item') ?? []
-        ).map((item) => ({
-          label: item.textContent?.trim(),
-          checked:
-            item
-              .querySelector('.request-insights-settings-checkbox')
-              ?.getAttribute('data-checked') ?? null,
-        }))
-      })
-    }
-
     await openRequestInsightsPanel(browser)
 
+    let allRequestCount = 0
     await retry(async () => {
       const state = await browser.eval(() => {
         const root = document.querySelector('nextjs-portal')?.shadowRoot
         const rows = Array.from(
           root?.querySelectorAll('.request-insights-row') ?? []
         )
+        const owner = rows.find(
+          (row) =>
+            row.querySelector('.request-insights-route-label')?.textContent ===
+            '/instant-insights'
+        )
         return {
           rowCount: rows.length,
-          hasInstantInsightsRow: rows.some((row) =>
-            row.textContent?.includes('Instant Insights')
-          ),
+          internalRowCount: rows.filter(
+            (row) => row.getAttribute('data-internal') === 'true'
+          ).length,
+          ownerInstantLabel: owner
+            ?.querySelector('[data-activity="instant-insights"]')
+            ?.textContent?.trim(),
         }
       })
 
+      allRequestCount = state.rowCount
       expect(state.rowCount).toBeGreaterThan(0)
-      expect(state.hasInstantInsightsRow).toBe(false)
+      expect(state.internalRowCount).toBe(0)
+      expect(state.ownerInstantLabel).toBe('Instant')
     })
 
-    await browser.elementByCss('.request-insights-settings-trigger').click()
     await retry(async () => {
-      expect(await getSettingsMenuItems()).toEqual([
-        { label: 'Pause updates', checked: null },
-        { label: 'Internal activity', checked: null },
-        { label: 'Verbose traces', checked: null },
-      ])
-    })
-
-    await browser
-      .elementByCss(
-        '.request-insights-settings-item:has-text("Internal activity")'
-      )
-      .click()
-    await browser
-      .elementByCss(
-        '.request-insights-settings-item:has-text("Verbose traces")'
-      )
-      .click()
-
-    await retry(async () => {
-      const internalRows = await browser.eval(() => {
+      const selected = await browser.eval(() => {
         const root = document.querySelector('nextjs-portal')?.shadowRoot
-        return Array.from(
-          root?.querySelectorAll(
-            '.request-insights-row[data-internal="true"]'
-          ) ?? []
-        ).map((row) => ({
-          nested: row.hasAttribute('data-nested'),
-          label: row.textContent ?? '',
-        }))
+        const owner = Array.from(
+          root?.querySelectorAll<HTMLButtonElement>('.request-insights-row') ??
+            []
+        ).find(
+          (row) =>
+            row.querySelector('.request-insights-route-label')?.textContent ===
+            '/instant-insights'
+        )
+        owner?.click()
+        return owner !== undefined
       })
-
-      expect(await getSettingsMenuItems()).toEqual([
-        { label: 'Pause updates', checked: null },
-        { label: 'Internal activity', checked: 'true' },
-        { label: 'Verbose traces', checked: 'true' },
-      ])
-      expect(internalRows.length).toBeGreaterThan(0)
-      for (const row of internalRows) {
-        expect(row.nested).toBe(false)
-        expect(row.label).toContain('Instant Insights')
-      }
+      expect(selected).toBe(true)
     })
 
     await retry(async () => {
-      const config = JSON.parse(
-        await next.readFile('build/dev/cache/next-devtools-config.json')
+      const instantSection = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        const section = root?.querySelector<HTMLDetailsElement>(
+          '.request-insights-instant-section'
+        )
+        return {
+          exists: section !== null,
+          open: section?.open ?? null,
+          title: section
+            ?.querySelector('summary > span:first-child')
+            ?.textContent?.trim(),
+        }
+      })
+      expect(instantSection.exists).toBe(true)
+      expect(instantSection.open).toBe(false)
+      expect(instantSection.title).toBe('Instant Insights')
+    })
+
+    await browser
+      .elementByCss('.request-insights-instant-section > summary')
+      .click()
+    await retry(async () => {
+      const state = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        const section = root?.querySelector<HTMLDetailsElement>(
+          '.request-insights-instant-section'
+        )
+        return {
+          open: section?.open ?? false,
+          traceRows:
+            section?.querySelectorAll('.request-insights-span-row').length ?? 0,
+        }
+      })
+      expect(state.open).toBe(true)
+      expect(state.traceRows).toBeGreaterThan(0)
+    })
+
+    await browser
+      .elementByCss(
+        '.request-insights-scope-switcher button:has-text("This page")'
       )
-      expect(config.requestInsights).toEqual({
-        showInternal: true,
-        verbose: true,
-      })
-    })
-
-    await browser.elementByCss('.request-insights-details').click()
-    await browser.refresh()
-    await openRequestInsightsPanel(browser)
-    await browser.elementByCss('.request-insights-settings-trigger').click()
-
+      .click()
     await retry(async () => {
-      expect(await getSettingsMenuItems()).toEqual([
-        { label: 'Pause updates', checked: null },
-        { label: 'Internal activity', checked: 'true' },
-        { label: 'Verbose traces', checked: 'true' },
-      ])
+      const pageScope = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        const button = Array.from(
+          root?.querySelectorAll<HTMLButtonElement>(
+            '.request-insights-scope-switcher button'
+          ) ?? []
+        ).find((item) => item.textContent?.trim() === 'This page')
+        return {
+          pressed: button?.getAttribute('aria-pressed'),
+          requestCount:
+            root?.querySelectorAll('.request-insights-row').length ?? 0,
+        }
+      })
+      expect(pageScope.pressed).toBe('true')
+      expect(pageScope.requestCount).toBeGreaterThan(0)
+      expect(pageScope.requestCount).toBeLessThan(allRequestCount)
     })
   })
 
@@ -946,6 +951,9 @@ describe('request insights', () => {
     const browser = await next.browser('/products/blue?tab=details')
     await openRequestInsightsPanel(browser)
 
+    const foregroundTraceSelector =
+      '.request-insights-details > .request-insights-section .request-insights-trace-rows'
+
     await retry(async () => {
       const selected = await browser.eval(() => {
         const root = document.querySelector('nextjs-portal')?.shadowRoot
@@ -956,15 +964,17 @@ describe('request insights', () => {
           candidate.textContent?.includes('/products/blue?query=redacted')
         )
         row?.click()
-        return row !== undefined
+        return row?.dataset.selected === 'true'
       })
       expect(selected).toBe(true)
     })
 
     await browser
-      .locator('nextjs-portal .request-insights-span-row[data-active="true"]')
+      .locator(
+        `nextjs-portal ${foregroundTraceSelector} .request-insights-span-row[data-active="true"]`
+      )
       .hover()
-    await browser.locator('nextjs-portal .request-insights-trace-rows').focus()
+    await browser.locator(`nextjs-portal ${foregroundTraceSelector}`).focus()
 
     const readTraceState = () =>
       browser.eval(() => {
@@ -973,7 +983,7 @@ describe('request insights', () => {
           '.request-insights-panel-container'
         )
         const listbox = root?.querySelector<HTMLElement>(
-          '.request-insights-trace-rows'
+          '.request-insights-details > .request-insights-section .request-insights-trace-rows'
         )
         const activeDescendant = listbox?.getAttribute('aria-activedescendant')
         const activeRow = listbox?.querySelector<HTMLElement>(
@@ -990,11 +1000,19 @@ describe('request insights', () => {
         const tooltipRect = tooltip?.getBoundingClientRect()
 
         return {
+          activeRowCount:
+            listbox?.querySelectorAll(
+              '.request-insights-span-row[data-active="true"]'
+            ).length ?? 0,
           activeDescendant,
           activeRowId: activeRow?.id ?? null,
           activeTraceItemId: activeRow?.dataset.traceItemId ?? null,
           firstRowId: firstRow?.id ?? null,
           activeLabel: activeRow?.getAttribute('aria-label') ?? null,
+          requestTitle:
+            root
+              ?.querySelector('.request-insights-title')
+              ?.textContent?.trim() ?? null,
           focused: root?.activeElement === listbox,
           horizontalOverlap:
             !!rowRect &&
@@ -1022,6 +1040,7 @@ describe('request insights', () => {
     const expectAnchoredTrace = async (expectedTraceItemId?: string | null) =>
       retry(async () => {
         const state = await readTraceState()
+        expect(state.activeRowCount).toBe(1)
         expect(state.activeDescendant).toEqual(expect.any(String))
         if (expectedTraceItemId !== undefined) {
           expect(state.activeTraceItemId).toBe(expectedTraceItemId)
@@ -1040,7 +1059,9 @@ describe('request insights', () => {
     await browser.eval(() => {
       const root = document.querySelector('nextjs-portal')?.shadowRoot
       root
-        ?.querySelector<HTMLElement>('.request-insights-trace-rows')
+        ?.querySelector<HTMLElement>(
+          '.request-insights-details > .request-insights-section .request-insights-trace-rows'
+        )
         ?.dispatchEvent(
           new KeyboardEvent('keydown', {
             altKey: true,
@@ -1119,10 +1140,19 @@ describe('request insights', () => {
       expect(selection.activeRowId).toBe(selection.firstRowId)
     })
 
+    await retry(async () => {
+      const state = await readTraceState()
+      expect(state.activeRowCount).toBe(1)
+      expect(state.requestTitle).toBe('/api/source?query=redacted')
+      expect(state.activeTraceItemId).not.toBe(nextState.activeTraceItemId)
+    })
+
     await browser
-      .locator('nextjs-portal .request-insights-span-row[data-active="true"]')
+      .locator(
+        `nextjs-portal ${foregroundTraceSelector} .request-insights-span-row:first-child`
+      )
       .hover()
-    await browser.locator('nextjs-portal .request-insights-trace-rows').focus()
+    await browser.locator(`nextjs-portal ${foregroundTraceSelector}`).focus()
 
     const switchedState = await expectAnchoredTrace()
     expect(switchedState.activeDescendant).toBe(switchedState.firstRowId)
