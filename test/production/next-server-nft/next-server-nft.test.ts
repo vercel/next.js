@@ -245,7 +245,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/lib/constants.js",
            "/node_modules/next/dist/lib/create-client-router-filter.js",
            "/node_modules/next/dist/lib/default-transpiled-packages.json",
-           "/node_modules/next/dist/lib/detached-promise.js",
+           "/node_modules/next/dist/shared/lib/promise-with-resolvers.js",
            "/node_modules/next/dist/lib/detect-typo.js",
            "/node_modules/next/dist/lib/download-swc.js",
            "/node_modules/next/dist/lib/error-telemetry-utils.js",

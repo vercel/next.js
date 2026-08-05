@@ -33,7 +33,7 @@ import { InvariantError } from '../../../shared/lib/invariant-error'
 import type { Revalidate } from '../cache-control'
 import { getPreviouslyRevalidatedTags } from '../../server-utils'
 import { workAsyncStorage } from '../../app-render/work-async-storage.external'
-import { DetachedPromise } from '../../../lib/detached-promise'
+import { createPromiseWithResolvers } from '../../../shared/lib/promise-with-resolvers'
 import { areTagsExpired, areTagsStale } from './tags-manifest.external'
 
 export interface CacheHandlerContext {
@@ -321,7 +321,7 @@ export class IncrementalCache implements IncrementalCacheType {
 
     // Create a new detached promise that will represent this lock
     // The resolve function (unlock) will be returned to the caller
-    const { resolve, promise } = new DetachedPromise<void>()
+    const { resolve, promise } = createPromiseWithResolvers<void>()
 
     if (IncrementalCache.debug) {
       console.log('IncrementalCache: successfully locked', cacheKey)
