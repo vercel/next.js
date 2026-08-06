@@ -54,7 +54,13 @@ const BYPASS_TYPES = [SVG, ICO, ICNS, BMP, JXL, HEIC]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const BLUR_QUALITY = 70 // should match `next-image-loader`
 
-let _sharp: typeof import('sharp').default
+// sharp 0.35 requires Node 20.9, so Node 18 resolves 0.34 instead. Only 0.35
+// exposes the module as a `default` export, so pick whichever this build has.
+type SharpModule = typeof import('sharp') extends { default: infer D }
+  ? D
+  : typeof import('sharp')
+
+let _sharp: SharpModule
 
 async function initCacheEntries(
   cacheDir: string
@@ -84,7 +90,7 @@ export function getSharp(concurrency: number | null | undefined) {
     return _sharp
   }
   try {
-    _sharp = require('sharp') as typeof import('sharp').default
+    _sharp = (require('sharp') as typeof import('sharp'))
     if (_sharp && _sharp.concurrency() > 1) {
       // Reducing concurrency should reduce the memory usage too.
       // We more aggressively reduce in dev but also reduce in prod.

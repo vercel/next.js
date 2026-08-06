@@ -952,7 +952,7 @@ importers:
         version: 5.1.6(@babel/core@7.26.10)(babel-plugin-macros@3.1.0)(react@19.2.0-canary-0bdb9206-20250818)
     optionalDependencies:
       sharp:
-        specifier: ^0.35.3
+        specifier: ^0.34.3 || ^0.35.3
         version: 0.35.3(@types/node@20.17.6(patch_hash=rvl3vkomen3tospgr67bzubfyu))
     devDependencies:
       '@ampproject/toolbox-optimizer':
