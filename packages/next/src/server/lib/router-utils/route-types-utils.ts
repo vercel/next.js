@@ -163,14 +163,21 @@ function collectRootParamsFromLayouts(
 ): Map<string, RootParamInfo> {
   const routes = Object.keys(layoutRoutes)
 
+  // Route groups are stripped from routes, so `app/(marketing)/layout.tsx`
+  // becomes `/` and would look like an ancestor of every other layout.
+  const layoutDirs = new Map(
+    routes.map((route) => [route, path.posix.dirname(layoutRoutes[route].path)])
+  )
+
   // Find root layouts: layouts with no ancestor layout above them.
   const rootLayoutRoutes = routes.filter(
-    // If there are no other layouts whose paths are prefixes of this layout,
+    // If there are no other layouts in a parent directory of this layout,
     // then it's a root layout.
     (route) =>
       !routes.some(
         (other) =>
-          other !== route && (other === '/' || route.startsWith(other + '/'))
+          other !== route &&
+          layoutDirs.get(route)!.startsWith(layoutDirs.get(other)! + '/')
       )
   )
 
