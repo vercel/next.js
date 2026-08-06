@@ -1,4 +1,42 @@
-import type { RequestInsightsCaptureState } from '../../../shared/request-insights'
+import type {
+  RequestInsight,
+  RequestInsightsCaptureState,
+  RequestInsightsSnapshot,
+} from '../../../shared/request-insights'
+
+export function getCaptureOmissionPresentation(
+  requests: readonly RequestInsight[],
+  projection: RequestInsightsSnapshot['projection']
+): { accessibleLabel: string; detail: string } | undefined {
+  const omittedRequestGroupCount = projection?.omittedRequestGroupCount ?? 0
+  const omittedRequestCount = requests.reduce(
+    (total, request) => total + (request.omittedRequestCount ?? 0),
+    0
+  )
+  const omittedParts = [
+    formatOmittedCount(
+      omittedRequestGroupCount,
+      'request group',
+      'request groups'
+    ),
+    formatOmittedCount(
+      omittedRequestCount,
+      'related request',
+      'related requests'
+    ),
+  ].filter((part): part is string => part !== undefined)
+
+  if (omittedParts.length === 0) return undefined
+
+  const detail = `${omittedParts.join(' and ')} ${
+    omittedParts.length === 1 &&
+    omittedRequestGroupCount + omittedRequestCount === 1
+      ? "isn't"
+      : "aren't"
+  } shown because capture limits were reached.`
+
+  return { accessibleLabel: detail, detail }
+}
 
 export function getCaptureUsagePresentation(
   capture: RequestInsightsCaptureState
@@ -96,4 +134,13 @@ function formatRetentionBucket(bucket: string): string {
     default:
       return 'Unknown'
   }
+}
+
+function formatOmittedCount(
+  count: number,
+  singular: string,
+  plural: string
+): string | undefined {
+  if (count <= 0) return undefined
+  return `${count} ${count === 1 ? singular : plural}`
 }

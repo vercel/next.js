@@ -1,5 +1,11 @@
-import type { RequestInsightsCaptureState } from '../../../shared/request-insights'
-import { getCaptureUsagePresentation } from './capture-usage'
+import type {
+  RequestInsight,
+  RequestInsightsCaptureState,
+} from '../../../shared/request-insights'
+import {
+  getCaptureOmissionPresentation,
+  getCaptureUsagePresentation,
+} from './capture-usage'
 
 function createCaptureState(): RequestInsightsCaptureState {
   return {
@@ -30,6 +36,19 @@ function createCaptureState(): RequestInsightsCaptureState {
         },
       ],
     },
+  }
+}
+
+function createRequest(omittedRequestCount: number): RequestInsight {
+  return {
+    requestId: 'request',
+    htmlRequestId: 'request',
+    source: 'page',
+    startTime: 0,
+    status: 'ok',
+    spans: [],
+    fetches: [],
+    omittedRequestCount,
   }
 }
 
@@ -71,6 +90,49 @@ describe('request insights capture usage', () => {
       max: 10_000,
       percentage: 90,
       value: 9_000,
+    })
+  })
+
+  it('does not show an omission notice when the complete capture is visible', () => {
+    expect(getCaptureOmissionPresentation([], undefined)).toBeUndefined()
+  })
+
+  it('explains permanently omitted related requests', () => {
+    expect(
+      getCaptureOmissionPresentation([createRequest(1)], undefined)
+    ).toEqual({
+      accessibleLabel:
+        "1 related request isn't shown because capture limits were reached.",
+      detail:
+        "1 related request isn't shown because capture limits were reached.",
+    })
+  })
+
+  it('explains groups omitted only from the current projection', () => {
+    expect(
+      getCaptureOmissionPresentation([], {
+        omittedRequestGroupCount: 2,
+        buckets: [{ bucket: 'api', omittedRequestGroupCount: 2 }],
+      })
+    ).toEqual({
+      accessibleLabel:
+        "2 request groups aren't shown because capture limits were reached.",
+      detail:
+        "2 request groups aren't shown because capture limits were reached.",
+    })
+  })
+
+  it('combines permanent and projection omissions in one accessible message', () => {
+    expect(
+      getCaptureOmissionPresentation([createRequest(3)], {
+        omittedRequestGroupCount: 1,
+        buckets: [{ bucket: 'page', omittedRequestGroupCount: 1 }],
+      })
+    ).toEqual({
+      accessibleLabel:
+        "1 request group and 3 related requests aren't shown because capture limits were reached.",
+      detail:
+        "1 request group and 3 related requests aren't shown because capture limits were reached.",
     })
   })
 })

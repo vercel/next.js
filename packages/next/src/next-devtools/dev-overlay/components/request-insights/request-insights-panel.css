@@ -412,6 +412,12 @@
   background: var(--color-blue-700);
 }
 
+.request-insights-capture-omission {
+  margin: 6px 0 0;
+  color: var(--color-gray-800);
+  line-height: 1.4;
+}
+
 .request-insights-capture-actions {
   display: flex;
   align-items: center;
