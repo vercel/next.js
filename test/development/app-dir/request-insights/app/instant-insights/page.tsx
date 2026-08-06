@@ -1,3 +1,5 @@
+import { EmitRequestInsightsSnapshot } from './snapshot-button'
+
 export const instant = { level: 'experimental-error' }
 
 async function fillCache() {
@@ -13,5 +15,10 @@ export default async function Page() {
 
   await fillCache()
 
-  return <p>{message}</p>
+  return (
+    <>
+      <p>{message}</p>
+      <EmitRequestInsightsSnapshot />
+    </>
+  )
 }
