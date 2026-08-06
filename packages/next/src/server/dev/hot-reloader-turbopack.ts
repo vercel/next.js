@@ -1621,13 +1621,13 @@ export async function createHotReloaderTurbopack(
     },
 
     getServerComponentsHmrRefreshHash() {
-      // The current server-components generation. Only the change subscription
-      // (an actual recompile) advances `hmrHash`; reloads and config
-      // invalidations don't, so the value stays stable across requests until a
-      // real edit. Returned unconditionally (`"0"` before the first edit) so
-      // `"use cache"` keys are present and consistent for every request,
-      // mirroring webpack's always-present `stats.hash`.
-      return String(hmrHash)
+      // Only the change subscription (an actual recompile) advances `hmrHash`;
+      // reloads and config invalidations don't, so the value stays stable
+      // across requests until a real edit. `sessionId` stands in for a key
+      // derived from the compiled implementation, which would let entries
+      // outlive a restart when the code didn't change (see the note on Action
+      // IDs in `use-cache-wrapper.ts`).
+      return `${sessionId}-${hmrHash}`
     },
 
     sendToLegacyClients(action) {
@@ -1764,10 +1764,7 @@ export async function createHotReloaderTurbopack(
       }
       return errors
     },
-    async invalidate({
-      // .env files or tsconfig/jsconfig change
-      reloadAfterInvalidation,
-    }) {
+    async invalidate({ reloadAfterInvalidation }) {
       if (reloadAfterInvalidation) {
         for (const [key, entrypoint] of currentWrittenEntrypoints) {
           clearRequireCache(key, entrypoint, { force: true })

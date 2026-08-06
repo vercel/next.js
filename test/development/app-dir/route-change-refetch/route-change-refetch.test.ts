@@ -309,7 +309,7 @@ describe('route-change-refetch - App Router refetch count', () => {
     return browser.eval(() => (window as any).__refetches)
   }
 
-  it('refetches an open tab exactly twice when a page is added', async () => {
+  it('refetches an open tab exactly once when a page is added', async () => {
     const browser = await next.browser('/counted')
     expect(await browser.elementById('counted').text()).toBe('counted')
     await startCountingRefetches(browser)
@@ -322,12 +322,11 @@ describe('route-change-refetch - App Router refetch count', () => {
       expect((await next.fetch('/zz-added')).status).toBe(200)
     }, 15_000)
     await retry(async () => {
-      // TODO: Stop counting a page add as an env change, then it'll be 1.
-      expect(await countRefetches(browser)).toBe(2)
+      expect(await countRefetches(browser)).toBe(1)
     }, 15_000)
     // A later one would mean the change was announced more than once.
     await waitFor(1000)
-    expect(await countRefetches(browser)).toBe(2)
+    expect(await countRefetches(browser)).toBe(1)
   })
 })
 
