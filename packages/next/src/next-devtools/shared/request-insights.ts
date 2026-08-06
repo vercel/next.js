@@ -18,7 +18,7 @@ export {
   type RequestInsightSource,
 } from '../../shared/lib/request-insights'
 
-type RequestInsightAttributeValue =
+export type RequestInsightAttributeValue =
   | string
   | number
   | boolean

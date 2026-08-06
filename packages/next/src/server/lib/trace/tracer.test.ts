@@ -222,8 +222,10 @@ describe('local span recording', () => {
     requestInsights.dispose()
   })
 
-  function test(name: string, fn: () => unknown | Promise<unknown>): void {
-    it(name, () => runWithRequestInsights(requestInsights, fn))
+  function test(name: string, fn: () => void | Promise<void>): void {
+    it(name, async () => {
+      await runWithRequestInsights(requestInsights, fn)
+    })
   }
 
   it('does not mirror spans by default', () => {

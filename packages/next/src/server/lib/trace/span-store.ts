@@ -1,5 +1,7 @@
-import type { AttributeValue } from 'next/dist/compiled/@opentelemetry/api'
-import type { RequestInsightKind } from '../../../next-devtools/shared/request-insights'
+import type {
+  RequestInsightAttributeValue,
+  RequestInsightKind,
+} from '../../../next-devtools/shared/request-insights'
 import type {
   RequestInsightProxyStatus,
   RequestInsightRouterActivity,
@@ -21,7 +23,7 @@ function getSpanStoreRequestInsightsRuntime():
   return undefined
 }
 
-export type SpanStoreAttributes = Record<string, AttributeValue>
+export type SpanStoreAttributes = Record<string, RequestInsightAttributeValue>
 
 export type SpanStoreLink = {
   traceId: string

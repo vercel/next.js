@@ -150,7 +150,12 @@ function probeDirectRouterLifecycle(): {
       path.join(os.tmpdir(), 'request-insights-router-lifecycle-')
     )
     process.on('exit', () =>
-      fs.rmSync(dir, { recursive: true, force: true })
+      fs.rmSync(dir, {
+        recursive: true,
+        force: true,
+        maxRetries: 10,
+        retryDelay: 100,
+      })
     )
     fs.mkdirSync(path.join(dir, 'pages'), { recursive: true })
     fs.writeFileSync(path.join(dir, 'package.json'), '{"private":true}')
