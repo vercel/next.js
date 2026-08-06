@@ -49,8 +49,8 @@ describe('500 Page Support', () => {
           export default page
         `
         )
-        await next.render('/500')
         await retry(async () => {
+          await next.render('/500')
           expect(next.cliOutput).toMatch(
             /`pages\/500` can not have getInitialProps\/getServerSideProps/
           )
@@ -94,8 +94,8 @@ describe('500 Page Support', () => {
           export default page
         `
         )
-        await next.render('/500')
         await retry(async () => {
+          await next.render('/500')
           expect(next.cliOutput).toMatch(
             /`pages\/500` can not have getInitialProps\/getServerSideProps/
           )
