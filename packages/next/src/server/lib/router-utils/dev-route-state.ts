@@ -12,10 +12,6 @@ import { getNamedRouteRegex } from '../../../shared/lib/router/utils/route-regex
 import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
 import { compareAppPaths } from '../../../shared/lib/router/utils/app-paths'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
-import {
-  isMetadataRoute,
-  isStaticMetadataRoute,
-} from '../../../lib/metadata/is-metadata-route'
 import { posix, join } from 'path'
 import { buildDataRoute } from './build-data-route'
 
@@ -32,32 +28,6 @@ export interface DevRouteInfo {
    * pages routes.
    */
   originalNames: string[]
-}
-
-/**
- * The multi (id-suffixed) variant of a dynamic metadata route, derived from
- * the Turbopack entry name of the single variant, e.g. for
- * `/gsp/sitemap.xml/route`: the pathname `/gsp/sitemap/[__metadata_id__]`,
- * the page `/gsp/sitemap/[__metadata_id__]/route`, and the extensionless
- * source pathname `/gsp/sitemap`.
- */
-function dynamicMetadataMultiRoute(originalName: string): {
-  multiPathname: string
-  multiPage: string
-  sourcePathname: string
-} {
-  const base = originalName.endsWith('/route')
-    ? originalName.slice(0, -'/route'.length)
-    : originalName
-  const sourcePathname = base.endsWith('/sitemap.xml')
-    ? base.slice(0, -'.xml'.length)
-    : base
-  const multiPathname = `${sourcePathname}/[__metadata_id__]`
-  return {
-    multiPathname,
-    multiPage: `${multiPathname}/route`,
-    sourcePathname,
-  }
 }
 
 export function toDevRouteInfoMap(
@@ -210,22 +180,6 @@ export function deriveDevRouteState(
     // Make sure to sort parallel routes to make the result deterministic.
     appPathRoutes[pathname] = [...route.originalNames].sort(compareAppPaths)
     routedPages.push(pathname)
-
-    // Dynamic metadata routes are also served under an id; see
-    // `deriveDevRouteDefinitions`.
-    if (route.type === 'app-route') {
-      const originalName = route.originalNames[0]
-      if (
-        originalName !== undefined &&
-        isMetadataRoute(originalName) &&
-        !isStaticMetadataRoute(originalName)
-      ) {
-        const { multiPathname, multiPage } =
-          dynamicMetadataMultiRoute(originalName)
-        appPathRoutes[multiPathname] = [multiPage]
-        routedPages.push(multiPathname)
-      }
-    }
   }
 
   return {
@@ -310,28 +264,6 @@ export function deriveDevRouteDefinitions(
           bundlePath: posix.join('app', originalName),
           filename: join(appDir, originalName),
         } satisfies AppRouteRouteDefinition)
-
-        // Dynamic metadata routes are also served under an id (e.g. a
-        // sitemap.ts with generateSitemaps serves /sitemap/[__metadata_id__]),
-        // but Turbopack only reports the single route. Add the multi variant
-        // here, the same way the filesystem-scanning matcher provider does.
-        if (
-          isMetadataRoute(originalName) &&
-          !isStaticMetadataRoute(originalName)
-        ) {
-          const { multiPathname, multiPage, sourcePathname } =
-            dynamicMetadataMultiRoute(originalName)
-          definitions.push({
-            kind: RouteKind.APP_ROUTE,
-            pathname: multiPathname,
-            page: multiPage,
-            bundlePath: posix.join('app', multiPage),
-            // The source-like extension makes `ensurePage` map the page back
-            // to the Turbopack entry key; see
-            // `normalizedPageToTurbopackStructureRoute`.
-            filename: join(appDir, `${sourcePathname}.ts`),
-          } satisfies AppRouteRouteDefinition)
-        }
         continue
       }
       case 'conflict':
