@@ -1,11 +1,8 @@
+import { Suspense } from 'react'
 import { HashControls } from '../../hash-controls'
 import { ActionControls } from './action-controls'
 
-export default async function Page({
-  params,
-}: {
-  params: Promise<{ id: string }>
-}) {
+async function Content({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   return (
     <>
@@ -13,5 +10,13 @@ export default async function Page({
       <ActionControls />
       <HashControls />
     </>
+  )
+}
+
+export default function Page({ params }: { params: Promise<{ id: string }> }) {
+  return (
+    <Suspense fallback={<p id="loading">loading</p>}>
+      <Content params={params} />
+    </Suspense>
   )
 }
