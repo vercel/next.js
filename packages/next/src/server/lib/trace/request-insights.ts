@@ -55,6 +55,12 @@ import {
   isRequestInsightsRetentionContextOpen,
   type RequestInsightsRetentionContext,
 } from './request-insights-identity'
+import {
+  normalizeRequestInsightsCausalParent,
+  RequestInsightsCausalRegistry,
+  type RequestInsightsCausalParent,
+  type RequestInsightsCausalTarget,
+} from './request-insights-causal'
 export { isRequestInsightsEnabled } from './span-store'
 export {
   REQUEST_INSIGHTS_ID_PATTERN,
@@ -104,6 +110,8 @@ type RequestInsightIdentity = {
   requestId?: string
   rootRequestId?: string
   retention?: RequestInsightsRetentionContext
+  parentRootRequestId?: string
+  parentFetchIndex?: number
   kind?: RequestInsightKind
   source?: RequestInsightSource
   proxyStatus?: RequestInsightProxyStatus
@@ -167,6 +175,7 @@ type SanitizationState = {
 }
 
 export class RequestInsights {
+  private readonly causalRegistry = new RequestInsightsCausalRegistry()
   private readonly requests = new Map<string, RequestInsight>()
   private readonly requestTimings = new Map<
     string,
@@ -233,6 +242,31 @@ export class RequestInsights {
 
   constructor(options: RequestInsightsOptions = {}) {
     this.limits = normalizeRequestInsightsLimits(options)
+  }
+
+  mintCausalToken(
+    input: RequestInsightsCausalParent & {
+      target: RequestInsightsCausalTarget
+    }
+  ): string | undefined {
+    return this.disposed
+      ? undefined
+      : this.causalRegistry.mintCausalToken(input)
+  }
+
+  consumeCausalToken(
+    token: string,
+    target: RequestInsightsCausalTarget
+  ): RequestInsightsCausalParent | undefined {
+    return this.disposed
+      ? undefined
+      : this.causalRegistry.consumeCausalToken(token, target)
+  }
+
+  revokeCausalToken(token: string): void {
+    if (!this.disposed) {
+      this.causalRegistry.revokeCausalToken(token)
+    }
   }
 
   recordSpan(span: SpanStoreRecord): void {
@@ -537,6 +571,7 @@ export class RequestInsights {
   }
 
   private clearRetainedState(): void {
+    this.causalRegistry.clear()
     for (const retention of this.retentionContextsByRequestKey.values()) {
       closeRequestInsightsRetentionRoot(retention)
       closeRequestInsightsRetentionRecord(retention)
@@ -814,6 +849,15 @@ export class RequestInsights {
 
     const rootRequestId =
       sanitizeRequestInsightId(identity.rootRequestId) ?? requestId
+    const normalizedCausalParent = normalizeRequestInsightsCausalParent({
+      parentRootRequestId: identity.parentRootRequestId,
+      parentFetchIndex: identity.parentFetchIndex,
+    })
+    const causalParent =
+      normalizedCausalParent?.parentRootRequestId !== requestId &&
+      normalizedCausalParent?.parentRootRequestId !== rootRequestId
+        ? normalizedCausalParent
+        : undefined
     const requestKey = getRequestInsightKey({
       requestId,
       kind: identity.kind,
@@ -845,6 +889,7 @@ export class RequestInsights {
       insight = {
         requestId,
         rootRequestId,
+        ...causalParent,
         kind: getRequestInsightKind(identity),
         source: getRequestInsightSource(identity),
         proxyStatus: identity.proxyStatus,
@@ -892,6 +937,16 @@ export class RequestInsights {
       sanitizeText(identity.route, MAX_REQUEST_INSIGHT_ROUTE_LENGTH)
     insight.url = insight.url ?? sanitizeUrl(identity.url)
     this.updateClassification(insight, identity)
+    if (
+      causalParent !== undefined &&
+      insight.parentRootRequestId === undefined &&
+      insight.parentFetchIndex === undefined &&
+      causalParent.parentRootRequestId !== requestId &&
+      causalParent.parentRootRequestId !== rootRequestId
+    ) {
+      insight.parentRootRequestId = causalParent.parentRootRequestId
+      insight.parentFetchIndex = causalParent.parentFetchIndex
+    }
     return insight
   }
 

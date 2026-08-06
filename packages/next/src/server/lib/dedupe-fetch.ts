@@ -49,7 +49,8 @@ export function createDedupeFetch(originalFetch: typeof fetch) {
 
   return function dedupeFetch(
     resource: URL | RequestInfo,
-    options?: RequestInit
+    options?: RequestInit,
+    networkFetch: typeof fetch = originalFetch
   ): Promise<Response> {
     if (options && options.signal) {
       // If we're passed a signal, then we assume that
@@ -59,7 +60,7 @@ export function createDedupeFetch(originalFetch: typeof fetch) {
       // it always gets initialized with its own signal so we don't
       // know if it's supposed to override - unless we also override the
       // Request constructor.
-      return originalFetch(resource, options)
+      return networkFetch(resource, options)
     }
     // Normalize the Request
     let url: string
@@ -85,7 +86,7 @@ export function createDedupeFetch(originalFetch: typeof fetch) {
         // have to be explicitly cached. We assume that the request doesn't have a
         // body if it's GET or HEAD.
         // keepalive gets treated the same as if you passed a custom cache signal.
-        return originalFetch(resource, options)
+        return networkFetch(resource, options)
       }
       cacheKey = generateCacheKey(request)
       url = request.url
@@ -112,7 +113,7 @@ export function createDedupeFetch(originalFetch: typeof fetch) {
 
     // We pass the original arguments here in case normalizing the Request
     // doesn't include all the options in this environment.
-    const promise = originalFetch(resource, options)
+    const promise = networkFetch(resource, options)
     const entry: CacheEntry = [cacheKey, promise, null]
     cacheEntries.push(entry)
 
