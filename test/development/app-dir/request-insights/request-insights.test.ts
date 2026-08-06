@@ -445,6 +445,103 @@ describe('request insights', () => {
     })
   })
 
+  it('restores Internal activity across an overlay reload', async () => {
+    const browser = await next.browser('/instant-insights')
+    shouldResetRequestInsightsConfig = true
+
+    await patchRequestInsightsConfig({ showInternal: true })
+    await retry(async () => {
+      const config = JSON.parse(
+        await next.readFile('build/dev/cache/next-devtools-config.json')
+      )
+      expect(config.requestInsights?.showInternal).toBe(true)
+    })
+
+    await browser.refresh()
+    await browser.elementById('emit-request-insights-snapshot').click()
+    await openRequestInsightsPanel(browser)
+    await browser.elementByCss('.request-insights-settings-trigger').click()
+
+    await retry(async () => {
+      const state = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        const item = Array.from(
+          root?.querySelectorAll('.request-insights-settings-item') ?? []
+        ).find((candidate) =>
+          candidate.textContent?.includes('Internal activity')
+        )
+        return {
+          checked:
+            item
+              ?.querySelector('.request-insights-settings-checkbox')
+              ?.getAttribute('data-checked') ?? null,
+          syntheticInternalVisible: Array.from(
+            root?.querySelectorAll(
+              '.request-insights-row[data-internal="true"]'
+            ) ?? []
+          ).some((row) =>
+            row.getAttribute('aria-label')?.includes('/synthetic-internal')
+          ),
+        }
+      })
+
+      expect(state).toEqual({
+        checked: 'true',
+        syntheticInternalVisible: true,
+      })
+    })
+  })
+
+  it('contains Request Insights scrolling inside the overlay panes', async () => {
+    const browser = await next.browser('/instant-insights')
+
+    await browser.elementById('emit-request-insights-snapshot').click()
+    await openRequestInsightsPanel(browser)
+
+    await retry(async () => {
+      const state = await browser.eval(() => {
+        document.body.style.minHeight = '300vh'
+        window.scrollTo(0, 200)
+
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        const list = root?.querySelector<HTMLElement>('.request-insights-list')
+        const details = root?.querySelector<HTMLElement>(
+          '.request-insights-details'
+        )
+        const pageScrollBefore = window.scrollY
+
+        if (list) {
+          list.scrollTop = list.scrollHeight
+          list.scrollBy({ top: 100 })
+        }
+
+        return {
+          detailsOverscroll: details
+            ? getComputedStyle(details).overscrollBehaviorY
+            : null,
+          listOverflow: list ? getComputedStyle(list).overflowY : null,
+          listOverscroll: list
+            ? getComputedStyle(list).overscrollBehaviorY
+            : null,
+          listScrollable: list
+            ? list.scrollHeight > list.clientHeight && list.scrollTop > 0
+            : false,
+          pageScrollBefore,
+          pageScrollAfter: window.scrollY,
+        }
+      })
+
+      expect(state).toEqual({
+        detailsOverscroll: 'contain',
+        listOverflow: 'auto',
+        listOverscroll: 'contain',
+        listScrollable: true,
+        pageScrollBefore: 200,
+        pageScrollAfter: 200,
+      })
+    })
+  })
+
   it('hides internal activity behind the settings menu', async () => {
     const browser = await next.browser('/instant-insights')
     shouldResetRequestInsightsConfig = true
