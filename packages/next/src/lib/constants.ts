@@ -43,6 +43,24 @@ export const NEXT_BODY_SUFFIX = '.body'
 export const VARIANTS_PATH_PREFIX = '__variants'
 
 /**
+ * The destination for a request that names a combination the router did not
+ * select.
+ *
+ * No output is written to this path. Therefore the request does not match, and
+ * the server answers it as it answers any request for something that does not
+ * exist, which is what such a request is.
+ *
+ * A rejection cannot set its own status. A rule that has a destination is a
+ * rewrite, and the status of a rewrite does not reach the routing output. Thus
+ * a rule that named the not-found page would serve that page with the status of
+ * a page that exists.
+ *
+ * This path is outside the `VARIANTS_PATH_PREFIX` namespace. Therefore the rule
+ * that rejects prefixed paths cannot match its own destination.
+ */
+export const VARIANTS_NOT_ROUTED_PATH = `${VARIANTS_PATH_PREFIX}-not-routed`
+
+/**
  * Carries the resolved variant values, encoded, so that the path only has to
  * carry a hash of them. A hash cannot be read back, and a render needs the
  * values: this is what lets a combination nobody enumerated still render.

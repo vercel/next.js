@@ -1,5 +1,6 @@
 import { isNextDeploy, isNextStart, nextTestSetup } from 'e2e-utils'
 import { findPort } from 'next-test-utils'
+import { NEXT_VARIANTS_QUERY_PARAM } from 'next/dist/lib/constants'
 import { hashVariants } from 'next/dist/server/variants/hash'
 import { findVariantGroupsForPathname } from 'next/dist/server/variants/manifest'
 
@@ -363,6 +364,39 @@ describe('variants', () => {
     })
 
     expect(invented.status).toBe(404)
+  })
+
+  it('should not let a client name the combination through the query parameter', async () => {
+    // The router changes the prefix into a query parameter before the origin
+    // matches a route. The parameter therefore has the authority of the prefix,
+    // and a client must not be able to set it. The router writes the parameter
+    // only after the proxy runs. Thus a parameter that arrives came from the
+    // client, and it names nothing, for the same reason that a supplied prefix
+    // names nothing.
+    const declared = hashVariants({
+      'locale@variants.ts': 'en',
+      'theme@variants.ts': 'light',
+    })
+
+    // These cookies resolve a combination that nobody declared. The proxy
+    // writes no prefix for such a request. A supplied parameter would then be
+    // the only one present, which is the case where a client could otherwise
+    // name a combination.
+    const undeclared = await next.fetch(
+      `/enumerated/a?${NEXT_VARIANTS_QUERY_PARAM}=${declared}`,
+      { headers: { cookie: 'theme=dark; locale=de' } }
+    )
+
+    expect(undeclared.status).toBe(404)
+
+    // These cookies resolve a combination that the build declared. A supplied
+    // parameter would then be present next to the value that the router wrote.
+    const alongsideMatched = await next.fetch(
+      `/enumerated/a?${NEXT_VARIANTS_QUERY_PARAM}=${declared}`,
+      { headers: { cookie: 'theme=dark; locale=en' } }
+    )
+
+    expect(alongsideMatched.status).toBe(404)
   })
 
   it('should not expose the internal combination query parameter to the page', async () => {

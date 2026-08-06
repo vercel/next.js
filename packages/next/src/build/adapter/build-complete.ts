@@ -23,6 +23,7 @@ import {
 import {
   NEXT_VARIANTS_PREFIX_HEADER,
   NEXT_VARIANTS_QUERY_PARAM,
+  VARIANTS_NOT_ROUTED_PATH,
   VARIANTS_PATH_PREFIX,
 } from '../../lib/constants'
 import { hasVariantsPrefix } from '../../server/variants/prefix'
@@ -2534,12 +2535,10 @@ export async function handleBuildComplete({
               source: `/${VARIANTS_PATH_PREFIX}/:path*`,
               sourceRegex: `^${config.basePath && config.basePath !== '/' ? path.posix.join('/', config.basePath) : ''}[/]?/${VARIANTS_PATH_PREFIX}(?:/.*)?$`,
               missing: [{ type: 'header', key: NEXT_VARIANTS_PREFIX_HEADER }],
-              // Deliberately outside the prefix's own namespace, so the rule
-              // cannot match its own destination.
               destination: path.posix.join(
                 '/',
                 config.basePath,
-                `${VARIANTS_PATH_PREFIX}-not-routed`
+                VARIANTS_NOT_ROUTED_PATH
               ),
             },
           ]
