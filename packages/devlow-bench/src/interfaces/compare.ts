@@ -1,6 +1,5 @@
 import type { Interface } from '../index.js'
-import type { SampleGroup } from '../compare.js'
-import { groupRows, makeKey, printComparison } from '../compare.js'
+import { type SampleGroup, groupRows, makeKey, printComparison } from '../compare.js'
 import { readSnapshot } from '../snapshot.js'
 import { formatVariantProps } from '../utils.js'
 
