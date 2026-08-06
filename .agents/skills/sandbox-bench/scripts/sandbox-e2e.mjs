@@ -688,13 +688,20 @@ for run in $(seq 1 ${total}); do
         if (r.load.hydratedMs>0) row.hydrate=r.load.hydratedMs;
         if (r.load.hydrateClientMs>0) row.hydrateClient=r.load.hydrateClientMs;
         if (r.load.fcpMs>0) row.fcp=r.load.fcpMs;
+        if (r.load.lcpMs>0) row.lcp=r.load.lcpMs;
+        if (r.load.blockingMs>0) row.blocking=r.load.blockingMs;
         if (r.load.scriptMs>0) row.script=r.load.scriptMs;
         if (r.load.taskMs>0) row.task=r.load.taskMs;
         if (r.load.heapMb>0) row.heapMb=r.load.heapMb;
+        // Samples that never quiesced make the counters windowed reads,
+        // not totals; surface through the errors channel so the analysis
+        // flags the cell.
+        if (r.unsettled>0) row.errors=r.unsettled;
         console.log(JSON.stringify(row));
         if (r.nav) {
           const nrow={block:+run,arm,run:1,fp,ver,cpu,route:r.route,phase:"browser-nav"};
           if (r.nav.navMs>0) nrow.nav=r.nav.navMs;
+          if (r.nav.navSettledMs>0) nrow.navSettled=r.nav.navSettledMs;
           if (r.nav.scriptMs>0) nrow.navScript=r.nav.scriptMs;
           if (r.nav.taskMs>0) nrow.navTask=r.nav.taskMs;
           console.log(JSON.stringify(nrow));
@@ -845,9 +852,12 @@ function analyze(cfg) {
     'hydrate',
     'hydrateClient',
     'fcp',
+    'lcp',
+    'blocking',
     'script',
     'task',
     'nav',
+    'navSettled',
     'navScript',
     'navTask',
     'heapMb',

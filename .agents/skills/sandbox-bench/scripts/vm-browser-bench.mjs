@@ -1,13 +1,18 @@
 // Timed browser measurement for the e2e bench. Runs on the measurement VM
 // (and locally for development) against an already-running production
 // server. No CDP tracing — tracing perturbs timing; this pass collects
-// cheap counters only, so its numbers are comparable across arms:
+// cheap counters and buffered PerformanceObserver entries only, so its
+// numbers are comparable across arms:
 //
-//   browser-load : ttfb, fcp, dcl, load, hydrated (bench:hydrated mark),
-//                  scriptMs/taskMs (CDP Performance.getMetrics), heapMb
-//   browser-nav  : client-side navigation via window.next.router.push,
-//                  wall time to pathname+paint settle, scriptMs/taskMs
-//                  deltas (Flight parse + render cost in the browser)
+//   browser-load : ttfb, fcp, lcp, dcl, load, hydrated (bench:hydrated
+//                  mark), hydrateClient (hydrated - ttfb), blocking
+//                  (long-task time over 50ms up to the hydration mark),
+//                  scriptMs/taskMs (CDP counters at quiescence), heapMb
+//                  (after a forced GC — retained, not transient)
+//   browser-nav  : client-side navigation via window.next.router.push:
+//                  navMs (wall to URL commit), navSettledMs (wall to last
+//                  DOM mutation), scriptMs/taskMs deltas (Flight parse +
+//                  render cost in the browser)
 //
 // A fixed CPU throttle amplifies JS cost differences over scheduling
 // noise; localhost keeps the network out of the signal. One browser
@@ -37,6 +42,7 @@ const THROTTLE = Number(args.get('cpu-throttle') ?? '4')
 const TREE = args.get('tree') ?? process.cwd()
 const JSON_OUT = args.get('json-out')
 const HYDRATE_TIMEOUT_MS = 30_000
+const NAV_TIMEOUT_MS = 20_000
 
 const require_ = createRequire(path.join(TREE, 'package.json'))
 const { chromium } = require_('playwright')
@@ -61,6 +67,12 @@ function metricsMap(res) {
 // defers work past a fixed read point would look artificially cheap. The
 // wait itself runs no in-page JS (CDP counters + wall-clock sleeps), so it
 // doesn't perturb what it measures.
+//
+// Pages with steady background activity (intervals, animations) never
+// settle; after the timeout the current counters are returned with
+// settled=false and the caller reports the sample as unsettled — a
+// windowed read at a fixed offset, comparable across arms but no longer a
+// total.
 const SETTLE_WINDOW_MS = 250
 // Two consecutive quiet windows: a single one would declare quiescence
 // during any scheduling gap longer than the window itself.
@@ -78,8 +90,9 @@ async function settledMetrics(page, cdp) {
     const deltaMs = (cur.get('TaskDuration') - prev.get('TaskDuration')) * 1000
     prev = cur
     quiet = deltaMs < SETTLE_EPS_MS ? quiet + 1 : 0
-    if (quiet >= SETTLE_QUIET_WINDOWS) return cur
-    if (Date.now() - start > SETTLE_TIMEOUT_MS) return cur
+    if (quiet >= SETTLE_QUIET_WINDOWS) return { metrics: cur, settled: true }
+    if (Date.now() - start > SETTLE_TIMEOUT_MS)
+      return { metrics: cur, settled: false }
   }
 }
 
@@ -104,21 +117,60 @@ async function measureRoute(browser, route, navTarget) {
       null,
       { timeout: HYDRATE_TIMEOUT_MS }
     )
-    const timings = await page.evaluate(() => {
-      const nav = performance.getEntriesByType('navigation')[0]
-      const fcp = performance
-        .getEntriesByType('paint')
-        .find((e) => e.name === 'first-contentful-paint')
-      const hydrated = performance.getEntriesByName('bench:hydrated', 'mark')[0]
-      return {
-        ttfbMs: nav ? nav.responseStart : null,
-        dclMs: nav ? nav.domContentLoadedEventEnd : null,
-        loadMs: nav ? nav.loadEventEnd : null,
-        fcpMs: fcp ? fcp.startTime : null,
-        hydratedMs: hydrated ? hydrated.startTime : null,
-      }
-    })
-    const loadMetrics = await settledMetrics(page, cdp)
+    // Milestones come from buffered observers, so registering after the
+    // fact still sees entries from the start of the navigation. LCP and
+    // long tasks need PerformanceObserver — they are not in the regular
+    // entry buffer — with a short drain wait for entry delivery.
+    const timings = await page.evaluate(
+      () =>
+        new Promise((resolve) => {
+          const nav = performance.getEntriesByType('navigation')[0]
+          const fcp = performance
+            .getEntriesByType('paint')
+            .find((e) => e.name === 'first-contentful-paint')
+          const hydrated = performance.getEntriesByName(
+            'bench:hydrated',
+            'mark'
+          )[0]
+          let lcpMs = null
+          const lcpObs = new PerformanceObserver((list) => {
+            const entries = list.getEntries()
+            if (entries.length > 0)
+              lcpMs = entries[entries.length - 1].startTime
+          })
+          try {
+            lcpObs.observe({ type: 'largest-contentful-paint', buffered: true })
+          } catch {}
+          // Total blocking time up to the hydration mark: the over-50ms
+          // share of long tasks, the standard TBT construction with the
+          // hydration mark as the interactivity anchor.
+          let blockingMs = 0
+          const ltObs = new PerformanceObserver((list) => {
+            for (const e of list.getEntries()) {
+              if (hydrated && e.startTime > hydrated.startTime) continue
+              blockingMs += Math.max(0, e.duration - 50)
+            }
+          })
+          try {
+            ltObs.observe({ type: 'longtask', buffered: true })
+          } catch {}
+          setTimeout(() => {
+            lcpObs.disconnect()
+            ltObs.disconnect()
+            resolve({
+              ttfbMs: nav ? nav.responseStart : null,
+              dclMs: nav ? nav.domContentLoadedEventEnd : null,
+              loadMs: nav ? nav.loadEventEnd : null,
+              fcpMs: fcp ? fcp.startTime : null,
+              lcpMs,
+              hydratedMs: hydrated ? hydrated.startTime : null,
+              blockingMs,
+            })
+          }, 100)
+        })
+    )
+    const loadSettle = await settledMetrics(page, cdp)
+    const loadMetrics = loadSettle.metrics
     // Post-GC heap is retained memory; without the collection the reading
     // is whatever allocation phase the page happened to be in.
     let heapMb = null
@@ -147,32 +199,68 @@ async function measureRoute(browser, route, navTarget) {
     // programmatic handle; if this build doesn't expose it, report no nav
     // rather than a fabricated one.
     let nav = null
+    let navUnsettled = false
     const hasRouter = await page.evaluate(
       () => !!(window.next && window.next.router && window.next.router.push)
     )
     if (hasRouter && navTarget) {
-      // The in-page 5ms poll below adds a small constant to the deltas; it
-      // is identical in both arms (a noise floor, not a bias).
+      // A MutationObserver stamps the time of the last DOM change, so the
+      // content-settled wall time comes from the page's own clock instead
+      // of a polling loop. Its callback only runs when the router commits
+      // actual DOM work; between commits it costs nothing.
+      await page.evaluate(() => {
+        window.__benchNav = { start: null, lastMutation: null }
+        const observer = new MutationObserver(() => {
+          window.__benchNav.lastMutation = performance.now()
+        })
+        observer.observe(document.documentElement, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          characterData: true,
+        })
+      })
       const before = metricsMap(await cdp.send('Performance.getMetrics'))
-      const navMs = await page.evaluate(async (target) => {
-        const start = performance.now()
+      await page.evaluate((target) => {
+        window.__benchNav.start = performance.now()
         window.next.router.push(target)
-        while (location.pathname !== target) {
-          if (performance.now() - start > 20000) return null
-          await new Promise((r) => setTimeout(r, 5))
-        }
-        // Settle paint after the route content commits. Content streaming
-        // in later is caught by the counter settle below — this wall
-        // measurement is time-to-committed-route.
-        await new Promise((r) =>
-          requestAnimationFrame(() => requestAnimationFrame(r))
-        )
-        return performance.now() - start
       }, navTarget)
-      if (navMs !== null) {
-        const after = await settledMetrics(page, cdp)
+      // URL commit detection runs over CDP (no in-page polling): playwright
+      // observes same-document navigations through page events.
+      const committed = await page
+        .waitForURL((url) => url.pathname === navTarget, {
+          timeout: NAV_TIMEOUT_MS,
+        })
+        .then(() => true)
+        .catch(() => false)
+      if (committed) {
+        const commitMs = await page.evaluate(
+          () => performance.now() - window.__benchNav.start
+        )
+        // DOM-settled wall time: wait until the last mutation stamp goes
+        // stale, then read it. The stale checks are sparse evaluates
+        // (~4/s), not a busy loop.
+        let navSettledMs = null
+        const deadline = Date.now() + SETTLE_TIMEOUT_MS
+        for (;;) {
+          const s = await page.evaluate(() => ({
+            start: window.__benchNav.start,
+            last: window.__benchNav.lastMutation,
+            now: performance.now(),
+          }))
+          if (s.last !== null && s.now - s.last > 2 * SETTLE_WINDOW_MS) {
+            navSettledMs = s.last - s.start
+            break
+          }
+          if (Date.now() > deadline) break
+          await new Promise((r) => setTimeout(r, SETTLE_WINDOW_MS))
+        }
+        const afterSettle = await settledMetrics(page, cdp)
+        navUnsettled = !afterSettle.settled || navSettledMs === null
+        const after = afterSettle.metrics
         nav = {
-          navMs,
+          navMs: commitMs,
+          navSettledMs,
           scriptMs:
             (after.get('ScriptDuration') - before.get('ScriptDuration')) * 1000,
           taskMs:
@@ -180,7 +268,7 @@ async function measureRoute(browser, route, navTarget) {
         }
       }
     }
-    return { load, nav }
+    return { load, nav, unsettled: !loadSettle.settled || navUnsettled }
   } finally {
     await context.close()
   }
@@ -200,9 +288,11 @@ async function main() {
         ROUTES.length > 1 ? ROUTES[(i + 1) % ROUTES.length] : null
       const loadSamples = []
       const navSamples = []
+      let unsettled = 0
       for (let iter = 0; iter < WARMUP + ITERATIONS; iter++) {
         const sample = await measureRoute(browser, route, navTarget)
         if (iter < WARMUP) continue
+        if (sample.unsettled) unsettled++
         loadSamples.push(sample.load)
         if (sample.nav) navSamples.push(sample.nav)
       }
@@ -221,7 +311,13 @@ async function main() {
         load: summarize(loadSamples),
         nav: navSamples.length > 0 ? summarize(navSamples) : null,
         navSamples: navSamples.length,
+        unsettled,
       })
+      if (unsettled > 0) {
+        console.error(
+          `[browser] WARNING ${route}: ${unsettled}/${loadSamples.length} samples never quiesced — counters are windowed reads, not totals`
+        )
+      }
       console.error(
         `[browser] ${route}: hydrated=${results.at(-1).load.hydratedMs?.toFixed(0)}ms ` +
           `script=${results.at(-1).load.scriptMs?.toFixed(0)}ms ` +

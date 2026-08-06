@@ -102,9 +102,12 @@ export const METRICS = {
   hydrate: { unit: 'ms', better: 'lower' },
   hydrateClient: { unit: 'ms', better: 'lower' },
   fcp: { unit: 'ms', better: 'lower' },
+  lcp: { unit: 'ms', better: 'lower' },
+  blocking: { unit: 'ms', better: 'lower' },
   script: { unit: 'ms', better: 'lower' },
   task: { unit: 'ms', better: 'lower' },
   nav: { unit: 'ms', better: 'lower' },
+  navSettled: { unit: 'ms', better: 'lower' },
   navScript: { unit: 'ms', better: 'lower' },
   navTask: { unit: 'ms', better: 'lower' },
 }
