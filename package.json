@@ -299,7 +299,7 @@
     "webpack-bundle-analyzer": "4.7.0",
     "webpack-dev-server": "5.2.0",
     "whatwg-fetch": "3.0.0",
-    "ws": "8.2.3",
+    "ws": "8.21.2",
     "yargs": "16.2.0"
   },
   "engines": {
