@@ -38,6 +38,7 @@ interface RunnerFnParams {
   incrementalCache?: any
   serverComponentsHmrCache?: ServerComponentsHmrCache
   clientAssetToken: string
+  requestInsightsFetchContext?: import('../../lib/trace/request-insights-sandbox-fetch').RequestInsightsSandboxFetchContext
 }
 
 type RunnerFn = (params: RunnerFnParams) => Promise<FetchEventResult>
@@ -140,19 +141,25 @@ export const run = withTaggedErrors(async function runWithTaggedErrors(params) {
       waitUntil: params.request.waitUntil,
     }
     await edgeSandboxNextRequestContext.run(builtinRequestCtx, () =>
-      requestStore.run({ headers }, async () => {
-        result = await edgeFunction({
-          request: {
-            ...params.request,
-            body:
-              cloned &&
-              requestToBodyStream(runtime.context, KUint8Array, cloned),
-          },
-        })
-        for (const headerName of FORBIDDEN_HEADERS) {
-          result.response.headers.delete(headerName)
+      requestStore.run(
+        {
+          headers,
+          requestInsightsFetchContext: params.requestInsightsFetchContext,
+        },
+        async () => {
+          result = await edgeFunction({
+            request: {
+              ...params.request,
+              body:
+                cloned &&
+                requestToBodyStream(runtime.context, KUint8Array, cloned),
+            },
+          })
+          for (const headerName of FORBIDDEN_HEADERS) {
+            result.response.headers.delete(headerName)
+          }
         }
-      })
+      )
     )
 
     if (!result) throw new Error('Edge function did not return a response')
