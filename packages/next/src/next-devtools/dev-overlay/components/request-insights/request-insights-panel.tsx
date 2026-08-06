@@ -32,6 +32,7 @@ import {
 import { getFetchUrlPresentation } from './fetch-label'
 import { formatDuration } from './format-duration'
 import {
+  getRequestInsightDeliveryPresentation,
   getRequestInsightFilterResult,
   REQUEST_INSIGHT_FILTER_GROUPS,
   toggleRequestInsightFilter,
@@ -803,6 +804,7 @@ function RequestOverview({
     <div className="request-insights-overview">
       {overview.method ? <span>Method {overview.method}</span> : null}
       <span>Status {overview.statusLabel}</span>
+      {overview.delivery ? <span>{overview.delivery}</span> : null}
       <span>{overview.kind}</span>
       <span>{overview.fetchSummary}</span>
       <span>{overview.cacheSummary}</span>
@@ -1154,11 +1156,13 @@ function getRequestOverview(request: RequestInsight) {
     { hit: 0, miss: 0, skip: 0, unknown: 0 }
   )
   const knownCacheCount = cacheCounts.hit + cacheCounts.miss + cacheCounts.skip
+  const delivery = getRequestInsightDeliveryPresentation(request)
 
   return {
     method,
     statusCode,
     statusLabel: statusCode ?? request.status,
+    delivery: delivery.label,
     kind: getRequestInsightSummaryTypeLabel(request),
     fetchSummary: request.fetches.length
       ? `${request.fetches.length} fetch${request.fetches.length === 1 ? '' : 'es'}`
