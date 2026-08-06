@@ -64,6 +64,38 @@ describe('dedupe-fetch', () => {
       expect(await response2.text()).toBe('test response')
     })
 
+    it('runs a request decorator only for the deduped network request', async () => {
+      originalFetch.mockResolvedValue(new Response('test response'))
+      const networkFetch: jest.MockedFunction<typeof fetch> = jest.fn(
+        (resource, options) => {
+          const headers = new Headers(options?.headers)
+          headers.set(
+            'cookie',
+            `${headers.get('cookie')}; __next_request_insights_causal=network-capability`
+          )
+          return originalFetch(resource, { ...options, headers })
+        }
+      )
+      const options = {
+        headers: { cookie: 'session=user-cookie' },
+      }
+
+      const [first, second] = await Promise.all([
+        dedupeFetch('https://example.com/api', options, networkFetch),
+        dedupeFetch('https://example.com/api', options, networkFetch),
+      ])
+
+      expect(await first.text()).toBe('test response')
+      expect(await second.text()).toBe('test response')
+      expect(networkFetch).toHaveBeenCalledTimes(1)
+      expect(originalFetch).toHaveBeenCalledTimes(1)
+      expect(
+        new Headers(originalFetch.mock.calls[0][1]?.headers).get('cookie')
+      ).toBe(
+        'session=user-cookie; __next_request_insights_causal=network-capability'
+      )
+    })
+
     it('should dedupe identical HEAD requests', async () => {
       const mockResponse = new Response(null, { status: 200 })
       originalFetch.mockResolvedValue(mockResponse)

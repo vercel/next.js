@@ -81,9 +81,11 @@ type RouterServerRequestInsightsRuntime = {
   REQUEST_INSIGHTS_ID_PATTERN: typeof import('./trace/request-insights').REQUEST_INSIGHTS_ID_PATTERN
   REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET: typeof import('./trace/request-insights').REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET
   REQUEST_INSIGHTS_MAX_ID_LENGTH: typeof import('./trace/request-insights').REQUEST_INSIGHTS_MAX_ID_LENGTH
+  getRequestInsightsCausalTargetFromRequest: typeof import('./trace/request-insights-causal').getRequestInsightsCausalTargetFromRequest
   resolveRequestInsightsIdentity: typeof import('./trace/request-insights-identity').resolveRequestInsightsIdentity
   runWithRequestInsights: typeof import('./trace/request-insights-runtime').runWithRequestInsights
   runWithRequestInsightsIdentity: typeof import('./trace/request-insights-identity').runWithRequestInsightsIdentity
+  takeRequestInsightsCausalToken: typeof import('./trace/request-insights-causal').takeRequestInsightsCausalToken
 }
 
 let routerServerRequestInsightsRuntime:
@@ -102,6 +104,11 @@ function getRouterServerRequestInsightsRuntime():
         REQUEST_INSIGHTS_MAX_ID_LENGTH,
       } =
         require('./trace/request-insights') as typeof import('./trace/request-insights')
+      const {
+        getRequestInsightsCausalTargetFromRequest,
+        takeRequestInsightsCausalToken,
+      } =
+        require('./trace/request-insights-causal') as typeof import('./trace/request-insights-causal')
       const { resolveRequestInsightsIdentity, runWithRequestInsightsIdentity } =
         require('./trace/request-insights-identity') as typeof import('./trace/request-insights-identity')
       const { runWithRequestInsights } =
@@ -111,14 +118,17 @@ function getRouterServerRequestInsightsRuntime():
         REQUEST_INSIGHTS_ID_PATTERN,
         REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET,
         REQUEST_INSIGHTS_MAX_ID_LENGTH,
+        getRequestInsightsCausalTargetFromRequest,
         resolveRequestInsightsIdentity,
         runWithRequestInsights,
         runWithRequestInsightsIdentity,
+        takeRequestInsightsCausalToken,
       }
     }
     return routerServerRequestInsightsRuntime
+  } else {
+    return undefined
   }
-  return undefined
 }
 
 const debug = setupDebug('next:router-server:main')
@@ -943,8 +953,34 @@ export async function initialize(opts: {
     }
   }
 
+  const requestInsightsOrigin =
+    process.env.__NEXT_PRIVATE_ORIGIN ??
+    `${opts.experimentalHttpsServer ? 'https' : 'http'}://${opts.hostname ?? 'localhost'}:${opts.port}`
+
   const requestHandlerImpl: WorkerRequestHandler = (req, res) => {
     addRequestMeta(req, 'relativeProjectDir', relativeProjectDir)
+
+    let causalTarget: ReturnType<
+      RouterServerRequestInsightsRuntime['getRequestInsightsCausalTargetFromRequest']
+    >
+    let causalParent: ReturnType<
+      NonNullable<typeof requestInsights>['consumeCausalToken']
+    >
+    if (requestInsights && requestInsightsRuntime) {
+      const causalToken = requestInsightsRuntime.takeRequestInsightsCausalToken(
+        req.headers
+      )
+      causalTarget =
+        requestInsightsRuntime.getRequestInsightsCausalTargetFromRequest({
+          method: req.method,
+          origin: requestInsightsOrigin,
+          url: req.url,
+        })
+      causalParent =
+        causalToken && causalTarget
+          ? requestInsights.consumeCausalToken(causalToken, causalTarget)
+          : undefined
+    }
 
     // Internal and invalid debug headers must be removed before they can be
     // considered while creating the server-owned request identity.
@@ -971,6 +1007,8 @@ export async function initialize(opts: {
       previousIdentity: getRequestMeta(req, 'requestInsightsIdentity'),
       requestIdHeader: req.headers[NEXT_REQUEST_ID_HEADER],
       htmlRequestIdHeader: req.headers[NEXT_HTML_REQUEST_ID_HEADER],
+      causalParent,
+      origin: causalTarget?.origin,
       url: req.url,
       createRequestId: nanoid,
     })

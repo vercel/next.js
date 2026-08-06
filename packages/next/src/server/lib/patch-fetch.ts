@@ -39,7 +39,10 @@ const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
 type PatchFetchRequestInsightsRuntime = {
   getActiveRequestInsights: typeof import('./trace/request-insights-runtime').getActiveRequestInsights
+  getRequestInsightsCausalTarget: typeof import('./trace/request-insights-causal').getRequestInsightsCausalTarget
   getRequestInsightsIdentity: typeof import('./trace/request-insights-identity').getRequestInsightsIdentity
+  isRequestInsightsSameOriginTarget: typeof import('./trace/request-insights-causal').isRequestInsightsSameOriginTarget
+  setRequestInsightsCausalCookie: typeof import('./trace/request-insights-causal').setRequestInsightsCausalCookie
 }
 
 let patchFetchRequestInsightsRuntime:
@@ -55,14 +58,24 @@ function getPatchFetchRequestInsightsRuntime():
         require('./trace/request-insights-runtime') as typeof import('./trace/request-insights-runtime')
       const { getRequestInsightsIdentity } =
         require('./trace/request-insights-identity') as typeof import('./trace/request-insights-identity')
+      const {
+        getRequestInsightsCausalTarget,
+        isRequestInsightsSameOriginTarget,
+        setRequestInsightsCausalCookie,
+      } =
+        require('./trace/request-insights-causal') as typeof import('./trace/request-insights-causal')
       patchFetchRequestInsightsRuntime = {
         getActiveRequestInsights,
+        getRequestInsightsCausalTarget,
         getRequestInsightsIdentity,
+        isRequestInsightsSameOriginTarget,
+        setRequestInsightsCausalCookie,
       }
     }
     return patchFetchRequestInsightsRuntime
+  } else {
+    return undefined
   }
-  return undefined
 }
 
 /**
@@ -195,10 +208,13 @@ export function validateTags(tags: any[], description: string) {
 function trackFetchMetric(
   workStore: WorkStore,
   span: Span | undefined,
-  ctx: Omit<FetchMetric, 'end' | 'idx'>
+  ctx: Omit<FetchMetric, 'end' | 'idx'> & {
+    requestInsightsIndex?: number
+  }
 ) {
+  const { requestInsightsIndex, ...metricContext } = ctx
   const metric = {
-    ...ctx,
+    ...metricContext,
     end: performance.timeOrigin + performance.now(),
     idx: workStore.nextFetchId || 0,
   }
@@ -238,7 +254,7 @@ function trackFetchMetric(
           durationMs: metric.end - metric.start,
           cacheStatus: metric.cacheStatus,
           cacheReason: metric.cacheReason,
-          index: metric.idx,
+          index: requestInsightsIndex ?? metric.idx,
         }
       )
     }
@@ -251,6 +267,144 @@ function trackFetchMetric(
   workStore.fetchMetrics ??= []
 
   workStore.fetchMetrics.push(metric)
+}
+
+function prepareRequestInsightsCausalFetch({
+  allowCausalLink,
+  fetchIndex,
+  init,
+  input,
+  isStale,
+  method,
+  targetUrl,
+}: {
+  allowCausalLink: boolean
+  fetchIndex: number
+  init: RequestInit
+  input: RequestInfo | URL
+  isStale: boolean
+  method: string
+  targetUrl: URL | undefined
+}): { init: RequestInit; revoke: () => void } {
+  const runtime = getPatchFetchRequestInsightsRuntime()
+  if (!runtime) {
+    return { init, revoke: () => {} }
+  }
+
+  const requestInsights = runtime.getActiveRequestInsights()
+  if (!requestInsights) {
+    return { init, revoke: () => {} }
+  }
+  let token: string | undefined
+  try {
+    const identity = runtime.getRequestInsightsIdentity()
+    const target = targetUrl
+      ? runtime.getRequestInsightsCausalTarget(targetUrl, method)
+      : undefined
+    const credentials =
+      init.credentials ??
+      (input instanceof Request ? input.credentials : undefined)
+    const headers = new Headers(
+      init.headers ?? (input instanceof Request ? input.headers : undefined)
+    )
+    const originalCookie = headers.get('cookie')
+
+    token =
+      allowCausalLink &&
+      !isStale &&
+      credentials !== 'omit' &&
+      identity?.kind !== 'instant-insights' &&
+      identity?.rootRequestId &&
+      runtime.isRequestInsightsSameOriginTarget(identity.origin, target) &&
+      target
+        ? requestInsights.mintCausalToken({
+            parentRootRequestId: identity.rootRequestId,
+            parentFetchIndex: fetchIndex,
+            target,
+          })
+        : undefined
+
+    const tokenAttached = runtime.setRequestInsightsCausalCookie(headers, token)
+    if (token && !tokenAttached) {
+      requestInsights?.revokeCausalToken(token)
+      token = undefined
+    }
+    const attachedToken = token
+    const revoke = attachedToken
+      ? () => requestInsights?.revokeCausalToken(attachedToken)
+      : () => {}
+
+    if (headers.get('cookie') === originalCookie) {
+      return { init, revoke }
+    }
+
+    return {
+      init: { ...init, headers },
+      revoke,
+    }
+  } catch {
+    if (token) {
+      requestInsights?.revokeCausalToken(token)
+    }
+    return { init, revoke: () => {} }
+  }
+}
+
+function revokeRequestInsightsCausalToken(revoke: () => void): void {
+  try {
+    revoke()
+  } catch {
+    // Request Insights bookkeeping must not affect fetch behavior.
+  }
+}
+
+function fetchWithRequestInsightsCausality({
+  allowCausalLink,
+  fetchIndex,
+  init,
+  input,
+  isStale,
+  method,
+  originFetch,
+  targetUrl,
+}: {
+  allowCausalLink: boolean
+  fetchIndex: number
+  init: RequestInit
+  input: RequestInfo | URL
+  isStale: boolean
+  method: string
+  originFetch: Fetcher
+  targetUrl: URL | undefined
+}): Promise<Response> {
+  const prepared = prepareRequestInsightsCausalFetch({
+    allowCausalLink,
+    fetchIndex,
+    init,
+    input,
+    isStale,
+    method,
+    targetUrl,
+  })
+
+  let fetchPromise: Promise<Response>
+  try {
+    fetchPromise = originFetch(input, prepared.init)
+  } catch (error) {
+    revokeRequestInsightsCausalToken(prepared.revoke)
+    throw error
+  }
+
+  return fetchPromise.then(
+    (response) => {
+      revokeRequestInsightsCausalToken(prepared.revoke)
+      return response
+    },
+    (error) => {
+      revokeRequestInsightsCausalToken(prepared.revoke)
+      throw error
+    }
+  )
 }
 
 async function createCachedPrerenderResponse(
@@ -378,14 +532,18 @@ export function createPatchedFetcher(
   originFetch: Fetcher,
   { workAsyncStorage, workUnitAsyncStorage }: PatchableModule
 ): PatchedFetcher {
+  const dedupeFetch = createDedupeFetch(originFetch)
+
   // Create the patched fetch function.
   const patched = async function fetch(
     input: RequestInfo | URL,
     init: RequestInit | undefined
   ): Promise<Response> {
     let url: URL | undefined
+    let hasUrlCredentials = false
     try {
       url = new URL(input instanceof Request ? input.url : input)
+      hasUrlCredentials = url.username !== '' || url.password !== ''
       url.username = ''
       url.password = ''
     } catch {
@@ -431,20 +589,20 @@ export function createPatchedFetcher(
       async (span) => {
         // If this is an internal fetch, we should not do any special treatment.
         if (isInternal) {
-          return originFetch(input, init)
+          return dedupeFetch(input, init)
         }
 
         // If the workStore is not available, we can't do any
         // special treatment of fetch, therefore fallback to the original
         // fetch implementation.
         if (!workStore) {
-          return originFetch(input, init)
+          return dedupeFetch(input, init)
         }
 
         // We should also fallback to the original fetch implementation if we
         // are in draft mode, it does not constitute a static generation.
         if (workStore.isDraftMode) {
-          return originFetch(input, init)
+          return dedupeFetch(input, init)
         }
 
         const isRequestInput =
@@ -969,10 +1127,26 @@ export function createPatchedFetcher(
             next: { ...init?.next, fetchType: 'origin', fetchIdx },
           }
 
-          return originFetch(input, clonedInit)
+          const effectiveMethod = (
+            clonedInit.method ??
+            (input instanceof Request ? input.method : method)
+          ).toUpperCase()
+          return dedupeFetch(input, clonedInit, (networkInput, networkInit) =>
+            fetchWithRequestInsightsCausality({
+              allowCausalLink: !hasUrlCredentials,
+              fetchIndex: fetchIdx,
+              init: networkInit ?? {},
+              input: networkInput,
+              isStale: Boolean(isStale),
+              method: effectiveMethod,
+              originFetch,
+              targetUrl: url,
+            })
+          )
             .then(async (res) => {
               if (!isStale && fetchStart) {
                 trackFetchMetric(workStore, span, {
+                  requestInsightsIndex: fetchIdx,
                   start: fetchStart,
                   url: fetchUrl,
                   cacheReason: cacheReasonOverride || cacheReason,
@@ -1185,6 +1359,7 @@ export function createPatchedFetcher(
           if (cachedFetchData) {
             if (fetchStart) {
               trackFetchMetric(workStore, span, {
+                requestInsightsIndex: fetchIdx,
                 start: fetchStart,
                 url: fetchUrl,
                 cacheReason,
@@ -1432,7 +1607,7 @@ export function patchFetch(options: PatchableModule) {
 
   // Grab the original fetch function. We'll attach this so we can use it in
   // the patched fetch function.
-  const original = createDedupeFetch(globalThis.fetch)
+  const original = globalThis.fetch
 
   // Set the global fetch to the patched fetch.
   globalThis.fetch = createPatchedFetcher(original, options)
