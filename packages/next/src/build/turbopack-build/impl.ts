@@ -1,11 +1,8 @@
-// Import cpu-profile first to start profiling early if enabled
-import { saveCpuProfile } from '../../server/lib/cpu-profile'
 import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { seedTurbopackCacheIfNeeded } from '../../lib/turbopack-cache-seed'
 import { NextBuildContext } from '../build-context'
 import { createDefineEnv, getBindingsSync } from '../swc'
-import { installBindings } from '../swc/install-bindings'
 import {
   handleRouteType,
   rawEntrypointsToEntrypoints,
@@ -14,16 +11,8 @@ import { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loa
 import { promises as fs } from 'fs'
 import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
 import loadConfig from '../../server/config'
-import { hasCustomExportOutput } from '../../export/utils'
-import { Telemetry } from '../../telemetry/storage'
+import type { Telemetry } from '../../telemetry/storage'
 import { eventBuildFeatureUsageFromTurbopack } from '../../telemetry/events/build'
-import {
-  setGlobal,
-  trace,
-  initializeTraceState,
-  getTraceEvents,
-} from '../../trace'
-import type { TraceState } from '../../trace'
 import { isCI } from '../../server/ci-info'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
 import { getSupportedBrowsers } from '../get-supported-browsers'
@@ -157,15 +146,23 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
         }
       : undefined
   )
-  const buildEventsSpan = trace('turbopack-build-events')
-  // Stop immediately: this span is only used as a parent for
-  // manualTraceChild calls which carry their own timestamps.
-  buildEventsSpan.stop()
   const shutdownController = new AbortController()
   const compilationEvents = backgroundLogCompilationEvents(project, {
-    parentSpan: buildEventsSpan,
+    // Compilation events carry their own timestamps, so they hang directly off
+    // the build rather than a synthetic grouping span.
+    parentSpan: NextBuildContext.nextBuildSpan,
     signal: shutdownController.signal,
   })
+  const runShutdown = async () => {
+    // Shutdown may trigger final compilation events (e.g. persistence,
+    // compaction trace spans).  This is the last chance to capture them.
+    // After shutdown resolves we abort the signal to close the iterator
+    // and drain any remaining buffered events.
+
+    await project.shutdown()
+    shutdownController.abort()
+    await compilationEvents
+  }
 
   try {
     // Write an empty file in a known location to signal this was built with Turbopack
@@ -295,95 +292,15 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
       await project.writeAnalyzeData(appDirOnly)
     }
 
-    // Shutdown may trigger final compilation events (e.g. persistence,
-    // compaction trace spans).  This is the last chance to capture them.
-    // After shutdown resolves we abort the signal to close the iterator
-    // and drain any remaining buffered events.
-    const shutdownPromise = project.shutdown().then(() => {
-      shutdownController.abort()
-      return compilationEvents.catch(() => {})
-    })
-
     const time = process.hrtime(startTime)
     return {
       duration: time[0] + time[1] / 1e9,
       buildTraceContext: undefined,
-      shutdownPromise,
+      shutdownPromise: runShutdown(),
       warnings,
     }
   } catch (err) {
-    await project.shutdown()
-    shutdownController.abort()
-    await compilationEvents.catch(() => {})
+    await runShutdown()
     throw err
   }
-}
-
-let shutdownPromise: Promise<void> | undefined
-export async function workerMain(workerData: {
-  buildContext: typeof NextBuildContext
-  traceState: TraceState & { shouldSaveTraceEvents: boolean }
-}): Promise<
-  Omit<Awaited<ReturnType<typeof turbopackBuild>>, 'shutdownPromise'>
-> {
-  // setup new build context from the serialized data passed from the parent
-  Object.assign(NextBuildContext, workerData.buildContext)
-  initializeTraceState(workerData.traceState)
-
-  /// load the config because it's not serializable
-  const config = await loadConfig(
-    PHASE_PRODUCTION_BUILD,
-    NextBuildContext.dir!,
-    {
-      debugPrerender: NextBuildContext.debugPrerender,
-      reactProductionProfiling: NextBuildContext.reactProductionProfiling,
-      bundler: Bundler.Turbopack,
-    }
-  )
-  NextBuildContext.config = config
-  // Matches handling in build/index.ts
-  // https://github.com/vercel/next.js/blob/84f347fc86f4efc4ec9f13615c215e4b9fb6f8f0/packages/next/src/build/index.ts#L815-L818
-  // Ensures the `config.distDir` option is matched.
-  if (hasCustomExportOutput(NextBuildContext.config)) {
-    NextBuildContext.config.distDir = '.next'
-  }
-
-  // Clone the telemetry for worker
-  const telemetry = new Telemetry({
-    distDir: NextBuildContext.config.distDir,
-  })
-  setGlobal('telemetry', telemetry)
-  // Install bindings early so we can access synchronously later
-  await installBindings(config.experimental?.useWasmBinary)
-
-  try {
-    const {
-      shutdownPromise: resultShutdownPromise,
-      buildTraceContext,
-      duration,
-      warnings,
-    } = await turbopackBuild(telemetry)
-    shutdownPromise = resultShutdownPromise
-    return {
-      buildTraceContext,
-      duration,
-      warnings,
-    }
-  } finally {
-    // Always flush telemetry before worker exits (waits for async operations like setTimeout in debug mode)
-    await telemetry.flush()
-    // Save CPU profile before worker exits
-    await saveCpuProfile()
-  }
-}
-
-export async function waitForShutdown(): Promise<{
-  debugTraceEvents?: ReturnType<typeof getTraceEvents>
-}> {
-  if (shutdownPromise) {
-    await shutdownPromise
-  }
-  // Collect trace events after shutdown completes so that all compilation
-  // events (e.g. persistence trace spans) have been processed.
-  return { debugTraceEvents: getTraceEvents() }
 }
