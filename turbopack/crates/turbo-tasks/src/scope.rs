@@ -4,6 +4,7 @@ use std::{
     any::Any,
     collections::VecDeque,
     marker::PhantomData,
+    num::NonZeroUsize,
     panic::{self, AssertUnwindSafe, catch_unwind},
     sync::{
         Arc,
@@ -97,9 +98,7 @@ impl ScopeInner {
 
     /// Pulls jobs from the shared work queue and runs them until the queue is closed and drained,
     /// recording any panic. Both the opportunistic helper worker tasks and the calling thread (via
-    /// `end_and_help_complete`) run this. Helpers are a pure optimization: whether zero or all of
-    /// them ever get scheduled, the calling thread drains the whole queue by itself, so liveness
-    /// never depends on a helper being scheduled.
+    /// `end_and_help_complete`) run this.
     fn run_jobs(&self) {
         while let Some((index, job)) = self.pick_job_from_work_queue() {
             let result = catch_unwind(AssertUnwindSafe(job));
@@ -112,10 +111,7 @@ impl ScopeInner {
         let mut work_queue = self.work_queue.lock();
         loop {
             if let Some(job) = work_queue.jobs.pop_front() {
-                // If work remains, wake another helper. `parking_lot` notifications are not
-                // latched, so a `notify_one` at enqueue time is lost if no helper was parked yet
-                // (e.g. it was busy running a previous job). Handing off the surplus wakeup here
-                // ensures idle helpers still get pulled in, preserving parallelism.
+                // If work remains, let other threads try to handle it in parallel
                 if !work_queue.jobs.is_empty() {
                     self.work_queue_condition_var.notify_one();
                 }
@@ -132,8 +128,7 @@ impl ScopeInner {
 
     fn end_and_help_complete(&self) {
         // Close the queue and wake every parked drainer once; each will drain any remaining jobs
-        // and then observe `closed` and exit. Closing under the queue lock (paired with `wait`
-        // releasing it atomically) means a drainer cannot park after we close without seeing it.
+        // and then observe `closed` and exit.
         {
             let mut work_queue = self.work_queue.lock();
             work_queue.closed = true;
@@ -152,8 +147,9 @@ pub struct Scope<'scope, 'env: 'scope, R: Send + 'env> {
     index: AtomicUsize,
     inner: Arc<ScopeInner>,
     handle: Handle,
-    /// Max number of opportunistic helper worker tasks to spawn
-    worker_tasks: usize,
+    /// Max number of threads to use, threads are only spawned when needed. The calling thread
+    /// counts towards this budget, so we spawn at most `worker_tasks - 1` helpers.
+    worker_tasks: NonZeroUsize,
     turbo_tasks: Option<Arc<dyn TurboTasksApi>>,
     span: Span,
     /// Invariance over 'env, to make sure 'env cannot shrink, which is necessary for soundness.
@@ -171,13 +167,10 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
     /// The caller must ensure `Scope` is dropped and not forgotten.
     unsafe fn new(results: &'scope [Mutex<Option<R>>]) -> Self {
         let handle = Handle::current();
-        // The calling thread is itself a drainer, so we only need helpers to cover the remaining
-        // work.
-        let worker_tasks = handle
-            .metrics()
-            .num_workers()
-            .min(results.len())
-            .saturating_sub(1);
+        // Never use more threads than there are jobs, and never more than the runtime has workers.
+        // The calling thread always participates, so this is at least 1.
+        let worker_tasks = NonZeroUsize::new(handle.metrics().num_workers().min(results.len()))
+            .unwrap_or(NonZeroUsize::MIN);
         Self {
             results,
             index: AtomicUsize::new(0),
@@ -239,20 +232,14 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
 
         self.inner.remaining_tasks.fetch_add(1, Ordering::Relaxed);
 
-        // Every job goes on the shared work queue, this way work is never assigned to a task that
-        // might never run.  Because we block synchronously on the main thread it is possible that
-        // our spawned tasks cannot find threads to run on this ensures all the work is available to
-        // all threads including the main_thread.
+        // Add to the shared work queue, all threads read from this
         self.inner.work_queue.lock().jobs.push_back((index, f));
-        // This isn't needed for liveness, but optimizes behavior when we have limited threads
-        // available.
+        // If there's currently an idle worker, wake it up
         self.inner.work_queue_condition_var.notify_one();
 
-        // Spawn a tokio worker for each task (except the last spawn call which will be handled by
-        // this thread). Helpers all run the identical `run_jobs` loop pulling from the shared
-        // queue, so nothing here is job-specific; we only clone the span for the workers we
-        // actually spawn.
-        if index < self.worker_tasks {
+        // Spawn a tokio worker for each job until we hit the max `worker_tasks`. The calling thread
+        // covers one slot of the budget, so we spawn at most `worker_tasks - 1` helpers.
+        if index < self.worker_tasks.get() - 1 {
             let inner = self.inner.clone();
             let span = self.span.clone();
             self.handle.spawn(async move {
@@ -315,29 +302,12 @@ mod tests {
 
     use super::*;
 
-    /// Regression test for the deadlock this primitive hit when adopted for parallel consumption of
-    /// a shared worklist (e.g. `gc_collect`) on a thread-limited runtime.
+    /// A scope must make progress even when every runtime worker thread is busy, since the calling
+    /// thread can always drain the shared queue itself.
     ///
-    /// Previously `scope_and_block` sized its worker count from the host cpu count
-    /// (`available_parallelism() - 1`) and handed job indices `1..=WORKER_TASKS` *exclusively* to
-    /// spawned worker tasks — those jobs were never placed on the shared work queue, so *only* a
-    /// spawned worker could run them. A spawned worker runs synchronous code and, once scheduled,
-    /// holds its tokio core without ever yielding it back. When the runtime's worker threads are
-    /// already occupied by other synchronous/blocking work (as happens under GC, which holds a
-    /// global operation lock while other tasks block), the scope's spawned workers can never be
-    /// scheduled onto a core. The jobs assigned to them never run, `remaining_tasks` never reaches
-    /// zero, and the caller blocks forever.
-    ///
-    /// This reproduces it deterministically without risking a hung test process. Every runtime
-    /// worker thread is pinned by a task that blocks synchronously (holding its core, *not* via
-    /// `block_in_place`, so tokio cannot hand the core off), and those tasks are released only
-    /// after a fixed delay. The scope runs on a separate `spawn_blocking` thread. Pre-fix: the jobs
-    /// assigned to spawned workers cannot run until a core frees up, so the scope cannot finish
-    /// before the release delay. Post-fix: every job lives on the shared work queue and the
-    /// caller's own thread drains all of them immediately, so the scope finishes well before the
-    /// release. We assert the scope finished quickly — which fails cleanly (no hang) on the old
-    /// code because the scope thread is still blocked when we check, but the release timer
-    /// guarantees the process still makes progress and exits.
+    /// Every worker thread is pinned by a task blocking synchronously until a release deadline, so
+    /// no helper can be scheduled; we assert the scope still finishes well before that deadline.
+    /// The deadline also guarantees the test fails cleanly instead of hanging.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_scope_worker_threads_occupied() {
         const WORKER_THREADS: usize = 2;
@@ -394,8 +364,8 @@ mod tests {
     }
 
     /// On a `current_thread` runtime there are no worker threads to spawn helpers onto, and
-    /// `block_in_place` is not even allowed. `num_workers()` reports 1, so `worker_tasks` is 0 and
-    /// the main thread drains the entire queue inline — reaching `remaining_tasks == 0` before
+    /// `block_in_place` is not even allowed. `num_workers()` reports 1, so no helpers are spawned
+    /// and the main thread drains the entire queue inline — reaching `remaining_tasks == 0` before
     /// `wait()` would ever call `block_in_place`. This must complete rather than panic or hang.
     #[tokio::test(flavor = "current_thread")]
     async fn test_scope_current_thread_runtime() {
