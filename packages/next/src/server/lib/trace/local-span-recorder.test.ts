@@ -82,7 +82,11 @@ describe('local recording span', () => {
     try {
       const span = runWithRequestInsights(requestInsights, () =>
         runWithRequestInsightsIdentity(
-          { requestId: 'late-request', url: '/late' },
+          {
+            requestId: 'late-request',
+            htmlRequestId: 'late-request',
+            url: '/late',
+          },
           () => createLocalSpan({ name: 'late span' })
         )
       )
@@ -109,7 +113,11 @@ describe('local recording span', () => {
     try {
       const span = runWithRequestInsights(first, () =>
         runWithRequestInsightsIdentity(
-          { requestId: 'first-request', url: '/first' },
+          {
+            requestId: 'first-request',
+            htmlRequestId: 'first-request',
+            url: '/first',
+          },
           () => createLocalSpan({ name: 'first late span' })
         )
       )
@@ -135,7 +143,11 @@ describe('local recording span', () => {
 
     try {
       const span = runWithRequestInsightsIdentity(
-        { requestId: 'unowned-request', url: '/unowned' },
+        {
+          requestId: 'unowned-request',
+          htmlRequestId: 'unowned-request',
+          url: '/unowned',
+        },
         () => createLocalSpan({ name: 'unowned late span' })
       )
 
