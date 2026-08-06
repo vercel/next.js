@@ -29,9 +29,8 @@ struct ScopeInner {
     /// The first panic that occurred in the tasks, by task index.
     /// The usize value is the index of the task.
     panic: Mutex<Option<(Box<dyn Any + Send + 'static>, usize)>>,
-    /// Receiving end of the work queue. Every drainer pulls from this; `recv` blocks while the
-    /// queue is empty and fails once the `Scope`'s sender is dropped, which is what tells drainers
-    /// no more jobs are coming.
+    /// Receiving end of the work queue, shared by every drainer. Dropping the `Scope`'s sender is
+    /// what signals that no more jobs are coming.
     work_queue: Receiver<WorkQueueJob>,
 }
 
@@ -91,8 +90,6 @@ impl ScopeInner {
     /// recording any panic. Both the opportunistic helper worker tasks and the calling thread (via
     /// `Scope::drop`) run this.
     fn run_jobs(&self) {
-        // `recv` blocks while the queue is empty and returns `Err` once the sender is dropped and
-        // the queue is drained, so this ends exactly when there is no more work.
         while let Ok((index, job)) = self.work_queue.recv() {
             let result = catch_unwind(AssertUnwindSafe(job));
             let panic = result.err().map(|e| (e, index));
@@ -108,8 +105,7 @@ pub struct Scope<'scope, 'env: 'scope, R: Send + 'env> {
     results: &'scope [Mutex<Option<R>>],
     index: AtomicUsize,
     inner: Arc<ScopeInner>,
-    /// Sending end of the work queue. This is the only sender, and it is dropped in `Drop` to
-    /// signal the drainers that no more jobs are coming.
+    /// Sending end of the work queue. The only sender; `Drop` takes it to close the queue.
     work_queue: Option<Sender<WorkQueueJob>>,
     handle: Handle,
     /// Max number of threads to use, threads are only spawned when needed. The calling thread
@@ -132,8 +128,7 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
     /// The caller must ensure `Scope` is dropped and not forgotten.
     unsafe fn new(results: &'scope [Mutex<Option<R>>]) -> Self {
         let handle = Handle::current();
-        // Never use more threads than there are jobs, and never more than the runtime has workers.
-        // The calling thread always participates, so this is at least 1.
+        // Never use more threads than there are jobs, or than the runtime has workers.
         let worker_tasks = NonZeroUsize::new(handle.metrics().num_workers().min(results.len()))
             .unwrap_or(NonZeroUsize::MIN);
         let (sender, receiver) = mpmc::channel();
@@ -193,17 +188,16 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
 
         self.inner.remaining_tasks.fetch_add(1, Ordering::Relaxed);
 
-        // Add to the shared work queue, all threads read from this. `inner` holds the receiver and
-        // outlives every drainer, so neither the `expect` nor the `send` can fail; if a job were
-        // ever dropped here `remaining_tasks` would never reach zero and the scope would hang.
+        // Add to the shared work queue, all threads read from this. Neither failure is reachable,
+        // but a job silently dropped here would leave `remaining_tasks` above zero and hang the
+        // scope, so panic instead.
         self.work_queue
             .as_ref()
             .expect("sender is only taken in Drop")
             .send((index, f))
             .expect("receiver is owned by inner and outlives the scope");
 
-        // Spawn a tokio worker for each job until we hit the max `worker_tasks`. The calling thread
-        // covers one slot of the budget, so we spawn at most `worker_tasks - 1` helpers.
+        // Spawn a tokio worker for each job until we hit the max `worker_tasks`.
         if index < self.worker_tasks.get() - 1 {
             let inner = self.inner.clone();
             let span = self.span.clone();
@@ -217,8 +211,7 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
 
 impl<'scope, 'env: 'scope, R: Send + 'env> Drop for Scope<'scope, 'env, R> {
     fn drop(&mut self) {
-        // Dropping the only sender closes the queue: each drainer finishes the jobs still in it
-        // and then sees `recv` fail and exits. This must happen *before* we drain below —
+        // Close the queue by dropping the only sender. This must happen before draining below:
         // `run_jobs` blocks in `recv` until the queue is closed, so a live sender here would hang
         // the scope.
         drop(
@@ -226,8 +219,7 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Drop for Scope<'scope, 'env, R> {
                 .take()
                 .expect("sender is taken exactly once, here in Drop"),
         );
-        // Help drain whatever remains inline, so completion never depends on a helper being
-        // scheduled.
+        // Drain inline so completion never depends on a helper being scheduled.
         self.inner.run_jobs();
         self.inner.wait_and_rethrow_panic();
     }
@@ -236,12 +228,12 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Drop for Scope<'scope, 'env, R> {
 /// Helper method to spawn tasks in parallel, ensuring that all tasks are awaited and errors are
 /// handled. Also ensures turbo tasks and tracing context are maintained across the tasks.
 ///
-/// Jobs are added to a shared work queue and processed by up to `runtime worker threads - 1`
-/// opportunistic helper worker tasks plus the calling thread. The helpers are a pure optimization:
-/// the calling thread drains the whole queue by itself if no helper ever runs, so this does not
-/// deadlock even on a thread-limited runtime or when the worker threads are otherwise occupied.
-/// Jobs must be independent (they must not block waiting on each other), since the degree of real
-/// concurrency is bounded by the runtime's worker threads.
+/// Jobs are added to a shared work queue and processed by the calling thread plus up to
+/// `runtime worker threads - 1` opportunistic helpers. The helpers are a pure optimization — the
+/// calling thread drains the whole queue by itself if none ever runs — so this does not deadlock on
+/// a thread-limited runtime or when the worker threads are otherwise occupied. Jobs must be
+/// independent (they must not block waiting on each other), since the degree of real concurrency is
+/// bounded by the runtime's worker threads.
 ///
 /// Be aware that although this function avoids starving other independently spawned tasks, any
 /// other code running concurrently in the same task will be suspended during the call to
@@ -291,15 +283,13 @@ mod tests {
         const RELEASE_AFTER: Duration = Duration::from_secs(4);
 
         // Pin every runtime worker thread with a task that blocks synchronously (holding its core,
-        // no block_in_place hand-off) until the release deadline. Models threads stuck on other
-        // work while GC runs.
+        // no block_in_place hand-off) until the release deadline.
         let ready = Arc::new(AtomicUsize::new(0));
         let mut occupiers = Vec::with_capacity(WORKER_THREADS);
         for _ in 0..WORKER_THREADS {
             let ready = ready.clone();
             occupiers.push(tokio::spawn(async move {
                 ready.fetch_add(1, Ordering::SeqCst);
-                // Synchronous sleep: holds the core for the whole duration.
                 thread::sleep(RELEASE_AFTER);
             }));
         }
@@ -325,9 +315,6 @@ mod tests {
         results.iter().enumerate().for_each(|(i, &result)| {
             assert_eq!(result, i);
         });
-        // The scope must complete on its own thread without waiting for an occupied core to free
-        // up. On the old code the jobs assigned to spawned workers could not run until an occupier
-        // released its core, so this would take ~RELEASE_AFTER.
         assert!(
             elapsed < RELEASE_AFTER / 2,
             "scope_and_block took {elapsed:?}; it should not depend on an occupied worker thread \
@@ -339,10 +326,8 @@ mod tests {
         }
     }
 
-    /// On a `current_thread` runtime there are no worker threads to spawn helpers onto, and
-    /// `block_in_place` is not even allowed. `num_workers()` reports 1, so no helpers are spawned
-    /// and the main thread drains the entire queue inline — reaching `remaining_tasks == 0` before
-    /// `wait()` would ever call `block_in_place`. This must complete rather than panic or hang.
+    /// On a `current_thread` runtime no helpers can be spawned and `block_in_place` is not allowed,
+    /// so the calling thread must drain the queue inline rather than panicking or hanging.
     #[tokio::test(flavor = "current_thread")]
     async fn test_scope_current_thread_runtime() {
         let results = tokio::task::spawn_blocking(|| {
@@ -361,8 +346,8 @@ mod tests {
         });
     }
 
-    /// Sanity check that helpers actually add parallelism when threads are available: with a pool
-    /// larger than 1, many jobs that each block briefly complete in far less than their serial sum.
+    /// Helpers must actually add parallelism when threads are available: jobs that each block
+    /// briefly should complete in far less than their serial sum.
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn test_scope_runs_in_parallel() {
         const JOBS: usize = 16;
@@ -383,8 +368,8 @@ mod tests {
         .unwrap();
         let elapsed = started.elapsed();
         assert_eq!(results.len(), JOBS);
-        // Serial would be JOBS * PER_JOB = 800ms. With 4 worker threads we expect a meaningful
-        // speedup; assert well under half the serial time to avoid flakiness.
+        // Half the serial time is a loose bound on purpose: 4 threads should beat it comfortably,
+        // so a slow machine won't make this flaky.
         assert!(
             elapsed < (JOBS as u32 * PER_JOB) / 2,
             "scope_and_block took {elapsed:?}; expected parallel speedup across worker threads"
