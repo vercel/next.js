@@ -89,5 +89,13 @@ if (rows[0].route === '') {
     'flightKb',
     'rss',
     'rssHw',
+    'hydrate',
+    'fcp',
+    'script',
+    'task',
+    'nav',
+    'navScript',
+    'navTask',
+    'heapMb',
   ])
 }

@@ -98,6 +98,14 @@ export const METRICS = {
   rss: { unit: 'MB', better: 'lower' },
   heapMb: { unit: 'MB', better: 'lower' },
   rssHw: { unit: 'MB peak', better: 'lower' },
+  // Browser phase (vm-browser-bench.mjs), all under a fixed CPU throttle.
+  hydrate: { unit: 'ms', better: 'lower' },
+  fcp: { unit: 'ms', better: 'lower' },
+  script: { unit: 'ms', better: 'lower' },
+  task: { unit: 'ms', better: 'lower' },
+  nav: { unit: 'ms', better: 'lower' },
+  navScript: { unit: 'ms', better: 'lower' },
+  navTask: { unit: 'ms', better: 'lower' },
 }
 
 // One metric in one phase: per-boot arrays of paired deltas in, verdict out.

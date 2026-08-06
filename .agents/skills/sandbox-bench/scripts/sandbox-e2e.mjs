@@ -19,6 +19,9 @@
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
+import { fileURLToPath } from 'url'
+
+const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url))
 import { analyzeE2eRows, tTestP } from './bench-stats.mjs'
 import { openDb, importRun, loadRows, verify as verifyDb } from './bench-db.mjs'
 import {
@@ -129,6 +132,12 @@ function parseArgs() {
     // KEY=VALUE env exported around bench:render-pipeline (e.g.
     // NEXT_FLIGHT_RENDER=0 to force the byte-tee SSR baseline).
     benchEnv: get('--bench-env', ''),
+    // Timed browser phase per (run, arm): headless Chromium against the
+    // built app, hydration + client-navigation metrics (vm-browser-bench.mjs).
+    // Adds ~2-4 min per run; browser binary is baked into the snapshot.
+    browser: a.includes('--browser'),
+    browserIterations: Number(get('--browser-iterations', '10')),
+    browserThrottle: Number(get('--browser-throttle', '4')),
     label: get('--label', 'e2e'),
   }
 }
@@ -326,7 +335,7 @@ async function ensureExperimentSnapshot(cfg) {
   // snapshot embed the names (/vercel/sandbox/next-<name>), so a snapshot
   // built for the same sha pair under different names has the wrong trees.
   const key = await sha256(
-    SETUP_VERSION + 'exp3' + cfg.arms.map((a) => `${a.name}=${armId(a)}`).join()
+    SETUP_VERSION + 'exp4' + cfg.arms.map((a) => `${a.name}=${armId(a)}`).join()
   )
   let id = await snapshotIdFor(CACHE, key)
   if (id) return id
@@ -465,12 +474,25 @@ ${a.treeCached ? ':' : `echo "PHASE pack-${a.name} $(date +%s)" && tar -czf /ver
 echo "tree ${a.name} ready"`
       )
       .join('\n')
+    // Headless Chromium for the optional timed browser phase. Baked into
+    // the snapshot so measurement VMs boot browser-ready and both arms use
+    // the exact same binary. AL2023 is not covered by playwright's
+    // --with-deps (it assumes apt), so the system libraries are installed
+    // explicitly; the launch smoke test keeps a broken browser from
+    // silently shipping in the snapshot.
+    const browserSetup = `
+echo "PHASE browser $(date +%s)"
+sudo dnf install -y -q nss nspr atk at-spi2-atk cups-libs libdrm libXcomposite libXdamage libXrandr libxkbcommon pango alsa-lib mesa-libgbm libXfixes libXext libX11 glib2 dbus-libs expat >/tmp/dnf.log 2>&1 || (tail -5 /tmp/dnf.log; exit 1)
+cd /vercel/sandbox/next-${cfg.arms[0].name}
+export PLAYWRIGHT_BROWSERS_PATH=/vercel/sandbox/pw-browsers
+pnpm exec playwright install chromium >/tmp/pw.log 2>&1 || (tail -5 /tmp/pw.log; exit 1)
+node -e 'const {chromium}=require("playwright");(async()=>{const b=await chromium.launch({headless:true});const p=await b.newPage();await p.goto("data:text/html,<h1>ok</h1>");if(await p.evaluate(()=>document.querySelector("h1").textContent)!=="ok")throw new Error("render failed");await b.close();console.log("browser smoke ok")})().catch(e=>{console.error(e);process.exit(1)})'`
     await runDetached(
       vm,
       'expsnap',
       `npm i -g pnpm@10.33.0 >/dev/null 2>&1\n` +
         `(while true; do echo "hb mem=$(free -m | awk '/^Mem/{print $3}')MB"; sleep 30; done) & HB=$!\n` +
-        `${extractCached}\n${installs}\n${builds}\n${waits}\n${verifies}\nkill $HB\n` +
+        `${extractCached}\n${installs}\n${builds}\n${waits}\n${verifies}\n${browserSetup}\nkill $HB\n` +
         `echo "PHASE done $(date +%s)"\n` +
         `find /vercel/sandbox -maxdepth 1 -name '*.tgz' ! -name 'tree-*-out.tgz' -delete\necho experiment ready`,
       null,
@@ -562,6 +584,13 @@ async function runVm(index, cfg, expSnap, outDir) {
     '--silent',
   ])
   try {
+    if (cfg.browser) {
+      await sb([
+        'cp',
+        path.join(SCRIPT_DIR, 'vm-browser-bench.mjs'),
+        `${vm}:/vercel/sandbox/browser-bench.mjs`,
+      ])
+    }
     const [base, cand] = cfg.arms.map((a) => a.name)
     const total = cfg.blocks * cfg.runs
     const benchArgs = (extra) =>
@@ -630,6 +659,47 @@ for run in $(seq 1 ${total}); do
     ' "$run" "$arm" "$FP" "$VER" "$CPU" > /tmp/rows.txt
     cat /tmp/rows.txt >> /vercel/sandbox/results.jsonl
     sed 's/^/ROW /' /tmp/rows.txt
+    ${
+      cfg.browser
+        ? `# Timed browser phase: same pairing as the HTTP phases, own port
+    # per arm so a stale server can't be measured as the other arm.
+    if [ "$arm" = "${base}" ]; then BPORT=3730; else BPORT=3731; fi
+    cd /vercel/sandbox/next-$arm/bench/basic-app
+    NEXT_TELEMETRY_DISABLED=1 node ../../packages/next/dist/bin/next start -p $BPORT >/tmp/bsrv.log 2>&1 & BSRV=$!
+    for i in $(seq 1 150); do curl -sf -o /dev/null http://127.0.0.1:$BPORT/ 2>/dev/null && break; kill -0 $BSRV || (tail -5 /tmp/bsrv.log; exit 1); sleep 0.2; done
+    cd /vercel/sandbox/next-$arm
+    PLAYWRIGHT_BROWSERS_PATH=/vercel/sandbox/pw-browsers node /vercel/sandbox/browser-bench.mjs \\
+      --base-url=http://127.0.0.1:$BPORT --routes=${cfg.routes} \\
+      --iterations=${cfg.browserIterations} --warmup=2 --cpu-throttle=${cfg.browserThrottle} \\
+      --tree=/vercel/sandbox/next-$arm --json-out=/tmp/bb.json 2>/tmp/bb.log \\
+      || (tail -20 /tmp/bb.log /tmp/bsrv.log; kill $BSRV 2>/dev/null; exit 1)
+    kill $BSRV 2>/dev/null; wait $BSRV 2>/dev/null || true
+    node -e '
+      const [,run,arm,fp,ver,cpu]=process.argv;
+      const j=require("/tmp/bb.json");
+      for (const r of j.results) {
+        const row={block:+run,arm,run:1,fp,ver,cpu,route:r.route,phase:"browser-load"};
+        // Metrics are OMITTED when absent — a zero would pair against a
+        // real value as a fabricated -100% claim.
+        if (r.load.hydratedMs>0) row.hydrate=r.load.hydratedMs;
+        if (r.load.fcpMs>0) row.fcp=r.load.fcpMs;
+        if (r.load.scriptMs>0) row.script=r.load.scriptMs;
+        if (r.load.taskMs>0) row.task=r.load.taskMs;
+        if (r.load.heapMb>0) row.heapMb=r.load.heapMb;
+        console.log(JSON.stringify(row));
+        if (r.nav) {
+          const nrow={block:+run,arm,run:1,fp,ver,cpu,route:r.route,phase:"browser-nav"};
+          if (r.nav.navMs>0) nrow.nav=r.nav.navMs;
+          if (r.nav.scriptMs>0) nrow.navScript=r.nav.scriptMs;
+          if (r.nav.taskMs>0) nrow.navTask=r.nav.taskMs;
+          console.log(JSON.stringify(nrow));
+        }
+      }
+    ' "$run" "$arm" "$FP" "$VER" "$CPU" > /tmp/brows.txt
+    cat /tmp/brows.txt >> /vercel/sandbox/results.jsonl
+    sed 's/^/ROW /' /tmp/brows.txt`
+        : ':'
+    }
     echo "run $run $arm done"
   done
 done
@@ -767,6 +837,14 @@ function analyze(cfg) {
     'flightKb',
     'rss',
     'rssHw',
+    'hydrate',
+    'fcp',
+    'script',
+    'task',
+    'nav',
+    'navScript',
+    'navTask',
+    'heapMb',
   ])
 }
 

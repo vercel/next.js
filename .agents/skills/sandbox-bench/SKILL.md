@@ -154,6 +154,16 @@ does not measure those edits. Next PRs run the e2e suite only.
   runs by default after the timed runs), `--prepare` (build caches
   only — use when two cells will share an arm, to avoid duplicate
   builds racing).
+- `--browser` (e2e suite) adds a timed headless-Chromium phase per
+  (run, arm): initial-load hydration (`hydrate`, `fcp`, `script`,
+  `task`, `heapMb`) and client-side navigation (`nav`, `navScript`,
+  `navTask` — the browser-side Flight parse path), under a fixed CPU
+  throttle (`--browser-throttle`, default 4x; `--browser-iterations`,
+  default 10 medianed per run). The pinned Chromium is baked into the
+  experiment snapshot so both arms run the same binary. Browser
+  metrics carry the same claim bar as everything else: A/A-validate
+  them on the team/config before first use (run one `--browser` cell
+  with both arms at the same ref and require no significant cells).
 - CPU profiles are captured by default: one profile pass per arm runs
   strictly AFTER the timed runs (it cannot touch the numbers), costs
   ~45-60 min extra VM wall-clock, and lands in `<runDir>/prof-vm<N>/`
