@@ -757,19 +757,20 @@ export function getResolveRoutes(
                 }
               }
 
-              // Strip the variants prefix the adapter added, recovering the
-              // route the request is for. It comes off here because the routing
-              // below matches against the declared route, and before locale
-              // detection because the prefix wraps the entire remaining public
-              // path, locale included.
+              // This removes the variants prefix the adapter added, and gives
+              // back the route the request is for. It comes off here because
+              // the routing below matches against the declared route, and
+              // before locale detection because the prefix contains the whole
+              // remaining public path, the locale included.
               //
-              // The hash the prefix carries moves into the query as it comes
-              // off, because the route module that renders the request is what
-              // needs it and this strips the only other place it was written. A
-              // deployed request arrives with the same query parameter already
-              // set, by the routing rule that matched the prefix or by the
-              // platform's own matcher lifting the capture group, so the
-              // renderer reads one channel rather than one per mode.
+              // The hash the prefix carries moves into the query as the prefix
+              // comes off. The route module that renders the request is what
+              // needs the hash, and this code removes the only other place it
+              // was written. A deployed request arrives with the same query
+              // parameter already set, either by the routing rule that matched
+              // the prefix or by the matcher of the platform, which moves the
+              // capture group into the query. The renderer therefore reads one
+              // channel, and not one channel per mode.
               if (normalizers.variants) {
                 const variantsHash = readVariantsPrefixHash(
                   parsedUrl.pathname || '',

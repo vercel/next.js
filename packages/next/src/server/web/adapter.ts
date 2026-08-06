@@ -106,21 +106,21 @@ export type AdapterOptions = {
   incrementalCacheHandler?: typeof import('../lib/incremental-cache').CacheHandler
   bypassNextUrl?: boolean
   /**
-   * The combinations each route declared, supplied by the entry that loaded it
-   * from disk. Absent for an edge proxy, which has no filesystem, and for a
-   * project without variants.
+   * The combinations each route declared. The entry that loaded them from disk
+   * supplies them. They are absent for an edge proxy, which has no filesystem,
+   * and for a project without variants.
    */
   variantsManifest?: VariantsManifest
 }
 
 /**
- * The combination a request matched for the route that will render it, or null
- * when it matched none.
+ * The combination a request matched, for the route that will render it. The
+ * result is null when the request matched none.
  *
- * Null covers three cases that are the same to a caller: the route declared no
- * combinations, the resolved values match none it declared, or nothing was
- * loaded to match against. Each means no artifact is named by these values, so
- * the request is served the one that bakes no variant.
+ * Null covers three cases that are the same to a caller. The route declared no
+ * combination, or the resolved values match none it declared, or nothing was
+ * loaded to match against. In each case these values name no artifact, so the
+ * server sends the request the artifact that contains no variant value.
  */
 function matchVariantsForTarget(
   manifest: VariantsManifest | undefined,
@@ -147,14 +147,14 @@ function matchVariantsForTarget(
 }
 
 /**
- * Re-encodes the resolved values without the ones the matched combination
- * already fixes, or null when it fixes all of them.
+ * Encodes the resolved values again, without the ones the matched combination
+ * already fixes. The result is null when the combination fixes all of them.
  *
- * What the combination assigns is recorded in the build and recovered at the
- * origin from the hash in the path, so carrying it in the header too would send
- * the same decision twice over a channel that does not always survive. What is
- * left is the part no artifact can stand for, and it is the only part a render
- * cannot obtain any other way.
+ * The build records what the combination assigns, and the origin recovers it
+ * from the hash in the path. To carry it in the header as well would send the
+ * same decision twice, over a channel that does not always survive. What
+ * remains is the part no artifact can stand for, and it is the only part a
+ * render cannot obtain in another way.
  */
 function encodeUndeclaredVariants(
   variants: Record<string, string>,
@@ -205,14 +205,15 @@ function ensureTestApisIntercepted() {
 }
 
 /**
- * Adds one request header override to a middleware response, keeping whatever
- * the user's proxy already overrode.
+ * Adds one request header override to a middleware response, and keeps whatever
+ * the proxy of the user already overrode.
  *
- * `x-middleware-override-headers` is not a list of additions: it names the
- * complete set of request headers the origin should see, and anything unnamed
- * is dropped. So when the proxy overrode nothing, every incoming header has to
- * be named here to survive, which is exactly what `NextResponse.next({ request
- * })` does when user code takes this path.
+ * `x-middleware-override-headers` is not a list of additions. It names the
+ * complete set of request headers the origin is to see, and the origin drops
+ * any header the list does not name. Therefore, when the proxy overrode
+ * nothing, this function must name every incoming header for it to survive.
+ * `NextResponse.next({ request })` does the same when user code takes this
+ * path.
  */
 function setRequestHeaderOverride(
   response: Response,
@@ -243,8 +244,8 @@ function setRequestHeaderOverride(
     )
   }
 
-  // Written last so that this value wins over an incoming header of the same
-  // name, whichever branch above enumerated it.
+  // This is written last, so that the value replaces an incoming header of the
+  // same name, whichever branch above named it.
   response.headers.set(`x-middleware-request-${name}`, value)
 }
 
@@ -601,33 +602,34 @@ export async function adapter(
   }
 
   /**
-   * Apply variant decoration last, deliberately: the rewrite headers the client
-   * router reads are computed above against the *undecorated* destination, so
-   * it still sees the real route. Were the prefix applied earlier, the router
-   * would see a rewrite to a different route structure, stop using the route
-   * for prediction, and mis-parse its params.
+   * This code adds the variant prefix last, and does so deliberately. The code
+   * above computes the rewrite headers the client router reads against the
+   * undecorated destination, so the router still sees the real route. If the
+   * prefix went on earlier, the router would see a rewrite to a different route
+   * structure, would stop using the route for prediction, and would parse its
+   * params wrongly.
    *
-   * `x-middleware-rewrite` does end up carrying the prefix, because it is the
-   * internal protocol header that tells routing which path to serve. Nothing on
-   * the client reads it.
+   * `x-middleware-rewrite` does carry the prefix, because it is the internal
+   * protocol header that tells routing which path to serve. Nothing on the
+   * client reads that header.
    *
-   * The path receives only the hash of the combination the request *matched*,
+   * The path receives only the hash of the combination the request matched,
    * which is what names the artifact to serve.
    *
-   * Only the values that hash covers are left out of the header. The origin
-   * recovers those from the build's own record of the combination, so sending
-   * them again would be a second copy of something already decided, and a
-   * request rebuilt from an artifact carries no header at all yet still has to
-   * resolve them. What the hash cannot express does travel, because a variant
-   * nobody declared has no other way to reach the render.
+   * The header omits only the values that hash covers. The origin recovers
+   * those from the record the build made of the combination, so to send them
+   * again would be a second copy of a decision already made. A request rebuilt
+   * from an artifact carries no header at all, and still has to resolve them.
+   * What the hash cannot express does travel, because a variant nobody declared
+   * has no other way to reach the render.
    *
-   * A route whose every read is declared therefore sends no header once it
-   * matches, and that absence is meaningful: it says the request is one a
-   * prerender can serve.
+   * A route that declares every variant it reads therefore sends no header once
+   * it matches. That absence is meaningful: it says that a prerender can serve
+   * the request.
    *
-   * The wrapper hands the values over as a *response* header, which is dropped
-   * here in favour of the request header override, so that they reach the
-   * origin without also reaching the CDN or the browser.
+   * The wrapper passes the values as a response header. This code drops that
+   * header and uses the request header override instead, so that the values
+   * reach the origin without also reaching the CDN or the browser.
    */
   if (response) {
     const encodedVariants = response.headers.get(NEXT_VARIANTS_HEADER)
@@ -635,9 +637,9 @@ export async function adapter(
     if (encodedVariants) {
       response.headers.delete(NEXT_VARIANTS_HEADER)
 
-      // An external rewrite is served by another origin, which knows nothing
-      // about the prefix and will not strip it, so leave it undecorated. The
-      // variant values are simply dropped: no route of ours renders this
+      // Another origin serves an external rewrite. That origin knows nothing
+      // about the prefix and will not remove it, so the path stays plain. This
+      // code drops the variant values, because no route of ours renders such a
       // request.
       const target = getProxyTarget(requestURL, response)
       const resolvedVariants = decodeVariants(encodedVariants)

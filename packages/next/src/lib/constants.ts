@@ -6,19 +6,19 @@ export const JSON_CONTENT_TYPE_HEADER = 'application/json; charset=utf-8'
 export const NEXT_QUERY_PARAM_PREFIX = 'nxtP'
 export const NEXT_INTERCEPTION_MARKER_PREFIX = 'nxtI'
 /**
- * Carries the variant combination a request resolved to, as a capture group in
- * the routing rules the build emits and therefore as a cache key input for a
- * CDN that keys on them.
+ * Carries the variant combination a request resolved to. It is a capture group
+ * in the routing rules the build emits, and therefore an input to the cache key
+ * of a CDN that keys on those groups.
  *
- * Deliberately not `nxtP`-prefixed: that prefix means "route param", and
- * `normalizeNextQueryParam` would turn this into a param named `variants`. This
- * names no param, only the combination.
+ * The name deliberately does not use the `nxtP` prefix. That prefix means route
+ * param, and `normalizeNextQueryParam` would turn this into a param named
+ * `variants`. This names no param, only the combination.
  *
  * It is also how the combination reaches the origin, which recovers the values
- * it stands for from the build's own record of it. That makes this the one
- * channel a request rebuilt from an artifact still arrives on, since such a
- * request carries no headers of ours. The route module removes it from the
- * query once read, so it never reaches a page's `searchParams`.
+ * it stands for from the record the build made of it. That makes this the one
+ * channel a request rebuilt from an artifact still arrives on, because such a
+ * request carries no header of ours. The route module removes it from the query
+ * once it has read it, so it never reaches the `searchParams` of a page.
  */
 export const NEXT_VARIANTS_QUERY_PARAM = 'nxtV'
 
@@ -36,9 +36,10 @@ export const NEXT_META_SUFFIX = '.meta'
 export const NEXT_BODY_SUFFIX = '.body'
 
 /**
- * Marker segment introducing a variant combination's hash in an internal
- * pathname, e.g. `/__variants/1u0zqp3/blog/my-post`. Produced by the edge
- * adapter and stripped again before route resolution; never user-visible.
+ * The marker segment that introduces the hash of a variant combination in an
+ * internal pathname, for example `/__variants/1u0zqp3/blog/my-post`. The edge
+ * adapter produces it, and routing removes it again before route resolution.
+ * The user never sees it.
  */
 export const VARIANTS_PATH_PREFIX = '__variants'
 
@@ -61,48 +62,51 @@ export const VARIANTS_PATH_PREFIX = '__variants'
 export const VARIANTS_NOT_ROUTED_PATH = `${VARIANTS_PATH_PREFIX}-not-routed`
 
 /**
- * Carries the resolved variant values, encoded, so that the path only has to
- * carry a hash of them. A hash cannot be read back, and a render needs the
- * values: this is what lets a combination nobody enumerated still render.
+ * Carries the resolved variant values, encoded, so that the path has to carry
+ * only a hash of them. Nothing can read a hash back, and a render needs the
+ * values. This header is what lets a combination nobody enumerated still
+ * render.
  *
  * It takes two hops under one name, because it is one value with one meaning.
- * The proxy wrapper sets it on its response, and the edge adapter re-emits it
- * as a request header override on the way to the origin. The adapter is also
- * where the hash enters the path, and it has to be the adapter rather than the
- * wrapper: the client-facing rewrite headers are computed from the undecorated
- * destination, so decorating any earlier would show the client a rewrite to a
- * different route structure and stop it using the route for prediction.
+ * The proxy wrapper sets it on its response, and the edge adapter sends it
+ * again as a request header override on the way to the origin. The adapter is
+ * also where the hash enters the path, and that must be the adapter and not the
+ * wrapper. The rewrite headers the client reads are computed from the
+ * undecorated destination, so an earlier prefix would show the client a rewrite
+ * to a different route structure, and the client would stop using the route for
+ * prediction.
  *
  * The `x-next-internal-` prefix is what makes this safe to trust on arrival.
- * Headers carrying it are reserved for the deployment's own routing layer:
- * whatever sits in front of the origin is expected to strip them from incoming
- * client requests before routing, so that a client cannot present itself as
- * having resolved a variant. `filterInternalHeaders` does the same when
- * self-hosting. Forwarding it onward is opt-in, which is what listing it in a
- * route's `allowHeader` asks for.
+ * Headers with that prefix are reserved for the routing layer of the
+ * deployment. Whatever sits in front of the origin is expected to remove them
+ * from incoming client requests before routing, so that a client cannot present
+ * itself as having resolved a variant. `filterInternalHeaders` does the same
+ * when self-hosting. To forward the header onward is opt-in, which is what a
+ * route asks for when it lists the header in `allowHeader`.
  */
 export const NEXT_VARIANTS_HEADER = 'x-next-internal-variants'
 
 /**
- * Asserts that the variants prefix on this request's path was written by the
- * proxy rather than supplied by whoever made the request.
+ * States that the proxy wrote the variants prefix on the path of this request,
+ * and that whoever made the request did not supply it.
  *
- * A prefixed path is where the prerender for one combination lives, and an
- * artifact's path is reachable whether or not any route names it, so the prefix
- * cannot simply be treated as internal. Without this, a client could name a
- * combination and be served it, which for a variant the server decides is the
- * thing the variant exists to prevent, and a combination nobody declared would
- * invent a cache entry for every value it was given. Knowing a valid hash does
- * not help, because the assertion is about who routed the request rather than
- * about the hash being secret.
+ * A prefixed path is where the prerender for one combination is, and a client
+ * can request the path of an artifact even if no route names it. Therefore the
+ * prefix cannot be treated as internal on its own. Without this header, a
+ * client could name a combination and be served it, which for a variant the
+ * server decides is the thing the variant exists to prevent. A combination
+ * nobody declared would also create one cache entry for each value it was
+ * given. To know a valid hash does not help an attacker, because this header
+ * states who routed the request, and does not depend on the hash being secret.
  *
- * Trustworthy on arrival for the same reason `NEXT_VARIANTS_HEADER` is: the
- * `x-next-internal-` prefix is reserved for the deployment's own routing layer
- * and stripped from incoming client requests before routing sees them.
+ * It is trustworthy on arrival for the same reason `NEXT_VARIANTS_HEADER` is.
+ * The `x-next-internal-` prefix is reserved for the routing layer of the
+ * deployment, and such headers are removed from incoming client requests before
+ * routing sees them.
  *
- * Separate from `NEXT_VARIANTS_HEADER` because that one is absent exactly when
- * a combination matched and covered every variant its route reads, which is the
- * case this most needs to admit.
+ * It is separate from `NEXT_VARIANTS_HEADER` because that header is absent
+ * exactly when a combination matched and covered every variant its route reads,
+ * and that is the case this one most needs to admit.
  */
 export const NEXT_VARIANTS_PREFIX_HEADER = 'x-next-internal-variants-prefix'
 

@@ -2,42 +2,44 @@ import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import { hashVariants } from './hash'
 
 /**
- * One declared combination: which values it assigns, and the hash naming the
- * prerender produced for it.
+ * One declared combination. It holds the values the combination assigns, and
+ * the hash that names the prerender produced for it.
  */
 export interface VariantCombination {
   /**
-   * Names the combination's prerender. Membership in a group is what makes a
-   * request's combination one that was declared.
+   * Names the prerender of this combination. The combination a request resolves
+   * is a declared one when a group contains its hash.
    */
   hash: string
   /**
-   * The values assigned, positional against the group's `keys`.
+   * The values assigned. They are positional against the `keys` of the group.
    */
   values: string[]
 }
 
 /**
- * The declared combinations that assign one particular set of variants. A
- * combination need not assign every variant the route reads, so a route can
- * declare several groups: `[[theme, 'dark']]` and `[[theme, 'light'], [locale,
- * 'de']]` are two, and the variants a group leaves out stay dynamic holes in
- * the prerenders it produces.
+ * The declared combinations that assign one particular set of variants.
+ *
+ * A combination does not have to assign every variant that the route reads.
+ * Therefore a route can declare several groups. For example, `[[theme,
+ * 'dark']]` and `[[theme, 'light'], [locale, 'de']]` are two groups. The
+ * variants a group leaves out stay dynamic holes in the prerenders it produces.
  */
 export interface VariantCombinationGroup {
   /**
-   * The variant identities every combination in this group assigns, sorted, so
-   * that the group is identified by its shape rather than by declaration order.
+   * The variant identities that every combination in this group assigns. They
+   * are sorted, so that the shape of the group identifies it, and not the order
+   * of declaration.
    */
   keys: string[]
   /**
    * Every combination declared for this shape.
    *
-   * The values are carried rather than only their hashes because a request does
-   * not always arrive with values beside it. A platform filling or revalidating
-   * a prerender rebuilds the request from the artifact, and all that survives
-   * that is the hash in the path. What a declared combination assigns is fixed
-   * at build time, so the origin can recover it here instead of depending on
+   * This holds the values, and not only their hashes, because a request does
+   * not always arrive with values beside it. When a platform fills or
+   * revalidates a prerender, it rebuilds the request from the artifact, and
+   * only the hash in the path survives. What a declared combination assigns is
+   * fixed at build time, so the origin recovers it here, and does not depend on
    * the request to carry it.
    */
   combinations: VariantCombination[]
@@ -52,13 +54,15 @@ export type VariantCombinationGroups = VariantCombinationGroup[]
 /**
  * Groups a route's declared combinations by the variants they assign.
  *
- * Grouping is what lets a request be matched without scanning: the group's keys
- * say which of the request's values to consider, and the combination count
- * never enters the comparison. Ordering is most specific first, because a
- * combination that assigns more variants leaves fewer holes, so when two of
- * them match one request the larger one is the better prerender to serve.
+ * The groups are what let a request be matched without a scan. The keys of a
+ * group say which of the values of the request to consider, and the number of
+ * combinations never enters the comparison. The order is most specific first,
+ * because a combination that assigns more variants leaves fewer holes.
+ * Therefore when two combinations match one request, the larger one is the
+ * better prerender to serve.
  *
- * Done at build time so the runtime neither groups nor sorts per request.
+ * This runs at build time, so the runtime does not group or sort for each
+ * request.
  */
 export function groupVariantCombinations(
   combinations: ReadonlyArray<Record<string, string>>
@@ -88,12 +92,12 @@ export function groupVariantCombinations(
 }
 
 /**
- * A group's combinations by hash, with the values zipped back against the
- * group's keys, built once per group rather than per request.
+ * The combinations of a group by hash, with each value paired again with the
+ * key at its position. Built once per group, and not once per request.
  *
- * The groups arrive as JSON from the prerender manifest, which is read once per
- * server, so the group objects are stable enough to key on and rebuilding this
- * for every request would defeat the point of storing the combinations at all.
+ * The groups are JSON from the prerender manifest, which the server reads once,
+ * so the group objects are stable enough to key on. To rebuild this for every
+ * request would defeat the purpose of storing the combinations at all.
  */
 const combinationsByGroup = new WeakMap<
   DeepReadonly<VariantCombinationGroup>,
@@ -125,19 +129,19 @@ function getCombinations(
 }
 
 /**
- * Finds the combination a request was prerendered against, or null when it was
- * prerendered against none.
+ * Finds the combination a request was prerendered against. The result is null
+ * when the request was prerendered against none.
  *
- * The values a request resolved cannot be hashed as they are: they include
- * every variant the proxy resolved, while a declared combination only assigns
- * some, so the two hashes would never agree. Each group's keys are what say
- * which values to project onto before hashing, and they come from the build,
- * which is what makes the projection possible before anything is known about
- * which variants are dynamic.
+ * The values a request resolved cannot be hashed as they are. They include
+ * every variant the proxy resolved, and a declared combination assigns only
+ * some of them, so the two hashes would never agree. The keys of each group say
+ * which values to select before hashing. Those keys come from the build, which
+ * is what makes the selection possible before anything knows which variants are
+ * dynamic.
  *
- * The result therefore answers both questions a render has: its `values` are
- * the ones baked into the prerender, and every other resolved variant is a
- * hole. A null result means all of them are.
+ * The result therefore answers both questions a render has. Its `values` are
+ * the ones the prerender contains, and every other resolved variant is a hole.
+ * A null result means that all of them are holes.
  */
 export function findMatchingVariantCombination(
   groups: DeepReadonly<VariantCombinationGroups>,
@@ -150,8 +154,8 @@ export function findMatchingVariantCombination(
     for (const key of group.keys) {
       const value = resolved[key]
 
-      // A group assigning a variant this request never resolved cannot describe
-      // it, so there is nothing to project and the group is skipped.
+      // A group that assigns a variant this request never resolved cannot
+      // describe the request. There is nothing to select, so skip the group.
       if (value === undefined) {
         assignsEveryKey = false
         break
@@ -175,15 +179,16 @@ export function findMatchingVariantCombination(
 }
 
 /**
- * Recovers a declared combination from the hash that names it, or null when the
- * hash names none of this route's combinations.
+ * Recovers a declared combination from the hash that names it. The result is
+ * null when the hash names no combination of this route.
  *
- * This is how the origin learns what a request's artifact bakes. The hash
- * travels in the path and survives everything, including a request a platform
- * rebuilt from the artifact rather than routed, whereas the values travel in a
- * header that such a request does not carry. Since only a declared combination
- * ever reaches a hash, going through the build's own record of them is both
- * sufficient and the one answer that cannot disagree with what was prerendered.
+ * This is how the origin learns what the artifact of a request contains. The
+ * hash travels in the path and survives everything, including a request that a
+ * platform rebuilt from the artifact instead of routing it. The values travel
+ * in a header, and such a request does not carry one. Only a declared
+ * combination ever reaches a hash, so the record the build made of them is
+ * sufficient here, and it is the one answer that cannot disagree with what was
+ * prerendered.
  */
 export function findVariantCombinationByHash(
   groups: DeepReadonly<VariantCombinationGroups>,
@@ -193,8 +198,8 @@ export function findVariantCombinationByHash(
     const values = getCombinations(group).get(hash)
 
     if (values) {
-      // Copied because the map is shared across requests and what a render
-      // receives should not be able to alter what the next one does.
+      // Copied, because requests share the map. What one render receives must
+      // not change what the next render receives.
       return { values: { ...values }, hash }
     }
   }
@@ -204,16 +209,17 @@ export function findVariantCombinationByHash(
 
 /**
  * Separates the variants a request resolved into the ones a prerender for it
- * fixes and the ones no prerender can.
+ * fixes, and the ones no prerender can fix.
  *
- * The split is what stores are seeded from, so that a render is given only what
- * it may bake: a static prerender receives the first half and nothing else, and
- * a variant it must not bake becomes one it does not have.
+ * The stores are seeded from this split, so that a render receives only what it
+ * may contain. A static prerender receives the first half and nothing else, and
+ * a variant it must not contain becomes a variant it does not have.
  *
- * The halves come from different places, so neither implies the other. The
+ * The two halves come from different places, and neither implies the other. The
  * fixed half is the combination the build declared, recovered from the hash
- * naming the artifact; the rest is whatever else the request carried. A render
- * rebuilt from an artifact carries nothing, and still has a fixed half.
+ * that names the artifact. The rest is whatever else the request carried. A
+ * render rebuilt from an artifact carries nothing, and it still has a fixed
+ * half.
  */
 export function splitVariantsByTier(
   resolved: Readonly<Record<string, string>> | undefined,

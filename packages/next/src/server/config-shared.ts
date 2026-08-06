@@ -550,9 +550,9 @@ export interface ExperimentalConfig {
   varyParams?: boolean
 
   /**
-   * Enables variants: values resolved per request (from cookies, headers, or a
-   * flags service) that a route can be prerendered against, in addition to its
-   * route params. Turbopack only.
+   * Enables variants. A variant is a value resolved for each request, from
+   * cookies, headers, or a flags service, that a route can be prerendered
+   * against, in addition to its route params. Turbopack only.
    */
   variants?: boolean
   prefetchInlining?:

@@ -18,25 +18,26 @@ type ProxyResult = Response | undefined | null | void
 type UserProxy = (request: NextRequest) => ProxyResult | Promise<ProxyResult>
 
 /**
- * Wraps the user's proxy so that variants are resolved for each request.
+ * Wraps the proxy of the user, so that variants are resolved for each request.
  *
- * The user's proxy runs *first*, because its rewrite determines which route
- * will actually be served, and therefore which variants apply. `userProxy` is
- * absent when the project has no `proxy.ts`; that is simply the empty case, so
- * nothing is synthesized to stand in for it.
+ * The proxy of the user runs first, because its rewrite decides which route
+ * will be served, and therefore which variants apply. `userProxy` is absent
+ * when the project has no `proxy.ts`. That is the empty case, and nothing is
+ * synthesized to stand in for it.
  *
- * Resolved values are handed to the edge adapter through `NEXT_VARIANTS_HEADER`
- * rather than applied here, so that the adapter can compute the client-facing
- * rewrite headers against the honest destination before decorating it.
+ * This function hands the resolved values to the edge adapter in
+ * `NEXT_VARIANTS_HEADER`, and does not apply them here. The adapter can then
+ * compute the rewrite headers the client reads against the true destination,
+ * before it adds the prefix to that destination.
  *
  * TODO(variants): resolution belongs in the edge adapter, which already derives
- * the target and matches it against the declared combinations. It lives here
- * only while `decide` still takes the request. Once it takes `params` instead,
- * resolving a variant needs the route match that produces them, and doing that
- * here would mean matching the route and extracting its params in the proxy
- * wrapper while the adapter does the same thing immediately afterwards. At that
- * point this function keeps only the user's proxy and hands the table through,
- * and the response-header round trip below goes away with it.
+ * the target and matches it against the declared combinations. It is here only
+ * while `decide` still takes the request. Once `decide` takes `params`,
+ * resolving a variant needs the route match that produces them. To do that here
+ * would mean matching the route and extracting its params in this wrapper,
+ * while the adapter does the same work immediately afterwards. At that point
+ * this function keeps only the proxy of the user and passes the table through,
+ * and the response header below goes away with it.
  */
 export function wrapProxy(
   variantsByRoute: VariantsByRoute,
@@ -48,9 +49,10 @@ export function wrapProxy(
     const response =
       (userProxy ? await userProxy(request) : undefined) ?? NextResponse.next()
 
-    // A redirect means no route of ours renders this request, so there is no
-    // variant to resolve. A *rewrite* is not skipped: the rewritten route is
-    // the one that will be served, and the adapter decorates that destination.
+    // A redirect means that no route of ours renders this request, so there is
+    // no variant to resolve. A rewrite is different, and this code does not
+    // skip it: the rewritten route is the one that will be served, and the
+    // adapter adds the prefix to that destination.
     if (
       response.headers.has('x-middleware-redirect') ||
       response.headers.has('location')
@@ -85,11 +87,12 @@ export function wrapProxy(
 }
 
 /**
- * Resolves the given variants into their transport encoding, or `null` when
- * there are none.
+ * Resolves the given variants into their transport encoding. The result is
+ * `null` when there are none.
  *
- * Values are validated here, where they are produced, so that a rejected value
- * names the variant that produced it rather than failing later during routing.
+ * This function validates each value where it is produced, so that a rejected
+ * value names the variant that produced it. Otherwise the failure would come
+ * later, during routing.
  */
 async function resolveVariants(
   variants: ReadonlyArray<Variant>,

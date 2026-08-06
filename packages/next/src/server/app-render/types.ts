@@ -209,16 +209,16 @@ export interface RenderOptsPartial {
 
   /**
    * The variant combination this render may treat as fixed, keyed by variant
-   * identity. At build time this is the export task's declared combination; at
-   * request time it is the combination the request matched. Absent for every
-   * render that has nothing to do with variants.
+   * identity. At build time it is the combination the export task declared. At
+   * request time it is the combination the request matched. It is absent for
+   * every render that has no variants.
    */
   staticVariants?: Record<string, string> | null
 
   /**
    * The variants this request resolved that no declared combination fixes, and
-   * which therefore no output may bake. Absent at build time, where there is no
-   * request to resolve them from.
+   * that therefore no output may contain. They are absent at build time, where
+   * there is no request to resolve them from.
    */
   runtimeVariants?: Record<string, string> | null
 

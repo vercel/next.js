@@ -1,18 +1,19 @@
 import { djb2Hash } from '../../shared/lib/hash'
 
 /**
- * Serializes a variant combination canonically, as its entries sorted by
- * variant identity and rendered as JSON.
+ * Serializes a variant combination to a canonical form. The entries are sorted
+ * by variant identity and written as JSON.
  *
- * JSON rather than `key=value&…` because values are no longer restricted to a
- * charset that excludes the delimiters: they travel in a header now, not in a
- * path segment. A pair-array form stays unambiguous for any string, so two
- * different combinations cannot serialize alike and collide onto one prerender.
+ * The form is JSON and not `key=value&…`, because a value can contain a
+ * delimiter. Values travel in a header now, not in a path segment, so they are
+ * no longer restricted to a charset that excludes one. An array of pairs stays
+ * unambiguous for any string. Therefore two different combinations cannot
+ * serialize to the same text and collide on one prerender.
  *
- * Sorting by identity rather than accepting the order the values arrive in
- * matters because a module namespace orders its exports by export name, and
- * that is not the same order once each name is qualified with its module path:
- * `theme2@b.ts` sorts before `theme@a.ts`, while `theme` sorts before `theme2`.
+ * The entries are sorted by identity, and not left in the order they arrive in.
+ * A module namespace orders its exports by export name, and that order changes
+ * when each name is qualified with its module path. For example, `theme2@b.ts`
+ * sorts before `theme@a.ts`, but `theme` sorts before `theme2`.
  */
 export function canonicalizeVariants(variants: Record<string, string>): string {
   return JSON.stringify(
@@ -23,31 +24,32 @@ export function canonicalizeVariants(variants: Record<string, string>): string {
 }
 
 /**
- * Hashes a combination's canonical form. Every hash goes through here so that
- * the callers below cannot drift apart: the build names files by hashing
- * values, the adapter names paths by hashing the transport form, and a
- * disagreement would mean a request looking up a prerender that exists under
- * another name.
+ * Hashes the canonical form of a combination.
  *
- * `djb2Hash` rather than a `node:crypto` digest because it is pure JavaScript
- * and therefore available wherever a cache key is composed, including the edge
- * runtime. It returns an unsigned 32-bit integer, so base 36 yields `[0-9a-z]+`
- * with no sign, which is what lets the prefix be recognized by shape.
+ * Every hash goes through this function, so that the callers cannot disagree.
+ * The build names files by hashing values, and the adapter names paths by
+ * hashing the transport form. If the two disagreed, a request would look up a
+ * prerender that exists under another name.
+ *
+ * The function uses `djb2Hash` and not a `node:crypto` digest. `djb2Hash` is
+ * pure JavaScript, and is therefore available wherever a cache key is composed,
+ * including the edge runtime. It returns an unsigned 32-bit integer, so base 36
+ * gives `[0-9a-z]+` with no sign. That is what lets other code recognize the
+ * prefix by its shape.
  */
 function hashCanonicalVariants(canonical: string): string {
   return djb2Hash(canonical).toString(36)
 }
 
 /**
- * Hashes a variant combination into the segment that identifies it, used both
- * in the request path and in the prerender's path on disk.
+ * Hashes a variant combination into the segment that identifies it. The segment
+ * is used in the request path and in the path of the prerender on disk.
  *
- * The values themselves cannot be used: a combination's length is unbounded
- * whereas a path segment is not, and the value charset would have to exclude
- * everything illegal in a filename on every platform. The digest is never
- * reversed — the values reach the origin through `NEXT_VARIANTS_HEADER`
- * instead, which is what allows a combination nobody enumerated to still
- * render.
+ * The values cannot be used directly. A combination has no length limit, but a
+ * path segment does, and the value charset would have to exclude every
+ * character that is illegal in a filename on any platform. Nothing reverses the
+ * digest. The values reach the origin in `NEXT_VARIANTS_HEADER` instead, which
+ * is what lets a combination that nobody enumerated still render.
  */
 export function hashVariants(variants: Record<string, string>): string {
   return hashCanonicalVariants(canonicalizeVariants(variants))
@@ -56,9 +58,9 @@ export function hashVariants(variants: Record<string, string>): string {
 /**
  * Encodes a combination for transport in `NEXT_VARIANTS_HEADER`.
  *
- * Percent-encoding rather than base64 so the result is ASCII-safe for a header
- * value without needing `Buffer`, which is unavailable on the edge runtime
- * where the proxy runs.
+ * The function uses percent-encoding and not base64. The result is then safe
+ * ASCII for a header value, and the function does not need `Buffer`, which the
+ * edge runtime that the proxy runs on does not have.
  */
 export function encodeVariants(variants: Record<string, string>): string {
   return encodeURIComponent(canonicalizeVariants(variants))
@@ -67,11 +69,10 @@ export function encodeVariants(variants: Record<string, string>): string {
 /**
  * Reverses `encodeVariants`.
  *
- * Returns null rather than throwing for anything malformed. The header is
- * internal and unforgeable from outside, so a bad value means a bug on our side
- * rather than hostile input, and a reader that reports the variant as
- * unresolved gives a better error than a parse failure deep in the request
- * pipeline.
+ * The function returns null for malformed input, and does not throw. The header
+ * is internal, and a client cannot set it, so a bad value is a bug on our side
+ * and not hostile input. A reader that reports the variant as unresolved gives
+ * a better error than a parse failure deep in the request pipeline.
  */
 export function decodeVariants(encoded: string): Record<string, string> | null {
   let parsed: unknown

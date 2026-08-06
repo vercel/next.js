@@ -16,15 +16,15 @@ import {
 } from '../app-render/work-unit-async-storage.external'
 
 /**
- * Carries the variant's identity: `<exportName>@<modulePath>`, with `/` in the
- * module path written as `~` (and a literal `~` doubled) so that the identity
- * is a single flat token.
+ * Carries the identity of the variant, in the form `<exportName>@<modulePath>`.
+ * A `/` in the module path is written as `~`, and a literal `~` is doubled, so
+ * that the identity is one flat token.
  *
- * e.g. `theme@variants.ts`, `newNav@src~lib~flags.ts`.
+ * For example: `theme@variants.ts`, `newNav@src~lib~flags.ts`.
  *
- * The escaping is write-only: nothing reverses it, so the identity is an opaque
- * string to every consumer and is used verbatim in the store, the emit data,
- * and the manifest. That is what avoids needing a mapping table anywhere.
+ * The escaping is write-only. Nothing reverses it, so the identity is an opaque
+ * string to every consumer, and each one uses it unchanged: the store, the emit
+ * data, and the manifest. Therefore no mapping table is necessary anywhere.
  */
 const VARIANT_KEY = Symbol.for('next.variant.key')
 
@@ -34,7 +34,7 @@ const VARIANT_KEY = Symbol.for('next.variant.key')
 const VARIANT_DECIDE = Symbol.for('next.variant.decide')
 
 /**
- * A variant, as exported from a `'use variants'` module. Calling it reads the
+ * A variant, as exported from a `'use variants'` module. A call to it reads the
  * value resolved for the current request.
  */
 export interface Variant<T extends string = string> {
@@ -58,24 +58,25 @@ export function isVariant(value: unknown): value is Variant<string> {
 }
 
 /**
- * Where a variant value came from. A value reaches the framework either from a
- * variant's `decide` function, which the proxy invokes per request, or from an
- * assignment the author wrote in `generateStaticParams`. Both are validated the
- * same way, but the two need different wording to point at the right code.
+ * Where a variant value came from. A value reaches the framework from the
+ * `decide` function of a variant, which the proxy invokes for each request, or
+ * from an assignment the author wrote in `generateStaticVariants`. Both are
+ * validated in the same way, but each needs different wording, so that an error
+ * points at the right code.
  */
 type VariantValueOrigin = 'decide' | 'assignment'
 
 /**
  * Asserts that a variant value is a string.
  *
- * Strings are the only requirement: a value is transported percent-encoded in a
- * header and identified by a hash of it, so no character needs excluding. What
- * cannot be allowed is a non-string, which would serialize into a combination
- * that no longer round-trips.
+ * A string is the only requirement. A value travels percent-encoded in a
+ * header, and a hash of it identifies the combination, so no character has to
+ * be excluded. A value that is not a string is the one thing to reject: it
+ * would serialize into a combination that does not round-trip.
  *
- * Called where the value enters the framework rather than where it is consumed,
- * so that the error names both the variant and the code that supplied the
- * value.
+ * Callers call this where the value enters the framework, and not where it is
+ * consumed, so that the error names both the variant and the code that supplied
+ * the value.
  */
 export function assertValidVariantValue(
   key: string,
@@ -97,16 +98,16 @@ export function assertValidVariantValue(
 }
 
 /**
- * Defines a variant: a value resolved per request (from cookies, headers, or a
- * flags service) that a route can be prerendered against, in addition to its
- * route params.
+ * Defines a variant. A variant is a value resolved for each request, from
+ * cookies, headers, or a flags service, that a route can be prerendered
+ * against, in addition to its route params.
  *
- * `decide` is invoked by the framework in the proxy, never by user code. The
- * returned value is the reader: calling it during a render yields the value
+ * The framework invokes `decide`, in the proxy. User code never invokes it. The
+ * return value is the reader: a call to it during a render gives the value
  * resolved for the current request.
  *
- * @param key The variant's identity. Injected by the variants transform; passed
- * explicitly only until that transform exists.
+ * @param key The identity of the variant. The variants transform will inject
+ * it. It is passed explicitly only until that transform exists.
  */
 export function variant<T extends string = string>(
   decide: (request: NextRequest) => T | Promise<T>,
@@ -139,10 +140,12 @@ export function variant<T extends string = string>(
 }
 
 /**
- * Assigns one value to one variant. A tuple of the variant itself rather than
- * its name, because an object key would be a local identifier at the call site:
- * under `import { theme as t }` the framework could not map it back to the
- * variant's identity. Tuples are exact and survive renaming.
+ * Assigns one value to one variant.
+ *
+ * The tuple holds the variant itself, and not its name. An object key would be
+ * a local identifier at the call site: under `import { theme as t }` the
+ * framework could not map it back to the identity of the variant. A tuple is
+ * exact, and a rename does not change it.
  */
 export type VariantAssignment<T extends string = string> = readonly [
   Variant<T>,
@@ -150,13 +153,13 @@ export type VariantAssignment<T extends string = string> = readonly [
 ]
 
 /**
- * Normalizes one combination returned from `generateStaticVariants` into the
- * record keyed by variant identity that feeds both the URL encoding and the
- * prerender hash.
+ * Normalizes one combination that `generateStaticVariants` returned into a
+ * record keyed by variant identity. The URL encoding and the prerender hash
+ * both use that record.
  *
- * Validated here, where the author's values enter the framework, so that a bad
- * assignment names the route that declared it rather than failing later in the
- * export pipeline with nothing to point at.
+ * This function validates the values where they enter the framework, so that a
+ * bad assignment names the route that declared it. Otherwise it would fail
+ * later in the export pipeline, with nothing to point at.
  */
 export function normalizeVariantAssignments(
   assignments: unknown,
@@ -202,11 +205,12 @@ export function normalizeVariantAssignments(
 /**
  * Resolves a variant value at the render stage it belongs to.
  *
- * A variant resolves late enough to stay out of the shells a render can yield,
- * which are shared across a route's params, because a variant can be derived
- * from one. It still reaches the output belonging to its own combination. This
- * is conservative: `decide` receives the request, so any variant might read the
- * URL, and nothing yet tells apart the ones that do not.
+ * A variant resolves late enough to stay out of the shells a render can
+ * produce. Those shells are shared across the params of a route, and a variant
+ * can be derived from a param. The value still reaches the output that belongs
+ * to its own combination. This rule is conservative: `decide` receives the
+ * request, so any variant can read the URL, and nothing yet tells apart the
+ * ones that do not.
  *
  * A render with no staged rendering has no shell to stay out of, so the value
  * resolves immediately.
@@ -248,13 +252,13 @@ function readVariant(key: string): Promise<string> {
       if (staticValue !== undefined) {
         return resolveInStage(
           workUnitStore,
-          // A variant can be derived from a param, so it must not land in a
-          // shell, which is shared across a route's params. The static stage
-          // is past the app shell, so resolving there keeps it out of that one
-          // while still baking it into this combination's own output. A
-          // session shell is taken after the static stage, though, so when dev
-          // needs to recover one the value waits for the runtime stage
-          // instead. Static params are delayed by the same rule.
+          // A variant can be derived from a param, so it must not appear in a
+          // shell, which is shared across the params of a route. The static
+          // stage is after the app shell, so a value resolved there stays out
+          // of that shell and still reaches the output of this combination. A
+          // session shell is taken after the static stage, so when dev needs to
+          // recover one, the value waits for the runtime stage instead. The
+          // same rule delays static params.
           workUnitStore.needsAppShell
             ? RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
             : RENDER_STAGES_BY_DATA_KIND.staticLinkData,
@@ -266,10 +270,10 @@ function readVariant(key: string): Promise<string> {
       const runtimeValue = workUnitStore.runtimeVariants?.[key]
 
       if (runtimeValue !== undefined) {
-        // No combination fixes this one, so nothing cached may contain it, not
-        // just the shells: no prerender's key mentions it. The runtime stage is
-        // past every one of them, so there is no `needsAppShell` case to
-        // distinguish here.
+        // No combination fixes this variant, so nothing cached may contain it,
+        // and not only the shells: the key of no prerender mentions it. The
+        // runtime stage is after all of them, so there is no `needsAppShell`
+        // case to tell apart here.
         return resolveInStage(
           workUnitStore,
           RENDER_STAGES_BY_DATA_KIND.runtimeLinkData,
@@ -278,8 +282,8 @@ function readVariant(key: string): Promise<string> {
         )
       }
 
-      // The proxy resolves variants, so a variant in neither map almost always
-      // means this route is not covered by the proxy's matcher.
+      // The proxy resolves variants. Therefore a variant in neither map almost
+      // always means that the matcher of the proxy does not cover this route.
       throw new Error(
         `Route ${workStore.route} read ${apiName}, but no value was resolved for this request. This usually means the route is not covered by your \`proxy.ts\` matcher.`
       )
@@ -302,12 +306,12 @@ function readVariant(key: string): Promise<string> {
         `${apiName} must not be read within a Client Component. Next.js should be preventing variants from being included in Client Components, but did not in this case.`
       )
     }
-    // A prerender that was generated for a combination fixing this variant can
-    // bake the value in. Otherwise there is no value this output could be
-    // correct for, so the variant behaves as a dynamic read: the prerender
-    // defers it and the value arrives at request time, which is how a route
-    // serves combinations that were never enumerated. Each kind of prerender
-    // interrupts differently, matching the other request APIs.
+    // A prerender generated for a combination that fixes this variant can
+    // contain the value. Otherwise no value would make this output correct, so
+    // the variant behaves as a dynamic read: the prerender defers it, and the
+    // value arrives at request time. That is how a route serves combinations
+    // nobody enumerated. Each kind of prerender interrupts in its own way, as
+    // the other request APIs do.
     case 'prerender': {
       const value = workUnitStore.staticVariants?.[key]
 
@@ -320,11 +324,11 @@ function readVariant(key: string): Promise<string> {
         )
       }
 
-      // Runtime rather than dynamic data: the proxy resolves variants from the
-      // request's cookies and headers, so a runtime prefetch can supply one
-      // even though a static prerender cannot. Going through the runtime helper
-      // also records the access, so the prefetch encoding knows a runtime
-      // prefetch yields more than the static response.
+      // This is runtime data and not dynamic data. The proxy resolves variants
+      // from the cookies and headers of the request, so a runtime prefetch can
+      // supply one even though a static prerender cannot. The runtime helper
+      // also records the access, so the prefetch encoding knows that a runtime
+      // prefetch gives more than the static response gives.
       return makeRuntimeHangingPromise(
         workUnitStore.renderSignal,
         workStore.route,
@@ -355,9 +359,8 @@ function readVariant(key: string): Promise<string> {
         )
       }
 
-      // This is already the runtime prerender, so a variant still missing here
-      // is not something a prefetch can fill in. Only a real request will
-      // resolve it.
+      // This is already the runtime prerender. A variant that is still missing
+      // here is not one a prefetch can supply. Only a real request resolves it.
       return makeDynamicHangingPromise(
         workUnitStore.renderSignal,
         workStore.route,

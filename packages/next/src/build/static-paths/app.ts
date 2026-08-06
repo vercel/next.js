@@ -53,10 +53,10 @@ import { getImplicitTags } from '../../server/lib/implicit-tags'
 /**
  * Builds the string that identifies a parameter combination.
  *
- * Shared so that everything correlating on a combination agrees on what makes
- * two of them the same. Variant combinations are collected against this key
- * before deduplication and looked up again afterwards, which only works while
- * both sides derive the key the same way.
+ * This is shared, so that everything that correlates on a combination agrees on
+ * what makes two of them the same. Variant combinations are collected against
+ * this key before deduplication, and looked up again afterwards. That works
+ * only while both sides derive the key in the same way.
  *
  * @param childrenRouteParams - The keys of the parameters. These should be sorted to ensure consistent key generation.
  * @param params - The parameter combination to identify.
@@ -802,21 +802,22 @@ export async function generateRouteStaticParams(
  * declared, in place.
  *
  * A combination belongs to the route, so it applies to the concrete routes and
- * the fallback shell alike. They cannot share a key, because combinations of one
- * route share a pathname, the variant values being carried by a prefix that is
- * stripped before the route is matched.
+ * to the fallback shell alike. They cannot share a key, because combinations of
+ * one route share a pathname: a prefix carries the variant values, and routing
+ * removes that prefix before it matches the route.
  *
- * The un-multiplied route is kept as well, marked as omitting variants. It is
- * what a combination nobody declared resolves to, so that such a request is
- * served from one shared entry instead of seeding an entry per value it happens
- * to carry. Without it a high-cardinality variant would grow the cache in
- * proportion to traffic rather than to what the route declared.
+ * This also keeps the route that was not multiplied, and marks it as one that
+ * omits variants. It is what a combination nobody declared resolves to, so that
+ * one shared entry serves such a request, instead of each value it happens to
+ * carry seeding an entry. Without it, a variant with many values would grow the
+ * cache in proportion to traffic, and not in proportion to what the route
+ * declared.
  *
- * Only where the route is partially prerendered, though. Omitting a variant
- * leaves a hole that something has to fill, and without PPR there is no resume
- * to fill it: whatever were prerendered would bake one combination and then be
+ * This applies only where the route is partially prerendered. To omit a variant
+ * leaves a hole that something must fill, and without PPR there is no resume to
+ * fill it: whatever was prerendered would contain one combination and then be
  * served for every other. Such a route gets no shared entry, so an undeclared
- * combination renders per request instead, which is correct if slower.
+ * combination renders for each request instead, which is correct but slower.
  */
 export function expandPrerenderedRoutesByVariants(
   prerenderedRoutesByPathname: Map<string, PrerenderedRoute>,
@@ -850,9 +851,9 @@ export function expandPrerenderedRoutesByVariants(
  * Collects the variant combinations a route declares, normalized to records
  * keyed by variant identity.
  *
- * Declared on the page rather than per params row, because a combination
- * applies to the whole route including its fallback shell, and a shell exists
- * precisely where no params are known.
+ * A page declares these, and does not declare them for each params row, because
+ * a combination applies to the whole route, including its fallback shell, and a
+ * shell exists exactly where no params are known.
  */
 export async function collectVariantCombinations(
   segments: ReadonlyArray<Readonly<Pick<AppSegment, 'generateStaticVariants'>>>,
@@ -897,8 +898,8 @@ export async function collectVariantCombinations(
 
     const hash = hashVariants(values)
 
-    // Declaring the same combination twice would prerender the same artifact
-    // twice, since the hash is what names it.
+    // To declare the same combination twice would prerender the same artifact
+    // twice, because the hash is what names it.
     if (!seen.has(hash)) {
       seen.add(hash)
       combinations.push(values)
@@ -914,15 +915,16 @@ export async function collectVariantCombinations(
  * Rejects two combinations that one request could match without either being
  * the more specific answer.
  *
- * Combinations may assign different variants, and one assigning a superset of
- * another's is the intended way to prerender a route both broadly and narrowly:
- * a request matching both is served the larger one, which leaves fewer holes.
- * Two that merely overlap have no such ordering, so a request matching both
- * would be served whichever came first, and reordering the declarations would
- * silently change which prerender a user gets.
+ * Two combinations may assign different variants, and one that assigns a
+ * superset of what another assigns is the intended way to prerender a route
+ * both broadly and narrowly. A request that matches both is served the larger
+ * one, which leaves fewer holes. Two combinations that only overlap have no
+ * such order, so a request that matched both would be served whichever came
+ * first, and a change to the order of the declarations would then change which
+ * prerender a user gets, without any error.
  *
- * Combinations that disagree on a shared variant are fine, because no single
- * request can match both.
+ * Two combinations that disagree on a shared variant are permitted, because no
+ * single request can match both.
  */
 function assertUnambiguousVariantCombinations(
   combinations: ReadonlyArray<Record<string, string>>,
@@ -1040,8 +1042,9 @@ export async function buildAppStaticPaths({
   deploymentId: string
   rootParamKeys: readonly string[]
   /**
-   * The combinations the page declared, collected by the caller because a page
-   * without dynamic segments never reaches here and still needs them applied.
+   * The combinations the page declared. The caller collects them, because a
+   * page without dynamic segments never reaches this code and still needs them
+   * applied.
    */
   variantCombinations: ReadonlyArray<Record<string, string>>
 }): Promise<StaticPathsResult> {
@@ -1389,12 +1392,12 @@ export async function buildAppStaticPaths({
       ? [...prerenderRouteMatchersByPathname.values()]
       : undefined
 
-  // The combinations are returned as well as applied, because the runtime has
-  // to recognize a request's combination as one that was declared, and it can
-  // only do that against the declared list. Deriving that list back out of the
-  // prerendered routes would be inferring an input from its outputs, which
-  // stops being possible the moment a route also has a prerender that declares
-  // nothing. They are grouped here rather than at the runtime, which would
-  // otherwise regroup them on every request.
+  // This returns the combinations as well as applying them, because the runtime
+  // must recognize the combination of a request as one that was declared, and
+  // it can do that only against the declared list. To derive that list from the
+  // prerendered routes would infer an input from its outputs, and that stops
+  // being possible as soon as a route also has a prerender that declares
+  // nothing. They are grouped here, and not at the runtime, which would
+  // otherwise group them again on every request.
   return { fallbackMode, prerenderedRoutes, prerenderRouteMatchers }
 }

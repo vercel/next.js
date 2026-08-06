@@ -684,10 +684,9 @@ type PageIsStaticResult = {
   prerenderRouteMatchers: PrerenderRouteMatcher[] | undefined
   prerenderFallbackMode: FallbackMode | undefined
   /**
-   * The variant combinations the page declared, which the runtime needs in
-   * order to tell a combination it prerendered from one it did not. Only app
-   * pages with dynamic segments reach the collection, so this is undefined
-   * elsewhere.
+   * The variant combinations the page declared. The runtime needs them to tell
+   * a combination it prerendered from one it did not. Only app pages with
+   * dynamic segments reach the collection, so this is undefined elsewhere.
    */
   variantCombinationGroups: VariantCombinationGroups | undefined
   rootParamKeys: readonly string[] | undefined
@@ -894,9 +893,9 @@ export async function isPageStatic({
 
         const route = parseNormalizedAppRoute(page)
 
-        // Collected here rather than while building static paths, because a page
-        // with no dynamic segments never builds any and still declares
-        // combinations that have to be applied.
+        // This collects them here, and not while building static paths,
+        // because a page with no dynamic segments never builds any, and it
+        // still declares combinations that must be applied.
         const variantCombinations = await collectVariantCombinations(
           segments,
           page
@@ -953,11 +952,12 @@ export async function isPageStatic({
             }))
           }
         } else if (variantCombinations.length > 0) {
-          // A page with no dynamic segments builds no static paths, but a
-          // combination it declared still has to be prerendered against. Its one
-          // route stands in for the params matrix a dynamic page would have, and
-          // is expanded the same way, so a declared combination gets an artifact
-          // here too instead of the declaration being ignored.
+          // A page with no dynamic segments builds no static paths, and a
+          // combination it declared must still be prerendered against. Its one
+          // route stands in for the params matrix a dynamic page would have,
+          // and this code expands it in the same way. A declared combination
+          // therefore gets an artifact here too, and the declaration is not
+          // ignored.
           const prerenderedRoutesByPathname = new Map<string, PrerenderedRoute>(
             [
               [

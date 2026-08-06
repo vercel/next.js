@@ -3,13 +3,13 @@ import type { PathnameNormalizer } from './pathname-normalizer'
 import { hasVariantsPrefix, removeVariantsPrefix } from '../../variants/prefix'
 
 /**
- * Strips the internal variants prefix that the edge adapter adds, recovering
- * the route pathname before route resolution.
+ * Removes the internal variants prefix that the edge adapter adds, and gives
+ * the route pathname back before route resolution.
  *
- * Only the prefix is removed here, because it is all the path carries: the
- * segment is a hash of the combination, which names the prerender to serve but
- * cannot be read back into values. The values arrive separately, in
- * `NEXT_VARIANTS_HEADER`, and are picked up by whoever needs them.
+ * This class removes the prefix and nothing else, because the prefix is all the
+ * path carries. The segment is a hash of the combination. It names the
+ * prerender to serve, but nothing can read it back into values. The values
+ * arrive separately, in `NEXT_VARIANTS_HEADER`.
  */
 export class VariantsPathnameNormalizer implements PathnameNormalizer {
   // The pathname still carries the base path here. The prefix sits after it,

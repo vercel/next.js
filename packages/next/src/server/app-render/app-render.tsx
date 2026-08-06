@@ -3009,8 +3009,8 @@ async function renderAppPage(
   const rootParams = getRootParams(loaderTree, ctx.getDynamicParamFromSegment)
   const fallbackParams = getRequestMeta(req, 'fallbackParams') || null
   const hmrRefreshHash = getRequestMeta(req, 'hmrRefreshHash')
-  // Already split by tier where the cache key was computed, so that both
-  // agree on which combination this request matched.
+  // The caller already split these by tier, where it computed the cache key, so
+  // that both agree on which combination this request matched.
   const staticVariants = renderOpts.staticVariants ?? null
   const runtimeVariants = renderOpts.runtimeVariants ?? null
 
@@ -8348,11 +8348,11 @@ async function validateInstantConfigInBuildWithSample(
         draftMode,
         rootParams: sampleRootParams,
         // TODO(variants): validation samples do not carry variant values yet.
-        // Unlike root params, variants cannot be re-derived from the loader
-        // tree, so they would have to be threaded in from the outer request.
-        // Leaving them empty means a page that reads a variant during instant
-        // validation sees it as unresolved. Only reachable with Cache
-        // Components enabled.
+        // Nothing can derive a variant from the loader tree, as it can a root
+        // param, so the values would have to be passed in from the outer
+        // request. While they are empty, a page that reads a variant during
+        // instant validation sees it as unresolved. This is reachable only with
+        // Cache Components enabled.
         staticVariants: null,
         runtimeVariants: null,
         validationSamples,

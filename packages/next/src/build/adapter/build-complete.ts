@@ -663,8 +663,8 @@ export async function handleBuildComplete({
     await import(pathToFileURL(require.resolve(adapterPath)).href)
   ) as NextAdapter
 
-  // The pages that declared variant combinations, and so are reachable under a
-  // combination prefix as well as under their own path.
+  // The pages that declared variant combinations. A request can reach such a
+  // page under a combination prefix as well as under the page's own path.
   const variantRoutePages = new Set(
     Object.keys(prerenderManifest.variantCombinationGroups ?? {})
   )
@@ -1110,14 +1110,14 @@ export async function handleBuildComplete({
           'neutral'
         )
 
-        // The proxy reads this at request time to decide which combination a
-        // request matched, and file tracing cannot see it: the path is computed
-        // from the dist directory rather than written as a literal require. It
-        // is produced after the compile that traced the proxy, so this is also
-        // the first point at which it exists.
+        // The proxy reads this at request time, to decide which combination a
+        // request matched. File tracing cannot see it, because the path is
+        // computed from the dist directory and not written as a literal
+        // require. The build produces it after the compile that traced the
+        // proxy, so this is also the first point at which it exists.
         //
-        // Gated on the same condition the build writes it under, so the two
-        // cannot disagree about whether there is a file.
+        // The gate here is the same condition the build writes it under, so the
+        // two cannot disagree about whether a file exists.
         if (config.experimental.variants) {
           const variantsManifestFile = path.join(
             distDir,
@@ -1466,8 +1466,8 @@ export async function handleBuildComplete({
         const isNotFoundTrue = prerenderManifest.notFoundRoutes.includes(route)
 
         let allowQuery: string[] | undefined
-        // Aliases share a page with the route they alias, so a lookup by page
-        // has to skip them or it may answer from the alias instead.
+        // An alias shares a page with the route it aliases, so a lookup by page
+        // must skip aliases. Otherwise it can answer from the alias.
         const routeKeys = routesManifest.dynamicRoutes.find(
           (item) => item.page === srcRoute && !item.variantsPrefixed
         )?.routeKeys
@@ -1768,9 +1768,9 @@ export async function handleBuildComplete({
             (item) => item.page === dynamicRoute && !item.variantsPrefixed
           )?.routeKeys || {}
 
-        // The combination joins the params in the cache key. Without it every
-        // combination of a route collapses onto one entry and the first one
-        // rendered is served to all of them; with it the entries partition by
+        // The combination joins the params in the cache key. Without it, every
+        // combination of a route falls onto one entry, and the first one
+        // rendered is served to all of them. With it, the entries partition by
         // exactly what was declared, because nothing else about a variant
         // reaches the key.
         const allowQuery = variantRoutePages.has(srcRoute)
@@ -1852,11 +1852,12 @@ export async function handleBuildComplete({
           didFilterBlockingAllowQuery = true
         }
 
-        // The narrowing above reasons about params: a shell is shared across
-        // the params it leaves as holes, so those must not partition it. A
-        // combination is not a hole. Each one has a shell of its own, baked
-        // with different values, so it partitions whatever the params do and is
-        // restored here after any of the branches dropped it.
+        // The code above narrows by params. A shell is shared across the params
+        // it leaves as holes, so those params must not partition it. A
+        // combination is not a hole. Each combination has a shell of its own,
+        // rendered with different values, so a combination partitions whatever
+        // the params do. This code restores it after any branch above dropped
+        // it.
         if (
           variantRoutePages.has(srcRoute) &&
           !htmlAllowQuery.includes(NEXT_VARIANTS_QUERY_PARAM)
@@ -1864,10 +1865,10 @@ export async function handleBuildComplete({
           htmlAllowQuery = [...htmlAllowQuery, NEXT_VARIANTS_QUERY_PARAM]
         }
 
-        // `fallback` names the route pattern the shell belongs to, which the
-        // origin needs bare because it completes it with params to build a
-        // cache key. The file, though, is written per combination under the
-        // entry's own prefixed key, so the artifact is found there instead.
+        // `fallback` names the route pattern the shell belongs to. The origin
+        // needs that pattern plain, because it completes the pattern with
+        // params to build a cache key. The file is written per combination,
+        // under the prefixed key of the entry, so the artifact is found there.
         const fallbackPathname =
           typeof fallback === 'string' && hasVariantsPrefix(dynamicRoute)
             ? dynamicRoute
@@ -2181,9 +2182,9 @@ export async function handleBuildComplete({
 
     for (const route of routesManifest.dynamicRoutes) {
       // A variant-prefixed alias exists for route matching inside the origin,
-      // where a request that was never routed still has to resolve to a page.
-      // The routing rules below are the other half of that, and are derived
-      // from `page` rather than from an entry's regex, so deriving them from an
+      // where a request that was never routed must still resolve to a page. The
+      // routing rules below are the other half of that. They are derived from
+      // `page`, and not from the regex of an entry, so to derive them from an
       // alias would repeat the entry its page already produced.
       if (route.variantsPrefixed) {
         continue
@@ -2230,11 +2231,12 @@ export async function handleBuildComplete({
         : route.page
 
       // The variants prefix sits after `basePath` and before the locale, which
-      // is where the proxy inserts it: it wraps the whole remaining public path
-      // so that stripping it yields the route regardless of i18n.
+      // is where the proxy inserts it. It contains the whole remaining public
+      // path, so that its removal gives the route whether or not the project
+      // uses i18n.
       //
-      // This builds on the page pattern, so a run of shells keeps its
-      // `shellPrefix` group under the variants prefix as well.
+      // The pattern for the page is the base here. A run of shells therefore
+      // keeps its `shellPrefix` group under the variants prefix as well.
       const buildSourceRegex = (variantsPrefix: string) =>
         pagePattern.replace(
           '^',
@@ -2322,20 +2324,20 @@ export async function handleBuildComplete({
         })
       }
 
-      // A request the proxy resolved a combination for arrives under that
-      // combination's prefix, which names no route. This matches the prefix,
-      // captures it, and sends the request on to the undecorated route, so that
-      // what reaches the origin is a path it can resolve to a page like any
-      // other.
+      // A request that the proxy resolved a combination for arrives under the
+      // prefix of that combination, and the prefix names no route. This rule
+      // matches the prefix, captures it, and sends the request on to the plain
+      // route, so that the origin receives a path it can resolve to a page like
+      // any other.
       //
-      // The capture is what makes the combination part of the cache key: a
-      // router keying on capture groups filters them by `allowQuery`, which the
-      // prerender output lists this group in. The prefix therefore partitions
-      // the cache without ever naming an output, which is what lets one page
-      // serve every combination of itself.
+      // The capture is what makes the combination part of the cache key. A
+      // router that keys on capture groups filters them by `allowQuery`, and
+      // the prerender output lists this group there. The prefix therefore
+      // partitions the cache without naming an output, and that is what lets
+      // one page serve every combination of itself.
       //
-      // Same shape as `nextLocale` and `rscSuffix` above: a group Next.js
-      // invents, added to the source and interpolated into the destination.
+      // This has the same shape as `nextLocale` and `rscSuffix` above: a group
+      // Next.js invents, added to the source and put into the destination.
       if (variantRoutePages.has(route.page)) {
         dynamicRoutes.push({
           source: pagePath,
@@ -2376,11 +2378,12 @@ export async function handleBuildComplete({
     }
 
     // The same translation for a route without dynamic segments, which the loop
-    // above never reaches. A prerendered one is matched at its prefixed path
-    // directly, by the output written there, so this only ever answers for a
-    // route that produced none: one whose render turned out to be dynamic. That
-    // request still has to reach the page, and it still has to arrive carrying
-    // the combination it resolved, since nothing else on it names one.
+    // above never reaches. A prerendered route of that kind is matched at its
+    // prefixed path directly, by the output written there. Therefore this rule
+    // only ever answers for a route that produced no output, which is one whose
+    // render turned out to be dynamic. That request must still reach the page,
+    // and it must still arrive carrying the combination it resolved, because
+    // nothing else on it names one.
     for (const page of variantRoutePages) {
       if (isDynamicRoute(page)) {
         continue
@@ -2511,21 +2514,22 @@ export async function handleBuildComplete({
         fallback: routesManifest.rewrites.fallback.map(buildRewriteItem),
       }
 
-      // A prefixed path is where one combination's prerender lives, and an
-      // artifact's path is reachable whether or not a route names it. The
-      // prefix is therefore public input rather than internal transport, and a
-      // request that arrives carrying one nobody routed has to name nothing:
-      // otherwise a client picks which combination it is served, which for a
+      // A prefixed path is where the prerender of one combination is, and a
+      // client can request the path of an artifact even if no route names it.
+      // The prefix is therefore public input, and not internal transport, so a
+      // request that arrives carrying a prefix nobody routed must name nothing.
+      // Otherwise a client picks which combination it is served, which for a
       // variant the server decides is what the variant exists to prevent, and a
-      // hash nobody declared invents a cache entry per value it is given.
+      // hash nobody declared creates one cache entry for each value it is
+      // given.
       //
-      // The rejection cannot state its own status. A rule carrying a
-      // destination is a rewrite, and a rewrite's status is not part of what
-      // reaches the routing output, so naming the not-found page would serve
-      // that page with the status of a page that exists. Sending the request
-      // somewhere no output is written to instead lets it miss, which answers
-      // exactly as any other request for something that does not exist, and
-      // that is what such a path now is.
+      // The rejection cannot state its own status. A rule that carries a
+      // destination is a rewrite, and the status of a rewrite is not part of
+      // what reaches the routing output, so a rule that named the not-found
+      // page would serve that page with the status of a page that exists. This
+      // rule sends the request where no output is written instead, so it
+      // misses, and the server answers it as it answers any other request for
+      // something that does not exist, which is what such a path now is.
       //
       // Consulted before the files are, and after the proxy has run, so that a
       // path the proxy vouched for is admitted.

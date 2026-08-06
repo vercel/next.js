@@ -137,9 +137,10 @@ export type RequestStoreInputs = {
   rootParams: Params
   /**
    * The variants a prerender for this request fixes, and the ones it cannot,
-   * keyed by variant identity. Split once by the caller from the values the
-   * request resolved (see `RequestMeta['variants']`) rather than re-derived
-   * here, so that a render is only ever handed what it may treat as known.
+   * keyed by variant identity. The caller splits them once from the values the
+   * request resolved, which `RequestMeta['variants']` holds, and this code does
+   * not derive them again. A render therefore only ever receives what it may
+   * treat as known.
    */
   staticVariants: Record<string, string> | null
   runtimeVariants: Record<string, string> | null
@@ -246,7 +247,8 @@ export function createRequestStoreForAPI(
     onUpdateCookies,
     url,
     rootParams: {},
-    // Variants are not supported in Route Handlers yet, matching root params.
+    // Route Handlers do not support variants yet, as they do not support root
+    // params.
     staticVariants: null,
     runtimeVariants: null,
     implicitTags,

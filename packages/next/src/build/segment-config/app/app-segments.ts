@@ -25,10 +25,10 @@ type GenerateStaticParams = (options: { params?: Params }) => Promise<Params[]>
 /**
  * Declares the variant combinations a route should be prerendered against.
  *
- * Takes no arguments, deliberately: a combination applies to the whole route,
- * including its fallback shell, which exists precisely where no params are
- * known. Letting it depend on params would put it out of reach of the one
- * output that needs it most.
+ * It deliberately takes no arguments. A combination applies to the whole route,
+ * including its fallback shell, and a shell exists exactly where no params are
+ * known. If a combination could depend on params, it would be out of reach of
+ * the one output that needs it most.
  */
 type GenerateStaticVariants = () =>
   | Promise<readonly VariantAssignment[][]>

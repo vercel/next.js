@@ -279,18 +279,17 @@ export function createAppPageEntrypoint({
       prerenderManifest
     )
 
-    // The combination this request was prerendered against, or null when it was
-    // prerendered against none. A request carries every variant the proxy
-    // resolved, but only those a combination declared are baked into an
-    // artifact, so this is what separates the two: its values name the artifact
-    // and are fixed for it, while every other resolved variant is a dynamic
-    // hole.
+    // The combination this request was prerendered against. It is null when the
+    // request was prerendered against none. A request carries every variant the
+    // proxy resolved, but an artifact contains only those a combination
+    // declared. This value separates the two: its values name the artifact and
+    // are fixed for it, and every other resolved variant is a dynamic hole.
     //
-    // Computed once because three things need the same answer: the cache key,
-    // the fallback shell's cache key, and the render itself.
+    // It is computed once, because three things need the same answer: the cache
+    // key, the cache key of the fallback shell, and the render itself.
     //
-    // Behind the flag so a project without variants compiles none of this away
-    // rather than matching against an empty list on every request.
+    // It is behind the flag, so that a project without variants compiles none
+    // of this, instead of matching against an empty list on every request.
     const variantCombinationGroups = process.env.__NEXT_VARIANTS
       ? prerenderManifest.variantCombinationGroups[normalizedSrcPage]
       : undefined
@@ -298,15 +297,15 @@ export function createAppPageEntrypoint({
     // The values a proxy resolved for this request, decoded from the header
     // they travelled in.
     //
-    // Read here rather than recovered upstream and handed down, because this is
-    // the only site a self-hosted and a deployed request are certain to share:
-    // self-hosted the proxy runs in the router server, deployed it runs at the
-    // CDN and the origin's first sight of the request is the route module that
-    // answers it. Reading the header where it is consumed also keeps the two in
-    // one place instead of leaving a value to be produced by one server and
-    // trusted by another.
+    // This code reads the header here, and does not recover it upstream and
+    // pass it down, because this is the only site a self-hosted request and a
+    // deployed request are certain to share. Self-hosted, the proxy runs in the
+    // router server. Deployed, it runs at the CDN, and the route module that
+    // answers the request is where the origin first sees it. To read the header
+    // where it is consumed also keeps the two in one place, instead of one
+    // server producing a value that another server trusts.
     //
-    // Only the variants no combination declared are taken from here. The rest
+    // Only the variants that no combination declared come from here. The rest
     // come from the build, below.
     const encodedVariants = process.env.__NEXT_VARIANTS
       ? req.headers[NEXT_VARIANTS_HEADER]
@@ -317,33 +316,36 @@ export function createAppPageEntrypoint({
         ? (decodeVariants(encodedVariants) ?? undefined)
         : undefined
 
-    // The combination is recovered from its hash against what the build
-    // declared, rather than by matching the values the request carried.
+    // This code recovers the combination from its hash, against what the build
+    // declared, and does not match the values the request carried.
     //
     // A hash reaches this route only because a proxy resolved a declared
-    // combination and prefixed the path with it, so its presence already
-    // answers whether one matched, and the build's own record of that
-    // combination is what the artifact under that hash was prerendered from.
-    // Deriving it from the request instead would mean the values a render bakes
-    // could disagree with the ones its artifact was built for.
+    // combination and put it on the path as a prefix. Its presence therefore
+    // already answers whether a combination matched, and the record the build
+    // made of that combination is what the artifact under that hash was
+    // prerendered from. To derive it from the request instead would let the
+    // values a render contains disagree with the ones its artifact was built
+    // for.
     //
-    // It also has to work for a request that carries no values at all: a
-    // platform filling or revalidating a prerender rebuilds the request from
-    // the artifact, so the header is gone and the hash in the path is all that
-    // is left. The prefix is translated away before the origin matches a route,
-    // and the hash lands in this query parameter as it goes.
+    // It must also work for a request that carries no values at all. When a
+    // platform fills or revalidates a prerender, it rebuilds the request from
+    // the artifact, so the header is gone and only the hash in the path
+    // remains. Routing translates the prefix away before the origin matches a
+    // route, and the hash moves into this query parameter as it does so.
     //
-    // Read from the routing query rather than the URL's, because the two modes
-    // disagree about where routing's own values live: deployed they are added
-    // to the URL the function is called with, self-hosted they are kept beside
-    // it so they stay out of `asPath`. This is the merge of both.
+    // This reads the routing query, and not the query of the URL, because the
+    // two modes put the values of routing in different places. Deployed, they
+    // are added to the URL the function is called with. Self-hosted, they are
+    // kept beside it, so that they stay out of `asPath`. The routing query is
+    // the merge of both.
     const variantsHash = process.env.__NEXT_VARIANTS
       ? query[NEXT_VARIANTS_QUERY_PARAM]
       : undefined
 
-    // Taken out of the query once read. It is transport, like the prefix it was
-    // lifted from, and `searchParams` is the page's view of what the client
-    // asked for rather than of how the request was routed.
+    // This code removes the parameter from the query once it has read it. The
+    // parameter is transport, as the prefix it came from is, and `searchParams`
+    // is the view the page has of what the client asked for, and not of how the
+    // request was routed.
     if (typeof variantsHash === 'string') {
       delete query[NEXT_VARIANTS_QUERY_PARAM]
     }
@@ -353,17 +355,17 @@ export function createAppPageEntrypoint({
         ? findVariantCombinationByHash(variantCombinationGroups, variantsHash)
         : null
 
-    // Names the artifact a path stands for rather than the route it belongs to.
-    // A combination's artifacts are written under its hash, so every cache key
-    // and every manifest probe for this request has to go through here, while
-    // anything describing the route (matching, interception patterns, implicit
-    // revalidation tags) must not: those are shared by every combination, and
-    // `revalidatePath('/x')` has to reach all of them.
+    // This names the artifact a path stands for, and not the route the path
+    // belongs to. The artifacts of a combination are written under its hash, so
+    // every cache key and every manifest lookup for this request goes through
+    // here. Anything that describes the route must not: route matching,
+    // interception patterns, and implicit revalidation tags are shared by every
+    // combination, and `revalidatePath('/x')` has to reach all of them.
     //
-    // An unmatched combination keeps the clean path, which is where the
-    // prerender that omits variants lives. A route that is not partially
-    // prerendered has no such prerender and so nothing at that path, which is
-    // what makes such a request render for itself.
+    // An unmatched combination keeps the plain path, which is where the
+    // prerender that omits variants is. A route that is not partially
+    // prerendered has no such prerender, and therefore nothing at that path,
+    // which is what makes such a request render for itself.
     const toOutputPathname = (basePathname: string): string =>
       matchedVariants
         ? insertVariantsPrefix(basePathname, matchedVariants.hash)
@@ -373,16 +375,17 @@ export function createAppPageEntrypoint({
 
     const isPrerendered = !!prerenderManifest.routes[outputPathname]
 
-    // Each combination has a fallback shell of its own, and they do not agree:
-    // one can be empty where another is not, which decides whether a request is
-    // served a shell or rendered blocking. So the entry describing the matched
-    // combination is the one this request has to be answered from.
+    // Each combination has a fallback shell of its own, and the shells do not
+    // agree: one can be empty where another is not, and that decides whether a
+    // request is served a shell or rendered blocking. Therefore the entry that
+    // describes the matched combination is the one that must answer this
+    // request.
     //
-    // It is found by key rather than by matching, because its route regex
-    // covers the prefixed path while route matching runs against the pathname
-    // with the prefix already stripped. That is deliberate: a regex over the
-    // bare route would let a combination's entry match a request that resolved
-    // to another.
+    // This code finds the entry by key, and not by matching, because the route
+    // regex of the entry covers the prefixed path while route matching runs
+    // against the pathname with the prefix already removed. That is deliberate.
+    // A regex over the plain route would let the entry of one combination match
+    // a request that resolved to another.
     const matchedVariantsPrerenderInfo = matchedVariants
       ? prerenderManifest.dynamicRoutes[toOutputPathname(normalizedSrcPage)]
       : undefined
@@ -390,9 +393,10 @@ export function createAppPageEntrypoint({
     const prerenderInfo =
       matchedVariantsPrerenderInfo ?? prerenderMatch?.route ?? null
 
-    // Split so that a render is handed only what it may treat as fixed: the
-    // matched combination is bakeable, everything else the proxy resolved is
-    // not, and a store that must not bake a value simply does not receive it.
+    // The split gives a render only what it may treat as fixed. A render may
+    // contain the matched combination, and may not contain anything else the
+    // proxy resolved, so a store that must not contain a value does not receive
+    // it.
     const variantsByTier = splitVariantsByTier(
       resolvedVariants,
       matchedVariants
@@ -1535,11 +1539,12 @@ export function createAppPageEntrypoint({
             // from entering an infinite loop of revalidations.
             !forceStaticRender
           ) {
-            // Keyed by the artifact, so that a request resumes from the
-            // postponed state of the combination it matched. The variant
-            // agnostic entry leaves a variant read as a hole rather than baking
-            // it, so resuming a matched request from that one would discard the
-            // shell its combination was prerendered against.
+            // The key is the artifact, so that a request resumes from the
+            // postponed state of the combination it matched. The entry that
+            // omits variants leaves a variant read as a hole, and does not
+            // contain the value. Therefore, to resume a matched request from
+            // that entry would discard the shell its combination was
+            // prerendered against.
             const incrementalCacheEntry = await incrementalCache.get(
               outputPathname,
               {

@@ -7,15 +7,15 @@ import { sortPages } from '../../shared/lib/router/utils/sortable-routes'
 /**
  * The variants each route reads, keyed by page.
  *
- * A route reads the variants its own module graph does, layouts included, and
- * resolving any others would call a `decide` for a value nothing can consume.
- * That matters beyond wasted work: a value the route never reads would still
- * travel to the origin as an unmatched variant, which is what tells the render
- * a request could not be served from a prerender.
+ * A route reads the variants that its own module graph reads, layouts included.
+ * To resolve any other variant would call a `decide` for a value that nothing
+ * can consume. The cost is more than the wasted work: a value the route never
+ * reads still travels to the origin as an unmatched variant, and an unmatched
+ * variant is what tells the render that no prerender can serve the request.
  *
- * The transform will synthesize this from the module graph. Until then a
- * project writes it by hand, which is why the keys are page patterns rather
- * than regexes.
+ * The transform will build this table from the module graph. Until then a
+ * project writes it by hand, which is why the keys are page patterns and not
+ * regexes.
  */
 export type VariantsByRoute = Readonly<Record<string, ReadonlyArray<Variant>>>
 
@@ -28,14 +28,14 @@ interface RouteVariantMatchers {
 }
 
 /**
- * Compiles the table into matchers, once per process rather than per request.
+ * Compiles the table into matchers, once per process and not once per request.
  *
- * Concrete pages are kept apart from dynamic ones and consulted first, so that
- * `/paramless` is never captured by some `/[slug]`. Dynamic routes keep the
- * order `sortPages` gives them, which is the order route matching resolves them
- * in everywhere else. This mirrors `findVariantGroupsForPathname`, because the
- * two have to agree on which route a pathname belongs to: one decides what is
- * resolved and the other what it is matched against.
+ * Concrete pages are held apart from dynamic ones, and are consulted first, so
+ * that no `/[slug]` can capture `/paramless`. Dynamic routes keep the order
+ * that `sortPages` gives them, which is the order route matching resolves them
+ * in everywhere else. This function mirrors `findVariantGroupsForPathname`. The
+ * two must agree on which route a pathname belongs to, because one decides what
+ * is resolved and the other decides what it is matched against.
  */
 export function compileRouteVariants(
   variantsByRoute: VariantsByRoute
@@ -61,11 +61,11 @@ export function compileRouteVariants(
 }
 
 /**
- * The variants the route serving `pathname` reads, empty when no route of ours
- * does.
+ * The variants that the route serving `pathname` reads. The result is empty
+ * when no route of ours reads any.
  *
- * Empty is an ordinary answer: most routes read none, and a request for one of
- * them resolves nothing and carries nothing.
+ * An empty result is an ordinary answer. Most routes read no variant, and a
+ * request for one of them resolves nothing and carries nothing.
  */
 export function findVariantsForPathname(
   matchers: RouteVariantMatchers,
