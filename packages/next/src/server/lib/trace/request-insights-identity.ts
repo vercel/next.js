@@ -59,24 +59,55 @@ const REQUEST_INSIGHTS_IDENTITY_STORAGE_KEY = Symbol.for(
   '@next/request-insights-identity-storage'
 )
 
-function getRequestInsightsIdentityStorage(): AsyncLocalStorage<RequestInsightsIdentity> {
-  const globalStore = globalThis as typeof globalThis & {
-    [REQUEST_INSIGHTS_IDENTITY_STORAGE_KEY]?: AsyncLocalStorage<RequestInsightsIdentity>
-  }
+type RequestInsightsIdentityScope = {
+  identity: RequestInsightsIdentity | undefined
+}
+
+type GlobalWithRequestInsightsIdentityStorage = typeof globalThis & {
+  [REQUEST_INSIGHTS_IDENTITY_STORAGE_KEY]?: AsyncLocalStorage<RequestInsightsIdentityScope>
+}
+
+function getExistingRequestInsightsIdentityStorage():
+  | AsyncLocalStorage<RequestInsightsIdentityScope>
+  | undefined {
+  return (globalThis as GlobalWithRequestInsightsIdentityStorage)[
+    REQUEST_INSIGHTS_IDENTITY_STORAGE_KEY
+  ]
+}
+
+function getOrCreateRequestInsightsIdentityStorage(): AsyncLocalStorage<RequestInsightsIdentityScope> {
+  const globalStore = globalThis as GlobalWithRequestInsightsIdentityStorage
 
   return (globalStore[REQUEST_INSIGHTS_IDENTITY_STORAGE_KEY] ??=
-    createAsyncLocalStorage())
+    createAsyncLocalStorage<RequestInsightsIdentityScope>())
 }
 
 export function runWithRequestInsightsIdentity<T>(
-  identity: RequestInsightsIdentity,
+  identity: RequestInsightsIdentity | undefined,
   fn: () => T
 ): T {
-  return getRequestInsightsIdentityStorage().run(identity, fn)
+  if (!process.env.__NEXT_DEV_SERVER) {
+    return fn()
+  }
+
+  const storage = getExistingRequestInsightsIdentityStorage()
+  if (!storage) {
+    return identity === undefined
+      ? fn()
+      : getOrCreateRequestInsightsIdentityStorage().run({ identity }, fn)
+  }
+
+  return storage.getStore()?.identity === identity
+    ? fn()
+    : storage.run({ identity }, fn)
 }
 
 export function getRequestInsightsIdentity():
   | RequestInsightsIdentity
   | undefined {
-  return getRequestInsightsIdentityStorage().getStore()
+  if (!process.env.__NEXT_DEV_SERVER) {
+    return undefined
+  }
+
+  return getExistingRequestInsightsIdentityStorage()?.getStore()?.identity
 }

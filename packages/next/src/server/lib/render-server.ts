@@ -9,6 +9,7 @@ import type { OnCacheEntryHandler } from '../request-meta'
 import { interopDefault } from '../../lib/interop-default'
 import { formatDynamicImportPath } from '../../lib/format-dynamic-import-path'
 import type { ConfiguredExperimentalFeature } from '../config'
+import type { RequestInsights } from './trace/request-insights'
 
 export type ServerInitResult = {
   requestHandler: RequestHandler
@@ -101,6 +102,8 @@ async function initializeImpl(opts: {
   _ipcPort?: string
   _ipcKey?: string
   bundlerService: DevBundlerService | undefined
+  requestInsights: RequestInsights | undefined
+  requestInsightsOwner: boolean
   startServerSpan: Span | undefined
   quiet?: boolean
   onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
