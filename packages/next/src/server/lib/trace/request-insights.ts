@@ -11,12 +11,14 @@ import type {
 import {
   createBoundedRequestInsightsSnapshotProjection,
   createRequestInsightsByteLengthCache,
+  REQUEST_INSIGHTS_ID_PATTERN,
   REQUEST_INSIGHTS_MAX_BYTES_PER_RECORD,
   REQUEST_INSIGHTS_MAX_BYTES_PER_RETENTION_BUCKET,
   REQUEST_INSIGHTS_MAX_BYTES_PER_SPAN,
   REQUEST_INSIGHTS_MAX_EVENTS_PER_SPAN,
   REQUEST_INSIGHTS_MAX_FETCHES_PER_RECORD,
   REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET,
+  REQUEST_INSIGHTS_MAX_ID_LENGTH,
   REQUEST_INSIGHTS_MAX_LINKS_PER_SPAN,
   REQUEST_INSIGHTS_MAX_RECORDS_PER_GROUP,
   REQUEST_INSIGHTS_MAX_RETAINED_BYTES,
@@ -53,6 +55,11 @@ import {
   type RequestInsightsRetentionContext,
 } from './request-insights-identity'
 export { isRequestInsightsEnabled } from './span-store'
+export {
+  REQUEST_INSIGHTS_ID_PATTERN,
+  REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET,
+  REQUEST_INSIGHTS_MAX_ID_LENGTH,
+} from '../../../next-devtools/shared/request-insights'
 
 const MAX_REQUEST_INSIGHT_STRING_LENGTH = 256
 const MAX_REQUEST_INSIGHT_SPAN_NAME_LENGTH = 512
@@ -60,7 +67,6 @@ const MAX_REQUEST_INSIGHT_ROUTE_LENGTH = 1024
 const MAX_REQUEST_INSIGHT_URL_LENGTH = 2048
 const MAX_REQUEST_INSIGHT_RAW_URL_LENGTH = 64 * 1024
 const MAX_REQUEST_INSIGHT_ATTRIBUTE_ARRAY_LENGTH = 8
-const MAX_REQUEST_INSIGHT_ID_LENGTH = 128
 const CLIENT_COMPONENT_LOADING_SPAN_TYPE =
   'NextNodeServer.clientComponentLoading'
 
@@ -1358,12 +1364,12 @@ function sanitizeSpan(
   const links = retainedLinks?.flatMap((link) => {
     const traceId = sanitizeText(
       link.traceId,
-      MAX_REQUEST_INSIGHT_ID_LENGTH,
+      REQUEST_INSIGHTS_MAX_ID_LENGTH,
       state
     )
     const spanId = sanitizeText(
       link.spanId,
-      MAX_REQUEST_INSIGHT_ID_LENGTH,
+      REQUEST_INSIGHTS_MAX_ID_LENGTH,
       state
     )
     return traceId && spanId
@@ -1385,11 +1391,11 @@ function sanitizeSpan(
     startTime,
     durationMs: sanitizeFiniteNumber(span.durationMs),
     status: span.status,
-    traceId: sanitizeText(span.traceId, MAX_REQUEST_INSIGHT_ID_LENGTH, state),
-    spanId: sanitizeText(span.spanId, MAX_REQUEST_INSIGHT_ID_LENGTH, state),
+    traceId: sanitizeText(span.traceId, REQUEST_INSIGHTS_MAX_ID_LENGTH, state),
+    spanId: sanitizeText(span.spanId, REQUEST_INSIGHTS_MAX_ID_LENGTH, state),
     parentSpanId: sanitizeText(
       span.parentSpanId,
-      MAX_REQUEST_INSIGHT_ID_LENGTH,
+      REQUEST_INSIGHTS_MAX_ID_LENGTH,
       state
     ),
     attributes: sanitizeSpanAttributes(span.attributes, name, state),
@@ -1615,8 +1621,8 @@ function sanitizeText(
 function sanitizeRequestInsightId(value: string | undefined) {
   if (
     !value ||
-    value.length > MAX_REQUEST_INSIGHT_ID_LENGTH ||
-    !/^[A-Za-z0-9._:-]+$/.test(value)
+    value.length > REQUEST_INSIGHTS_MAX_ID_LENGTH ||
+    !REQUEST_INSIGHTS_ID_PATTERN.test(value)
   ) {
     return undefined
   }

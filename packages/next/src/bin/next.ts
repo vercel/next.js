@@ -626,6 +626,17 @@ program
   )
   .option('--json', 'Print raw request insight JSON.')
   .addOption(
+    new Option('--request-id <id>', 'Filter by an exact request ID.').conflicts(
+      'clear'
+    )
+  )
+  .addOption(
+    new Option(
+      '--html-request-id <id>',
+      'Filter by an exact HTML request ID.'
+    ).conflicts('clear')
+  )
+  .addOption(
     new Option(
       '--limit <count>',
       'Maximum number of recent request summaries to print.'
@@ -644,6 +655,8 @@ program
   .addOption(
     new Option('--clear', 'Clear captured Request Insights data.').conflicts([
       'limit',
+      'requestId',
+      'htmlRequestId',
       'captureGroupsPerType',
     ])
   )

@@ -8,7 +8,9 @@ import type {
 import {
   createBoundedRequestInsightsSnapshotProjection,
   getRequestInsightRootId,
+  REQUEST_INSIGHTS_ID_PATTERN,
   REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET,
+  REQUEST_INSIGHTS_MAX_ID_LENGTH,
   REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES,
 } from '../../../next-devtools/shared/request-insights'
 import {
@@ -18,21 +20,18 @@ import {
 } from '../../../next-devtools/shared/terminal-safe-json'
 import { mcpTelemetryTracker } from '../mcp-telemetry-tracker'
 
-const REQUEST_INSIGHT_ID_PATTERN = /^[A-Za-z0-9._:-]+$/
-const MAX_REQUEST_INSIGHT_ID_LENGTH = 128
-
 export const getRequestInsightsInputSchema = {
   requestId: z
     .string()
     .min(1)
-    .max(MAX_REQUEST_INSIGHT_ID_LENGTH)
-    .regex(REQUEST_INSIGHT_ID_PATTERN)
+    .max(REQUEST_INSIGHTS_MAX_ID_LENGTH)
+    .regex(REQUEST_INSIGHTS_ID_PATTERN)
     .optional(),
   htmlRequestId: z
     .string()
     .min(1)
-    .max(MAX_REQUEST_INSIGHT_ID_LENGTH)
-    .regex(REQUEST_INSIGHT_ID_PATTERN)
+    .max(REQUEST_INSIGHTS_MAX_ID_LENGTH)
+    .regex(REQUEST_INSIGHTS_ID_PATTERN)
     .optional(),
   limit: z
     .number()
