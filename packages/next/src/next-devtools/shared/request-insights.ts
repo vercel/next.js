@@ -62,6 +62,20 @@ export type RequestInsightFetch = {
   index?: number
 }
 
+export type RequestInsightResponse = {
+  /**
+   * The time lifecycle tracking was attached to the response. This is not a
+   * first-byte timestamp.
+   */
+  trackingStartTime: number
+  endTime?: number
+  statusCode?: number
+  outcome: 'pending' | 'finished' | 'aborted' | 'errored'
+  error?: {
+    type?: string
+  }
+}
+
 export type RequestInsight = {
   requestId: string
   kind?: RequestInsightKind
@@ -74,7 +88,8 @@ export type RequestInsight = {
   url?: string
   startTime: number
   durationMs?: number
-  status: 'ok' | 'error' | 'pending'
+  status: 'ok' | 'error' | 'aborted' | 'pending'
+  response?: RequestInsightResponse
   spans: RequestInsightSpan[]
   fetches: RequestInsightFetch[]
 }

@@ -138,7 +138,11 @@ import { getIsPossibleServerAction } from './lib/server-action-request-meta'
 import { isInterceptionRouteAppPath } from '../shared/lib/router/utils/interception-routes'
 import { toRoute } from './lib/to-route'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
-import { isNodeNextRequest, isNodeNextResponse } from './base-http/helpers'
+import {
+  isNodeNextRequest,
+  isNodeNextResponse,
+  isWebNextResponse,
+} from './base-http/helpers'
 import { patchSetHeaderWithCookieSupport } from './lib/patch-set-header'
 import { checkIsAppPPREnabled } from './lib/experimental/ppr'
 import {
@@ -174,6 +178,8 @@ type BaseServerRequestInsightsRuntime = {
   resolveRequestInsightsIdentity: typeof import('./lib/trace/request-insights-identity').resolveRequestInsightsIdentity
   runWithRequestInsights: typeof import('./lib/trace/request-insights-runtime').runWithRequestInsights
   runWithRequestInsightsIdentity: typeof import('./lib/trace/request-insights-identity').runWithRequestInsightsIdentity
+  trackRequestInsightNodeResponse: typeof import('./lib/trace/request-insights-response').trackRequestInsightNodeResponse
+  trackRequestInsightWebResponse: typeof import('./lib/trace/request-insights-response').trackRequestInsightWebResponse
 }
 
 let baseServerRequestInsightsRuntime:
@@ -191,12 +197,19 @@ function getBaseServerRequestInsightsRuntime():
         require('./lib/trace/request-insights-identity') as typeof import('./lib/trace/request-insights-identity')
       const { runWithRequestInsights } =
         require('./lib/trace/request-insights-runtime') as typeof import('./lib/trace/request-insights-runtime')
+      const {
+        trackRequestInsightNodeResponse,
+        trackRequestInsightWebResponse,
+      } =
+        require('./lib/trace/request-insights-response') as typeof import('./lib/trace/request-insights-response')
 
       baseServerRequestInsightsRuntime = {
         RequestInsights,
         resolveRequestInsightsIdentity,
         runWithRequestInsights,
         runWithRequestInsightsIdentity,
+        trackRequestInsightNodeResponse,
+        trackRequestInsightWebResponse,
       }
     }
     return baseServerRequestInsightsRuntime
@@ -1056,6 +1069,7 @@ export default abstract class Server<
         : handleRequest()
     }
 
+    const requestInsights = this.requestInsights
     const requestInsightsIdentity =
       requestInsightsRuntime.resolveRequestInsightsIdentity({
         previousIdentity: getRequestMeta(req, 'requestInsightsIdentity'),
@@ -1071,12 +1085,37 @@ export default abstract class Server<
     }
     addRequestMeta(req, 'requestInsightsIdentity', requestInsightsIdentity)
 
+    const responseCallbacks = {
+      onAttach(trackingStartTime: number) {
+        requestInsights.startResponse(
+          requestInsightsIdentity,
+          trackingStartTime
+        )
+      },
+      onComplete(
+        response: Parameters<typeof requestInsights.completeResponse>[1]
+      ) {
+        requestInsights.completeResponse(requestInsightsIdentity, response)
+      },
+    }
+    if (isNodeNextResponse(res)) {
+      requestInsightsRuntime.trackRequestInsightNodeResponse(
+        res.originalResponse,
+        responseCallbacks
+      )
+    } else if (isWebNextResponse(res)) {
+      requestInsightsRuntime.trackRequestInsightWebResponse(
+        res,
+        responseCallbacks
+      )
+    }
+
     // The request root and route-matching spans start before App Render creates
     // its workStore. Carry their identity in this outer scope; App Render copies
     // it into the workStore so the complete timeline uses one request ID.
     try {
       return await requestInsightsRuntime.runWithRequestInsights(
-        this.requestInsights,
+        requestInsights,
         () =>
           requestInsightsRuntime.runWithRequestInsightsIdentity(
             requestInsightsIdentity,

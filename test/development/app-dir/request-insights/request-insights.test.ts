@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { createServer } from 'http'
+import { createServer, request as httpRequest } from 'http'
 import type { AddressInfo } from 'net'
 import {
   retry,
@@ -26,7 +26,14 @@ type RequestInsight = {
   route: string
   url?: string
   startTime: number
-  status: 'ok'
+  status: 'ok' | 'error' | 'aborted' | 'pending'
+  response?: {
+    trackingStartTime: number
+    endTime?: number
+    statusCode?: number
+    outcome: 'pending' | 'finished' | 'aborted' | 'errored'
+    error?: { type?: string }
+  }
   spans: Array<{
     name?: string
     spanId?: string
@@ -171,6 +178,12 @@ describe('request insights', () => {
       )
 
       expect(requestsWithRelevantSpans).toHaveLength(1)
+      expect(requestsWithRelevantSpans[0].response).toEqual(
+        expect.objectContaining({
+          statusCode: 200,
+          outcome: 'finished',
+        })
+      )
       expect(
         requestsWithRelevantSpans[0].spans.map(
           (span) => span.attributes?.['next.span_type']
@@ -1037,6 +1050,10 @@ describe('request insights', () => {
           expect.objectContaining({
             source: 'app-route',
             proxyStatus: 'matched',
+            status: 'pending',
+            response: expect.objectContaining({
+              outcome: 'pending',
+            }),
           })
         )
       })
@@ -1069,6 +1086,15 @@ describe('request insights', () => {
       )
 
       expect(matchingRequests).toHaveLength(1)
+      expect(matchingRequests[0]).toEqual(
+        expect.objectContaining({
+          status: 'ok',
+          response: expect.objectContaining({
+            statusCode: 202,
+            outcome: 'finished',
+          }),
+        })
+      )
       expect(
         matchingRequests[0].spans.map(
           (span) => span.attributes?.['next.span_type']
@@ -1079,6 +1105,154 @@ describe('request insights', () => {
           'BaseServer.handleRequest',
           'AppRouteRouteHandlers.runHandler',
         ])
+      )
+    })
+  })
+
+  it('tracks a streamed Pages API response through delivery completion', async () => {
+    const existingRequestIds = new Set(
+      (
+        (await next
+          .fetch('/_next/development/request-insights')
+          .then((response) => response.json())) as {
+          requests: RequestInsight[]
+        }
+      ).requests.map((request) => request.requestId)
+    )
+
+    const response = await next.fetch('/api/response-lifecycle')
+    expect(response.status).toBe(200)
+    expect(await response.text()).toContain('data: finished')
+
+    await retry(async () => {
+      const snapshot = (await next
+        .fetch('/_next/development/request-insights')
+        .then((insightsResponse) => insightsResponse.json())) as {
+        requests: RequestInsight[]
+      }
+      const request = snapshot.requests.find(
+        (candidate) =>
+          candidate.url === '/api/response-lifecycle' &&
+          !existingRequestIds.has(candidate.requestId)
+      )
+
+      expect(request).toEqual(
+        expect.objectContaining({
+          source: 'pages-api',
+          status: 'ok',
+          response: expect.objectContaining({
+            statusCode: 200,
+            outcome: 'finished',
+          }),
+        })
+      )
+      expect(request?.response?.endTime).toEqual(expect.any(Number))
+      expect(request?.response?.endTime).toBeGreaterThanOrEqual(
+        request?.response?.trackingStartTime ?? Infinity
+      )
+    })
+  })
+
+  it('distinguishes a client disconnect from a late stream error', async () => {
+    const requestIdsBeforeAbort = new Set(
+      (
+        (await next
+          .fetch('/_next/development/request-insights')
+          .then((response) => response.json())) as {
+          requests: RequestInsight[]
+        }
+      ).requests.map((request) => request.requestId)
+    )
+    await new Promise<void>((resolve, reject) => {
+      const clientRequest = httpRequest(
+        new URL('/api/response-lifecycle?outcome=abort', next.url),
+        (response) => {
+          response.once('data', () => {
+            response.destroy()
+            resolve()
+          })
+        }
+      )
+      clientRequest.once('error', reject)
+      clientRequest.end()
+    })
+
+    await retry(async () => {
+      const snapshot = (await next
+        .fetch('/_next/development/request-insights')
+        .then((insightsResponse) => insightsResponse.json())) as {
+        requests: RequestInsight[]
+      }
+      const request = snapshot.requests.find(
+        (candidate) =>
+          candidate.url === '/api/response-lifecycle?query=redacted' &&
+          !requestIdsBeforeAbort.has(candidate.requestId)
+      )
+
+      expect(request).toEqual(
+        expect.objectContaining({
+          status: 'aborted',
+          response: expect.objectContaining({
+            statusCode: 200,
+            outcome: 'aborted',
+            error: { type: 'ResponseAborted' },
+          }),
+        })
+      )
+    })
+
+    const requestIdsBeforeError = new Set(
+      (
+        (await next
+          .fetch('/_next/development/request-insights')
+          .then((response) => response.json())) as {
+          requests: RequestInsight[]
+        }
+      ).requests.map((request) => request.requestId)
+    )
+    await new Promise<void>((resolve, reject) => {
+      let responseStarted = false
+      const clientRequest = httpRequest(
+        new URL('/api/response-lifecycle?outcome=error', next.url),
+        (response) => {
+          responseStarted = true
+          response.once('aborted', resolve)
+          response.once('close', resolve)
+          response.once('error', resolve)
+          response.resume()
+        }
+      )
+      clientRequest.once('error', (error) => {
+        if (responseStarted) {
+          resolve()
+        } else {
+          reject(error)
+        }
+      })
+      clientRequest.end()
+    })
+
+    await retry(async () => {
+      const snapshot = (await next
+        .fetch('/_next/development/request-insights')
+        .then((insightsResponse) => insightsResponse.json())) as {
+        requests: RequestInsight[]
+      }
+      const request = snapshot.requests.find(
+        (candidate) =>
+          candidate.url === '/api/response-lifecycle?query=redacted' &&
+          !requestIdsBeforeError.has(candidate.requestId)
+      )
+
+      expect(request).toEqual(
+        expect.objectContaining({
+          status: 'error',
+          response: expect.objectContaining({
+            statusCode: 200,
+            outcome: 'errored',
+            error: { type: 'Error' },
+          }),
+        })
       )
     })
   })

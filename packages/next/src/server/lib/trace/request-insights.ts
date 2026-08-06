@@ -2,6 +2,7 @@ import type { AttributeValue } from 'next/dist/compiled/@opentelemetry/api'
 import type {
   RequestInsight,
   RequestInsightFetch,
+  RequestInsightResponse,
   RequestInsightsSnapshot,
 } from '../../../next-devtools/shared/request-insights'
 import type { RequestInsightKind } from '../../../shared/lib/request-insights'
@@ -24,6 +25,19 @@ const MAX_REQUEST_INSIGHT_URL_LENGTH = 2048
 const MAX_REQUEST_INSIGHT_RAW_URL_LENGTH = 64 * 1024
 const CLIENT_COMPONENT_LOADING_SPAN_TYPE =
   'NextNodeServer.clientComponentLoading'
+const SAFE_RESPONSE_ERROR_TYPES = new Set([
+  'AbortError',
+  'AggregateError',
+  'Error',
+  'EvalError',
+  'RangeError',
+  'ReferenceError',
+  'ResponseAborted',
+  'SyntaxError',
+  'TypeError',
+  'URIError',
+  'UnknownResponseError',
+])
 
 export type RequestInsightsListener = (insight: RequestInsight) => void
 type RequestInsightIdentity = {
@@ -112,12 +126,16 @@ export class RequestInsights {
       span.durationMs,
       span.attributes?.['next.span_type'] === 'BaseServer.handleRequest'
     )
-    insight.status =
-      insight.status === 'error' || span.status === 'error'
-        ? 'error'
-        : span.status === 'ok'
-          ? 'ok'
-          : insight.status
+    if (insight.status === 'aborted') {
+      // An actual client disconnect is authoritative over abort-shaped errors
+      // emitted later while the response stream is being cleaned up.
+    } else if (insight.status === 'error' || span.status === 'error') {
+      insight.status = 'error'
+    } else if (insight.response?.outcome === 'pending') {
+      insight.status = 'pending'
+    } else if (span.status === 'ok') {
+      insight.status = 'ok'
+    }
 
     insight.spans.push({
       name: sanitizeSpanName(span),
@@ -236,6 +254,94 @@ export class RequestInsights {
     this.recordClassification(identity)
   }
 
+  startResponse(identity: RequestInsightIdentity, trackingStartTime: number) {
+    if (this.disposed || !identity.requestId) {
+      return
+    }
+
+    const sanitizedTrackingStartTime = Number.isFinite(trackingStartTime)
+      ? trackingStartTime
+      : getCurrentTimestamp()
+    const insight = this.getOrCreateRequest(
+      identity,
+      sanitizedTrackingStartTime
+    )
+    if (insight.response) {
+      return
+    }
+
+    insight.response = {
+      trackingStartTime: sanitizedTrackingStartTime,
+      outcome: 'pending',
+    }
+    if (insight.status !== 'error' && insight.status !== 'aborted') {
+      insight.status = 'pending'
+    }
+    this.updateTiming(insight, sanitizedTrackingStartTime, undefined, false)
+    this.notify(insight)
+  }
+
+  completeResponse(
+    identity: RequestInsightIdentity,
+    response: RequestInsightResponse
+  ) {
+    if (
+      this.disposed ||
+      !identity.requestId ||
+      response.outcome === 'pending'
+    ) {
+      return
+    }
+
+    const insight = this.requests.get(
+      getRequestInsightKey({
+        requestId: identity.requestId,
+        kind: identity.kind,
+      })
+    )
+    if (insight?.response?.outcome !== 'pending') {
+      return
+    }
+
+    const trackingStartTime = Number.isFinite(response.trackingStartTime)
+      ? response.trackingStartTime
+      : insight.response.trackingStartTime
+    const endTime = Math.max(
+      trackingStartTime,
+      Number.isFinite(response.endTime) ? response.endTime! : trackingStartTime
+    )
+    const statusCode = Number.isFinite(response.statusCode)
+      ? response.statusCode
+      : undefined
+
+    insight.response = {
+      trackingStartTime,
+      endTime,
+      statusCode,
+      outcome: response.outcome,
+      error: sanitizeResponseError(response.error),
+    }
+    this.updateTiming(
+      insight,
+      trackingStartTime,
+      endTime - trackingStartTime,
+      false
+    )
+
+    if (
+      insight.status === 'error' ||
+      response.outcome === 'errored' ||
+      (statusCode !== undefined && statusCode >= 500)
+    ) {
+      insight.status = 'error'
+    } else if (response.outcome === 'aborted') {
+      insight.status = 'aborted'
+    } else {
+      insight.status = 'ok'
+    }
+    this.notify(insight)
+  }
+
   private updateTiming(
     insight: RequestInsight,
     startTime: number,
@@ -244,17 +350,21 @@ export class RequestInsights {
   ): void {
     const insightKey = getRequestInsightKey(insight)
     if (isRequestSpan && durationMs !== undefined) {
-      const requestTiming = { startTime, durationMs }
-      this.requestTimings.set(insightKey, requestTiming)
-      insight.startTime = requestTiming.startTime
-      insight.durationMs = requestTiming.durationMs
-      return
+      this.requestTimings.set(insightKey, { startTime, durationMs })
     }
 
     const requestTiming = this.requestTimings.get(insightKey)
     if (requestTiming) {
-      insight.startTime = requestTiming.startTime
-      insight.durationMs = requestTiming.durationMs
+      const response = insight.response
+      const combinedStartTime = response
+        ? Math.min(requestTiming.startTime, response.trackingStartTime)
+        : requestTiming.startTime
+      const endTime = Math.max(
+        requestTiming.startTime + requestTiming.durationMs,
+        response?.endTime ?? combinedStartTime
+      )
+      insight.startTime = combinedStartTime
+      insight.durationMs = endTime - combinedStartTime
       return
     }
 
@@ -482,6 +592,18 @@ function sanitizeFetchInsight(fetch: RequestInsightFetch): RequestInsightFetch {
   return {
     ...fetch,
     url: sanitizeUrl(fetch.url),
+  }
+}
+
+function sanitizeResponseError(
+  error: RequestInsightResponse['error']
+): RequestInsightResponse['error'] {
+  if (!error?.type) {
+    return undefined
+  }
+
+  return {
+    type: SAFE_RESPONSE_ERROR_TYPES.has(error.type) ? error.type : 'Error',
   }
 }
 
