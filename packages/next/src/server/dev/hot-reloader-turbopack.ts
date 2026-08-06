@@ -789,6 +789,9 @@ export async function createHotReloaderTurbopack(
   // advancing there would both churn the hash without an edit and fail to
   // advance it at all when no client is connected.
   let hmrHash = 0
+  // Undefined until the first entrypoints emission. That one has nothing to
+  // compare against, so every route it lists would look added.
+  let previousRouteKeys: Set<string> | undefined
 
   // HACK: Defer sending `building` messages. Turbopack emits a compile pass for every
   // foreground-job cycle, including empty no-op recompiles scheduled by
@@ -1041,18 +1044,14 @@ export async function createHotReloaderTurbopack(
       }
 
       const routes = entrypoints.routes
-      const existingRoutes = [
-        ...currentEntrypoints.app.keys(),
-        ...currentEntrypoints.page.keys(),
-      ]
-      const newRoutes = [...routes.keys()]
-
-      const addedRoutes = newRoutes.filter(
-        (route) =>
-          !currentEntrypoints.app.has(route) &&
-          !currentEntrypoints.page.has(route)
-      )
-      const removedRoutes = existingRoutes.filter((route) => !routes.has(route))
+      const prevRouteKeys = previousRouteKeys
+      const addedRoutes = prevRouteKeys
+        ? [...routes.keys()].filter((route) => !prevRouteKeys.has(route))
+        : []
+      const removedRoutes = prevRouteKeys
+        ? [...prevRouteKeys].filter((route) => !routes.has(route))
+        : []
+      previousRouteKeys = new Set(routes.keys())
 
       await handleEntrypoints({
         entrypoints: entrypoints as any,
