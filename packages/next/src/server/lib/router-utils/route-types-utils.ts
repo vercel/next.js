@@ -156,30 +156,24 @@ function resolveInterceptingRoute(route: string): string {
  * A param is "universal" if it appears in ALL root layouts.
  *
  * Uses the already-extracted `groups` from `manifest.layoutRoutes` (via `getRouteRegex`)
- * rather than re-parsing segments.
+ * rather than re-parsing segments. `layoutDirs` holds the directory of every layout
+ * file, including the ones that share a route with another layout and so are not in
+ * the manifest.
  */
 function collectRootParamsFromLayouts(
-  layoutRoutes: RouteTypesManifest['layoutRoutes']
+  layoutRoutes: RouteTypesManifest['layoutRoutes'],
+  layoutDirs: string[]
 ): Map<string, RootParamInfo> {
   const routes = Object.keys(layoutRoutes)
 
-  // Route groups are stripped from routes, so `app/(marketing)/layout.tsx`
-  // becomes `/` and would look like an ancestor of every other layout.
-  const layoutDirs = new Map(
-    routes.map((route) => [route, path.posix.dirname(layoutRoutes[route].path)])
-  )
-
-  // Find root layouts: layouts with no ancestor layout above them.
-  const rootLayoutRoutes = routes.filter(
-    // If there are no other layouts in a parent directory of this layout,
-    // then it's a root layout.
-    (route) =>
-      !routes.some(
-        (other) =>
-          other !== route &&
-          layoutDirs.get(route)!.startsWith(layoutDirs.get(other)! + '/')
-      )
-  )
+  // Find root layouts: layouts with no ancestor layout above them. Route groups
+  // are stripped from routes, so `app/(marketing)/layout.tsx` becomes `/` and
+  // would look like an ancestor of every other layout. Compare the directories
+  // the layout files live in instead.
+  const rootLayoutRoutes = routes.filter((route) => {
+    const dir = path.posix.dirname(layoutRoutes[route].path)
+    return !layoutDirs.some((other) => dir.startsWith(other + '/'))
+  })
 
   if (rootLayoutRoutes.length === 0) {
     return new Map()
@@ -317,6 +311,10 @@ export async function createRouteTypesManifest({
     }
   }
 
+  // Directory of every layout file, kept separately because layouts that share a
+  // route with another layout don't make it into the manifest.
+  const layoutDirs: string[] = []
+
   // Process layout routes (exclude internal app error/not-found layouts)
   for (const { route, filePath } of layoutRoutes) {
     if (
@@ -324,11 +322,13 @@ export async function createRouteTypesManifest({
       route === UNDERSCORE_NOT_FOUND_ROUTE
     )
       continue
+    const relativePath = getRelativePath(filePath)
+    layoutDirs.push(path.posix.dirname(relativePath))
     // Use the resolved route (for interception routes, this gives us the canonical route)
     const resolvedRoute = resolveInterceptingRoute(route)
     if (!manifest.layoutRoutes[resolvedRoute]) {
       manifest.layoutRoutes[resolvedRoute] = {
-        path: getRelativePath(filePath),
+        path: relativePath,
         groups: extractRouteParams(resolvedRoute),
         slots: [],
       }
@@ -422,7 +422,10 @@ export async function createRouteTypesManifest({
   }
 
   // Collect root params from layout routes
-  manifest.rootParams = collectRootParamsFromLayouts(manifest.layoutRoutes)
+  manifest.rootParams = collectRootParamsFromLayouts(
+    manifest.layoutRoutes,
+    layoutDirs
+  )
 
   return manifest
 }

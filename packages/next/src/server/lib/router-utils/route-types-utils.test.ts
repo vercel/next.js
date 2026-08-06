@@ -1,7 +1,8 @@
+import type { RouteInfo } from '../../../build/file-classifier'
 import { createRouteTypesManifest } from './route-types-utils'
 
-describe('route types manifest root params', () => {
-  function createManifest(layoutRoutes: { route: string; filePath: string }[]) {
+describe('createRouteTypesManifest root params', () => {
+  function createManifest(layoutRoutes: RouteInfo[]) {
     return createRouteTypesManifest({
       dir: '/project',
       pageRoutes: [],
@@ -28,6 +29,19 @@ describe('route types manifest root params', () => {
     const manifest = await createManifest([
       { route: '/', filePath: '/project/app/layout.tsx' },
       { route: '/[locale]', filePath: '/project/app/[locale]/layout.tsx' },
+    ])
+
+    expect(manifest.rootParams).toEqual(new Map())
+  })
+
+  it('should not collect params from layouts below a root layout in a route group', async () => {
+    const manifest = await createManifest([
+      { route: '/', filePath: '/project/app/(marketing)/layout.tsx' },
+      { route: '/', filePath: '/project/app/(shop)/layout.tsx' },
+      {
+        route: '/[locale]',
+        filePath: '/project/app/(shop)/[locale]/layout.tsx',
+      },
     ])
 
     expect(manifest.rootParams).toEqual(new Map())
