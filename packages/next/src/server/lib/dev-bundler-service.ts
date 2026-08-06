@@ -11,6 +11,159 @@ import {
 } from '../dev/hot-reloader-types'
 import { traceCompileRoute } from '../dev/route-compilation-tracing'
 import type { RequestInsights } from './trace/request-insights'
+import type {
+  RequestInsightsLiveSnapshot,
+  RequestInsightsLiveUpdate,
+} from '../../next-devtools/shared/request-insights'
+
+type RequestInsightsHmrRuntime = Pick<
+  typeof import('../../next-devtools/shared/request-insights'),
+  | 'getRequestInsightKey'
+  | 'getRequestInsightsSerializedByteLength'
+  | 'REQUEST_INSIGHT_RETENTION_BUCKETS'
+  | 'REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET'
+  | 'REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES'
+>
+
+let requestInsightsHmrRuntime: RequestInsightsHmrRuntime | undefined
+
+function getRequestInsightsHmrRuntime(): RequestInsightsHmrRuntime | undefined {
+  if (process.env.__NEXT_DEV_SERVER) {
+    return (requestInsightsHmrRuntime ??=
+      require('../../next-devtools/shared/request-insights') as typeof import('../../next-devtools/shared/request-insights'))
+  }
+  return undefined
+}
+
+type RequestInsightsHmrCoalescerOptions = {
+  maxPendingBytes?: number
+  maxPendingUpdates?: number
+}
+
+/** Coalesces synchronous record mutations and falls back to one full resync. */
+export class RequestInsightsHmrCoalescer {
+  private readonly pending = new Map<
+    string,
+    {
+      update: RequestInsightsLiveUpdate
+      byteLength: number
+      firstSequence: number
+    }
+  >()
+  private pendingBytes = 0
+  private flushTimer: ReturnType<typeof setTimeout> | undefined
+  private requiresResync = false
+  private requiresAuthoritativeResync = false
+  private closed = false
+
+  constructor(
+    private readonly sendUpdate: (update: RequestInsightsLiveUpdate) => void,
+    private readonly sendSnapshot: (
+      snapshot: RequestInsightsLiveSnapshot,
+      authoritative: boolean
+    ) => void,
+    private readonly getSnapshot: () => RequestInsightsLiveSnapshot,
+    private readonly options: RequestInsightsHmrCoalescerOptions = {}
+  ) {}
+
+  enqueue(update: RequestInsightsLiveUpdate): void {
+    if (this.closed) return
+    const runtime = getRequestInsightsHmrRuntime()
+    if (!runtime) return
+    if (update.requiresResync) {
+      this.requireResync()
+      return
+    }
+    if (this.requiresResync) return
+
+    const key = runtime.getRequestInsightKey(update.insight)
+    const byteLength = runtime.getRequestInsightsSerializedByteLength(update)
+    const previous = this.pending.get(key)
+    if (previous) {
+      // Sequence sorting must not reorder records relative to their first pending update.
+      for (const [pendingKey, pending] of this.pending) {
+        if (
+          pendingKey !== key &&
+          (previous.firstSequence - pending.firstSequence) *
+            (update.sequence - pending.update.sequence) <
+            0
+        ) {
+          this.requireResync()
+          return
+        }
+      }
+    }
+    this.pendingBytes += byteLength - (previous?.byteLength ?? 0)
+    this.pending.set(key, {
+      update,
+      byteLength,
+      firstSequence: previous?.firstSequence ?? update.sequence,
+    })
+
+    if (
+      this.pending.size >
+        (this.options.maxPendingUpdates ??
+          runtime.REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET *
+            runtime.REQUEST_INSIGHT_RETENTION_BUCKETS.length) ||
+      this.pendingBytes >
+        (this.options.maxPendingBytes ??
+          runtime.REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES)
+    ) {
+      this.requireResync()
+      return
+    }
+    this.scheduleFlush()
+  }
+
+  requestResync(authoritative = false): void {
+    if (!this.closed) this.requireResync(authoritative)
+  }
+
+  close(): void {
+    this.closed = true
+    if (this.flushTimer) clearTimeout(this.flushTimer)
+    this.flushTimer = undefined
+    this.pending.clear()
+    this.pendingBytes = 0
+    this.requiresResync = false
+    this.requiresAuthoritativeResync = false
+  }
+
+  private requireResync(authoritative = false): void {
+    this.pending.clear()
+    this.pendingBytes = 0
+    this.requiresResync = true
+    this.requiresAuthoritativeResync ||= authoritative
+    this.scheduleFlush()
+  }
+
+  private scheduleFlush(): void {
+    if (this.flushTimer) return
+    this.flushTimer = setTimeout(() => this.flush(), 0)
+    this.flushTimer.unref?.()
+  }
+
+  private flush(): void {
+    this.flushTimer = undefined
+    if (this.closed) return
+    if (this.requiresResync) {
+      const authoritative = this.requiresAuthoritativeResync
+      this.requiresResync = false
+      this.requiresAuthoritativeResync = false
+      this.pending.clear()
+      this.pendingBytes = 0
+      this.sendSnapshot(this.getSnapshot(), authoritative)
+      return
+    }
+
+    const updates = Array.from(this.pending.values())
+      .map(({ update }) => update)
+      .sort((left, right) => left.sequence - right.sequence)
+    this.pending.clear()
+    this.pendingBytes = 0
+    for (const update of updates) this.sendUpdate(update)
+  }
+}
 
 /**
  * The DevBundlerService provides an interface to perform tasks with the
@@ -22,7 +175,8 @@ export class DevBundlerService {
   public setReactDebugChannel: NextJsHotReloaderInterface['setReactDebugChannel']
   public sendErrorsToBrowser: NextJsHotReloaderInterface['sendErrorsToBrowser']
   private unsubscribeRequestInsights?: () => void
-  private unsubscribeRequestInsightsSnapshots?: () => void
+  private unsubscribeRequestInsightsResync?: () => void
+  private requestInsightsHmrCoalescer?: RequestInsightsHmrCoalescer
 
   constructor(
     private readonly bundler: DevBundler,
@@ -45,28 +199,34 @@ export class DevBundlerService {
     this.sendErrorsToBrowser = hotReloader.sendErrorsToBrowser.bind(hotReloader)
 
     if (requestInsights) {
-      this.unsubscribeRequestInsights = requestInsights.subscribe(
-        (insight, capture) => {
+      this.requestInsightsHmrCoalescer = new RequestInsightsHmrCoalescer(
+        (update) =>
           hotReloader.send({
             type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE,
-            insight,
-            capture,
-          })
-        }
-      )
-      this.unsubscribeRequestInsightsSnapshots =
-        requestInsights.subscribeSnapshots((snapshot) => {
+            ...update,
+          }),
+        (snapshot, authoritative) =>
           hotReloader.send({
             type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_SNAPSHOT,
             snapshot,
-          })
-        })
+            authoritative: authoritative || undefined,
+          }),
+        () => requestInsights.getLiveSnapshot()
+      )
+      this.unsubscribeRequestInsights = requestInsights.subscribeLive(
+        (update) => this.requestInsightsHmrCoalescer?.enqueue(update)
+      )
+      this.unsubscribeRequestInsightsResync = requestInsights.subscribeResync(
+        (authoritative) =>
+          this.requestInsightsHmrCoalescer?.requestResync(authoritative)
+      )
     }
   }
 
   public close: NextJsHotReloaderInterface['close'] = () => {
     this.unsubscribeRequestInsights?.()
-    this.unsubscribeRequestInsightsSnapshots?.()
+    this.unsubscribeRequestInsightsResync?.()
+    this.requestInsightsHmrCoalescer?.close()
     this.bundler.hotReloader.close()
   }
 

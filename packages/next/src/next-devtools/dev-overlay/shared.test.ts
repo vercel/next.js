@@ -9,11 +9,18 @@ import {
   createRequestInsightsByteLengthCache,
   getInstantErrorRoute,
   routeTemplateMatchesPath,
+  shouldApplyRequestInsightsSnapshot,
+  shouldApplyRequestInsightsUpdate,
+  shouldReconcilePausedRequestInsights,
   updateRequestInsights,
 } from './shared'
 import type {
   RequestInsight,
   RequestInsightsCaptureState,
+} from '../shared/request-insights'
+import {
+  isRequestInsightsLiveSnapshot,
+  isRequestInsightsLiveUpdate,
 } from '../shared/request-insights'
 
 const STATIC_ROUTE = '/example'
@@ -180,6 +187,129 @@ describe('updateRequestInsights', () => {
 
     expect(update.requests).toEqual([updatedPage, api])
     expect(serializationCounts).toEqual({ page: 0, api: 0, updatedPage: 1 })
+  })
+})
+
+describe('Request Insights HMR ordering', () => {
+  const current = { generation: 4, sequence: 20, retentionRevision: 2 }
+
+  it('rejects stale ordinary snapshots', () => {
+    expect(
+      shouldApplyRequestInsightsSnapshot(
+        current,
+        { ...current, sequence: 19 },
+        false
+      )
+    ).toBe(false)
+    expect(
+      shouldApplyRequestInsightsSnapshot(
+        current,
+        { generation: 5, sequence: 1, retentionRevision: 0 },
+        false
+      )
+    ).toBe(false)
+  })
+
+  it('accepts an authoritative lower-sequence generation restart', () => {
+    expect(
+      shouldApplyRequestInsightsSnapshot(
+        current,
+        { generation: 0, sequence: 0, retentionRevision: 0 },
+        true
+      )
+    ).toBe(true)
+  })
+
+  it('keeps paused requests frozen for ordinary recovery snapshots', () => {
+    expect(
+      shouldReconcilePausedRequestInsights(
+        current,
+        {
+          ...current,
+          sequence: 21,
+        },
+        false
+      )
+    ).toBe(false)
+  })
+
+  it('reconciles paused requests when an authoritative restart reuses metadata', () => {
+    expect(
+      shouldReconcilePausedRequestInsights(
+        current,
+        {
+          ...current,
+          sequence: 1,
+        },
+        true
+      )
+    ).toBe(true)
+  })
+
+  it('reconciles paused requests after retention and generation changes', () => {
+    expect(
+      shouldReconcilePausedRequestInsights(
+        current,
+        {
+          ...current,
+          sequence: 21,
+          retentionRevision: 3,
+        },
+        false
+      )
+    ).toBe(true)
+    expect(
+      shouldReconcilePausedRequestInsights(
+        current,
+        {
+          generation: 5,
+          sequence: 1,
+          retentionRevision: 0,
+        },
+        false
+      )
+    ).toBe(true)
+  })
+
+  it('rejects stale updates and updates across a retention revision', () => {
+    const update = createRequestInsight('request', 1)
+    expect(
+      shouldApplyRequestInsightsUpdate(current, {
+        insight: update,
+        capture: createCaptureState(1, 0),
+        generation: 4,
+        sequence: 20,
+        retentionRevision: 2,
+      })
+    ).toBe(false)
+    expect(
+      shouldApplyRequestInsightsUpdate(current, {
+        insight: update,
+        capture: createCaptureState(1, 0),
+        generation: 4,
+        sequence: 21,
+        retentionRevision: 3,
+      })
+    ).toBe(false)
+  })
+
+  it('rejects malformed live wire envelopes', () => {
+    expect(
+      isRequestInsightsLiveSnapshot({
+        requests: [],
+        live: { generation: 1, sequence: -1, retentionRevision: 0 },
+      })
+    ).toBe(false)
+    expect(
+      isRequestInsightsLiveUpdate({
+        insight: createRequestInsight('request', 1),
+        capture: createCaptureState(1, 0),
+        generation: 1,
+        sequence: 2,
+        retentionRevision: 0,
+        requiresResync: 'yes',
+      })
+    ).toBe(false)
   })
 })
 

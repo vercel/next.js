@@ -31,7 +31,12 @@ import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
 import { devIndicatorServerState } from './dev-indicator-server-state'
 import { createBinaryHmrMessageData } from './messages'
 import type { NextConfigComplete } from '../config-shared'
-import type { RequestInsightsSnapshot } from '../../next-devtools/shared/request-insights'
+import type { RequestInsightsLiveSnapshot } from '../../next-devtools/shared/request-insights'
+import {
+  isRequestInsightsHmrMessage,
+  isRequestInsightsHmrSocketActive,
+  RequestInsightsHmrClientBuffer,
+} from './request-insights-hmr-backpressure'
 
 function isMiddlewareStats(stats: webpack.Stats) {
   for (const key of stats.compilation.entrypoints.keys()) {
@@ -74,6 +79,10 @@ function getStatsForSyncEvent(
 export class WebpackHotMiddleware {
   private clientsWithoutHtmlRequestId = new Set<ws>()
   private clientsByHtmlRequestId: Map<string, ws> = new Map()
+  private requestInsightsClientBuffers = new Map<
+    ws,
+    RequestInsightsHmrClientBuffer
+  >()
   private closed = false
   private clientLatestStats: { ts: number; stats: webpack.Stats } | null = null
   private middlewareLatestStats: { ts: number; stats: webpack.Stats } | null =
@@ -87,7 +96,7 @@ export class WebpackHotMiddleware {
     private config: NextConfigComplete,
     private devToolsConfig: DevToolsConfig,
     private getRequestInsightsSnapshot: () =>
-      | RequestInsightsSnapshot
+      | RequestInsightsLiveSnapshot
       | undefined
   ) {
     compilers[0].hooks.invalid.tap(
@@ -177,6 +186,7 @@ export class WebpackHotMiddleware {
     }
 
     client.addEventListener('close', () => {
+      this.deleteRequestInsightsClientBuffer(client)
       if (htmlRequestId) {
         this.clientsByHtmlRequestId.delete(htmlRequestId)
       } else {
@@ -197,6 +207,7 @@ export class WebpackHotMiddleware {
         devIndicatorServerState.disabledUntil = 0
       }
 
+      const requestInsights = this.getRequestInsightsSnapshot()
       this.publish({
         type: HMR_MESSAGE_SENT_TO_BROWSER.SYNC,
         hash: stats.hash!,
@@ -211,8 +222,14 @@ export class WebpackHotMiddleware {
         },
         devIndicator: devIndicatorServerState,
         devToolsConfig: this.devToolsConfig,
-        requestInsights: this.getRequestInsightsSnapshot(),
       })
+      if (requestInsights) {
+        this.publishToClient(client, {
+          type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_SNAPSHOT,
+          snapshot: requestInsights,
+          authoritative: true,
+        })
+      }
     }
   }
 
@@ -239,6 +256,11 @@ export class WebpackHotMiddleware {
 
   publishToClient = (client: ws, message: HmrMessageSentToBrowser) => {
     if (this.closed) {
+      return
+    }
+
+    if (isRequestInsightsHmrMessage(message)) {
+      this.getRequestInsightsClientBuffer(client)?.send(message)
       return
     }
 
@@ -298,6 +320,7 @@ export class WebpackHotMiddleware {
       ...this.clientsWithoutHtmlRequestId,
       ...this.clientsByHtmlRequestId.values(),
     ]) {
+      this.deleteRequestInsightsClientBuffer(wsClient)
       // it's okay to not cleanly close these websocket connections, this is dev
       wsClient.terminate()
     }
@@ -307,6 +330,7 @@ export class WebpackHotMiddleware {
   }
 
   deleteClient = (client: ws, htmlRequestId: string | null) => {
+    this.deleteRequestInsightsClientBuffer(client)
     if (htmlRequestId) {
       this.clientsByHtmlRequestId.delete(htmlRequestId)
     } else {
@@ -325,5 +349,25 @@ export class WebpackHotMiddleware {
     return (
       this.clientsWithoutHtmlRequestId.size + this.clientsByHtmlRequestId.size
     )
+  }
+
+  private getRequestInsightsClientBuffer(
+    client: ws
+  ): RequestInsightsHmrClientBuffer | undefined {
+    let buffer = this.requestInsightsClientBuffers.get(client)
+    if (!buffer && isRequestInsightsHmrSocketActive(client)) {
+      buffer = new RequestInsightsHmrClientBuffer(
+        client,
+        this.getRequestInsightsSnapshot,
+        () => this.requestInsightsClientBuffers.delete(client)
+      )
+      this.requestInsightsClientBuffers.set(client, buffer)
+    }
+    return buffer
+  }
+
+  private deleteRequestInsightsClientBuffer(client: ws): void {
+    this.requestInsightsClientBuffers.get(client)?.close()
+    this.requestInsightsClientBuffers.delete(client)
   }
 }

@@ -42,6 +42,10 @@ import { getOrCreateDebugChannelReadableWriterPair } from '../../debug-channel'
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromReadableStream as createFromReadableStreamBrowser } from 'react-server-dom-webpack/client'
 import { findSourceMapURL } from '../../../app-find-source-map-url'
+import {
+  isRequestInsightsLiveSnapshot,
+  isRequestInsightsLiveUpdate,
+} from '../../../../next-devtools/shared/request-insights'
 
 export interface StaticIndicatorState {
   pathname: string | null
@@ -321,9 +325,6 @@ export function processMessage(
         dispatcher.onDevIndicator(message.devIndicator)
       if ('devToolsConfig' in message)
         dispatcher.onDevToolsConfig(message.devToolsConfig)
-      if ('requestInsights' in message && message.requestInsights)
-        dispatcher.onRequestInsightsSnapshot(message.requestInsights)
-
       const hasErrors = Boolean(errors && errors.length)
       // Compilation with errors (e.g. syntax error or missing modules).
       if (hasErrors) {
@@ -494,11 +495,18 @@ export function processMessage(
       return
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE: {
-      dispatcher.onRequestInsightsUpdate(message.insight, message.capture)
+      if (isRequestInsightsLiveUpdate(message)) {
+        dispatcher.onRequestInsightsUpdate(message)
+      }
       return
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_SNAPSHOT: {
-      dispatcher.onRequestInsightsSnapshot(message.snapshot)
+      if (isRequestInsightsLiveSnapshot(message.snapshot)) {
+        dispatcher.onRequestInsightsSnapshot(
+          message.snapshot,
+          message.authoritative === true
+        )
+      }
       return
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK: {

@@ -11,17 +11,18 @@ import type { CacheIndicatorState } from './cache-indicator'
 import type {
   RequestInsight,
   RequestInsightsCaptureState,
-  RequestInsightsSnapshot,
+  RequestInsightsLiveSnapshot,
+  RequestInsightsLiveUpdate,
 } from '../shared/request-insights'
 import {
-  createBoundedRequestInsightsSnapshotProjection,
-  getRequestInsightGroupRepresentative,
-  getRequestInsightKey,
-  getRequestInsightRetentionBucket,
-  getRequestInsightRootId,
-  getRequestInsightsSerializedByteLength,
+  createRequestInsightsByteLengthCache,
   REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET,
-  REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES,
+  updateBoundedRequestInsightsProjection,
+  type RequestInsightsByteLengthCache,
+} from '../shared/request-insights'
+export {
+  createRequestInsightsByteLengthCache,
+  type RequestInsightsByteLengthCache,
 } from '../shared/request-insights'
 import { readInstantNavCookieState } from './components/instant-navs/instant-nav-cookie'
 import { isBlockingRouteInNavError } from './container/errors'
@@ -100,6 +101,7 @@ export interface OverlayState {
   readonly requestInsights: readonly RequestInsight[]
   readonly requestInsightsByteLengths: RequestInsightsByteLengthCache
   readonly requestInsightsCapture: RequestInsightsCaptureState | undefined
+  readonly requestInsightsLive: RequestInsightsLiveSnapshot['live'] | undefined
   readonly requestInsightsSnapshotVersion: number
   readonly requestInsightsConfig: Readonly<{
     showInternal: boolean
@@ -143,30 +145,43 @@ export const ACTION_INSTANT_ERRORS_CLEAR = 'instant-errors-clear'
 export const ACTION_REQUEST_INSIGHTS_SNAPSHOT = 'request-insights-snapshot'
 export const ACTION_REQUEST_INSIGHTS_UPDATE = 'request-insights-update'
 
-export type RequestInsightsByteLengthCache = {
-  readonly records: ReadonlyMap<string, number>
-  readonly groups: ReadonlyMap<string, number>
+export function shouldApplyRequestInsightsSnapshot(
+  current: RequestInsightsLiveSnapshot['live'] | undefined,
+  incoming: RequestInsightsLiveSnapshot['live'],
+  authoritative: boolean
+): boolean {
+  return (
+    authoritative ||
+    current === undefined ||
+    (incoming.generation === current.generation &&
+      incoming.sequence >= current.sequence)
+  )
 }
 
-export function createRequestInsightsByteLengthCache(
-  requests: readonly RequestInsight[]
-): RequestInsightsByteLengthCache {
-  const records = new Map<string, number>()
-  const groups = new Map<string, number>()
-  for (const request of requests) {
-    const requestKey = getRequestInsightKey(request)
-    const byteLength = getRequestInsightsSerializedByteLength(request)
-    records.set(requestKey, byteLength)
-    const rootRequestId = getRequestInsightRootId(request)
-    const groupByteLength = groups.get(rootRequestId)
-    groups.set(
-      rootRequestId,
-      groupByteLength === undefined
-        ? byteLength + 2
-        : groupByteLength + byteLength + 1
-    )
-  }
-  return { records, groups }
+export function shouldApplyRequestInsightsUpdate(
+  current: RequestInsightsLiveSnapshot['live'] | undefined,
+  incoming: RequestInsightsLiveUpdate
+): boolean {
+  return (
+    current !== undefined &&
+    incoming.generation === current.generation &&
+    incoming.sequence > current.sequence &&
+    incoming.retentionRevision === current.retentionRevision &&
+    incoming.requiresResync !== true
+  )
+}
+
+export function shouldReconcilePausedRequestInsights(
+  current: RequestInsightsLiveSnapshot['live'] | undefined,
+  incoming: RequestInsightsLiveSnapshot['live'],
+  authoritative: boolean
+): boolean {
+  return (
+    authoritative ||
+    current === undefined ||
+    incoming.generation !== current.generation ||
+    incoming.retentionRevision !== current.retentionRevision
+  )
 }
 
 export function updateRequestInsights(
@@ -178,122 +193,12 @@ export function updateRequestInsights(
   requests: RequestInsight[]
   byteLengths: RequestInsightsByteLengthCache
 } {
-  const insightKey = getRequestInsightKey(insight)
-  const requests = [...currentRequests]
-  const existingIndex = requests.findIndex(
-    (request) => getRequestInsightKey(request) === insightKey
+  return updateBoundedRequestInsightsProjection(
+    currentRequests,
+    currentByteLengths,
+    insight,
+    capture
   )
-  const previousRootRequestId =
-    existingIndex === -1
-      ? undefined
-      : getRequestInsightRootId(requests[existingIndex])
-  if (existingIndex === -1) {
-    requests.push(insight)
-  } else {
-    requests[existingIndex] = insight
-  }
-
-  const recordByteLengths = new Map(currentByteLengths.records)
-  recordByteLengths.set(
-    insightKey,
-    getRequestInsightsSerializedByteLength(insight)
-  )
-
-  const groupsByRootId = new Map<string, RequestInsight[]>()
-  for (const request of requests) {
-    const rootRequestId = getRequestInsightRootId(request)
-    const group = groupsByRootId.get(rootRequestId)
-    if (group) {
-      group.push(request)
-    } else {
-      groupsByRootId.set(rootRequestId, [request])
-    }
-  }
-
-  const groupByteLengths = new Map(currentByteLengths.groups)
-  const changedRootRequestIds = new Set([
-    getRequestInsightRootId(insight),
-    ...(previousRootRequestId === undefined ? [] : [previousRootRequestId]),
-  ])
-  for (const rootRequestId of changedRootRequestIds) {
-    const group = groupsByRootId.get(rootRequestId)
-    if (!group) {
-      groupByteLengths.delete(rootRequestId)
-      continue
-    }
-    groupByteLengths.set(
-      rootRequestId,
-      getGroupSerializedByteLength(group, recordByteLengths)
-    )
-  }
-
-  const retainedGroupCountByBucket = new Map(
-    capture?.usage.buckets.map((bucket) => [
-      bucket.bucket,
-      bucket.retainedRequestGroupCount,
-    ])
-  )
-  const seenGroupCountByBucket = new Map<string, number>()
-  // Groups are stored oldest-first. Keep the newest authoritative count for
-  // each bucket before applying the response byte limit.
-  const boundedGroups = Array.from(groupsByRootId.values())
-    .reverse()
-    .filter((group) => {
-      const bucket = getRequestInsightRetentionBucket(
-        getRequestInsightGroupRepresentative(group)
-      )
-      const seenGroupCount = (seenGroupCountByBucket.get(bucket) ?? 0) + 1
-      seenGroupCountByBucket.set(bucket, seenGroupCount)
-      const retainedGroupCount =
-        retainedGroupCountByBucket.get(bucket) ??
-        capture?.limits.maxRequestGroupsPerBucket ??
-        REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET
-      return seenGroupCount <= retainedGroupCount
-    })
-    .reverse()
-
-  const boundedGroupByteLengths = boundedGroups.map(
-    (group) => groupByteLengths.get(getRequestInsightRootId(group[0]))!
-  )
-  const requestsProjection = createBoundedRequestInsightsSnapshotProjection(
-    boundedGroups,
-    capture?.limits.maxSnapshotBytes ?? REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES,
-    capture,
-    Number.POSITIVE_INFINITY,
-    boundedGroupByteLengths
-  ).snapshot.requests
-  const retainedRequestKeys = new Set(
-    requestsProjection.map(getRequestInsightKey)
-  )
-  const retainedRootRequestIds = new Set(
-    requestsProjection.map(getRequestInsightRootId)
-  )
-  for (const requestKey of recordByteLengths.keys()) {
-    if (!retainedRequestKeys.has(requestKey)) {
-      recordByteLengths.delete(requestKey)
-    }
-  }
-  for (const rootRequestId of groupByteLengths.keys()) {
-    if (!retainedRootRequestIds.has(rootRequestId)) {
-      groupByteLengths.delete(rootRequestId)
-    }
-  }
-
-  return {
-    requests: requestsProjection,
-    byteLengths: { records: recordByteLengths, groups: groupByteLengths },
-  }
-}
-
-function getGroupSerializedByteLength(
-  group: readonly RequestInsight[],
-  recordByteLengths: ReadonlyMap<string, number>
-): number {
-  let byteLength = 2 + Math.max(0, group.length - 1)
-  for (const request of group) {
-    byteLength += recordByteLengths.get(getRequestInsightKey(request))!
-  }
-  return byteLength
 }
 
 export const STORAGE_KEY_PANEL_POSITION_PREFIX =
@@ -426,13 +331,13 @@ interface InstantErrorsClearAction {
 
 interface RequestInsightsSnapshotAction {
   type: typeof ACTION_REQUEST_INSIGHTS_SNAPSHOT
-  snapshot: RequestInsightsSnapshot
+  snapshot: RequestInsightsLiveSnapshot
+  authoritative: boolean
 }
 
 interface RequestInsightsUpdateAction {
   type: typeof ACTION_REQUEST_INSIGHTS_UPDATE
-  insight: RequestInsight
-  capture: RequestInsightsCaptureState
+  update: RequestInsightsLiveUpdate
 }
 
 export type DispatcherEvent =
@@ -553,6 +458,7 @@ export const INITIAL_OVERLAY_STATE: Omit<
   requestInsights: [],
   requestInsightsByteLengths: createRequestInsightsByteLengthCache([]),
   requestInsightsCapture: undefined,
+  requestInsightsLive: undefined,
   requestInsightsSnapshotVersion: 0,
   requestInsightsConfig: {
     showInternal: false,
@@ -804,6 +710,20 @@ export function useErrorOverlayReducer(
           return { ...state, errors: remaining }
         }
         case ACTION_REQUEST_INSIGHTS_SNAPSHOT: {
+          if (
+            !shouldApplyRequestInsightsSnapshot(
+              state.requestInsightsLive,
+              action.snapshot.live,
+              action.authoritative
+            )
+          ) {
+            return state
+          }
+          const reconcilePausedRequests = shouldReconcilePausedRequestInsights(
+            state.requestInsightsLive,
+            action.snapshot.live,
+            action.authoritative
+          )
           return {
             ...state,
             requestInsights: action.snapshot.requests,
@@ -812,22 +732,37 @@ export function useErrorOverlayReducer(
             ),
             requestInsightsCapture:
               action.snapshot.capture ?? state.requestInsightsCapture,
+            requestInsightsLive: action.snapshot.live,
             requestInsightsSnapshotVersion:
-              state.requestInsightsSnapshotVersion + 1,
+              state.requestInsightsSnapshotVersion +
+              (reconcilePausedRequests ? 1 : 0),
           }
         }
         case ACTION_REQUEST_INSIGHTS_UPDATE: {
+          if (
+            !shouldApplyRequestInsightsUpdate(
+              state.requestInsightsLive,
+              action.update
+            )
+          ) {
+            return state
+          }
           const update = updateRequestInsights(
             state.requestInsights,
             state.requestInsightsByteLengths,
-            action.insight,
-            action.capture
+            action.update.insight,
+            action.update.capture
           )
           return {
             ...state,
             requestInsights: update.requests,
             requestInsightsByteLengths: update.byteLengths,
-            requestInsightsCapture: action.capture,
+            requestInsightsCapture: action.update.capture,
+            requestInsightsLive: {
+              generation: action.update.generation,
+              sequence: action.update.sequence,
+              retentionRevision: action.update.retentionRevision,
+            },
           }
         }
         default: {

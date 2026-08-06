@@ -26,11 +26,20 @@ import {
   REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES,
   getRequestInsightsSerializedByteLength,
   type RequestInsight,
+  type RequestInsightsLiveSnapshot,
+  type RequestInsightsLiveUpdate,
 } from '../../../next-devtools/shared/request-insights'
 import {
   createRequestInsightsByteLengthCache,
   updateRequestInsights,
 } from '../../../next-devtools/dev-overlay/shared'
+import { RequestInsightsHmrCoalescer } from '../dev-bundler-service'
+import {
+  isRequestInsightsHmrSocketActive,
+  REQUEST_INSIGHTS_HMR_MAX_BUFFERED_BYTES,
+  RequestInsightsHmrClientBuffer,
+} from '../../dev/request-insights-hmr-backpressure'
+import { HMR_MESSAGE_SENT_TO_BROWSER } from '../../dev/hot-reloader-types'
 
 const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
 const originalDevServer = process.env.__NEXT_DEV_SERVER
@@ -40,6 +49,77 @@ function restoreEnv(name: string, value: string | undefined) {
     delete process.env[name]
   } else {
     process.env[name] = value
+  }
+}
+
+function createLiveUpdate(
+  sequence: number,
+  overrides: Partial<RequestInsightsLiveUpdate> = {}
+): RequestInsightsLiveUpdate {
+  const capture: RequestInsightsLiveUpdate['capture'] = {
+    limits: {
+      maxRequestGroupsPerBucket: 200,
+      maxBytesPerBucket: 18.75 * 1024 * 1024,
+      maxRetainedBytes: 93.75 * 1024 * 1024,
+      maxRecordsPerGroup: 15,
+      maxSpansPerRecord: 200,
+      maxFetchesPerRecord: 200,
+      maxBytesPerRecord: 64 * 1024,
+      maxBytesPerSpan: 8 * 1024,
+      maxEventsPerSpan: 16,
+      maxLinksPerSpan: 8,
+      maxSnapshotBytes: 4 * 1024 * 1024,
+    },
+    usage: {
+      retainedRequestGroupCount: 1,
+      retainedRequestCount: 1,
+      retainedBytes: 0,
+      buckets: [],
+    },
+  }
+  return {
+    insight: {
+      requestId: 'coalesced-root',
+      rootRequestId: 'coalesced-root',
+      source: 'page',
+      htmlRequestId: 'coalesced-root',
+      route: '/coalesced',
+      startTime: sequence,
+      status: 'ok',
+      spans: [],
+      fetches: [],
+    },
+    capture,
+    generation: 0,
+    sequence,
+    retentionRevision: 0,
+    ...overrides,
+  }
+}
+
+function createLiveUpdateForRequest(
+  requestId: string,
+  sequence: number,
+  startTime = sequence
+): RequestInsightsLiveUpdate {
+  const update = createLiveUpdate(sequence)
+  return {
+    ...update,
+    insight: {
+      ...update.insight,
+      requestId,
+      rootRequestId: requestId,
+      htmlRequestId: requestId,
+      route: `/${requestId.toLowerCase()}`,
+      startTime,
+    },
+  }
+}
+
+function createLiveSnapshot(sequence: number): RequestInsightsLiveSnapshot {
+  return {
+    requests: [createLiveUpdate(sequence).insight],
+    live: { generation: 0, sequence, retentionRevision: 0 },
   }
 }
 
@@ -55,6 +135,609 @@ describe('request insights', () => {
     restoreEnv('__NEXT_REQUEST_INSIGHTS', originalRequestInsights)
     restoreEnv('__NEXT_DEV_SERVER', originalDevServer)
     requestInsights.dispose()
+  })
+
+  it('passes Request Insights HMR messages through while the client is writable', () => {
+    const client = { bufferedAmount: 0, readyState: 1, send: jest.fn() }
+    const buffer = new RequestInsightsHmrClientBuffer(client, () =>
+      createLiveSnapshot(2)
+    )
+    const message = {
+      type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE,
+      ...createLiveUpdate(1),
+    }
+
+    buffer.send(message)
+
+    expect(client.send).toHaveBeenCalledTimes(1)
+    expect(JSON.parse(client.send.mock.calls[0][0])).toEqual(message)
+    buffer.close()
+  })
+
+  it('cleans up closed Request Insights HMR sockets', () => {
+    expect(isRequestInsightsHmrSocketActive({ readyState: 0 })).toBe(true)
+    expect(isRequestInsightsHmrSocketActive({ readyState: 1 })).toBe(true)
+    expect(isRequestInsightsHmrSocketActive({ readyState: 2 })).toBe(false)
+    expect(isRequestInsightsHmrSocketActive({ readyState: 3 })).toBe(false)
+
+    const onClose = jest.fn()
+    const client = { bufferedAmount: 0, readyState: 3, send: jest.fn() }
+    const buffer = new RequestInsightsHmrClientBuffer(
+      client,
+      () => createLiveSnapshot(1),
+      onClose
+    )
+    buffer.send({
+      type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE,
+      ...createLiveUpdate(1),
+    })
+    buffer.close()
+
+    expect(client.send).not.toHaveBeenCalled()
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('preserves initial snapshot authority while an HMR socket connects', () => {
+    jest.useFakeTimers()
+    try {
+      let readyState = 0
+      const client = {
+        bufferedAmount: 0,
+        get readyState() {
+          return readyState
+        },
+        send: jest.fn(),
+      }
+      const snapshot = createLiveSnapshot(1)
+      const buffer = new RequestInsightsHmrClientBuffer(client, () => snapshot)
+
+      buffer.send({
+        type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_SNAPSHOT,
+        snapshot,
+        authoritative: true,
+      })
+      expect(client.send).not.toHaveBeenCalled()
+
+      readyState = 1
+      jest.runOnlyPendingTimers()
+      expect(JSON.parse(client.send.mock.calls[0][0])).toEqual({
+        type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_SNAPSHOT,
+        snapshot,
+        authoritative: true,
+      })
+      buffer.close()
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  it('cancels a pending Request Insights retry when the HMR client closes', () => {
+    jest.useFakeTimers()
+    try {
+      const onClose = jest.fn()
+      const client = {
+        bufferedAmount: REQUEST_INSIGHTS_HMR_MAX_BUFFERED_BYTES,
+        readyState: 1,
+        send: jest.fn(),
+      }
+      const buffer = new RequestInsightsHmrClientBuffer(
+        client,
+        () => createLiveSnapshot(1),
+        onClose
+      )
+
+      buffer.send({
+        type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE,
+        ...createLiveUpdate(1),
+      })
+      expect(jest.getTimerCount()).toBe(1)
+
+      buffer.close()
+      expect(jest.getTimerCount()).toBe(0)
+      expect(onClose).toHaveBeenCalledTimes(1)
+      expect(client.send).not.toHaveBeenCalled()
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  it('bounds 1000 stalled updates with one timer and the latest snapshot', () => {
+    jest.useFakeTimers()
+    try {
+      let bufferedAmount = REQUEST_INSIGHTS_HMR_MAX_BUFFERED_BYTES
+      let latestSequence = 1
+      const client = {
+        get bufferedAmount() {
+          return bufferedAmount
+        },
+        readyState: 1,
+        send: jest.fn(),
+      }
+      const getSnapshot = jest.fn(() => createLiveSnapshot(latestSequence))
+      const buffer = new RequestInsightsHmrClientBuffer(client, getSnapshot)
+
+      for (let sequence = 1; sequence <= 1_000; sequence++) {
+        latestSequence = sequence
+        buffer.send({
+          type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE,
+          ...createLiveUpdate(sequence),
+        })
+      }
+      expect(jest.getTimerCount()).toBe(1)
+      expect(client.send).not.toHaveBeenCalled()
+
+      bufferedAmount = 0
+      jest.runOnlyPendingTimers()
+      expect(getSnapshot).toHaveBeenCalledTimes(1)
+      expect(JSON.parse(client.send.mock.calls[0][0])).toEqual({
+        type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_SNAPSHOT,
+        snapshot: createLiveSnapshot(1_000),
+      })
+      expect(jest.getTimerCount()).toBe(0)
+      buffer.close()
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  it('reuses serialized live snapshot envelopes between HMR clients', () => {
+    const snapshot = createLiveSnapshot(2)
+    const firstClient = { bufferedAmount: 0, readyState: 1, send: jest.fn() }
+    const secondClient = { bufferedAmount: 0, readyState: 1, send: jest.fn() }
+    const first = new RequestInsightsHmrClientBuffer(
+      firstClient,
+      () => snapshot
+    )
+    const second = new RequestInsightsHmrClientBuffer(
+      secondClient,
+      () => snapshot
+    )
+    const stringify = jest.spyOn(JSON, 'stringify')
+    try {
+      const message = {
+        type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_SNAPSHOT,
+        snapshot,
+      } as const
+      first.send(message)
+      second.send(message)
+      expect(stringify).toHaveBeenCalledTimes(1)
+      expect(secondClient.send).toHaveBeenCalledWith(
+        firstClient.send.mock.calls[0][0]
+      )
+    } finally {
+      stringify.mockRestore()
+      first.close()
+      second.close()
+    }
+  })
+
+  it('coalesces record updates and replaces retention changes with a snapshot', () => {
+    jest.useFakeTimers()
+    try {
+      const sendUpdate = jest.fn()
+      const sendSnapshot = jest.fn()
+      const getSnapshot = jest.fn(() => createLiveSnapshot(201))
+      const coalescer = new RequestInsightsHmrCoalescer(
+        sendUpdate,
+        sendSnapshot,
+        getSnapshot
+      )
+
+      for (let sequence = 1; sequence <= 200; sequence++) {
+        coalescer.enqueue(createLiveUpdate(sequence))
+      }
+      jest.runOnlyPendingTimers()
+      expect(sendUpdate).toHaveBeenCalledTimes(1)
+      expect(sendUpdate).toHaveBeenLastCalledWith(
+        expect.objectContaining({ sequence: 200 })
+      )
+      expect(sendSnapshot).not.toHaveBeenCalled()
+
+      coalescer.enqueue(
+        createLiveUpdate(201, {
+          retentionRevision: 1,
+          requiresResync: true,
+        })
+      )
+      jest.runOnlyPendingTimers()
+      expect(sendSnapshot).toHaveBeenCalledWith(createLiveSnapshot(201), false)
+
+      coalescer.requestResync(true)
+      jest.runOnlyPendingTimers()
+      expect(sendSnapshot).toHaveBeenCalledTimes(2)
+      expect(sendSnapshot).toHaveBeenLastCalledWith(
+        createLiveSnapshot(201),
+        true
+      )
+      coalescer.close()
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  it('coalesces a burst of resync requests into one live snapshot', () => {
+    jest.useFakeTimers()
+    try {
+      const sendSnapshot = jest.fn()
+      const getSnapshot = jest.fn(() => createLiveSnapshot(3))
+      const coalescer = new RequestInsightsHmrCoalescer(
+        jest.fn(),
+        sendSnapshot,
+        getSnapshot
+      )
+
+      coalescer.requestResync()
+      coalescer.requestResync(true)
+      coalescer.requestResync()
+      expect(jest.getTimerCount()).toBe(1)
+
+      jest.runOnlyPendingTimers()
+      expect(getSnapshot).toHaveBeenCalledTimes(1)
+      expect(sendSnapshot).toHaveBeenCalledTimes(1)
+      expect(sendSnapshot).toHaveBeenCalledWith(createLiveSnapshot(3), true)
+      coalescer.close()
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  it('resyncs when coalescing would reorder newly discovered records', () => {
+    jest.useFakeTimers()
+    try {
+      const firstA = createLiveUpdateForRequest('A', 1, 1)
+      const firstB = createLiveUpdateForRequest('B', 2, 2)
+      const latestA = createLiveUpdateForRequest('A', 3, 1)
+      latestA.insight.durationMs = 3
+      const serverSnapshot: RequestInsightsLiveSnapshot = {
+        requests: [latestA.insight, firstB.insight],
+        live: { generation: 0, sequence: 3, retentionRevision: 0 },
+      }
+      let clientRequests: readonly RequestInsight[] = []
+      let clientByteLengths = createRequestInsightsByteLengthCache([])
+      const sendUpdate = jest.fn((update: RequestInsightsLiveUpdate) => {
+        const next = updateRequestInsights(
+          clientRequests,
+          clientByteLengths,
+          update.insight,
+          update.capture
+        )
+        clientRequests = next.requests
+        clientByteLengths = next.byteLengths
+      })
+      const sendSnapshot = jest.fn((snapshot: RequestInsightsLiveSnapshot) => {
+        clientRequests = snapshot.requests
+        clientByteLengths = createRequestInsightsByteLengthCache(
+          snapshot.requests
+        )
+      })
+      const coalescer = new RequestInsightsHmrCoalescer(
+        sendUpdate,
+        sendSnapshot,
+        () => serverSnapshot
+      )
+
+      coalescer.enqueue(firstA)
+      coalescer.enqueue(firstB)
+      coalescer.enqueue(latestA)
+      jest.runOnlyPendingTimers()
+
+      expect(sendUpdate).not.toHaveBeenCalled()
+      expect(sendSnapshot).toHaveBeenCalledWith(serverSnapshot, false)
+      expect(clientRequests.map((request) => request.requestId)).toEqual([
+        'A',
+        'B',
+      ])
+
+      const projectedServerOrder =
+        createBoundedRequestInsightsSnapshotProjection(
+          serverSnapshot.requests.map((request) => [request]),
+          REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES,
+          undefined,
+          1
+        ).snapshot.requests
+      const projectedClientOrder =
+        createBoundedRequestInsightsSnapshotProjection(
+          clientRequests.map((request) => [request]),
+          REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES,
+          undefined,
+          1
+        ).snapshot.requests
+      expect(projectedClientOrder).toEqual(projectedServerOrder)
+      expect(projectedClientOrder.map((request) => request.requestId)).toEqual([
+        'B',
+      ])
+
+      const nextC = createLiveUpdateForRequest('C', 4, 4)
+      nextC.capture.limits.maxRequestGroupsPerBucket = 2
+      nextC.capture.usage.buckets = [
+        {
+          bucket: 'page',
+          retainedRequestGroupCount: 2,
+          retainedRequestCount: 2,
+          retainedBytes: 0,
+          evictedRequestGroupCount: 1,
+        },
+      ]
+      coalescer.enqueue(nextC)
+      jest.runOnlyPendingTimers()
+      expect(clientRequests.map((request) => request.requestId)).toEqual([
+        'B',
+        'C',
+      ])
+      coalescer.close()
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  it('resyncs when an update was omitted from the published projection', () => {
+    jest.useFakeTimers()
+    const controller = new RequestInsights({ maxSnapshotBytes: 3_500 })
+    let unsubscribe = () => {}
+    try {
+      for (let index = 0; index < 12; index++) {
+        controller.recordSpan({
+          name: `old-${index}-${'x'.repeat(200)}`,
+          timestamp: index,
+          requestId: 'A',
+          rootRequestId: 'A',
+          requestInsightSource: 'page',
+        })
+      }
+      controller.recordFetch(
+        { requestId: 'B', rootRequestId: 'B', source: 'page' },
+        { url: '/new', startTime: 20, durationMs: 1 }
+      )
+
+      const authoritativeSnapshot = controller.getLiveSnapshot()
+      expect(
+        authoritativeSnapshot.requests.map((request) => request.requestId)
+      ).toEqual(['B'])
+      let clientRequests = authoritativeSnapshot.requests
+      let clientByteLengths =
+        createRequestInsightsByteLengthCache(clientRequests)
+      const sendUpdate = jest.fn((update: RequestInsightsLiveUpdate) => {
+        const next = updateRequestInsights(
+          clientRequests,
+          clientByteLengths,
+          update.insight,
+          update.capture
+        )
+        clientRequests = next.requests
+        clientByteLengths = next.byteLengths
+      })
+      const sendSnapshot = jest.fn((snapshot: RequestInsightsLiveSnapshot) => {
+        clientRequests = snapshot.requests
+        clientByteLengths = createRequestInsightsByteLengthCache(
+          snapshot.requests
+        )
+      })
+      const coalescer = new RequestInsightsHmrCoalescer(
+        sendUpdate,
+        sendSnapshot,
+        () => controller.getLiveSnapshot()
+      )
+      unsubscribe = controller.subscribeLive((update) =>
+        coalescer.enqueue(update)
+      )
+
+      controller.recordFetch(
+        { requestId: 'A', rootRequestId: 'A', source: 'page' },
+        { url: '/old-update', startTime: 21, durationMs: 1 }
+      )
+      jest.runOnlyPendingTimers()
+
+      const serverSnapshot = controller.getLiveSnapshot()
+      expect(sendUpdate).not.toHaveBeenCalled()
+      expect(sendSnapshot).toHaveBeenCalledTimes(1)
+      expect(clientRequests).toEqual(serverSnapshot.requests)
+      expect(clientRequests.map((request) => request.requestId)).toEqual(['B'])
+      coalescer.close()
+    } finally {
+      unsubscribe()
+      controller.dispose()
+      jest.useRealTimers()
+    }
+  })
+
+  it('resyncs a late update to a root omitted by an incremental growth update', () => {
+    const controller = new RequestInsights({ maxSnapshotBytes: 3_500 })
+    try {
+      controller.recordFetch(
+        { requestId: 'A', rootRequestId: 'A', source: 'page' },
+        { url: `/old/${'a'.repeat(500)}`, startTime: 1, durationMs: 1 }
+      )
+      controller.recordFetch(
+        { requestId: 'B', rootRequestId: 'B', source: 'page' },
+        { url: '/new', startTime: 2, durationMs: 1 }
+      )
+      expect(
+        controller
+          .getLiveSnapshot()
+          .requests.map((request) => request.requestId)
+      ).toEqual(['A', 'B'])
+
+      const updates: RequestInsightsLiveUpdate[] = []
+      const unsubscribe = controller.subscribeLive((update) =>
+        updates.push(update)
+      )
+      for (let index = 0; index < 8; index++) {
+        controller.recordSpan({
+          name: `grow-${index}-${'x'.repeat(200)}`,
+          timestamp: 3 + index,
+          requestId: 'B',
+          rootRequestId: 'B',
+          requestInsightSource: 'page',
+        })
+      }
+      expect(
+        controller.getSnapshot().requests.map((request) => request.requestId)
+      ).toEqual(['B'])
+      expect(updates.some((update) => update.requiresResync)).toBe(false)
+
+      updates.length = 0
+      controller.recordFetch(
+        { requestId: 'A', rootRequestId: 'A', source: 'page' },
+        { url: '/old-late-update', startTime: 20, durationMs: 1 }
+      )
+      expect(updates.at(-1)?.requiresResync).toBe(true)
+      expect(
+        controller
+          .getLiveSnapshot()
+          .requests.map((request) => request.requestId)
+      ).toEqual(['B'])
+      unsubscribe()
+    } finally {
+      controller.dispose()
+    }
+  })
+
+  it('resyncs when a shrinking root makes an omitted root projectable', () => {
+    const controller = new RequestInsights({ maxSnapshotBytes: 50_000 })
+    try {
+      for (let index = 0; index < 20; index++) {
+        controller.recordSpan({
+          name: `old-${index}-${'a'.repeat(300)}`,
+          timestamp: index,
+          requestId: 'A',
+          rootRequestId: 'A',
+          requestInsightSource: 'page',
+        })
+      }
+      for (let index = 0; index < 100; index++) {
+        controller.recordSpan({
+          name: `large-${index}-${'b'.repeat(400)}`,
+          timestamp: 100 + index,
+          requestId: 'B',
+          rootRequestId: 'B',
+          requestInsightSource: 'page',
+        })
+      }
+      expect(
+        controller
+          .getLiveSnapshot()
+          .requests.map((request) => request.requestId)
+      ).toEqual(['B'])
+
+      const updates: RequestInsightsLiveUpdate[] = []
+      const unsubscribe = controller.subscribeLive((update) =>
+        updates.push(update)
+      )
+      for (let index = 0; index < 200; index++) {
+        controller.recordSpan({
+          name: `small-${index}`,
+          timestamp: 300 + index,
+          requestId: 'B',
+          rootRequestId: 'B',
+          requestInsightSource: 'page',
+        })
+      }
+
+      expect(
+        controller.getSnapshot().requests.map((request) => request.requestId)
+      ).toEqual(['A', 'B'])
+      expect(updates.some((update) => update.requiresResync)).toBe(true)
+      unsubscribe()
+    } finally {
+      controller.dispose()
+    }
+  })
+
+  it('keeps a new root incremental after an initial live snapshot', () => {
+    const controller = new RequestInsights()
+    try {
+      expect(controller.getLiveSnapshot().requests).toEqual([])
+      const listener = jest.fn()
+      const unsubscribe = controller.subscribeLive(listener)
+
+      controller.recordFetch(
+        { requestId: 'new', rootRequestId: 'new', source: 'page' },
+        { url: '/new', startTime: 1, durationMs: 1 }
+      )
+
+      expect(listener).toHaveBeenCalledTimes(1)
+      expect(listener.mock.calls[0][0].requiresResync).toBeUndefined()
+      unsubscribe()
+    } finally {
+      controller.dispose()
+    }
+  })
+
+  it('keeps live snapshot identity stable until capture changes', () => {
+    const initial = requestInsights.getLiveSnapshot()
+    expect(requestInsights.getLiveSnapshot()).toBe(initial)
+
+    requestInsights.recordFetch(
+      { requestId: 'live', rootRequestId: 'live', source: 'page' },
+      { url: '/live', startTime: 1 }
+    )
+    const changed = requestInsights.getLiveSnapshot()
+    expect(changed).not.toBe(initial)
+    expect(requestInsights.getLiveSnapshot()).toBe(changed)
+
+    requestInsights.clear()
+    const cleared = requestInsights.getLiveSnapshot()
+    expect(cleared.live.generation).toBeGreaterThan(changed.live.generation)
+    expect(cleared.requests).toEqual([])
+  })
+
+  it('keeps updates incremental before a live projection is published', () => {
+    const listener = jest.fn()
+    const unsubscribe = requestInsights.subscribeLive(listener)
+
+    requestInsights.recordFetch(
+      { requestId: 'unpublished', source: 'page' },
+      { url: '/unpublished', startTime: 1 }
+    )
+
+    expect(listener).toHaveBeenCalledTimes(1)
+    expect(listener.mock.calls[0][0].requiresResync).toBeUndefined()
+    unsubscribe()
+  })
+
+  it('requests live resync after capture configuration, trimming, and clear', () => {
+    const resync = jest.fn()
+    const unsubscribe = requestInsights.subscribeResync(resync)
+
+    requestInsights.setMaxRequestGroupsPerBucket(1)
+    expect(resync).toHaveBeenCalledTimes(1)
+
+    requestInsights.recordFetch(
+      { requestId: 'first', rootRequestId: 'first', source: 'page' },
+      { url: '/first', startTime: 1 }
+    )
+    requestInsights.recordFetch(
+      { requestId: 'second', rootRequestId: 'second', source: 'page' },
+      { url: '/second', startTime: 2 }
+    )
+    expect(resync).toHaveBeenCalledTimes(2)
+
+    requestInsights.clear()
+    expect(resync).toHaveBeenCalledTimes(3)
+    expect(resync).toHaveBeenLastCalledWith(true)
+    unsubscribe()
+  })
+
+  it('only builds compatibility snapshots for compatibility subscribers', () => {
+    const getSnapshot = jest.spyOn(requestInsights, 'getSnapshot')
+    const resync = jest.fn()
+    const unsubscribeResync = requestInsights.subscribeResync(resync)
+    let unsubscribeSnapshot: (() => void) | undefined
+    try {
+      requestInsights.setMaxRequestGroupsPerBucket(1)
+      expect(resync).toHaveBeenCalledTimes(1)
+      expect(getSnapshot).not.toHaveBeenCalled()
+
+      const legacySnapshot = jest.fn()
+      unsubscribeSnapshot = requestInsights.subscribeSnapshots(legacySnapshot)
+      requestInsights.setMaxRequestGroupsPerBucket(2)
+      expect(getSnapshot).toHaveBeenCalledTimes(1)
+      expect(legacySnapshot).toHaveBeenCalledTimes(1)
+    } finally {
+      unsubscribeSnapshot?.()
+      unsubscribeResync()
+      getSnapshot.mockRestore()
+    }
   })
 
   function withRequestInsights<TArgs extends unknown[]>(

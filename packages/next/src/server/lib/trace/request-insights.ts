@@ -4,10 +4,13 @@ import type {
   RequestInsightFetch,
   RequestInsightSpan,
   RequestInsightsCaptureState,
+  RequestInsightsLiveSnapshot,
+  RequestInsightsLiveUpdate,
   RequestInsightsSnapshot,
 } from '../../../next-devtools/shared/request-insights'
 import {
   createBoundedRequestInsightsSnapshotProjection,
+  createRequestInsightsByteLengthCache,
   REQUEST_INSIGHTS_MAX_BYTES_PER_RECORD,
   REQUEST_INSIGHTS_MAX_BYTES_PER_RETENTION_BUCKET,
   REQUEST_INSIGHTS_MAX_BYTES_PER_SPAN,
@@ -19,8 +22,12 @@ import {
   REQUEST_INSIGHTS_MAX_RETAINED_BYTES,
   REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES,
   REQUEST_INSIGHTS_MAX_SPANS_PER_RECORD,
+  updateBoundedRequestInsightsProjection,
 } from '../../../next-devtools/shared/request-insights'
-import type { RequestInsightKind } from '../../../next-devtools/shared/request-insights'
+import type {
+  RequestInsightKind,
+  RequestInsightsByteLengthCache,
+} from '../../../next-devtools/shared/request-insights'
 import {
   getRequestInsightKey,
   getRequestInsightKind,
@@ -60,6 +67,9 @@ const CLIENT_COMPONENT_LOADING_SPAN_TYPE =
 export type RequestInsightsListener = (
   insight: RequestInsight,
   capture: RequestInsightsCaptureState
+) => void
+export type RequestInsightsLiveListener = (
+  update: RequestInsightsLiveUpdate
 ) => void
 export type RequestInsightsSnapshotListener = (
   snapshot: RequestInsightsSnapshot
@@ -176,10 +186,29 @@ export class RequestInsights {
     number
   >()
   private readonly listeners = new Set<RequestInsightsListener>()
+  private readonly liveListeners = new Set<RequestInsightsLiveListener>()
+  private readonly resyncListeners = new Set<(authoritative: boolean) => void>()
   private readonly snapshotListeners =
     new Set<RequestInsightsSnapshotListener>()
   private readonly limits: RequestInsightsLimits
   private nextRootRequestSequence = 0
+  private liveGeneration = 0
+  private liveSequence = 0
+  private retentionRevision = 0
+  private liveSnapshotCache:
+    | {
+        generation: number
+        sequence: number
+        retentionRevision: number
+        snapshot: RequestInsightsLiveSnapshot
+      }
+    | undefined
+  private expectedLiveProjection:
+    | {
+        requests: readonly RequestInsight[]
+        byteLengths: RequestInsightsByteLengthCache
+      }
+    | undefined
   private disposed = false
 
   constructor(options: RequestInsightsOptions = {}) {
@@ -384,16 +413,61 @@ export class RequestInsights {
     }
   }
 
+  getLiveSnapshot(): RequestInsightsLiveSnapshot {
+    if (
+      this.liveSnapshotCache?.generation === this.liveGeneration &&
+      this.liveSnapshotCache.sequence === this.liveSequence &&
+      this.liveSnapshotCache.retentionRevision === this.retentionRevision
+    ) {
+      return this.liveSnapshotCache.snapshot
+    }
+
+    const snapshot = {
+      ...this.getSnapshot(),
+      live: {
+        generation: this.liveGeneration,
+        sequence: this.liveSequence,
+        retentionRevision: this.retentionRevision,
+      },
+    }
+    this.liveSnapshotCache = {
+      generation: this.liveGeneration,
+      sequence: this.liveSequence,
+      retentionRevision: this.retentionRevision,
+      snapshot,
+    }
+    this.expectedLiveProjection = {
+      requests: snapshot.requests,
+      byteLengths: createRequestInsightsByteLengthCache(
+        snapshot.requests,
+        this.requestByteLengths
+      ),
+    }
+    return snapshot
+  }
+
   subscribe(listener: RequestInsightsListener): () => void {
     if (this.disposed) return () => {}
     this.listeners.add(listener)
     return () => this.listeners.delete(listener)
   }
 
+  subscribeLive(listener: RequestInsightsLiveListener): () => void {
+    if (this.disposed) return () => {}
+    this.liveListeners.add(listener)
+    return () => this.liveListeners.delete(listener)
+  }
+
   subscribeSnapshots(listener: RequestInsightsSnapshotListener): () => void {
     if (this.disposed) return () => {}
     this.snapshotListeners.add(listener)
     return () => this.snapshotListeners.delete(listener)
+  }
+
+  subscribeResync(listener: (authoritative: boolean) => void): () => void {
+    if (this.disposed) return () => {}
+    this.resyncListeners.add(listener)
+    return () => this.resyncListeners.delete(listener)
   }
 
   setMaxRequestGroupsPerBucket(value: number | undefined): void {
@@ -407,14 +481,17 @@ export class RequestInsights {
       this.trimRetentionBucket(bucket)
     }
     this.trimGlobalRetention()
-    this.notifySnapshot()
+    this.advanceRetentionRevision()
+    this.notifyResync()
   }
 
   clear(): void {
     if (this.disposed) return
     this.clearRetainedState()
     this.evictedRequestGroupCounts.clear()
-    this.notifySnapshot()
+    this.liveGeneration++
+    this.advanceRetentionRevision()
+    this.notifyResync(true)
   }
 
   dispose(): void {
@@ -422,6 +499,8 @@ export class RequestInsights {
     this.clearRetainedState()
     this.disposed = true
     this.listeners.clear()
+    this.liveListeners.clear()
+    this.resyncListeners.clear()
     this.snapshotListeners.clear()
   }
 
@@ -486,8 +565,37 @@ export class RequestInsights {
     insight.durationMs = timing.durationMs
   }
 
-  private notify(insight: RequestInsight): void {
+  private notify(insight: RequestInsight, requiresResync = false): void {
+    const sequence = ++this.liveSequence
+    this.liveSnapshotCache = undefined
     const capture = this.getCaptureState()
+    let requiresProjectionResync = false
+    if (this.expectedLiveProjection !== undefined) {
+      const predicted = updateBoundedRequestInsightsProjection(
+        this.expectedLiveProjection.requests,
+        this.expectedLiveProjection.byteLengths,
+        cloneRequestInsight(insight),
+        capture,
+        this.requestByteLengths.get(getRequestInsightKey(insight))
+      )
+      const authoritativeRequests = this.getCurrentLiveProjection(capture)
+      requiresProjectionResync = !hasSameRequestInsightOrder(
+        predicted.requests,
+        authoritativeRequests
+      )
+      if (requiresResync || requiresProjectionResync) {
+        const requests = authoritativeRequests.map(cloneRequestInsight)
+        this.expectedLiveProjection = {
+          requests,
+          byteLengths: createRequestInsightsByteLengthCache(
+            requests,
+            this.requestByteLengths
+          ),
+        }
+      } else {
+        this.expectedLiveProjection = predicted
+      }
+    }
     for (const listener of this.listeners) {
       try {
         listener(cloneRequestInsight(insight), cloneCaptureState(capture))
@@ -495,14 +603,74 @@ export class RequestInsights {
         console.error('[request-insights] listener failed', error)
       }
     }
+    for (const listener of this.liveListeners) {
+      try {
+        listener({
+          insight: cloneRequestInsight(insight),
+          capture: cloneCaptureState(capture),
+          generation: this.liveGeneration,
+          sequence,
+          retentionRevision: this.retentionRevision,
+          requiresResync:
+            requiresResync || requiresProjectionResync || undefined,
+        })
+      } catch (error) {
+        console.error('[request-insights] live listener failed', error)
+      }
+    }
   }
 
-  private notifySnapshot(): void {
-    for (const listener of this.snapshotListeners) {
+  private getCurrentLiveProjection(
+    capture: RequestInsightsCaptureState
+  ): readonly RequestInsight[] {
+    const groups: RequestInsight[][] = []
+    const groupByteLengths: number[] = []
+    for (const rootRequestId of this.rootRequestOrder) {
+      const group = Array.from(
+        this.requestKeysByRootRequestId.get(rootRequestId) ?? []
+      ).flatMap((requestKey) => {
+        const request = this.requests.get(requestKey)
+        return request ? [request] : []
+      })
+      if (group.length === 0) continue
+      groups.push(group)
+      groupByteLengths.push(
+        (this.rootByteLengths.get(rootRequestId) ?? 0) +
+          2 +
+          Math.max(0, group.length - 1)
+      )
+    }
+    return createBoundedRequestInsightsSnapshotProjection(
+      groups,
+      this.limits.maxSnapshotBytes,
+      capture,
+      Number.POSITIVE_INFINITY,
+      groupByteLengths
+    ).snapshot.requests
+  }
+
+  private advanceRetentionRevision(): void {
+    this.retentionRevision++
+    this.liveSequence++
+    this.liveSnapshotCache = undefined
+  }
+
+  private notifyResync(authoritative = false): void {
+    if (this.snapshotListeners.size > 0) {
+      const snapshot = this.getSnapshot()
+      for (const listener of this.snapshotListeners) {
+        try {
+          listener(snapshot)
+        } catch (error) {
+          console.error('[request-insights] snapshot listener failed', error)
+        }
+      }
+    }
+    for (const listener of this.resyncListeners) {
       try {
-        listener(this.getSnapshot())
+        listener(authoritative)
       } catch (error) {
-        console.error('[request-insights] snapshot listener failed', error)
+        console.error('[request-insights] resync listener failed', error)
       }
     }
   }
@@ -723,19 +891,24 @@ export class RequestInsights {
     const bucket = this.refreshRootRetentionBucket(
       getRequestInsightRootId(insight)
     )
-    this.trimRetentionBucket(bucket)
-    this.trimGlobalRetention()
+    const membershipChanged =
+      removedMembership ||
+      this.trimRetentionBucket(bucket) ||
+      this.trimGlobalRetention()
 
-    if (this.requests.has(getRequestInsightKey(insight))) this.notify(insight)
+    if (membershipChanged) this.advanceRetentionRevision()
+    if (this.requests.has(getRequestInsightKey(insight))) {
+      this.notify(insight, membershipChanged)
+    }
     for (const updated of metadataUpdates) {
       if (
         updated !== insight &&
         this.requests.has(getRequestInsightKey(updated))
       ) {
-        this.notify(updated)
+        this.notify(updated, membershipChanged)
       }
     }
-    if (removedMembership) this.notifySnapshot()
+    if (membershipChanged) this.notifyResync()
   }
 
   private trimGroup(rootRequestId: string): {
@@ -920,11 +1093,13 @@ export class RequestInsights {
     return order
   }
 
-  private trimRetentionBucket(bucket: RequestInsightRetentionBucket): void {
+  private trimRetentionBucket(bucket: RequestInsightRetentionBucket): boolean {
     const roots = this.getRootRequestOrderForBucket(bucket)
+    let removedMembership = false
     while (roots.size > this.limits.maxRequestGroupsPerBucket) {
       const rootRequestId = roots.values().next().value
-      if (rootRequestId) this.evictRoot(rootRequestId)
+      if (!rootRequestId) break
+      if (this.evictRoot(rootRequestId)) removedMembership = true
     }
 
     while (
@@ -933,15 +1108,19 @@ export class RequestInsights {
     ) {
       const rootRequestId = roots.values().next().value
       if (!rootRequestId) break
-      this.evictRoot(rootRequestId)
+      if (this.evictRoot(rootRequestId)) removedMembership = true
     }
+    return removedMembership
   }
 
-  private trimGlobalRetention(): void {
+  private trimGlobalRetention(): boolean {
+    let removedMembership = false
     while (this.getRetainedByteLength() > this.limits.maxRetainedBytes) {
       const rootRequestId = this.rootRequestOrder.values().next().value
       if (!rootRequestId || !this.evictRoot(rootRequestId)) break
+      removedMembership = true
     }
+    return removedMembership
   }
 
   private getRetainedByteLength(): number {
@@ -1517,6 +1696,19 @@ function getCurrentTimestamp(): number {
 
 function getSerializedByteLength(value: unknown): number {
   return Buffer.byteLength(JSON.stringify(value), 'utf8')
+}
+
+function hasSameRequestInsightOrder(
+  left: readonly RequestInsight[],
+  right: readonly RequestInsight[]
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every(
+      (request, index) =>
+        getRequestInsightKey(request) === getRequestInsightKey(right[index])
+    )
+  )
 }
 
 function cloneRequestInsight(insight: RequestInsight): RequestInsight {
