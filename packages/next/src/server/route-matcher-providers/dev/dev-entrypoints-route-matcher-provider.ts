@@ -65,8 +65,10 @@ export class DevEntrypointsRouteMatcherProvider
               : new PagesAPIRouteMatcher(definition as PagesAPIRouteDefinition)
           )
           break
-        default:
+        case RouteKind.IMAGE:
           break
+        default:
+          definition.kind satisfies never
       }
     }
 

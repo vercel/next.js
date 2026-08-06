@@ -43,7 +43,13 @@ export function toDevRouteInfoMap(
       case 'app-route':
         originalNames = [route.originalName]
         break
+      case 'page':
+      case 'page-api':
+      case 'conflict':
+        originalNames = []
+        break
       default:
+        route satisfies never
         originalNames = []
     }
     infos.set(pathname, { type: route.type, originalNames })
