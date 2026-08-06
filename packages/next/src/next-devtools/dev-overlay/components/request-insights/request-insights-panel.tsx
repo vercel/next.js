@@ -25,7 +25,10 @@ import { REQUEST_INSIGHTS_CLEAR_DEV_ENDPOINT } from '../../../../shared/lib/cons
 import { CopyButton } from '../copy-button'
 import { Tooltip } from '../tooltip/tooltip'
 import GearIcon from '../../icons/gear-icon'
-import { getCaptureUsagePresentation } from './capture-usage'
+import {
+  getCaptureOmissionPresentation,
+  getCaptureUsagePresentation,
+} from './capture-usage'
 import { getFetchUrlPresentation } from './fetch-label'
 import { formatDuration } from './format-duration'
 import {
@@ -90,6 +93,10 @@ export function RequestInsightsPanel() {
   const captureUsage = state.requestInsightsCapture
     ? getCaptureUsagePresentation(state.requestInsightsCapture)
     : undefined
+  const captureOmission = getCaptureOmissionPresentation(
+    state.requestInsights,
+    state.requestInsightsProjection
+  )
   const setRequestInsightsConfig = (patch: {
     showInternal?: boolean
     verbose?: boolean
@@ -356,6 +363,15 @@ export function RequestInsightsPanel() {
                                 style={{ width: `${captureUsage.percentage}%` }}
                               />
                             </div>
+                            {captureOmission ? (
+                              <p
+                                aria-label={captureOmission.accessibleLabel}
+                                className="request-insights-capture-omission"
+                                role="status"
+                              >
+                                {captureOmission.detail}
+                              </p>
+                            ) : null}
                           </>
                         ) : null}
                         <div className="request-insights-capture-actions">

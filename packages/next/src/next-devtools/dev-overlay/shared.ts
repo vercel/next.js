@@ -13,6 +13,7 @@ import type {
   RequestInsightsCaptureState,
   RequestInsightsLiveSnapshot,
   RequestInsightsLiveUpdate,
+  RequestInsightsSnapshot,
 } from '../shared/request-insights'
 import {
   createRequestInsightsByteLengthCache,
@@ -101,6 +102,9 @@ export interface OverlayState {
   readonly requestInsights: readonly RequestInsight[]
   readonly requestInsightsByteLengths: RequestInsightsByteLengthCache
   readonly requestInsightsCapture: RequestInsightsCaptureState | undefined
+  readonly requestInsightsProjection:
+    | RequestInsightsSnapshot['projection']
+    | undefined
   readonly requestInsightsLive: RequestInsightsLiveSnapshot['live'] | undefined
   readonly requestInsightsSnapshotVersion: number
   readonly requestInsightsConfig: Readonly<{
@@ -458,6 +462,7 @@ export const INITIAL_OVERLAY_STATE: Omit<
   requestInsights: [],
   requestInsightsByteLengths: createRequestInsightsByteLengthCache([]),
   requestInsightsCapture: undefined,
+  requestInsightsProjection: undefined,
   requestInsightsLive: undefined,
   requestInsightsSnapshotVersion: 0,
   requestInsightsConfig: {
@@ -732,6 +737,7 @@ export function useErrorOverlayReducer(
             ),
             requestInsightsCapture:
               action.snapshot.capture ?? state.requestInsightsCapture,
+            requestInsightsProjection: action.snapshot.projection,
             requestInsightsLive: action.snapshot.live,
             requestInsightsSnapshotVersion:
               state.requestInsightsSnapshotVersion +
