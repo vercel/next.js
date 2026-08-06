@@ -1107,29 +1107,39 @@ export async function createHotReloaderTurbopack(
       // router takes its route table from here. Otherwise it would announce a
       // route it can't serve yet, and the browser would refetch too early and
       // get a 404.
-      const routeState = deriveDevRouteState(routes, {
-        useFileSystemPublicRoutes: opts.nextConfig.useFileSystemPublicRoutes,
-        i18n: opts.nextConfig.i18n,
-      })
-
-      const { appFiles, pageFiles, nextDataRoutes } = opts.fsChecker
-      appFiles.clear()
-      pageFiles.clear()
-      for (const pathname of routeState.appFiles) {
-        appFiles.add(pathname)
+      let routeState
+      try {
+        routeState = deriveDevRouteState(routes, {
+          useFileSystemPublicRoutes: opts.nextConfig.useFileSystemPublicRoutes,
+          i18n: opts.nextConfig.i18n,
+        })
+      } catch (e) {
+        // Conflicting routes make building the route list throw. Keep serving
+        // the previous route state, like the file watcher pass does.
+        Log.warn('Failed to reload dynamic routes:', e)
+        routeState = undefined
       }
-      for (const pathname of routeState.pageFiles) {
-        pageFiles.add(pathname)
-        nextDataRoutes.add(pathname)
-      }
-      opts.fsChecker.dynamicRoutes = routeState.dynamicRoutes
 
-      serverFields.appPathRoutes = routeState.appPathRoutes
-      await propagateServerField(
-        opts,
-        'appPathRoutes',
-        routeState.appPathRoutes
-      )
+      if (routeState) {
+        const { appFiles, pageFiles, nextDataRoutes } = opts.fsChecker
+        appFiles.clear()
+        pageFiles.clear()
+        for (const pathname of routeState.appFiles) {
+          appFiles.add(pathname)
+        }
+        for (const pathname of routeState.pageFiles) {
+          pageFiles.add(pathname)
+          nextDataRoutes.add(pathname)
+        }
+        opts.fsChecker.dynamicRoutes = routeState.dynamicRoutes
+
+        serverFields.appPathRoutes = routeState.appPathRoutes
+        await propagateServerField(
+          opts,
+          'appPathRoutes',
+          routeState.appPathRoutes
+        )
+      }
 
       // Reload matchers when the files have been compiled
       await propagateServerField(opts, 'reloadMatchers', undefined)
