@@ -1600,11 +1600,6 @@ function assignDefaultsAndValidate(
     result.experimental.mcpServer = true
   }
 
-  if (result.cacheComponents) {
-    // TODO: remove once we've finished migrating internally to cacheComponents.
-    result.experimental.ppr = true
-  }
-
   // `experimental.useCache` is deprecated in favor of the top-level
   // `cacheComponents` option. A defined value means the user set the option
   // explicitly, because it's only backfilled from `cacheComponents` below.
