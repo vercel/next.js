@@ -29,6 +29,11 @@ export type RequestInsightFilter =
   | 'status:error'
   | 'status:http-4xx'
   | 'status:http-5xx'
+  | 'delivery:active'
+  | 'delivery:finished'
+  | 'delivery:aborted'
+  | 'delivery:errored'
+  | 'delivery:unknown'
   | 'fetches:present'
   | 'fetches:none'
   | 'cache:hit'
@@ -81,6 +86,16 @@ export const REQUEST_INSIGHT_FILTER_GROUPS: readonly RequestInsightFilterGroup[]
         { value: 'status:error', label: 'Recorded error' },
         { value: 'status:http-4xx', label: 'HTTP 4xx' },
         { value: 'status:http-5xx', label: 'HTTP 5xx' },
+      ],
+    },
+    {
+      label: 'Response delivery',
+      options: [
+        { value: 'delivery:active', label: 'Active or streaming' },
+        { value: 'delivery:finished', label: 'Finished' },
+        { value: 'delivery:aborted', label: 'Aborted' },
+        { value: 'delivery:errored', label: 'Errored' },
+        { value: 'delivery:unknown', label: 'Unavailable' },
       ],
     },
     {
@@ -208,6 +223,8 @@ function getRequestInsightTags(
     tags.add('status:http-5xx')
   }
 
+  tags.add(getRequestInsightDeliveryPresentation(request).filter)
+
   if (request.fetches.length === 0) {
     tags.add('fetches:none')
     tags.add('cache:none')
@@ -225,6 +242,26 @@ function getRequestInsightTags(
   }
 
   return tags
+}
+
+export function getRequestInsightDeliveryPresentation(
+  request: Pick<RequestInsight, 'response'>
+): Readonly<{
+  filter: Extract<RequestInsightFilter, `delivery:${string}`>
+  label?: string
+}> {
+  switch (request.response?.outcome) {
+    case 'pending':
+      return { filter: 'delivery:active', label: 'Delivery active' }
+    case 'finished':
+      return { filter: 'delivery:finished', label: 'Delivery finished' }
+    case 'aborted':
+      return { filter: 'delivery:aborted', label: 'Delivery aborted' }
+    case 'errored':
+      return { filter: 'delivery:errored', label: 'Delivery errored' }
+    case undefined:
+      return { filter: 'delivery:unknown' }
+  }
 }
 
 function getRequestSourceFilter(

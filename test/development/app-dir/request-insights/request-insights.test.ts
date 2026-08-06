@@ -1853,6 +1853,48 @@ describe('request insights', () => {
         request?.response?.trackingStartTime ?? Infinity
       )
     })
+
+    const browser = await next.browser('/instant-insights')
+    await openRequestInsightsPanel(browser)
+    await retry(async () => {
+      const selected = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        const row = Array.from(
+          root?.querySelectorAll<HTMLButtonElement>('.request-insights-row') ??
+            []
+        ).find((candidate) =>
+          candidate.textContent?.includes('/api/response-lifecycle')
+        )
+        row?.click()
+        return row !== undefined
+      })
+      expect(selected).toBe(true)
+    })
+    await retry(async () => {
+      const overviewLabels = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        return Array.from(
+          root?.querySelectorAll('.request-insights-overview > span') ?? []
+        ).map((item) => item.textContent?.trim())
+      })
+      expect(overviewLabels).toContain('Delivery finished')
+    })
+
+    await browser.elementByCss('.request-insights-filter-trigger').click()
+    await browser
+      .elementByCss(
+        '.request-insights-filter-item[data-filter-value="delivery:finished"]'
+      )
+      .click()
+    await retry(async () => {
+      const routes = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        return Array.from(
+          root?.querySelectorAll('.request-insights-route-label') ?? []
+        ).map((item) => item.textContent?.trim())
+      })
+      expect(routes).toContain('/api/response-lifecycle')
+    })
   })
 
   it('distinguishes a client disconnect from a late stream error', async () => {
