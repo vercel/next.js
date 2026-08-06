@@ -8,6 +8,7 @@ import {
 import { DetachedPromise } from '../lib/detached-promise'
 import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
+import { createOneShotTracePhase } from './lib/trace/phase'
 import { getClientComponentLoaderMetrics } from './client-component-renderer-logger'
 
 export function isAbortError(e: any): e is Error & { name: 'AbortError' } {
@@ -17,11 +18,41 @@ export function isAbortError(e: any): e is Error & { name: 'AbortError' } {
 const HAS_CLIENT_COMPONENT_METRICS_ENABLED =
   'performance' in globalThis && process.env.NEXT_OTEL_PERFORMANCE_PREFIX
 
+function createResponseClosedBeforeFirstChunkError(): Error {
+  const error = new Error('Response closed before its first chunk')
+  error.name = ResponseAbortedName
+  return error
+}
+
+function trackFirstResponseChunk() {
+  const finishPhase = createOneShotTracePhase(
+    NextNodeServerSpan.waitForFirstResponseChunk,
+    'wait for first response chunk'
+  )
+
+  return (error?: unknown) => {
+    if (error === undefined) {
+      finishPhase()
+      return
+    }
+
+    finishPhase({
+      error:
+        error instanceof Error
+          ? error
+          : new Error('Response stream failed before its first chunk', {
+              cause: error,
+            }),
+    })
+  }
+}
+
 function createWriterFromResponse(
   res: ServerResponse,
   waitUntilForEnd?: Promise<unknown>
 ): WritableStream<Uint8Array> {
   let started = false
+  const completeFirstResponseChunk = trackFirstResponseChunk()
 
   // Create a promise that will resolve once the response has drained. See
   // https://nodejs.org/api/stream.html#stream_event_drain
@@ -34,6 +65,11 @@ function createWriterFromResponse(
   // If the finish event fires, it means we shouldn't block and wait for the
   // drain event.
   res.once('close', () => {
+    completeFirstResponseChunk(
+      !started && !res.writableFinished
+        ? createResponseClosedBeforeFirstChunkError()
+        : undefined
+    )
     res.off('drain', onDrain)
     drained.resolve()
   })
@@ -53,6 +89,7 @@ function createWriterFromResponse(
       // started writing chunks.
       if (!started) {
         started = true
+        completeFirstResponseChunk()
 
         if (HAS_CLIENT_COMPONENT_METRICS_ENABLED) {
           const metrics = getClientComponentLoaderMetrics()
@@ -102,11 +139,15 @@ function createWriterFromResponse(
       }
     },
     abort: (err) => {
+      completeFirstResponseChunk(
+        err ?? createResponseClosedBeforeFirstChunkError()
+      )
       if (res.writableFinished) return
 
       res.destroy(err)
     },
     close: async () => {
+      completeFirstResponseChunk()
       // if a waitUntil promise was passed, wait for it to resolve before
       // ending the response.
       if (waitUntilForEnd) {
@@ -156,10 +197,16 @@ export async function pipeNodeReadableToNodeResponse(
     if (errored || destroyed) return
 
     let started = false
+    const completeFirstResponseChunk = trackFirstResponseChunk()
 
     const finished = new DetachedPromise<void>()
 
     res.once('close', () => {
+      completeFirstResponseChunk(
+        !started && !res.writableFinished
+          ? createResponseClosedBeforeFirstChunkError()
+          : undefined
+      )
       readable.destroy()
       finished.resolve()
     })
@@ -167,6 +214,7 @@ export async function pipeNodeReadableToNodeResponse(
     readable.on('data', (chunk: Buffer) => {
       if (!started) {
         started = true
+        completeFirstResponseChunk()
 
         if (
           'performance' in globalThis &&
@@ -211,6 +259,7 @@ export async function pipeNodeReadableToNodeResponse(
     })
 
     readable.on('end', async () => {
+      completeFirstResponseChunk()
       if (waitUntilForEnd) {
         await waitUntilForEnd
       }
@@ -223,6 +272,7 @@ export async function pipeNodeReadableToNodeResponse(
     })
 
     readable.on('error', (err) => {
+      completeFirstResponseChunk(err)
       if (isAbortError(err)) {
         finished.resolve()
         return

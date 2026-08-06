@@ -63,6 +63,7 @@ enum NextNodeServerSpan {
   render404 = 'NextNodeServer.render404',
   matchRoute = 'NextNodeServer.matchRoute',
   startResponse = 'NextNodeServer.startResponse',
+  waitForFirstResponseChunk = 'NextNodeServer.waitForFirstResponseChunk',
 
   // nested inner span, does not require parent scope name
   route = 'route',

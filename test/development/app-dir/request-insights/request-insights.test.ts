@@ -394,6 +394,11 @@ describe('request insights', () => {
           span.attributes?.['next.span_type'] ===
           'AppRender.waitForHTMLCompletion'
       )
+      const firstResponseChunkSpan = request!.spans.find(
+        (span) =>
+          span.attributes?.['next.span_type'] ===
+          'NextNodeServer.waitForFirstResponseChunk'
+      )
 
       expect(appRenderSpan).toBeDefined()
       expect(completionSpan).toEqual(
@@ -413,6 +418,21 @@ describe('request insights', () => {
       ).toBeLessThanOrEqual(
         appRenderSpan!.startTime! + appRenderSpan!.durationMs! + 1
       )
+      expect(firstResponseChunkSpan).toEqual(
+        expect.objectContaining({
+          name: 'wait for first response chunk',
+          status: 'ok',
+          startTime: expect.any(Number),
+          durationMs: expect.any(Number),
+        })
+      )
+      // Response delivery is a sibling of app rendering, not render work.
+      expect(firstResponseChunkSpan!.parentSpanId).toBe(
+        appRenderSpan!.parentSpanId
+      )
+      expect(
+        completionSpan!.startTime! + completionSpan!.durationMs!
+      ).toBeLessThanOrEqual(firstResponseChunkSpan!.startTime! + 1)
     })
   })
 
