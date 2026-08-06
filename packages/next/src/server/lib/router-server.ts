@@ -37,6 +37,7 @@ import { parseUrl as parseUrlUtil } from '../../shared/lib/router/utils/parse-ur
 import {
   PHASE_PRODUCTION_SERVER,
   PHASE_DEVELOPMENT_SERVER,
+  REQUEST_INSIGHTS_CLEAR_DEV_ENDPOINT,
   REQUEST_INSIGHTS_DEV_ENDPOINT,
   UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../../shared/lib/constants'
@@ -291,7 +292,10 @@ export async function initialize(opts: {
       const urlParts = req.url.split('?', 1)
       const pathname = removePathPrefix(urlParts[0] || '', config.basePath)
 
-      if (pathname === REQUEST_INSIGHTS_DEV_ENDPOINT) {
+      if (
+        pathname === REQUEST_INSIGHTS_DEV_ENDPOINT ||
+        pathname === REQUEST_INSIGHTS_CLEAR_DEV_ENDPOINT
+      ) {
         if (
           development &&
           blockCrossSiteDEV(
@@ -305,12 +309,37 @@ export async function initialize(opts: {
         }
 
         res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.setHeader('Cache-Control', 'no-store')
+        res.setHeader('X-Content-Type-Options', 'nosniff')
         if (!requestInsights) {
           res.statusCode = 404
           res.end(
             JSON.stringify({
               error:
                 'Request Insights is not enabled. Set experimental.requestInsights = true and restart next dev.',
+            })
+          )
+          return
+        }
+
+        if (pathname === REQUEST_INSIGHTS_CLEAR_DEV_ENDPOINT) {
+          if (req.method !== 'POST') {
+            res.statusCode = 405
+            res.setHeader('Allow', 'POST')
+            res.end(
+              JSON.stringify({
+                error: 'Clearing Request Insights requires POST.',
+              })
+            )
+            return
+          }
+          requestInsights.clear()
+        } else if (req.method !== 'GET') {
+          res.statusCode = 405
+          res.setHeader('Allow', 'GET')
+          res.end(
+            JSON.stringify({
+              error: 'Reading Request Insights requires GET.',
             })
           )
           return

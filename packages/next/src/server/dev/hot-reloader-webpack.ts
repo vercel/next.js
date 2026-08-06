@@ -898,6 +898,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     await fs.mkdir(this.distDir, { recursive: true })
 
     const initialDevToolsConfig = await getDevToolsConfig(this.distDir)
+    this.getRequestInsights()?.setMaxRequestGroupsPerBucket(
+      initialDevToolsConfig.requestInsights?.maxRequestGroupsPerBucket
+    )
 
     const distPackageJsonPath = join(this.distDir, 'package.json')
     // Ensure commonjs handling is used for files in the distDir (generally .next)
@@ -1678,6 +1681,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       devToolsConfigMiddleware({
         distDir: this.distDir,
         sendUpdateSignal: (data) => {
+          this.getRequestInsights()?.setMaxRequestGroupsPerBucket(
+            data.requestInsights?.maxRequestGroupsPerBucket
+          )
           // Update the in-memory devToolsConfig value
           // which will be used for the next onHMR call.
           this.webpackHotMiddleware?.updateDevToolsConfig(data)

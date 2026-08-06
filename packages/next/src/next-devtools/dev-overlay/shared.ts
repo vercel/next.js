@@ -10,9 +10,19 @@ import { isConsoleError } from '../shared/console-error'
 import type { CacheIndicatorState } from './cache-indicator'
 import type {
   RequestInsight,
+  RequestInsightsCaptureState,
   RequestInsightsSnapshot,
 } from '../shared/request-insights'
-import { getRequestInsightKey } from '../shared/request-insights'
+import {
+  createBoundedRequestInsightsSnapshotProjection,
+  getRequestInsightGroupRepresentative,
+  getRequestInsightKey,
+  getRequestInsightRetentionBucket,
+  getRequestInsightRootId,
+  getRequestInsightsSerializedByteLength,
+  REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET,
+  REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES,
+} from '../shared/request-insights'
 import { readInstantNavCookieState } from './components/instant-navs/instant-nav-cookie'
 import { isBlockingRouteInNavError } from './container/errors'
 import { isDynamicRoute } from '../../shared/lib/router/utils/is-dynamic'
@@ -32,6 +42,7 @@ export type DevToolsConfig = {
   requestInsights?: {
     showInternal?: boolean
     verbose?: boolean
+    maxRequestGroupsPerBucket?: number
   }
 }
 
@@ -87,9 +98,13 @@ export interface OverlayState {
   readonly hideShortcut: string | null
   readonly instantNavs: boolean
   readonly requestInsights: readonly RequestInsight[]
+  readonly requestInsightsByteLengths: RequestInsightsByteLengthCache
+  readonly requestInsightsCapture: RequestInsightsCaptureState | undefined
+  readonly requestInsightsSnapshotVersion: number
   readonly requestInsightsConfig: Readonly<{
     showInternal: boolean
     verbose: boolean
+    maxRequestGroupsPerBucket: number
   }>
 }
 type DevtoolsPanelName = string
@@ -128,16 +143,157 @@ export const ACTION_INSTANT_ERRORS_CLEAR = 'instant-errors-clear'
 export const ACTION_REQUEST_INSIGHTS_SNAPSHOT = 'request-insights-snapshot'
 export const ACTION_REQUEST_INSIGHTS_UPDATE = 'request-insights-update'
 
+export type RequestInsightsByteLengthCache = {
+  readonly records: ReadonlyMap<string, number>
+  readonly groups: ReadonlyMap<string, number>
+}
+
+export function createRequestInsightsByteLengthCache(
+  requests: readonly RequestInsight[]
+): RequestInsightsByteLengthCache {
+  const records = new Map<string, number>()
+  const groups = new Map<string, number>()
+  for (const request of requests) {
+    const requestKey = getRequestInsightKey(request)
+    const byteLength = getRequestInsightsSerializedByteLength(request)
+    records.set(requestKey, byteLength)
+    const rootRequestId = getRequestInsightRootId(request)
+    const groupByteLength = groups.get(rootRequestId)
+    groups.set(
+      rootRequestId,
+      groupByteLength === undefined
+        ? byteLength + 2
+        : groupByteLength + byteLength + 1
+    )
+  }
+  return { records, groups }
+}
+
 export function updateRequestInsights(
   currentRequests: readonly RequestInsight[],
-  insight: RequestInsight
-): RequestInsight[] {
+  currentByteLengths: RequestInsightsByteLengthCache,
+  insight: RequestInsight,
+  capture?: RequestInsightsCaptureState
+): {
+  requests: RequestInsight[]
+  byteLengths: RequestInsightsByteLengthCache
+} {
   const insightKey = getRequestInsightKey(insight)
-  const requests = currentRequests.filter(
-    (request) => getRequestInsightKey(request) !== insightKey
+  const requests = [...currentRequests]
+  const existingIndex = requests.findIndex(
+    (request) => getRequestInsightKey(request) === insightKey
   )
-  requests.push(insight)
-  return requests.slice(-100)
+  const previousRootRequestId =
+    existingIndex === -1
+      ? undefined
+      : getRequestInsightRootId(requests[existingIndex])
+  if (existingIndex === -1) {
+    requests.push(insight)
+  } else {
+    requests[existingIndex] = insight
+  }
+
+  const recordByteLengths = new Map(currentByteLengths.records)
+  recordByteLengths.set(
+    insightKey,
+    getRequestInsightsSerializedByteLength(insight)
+  )
+
+  const groupsByRootId = new Map<string, RequestInsight[]>()
+  for (const request of requests) {
+    const rootRequestId = getRequestInsightRootId(request)
+    const group = groupsByRootId.get(rootRequestId)
+    if (group) {
+      group.push(request)
+    } else {
+      groupsByRootId.set(rootRequestId, [request])
+    }
+  }
+
+  const groupByteLengths = new Map(currentByteLengths.groups)
+  const changedRootRequestIds = new Set([
+    getRequestInsightRootId(insight),
+    ...(previousRootRequestId === undefined ? [] : [previousRootRequestId]),
+  ])
+  for (const rootRequestId of changedRootRequestIds) {
+    const group = groupsByRootId.get(rootRequestId)
+    if (!group) {
+      groupByteLengths.delete(rootRequestId)
+      continue
+    }
+    groupByteLengths.set(
+      rootRequestId,
+      getGroupSerializedByteLength(group, recordByteLengths)
+    )
+  }
+
+  const retainedGroupCountByBucket = new Map(
+    capture?.usage.buckets.map((bucket) => [
+      bucket.bucket,
+      bucket.retainedRequestGroupCount,
+    ])
+  )
+  const seenGroupCountByBucket = new Map<string, number>()
+  // Groups are stored oldest-first. Keep the newest authoritative count for
+  // each bucket before applying the response byte limit.
+  const boundedGroups = Array.from(groupsByRootId.values())
+    .reverse()
+    .filter((group) => {
+      const bucket = getRequestInsightRetentionBucket(
+        getRequestInsightGroupRepresentative(group)
+      )
+      const seenGroupCount = (seenGroupCountByBucket.get(bucket) ?? 0) + 1
+      seenGroupCountByBucket.set(bucket, seenGroupCount)
+      const retainedGroupCount =
+        retainedGroupCountByBucket.get(bucket) ??
+        capture?.limits.maxRequestGroupsPerBucket ??
+        REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET
+      return seenGroupCount <= retainedGroupCount
+    })
+    .reverse()
+
+  const boundedGroupByteLengths = boundedGroups.map(
+    (group) => groupByteLengths.get(getRequestInsightRootId(group[0]))!
+  )
+  const requestsProjection = createBoundedRequestInsightsSnapshotProjection(
+    boundedGroups,
+    capture?.limits.maxSnapshotBytes ?? REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES,
+    capture,
+    Number.POSITIVE_INFINITY,
+    boundedGroupByteLengths
+  ).snapshot.requests
+  const retainedRequestKeys = new Set(
+    requestsProjection.map(getRequestInsightKey)
+  )
+  const retainedRootRequestIds = new Set(
+    requestsProjection.map(getRequestInsightRootId)
+  )
+  for (const requestKey of recordByteLengths.keys()) {
+    if (!retainedRequestKeys.has(requestKey)) {
+      recordByteLengths.delete(requestKey)
+    }
+  }
+  for (const rootRequestId of groupByteLengths.keys()) {
+    if (!retainedRootRequestIds.has(rootRequestId)) {
+      groupByteLengths.delete(rootRequestId)
+    }
+  }
+
+  return {
+    requests: requestsProjection,
+    byteLengths: { records: recordByteLengths, groups: groupByteLengths },
+  }
+}
+
+function getGroupSerializedByteLength(
+  group: readonly RequestInsight[],
+  recordByteLengths: ReadonlyMap<string, number>
+): number {
+  let byteLength = 2 + Math.max(0, group.length - 1)
+  for (const request of group) {
+    byteLength += recordByteLengths.get(getRequestInsightKey(request))!
+  }
+  return byteLength
 }
 
 export const STORAGE_KEY_PANEL_POSITION_PREFIX =
@@ -276,6 +432,7 @@ interface RequestInsightsSnapshotAction {
 interface RequestInsightsUpdateAction {
   type: typeof ACTION_REQUEST_INSIGHTS_UPDATE
   insight: RequestInsight
+  capture: RequestInsightsCaptureState
 }
 
 export type DispatcherEvent =
@@ -394,7 +551,14 @@ export const INITIAL_OVERLAY_STATE: Omit<
   hideShortcut: null,
   instantNavs: hasInstantNavsCookie,
   requestInsights: [],
-  requestInsightsConfig: { showInternal: false, verbose: false },
+  requestInsightsByteLengths: createRequestInsightsByteLengthCache([]),
+  requestInsightsCapture: undefined,
+  requestInsightsSnapshotVersion: 0,
+  requestInsightsConfig: {
+    showInternal: false,
+    verbose: false,
+    maxRequestGroupsPerBucket: REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET,
+  },
 }
 
 function getInitialState(
@@ -615,6 +779,9 @@ export function useErrorOverlayReducer(
                   verbose:
                     requestInsightsConfig.verbose ??
                     state.requestInsightsConfig.verbose,
+                  maxRequestGroupsPerBucket:
+                    requestInsightsConfig.maxRequestGroupsPerBucket ??
+                    state.requestInsightsConfig.maxRequestGroupsPerBucket,
                 }
               : state.requestInsightsConfig,
           }
@@ -637,15 +804,30 @@ export function useErrorOverlayReducer(
           return { ...state, errors: remaining }
         }
         case ACTION_REQUEST_INSIGHTS_SNAPSHOT: {
-          return { ...state, requestInsights: action.snapshot.requests }
-        }
-        case ACTION_REQUEST_INSIGHTS_UPDATE: {
           return {
             ...state,
-            requestInsights: updateRequestInsights(
-              state.requestInsights,
-              action.insight
+            requestInsights: action.snapshot.requests,
+            requestInsightsByteLengths: createRequestInsightsByteLengthCache(
+              action.snapshot.requests
             ),
+            requestInsightsCapture:
+              action.snapshot.capture ?? state.requestInsightsCapture,
+            requestInsightsSnapshotVersion:
+              state.requestInsightsSnapshotVersion + 1,
+          }
+        }
+        case ACTION_REQUEST_INSIGHTS_UPDATE: {
+          const update = updateRequestInsights(
+            state.requestInsights,
+            state.requestInsightsByteLengths,
+            action.insight,
+            action.capture
+          )
+          return {
+            ...state,
+            requestInsights: update.requests,
+            requestInsightsByteLengths: update.byteLengths,
+            requestInsightsCapture: action.capture,
           }
         }
         default: {

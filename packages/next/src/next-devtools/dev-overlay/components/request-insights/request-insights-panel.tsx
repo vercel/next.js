@@ -9,18 +9,23 @@ import {
   type PointerEvent,
 } from 'react'
 import { Menu } from '@base-ui-components/react/menu'
+import { Popover } from '@base-ui-components/react/popover'
 import {
   getRequestInsightKey,
   getRequestInsightKind,
+  REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET,
+  REQUEST_INSIGHTS_MIN_GROUPS_PER_RETENTION_BUCKET,
   type RequestInsight,
   type RequestInsightFetch,
 } from '../../../shared/request-insights'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import { ACTION_DEVTOOLS_CONFIG } from '../../shared'
 import { saveDevToolsConfig } from '../../utils/save-devtools-config'
+import { REQUEST_INSIGHTS_CLEAR_DEV_ENDPOINT } from '../../../../shared/lib/constants'
 import { CopyButton } from '../copy-button'
 import { Tooltip } from '../tooltip/tooltip'
 import GearIcon from '../../icons/gear-icon'
+import { getCaptureUsagePresentation } from './capture-usage'
 import { getFetchUrlPresentation } from './fetch-label'
 import { formatDuration } from './format-duration'
 import {
@@ -66,6 +71,10 @@ export function RequestInsightsPanel() {
     readonly RequestInsight[] | null
   >(null)
   const [requestScope, setRequestScope] = useState<RequestScope>('all')
+  const [clearState, setClearState] = useState<'idle' | 'pending' | 'error'>(
+    'idle'
+  )
+  const lastSnapshotVersion = useRef(state.requestInsightsSnapshotVersion)
   const displayedRequests = pausedRequests ?? state.requestInsights
   const requests = useMemo(
     () => [...displayedRequests].reverse(),
@@ -73,10 +82,18 @@ export function RequestInsightsPanel() {
   )
   const initialRequestId = self.__next_r
   const isPaused = pausedRequests !== null
-  const { showInternal, verbose } = state.requestInsightsConfig
+  const { showInternal, verbose, maxRequestGroupsPerBucket } =
+    state.requestInsightsConfig
+  const [captureLimitDraft, setCaptureLimitDraft] = useState(
+    String(maxRequestGroupsPerBucket)
+  )
+  const captureUsage = state.requestInsightsCapture
+    ? getCaptureUsagePresentation(state.requestInsightsCapture)
+    : undefined
   const setRequestInsightsConfig = (patch: {
     showInternal?: boolean
     verbose?: boolean
+    maxRequestGroupsPerBucket?: number
   }) => {
     dispatch({
       type: ACTION_DEVTOOLS_CONFIG,
@@ -84,6 +101,43 @@ export function RequestInsightsPanel() {
     })
     saveDevToolsConfig({ requestInsights: patch })
   }
+  useEffect(() => {
+    setCaptureLimitDraft(String(maxRequestGroupsPerBucket))
+  }, [maxRequestGroupsPerBucket])
+  useEffect(() => {
+    if (lastSnapshotVersion.current === state.requestInsightsSnapshotVersion) {
+      return
+    }
+    lastSnapshotVersion.current = state.requestInsightsSnapshotVersion
+    setPausedRequests((paused) =>
+      paused === null ? null : state.requestInsights
+    )
+  }, [state.requestInsights, state.requestInsightsSnapshotVersion])
+  const commitCaptureLimit = () => {
+    const value = Number(captureLimitDraft)
+    if (
+      Number.isSafeInteger(value) &&
+      value >= REQUEST_INSIGHTS_MIN_GROUPS_PER_RETENTION_BUCKET &&
+      value <= REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET
+    ) {
+      setRequestInsightsConfig({ maxRequestGroupsPerBucket: value })
+    } else {
+      setCaptureLimitDraft(String(maxRequestGroupsPerBucket))
+    }
+  }
+  const clearCapturedData = useCallback(async () => {
+    if (clearState === 'pending') return
+    setClearState('pending')
+    try {
+      const response = await fetch(REQUEST_INSIGHTS_CLEAR_DEV_ENDPOINT, {
+        method: 'POST',
+      })
+      if (!response.ok) throw new Error('Request Insights clear failed')
+      setClearState('idle')
+    } catch {
+      setClearState('error')
+    }
+  }, [clearState])
   const retainedEntries = useMemo(
     () => getRequestListEntries(requests, true),
     [requests]
@@ -137,14 +191,6 @@ export function RequestInsightsPanel() {
         .length
   const showInternalToggle = orphanedInternalRequests.length > 0
 
-  if (displayedRequests.length === 0) {
-    return (
-      <div className="request-insights-empty">
-        Request insights will appear after the next App Router request.
-      </div>
-    )
-  }
-
   return (
     <div className="request-insights-panel">
       <div className="request-insights-list">
@@ -180,79 +226,160 @@ export function RequestInsightsPanel() {
                   role="img"
                 />
               ) : null}
-              <Menu.Root delay={0} modal={false}>
-                <Menu.Trigger
+              <Popover.Root>
+                <Popover.Trigger
                   aria-label="Request list settings"
                   className="request-insights-settings-trigger"
                 >
                   <GearIcon />
-                </Menu.Trigger>
-                <Menu.Portal container={shadowRoot}>
-                  <Menu.Positioner
+                </Popover.Trigger>
+                <Popover.Portal container={shadowRoot}>
+                  <Popover.Positioner
                     align="end"
                     className="request-insights-settings-positioner"
                     side="bottom"
                     sideOffset={4}
                   >
-                    <Menu.Popup className="request-insights-settings-menu">
-                      <Menu.CheckboxItem
-                        checked={isPaused}
-                        className="request-insights-settings-item"
-                        closeOnClick={false}
-                        onCheckedChange={(checked) =>
-                          setPausedRequests(
-                            checked ? [...state.requestInsights] : null
-                          )
-                        }
-                      >
+                    <Popover.Popup
+                      aria-label="Request list settings"
+                      className="request-insights-settings-menu"
+                    >
+                      <label className="request-insights-settings-item">
+                        <input
+                          checked={isPaused}
+                          className="request-insights-settings-checkbox-input"
+                          onChange={(event) =>
+                            setPausedRequests(
+                              event.currentTarget.checked
+                                ? [...state.requestInsights]
+                                : null
+                            )
+                          }
+                          type="checkbox"
+                        />
                         <span
                           className="request-insights-settings-checkbox"
                           data-checked={isPaused || undefined}
+                          aria-hidden="true"
                         >
                           {isPaused ? <CheckIcon /> : null}
                         </span>
                         Pause updates
-                      </Menu.CheckboxItem>
+                      </label>
                       {showInternalToggle ? (
-                        <Menu.CheckboxItem
-                          checked={showInternal}
-                          className="request-insights-settings-item"
-                          closeOnClick={false}
-                          onCheckedChange={(checked) =>
-                            setRequestInsightsConfig({
-                              showInternal: checked,
-                            })
-                          }
-                        >
+                        <label className="request-insights-settings-item">
+                          <input
+                            checked={showInternal}
+                            className="request-insights-settings-checkbox-input"
+                            onChange={(event) =>
+                              setRequestInsightsConfig({
+                                showInternal: event.currentTarget.checked,
+                              })
+                            }
+                            type="checkbox"
+                          />
                           <span
                             className="request-insights-settings-checkbox"
                             data-checked={showInternal || undefined}
+                            aria-hidden="true"
                           >
                             {showInternal ? <CheckIcon /> : null}
                           </span>
                           Internal activity
-                        </Menu.CheckboxItem>
+                        </label>
                       ) : null}
-                      <Menu.CheckboxItem
-                        checked={verbose}
-                        className="request-insights-settings-item"
-                        closeOnClick={false}
-                        onCheckedChange={(checked) =>
-                          setRequestInsightsConfig({ verbose: checked })
-                        }
-                      >
+                      <label className="request-insights-settings-item">
+                        <input
+                          checked={verbose}
+                          className="request-insights-settings-checkbox-input"
+                          onChange={(event) =>
+                            setRequestInsightsConfig({
+                              verbose: event.currentTarget.checked,
+                            })
+                          }
+                          type="checkbox"
+                        />
                         <span
                           className="request-insights-settings-checkbox"
                           data-checked={verbose || undefined}
+                          aria-hidden="true"
                         >
                           {verbose ? <CheckIcon /> : null}
                         </span>
                         Verbose traces
-                      </Menu.CheckboxItem>
-                    </Menu.Popup>
-                  </Menu.Positioner>
-                </Menu.Portal>
-              </Menu.Root>
+                      </label>
+                      <div
+                        className="request-insights-settings-separator"
+                        role="separator"
+                      />
+                      <div className="request-insights-capture-controls">
+                        <label className="request-insights-capture-limit">
+                          <span>Requests per type</span>
+                          <input
+                            aria-label="Requests retained per type"
+                            inputMode="numeric"
+                            max={
+                              REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET
+                            }
+                            min={
+                              REQUEST_INSIGHTS_MIN_GROUPS_PER_RETENTION_BUCKET
+                            }
+                            onBlur={commitCaptureLimit}
+                            onChange={(event) =>
+                              setCaptureLimitDraft(event.currentTarget.value)
+                            }
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter') {
+                                commitCaptureLimit()
+                                event.currentTarget.blur()
+                              }
+                            }}
+                            type="number"
+                            value={captureLimitDraft}
+                          />
+                        </label>
+                        {captureUsage ? (
+                          <>
+                            <div className="request-insights-capture-usage-row">
+                              <span>Usage</span>
+                              <span>{captureUsage.detail}</span>
+                            </div>
+                            <div
+                              aria-label={captureUsage.accessibleLabel}
+                              aria-valuemax={captureUsage.max}
+                              aria-valuemin={0}
+                              aria-valuenow={captureUsage.value}
+                              className="request-insights-capture-meter"
+                              role="progressbar"
+                            >
+                              <span
+                                style={{ width: `${captureUsage.percentage}%` }}
+                              />
+                            </div>
+                          </>
+                        ) : null}
+                        <div className="request-insights-capture-actions">
+                          {clearState === 'error' ? (
+                            <span aria-live="polite" role="status">
+                              Clear failed. Try again.
+                            </span>
+                          ) : null}
+                          <button
+                            className="request-insights-capture-clear"
+                            disabled={clearState === 'pending'}
+                            onClick={() => void clearCapturedData()}
+                            type="button"
+                          >
+                            {clearState === 'pending'
+                              ? 'Clearing…'
+                              : 'Clear captured data'}
+                          </button>
+                        </div>
+                      </div>
+                    </Popover.Popup>
+                  </Popover.Positioner>
+                </Popover.Portal>
+              </Popover.Root>
             </div>
           </div>
         </div>
@@ -291,7 +418,9 @@ export function RequestInsightsPanel() {
         ) : null}
         {listEntries.length === 0 ? (
           <div className="request-insights-list-empty">
-            {activeFilters.length > 0 ? (
+            {displayedRequests.length === 0 ? (
+              <>Request insights will appear after the next server request.</>
+            ) : activeFilters.length > 0 ? (
               <>
                 No requests match the active filters.{' '}
                 <button onClick={() => setActiveFilters([])} type="button">

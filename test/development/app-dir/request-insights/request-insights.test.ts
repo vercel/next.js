@@ -90,6 +90,7 @@ describe('request insights', () => {
   async function patchRequestInsightsConfig(patch: {
     showInternal?: boolean
     verbose?: boolean
+    maxRequestGroupsPerBucket?: number
   }) {
     const response = await next.fetch('/__nextjs_devtools_config', {
       method: 'POST',
@@ -108,6 +109,7 @@ describe('request insights', () => {
     await patchRequestInsightsConfig({
       showInternal: false,
       verbose: false,
+      maxRequestGroupsPerBucket: 200,
     })
     shouldResetRequestInsightsConfig = false
   })
@@ -809,9 +811,156 @@ describe('request insights', () => {
     })
   })
 
+  it('persists capture limits and clears captured data from the panel', async () => {
+    const browser = await next.browser('/')
+    shouldResetRequestInsightsConfig = true
+    await next.render('/safe-clock')
+    await next.render('/instant-insights')
+
+    await openRequestInsightsPanel(browser)
+    await retry(async () => {
+      expect(
+        await browser.eval(() => {
+          const root = document.querySelector('nextjs-portal')?.shadowRoot
+          return root?.querySelectorAll(
+            '.request-insights-request-type[data-type="page"]'
+          ).length
+        })
+      ).toBeGreaterThan(2)
+    })
+    await browser.elementByCss('.request-insights-settings-trigger').click()
+    expect(
+      await browser
+        .elementByCss('.request-insights-settings-menu')
+        .getAttribute('role')
+    ).toBe('dialog')
+    let focusedControlLabel: string | null = null
+    for (let index = 0; index < 5; index++) {
+      focusedControlLabel = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        return root?.activeElement?.getAttribute('aria-label') ?? null
+      })
+      if (focusedControlLabel === 'Requests retained per type') break
+      await browser.keydown('Tab')
+      await browser.keyup('Tab')
+    }
+    expect(focusedControlLabel).toBe('Requests retained per type')
+    await browser.keydown('Tab')
+    await browser.keyup('Tab')
+    expect(
+      await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        return root?.activeElement?.textContent?.trim()
+      })
+    ).toBe('Clear captured data')
+    const captureLimit = await browser.elementByCss(
+      '.request-insights-capture-limit input'
+    )
+    await captureLimit.fill('2')
+    await browser.eval(() => {
+      const root = document.querySelector('nextjs-portal')?.shadowRoot
+      root
+        ?.querySelector<HTMLInputElement>(
+          '.request-insights-capture-limit input'
+        )
+        ?.blur()
+    })
+
+    await retry(async () => {
+      const config = JSON.parse(
+        await next.readFile('build/dev/cache/next-devtools-config.json')
+      )
+      expect(config.requestInsights?.maxRequestGroupsPerBucket).toBe(2)
+    })
+    await retry(async () => {
+      expect(
+        await browser.eval(() => {
+          const root = document.querySelector('nextjs-portal')?.shadowRoot
+          return root?.querySelectorAll(
+            '.request-insights-request-type[data-type="page"]'
+          ).length
+        })
+      ).toBeLessThanOrEqual(2)
+    })
+
+    await browser.refresh()
+    await openRequestInsightsPanel(browser)
+    await browser.elementByCss('.request-insights-settings-trigger').click()
+    await retry(async () => {
+      expect(
+        await browser
+          .elementByCss('.request-insights-capture-limit input')
+          .getAttribute('value')
+      ).toBe('2')
+      expect(
+        await browser.hasElementByCss('.request-insights-capture-meter')
+      ).toBe(true)
+    })
+
+    await browser.eval(() => {
+      const originalFetch = window.fetch.bind(window)
+      let releaseClearResponse: (() => void) | undefined
+      const clearResponseGate = new Promise<void>((resolve) => {
+        releaseClearResponse = resolve
+      })
+      ;(
+        window as typeof window & {
+          __releaseRequestInsightsClearResponse?: () => void
+        }
+      ).__releaseRequestInsightsClearResponse = releaseClearResponse
+      window.fetch = async (...args) => {
+        const response = await originalFetch(...args)
+        if (
+          String(args[0]).includes('/_next/development/request-insights/clear')
+        ) {
+          await clearResponseGate
+        }
+        return response
+      }
+    })
+    await browser.elementByCss('.request-insights-capture-clear').click()
+    await retry(async () => {
+      const snapshot = await next
+        .fetch('/_next/development/request-insights')
+        .then((response) => response.json())
+      expect(snapshot.requests).toEqual([])
+      expect(snapshot.capture.limits.maxRequestGroupsPerBucket).toBe(2)
+      expect(snapshot.capture.usage.retainedRequestCount).toBe(0)
+    })
+
+    await next.render('/safe-clock?after=clear')
+    await retry(async () => {
+      const snapshot = await next
+        .fetch('/_next/development/request-insights')
+        .then((response) => response.json())
+      expect(
+        snapshot.requests.some((request: { url?: string }) =>
+          request.url?.startsWith('/safe-clock?')
+        )
+      ).toBe(true)
+    })
+    await browser.eval(() => {
+      ;(
+        window as typeof window & {
+          __releaseRequestInsightsClearResponse?: () => void
+        }
+      ).__releaseRequestInsightsClearResponse?.()
+    })
+    await retry(async () => {
+      const routes = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        return Array.from(
+          root?.querySelectorAll('.request-insights-route-label') ?? []
+        ).map((route) => route.textContent)
+      })
+      expect(routes).toContain('/safe-clock?query=redacted')
+    })
+  })
+
   it('relates owned Instant Insights to the foreground request', async () => {
     const browser = await next.browser('/instant-insights')
     shouldResetRequestInsightsConfig = true
+    await next.fetch('/api/source?scope=all')
 
     await openRequestInsightsPanel(browser)
 
@@ -1574,6 +1723,127 @@ describe('request insights', () => {
     expect(result.stdout).not.toContain('https://example.com/fetch-5')
   })
 
+  it('updates the bounded capture limit through the CLI and can clear data', async () => {
+    shouldResetRequestInsightsConfig = true
+    const browser = await next.browser('/')
+
+    const update = await next.runCommand([
+      'experimental-request-insights',
+      '--capture-groups-per-type',
+      '1',
+    ])
+    expect(update.code).toBe(0)
+    expect(update.stdout).toContain(
+      'Request Insights retains up to 1 logical request group per type.'
+    )
+
+    await openRequestInsightsPanel(browser)
+    await browser.elementByCss('.request-insights-settings-trigger').click()
+    await browser
+      .elementByCss('.request-insights-settings-item:has-text("Pause updates")')
+      .click()
+    const clear = await next.runCommand([
+      'experimental-request-insights',
+      '--clear',
+    ])
+    expect(clear.code).toBe(0)
+    expect(clear.stdout).toContain('Cleared captured Request Insights data.')
+    await retry(async () => {
+      expect(
+        await browser.elementByCss('.request-insights-list-empty').text()
+      ).toContain('Request insights will appear after the next server request.')
+    })
+    await expect(
+      next
+        .fetch('/_next/development/request-insights')
+        .then((response) => response.json())
+        .then((snapshot) => snapshot.requests)
+    ).resolves.toEqual([])
+  })
+
+  it('bounds CLI responses and escapes terminal control characters', async () => {
+    const oversized = await runWithResponse({
+      requests: [],
+      padding: 'x'.repeat(4 * 1024 * 1024),
+    })
+    expect(oversized.result.code).toBe(1)
+    expect(oversized.result.stderr).toContain('exceeds the 4194304 byte limit')
+
+    const escaped = await runWithResponse({
+      requests: [
+        {
+          ...createRequest(1, 1),
+          requestId: 'id\u001b]0;unsafe\u0007\u0085\u202e',
+          htmlRequestId: 'page\u001b]0;unsafe\u0007\u0085\u202e',
+          route: '/safe\u001b]0;unsafe\u0007\u0085\u202e',
+          fetches: [
+            {
+              durationMs: 1,
+              statusCode: 200,
+              cacheStatus: 'miss\u001b]0;unsafe\u0007\u0085\u202e',
+              method: 'GET\u0007\u0085\u202e',
+              url: 'https://example.com/fetch\u001b]0;unsafe\u0007\u0085\u202e',
+            },
+          ],
+        },
+      ],
+    })
+    expect(escaped.result.code).toBe(0)
+    expect(escaped.result.stdout).toContain('/safe\\u001b]0;unsafe\\u0007')
+    expect(escaped.result.stdout).toContain('\\u0085\\u202e')
+    expect(escaped.result.stdout).not.toContain('\u001b')
+    expect(escaped.result.stdout).not.toContain('\u0085')
+    expect(escaped.result.stdout).not.toContain('\u202e')
+
+    const escapedJson = await runWithResponse(
+      {
+        requests: [
+          {
+            ...createRequest(1),
+            route: '/safe\u0085\u202e',
+          },
+        ],
+      },
+      ['--json']
+    )
+    expect(escapedJson.result.code).toBe(0)
+    expect(escapedJson.result.stdout).toContain('/safe\\u0085\\u202e')
+    expect(escapedJson.result.stdout).not.toContain('\u0085')
+    expect(escapedJson.result.stdout).not.toContain('\u202e')
+
+    const expansionText = '\u0085'.repeat(256)
+    const expansionSnapshot = {
+      requests: Array.from({ length: 60 }, (_, requestIndex) => ({
+        ...createRequest(requestIndex),
+        spans: Array.from({ length: 100 }, () => ({
+          name: expansionText,
+          startTime: 0,
+        })),
+      })),
+    }
+    expect(Buffer.byteLength(JSON.stringify(expansionSnapshot))).toBeLessThan(
+      4 * 1024 * 1024
+    )
+    const expanded = await runWithResponse(expansionSnapshot, ['--json'])
+    expect(expanded.result.code).toBe(1)
+    expect(expanded.result.stderr).toContain(
+      'exceeds the terminal-safe 4194304 byte limit'
+    )
+  })
+
+  it('rejects credential-bearing dev server URLs without echoing secrets', async () => {
+    const result = await next.runCommand([
+      'experimental-request-insights',
+      '--url',
+      'http://user:secret@127.0.0.1:3000',
+    ])
+
+    expect(result.code).toBe(1)
+    expect(result.stderr).toContain('Credentials are not allowed')
+    expect(result.cliOutput).not.toContain('user')
+    expect(result.cliOutput).not.toContain('secret')
+  })
+
   it.each(['localhost:3000', 'https://[', 'ftp://localhost:3000'])(
     'rejects invalid dev server URL %s',
     async (url) => {
@@ -1585,20 +1855,89 @@ describe('request insights', () => {
 
       expect(result.code).toBe(1)
       expect(result.stderr).toContain(
-        `Invalid dev server URL "${url}". Pass a valid HTTP or HTTPS URL.`
+        'Invalid dev server URL. Pass a valid HTTP or HTTPS URL.'
       )
     }
   )
 
+  it('does not echo terminal controls from malformed URLs', async () => {
+    const result = await next.runCommand([
+      'experimental-request-insights',
+      '--url',
+      'not-a-url\u001b]0;unsafe\u0007',
+    ])
+
+    expect(result.code).toBe(1)
+    expect(result.stderr).toContain(
+      'Invalid dev server URL. Pass a valid HTTP or HTTPS URL.'
+    )
+    expect(result.cliOutput).not.toContain('\u001b')
+    expect(result.cliOutput).not.toContain('unsafe')
+  })
+
+  it('does not emit terminal controls from valid dev server URLs', async () => {
+    const result = await next.runCommand([
+      'experimental-request-insights',
+      '--url',
+      'http://127.0.0.1:1/\u001b]0;unsafe\u0007',
+    ])
+
+    expect(result.code).toBe(1)
+    expect(result.cliOutput).not.toContain('\u001b')
+  })
+
+  it('bounds dev server URLs before parsing credentials', async () => {
+    const result = await next.runCommand([
+      'experimental-request-insights',
+      '--url',
+      `http://user:secret@localhost/${'x'.repeat(2048)}`,
+    ])
+
+    expect(result.code).toBe(1)
+    expect(result.stderr).toContain(
+      'Invalid dev server URL. Pass a valid HTTP or HTTPS URL.'
+    )
+    expect(result.cliOutput).not.toContain('user')
+    expect(result.cliOutput).not.toContain('secret')
+  })
+
   it.each([
     { body: { requests: null }, args: ['--json'] },
     { body: { requests: [{ fetches: null }] }, args: [] },
+    {
+      body: {
+        requests: [{ ...createRequest(1), requestId: 'x'.repeat(129) }],
+      },
+      args: [],
+    },
+    {
+      body: {
+        requests: [{ ...createRequest(1), status: 'ok\u001b]0;unsafe\u0007' }],
+      },
+      args: [],
+    },
+    {
+      body: {
+        requests: [
+          {
+            ...createRequest(1, 1),
+            fetches: [
+              {
+                ...createRequest(1, 1).fetches[0],
+                method: 42,
+              },
+            ],
+          },
+        ],
+      },
+      args: [],
+    },
   ])('rejects malformed responses', async ({ body, args }) => {
     const { result } = await runWithResponse(body, args)
 
     expect(result.code).toBe(1)
     expect(result.stderr).toContain(
-      'expected requests and fetches to be arrays'
+      'expected a valid Request Insights snapshot'
     )
   })
 })

@@ -54,6 +54,7 @@ import type { SegmentTrieData } from '../shared/lib/mcp-page-metadata-types'
 import { EventQueue } from './dev-overlay/event-queue'
 import type {
   RequestInsight,
+  RequestInsightsCaptureState,
   RequestInsightsSnapshot,
 } from './shared/request-insights'
 
@@ -85,7 +86,10 @@ export interface Dispatcher {
   ): void
   instantNavsToggle(): void
   onRequestInsightsSnapshot(snapshot: RequestInsightsSnapshot): void
-  onRequestInsightsUpdate(insight: RequestInsight): void
+  onRequestInsightsUpdate(
+    insight: RequestInsight,
+    capture: RequestInsightsCaptureState
+  ): void
 }
 
 type Dispatch = ReturnType<typeof useErrorOverlayReducer>[1]
@@ -247,8 +251,12 @@ export const dispatcher: Dispatcher = {
     }
   ),
   onRequestInsightsUpdate: createQueuable(
-    (dispatch: Dispatch, insight: RequestInsight) => {
-      dispatch({ type: ACTION_REQUEST_INSIGHTS_UPDATE, insight })
+    (
+      dispatch: Dispatch,
+      insight: RequestInsight,
+      capture: RequestInsightsCaptureState
+    ) => {
+      dispatch({ type: ACTION_REQUEST_INSIGHTS_UPDATE, insight, capture })
     }
   ),
 }

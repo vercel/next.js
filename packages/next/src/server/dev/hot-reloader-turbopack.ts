@@ -419,6 +419,12 @@ export async function createHotReloaderTurbopack(
     isBuild: false,
     distDir,
   })
+  const initialDevToolsConfig = await getDevToolsConfig(distDir)
+  opts
+    .getRequestInsights()
+    ?.setMaxRequestGroupsPerBucket(
+      initialDevToolsConfig.requestInsights?.maxRequestGroupsPerBucket
+    )
 
   // TODO: Implement
   let clientRouterFilters: any
@@ -1155,6 +1161,11 @@ export async function createHotReloaderTurbopack(
     devToolsConfigMiddleware({
       distDir,
       sendUpdateSignal: (data) => {
+        opts
+          .getRequestInsights()
+          ?.setMaxRequestGroupsPerBucket(
+            data.requestInsights?.maxRequestGroupsPerBucket
+          )
         hotReloader.send({
           type: HMR_MESSAGE_SENT_TO_BROWSER.DEVTOOLS_CONFIG,
           data,

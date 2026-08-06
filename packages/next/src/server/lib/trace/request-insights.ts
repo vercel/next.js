@@ -57,7 +57,13 @@ const MAX_REQUEST_INSIGHT_ID_LENGTH = 128
 const CLIENT_COMPONENT_LOADING_SPAN_TYPE =
   'NextNodeServer.clientComponentLoading'
 
-export type RequestInsightsListener = (insight: RequestInsight) => void
+export type RequestInsightsListener = (
+  insight: RequestInsight,
+  capture: RequestInsightsCaptureState
+) => void
+export type RequestInsightsSnapshotListener = (
+  snapshot: RequestInsightsSnapshot
+) => void
 export type RequestInsightsSnapshotQuery = {
   requestId?: string
   htmlRequestId?: string
@@ -153,6 +159,10 @@ export class RequestInsights {
     RequestInsightRetentionBucket,
     number
   >()
+  private readonly retainedRequestCountsByBucket = new Map<
+    RequestInsightRetentionBucket,
+    number
+  >()
   private readonly retentionContextsByRequestKey = new Map<
     string,
     RequestInsightsRetentionContext
@@ -166,6 +176,8 @@ export class RequestInsights {
     number
   >()
   private readonly listeners = new Set<RequestInsightsListener>()
+  private readonly snapshotListeners =
+    new Set<RequestInsightsSnapshotListener>()
   private readonly limits: RequestInsightsLimits
   private nextRootRequestSequence = 0
   private disposed = false
@@ -337,32 +349,11 @@ export class RequestInsights {
   }
 
   getCaptureState(): RequestInsightsCaptureState {
-    const retainedRequestGroupCountByBucket = new Map<
-      RequestInsightRetentionBucket,
-      number
-    >()
-    const retainedRequestCountByBucket = new Map<
-      RequestInsightRetentionBucket,
-      number
-    >()
-    for (const rootRequestId of this.rootRequestOrder) {
-      const bucket = this.rootRetentionBuckets.get(rootRequestId) ?? 'unknown'
-      retainedRequestGroupCountByBucket.set(
-        bucket,
-        (retainedRequestGroupCountByBucket.get(bucket) ?? 0) + 1
-      )
-      retainedRequestCountByBucket.set(
-        bucket,
-        (retainedRequestCountByBucket.get(bucket) ?? 0) +
-          (this.requestKeysByRootRequestId.get(rootRequestId)?.size ?? 0)
-      )
-    }
-
     const buckets = REQUEST_INSIGHT_RETENTION_BUCKETS.map((bucket) => ({
       bucket,
       retainedRequestGroupCount:
-        retainedRequestGroupCountByBucket.get(bucket) ?? 0,
-      retainedRequestCount: retainedRequestCountByBucket.get(bucket) ?? 0,
+        this.rootRequestOrderByRetentionBucket.get(bucket)?.size ?? 0,
+      retainedRequestCount: this.retainedRequestCountsByBucket.get(bucket) ?? 0,
       retainedBytes: this.retainedBytesByBucket.get(bucket) ?? 0,
       evictedRequestGroupCount: this.evictedRequestGroupCounts.get(bucket) ?? 0,
     }))
@@ -399,10 +390,31 @@ export class RequestInsights {
     return () => this.listeners.delete(listener)
   }
 
+  subscribeSnapshots(listener: RequestInsightsSnapshotListener): () => void {
+    if (this.disposed) return () => {}
+    this.snapshotListeners.add(listener)
+    return () => this.snapshotListeners.delete(listener)
+  }
+
+  setMaxRequestGroupsPerBucket(value: number | undefined): void {
+    if (this.disposed) return
+
+    const nextLimit = normalizeCaptureGroupLimit(value)
+    if (nextLimit === this.limits.maxRequestGroupsPerBucket) return
+
+    this.limits.maxRequestGroupsPerBucket = nextLimit
+    for (const bucket of REQUEST_INSIGHT_RETENTION_BUCKETS) {
+      this.trimRetentionBucket(bucket)
+    }
+    this.trimGlobalRetention()
+    this.notifySnapshot()
+  }
+
   clear(): void {
     if (this.disposed) return
     this.clearRetainedState()
     this.evictedRequestGroupCounts.clear()
+    this.notifySnapshot()
   }
 
   dispose(): void {
@@ -410,6 +422,7 @@ export class RequestInsights {
     this.clearRetainedState()
     this.disposed = true
     this.listeners.clear()
+    this.snapshotListeners.clear()
   }
 
   private clearRetainedState(): void {
@@ -427,6 +440,7 @@ export class RequestInsights {
     this.requestByteLengths.clear()
     this.rootByteLengths.clear()
     this.retainedBytesByBucket.clear()
+    this.retainedRequestCountsByBucket.clear()
     this.retentionContextsByRequestKey.clear()
     this.omittedRequestCountsByRootRequestId.clear()
     this.nextRootRequestSequence = 0
@@ -473,11 +487,22 @@ export class RequestInsights {
   }
 
   private notify(insight: RequestInsight): void {
+    const capture = this.getCaptureState()
     for (const listener of this.listeners) {
       try {
-        listener(cloneRequestInsight(insight))
+        listener(cloneRequestInsight(insight), cloneCaptureState(capture))
       } catch (error) {
         console.error('[request-insights] listener failed', error)
+      }
+    }
+  }
+
+  private notifySnapshot(): void {
+    for (const listener of this.snapshotListeners) {
+      try {
+        listener(this.getSnapshot())
+      } catch (error) {
+        console.error('[request-insights] snapshot listener failed', error)
       }
     }
   }
@@ -551,6 +576,11 @@ export class RequestInsights {
         this.getRootRequestOrderForBucket(bucket).add(rootRequestId)
       }
       requestKeys.add(requestKey)
+      const bucket = this.rootRetentionBuckets.get(rootRequestId) ?? 'unknown'
+      this.retainedRequestCountsByBucket.set(
+        bucket,
+        (this.retainedRequestCountsByBucket.get(bucket) ?? 0) + 1
+      )
       if (retention)
         this.retentionContextsByRequestKey.set(requestKey, retention)
     } else if (!retainedContext && retention) {
@@ -678,7 +708,9 @@ export class RequestInsights {
   }
 
   private finishMutation(insight: RequestInsight): void {
-    const metadataUpdates = this.trimGroup(getRequestInsightRootId(insight))
+    const { metadataUpdates, removedMembership } = this.trimGroup(
+      getRequestInsightRootId(insight)
+    )
     if (this.requests.has(getRequestInsightKey(insight))) {
       this.updateStoredInsightByteLength(insight)
     }
@@ -703,11 +735,17 @@ export class RequestInsights {
         this.notify(updated)
       }
     }
+    if (removedMembership) this.notifySnapshot()
   }
 
-  private trimGroup(rootRequestId: string): RequestInsight[] {
+  private trimGroup(rootRequestId: string): {
+    metadataUpdates: RequestInsight[]
+    removedMembership: boolean
+  } {
     const requestKeys = this.requestKeysByRootRequestId.get(rootRequestId)
-    if (!requestKeys) return []
+    if (!requestKeys) {
+      return { metadataUpdates: [], removedMembership: false }
+    }
 
     const orderedKeys = Array.from(requestKeys)
     const canonicalRootKey = orderedKeys.find((requestKey) => {
@@ -754,7 +792,10 @@ export class RequestInsights {
         updates.push(request)
       }
     }
-    return updates
+    return {
+      metadataUpdates: updates,
+      removedMembership: omittedRequestCount > 0,
+    }
   }
 
   private updateStoredInsightByteLength(insight: RequestInsight): void {
@@ -805,6 +846,8 @@ export class RequestInsights {
     if (previousBucket === nextBucket) return nextBucket
 
     const rootByteLength = this.rootByteLengths.get(rootRequestId) ?? 0
+    const rootRequestCount =
+      this.requestKeysByRootRequestId.get(rootRequestId)?.size ?? 0
     if (previousBucket) {
       this.rootRequestOrderByRetentionBucket
         .get(previousBucket)
@@ -816,10 +859,23 @@ export class RequestInsights {
           (this.retainedBytesByBucket.get(previousBucket) ?? 0) - rootByteLength
         )
       )
+      this.retainedRequestCountsByBucket.set(
+        previousBucket,
+        Math.max(
+          0,
+          (this.retainedRequestCountsByBucket.get(previousBucket) ?? 0) -
+            rootRequestCount
+        )
+      )
     }
     this.retainedBytesByBucket.set(
       nextBucket,
       (this.retainedBytesByBucket.get(nextBucket) ?? 0) + rootByteLength
+    )
+    this.retainedRequestCountsByBucket.set(
+      nextBucket,
+      (this.retainedRequestCountsByBucket.get(nextBucket) ?? 0) +
+        rootRequestCount
     )
     this.rootRetentionBuckets.set(rootRequestId, nextBucket)
     this.addRootRequestToBucketOrder(nextBucket, rootRequestId)
@@ -933,6 +989,10 @@ export class RequestInsights {
       this.retainedBytesByBucket.set(
         bucket,
         Math.max(0, (this.retainedBytesByBucket.get(bucket) ?? 0) - byteLength)
+      )
+      this.retainedRequestCountsByBucket.set(
+        bucket,
+        Math.max(0, (this.retainedRequestCountsByBucket.get(bucket) ?? 0) - 1)
       )
     }
 
@@ -1408,6 +1468,34 @@ function normalizeRequestInsightsLimits(
       )
     ),
   }
+}
+
+function cloneCaptureState(
+  capture: RequestInsightsCaptureState
+): RequestInsightsCaptureState {
+  return {
+    limits: { ...capture.limits },
+    usage: {
+      ...capture.usage,
+      buckets: capture.usage.buckets.map((bucket) => ({ ...bucket })),
+    },
+  }
+}
+
+function normalizeCaptureGroupLimit(value: number | undefined): number {
+  if (value === undefined) {
+    return REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET
+  }
+  if (
+    !Number.isSafeInteger(value) ||
+    value < 1 ||
+    value > REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET
+  ) {
+    throw new RangeError(
+      `Request Insights maxRequestGroupsPerBucket must be an integer from 1 to ${REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET}.`
+    )
+  }
+  return value
 }
 
 function normalizeNonNegativeInteger(

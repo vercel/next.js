@@ -1469,5 +1469,7 @@
   "1468": "Missing workUnitStore in createComponentTree",
   "1469": "%s stream closed before completion",
   "1470": "Response closed before its first chunk",
-  "1471": "Response stream failed before its first chunk"
+  "1471": "Response stream failed before its first chunk",
+  "1472": "Request Insights maxRequestGroupsPerBucket must be an integer from 1 to %s.",
+  "1473": "Request Insights MCP output exceeded its byte limit."
 }

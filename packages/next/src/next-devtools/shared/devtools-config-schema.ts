@@ -1,5 +1,9 @@
 import type { DevToolsConfig } from '../dev-overlay/shared'
 import { z } from 'next/dist/compiled/zod'
+import {
+  REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET,
+  REQUEST_INSIGHTS_MIN_GROUPS_PER_RETENTION_BUCKET,
+} from './request-insights'
 
 export const devToolsConfigSchema: z.ZodType<DevToolsConfig> = z.object({
   theme: z.enum(['light', 'dark', 'system']).optional(),
@@ -22,6 +26,12 @@ export const devToolsConfigSchema: z.ZodType<DevToolsConfig> = z.object({
     .object({
       showInternal: z.boolean().optional(),
       verbose: z.boolean().optional(),
+      maxRequestGroupsPerBucket: z
+        .number()
+        .int()
+        .min(REQUEST_INSIGHTS_MIN_GROUPS_PER_RETENTION_BUCKET)
+        .max(REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET)
+        .optional(),
     })
     .optional(),
 })

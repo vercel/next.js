@@ -15,6 +15,7 @@ import type {
 import type { DevToolsConfig } from '../../next-devtools/dev-overlay/shared'
 import type {
   RequestInsight,
+  RequestInsightsCaptureState,
   RequestInsightsSnapshot,
 } from '../../next-devtools/shared/request-insights'
 import type { ReactDebugChannelForBrowser } from './debug-channel'
@@ -44,6 +45,7 @@ export const enum HMR_MESSAGE_SENT_TO_BROWSER {
   REQUEST_CURRENT_ERROR_STATE = 'requestCurrentErrorState',
   REQUEST_PAGE_METADATA = 'requestPageMetadata',
   REQUEST_INSIGHTS_UPDATE = 'requestInsightsUpdate',
+  REQUEST_INSIGHTS_SNAPSHOT = 'requestInsightsSnapshot',
 
   // Binary messages:
   REACT_DEBUG_CHUNK = 0,
@@ -196,6 +198,12 @@ export interface CacheIndicatorMessage {
 export interface RequestInsightsUpdateMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE
   insight: RequestInsight
+  capture: RequestInsightsCaptureState
+}
+
+export interface RequestInsightsSnapshotMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_SNAPSHOT
+  snapshot: RequestInsightsSnapshot
 }
 
 export type HmrMessageSentToBrowser =
@@ -222,6 +230,7 @@ export type HmrMessageSentToBrowser =
   | RequestPageMetadataMessage
   | CacheIndicatorMessage
   | RequestInsightsUpdateMessage
+  | RequestInsightsSnapshotMessage
 
 export type BinaryHmrMessageSentToBrowser = Extract<
   HmrMessageSentToBrowser,

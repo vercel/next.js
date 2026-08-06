@@ -629,7 +629,23 @@ program
     new Option(
       '--limit <count>',
       'Maximum number of recent request summaries to print.'
-    ).argParser(parseValidPositiveInteger)
+    )
+      .argParser(parseValidPositiveInteger)
+      .conflicts('clear')
+  )
+  .addOption(
+    new Option(
+      '--capture-groups-per-type <count>',
+      'Set the number of logical request groups retained for each request type.'
+    )
+      .argParser(parseValidPositiveInteger)
+      .conflicts('clear')
+  )
+  .addOption(
+    new Option('--clear', 'Clear captured Request Insights data.').conflicts([
+      'limit',
+      'captureGroupsPerType',
+    ])
   )
   .action((directory: string, options: NextRequestInsightsOptions) => {
     return import('../cli/next-request-insights.js').then((mod) =>
