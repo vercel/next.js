@@ -14,19 +14,21 @@ This guide walks through four patterns that cover the most common cases: morphin
 
 ## Use the vercel-react-view-transitions skill
 
-The [`vercel-react-view-transitions`](https://github.com/vercel-labs/agent-skills/tree/main/skills/react-view-transitions) skill teaches a coding agent the patterns in this guide, plus the CSS recipes and troubleshooting for applying them to an existing app.
+The [`vercel-react-view-transitions`](https://skills.sh/vercel-labs/agent-skills/vercel-react-view-transitions) skill teaches a coding agent the patterns in this guide, plus the CSS recipes and troubleshooting for applying them to an existing app.
 
 Install the skill:
 
 ```bash filename="Terminal"
-npx skills add https://github.com/vercel-labs/agent-skills --skill vercel-react-view-transitions
+npx skills add vercel-labs/agent-skills --skill vercel-react-view-transitions
 ```
 
-Then give the agent this prompt:
+Then give the agent a prompt like this:
 
 ```prompt
 Add view transitions to this app using the vercel-react-view-transitions skill.
 ```
+
+You don't have to use this exact prompt. Ask for whatever you want to achieve, from a single shared-element morph to a full set of route transitions, and the skill guides the agent through the patterns to get there.
 
 To apply the patterns yourself, follow the walkthrough below.
 
