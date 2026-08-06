@@ -39,13 +39,14 @@ describe('request insights', () => {
   })
 
   function withRequestInsights<TArgs extends unknown[]>(
-    fn: (...args: TArgs) => unknown
-  ): (...args: TArgs) => unknown {
-    return (...args) =>
+    fn: (...args: TArgs) => void
+  ): (...args: TArgs) => void {
+    return (...args) => {
       runWithRequestInsights(requestInsights, () => fn(...args))
+    }
   }
 
-  function test(name: string, fn: () => unknown): void {
+  function test(name: string, fn: () => void): void {
     it(name, withRequestInsights(fn))
   }
 
