@@ -354,6 +354,7 @@ export class RequestInsights {
     }
 
     const groups: RequestInsight[][] = []
+    const groupByteLengths: number[] = []
     for (const rootRequestId of this.rootRequestOrder) {
       if (!matchingRootIds.has(rootRequestId)) continue
       const group = Array.from(
@@ -362,14 +363,21 @@ export class RequestInsights {
         const request = this.requests.get(requestKey)
         return request ? [request] : []
       })
-      if (group.length > 0) groups.push(group)
+      if (group.length === 0) continue
+      groups.push(group)
+      groupByteLengths.push(
+        (this.rootByteLengths.get(rootRequestId) ?? 0) +
+          2 +
+          Math.max(0, group.length - 1)
+      )
     }
 
     const { snapshot } = createBoundedRequestInsightsSnapshotProjection(
       groups,
       this.limits.maxSnapshotBytes,
       this.getCaptureState(),
-      sanitizeSnapshotLimit(query.limit)
+      sanitizeSnapshotLimit(query.limit),
+      groupByteLengths
     )
     return {
       ...snapshot,
@@ -1099,7 +1107,8 @@ export class RequestInsights {
     while (roots.size > this.limits.maxRequestGroupsPerBucket) {
       const rootRequestId = roots.values().next().value
       if (!rootRequestId) break
-      if (this.evictRoot(rootRequestId)) removedMembership = true
+      if (!this.evictRoot(rootRequestId)) break
+      removedMembership = true
     }
 
     while (
@@ -1108,7 +1117,8 @@ export class RequestInsights {
     ) {
       const rootRequestId = roots.values().next().value
       if (!rootRequestId) break
-      if (this.evictRoot(rootRequestId)) removedMembership = true
+      if (!this.evictRoot(rootRequestId)) break
+      removedMembership = true
     }
     return removedMembership
   }

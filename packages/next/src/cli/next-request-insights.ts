@@ -431,15 +431,23 @@ function shortId(id: string | undefined): string {
   return id.length > 8 ? id.slice(0, 8) : id
 }
 
-function serializeSnapshotForOutput(
+export function serializeSnapshotForOutput(
   snapshot: RequestInsightsSnapshot,
   space: number
 ): string {
-  const serialized = stringifyTerminalSafeJson(snapshot, space)
-  if (getUtf8ByteLength(serialized) > REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES) {
+  const compact = stringifyTerminalSafeJson(snapshot)
+  if (getUtf8ByteLength(compact) > REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES) {
     return exitWithError(
       `Request Insights output exceeds the terminal-safe ${REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES} byte limit.`
     )
   }
-  return serialized
+
+  if (space === 0) {
+    return compact
+  }
+
+  const formatted = stringifyTerminalSafeJson(snapshot, space)
+  return getUtf8ByteLength(formatted) <= REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES
+    ? formatted
+    : compact
 }
