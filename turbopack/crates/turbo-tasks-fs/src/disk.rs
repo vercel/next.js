@@ -277,6 +277,33 @@ impl DiskFileSystemInner {
         })
     }
 
+    /// Checks an absolute system path emitted by the filesystem watcher against `denied_paths`.
+    /// Watch backends observe the filesystem root itself, so output-directory events must be
+    /// filtered before they enter source invalidation batches.
+    pub(crate) fn is_sys_path_denied(&self, path: &Path) -> bool {
+        let Ok(relative) = path.strip_prefix(self.root_path()) else {
+            return false;
+        };
+        let Some(relative) = relative.to_str() else {
+            return false;
+        };
+        let relative = sys_to_unix(relative);
+        self.denied_paths.iter().any(|denied_path| {
+            relative.starts_with(denied_path.as_str())
+                && (relative.len() == denied_path.len()
+                    || relative.as_bytes().get(denied_path.len()) == Some(&b'/'))
+        })
+    }
+
+    /// Returns a disposable directory for watcher barrier files. Project filesystems put their
+    /// output directory first in `denied_paths`, keeping crash leftovers out of source control and
+    /// outside the dependency graph.
+    pub(crate) fn edit_transaction_barrier_directory(&self) -> Option<PathBuf> {
+        self.denied_paths
+            .first()
+            .map(|denied_path| self.root_path().join(unix_to_sys(denied_path).as_ref()))
+    }
+
     /// registers the path as an invalidator for the current task,
     /// has to be called within a turbo-tasks function
     async fn register_read_invalidator(&self, path: &Arc<PathBuf>) -> Result<()> {
@@ -520,6 +547,43 @@ impl DiskFileSystem {
         self.inner
             .start_watching_internal(true, poll_interval)
             .await
+    }
+
+    pub async fn begin_edit_transaction(&self, changed_paths: Vec<PathBuf>) -> Result<Option<u32>> {
+        let root = self.inner.root_path();
+        let mut absolute_changed_paths = Vec::with_capacity(changed_paths.len());
+        for path in changed_paths {
+            if path.as_os_str().is_empty()
+                || path.is_absolute()
+                || path.components().any(|component| {
+                    matches!(
+                        component,
+                        std::path::Component::Prefix(_)
+                            | std::path::Component::RootDir
+                            | std::path::Component::CurDir
+                            | std::path::Component::ParentDir
+                    )
+                })
+            {
+                bail!(
+                    "edit transaction changed path {} is not filesystem-root-relative",
+                    path.display()
+                );
+            }
+            absolute_changed_paths.push(root.join(path));
+        }
+        self.inner
+            .watcher
+            .begin_edit_transaction(absolute_changed_paths)
+            .await
+    }
+
+    pub async fn renew_edit_transaction(&self, token: u32) -> Result<bool> {
+        self.inner.watcher.renew_edit_transaction(token).await
+    }
+
+    pub async fn end_edit_transaction(&self, token: u32) -> Result<bool> {
+        self.inner.watcher.end_edit_transaction(token).await
     }
 
     pub async fn stop_watching(&self) {

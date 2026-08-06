@@ -1,12 +1,14 @@
 use std::{
     any::Any,
-    collections::BTreeSet,
+    collections::{BTreeSet, hash_map::Entry},
     env, fmt,
+    fs::{OpenOptions, create_dir_all, remove_file},
     mem::take,
     path::{Path, PathBuf},
     sync::{
-        Arc, LazyLock,
-        mpsc::{Receiver, RecvTimeoutError, channel},
+        Arc, LazyLock, Mutex, Weak,
+        atomic::{AtomicU32, AtomicU64, Ordering},
+        mpsc::{Receiver, RecvTimeoutError, Sender, channel},
     },
     time::{Duration, Instant},
 };
@@ -19,7 +21,7 @@ use notify::{
     event::{MetadataKind, ModifyKind, RenameMode},
 };
 use rustc_hash::{FxHashMap, FxHashSet};
-use tokio::sync::{RwLock, RwLockWriteGuard};
+use tokio::sync::{RwLock, RwLockWriteGuard, oneshot};
 use tracing::instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -30,7 +32,7 @@ use turbo_tasks::{
 use crate::{
     DiskFileSystemInner, format_absolute_fs_path,
     invalidation::{WatchChange, WatchStart},
-    invalidator_map::InvalidatorMap,
+    invalidator_map::{InvalidatorMap, LockedInvalidatorMap},
     path_map::OrderedPathMapExt,
 };
 
@@ -71,10 +73,192 @@ const BATCH_DELAY: Duration = Duration::from_millis(10);
 #[cfg(not(target_os = "linux"))]
 const BATCH_DELAY: Duration = Duration::from_millis(1);
 
+pub(crate) const EDIT_TRANSACTION_LEASE: Duration = Duration::from_secs(5);
+const EDIT_TRANSACTION_MAX_DURATION: Duration = Duration::from_secs(60);
+const EDIT_TRANSACTION_MAX_RETAINED_PATHS: usize = 16 * 1024;
+const EDIT_TRANSACTION_MAX_RETAINED_PATH_BYTES: usize = 4 * 1024 * 1024;
+const EDIT_TRANSACTION_BARRIER_PREFIX: &str = ".next-edit-transaction-barrier-";
+const EDIT_TRANSACTION_BARRIER_TIMEOUT: Duration = Duration::from_secs(2);
+const EDIT_TRANSACTION_MAX_SETTLE_EXTENSION: Duration = Duration::from_millis(100);
+const EDIT_TRANSACTION_MAX_RESCAN_PASSES: usize = 3;
+static NEXT_EDIT_TRANSACTION_BARRIER_ID: AtomicU64 = AtomicU64::new(1);
+
+fn edit_transaction_settle_delay(poll_interval: Option<Duration>) -> Duration {
+    poll_interval
+        .map(|interval| interval.saturating_add(BATCH_DELAY))
+        .unwrap_or(BATCH_DELAY)
+}
+
+fn edit_transaction_barrier_timeout(poll_interval: Option<Duration>) -> Duration {
+    poll_interval
+        .map(|interval| {
+            interval
+                .saturating_add(BATCH_DELAY)
+                .max(EDIT_TRANSACTION_BARRIER_TIMEOUT)
+        })
+        .unwrap_or(EDIT_TRANSACTION_BARRIER_TIMEOUT)
+}
+
+#[derive(Clone, Copy)]
+struct EditTransactionSettling {
+    deadline: Instant,
+    limit: Instant,
+}
+
+impl EditTransactionSettling {
+    fn new(now: Instant, initial_delay: Duration) -> Self {
+        let deadline = now + initial_delay;
+        Self {
+            deadline,
+            limit: deadline + EDIT_TRANSACTION_MAX_SETTLE_EXTENSION,
+        }
+    }
+
+    fn extend(&mut self, now: Instant) {
+        self.deadline = self.deadline.max(now + BATCH_DELAY).min(self.limit);
+    }
+}
+
+fn should_repeat_rescan(
+    pending_rescan: bool,
+    pending_transaction_end: bool,
+    completed_transaction_rescans: usize,
+) -> bool {
+    pending_rescan
+        && (!pending_transaction_end
+            || completed_transaction_rescans < EDIT_TRANSACTION_MAX_RESCAN_PASSES)
+}
+
+fn create_edit_transaction_barrier(directory: &Path) -> std::io::Result<PathBuf> {
+    create_dir_all(directory)?;
+    let id = NEXT_EDIT_TRANSACTION_BARRIER_ID.fetch_add(1, Ordering::Relaxed);
+    let path = directory.join(format!(
+        "{EDIT_TRANSACTION_BARRIER_PREFIX}{}-{id}",
+        std::process::id()
+    ));
+    OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&path)?;
+    Ok(path)
+}
+
+fn initial_transaction_id() -> AtomicU32 {
+    AtomicU32::new(1)
+}
+
+fn initial_control_senders() -> RwLock<Option<WatchSenders>> {
+    RwLock::new(None)
+}
+
 #[derive(Encode, Decode)]
 pub(crate) struct DiskWatcher {
     #[bincode(skip)]
     state: State,
+    #[bincode(skip, default = "initial_control_senders")]
+    control_senders: RwLock<Option<WatchSenders>>,
+    #[bincode(skip, default = "initial_transaction_id")]
+    next_transaction_id: AtomicU32,
+}
+
+struct ActiveEditTransaction {
+    token: u32,
+    expiration: Instant,
+    maximum_expiration: Instant,
+}
+
+impl ActiveEditTransaction {
+    fn new(token: u32, now: Instant) -> Self {
+        let maximum_expiration = now + EDIT_TRANSACTION_MAX_DURATION;
+        Self {
+            token,
+            expiration: (now + EDIT_TRANSACTION_LEASE).min(maximum_expiration),
+            maximum_expiration,
+        }
+    }
+
+    fn is_active(&self, token: u32, now: Instant) -> bool {
+        self.token == token && now < self.expiration
+    }
+
+    fn renew(&mut self, token: u32, now: Instant) -> bool {
+        if !self.is_active(token, now) {
+            return false;
+        }
+        self.expiration = (now + EDIT_TRANSACTION_LEASE).min(self.maximum_expiration);
+        true
+    }
+}
+
+enum WatchEventMessage {
+    Filesystem(notify::Result<notify::Event>),
+    BeginEditTransaction {
+        token: u32,
+        changed_paths: Vec<PathBuf>,
+        acknowledged: oneshot::Sender<bool>,
+    },
+    ControlReady,
+    RescanBoundary,
+}
+
+fn retain_after_rescan_boundary(
+    message: WatchEventMessage,
+    discarding_rescan_events: &mut bool,
+    pending_rescan: &mut bool,
+) -> Option<WatchEventMessage> {
+    match message {
+        WatchEventMessage::RescanBoundary => {
+            if !*discarding_rescan_events {
+                return None;
+            }
+            *discarding_rescan_events = false;
+            Some(WatchEventMessage::RescanBoundary)
+        }
+        message if !*discarding_rescan_events => Some(message),
+        WatchEventMessage::Filesystem(Ok(event)) => {
+            // An overflow observed while watches are being restored is not covered by that
+            // restoration pass. Repeat the rescan after the FIFO boundary instead of losing it.
+            if event.need_rescan() {
+                *pending_rescan = true;
+            }
+            None
+        }
+        WatchEventMessage::Filesystem(Err(_)) => None,
+        WatchEventMessage::BeginEditTransaction { acknowledged, .. } => {
+            let _ = acknowledged.send(false);
+            None
+        }
+        WatchEventMessage::ControlReady => Some(WatchEventMessage::ControlReady),
+    }
+}
+
+enum EditTransactionMessage {
+    Renew {
+        token: u32,
+        acknowledged: oneshot::Sender<bool>,
+    },
+    End {
+        token: u32,
+        acknowledged: oneshot::Sender<bool>,
+    },
+}
+
+#[derive(Clone)]
+struct WatchSenders {
+    event_tx: Arc<Sender<WatchEventMessage>>,
+    control_tx: Sender<EditTransactionMessage>,
+    generation_running: Arc<Mutex<bool>>,
+}
+
+impl WatchSenders {
+    fn send_control(&self, message: EditTransactionMessage) -> bool {
+        self.control_tx.send(message).is_ok()
+            && self.event_tx.send(WatchEventMessage::ControlReady).is_ok()
+    }
+
+    fn stop_generation(&self) {
+        *self.generation_running.lock().unwrap() = false;
+    }
 }
 
 enum State {
@@ -112,6 +296,19 @@ impl State {
         }
     }
 
+    async fn message_senders(&self) -> Option<WatchSenders> {
+        match self {
+            Self::Recursive(state) => match &*state.read().await {
+                RecursiveState::Stopped => None,
+                RecursiveState::Watching { senders, .. } => Some(senders.clone()),
+            },
+            Self::NonRecursive(state) => match &*state.read().await {
+                NonRecursiveState::Stopped => None,
+                NonRecursiveState::Watching(state) => Some(state.senders.clone()),
+            },
+        }
+    }
+
     fn recursive_mode(&self) -> RecursiveMode {
         match self {
             Self::Recursive(_) => RecursiveMode::Recursive,
@@ -129,6 +326,7 @@ enum RecursiveState {
     Watching {
         /// Hold onto the watcher: When this is dropped, it will cause the channel to disconnect
         _notify_watcher: NotifyWatcher,
+        senders: WatchSenders,
     },
 }
 
@@ -143,6 +341,7 @@ enum NonRecursiveState {
 // split out from the `NonRecursiveState` enum because we want to pass this value around
 struct NonRecursiveWatchingState {
     notify_watcher: NotifyWatcher,
+    senders: WatchSenders,
     /// Keeps track of which directories are currently or were previously watched by
     /// [`Self::notify_watcher`].
     ///
@@ -164,6 +363,45 @@ impl NotifyWatcher {
         match self {
             Self::Recommended(watcher) => watcher.watch(path, recursive_mode),
             Self::Polling(watcher) => watcher.watch(path, recursive_mode),
+        }
+    }
+
+    fn unwatch(&mut self, path: &Path) -> notify::Result<()> {
+        match self {
+            Self::Recommended(watcher) => watcher.unwatch(path),
+            Self::Polling(watcher) => watcher.unwatch(path),
+        }
+    }
+
+    /// Recursive native watchers already cover the denied output directory. PollWatcher needs a
+    /// distinct handle so watcher operations can synchronize with its scan lock.
+    fn watch_edit_transaction_barrier(&mut self, path: &Path) -> notify::Result<bool> {
+        match self {
+            Self::Recommended(_) => Ok(false),
+            Self::Polling(watcher) => {
+                watcher.watch(path, RecursiveMode::NonRecursive)?;
+                Ok(true)
+            }
+        }
+    }
+
+    /// Finish the poll that observed the barrier, then request one complete post-barrier poll.
+    /// Returns whether the temporary watch must remain installed until that poll completes.
+    fn synchronize_edit_transaction_poll(&mut self, path: &Path) -> notify::Result<bool> {
+        match self {
+            Self::Recommended(watcher) => {
+                watcher.unwatch(path)?;
+                Ok(false)
+            }
+            Self::Polling(watcher) => {
+                // `unwatch` takes PollWatcher's scan lock, so it cannot return until the scan that
+                // emitted the barrier has completed. Reinstall the watch and wake the poll loop;
+                // removing it at the settle deadline will similarly wait for this new scan.
+                watcher.unwatch(path)?;
+                watcher.watch(path, RecursiveMode::NonRecursive)?;
+                watcher.poll()?;
+                Ok(true)
+            }
         }
     }
 }
@@ -274,6 +512,40 @@ mod non_recursive_helpers {
         Ok(())
     }
 
+    /// Watch a directory for the lifetime of one edit-transaction barrier without adding it to
+    /// the persistent invalidator-backed watch set. Returns whether the caller owns a temporary
+    /// watch that must be removed.
+    pub async fn watch_temporary_dir(
+        state: &RwLock<NonRecursiveState>,
+        dir_path: &Path,
+        root_path: &Path,
+    ) -> Result<bool> {
+        if dir_path == root_path {
+            return Ok(false);
+        }
+
+        let mut guard = state.write().await;
+        let NonRecursiveState::Watching(watching_state) = &mut *guard else {
+            return Ok(false);
+        };
+        if watching_state.watched.contains(dir_path) {
+            start_watching_dir(&mut watching_state.notify_watcher, dir_path, root_path)?;
+            return Ok(false);
+        }
+        start_watching_dir(&mut watching_state.notify_watcher, dir_path, root_path)?;
+        Ok(true)
+    }
+
+    pub async fn unwatch_temporary_dir(state: &RwLock<NonRecursiveState>, dir_path: &Path) {
+        let mut guard = state.write().await;
+        let NonRecursiveState::Watching(watching_state) = &mut *guard else {
+            return;
+        };
+        if !watching_state.watched.contains(dir_path) {
+            let _ = watching_state.notify_watcher.unwatch(dir_path);
+        }
+    }
+
     /// Private helper, assumes that `dir_path` has already been added to
     /// [`NonRecursiveWatchingState::watched`].
     ///
@@ -357,6 +629,8 @@ impl DiskWatcher {
     pub fn new() -> Self {
         Self {
             state: State::new_stopped(),
+            control_senders: initial_control_senders(),
+            next_transaction_id: AtomicU32::new(1),
         }
     }
 
@@ -394,20 +668,37 @@ impl DiskWatcher {
             return Ok(());
         }
 
-        // Create a channel to receive the events.
-        let (tx, rx) = channel();
+        // Transaction controls use a separate channel so renewals and releases cannot sit behind
+        // a filesystem-event backlog. A token on the event channel wakes the watcher thread.
+        let (event_tx, event_rx) = channel();
+        let event_tx = Arc::new(event_tx);
+        let (control_tx, control_rx) = channel();
         // Create a watcher object, delivering debounced events.
         // The notification back-end is selected based on the platform.
         let config = Config::default();
         // we should track and invalidate each part of a symlink chain ourselves in
         // turbo-tasks-fs
         let config = config.with_follow_symlinks(false);
+        let transaction_settle_delay = edit_transaction_settle_delay(poll_interval);
+        let transaction_barrier_timeout = edit_transaction_barrier_timeout(poll_interval);
 
         let mut notify_watcher = if let Some(poll_interval) = poll_interval {
             let config = config.with_poll_interval(poll_interval);
-            NotifyWatcher::Polling(PollWatcher::new(tx, config)?)
+            let notify_tx = event_tx.clone();
+            NotifyWatcher::Polling(PollWatcher::new(
+                move |result| {
+                    let _ = notify_tx.send(WatchEventMessage::Filesystem(result));
+                },
+                config,
+            )?)
         } else {
-            NotifyWatcher::Recommended(RecommendedWatcher::new(tx, config)?)
+            let notify_tx = event_tx.clone();
+            NotifyWatcher::Recommended(RecommendedWatcher::new(
+                move |result| {
+                    let _ = notify_tx.send(WatchEventMessage::Filesystem(result));
+                },
+                config,
+            )?)
         };
 
         // TOCTOU: we must watch `root_path` before calling any invalidators and setting up the
@@ -453,37 +744,135 @@ impl DiskWatcher {
             }
         }
 
+        let rescan_boundary_tx = Arc::downgrade(&event_tx);
+        let generation_running = Arc::new(Mutex::new(true));
+        let senders = WatchSenders {
+            event_tx,
+            control_tx,
+            generation_running: generation_running.clone(),
+        };
         spawn_thread(move || {
-            fs_inner
-                .clone()
-                .watcher
-                .watch_thread(rx, fs_inner, report_invalidation_reason)
+            fs_inner.clone().watcher.watch_thread(
+                event_rx,
+                control_rx,
+                rescan_boundary_tx,
+                generation_running,
+                fs_inner,
+                report_invalidation_reason,
+                transaction_settle_delay,
+                transaction_barrier_timeout,
+            )
         });
 
         // Updating `self.state` is done last. If we panic while setting up the watcher, it'll
         // stay in the `Stopped` state.
+        let mut control_senders = self.control_senders.write().await;
         match state_guard {
             StateWriteGuard::Recursive(mut recursive) => {
                 *recursive = RecursiveState::Watching {
                     _notify_watcher: notify_watcher,
+                    senders: senders.clone(),
                 }
             }
             StateWriteGuard::NonRecursive(mut non_recursive) => {
                 *non_recursive = NonRecursiveState::Watching(NonRecursiveWatchingState {
                     notify_watcher,
+                    senders: senders.clone(),
                     watched: BTreeSet::new(),
                 })
             }
         };
+        *control_senders = Some(senders);
 
         Ok(())
     }
 
-    pub async fn stop_watching(&self) {
-        match &self.state {
-            State::Recursive(state) => *state.write().await = RecursiveState::Stopped,
-            State::NonRecursive(state) => *state.write().await = NonRecursiveState::Stopped,
+    /// Begin one semantic source edit. The acknowledgement is a barrier: once returned, the
+    /// watcher will retain invalidations until this transaction ends or its lease expires.
+    /// Only one edit transaction may be active for a filesystem.
+    pub async fn begin_edit_transaction(&self, changed_paths: Vec<PathBuf>) -> Result<Option<u32>> {
+        let senders = self
+            .state
+            .message_senders()
+            .await
+            .context("filesystem watcher is not running")?;
+        let token = self.next_transaction_id.fetch_add(1, Ordering::Relaxed);
+        let (acknowledged, acknowledgment) = oneshot::channel();
+        if senders
+            .event_tx
+            .send(WatchEventMessage::BeginEditTransaction {
+                token,
+                changed_paths,
+                acknowledged,
+            })
+            .is_err()
+        {
+            anyhow::bail!("filesystem watcher stopped before transaction began");
         }
+        Ok(acknowledgment
+            .await
+            .context("filesystem watcher stopped before acknowledging transaction")?
+            .then_some(token))
+    }
+
+    pub async fn renew_edit_transaction(&self, token: u32) -> Result<bool> {
+        let senders = self
+            .control_senders
+            .read()
+            .await
+            .clone()
+            .context("filesystem watcher is not running")?;
+        let (acknowledged, acknowledgment) = oneshot::channel();
+        if !senders.send_control(EditTransactionMessage::Renew {
+            token,
+            acknowledged,
+        }) {
+            anyhow::bail!("filesystem watcher stopped before transaction renewed");
+        }
+        acknowledgment
+            .await
+            .context("filesystem watcher stopped before acknowledging transaction renewal")
+    }
+
+    /// End the matching edit transaction. A successful result is acknowledged only after its
+    /// invalidations have been submitted.
+    pub async fn end_edit_transaction(&self, token: u32) -> Result<bool> {
+        let senders = self
+            .control_senders
+            .read()
+            .await
+            .clone()
+            .context("filesystem watcher is not running")?;
+        let (acknowledged, acknowledgment) = oneshot::channel();
+        if !senders.send_control(EditTransactionMessage::End {
+            token,
+            acknowledged,
+        }) {
+            anyhow::bail!("filesystem watcher stopped before transaction ended");
+        }
+        acknowledgment
+            .await
+            .context("filesystem watcher stopped before acknowledging transaction end")
+    }
+
+    pub async fn stop_watching(&self) {
+        let state_guard = self.state.write().await;
+        let mut control_senders = self.control_senders.write().await;
+        match state_guard {
+            StateWriteGuard::Recursive(mut state) => {
+                if let RecursiveState::Watching { senders, .. } = &*state {
+                    senders.stop_generation();
+                }
+                *state = RecursiveState::Stopped;
+            }
+            StateWriteGuard::NonRecursive(mut state) => {
+                if let NonRecursiveState::Watching(watching) = &*state {
+                    watching.senders.stop_generation();
+                }
+                *state = NonRecursiveState::Stopped;
+            }
+        }
+        *control_senders = None;
         // thread will detect the stop because the channel is disconnected when `NotifyWatcher` is
         // dropped
     }
@@ -494,23 +883,333 @@ impl DiskWatcher {
     /// Should only be called once from `start_watching`.
     fn watch_thread(
         &self,
-        rx: Receiver<notify::Result<notify::Event>>,
+        event_rx: Receiver<WatchEventMessage>,
+        control_rx: Receiver<EditTransactionMessage>,
+        rescan_boundary_tx: Weak<Sender<WatchEventMessage>>,
+        generation_running: Arc<Mutex<bool>>,
         fs_inner: Arc<DiskFileSystemInner>,
         report_invalidation_reason: bool,
+        transaction_settle_delay: Duration,
+        transaction_barrier_timeout: Duration,
     ) {
         let mut batch = BatchedInvalidations::new(self.state.recursive_mode());
+        let mut active_transaction: Option<ActiveEditTransaction> = None;
+        let mut settling: Option<EditTransactionSettling> = None;
+        let mut pending_rescan = false;
+        let mut discarding_rescan_events = false;
+        let mut pending_end_acknowledgment: Option<oneshot::Sender<bool>> = None;
+        let mut completed_transaction_rescans = 0;
+        let mut pending_end_barrier: Option<PathBuf> = None;
+        let mut pending_end_barrier_temporary_watch: Option<PathBuf> = None;
+        let mut pending_end_barrier_deadline: Option<Instant> = None;
 
         'outer: loop {
-            let mut deadline: Option<Instant> = None;
+            let mut deadline = active_transaction
+                .as_ref()
+                .map(|transaction| transaction.expiration)
+                .or(pending_end_barrier_deadline)
+                .or(settling.map(|settling| settling.deadline));
             loop {
+                let now = Instant::now();
+                if active_transaction
+                    .as_ref()
+                    .is_some_and(|transaction| transaction.expiration <= now)
+                {
+                    eprintln!("edit transaction lease expired");
+                    active_transaction = None;
+                    settling = Some(EditTransactionSettling::new(now, transaction_settle_delay));
+                    deadline = settling.map(|settling| settling.deadline);
+                }
+
+                if pending_end_barrier_deadline
+                    .is_some_and(|barrier_deadline| barrier_deadline <= now)
+                {
+                    eprintln!(
+                        "edit transaction watcher barrier timed out; using bounded settle fallback"
+                    );
+                    if let Some(barrier_path) = pending_end_barrier.take() {
+                        let _ = remove_file(barrier_path);
+                    }
+                    if let Some(directory) = pending_end_barrier_temporary_watch.take() {
+                        fs_inner
+                            .tokio_handle
+                            .block_on(self.remove_edit_transaction_barrier_dir(&directory));
+                    }
+                    pending_end_barrier_deadline = None;
+                    settling = Some(EditTransactionSettling::new(
+                        // Removing a PollWatcher watch may block behind a scan. The fallback
+                        // settle must start after cleanup, not from the stale timeout sample.
+                        Instant::now(),
+                        transaction_settle_delay,
+                    ));
+                    deadline = settling.map(|settling| settling.deadline);
+                }
+
+                if let Ok(message) = control_rx.try_recv() {
+                    // Dequeue is the control operation's linearization point. The loop's `now`
+                    // may predate a scheduler pause, so never use it to accept a bounded lease.
+                    let control_now = Instant::now();
+                    match message {
+                        EditTransactionMessage::Renew {
+                            token,
+                            acknowledged,
+                        } => {
+                            // A sender cloned before shutdown can outlive the watcher stored in
+                            // state. Serialize renewal admission and acknowledgment with
+                            // stop_watching just like transaction begin.
+                            let generation_guard = generation_running.lock().unwrap();
+                            let accepted = *generation_guard
+                                && active_transaction.as_mut().is_some_and(|transaction| {
+                                    transaction.renew(token, control_now)
+                                });
+                            if accepted {
+                                deadline = active_transaction
+                                    .as_ref()
+                                    .map(|transaction| transaction.expiration);
+                            }
+                            let _ = acknowledged.send(accepted);
+                            drop(generation_guard);
+                        }
+                        EditTransactionMessage::End {
+                            token,
+                            acknowledged,
+                        } => {
+                            let accepted = active_transaction.as_ref().is_some_and(|transaction| {
+                                transaction.is_active(token, control_now)
+                            });
+                            if accepted {
+                                active_transaction = None;
+                                pending_end_acknowledgment = Some(acknowledged);
+                                completed_transaction_rescans = 0;
+                                let barrier = (|| -> Result<_> {
+                                    let directory =
+                                        fs_inner.edit_transaction_barrier_directory().context(
+                                            "project filesystem has no denied output directory",
+                                        )?;
+                                    create_dir_all(&directory)?;
+                                    let temporary_watch = fs_inner.tokio_handle.block_on(
+                                        self.ensure_edit_transaction_barrier_dir(
+                                            &directory,
+                                            fs_inner.root_path(),
+                                        ),
+                                    )?;
+                                    match create_edit_transaction_barrier(&directory) {
+                                        Ok(barrier_path) => Ok((
+                                            barrier_path,
+                                            temporary_watch.then_some(directory),
+                                            Instant::now(),
+                                        )),
+                                        Err(error) => {
+                                            if temporary_watch {
+                                                fs_inner.tokio_handle.block_on(
+                                                    self.remove_edit_transaction_barrier_dir(
+                                                        &directory,
+                                                    ),
+                                                );
+                                            }
+                                            Err(error.into())
+                                        }
+                                    }
+                                })();
+                                match barrier {
+                                    Ok((barrier_path, temporary_watch, barrier_created_at)) => {
+                                        pending_end_barrier = Some(barrier_path);
+                                        pending_end_barrier_temporary_watch = temporary_watch;
+                                        // Watch installation and the PollWatcher initial scan may
+                                        // block. Give the backend its full observation window from
+                                        // the point at which the marker actually exists.
+                                        pending_end_barrier_deadline =
+                                            Some(barrier_created_at + transaction_barrier_timeout);
+                                        deadline = pending_end_barrier_deadline;
+                                    }
+                                    Err(error) => {
+                                        eprintln!(
+                                            "failed to create edit transaction watcher barrier: \
+                                             {error}; using bounded settle fallback"
+                                        );
+                                        settling = Some(EditTransactionSettling::new(
+                                            // Barrier setup may include blocking watch cleanup.
+                                            Instant::now(),
+                                            transaction_settle_delay,
+                                        ));
+                                        deadline = settling.map(|settling| settling.deadline);
+                                    }
+                                }
+                            } else {
+                                let _ = acknowledged.send(false);
+                            }
+                        }
+                    }
+                    continue;
+                }
+
+                if settling.is_some_and(|settling| settling.deadline <= now) {
+                    if let Some(directory) = pending_end_barrier_temporary_watch.take() {
+                        // A PollWatcher callback can arrive in the middle of a recursive scan.
+                        // Removing the temporary watch takes its scan lock, so this cannot return
+                        // until the explicitly requested post-barrier poll has completed. Give
+                        // already-sent callbacks one ordinary batch window to drain before flush.
+                        fs_inner
+                            .tokio_handle
+                            .block_on(self.remove_edit_transaction_barrier_dir(&directory));
+                        settling = Some(EditTransactionSettling::new(Instant::now(), BATCH_DELAY));
+                        deadline = settling.map(|settling| settling.deadline);
+                        continue;
+                    }
+                    break;
+                }
+
                 let event_result = match deadline {
-                    None => rx.recv().map_err(|_| RecvTimeoutError::Disconnected),
+                    None => event_rx.recv().map_err(|_| RecvTimeoutError::Disconnected),
                     Some(deadline) => {
-                        rx.recv_timeout(deadline.saturating_duration_since(Instant::now()))
+                        event_rx.recv_timeout(deadline.saturating_duration_since(now))
                     }
                 };
+                let event_result = match event_result {
+                    Ok(message) => {
+                        let Some(message) = retain_after_rescan_boundary(
+                            message,
+                            &mut discarding_rescan_events,
+                            &mut pending_rescan,
+                        ) else {
+                            continue;
+                        };
+                        Ok(message)
+                    }
+                    Err(error) => Err(error),
+                };
                 match event_result {
-                    Ok(Ok(event)) => {
+                    Ok(WatchEventMessage::RescanBoundary) => {
+                        if should_repeat_rescan(
+                            pending_rescan,
+                            pending_end_acknowledgment.is_some(),
+                            completed_transaction_rescans,
+                        ) {
+                            break;
+                        }
+                        if pending_rescan {
+                            // The FIFO boundary is queued before the last global invalidation, so
+                            // that invalidation subsumed this pre-boundary overflow. Stop repeating
+                            // after a bounded number of watch-restoration attempts.
+                            eprintln!(concat!(
+                                "edit transaction watcher repeatedly requested rescans; ",
+                                "finishing after the bounded global invalidation"
+                            ));
+                            pending_rescan = false;
+                        }
+                        if let Some(acknowledged) = pending_end_acknowledgment.take() {
+                            completed_transaction_rescans = 0;
+                            let _ = acknowledged.send(true);
+                        }
+                        continue;
+                    }
+                    Ok(WatchEventMessage::ControlReady) => continue,
+                    Ok(WatchEventMessage::BeginEditTransaction {
+                        token,
+                        changed_paths,
+                        acknowledged,
+                    }) => {
+                        if active_transaction.is_none()
+                            && settling.is_none()
+                            && pending_end_acknowledgment.is_none()
+                            && !pending_rescan
+                            && !batch.is_empty()
+                        {
+                            // The begin message is FIFO behind filesystem callbacks already sent
+                            // by the backend. Discard paths that cannot invalidate a current task,
+                            // then refuse to absorb any relevant ordinary invalidation batch.
+                            // Re-establish non-recursive watches before discarding irrelevant
+                            // create events: `watched` outlives an inotify watch removed by the
+                            // kernel when a directory is deleted.
+                            if let State::NonRecursive(non_recursive) = &self.state {
+                                for path in batch.new_paths() {
+                                    let _ = fs_inner.tokio_handle.block_on(
+                                        non_recursive_helpers::restore_if_watched(
+                                            non_recursive,
+                                            path,
+                                            fs_inner.root_path(),
+                                        ),
+                                    );
+                                }
+                            }
+                            let _lock = fs_inner.invalidation_lock.blocking_write();
+                            batch.retain_relevant(
+                                &fs_inner.invalidator_map,
+                                &fs_inner.dir_invalidator_map,
+                            );
+                        }
+                        // Serialize the final admission and its acknowledgment with
+                        // stop_watching. A sender cloned before a stop must not acknowledge a
+                        // transaction for a watcher generation that can no longer flush it.
+                        let generation_guard = generation_running.lock().unwrap();
+                        let accepted = *generation_guard
+                            && active_transaction.is_none()
+                            && settling.is_none()
+                            && pending_end_acknowledgment.is_none()
+                            && !pending_rescan
+                            && batch.is_empty();
+                        if accepted {
+                            if batch.add_changed_paths(changed_paths, fs_inner.root_path()) {
+                                eprintln!(
+                                    "edit transaction retained too many paths; falling back to a \
+                                     full invalidation"
+                                );
+                                pending_rescan = true;
+                            }
+                            // `event_rx.recv()` above may have blocked indefinitely while the
+                            // watcher was idle, so the loop's `now` can predate this begin by an
+                            // arbitrary amount. Start the advertised lease at acceptance.
+                            let transaction = ActiveEditTransaction::new(token, Instant::now());
+                            deadline = Some(transaction.expiration);
+                            active_transaction = Some(transaction);
+                        }
+                        let _ = acknowledged.send(accepted);
+                        drop(generation_guard);
+                    }
+                    Ok(WatchEventMessage::Filesystem(Ok(mut event))) => {
+                        let barrier_observed = pending_end_barrier
+                            .as_ref()
+                            .is_some_and(|barrier_path| event.paths.contains(barrier_path));
+                        event.paths.retain(|path| {
+                            pending_end_barrier.as_ref() != Some(path)
+                                && !fs_inner.is_sys_path_denied(path)
+                        });
+                        if barrier_observed {
+                            if let Some(barrier_path) = pending_end_barrier.take() {
+                                let _ = remove_file(barrier_path);
+                            }
+                            if let Some(directory) = pending_end_barrier_temporary_watch.take() {
+                                match fs_inner
+                                    .tokio_handle
+                                    .block_on(self.synchronize_edit_transaction_poll(&directory))
+                                {
+                                    Ok(true) => {
+                                        pending_end_barrier_temporary_watch = Some(directory);
+                                    }
+                                    Ok(false) => {}
+                                    Err(error) => {
+                                        eprintln!(
+                                            "failed to synchronize edit transaction polling \
+                                             barrier: {error}; using bounded settle fallback"
+                                        );
+                                        fs_inner.tokio_handle.block_on(
+                                            self.remove_edit_transaction_barrier_dir(&directory),
+                                        );
+                                    }
+                                }
+                            }
+                            pending_end_barrier_deadline = None;
+                            settling = Some(EditTransactionSettling::new(
+                                Instant::now(),
+                                transaction_settle_delay,
+                            ));
+                            deadline = settling.map(|settling| settling.deadline);
+                        }
+
+                        if pending_rescan {
+                            continue;
+                        }
+
                         // TODO: We might benefit from some user-facing diagnostics if it rescans
                         // occur frequently (i.e. more than X times in Y minutes)
                         //
@@ -521,51 +1220,65 @@ impl DiskWatcher {
                         // echo 3 | sudo tee /proc/sys/fs/inotify/max_queued_events
                         // ```
                         if event.need_rescan() {
-                            let _lock = fs_inner.invalidation_lock.blocking_write();
-
-                            // flush the whole mpsc queue, we're about to rescan, we don't need to
-                            // process any other update events that have already happened
-                            while rx.try_recv().is_ok() {}
-
-                            if let State::NonRecursive(non_recursive) = &self.state {
-                                // we can't narrow this down to a smaller set of paths: Rescan
-                                // events (at least when tested on
-                                // Linux) come with no `paths`, and we use
-                                // only one global `notify::Watcher` instance.
-                                //
-                                // TODO: Report diagnostics if an error happens
-                                fs_inner.tokio_handle.block_on(
-                                    non_recursive_helpers::restore_all_watched_ignore_errors(
-                                        non_recursive,
-                                        fs_inner.root_path(),
-                                    ),
-                                );
-                            }
-
-                            if report_invalidation_reason {
-                                fs_inner.invalidate_with_reason(|path| InvalidateRescan {
-                                    // this path is just used for display purposes
-                                    path: RcStr::from(path.to_string_lossy()),
-                                });
-                            } else {
-                                fs_inner.invalidate();
-                            }
-
-                            // no need to process the rest of the batch as we just
-                            // invalidated everything
+                            pending_rescan = true;
                             batch.clear();
-                            break;
+                            if active_transaction.is_none() && settling.is_none() {
+                                if let Some(barrier_path) = pending_end_barrier.take() {
+                                    let _ = remove_file(barrier_path);
+                                }
+                                if let Some(directory) = pending_end_barrier_temporary_watch.take()
+                                {
+                                    fs_inner.tokio_handle.block_on(
+                                        self.remove_edit_transaction_barrier_dir(&directory),
+                                    );
+                                }
+                                pending_end_barrier_deadline = None;
+                                break;
+                            }
+                            continue;
                         }
 
                         // Only an event that contributes to the batch keeps it open for another
                         // `BATCH_DELAY`.
                         if batch.add_event(event) {
-                            deadline = Some(Instant::now() + BATCH_DELAY);
+                            if transaction_retention_overflowed(
+                                &mut batch,
+                                active_transaction.is_some(),
+                                pending_end_acknowledgment.is_some(),
+                                settling.is_some(),
+                            ) {
+                                eprintln!(
+                                    "edit transaction retained too many paths; falling back to a \
+                                     full invalidation"
+                                );
+                                pending_rescan = true;
+                            }
+                            if let Some(settling) = &mut settling {
+                                settling.extend(Instant::now());
+                                deadline = Some(settling.deadline);
+                            } else if active_transaction.is_none()
+                                && pending_end_barrier_deadline.is_none()
+                            {
+                                deadline = Some(Instant::now() + BATCH_DELAY);
+                            }
                         }
                     }
                     // Error raised by notify watcher itself
-                    Ok(Err(notify::Error { kind, paths })) => {
+                    Ok(WatchEventMessage::Filesystem(Err(notify::Error { kind, mut paths }))) => {
                         println!("watch error ({paths:?}): {kind:?} ");
+
+                        if pending_rescan {
+                            continue;
+                        }
+
+                        let had_paths = !paths.is_empty();
+                        paths.retain(|path| {
+                            pending_end_barrier.as_ref() != Some(path)
+                                && !fs_inner.is_sys_path_denied(path)
+                        });
+                        if had_paths && paths.is_empty() {
+                            continue;
+                        }
 
                         let flags = InvalidationFlags::PATH_AND_CHILDREN
                             | InvalidationFlags::PATH_AND_CHILDREN_DIR;
@@ -576,11 +1289,40 @@ impl DiskWatcher {
                                 batch.mark(path.into_boxed_path(), flags);
                             }
                         }
-                        deadline = Some(Instant::now() + BATCH_DELAY);
+                        if transaction_retention_overflowed(
+                            &mut batch,
+                            active_transaction.is_some(),
+                            pending_end_acknowledgment.is_some(),
+                            settling.is_some(),
+                        ) {
+                            eprintln!(
+                                "edit transaction retained too many watcher-error paths; falling \
+                                 back to a full invalidation"
+                            );
+                            pending_rescan = true;
+                        }
+                        if let Some(settling) = &mut settling {
+                            settling.extend(Instant::now());
+                            deadline = Some(settling.deadline);
+                        } else if active_transaction.is_none()
+                            && pending_end_barrier_deadline.is_none()
+                        {
+                            deadline = Some(Instant::now() + BATCH_DELAY);
+                        }
                     }
                     Err(RecvTimeoutError::Timeout) => {
-                        // The batch is complete: break out to invalidate the collected paths.
-                        break;
+                        if pending_end_barrier_deadline.is_some() {
+                            deadline = pending_end_barrier_deadline;
+                            continue;
+                        }
+                        if active_transaction.is_none() {
+                            if settling.is_some() && pending_end_barrier_temporary_watch.is_some() {
+                                // Re-enter at the top so the quiet PollWatcher path synchronizes
+                                // and removes its temporary watch before flushing.
+                                continue;
+                            }
+                            break;
+                        }
                     }
                     Err(RecvTimeoutError::Disconnected) => {
                         // Sender has been disconnected, which means DiskFileSystem has been dropped
@@ -590,42 +1332,98 @@ impl DiskWatcher {
                 }
             }
 
-            // We need to start watching first before invalidating the changed paths...
-            // This is only needed on platforms we don't do recursive watching on.
-            if let State::NonRecursive(non_recursive) = &self.state {
-                for path in batch.new_paths() {
-                    // TODO: Report diagnostics if this error happens
-                    let _ =
-                        fs_inner
-                            .tokio_handle
-                            .block_on(non_recursive_helpers::restore_if_watched(
+            debug_assert!(active_transaction.is_none());
+
+            if pending_rescan {
+                let _lock = fs_inner.invalidation_lock.blocking_write();
+
+                if let State::NonRecursive(non_recursive) = &self.state {
+                    fs_inner.tokio_handle.block_on(
+                        non_recursive_helpers::restore_all_watched_ignore_errors(
+                            non_recursive,
+                            fs_inner.root_path(),
+                        ),
+                    );
+                }
+
+                // Place the FIFO boundary before the global invalidation. Directory reads do not
+                // all take the invalidation lock, so an event racing the invalidation must land
+                // after the boundary and be processed conservatively instead of being discarded.
+                let Some(rescan_boundary_tx) = rescan_boundary_tx.upgrade() else {
+                    break 'outer;
+                };
+                if rescan_boundary_tx
+                    .send(WatchEventMessage::RescanBoundary)
+                    .is_err()
+                {
+                    break 'outer;
+                }
+
+                if report_invalidation_reason {
+                    fs_inner.invalidate_with_reason(|path| InvalidateRescan {
+                        path: RcStr::from(path.to_string_lossy()),
+                    });
+                } else {
+                    fs_inner.invalidate();
+                }
+
+                discarding_rescan_events = true;
+                batch.clear();
+                pending_rescan = false;
+                if pending_end_acknowledgment.is_some() {
+                    completed_transaction_rescans += 1;
+                }
+            } else {
+                // We need to start watching first before invalidating the changed paths. This is
+                // only needed on platforms where watching is non-recursive.
+                if let State::NonRecursive(non_recursive) = &self.state {
+                    for path in batch.new_paths() {
+                        let _ = fs_inner.tokio_handle.block_on(
+                            non_recursive_helpers::restore_if_watched(
                                 non_recursive,
                                 path,
                                 fs_inner.root_path(),
-                            ));
+                            ),
+                        );
+                    }
                 }
+
+                let Some(turbo_tasks) = fs_inner.turbo_tasks.upgrade() else {
+                    break 'outer;
+                };
+                let _guard = fs_inner.tokio_handle.enter();
+                let _lock = fs_inner.invalidation_lock.blocking_write();
+                batch.execute(
+                    &fs_inner.invalidator_map,
+                    &fs_inner.dir_invalidator_map,
+                    |invalidation_reason_path, invalidator| {
+                        invalidate(
+                            &fs_inner,
+                            &*turbo_tasks,
+                            report_invalidation_reason,
+                            invalidation_reason_path,
+                            invalidator,
+                        )
+                    },
+                );
             }
 
-            let Some(turbo_tasks) = fs_inner.turbo_tasks.upgrade() else {
-                // TurboTasks was dropped, stop watching
-                break 'outer;
-            };
-            let _guard = fs_inner.tokio_handle.enter();
+            settling = None;
+            if !discarding_rescan_events
+                && let Some(acknowledged) = pending_end_acknowledgment.take()
+            {
+                completed_transaction_rescans = 0;
+                let _ = acknowledged.send(true);
+            }
+        }
 
-            let _lock = fs_inner.invalidation_lock.blocking_write();
-            batch.execute(
-                &fs_inner.invalidator_map,
-                &fs_inner.dir_invalidator_map,
-                |invalidation_reason_path, invalidator| {
-                    invalidate(
-                        &fs_inner,
-                        &*turbo_tasks,
-                        report_invalidation_reason,
-                        invalidation_reason_path,
-                        invalidator,
-                    )
-                },
-            );
+        if let Some(barrier_path) = pending_end_barrier {
+            let _ = remove_file(barrier_path);
+        }
+        if let Some(directory) = pending_end_barrier_temporary_watch {
+            fs_inner
+                .tokio_handle
+                .block_on(self.remove_edit_transaction_barrier_dir(&directory));
         }
     }
 
@@ -639,6 +1437,74 @@ impl DiskWatcher {
             non_recursive_helpers::ensure_watched(non_recursive, dir_path, root_path).await?;
         }
         Ok(())
+    }
+
+    async fn ensure_edit_transaction_barrier_dir(
+        &self,
+        dir_path: &Path,
+        root_path: &Path,
+    ) -> Result<bool> {
+        match &self.state {
+            State::Recursive(recursive) => {
+                let mut guard = recursive.write().await;
+                let RecursiveState::Watching {
+                    _notify_watcher, ..
+                } = &mut *guard
+                else {
+                    return Ok(false);
+                };
+                let owns_temporary_watch =
+                    _notify_watcher.watch_edit_transaction_barrier(dir_path)?;
+                Ok(owns_temporary_watch)
+            }
+            State::NonRecursive(non_recursive) => {
+                non_recursive_helpers::watch_temporary_dir(non_recursive, dir_path, root_path).await
+            }
+        }
+    }
+
+    async fn remove_edit_transaction_barrier_dir(&self, dir_path: &Path) {
+        match &self.state {
+            State::Recursive(recursive) => {
+                let mut guard = recursive.write().await;
+                if let RecursiveState::Watching {
+                    _notify_watcher, ..
+                } = &mut *guard
+                {
+                    let _ = _notify_watcher.unwatch(dir_path);
+                }
+            }
+            State::NonRecursive(non_recursive) => {
+                non_recursive_helpers::unwatch_temporary_dir(non_recursive, dir_path).await;
+            }
+        }
+    }
+
+    async fn synchronize_edit_transaction_poll(&self, dir_path: &Path) -> Result<bool> {
+        match &self.state {
+            State::Recursive(recursive) => {
+                let mut guard = recursive.write().await;
+                let RecursiveState::Watching {
+                    _notify_watcher, ..
+                } = &mut *guard
+                else {
+                    return Ok(false);
+                };
+                let await_post_barrier_poll =
+                    _notify_watcher.synchronize_edit_transaction_poll(dir_path)?;
+                Ok(await_post_barrier_poll)
+            }
+            State::NonRecursive(non_recursive) => {
+                let mut guard = non_recursive.write().await;
+                let NonRecursiveState::Watching(watching_state) = &mut *guard else {
+                    return Ok(false);
+                };
+                let await_post_barrier_poll = watching_state
+                    .notify_watcher
+                    .synchronize_edit_transaction_poll(dir_path)?;
+                Ok(await_post_barrier_poll)
+            }
+        }
     }
 
     pub async fn ensure_watched_dir(&self, dir_path: &Path, root_path: &Path) -> Result<()> {
@@ -675,7 +1541,8 @@ bitflags! {
 /// `PathBuf` into multiple collections.
 struct BatchedInvalidations {
     paths: FxHashMap<Box<Path>, InvalidationFlags>,
-    /// See [`Self::new_paths`]). Stored as [`None`] in non-recursive mode.
+    path_bytes: usize,
+    /// See [`Self::new_paths`]. Stored as [`None`] in recursive mode.
     new_paths: Option<FxHashSet<Box<Path>>>,
 }
 
@@ -683,6 +1550,7 @@ impl BatchedInvalidations {
     fn new(recursive_mode: RecursiveMode) -> Self {
         Self {
             paths: FxHashMap::default(),
+            path_bytes: 0,
             new_paths: match recursive_mode {
                 RecursiveMode::NonRecursive => Some(FxHashSet::default()),
                 RecursiveMode::Recursive => None,
@@ -692,13 +1560,18 @@ impl BatchedInvalidations {
 
     fn clear(&mut self) {
         self.paths.clear();
+        self.path_bytes = 0;
         if let Some(new_paths) = &mut self.new_paths {
             new_paths.clear();
         }
     }
 
-    /// Records `path` as newly-created so its watch can be (re-)established. No-op in recursive
-    /// watching mode.
+    fn is_empty(&self) -> bool {
+        self.paths.is_empty() && self.new_paths.as_ref().is_none_or(FxHashSet::is_empty)
+    }
+
+    /// Records `path` as potentially created or replaced so its watch can be (re-)established.
+    /// No-op in recursive watching mode.
     fn mark_new_path(&mut self, path: &Path) {
         if let Some(new_paths) = &mut self.new_paths {
             new_paths.insert(Box::from(path));
@@ -706,12 +1579,108 @@ impl BatchedInvalidations {
     }
 
     fn mark(&mut self, path: Box<Path>, flags: InvalidationFlags) {
-        *self.paths.entry(path).or_insert(InvalidationFlags::empty()) |= flags;
+        match self.paths.entry(path) {
+            Entry::Occupied(mut entry) => *entry.get_mut() |= flags,
+            Entry::Vacant(entry) => {
+                self.path_bytes += entry.key().as_os_str().as_encoded_bytes().len();
+                entry.insert(flags);
+            }
+        }
+    }
+
+    fn exceeds_transaction_limits(&self) -> bool {
+        self.paths.len() > EDIT_TRANSACTION_MAX_RETAINED_PATHS
+            || self.path_bytes > EDIT_TRANSACTION_MAX_RETAINED_PATH_BYTES
     }
 
     fn mark_parent_dir(&mut self, path: &Path) {
         if let Some(parent) = path.parent() {
             self.mark(Box::from(parent), InvalidationFlags::PATH_DIR);
+        }
+    }
+
+    fn mark_parent_dirs_through_existing(&mut self, path: &Path, root_path: &Path) -> bool {
+        let mut parent = path.parent();
+        while let Some(directory) = parent {
+            if !directory.starts_with(root_path) {
+                break;
+            }
+            self.mark(Box::from(directory), InvalidationFlags::PATH_DIR);
+            // A declared descendant can replace an already-watched directory without the
+            // platform delivering its create event. Restore every traversed ancestor before
+            // publishing so a stale non-recursive watch cannot hide later edits.
+            self.mark_new_path(directory);
+            if self.exceeds_transaction_limits() {
+                self.clear();
+                return true;
+            }
+            if directory == root_path || directory.try_exists().unwrap_or(false) {
+                break;
+            }
+            parent = directory.parent();
+        }
+        false
+    }
+
+    /// Add controller-confirmed paths up front, so the final flush is authoritative even if a
+    /// platform watcher delivers the corresponding events late or loses them entirely.
+    /// Returns true after clearing the batch if expansion reaches either retention limit.
+    fn add_changed_paths(&mut self, paths: Vec<PathBuf>, root_path: &Path) -> bool {
+        for path in paths {
+            // A declared file may be created below directories that do not exist at begin time.
+            // Mark through the nearest existing ancestor so its directory/glob invalidator is
+            // guaranteed to run if the watcher drops intermediate creates. On metadata errors,
+            // continue conservatively to the filesystem root.
+            if self.mark_parent_dirs_through_existing(&path, root_path) {
+                return true;
+            }
+            self.mark_new_path(&path);
+            self.mark(
+                path.into_boxed_path(),
+                InvalidationFlags::PATH_AND_CHILDREN | InvalidationFlags::PATH_AND_CHILDREN_DIR,
+            );
+            if self.exceeds_transaction_limits() {
+                self.clear();
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Remove paths that cannot invalidate a task registered at this barrier. This is used only
+    /// while admitting an edit transaction, under `DiskFileSystemInner::invalidation_lock`, so an
+    /// unrelated watcher-root event cannot cause permanent `busy` responses.
+    fn retain_relevant(
+        &mut self,
+        invalidator_map: &InvalidatorMap,
+        dir_invalidator_map: &InvalidatorMap,
+    ) {
+        fn contains_path_or_child(map: &LockedInvalidatorMap, path: &Path) -> bool {
+            use std::ops::Bound::{Included, Unbounded};
+
+            map.range::<Path, _>((Included(path), Unbounded))
+                .next()
+                .is_some_and(|(candidate, _)| candidate.starts_with(path))
+        }
+
+        let invalidator_map = invalidator_map.lock().unwrap();
+        let dir_invalidator_map = dir_invalidator_map.lock().unwrap();
+        self.paths.retain(|path, flags| {
+            (flags.contains(InvalidationFlags::PATH) && invalidator_map.contains_key(&**path))
+                || (flags.contains(InvalidationFlags::PATH_AND_CHILDREN)
+                    && contains_path_or_child(&invalidator_map, path))
+                || (flags.contains(InvalidationFlags::PATH_DIR)
+                    && dir_invalidator_map.contains_key(&**path))
+                || (flags.contains(InvalidationFlags::PATH_AND_CHILDREN_DIR)
+                    && contains_path_or_child(&dir_invalidator_map, path))
+        });
+        self.path_bytes = self
+            .paths
+            .keys()
+            .map(|path| path.as_os_str().as_encoded_bytes().len())
+            .sum();
+        if let Some(new_paths) = &mut self.new_paths {
+            new_paths.retain(|path| self.paths.contains_key(&**path));
         }
     }
 
@@ -775,19 +1744,35 @@ impl BatchedInvalidations {
             }
             // A single event emitted with both the `From` and `To` paths.
             EventKind::Modify(ModifyKind::Name(RenameMode::Both)) => {
-                let [source, destination] = <[PathBuf; 2]>::try_from(paths)
-                    .expect("RenameMode::Both event must contain exactly two paths");
-                self.mark_parent_dir(&source);
-                self.mark(
-                    source.into_boxed_path(),
-                    InvalidationFlags::PATH_AND_CHILDREN,
-                );
-                self.mark_parent_dir(&destination);
-                self.mark_new_path(&destination);
-                self.mark(
-                    destination.into_boxed_path(),
-                    InvalidationFlags::PATH_AND_CHILDREN,
-                );
+                match <[PathBuf; 2]>::try_from(paths) {
+                    Ok([source, destination]) => {
+                        self.mark_parent_dir(&source);
+                        self.mark(
+                            source.into_boxed_path(),
+                            InvalidationFlags::PATH_AND_CHILDREN,
+                        );
+                        self.mark_parent_dir(&destination);
+                        self.mark_new_path(&destination);
+                        self.mark(
+                            destination.into_boxed_path(),
+                            InvalidationFlags::PATH_AND_CHILDREN,
+                        );
+                    }
+                    Err(paths) => {
+                        // Path filtering can remove one side of a rename across a denied output
+                        // boundary. Conservatively invalidate every surviving path instead of
+                        // panicking the watcher thread.
+                        for path in paths {
+                            self.mark_parent_dir(&path);
+                            self.mark_new_path(&path);
+                            self.mark(
+                                path.into_boxed_path(),
+                                InvalidationFlags::PATH_AND_CHILDREN
+                                    | InvalidationFlags::PATH_AND_CHILDREN_DIR,
+                            );
+                        }
+                    }
+                }
                 true
             }
             // We expect `RenameMode::Both` to cover most of the cases we need to invalidate,
@@ -861,6 +1846,21 @@ impl BatchedInvalidations {
     }
 }
 
+fn transaction_retention_overflowed(
+    batch: &mut BatchedInvalidations,
+    active_transaction: bool,
+    pending_end_acknowledgment: bool,
+    settling: bool,
+) -> bool {
+    if !(active_transaction || pending_end_acknowledgment || settling)
+        || !batch.exceeds_transaction_limits()
+    {
+        return false;
+    }
+    batch.clear();
+    true
+}
+
 #[instrument(
     parent = None,
     level = "info",
@@ -926,5 +1926,393 @@ impl InvalidationReasonKind for InvalidateRescanKind {
                 .unwrap()
                 .path
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use turbo_rcstr::{RcStr, rcstr};
+    use turbo_tasks::Vc;
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+
+    use super::*;
+    use crate::DiskFileSystem;
+
+    #[turbo_tasks::function(operation, root)]
+    async fn assert_edit_transaction_lease_starts_after_idle(root: RcStr) -> Result<()> {
+        let fs_vc = DiskFileSystem::new_with_denied_paths(
+            rcstr!("test"),
+            Vc::cell(root),
+            vec![rcstr!(".next")],
+        )
+        .to_resolved()
+        .await?;
+        let fs = fs_vc.await?;
+        let error = fs
+            .begin_edit_transaction(vec![PathBuf::new()])
+            .await
+            .expect_err("empty declarations must not invalidate the filesystem root");
+        assert!(
+            error
+                .to_string()
+                .contains("is not filesystem-root-relative")
+        );
+        fs.start_watching(None).await?;
+
+        // Reproduce the blocking-receive path, then renew inside the newly advertised lease but
+        // after the stale pre-receive lease would already have expired.
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        let token = fs
+            .begin_edit_transaction(vec![PathBuf::from("src/new/file.ts")])
+            .await?
+            .expect("idle watcher should accept a transaction");
+        tokio::time::sleep(EDIT_TRANSACTION_LEASE - Duration::from_secs(1)).await;
+        assert!(fs.renew_edit_transaction(token).await?);
+        assert!(fs.end_edit_transaction(token).await?);
+        fs.stop_watching().await;
+
+        Ok(())
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn edit_transaction_lease_starts_after_an_idle_receive() {
+        let scratch = tempfile::tempdir().unwrap();
+        let root = std::fs::canonicalize(scratch.path()).unwrap();
+        let root = RcStr::from(root.to_string_lossy().into_owned());
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+
+        tt.run_once(async move {
+            assert_edit_transaction_lease_starts_after_idle(root)
+                .read_strongly_consistent()
+                .await?;
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[test]
+    fn stopped_watcher_generation_is_visible_to_stale_senders() {
+        let (event_tx, _event_rx) = channel();
+        let (control_tx, _control_rx) = channel();
+        let senders = WatchSenders {
+            event_tx: Arc::new(event_tx),
+            control_tx,
+            generation_running: Arc::new(Mutex::new(true)),
+        };
+        let stale_senders = senders.clone();
+
+        senders.stop_generation();
+
+        assert!(!*stale_senders.generation_running.lock().unwrap());
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn edit_transaction_controls_bypass_the_watcher_state_lock() {
+        let watcher = Arc::new(DiskWatcher::new());
+        let (event_tx, event_rx) = channel();
+        let (control_tx, control_rx) = channel();
+        *watcher.control_senders.write().await = Some(WatchSenders {
+            event_tx: Arc::new(event_tx),
+            control_tx,
+            generation_running: Arc::new(Mutex::new(true)),
+        });
+
+        // PollWatcher may hold this lock while installing a watch and performing a blocking scan.
+        // A timely renew or end must still reach the priority channel before the native lease.
+        let _state_guard = watcher.state.write().await;
+
+        let renew_watcher = watcher.clone();
+        let renew = tokio::spawn(async move { renew_watcher.renew_edit_transaction(7).await });
+        let EditTransactionMessage::Renew {
+            token,
+            acknowledged,
+        } = control_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("renew should not wait for the watcher state lock")
+        else {
+            panic!("expected a renewal");
+        };
+        assert_eq!(token, 7);
+        assert!(matches!(
+            event_rx.recv_timeout(Duration::from_secs(1)),
+            Ok(WatchEventMessage::ControlReady)
+        ));
+        acknowledged.send(true).unwrap();
+        assert!(renew.await.unwrap().unwrap());
+
+        let end_watcher = watcher.clone();
+        let end = tokio::spawn(async move { end_watcher.end_edit_transaction(7).await });
+        let EditTransactionMessage::End {
+            token,
+            acknowledged,
+        } = control_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("end should not wait for the watcher state lock")
+        else {
+            panic!("expected an end");
+        };
+        assert_eq!(token, 7);
+        assert!(matches!(
+            event_rx.recv_timeout(Duration::from_secs(1)),
+            Ok(WatchEventMessage::ControlReady)
+        ));
+        acknowledged.send(true).unwrap();
+        assert!(end.await.unwrap().unwrap());
+    }
+
+    fn filesystem_message() -> WatchEventMessage {
+        WatchEventMessage::Filesystem(Ok(notify::Event::new(EventKind::Any)))
+    }
+
+    fn rescan_message() -> WatchEventMessage {
+        WatchEventMessage::Filesystem(Ok(
+            notify::Event::new(EventKind::Any).set_flag(notify::event::Flag::Rescan)
+        ))
+    }
+
+    #[test]
+    fn rescan_boundary_discards_the_complete_pre_rescan_queue() {
+        let (event_tx, event_rx) = channel();
+        // Keep this above the former bounded-drain size. Every message before the FIFO boundary
+        // was covered by the global invalidation and must be discarded.
+        for _ in 0..8 * 1024 {
+            event_tx.send(filesystem_message()).unwrap();
+        }
+        event_tx.send(WatchEventMessage::RescanBoundary).unwrap();
+        event_tx.send(filesystem_message()).unwrap();
+        drop(event_tx);
+
+        let mut discarding_rescan_events = true;
+        let mut pending_rescan = false;
+        for _ in 0..8 * 1024 {
+            assert!(
+                retain_after_rescan_boundary(
+                    event_rx.recv().unwrap(),
+                    &mut discarding_rescan_events,
+                    &mut pending_rescan,
+                )
+                .is_none()
+            );
+        }
+        assert!(!pending_rescan);
+        assert!(matches!(
+            retain_after_rescan_boundary(
+                event_rx.recv().unwrap(),
+                &mut discarding_rescan_events,
+                &mut pending_rescan,
+            ),
+            Some(WatchEventMessage::RescanBoundary)
+        ));
+        assert!(!discarding_rescan_events);
+        assert!(matches!(
+            retain_after_rescan_boundary(
+                event_rx.recv().unwrap(),
+                &mut discarding_rescan_events,
+                &mut pending_rescan,
+            ),
+            Some(WatchEventMessage::Filesystem(_))
+        ));
+
+        // A stale or duplicate marker is always consumed rather than reaching the main match.
+        assert!(
+            retain_after_rescan_boundary(
+                WatchEventMessage::RescanBoundary,
+                &mut discarding_rescan_events,
+                &mut pending_rescan,
+            )
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn rescan_boundary_preserves_an_overflow_during_watch_restoration() {
+        let mut discarding_rescan_events = true;
+        let mut pending_rescan = false;
+
+        assert!(
+            retain_after_rescan_boundary(
+                rescan_message(),
+                &mut discarding_rescan_events,
+                &mut pending_rescan,
+            )
+            .is_none()
+        );
+        assert!(pending_rescan);
+        assert!(matches!(
+            retain_after_rescan_boundary(
+                WatchEventMessage::RescanBoundary,
+                &mut discarding_rescan_events,
+                &mut pending_rescan,
+            ),
+            Some(WatchEventMessage::RescanBoundary)
+        ));
+        assert!(!discarding_rescan_events);
+    }
+
+    #[test]
+    fn edit_transaction_renewal_has_an_absolute_deadline() {
+        let started_at = Instant::now();
+        let mut transaction = ActiveEditTransaction::new(7, started_at);
+
+        assert!(!transaction.renew(8, started_at + Duration::from_secs(1)));
+        for seconds in (4..60).step_by(4) {
+            assert!(transaction.renew(7, started_at + Duration::from_secs(seconds)));
+        }
+        assert_eq!(
+            transaction.expiration,
+            started_at + EDIT_TRANSACTION_MAX_DURATION
+        );
+        assert!(transaction.is_active(
+            7,
+            started_at + EDIT_TRANSACTION_MAX_DURATION - Duration::from_nanos(1)
+        ));
+        assert!(!transaction.is_active(8, started_at + Duration::from_secs(1)));
+        assert!(!transaction.is_active(7, started_at + EDIT_TRANSACTION_MAX_DURATION));
+        assert!(!transaction.renew(7, started_at + EDIT_TRANSACTION_MAX_DURATION));
+    }
+
+    #[test]
+    fn edit_transaction_settle_covers_one_poll_interval() {
+        assert_eq!(edit_transaction_settle_delay(None), BATCH_DELAY);
+        assert_eq!(
+            edit_transaction_settle_delay(Some(Duration::from_millis(250))),
+            Duration::from_millis(250) + BATCH_DELAY
+        );
+        assert_eq!(
+            edit_transaction_barrier_timeout(Some(Duration::from_secs(3))),
+            Duration::from_secs(3) + BATCH_DELAY
+        );
+        assert_eq!(
+            edit_transaction_barrier_timeout(Some(Duration::from_millis(250))),
+            EDIT_TRANSACTION_BARRIER_TIMEOUT
+        );
+    }
+
+    #[test]
+    fn edit_transaction_rescan_retries_are_bounded() {
+        assert!(should_repeat_rescan(true, false, usize::MAX));
+        assert!(should_repeat_rescan(true, true, 0));
+        assert!(should_repeat_rescan(
+            true,
+            true,
+            EDIT_TRANSACTION_MAX_RESCAN_PASSES - 1
+        ));
+        assert!(!should_repeat_rescan(
+            true,
+            true,
+            EDIT_TRANSACTION_MAX_RESCAN_PASSES
+        ));
+        assert!(!should_repeat_rescan(
+            false,
+            true,
+            EDIT_TRANSACTION_MAX_RESCAN_PASSES
+        ));
+    }
+
+    #[test]
+    fn edit_transaction_settling_has_a_hard_deadline() {
+        let started_at = Instant::now();
+        let mut settling = EditTransactionSettling::new(started_at, BATCH_DELAY);
+
+        for milliseconds in 1..=1_000 {
+            settling.extend(started_at + Duration::from_millis(milliseconds));
+        }
+
+        assert_eq!(settling.deadline, settling.limit);
+        assert_eq!(
+            settling.deadline,
+            started_at + BATCH_DELAY + EDIT_TRANSACTION_MAX_SETTLE_EXTENSION
+        );
+    }
+
+    #[test]
+    fn controller_paths_restore_ancestor_watches_and_invalidate_conservatively() {
+        let scratch = tempfile::tempdir().unwrap();
+        let root = std::fs::canonicalize(scratch.path()).unwrap();
+        let existing_ancestor = root.join("app");
+        std::fs::create_dir(&existing_ancestor).unwrap();
+        let mut batch = BatchedInvalidations::new(RecursiveMode::NonRecursive);
+        let path = existing_ancestor.join("generated/deep/page.tsx");
+        assert!(!batch.add_changed_paths(vec![path.clone()], &root));
+
+        assert!(!batch.is_empty());
+
+        assert!(batch.paths[&*path].contains(
+            InvalidationFlags::PATH_AND_CHILDREN | InvalidationFlags::PATH_AND_CHILDREN_DIR
+        ));
+        let ancestors = [
+            existing_ancestor.join("generated/deep"),
+            existing_ancestor.join("generated"),
+            existing_ancestor,
+        ];
+        for ancestor in &ancestors {
+            assert!(batch.paths[&**ancestor].contains(InvalidationFlags::PATH_DIR));
+        }
+        let new_paths = batch.new_paths.as_ref().unwrap();
+        for path in ancestors.iter().chain([&path]) {
+            assert!(new_paths.contains(&**path));
+        }
+        assert!(!batch.paths.contains_key(&*root));
+        assert!(!new_paths.contains(&*root));
+    }
+
+    #[test]
+    fn edit_transaction_path_retention_is_bounded() {
+        let mut batch = BatchedInvalidations::new(RecursiveMode::Recursive);
+        for index in 0..EDIT_TRANSACTION_MAX_RETAINED_PATHS {
+            batch.mark(
+                PathBuf::from(format!("/project/{index}")).into_boxed_path(),
+                InvalidationFlags::PATH,
+            );
+        }
+        assert!(batch.add_changed_paths(
+            vec![PathBuf::from("/project/new/deep/file.ts")],
+            Path::new("/project"),
+        ));
+        assert!(batch.is_empty());
+        assert!(!batch.exceeds_transaction_limits());
+    }
+
+    #[test]
+    fn edit_transaction_end_barrier_retention_is_bounded() {
+        let mut batch = BatchedInvalidations::new(RecursiveMode::Recursive);
+        for index in 0..=EDIT_TRANSACTION_MAX_RETAINED_PATHS {
+            batch.mark(
+                PathBuf::from(format!("/project/{index}")).into_boxed_path(),
+                InvalidationFlags::PATH,
+            );
+        }
+        assert!(transaction_retention_overflowed(
+            &mut batch, false, true, false,
+        ));
+        assert!(batch.is_empty());
+    }
+
+    #[test]
+    fn unrelated_watcher_paths_do_not_block_a_transaction() {
+        let mut batch = BatchedInvalidations::new(RecursiveMode::NonRecursive);
+        assert!(!batch.add_changed_paths(
+            vec![PathBuf::from("/project/node_modules/package/index.js")],
+            Path::new("/project"),
+        ));
+
+        batch.retain_relevant(&InvalidatorMap::new(), &InvalidatorMap::new());
+
+        assert!(batch.is_empty());
+    }
+
+    #[test]
+    fn a_filtered_paired_rename_is_conservatively_invalidated() {
+        let mut batch = BatchedInvalidations::new(RecursiveMode::Recursive);
+        assert!(batch.add_event(notify::Event {
+            kind: EventKind::Modify(ModifyKind::Name(RenameMode::Both)),
+            paths: vec![PathBuf::from("/project/build.old")],
+            attrs: Default::default(),
+        }));
+        assert!(batch.paths.contains_key(Path::new("/project/build.old")));
     }
 }
