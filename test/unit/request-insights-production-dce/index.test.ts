@@ -103,6 +103,12 @@ describe('Request Insights production module graph', () => {
           nextPackageDir,
           'src/server/route-modules/app-route/module.ts'
         )
+      ).mtimeMs,
+      statSync(
+        path.join(
+          nextPackageDir,
+          'src/server/lib/trace/request-insights-response.ts'
+        )
       ).mtimeMs
     )
     const runtimeArtifacts = readdirSync(productionRuntimeDir)
@@ -128,6 +134,7 @@ describe('Request Insights production module graph', () => {
 
       const contents = readFileSync(artifactPath, 'utf8')
       expect(contents).not.toContain('request-insights-runtime')
+      expect(contents).not.toContain('request-insights-response')
       expect(contents).not.toContain('@next/request-insights-runtime-storage')
     }
   })

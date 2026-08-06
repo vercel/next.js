@@ -5,7 +5,11 @@ import { toNodeOutgoingHttpHeaders } from '../web/utils'
 import { BaseNextRequest, BaseNextResponse } from './index'
 import { DetachedPromise } from '../../lib/detached-promise'
 import type { NextRequestHint } from '../web/adapter'
-import { CloseController, trackBodyConsumed } from '../web/web-on-close'
+import {
+  CloseController,
+  trackBodyConsumed,
+  type ResponseBodyConsumption,
+} from '../web/web-on-close'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
 export class WebNextRequest extends BaseNextRequest<ReadableStream | null> {
@@ -38,6 +42,7 @@ export class WebNextRequest extends BaseNextRequest<ReadableStream | null> {
 export class WebNextResponse extends BaseNextResponse<WritableStream> {
   private headers = new Headers()
   private textBody: string | undefined = undefined
+  private committedStatusCode: number | undefined
 
   private closeController = new CloseController()
 
@@ -116,15 +121,17 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
       ? true
       : this.closeController.listeners > 0
 
+    const statusCode = this.statusCode ?? 200
+    this.committedStatusCode = statusCode
     if (shouldTrackBody) {
-      bodyInit = trackBodyConsumed(body, () => {
-        this.closeController.dispatchClose()
+      bodyInit = trackBodyConsumed(body, (result) => {
+        this.closeController.dispatchClose(result)
       })
     }
 
     return new Response(bodyInit, {
       headers: this.headers,
-      status: this.statusCode,
+      status: statusCode,
       statusText: this.statusMessage,
     })
   }
@@ -135,6 +142,22 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
         'Cannot call onClose on a WebNextResponse that is already closed'
       )
     }
-    return this.closeController.onClose(callback)
+    return this.closeController.onClose(() => callback())
+  }
+
+  public onResponseEnd(
+    callback: (result: ResponseBodyConsumption & { statusCode: number }) => void
+  ) {
+    if (this.closeController.isClosed) {
+      throw new InvariantError(
+        'Cannot call onResponseEnd on a WebNextResponse that is already closed'
+      )
+    }
+    return this.closeController.onClose((result) => {
+      callback({
+        ...result,
+        statusCode: this.committedStatusCode ?? this.statusCode ?? 200,
+      })
+    })
   }
 }
