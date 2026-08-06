@@ -1,5 +1,5 @@
 export function test() {
-  return import("./b.js");
+  return import('./b.js')
 }
 
-export const ok = "a";
+export const ok = 'a'

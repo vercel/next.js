@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 export default function Page({
   params,
 }: {
-  params: Promise<{ dynamic: string }>
+  params: Promise<{ dynamic: string[] }>
 }) {
   const router = useRouter()
   return (

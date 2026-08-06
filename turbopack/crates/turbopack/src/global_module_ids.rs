@@ -1,48 +1,53 @@
-use anyhow::{Context, Result};
-use rustc_hash::FxHashMap;
+use anyhow::{Context, Result, bail};
+use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
-    chunk::{module_id_strategies::GlobalModuleIdStrategy, ChunkableModule, ChunkingType},
+    chunk::{
+        ChunkableModule, ChunkingType, ModuleId,
+        chunk_id_strategy::{ModuleIdFallback, ModuleIdStrategy},
+    },
     ident::AssetIdent,
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{ModuleGraph, RefData},
 };
 use turbopack_ecmascript::async_chunk::module::AsyncLoaderModule;
 
 #[turbo_tasks::function]
 pub async fn get_global_module_id_strategy(
     module_graph: ResolvedVc<ModuleGraph>,
-) -> Result<Vc<GlobalModuleIdStrategy>> {
+) -> Result<Vc<ModuleIdStrategy>> {
     let span = tracing::info_span!("compute module id map");
     async move {
         let module_graph = module_graph.await?;
-        let graphs = module_graph.graphs.iter().try_join().await?;
 
-        // All modules in the graph
-        let module_idents = graphs
-            .iter()
-            .flat_map(|graph| graph.iter_nodes())
-            .map(|m| m.module.ident());
-
-        // And additionally, all the modules that are inserted by chunking (i.e. async loaders)
+        // All modules in the graph and additionally, all the modules that are inserted by chunking
+        // (i.e. async loaders)
+        let mut modules = FxHashSet::default();
         let mut async_idents = vec![];
-        module_graph
-            .traverse_all_edges_unordered(|parent, current| {
-                if let (_, &ChunkingType::Async) = parent {
-                    let module =
-                        ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(current.module)
-                            .context("expected chunkable module for async reference")?;
-                    async_idents.push(AsyncLoaderModule::asset_ident_for(*module));
-                }
-                Ok(())
-            })
-            .await?;
+        module_graph.traverse_edges_unordered(|parent, current| {
+            modules.insert(current);
+            if let Some((
+                _,
+                &RefData {
+                    chunking_type: ChunkingType::Async,
+                    ..
+                },
+            )) = parent
+            {
+                let module = ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(current)
+                    .context("expected chunkable module for async reference")?;
+                async_idents.push(AsyncLoaderModule::asset_ident_for(*module));
+            }
+            Ok(())
+        })?;
 
-        let mut module_id_map = module_idents
+        let mut module_id_map = modules
+            .into_iter()
+            .map(|m| m.ident())
             .chain(async_idents.into_iter())
             .map(|ident| async move {
                 let ident = ident.to_resolved().await?;
@@ -57,11 +62,20 @@ pub async fn get_global_module_id_strategy(
 
         finalize_module_ids(&mut module_id_map);
 
-        Ok(GlobalModuleIdStrategy {
-            module_id_map: module_id_map
-                .into_iter()
-                .map(|(ident, (_, hash))| (ident, hash))
-                .collect(),
+        Ok(ModuleIdStrategy {
+            module_id_map: Some(ResolvedVc::cell(
+                module_id_map
+                    .into_iter()
+                    .map(|(ident, (_, hash))| {
+                        const JS_MAX_SAFE_INTEGER: u64 = (1u64 << 53) - 1;
+                        if hash > JS_MAX_SAFE_INTEGER {
+                            bail!("Numeric module id is too large: {}", hash);
+                        }
+                        Ok((ident, ModuleId::Number(hash)))
+                    })
+                    .collect::<Result<FxHashMap<_, _>>>()?,
+            )),
+            fallback: ModuleIdFallback::Error,
         }
         .cell())
     }
@@ -102,7 +116,7 @@ fn finalize_module_ids(
     // Filter conflicts
     let mut conflicting_hashes = used_ids
         .iter()
-        .filter(|(_, list)| (list.len() > 1))
+        .filter(|(_, list)| list.len() > 1)
         .map(|(hash, _)| *hash)
         .collect::<Vec<_>>();
     conflicting_hashes.sort();

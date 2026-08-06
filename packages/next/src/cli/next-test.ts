@@ -11,7 +11,7 @@ import { installDependencies } from '../lib/install-dependencies'
 import type { NextConfigComplete } from '../server/config-shared'
 import findUp from 'next/dist/compiled/find-up'
 import { findPagesDir } from '../lib/find-pages-dir'
-import { verifyTypeScriptSetup } from '../lib/verify-typescript-setup'
+import { verifyAndRunTypeScript } from '../lib/verify-typescript-setup'
 import path from 'path'
 import spawn from 'next/dist/compiled/cross-spawn'
 
@@ -93,7 +93,7 @@ async function checkRequiredDeps(
   baseDir: string,
   testRunner: SupportedTestRunners
 ) {
-  const deps = await hasNecessaryDependencies(
+  const deps = hasNecessaryDependencies(
     baseDir,
     requiredPackagesByTestRunner[testRunner]
   )
@@ -137,15 +137,19 @@ async function runPlaywright(
   if (!playwrightConfigFile) {
     const { pagesDir, appDir } = findPagesDir(baseDir)
 
-    const { version: typeScriptVersion } = await verifyTypeScriptSetup({
+    const { version: typeScriptVersion } = await verifyAndRunTypeScript({
       dir: baseDir,
       distDir: nextConfig.distDir,
-      intentDirs: [pagesDir, appDir].filter(Boolean) as string[],
-      typeCheckPreflight: false,
+      strictRouteTypes: Boolean(nextConfig.experimental.strictRouteTypes),
+      shouldRunTypeCheck: false,
       tsconfigPath: nextConfig.typescript.tsconfigPath,
+      typedRoutes: Boolean(nextConfig.typedRoutes),
       disableStaticImages: nextConfig.images.disableStaticImages,
       hasAppDir: !!appDir,
       hasPagesDir: !!pagesDir,
+      appDir: appDir || undefined,
+      pagesDir: pagesDir || undefined,
+      useTypeScriptCli: Boolean(nextConfig.experimental.useTypeScriptCli),
     })
 
     const isUsingTypeScript = !!typeScriptVersion

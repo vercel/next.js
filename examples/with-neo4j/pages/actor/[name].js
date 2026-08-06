@@ -42,9 +42,8 @@ export default function Actor() {
                   as={{
                     pathname: `/movie/${encodeURIComponent(movie)}`,
                   }}
-                  legacyBehavior
                 >
-                  <a>{movie}</a>
+                  {movie}
                 </Link>
               </div>
             ))}
@@ -52,9 +51,7 @@ export default function Actor() {
         </div>
 
         <div className="back">
-          <Link href="/" legacyBehavior>
-            <a>🔙 Go Back</a>
-          </Link>
+          <Link href="/">🔙 Go Back</Link>
         </div>
       </main>
 

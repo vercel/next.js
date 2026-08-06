@@ -92,7 +92,7 @@ export type ResolvedAppleWebApp = {
   statusBarStyle?: 'default' | 'black' | 'black-translucent' | undefined
 }
 
-export type Facebook = FacebookAppId | FacebookAdmins
+export type Facebook = FacebookAppId | FacebookAdmins | ResolvedFacebook
 export type FacebookAppId = {
   appId: string
   admins?: never | undefined
@@ -104,6 +104,15 @@ export type FacebookAdmins = {
 export type ResolvedFacebook = {
   appId?: string | undefined
   admins?: string[] | undefined
+}
+
+export type Pinterest = PinterestRichPin | ResolvedPinterest
+export type PinterestRichPin = {
+  richPin: string | boolean
+}
+
+export type ResolvedPinterest = {
+  richPin?: string | boolean
 }
 
 // Format Detection

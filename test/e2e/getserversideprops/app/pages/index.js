@@ -95,6 +95,8 @@ const Page = ({ world, time, url }) => {
       </Link>
       <br />
       <Link href="/redirect-page">to redirect-page</Link>
+      <br />
+      <Link href="/rewrite-source/foo">to rewrite-source/foo</Link>
     </>
   )
 }

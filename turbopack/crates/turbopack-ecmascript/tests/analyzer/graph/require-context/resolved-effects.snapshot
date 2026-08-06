@@ -11,15 +11,15 @@
 
 0 -> 9 member call = ???*0*["keys"]()
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 10 member call = ???*0*()["map"](???*2*)
 - *0* ???*1*["keys"]
   ⚠️  unknown object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 11 unreachable = ???*0*
 - *0* unreachable

@@ -1,40 +1,22 @@
 import superPropBase from "./superPropBase.js";
 import defineProperty from "./defineProperty.js";
-function set(target, property, value, receiver) {
-  if (typeof Reflect !== "undefined" && Reflect.set) {
-    set = Reflect.set;
-  } else {
-    set = function set(target, property, value, receiver) {
-      var base = superPropBase(target, property);
-      var desc;
-      if (base) {
-        desc = Object.getOwnPropertyDescriptor(base, property);
-        if (desc.set) {
-          desc.set.call(receiver, value);
-          return true;
-        } else if (!desc.writable) {
-          return false;
-        }
-      }
-      desc = Object.getOwnPropertyDescriptor(receiver, property);
-      if (desc) {
-        if (!desc.writable) {
-          return false;
-        }
-        desc.value = value;
-        Object.defineProperty(receiver, property, desc);
-      } else {
-        defineProperty(receiver, property, value);
-      }
-      return true;
-    };
-  }
-  return set(target, property, value, receiver);
+function set(e, r, t, o) {
+  return set = "undefined" != typeof Reflect && Reflect.set ? Reflect.set : function (e, r, t, o) {
+    var f,
+      i = superPropBase(e, r);
+    if (i) {
+      if ((f = Object.getOwnPropertyDescriptor(i, r)).set) return f.set.call(o, t), !0;
+      if (!f.writable) return !1;
+    }
+    if (f = Object.getOwnPropertyDescriptor(o, r)) {
+      if (!f.writable) return !1;
+      f.value = t, Object.defineProperty(o, r, f);
+    } else defineProperty(o, r, t);
+    return !0;
+  }, set(e, r, t, o);
 }
-export default function _set(target, property, value, receiver, isStrict) {
-  var s = set(target, property, value, receiver || target);
-  if (!s && isStrict) {
-    throw new TypeError('failed to set property');
-  }
-  return value;
+function _set(e, r, t, o, f) {
+  if (!set(e, r, t, o || e) && f) throw new TypeError("failed to set property");
+  return t;
 }
+export { _set as default };

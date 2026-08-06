@@ -1,12 +1,12 @@
 // import() doesn't care about whether a module is an async module or not
-const UserApi = import("./UserAPI.js");
+const UserApi = import('./UserAPI.js')
 
 export const CreateUserAction = async (name) => {
-  console.log("Creating user", name);
+  console.log('Creating user', name)
   // These are normal awaits, because they are in an async function
-  const { createUser } = await UserApi;
-  await createUser(name);
-};
+  const { createUser } = await UserApi
+  await createUser(name)
+}
 
 // You can place import() where you like
 // Placing it at top-level will start loading and evaluating on
@@ -20,9 +20,9 @@ export const CreateUserAction = async (name) => {
 //   Here: Connecting to the DB starts when AlternativeCreateUserAction
 //         is called
 export const AlternativeCreateUserAction = async (name) => {
-  const { createUser } = await import("./UserAPI.js");
-  await createUser(name);
-};
+  const { createUser } = await import('./UserAPI.js')
+  await createUser(name)
+}
 
 // Note: Using await import() at top-level doesn't make much sense
 //       except in rare cases. It will import modules sequentially.

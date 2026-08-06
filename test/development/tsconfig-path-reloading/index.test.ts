@@ -1,52 +1,56 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
-  assertHasRedbox,
-  assertNoRedbox,
+  waitForRedbox,
+  waitForNoRedbox,
   check,
   renderViaHTTP,
   getRedboxSource,
 } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { join } from 'path'
-import webdriver from 'next-webdriver'
 import fs from 'fs-extra'
 
 describe('tsconfig-path-reloading', () => {
-  let next: NextInstance
   const tsConfigFile = 'tsconfig.json'
   const indexPage = 'pages/index.tsx'
 
-  function runTests({ addAfterStart }: { addAfterStart?: boolean }) {
-    beforeAll(async () => {
-      let tsConfigContent = await fs.readFile(
-        join(__dirname, 'app/tsconfig.json'),
-        'utf8'
-      )
+  const tsConfigContent = fs.readFileSync(
+    join(__dirname, 'app/tsconfig.json'),
+    'utf8'
+  )
 
-      next = await createNext({
-        files: {
-          components: new FileRef(join(__dirname, 'app/components')),
-          pages: new FileRef(join(__dirname, 'app/pages')),
-          lib: new FileRef(join(__dirname, 'app/lib')),
-          ...(addAfterStart
-            ? {}
-            : {
-                [tsConfigFile]: tsConfigContent,
-              }),
-        },
-        dependencies: {
-          typescript: 'latest',
-          '@types/react': 'latest',
-          '@types/node': 'latest',
-        },
-      })
+  function runTests({
+    addAfterStart,
+    testBaseUrl,
+  }: {
+    addAfterStart?: boolean
+    testBaseUrl: boolean
+  }) {
+    const typescriptVersion = testBaseUrl ? '5.9.3' : '6.0.3'
 
-      if (addAfterStart) {
-        await next.patchFile(tsConfigFile, tsConfigContent)
-      }
+    const { next } = nextTestSetup({
+      files: {
+        components: new FileRef(join(__dirname, 'app/components')),
+        pages: new FileRef(join(__dirname, 'app/pages')),
+        lib: new FileRef(join(__dirname, 'app/lib')),
+        ...(addAfterStart
+          ? {}
+          : {
+              [tsConfigFile]: tsConfigContent,
+            }),
+      },
+      dependencies: {
+        typescript: typescriptVersion,
+        '@types/react': 'latest',
+        '@types/node': 'latest',
+      },
     })
-    afterAll(() => next.destroy())
+
+    if (addAfterStart) {
+      beforeAll(async () => {
+        await next.patchFile(tsConfigFile, tsConfigContent)
+      })
+    }
 
     it('should load with initial paths config correctly', async () => {
       const html = await renderViaHTTP(next.url, '/')
@@ -65,7 +69,7 @@ describe('tsconfig-path-reloading', () => {
       const tsconfigContent = await next.readFile(tsConfigFile)
       const parsedTsConfig = JSON.parse(tsconfigContent)
 
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
 
       try {
         const html = await browser.eval('document.documentElement.innerHTML')
@@ -82,7 +86,7 @@ describe('tsconfig-path-reloading', () => {
           )}`
         )
 
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxSource(browser)).toContain("'@lib/second-data'")
 
         await next.patchFile(
@@ -103,7 +107,7 @@ describe('tsconfig-path-reloading', () => {
           )
         )
 
-        await assertNoRedbox(browser)
+        await waitForNoRedbox(browser)
 
         const html2 = await browser.eval('document.documentElement.innerHTML')
         expect(html2).toContain('first button')
@@ -128,7 +132,7 @@ describe('tsconfig-path-reloading', () => {
       const tsconfigContent = await next.readFile(tsConfigFile)
       const parsedTsConfig = JSON.parse(tsconfigContent)
 
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
 
       try {
         const html = await browser.eval('document.documentElement.innerHTML')
@@ -158,7 +162,7 @@ describe('tsconfig-path-reloading', () => {
           indexContent.replace('@mybutton', '@myotherbutton')
         )
 
-        await assertNoRedbox(browser)
+        await waitForNoRedbox(browser)
 
         await check(async () => {
           const html2 = await browser.eval('document.documentElement.innerHTML')
@@ -183,10 +187,18 @@ describe('tsconfig-path-reloading', () => {
   }
 
   describe('tsconfig', () => {
-    runTests({})
+    runTests({ testBaseUrl: true })
+  })
+
+  describe('tsconfig without baseUrl', () => {
+    runTests({ testBaseUrl: false })
   })
 
   describe('tsconfig added after starting dev', () => {
-    runTests({ addAfterStart: true })
+    runTests({ testBaseUrl: true, addAfterStart: true })
+  })
+
+  describe('tsconfig without baseUrl added after starting dev', () => {
+    runTests({ testBaseUrl: false, addAfterStart: true })
   })
 })

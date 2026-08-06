@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { LinkAccordion } from '../components/link-accordion'
 
 export default async function Page() {
   const randomNumber = await new Promise((resolve) => {
@@ -8,11 +8,9 @@ export default async function Page() {
   })
 
   return (
-    <>
-      <div>
-        <Link href="/">Back to Home</Link>
-      </div>
+    <div id="dynamic-page">
+      <LinkAccordion href="/">Back to Home</LinkAccordion>
       <div id="random-number">{randomNumber}</div>
-    </>
+    </div>
   )
 }

@@ -1,3 +1,16 @@
+const noop = () => {}
+
+let registry: FinalizationRegistry<WeakRef<ReadableStream>> | undefined
+
+if (globalThis.FinalizationRegistry) {
+  registry = new FinalizationRegistry((weakRef: WeakRef<ReadableStream>) => {
+    const stream = weakRef.deref()
+    if (stream && !stream.locked) {
+      stream.cancel('Response object has been garbage collected').then(noop)
+    }
+  })
+}
+
 /**
  * Clones a response by teeing the body so we can return two independent
  * ReadableStreams from it. This avoids the bug in the undici library around
@@ -27,6 +40,10 @@ export function cloneResponse(original: Response): [Response, Response] {
 
   Object.defineProperty(cloned1, 'url', {
     value: original.url,
+    // How the original response.url behaves
+    configurable: true,
+    enumerable: true,
+    writable: false,
   })
 
   const cloned2 = new Response(body2, {
@@ -37,7 +54,29 @@ export function cloneResponse(original: Response): [Response, Response] {
 
   Object.defineProperty(cloned2, 'url', {
     value: original.url,
+    // How the original response.url behaves
+    configurable: true,
+    enumerable: true,
+    writable: false,
   })
+
+  // The Fetch Standard allows users to skip consuming the response body by
+  // relying on garbage collection to release connection resources.
+  // https://github.com/nodejs/undici?tab=readme-ov-file#garbage-collection
+  //
+  // To cancel the stream you then need to cancel both resulting branches.
+  // Teeing a stream will generally lock it for the duration, preventing other
+  // readers from locking it.
+  // https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream/tee
+  if (registry) {
+    if (cloned1.body) {
+      registry.register(cloned1, new WeakRef(cloned1.body))
+    }
+
+    if (cloned2.body) {
+      registry.register(cloned2, new WeakRef(cloned2.body))
+    }
+  }
 
   return [cloned1, cloned2]
 }

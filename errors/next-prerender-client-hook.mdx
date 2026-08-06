@@ -1,0 +1,90 @@
+---
+title: Client navigation hook requires a Suspense boundary
+---
+
+## Why This Error Occurred
+
+When [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled, Next.js prerenders as much of a route as possible before a request arrives. A Client Component used a navigation hook whose value was not available during that prerender, but the component was not inside a [`Suspense`](https://react.dev/reference/react/Suspense) boundary.
+
+This can happen with the following hooks:
+
+- [`useSearchParams`](/docs/app/api-reference/functions/use-search-params), because the query string comes from the request URL
+- [`useParams`](/docs/app/api-reference/functions/use-params), [`usePathname`](/docs/app/api-reference/functions/use-pathname), [`useSelectedLayoutSegment`](/docs/app/api-reference/functions/use-selected-layout-segment), or [`useSelectedLayoutSegments`](/docs/app/api-reference/functions/use-selected-layout-segments) when the route contains dynamic params that were not provided by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params)
+
+These hooks are reactive during client navigation. If their initial value is not known while prerendering, Next.js needs a fallback to include in the static shell until the runtime value is available.
+
+## Possible Ways to Fix It
+
+### Wrap the Client Component in Suspense
+
+Wrap the smallest subtree that uses the hook in a `Suspense` boundary. Next.js can then prerender the fallback and replace it with the Client Component when the runtime value is available.
+
+Before:
+
+```jsx filename="app/dashboard/page.js"
+import { Search } from './search'
+
+export default function Page() {
+  return (
+    <main>
+      <h1>Dashboard</h1>
+      <Search />
+    </main>
+  )
+}
+```
+
+```jsx filename="app/dashboard/search.js"
+'use client'
+
+import { useSearchParams } from 'next/navigation'
+
+export function Search() {
+  const searchParams = useSearchParams()
+  return <p>Search: {searchParams.get('q')}</p>
+}
+```
+
+After:
+
+```jsx filename="app/dashboard/page.js"
+import { Suspense } from 'react'
+import { Search } from './search'
+
+export default function Page() {
+  return (
+    <main>
+      <h1>Dashboard</h1>
+      <Suspense fallback={<p>Loading search...</p>}>
+        <Search />
+      </Suspense>
+    </main>
+  )
+}
+```
+
+The fallback should be synchronous and deterministic. Place the boundary close to the component that uses the hook so the rest of the route can remain in the prerendered shell.
+
+### Prerender Known Dynamic Params
+
+For hooks that derive their value from dynamic route params, use `generateStaticParams` when the possible values are known ahead of time:
+
+```jsx filename="app/blog/[slug]/page.js"
+export function generateStaticParams() {
+  return [{ slug: 'hello-world' }, { slug: 'release-notes' }]
+}
+
+export default function Page() {
+  return <BlogNavigation />
+}
+```
+
+For the generated paths, `useParams`, `usePathname`, and the selected-layout-segment hooks can resolve during prerendering. Paths not returned by `generateStaticParams` may still require a `Suspense` boundary.
+
+`generateStaticParams` does not provide search parameters. Components that use `useSearchParams` should be wrapped in `Suspense` when the route is prerendered.
+
+## Useful Links
+
+- [`Suspense`](https://react.dev/reference/react/Suspense)
+- [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params)
+- [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents)

@@ -1,5 +1,9 @@
 'use client'
-import { hexHash } from '../../../shared/lib/hash'
+
+import {
+  computeCacheBustingSearchParam,
+  computeLegacyCacheBustingSearchParam,
+} from '../../../shared/lib/router/utils/cache-busting-search-param'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
@@ -8,6 +12,26 @@ import {
   NEXT_RSC_UNION_QUERY,
 } from '../app-router-headers'
 import type { RequestHeaders } from './fetch-server-response'
+
+async function computeClientCacheBustingSearchParam(
+  headers: RequestHeaders
+): Promise<string> {
+  if (typeof globalThis.crypto?.subtle?.digest === 'function') {
+    return computeCacheBustingSearchParam(
+      headers[NEXT_ROUTER_PREFETCH_HEADER],
+      headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER],
+      headers[NEXT_ROUTER_STATE_TREE_HEADER],
+      headers[NEXT_URL]
+    )
+  }
+
+  return computeLegacyCacheBustingSearchParam(
+    headers[NEXT_ROUTER_PREFETCH_HEADER],
+    headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER],
+    headers[NEXT_ROUTER_STATE_TREE_HEADER],
+    headers[NEXT_URL]
+  )
+}
 
 /**
  * Mutates the provided URL by adding a cache-busting search parameter for CDNs that don't
@@ -20,24 +44,40 @@ import type { RequestHeaders } from './fetch-server-response'
  * URL before: https://example.com/path?query=1
  * URL after: https://example.com/path?query=1&_rsc=abc123
  *
- * Note: This function mutates the input URL directly and does not return anything.
+ * Note: This function mutates the input URL directly and resolves once the
+ * cache-busting value has been computed and applied.
  *
  * TODO: Since we need to use a search param anyway, we could simplify by removing the custom
  * headers approach entirely and just use search params.
  */
-export const setCacheBustingSearchParam = (
+export const setCacheBustingSearchParam = async (
   url: URL,
   headers: RequestHeaders
-): void => {
-  const uniqueCacheKey = hexHash(
-    [
-      headers[NEXT_ROUTER_PREFETCH_HEADER] || '0',
-      headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] || '0',
-      headers[NEXT_ROUTER_STATE_TREE_HEADER],
-      headers[NEXT_URL],
-    ].join(',')
-  )
+): Promise<void> => {
+  const uniqueCacheKey = await computeClientCacheBustingSearchParam(headers)
+  setCacheBustingSearchParamWithHash(url, uniqueCacheKey)
+}
 
+/**
+ * Sets a cache-busting search parameter on a URL using a provided hash value.
+ *
+ * This function performs the same logic as `setCacheBustingSearchParam` but accepts
+ * a pre-computed hash instead of computing it from headers.
+ *
+ * Example:
+ * URL before: https://example.com/path?query=1
+ * hash: "abc123"
+ * URL after: https://example.com/path?query=1&_rsc=abc123
+ *
+ * If the hash is empty, we will set `_rsc` search param without a value.
+ * Like this: https://example.com/path?query=1&_rsc
+ *
+ * Note: This function mutates the input URL directly and does not return anything.
+ */
+export const setCacheBustingSearchParamWithHash = (
+  url: URL,
+  hash: string
+): void => {
   /**
    * Note that we intentionally do not use `url.searchParams.set` here:
    *
@@ -53,7 +93,17 @@ export const setCacheBustingSearchParam = (
   const rawQuery = existingSearch.startsWith('?')
     ? existingSearch.slice(1)
     : existingSearch
-  const pairs = rawQuery.split('&').filter(Boolean)
-  pairs.push(`${NEXT_RSC_UNION_QUERY}=${uniqueCacheKey}`)
+
+  // Always remove any existing cache busting param and add a fresh one to ensure
+  // we have the correct value based on current request headers
+  const pairs = rawQuery
+    .split('&')
+    .filter((pair) => pair && !pair.startsWith(`${NEXT_RSC_UNION_QUERY}=`))
+
+  if (hash.length > 0) {
+    pairs.push(`${NEXT_RSC_UNION_QUERY}=${hash}`)
+  } else {
+    pairs.push(`${NEXT_RSC_UNION_QUERY}`)
+  }
   url.search = pairs.length ? `?${pairs.join('&')}` : ''
 }

@@ -35,11 +35,11 @@ export default function handler(req) {
     }
 
     console.log(
-      `rewriting to https://middleware-external-rewrite-target-epsp8idgo-uncurated-tests.vercel.app${pathname}`
+      `rewriting to https://middleware-external-rewrite-target.vercel.app${pathname}`
     )
 
     return NextResponse.rewrite(
-      `https://middleware-external-rewrite-target-epsp8idgo-uncurated-tests.vercel.app${pathname}`
+      `https://middleware-external-rewrite-target.vercel.app${pathname}`
     )
   }
 
@@ -50,9 +50,25 @@ export default function handler(req) {
 
   if (
     req.nextUrl.pathname.startsWith('/_next/data') &&
-    req.nextUrl.pathname.endsWith('valid.json')
+    req.nextUrl.pathname.endsWith('/valid.json')
   ) {
     return NextResponse.rewrite('https://example.vercel.sh')
+  }
+
+  if (req.nextUrl.pathname.endsWith('/rsc-valid')) {
+    return NextResponse.json({
+      pathname: req.nextUrl.pathname,
+      rscQuery: req.nextUrl.searchParams.get('_rsc'),
+      rscHeaders: {
+        rsc: req.headers.get('rsc'),
+        nextRouterStateTree: req.headers.get('next-router-state-tree'),
+        nextRouterPrefetch: req.headers.get('next-router-prefetch'),
+        nextRouterSegmentPrefetch: req.headers.get(
+          'next-router-segment-prefetch'
+        ),
+        nextHmrRefresh: req.headers.get('next-hmr-refresh'),
+      },
+    })
   }
 
   if (req.nextUrl.pathname.includes('/middleware-rewrite-with-slash')) {

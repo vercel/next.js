@@ -1,58 +1,109 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
-  assertHasRedbox,
-  assertNoRedbox,
-  getRedboxDescription,
-  getRedboxTotalErrorCount,
-  openRedbox,
+  waitForRedbox,
+  waitForNoRedbox,
+  getToastErrorCount,
+  hasErrorToast,
   retry,
 } from 'next-test-utils'
-import { outdent } from 'outdent'
 
 describe('app-dir - missing required html tags', () => {
   const { next } = nextTestSetup({ files: __dirname })
 
+  if (process.env.__NEXT_CACHE_COMPONENTS === 'true') {
+    // TODO(restart-on-cache-miss): reenable once the bug is fixed in:
+    // https://github.com/vercel/next.js/pull/85818
+    it.skip('currently broken in Cache Components', () => {})
+    return
+  }
+
+  it('should display correct error count in dev indicator', async () => {
+    const browser = await next.browser('/')
+    await waitForRedbox(browser)
+    retry(async () => {
+      expect(await hasErrorToast(browser)).toBe(true)
+    })
+    expect(await getToastErrorCount(browser)).toBe(1)
+  })
+
   it('should show error overlay', async () => {
     const browser = await next.browser('/')
 
-    // There was a bug where multiple dialogs were being rendered when required
-    // html tags were missing. This test ensures there is no regression.
-    await retry(async () => {
-      const dialogs = await browser.elementsByCss('nextjs-portal')
-      expect(dialogs).toHaveLength(1)
-    })
-
-    await assertHasRedbox(browser)
-    expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(`
-      "The following tags are missing in the Root Layout: <html>, <body>.
-      Read more at https://nextjs.org/docs/messages/missing-root-layout-tags"
+    await waitForRedbox(browser)
+    await expect(browser).toDisplayRedbox(`
+     {
+       "code": "E394",
+       "description": "Missing <html> and <body> tags in the root layout.
+     Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
+       "environmentLabel": null,
+       "label": "Runtime Error",
+       "source": null,
+       "stack": [],
+     }
     `)
   })
 
-  it('should hmr when you fix the error', async () => {
-    const browser = await next.browser('/')
+  it('should reload when you fix the error', async () => {
+    let reloaded = false
 
-    await next.patchFile('app/layout.js', (code) =>
-      code.replace('return children', 'return <body>{children}</body>')
-    )
-
-    await assertHasRedbox(browser)
-    // Wait for the HMR to apply and the updated error to show.
-    await retry(async () => {
-      expect(await getRedboxDescription(browser)).toEqual(outdent`
-        The following tags are missing in the Root Layout: <html>.
-        Read more at https://nextjs.org/docs/messages/missing-root-layout-tags
-      `)
+    const browser = await next.browser('/', {
+      beforePageLoad(page) {
+        page.on('requestfinished', async (request) => {
+          if (new URL(request.url()).pathname === '/') {
+            reloaded = true
+          }
+        })
+      },
     })
 
-    await next.patchFile('app/layout.js', (code) =>
-      code.replace(
-        'return <body>{children}</body>',
-        'return <html><body>{children}</body></html>'
-      )
+    await expect(browser).toDisplayRedbox(`
+     {
+       "code": "E394",
+       "description": "Missing <html> and <body> tags in the root layout.
+     Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
+       "environmentLabel": null,
+       "label": "Runtime Error",
+       "source": null,
+       "stack": [],
+     }
+    `)
+
+    reloaded = false
+
+    await Promise.all([
+      next.patchFile('app/layout.js', (code) =>
+        code.replace('return children', 'return <body>{children}</body>')
+      ),
+      retry(() => expect(reloaded).toBe(true), 10_000),
+    ])
+
+    await retry(() =>
+      expect(browser).toDisplayRedbox(`
+       {
+         "code": "E394",
+         "description": "Missing <html> tags in the root layout.
+       Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": null,
+         "stack": [],
+       }
+      `)
     )
 
-    await assertNoRedbox(browser)
+    reloaded = false
+
+    await Promise.all([
+      next.patchFile('app/layout.js', (code) =>
+        code.replace(
+          'return <body>{children}</body>',
+          'return <html><body>{children}</body></html>'
+        )
+      ),
+      retry(() => expect(reloaded).toBe(true), 10_000),
+    ])
+
+    await waitForNoRedbox(browser)
     expect(await browser.elementByCss('p').text()).toBe('hello world')
 
     // Reintroduce the bug, but only missing html tag
@@ -63,22 +114,7 @@ describe('app-dir - missing required html tags', () => {
       )
     )
 
-    await openRedbox(browser)
     // TODO(NDX-768): Should show "missing tags" error
-    expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(`
-      "In HTML, <p> cannot be a child of <#document>.
-      This will cause a hydration error."
-      `)
-    expect(await getRedboxTotalErrorCount(browser)).toBe(1)
-
-    // Fix the issue again
-    await next.patchFile('app/layout.js', (code) =>
-      code.replace(
-        'return children',
-        'return <html><body>{children}</body></html>'
-      )
-    )
-
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
   })
 })

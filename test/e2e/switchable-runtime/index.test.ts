@@ -1,7 +1,5 @@
 /* eslint-env jest */
-import webdriver from 'next-webdriver'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { check, fetchViaHTTP, renderViaHTTP, waitFor } from 'next-test-utils'
 
 function splitLines(text) {
@@ -31,7 +29,6 @@ async function testRoute(appPort, url, { isStatic, isEdge }) {
 }
 
 describe('Switchable runtime', () => {
-  let next: NextInstance
   let context
 
   if ((global as any).isNextDeploy) {
@@ -40,10 +37,11 @@ describe('Switchable runtime', () => {
     return
   }
 
-  beforeAll(async () => {
-    next = await createNext({
-      files: new FileRef(__dirname),
-    })
+  const { next } = nextTestSetup({
+    files: new FileRef(__dirname),
+  })
+
+  beforeAll(() => {
     context = {
       appPort: next.url,
       appDir: next.testDir,
@@ -51,7 +49,6 @@ describe('Switchable runtime', () => {
       stderr: '',
     }
   })
-  afterAll(() => next.destroy())
 
   if ((global as any).isNextDev) {
     describe('Switchable runtime (dev)', () => {
@@ -79,7 +76,7 @@ describe('Switchable runtime', () => {
         // /edge/foo should be caught before /edge/[id]
         expect(html).toContain(`to /edge/[id]`)
 
-        const browser = await webdriver(context.appPort, '/edge/foo')
+        const browser = await next.browser('/edge/foo')
 
         await browser.waitForElementByCss('a').click()
 
@@ -104,14 +101,13 @@ describe('Switchable runtime', () => {
       it.skip('should support client side navigation to ssr rsc pages', async () => {
         let flightRequest = null
 
-        const browser = await webdriver(context.appPort, '/node', {
+        const browser = await next.browser('/node', {
           beforePageLoad(page) {
             page.on('request', (request) => {
-              return request.allHeaders().then((headers) => {
-                if (headers['RSC'.toLowerCase()] === '1') {
-                  flightRequest = request.url()
-                }
-              })
+              const headers = request.headers()
+              if (headers['rsc'] === '1') {
+                flightRequest = request.url()
+              }
             })
           },
         })
@@ -129,7 +125,7 @@ describe('Switchable runtime', () => {
       })
 
       it.skip('should support client side navigation to ssg rsc pages', async () => {
-        const browser = await webdriver(context.appPort, '/node')
+        const browser = await next.browser('/node')
 
         await browser
           .waitForElementByCss('#link-node-rsc-ssg')
@@ -143,7 +139,7 @@ describe('Switchable runtime', () => {
       })
 
       it.skip('should support client side navigation to static rsc pages', async () => {
-        const browser = await webdriver(context.appPort, '/node')
+        const browser = await next.browser('/node')
 
         await browser
           .waitForElementByCss('#link-node-rsc')
@@ -610,7 +606,7 @@ describe('Switchable runtime', () => {
       it.skip('should prefetch data for static pages', async () => {
         const dataRequests = []
 
-        const browser = await webdriver(context.appPort, '/node', {
+        const browser = await next.browser('/node', {
           beforePageLoad(page) {
             page.on('request', (request) => {
               const url = request.url()
@@ -636,14 +632,13 @@ describe('Switchable runtime', () => {
       it.skip('should support client side navigation to ssr rsc pages', async () => {
         let flightRequest = null
 
-        const browser = await webdriver(context.appPort, '/node', {
+        const browser = await next.browser('/node', {
           beforePageLoad(page) {
             page.on('request', (request) => {
-              request.allHeaders().then((headers) => {
-                if (headers['RSC'.toLowerCase()] === '1') {
-                  flightRequest = request.url()
-                }
-              })
+              const headers = request.headers()
+              if (headers['rsc'] === '1') {
+                flightRequest = request.url()
+              }
             })
           },
         })
@@ -657,7 +652,7 @@ describe('Switchable runtime', () => {
       })
 
       it.skip('should support client side navigation to ssg rsc pages', async () => {
-        const browser = await webdriver(context.appPort, '/node')
+        const browser = await next.browser('/node')
 
         await browser.waitForElementByCss('#link-node-rsc-ssg').click()
         expect(await browser.elementByCss('body').text()).toContain(
@@ -666,7 +661,7 @@ describe('Switchable runtime', () => {
       })
 
       it.skip('should support client side navigation to static rsc pages', async () => {
-        const browser = await webdriver(context.appPort, '/node')
+        const browser = await next.browser('/node')
 
         await browser.waitForElementByCss('#link-node-rsc').click()
         expect(await browser.elementByCss('body').text()).toContain(

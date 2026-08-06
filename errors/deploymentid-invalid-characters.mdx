@@ -1,0 +1,71 @@
+---
+title: '`deploymentId` contains invalid characters'
+---
+
+## Why This Error Occurred
+
+The `deploymentId` in your `next.config.js` contains characters that are not allowed. Only alphanumeric characters (a-z, A-Z, 0-9), hyphens (-), and underscores (\_) are permitted.
+
+## Possible Ways to Fix It
+
+### Option 1: Remove Invalid Characters
+
+Remove or replace any characters that are not alphanumeric, hyphens, or underscores:
+
+```js
+// ✅ Correct
+module.exports = {
+  deploymentId: 'my-deployment-123', // Only alphanumeric, hyphens, underscores
+}
+
+// ❌ Incorrect
+module.exports = {
+  deploymentId: 'my deployment 123', // Contains spaces
+  deploymentId: 'my.deployment.123', // Contains dots
+  deploymentId: 'my/deployment/123', // Contains slashes
+  deploymentId: 'my@deployment#123', // Contains special characters
+}
+```
+
+### Option 2: Sanitize the Deployment ID
+
+If you're generating the ID from environment variables or other sources, sanitize it to remove invalid characters:
+
+```js
+// next.config.js
+const rawId = process.env.DEPLOYMENT_ID || 'default-id'
+// Remove all characters that are not alphanumeric, hyphens, or underscores
+const sanitizedId = rawId.replace(/[^a-zA-Z0-9_-]/g, '')
+
+module.exports = {
+  deploymentId: sanitizedId,
+}
+```
+
+### Option 3: Use a Valid Format
+
+Common valid formats include:
+
+```js
+// next.config.js
+module.exports = {
+  // Using hyphens
+  deploymentId: 'my-deployment-id',
+
+  // Using underscores
+  deploymentId: 'my_deployment_id',
+
+  // Alphanumeric only
+  deploymentId: 'mydeployment123',
+
+  // Mixed format
+  deploymentId: 'my-deployment_123',
+}
+```
+
+## Additional Information
+
+- The deployment ID is used for skew protection and asset versioning
+- Invalid characters can cause issues with URL encoding and routing
+- Keep the ID URL-friendly by using only the allowed character set
+- The validation ensures compatibility across different systems and environments

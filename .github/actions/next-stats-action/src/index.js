@@ -6,12 +6,20 @@ const logger = require('./util/logger')
 const runConfigs = require('./run')
 const addComment = require('./add-comment')
 const actionInfo = require('./prepare/action-info')()
-const { mainRepoDir, diffRepoDir } = require('./constants')
+const { mainRepoDir, diffRepoDir, pnpmStoreDir } = require('./constants')
 const loadStatsConfig = require('./prepare/load-stats-config')
 const { cloneRepo, mergeBranch, getCommitId, linkPackages, getLastStable } =
   require('./prepare/repo-setup')(actionInfo)
 
 const allowedActions = new Set(['synchronize', 'opened'])
+
+// Get bundler filter from action input (set by GitHub Actions as INPUT_BUNDLER)
+const bundlerInput = (process.env.INPUT_BUNDLER || 'both').toLowerCase()
+const isShardedRun = bundlerInput !== 'both'
+
+if (isShardedRun) {
+  logger(`Running in sharded mode for bundler: ${bundlerInput}`)
+}
 
 if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
   logger(
@@ -61,7 +69,6 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
 
     /* eslint-disable-next-line */
     actionInfo.commitId = await getCommitId(diffRepoDir)
-    let mainNextSwcVersion
 
     if (!actionInfo.skipClone) {
       let mainRef = statsConfig.mainBranch
@@ -70,7 +77,6 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
         logger(`Release detected, using last stable tag: "${actionInfo.prRef}"`)
         const lastStableTag = await getLastStable(diffRepoDir, actionInfo.prRef)
         mainRef = lastStableTag
-        mainNextSwcVersion = lastStableTag
         if (!lastStableTag) throw new Error('failed to get last stable tag')
         logger(`using latestStable: "${lastStableTag}"`)
 
@@ -101,53 +107,132 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
     for (const dir of repoDirs) {
       logger(`Running initial build for ${dir}`)
       if (!actionInfo.skipClone) {
-        const usePnpm = existsSync(path.join(dir, 'pnpm-lock.yaml'))
+        // TODO: we can remove this `packageManager` modification once Next.js
+        // 16.3 is released, but we must override it for now because 16.2 uses
+        // pnpm 9.6.0, which supports different arguments. `diffRepoDir`
+        // points to the most recent stable tag.
+        const packageJson = path.join(dir, 'package.json')
+        const packageJsonContents = JSON.parse(
+          await fs.readFile(packageJson, { encoding: 'utf8' })
+        )
+        packageJsonContents.packageManager = 'pnpm@10.33.0'
+        if (packageJsonContents.engines != null) {
+          delete packageJsonContents.engines.pnpm
+        }
+        await fs.writeFile(
+          packageJson,
+          JSON.stringify(packageJsonContents, null, '  ')
+        )
 
         if (!statsConfig.skipInitialInstall) {
-          await exec.spawnPromise(
-            `cd ${dir}${
-              usePnpm
-                ? // --no-frozen-lockfile is used here to tolerate lockfile
-                  // changes from merging latest changes
-                  ` && pnpm install --no-frozen-lockfile`
-                : ' && yarn install --network-timeout 1000000'
-            }`
-          )
+          const command =
+            'pnpm install ' +
+            // tolerate lockfile changes from merging latest changes
+            '--no-frozen-lockfile ' +
+            // colocate the store with the workdir to avoid EXDEV hardlink or
+            // reflink failures across the container's bind-mounted workdir and
+            // overlayfs root.
+            `--store-dir=${pnpmStoreDir}`
+          await exec.spawnPromise(command, {
+            env: { PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1' },
+            cwd: dir,
+          })
 
           await exec.spawnPromise(
-            statsConfig.initialBuildCommand ||
-              `cd ${dir} && ${usePnpm ? 'pnpm build' : 'echo built'}`
+            statsConfig.initialBuildCommand || 'pnpm build',
+            { cwd: dir }
           )
         }
       }
 
+      const nativeDir = path.join(dir, 'packages/next-swc/native')
       await fs
-        .cp(
-          path.join(__dirname, '../native'),
-          path.join(dir, 'packages/next-swc/native'),
-          { recursive: true, force: true }
-        )
+        .cp(path.join(__dirname, '../native'), nativeDir, {
+          recursive: true,
+          force: true,
+        })
         .catch(console.error)
 
+      process.env.NEXT_TEST_NATIVE_DIR = nativeDir
+
+      logger(`Packing packages in ${dir}`)
+      const turboJsonPath = path.join(dir, 'turbo.json')
+      let hasTurboPackTask = false
+      try {
+        const turboJson = JSON.parse(
+          await fs.readFile(turboJsonPath, { encoding: 'utf8' })
+        )
+        hasTurboPackTask =
+          turboJson.tasks?.['pack-for-isolated-tests'] !== undefined
+      } catch {}
+
+      if (hasTurboPackTask) {
+        await exec.spawnPromise('pnpm turbo run pack-for-isolated-tests', {
+          cwd: dir,
+        })
+      } else {
+        // Temporary fallback because stats action run on the canary branch which does not have the pack-for-isolated-tests task yet.
+        logger(
+          'turbo task pack-for-isolated-tests not found, falling back to pnpm pack per package'
+        )
+        const packagesDir = path.join(dir, 'packages')
+        const packageFolders = await fs.readdir(packagesDir)
+        await Promise.all(
+          packageFolders.map(async (folder) => {
+            const pkgDir = path.join(packagesDir, folder)
+            const pkgJsonPath = path.join(pkgDir, 'package.json')
+            if (!existsSync(pkgJsonPath)) return
+            try {
+              await exec.spawnPromise('pnpm pack --out packed.tgz', {
+                cwd: pkgDir,
+              })
+            } catch (err) {
+              logger(`Failed to pack ${folder}: ${err.message}`)
+            }
+          })
+        )
+      }
+
       logger(`Linking packages in ${dir}`)
-      const isMainRepo = dir === mainRepoDir
       const pkgPaths = await linkPackages({
         repoDir: dir,
-        nextSwcVersion: isMainRepo ? mainNextSwcVersion : null,
       })
 
-      if (isMainRepo) mainRepoPkgPaths = pkgPaths
+      if (dir === mainRepoDir) mainRepoPkgPaths = pkgPaths
       else diffRepoPkgPaths = pkgPaths
     }
 
-    // run the configs and post the comment
+    // run the configs and collect results
     const results = await runConfigs(statsConfig.configs, {
       statsConfig,
       mainRepoPkgPaths,
       diffRepoPkgPaths,
       relativeStatsAppDir,
+      bundlerFilter: isShardedRun ? bundlerInput : null,
     })
-    await addComment(results, actionInfo, statsConfig)
+
+    if (isShardedRun) {
+      // In sharded mode, save results to JSON for later aggregation
+      const resultsPath = path.join(
+        process.env.GITHUB_WORKSPACE || process.cwd(),
+        `pr-stats-${bundlerInput}.json`
+      )
+      // Exclude sensitive fields (githubToken) before serializing to JSON
+      const { githubToken, ...safeActionInfo } = actionInfo
+      await fs.writeFile(
+        resultsPath,
+        JSON.stringify(
+          { results, actionInfo: safeActionInfo, statsConfig },
+          null,
+          2
+        )
+      )
+      logger(`Saved results to ${resultsPath}`)
+    } else {
+      // In non-sharded mode, post comment directly
+      await addComment(results, actionInfo, statsConfig)
+    }
+
     logger('finished')
     process.exit(0)
   } catch (err) {

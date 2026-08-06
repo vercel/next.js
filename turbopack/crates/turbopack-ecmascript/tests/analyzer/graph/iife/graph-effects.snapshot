@@ -1,8 +1,6 @@
 [
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Script,
@@ -31,7 +29,6 @@
             ),
         ],
         span: 9..16,
-        in_try: false,
     },
     Conditional {
         condition: Constant(
@@ -238,6 +235,5 @@
             ),
         ],
         span: 137..167,
-        in_try: false,
     },
 ]

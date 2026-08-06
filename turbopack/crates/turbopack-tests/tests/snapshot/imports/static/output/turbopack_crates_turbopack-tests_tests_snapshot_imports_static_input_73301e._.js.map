@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 12, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/static/input/index.js"],"sourcesContent":["import img from \"./vercel.svg\";\nconsole.log(img);\n"],"names":[],"mappings":";AAAA;;AACA,QAAQ,GAAG,CAAC,6LAAA,CAAA,UAAG"}},
-    {"offset": {"line": 16, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
-}

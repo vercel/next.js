@@ -2,9 +2,9 @@
 import 'server-only'
 
 /* eslint-disable import/no-extraneous-dependencies */
-import { renderToReadableStream } from 'react-server-dom-webpack/server.edge'
+import { renderToReadableStream } from 'react-server-dom-webpack/server'
 /* eslint-disable import/no-extraneous-dependencies */
-import { createFromReadableStream } from 'react-server-dom-webpack/client.edge'
+import { createFromReadableStream } from 'react-server-dom-webpack/client'
 
 import { streamToString } from '../stream-utils/node-web-streams-helper'
 import {
@@ -12,21 +12,35 @@ import {
   decrypt,
   encrypt,
   getActionEncryptionKey,
-  getClientReferenceManifestForRsc,
-  getServerModuleMap,
   stringToUint8Array,
 } from './encryption-utils'
 import {
-  getPrerenderResumeDataCache,
-  getRenderResumeDataCache,
+  getClientReferenceManifest,
+  getServerModuleMap,
+} from './manifests-singleton'
+import {
+  getCacheSignal,
+  getResumeDataCache,
   workUnitAsyncStorage,
 } from './work-unit-async-storage.external'
 import { createHangingInputAbortSignal } from './dynamic-rendering'
+import React from 'react'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
 const textEncoder = new TextEncoder()
 const textDecoder = new TextDecoder()
+
+const filterStackFrame =
+  process.env.NODE_ENV !== 'production'
+    ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
+        .filterStackFrameDEV
+    : undefined
+const findSourceMapURL =
+  process.env.NODE_ENV !== 'production'
+    ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
+        .findSourceMapURLDEV
+    : undefined
 
 /**
  * Decrypt the serialized string with the action id as the salt.
@@ -81,90 +95,149 @@ async function encodeActionBoundArg(actionId: string, arg: string) {
   return btoa(ivValue + arrayBufferToString(encrypted))
 }
 
-// Encrypts the action's bound args into a string.
-export async function encryptActionBoundArgs(actionId: string, args: any[]) {
-  const { clientModules } = getClientReferenceManifestForRsc()
+enum ReadStatus {
+  Ready,
+  Pending,
+  Complete,
+}
 
-  // Create an error before any asynchronous calls, to capture the original
-  // call stack in case we need it when the serialization errors.
-  const error = new Error()
-  Error.captureStackTrace(error, encryptActionBoundArgs)
+// Encrypts the action's bound args into a string. For the same combination of
+// actionId and args the same cached promise is returned. This ensures reference
+// equality for returned objects from "use cache" functions when they're invoked
+// multiple times within one render pass using the same bound args.
+export const encryptActionBoundArgs = React.cache(
+  async function encryptActionBoundArgs(actionId: string, ...args: any[]) {
+    const workUnitStore = workUnitAsyncStorage.getStore()
+    const cacheSignal = workUnitStore
+      ? getCacheSignal(workUnitStore)
+      : undefined
 
-  let didCatchError = false
+    const { clientModules } = getClientReferenceManifest()
 
-  const workUnitStore = workUnitAsyncStorage.getStore()
+    // Create an error before any asynchronous calls, to capture the original
+    // call stack in case we need it when the serialization errors.
+    const error = new Error()
+    Error.captureStackTrace(error, encryptActionBoundArgs)
 
-  const hangingInputAbortSignal =
-    workUnitStore?.type === 'prerender'
+    let didCatchError = false
+
+    const hangingInputAbortSignal = workUnitStore
       ? createHangingInputAbortSignal(workUnitStore)
       : undefined
 
-  // Using Flight to serialize the args into a string.
-  const serialized = await streamToString(
-    renderToReadableStream(args, clientModules, {
-      signal: hangingInputAbortSignal,
-      onError(err) {
-        if (hangingInputAbortSignal?.aborted) {
-          return
-        }
-
-        // We're only reporting one error at a time, starting with the first.
-        if (didCatchError) {
-          return
-        }
-
-        didCatchError = true
-
-        // Use the original error message together with the previously created
-        // stack, because err.stack is a useless Flight Server call stack.
-        error.message = err instanceof Error ? err.message : String(err)
-      },
-    }),
-    // We pass the abort signal to `streamToString` so that no chunks are
-    // included that are emitted after the signal was already aborted. This
-    // ensures that we can encode hanging promises.
-    hangingInputAbortSignal
-  )
-
-  if (didCatchError) {
-    if (process.env.NODE_ENV === 'development') {
-      // Logging the error is needed for server functions that are passed to the
-      // client where the decryption is not done during rendering. Console
-      // replaying allows us to still show the error dev overlay in this case.
-      console.error(error)
+    let readStatus = ReadStatus.Ready
+    function startReadOnce() {
+      if (readStatus === ReadStatus.Ready) {
+        readStatus = ReadStatus.Pending
+        cacheSignal?.beginRead()
+      }
     }
 
-    throw error
+    function endReadIfStarted() {
+      if (readStatus === ReadStatus.Pending) {
+        cacheSignal?.endRead()
+      }
+      readStatus = ReadStatus.Complete
+    }
+
+    // streamToString might take longer than a microtask to resolve and then other things
+    // waiting on the cache signal might not realize there is another cache to fill so if
+    // we are no longer waiting on the bound args serialization via the hangingInputAbortSignal
+    // we should eagerly start the cache read to prevent other readers of the cache signal from
+    // missing this cache fill. We use a idempotent function to only start reading once because
+    // it's also possible that streamToString finishes before the hangingInputAbortSignal aborts.
+    if (hangingInputAbortSignal && cacheSignal) {
+      hangingInputAbortSignal.addEventListener('abort', startReadOnce, {
+        once: true,
+      })
+    }
+
+    const resumeDataCache = workUnitStore
+      ? getResumeDataCache(workUnitStore)
+      : null
+
+    // Using Flight to serialize the args into a string.
+    const serialized = await streamToString(
+      renderToReadableStream(args, clientModules, {
+        filterStackFrame,
+        signal: hangingInputAbortSignal,
+        debugChannel:
+          // In Cache Components, we want to cache the encrypted result,
+          // and we use the unencrypted bound args as a cache key.
+          // In order to do that we need to strip debug info, because it
+          // contains timing information and thus changes each time we serialize the args.
+          // We can do this by piping debug info into a debug channel that throws it away.
+          //
+          // Note that this can result in dangling debug info references when we decode the bound args,
+          // but React ignores those as long as no debug channel is passed on the decode side, so it's fine:
+          // https://github.com/facebook/react/blob/bb8a76c6cc77ea2976d690ea09f5a1b3d9b1792a/packages/react-client/src/ReactFlightClient.js#L1711-L1729
+          // https://github.com/facebook/react/blob/bb8a76c6cc77ea2976d690ea09f5a1b3d9b1792a/packages/react-client/src/ReactFlightClient.js#L4005-L4025
+          process.env.NODE_ENV === 'development' && resumeDataCache
+            ? {
+                writable: new WritableStream(),
+              }
+            : undefined,
+        onError(err) {
+          if (hangingInputAbortSignal?.aborted) {
+            return
+          }
+
+          // We're only reporting one error at a time, starting with the first.
+          if (didCatchError) {
+            return
+          }
+
+          didCatchError = true
+
+          // Use the original error message together with the previously created
+          // stack, because err.stack is a useless Flight Server call stack.
+          error.message = err instanceof Error ? err.message : String(err)
+        },
+      }),
+      // We pass the abort signal to `streamToString` so that no chunks are
+      // included that are emitted after the signal was already aborted. This
+      // ensures that we can encode hanging promises.
+      hangingInputAbortSignal
+    )
+
+    if (didCatchError) {
+      if (process.env.NODE_ENV === 'development') {
+        // Logging the error is needed for server functions that are passed to the
+        // client where the decryption is not done during rendering. Console
+        // replaying allows us to still show the error dev overlay in this case.
+        console.error(error)
+      }
+
+      endReadIfStarted()
+      throw error
+    }
+
+    if (!workUnitStore) {
+      // We don't need to call cacheSignal.endRead here because we can't have a cacheSignal
+      // if we do not have a workUnitStore.
+      return encodeActionBoundArg(actionId, serialized)
+    }
+
+    startReadOnce()
+
+    const cacheKey = actionId + serialized
+
+    const cachedEncrypted = resumeDataCache?.encryptedBoundArgs.get(cacheKey)
+
+    if (cachedEncrypted) {
+      return cachedEncrypted
+    }
+
+    const encrypted = await encodeActionBoundArg(actionId, serialized)
+
+    endReadIfStarted()
+    if (resumeDataCache?.mutable) {
+      resumeDataCache.encryptedBoundArgs.set(cacheKey, encrypted)
+    }
+
+    return encrypted
   }
-
-  if (!workUnitStore) {
-    return encodeActionBoundArg(actionId, serialized)
-  }
-
-  const prerenderResumeDataCache = getPrerenderResumeDataCache(workUnitStore)
-  const renderResumeDataCache = getRenderResumeDataCache(workUnitStore)
-  const cacheKey = actionId + serialized
-
-  const cachedEncrypted =
-    prerenderResumeDataCache?.encryptedBoundArgs.get(cacheKey) ??
-    renderResumeDataCache?.encryptedBoundArgs.get(cacheKey)
-
-  if (cachedEncrypted) {
-    return cachedEncrypted
-  }
-
-  const cacheSignal =
-    workUnitStore.type === 'prerender' ? workUnitStore.cacheSignal : undefined
-
-  cacheSignal?.beginRead()
-
-  const encrypted = await encodeActionBoundArg(actionId, serialized)
-
-  cacheSignal?.endRead()
-  prerenderResumeDataCache?.encryptedBoundArgs.set(cacheKey, encrypted)
-
-  return encrypted
-}
+)
 
 // Decrypts the action's bound args from the encrypted string.
 export async function decryptActionBoundArgs(
@@ -177,28 +250,25 @@ export async function decryptActionBoundArgs(
   let decrypted: string | undefined
 
   if (workUnitStore) {
-    const cacheSignal =
-      workUnitStore.type === 'prerender' ? workUnitStore.cacheSignal : undefined
+    const cacheSignal = getCacheSignal(workUnitStore)
+    const resumeDataCache = getResumeDataCache(workUnitStore)
 
-    const prerenderResumeDataCache = getPrerenderResumeDataCache(workUnitStore)
-    const renderResumeDataCache = getRenderResumeDataCache(workUnitStore)
-
-    decrypted =
-      prerenderResumeDataCache?.decryptedBoundArgs.get(encrypted) ??
-      renderResumeDataCache?.decryptedBoundArgs.get(encrypted)
+    decrypted = resumeDataCache?.decryptedBoundArgs.get(encrypted)
 
     if (!decrypted) {
       cacheSignal?.beginRead()
       decrypted = await decodeActionBoundArg(actionId, encrypted)
       cacheSignal?.endRead()
-      prerenderResumeDataCache?.decryptedBoundArgs.set(encrypted, decrypted)
+      if (resumeDataCache?.mutable) {
+        resumeDataCache.decryptedBoundArgs.set(encrypted, decrypted)
+      }
     }
   } else {
     decrypted = await decodeActionBoundArg(actionId, encrypted)
   }
 
   const { edgeRscModuleMapping, rscModuleMapping } =
-    getClientReferenceManifestForRsc()
+    getClientReferenceManifest()
 
   // Using Flight to deserialize the args from the string.
   const deserialized = await createFromReadableStream(
@@ -206,24 +276,45 @@ export async function decryptActionBoundArgs(
       start(controller) {
         controller.enqueue(textEncoder.encode(decrypted))
 
-        if (workUnitStore?.type === 'prerender') {
-          // Explicitly don't close the stream here (until prerendering is
-          // complete) so that hanging promises are not rejected.
-          if (workUnitStore.renderSignal.aborted) {
-            controller.close()
-          } else {
-            workUnitStore.renderSignal.addEventListener(
-              'abort',
-              () => controller.close(),
-              { once: true }
-            )
-          }
-        } else {
-          controller.close()
+        switch (workUnitStore?.type) {
+          case 'prerender':
+          case 'prerender-runtime':
+            // Explicitly don't close the stream here (until prerendering is
+            // complete) so that hanging promises are not rejected.
+            if (workUnitStore.renderSignal.aborted) {
+              controller.close()
+            } else {
+              workUnitStore.renderSignal.addEventListener(
+                'abort',
+                () => controller.close(),
+                { once: true }
+              )
+            }
+            break
+          case 'prerender-client':
+          case 'validation-client':
+          case 'prerender-ppr':
+          case 'prerender-legacy':
+          case 'request':
+          case 'cache':
+          case 'private-cache':
+          case 'unstable-cache':
+          case 'generate-static-params':
+          case undefined:
+            return controller.close()
+          default:
+            workUnitStore satisfies never
         }
       },
     }),
     {
+      findSourceMapURL,
+      // NOTE: When we serialized the bound args, we may have used a dummy debug channel to strip debug info.
+      // In that case, it's important that we also *don't* pass a debug channel here, because that will make
+      // the Flight Client ignore the dangling references:
+      // https://github.com/facebook/react/blob/bb8a76c6cc77ea2976d690ea09f5a1b3d9b1792a/packages/react-client/src/ReactFlightClient.js#L1711-L1729
+      // https://github.com/facebook/react/blob/bb8a76c6cc77ea2976d690ea09f5a1b3d9b1792a/packages/react-client/src/ReactFlightClient.js#L4005-L4025
+      debugChannel: undefined,
       serverConsumerManifest: {
         // moduleLoading must be null because we don't want to trigger preloads of ClientReferences
         // to be added to the current execution. Instead, we'll wait for any ClientReference

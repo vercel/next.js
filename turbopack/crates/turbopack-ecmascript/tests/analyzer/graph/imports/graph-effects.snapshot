@@ -35,7 +35,6 @@
             ),
         ],
         span: 158..159,
-        in_try: false,
     },
     ImportedBinding {
         esm_reference_index: 3,
@@ -73,7 +72,6 @@
             ),
         ],
         span: 170..171,
-        in_try: false,
     },
     ImportedBinding {
         esm_reference_index: 6,
@@ -109,6 +107,5 @@
             ),
         ],
         span: 182..183,
-        in_try: false,
     },
 ]

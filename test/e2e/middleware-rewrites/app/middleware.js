@@ -23,10 +23,56 @@ export async function middleware(request) {
     })
   }
 
+  if (
+    url.pathname.includes(
+      '/middleware-external-rewrite-body-headers-return-body'
+    )
+  ) {
+    const tmpHeaders = new Headers(request.headers)
+
+    tmpHeaders.set('x-hello-from-middleware1', 'hello')
+
+    return NextResponse.rewrite(
+      'https://next-data-api-endpoint.vercel.app/api/echo-body',
+      {
+        request: {
+          headers: tmpHeaders,
+        },
+      }
+    )
+  }
+
+  if (
+    url.pathname.includes(
+      '/middleware-external-rewrite-body-headers-return-headers'
+    )
+  ) {
+    const tmpHeaders = new Headers(request.headers)
+
+    tmpHeaders.set('x-hello-from-middleware1', 'hello')
+
+    return NextResponse.rewrite(
+      'https://next-data-api-endpoint.vercel.app/api/echo-headers',
+      {
+        request: {
+          headers: tmpHeaders,
+        },
+      }
+    )
+  }
+
   if (url.pathname.includes('/middleware-external-rewrite-body')) {
     return NextResponse.rewrite(
       'https://next-data-api-endpoint.vercel.app/api/echo-body'
     )
+  }
+
+  if (url.pathname === '/foo/bar') {
+    const rewriteUrl = request.nextUrl.clone()
+    rewriteUrl.pathname = '/api/proxy/bar/'
+    rewriteUrl.searchParams.set('added', '1')
+    rewriteUrl.searchParams.set('extra', '2')
+    return NextResponse.rewrite(rewriteUrl)
   }
 
   if (url.pathname.includes('/rewrite-to-static')) {

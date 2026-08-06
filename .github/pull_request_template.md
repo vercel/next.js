@@ -4,15 +4,12 @@ Choose the right checklist for the change(s) that you're making:
 
 ## For Contributors
 
+We encourage you to use AI to assist you in researching, creating, and reviewing changes. However, you must review and deeply understand the contributions you are making. For this reason, **pull request descriptions from external contributors must be written by a human**.
+
 ### Improving Documentation
 
 - Run `pnpm prettier-fix` to fix formatting issues before opening the PR.
 - Read the Docs Contribution Guide to ensure your contribution follows the docs guidelines: https://nextjs.org/docs/community/contribution-guide
-
-### Adding or Updating Examples
-
-- The "examples guidelines" are followed from our contributing doc https://github.com/vercel/next.js/blob/canary/contributing/examples/adding-examples.md
-- Make sure the linting passes by running `pnpm build && pnpm lint`. See https://github.com/vercel/next.js/blob/canary/contributing/repository/linting.md
 
 ### Fixing a bug
 
@@ -29,6 +26,11 @@ Choose the right checklist for the change(s) that you're making:
 - Telemetry added. In case of a feature if it's used or not.
 - Errors have a helpful link attached, see https://github.com/vercel/next.js/blob/canary/contributing.md
 
+### Signed commits
+
+- This repository requires verified commit signatures on protected branches.
+- If this pull request is blocked for unsigned commits, re-sign the commits and force-push the branch.
+- A `Signed-off-by` line in the commit message is not enough.
 
 ## For Maintainers
 

@@ -8,7 +8,11 @@ for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
         '@next/mdx': 'canary',
         '@mdx-js/loader': '^2.2.1',
         '@mdx-js/react': '^2.2.1',
+        'recma-export-filepath': '1.2.0',
         'rehype-katex': '7.0.1',
+        'rehype-slug': '6.0.0',
+        'remark-gfm': '4.0.1',
+        'remark-toc': '9.0.0',
       },
       env: {
         WITH_MDX_RS: type === 'with-mdx-rs' ? 'true' : 'false',
@@ -57,15 +61,34 @@ for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
       it('should work with next/image', async () => {
         const $ = await next.render$('/image')
         expect($('img').attr('src')).toBe(
-          '/_next/image?url=%2Ftest.jpg&w=384&q=75'
+          `/_next/image?url=%2Ftest.jpg&w=384&q=75${next.getDeploymentIdQuery(true)}`
         )
       })
 
       if (type === 'without-mdx-rs') {
-        it('should run plugins', async () => {
-          const html = await next.render('/rehype-plugin')
+        it('should run recma plugins', async () => {
+          const $ = await next.render$('/recma-plugin')
+          const html = $('html').html()
+          expect(html.includes('recma-plugin/page.mdx')).toBe(true)
+          expect($('#recma-plugin').text()).toBe('Recma plugin')
+        })
+
+        it('should run rehype plugins', async () => {
+          const $ = await next.render$('/rehype-plugin')
+          const html = $('html').html()
           expect(html.includes('<mi>C</mi>')).toBe(true)
           expect(html.includes('<mi>L</mi>')).toBe(true)
+          expect($('#rehype-plugin').text()).toBe('Rehype plugin')
+        })
+
+        it('should run remark plugins', async () => {
+          const $ = await next.render$('/remark-plugin')
+          const html = $('html').html()
+          expect(html.includes('The Table')).toBe(true)
+          expect($('a[href="#todo-list"]').text()).toBe('Todo List')
+
+          expect($('input[type="checkbox"]').length).toBe(2)
+          expect($('input[type="checkbox"][checked]').length).toBe(1)
         })
       }
     })

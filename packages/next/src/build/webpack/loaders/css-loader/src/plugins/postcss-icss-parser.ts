@@ -15,12 +15,10 @@ const plugin = (options: any = {}) => {
       const imports = new Map()
       const tasks = []
 
-      // eslint-disable-next-line guard-for-in
       for (const url in icssImports) {
         const tokens = icssImports[url]
 
         if (Object.keys(tokens).length === 0) {
-          // eslint-disable-next-line no-continue
           continue
         }
 
@@ -48,7 +46,6 @@ const plugin = (options: any = {}) => {
             return
           }
 
-          // eslint-disable-next-line consistent-return
           return { url: resolvedUrl, prefix, tokens }
         }
 
@@ -61,7 +58,6 @@ const plugin = (options: any = {}) => {
         const item = results[index]
 
         if (!item) {
-          // eslint-disable-next-line no-continue
           continue
         }
 

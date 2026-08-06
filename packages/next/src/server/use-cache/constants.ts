@@ -1,13 +1,13 @@
-import type { CacheHandler } from '../lib/cache-handlers/types'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
-// If the expire time is less than .
-export const DYNAMIC_EXPIRE = 300
+export const MIN_PRERENDERABLE_EXPIRE = 300 // 5 minutes
+export const MIN_PREFETCHABLE_STALE = 30 // 30 seconds
+export const MIN_SHELL_STALE = 300 // 5 minutes
 
-export const cacheHandlersSymbol = Symbol.for('@next/cache-handlers')
-export const cacheHandlerGlobal: typeof globalThis & {
-  [cacheHandlersSymbol]?: {
-    RemoteCache?: CacheHandler
-    DefaultCache?: CacheHandler
+if (process.env.NODE_ENV !== 'production') {
+  if (MIN_PREFETCHABLE_STALE > MIN_SHELL_STALE) {
+    throw new InvariantError(
+      'MIN_PREFETCHABLE_STALE must not exceed MIN_SHELL_STALE.'
+    )
   }
-  __nextCacheHandlers?: Record<string, CacheHandler>
-} = globalThis
+}

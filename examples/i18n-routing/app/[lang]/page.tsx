@@ -1,5 +1,5 @@
-import { getDictionary } from "../../get-dictionary";
-import { Locale } from "../../i18n-config";
+import { getDictionary } from "@/get-dictionary";
+import { Locale } from "@/i18n-config";
 import Counter from "./components/counter";
 import LocaleSwitcher from "./components/locale-switcher";
 

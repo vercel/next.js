@@ -3,7 +3,6 @@
 	Author Tobias Koppers @sokra
 
   Forked to add support for `ignoreList`.
-  Keep in sync with packages/next/webpack-plugins/eval-source-map-dev-tool-plugin.js
 */
 import {
   type webpack,
@@ -53,7 +52,7 @@ export default class EvalSourceMapDevToolPlugin {
   shouldIgnorePath: (modulePath: string) => boolean
 
   /**
-   * @param {SourceMapDevToolPluginOptions|string} inputOptions Options object
+   * @param inputOptions Options object
    */
   constructor(inputOptions: EvalSourceMapDevToolPluginOptions) {
     let options: EvalSourceMapDevToolPluginOptions
@@ -188,9 +187,42 @@ export default class EvalSourceMapDevToolPlugin {
               }
             )
             sourceMap.sources = moduleFilenames
+            // The vendored `webpack-sources` drops the source map's
+            // `ignoreList` when it combines a module's input source map with
+            // the generated mappings, so we recompute it from
+            // `shouldIgnorePath` here. That matches on the emitted source path,
+            // which is fine while a source resolves back to its module. But a
+            // module that ships an input source map (Next's compiled files,
+            // whose `.js.map` marks every source ignore-listed) resolves its
+            // sources to the original files instead. For example, for the Proxy
+            // adapter, `modules[index]` is then the unresolved string
+            // `.../src/server/web/adapter.ts` while `moduleResource` (the
+            // module's own resource) is
+            // `.../node_modules/next/dist/.../adapter.js`. The emitted `src`
+            // path has lost the `node_modules`/`next/dist` marker, so for such
+            // unresolved sources we fall back to `moduleResource`.
+            //
+            // This is only sound for a `NormalModule`, whose sources all belong
+            // to that one module. A `ConcatenatedModule` merges several
+            // modules' sources under one map, so no single resource identifies
+            // them all; those are left to the path check alone. The dev
+            // `eval-source-map` devtool never concatenates (a production-only
+            // optimization), so this is not hit in practice.
+            const moduleResource =
+              m instanceof NormalModule ? m.resource : undefined
+            const moduleIsIgnored =
+              moduleResource !== undefined &&
+              this.shouldIgnorePath(moduleResource)
             sourceMap.ignoreList = []
             for (let index = 0; index < moduleFilenames.length; index++) {
-              if (this.shouldIgnorePath(moduleFilenames[index])) {
+              // A string entry in `modules` (built above) is a source that did
+              // not resolve back to a module, i.e. an original file such as the
+              // `.ts` above rather than the compiled `.js` module.
+              const sourceIsUnresolved = typeof modules[index] === 'string'
+              if (
+                this.shouldIgnorePath(moduleFilenames[index]) ||
+                (moduleIsIgnored && sourceIsUnresolved)
+              ) {
                 sourceMap.ignoreList.push(index)
               }
             }
@@ -198,9 +230,7 @@ export default class EvalSourceMapDevToolPlugin {
               sourceMap.sourcesContent = undefined
             }
             sourceMap.sourceRoot = options.sourceRoot || ''
-            const moduleId =
-              /** @type {ModuleId} */
-              chunkGraph.getModuleId(m)
+            const moduleId = chunkGraph.getModuleId(m)
             if (moduleId) {
               sourceMap.file =
                 typeof moduleId === 'number' ? `${moduleId}.js` : moduleId
@@ -231,10 +261,61 @@ export default class EvalSourceMapDevToolPlugin {
           'EvalDevToolModulePlugin',
           () => 'the eval-source-map devtool is used.'
         )
-        hooks.render.tap(
-          'EvalSourceMapDevToolPlugin',
-          (source) => new ConcatSource(devtoolWarning, source)
-        )
+        hooks.render.tap('EvalSourceMapDevToolPlugin', (source, context) => {
+          if (
+            context.chunk.id === 'webpack' ||
+            context.chunk.id === 'webpack-runtime'
+          ) {
+            const sourceURL = new URL(
+              'webpack-internal://nextjs/' + context.chunk.id + '.js'
+            )
+            // Webpack runtime chunks are not sourcemapped.
+            // We insert a dummy source map that ignore-lists everything.
+            // The mappings will be incorrect but end-users will almost never interact
+            // with the webpack runtime. Users who do, can follow the instructions
+            // in the sources content and disable sourcemaps in their debugger.
+            const sourceMappingURL = new URL(
+              'data:application/json;charset=utf-8;base64,' +
+                Buffer.from(
+                  JSON.stringify({
+                    version: 3,
+                    ignoreList: [0],
+                    // Minimal, parseable mappings.
+                    mappings: 'AAAA',
+                    sources: [
+                      // TODO: This should be the original source URL so that CTRL+Click works in the terminal.
+                      sourceURL.toString(),
+                    ],
+                    sourcesContent: [
+                      '' +
+                        '// This source was generated by Next.js based off of the generated Webpack runtime.\n' +
+                        '// The mappings are incorrect.\n' +
+                        '// To get the correct line/column mappings, turn off sourcemaps in your debugger.\n' +
+                        '\n' +
+                        source.source(),
+                    ],
+                  })
+                ).toString('base64')
+            )
+
+            return new ConcatSource(
+              source,
+              new RawSource(
+                '\n//# sourceMappingURL=' +
+                  sourceMappingURL +
+                  // Webpack will add a trailing semicolon. Adding a newline
+                  // ensures the semicolon is not part of the sourceURL and actually
+                  // terminates the previous statement.
+                  '\n'
+              )
+              // We don't need to add a sourceURL here because that's handled by
+              // whatever is running this script. It'll be the file in Node.js
+              // and the static asset path in the browser.
+            )
+          } else {
+            return new ConcatSource(devtoolWarning, source)
+          }
+        })
         hooks.chunkHash.tap('EvalSourceMapDevToolPlugin', (_chunk, hash) => {
           hash.update('EvalSourceMapDevToolPlugin')
           hash.update('2')

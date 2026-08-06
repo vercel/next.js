@@ -1,37 +1,57 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc,
-    TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
+    FxIndexSet, OperationVc, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
-use super::ChunkableModule;
-use crate::module::Module;
+use crate::{
+    chunk::ChunkableModule,
+    module::Module,
+    module_graph::module_batch::{ChunkableModuleOrBatch, IdentStrings, ModuleBatch},
+};
 
-#[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    TraceRawVcs,
-    Copy,
-    Clone,
-    Serialize,
-    Deserialize,
-    ValueDebugFormat,
-    NonLocalValue,
-)]
-pub struct AvailableModulesInfo {
-    pub is_async: bool,
+#[turbo_tasks::task_input]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+pub enum AvailableModuleItem {
+    Module(ResolvedVc<Box<dyn ChunkableModule>>),
+    Batch(ResolvedVc<ModuleBatch>),
+    AsyncLoader(ResolvedVc<Box<dyn ChunkableModule>>),
+}
+
+impl AvailableModuleItem {
+    pub async fn ident_strings(&self) -> Result<IdentStrings> {
+        Ok(match self {
+            AvailableModuleItem::Module(module) => {
+                IdentStrings::Single(module.ident().to_string().owned().await?)
+            }
+            AvailableModuleItem::Batch(batch) => {
+                IdentStrings::Multiple(batch.ident_strings().await?)
+            }
+            AvailableModuleItem::AsyncLoader(module) => {
+                IdentStrings::Single(turbofmt!("async loader {}", module.ident()).await?)
+            }
+        })
+    }
+}
+
+impl From<ChunkableModuleOrBatch> for AvailableModuleItem {
+    fn from(value: ChunkableModuleOrBatch) -> Self {
+        match value {
+            ChunkableModuleOrBatch::Module(module) => AvailableModuleItem::Module(module),
+            ChunkableModuleOrBatch::Batch(batch) => AvailableModuleItem::Batch(batch),
+            ChunkableModuleOrBatch::None(id) => {
+                panic!("Cannot create AvailableModuleItem from None({})", id)
+            }
+        }
+    }
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionAvailableModulesInfo(Option<AvailableModulesInfo>);
-
-#[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
-pub struct AvailableModuleInfoMap(
-    FxIndexMap<ResolvedVc<Box<dyn ChunkableModule>>, AvailableModulesInfo>,
+pub struct AvailableModulesSet(
+    #[bincode(with = "turbo_bincode::indexset")] FxIndexSet<AvailableModuleItem>,
 );
 
 /// Allows to gather information about which assets are already available.
@@ -40,13 +60,13 @@ pub struct AvailableModuleInfoMap(
 #[turbo_tasks::value]
 pub struct AvailableModules {
     parent: Option<ResolvedVc<AvailableModules>>,
-    modules: ResolvedVc<AvailableModuleInfoMap>,
+    modules: OperationVc<AvailableModulesSet>,
 }
 
 #[turbo_tasks::value_impl]
 impl AvailableModules {
     #[turbo_tasks::function]
-    pub fn new(modules: ResolvedVc<AvailableModuleInfoMap>) -> Vc<Self> {
+    pub fn new(modules: OperationVc<AvailableModulesSet>) -> Vc<Self> {
         AvailableModules {
             parent: None,
             modules,
@@ -55,21 +75,13 @@ impl AvailableModules {
     }
 
     #[turbo_tasks::function]
-    pub async fn with_modules(
+    pub fn with_modules(
         self: ResolvedVc<Self>,
-        modules: ResolvedVc<AvailableModuleInfoMap>,
+        modules: OperationVc<AvailableModulesSet>,
     ) -> Result<Vc<Self>> {
-        let modules = modules
-            .await?
-            .into_iter()
-            .map(|(&module, &info)| async move {
-                Ok(self.get(*module).await?.is_none().then_some((module, info)))
-            })
-            .try_flat_join()
-            .await?;
         Ok(AvailableModules {
             parent: Some(self),
-            modules: ResolvedVc::cell(modules.into_iter().collect()),
+            modules,
         }
         .cell())
     }
@@ -84,34 +96,40 @@ impl AvailableModules {
         }
         let item_idents = self
             .modules
+            .connect()
             .await?
             .iter()
-            .map(|(&module, _)| module.ident().to_string())
+            .map(async |&module| module.ident_strings().await)
             .try_join()
             .await?;
-        for ident in item_idents {
-            hasher.write_value(ident);
+        for idents in item_idents {
+            match idents {
+                IdentStrings::Single(ident) => hasher.write_value(ident),
+                IdentStrings::Multiple(idents) => {
+                    for ident in &idents {
+                        hasher.write_value(ident);
+                    }
+                }
+                IdentStrings::None => {}
+            }
         }
         Ok(Vc::cell(hasher.finish()))
     }
 
     #[turbo_tasks::function]
-    pub async fn get(
-        &self,
-        module: ResolvedVc<Box<dyn ChunkableModule>>,
-    ) -> Result<Vc<OptionAvailableModulesInfo>> {
-        if let Some(&info) = self.modules.await?.get(&module) {
-            return Ok(Vc::cell(Some(info)));
+    pub async fn get(&self, item: AvailableModuleItem) -> Result<Vc<bool>> {
+        if self.modules.connect().await?.contains(&item) {
+            return Ok(Vc::cell(true));
         };
         if let Some(parent) = self.parent {
-            return Ok(parent.get(*module));
+            return Ok(parent.get(item));
         }
-        Ok(Vc::cell(None))
+        Ok(Vc::cell(false))
     }
 
     #[turbo_tasks::function]
     pub async fn snapshot(&self) -> Result<Vc<AvailableModulesSnapshot>> {
-        let modules = self.modules.await?;
+        let modules = self.modules.connect().await?;
         let parent = if let Some(parent) = self.parent {
             Some(parent.snapshot().await?)
         } else {
@@ -122,24 +140,15 @@ impl AvailableModules {
     }
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 #[derive(Debug, Clone)]
 pub struct AvailableModulesSnapshot {
     parent: Option<ReadRef<AvailableModulesSnapshot>>,
-    modules: ReadRef<AvailableModuleInfoMap>,
+    modules: ReadRef<AvailableModulesSet>,
 }
 
 impl AvailableModulesSnapshot {
-    pub fn get(
-        &self,
-        module: ResolvedVc<Box<dyn ChunkableModule>>,
-    ) -> Option<AvailableModulesInfo> {
-        if let Some(&info) = self.modules.get(&module) {
-            return Some(info);
-        };
-        if let Some(parent) = &self.parent {
-            return parent.get(module);
-        }
-        None
+    pub fn get(&self, item: AvailableModuleItem) -> bool {
+        self.modules.contains(&item) || self.parent.as_ref().is_some_and(|parent| parent.get(item))
     }
 }

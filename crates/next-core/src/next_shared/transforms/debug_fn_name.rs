@@ -2,24 +2,25 @@ use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::debug_fn_name::debug_fn_name;
 use swc_core::ecma::{ast::Program, visit::VisitMutWith};
-use turbo_tasks::ResolvedVc;
-use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
-use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
+use turbo_tasks::Vc;
+use turbopack::module_options::ModuleRule;
+use turbopack_ecmascript::{CustomTransformer, TransformContext, TransformPlugin};
 
-use super::module_rule_match_js_no_url;
+use crate::next_shared::transforms::{EcmascriptTransformStage, get_ecma_transform_rule};
 
-pub fn get_debug_fn_name_rule(enable_mdx_rs: bool) -> ModuleRule {
-    let debug_fn_name_transform = EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
-        DebugFnNameTransformer {},
-    ) as _));
+pub async fn get_debug_fn_name_rule(enable_mdx_rs: bool) -> Result<ModuleRule> {
+    let debug_fn_name_transform = debug_fn_name_transform_plugin().to_resolved().await?;
 
-    ModuleRule::new(
-        module_rule_match_js_no_url(enable_mdx_rs),
-        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            prepend: ResolvedVc::cell(vec![]),
-            append: ResolvedVc::cell(vec![debug_fn_name_transform]),
-        }],
-    )
+    Ok(get_ecma_transform_rule(
+        debug_fn_name_transform,
+        enable_mdx_rs,
+        EcmascriptTransformStage::Postprocess,
+    ))
+}
+
+#[turbo_tasks::function]
+fn debug_fn_name_transform_plugin() -> Vc<TransformPlugin> {
+    Vc::cell(Box::new(DebugFnNameTransformer {}) as Box<dyn CustomTransformer + Send + Sync>)
 }
 
 #[derive(Debug)]

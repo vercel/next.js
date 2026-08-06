@@ -1,5 +1,5 @@
 function throwError() {
-  throw new Error('Boom')
+  throw new Error('rsc-throw')
 }
 
 export default function Page() {

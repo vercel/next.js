@@ -1,4 +1,3 @@
-import { fakeCat } from "./module";
-
+import { fakeCat } from './module'
 
 console.log(fakeCat)

@@ -1,0 +1,1 @@
+require(dynamic || './dep.js')

@@ -1,10 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import {
-  assertNoRedbox,
-  check,
-  retry,
-  shouldRunTurboDevTest,
-} from 'next-test-utils'
+import { waitForNoRedbox, check, getDistDir, retry } from 'next-test-utils'
 
 async function resolveStreamResponse(response: any, onData?: any) {
   let result = ''
@@ -30,7 +25,7 @@ describe('app dir - external dependency', () => {
     packageJson: {
       scripts: {
         build: 'next build',
-        dev: `next ${shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'}`,
+        dev: 'next dev',
         start: 'next start',
       },
     },
@@ -160,13 +155,11 @@ describe('app dir - external dependency', () => {
   })
   it('should not apply swc optimizer transform for external packages in browser layer in web worker', async () => {
     const browser = await next.browser('/browser')
-    // eslint-disable-next-line jest/no-standalone-expect
     expect(await browser.elementByCss('#worker-state').text()).toBe('default')
 
     await browser.elementByCss('button').click()
 
     await retry(async () => {
-      // eslint-disable-next-line jest/no-standalone-expect
       expect(await browser.elementByCss('#worker-state').text()).toBe(
         'worker.js:browser-module/other'
       )
@@ -256,7 +249,7 @@ describe('app dir - external dependency', () => {
     expect($('#transpile-cjs-lib').text()).toBe('transpile-cjs-lib')
 
     const browser = await next.browser('/cjs/client')
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
   })
 
   it('should export client module references in esm', async () => {
@@ -279,7 +272,7 @@ describe('app dir - external dependency', () => {
     expect(html).toContain('resolve response')
 
     const outputFile = await next.readFile(
-      '.next/server/app/cjs/server/page.js'
+      `${getDistDir()}/server/app/cjs/server/page.js`
     )
     expect(outputFile).not.toContain('image-response')
   })
@@ -292,7 +285,9 @@ describe('app dir - external dependency', () => {
   describe('server actions', () => {
     it('should prefer to resolve esm over cjs for bundling optout packages', async () => {
       const browser = await next.browser('/optout/action')
-      expect(await browser.elementByCss('#dual-pkg-outout p').text()).toBe('')
+      expect(await browser.elementByCss('#dual-pkg-outout p').text()).toBe(
+        'initial'
+      )
 
       browser.elementByCss('#dual-pkg-outout button').click()
       await check(async () => {

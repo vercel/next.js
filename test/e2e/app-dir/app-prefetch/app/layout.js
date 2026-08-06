@@ -2,7 +2,6 @@ export default function Root({ children }) {
   return (
     <html>
       <head>
-        <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
         <title>Hello World</title>
         <script
           dangerouslySetInnerHTML={{

@@ -1,20 +1,17 @@
-import type { Request } from 'playwright'
-
-import { nextTestSetup } from 'e2e-utils'
-import type { BrowserInterface } from '../../../lib/browsers/base'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 
 const getPathname = (url: string) => {
   const urlObj = new URL(url)
   return urlObj.pathname
 }
 
-const createRequestsListener = async (browser: BrowserInterface) => {
+const createRequestsListener = async (browser: Playwright) => {
   // wait for network idle
   await browser.waitForIdleNetwork()
 
   let requests = []
 
-  browser.on('request', (req: Request) => {
+  browser.on('request', (req) => {
     requests.push([req.url(), !!req.headers()['next-router-prefetch']])
   })
 

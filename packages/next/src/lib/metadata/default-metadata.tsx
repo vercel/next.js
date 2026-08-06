@@ -48,6 +48,7 @@ export function createDefaultMetadata(): ResolvedMetadata {
     formatDetection: null,
     itunes: null,
     facebook: null,
+    pinterest: null,
     abstract: null,
     appLinks: null,
     archives: null,

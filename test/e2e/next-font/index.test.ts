@@ -1,9 +1,7 @@
 import cheerio from 'cheerio'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 import { join } from 'path'
-import webdriver from 'next-webdriver'
 
 const mockedGoogleFontResponses = require.resolve(
   './google-font-mocked-responses.js'
@@ -14,51 +12,48 @@ function getClassNameRegex(className: string): RegExp {
 }
 
 function hrefMatchesFontWithSizeAdjust(href: string) {
-  if (process.env.TURBOPACK) {
+  if (process.env.IS_TURBOPACK_TEST) {
     expect(href).toMatch(
       // Turbopack includes the file hash
-      /\/_next\/static\/media\/(.*)-s\.p\.(.*)\.woff2/
+      /\/_next\/static\/(immutable\/)?media\/(.*)-s\.p\.(.*)\.woff2/
     )
   } else {
-    expect(href).toMatch(/\/_next\/static\/media\/(.*)-s\.p\.woff2/)
+    expect(href).toMatch(
+      /\/_next\/static\/(immutable\/)?media\/(.*)-s\.p\.woff2/
+    )
   }
 }
 
 function hrefMatchesFontWithoutSizeAdjust(href: string) {
-  if (process.env.TURBOPACK) {
+  if (process.env.IS_TURBOPACK_TEST) {
     expect(href).toMatch(
       // Turbopack includes the file hash
-      /\/_next\/static\/media\/(.*)\.p\.(.*)\.woff2/
+      /\/_next\/static\/(immutable\/)?media\/(.*)\.p\.(.*)\.woff2/
     )
   } else {
-    expect(href).toMatch(/\/_next\/static\/media\/(.*)\.p\.woff2/)
+    expect(href).toMatch(/\/_next\/static\/(immutable\/)?media\/(.*)\.p\.woff2/)
   }
 }
 
 describe('next/font', () => {
-  let next: NextInstance
-
   if ((global as any).isNextDeploy) {
     it('should skip next deploy for now', () => {})
     return
   }
 
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        pages: new FileRef(join(__dirname, `app/pages`)),
-        components: new FileRef(join(__dirname, `app/components`)),
-        fonts: new FileRef(join(__dirname, `app/fonts`)),
-      },
-      dependencies: {
-        '@next/font': 'canary',
-      },
-      env: {
-        NEXT_FONT_GOOGLE_MOCKED_RESPONSES: mockedGoogleFontResponses,
-      },
-    })
+  const { next } = nextTestSetup({
+    files: {
+      pages: new FileRef(join(__dirname, `app/pages`)),
+      components: new FileRef(join(__dirname, `app/components`)),
+      fonts: new FileRef(join(__dirname, `app/fonts`)),
+    },
+    dependencies: {
+      '@next/font': 'canary',
+    },
+    env: {
+      NEXT_FONT_GOOGLE_MOCKED_RESPONSES: mockedGoogleFontResponses,
+    },
   })
-  afterAll(() => next.destroy())
 
   if ((global as any).isNextDev) {
     it('should use production cache control for fonts', async () => {
@@ -71,6 +66,10 @@ describe('next/font', () => {
       )
     })
   }
+
+  it('should not have deprecation warning', async () => {
+    expect(next.cliOutput.toLowerCase()).not.toContain('deprecation')
+  })
 
   describe('import values', () => {
     test('page with font', async () => {
@@ -175,7 +174,7 @@ describe('next/font', () => {
 
   describe('computed styles', () => {
     test('page with fonts', async () => {
-      const browser = await webdriver(next.url, '/with-fonts')
+      const browser = await next.browser('/with-fonts')
 
       // _app.js
       expect(
@@ -256,7 +255,7 @@ describe('next/font', () => {
     })
 
     test('page using variables', async () => {
-      const browser = await webdriver(next.url, '/variables')
+      const browser = await next.browser('/variables')
 
       // Fira Code Variable
       const firaCodeRegex = /^"Fira Code", "Fira Code Fallback"$/
@@ -299,28 +298,28 @@ describe('next/font', () => {
     })
 
     test('page using fallback fonts', async () => {
-      const browser = await webdriver(next.url, '/with-fallback')
+      const browser = await next.browser('/with-fallback')
 
       // .className
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#with-fallback-fonts-classname")).fontFamily'
         )
-      ).toMatch(/^"Open Sans", system-ui, Arial$/)
+      ).toMatch(/^"Open Sans", .*system-ui.*, Arial$/)
 
       // .style
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#with-fallback-fonts-style")).fontFamily'
         )
-      ).toMatch(/^"Open Sans", system-ui, Arial$/)
+      ).toMatch(/^"Open Sans", .*system-ui.*, Arial$/)
 
       // .variable
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#with-fallback-fonts-variable")).fontFamily'
         )
-      ).toMatch(/^"Open Sans", system-ui, Arial$/)
+      ).toMatch(/^"Open Sans", .*system-ui.*, Arial$/)
     })
   })
 
@@ -406,6 +405,10 @@ describe('next/font', () => {
         .sort()
 
       for (const href of hrefs) {
+        // Check that font file path is not too long for Windows systems.
+        // Windows allows up to 256 characters but we check for 100 here
+        // because if it's over 100 it's already way too much.
+        expect(href.length).toBeLessThan(100)
         hrefMatchesFontWithSizeAdjust(href)
       }
 
@@ -464,7 +467,7 @@ describe('next/font', () => {
   describe('Fallback fontfaces', () => {
     describe('local', () => {
       test('Indie flower', async () => {
-        const browser = await webdriver(next.url, '/with-local-fonts')
+        const browser = await next.browser('/with-local-fonts')
 
         const ascentOverride = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("myFont2 Fallback")).ascentOverride'
@@ -488,7 +491,7 @@ describe('next/font', () => {
       })
 
       test('Fraunces', async () => {
-        const browser = await webdriver(next.url, '/with-local-fonts')
+        const browser = await next.browser('/with-local-fonts')
 
         const ascentOverride = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("myFont1 Fallback")).ascentOverride'
@@ -512,7 +515,7 @@ describe('next/font', () => {
       })
 
       test('Roboto multiple weights and styles', async () => {
-        const browser = await webdriver(next.url, '/with-local-fonts')
+        const browser = await next.browser('/with-local-fonts')
 
         const ascentOverride = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("roboto Fallback")).ascentOverride'
@@ -536,7 +539,7 @@ describe('next/font', () => {
       })
 
       test('Roboto multiple weights and styles - variable 1', async () => {
-        const browser = await webdriver(next.url, '/with-local-fonts')
+        const browser = await next.browser('/with-local-fonts')
 
         const ascentOverride = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("robotoVar1 Fallback")).ascentOverride'
@@ -560,7 +563,7 @@ describe('next/font', () => {
       })
 
       test('Roboto multiple weights and styles - variable 2', async () => {
-        const browser = await webdriver(next.url, '/with-local-fonts')
+        const browser = await next.browser('/with-local-fonts')
 
         const ascentOverride = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("robotoVar2 Fallback")).ascentOverride'
@@ -586,7 +589,7 @@ describe('next/font', () => {
 
     describe('google', () => {
       test('Indie flower', async () => {
-        const browser = await webdriver(next.url, '/with-google-fonts')
+        const browser = await next.browser('/with-google-fonts')
 
         const ascentOverride = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("Indie Flower Fallback")).ascentOverride'
@@ -610,7 +613,7 @@ describe('next/font', () => {
       })
 
       test('Fraunces', async () => {
-        const browser = await webdriver(next.url, '/with-google-fonts')
+        const browser = await next.browser('/with-google-fonts')
 
         const ascentOverride = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("Fraunces Fallback")).ascentOverride'
@@ -632,6 +635,35 @@ describe('next/font', () => {
         )
         expect(sizeAdjust).toBe('115.45%')
       })
+    })
+  })
+
+  describe('custom declarations', () => {
+    test('local font with custom declarations', async () => {
+      const browser = await next.browser('/with-local-fonts')
+
+      // Get all stylesheets
+      const stylesheets = await browser.eval(`
+        Array.from(document.styleSheets)
+          .flatMap(sheet => {
+            try {
+              return Array.from(sheet.cssRules || sheet.rules || [])
+                .map(rule => rule.cssText)
+            } catch (e) {
+              return ''
+            }
+          })
+      `)
+
+      // Check that the custom declaration is included in the CSS
+      expect(stylesheets).toContainEqual(
+        expect.stringContaining('ascent-override: 90%;')
+      )
+
+      // Check that the custom declaration is included in the CSS and overrides the default family
+      expect(stylesheets).toContainEqual(
+        expect.stringContaining('font-family: foobar;')
+      )
     })
   })
 })

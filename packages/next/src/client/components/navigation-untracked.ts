@@ -1,25 +1,42 @@
 import { useContext } from 'react'
 import { PathnameContext } from '../../shared/lib/hooks-client-context.shared-runtime'
+import { workUnitAsyncStorage } from './server-async-storage'
 
 /**
- * This checks to see if the current render has any unknown route parameters.
- * It's used to trigger a different render path in the error boundary.
+ * This checks to see if the current render has any unknown route parameters that
+ * would cause the pathname to be dynamic. It's used to trigger a different
+ * render path in the error boundary.
  *
  * @returns true if there are any unknown route parameters, false otherwise
  */
-function hasFallbackRouteParams() {
+function hasFallbackRouteParams(): boolean {
+  // The AsyncLocalStorage module is kept out of the client bundle via the
+  // `./server-async-storage` browser alias; the guard ensures the stub is never
+  // dereferenced in the browser.
   if (typeof window === 'undefined') {
-    // AsyncLocalStorage should not be included in the client bundle.
-    const { workAsyncStorage } =
-      require('../../server/app-render/work-async-storage.external') as typeof import('../../server/app-render/work-async-storage.external')
+    const workUnitStore = workUnitAsyncStorage.getStore()
+    if (!workUnitStore) return false
 
-    const workStore = workAsyncStorage.getStore()
-    if (!workStore) return false
+    switch (workUnitStore.type) {
+      case 'prerender':
+      case 'prerender-client':
+      case 'prerender-ppr':
+      case 'validation-client':
+        const fallbackParams = workUnitStore.fallbackRouteParams
+        return fallbackParams ? fallbackParams.size > 0 : false
+      case 'prerender-legacy':
+      case 'request':
+      case 'prerender-runtime':
+      case 'cache':
+      case 'private-cache':
+      case 'unstable-cache':
+      case 'generate-static-params':
+        break
+      default:
+        workUnitStore satisfies never
+    }
 
-    const { fallbackRouteParams } = workStore
-    if (!fallbackRouteParams || fallbackRouteParams.size === 0) return false
-
-    return true
+    return false
   }
 
   return false

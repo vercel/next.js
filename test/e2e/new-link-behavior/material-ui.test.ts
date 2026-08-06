@@ -1,5 +1,4 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import webdriver from 'next-webdriver'
 import path from 'path'
 
 const appDir = path.join(__dirname, 'material-ui')
@@ -12,22 +11,18 @@ describe('New Link Behavior with material-ui', () => {
       'next.config.js': new FileRef(path.join(appDir, 'next.config.js')),
     },
     dependencies: {
-      '@emotion/cache': 'latest',
-      '@emotion/react': 'latest',
-      '@emotion/server': 'latest',
-      '@emotion/styled': 'latest',
-      '@mui/icons-material': 'latest',
-      '@mui/material': 'latest',
-      next: 'latest',
-      'prop-types': 'latest',
-      // Use minimum peer dep version instead of v9 of eslint to avoid breaking changes
-      eslint: '8.56.0',
-      'eslint-config-next': 'latest',
+      '@emotion/cache': '11.10.5',
+      '@emotion/react': '11.10.6',
+      '@emotion/server': '11.10.0',
+      '@emotion/styled': '11.10.6',
+      '@mui/icons-material': '5.11.16',
+      '@mui/material': '5.11.16',
+      'prop-types': '15.8.1',
     },
   })
 
   it('should render MuiLink with <a>', async () => {
-    const browser = await webdriver(next.url, `/`)
+    const browser = await next.browser(`/`)
     const element = browser.elementByCss('a[href="/about"]')
 
     const color = await element.getComputedCss('color')

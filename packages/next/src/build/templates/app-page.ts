@@ -1,51 +1,35 @@
 import type { LoaderTree } from '../../server/lib/app-dir-module'
-import { AppPageRouteModule } from '../../server/route-modules/app-page/module.compiled' with { 'turbopack-transition': 'next-ssr' }
-import { RouteKind } from '../../server/route-kind' with { 'turbopack-transition': 'next-server-utility' }
+import { createAppPageEntrypoint } from './app-page-runtime'
+import { interopDefault } from '../../server/app-render/interop-default' with { 'turbopack-transition': 'next-server-utility' }
 
-// These are injected by the loader afterwards.
+// Keep this route-specific template small. Turbopack gives every route a
+// distinct module identity, while app-page-runtime is shared across routes.
+// The injected loader tree references interopDefault when loading metadata, so
+// that binding must remain in this module.
 
 /**
- * The tree created in next-app-loader that holds component segments and modules
- * and I've updated it.
+ * The tree created in next-app-loader that holds component segments and modules.
  */
 declare const tree: LoaderTree
-declare const pages: any
 
-// We inject the tree and pages here so that we can use them in the route
-// module.
+declare const __next_app_require__: (id: string | number) => unknown
+declare const __next_app_load_chunk__: (id: string | number) => Promise<unknown>
+
 // INJECT:tree
-// INJECT:pages
-
-export { tree, pages }
-
-export { default as GlobalError } from 'VAR_MODULE_GLOBAL_ERROR' with { 'turbopack-transition': 'next-server-utility' }
-
-// These are injected by the loader afterwards.
-declare const __next_app_require__: any
-declare const __next_app_load_chunk__: any
-
 // INJECT:__next_app_require__
 // INJECT:__next_app_load_chunk__
 
-export const __next_app__ = {
+const entrypoint = createAppPageEntrypoint({
+  tree,
+  page: 'VAR_DEFINITION_PAGE',
+  pathname: 'VAR_DEFINITION_PATHNAME',
   require: __next_app_require__,
   loadChunk: __next_app_load_chunk__,
-}
+  interopDefault,
+})
+
+export const __next_app__ = entrypoint.__next_app__
+export const routeModule = entrypoint.routeModule
+export const handler = entrypoint.handler
 
 export * from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
-
-// Create and export the route module that will be consumed.
-export const routeModule = new AppPageRouteModule({
-  definition: {
-    kind: RouteKind.APP_PAGE,
-    page: 'VAR_DEFINITION_PAGE',
-    pathname: 'VAR_DEFINITION_PATHNAME',
-    // The following aren't used in production.
-    bundlePath: '',
-    filename: '',
-    appPaths: [],
-  },
-  userland: {
-    loaderTree: tree,
-  },
-})

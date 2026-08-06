@@ -1,1 +1,1 @@
-export default "turbopack";
+export default 'turbopack'

@@ -1,5 +1,6 @@
-export const dynamic = 'force-dynamic'
+import { connection } from 'next/server'
 
-export default function Page() {
+export default async function Page(): Promise<never> {
+  await connection()
   throw new Error('This is an error')
 }

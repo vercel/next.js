@@ -1,5 +1,5 @@
-import { graphql } from "../../../gql";
-import { grafbase } from "../../../lib/grafbase";
+import { graphql } from "@/gql";
+import { grafbase } from "@/lib/grafbase";
 
 const GetPostBySlugDocument = graphql(/* GraphQL */ `
   query GetPostBySlug($slug: String!) {

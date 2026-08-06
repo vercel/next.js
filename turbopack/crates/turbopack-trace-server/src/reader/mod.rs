@@ -6,7 +6,7 @@ use std::{
     any::Any,
     env,
     fs::File,
-    io::{self, BufReader, Read, Seek, SeekFrom},
+    io::{self, BufReader, Read, Seek, SeekFrom, Write},
     path::PathBuf,
     sync::Arc,
     thread::{self, JoinHandle},
@@ -25,6 +25,10 @@ const MIN_INITIAL_REPORT_SIZE: u64 = 100 * 1024 * 1024;
 
 trait TraceFormat {
     type Reused: Default;
+    /// Create the initial reused buffer. Override to pre-allocate capacity.
+    fn create_reused() -> Self::Reused {
+        Self::Reused::default()
+    }
     fn read(&mut self, buffer: &[u8], reuse: &mut Self::Reused) -> Result<usize>;
     fn stats(&self) -> String {
         String::new()
@@ -46,7 +50,7 @@ where
     T::Reused: 'static,
 {
     fn create_reused(&self) -> ErasedReused {
-        Box::new(T::Reused::default())
+        Box::new(T::create_reused())
     }
 
     fn read(&mut self, buffer: &[u8], reuse: &mut ErasedReused) -> Result<usize> {
@@ -75,7 +79,7 @@ impl ObjectSafeTraceFormat for ErasedTraceFormat {
 
 #[derive(Default)]
 enum TraceFile {
-    Raw(File),
+    Raw(BufReader<File>),
     Zstd(zstd::Decoder<'static, BufReader<File>>),
     Gz(GzDecoder<BufReader<File>>),
     #[default]
@@ -112,7 +116,7 @@ impl TraceFile {
 
     fn size(&mut self) -> io::Result<u64> {
         match self {
-            Self::Raw(file) => file.metadata().map(|m| m.len()),
+            Self::Raw(file) => file.get_ref().metadata().map(|m| m.len()),
             Self::Zstd(decoder) => decoder.get_mut().get_ref().metadata().map(|m| m.len()),
             Self::Gz(decoder) => decoder.get_mut().get_ref().metadata().map(|m| m.len()),
             Self::Unloaded => unreachable!(),
@@ -145,13 +149,21 @@ impl TraceReader {
 
     fn trace_file_from_file(&self, file: File) -> io::Result<TraceFile> {
         let path = &self.path.to_string_lossy();
-        Ok(if path.ends_with(".zst") {
-            TraceFile::Zstd(zstd::Decoder::new(file)?)
-        } else if path.ends_with(".gz") {
-            TraceFile::Gz(GzDecoder::new(BufReader::new(file)))
-        } else {
-            TraceFile::Raw(file)
-        })
+        let mut file = BufReader::with_capacity(
+            // zstd max block size (1 << 17) + block header (3) + magic bytes (4)
+            (1 << 17) + 7,
+            file,
+        );
+        let magic_bytes = file.peek(4)?;
+        Ok(
+            if path.ends_with(".zst") || magic_bytes == [0x28, 0xb5, 0x2f, 0xfd] {
+                TraceFile::Zstd(zstd::Decoder::with_buffer(file)?)
+            } else if path.ends_with(".gz") || matches!(magic_bytes, [0x1f, 0x8b, _, _]) {
+                TraceFile::Gz(GzDecoder::new(file))
+            } else {
+                TraceFile::Raw(file)
+            },
+        )
     }
 
     fn try_read(&mut self) -> bool {
@@ -198,6 +210,7 @@ impl TraceReader {
             match file.read(&mut chunk) {
                 Ok(bytes_read) => {
                     if bytes_read == 0 {
+                        self.store.write().optimize();
                         if let Some(value) = self.wait_for_more_data(
                             &mut file,
                             &mut initial_read,
@@ -248,38 +261,42 @@ impl TraceReader {
                             if self.store.want_to_read() {
                                 thread::yield_now();
                             }
-                            let prev_read = current_read;
                             current_read += bytes_read as u64;
                             if let Some((total, start)) = &mut initial_read {
-                                let old_mbs = prev_read / (97 * 1024 * 1024);
-                                let new_mbs = current_read / (97 * 1024 * 1024);
-                                if old_mbs != new_mbs {
-                                    let pos = file.stream_position().unwrap_or(current_read);
-                                    if pos > *total {
-                                        *total = file.size().unwrap_or(pos);
-                                    }
-                                    *total = (*total).max(pos);
-                                    let percentage = pos * 100 / *total;
-                                    let read = pos / (1024 * 1024);
-                                    let uncompressed = current_read / (1024 * 1024);
-                                    let total = *total / (1024 * 1024);
-                                    let stats = format.stats();
-                                    print!(
-                                        "{}% read ({}/{} MB, {} MB/s)",
-                                        percentage,
-                                        read,
-                                        total,
-                                        read * 1000 / (start.elapsed().as_millis() + 1) as u64
-                                    );
-                                    if uncompressed != read {
-                                        print!(" ({} MB uncompressed)", uncompressed);
-                                    }
-                                    if stats.is_empty() {
-                                        println!();
-                                    } else {
-                                        println!(" - {}", stats);
-                                    }
+                                let pos = file.stream_position().unwrap_or(current_read);
+                                if pos > *total {
+                                    *total = file.size().unwrap_or(pos);
                                 }
+                                *total = (*total).max(pos);
+                                let total_bytes = *total;
+                                let percentage = pos * 100 / total_bytes;
+                                let read = pos / (1024 * 1024);
+                                let uncompressed = current_read / (1024 * 1024);
+                                let total = total_bytes / (1024 * 1024);
+                                let elapsed_ms = start.elapsed().as_millis() as u64;
+                                let stats = format.stats();
+                                let rate_mbs = read * 1000 / (elapsed_ms + 1);
+                                let mut line = format!(
+                                    "{percentage}% read ({read}/{total} MB, {rate_mbs} MB/s)"
+                                );
+                                // Estimate remaining time by linearly extrapolating the
+                                // elapsed time over the bytes still to be read.
+                                if pos > 0 && pos < total_bytes {
+                                    let eta_s = elapsed_ms * (total_bytes - pos) / pos / 1000;
+                                    line += &format!(", ETA {eta_s}s");
+                                }
+                                if uncompressed != read {
+                                    line += &format!(" ({uncompressed} MB uncompressed)");
+                                }
+                                if !stats.is_empty() {
+                                    line += &format!(" - {stats}");
+                                }
+
+                                // `\r` returns to the start of the line and `\x1b[2K` erases
+                                // it, so a shorter update doesn't leave behind characters from
+                                // a longer previous one.
+                                print!("\r\x1b[2K{line}");
+                                let _ = io::stdout().flush();
                             }
                             if current_read >= stop_at {
                                 println!(
@@ -293,7 +310,10 @@ impl TraceReader {
                     }
                 }
                 Err(err) => {
-                    if err.kind() == io::ErrorKind::UnexpectedEof {
+                    if err.kind() == io::ErrorKind::UnexpectedEof
+                        || err.kind() == io::ErrorKind::InvalidInput
+                    {
+                        self.store.write().optimize();
                         if let Some(value) = self.wait_for_more_data(
                             &mut file,
                             &mut initial_read,
@@ -321,16 +341,22 @@ impl TraceReader {
             return Some(true);
         };
         if let Some((total, start)) = initial_read.take() {
-            if let Some(format) = format {
-                let stats = format.stats();
-                println!("{}", stats);
-            }
+            // Erase the in-place progress line (printed with a leading `\r` and
+            // no newline); it's no longer useful once the read is complete.
+            print!("\r\x1b[2K");
+            let stats = format.map(|format| format.stats()).unwrap_or_default();
             if total > MIN_INITIAL_REPORT_SIZE {
-                println!(
-                    "Initial read completed ({} MB, {}s)",
+                let elapsed = (start.elapsed().as_millis() / 100) as f32 / 10.0;
+                print!(
+                    "Initial read completed ({} MB, {elapsed}s)",
                     total / (1024 * 1024),
-                    (start.elapsed().as_millis() / 100) as f32 / 10.0
                 );
+                if !stats.is_empty() {
+                    print!(" - {stats}");
+                }
+                println!();
+            } else if !stats.is_empty() {
+                println!("{stats}");
             }
         }
         loop {

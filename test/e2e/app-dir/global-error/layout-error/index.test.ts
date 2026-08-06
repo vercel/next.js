@@ -1,4 +1,3 @@
-import { assertHasRedbox, getRedboxDescription } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('app dir - global error - layout error', () => {
@@ -15,18 +14,26 @@ describe('app dir - global error - layout error', () => {
     const browser = await next.browser('/')
 
     if (isNextDev) {
-      await assertHasRedbox(browser)
-      const description = await getRedboxDescription(browser)
-      expect(description).toMatchInlineSnapshot(
-        `"[ Server ] Error: layout error"`
-      )
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "layout error",
+         "environmentLabel": "Server",
+         "label": "Runtime Error",
+         "source": "app/layout.js (2:9) @ layout
+       > 2 |   throw new Error('layout error')
+           |         ^",
+         "stack": [
+           "layout app/layout.js (2:9)",
+         ],
+       }
+      `)
     }
 
     expect(await browser.elementByCss('h1').text()).toBe('Global Error')
     expect(await browser.elementByCss('#error').text()).toBe(
       isNextDev
         ? 'Global error: layout error'
-        : 'Global error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+        : 'Global error: Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
     )
     expect(await browser.elementByCss('#digest').text()).toMatch(/\w+/)
   })

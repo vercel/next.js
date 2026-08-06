@@ -1,1 +1,1 @@
-import.meta.foo = 1;
+import.meta.foo = 1

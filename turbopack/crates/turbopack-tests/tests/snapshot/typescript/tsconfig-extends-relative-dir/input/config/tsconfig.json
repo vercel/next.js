@@ -1,11 +1,11 @@
 {
-   "compilerOptions": {
-     "baseUrl": "..",
-     "paths": {
-       "foo": ["./prop"],
-       "./foo": ["./prop"],
-       "@/*": ["./*"],
-     }
-   },
-   "include": ["../*.ts"]
- }
+  "compilerOptions": {
+    "baseUrl": "..",
+    "paths": {
+      "foo": ["./prop"],
+      "./foo": ["./prop"],
+      "@/*": ["./*"]
+    }
+  },
+  "include": ["../*.ts"]
+}

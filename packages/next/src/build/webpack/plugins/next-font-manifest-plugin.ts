@@ -67,7 +67,7 @@ export class NextFontManifestPlugin {
           name: PLUGIN_NAME,
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
-        (assets: any) => {
+        () => {
           const nextFontManifest: NextFontManifest = {
             pages: {},
             app: {},
@@ -156,12 +156,19 @@ export class NextFontManifestPlugin {
 
           const manifest = JSON.stringify(nextFontManifest, null)
           // Create manifest for edge
-          assets[`server/${NEXT_FONT_MANIFEST}.js`] = new sources.RawSource(
-            `self.__NEXT_FONT_MANIFEST=${JSON.stringify(manifest)}`
+          compilation.emitAsset(
+            `server/${NEXT_FONT_MANIFEST}.js`,
+            new sources.RawSource(
+              `self.__NEXT_FONT_MANIFEST=${JSON.stringify(manifest)}`
+            ) as unknown as webpack.sources.RawSource
           )
+
           // Create manifest for server
-          assets[`server/${NEXT_FONT_MANIFEST}.json`] = new sources.RawSource(
-            manifest
+          compilation.emitAsset(
+            `server/${NEXT_FONT_MANIFEST}.json`,
+            new sources.RawSource(
+              manifest
+            ) as unknown as webpack.sources.RawSource
           )
         }
       )

@@ -85,12 +85,9 @@
             ),
         ],
         span: 80..91,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "Object",
-        ),
+        var: "Object",
         ast_path: [
             Program(
                 Script,
@@ -172,7 +169,6 @@
             ),
         ],
         span: 80..86,
-        in_try: false,
     },
     MemberCall {
         obj: FreeVar(
@@ -339,7 +335,6 @@
             ),
         ],
         span: 108..119,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -431,7 +426,6 @@
             ),
         ],
         span: 142..149,
-        in_try: false,
     },
     Member {
         obj: FreeVar(
@@ -522,12 +516,9 @@
             ),
         ],
         span: 155..168,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "console",
-        ),
+        var: "console",
         ast_path: [
             Program(
                 Script,
@@ -612,7 +603,6 @@
             ),
         ],
         span: 155..162,
-        in_try: false,
     },
     Conditional {
         condition: Variable(
@@ -880,7 +870,6 @@
             ),
         ],
         span: 183..202,
-        in_try: false,
     },
     MemberCall {
         obj: FreeVar(
@@ -1092,7 +1081,6 @@
             ),
         ],
         span: 208..219,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -1193,7 +1181,6 @@
             ),
         ],
         span: 224..238,
-        in_try: false,
     },
     Conditional {
         condition: Variable(
@@ -1479,7 +1466,6 @@
             ),
         ],
         span: 240..269,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -1586,7 +1572,6 @@
             ),
         ],
         span: 271..282,
-        in_try: false,
     },
     Call {
         func: Variable(

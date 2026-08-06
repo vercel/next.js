@@ -14,18 +14,18 @@ d = ["\"../lib/a.js\"/resolved/lib/index.js", "\"../lib/b.js\"/resolved/lib/inde
 
 file#3 = ???*0*
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 file#4 = ???*0*
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 file#5 = ???*0*
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 file#6 = ???*0*
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 func = (...) => FreeVar(require)["resolve"](file)

@@ -1,6 +1,6 @@
 # Items
 
-Count: 11
+Count: 10
 
 ## Item 1: Stmt 0, `VarDeclarator(0)`
 
@@ -99,13 +99,11 @@ graph TD
     Item6;
     Item7;
     Item8;
-    Item8["ModuleEvaluation"];
+    Item8["export order"];
     Item9;
-    Item9["export order"];
+    Item9["export a"];
     Item10;
-    Item10["export a"];
-    Item11;
-    Item11["export b"];
+    Item10["export b"];
 ```
 # Phase 2
 ```mermaid
@@ -118,13 +116,11 @@ graph TD
     Item6;
     Item7;
     Item8;
-    Item8["ModuleEvaluation"];
+    Item8["export order"];
     Item9;
-    Item9["export order"];
+    Item9["export a"];
     Item10;
-    Item10["export a"];
-    Item11;
-    Item11["export b"];
+    Item10["export b"];
     Item2 --> Item1;
     Item3 --> Item2;
     Item4 --> Item3;
@@ -135,10 +131,10 @@ graph TD
     Item6 --> Item4;
     Item7 --> Item6;
     Item7 --> Item4;
-    Item9 --> Item5;
-    Item9 --> Item1;
-    Item10 --> Item6;
-    Item11 --> Item7;
+    Item8 --> Item5;
+    Item8 --> Item1;
+    Item9 --> Item6;
+    Item10 --> Item7;
 ```
 # Phase 3
 ```mermaid
@@ -151,13 +147,11 @@ graph TD
     Item6;
     Item7;
     Item8;
-    Item8["ModuleEvaluation"];
+    Item8["export order"];
     Item9;
-    Item9["export order"];
+    Item9["export a"];
     Item10;
-    Item10["export a"];
-    Item11;
-    Item11["export b"];
+    Item10["export b"];
     Item2 --> Item1;
     Item3 --> Item2;
     Item4 --> Item3;
@@ -168,10 +162,10 @@ graph TD
     Item6 --> Item4;
     Item7 --> Item6;
     Item7 --> Item4;
-    Item9 --> Item5;
-    Item9 --> Item1;
-    Item10 --> Item6;
-    Item11 --> Item7;
+    Item8 --> Item5;
+    Item8 --> Item1;
+    Item9 --> Item6;
+    Item10 --> Item7;
 ```
 # Phase 4
 ```mermaid
@@ -184,13 +178,11 @@ graph TD
     Item6;
     Item7;
     Item8;
-    Item8["ModuleEvaluation"];
+    Item8["export order"];
     Item9;
-    Item9["export order"];
+    Item9["export a"];
     Item10;
-    Item10["export a"];
-    Item11;
-    Item11["export b"];
+    Item10["export b"];
     Item2 --> Item1;
     Item3 --> Item2;
     Item4 --> Item3;
@@ -201,49 +193,43 @@ graph TD
     Item6 --> Item4;
     Item7 --> Item6;
     Item7 --> Item4;
-    Item9 --> Item5;
-    Item9 --> Item1;
-    Item10 --> Item6;
-    Item11 --> Item7;
     Item8 --> Item5;
+    Item8 --> Item1;
+    Item9 --> Item6;
+    Item10 --> Item7;
 ```
 # Final
 ```mermaid
 graph TD
     N0["Items: [ItemId(0, VarDeclarator(0))]"];
     N1["Items: [ItemId(1, Normal), ItemId(2, VarDeclarator(0)), ItemId(3, VarDeclarator(0))]"];
-    N2["Items: [ItemId(4, Normal)]"];
+    N2["Items: [ItemId(4, Normal), ItemId(Export((&quot;order&quot;, #2), &quot;order&quot;))]"];
     N3["Items: [ItemId(5, VarDeclarator(0))]"];
     N4["Items: [ItemId(6, VarDeclarator(0)), ItemId(Export((&quot;b&quot;, #2), &quot;b&quot;))]"];
-    N5["Items: [ItemId(ModuleEvaluation)]"];
-    N6["Items: [ItemId(Export((&quot;a&quot;, #2), &quot;a&quot;))]"];
-    N7["Items: [ItemId(Export((&quot;order&quot;, #2), &quot;order&quot;))]"];
-    N7 --> N0;
-    N5 --> N2;
-    N6 --> N3;
-    N7 --> N2;
-    N1 --> N0;
-    N2 --> N1;
+    N5["Items: [ItemId(Export((&quot;a&quot;, #2), &quot;a&quot;))]"];
+    N5 --> N3;
+    N4 --> N1;
     N2 --> N0;
     N3 --> N1;
-    N4 --> N1;
+    N1 --> N0;
     N4 --> N3;
+    N2 --> N1;
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 5,
+    ModuleEvaluation: 2,
     Export(
         "a",
-    ): 6,
+    ): 5,
     Export(
         "b",
     ): 4,
     Export(
         "order",
-    ): 7,
-    Exports: 8,
+    ): 2,
+    Exports: 6,
 }
 ```
 
@@ -285,6 +271,8 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
 };
 order.push("c");
+export { order };
+export { };
 
 ```
 ## Part 3
@@ -321,67 +309,53 @@ export { b as e } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 5
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-"module evaluation";
-
-```
-## Part 6
-```js
 import { d as a } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -3
 };
 export { a };
 
 ```
-## Part 7
+## Part 6
 ```js
-import { a as order } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -0
+export { order } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export order"
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-export { order };
-
-```
-## Part 8
-```js
 export { b } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export b"
 };
 export { a } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export a"
 };
-export { order } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export order"
-};
 
 ```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+import { a as order } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
 };
-"module evaluation";
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 1
+};
+order.push("c");
+export { order };
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 5,
+    ModuleEvaluation: 2,
     Export(
         "a",
-    ): 6,
+    ): 5,
     Export(
         "b",
     ): 4,
     Export(
         "order",
-    ): 7,
-    Exports: 8,
+    ): 2,
+    Exports: 6,
 }
 ```
 
@@ -423,6 +397,8 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
 };
 order.push("c");
+export { order };
+export { };
 
 ```
 ## Part 3
@@ -459,49 +435,35 @@ export { b as e } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 5
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-"module evaluation";
-
-```
-## Part 6
-```js
 import { d as a } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -3
 };
 export { a };
 
 ```
-## Part 7
+## Part 6
 ```js
-import { a as order } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -0
+export { order } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export order"
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-export { order };
-
-```
-## Part 8
-```js
 export { b } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export b"
 };
 export { a } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export a"
 };
-export { order } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export order"
-};
 
 ```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+import { a as order } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
 };
-"module evaluation";
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 1
+};
+order.push("c");
+export { order };
+export { };
 
 ```

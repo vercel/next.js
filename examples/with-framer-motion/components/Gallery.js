@@ -33,12 +33,7 @@ const Thumbnail = ({ id, i }) => (
         variants={frameVariants}
         transition={transition}
       >
-        <Link
-          href="/image/[index]"
-          as={`/image/${i}`}
-          scroll={false}
-          legacyBehavior
-        >
+        <Link href="/image/[index]" as={`/image/${i}`} scroll={false}>
           <motion.img
             src={`https://images.unsplash.com/${id}?auto=format&fit=crop&w=1500`}
             alt="The Barbican"

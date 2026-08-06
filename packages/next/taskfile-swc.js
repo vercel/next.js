@@ -5,11 +5,9 @@ const MODERN_BROWSERSLIST_TARGET = require('./src/shared/lib/modern-browserslist
 
 const path = require('path')
 
-// eslint-disable-next-line import/no-extraneous-dependencies
 const transform = require('@swc/core').transform
 
 module.exports = function (task) {
-  // eslint-disable-next-line require-yield
   task.plugin(
     'swc',
     {},
@@ -19,7 +17,13 @@ module.exports = function (task) {
       { stripExtension, interopClientDefaultExport = false, esm = false } = {}
     ) {
       // Don't compile .d.ts
-      if (file.base.endsWith('.d.ts') || file.base.endsWith('.json')) return
+      if (
+        file.base.endsWith('.d.ts') ||
+        file.base.endsWith('.json') ||
+        file.base.endsWith('.jsonc') ||
+        file.base.endsWith('.woff2')
+      )
+        return
 
       const plugins = [
         ...(file.base.includes('.test.') || file.base.includes('.stories.')
@@ -82,7 +86,7 @@ module.exports = function (task) {
           targets: {
             // Ideally, should be same version defined in packages/next/package.json#engines
             // Currently a few minors behind due to babel class transpiling
-            // which fails "test/integration/mixed-ssg-serverprops-error/test/index.test.js"
+            // which fails "test/production/mixed-ssg-serverprops-error/test/index.test.js"
             node: '16.8.0',
           },
         },
@@ -120,7 +124,11 @@ module.exports = function (task) {
       const distFilePath = path.dirname(
         // we must strip src from filePath as it isn't carried into
         // the dist file path
-        path.join(__dirname, 'dist', filePath.replace(/^src[/\\]/, ''))
+        path.join(
+          __dirname,
+          esm ? 'dist/esm' : 'dist',
+          filePath.replace(/^src[/\\]/, '')
+        )
       )
 
       const options = {
@@ -161,11 +169,24 @@ if ((typeof exports.default === 'function' || (typeof exports.default === 'objec
 
         output.code += Buffer.from(`\n//# sourceMappingURL=${map}`)
 
+        const sourceMapPayload = JSON.parse(output.map)
+        if ('ignoreList' in sourceMapPayload) {
+          throw new Error(
+            'SWC already sets an ignoreList. We may no longer need to manually set ignoreList.'
+          )
+        }
+        // ignore-list everything
+        sourceMapPayload.ignoreList = sourceMapPayload.sources.map(
+          (source, sourceIndex) => {
+            return sourceIndex
+          }
+        )
+
         // add sourcemap to `files` array
         this._.files.push({
           base: map,
           dir: file.dir,
-          data: Buffer.from(output.map),
+          data: Buffer.from(JSON.stringify(sourceMapPayload)),
         })
       }
 

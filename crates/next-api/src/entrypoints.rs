@@ -8,6 +8,7 @@ use crate::{
 
 #[turbo_tasks::value(shared)]
 pub struct Entrypoints {
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub routes: FxIndexMap<RcStr, Route>,
     pub middleware: Option<Middleware>,
     pub instrumentation: Option<Instrumentation>,

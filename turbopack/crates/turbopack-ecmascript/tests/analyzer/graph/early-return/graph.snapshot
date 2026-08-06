@@ -2,153 +2,81 @@
     (
         "a",
         Function(
-            4,
+            2,
             1,
-            Alternatives {
-                total_nodes: 3,
-                values: [
-                    Constant(
-                        Undefined,
-                    ),
-                    FreeVar(
-                        "undefined",
-                    ),
-                ],
-                logical_property: None,
-            },
+            Constant(
+                Undefined,
+            ),
         ),
     ),
     (
         "b",
         Function(
-            4,
+            2,
             67,
-            Alternatives {
-                total_nodes: 3,
-                values: [
-                    Constant(
-                        Undefined,
-                    ),
-                    FreeVar(
-                        "undefined",
-                    ),
-                ],
-                logical_property: None,
-            },
+            Constant(
+                Undefined,
+            ),
         ),
     ),
     (
         "c",
         Function(
-            4,
+            2,
             154,
-            Alternatives {
-                total_nodes: 3,
-                values: [
-                    Constant(
-                        Undefined,
-                    ),
-                    FreeVar(
-                        "undefined",
-                    ),
-                ],
-                logical_property: None,
-            },
+            Constant(
+                Undefined,
+            ),
         ),
     ),
     (
         "d",
         Function(
-            4,
+            2,
             210,
-            Alternatives {
-                total_nodes: 3,
-                values: [
-                    Constant(
-                        Undefined,
-                    ),
-                    FreeVar(
-                        "undefined",
-                    ),
-                ],
-                logical_property: None,
-            },
+            Constant(
+                Undefined,
+            ),
         ),
     ),
     (
         "e",
         Function(
-            4,
+            2,
             287,
-            Alternatives {
-                total_nodes: 3,
-                values: [
-                    Constant(
-                        Undefined,
-                    ),
-                    FreeVar(
-                        "undefined",
-                    ),
-                ],
-                logical_property: None,
-            },
+            Constant(
+                Undefined,
+            ),
         ),
     ),
     (
         "f",
         Function(
-            4,
+            2,
             365,
-            Alternatives {
-                total_nodes: 3,
-                values: [
-                    Constant(
-                        Undefined,
-                    ),
-                    FreeVar(
-                        "undefined",
-                    ),
-                ],
-                logical_property: None,
-            },
+            Constant(
+                Undefined,
+            ),
         ),
     ),
     (
         "g",
         Function(
-            4,
+            2,
             433,
-            Alternatives {
-                total_nodes: 3,
-                values: [
-                    Constant(
-                        Undefined,
-                    ),
-                    FreeVar(
-                        "undefined",
-                    ),
-                ],
-                logical_property: None,
-            },
+            Constant(
+                Undefined,
+            ),
         ),
     ),
     (
         "h",
         Function(
-            4,
+            2,
             521,
-            Alternatives {
-                total_nodes: 3,
-                values: [
-                    Constant(
-                        Undefined,
-                    ),
-                    FreeVar(
-                        "undefined",
-                    ),
-                ],
-                logical_property: None,
-            },
+            Constant(
+                Undefined,
+            ),
         ),
     ),
     (

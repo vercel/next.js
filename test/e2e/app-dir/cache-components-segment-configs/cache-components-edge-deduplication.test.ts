@@ -1,0 +1,90 @@
+import { nextTestSetup } from 'e2e-utils'
+
+import { waitForRedbox } from 'next-test-utils'
+
+// Filter CLI output to only keep Turbopack error header lines (starting with ⨯ or
+// standalone file:line:col) to accurately count error occurrences without counting
+// console.error, stack traces, or forwarded browser logs.
+function filterToErrorHeaders(output: string): string {
+  return output
+    .split('\n')
+    .filter(
+      (line) =>
+        !line.includes('[browser]') &&
+        !line.includes('console.error') &&
+        !line.includes('at <unknown>') &&
+        !line.includes('at Object.') &&
+        !line.includes('at DevServer.') &&
+        !line.includes('at DevBundlerService.') &&
+        !line.includes('at async ')
+    )
+    .join('\n')
+}
+
+// Only Turbopack runs the transform on the layout once in edge and non-edge contexts
+// so we only test this on Turbopack
+;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
+  'cache-components-edge-deduplication',
+  () => {
+    const { next, skipped, isNextDev } = nextTestSetup({
+      files: __dirname + '/fixtures/edge-deduplication',
+      skipStart: true,
+      skipDeployment: true,
+    })
+
+    if (skipped) {
+      return
+    }
+
+    it('should not duplicate errors when layout is compiled for both edge and non-edge contexts', async () => {
+      try {
+        await next.start()
+      } catch {
+        // we expect the build to fail
+      }
+
+      if (isNextDev) {
+        const browser = await next.browser('/edge-with-layout/edge')
+        waitForRedbox(browser)
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.",
+           "environmentLabel": null,
+           "label": "Build Error",
+           "source": "./app/edge-with-layout/layout.tsx (1:14)
+         Error: Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
+         > 1 | export const dynamic = 'force-dynamic'
+             |              ^^^^^^^",
+           "stack": [],
+         }
+        `)
+
+        // Count occurrences of the layout error at the specific location
+        // Filter out browser logs to avoid counting forwarded browser errors
+        const filteredOutput = filterToErrorHeaders(next.cliOutput)
+        const layoutErrorMatches = filteredOutput.match(
+          /\.\/app\/edge-with-layout\/layout\.tsx:1:14/g
+        )
+        // We don't show an error stack, just the individual error messages at each location
+        expect(layoutErrorMatches.length).toBe(1)
+      } else {
+        // Check that both the layout and edge page errors appear
+        expect(next.cliOutput).toContain('./app/edge-with-layout/layout.tsx')
+        expect(next.cliOutput).toContain('./app/edge-with-layout/edge/page.tsx')
+        expect(next.cliOutput).toContain(
+          '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
+        )
+        expect(next.cliOutput).toContain(
+          '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
+        )
+        // Count occurrences of the layout error at the specific location
+        const layoutErrorMatches = next.cliOutput.match(
+          /\.\/app\/layout\.tsx:1:14/g
+        )
+
+        // Should appear exactly twice: once in the formatted error message, once in the stack trace
+        expect(layoutErrorMatches.length).toBe(2)
+      }
+    })
+  }
+)

@@ -1,19 +1,27 @@
 use std::{
-    fmt::{Debug, Display},
-    hash::Hash,
+    cmp::Ordering,
+    fmt::{self, Debug, Display},
+    hash::{Hash, Hasher},
     marker::PhantomData,
-    mem::transmute_copy,
+    ops::Deref,
 };
 
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+    impl_borrow_decode_with_context,
+};
 use serde::{Deserialize, Serialize};
 use turbo_tasks_hash::DeterministicHash;
 
+#[cfg(debug_assertions)]
+use crate::debug::{ValueDebugFormat, ValueDebugFormatString};
 use crate::{
-    debug::{ValueDebugFormat, ValueDebugFormatString},
+    ResolvedVc, SharedReference, Vc, VcRead, VcValueType,
     trace::{TraceRawVcs, TraceRawVcsContext},
-    triomphe_utils::unchecked_sidecast_triomphe_arc,
     vc::VcCellMode,
-    SharedReference, Vc, VcRead, VcValueType,
 };
 
 type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
@@ -23,7 +31,7 @@ type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 /// certain point in time.
 ///
 /// Internally it stores a reference counted reference to a value on the heap.
-pub struct ReadRef<T>(triomphe::Arc<T>);
+pub struct ReadRef<T>(pub(crate) triomphe::Arc<T>);
 
 impl<T> Clone for ReadRef<T> {
     fn clone(&self) -> Self {
@@ -31,7 +39,7 @@ impl<T> Clone for ReadRef<T> {
     }
 }
 
-impl<T> std::ops::Deref for ReadRef<T>
+impl<T> Deref for ReadRef<T>
 where
     T: VcValueType,
 {
@@ -47,37 +55,36 @@ where
     T: VcValueType,
     VcReadTarget<T>: Display,
 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         Display::fmt(&**self, f)
     }
 }
 
 impl<T> Debug for ReadRef<T>
 where
-    T: VcValueType,
-    VcReadTarget<T>: Debug,
+    T: Debug,
 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Debug::fmt(&**self, f)
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Self::as_raw_ref(self).fmt(f)
     }
 }
 
 impl<T> TraceRawVcs for ReadRef<T>
 where
-    T: VcValueType,
-    VcReadTarget<T>: TraceRawVcs,
+    T: TraceRawVcs,
 {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
-        (**self).trace_raw_vcs(trace_context);
+        Self::as_raw_ref(self).trace_raw_vcs(trace_context);
     }
 }
 
+#[cfg(debug_assertions)]
 impl<T> ValueDebugFormat for ReadRef<T>
 where
     T: VcValueType,
     VcReadTarget<T>: ValueDebugFormat + 'static,
 {
-    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString {
+    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
         let value = &**self;
         value.value_debug_format(depth)
     }
@@ -85,48 +92,40 @@ where
 
 impl<T> PartialEq for ReadRef<T>
 where
-    T: VcValueType,
-    VcReadTarget<T>: PartialEq,
+    T: Eq,
 {
     fn eq(&self, other: &Self) -> bool {
-        PartialEq::eq(&**self, &**other)
+        // Fast path: if both point to the same allocation, they're equal.
+        Self::ptr_eq(self, other) || Self::as_raw_ref(self).eq(Self::as_raw_ref(other))
     }
 }
 
-impl<T> Eq for ReadRef<T>
-where
-    T: VcValueType,
-    VcReadTarget<T>: Eq,
-{
-}
+impl<T> Eq for ReadRef<T> where T: Eq {}
 
 impl<T> PartialOrd for ReadRef<T>
 where
-    T: VcValueType,
-    VcReadTarget<T>: PartialOrd,
+    T: PartialOrd + Eq,
 {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        PartialOrd::partial_cmp(&**self, &**other)
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Self::as_raw_ref(self).partial_cmp(Self::as_raw_ref(other))
     }
 }
 
 impl<T> Ord for ReadRef<T>
 where
-    T: VcValueType,
-    VcReadTarget<T>: Ord,
+    T: Ord + Eq,
 {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        Ord::cmp(&**self, &**other)
+    fn cmp(&self, other: &Self) -> Ordering {
+        Self::as_raw_ref(self).cmp(Self::as_raw_ref(other))
     }
 }
 
 impl<T> Hash for ReadRef<T>
 where
-    T: VcValueType,
-    VcReadTarget<T>: Hash,
+    T: Hash,
 {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        Hash::hash(&**self, state)
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        Self::as_raw_ref(self).hash(state)
     }
 }
 
@@ -141,6 +140,7 @@ where
     }
 }
 
+/// Iterate by reference over a [`ReadRef`].
 impl<'a, T, I, J: Iterator<Item = I>> IntoIterator for &'a ReadRef<T>
 where
     T: VcValueType,
@@ -155,57 +155,75 @@ where
     }
 }
 
-impl<T, I: 'static, J: Iterator<Item = I>> IntoIterator for ReadRef<T>
+impl<T, I, J> IntoIterator for ReadRef<T>
 where
     T: VcValueType,
-    &'static VcReadTarget<T>: IntoIterator<Item = I, IntoIter = J>,
+    I: Copy + 'static,
+    J: Iterator<Item = &'static I> + 'static,
+    &'static VcReadTarget<T>: IntoIterator<Item = &'static I, IntoIter = J>,
 {
     type Item = I;
-
     type IntoIter = ReadRefIter<T, I, J>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let r = &*self;
-        // # Safety
-        // The reference will we valid as long as the ReadRef is valid.
-        let r = unsafe { transmute_copy::<&'_ VcReadTarget<T>, &'static VcReadTarget<T>>(&r) };
+        let r: &VcReadTarget<T> = &self;
+        // SAFETY: The `&'static` reference fabricated here is only stored in
+        // `iter`, which lives inside the returned `ReadRefIter` alongside the
+        // `ReadRef` that owns the data. The public `Iterator::next` only
+        // returns `Copy`-ed-out values — no reference (with the fake `'static`
+        // lifetime or otherwise) ever leaves the iterator. Struct-field drop
+        // order (`iter` then `_read_ref`) drops any references still held by
+        // `iter` before the backing storage.
+        let r = unsafe { std::mem::transmute::<&VcReadTarget<T>, &'static VcReadTarget<T>>(r) };
         ReadRefIter {
-            read_ref: self,
             iter: r.into_iter(),
+            _read_ref: self,
         }
     }
 }
 
-pub struct ReadRefIter<T, I: 'static, J: Iterator<Item = I>>
+/// Consuming iteration over a [`ReadRef`], yielding items by **copy**.
+///
+/// `Iterator::Item` is a fixed associated type — it cannot borrow from
+/// `&mut self`.
+///
+/// The iterator owns the original [`ReadRef`], borrows into the underlying value, and
+/// `Iterator::next` simply copies each element out of that borrow. This restricts the impl to
+/// element types that are [`Copy`] — typically `ResolvedVc<_>`, integer ids, etc. For
+/// non-`Copy` element types (or if you want zero-copy iteration over
+/// borrows), iterate by reference instead: `for item in &read_ref { ... }`.
+pub struct ReadRefIter<T, I, J>
 where
     T: VcValueType,
+    I: Copy + 'static,
+    J: Iterator<Item = &'static I>,
 {
     iter: J,
-    #[allow(dead_code)]
-    read_ref: ReadRef<T>,
+    _read_ref: ReadRef<T>,
 }
 
-impl<T, I: 'static, J: Iterator<Item = I>> Iterator for ReadRefIter<T, I, J>
+impl<T, I, J> Iterator for ReadRefIter<T, I, J>
 where
     T: VcValueType,
+    I: Copy + 'static,
+    J: Iterator<Item = &'static I>,
 {
     type Item = I;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next()
+    fn next(&mut self) -> Option<I> {
+        self.iter.next().copied()
     }
 }
 
 impl<T> Serialize for ReadRef<T>
 where
-    T: VcValueType,
-    VcReadTarget<T>: Serialize,
+    T: Serialize,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        (**self).serialize(serializer)
+        Self::as_raw_ref(self).serialize(serializer)
     }
 }
 
@@ -222,6 +240,27 @@ where
     }
 }
 
+impl<T> Encode for ReadRef<T>
+where
+    T: Encode,
+{
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        Self::as_raw_ref(self).encode(encoder)
+    }
+}
+
+impl<Context, T> Decode<Context> for ReadRef<T>
+where
+    T: Decode<Context>,
+{
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        let value = T::decode(decoder)?;
+        Ok(Self(triomphe::Arc::new(value)))
+    }
+}
+
+impl_borrow_decode_with_context!(ReadRef<T>, Context, Context, T: Decode<Context>);
+
 impl<T> ReadRef<T> {
     pub fn new_owned(value: T) -> Self {
         Self(triomphe::Arc::new(value))
@@ -229,6 +268,17 @@ impl<T> ReadRef<T> {
 
     pub fn new_arc(arc: triomphe::Arc<T>) -> Self {
         Self(arc)
+    }
+
+    /// Returns the reference to `&T`, rather than `<<T as VcValueType>::Read as VcRead<T>>::Target`
+    /// (the behavior of [`Deref`]).
+    pub fn as_raw_ref(this: &ReadRef<T>) -> &T {
+        &this.0
+    }
+
+    /// Returns the inner `Arc<T>`.
+    pub fn into_raw_arc(self) -> triomphe::Arc<T> {
+        self.0
     }
 
     pub fn ptr_eq(&self, other: &ReadRef<T>) -> bool {
@@ -244,20 +294,36 @@ impl<T> ReadRef<T>
 where
     T: VcValueType,
 {
-    /// Returns a new cell that points to the same value as the given
-    /// reference.
+    /// Returns a new [`Vc`] that points to the same value as the given reference.
     pub fn cell(read_ref: ReadRef<T>) -> Vc<T> {
         let type_id = T::get_value_type_id();
-        // SAFETY: `T` and `T::Read::Repr` must have equivalent memory representations,
-        // guaranteed by the unsafe implementation of `VcValueType`.
-        let value = unsafe {
-            unchecked_sidecast_triomphe_arc::<T, <T::Read as VcRead<T>>::Repr>(read_ref.0)
-        };
         Vc {
             node: <T::CellMode as VcCellMode<T>>::raw_cell(
-                SharedReference::new(value).into_typed(type_id),
+                SharedReference::new(read_ref.0).into_typed(type_id),
             ),
             _t: PhantomData,
+        }
+    }
+
+    /// Returns a new [`ResolvedVc`] that points to the same value as the given reference.
+    pub fn resolved_cell(read_ref: ReadRef<T>) -> ResolvedVc<T> {
+        ResolvedVc {
+            node: ReadRef::cell(read_ref),
+        }
+    }
+}
+
+impl<T> ReadRef<T>
+where
+    T: VcValueType,
+{
+    /// Returns the inner value, if this [`ReadRef`] has exactly one strong reference.
+    ///
+    /// Otherwise, an [`Err`] is returned with the same [`ReadRef`] that was passed in.
+    pub fn try_unwrap(this: Self) -> Result<VcReadTarget<T>, Self> {
+        match triomphe::Arc::try_unwrap(this.0) {
+            Ok(value) => Ok(T::Read::value_to_target(value)),
+            Err(arc) => Err(Self(arc)),
         }
     }
 }
@@ -267,9 +333,9 @@ where
     T: VcValueType,
     VcReadTarget<T>: Clone,
 {
-    /// This will clone the contained value instead of cloning the ReadRef.
-    /// This clone is more expensive, but allows to get an mutable owned value.
-    pub fn clone_value(&self) -> VcReadTarget<T> {
-        (**self).clone()
+    /// This is return a owned version of the value. It potentially clones the value.
+    /// The clone might be expensive. Prefer Deref to get a reference to the value.
+    pub fn into_owned(this: Self) -> VcReadTarget<T> {
+        Self::try_unwrap(this).unwrap_or_else(|this| (*this).clone())
     }
 }

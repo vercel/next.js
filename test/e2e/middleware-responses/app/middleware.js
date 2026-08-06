@@ -5,7 +5,6 @@ import { NextResponse } from 'next/server'
 class MyResponse extends Response {}
 
 export async function middleware(request, ev) {
-  // eslint-disable-next-line no-undef
   const { readable, writable } = new TransformStream()
   const url = request.nextUrl
   const writer = writable.getWriter()

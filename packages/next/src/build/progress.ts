@@ -1,4 +1,5 @@
 import * as Log from '../build/output/log'
+import { hrtimeDurationToString } from './duration-to-string'
 import createSpinner from './spinner'
 
 function divideSegments(number: number, segments: number): number[] {
@@ -15,6 +16,8 @@ function divideSegments(number: number, segments: number): number[] {
 }
 
 export const createProgress = (total: number, label: string) => {
+  const progressStart = process.hrtime()
+
   const segments = divideSegments(total, 4)
 
   if (total === 0) {
@@ -74,7 +77,8 @@ export const createProgress = (total: number, label: string) => {
     } else {
       progressSpinner?.stop()
       if (isFinished) {
-        Log.event(message)
+        const progressEnd = process.hrtime(progressStart)
+        Log.event(`${message} in ${hrtimeDurationToString(progressEnd)}`)
       } else {
         Log.info(`${message} ${process.stdout.isTTY ? '\n' : '\r'}`)
       }

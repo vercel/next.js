@@ -20,6 +20,9 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
       it('should trigger a loading state before fetching the page, followed by fresh data on every subsequent navigation', async () => {
         const browser = await next.browser('/', browserConfigWithFixedTime)
 
+        // Wait for initial prefetch to complete before clicking
+        await browser.waitForIdleNetwork()
+
         // this test introduces an artificial delay in rendering the requested page, so we verify a loading state is rendered
         await browser
           .elementByCss('[href="/1?timeout=1000"]')
@@ -75,6 +78,9 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
       it('should re-use the cache for 5 minutes (default "static" time)', async () => {
         const browser = await next.browser('/', browserConfigWithFixedTime)
 
+        // Wait for the prefetch to complete before clicking
+        await browser.waitForIdleNetwork()
+
         let initialRandomNumber = await browser
           .elementByCss('[href="/0?timeout=0"]')
           .click()
@@ -120,6 +126,9 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
     describe('prefetch={false}', () => {
       it('should trigger a loading state before fetching the page, followed by fresh data on every subsequent navigation', async () => {
         const browser = await next.browser('/', browserConfigWithFixedTime)
+
+        // Wait for initial prefetch to complete before clicking
+        await browser.waitForIdleNetwork()
 
         // this test introduces an artificial delay in rendering the requested page, so we verify a loading state is rendered
         await browser
@@ -172,6 +181,9 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
     describe('prefetch={undefined} - default', () => {
       it('should trigger a loading state before fetching the page, followed by fresh data on every subsequent navigation', async () => {
         const browser = await next.browser('/', browserConfigWithFixedTime)
+
+        // Wait for initial prefetch to complete before clicking
+        await browser.waitForIdleNetwork()
 
         // this test introduces an artificial delay in rendering the requested page, so we verify a loading state is rendered
         await browser
@@ -265,6 +277,9 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
       it('should use the custom static override time (3 minutes)', async () => {
         const browser = await next.browser('/', browserConfigWithFixedTime)
 
+        // Wait for the prefetch to complete before clicking
+        await browser.waitForIdleNetwork()
+
         let initialRandomNumber = await browser
           .elementByCss('[href="/0?timeout=0"]')
           .click()
@@ -311,15 +326,21 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
       it('should re-use the loading boundary for the custom static override time (3 minutes)', async () => {
         const browser = await next.browser('/', browserConfigWithFixedTime)
 
+        // Wait for initial prefetch to complete before clicking
+        await browser.waitForIdleNetwork()
+
         const loadingRandomNumber = await browser
           .elementByCss('[href="/1?timeout=1000"]')
           .click()
           .waitForElementByCss('#loading')
           .text()
 
+        await browser.eval(fastForwardTo, 2 * 60 * 1000) // fast forward 2 minutes
+
         await browser.elementByCss('[href="/"]').click()
 
-        await browser.eval(fastForwardTo, 2 * 60 * 1000) // fast forward 2 minutes
+        await browser.waitForElementByCss('[href="/1?timeout=1000"]')
+        await browser.waitForIdleNetwork()
 
         let newLoadingNumber = await browser
           .elementByCss('[href="/1?timeout=1000"]')
@@ -329,9 +350,13 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
 
         expect(loadingRandomNumber).toBe(newLoadingNumber)
 
+        await browser.eval(fastForwardTo, 2 * 60 * 1000) // fast forward 2 minutes
+
         await browser.elementByCss('[href="/"]').click()
 
-        await browser.eval(fastForwardTo, 2 * 60 * 1000) // fast forward 2 minutes
+        // Wait for link to be visible (triggers prefetch), then wait for prefetch to complete
+        await browser.waitForElementByCss('[href="/1?timeout=1000"]')
+        await browser.waitForIdleNetwork()
 
         newLoadingNumber = await browser
           .elementByCss('[href="/1?timeout=1000"]')
@@ -377,6 +402,9 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
     // dev doesn't support prefetch={true}, so this just performs a basic test to make sure data is fresh on each navigation
     it('should trigger a loading state before fetching the page, followed by fresh data on every subsequent navigation', async () => {
       const browser = await next.browser('/', browserConfigWithFixedTime)
+
+      // Wait for initial prefetch to complete before clicking
+      await browser.waitForIdleNetwork()
 
       // this test introduces an artificial delay in rendering the requested page, so we verify a loading state is rendered
       await browser

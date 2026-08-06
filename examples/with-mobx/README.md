@@ -18,8 +18,6 @@ Both components are using a custom hook `useStore` to pull in the `Store` from t
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-mobx)
-
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-mobx&project-name=with-mobx&repository-name=with-mobx)
 
 ## How to use

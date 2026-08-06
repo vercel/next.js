@@ -1,58 +1,49 @@
-use anyhow::Result;
-
-use crate::database::write_batch::{
-    ConcurrentWriteBatch, SerialWriteBatch, UnimplementedWriteBatch, WriteBatch,
-};
+use turbo_persistence::{FamilyConfig, FamilyKind};
 
 #[derive(Debug, Clone, Copy)]
 pub enum KeySpace {
-    Infra,
-    TaskMeta,
-    TaskData,
-    ForwardTaskCache,
-    ReverseTaskCache,
+    Infra = 0,
+    TaskMeta = 1,
+    TaskData = 2,
+    TaskCache = 3,
 }
-
-pub trait KeyValueDatabase {
-    type ReadTransaction<'l>
-    where
-        Self: 'l;
-
-    fn lower_read_transaction<'l: 'i + 'r, 'i: 'r, 'r>(
-        tx: &'r Self::ReadTransaction<'l>,
-    ) -> &'r Self::ReadTransaction<'i>;
-
-    fn begin_read_transaction(&self) -> Result<Self::ReadTransaction<'_>>;
-
-    fn is_empty(&self) -> bool {
-        false
+impl KeySpace {
+    /// Constructs a [`KeySpace`] from its numeric index (i.e., the `usize` discriminant).
+    ///
+    /// # Panics
+    ///
+    /// Panics if `i` is out of range (i.e., `>= FAMILIES`).
+    pub const fn from_index(i: usize) -> Self {
+        match i {
+            0 => KeySpace::Infra,
+            1 => KeySpace::TaskMeta,
+            2 => KeySpace::TaskData,
+            3 => KeySpace::TaskCache,
+            _ => panic!("KeySpace index out of range"),
+        }
     }
 
-    type ValueBuffer<'l>: std::borrow::Borrow<[u8]>
-    where
-        Self: 'l;
+    const fn name(&self) -> &'static str {
+        match self {
+            KeySpace::Infra => "Infra",
+            KeySpace::TaskMeta => "TaskMeta",
+            KeySpace::TaskData => "TaskData",
+            KeySpace::TaskCache => "TaskCache",
+        }
+    }
 
-    fn get<'l, 'db: 'l>(
-        &'l self,
-        transaction: &'l Self::ReadTransaction<'db>,
-        key_space: KeySpace,
-        key: &[u8],
-    ) -> Result<Option<Self::ValueBuffer<'l>>>;
-
-    type SerialWriteBatch<'l>: SerialWriteBatch<'l>
-        = UnimplementedWriteBatch
-    where
-        Self: 'l;
-    type ConcurrentWriteBatch<'l>: ConcurrentWriteBatch<'l>
-        = UnimplementedWriteBatch
-    where
-        Self: 'l;
-
-    fn write_batch(
-        &self,
-    ) -> Result<WriteBatch<'_, Self::SerialWriteBatch<'_>, Self::ConcurrentWriteBatch<'_>>>;
-
-    fn shutdown(&self) -> Result<()> {
-        Ok(())
+    /// Returns the persistence configuration for this keyspace.
+    pub const fn family_config(&self) -> FamilyConfig {
+        match self {
+            KeySpace::Infra | KeySpace::TaskMeta | KeySpace::TaskData => FamilyConfig {
+                name: self.name(),
+                kind: FamilyKind::SingleValue,
+            },
+            KeySpace::TaskCache => FamilyConfig {
+                name: self.name(),
+                // TaskCache uses hash-based lookups with potential collisions.
+                kind: FamilyKind::MultiValue,
+            },
+        }
     }
 }

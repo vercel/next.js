@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { findAllTelemetryEvents } from 'next-test-utils'
 
 // Turbopack hasn't fully enabled this option yet
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'next-config-warnings - esm-externals-false',
   () => {
     const { next, isNextStart } = nextTestSetup({

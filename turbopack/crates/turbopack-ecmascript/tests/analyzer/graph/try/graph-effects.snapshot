@@ -1,8 +1,6 @@
 [
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Script,
@@ -49,7 +47,6 @@
             ),
         ],
         span: 25..32,
-        in_try: true,
     },
     Call {
         func: FreeVar(
@@ -107,9 +104,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Script,
@@ -159,7 +154,6 @@
             ),
         ],
         span: 78..85,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -262,7 +256,6 @@
             ),
         ],
         span: 108..114,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(

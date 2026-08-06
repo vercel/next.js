@@ -1,10 +1,9 @@
-import { NextInstance, createNext } from 'e2e-utils'
-import { trace } from 'next/dist/trace'
+import { nextTestSetup } from 'e2e-utils'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
-import { createDefineEnv, loadBindings } from 'next/dist/build/swc'
+import { createDefineEnv, loadBindings, HmrTarget } from 'next/dist/build/swc'
 import type {
-  Diagnostics,
   Issue,
+  MemoryEvictionMode,
   Project,
   RawEntrypoints,
   StyledString,
@@ -12,7 +11,8 @@ import type {
   UpdateInfo,
 } from 'next/dist/build/swc/types'
 import loadConfig from 'next/dist/server/config'
-import path from 'path'
+import path, { join } from 'path'
+import { spawnSync } from 'child_process'
 
 function normalizePath(path: string) {
   return path
@@ -52,33 +52,6 @@ function normalizeIssues(issues: Issue[]) {
         source: normalizePath(issue.source.source.ident),
       },
     }))
-    .sort((a, b) => {
-      const a_ = JSON.stringify(a)
-      const b_ = JSON.stringify(b)
-      if (a_ < b_) return -1
-      if (a_ > b_) return 1
-      return 0
-    })
-}
-
-function normalizeDiagnostics(diagnostics: Diagnostics[]) {
-  return diagnostics
-    .map((diagnostic) => {
-      if (diagnostic.name === 'EVENT_BUILD_FEATURE_USAGE') {
-        diagnostic.payload = Object.fromEntries(
-          Object.entries(diagnostic.payload).map(([key, value]) => {
-            return [
-              key.replace(
-                /^(x86_64|i686|aarch64)-(apple-darwin|unknown-linux-(gnu|musl)|pc-windows-msvc)$/g,
-                'platform-triplet'
-              ),
-              value,
-            ]
-          })
-        )
-      }
-      return diagnostic
-    })
     .sort((a, b) => {
       const a_ = JSON.stringify(a)
       const b_ = JSON.stringify(b)
@@ -147,89 +120,247 @@ function appPageCode(text) {
 export default () => <div>${text}<Client /></div>;`
 }
 
-describe('next.rs api', () => {
-  let next: NextInstance
-  beforeAll(async () => {
-    await trace('setup next instance').traceAsyncFn(async (rootSpan) => {
-      next = await createNext({
-        skipStart: true,
-        files: {
-          'pages/index.js': pagesIndexCode('hello world'),
-          'lib/props.js': 'export default {}',
-          'pages/page-nodejs.js': 'export default () => <div>hello world</div>',
-          'pages/page-edge.js':
-            'export default () => <div>hello world</div>\nexport const config = { runtime: "experimental-edge" }',
-          'pages/api/nodejs.js':
-            'export default () => Response.json({ hello: "world" })',
-          'pages/api/edge.js':
-            'export default () => Response.json({ hello: "world" })\nexport const config = { runtime: "edge" }',
-          'app/layout.tsx':
-            'export default function RootLayout({ children }: { children: any }) { return (<html><body>{children}</body></html>)}',
-          'app/loading.tsx':
-            'export default function Loading() { return <>Loading</> }',
-          'app/app/page.tsx': appPageCode('hello world'),
-          'app/app/client.tsx':
-            '"use client";\nexport default () => <div>hello world</div>',
-          'app/app-edge/page.tsx':
-            'export default () => <div>hello world</div>\nexport const runtime = "edge"',
-          'app/app-nodejs/page.tsx':
-            'export default () => <div>hello world</div>',
-          'app/route-nodejs/route.ts':
-            'export function GET() { return Response.json({ hello: "world" }) }',
-          'app/route-edge/route.ts':
-            'export function GET() { return Response.json({ hello: "world" }) }\nexport const runtime = "edge"',
-        },
-      })
-    })
+describe('next.rs api writeToDisk multiple times', () => {
+  const { next } = nextTestSetup({
+    skipStart: true,
+    files: {
+      'pages/index.js': pagesIndexCode('hello world'),
+      'lib/props.js': 'export default {}',
+      'pages/page-nodejs.js': 'export default () => <div>hello world</div>',
+      'pages/page-edge.js':
+        'export default () => <div>hello world</div>\nexport const config = { runtime: "experimental-edge" }',
+      'pages/api/nodejs.js':
+        'export default () => Response.json({ hello: "world" })',
+      'pages/api/edge.js':
+        'export default () => Response.json({ hello: "world" })\nexport const config = { runtime: "edge" }',
+      'app/layout.tsx':
+        'export default function RootLayout({ children }: { children: any }) { return (<html><body>{children}</body></html>)}',
+      'app/loading.tsx':
+        'export default function Loading() { return <>Loading</> }',
+      'app/app/page.tsx': appPageCode('hello world'),
+      'app/app/client.tsx':
+        '"use client";\nexport default () => <div>hello world</div>',
+      'app/app-edge/page.tsx':
+        'export default () => <div>hello world</div>\nexport const runtime = "edge"',
+      'app/app-nodejs/page.tsx': 'export default () => <div>hello world</div>',
+      'app/route-nodejs/route.ts':
+        'export function GET() { return Response.json({ hello: "world" }) }',
+      'app/route-edge/route.ts':
+        'export function GET() { return Response.json({ hello: "world" }) }\nexport const runtime = "edge"',
+      'server.js': `
+process.title = 'next.rs api run test';
+const path = require('path');
+const { PHASE_DEVELOPMENT_SERVER } = require('next/constants');
+const loadConfig = require('next/dist/server/config');
+const { loadBindings } = require('next/dist/build/swc');
+const { createDefineEnv } = require('next/dist/build/swc');
+async function main() {
+  const nextConfig = await loadConfig.default(
+    PHASE_DEVELOPMENT_SERVER,
+    __dirname
+  );
+  const bindings = await loadBindings();
+  const rootPath = __dirname;
+  const distDir = '.next';
+  const project = await bindings.turbo.createProject({
+    env: {},
+    nextConfig: nextConfig,
+    rootPath,
+    projectPath: '.',
+    distDir,
+    watch: {
+      enable: true,
+    },
+    dev: true,
+    defineEnv: createDefineEnv({
+      projectPath: __dirname,
+      isTurbopack: true,
+      clientRouterFilters: undefined,
+      config: nextConfig,
+      dev: true,
+      distDir: path.join(rootPath, distDir),
+      fetchCacheKeyPrefix: undefined,
+      hasRewrites: false,
+      middlewareMatchers: undefined,
+      rewrites: {
+        beforeFiles: [],
+        afterFiles: [],
+        fallback: [],
+      },
+    }),
+    buildId: 'development',
+    encryptionKey: '12345',
+    previewProps: {
+      previewModeId: 'development',
+      previewModeEncryptionKey: '12345',
+      previewModeSigningKey: '12345',
+    },
+    browserslistQuery: 'last 2 versions',
+    noMangling: false,
+    writeRoutesHashesManifest: false,
+    currentNodeJsVersion: '18.0.0',
+    isPersistentCachingEnabled: false,
+    nextVersion: '0.0.0',
+  }, {
+    turbopackMemoryEviction: 'off',
+  });
+
+  const entrypointsSubscription = project.entrypointsSubscribe();
+  const entrypoints = (await entrypointsSubscription.next()).value;
+
+  const RUNS = 1000;
+  async function compileRoute(route) {
+    const endpoint = route.endpoint ?? route.htmlEndpoint ?? route.pages[0].htmlEndpoint;
+    if (!endpoint) {
+      console.log('unexpected route', route);
+      process.exit(1);
+    }
+    for (let i = 0; i < RUNS; i++) {
+      await endpoint.writeToDisk();
+    }
+  }
+
+  for (const [name, route] of entrypoints.routes) {
+    console.log(name, route.type);
+
+    console.log('first runs');
+    await compileRoute(route);
+    gc(true);
+    let old = process.memoryUsage();
+    const initial = old;
+    let stabilized = false;
+    for (let j = 0; j < 10; j++) {
+      await compileRoute(route);
+      gc(true);
+      const newMemory = process.memoryUsage();
+      const addedMemory = newMemory.rss - old.rss;
+      console.log(\`#\${j} \${RUNS} runs add \${addedMemory} bytes of memory, memory since first runs \${newMemory.rss - initial.rss} bytes\`);
+      old = newMemory;
+      if (addedMemory === 0) {
+        console.log('memory usage stabilized');
+        stabilized = true;
+        break;
+      }
+    }
+    if (!stabilized) {
+      console.log('memory usage did not stabilize, failing');
+      process.exit(1);
+    }
+  }
+}
+
+main()
+  .then(() => {
+    process.exit(0);
   })
-  afterAll(() => next.destroy())
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+
+        `,
+    },
+  })
+
+  it('should allow to write to disk multiple times', async () => {
+    const result = spawnSync(
+      'node',
+      ['--expose-gc', join(next.testDir, 'server.js')],
+      {
+        stdio: 'inherit',
+        env: {
+          ...process.env,
+        },
+      }
+    )
+    expect(result.status).toBe(0)
+  })
+})
+
+describe('next.rs api', () => {
+  const { next } = nextTestSetup({
+    skipStart: true,
+    files: {
+      'pages/index.js': pagesIndexCode('hello world'),
+      'lib/props.js': 'export default {}',
+      'pages/page-nodejs.js': 'export default () => <div>hello world</div>',
+      'pages/page-edge.js':
+        'export default () => <div>hello world</div>\nexport const config = { runtime: "experimental-edge" }',
+      'pages/api/nodejs.js':
+        'export default () => Response.json({ hello: "world" })',
+      'pages/api/edge.js':
+        'export default () => Response.json({ hello: "world" })\nexport const config = { runtime: "edge" }',
+      'app/layout.tsx':
+        'export default function RootLayout({ children }: { children: any }) { return (<html><body>{children}</body></html>)}',
+      'app/loading.tsx':
+        'export default function Loading() { return <>Loading</> }',
+      'app/app/page.tsx': appPageCode('hello world'),
+      'app/app/client.tsx':
+        '"use client";\nexport default () => <div>hello world</div>',
+      'app/app-edge/page.tsx':
+        'export default () => <div>hello world</div>\nexport const runtime = "edge"',
+      'app/app-nodejs/page.tsx': 'export default () => <div>hello world</div>',
+      'app/route-nodejs/route.ts':
+        'export function GET() { return Response.json({ hello: "world" }) }',
+      'app/route-edge/route.ts':
+        'export function GET() { return Response.json({ hello: "world" }) }\nexport const runtime = "edge"',
+    },
+  })
 
   let project: Project
   let projectUpdateSubscription: AsyncIterableIterator<UpdateInfo>
   beforeAll(async () => {
-    console.log(next.testDir)
     const nextConfig = await loadConfig(PHASE_DEVELOPMENT_SERVER, next.testDir)
     const bindings = await loadBindings()
-    const distDir = path.join(
-      process.env.NEXT_SKIP_ISOLATE
-        ? path.resolve(__dirname, '../../..')
-        : next.testDir,
-      '.next'
-    )
-    project = await bindings.turbo.createProject({
-      env: {},
-      jsConfig: {
-        compilerOptions: {},
-      },
-      nextConfig: nextConfig,
-      projectPath: next.testDir,
-      distDir,
-      rootPath: process.env.NEXT_SKIP_ISOLATE
-        ? path.resolve(__dirname, '../../..')
-        : next.testDir,
-      watch: {
-        enable: true,
-      },
-      dev: true,
-      defineEnv: createDefineEnv({
-        isTurbopack: true,
-        clientRouterFilters: undefined,
-        config: nextConfig,
+    const rootPath = process.env.NEXT_SKIP_ISOLATE
+      ? path.resolve(__dirname, '../../..')
+      : next.testDir
+    const distDir = '.next'
+    project = await bindings.turbo.createProject(
+      {
+        env: {},
+        nextConfig: nextConfig,
+        rootPath,
+        projectPath: path.relative(rootPath, next.testDir) || '.',
+        distDir,
+        watch: {
+          enable: true,
+        },
         dev: true,
-        distDir: distDir,
-        fetchCacheKeyPrefix: undefined,
-        hasRewrites: false,
-        middlewareMatchers: undefined,
-      }),
-      buildId: 'development',
-      encryptionKey: '12345',
-      previewProps: {
-        previewModeId: 'development',
-        previewModeEncryptionKey: '12345',
-        previewModeSigningKey: '12345',
+        defineEnv: createDefineEnv({
+          projectPath: next.testDir,
+          isTurbopack: true,
+          clientRouterFilters: undefined,
+          config: nextConfig,
+          dev: true,
+          distDir: path.join(rootPath, distDir),
+          fetchCacheKeyPrefix: undefined,
+          hasRewrites: false,
+          middlewareMatchers: undefined,
+          rewrites: {
+            beforeFiles: [],
+            afterFiles: [],
+            fallback: [],
+          },
+        }),
+        buildId: 'development',
+        encryptionKey: '12345',
+        previewProps: {
+          previewModeId: 'development',
+          previewModeEncryptionKey: '12345',
+          previewModeSigningKey: '12345',
+        },
+        browserslistQuery: 'last 2 versions',
+        noMangling: false,
+        writeRoutesHashesManifest: false,
+        currentNodeJsVersion: '18.0.0',
+        isPersistentCachingEnabled: false,
+        nextVersion: '0.0.0',
       },
-      browserslistQuery: 'last 2 versions',
-    })
+      {
+        turbopackMemoryEviction: 'off' as MemoryEvictionMode,
+      }
+    )
     projectUpdateSubscription = filterMapAsyncIterator(
       project.updateInfoSubscribe(1000),
       (update) => (update.updateType === 'end' ? update.value : undefined)
@@ -240,6 +371,10 @@ describe('next.rs api', () => {
     const entrypointsSubscription = project.entrypointsSubscribe()
     const entrypoints = await entrypointsSubscription.next()
     expect(entrypoints.done).toBe(false)
+    if (!('routes' in entrypoints.value)) {
+      throw new Error('Entrypoints not available due to compilation errors')
+    }
+
     expect(Array.from(entrypoints.value.routes.keys()).sort()).toEqual([
       '/',
       '/_not-found',
@@ -254,10 +389,7 @@ describe('next.rs api', () => {
       '/route-nodejs',
     ])
     expect(normalizeIssues(entrypoints.value.issues)).toMatchSnapshot('issues')
-    expect(normalizeDiagnostics(entrypoints.value.diagnostics)).toMatchSnapshot(
-      'diagnostics'
-    )
-    entrypointsSubscription.return()
+    await entrypointsSubscription.return()
   })
 
   const routes = [
@@ -329,9 +461,13 @@ describe('next.rs api', () => {
     // eslint-disable-next-line no-loop-func
     it(`should allow to write ${name} to disk`, async () => {
       const entrypointsSubscribtion = project.entrypointsSubscribe()
-      const entrypoints: TurbopackResult<RawEntrypoints> = (
+      const entrypoints: TurbopackResult<RawEntrypoints | {}> = (
         await entrypointsSubscribtion.next()
       ).value
+      if (!('routes' in entrypoints)) {
+        throw new Error('Entrypoints not available due to compilation errors')
+      }
+
       const route = entrypoints.routes.get(path)
       entrypointsSubscribtion.return()
 
@@ -344,9 +480,6 @@ describe('next.rs api', () => {
           expect(result.type).toBe(runtime)
           expect(result.config).toEqual(config)
           expect(normalizeIssues(result.issues)).toMatchSnapshot('issues')
-          expect(normalizeDiagnostics(result.diagnostics)).toMatchSnapshot(
-            'diagnostics'
-          )
           break
         }
         case 'page': {
@@ -354,17 +487,11 @@ describe('next.rs api', () => {
           expect(result.type).toBe(runtime)
           expect(result.config).toEqual(config)
           expect(normalizeIssues(result.issues)).toMatchSnapshot('issues')
-          expect(normalizeDiagnostics(result.diagnostics)).toMatchSnapshot(
-            'diagnostics'
-          )
 
           const result2 = await route.dataEndpoint.writeToDisk()
           expect(result2.type).toBe(runtime)
           expect(result2.config).toEqual(config)
           expect(normalizeIssues(result2.issues)).toMatchSnapshot('data issues')
-          expect(normalizeDiagnostics(result2.diagnostics)).toMatchSnapshot(
-            'data diagnostics'
-          )
           break
         }
         case 'app-page': {
@@ -372,23 +499,16 @@ describe('next.rs api', () => {
           expect(result.type).toBe(runtime)
           expect(result.config).toEqual(config)
           expect(normalizeIssues(result.issues)).toMatchSnapshot('issues')
-          expect(normalizeDiagnostics(result.diagnostics)).toMatchSnapshot(
-            'diagnostics'
-          )
 
-          const result2 = await route.pages[0].rscEndpoint.writeToDisk()
+          const result2 = await route.pages[0].rscHmrEndpoint.writeToDisk()
           expect(result2.type).toBe(runtime)
           expect(result2.config).toEqual(config)
           expect(normalizeIssues(result2.issues)).toMatchSnapshot('rsc issues')
-          expect(normalizeDiagnostics(result2.diagnostics)).toMatchSnapshot(
-            'rsc diagnostics'
-          )
 
           break
         }
         default: {
           throw new Error('unknown route type')
-          break
         }
       }
     })
@@ -465,9 +585,13 @@ describe('next.rs api', () => {
         console.log('start')
         await new Promise((r) => setTimeout(r, 1000))
         const entrypointsSubscribtion = project.entrypointsSubscribe()
-        const entrypoints: TurbopackResult<RawEntrypoints> = (
+        const entrypoints: TurbopackResult<RawEntrypoints | {}> = (
           await entrypointsSubscribtion.next()
         ).value
+        if (!('routes' in entrypoints)) {
+          throw new Error('Entrypoints not available due to compilation errors')
+        }
+
         const route = entrypoints.routes.get(path)
         entrypointsSubscribtion.return()
 
@@ -486,7 +610,7 @@ describe('next.rs api', () => {
           case 'app-page': {
             await route.pages[0].htmlEndpoint.writeToDisk()
             serverSideSubscription =
-              await route.pages[0].rscEndpoint.serverChanged(false)
+              await route.pages[0].rscHmrEndpoint.serverChanged(false)
             break
           }
           default: {
@@ -494,12 +618,15 @@ describe('next.rs api', () => {
           }
         }
 
-        const result = await project.hmrIdentifiersSubscribe().next()
+        const result = await project
+          .hmrChunkNamesSubscribe(HmrTarget.Client)
+          .next()
         expect(result.done).toBe(false)
-        const identifiers = result.value.identifiers
-        expect(identifiers).toHaveProperty('length', expect.toBePositive())
-        const subscriptions = identifiers.map((identifier) =>
-          project.hmrEvents(identifier)
+        const chunkNames = result.value.chunkNames
+        expect(chunkNames).toHaveProperty('length', expect.toBePositive())
+
+        const subscriptions = chunkNames.map((chunkName) =>
+          project.hmrEvents(chunkName, HmrTarget.Client)
         )
         await Promise.all(
           subscriptions.map(async (subscription) => {
@@ -508,10 +635,6 @@ describe('next.rs api', () => {
             expect(result.value).toHaveProperty('resource', expect.toBeObject())
             expect(result.value).toHaveProperty('type', 'issues')
             expect(normalizeIssues(result.value.issues)).toEqual([])
-            expect(result.value).toHaveProperty(
-              'diagnostics',
-              expect.toBeEmpty()
-            )
           })
         )
         console.log('waiting for events')
@@ -555,13 +678,9 @@ describe('next.rs api', () => {
               })(),
               serverSideSubscription &&
                 (async () => {
-                  for await (const {
-                    issues,
-                    diagnostics,
-                  } of serverSideSubscription) {
+                  for await (const { issues } of serverSideSubscription) {
                     if (done) return
                     expect(issues).toBeArray()
-                    expect(diagnostics).toBeArray()
                     foundServerSideChange = true
                   }
                 })(),
@@ -608,21 +727,25 @@ describe('next.rs api', () => {
     console.log('start')
     await new Promise((r) => setTimeout(r, 1000))
     const entrypointsSubscribtion = project.entrypointsSubscribe()
-    const entrypoints: TurbopackResult<RawEntrypoints> = (
+    const entrypoints: TurbopackResult<RawEntrypoints | {}> = (
       await entrypointsSubscribtion.next()
     ).value
+    if (!('routes' in entrypoints)) {
+      throw new Error('Entrypoints not available due to compilation errors')
+    }
+
     const route = entrypoints.routes.get('/')
     entrypointsSubscribtion.return()
 
     if (route.type !== 'page') throw new Error('unknown route type')
     await route.htmlEndpoint.writeToDisk()
 
-    const result = await project.hmrIdentifiersSubscribe().next()
+    const result = await project.hmrChunkNamesSubscribe(HmrTarget.Client).next()
     expect(result.done).toBe(false)
-    const identifiers = result.value.identifiers
+    const chunkNames = result.value.chunkNames
 
-    const subscriptions = identifiers.map((identifier) =>
-      project.hmrEvents(identifier)
+    const subscriptions = chunkNames.map((chunkName) =>
+      project.hmrEvents(chunkName, HmrTarget.Client)
     )
     await Promise.all(
       subscriptions.map(async (subscription) => {
@@ -630,7 +753,6 @@ describe('next.rs api', () => {
         expect(result.done).toBe(false)
         expect(result.value).toHaveProperty('resource', expect.toBeObject())
         expect(result.value).toHaveProperty('type', 'issues')
-        expect(result.value).toHaveProperty('diagnostics', expect.toBeEmpty())
       })
     )
     const merged = raceIterators(subscriptions)
@@ -639,7 +761,7 @@ describe('next.rs api', () => {
     let currentContent = await next.readFile(file)
     let nextContent = pagesIndexCode('hello world2')
 
-    const count = process.env.CI ? 300 : 1000
+    const count = process.env.NEXT_TEST_CI ? 300 : 1000
     for (let i = 0; i < count; i++) {
       await next.patchFile(file, nextContent)
       const content = currentContent

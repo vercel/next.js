@@ -138,14 +138,14 @@
             Alternatives {
                 total_nodes: 3,
                 values: [
-                    Constant(
-                        Undefined,
-                    ),
                     Variable(
                         (
                             "hoisted",
                             #7,
                         ),
+                    ),
+                    Constant(
+                        Undefined,
                     ),
                 ],
                 logical_property: None,

@@ -1,8 +1,9 @@
 import nextFontGoogleFontLoader from './loader'
-// @ts-ignore
-import fetch from 'next/dist/compiled/node-fetch'
+import { fetchResource } from './fetch-resource'
 
-jest.mock('next/dist/compiled/node-fetch')
+jest.mock('./fetch-resource')
+
+const mockFetchResource = fetchResource as jest.Mock
 
 describe('next/font/google loader', () => {
   afterEach(() => {
@@ -120,10 +121,7 @@ describe('next/font/google loader', () => {
         fontFunctionArguments: any,
         expectedUrl: any
       ) => {
-        fetch.mockResolvedValue({
-          ok: true,
-          text: async () => 'OK',
-        })
+        mockFetchResource.mockResolvedValue(Buffer.from('OK'))
         const { css } = await nextFontGoogleFontLoader({
           functionName,
           data: [
@@ -141,8 +139,12 @@ describe('next/font/google loader', () => {
           variableName: 'myFont',
         })
         expect(css).toBe('OK')
-        expect(fetch).toHaveBeenCalledTimes(1)
-        expect(fetch).toHaveBeenCalledWith(expectedUrl, expect.any(Object))
+        expect(mockFetchResource).toHaveBeenCalledTimes(1)
+        expect(mockFetchResource).toHaveBeenCalledWith(
+          expectedUrl,
+          false,
+          expect.stringContaining('Failed to fetch font')
+        )
       }
     )
   })

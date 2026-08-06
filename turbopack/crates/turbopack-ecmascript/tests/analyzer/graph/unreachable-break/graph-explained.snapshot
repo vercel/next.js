@@ -1,0 +1,7 @@
+A (const after eval) = (...) => undefined
+
+B (const after eval) = (...) => undefined
+
+C (const after eval) = (...) => undefined
+
+v = arguments[0]

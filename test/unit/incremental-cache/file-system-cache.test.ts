@@ -79,7 +79,6 @@ describe('FileSystemCache (isrMemory 0)', () => {
       },
       {
         fetchCache: true,
-        revalidate: 30,
         fetchUrl: 'http://my-api.local',
         fetchIdx: 5,
         tags: ['server-time'],
@@ -89,7 +88,6 @@ describe('FileSystemCache (isrMemory 0)', () => {
     const res = await fsCache.get('fetch-cache', {
       tags: ['server-time'],
       kind: IncrementalCacheKind.FETCH,
-      isFallback: undefined,
     })
 
     expect(res?.value).toEqual({
@@ -113,13 +111,12 @@ describe('FileSystemCache (isrMemory 0)', () => {
         data: { headers: {}, body: '1700056381', status: 200, url: '' },
         revalidate: 30,
       },
-      { revalidate: 30, fetchCache: true, tags: ['server-time2'] }
+      { fetchCache: true, tags: ['server-time2'] }
     )
 
     const res = await fsCache.get('unstable-cache', {
       tags: ['server-time'],
       kind: IncrementalCacheKind.FETCH,
-      isFallback: undefined,
     })
 
     expect(res?.value).toEqual({

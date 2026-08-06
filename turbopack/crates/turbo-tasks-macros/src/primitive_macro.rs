@@ -1,14 +1,20 @@
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::parse_macro_input;
-use turbo_tasks_macros_shared::{get_type_ident, PrimitiveInput};
 
-use crate::value_macro::value_type_and_register;
+use crate::{
+    global_name::global_name_for_type,
+    ident::get_type_ident,
+    primitive_input::{BincodeWrappers, PrimitiveInput},
+    value_macro::value_type_and_register,
+};
 
 pub fn primitive(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as PrimitiveInput);
+    let PrimitiveInput {
+        ty,
+        bincode_wrappers,
+    } = parse_macro_input!(input as PrimitiveInput);
 
-    let ty = input.ty;
     let Some(ident) = get_type_ident(&ty) else {
         return quote! {
             // An error occurred while parsing the ident.
@@ -16,30 +22,45 @@ pub fn primitive(input: TokenStream) -> TokenStream {
         .into();
     };
 
-    let value_shrink_to_fit_impl = if input.manual_shrink_to_fit.is_none() {
-        Some(quote! {
-            impl turbo_tasks::ShrinkToFit for #ty {
-                fn shrink_to_fit(&mut self) {}
-            }
-        })
-    } else {
-        None
-    };
-
     let value_debug_impl = quote! {
+        #[cfg(debug_assertions)]
         #[turbo_tasks::value_impl]
         impl turbo_tasks::debug::ValueDebug for #ty {
-            #[turbo_tasks::function]
-            async fn dbg(&self) -> anyhow::Result<turbo_tasks::Vc<turbo_tasks::debug::ValueDebugString>> {
-                use turbo_tasks::debug::ValueDebugFormat;
-                self.value_debug_format(usize::MAX).try_to_value_debug_string().await
+            fn dbg_depth<'a>(
+                &'a self,
+                depth: usize,
+            ) -> ::std::pin::Pin<
+                ::std::boxed::Box<
+                    dyn ::std::future::Future<
+                            Output = ::anyhow::Result<::std::string::String>,
+                        > + ::std::marker::Send
+                        + 'a,
+                >,
+            > {
+                ::std::boxed::Box::pin(async move {
+                    use turbo_tasks::debug::ValueDebugFormat;
+                    self.value_debug_format(depth).try_to_string().await
+                })
             }
+        }
 
-            #[turbo_tasks::function]
-            async fn dbg_depth(&self, depth: usize) -> anyhow::Result<turbo_tasks::Vc<turbo_tasks::debug::ValueDebugString>> {
-                use turbo_tasks::debug::ValueDebugFormat;
-                self.value_debug_format(depth).try_to_value_debug_string().await
-            }
+    };
+
+    let name = global_name_for_type(&ty);
+    let new_value_type = if let Some(bincode_wrappers) = bincode_wrappers {
+        let BincodeWrappers {
+            encode_ty,
+            decode_ty,
+        } = bincode_wrappers;
+        quote! {
+            turbo_tasks::ValueType::new_with_bincode_wrappers::<#ty, #encode_ty, #decode_ty>(
+                #name,
+                turbo_tasks::Evictability::Always,
+            )
+        }
+    } else {
+        quote! {
+            turbo_tasks::ValueType::persistable::<#ty>(#name, turbo_tasks::Evictability::Always)
         }
     };
 
@@ -48,14 +69,13 @@ pub fn primitive(input: TokenStream) -> TokenStream {
         quote! { #ty },
         None,
         quote! {
-            turbo_tasks::VcTransparentRead<#ty, #ty, #ty>
+            turbo_tasks::VcTransparentRead<#ty, #ty>
         },
         quote! {
-            turbo_tasks::VcCellSharedMode<#ty>
+            turbo_tasks::VcCellCompareMode<#ty>
         },
-        quote! {
-            turbo_tasks::ValueType::new_with_any_serialization::<#ty>()
-        },
+        new_value_type,
+        /* has_serialization */ quote! { true },
     );
 
     let value_default_impl = quote! {
@@ -72,7 +92,6 @@ pub fn primitive(input: TokenStream) -> TokenStream {
         #value_type_and_register
 
         #value_debug_impl
-        #value_shrink_to_fit_impl
         #value_default_impl
     }
     .into()

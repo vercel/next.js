@@ -563,7 +563,6 @@
             ),
         ],
         span: 105..176,
-        in_try: false,
     },
     Unreachable {
         start_ast_path: [

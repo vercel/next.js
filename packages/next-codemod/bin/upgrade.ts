@@ -4,17 +4,21 @@ import fs from 'fs'
 import {
   satisfies as satisfiesVersionRange,
   compare as compareVersions,
+  major,
+  minor,
 } from 'semver'
 import { execSync } from 'child_process'
 import path from 'path'
 import pc from 'picocolors'
 import {
   getPkgManager,
+  getPnpmMajorVersion,
   addPackageDependency,
   runInstallation,
 } from '../lib/handle-package'
 import { runTransform } from './transform'
 import { onCancel, TRANSFORMER_INQUIRER_CHOICES } from '../lib/utils'
+import { refreshAgentRulesBlock } from '../lib/agents-md'
 import { BadInput } from './shared'
 
 type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun'
@@ -60,31 +64,78 @@ async function loadHighestNPMVersionMatching(query: string) {
   return versionOrVersions
 }
 
-function endMessage() {
+function endMessage(targetNextVersion: string) {
   console.log()
-  console.log(
-    pc.white(
-      pc.bold(
-        `Please review the local changes and read the Next.js 15 migration guide to complete the migration.`
+  if (major(targetNextVersion) === 15) {
+    console.log(
+      pc.white(
+        pc.bold(
+          `Please review the local changes and read the Next.js 15 migration guide to complete the migration.`
+        )
       )
     )
-  )
-  console.log(
-    pc.underline(
-      'https://nextjs.org/docs/canary/app/building-your-application/upgrading/version-15'
+    console.log(
+      pc.underline(
+        'https://nextjs.org/docs/canary/app/building-your-application/upgrading/version-15'
+      )
     )
-  )
+  }
 }
 
 const cwd = process.cwd()
 
+/**
+ * Resolves semantic version keywords (patch, minor, major) to npm version queries.
+ * - patch: latest patch within current minor (e.g., 15.0.x -> 15.0.y)
+ * - minor: latest minor within current major (e.g., 15.0.x -> 15.1.x)
+ * - major: latest stable version (equivalent to "latest")
+ */
+function resolveSemanticRevision(
+  revision: string,
+  installedVersion: string
+): string {
+  const installedMajor = major(installedVersion)
+  const installedMinor = minor(installedVersion)
+
+  switch (revision) {
+    case 'patch':
+      // ~15.0.0 matches >=15.0.0 <15.1.0
+      return `~${installedMajor}.${installedMinor}.0`
+    case 'minor':
+      // ^15.0.0 matches >=15.0.0 <16.0.0
+      return `^${installedMajor}.0.0`
+    case 'major':
+      return 'latest'
+    default:
+      return revision
+  }
+}
+
 export async function runUpgrade(
   revision: string | undefined,
-  options: { verbose: boolean }
+  options: { verbose: boolean; yes?: boolean }
 ): Promise<void> {
   const { verbose } = options
+  const nonInteractive = options.yes === true || !process.stdin.isTTY
+  if (nonInteractive) {
+    console.log(
+      `  Running in non-interactive mode. Every prompt will accept its default.`
+    )
+  }
   const appPackageJsonPath = path.resolve(cwd, 'package.json')
   let appPackageJson = JSON.parse(fs.readFileSync(appPackageJsonPath, 'utf8'))
+
+  const installedNextVersion = getInstalledNextVersion()
+
+  // Resolve semantic keywords to npm version queries
+  const resolvedRevision = resolveSemanticRevision(
+    revision ?? 'minor',
+    installedNextVersion
+  )
+
+  if (options.verbose) {
+    console.log(`  Resolved upgrade target: ${resolvedRevision}`)
+  }
 
   let targetNextPackageJson: {
     version: string
@@ -92,12 +143,35 @@ export async function runUpgrade(
   }
 
   try {
+    // First, find the highest matching version
+    const versionsJSON = execSync(
+      `npm --silent view "next@${resolvedRevision}" --json --field version`,
+      { encoding: 'utf-8' }
+    )
+    const versionOrVersions = JSON.parse(versionsJSON)
+    let targetVersion: string
+    if (Array.isArray(versionOrVersions)) {
+      versionOrVersions.sort(compareVersions)
+      targetVersion = versionOrVersions[versionOrVersions.length - 1]
+    } else {
+      targetVersion = versionOrVersions
+    }
+
+    if (options.verbose) {
+      console.log(`  Target version: ${targetVersion}`)
+    }
+
+    // Then fetch the full package info for that specific version
     const targetNextPackage = execSync(
-      `npm --silent view "next@${revision}" --json`,
+      `npm --silent view "next@${targetVersion}" --json`,
       { encoding: 'utf-8' }
     )
     targetNextPackageJson = JSON.parse(targetNextPackage)
-  } catch {}
+  } catch (e) {
+    if (options.verbose) {
+      console.error('  Error fetching package info:', e)
+    }
+  }
 
   const validRevision =
     targetNextPackageJson !== null &&
@@ -106,11 +180,9 @@ export async function runUpgrade(
     'peerDependencies' in targetNextPackageJson
   if (!validRevision) {
     throw new BadInput(
-      `Invalid revision provided: "${revision}". Please provide a valid Next.js version or dist-tag (e.g. "latest", "canary", "rc", or "15.0.0").\nCheck available versions at https://www.npmjs.com/package/next?activeTab=versions.`
+      `Invalid revision provided: "${revision ?? 'minor'}" (resolved to "${resolvedRevision}"). Please provide a valid Next.js version, dist-tag (e.g. "latest", "canary", "rc"), or upgrade type ("patch", "minor", "major").\nCheck available versions at https://www.npmjs.com/package/next?activeTab=versions.`
     )
   }
-
-  const installedNextVersion = getInstalledNextVersion()
 
   const targetNextVersion = targetNextPackageJson.version
 
@@ -118,14 +190,14 @@ export async function runUpgrade(
     console.log(
       `${pc.green('✓')} Current Next.js version is already on the target version "v${targetNextVersion}".`
     )
-    endMessage()
+    endMessage(targetNextVersion)
     return
   }
   if (compareVersions(installedNextVersion, targetNextVersion) > 0) {
     console.log(
       `${pc.green('✓')} Current Next.js version is higher than the target version "v${targetNextVersion}".`
     )
-    endMessage()
+    endMessage(targetNextVersion)
     return
   }
 
@@ -156,22 +228,27 @@ export async function runUpgrade(
     // We'll recommend to upgrade in the prompt but users can decide to try 18.
     !isPureAppRouter
   ) {
-    const shouldStayOnReact18Res = await prompts(
-      {
-        type: 'confirm',
-        name: 'shouldStayOnReact18',
-        message:
-          `Do you prefer to stay on React 18?` +
-          (isMixedApp
-            ? " Since you're using both pages/ and app/, we recommend upgrading React to use a consistent version throughout your app."
-            : ''),
-        initial: false,
-        active: 'Yes',
-        inactive: 'No',
-      },
-      { onCancel }
-    )
-    shouldStayOnReact18 = shouldStayOnReact18Res.shouldStayOnReact18
+    if (nonInteractive) {
+      // Default: upgrade React past 18.
+      shouldStayOnReact18 = false
+    } else {
+      const shouldStayOnReact18Res = await prompts(
+        {
+          type: 'confirm',
+          name: 'shouldStayOnReact18',
+          message:
+            `Do you prefer to stay on React 18?` +
+            (isMixedApp
+              ? " Since you're using both pages/ and app/, we recommend upgrading React to use a consistent version throughout your app."
+              : ''),
+          initial: false,
+          active: 'Yes',
+          inactive: 'No',
+        },
+        { onCancel }
+      )
+      shouldStayOnReact18 = shouldStayOnReact18Res.shouldStayOnReact18
+    }
   }
 
   // We're resolving a specific version here to avoid including "ugly" version queries
@@ -185,35 +262,34 @@ export async function runUpgrade(
         `react@${targetNextPackageJson.peerDependencies['react']}`
       )
 
-  if (compareVersions(targetNextVersion, '15.0.0-canary') >= 0) {
-    await suggestTurbopack(appPackageJson, targetNextVersion)
+  if (
+    compareVersions(targetNextVersion, '15.0.0-canary') >= 0 &&
+    compareVersions(targetNextVersion, '16.0.0-canary') < 0
+  ) {
+    await suggestTurbopack(appPackageJson, targetNextVersion, nonInteractive)
   }
 
   const codemods = await suggestCodemods(
     installedNextVersion,
-    targetNextVersion
+    targetNextVersion,
+    nonInteractive
   )
   const packageManager: PackageManager = getPkgManager(cwd)
 
   let shouldRunReactCodemods = false
   let shouldRunReactTypesCodemods = false
-  let execCommand = 'npx'
+  let execCommand = 'npx --yes'
   // The following React codemods are for React 19
   if (
     !shouldStayOnReact18 &&
     compareVersions(targetReactVersion, '19.0.0-0') >= 0 &&
     compareVersions(installedReactVersion, '19.0.0-0') < 0
   ) {
-    shouldRunReactCodemods = await suggestReactCodemods()
-    shouldRunReactTypesCodemods = await suggestReactTypesCodemods()
+    shouldRunReactCodemods = await suggestReactCodemods(nonInteractive)
+    shouldRunReactTypesCodemods =
+      await suggestReactTypesCodemods(nonInteractive)
 
-    const execCommandMap = {
-      yarn: 'yarn dlx',
-      pnpm: 'pnpx',
-      bun: 'bunx',
-      npm: 'npx',
-    }
-    execCommand = execCommandMap[packageManager]
+    execCommand = getNpxCommand(packageManager)
   }
 
   fs.writeFileSync(appPackageJsonPath, JSON.stringify(appPackageJson, null, 2))
@@ -287,6 +363,46 @@ export async function runUpgrade(
     }
   }
 
+  // Bump `eslint` alongside `eslint-config-next` so the install doesn't fail
+  // on a peer-dep mismatch. e.g. `eslint-config-next@16.x` requires
+  // `eslint@>=9`, but a project upgrading from Next 15 will still have
+  // `eslint@^8` from create-next-app. Skip silently if anything goes wrong;
+  // the worst case is the user hits the same peer-dep error they would have
+  // without this bump.
+  //
+  // Only act when the project is actually using `eslint-config-next` — we
+  // don't want to silently upgrade eslint majors for projects that use
+  // eslint for unrelated reasons.
+  if (allDependencies['eslint'] && allDependencies['eslint-config-next']) {
+    try {
+      const eslintConfigNextPeerDepsJSON = execSync(
+        `npm --silent view "eslint-config-next@${targetNextVersion}" peerDependencies --json`,
+        { encoding: 'utf-8' }
+      )
+      const eslintConfigNextPeerDeps =
+        eslintConfigNextPeerDepsJSON.trim() === ''
+          ? {}
+          : JSON.parse(eslintConfigNextPeerDepsJSON)
+      const eslintRange = eslintConfigNextPeerDeps?.eslint
+      if (eslintRange) {
+        const targetEslintVersion = await loadHighestNPMVersionMatching(
+          `eslint@${eslintRange}`
+        )
+        versionMapping['eslint'] = {
+          version: targetEslintVersion,
+          required: false,
+        }
+      }
+    } catch (e) {
+      if (verbose) {
+        console.warn(
+          `  Could not determine eslint peer range from eslint-config-next@${targetNextVersion}. Leaving eslint version alone.`,
+          e
+        )
+      }
+    }
+  }
+
   // Even though we only need those if we alias `@types/react` to types-react,
   // we still do it out of safety due to https://github.com/microsoft/DefinitelyTyped-tools/issues/433.
   const overrides: Record<string, string> = {}
@@ -338,10 +454,12 @@ export async function runUpgrade(
   // understanding of the codemods, we run all of the applicable codemods.
   if (shouldRunReactCodemods) {
     // https://react.dev/blog/2024/04/25/react-19-upgrade-guide#run-all-react-19-codemods
+    // `--no-interactive` skips the interactive prompt that asks for confirmation
+    // https://github.com/codemod-com/codemod/blob/c0cf00d13161a0ec0965b6cc6bc5d54076839cc8/apps/cli/src/flags.ts#L160
+    // `--allow-dirty` is required because the upgrade above modified package.json
+    // and the lockfile; the recipe refuses to run on a dirty tree otherwise.
     execSync(
-      // `--no-interactive` skips the interactive prompt that asks for confirmation
-      // https://github.com/codemod-com/codemod/blob/c0cf00d13161a0ec0965b6cc6bc5d54076839cc8/apps/cli/src/flags.ts#L160
-      `${execCommand} codemod@latest react/19/migration-recipe --no-interactive`,
+      `${execCommand} codemod@latest react/19/migration-recipe --no-interactive --allow-dirty`,
       { stdio: 'inherit' }
     )
   }
@@ -359,9 +477,19 @@ export async function runUpgrade(
     console.log(`${pc.green('✔')} Codemods have been applied successfully.`)
   }
 
+  try {
+    if (refreshAgentRulesBlock(cwd) === 'refreshed') {
+      console.log(
+        `${pc.green('✔')} Refreshed the managed agent-rules block in AGENTS.md / CLAUDE.md to match the upgraded Next.js.`
+      )
+    }
+  } catch {
+    // The block refresh is best-effort — never fail the upgrade over it.
+  }
+
   warnDependenciesOutOfRange(appPackageJson, versionMapping)
 
-  endMessage()
+  endMessage(targetNextVersion)
 }
 
 function getInstalledNextVersion(): string {
@@ -424,7 +552,8 @@ function isUsingAppDir(projectPath: string): boolean {
  */
 async function suggestTurbopack(
   packageJson: any,
-  targetNextVersion: string
+  targetNextVersion: string,
+  nonInteractive: boolean
 ): Promise<void> {
   const devScript: string | undefined = packageJson.scripts?.['dev']
   // Turbopack flag was changed from `--turbo` to `--turbopack` in v15.0.1-canary.3
@@ -456,17 +585,21 @@ async function suggestTurbopack(
       return
     }
 
-    const responseTurbopack = await prompts(
-      {
-        type: 'confirm',
-        name: 'enable',
-        message: `Enable Turbopack for ${pc.bold('next dev')}?`,
-        initial: true,
-      },
-      { onCancel }
-    )
+    let enable = true
+    if (!nonInteractive) {
+      const responseTurbopack = await prompts(
+        {
+          type: 'confirm',
+          name: 'enable',
+          message: `Enable Turbopack for ${pc.bold('next dev')}?`,
+          initial: true,
+        },
+        { onCancel }
+      )
+      enable = responseTurbopack.enable
+    }
 
-    if (!responseTurbopack.enable) {
+    if (!enable) {
       return
     }
 
@@ -480,6 +613,12 @@ async function suggestTurbopack(
   console.log(
     `${pc.yellow('⚠')} Could not find "${pc.bold('next dev')}" in your dev script.`
   )
+
+  if (nonInteractive) {
+    // Without a TTY we can't ask the user for a replacement script.
+    // Keep the existing dev script untouched.
+    return
+  }
 
   const responseCustomDevScript = await prompts(
     {
@@ -497,7 +636,8 @@ async function suggestTurbopack(
 
 async function suggestCodemods(
   initialNextVersion: string,
-  targetNextVersion: string
+  targetNextVersion: string,
+  nonInteractive: boolean
 ): Promise<string[]> {
   // example:
   // codemod version: 15.0.0-canary.45
@@ -532,6 +672,16 @@ async function suggestCodemods(
     return []
   }
 
+  if (nonInteractive) {
+    // Default: apply every recommended codemod, matching `selected: true` below.
+    const all = relevantCodemods.map(({ value }) => value)
+    console.log(
+      `  Applying all ${pc.blue('codemods')} recommended for your upgrade:\n` +
+        all.map((value) => `    - ${value}`).join('\n')
+    )
+    return all
+  }
+
   const { codemods } = await prompts(
     {
       type: 'multiselect',
@@ -552,7 +702,10 @@ async function suggestCodemods(
   return codemods
 }
 
-async function suggestReactCodemods(): Promise<boolean> {
+async function suggestReactCodemods(nonInteractive: boolean): Promise<boolean> {
+  if (nonInteractive) {
+    return true
+  }
   const { runReactCodemod } = await prompts(
     {
       type: 'confirm',
@@ -566,7 +719,12 @@ async function suggestReactCodemods(): Promise<boolean> {
   return runReactCodemod
 }
 
-async function suggestReactTypesCodemods(): Promise<boolean> {
+async function suggestReactTypesCodemods(
+  nonInteractive: boolean
+): Promise<boolean> {
+  if (nonInteractive) {
+    return true
+  }
   const { runReactTypesCodemod } = await prompts(
     {
       type: 'confirm',
@@ -600,6 +758,17 @@ function writeOverridesField(
       packageJson.overrides[key] = value
     }
   } else if (packageManager === 'pnpm') {
+    // pnpm v11 silently ignores `pnpm.overrides` in package.json. The
+    // canonical location moved to `pnpm-workspace.yaml#overrides`.
+    // See https://pnpm.io/settings and https://github.com/pnpm/pnpm/issues/11536.
+    // When the version cannot be detected, assume the current (v11+) layout
+    // since that's the surface where silently-dropped overrides hurt most.
+    const pnpmMajorVersion = getPnpmMajorVersion()
+    if (pnpmMajorVersion === null || pnpmMajorVersion >= 11) {
+      writePnpmWorkspaceOverrides(overrides)
+      return
+    }
+
     // pnpm supports pnpm.overrides and pnpm.resolutions
     if (packageJson.resolutions) {
       for (const [key, value] of entries) {
@@ -640,6 +809,33 @@ function writeOverridesField(
       }
     }
   }
+}
+
+function writePnpmWorkspaceOverrides(overrides: Record<string, string>) {
+  // Deferred require so `js-yaml` is only loaded when we hit the pnpm v11+
+  // branch (i.e. not for npm/yarn/bun/pnpm-v10 upgrades). The package is CJS,
+  // so a sync `require()` keeps this function synchronous.
+  const yaml = require('js-yaml') as typeof import('js-yaml')
+
+  const filePath = path.join(cwd, 'pnpm-workspace.yaml')
+
+  let doc: Record<string, any> = {}
+  if (fs.existsSync(filePath)) {
+    const existing = fs.readFileSync(filePath, 'utf8')
+    const parsed = yaml.load(existing)
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      doc = parsed as Record<string, any>
+    }
+  }
+
+  if (!doc.overrides || typeof doc.overrides !== 'object') {
+    doc.overrides = {}
+  }
+  for (const [key, value] of Object.entries(overrides)) {
+    doc.overrides[key] = value
+  }
+
+  fs.writeFileSync(filePath, yaml.dump(doc))
 }
 
 function warnDependenciesOutOfRange(
@@ -733,4 +929,20 @@ function warnDependenciesOutOfRange(
       })
     })
   }
+}
+
+function getNpxCommand(pkgManager: PackageManager) {
+  let command = 'npx --yes'
+  if (pkgManager === 'pnpm') {
+    command = 'pnpm --silent dlx'
+  } else if (pkgManager === 'yarn') {
+    try {
+      execSync('yarn dlx --help', { stdio: 'ignore', cwd })
+      command = 'yarn --quiet dlx'
+    } catch {}
+  } else if (pkgManager === 'bun') {
+    command = 'bunx'
+  }
+
+  return command
 }

@@ -1,25 +1,17 @@
-import { createNext, FileRef } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
-import webdriver from 'next-webdriver'
-import { NextInstance } from 'e2e-utils'
 import { join } from 'path'
 
 describe('nonce head manager', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        pages: new FileRef(join(__dirname, 'app/pages')),
-        public: new FileRef(join(__dirname, 'app/public')),
-      },
-      nextConfig: new FileRef(join(__dirname, 'app/next.config.js')),
-    })
+  const { next } = nextTestSetup({
+    files: {
+      pages: new FileRef(join(__dirname, 'app/pages')),
+      public: new FileRef(join(__dirname, 'app/public')),
+    },
   })
-  afterAll(() => next.destroy())
 
   async function runTests(url) {
-    const browser = await webdriver(next.url, url)
+    const browser = await next.browser(url)
     await check(
       async () =>
         await browser.eval(`JSON.stringify(window.scriptExecutionIds)`),

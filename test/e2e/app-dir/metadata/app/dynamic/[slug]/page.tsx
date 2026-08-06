@@ -1,5 +1,5 @@
 async function format({ params, searchParams }) {
-  const { slug } = params
+  const { slug } = await params
   const { q } = await searchParams
   return `params - ${slug}${q ? ` query - ${q}` : ''}`
 }

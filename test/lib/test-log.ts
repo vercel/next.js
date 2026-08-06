@@ -9,7 +9,7 @@
 //
 // Based on the Scheduler.log pattern used in the React repo.
 export function createTestLog() {
-  let events = []
+  let events: unknown[] = []
 
   // Represents a pending waitFor call.
   let pendingExpectation: null | {
@@ -19,7 +19,7 @@ export function createTestLog() {
     error: Error
   } = null
 
-  function log(value: any) {
+  function log(value: unknown) {
     // Add to the event log.
     events.push(value)
 

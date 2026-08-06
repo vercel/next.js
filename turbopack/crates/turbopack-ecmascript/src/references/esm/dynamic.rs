@@ -1,76 +1,84 @@
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use swc_core::{
-    common::{util::take::Take, DUMMY_SP},
+    common::{DUMMY_SP, util::take::Take},
     ecma::ast::{CallExpr, Callee, Expr, ExprOrSpread, Lit},
     quote_expr,
 };
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{
+    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
+};
 use turbopack_core::{
-    chunk::{ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption},
-    environment::ChunkLoading,
+    chunk::{ChunkingContext, ChunkingType},
     issue::IssueSource,
-    module_graph::ModuleGraph,
+    module::Module,
     reference::ModuleReference,
     reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{
+        BindingUsage, ExportUsage, ModuleResolveResult, ResolveErrorMode,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
-        ModuleResolveResult,
     },
 };
 use turbopack_resolve::ecmascript::esm_resolve;
 
-use super::super::pattern_mapping::{PatternMapping, ResolveType};
 use crate::{
     analyzer::imports::ImportAnnotations,
-    code_gen::{CodeGenerateable, CodeGeneration},
+    code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::AstPath,
+    references::{
+        AstPath,
+        pattern_mapping::{PatternMapping, ResolveType},
+    },
 };
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("dynamic import {request}")]
 pub struct EsmAsyncAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
-    pub path: ResolvedVc<AstPath>,
-    pub annotations: ImportAnnotations,
     pub issue_source: IssueSource,
-    pub in_try: bool,
+    pub error_mode: ResolveErrorMode,
     pub import_externals: bool,
+    /// The export usage extracted from the dynamic import usage pattern.
+    /// Detected from destructured await, member access on await, .then()
+    /// callback destructuring, or webpackExports/turbopackExports comments.
+    pub export_usage: ExportUsage,
+    pub resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
 }
 
 impl EsmAsyncAssetReference {
-    fn get_origin(&self) -> Vc<Box<dyn ResolveOrigin>> {
-        if let Some(transition) = self.annotations.transition() {
-            self.origin.with_transition(transition.into())
-        } else {
-            *self.origin
-        }
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl EsmAsyncAssetReference {
-    #[turbo_tasks::function]
-    pub fn new(
+    #[allow(clippy::too_many_arguments)]
+    pub async fn new(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
-        path: ResolvedVc<AstPath>,
         issue_source: IssueSource,
-        annotations: Value<ImportAnnotations>,
-        in_try: bool,
+        annotations: ImportAnnotations,
+        error_mode: ResolveErrorMode,
         import_externals: bool,
-    ) -> Vc<Self> {
-        Self::cell(EsmAsyncAssetReference {
+        export_usage: ExportUsage,
+        resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+    ) -> Result<Self> {
+        // Apply any annotation-driven transition eagerly so the stored origin is final and the
+        // `annotations` don't need to be retained on the reference.
+        let origin = if let Some(transition) = annotations.transition() {
+            origin
+                .with_transition(transition.into())
+                .await?
+                .to_resolved()
+                .await?
+        } else {
+            origin
+        };
+        Ok(EsmAsyncAssetReference {
             origin,
             request,
-            path,
             issue_source,
-            annotations: annotations.into_value(),
-            in_try,
+            error_mode,
             import_externals,
+            export_usage,
+            resolve_override,
         })
     }
 }
@@ -79,85 +87,100 @@ impl EsmAsyncAssetReference {
 impl ModuleReference for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
+        if let Some(resolved) = &self.resolve_override {
+            return Ok(*ModuleResolveResult::module(*resolved));
+        }
+
         esm_resolve(
-            self.get_origin().resolve().await?,
+            *self.origin,
             *self.request,
-            Value::new(EcmaScriptModulesReferenceSubType::DynamicImport),
-            self.in_try,
-            Some(self.issue_source.clone()),
+            EcmaScriptModulesReferenceSubType::DynamicImport,
+            self.error_mode,
+            Some(self.issue_source),
         )
         .await
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ValueToString for EsmAsyncAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("dynamic import {}", self.request.to_string().await?,).into(),
-        ))
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Async)
+    }
+
+    fn binding_usage(&self) -> BindingUsage {
+        BindingUsage {
+            import: Default::default(),
+            export: self.export_usage.clone(),
+        }
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.issue_source)
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for EsmAsyncAssetReference {
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Async))
+impl IntoCodeGenReference for EsmAsyncAssetReference {
+    fn into_code_gen_reference(
+        self,
+        path: AstPath,
+    ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
+        let reference = self.resolved_cell();
+        (
+            ResolvedVc::upcast(reference),
+            CodeGen::EsmAsyncAssetReferenceCodeGen(EsmAsyncAssetReferenceCodeGen {
+                reference,
+                path,
+            }),
+        )
     }
 }
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for EsmAsyncAssetReference {
-    #[turbo_tasks::function]
-    async fn code_generation(
+#[derive(
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
+)]
+pub struct EsmAsyncAssetReferenceCodeGen {
+    path: AstPath,
+    reference: ResolvedVc<EsmAsyncAssetReference>,
+}
+
+impl EsmAsyncAssetReferenceCodeGen {
+    pub async fn code_generation(
         &self,
-        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
+    ) -> Result<CodeGeneration> {
+        let reference = self.reference.await?;
+
         let pm = PatternMapping::resolve_request(
-            *self.request,
-            *self.origin,
-            module_graph,
-            Vc::upcast(chunking_context),
-            esm_resolve(
-                self.get_origin().resolve().await?,
-                *self.request,
-                Value::new(EcmaScriptModulesReferenceSubType::DynamicImport),
-                self.in_try,
-                Some(self.issue_source.clone()),
-            )
-            .await?,
-            if matches!(
-                *chunking_context.environment().chunk_loading().await?,
-                ChunkLoading::Edge
-            ) {
-                ResolveType::ChunkItem
-            } else {
+            *reference.request,
+            *reference.origin,
+            chunking_context,
+            self.reference.resolve_reference(),
+            if chunking_context.chunk_loading().await?.can_split_async() {
                 ResolveType::AsyncChunkLoader
+            } else {
+                ResolveType::ChunkItem
             },
+            Some(Vc::upcast(*self.reference)),
         )
         .await?;
 
-        let path = &self.path.await?;
-        let import_externals = self.import_externals;
+        let import_externals = reference.import_externals;
 
-        let visitor = create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
+        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
             let old_expr = expr.take();
-            let message = if let Expr::Call(CallExpr { args, ..}) = old_expr {
+            let message = if let Expr::Call(CallExpr { args, .. }) = old_expr {
                 match args.into_iter().next() {
-                    Some(ExprOrSpread { spread: None, expr: key_expr }) => {
+                    Some(ExprOrSpread {
+                        spread: None,
+                        expr: key_expr,
+                    }) => {
                         *expr = pm.create_import(*key_expr, import_externals);
                         return;
                     }
                     // These are SWC bugs: https://github.com/swc-project/swc/issues/5394
-                    Some(ExprOrSpread { spread: Some(_), expr: _ }) => {
-                        "spread operator is illegal in import() expressions."
-                    }
-                    _ => {
-                        "import() expressions require at least 1 argument"
-                    }
+                    Some(ExprOrSpread {
+                        spread: Some(_),
+                        expr: _,
+                    }) => "spread operator is illegal in import() expressions.",
+                    _ => "import() expressions require at least 1 argument",
                 }
             } else {
                 "visitor must be executed on a CallExpr"
@@ -173,10 +196,10 @@ impl CodeGenerateable for EsmAsyncAssetReference {
                     expr: error,
                 }],
                 span: DUMMY_SP,
-               ..Default::default()
+                ..Default::default()
             });
         });
 
-        Ok(CodeGeneration::visitors(vec![visitor]).cell())
+        Ok(CodeGeneration::visitors(vec![visitor]))
     }
 }

@@ -1,10 +1,6 @@
 /**
  * @type {import('next').NextConfig}
  */
-const nextConfig = {
-  experimental: {
-    streamingMetadata: true,
-  },
-}
+const nextConfig = {}
 
 module.exports = nextConfig

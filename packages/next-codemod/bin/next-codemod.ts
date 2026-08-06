@@ -11,6 +11,7 @@
 
 import { Command } from 'commander'
 import { runUpgrade } from './upgrade'
+import { runAgentsMd } from './agents-md'
 import { runTransform } from './transform'
 import { BadInput } from './shared'
 
@@ -60,20 +61,43 @@ program
   )
   .argument(
     '[revision]',
-    'Specify the target Next.js version using an NPM dist tag (e.g. "latest", "canary", "rc") or an exact version number (e.g. "15.0.0").',
-    packageJson.version.includes('-canary.')
-      ? 'canary'
-      : packageJson.version.includes('-rc.')
-        ? 'rc'
-        : 'latest'
+    'Specify the upgrade type ("patch", "minor", "major"), an NPM dist tag (e.g. "latest", "canary", "rc"), or an exact version (e.g. "15.0.0"). Defaults to "minor".'
   )
   .usage('[revision] [options]')
   .option('--verbose', 'Verbose output', false)
+  .option(
+    '-y, --yes',
+    'Skip every interactive prompt and accept its default. Also auto-enabled when stdin is not a TTY (e.g. running under an agent or in CI).',
+    false
+  )
   .action(async (revision, options) => {
     try {
       await runUpgrade(revision, options)
     } catch (error) {
       if (!options.verbose && error instanceof BadInput) {
+        console.error(error.message)
+      } else {
+        console.error(error)
+      }
+      process.exit(1)
+    }
+  })
+
+program
+  .command('agents-md')
+  .description(
+    'Generate Next.js documentation index for AI coding agents (Claude, Cursor, etc.).'
+  )
+  .option(
+    '--version <version>',
+    'Next.js version (auto-detected if not provided)'
+  )
+  .option('--output <file>', 'Target file path (e.g., CLAUDE.md, AGENTS.md)')
+  .action(async (options) => {
+    try {
+      await runAgentsMd(options)
+    } catch (error) {
+      if (error instanceof BadInput) {
         console.error(error.message)
       } else {
         console.error(error)

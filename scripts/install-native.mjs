@@ -3,13 +3,25 @@ import path from 'path'
 import execa from 'execa'
 import fs from 'fs'
 import fsp from 'fs/promises'
+import { outdent } from 'outdent'
 ;(async function () {
-  if (process.env.NEXT_SKIP_NATIVE_POSTINSTALL) {
+  // Automatically installing native bindings is opt-in in CI and opt-out in local development.
+  // Most CI jobs use native bindings built from the commit they run on anyway.
+  const rawSkip = process.env.NEXT_SKIP_NATIVE_POSTINSTALL
+  const skipNativePostinstall =
+    rawSkip == null || rawSkip === ''
+      ? process.env.CI === 'true'
+      : rawSkip !== '0' && rawSkip !== 'false'
+
+  if (skipNativePostinstall) {
     console.log(
-      `Skipping next-swc postinstall due to NEXT_SKIP_NATIVE_POSTINSTALL env`
+      `Skipping next-swc postinstall (NEXT_SKIP_NATIVE_POSTINSTALL=${String(JSON.stringify(rawSkip))}, CI=${String(JSON.stringify(process.env.CI))})`
     )
     return
   }
+
+  const preferOffline = process.env.NEXT_TEST_PREFER_OFFLINE === '1'
+
   let cwd = process.cwd()
   const { version: nextVersion } = JSON.parse(
     fs.readFileSync(path.join(cwd, 'packages', 'next', 'package.json'))
@@ -55,14 +67,51 @@ import fsp from 'fs/promises'
       packageManager,
     }
     fs.writeFileSync(path.join(tmpdir, 'package.json'), JSON.stringify(pkgJson))
-    fs.writeFileSync(path.join(tmpdir, '.npmrc'), 'node-linker=hoisted')
+    fs.writeFileSync(
+      path.join(tmpdir, 'pnpm-workspace.yaml'),
+      '' +
+        outdent`
+          nodeLinker: hoisted
+        ` +
+        '\n' +
+        // Propagate security related settings from file://./../../pnpm-workspace.yaml
+        outdent`
+          blockExoticSubdeps: true
+          minimumReleaseAge: 2880 # 48 hrs
+          minimumReleaseAgeExclude:
+            - '@next/*'
+            - '@turbo/*'
+            - '@vercel/*'
+            - '@workflow/*'
+            - babel-plugin-react-compiler
+            - next
+            - react
+            - react-dom
+            - react-is
+            - react-server-dom-*
+            - scheduler
+            - turbo
+        `
+    )
 
-    let { stdout } = await execa('pnpm', ['add', `next@${nextVersion}`], {
-      cwd: tmpdir,
-    })
-    console.log(stdout)
+    const args = ['install', '--lockfile=false', '--ignore-scripts']
+    if (preferOffline) {
+      args.push('--prefer-offline')
+    }
+    await execa('pnpm', args, { cwd: tmpdir })
 
-    let pkgs = fs.readdirSync(path.join(tmpdir, 'node_modules/@next'))
+    /** @type {string[]} */
+    let pkgs
+    try {
+      pkgs = fs.readdirSync(path.join(tmpdir, 'node_modules/@next'), {})
+    } catch (error) {
+      throw new Error(
+        'No binary candidate found.\n' +
+          `This environment is not supported by Next.js or publish of ${nextVersion} is incomplete.\n` +
+          'If binaries are built from source, set `NEXT_SKIP_NATIVE_POSTINSTALL=1`.',
+        { cause: error }
+      )
+    }
     fs.mkdirSync(path.join(cwd, 'node_modules/@next'), { recursive: true })
 
     await Promise.all(
@@ -80,7 +129,6 @@ import fsp from 'fs/promises'
     fs.rmSync(tmpdir, { recursive: true, force: true })
     console.log('Installed the following binary packages:', pkgs)
   } catch (e) {
-    console.error(e)
-    console.error('Failed to load @next/swc binary packages')
+    throw new Error('Failed to install @next/swc binary packages', { cause: e })
   }
 })()

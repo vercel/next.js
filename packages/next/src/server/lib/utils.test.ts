@@ -3,6 +3,8 @@ import {
   getParsedDebugAddress,
   formatNodeOptions,
   tokenizeArgs,
+  getParsedNodeOptions,
+  getMemoryRestartStats,
 } from './utils'
 
 const originalNodeOptions = process.env.NODE_OPTIONS
@@ -47,22 +49,82 @@ describe('formatNodeOptions', () => {
       normal: '1234',
     })
 
-    expect(result).toBe(
-      '--spaces="thing with spaces" --spacesAndQuotes="thing with \\"spaces\\"" --normal=1234'
+    expect(result).toEqual({
+      execArgv: [],
+      nodeOptions:
+        '--spaces="thing with spaces" --spacesAndQuotes="thing with \\"spaces\\"" --normal=1234',
+    })
+    expect(result.execArgv).toEqual([])
+  })
+
+  it('separates exec-argv-only options from NODE_OPTIONS', () => {
+    const result = formatNodeOptions({
+      'enable-source-maps': true,
+      'experimental-network-inspection': true,
+      'experimental-storage-inspection': true,
+      'experimental-worker-inspection': true,
+      'experimental-inspector-network-resource': true,
+      'max-old-space-size': '4096',
+    })
+
+    expect(result).toEqual({
+      nodeOptions: '--enable-source-maps --max-old-space-size=4096',
+      execArgv: [
+        '--experimental-network-inspection',
+        '--experimental-storage-inspection',
+        '--experimental-worker-inspection',
+        '--experimental-inspector-network-resource',
+      ],
+    })
+  })
+})
+
+describe('getMemoryRestartStats', () => {
+  const aboveThreshold = {
+    used_heap_size: 81,
+    heap_size_limit: 100,
+  }
+
+  it('returns heap statistics above the threshold in development', () => {
+    expect(
+      getMemoryRestartStats(false, true, () => aboveThreshold)
+    ).toBeUndefined()
+    expect(getMemoryRestartStats(true, true, () => aboveThreshold)).toBe(
+      aboveThreshold
     )
+  })
+
+  it('does not return heap statistics at the threshold', () => {
+    expect(
+      getMemoryRestartStats(true, true, () => ({
+        used_heap_size: 80,
+        heap_size_limit: 100,
+      }))
+    ).toBeUndefined()
+  })
+
+  it('does not read heap statistics when the threshold is disabled', () => {
+    const getHeapStatistics = jest.fn(() => aboveThreshold)
+
+    expect(
+      getMemoryRestartStats(true, false, getHeapStatistics)
+    ).toBeUndefined()
+    expect(getHeapStatistics).not.toHaveBeenCalled()
   })
 })
 
 describe('getParsedDebugAddress', () => {
   it('supports the flag with an equal sign', () => {
     process.env.NODE_OPTIONS = '--inspect=1234'
-    const result = getParsedDebugAddress()
+    const nodeOptions = getParsedNodeOptions()
+    const result = getParsedDebugAddress(nodeOptions.inspect)
     expect(result).toEqual({ host: undefined, port: 1234 })
   })
 
   it('supports the flag without an equal sign', () => {
     process.env.NODE_OPTIONS = '--inspect 1234'
-    const result = getParsedDebugAddress()
+    const nodeOptions = getParsedNodeOptions()
+    const result = getParsedDebugAddress(nodeOptions.inspect)
     expect(result).toEqual({ host: undefined, port: 1234 })
   })
 })

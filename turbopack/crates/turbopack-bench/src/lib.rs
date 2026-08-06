@@ -3,28 +3,26 @@ use std::{
     panic::AssertUnwindSafe,
     path::Path,
     sync::{
+        Arc, LazyLock,
         atomic::{AtomicUsize, Ordering},
-        Arc,
     },
     time::Duration,
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use criterion::{
-    measurement::{Measurement, WallTime},
     BenchmarkGroup, BenchmarkId, Criterion,
+    measurement::{Measurement, WallTime},
 };
-use once_cell::sync::Lazy;
 use tokio::{
     runtime::Runtime,
     time::{sleep, timeout},
 };
 use turbo_tasks::util::FormatDuration;
 use util::{
-    build_test, create_browser,
+    AsyncBencherExtension, BINDING_NAME, PreparedApp, build_test, create_browser,
     env::{read_env, read_env_bool, read_env_list},
     module_picker::ModulePicker,
-    AsyncBencherExtension, PreparedApp, BINDING_NAME,
 };
 
 use self::{bundlers::RenderType, util::resume_on_error};
@@ -55,7 +53,7 @@ fn bench_startup_internal(
     bundlers: &[Box<dyn Bundler>],
 ) {
     let runtime = Runtime::new().unwrap();
-    let browser = Lazy::new(|| runtime.block_on(create_browser()));
+    let browser = LazyLock::new(|| runtime.block_on(create_browser()));
 
     for bundler in bundlers {
         let wait_for_hydration = match bundler.render_type() {
@@ -81,11 +79,11 @@ fn bench_startup_internal(
             }
         };
         for module_count in get_module_counts() {
-            let test_app = Lazy::new(|| build_test(module_count, bundler.as_ref()));
+            let test_app = LazyLock::new(|| build_test(module_count, bundler.as_ref()));
             let input = (bundler.as_ref(), &test_app);
             resume_on_error(AssertUnwindSafe(|| {
                 g.bench_with_input(
-                    BenchmarkId::new(bundler.get_name(), format!("{} modules", module_count)),
+                    BenchmarkId::new(bundler.get_name(), format!("{module_count} modules")),
                     &input,
                     |b, &(bundler, test_app)| {
                         let test_app = &**test_app;
@@ -150,7 +148,7 @@ fn bench_hmr_internal(
     g.warm_up_time(Duration::from_millis(1));
 
     let runtime = Runtime::new().unwrap();
-    let browser = Lazy::new(|| runtime.block_on(create_browser()));
+    let browser = LazyLock::new(|| runtime.block_on(create_browser()));
     let hmr_warmup = read_env("TURBOPACK_BENCH_HMR_WARMUP", 10).unwrap();
 
     for bundler in bundlers {
@@ -165,14 +163,14 @@ fn bench_hmr_internal(
             continue;
         }
         for module_count in get_module_counts() {
-            let test_app = Lazy::new(|| build_test(module_count, bundler.as_ref()));
+            let test_app = LazyLock::new(|| build_test(module_count, bundler.as_ref()));
             let input = (bundler.as_ref(), &test_app);
             let module_picker =
-                Lazy::new(|| Arc::new(ModulePicker::new(test_app.modules().to_vec())));
+                LazyLock::new(|| Arc::new(ModulePicker::new(test_app.modules().to_vec())));
 
             resume_on_error(AssertUnwindSafe(|| {
                 g.bench_with_input(
-                    BenchmarkId::new(bundler.get_name(), format!("{} modules", module_count)),
+                    BenchmarkId::new(bundler.get_name(), format!("{module_count} modules")),
                     &input,
                     |b, &(bundler, test_app)| {
                         let test_app = &**test_app;
@@ -309,7 +307,7 @@ fn bench_hmr_internal(
                                                 FormatDuration(value / (iter as u32)),
                                                 iter,
                                                 if dropped > 0 {
-                                                    format!(" ({} dropped)", dropped)
+                                                    format!(" ({dropped} dropped)")
                                                 } else {
                                                     "".to_string()
                                                 }
@@ -326,7 +324,7 @@ fn bench_hmr_internal(
                                     .evaluate_expression("globalThis.HMR_IS_HAPPENING")
                                     .await
                                     .unwrap();
-                                // Make sure that we are really measuring HMR and not accidentically
+                                // Make sure that we are really measuring HMR and not accidentally
                                 // full refreshing the page
                                 assert!(hmr_is_happening.value().unwrap().as_bool().unwrap());
                             },
@@ -450,7 +448,7 @@ fn bench_startup_cached_internal(
     }
 
     let runtime = Runtime::new().unwrap();
-    let browser = Lazy::new(|| runtime.block_on(create_browser()));
+    let browser = LazyLock::new(|| runtime.block_on(create_browser()));
 
     for bundler in bundlers {
         let wait_for_hydration = match bundler.render_type() {
@@ -476,12 +474,12 @@ fn bench_startup_cached_internal(
             }
         };
         for module_count in get_module_counts() {
-            let test_app = Lazy::new(|| build_test(module_count, bundler.as_ref()));
+            let test_app = LazyLock::new(|| build_test(module_count, bundler.as_ref()));
             let input = (bundler.as_ref(), &test_app);
 
             resume_on_error(AssertUnwindSafe(|| {
                 g.bench_with_input(
-                    BenchmarkId::new(bundler.get_name(), format!("{} modules", module_count)),
+                    BenchmarkId::new(bundler.get_name(), format!("{module_count} modules")),
                     &input,
                     |b, &(bundler, test_app)| {
                         let test_app = &**test_app;

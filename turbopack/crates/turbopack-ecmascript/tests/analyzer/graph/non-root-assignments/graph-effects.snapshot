@@ -1,0 +1,216 @@
+[
+    FreeVar {
+        var: "d1",
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    3,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Left,
+            ),
+            AssignTarget(
+                Simple,
+            ),
+            SimpleAssignTarget(
+                Ident,
+            ),
+            BindingIdent(
+                Id,
+            ),
+        ],
+        span: 342..344,
+    },
+    FreeVar {
+        var: "e4",
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    9,
+                ),
+            ),
+            ModuleItem(
+                ModuleDecl,
+            ),
+            ModuleDecl(
+                ExportNamed,
+            ),
+            NamedExport(
+                Specifiers(
+                    0,
+                ),
+            ),
+            ExportSpecifier(
+                Named,
+            ),
+            ExportNamedSpecifier(
+                Exported,
+            ),
+            ModuleExportName(
+                Ident,
+            ),
+        ],
+        span: 814..816,
+    },
+    FreeVar {
+        var: "setTimeout",
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    11,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 896..906,
+    },
+    Call {
+        func: FreeVar(
+            "setTimeout",
+        ),
+        args: [
+            Closure(
+                Variable(
+                    (
+                        "*arrow function 907*",
+                        #0,
+                    ),
+                ),
+                EffectsBlock {
+                    effects: [],
+                    range: Exact(
+                        [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    11,
+                                ),
+                            ),
+                            ModuleItem(
+                                Stmt,
+                            ),
+                            Stmt(
+                                Expr,
+                            ),
+                            ExprStmt(
+                                Expr,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    0,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Arrow,
+                            ),
+                            ArrowExpr(
+                                Body,
+                            ),
+                            BlockStmtOrExpr(
+                                BlockStmt,
+                            ),
+                        ],
+                    ),
+                },
+            ),
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            1.0,
+                        ),
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    11,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 896..964,
+        in_try: false,
+        new: false,
+    },
+]

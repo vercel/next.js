@@ -4,6 +4,7 @@ import { preload } from 'react-dom'
 
 import { workAsyncStorage } from '../../../server/app-render/work-async-storage.external'
 import { encodeURIPath } from '../encode-uri-path'
+import { getAssetTokenQuery } from '../deployment-id'
 
 export function PreloadChunks({
   moduleIds,
@@ -37,10 +38,12 @@ export function PreloadChunks({
     return null
   }
 
+  const query = getAssetTokenQuery()
+
   return (
     <>
       {allFiles.map((chunk) => {
-        const href = `${workStore.assetPrefix}/_next/${encodeURIPath(chunk)}`
+        const href = `${workStore.assetPrefix}/_next/${encodeURIPath(chunk)}${query}`
         const isCss = chunk.endsWith('.css')
         // If it's stylesheet we use `precedence` o help hoist with React Float.
         // For stylesheets we actually need to render the CSS because nothing else is going to do it so it needs to be part of the component tree.
@@ -54,6 +57,7 @@ export function PreloadChunks({
               href={href}
               rel="stylesheet"
               as="style"
+              nonce={workStore.nonce}
             />
           )
         } else {
@@ -61,6 +65,7 @@ export function PreloadChunks({
           preload(href, {
             as: 'script',
             fetchPriority: 'low',
+            nonce: workStore.nonce,
           })
           return null
         }

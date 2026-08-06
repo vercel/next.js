@@ -1,4 +1,3 @@
-// eslint-disable-next-line import/no-extraneous-dependencies
 // @ts-expect-error File exists
 import asyncRetry from 'next/dist/compiled/async-retry'
 

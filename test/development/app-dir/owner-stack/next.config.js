@@ -3,7 +3,9 @@
  */
 const nextConfig = {
   experimental: {
-    reactOwnerStack: true,
+    instantInsights: {
+      validationLevel: 'manual-warning',
+    },
   },
 }
 

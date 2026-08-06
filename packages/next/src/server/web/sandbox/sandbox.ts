@@ -1,4 +1,4 @@
-import type { NodejsRequestData, FetchEventResult, RequestData } from '../types'
+import type { NodejsRequestData, FetchEventResult } from '../types'
 import type { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
 import type { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
 import {
@@ -7,12 +7,16 @@ import {
   edgeSandboxNextRequestContext,
 } from './context'
 import { requestToBodyStream } from '../../body-streams'
-import { NEXT_RSC_UNION_QUERY } from '../../../client/components/app-router-headers'
 import type { ServerComponentsHmrCache } from '../../response-cache'
 import {
   getBuiltinRequestContext,
   type BuiltinRequestContextValue,
 } from '../../after/builtin-request-context'
+import {
+  RouterServerContextSymbol,
+  routerServerGlobal,
+} from '../../lib/router-utils/router-server-context'
+import type { EdgeHandler } from '../adapter'
 
 export const ErrorSource = Symbol('SandboxError')
 
@@ -33,6 +37,7 @@ interface RunnerFnParams {
   distDir: string
   incrementalCache?: any
   serverComponentsHmrCache?: ServerComponentsHmrCache
+  clientAssetToken: string
 }
 
 type RunnerFn = (params: RunnerFnParams) => Promise<FetchEventResult>
@@ -44,7 +49,7 @@ type RunnerFn = (params: RunnerFnParams) => Promise<FetchEventResult>
 function withTaggedErrors(fn: RunnerFn): RunnerFn {
   if (process.env.NODE_ENV === 'development') {
     const { getServerError } =
-      require('../../../client/components/react-dev-overlay/server/middleware-webpack') as typeof import('../../../client/components/react-dev-overlay/server/middleware-webpack')
+      require('../../dev/node-stack-frames') as typeof import('../../dev/node-stack-frames')
 
     return (params) =>
       fn(params)
@@ -77,12 +82,24 @@ export async function getRuntimeContext(
   })
 
   if (params.incrementalCache) {
+    runtime.context.globalThis.__incrementalCacheShared = true
     runtime.context.globalThis.__incrementalCache = params.incrementalCache
   }
+
+  // expose router server context for access to dev handlers like
+  // logErrorWithOriginalStack
+  ;(runtime.context.globalThis as any as typeof routerServerGlobal)[
+    RouterServerContextSymbol
+  ] = routerServerGlobal[RouterServerContextSymbol]
 
   if (params.serverComponentsHmrCache) {
     runtime.context.globalThis.__serverComponentsHmrCache =
       params.serverComponentsHmrCache
+  }
+
+  if (params.clientAssetToken) {
+    runtime.context.globalThis.NEXT_CLIENT_ASSET_SUFFIX =
+      params.clientAssetToken ? `?dpl=${params.clientAssetToken}` : ''
   }
 
   for (const paramPath of params.paths) {
@@ -93,29 +110,8 @@ export async function getRuntimeContext(
 
 export const run = withTaggedErrors(async function runWithTaggedErrors(params) {
   const runtime = await getRuntimeContext(params)
-  const subreq = params.request.headers[`x-middleware-subrequest`]
-  const subrequests = typeof subreq === 'string' ? subreq.split(':') : []
 
-  const MAX_RECURSION_DEPTH = 5
-  const depth = subrequests.reduce(
-    (acc, curr) => (curr === params.name ? acc + 1 : acc),
-    0
-  )
-
-  if (depth >= MAX_RECURSION_DEPTH) {
-    return {
-      waitUntil: Promise.resolve(),
-      response: new runtime.context.Response(null, {
-        headers: {
-          'x-middleware-next': '1',
-        },
-      }),
-    }
-  }
-
-  const edgeFunction: (args: {
-    request: RequestData
-  }) => Promise<FetchEventResult> = (
+  const edgeFunction: EdgeHandler = (
     await runtime.context._ENTRIES[`middleware_${params.name}`]
   ).default
 
@@ -125,7 +121,6 @@ export const run = withTaggedErrors(async function runWithTaggedErrors(params) {
 
   const KUint8Array = runtime.evaluate('Uint8Array')
   const urlInstance = new URL(params.request.url)
-  urlInstance.searchParams.delete(NEXT_RSC_UNION_QUERY)
 
   params.request.url = urlInstance.toString()
 

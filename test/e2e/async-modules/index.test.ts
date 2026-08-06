@@ -1,6 +1,5 @@
 /* eslint-env jest */
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
 
 describe('Async modules', () => {
   const { next, isNextDev: dev } = nextTestSetup({
@@ -41,18 +40,9 @@ describe('Async modules', () => {
     const browser = await next.browser('/dhiuhefoiahjeoij')
     expect(await browser.elementByCss('#content-404').text()).toBe("hi y'all")
   })
-
-  // TODO: investigate this test flaking
-  it.skip('can render async AMP pages', async () => {
-    const browser = await next.browser('/config')
-    await check(
-      () => browser.elementByCss('#amp-timeago').text(),
-      'just now',
-      true
-    )
-  })
   ;(dev ? it.skip : it)('can render async error page', async () => {
     const browser = await next.browser('/make-error')
+    // eslint-disable-next-line jest/no-standalone-expect
     expect(await browser.elementByCss('#content-error').text()).toBe(
       'hello error'
     )

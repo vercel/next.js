@@ -3,11 +3,8 @@ use std::{cmp::max, num::NonZeroU32};
 use rustc_hash::FxHashSet;
 use turbo_tasks::TaskId;
 
-use crate::backend::{
-    get,
-    operation::{
-        is_aggregating_node, is_root_node, AggregationUpdateJob, AggregationUpdateQueue, TaskGuard,
-    },
+use crate::backend::operation::{
+    AggregationUpdateJob, AggregationUpdateQueue, TaskGuard, is_aggregating_node, is_root_node,
 };
 
 const AGGREGATION_NUMBER_BUFFER_SPACE: u32 = 3;
@@ -17,14 +14,13 @@ pub fn prepare_new_children(
     parent_task: &mut impl TaskGuard,
     new_children: &FxHashSet<TaskId>,
     queue: &mut AggregationUpdateQueue,
-) {
-    if new_children.is_empty() {
-        return;
-    }
+) -> u32 {
+    debug_assert!(!new_children.is_empty());
     let children_count = new_children.len();
 
     // Compute future parent aggregation number based on the number of children
-    let current_parent_aggregation = get!(parent_task, AggregationNumber)
+    let current_parent_aggregation = parent_task
+        .get_aggregation_number()
         .copied()
         .unwrap_or_default();
     let future_parent_aggregation = if is_root_node(current_parent_aggregation.base) {
@@ -56,4 +52,6 @@ pub fn prepare_new_children(
             });
         }
     };
+
+    future_parent_aggregation
 }

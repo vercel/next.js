@@ -1,7 +1,6 @@
-use anyhow::{bail, Result};
-use turbo_rcstr::RcStr;
-use turbo_tasks::Vc;
-use turbopack::{transition::Transition, ModuleAssetContext};
+use anyhow::{Result, bail};
+use turbo_tasks::{ResolvedVc, Vc};
+use turbopack::{ModuleAssetContext, transition::Transition};
 use turbopack_core::module::Module;
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 
@@ -28,22 +27,17 @@ impl NextServerUtilityTransition {
 #[turbo_tasks::value_impl]
 impl Transition for NextServerUtilityTransition {
     #[turbo_tasks::function]
-    fn process_layer(self: Vc<Self>, layer: Vc<RcStr>) -> Vc<RcStr> {
-        layer
-    }
-
-    #[turbo_tasks::function]
     async fn process_module(
         self: Vc<Self>,
         module: Vc<Box<dyn Module>>,
         _context: Vc<ModuleAssetContext>,
     ) -> Result<Vc<Box<dyn Module>>> {
-        let Some(module) =
-            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module).await?
-        else {
+        let Some(module) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(
+            module.to_resolved().await?,
+        ) else {
             bail!("not an ecmascript module");
         };
 
-        Ok(Vc::upcast(NextServerUtilityModule::new(module)))
+        Ok(Vc::upcast(NextServerUtilityModule::new(*module)))
     }
 }

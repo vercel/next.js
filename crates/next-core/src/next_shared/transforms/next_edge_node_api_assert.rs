@@ -5,29 +5,37 @@ use swc_core::{
     common::SyntaxContext,
     ecma::{ast::*, utils::ExprCtx, visit::VisitWith},
 };
-use turbo_tasks::ResolvedVc;
-use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
-use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
+use turbo_tasks::Vc;
+use turbopack::module_options::ModuleRule;
+use turbopack_ecmascript::{CustomTransformer, TransformContext, TransformPlugin};
 
-use super::module_rule_match_js_no_url;
+use super::{EcmascriptTransformStage, get_ecma_transform_rule};
 
-pub fn next_edge_node_api_assert(
+pub async fn next_edge_node_api_assert(
     enable_mdx_rs: bool,
     should_error_for_node_apis: bool,
     is_production: bool,
-) -> ModuleRule {
+) -> Result<ModuleRule> {
     let transformer =
-        EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextEdgeNodeApiAssert {
-            should_error_for_node_apis,
-            is_production,
-        }) as _));
-    ModuleRule::new(
-        module_rule_match_js_no_url(enable_mdx_rs),
-        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            prepend: ResolvedVc::cell(vec![]),
-            append: ResolvedVc::cell(vec![transformer]),
-        }],
-    )
+        next_edge_node_api_assert_transform_plugin(should_error_for_node_apis, is_production)
+            .to_resolved()
+            .await?;
+    Ok(get_ecma_transform_rule(
+        transformer,
+        enable_mdx_rs,
+        EcmascriptTransformStage::Postprocess,
+    ))
+}
+
+#[turbo_tasks::function]
+fn next_edge_node_api_assert_transform_plugin(
+    should_error_for_node_apis: bool,
+    is_production: bool,
+) -> Vc<TransformPlugin> {
+    Vc::cell(Box::new(NextEdgeNodeApiAssert {
+        should_error_for_node_apis,
+        is_production,
+    }) as Box<dyn CustomTransformer + Send + Sync>)
 }
 
 #[derive(Debug)]

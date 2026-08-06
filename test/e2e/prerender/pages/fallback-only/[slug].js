@@ -1,6 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
+import fs from 'node:fs/promises'
 
 export async function getStaticPaths() {
   return {
@@ -10,7 +11,13 @@ export async function getStaticPaths() {
 }
 
 export async function getStaticProps({ params }) {
-  await new Promise((resolve) => setTimeout(resolve, 1000))
+  while (true) {
+    try {
+      await fs.stat('resolve-static-props')
+      break
+    } catch (e) {}
+    await new Promise((resolve) => setTimeout(resolve, 100))
+  }
 
   return {
     props: {

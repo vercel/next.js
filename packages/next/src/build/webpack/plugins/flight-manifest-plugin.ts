@@ -19,7 +19,7 @@ import { getProxiedPluginState } from '../../build-context'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 import { CLIENT_STATIC_FILES_RUNTIME_MAIN_APP } from '../../../shared/lib/constants'
-import { getDeploymentIdQueryOrEmptyString } from '../../deployment-id'
+import { getAssetTokenQuery } from '../../../shared/lib/deployment-id'
 import {
   formatBarrelOptimizedResource,
   getModuleReferencesInOrder,
@@ -41,7 +41,7 @@ interface Options {
 type ModuleId = string | number /*| null*/
 
 // double indexed chunkId, filename
-export type ManifestChunks = Array<string>
+export type ManifestChunks = ReadonlyArray<string>
 
 const pluginState = getProxiedPluginState({
   ssrModules: {} as { [ssrModuleId: string]: ModuleInfo },
@@ -99,7 +99,7 @@ interface UninlinedCssFile {
 export interface ClientReferenceManifest extends ClientReferenceManifestForRsc {
   readonly moduleLoading: {
     prefix: string
-    crossOrigin: string | null
+    crossOrigin?: 'use-credentials' | ''
   }
   ssrModuleMapping: {
     [moduleId: string]: ManifestNode
@@ -119,7 +119,7 @@ function getAppPathRequiredChunks(
   chunkGroup: webpack.ChunkGroup,
   excludedFiles: Set<string>
 ) {
-  const deploymentIdChunkQuery = getDeploymentIdQueryOrEmptyString()
+  const assetTokenQuery = getAssetTokenQuery()
 
   const chunks: Array<string> = []
   chunkGroup.chunks.forEach((chunk) => {
@@ -128,9 +128,6 @@ function getAppPathRequiredChunks(
     }
 
     // Get the actual chunk file names from the chunk file list.
-    // It's possible that the chunk is generated via `import()`, in
-    // that case the chunk file name will be '[name].[contenthash]'
-    // instead of '[name]-[chunkhash]'.
     if (chunk.id != null) {
       const chunkId = '' + chunk.id
       chunk.files.forEach((file) => {
@@ -145,10 +142,7 @@ function getAppPathRequiredChunks(
         // previously done for dynamic chunks by patching the webpack runtime but we want
         // these filenames to be managed by React's Flight runtime instead and so we need
         // to implement any special handling of the file name here.
-        return chunks.push(
-          chunkId,
-          encodeURIPath(file) + deploymentIdChunkQuery
-        )
+        return chunks.push(chunkId, encodeURIPath(file) + assetTokenQuery)
       })
     }
   })
@@ -229,18 +223,14 @@ export class ClientReferenceManifestPlugin {
           name: PLUGIN_NAME,
           // Have to be in the optimize stage to run after updating the CSS
           // asset hash via extract mini css plugin.
-          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
+          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ANALYSE,
         },
-        (assets) => this.createAsset(assets, compilation, compiler.context)
+        () => this.createAsset(compilation, compiler.context)
       )
     })
   }
 
-  createAsset(
-    assets: webpack.Compilation['assets'],
-    compilation: webpack.Compilation,
-    context: string
-  ) {
+  createAsset(compilation: webpack.Compilation, context: string) {
     const manifestsPerGroup = new Map<string, ClientReferenceManifest[]>()
     const manifestEntryFiles: string[] = []
 
@@ -250,8 +240,8 @@ export class ClientReferenceManifestPlugin {
       typeof configuredCrossOriginLoading === 'string'
         ? configuredCrossOriginLoading === 'use-credentials'
           ? configuredCrossOriginLoading
-          : 'anonymous'
-        : null
+          : '' // === 'anonymous'
+        : undefined
 
     if (typeof compilation.outputOptions.publicPath !== 'string') {
       throw new Error(
@@ -305,7 +295,7 @@ export class ClientReferenceManifestPlugin {
         .getFiles()
         .filter((f) => !f.startsWith('static/css/pages/') && f.endsWith('.css'))
         .map((file) => {
-          const source = compilation.assets[file].source()
+          const source = compilation.getAsset(file)!.source.source()
           if (
             this.experimentalInlineCss &&
             // Inline CSS currently does not work properly with HMR, so we only
@@ -328,8 +318,7 @@ export class ClientReferenceManifestPlugin {
       const recordModule = (modId: ModuleId, mod: webpack.NormalModule) => {
         let resource =
           mod.type === 'css/mini-extract'
-            ? // @ts-expect-error TODO: use `identifier()` instead.
-              mod._identifier.slice(mod._identifier.lastIndexOf('!') + 1)
+            ? mod.identifier().slice(mod.identifier().lastIndexOf('!') + 1)
             : mod.resource
 
         if (!resource) {
@@ -586,26 +575,41 @@ export class ClientReferenceManifestPlugin {
         edgeRscModuleMapping: {},
       }
 
-      const segments = [...entryNameToGroupName(pageName).split('/'), 'page']
-      let group = ''
-      for (const segment of segments) {
-        for (const manifest of manifestsPerGroup.get(group) || []) {
+      // Route handlers don't render React components and don't need
+      // client component references from parent layouts/pages.
+      // They only need their own entry's manifest (for 'use cache' support).
+      const isRouteHandler = /\/route$/.test(pageName)
+
+      if (isRouteHandler) {
+        // Route handlers only get their own manifest, not parent manifests
+        const groupName = entryNameToGroupName(pageName)
+        for (const manifest of manifestsPerGroup.get(groupName) || []) {
           mergeManifest(mergedManifest, manifest)
         }
-        group += (group ? '/' : '') + segment
+      } else {
+        // Pages need manifests merged from parent layouts
+        const segments = [...entryNameToGroupName(pageName).split('/'), 'page']
+        let group = ''
+        for (const segment of segments) {
+          for (const manifest of manifestsPerGroup.get(group) || []) {
+            mergeManifest(mergedManifest, manifest)
+          }
+          group += (group ? '/' : '') + segment
+        }
       }
 
       const json = JSON.stringify(mergedManifest)
 
       const pagePath = pageName.replace(/%5F/g, '_')
       const pageBundlePath = normalizePagePath(pagePath.slice('app'.length))
-      assets[
-        'server/app' + pageBundlePath + '_' + CLIENT_REFERENCE_MANIFEST + '.js'
-      ] = new sources.RawSource(
-        `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
-          pagePath.slice('app'.length)
-        )}]=${json}`
-      ) as unknown as webpack.sources.RawSource
+      compilation.emitAsset(
+        'server/app' + pageBundlePath + '_' + CLIENT_REFERENCE_MANIFEST + '.js',
+        new sources.RawSource(
+          `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
+            pagePath.slice('app'.length)
+          )}]=${json};`
+        ) as unknown as webpack.sources.RawSource
+      )
     }
   }
 }

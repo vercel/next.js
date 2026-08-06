@@ -1,0 +1,21 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/snapshot/imports/optional-comments/input/index.js:16:0  Module not found: Can't resolve './missing-should-error-webpack.mjs'
+  
+      12 |   console.log('missing.cjs not found')
+      13 | }
+      14 | 
+      15 | // webpackOptional is NOT supported, so this should NOT suppress the error
+         + v----------------------------------------------------------------------v
+      16 + import(/* webpackOptional: true */ './missing-should-error-webpack.mjs')
+         + ^----------------------------------------------------------------------^
+      17 | 
+      18 | // turbopackOptional: false should still produce errors
+      19 | import(
+      20 |   /* turbopackOptional: false */ './missing-should-error-optional-false.mjs'
+  
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: relative './missing-should-error-webpack.mjs'
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/optional-comments/input/index.js
+  | Type of request: EcmaScript Modules request
+  |

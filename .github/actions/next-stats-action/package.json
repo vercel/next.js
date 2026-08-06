@@ -1,7 +1,9 @@
 {
+  "name": "next-stats-action",
   "private": true,
   "main": "src/index.js",
   "dependencies": {
+    "@vercel/kv": "^1.0.1",
     "async-sema": "^3.1.0",
     "execa": "2.0.3",
     "get-port": "^5.0.0",
@@ -18,7 +20,7 @@
     "typescript": "5.1.6"
   },
   "engines": {
-    "node": ">=18.18.0"
+    "node": ">=20.9.0"
   },
-  "packageManager": "pnpm@9.6.0"
+  "packageManager": "pnpm@10.33.0"
 }

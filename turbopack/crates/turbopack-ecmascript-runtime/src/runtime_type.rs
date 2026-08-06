@@ -1,9 +1,7 @@
-use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue};
+use serde::Deserialize;
 
-#[derive(
-    Serialize, Deserialize, Debug, Clone, Copy, Hash, PartialEq, Eq, TraceRawVcs, NonLocalValue,
-)]
+#[turbo_tasks::value(shared, task_input)]
+#[derive(Debug, Clone, Copy, Hash, Deserialize)]
 pub enum RuntimeType {
     Development,
     Production,

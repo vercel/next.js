@@ -1,0 +1,2 @@
+# include node_modules to test the symlinks
+!node_modules 

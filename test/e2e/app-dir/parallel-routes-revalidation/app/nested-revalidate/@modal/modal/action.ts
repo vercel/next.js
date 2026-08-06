@@ -1,10 +1,10 @@
 'use server'
 
-import { unstable_expirePath } from 'next/cache'
+import { revalidatePath } from 'next/cache'
 
 export async function revalidateAction() {
   console.log('revalidate action')
-  unstable_expirePath('/')
+  revalidatePath('/')
   return {
     success: true,
   }

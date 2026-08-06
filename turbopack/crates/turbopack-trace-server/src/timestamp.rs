@@ -4,11 +4,11 @@ use std::{
     ops::{Add, AddAssign, Deref, Div, DivAssign, Mul, MulAssign, Sub, SubAssign},
 };
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 const DUR_VALUE_MICROSECOND: u64 = 100;
 
-#[derive(Clone, Copy, Default, Serialize, Deserialize)]
+#[derive(Clone, Copy, Default, Serialize)]
 pub struct Timestamp(u64);
 
 impl Timestamp {

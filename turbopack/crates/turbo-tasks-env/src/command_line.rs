@@ -1,7 +1,7 @@
 use turbo_rcstr::RcStr;
-use turbo_tasks::{mark_session_dependent, FxIndexMap, Vc};
+use turbo_tasks::{FxIndexMap, Vc};
 
-use crate::{sorted_env_vars, EnvMap, ProcessEnv, GLOBAL_ENV_LOCK};
+use crate::{GLOBAL_ENV_LOCK, ProcessEnv, TransientEnvMap, sorted_env_vars};
 
 /// Load the environment variables defined via command line.
 #[turbo_tasks::value]
@@ -23,9 +23,8 @@ fn env_snapshot() -> FxIndexMap<RcStr, RcStr> {
 
 #[turbo_tasks::value_impl]
 impl ProcessEnv for CommandLineProcessEnv {
-    #[turbo_tasks::function]
-    fn read_all(&self) -> Vc<EnvMap> {
-        mark_session_dependent();
+    #[turbo_tasks::function(session_dependent)]
+    fn read_all(&self) -> Vc<TransientEnvMap> {
         Vc::cell(env_snapshot())
     }
 }

@@ -7,13 +7,13 @@ Use [MDX](https://github.com/mdx-js/mdx) with [Next.js](https://github.com/verce
 For usage with the `app` directory see the section below.
 
 ```
-npm install @next/mdx @mdx-js/loader @mdx-js/react
+npm install @next/mdx @mdx-js/loader
 ```
 
 or
 
 ```
-yarn add @next/mdx @mdx-js/loader @mdx-js/react
+yarn add @next/mdx @mdx-js/loader
 ```
 
 ## Usage
@@ -105,14 +105,13 @@ yarn add @next/mdx
 Create an `mdx-components.js` file at the root of your project with the following contents:
 
 ```js
-// This file is required to use @next/mdx in the `app` directory.
-export function useMDXComponents(components) {
+// Allows customizing built-in components, e.g. to add styling.
+const components = {
+  // h1: ({ children }) => <h1 style={{ fontSize: "100px" }}>{children}</h1>,
+}
+
+export function useMDXComponents() {
   return components
-  // Allows customizing built-in components, e.g. to add styling.
-  // return {
-  //   h1: ({ children }) => <h1 style={{ fontSize: "100px" }}>{children}</h1>,
-  //   ...components,
-  // }
 }
 ```
 

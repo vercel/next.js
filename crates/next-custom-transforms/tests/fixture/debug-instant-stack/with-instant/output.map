@@ -1,0 +1,1 @@
+{"version":3,"sources":["input.js"],"sourcesContent":["export const instant = { prefetch: 'static' }\n\nexport default function Page() {\n  return <div>Hello</div>\n}\n"],"names":[],"mappings":"AAAA,OAAO,MAAM,UAAU;IAAE,UAAU;AAAS,EAAC;AAE7C,eAAe,SAAS;IACtB,QAAQ,IAAI,KAAK,EAAE;AACrB;uFAJuB;kBAAA"}

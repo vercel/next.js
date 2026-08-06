@@ -186,7 +186,7 @@ export class ReactLoadablePlugin {
     this.dev = opts.dev
   }
 
-  createAssets(compiler: any, compilation: any, assets: any) {
+  createAssets(compiler: any, compilation: any) {
     const projectSrcDir = this.pagesOrAppDir
       ? path.dirname(this.pagesOrAppDir)
       : undefined
@@ -199,14 +199,19 @@ export class ReactLoadablePlugin {
       shouldCreateDynamicCssManifest
     )
 
-    assets[this.filename] = new sources.RawSource(
-      JSON.stringify(reactLoadableManifest, null, 2)
+    compilation.emitAsset(
+      this.filename,
+      new sources.RawSource(JSON.stringify(reactLoadableManifest, null, 2))
     )
+
     if (this.runtimeAsset) {
-      assets[this.runtimeAsset] = new sources.RawSource(
-        `self.__REACT_LOADABLE_MANIFEST=${JSON.stringify(
-          JSON.stringify(reactLoadableManifest)
-        )}`
+      compilation.emitAsset(
+        this.runtimeAsset,
+        new sources.RawSource(
+          `self.__REACT_LOADABLE_MANIFEST=${JSON.stringify(
+            JSON.stringify(reactLoadableManifest)
+          )}`
+        )
       )
     }
 
@@ -214,18 +219,21 @@ export class ReactLoadablePlugin {
     // navigation. This is only needed under Pages dir && Production && Webpack.
     // x-ref: https://github.com/vercel/next.js/pull/72959
     if (shouldCreateDynamicCssManifest) {
-      assets[`${DYNAMIC_CSS_MANIFEST}.json`] = new sources.RawSource(
-        JSON.stringify(dynamicCssManifest, null, 2)
+      compilation.emitAsset(
+        `${DYNAMIC_CSS_MANIFEST}.json`,
+        new sources.RawSource(JSON.stringify(dynamicCssManifest, null, 2))
       )
+
       // This is for edge runtime.
-      assets[`server/${DYNAMIC_CSS_MANIFEST}.js`] = new sources.RawSource(
-        `self.__DYNAMIC_CSS_MANIFEST=${JSON.stringify(
-          JSON.stringify(dynamicCssManifest)
-        )}`
+      compilation.emitAsset(
+        `server/${DYNAMIC_CSS_MANIFEST}.js`,
+        new sources.RawSource(
+          `self.__DYNAMIC_CSS_MANIFEST=${JSON.stringify(
+            JSON.stringify(dynamicCssManifest)
+          )}`
+        )
       )
     }
-
-    return assets
   }
 
   apply(compiler: webpack.Compiler) {
@@ -235,8 +243,8 @@ export class ReactLoadablePlugin {
           name: 'ReactLoadableManifest',
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
-        (assets: any) => {
-          this.createAssets(compiler, compilation, assets)
+        () => {
+          this.createAssets(compiler, compilation)
         }
       )
     })

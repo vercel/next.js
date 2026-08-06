@@ -1,21 +1,24 @@
-import { FileRef, createNext, NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { findPort, renderViaHTTP, fetchViaHTTP } from 'next-test-utils'
 import { join } from 'path'
 import spawn from 'cross-spawn'
 
 describe('next/font/google with proxy', () => {
-  let next: NextInstance
-  let proxy: any
-  let PROXY_PORT: number
-  let SERVER_PORT: number
-
   if ((global as any).isNextDeploy) {
     it('should skip next deploy', () => {})
     return
   }
 
+  const { next } = nextTestSetup({
+    files: new FileRef(join(__dirname, 'with-proxy')),
+    skipStart: true,
+  })
+
+  let proxy: any
+  let SERVER_PORT: number
+
   beforeAll(async () => {
-    PROXY_PORT = await findPort()
+    const PROXY_PORT = await findPort()
     SERVER_PORT = await findPort()
 
     proxy = spawn('node', [require.resolve('./with-proxy/server.js')], {
@@ -27,20 +30,16 @@ describe('next/font/google with proxy', () => {
       },
     })
 
-    next = await createNext({
-      files: new FileRef(join(__dirname, 'with-proxy')),
-      env: {
-        http_proxy: 'http://localhost:' + PROXY_PORT,
-      },
+    await next.start({
+      env: { http_proxy: 'http://localhost:' + PROXY_PORT },
     })
   })
-  afterAll(async () => {
-    await next.destroy()
-    proxy.kill('SIGKILL')
+  afterAll(() => {
+    proxy?.kill('SIGKILL')
   })
 
   // Reqwest doesn't seem to fully work with https proxy
-  ;(process.env.TURBOPACK ? it.skip : it)(
+  ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
     'should use a proxy agent when proxy environment variable is set',
     async () => {
       await renderViaHTTP(next.url, '/')

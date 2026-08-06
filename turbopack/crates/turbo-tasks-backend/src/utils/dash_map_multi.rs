@@ -1,5 +1,6 @@
 use std::{
     hash::{BuildHasher, Hash},
+    marker::PhantomData,
     ops::{Deref, DerefMut},
     sync::Arc,
 };
@@ -18,13 +19,36 @@ pub enum RefMut<'a, K, V> {
     Shared {
         _guard: Arc<RwLockWriteTableGuard<'a, K, V>>,
         bucket: Bucket<(K, SharedValue<V>)>,
+        // Ensures that RefMut is !Send, preventing holding RefMut across .await points in async
+        // code, which can cause deadlocks. See safety comment on `unsafe impl Sync for RefMut`
+        // below.
+        phantom: std::marker::PhantomData<*const ()>,
     },
 }
 
-unsafe impl<K: Eq + Hash + Sync, V: Sync> Send for RefMut<'_, K, V> {}
+// `RefMut` is intentionally **not** `Send`. While sending the guard across threads would be sound
+// under the same reasoning that justifies `Sync` below, allowing `Send` makes it possible to hold
+// a `RefMut` (and therefore a `StorageWriteGuard`) across an `.await` in async code, since the
+// compiler will then accept the resulting future as `Send`. That pattern causes hard async
+// deadlocks: the guard parks together with the suspended future and pins the shard's write lock,
+// while every other tokio worker piles up trying to take the same lock — leaving no thread free
+// to poll the parked future. Marking the type `!Send` makes the borrow checker reject those call
+// sites at compile time.
+// SAFETY (Sync): `RefMut` contains a raw `Bucket` pointer into a `DashMap` shard's `RawTable`.
+// Sharing `&RefMut` is safe because:
+// - `Simple` variant: The `Bucket` is accessed under an exclusive `RwLockWriteGuard` on a single
+//   shard. The guard provides exclusive access to all data in that shard.
+// - `Shared` variant: The `Bucket` is accessed under an `Arc<RwLockWriteGuard>`. The
+//   `get_multiple_mut` function asserts that bucket pointers do not alias, so each `RefMut` has
+//   exclusive access to its bucket even when sharing a guard.
+// - `K: Sync + V: Sync` bounds ensure the key and value types are safe to share across threads.
 unsafe impl<K: Eq + Hash + Sync, V: Sync> Sync for RefMut<'_, K, V> {}
 
 impl<K: Eq + Hash, V> RefMut<'_, K, V> {
+    pub fn key(&self) -> &K {
+        self.pair().0
+    }
+
     pub fn value(&self) -> &V {
         self.pair().1
     }
@@ -39,7 +63,7 @@ impl<K: Eq + Hash, V> RefMut<'_, K, V> {
             RefMut::Simple { bucket, .. } | RefMut::Shared { bucket, .. } => {
                 // SAFETY:
                 // - The bucket is still valid, as we're holding a write guard on the shard
-                // - These bucket pointers are convertable to references
+                // - These bucket pointers are convertible to references
                 //
                 // https://doc.rust-lang.org/std/ptr/index.html#pointer-to-reference-conversion
                 let entry = unsafe { bucket.as_ref() };
@@ -119,7 +143,7 @@ where
             .find_or_find_insert_slot(h1, eq1, hash_entry)
             .unwrap_or_else(|slot| unsafe {
                 // SAFETY: This slot was previously returned by `find_or_find_insert_slot`, and no
-                // mutation of the table has occured since that call.
+                // mutation of the table has occurred since that call.
                 guard.insert_in_slot(h1, slot, (key1.clone(), SharedValue::new(insert_with())))
             });
 
@@ -149,10 +173,12 @@ where
             RefMut::Shared {
                 _guard: guard.clone(),
                 bucket: bucket1,
+                phantom: PhantomData,
             },
             RefMut::Shared {
                 _guard: guard,
                 bucket: bucket2,
+                phantom: PhantomData,
             },
         )
     } else {
@@ -212,18 +238,18 @@ mod tests {
         const THREADS: usize = 20;
 
         let map = FxDashMap::with_hasher_and_shard_amount(Default::default(), 4);
-        let indicies = (0..THREADS)
+        let indices = (0..THREADS)
             .map(|_| {
                 let mut vec = (0..N).collect::<Vec<_>>();
-                vec.shuffle(&mut rand::thread_rng());
+                vec.shuffle(&mut rand::rng());
                 vec
             })
             .collect::<Vec<_>>();
         let map = &map;
         scope(|s| {
-            for indicies in indicies {
+            for indices in indices {
                 s.spawn(|| {
-                    for i in indicies {
+                    for i in indices {
                         let (mut a, mut b) = get_multiple_mut(map, i, i + 1, || 0);
                         *a += 1;
                         *b += 1;

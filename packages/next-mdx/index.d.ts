@@ -4,6 +4,8 @@ import type { RuleSetConditionAbsolute } from 'webpack'
 
 type WithMDX = (config: NextConfig) => NextConfig
 
+type PluggableListName = 'remarkPlugins' | 'rehypePlugins' | 'recmaPlugins'
+
 declare namespace nextMDX {
   interface NextMDXOptions {
     /**
@@ -21,7 +23,17 @@ declare namespace nextMDX {
      *
      * @see https://mdxjs.com/packages/mdx/#api
      */
-    options?: Options
+    options?: {
+      [Key in keyof Options]: Key extends PluggableListName
+        ?
+            | (
+                | string
+                | [name: string, ...options: any[]]
+                | NonNullable<Options[Key]>[number]
+              )[]
+            | Options[Key]
+        : Options[Key]
+    }
   }
 }
 

@@ -6,6 +6,9 @@
     ".": {
       "default": "./index.js"
     },
+    "./ignored": {
+      "default": "./ignored.js"
+    },
     "./sourcemapped": {
       "default": "./sourcemapped.js"
     }

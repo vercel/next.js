@@ -19,7 +19,7 @@ describe('shallow-routing', () => {
       await browser
         .elementByCss('#push-state')
         .click()
-        .waitForElementByCss('#state-updated')
+        .waitForElementByCss('#state-updated', { state: 'attached' })
         .elementByCss('#get-latest')
         .click()
       await check(
@@ -192,7 +192,7 @@ describe('shallow-routing', () => {
       await browser
         .elementByCss('#replace-state')
         .click()
-        .waitForElementByCss('#state-updated')
+        .waitForElementByCss('#state-updated', { state: 'attached' })
         .elementByCss('#get-latest')
         .click()
       await check(
@@ -408,7 +408,7 @@ describe('shallow-routing', () => {
         await browser
           .elementByCss('#push-state')
           .click()
-          .waitForElementByCss('#state-updated')
+          .waitForElementByCss('#state-updated', { state: 'attached' })
           .elementByCss('#get-latest')
           .click()
 

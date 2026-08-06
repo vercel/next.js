@@ -1,0 +1,14 @@
+diff --git a/dist/modules/types.d.ts b/dist/modules/types.d.ts
+index 080d3667303398f9ee8cf782c43f2230ea72ef53..cdfe14ad4bdbe07023301dae36e7ea64a5048bf4 100644
+--- a/dist/modules/types.d.ts
++++ b/dist/modules/types.d.ts
+@@ -27,7 +27,8 @@ declare global {
+     }
+     interface PerformanceEventTiming extends PerformanceEntry {
+         duration: DOMHighResTimeStamp;
+-        interactionId: number;
++        // Waiting for https://github.com/GoogleChrome/web-vitals/commit/a92f8a78bce9e400366bc29db5fc23fdf23db469
++        readonly interactionId: number;
+     }
+     interface LayoutShiftAttribution {
+         node?: Node;

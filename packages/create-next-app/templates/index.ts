@@ -1,5 +1,10 @@
 import { install } from "../helpers/install";
+import { runTypegen } from "../helpers/typegen";
 import { copy } from "../helpers/copy";
+import {
+  getPackageManagerVersion,
+  getPnpmMajorVersion,
+} from "../helpers/get-pkg-manager";
 
 import { async as glob } from "fast-glob";
 import os from "os";
@@ -9,11 +14,20 @@ import { cyan, bold } from "picocolors";
 import { Sema } from "async-sema";
 import pkg from "../package.json";
 
-import { GetTemplateFileArgs, InstallTemplateArgs } from "./types";
+import { Bundler, GetTemplateFileArgs, InstallTemplateArgs } from "./types";
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "^19.0.0";
+const nextjsReactPeerVersion = "19.2.8";
+function sorted(obj: Record<string, string>) {
+  return Object.keys(obj)
+    .sort()
+    .reduce((acc: Record<string, string>, key) => {
+      acc[key] = obj[key];
+
+      return acc;
+    }, {});
+}
 
 /**
  * Get the file path for a given file in a template, e.g. "next.config.js".
@@ -40,10 +54,12 @@ export const installTemplate = async ({
   mode,
   tailwind,
   eslint,
+  biome,
   srcDir,
   importAlias,
   skipInstall,
-  turbopack,
+  bundler,
+  reactCompiler,
 }: InstallTemplateArgs) => {
   console.log(bold(`Using ${packageManager}.`));
 
@@ -55,7 +71,10 @@ export const installTemplate = async ({
   const templatePath = path.join(__dirname, template, mode);
   const copySource = ["**"];
   if (!eslint) copySource.push("!eslint.config.mjs");
-  if (!tailwind) copySource.push("!postcss.config.mjs");
+  if (!biome) copySource.push("!biome.json");
+  if (!tailwind || bundler === Bundler.Turbopack) {
+    copySource.push("!postcss.config.mjs");
+  }
 
   await copy(copySource, root, {
     parents: true,
@@ -76,6 +95,60 @@ export const installTemplate = async ({
       }
     },
   });
+
+  if (bundler === Bundler.Rspack) {
+    const nextConfigFile = path.join(
+      root,
+      mode === "js" ? "next.config.mjs" : "next.config.ts",
+    );
+    await fs.writeFile(
+      nextConfigFile,
+      `import withRspack from "next-rspack";\n\n` +
+        (await fs.readFile(nextConfigFile, "utf8")).replace(
+          "export default nextConfig;",
+          "export default withRspack(nextConfig);",
+        ),
+    );
+  }
+
+  if (tailwind && bundler === Bundler.Turbopack) {
+    const nextConfigFile = path.join(
+      root,
+      mode === "js" ? "next.config.mjs" : "next.config.ts",
+    );
+    let configContent = await fs.readFile(nextConfigFile, "utf8");
+
+    configContent = configContent.replace(
+      "/* config options here */\n",
+      `/* config options here */
+  turbopack: {
+    rules: {
+      "*.css": {
+        loaders: ["@tailwindcss/turbopack"],
+        as: "*.css",
+      },
+    },
+  },
+`,
+    );
+
+    await fs.writeFile(nextConfigFile, configContent);
+  }
+
+  if (reactCompiler) {
+    const nextConfigFile = path.join(
+      root,
+      mode === "js" ? "next.config.mjs" : "next.config.ts",
+    );
+    let configContent = await fs.readFile(nextConfigFile, "utf8");
+
+    configContent = configContent.replace(
+      "/* config options here */\n",
+      "/* config options here */\n  reactCompiler: true,\n",
+    );
+
+    await fs.writeFile(nextConfigFile, configContent);
+  }
 
   const tsconfigFile = path.join(
     root,
@@ -165,6 +238,25 @@ export const installTemplate = async ({
 
   /** Copy the version from package.json or override for tests. */
   const version = process.env.NEXT_PRIVATE_TEST_VERSION ?? pkg.version;
+  const bundlerFlags = bundler === Bundler.Webpack ? " --webpack" : "";
+
+  // When isolated tests pack workspace packages and pass their tarball
+  // paths via `NEXT_TEST_PKG_PATHS` (set by `run-tests.js`), prefer those
+  // paths over `version` so siblings like `next-rspack` and
+  // `eslint-config-next` install from their own tarball — not from the
+  // `next` tarball, which would cause npm to extract `next`'s contents
+  // into the sibling's `node_modules/` entry.
+  const testPkgPaths: Map<string, string> | null = (() => {
+    const env = process.env.NEXT_TEST_PKG_PATHS;
+    if (!env) return null;
+    try {
+      return new Map<string, string>(JSON.parse(env));
+    } catch {
+      return null;
+    }
+  })();
+  const resolvePkgVersion = (name: string): string =>
+    testPkgPaths?.get(name) ?? version;
 
   /** Create a package.json for the new project and write it to disk. */
   const packageJson: any = {
@@ -172,10 +264,11 @@ export const installTemplate = async ({
     version: "0.1.0",
     private: true,
     scripts: {
-      dev: `next dev${turbopack ? " --turbopack" : ""}`,
-      build: "next build",
+      dev: `next dev${bundlerFlags}`,
+      build: `next build${bundlerFlags}`,
       start: "next start",
-      lint: "next lint",
+      ...(eslint && { lint: "eslint" }),
+      ...(biome && { lint: "biome check", format: "biome format --write" }),
     },
     /**
      * Default dependencies.
@@ -183,10 +276,18 @@ export const installTemplate = async ({
     dependencies: {
       react: nextjsReactPeerVersion,
       "react-dom": nextjsReactPeerVersion,
-      next: version,
+      next: resolvePkgVersion("next"),
     },
     devDependencies: {},
   };
+
+  if (bundler === Bundler.Rspack) {
+    packageJson.dependencies["next-rspack"] = resolvePkgVersion("next-rspack");
+  }
+
+  if (reactCompiler) {
+    packageJson.devDependencies["babel-plugin-react-compiler"] = "1.0.0";
+  }
 
   /**
    * TypeScript projects will have type definitions and other devDependencies.
@@ -203,9 +304,13 @@ export const installTemplate = async ({
 
   /* Add Tailwind CSS dependencies. */
   if (tailwind) {
+    const tailwindPlugin =
+      bundler === Bundler.Turbopack
+        ? "@tailwindcss/turbopack"
+        : "@tailwindcss/postcss";
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-      "@tailwindcss/postcss": "^4",
+      [tailwindPlugin]: "^4",
       tailwindcss: "^4",
     };
   }
@@ -215,9 +320,15 @@ export const installTemplate = async ({
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
       eslint: "^9",
-      "eslint-config-next": version,
-      // TODO: Remove @eslint/eslintrc once eslint-config-next is pure Flat config
-      "@eslint/eslintrc": "^3",
+      "eslint-config-next": resolvePkgVersion("eslint-config-next"),
+    };
+  }
+
+  /* Biome dependencies. */
+  if (biome) {
+    packageJson.devDependencies = {
+      ...packageJson.devDependencies,
+      "@biomejs/biome": "2.4.2",
     };
   }
 
@@ -232,11 +343,93 @@ export const installTemplate = async ({
     // if a type error was thrown at `distDir/types/app/page.ts`.
     delete packageJson.devDependencies["@types/react-dom"];
 
+    // Remove linting scripts for API-only templates
     delete packageJson.scripts.lint;
+    delete packageJson.scripts.format;
   }
 
   const devDeps = Object.keys(packageJson.devDependencies).length;
   if (!devDeps) delete packageJson.devDependencies;
+
+  // Sort dependencies and devDependencies alphabetically
+  if (packageJson.dependencies) {
+    packageJson.dependencies = sorted(packageJson.dependencies);
+  }
+
+  if (packageJson.devDependencies) {
+    packageJson.devDependencies = sorted(packageJson.devDependencies);
+  }
+
+  if (packageManager === "pnpm") {
+    // Only create pnpm-workspace.yaml for pnpm v10+.
+    // In v9, having a pnpm-workspace.yaml (even with packages: []) causes
+    // ERR_PNPM_ADDING_TO_ROOT errors when running `pnpm add`.
+    // In v10, the packages field can be omitted entirely.
+    // If we can't determine the version, assume latest (v10+) since we already
+    // know pnpm is being used at this point.
+    const pnpmMajorVersion = getPnpmMajorVersion();
+    if (pnpmMajorVersion === null || pnpmMajorVersion >= 11) {
+      // In pnpm v11, `ignoredBuiltDependencies` (and the other build-script
+      // settings) were removed in favor of a single `allowBuilds` map where
+      // `false` denies a package from running build scripts. See
+      // https://pnpm.io/blog/releases/11.0
+      const pnpmWorkspaceYaml = [
+        "allowBuilds:",
+        // Sharp has prebuilt binaries for the platforms next-swc has binaries.
+        // If it needs to build binaries from source, next-swc wouldn't work either.
+        // See https://sharp.pixelplumbing.com/install/#:~:text=When%20using%20pnpm%2C%20add%20sharp%20to%20ignoredBuiltDependencies%20to%20silence%20warnings
+        "  sharp: false",
+        // Not needed for pnpm: https://github.com/unrs/unrs-resolver/issues/193#issuecomment-3295510146
+        "  unrs-resolver: false",
+        "",
+      ].join(os.EOL);
+      await fs.writeFile(
+        path.join(root, "pnpm-workspace.yaml"),
+        pnpmWorkspaceYaml,
+      );
+    } else if (pnpmMajorVersion >= 10) {
+      const pnpmWorkspaceYaml = [
+        "ignoredBuiltDependencies:",
+        // Sharp has prebuilt binaries for the platforms next-swc has binaries.
+        // If it needs to build binaries from source, next-swc wouldn't work either.
+        // See https://sharp.pixelplumbing.com/install/#:~:text=When%20using%20pnpm%2C%20add%20sharp%20to%20ignoredBuiltDependencies%20to%20silence%20warnings
+        "  - sharp",
+        // Not needed for pnpm: https://github.com/unrs/unrs-resolver/issues/193#issuecomment-3295510146
+        "  - unrs-resolver",
+        "",
+      ].join(os.EOL);
+      await fs.writeFile(
+        path.join(root, "pnpm-workspace.yaml"),
+        pnpmWorkspaceYaml,
+      );
+    }
+  }
+
+  // Pin the package manager version via corepack so the project always uses the
+  // same version the project was created with. This avoids subtle differences
+  // between the pnpm/yarn/bun version on a contributor's PATH and the one used
+  // to scaffold the project (e.g. a pnpm-workspace.yaml written for pnpm v10+
+  // but installed with pnpm v9 on PATH).
+  // See: https://nodejs.org/api/packages.html#packagemanager
+  if (packageManager !== "npm") {
+    const packageManagerVersion = getPackageManagerVersion(packageManager);
+    if (packageManagerVersion) {
+      packageJson.packageManager = `${packageManager}@${packageManagerVersion}`;
+    }
+  }
+
+  if (packageManager === "bun") {
+    // Equivalent to pnpm's `ignoredBuiltDependencies`, added in bun 1.3.2.
+    // - https://bun.com/blog/bun-v1.3.2#faster-bun-install
+    // - https://github.com/oven-sh/bun/pull/24283
+    // Bun ignores `sharp` by default, but does not ignore `unrs-resolver`
+    // unless configured.
+    packageJson.ignoreScripts = ["sharp", "unrs-resolver"];
+    // The script must be in *both* `ignoreScripts` and `trustedDependencies` to
+    // suppress the warning. This could change in future versions of Bun.
+    // https://vercel.slack.com/archives/C06DNAH5LSG/p1763582930218709?thread_ts=1763580178.004169&cid=C06DNAH5LSG
+    packageJson.trustedDependencies = ["sharp", "unrs-resolver"];
+  }
 
   await fs.writeFile(
     path.join(root, "package.json"),
@@ -258,6 +451,14 @@ export const installTemplate = async ({
   console.log();
 
   await install(packageManager, isOnline);
+  try {
+    console.log();
+    await runTypegen(packageManager);
+    console.log();
+  } catch (err) {
+    console.error("Error running typegen:", err);
+    // Best effort: do not fail app creation if typegen fails
+  }
 };
 
 export * from "./types";

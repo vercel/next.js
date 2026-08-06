@@ -1,7 +1,7 @@
 import { defineRule } from '../utils/define-rule'
 const url = 'https://nextjs.org/docs/messages/no-script-component-in-head'
 
-export = defineRule({
+export default defineRule({
   meta: {
     docs: {
       description: 'Prevent usage of `next/script` in `next/head` component.',

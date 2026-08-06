@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/x.css"],"sourcesContent":["@import 'y.css';\n\n.x {\n  content: '1 2';\n}\n"],"names":[],"mappings":"AAEA"}},
+    {"offset": {"line": 6, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/y.css"],"sourcesContent":["@import 'x.css';\n\n.y {\n  content: '2 1';\n}\n"],"names":[],"mappings":"AAEA"}}]
+}

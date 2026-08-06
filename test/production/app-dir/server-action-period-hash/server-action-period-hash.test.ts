@@ -1,24 +1,17 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type NextInstance } from 'e2e-utils'
 
-async function getServerActionManifest(next) {
-  const content = await next.readFile(
+async function getServerActionManifestNodeKeys(next: NextInstance) {
+  const manifest = await next.readJSON(
     '.next/server/server-reference-manifest.json'
   )
-  return JSON.parse(content)
+  return Object.keys(manifest.node)
 }
 
-function compareServerActionManifestKeys(a, b, equal) {
-  a = a.node
-  b = b.node
-
-  const keysA = Object.keys(a)
-  const keysB = Object.keys(b)
-
-  if (equal) {
-    expect(keysA).toEqual(keysB)
-  } else {
-    expect(keysA).not.toEqual(keysB)
-  }
+// Each test runs two production builds, and webpack builds are much slower than
+// Turbopack, so the default 60s per-test budget is too tight on slower CI
+// runners. Turbopack keeps the default.
+if (process.env.IS_WEBPACK_TEST) {
+  jest.setTimeout(120_000)
 }
 
 describe('app-dir - server-action-period-hash', () => {
@@ -29,23 +22,23 @@ describe('app-dir - server-action-period-hash', () => {
 
   it('should have same manifest between continuous two builds', async () => {
     await next.build()
-    const firstManifest = await getServerActionManifest(next)
+    const firstActionIds = await getServerActionManifestNodeKeys(next)
 
     await next.build()
-    const secondManifest = await getServerActionManifest(next)
+    const secondActionIds = await getServerActionManifestNodeKeys(next)
 
-    compareServerActionManifestKeys(firstManifest, secondManifest, true)
+    expect(firstActionIds).toEqual(secondActionIds)
   })
 
   it('should have different manifest between two builds with period hash', async () => {
     await next.build()
-    const firstManifest = await getServerActionManifest(next)
+    const firstActionIds = await getServerActionManifestNodeKeys(next)
 
     await next.remove('.next') // dismiss cache
     await next.build()
 
-    const secondManifest = await getServerActionManifest(next)
+    const secondActionIds = await getServerActionManifestNodeKeys(next)
 
-    compareServerActionManifestKeys(firstManifest, secondManifest, false)
+    expect(firstActionIds).not.toEqual(secondActionIds)
   })
 })

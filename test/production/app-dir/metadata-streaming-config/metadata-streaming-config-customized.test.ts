@@ -6,34 +6,54 @@ describe('app-dir - metadata-streaming-config-customized', () => {
     overrideFiles: {
       'next.config.js': `
         module.exports = {
-          experimental: {
-            streamingMetadata: true,
-            htmlLimitedBots: /MyBot/i,
-          }
+          htmlLimitedBots: /MyBot/i,
+          cacheComponents: true,
         }
       `,
     },
   })
 
-  it('should have the default streaming metadata config output in routes-manifest.json', async () => {
+  it('should have the customized streaming metadata config output in routes-manifest.json', async () => {
     const requiredServerFiles = JSON.parse(
       await next.readFile('.next/required-server-files.json')
     )
-    expect(requiredServerFiles.files).toContain(
-      '.next/response-config-manifest.json'
-    )
-    expect(
-      requiredServerFiles.config.experimental.htmlLimitedBots
-    ).toMatchInlineSnapshot(`"MyBot"`)
+    expect(requiredServerFiles.config.htmlLimitedBots).toBe('MyBot')
 
-    const responseConfigManifest = JSON.parse(
-      await next.readFile('.next/response-config-manifest.json')
+    const prerenderManifest = JSON.parse(
+      await next.readFile('.next/prerender-manifest.json')
     )
+    const { routes } = prerenderManifest
 
-    expect(responseConfigManifest).toMatchInlineSnapshot(`
+    const bypassConfigs = Object.keys(routes)
+      .map((route) => [route, routes[route].experimentalBypassFor?.[2]])
+      .filter(([, bypassConfig]) => Boolean(bypassConfig))
+      .reduce((acc, [route, bypassConfig]) => {
+        acc[route] = bypassConfig
+        return acc
+      }, {})
+
+    expect(bypassConfigs).toMatchInlineSnapshot(`
      {
-       "htmlLimitedBots": "MyBot",
-       "version": 0,
+       "/": {
+         "key": "user-agent",
+         "type": "header",
+         "value": ".*(?:MyBot).*",
+       },
+       "/_global-error": {
+         "key": "user-agent",
+         "type": "header",
+         "value": ".*(?:MyBot).*",
+       },
+       "/_not-found": {
+         "key": "user-agent",
+         "type": "header",
+         "value": ".*(?:MyBot).*",
+       },
+       "/ppr": {
+         "key": "user-agent",
+         "type": "header",
+         "value": ".*(?:MyBot).*",
+       },
      }
     `)
   })

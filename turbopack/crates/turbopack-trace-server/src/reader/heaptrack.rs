@@ -1,12 +1,18 @@
 use std::{env, str::from_utf8, sync::Arc};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use indexmap::map::Entry;
 use rustc_demangle::demangle;
 use rustc_hash::{FxHashMap, FxHashSet};
+use turbo_rcstr::{RcStr, rcstr};
 
 use super::TraceFormat;
-use crate::{span::SpanIndex, store_container::StoreContainer, timestamp::Timestamp, FxIndexMap};
+use crate::{
+    FxIndexMap,
+    span::{SpanArgs, SpanIndex},
+    store_container::StoreContainer,
+    timestamp::Timestamp,
+};
 
 #[derive(Debug, Clone, Copy)]
 struct TraceNode {
@@ -183,10 +189,7 @@ impl TraceFormat for HeaptrackFormat {
         let mut bytes_read = 0;
         let mut outdated_spans = FxHashSet::default();
         let mut store = self.store.write();
-        'outer: loop {
-            let Some(line_end) = buffer.iter().position(|b| *b == b'\n') else {
-                break;
-            };
+        'outer: while let Some(line_end) = buffer.iter().position(|b| *b == b'\n') {
             let full_line = &buffer[..line_end];
             buffer = &buffer[line_end + 1..];
             bytes_read += full_line.len() + 1;
@@ -228,12 +231,12 @@ impl TraceFormat for HeaptrackFormat {
                         .get_index(ip_index)
                         .context("ip not found")?;
                     // Try to fix cut-off traces
-                    if parent_index == 0 {
-                        if let Some(trace_index) = ip_info.first_trace_of_ip {
-                            let trace = self.traces.get(trace_index).context("trace not found")?;
-                            self.traces.push(*trace);
-                            continue;
-                        }
+                    if parent_index == 0
+                        && let Some(trace_index) = ip_info.first_trace_of_ip
+                    {
+                        let trace = self.traces.get(trace_index).context("trace not found")?;
+                        self.traces.push(*trace);
+                        continue;
                     }
                     // Lookup parent
                     let parent = if parent_index > 0 {
@@ -276,9 +279,9 @@ impl TraceFormat for HeaptrackFormat {
                                         let span_index = store.add_span(
                                             Some(parent.span_index),
                                             self.last_timestamp,
-                                            "".to_string(),
-                                            "recursion".to_string(),
-                                            Vec::new(),
+                                            RcStr::default(),
+                                            rcstr!("recursion"),
+                                            SpanArgs::new(),
                                             &mut outdated_spans,
                                         );
                                         store.complete_span(span_index);
@@ -323,7 +326,7 @@ impl TraceFormat for HeaptrackFormat {
                     } else {
                         "unknown".to_string()
                     };
-                    let mut args = Vec::new();
+                    let mut args = SpanArgs::new();
                     for Frame {
                         function_index,
                         file_index,
@@ -336,16 +339,16 @@ impl TraceFormat for HeaptrackFormat {
                             .get(*function_index)
                             .context("function not found")?;
                         args.push((
-                            "location".to_string(),
-                            format!("{} @ {file}:{line}", function),
+                            rcstr!("location"),
+                            RcStr::from(format!("{function} @ {file}:{line}")),
                         ));
                     }
 
                     let span_index = store.add_span(
                         parent,
                         self.last_timestamp,
-                        module.to_string(),
-                        name,
+                        RcStr::from(module.as_str()),
+                        RcStr::from(name),
                         args,
                         &mut outdated_spans,
                     );
@@ -369,24 +372,24 @@ impl TraceFormat for HeaptrackFormat {
                 }
                 b'i' => {
                     let mut ip = InstructionPointer::read(&mut line)?;
-                    if let Some(frame) = ip.frames.first() {
-                        if let Some(function) = self.strings.get(frame.function_index) {
-                            let crate_name = function
-                                .strip_prefix('<')
-                                .unwrap_or(function)
-                                .split("::")
-                                .next()
-                                .unwrap()
-                                .split('[')
-                                .next()
-                                .unwrap();
-                            if self.collapse_crates.contains(crate_name)
-                                || !self.expand_crates.is_empty()
-                                    && !self.expand_crates.contains(crate_name)
-                            {
-                                ip.frames.clear();
-                                ip.custom_name = Some(crate_name.to_string());
-                            }
+                    if let Some(frame) = ip.frames.first()
+                        && let Some(function) = self.strings.get(frame.function_index)
+                    {
+                        let crate_name = function
+                            .strip_prefix('<')
+                            .unwrap_or(function)
+                            .split("::")
+                            .next()
+                            .unwrap()
+                            .split('[')
+                            .next()
+                            .unwrap();
+                        if self.collapse_crates.contains(crate_name)
+                            || !self.expand_crates.is_empty()
+                                && !self.expand_crates.contains(crate_name)
+                        {
+                            ip.frames.clear();
+                            ip.custom_name = Some(crate_name.to_string());
                         }
                     }
                     match self.instruction_pointers.entry(ip) {

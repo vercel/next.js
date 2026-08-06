@@ -2,8 +2,8 @@
 name = "turbopack-image"
 version = "0.1.0"
 description = "TBD"
-license = "MPL-2.0"
-edition = "2021"
+license = "MIT"
+edition = "2024"
 autobenches = false
 
 [lib]
@@ -20,7 +20,9 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+async-trait = { workspace = true }
 base64 = "0.21.0"
+bincode = { workspace = true }
 image = { workspace = true, default-features = false, features = [
   "gif",
   "png",
@@ -30,14 +32,12 @@ image = { workspace = true, default-features = false, features = [
   "tga",
 ] }
 mime = { workspace = true }
-once_cell = { workspace = true }
+phf = { workspace = true }
 regex = { workspace = true }
-rustc-hash = { workspace = true }
 serde = { workspace = true }
-serde_with = { workspace = true }
+turbo-bincode = { workspace = true }
+turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbopack-core = { workspace = true }
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }

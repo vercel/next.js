@@ -1,29 +1,29 @@
-a = (x && y)
+a (const after eval) = (x && y)
 
-b = (x || y)
+b (const after eval) = (x || y)
 
-c = (x ?? y)
+c (const after eval) = (x ?? y)
 
-chain1 = (1 && 2 && 3 && FreeVar(global))
+chain1 (const after eval) = (1 && 2 && 3 && FreeVar(global))
 
-chain2 = ((1 && 2 && FreeVar(global)) || 3 || 4)
+chain2 (const after eval) = ((1 && 2 && FreeVar(global)) || 3 || 4)
 
-d = !(x)
+d (const after eval) = !(x)
 
-e = !(!(x))
+e (const after eval) = !(!(x))
 
-resolve1 = (1 && 2 && FreeVar(global) && 3 && 4)
+resolve1 (const after eval) = (1 && 2 && FreeVar(global) && 3 && 4)
 
-resolve2 = (1 && 2 && 0 && FreeVar(global) && 4)
+resolve2 (const after eval) = (1 && 2 && 0 && FreeVar(global) && 4)
 
-resolve3 = (FreeVar(global) || true)
+resolve3 (const after eval) = (FreeVar(global) || true)
 
-resolve4 = (true || FreeVar(global))
+resolve4 (const after eval) = (true || FreeVar(global))
 
-resolve5 = (FreeVar(global) && false)
+resolve5 (const after eval) = (FreeVar(global) && false)
 
-resolve6 = (false && FreeVar(global))
+resolve6 (const after eval) = (false && FreeVar(global))
 
-x = true
+x (const after eval) = true
 
-y = false
+y (const after eval) = false

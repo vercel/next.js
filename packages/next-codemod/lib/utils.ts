@@ -35,17 +35,18 @@ export function onCancel() {
   process.exit(1)
 }
 
+/**
+ * When adding a new codemod, ensure to set the target canary version
+ * instead of the stable version. This is for `@next/codemod upgrade`
+ * to correctly pick up the codemod for the next pre-release version.
+ * This is also essential for correctly upgrading from canary to canary.
+ */
 export const TRANSFORMER_INQUIRER_CHOICES = [
   {
     title:
       'Transform the deprecated automatically injected url property on top level pages to using withRouter',
     value: 'url-to-withrouter',
     version: '6.0.0',
-  },
-  {
-    title: 'Transforms the withAmp HOC into Next.js 9 page configuration',
-    value: 'withamp-to-config',
-    version: '8.0.0',
   },
   {
     title:
@@ -115,5 +116,43 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
       'Transform App Router Route Segment Config `runtime` value from `experimental-edge` to `edge`',
     value: 'app-dir-runtime-config-experimental-edge',
     version: '15.0.0-canary.179',
+  },
+  {
+    title: 'Updates `next.config.js` to use the new `turbopack` configuration',
+    value: 'next-experimental-turbo-to-turbopack',
+    version: '15.4.2-canary.21',
+  },
+  {
+    title: 'Migrate from `next lint` to the ESLint CLI',
+    value: 'next-lint-to-eslint-cli',
+    version: '15.4.2-canary.55',
+  },
+  {
+    title: 'Migrate from deprecated `middleware` convention to `proxy`',
+    value: 'middleware-to-proxy',
+    version: '15.6.0-canary.54',
+  },
+  {
+    title: 'Remove `unstable_` prefix from stabilized API',
+    value: 'remove-unstable-prefix',
+    version: '16.0.0-canary.10',
+  },
+  {
+    title:
+      'Remove `experimental_ppr` Route Segment Config from App Router pages and layouts',
+    value: 'remove-experimental-ppr',
+    version: '16.0.0-canary.11',
+  },
+  {
+    title:
+      'Add `export const instant = false` to App Router pages and layouts to ease Cache Components adoption',
+    value: 'cache-components-instant-false',
+    version: '16.3.0',
+  },
+  {
+    title:
+      "Remove `export const prefetch = 'partial'` Route Segment Config from App Router pages and layouts after enabling `partialPrefetching` globally",
+    value: 'remove-partial-prefetch',
+    version: '16.3.0',
   },
 ]

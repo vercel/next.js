@@ -1,12 +1,21 @@
 import path from 'path'
-import { check } from 'next-test-utils'
+import {
+  check,
+  getClientReferenceManifest,
+  getDistDir,
+  retry,
+} from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
+import {
+  NEXT_RSC_UNION_QUERY,
+  RSC_HEADER,
+} from 'next/dist/client/components/app-router-headers'
 
 // TODO: We should decide on an established pattern for gating test assertions
 // on experimental flags. For example, as a first step we could all the common
 // gates like this one into a single module.
-const isPPREnabledByDefault = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+const isPPREnabledByDefault = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
 async function resolveStreamResponse(response: any, onData?: any) {
   let result = ''
@@ -33,25 +42,20 @@ describe('app dir - rsc basics', () => {
   if (isNextDev && !isTurbopack) {
     it('should have correct client references keys in manifest', async () => {
       await next.render('/')
-      await check(async () => {
+      await retry(() => {
         // Check that the client-side manifest is correct before any requests
-        const clientReferenceManifest = JSON.parse(
-          (
-            await next.readFile(
-              '.next/server/app/page_client-reference-manifest.js'
-            )
-          ).match(/]=(.+)$/)[1]
+        const clientReferenceManifest = getClientReferenceManifest(
+          next,
+          '/page'
         )
         const clientModulesNames = Object.keys(
           clientReferenceManifest.clientModules
         )
-        clientModulesNames.every((name) => {
+        expect(clientModulesNames).toSatisfyAll((name) => {
           const [, key] = name.split('#', 2)
           return key === undefined || key === '' || key === 'default'
         })
-
-        return 'success'
-      }, 'success')
+      })
     })
   }
 
@@ -70,39 +74,57 @@ describe('app dir - rsc basics', () => {
   })
 
   it('should correctly render page returning null', async () => {
-    const homeHTML = await next.render('/return-null/page')
-    const $ = cheerio.load(homeHTML)
-    expect($('#return-null-layout').html()).toBeEmpty()
+    const browser = await next.browser('/return-null/page')
+    expect(
+      await browser
+        .elementByCss('#return-null-layout', { state: 'attached' })
+        .text()
+    ).toBeEmpty()
   })
 
   it('should correctly render component returning null', async () => {
-    const homeHTML = await next.render('/return-null/component')
-    const $ = cheerio.load(homeHTML)
-    expect($('#return-null-layout').html()).toBeEmpty()
+    const browser = await next.browser('/return-null/component')
+    expect(
+      await browser
+        .elementByCss('#return-null-layout', { state: 'attached' })
+        .text()
+    ).toBeEmpty()
   })
 
   it('should correctly render layout returning null', async () => {
-    const homeHTML = await next.render('/return-null/layout')
-    const $ = cheerio.load(homeHTML)
-    expect($('#return-null-layout').html()).toBeEmpty()
+    const browser = await next.browser('/return-null/layout')
+    expect(
+      await browser
+        .elementByCss('#return-null-layout', { state: 'attached' })
+        .text()
+    ).toBeEmpty()
   })
 
   it('should correctly render page returning undefined', async () => {
-    const homeHTML = await next.render('/return-undefined/page')
-    const $ = cheerio.load(homeHTML)
-    expect($('#return-undefined-layout').html()).toBeEmpty()
+    const browser = await next.browser('/return-undefined/page')
+    expect(
+      await browser
+        .elementByCss('#return-undefined-layout', { state: 'attached' })
+        .text()
+    ).toBeEmpty()
   })
 
   it('should correctly render component returning undefined', async () => {
-    const homeHTML = await next.render('/return-undefined/component')
-    const $ = cheerio.load(homeHTML)
-    expect($('#return-undefined-layout').html()).toBeEmpty()
+    const browser = await next.browser('/return-undefined/component')
+    expect(
+      await browser
+        .elementByCss('#return-undefined-layout', { state: 'attached' })
+        .text()
+    ).toBeEmpty()
   })
 
   it('should correctly render layout returning undefined', async () => {
-    const homeHTML = await next.render('/return-undefined/layout')
-    const $ = cheerio.load(homeHTML)
-    expect($('#return-undefined-layout').html()).toBeEmpty()
+    const browser = await next.browser('/return-undefined/layout')
+    expect(
+      await browser
+        .elementByCss('#return-undefined-layout', { state: 'attached' })
+        .text()
+    ).toBeEmpty()
   })
 
   it('should handle named client components imported as page', async () => {
@@ -157,27 +179,28 @@ describe('app dir - rsc basics', () => {
   })
 
   it('should reuse the inline flight response without sending extra requests', async () => {
-    let hasFlightRequest = false
+    const flightRequests: string[] = []
     let requestsCount = 0
-    await next.browser('/root', {
+    const browser = await next.browser('/root', {
       beforePageLoad(page) {
         page.on('request', (request) => {
           requestsCount++
-          return request.allHeaders().then((headers) => {
-            if (
-              headers['RSC'.toLowerCase()] === '1' &&
-              // Prefetches also include `RSC`
-              headers['Next-Router-Prefetch'.toLowerCase()] !== '1'
-            ) {
-              hasFlightRequest = true
-            }
-          })
+          const headers = request.headers()
+          if (
+            headers['rsc'] === '1' &&
+            // Prefetches also include `rsc`
+            headers['next-router-prefetch'] !== '1'
+          ) {
+            flightRequests.push(request.url())
+          }
         })
       },
     })
 
+    await browser.waitForIdleNetwork()
+
     expect(requestsCount).toBeGreaterThan(0)
-    expect(hasFlightRequest).toBe(false)
+    expect(flightRequests).toEqual([])
   })
 
   it('should support multi-level server component imports', async () => {
@@ -370,7 +393,6 @@ describe('app dir - rsc basics', () => {
 
     await browser.loadPage(`${next.url}/edge/dynamic/123`, {
       disableCache: false,
-      beforePageLoad: null,
     })
 
     const dynamicRouteUrl = await browser.url()
@@ -378,18 +400,27 @@ describe('app dir - rsc basics', () => {
     expect(dynamicRouteUrl).toBe(`${next.url}/edge/dynamic/123`)
   })
 
+  describe.each(['node', 'edge'])(`%s`, (runtime) => {
+    it('should handle dynamic routes when URL segment matches the folder bracket syntax', async () => {
+      const browser = await next.browser(`/${runtime}/dynamic/[id]`)
+      expect(await browser.elementByCss('body').text()).toBe(
+        'dynamic route [id] page'
+      )
+    })
+  })
+
   it('should support streaming for flight response', async () => {
     await next
-      .fetch('/', {
-        headers: { RSC: '1' },
+      .fetch(`/?${NEXT_RSC_UNION_QUERY}`, {
+        headers: {
+          [RSC_HEADER]: '1',
+        },
       })
       .then(async (response) => {
         const result = await resolveStreamResponse(response)
         expect(result).toContain('component:index.server')
         if (isNextDev) {
           expect(result).toContain('"b":"development"')
-        } else {
-          expect(result).toMatch(/"b":".*?"/)
         }
       })
   })
@@ -425,8 +456,9 @@ describe('app dir - rsc basics', () => {
   })
 
   // TODO: (PPR) remove once PPR is stable
+  // TODO(new-dev-overlay): remove once new dev overlay is stable
   const bundledReactVersionPattern =
-    process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+    process.env.__NEXT_CACHE_COMPONENTS === 'true'
       ? '-experimental-'
       : '-canary-'
 
@@ -598,13 +630,15 @@ describe('app dir - rsc basics', () => {
   if (isNextStart) {
     it('should generate edge SSR manifests for Node.js', async () => {
       const requiredServerFiles = JSON.parse(
-        await next.readFile('.next/required-server-files.json')
+        await next.readFile(`${getDistDir()}/required-server-files.json`)
       ).files
 
       const files = ['middleware-build-manifest.js', 'middleware-manifest.json']
 
       let promises = files.map(async (file) => {
-        expect(await next.hasFile(path.join('.next/server', file))).toBe(true)
+        expect(
+          await next.hasFile(path.join(`${getDistDir()}/server`, file))
+        ).toBe(true)
       })
       await Promise.all(promises)
 
@@ -614,84 +648,4 @@ describe('app dir - rsc basics', () => {
       await Promise.all(promises)
     })
   }
-
-  describe('react@experimental', () => {
-    it.each([{ flag: 'ppr' }, { flag: 'taint' }])(
-      'should opt into the react@experimental when enabling $flag',
-      async ({ flag }) => {
-        await next.stop()
-        await next.patchFile(
-          'next.config.js',
-          `
-          module.exports = {
-            experimental: {
-              ${flag}: true
-            }
-          }
-          `,
-          async () => {
-            await next.start()
-            const resPages$ = await next.render$('/app-react')
-            const [
-              ssrReact,
-              ssrReactDOM,
-              ssrClientReact,
-              ssrClientReactDOM,
-              ssrClientReactDOMServer,
-            ] = [
-              resPages$('#react').text(),
-              resPages$('#react-dom').text(),
-              resPages$('#client-react').text(),
-              resPages$('#client-react-dom').text(),
-              resPages$('#client-react-dom-server').text(),
-            ]
-            expect({
-              ssrReact,
-              ssrReactDOM,
-              ssrClientReact,
-              ssrClientReactDOM,
-              ssrClientReactDOMServer,
-            }).toEqual({
-              ssrReact: expect.stringMatching('-experimental-'),
-              ssrReactDOM: expect.stringMatching('-experimental-'),
-              ssrClientReact: expect.stringMatching('-experimental-'),
-              ssrClientReactDOM: expect.stringMatching('-experimental-'),
-              ssrClientReactDOMServer: expect.stringMatching('-experimental-'),
-            })
-
-            const browser = await next.browser('/app-react')
-            const [
-              browserReact,
-              browserReactDOM,
-              browserClientReact,
-              browserClientReactDOM,
-              browserClientReactDOMServer,
-            ] = await browser.eval(`
-              [
-                document.querySelector('#react').innerText,
-                document.querySelector('#react-dom').innerText,
-                document.querySelector('#client-react').innerText,
-                document.querySelector('#client-react-dom').innerText,
-                document.querySelector('#client-react-dom-server').innerText,
-              ]
-            `)
-            expect({
-              browserReact,
-              browserReactDOM,
-              browserClientReact,
-              browserClientReactDOM,
-              browserClientReactDOMServer,
-            }).toEqual({
-              browserReact: expect.stringMatching('-experimental-'),
-              browserReactDOM: expect.stringMatching('-experimental-'),
-              browserClientReact: expect.stringMatching('-experimental-'),
-              browserClientReactDOM: expect.stringMatching('-experimental-'),
-              browserClientReactDOMServer:
-                expect.stringMatching('-experimental-'),
-            })
-          }
-        )
-      }
-    )
-  })
 })

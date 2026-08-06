@@ -49,6 +49,27 @@ describe('config-testing-utils', () => {
       )
     })
 
+    it('handles redirect with query params', async () => {
+      const response = await unstable_getResponseFromNextConfig({
+        url: 'https://nextjs.org/test/foo',
+        nextConfig: {
+          async redirects() {
+            return [
+              {
+                source: '/test/:slug',
+                destination: '/test2?slug=:slug',
+                permanent: true,
+              },
+            ]
+          },
+        },
+      })
+      expect(response.status).toEqual(308)
+      expect(response.headers.get('location')).toEqual(
+        'https://nextjs.org/test2?slug=foo'
+      )
+    })
+
     it("ignores redirect that doesn't match has", async () => {
       const response = await unstable_getResponseFromNextConfig({
         url: 'https://nextjs.org/test/foo',
@@ -224,6 +245,45 @@ describe('config-testing-utils', () => {
         },
       })
       expect(response.headers.get('x-custom-header')).toEqual('custom-value')
+    })
+  })
+
+  describe('function config', () => {
+    it('resolves async function configs before matching routes', async () => {
+      // Plugins like withSentry, withWorkflow, etc. wrap the config in an
+      // async (phase, ctx) => config function. This should be resolved
+      // transparently.
+      const fnConfig = async (
+        _phase: string,
+        _ctx: { defaultConfig: object }
+      ) => ({
+        async rewrites() {
+          return [{ source: '/old', destination: '/new' }]
+        },
+        async redirects() {
+          return [
+            { source: '/legacy', destination: '/modern', permanent: true },
+          ]
+        },
+      })
+
+      const rewriteResponse = await unstable_getResponseFromNextConfig({
+        url: 'https://example.com/old',
+        nextConfig: fnConfig,
+      })
+      expect(isRewrite(rewriteResponse)).toEqual(true)
+      expect(getRewrittenUrl(rewriteResponse)).toEqual(
+        'https://example.com/new'
+      )
+
+      const redirectResponse = await unstable_getResponseFromNextConfig({
+        url: 'https://example.com/legacy',
+        nextConfig: fnConfig,
+      })
+      expect(redirectResponse.status).toEqual(308)
+      expect(redirectResponse.headers.get('location')).toEqual(
+        'https://example.com/modern'
+      )
     })
   })
 

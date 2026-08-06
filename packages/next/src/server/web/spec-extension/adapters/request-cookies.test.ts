@@ -1,13 +1,9 @@
-import {
-  workUnitAsyncStorage,
-  type RequestStore,
-} from '../../../app-render/work-unit-async-storage.external'
+import type { RequestStore } from '../../../app-render/work-unit-async-storage.external'
 import { RequestCookies, ResponseCookies } from '../cookies'
 import {
   ReadonlyRequestCookiesError,
   RequestCookiesAdapter,
   MutableRequestCookiesAdapter,
-  wrapWithMutableAccessCheck,
 } from './request-cookies'
 
 describe('RequestCookiesAdapter', () => {
@@ -107,15 +103,37 @@ describe('MutableRequestCookiesAdapter', () => {
 })
 
 describe('wrapWithMutableAccessCheck', () => {
-  const createMockRequestStore = (phase: RequestStore['phase']) =>
-    ({ type: 'request', phase }) as RequestStore
+  let workUnitAsyncStorage: typeof import('../../../app-render/work-unit-async-storage.external').workUnitAsyncStorage
+  let createCookiesWithMutableAccessCheck: typeof import('./request-cookies').createCookiesWithMutableAccessCheck
+
+  beforeAll(() => {
+    ;(globalThis as any).AsyncLocalStorage ??= (
+      require('node:async_hooks') as typeof import('node:async_hooks')
+    ).AsyncLocalStorage
+    jest.resetModules()
+    workUnitAsyncStorage = (
+      require('../../../app-render/work-unit-async-storage.external') as typeof import('../../../app-render/work-unit-async-storage.external')
+    ).workUnitAsyncStorage
+    createCookiesWithMutableAccessCheck = (
+      require('./request-cookies') as typeof import('./request-cookies')
+    ).createCookiesWithMutableAccessCheck
+  })
+
+  const createMockRequestStore = (phase: RequestStore['phase']) => {
+    const headers = new Headers({})
+    const underlyingCookies = new ResponseCookies(headers)
+
+    return {
+      type: 'request',
+      phase,
+      mutableCookies: underlyingCookies,
+    } as RequestStore
+  }
 
   it('prevents setting cookies in the render phase', () => {
     const requestStore = createMockRequestStore('action')
     workUnitAsyncStorage.run(requestStore, () => {
-      const headers = new Headers({})
-      const underlyingCookies = new ResponseCookies(headers)
-      const wrappedCookies = wrapWithMutableAccessCheck(underlyingCookies)
+      const cookies = createCookiesWithMutableAccessCheck(requestStore)
 
       // simulate changing phases
       requestStore.phase = 'render'
@@ -124,20 +142,18 @@ describe('wrapWithMutableAccessCheck', () => {
         /Cookies can only be modified in a Server Action or Route Handler\./
 
       expect(() => {
-        wrappedCookies.set('foo', '1')
+        cookies.set('foo', '1')
       }).toThrow(EXPECTED_ERROR)
 
-      expect(wrappedCookies.get('foo')).toBe(undefined)
+      expect(cookies.get('foo')).toBe(undefined)
     })
   })
 
   it('prevents deleting cookies in the render phase', () => {
     const requestStore = createMockRequestStore('action')
     workUnitAsyncStorage.run(requestStore, () => {
-      const headers = new Headers({})
-      const underlyingCookies = new ResponseCookies(headers)
-      const wrappedCookies = wrapWithMutableAccessCheck(underlyingCookies)
-      wrappedCookies.set('foo', '1')
+      const cookies = createCookiesWithMutableAccessCheck(requestStore)
+      cookies.set('foo', '1')
 
       // simulate changing phases
       requestStore.phase = 'render'
@@ -146,9 +162,9 @@ describe('wrapWithMutableAccessCheck', () => {
         /Cookies can only be modified in a Server Action or Route Handler\./
 
       expect(() => {
-        wrappedCookies.delete('foo')
+        cookies.delete('foo')
       }).toThrow(EXPECTED_ERROR)
-      expect(wrappedCookies.get('foo')?.value).toEqual('1')
+      expect(cookies.get('foo')?.value).toEqual('1')
     })
   })
 })

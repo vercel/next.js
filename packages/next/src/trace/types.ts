@@ -13,6 +13,6 @@ export type TraceEvent = {
   id: SpanId
   timestamp: number
   duration: number
-  tags?: Object
+  tags?: Record<string, unknown>
   startTime?: number
 }

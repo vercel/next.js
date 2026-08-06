@@ -7,6 +7,7 @@ import type { RouteModuleOptions } from '../route-module'
 
 import { RouteModule, type RouteModuleHandleContext } from '../route-module'
 import { apiResolver } from '../../api-utils/node/api-resolver'
+import type { RevalidateFn } from '../../lib/router-utils/router-server-context'
 
 type PagesAPIHandleFn = (
   req: IncomingMessage,
@@ -43,17 +44,6 @@ type PagesAPIRouteHandlerContext = RouteModuleHandleContext & {
   res?: ServerResponse
 
   /**
-   * The revalidate method used by the `revalidate` API.
-   *
-   * @param config the configuration for the revalidation
-   */
-  revalidate: (config: {
-    urlPath: string
-    revalidateHeaders: { [key: string]: string | string[] }
-    opts: { unstable_onlyGenerated?: boolean }
-  }) => Promise<void>
-
-  /**
    * The hostname for the request.
    */
   hostname?: string
@@ -84,9 +74,10 @@ type PagesAPIRouteHandlerContext = RouteModuleHandleContext & {
   dev: boolean
 
   /**
-   * True if the server is in minimal mode.
+   * Whether errors should be left uncaught to handle
+   * higher up
    */
-  minimalMode: boolean
+  propagateError: boolean
 
   /**
    * The page that's being rendered.
@@ -102,6 +93,12 @@ type PagesAPIRouteHandlerContext = RouteModuleHandleContext & {
    * whether multi-zone flag is enabled for draft mode
    */
   multiZoneDraftMode?: boolean
+
+  /**
+   * Internal revalidate function to avoid revalidating
+   * over the network
+   */
+  internalRevalidate?: RevalidateFn
 }
 
 export type PagesAPIRouteModuleOptions = RouteModuleOptions<
@@ -149,13 +146,14 @@ export class PagesAPIRouteModule extends RouteModule<
       this.userland,
       {
         ...context.previewProps,
-        revalidate: context.revalidate,
         trustHostHeader: context.trustHostHeader,
         allowedRevalidateHeaderKeys: context.allowedRevalidateHeaderKeys,
         hostname: context.hostname,
         multiZoneDraftMode: context.multiZoneDraftMode,
+        dev: context.dev,
+        internalRevalidate: context.internalRevalidate,
       },
-      context.minimalMode,
+      context.propagateError,
       context.dev,
       context.page,
       context.onError

@@ -1,7 +1,7 @@
 [package]
 name = "next-error-code-swc-plugin"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [lib]
 crate-type = ["cdylib"]
@@ -11,4 +11,4 @@ md5 = "0.7"
 rustc-hash = "2.1.0"
 serde = "1.0"
 serde_json = "1.0"
-swc_core = { version = "5.0.*", features = ["ecma_plugin_transform"] }
+swc_core = { version = "23.0.*", features = ["ecma_plugin_transform"] }

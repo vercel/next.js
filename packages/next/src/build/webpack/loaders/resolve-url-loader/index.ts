@@ -58,20 +58,17 @@ export default async function resolveUrlLoader(
   const callback = this.async()
   const { postcss } = options.postcss
     ? await options.postcss()
-    : { postcss: require('postcss') }
+    : { postcss: require('postcss') as typeof import('postcss') }
   process(postcss, this.resourcePath, content, {
     outputSourceMap: Boolean(options.sourceMap),
     transformDeclaration: valueProcessor(this.resourcePath, options),
     inputSourceMap: sourceMap,
     sourceMapConsumer: sourceMapConsumer,
   })
-    // eslint-disable-next-line @typescript-eslint/no-use-before-define
     .catch(onFailure)
-    // eslint-disable-next-line @typescript-eslint/no-use-before-define
     .then(onSuccess)
 
   function onFailure(error: Error) {
-    // eslint-disable-next-line @typescript-eslint/no-use-before-define
     callback(encodeError('CSS error', error))
   }
 

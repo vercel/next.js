@@ -1,32 +1,31 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
+    chunk::{ChunkingType, TracedMode},
     context::AssetContext,
     file_source::FileSource,
     reference::ModuleReference,
     reference_type::{ReferenceType, TypeScriptReferenceSubType},
-    resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
+    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
 };
 use turbopack_resolve::typescript::type_resolve;
 
 use crate::typescript::TsConfigModuleAsset;
 
 #[turbo_tasks::value]
-#[derive(Hash, Clone, Debug)]
+#[derive(Hash, Clone, Debug, ValueToString)]
+#[value_to_string("tsconfig {tsconfig}")]
 pub struct TsConfigReference {
-    pub tsconfig: ResolvedVc<FileSystemPath>,
+    pub tsconfig: FileSystemPath,
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
 }
 
 #[turbo_tasks::value_impl]
 impl TsConfigReference {
     #[turbo_tasks::function]
-    pub fn new(
-        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-        tsconfig: ResolvedVc<FileSystemPath>,
-    ) -> Vc<Self> {
+    pub fn new(origin: ResolvedVc<Box<dyn ResolveOrigin>>, tsconfig: FileSystemPath) -> Vc<Self> {
         Self::cell(TsConfigReference { tsconfig, origin })
     }
 }
@@ -35,27 +34,26 @@ impl TsConfigReference {
 impl ModuleReference for TsConfigReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        Ok(ModuleResolveResult::module(ResolvedVc::upcast(
-            TsConfigModuleAsset::new(*self.origin, Vc::upcast(FileSource::new(*self.tsconfig)))
-                .to_resolved()
-                .await?,
-        ))
-        .cell())
+        Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
+            TsConfigModuleAsset::new(
+                *self.origin,
+                Vc::upcast(FileSource::new(self.tsconfig.clone())),
+            )
+            .to_resolved()
+            .await?,
+        )))
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ValueToString for TsConfigReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("tsconfig {}", self.tsconfig.to_string().await?,).into(),
-        ))
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
+        })
     }
 }
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("typescript reference path comment {path}")]
 pub struct TsReferencePathAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub path: RcStr,
@@ -73,44 +71,35 @@ impl TsReferencePathAssetReference {
 impl ModuleReference for TsReferencePathAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
+        let origin = self.origin.into_trait_ref().await?;
         Ok(
-            if let Some(path) = &*self
-                .origin
-                .origin_path()
-                .parent()
-                .try_join(self.path.clone())
-                .await?
-            {
-                let module = self
-                    .origin
+            if let Some(path) = origin.origin_path().parent().try_join(&self.path) {
+                let module = origin
                     .asset_context()
                     .process(
-                        Vc::upcast(FileSource::new(**path)),
-                        Value::new(ReferenceType::TypeScript(
-                            TypeScriptReferenceSubType::Undefined,
-                        )),
+                        Vc::upcast(FileSource::new(path.clone())),
+                        ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined),
                     )
                     .module()
                     .to_resolved()
                     .await?;
-                ModuleResolveResult::module(module).cell()
+                *ModuleResolveResult::module(module)
             } else {
-                ModuleResolveResult::unresolvable().cell()
+                *ModuleResolveResult::unresolvable()
             },
         )
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ValueToString for TsReferencePathAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(format!("typescript reference path comment {}", self.path,).into())
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
+        })
     }
 }
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("typescript reference type comment {module}")]
 pub struct TsReferenceTypeAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub module: RcStr,
@@ -131,19 +120,17 @@ impl ModuleReference for TsReferenceTypeAssetReference {
         type_resolve(
             *self.origin,
             Request::module(
-                self.module.clone(),
-                Value::new(RcStr::default().into()),
-                Vc::<RcStr>::default(),
-                Vc::<RcStr>::default(),
+                self.module.clone().into(),
+                RcStr::default().into(),
+                RcStr::default(),
+                RcStr::default(),
             ),
         )
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ValueToString for TsReferenceTypeAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(format!("typescript reference type comment {}", self.module,).into())
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
+        })
     }
 }

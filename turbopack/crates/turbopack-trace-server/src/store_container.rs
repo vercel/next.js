@@ -1,8 +1,8 @@
 use std::{
     ops::{Deref, DerefMut},
     sync::{
-        atomic::{AtomicBool, Ordering},
         RwLock, RwLockReadGuard, RwLockWriteGuard,
+        atomic::{AtomicBool, Ordering},
     },
 };
 
@@ -16,6 +16,12 @@ pub struct StoreContainer {
 struct StoreWithGeneration {
     store: Store,
     generation: usize,
+}
+
+impl Default for StoreContainer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl StoreContainer {

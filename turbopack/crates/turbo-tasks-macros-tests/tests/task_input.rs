@@ -1,30 +1,36 @@
-//! Tests for the `#[derive(TaskInput)]` macro are in `turbo_tasks` itself.
-//! However, we keep one test here as an integration test between the derive
+//! Tests for the `#[turbo_tasks::task_input(contains_unresolved_vcs)]` macro are in `turbo_tasks`
+//! itself. However, we keep one test here as an integration test between the derive
 //! macro and the `#[turbo_tasks::function]` macro.
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
-use serde::{Deserialize, Serialize};
-use turbo_tasks::{Completion, ReadRef, TaskInput, Vc};
-use turbo_tasks_testing::{register, run, Registration};
+use anyhow::Result;
+use bincode::{Decode, Encode};
+use turbo_tasks::{Completion, ReadRef, Vc, trace::TraceRawVcs};
+use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
-#[derive(Clone, TaskInput, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Encode, Decode, TraceRawVcs)]
 struct OneUnnamedField(u32);
 
 #[turbo_tasks::function]
-async fn one_unnamed_field(input: OneUnnamedField) -> Vc<Completion> {
+fn one_unnamed_field(input: OneUnnamedField) -> Vc<Completion> {
     assert_eq!(input.0, 42);
     Completion::immutable()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn tests() {
-    run(&REGISTRATION, || async {
-        assert!(ReadRef::ptr_eq(
-            &one_unnamed_field(OneUnnamedField(42)).await?,
-            &Completion::immutable().await?,
-        ));
+    run_once(&REGISTRATION, || async {
+        #[turbo_tasks::function(operation, root)]
+        async fn equality_operation() -> Result<Vc<bool>> {
+            Ok(Vc::cell(ReadRef::ptr_eq(
+                &one_unnamed_field(OneUnnamedField(42)).await?,
+                &Completion::immutable().await?,
+            )))
+        }
+        equality_operation().read_strongly_consistent().await?;
         anyhow::Ok(())
     })
     .await

@@ -15,7 +15,7 @@
                 [
                     Unknown {
                         original_value: None,
-                        reason: "unsupported expression",
+                        reason: "assignment expression",
                         has_side_effects: true,
                     },
                 ],
@@ -132,46 +132,52 @@
     (
         "handler",
         Function(
-            2,
+            3,
             760,
-            Constant(
-                Undefined,
+            Promise(
+                2,
+                Constant(
+                    Undefined,
+                ),
             ),
         ),
     ),
     (
         "hello",
-        MemberCall(
-            5,
-            Variable(
-                (
-                    "promises_namespaceObject",
-                    #4,
-                ),
-            ),
-            Constant(
-                Str(
-                    Atom(
-                        "readFile",
-                    ),
-                ),
-            ),
-            [
-                Constant(
-                    Str(
-                        Atom(
-                            "./hello.txt",
-                        ),
+        Awaited(
+            6,
+            MemberCall(
+                5,
+                Variable(
+                    (
+                        "promises_namespaceObject",
+                        #4,
                     ),
                 ),
                 Constant(
                     Str(
                         Atom(
-                            "utf-8",
+                            "readFile",
                         ),
                     ),
                 ),
-            ],
+                [
+                    Constant(
+                        Str(
+                            Atom(
+                                "./hello.txt",
+                            ),
+                        ),
+                    ),
+                    Constant(
+                        Str(
+                            Atom(
+                                "utf-8",
+                            ),
+                        ),
+                    ),
+                ],
+            ),
         ),
     ),
     (

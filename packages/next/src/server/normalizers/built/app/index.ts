@@ -26,9 +26,13 @@ export class DevAppNormalizers {
   public readonly pathname: DevAppPathnameNormalizer
   public readonly bundlePath: DevAppBundlePathNormalizer
 
-  constructor(appDir: string, extensions: ReadonlyArray<string>) {
-    this.page = new DevAppPageNormalizer(appDir, extensions)
+  constructor(
+    appDir: string,
+    extensions: ReadonlyArray<string>,
+    isTurbopack: boolean
+  ) {
+    this.page = new DevAppPageNormalizer(appDir, extensions, isTurbopack)
     this.pathname = new DevAppPathnameNormalizer(this.page)
-    this.bundlePath = new DevAppBundlePathNormalizer(this.page)
+    this.bundlePath = new DevAppBundlePathNormalizer(this.page, isTurbopack)
   }
 }

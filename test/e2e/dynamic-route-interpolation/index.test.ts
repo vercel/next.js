@@ -51,25 +51,35 @@ describe('Dynamic Route Interpolation', () => {
   if (isNextStart) {
     it('should support both encoded and decoded nextjs reserved path convention characters in path', async () => {
       const $ = await next.render$('/blog/123')
-      let pagePathScriptSrc
+      const scripts: string[] = []
       for (const script of $('script').toArray()) {
-        const { src } = script.attribs
-        if (src.includes('slug') && src.includes('pages/blog')) {
-          pagePathScriptSrc = src
-          break
+        if (script.attribs.src) {
+          scripts.push(script.attribs.src)
         }
       }
 
-      // e.g. /_next/static/chunks/pages/blog/%5Bslug%5D-3d2fedc300f04305.js
-      const { status: encodedPathReqStatus } =
-        await next.fetch(pagePathScriptSrc)
-      // e.g. /_next/static/chunks/pages/blog/[slug]-3d2fedc300f04305.js
-      const { status: decodedPathReqStatus } = await next.fetch(
-        decodeURI(pagePathScriptSrc)
-      )
+      expect(scripts).not.toBeEmpty()
 
-      expect(encodedPathReqStatus).toBe(200)
-      expect(decodedPathReqStatus).toBe(200)
+      for (const encodedPath of scripts) {
+        // e.g. /_next/static/chunks/pages/blog/%5Bslug%5D-3d2fedc300f04305.js
+        const { status: encodedPathReqStatus } = await next.fetch(encodedPath)
+
+        // e.g. /_next/static/chunks/pages/blog/[slug]-3d2fedc300f04305.js
+        const decodedPath = decodeURI(encodedPath)
+        const { status: decodedPathReqStatus } = await next.fetch(decodedPath)
+
+        expect({
+          encodedPath,
+          encodedStatus: encodedPathReqStatus,
+          decodedPath,
+          decodedStatus: decodedPathReqStatus,
+        }).toMatchObject({
+          encodedPath,
+          decodedPath,
+          encodedStatus: 200,
+          decodedStatus: 200,
+        })
+      }
     })
   }
 })

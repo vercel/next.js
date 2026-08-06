@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use anyhow::Result;
 use rustc_hash::FxHashMap;
-use tracing::{level_filters::LevelFilter, Subscriber};
+use tracing::{Subscriber, level_filters::LevelFilter};
 use tracing_subscriber::Layer;
 
 pub struct FilterLayer {
@@ -51,6 +51,13 @@ impl<S: Subscriber> Layer<S> for FilterLayer {
     }
 
     fn max_level_hint(&self) -> Option<LevelFilter> {
-        self.config.values().copied().min()
+        Some(
+            self.config
+                .values()
+                .copied()
+                .max()
+                .unwrap_or(LevelFilter::OFF)
+                .max(self.global_level),
+        )
     }
 }

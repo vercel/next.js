@@ -10,11 +10,18 @@
 
 "use strict";
 var REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
-  REACT_FRAGMENT_TYPE = Symbol.for("react.fragment");
+  REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"),
+  REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key");
 function jsxProd(type, config, maybeKey) {
   var key = null;
-  void 0 !== maybeKey && (key = "" + maybeKey);
-  void 0 !== config.key && (key = "" + config.key);
+  void 0 !== maybeKey &&
+    (key =
+      maybeKey === REACT_OPTIMISTIC_KEY ? REACT_OPTIMISTIC_KEY : "" + maybeKey);
+  void 0 !== config.key &&
+    (key =
+      maybeKey === REACT_OPTIMISTIC_KEY
+        ? REACT_OPTIMISTIC_KEY
+        : "" + config.key);
   if ("key" in config) {
     maybeKey = {};
     for (var propName in config)

@@ -1,0 +1,8 @@
+.moduleWithImage {
+  background-image: url('./test-image.png');
+}
+
+@font-face {
+  font-family: 'TestFontModule';
+  src: url('./test-font.woff2') format('woff2');
+}
