@@ -462,9 +462,14 @@ export default class DevServer extends Server {
     }
     pathname = removeTrailingSlash(pathname)
 
-    return this.matchers.test(pathname, {
-      i18n: this.i18nProvider?.analyze(pathname),
-    })
+    const i18n = this.i18nProvider?.analyze(pathname)
+    // API routes are not served under locale-prefixed paths; see the
+    // corresponding check in resolveRoutes.
+    if (i18n?.detectedLocale && pathHasPrefix(i18n.pathname, '/api')) {
+      return false
+    }
+
+    return this.matchers.test(pathname, { i18n })
   }
 
   async runMiddleware(params: {
