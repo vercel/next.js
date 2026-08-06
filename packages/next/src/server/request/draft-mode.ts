@@ -45,11 +45,11 @@ export function draftMode(): Promise<DraftMode> {
           new DraftMode(workUnitStore.draftMode)
         )
       } else {
-        return createOrGetCachedDraftMode(workUnitStore.draftMode, workStore)
+        return createDraftModePromise(workUnitStore.draftMode, workStore)
       }
     }
     case 'request':
-      return createOrGetCachedDraftMode(workUnitStore.draftMode, workStore)
+      return createDraftModePromise(workUnitStore.draftMode, workStore)
 
     case 'cache':
     case 'private-cache':
@@ -63,7 +63,7 @@ export function draftMode(): Promise<DraftMode> {
       )
 
       if (draftModeProvider) {
-        return createOrGetCachedDraftMode(draftModeProvider, workStore)
+        return createDraftModePromise(draftModeProvider, workStore)
       }
 
     // Otherwise, we fall through to providing an empty draft mode.
@@ -72,7 +72,7 @@ export function draftMode(): Promise<DraftMode> {
     case 'prerender-ppr':
     case 'prerender-legacy':
       // Return empty draft mode
-      return createOrGetCachedDraftMode(null, workStore)
+      return createDraftModePromise(null, workStore)
     case 'prerender-client':
     case 'validation-client': {
       const exportName = '`draftMode`'
@@ -90,28 +90,26 @@ export function draftMode(): Promise<DraftMode> {
   }
 }
 
-function createOrGetCachedDraftMode(
+function createDraftModePromise(
   draftModeProvider: DraftModeProvider | null,
   workStore: WorkStore | undefined
 ): Promise<DraftMode> {
-  const cacheKey = draftModeProvider ?? NullDraftMode
-  const cachedDraftMode = CachedDraftModes.get(cacheKey)
-
-  if (cachedDraftMode) {
-    return cachedDraftMode
-  }
-
   if (process.env.NODE_ENV === 'development' && !workStore?.isPrefetchRequest) {
     const route = workStore?.route
     return createDraftModeWithDevWarnings(draftModeProvider, route)
+  } else if (workStore) {
+    // Create the promise in a clean async snapshot so it does not capture the
+    // request's async-local stores through its async-hooks resource store.
+    // Framework-created request API promises should never root the request
+    // context that produced them; this matches params, searchParams,
+    // cookies, and headers.
+    return workStore.runInCleanSnapshot(() =>
+      Promise.resolve(new DraftMode(draftModeProvider))
+    )
   } else {
     return Promise.resolve(new DraftMode(draftModeProvider))
   }
 }
-
-interface CacheLifetime {}
-const NullDraftMode = {}
-const CachedDraftModes = new WeakMap<CacheLifetime, Promise<DraftMode>>()
 
 function createDraftModeWithDevWarnings(
   underlyingProvider: null | DraftModeProvider,

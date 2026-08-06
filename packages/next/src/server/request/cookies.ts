@@ -46,7 +46,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
       // When using forceStatic we override all other logic and always just return an empty
       // cookies object without tracking
       const underlyingCookies = createEmptyCookies()
-      return makeUntrackedCookies(underlyingCookies)
+      return makeUntrackedCookies(underlyingCookies, workStore)
     }
 
     if (workStore.dynamicShouldError) {
@@ -106,13 +106,13 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
               workUnitStore.cookies
             )
           } else {
-            return makeUntrackedCookies(workUnitStore.cookies)
+            return makeUntrackedCookies(workUnitStore.cookies, workStore)
           }
         }
         case 'private-cache':
           // Private caches are delayed until the runtime stage in use-cache-wrapper,
           // so we don't need an additional delay here.
-          return makeUntrackedCookies(workUnitStore.cookies)
+          return makeUntrackedCookies(workUnitStore.cookies, workStore)
         case 'request':
           trackDynamicDataInDynamicRender(workUnitStore)
 
@@ -143,7 +143,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
               return workUnitStore.asyncApiPromises.cookies
             }
           } else {
-            return makeUntrackedCookies(underlyingCookies)
+            return makeUntrackedCookies(underlyingCookies, workStore)
           }
         default:
           workUnitStore satisfies never
@@ -186,14 +186,20 @@ function makeHangingCookies(
 }
 
 function makeUntrackedCookies(
-  underlyingCookies: ReadonlyRequestCookies
+  underlyingCookies: ReadonlyRequestCookies,
+  workStore: WorkStore
 ): Promise<ReadonlyRequestCookies> {
   const cachedCookies = CachedCookies.get(underlyingCookies)
   if (cachedCookies) {
     return cachedCookies
   }
 
-  const promise = Promise.resolve(underlyingCookies)
+  // Create the promise in a clean async snapshot so the cached promise does
+  // not retain the request's async-local stores through its async-hooks
+  // resource store for as long as the WeakMap entry lives.
+  const promise = workStore.runInCleanSnapshot(() =>
+    Promise.resolve(underlyingCookies)
+  )
   CachedCookies.set(underlyingCookies, promise)
 
   return promise
