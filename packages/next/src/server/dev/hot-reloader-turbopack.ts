@@ -1,8 +1,8 @@
 import type { Socket } from 'net'
-import { mkdir, writeFile } from 'fs/promises'
+import { access, mkdir, writeFile } from 'fs/promises'
 import { realpathSync } from 'fs'
 import * as inspector from 'inspector'
-import { join, extname, relative, isAbsolute, sep } from 'path'
+import { join, extname, relative, isAbsolute, sep, dirname } from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 
 import ws from 'next/dist/compiled/ws'
@@ -37,6 +37,7 @@ import {
   getOriginalStackFrames,
 } from './middleware-turbopack'
 import { PageNotFoundError } from '../../shared/lib/utils'
+import { DetachedPromise } from '../../lib/detached-promise'
 import { debounce } from '../utils'
 import { clearManifestCache } from '../load-manifest.external'
 import { deleteCache } from './require-cache'
@@ -552,6 +553,18 @@ export async function createHotReloaderTurbopack(
   let currentEntriesHandling = new Promise(
     (resolve) => (currentEntriesHandlingResolve = resolve)
   )
+  // Unlike `currentEntriesHandling`, which is resolved while no entrypoints
+  // update is in flight, this promise is always pending. Awaiting it observes
+  // the completion of the next entrypoints update, including updates that
+  // haven't started yet.
+  let nextEntrypointsUpdate = new DetachedPromise<void>()
+  function finishEntrypointsUpdate() {
+    currentEntriesHandlingResolve!()
+    currentEntriesHandlingResolve = undefined
+    const settled = nextEntrypointsUpdate
+    nextEntrypointsUpdate = new DetachedPromise<void>()
+    settled.resolve()
+  }
 
   const assetMapper = new AssetMapper()
 
@@ -1036,8 +1049,7 @@ export async function createHotReloaderTurbopack(
       if (!('routes' in entrypoints)) {
         printBuildErrors(entrypoints, true)
 
-        currentEntriesHandlingResolve!()
-        currentEntriesHandlingResolve = undefined
+        finishEntrypointsUpdate()
         continue
       }
 
@@ -1116,8 +1128,7 @@ export async function createHotReloaderTurbopack(
         })
       }
 
-      currentEntriesHandlingResolve!()
-      currentEntriesHandlingResolve = undefined
+      finishEntrypointsUpdate()
     }
   }
 
@@ -1900,7 +1911,10 @@ export async function createHotReloaderTurbopack(
               )
             : page
 
-          const route = isInsideAppDir
+          // Captured before checking the entrypoints so that an update
+          // finishing in between cannot be missed while waiting below.
+          let pendingEntrypointsUpdate = nextEntrypointsUpdate.promise
+          let route = isInsideAppDir
             ? currentEntrypoints.app.get(normalizedAppPage)
             : currentEntrypoints.page.get(page)
 
@@ -1912,7 +1926,58 @@ export async function createHotReloaderTurbopack(
             if (page === '/src/proxy') return
             if (page === '/instrumentation') return
             if (page === '/src/instrumentation') return
+          }
 
+          if (!route) {
+            // The route can be missing from the entrypoints even though its
+            // file exists on disk: routes are discovered by a separate watcher
+            // in setup-dev-bundler.ts, which can pick up a freshly written
+            // file before Turbopack's own watcher does. Ask Turbopack
+            // directly, forcing it to re-read the file's directory. While it
+            // reports that the route exists, the entrypoints subscription is
+            // guaranteed to deliver an update containing it (under the same
+            // key; see handleEntrypoints), so wait for that instead of
+            // failing the request.
+            const routeKey = isInsideAppDir ? normalizedAppPage : page
+            const relativeDir = relative(
+              projectPath,
+              dirname(routeDef.filename)
+            )
+            // Files outside the project (e.g. built-in fallback routes)
+            // aren't watched, so there is nothing to invalidate for them.
+            const invalidateDirs =
+              relativeDir.startsWith('..') || isAbsolute(relativeDir)
+                ? []
+                : [relativeDir.split(sep).join('/')]
+            let invalidated = false
+            while (!route) {
+              try {
+                await access(routeDef.filename)
+              } catch {
+                break
+              }
+              let routeExists = false
+              try {
+                routeExists = await project.containsRoute(
+                  routeKey,
+                  invalidated ? [] : invalidateDirs
+                )
+              } catch {
+                // The entrypoints cannot currently be computed, e.g. because
+                // of a build error in a file they depend on.
+                break
+              }
+              invalidated = true
+              if (!routeExists) break
+              await pendingEntrypointsUpdate
+              pendingEntrypointsUpdate = nextEntrypointsUpdate.promise
+              route = isInsideAppDir
+                ? currentEntrypoints.app.get(normalizedAppPage)
+                : currentEntrypoints.page.get(page)
+            }
+          }
+
+          if (!route) {
             throw new PageNotFoundError(`route not found ${page}`)
           }
 

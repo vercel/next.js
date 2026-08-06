@@ -699,6 +699,17 @@ function bindingToApi(
       )
     }
 
+    containsRoute(
+      routeKey: string,
+      invalidateDirs: string[]
+    ): Promise<boolean> {
+      return binding.projectContainsRoute(
+        this._nativeProject,
+        routeKey,
+        invalidateDirs
+      )
+    }
+
     async writeAnalyzeData(
       appDirOnly: boolean
     ): Promise<TurbopackResult<void>> {
