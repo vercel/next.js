@@ -23,6 +23,7 @@ export function computeDynamicStaleAt(
 import {
   setInCacheMap,
   getFromCacheMap,
+  EntryStatus,
   type UnknownMapEntry,
   type CacheMap,
   createCacheMap,
@@ -34,6 +35,11 @@ export type BFCacheEntry = {
   head: React.ReactNode | null
   prefetchHead: React.ReactNode | null
 
+  // The bfcacheId of the CacheNode that wrote this entry. Restored on
+  // history-traversal navigations so that `useRouter().bfcacheId` is stable
+  // across back/forward, even without `cacheComponents` Activity preservation.
+  bfcacheId: number
+
   ref: UnknownMapEntry | null
   size: number
   // The time at which this data was received. Used to compute the stale time
@@ -44,6 +50,10 @@ export type BFCacheEntry = {
   navigatedAt: number
   staleAt: number
   version: number
+  // A BFCacheEntry always represents a completed navigation, so the status is
+  // always Fulfilled. The field exists so that BFCacheEntry conforms to the
+  // MapValue protocol.
+  status: EntryStatus.Fulfilled
 }
 
 const bfcacheMap: CacheMap<BFCacheEntry> = createCacheMap()
@@ -64,7 +74,8 @@ export function writeToBFCache(
   prefetchRsc: React.ReactNode,
   head: React.ReactNode,
   prefetchHead: React.ReactNode,
-  dynamicStaleAt: number
+  dynamicStaleAt: number,
+  bfcacheId: number
 ): void {
   if (typeof window === 'undefined') {
     return
@@ -78,6 +89,8 @@ export function writeToBFCache(
     // SegmentCacheEntry. The head has its own separate cache entry.
     head,
     prefetchHead,
+
+    bfcacheId,
 
     ref: null,
     // TODO: This is just a heuristic. Getting the actual size of the segment
@@ -94,6 +107,7 @@ export function writeToBFCache(
     // is exported by a page.
     staleAt: dynamicStaleAt,
     version: currentBfCacheVersion,
+    status: EntryStatus.Fulfilled,
   }
   const isRevalidation = false
   setInCacheMap(bfcacheMap, varyPath, entry, isRevalidation)
@@ -104,10 +118,20 @@ export function writeHeadToBFCache(
   varyPath: SegmentVaryPath,
   head: React.ReactNode,
   prefetchHead: React.ReactNode,
-  dynamicStaleAt: number
+  dynamicStaleAt: number,
+  bfcacheId: number
 ): void {
   // Read the special "segment" that represents the head data.
-  writeToBFCache(now, varyPath, head, prefetchHead, null, null, dynamicStaleAt)
+  writeToBFCache(
+    now,
+    varyPath,
+    head,
+    prefetchHead,
+    null,
+    null,
+    dynamicStaleAt,
+    bfcacheId
+  )
 }
 
 /**
@@ -130,7 +154,8 @@ export function updateBFCacheEntryStaleAt(
     currentBfCacheVersion,
     bfcacheMap,
     varyPath,
-    isRevalidation
+    isRevalidation,
+    false
   )
   if (entry !== null) {
     entry.staleAt = newStaleAt
@@ -152,7 +177,8 @@ export function readFromBFCache(
     currentBfCacheVersion,
     bfcacheMap,
     varyPath,
-    isRevalidation
+    isRevalidation,
+    false
   )
 }
 
@@ -169,6 +195,7 @@ export function readFromBFCacheDuringRegularNavigation(
     currentBfCacheVersion,
     bfcacheMap,
     varyPath,
-    isRevalidation
+    isRevalidation,
+    false
   )
 }

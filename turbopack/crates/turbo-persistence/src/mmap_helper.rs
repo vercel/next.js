@@ -2,15 +2,11 @@
 ///
 /// - `DontFork`: prevents mmap regions from being copied into child processes on `fork()`, avoiding
 ///   unnecessary memory duplication and potential SIGBUS.
-/// - `Unmergeable`: opts pages out of KSM (Kernel Same-page Merging) since our data is unique
-///   compressed content that won't benefit from deduplication scanning.
 #[cfg(target_os = "linux")]
 pub fn advise_mmap_for_persistence(mmap: &memmap2::Mmap) -> anyhow::Result<()> {
     use anyhow::Context;
     mmap.advise(memmap2::Advice::DontFork)
         .context("Failed to advise mmap DontFork")?;
-    mmap.advise(memmap2::Advice::Unmergeable)
-        .context("Failed to advise mmap Unmergeable")?;
     Ok(())
 }
 

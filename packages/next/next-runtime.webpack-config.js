@@ -111,6 +111,16 @@ const bundleTypes = {
   server: {
     server: path.join(__dirname, 'dist/esm/server/next-server.js'),
   },
+  'app-worker': {
+    'use-cache-probe-worker': path.join(
+      __dirname,
+      'dist/esm/server/dev/use-cache-probe-worker.js'
+    ),
+    'dev-validation-worker': path.join(
+      __dirname,
+      'dist/esm/server/dev/dev-validation-worker.js'
+    ),
+  },
 }
 
 /**
@@ -139,6 +149,28 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
         return
       }
 
+      // The dev validation worker calls `installBindings()` /
+      // `installCodeFrameSupport()` so its logged errors render source-mapped
+      // code frames. Those pull in the native SWC binding graph (`build/swc` →
+      // `trace` → `telemetry`), which isn't present under `dist/esm`. Resolve
+      // it from the installed `next/dist` tree at runtime instead of bundling
+      // it into the worker, exactly as the unbundled build worker loads it.
+      // Scoped to the `app-worker` bundle; the probe worker in the same group
+      // doesn't import it.
+      if (
+        bundleType === 'app-worker' &&
+        request.match(/[\\/]build[\\/]swc(?:[\\/]install-bindings)?(?:\.js)?$/)
+      ) {
+        const resolve = getResolve()
+        const resolved = await resolve(context, request)
+        const relative = path.relative(
+          path.join(__dirname, '..'),
+          resolved.replace('esm' + path.sep, '')
+        )
+        callback(null, `commonjs ${relative}`)
+        return
+      }
+
       if (request.match(/\.external(\.js)?$/)) {
         const resolve = getResolve()
         const resolved = await resolve(context, request)
@@ -162,7 +194,7 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
   const bundledReactChannel = experimental ? '-experimental' : ''
 
   const alias =
-    bundleType === 'app'
+    bundleType === 'app' || bundleType === 'app-worker'
       ? makeAppAliases({
           experimental,
           bundler: turbo ? 'turbopack' : 'webpack',
@@ -183,7 +215,9 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
       filename: `[name]${turbo ? '-turbo' : ''}${
         experimental ? '-experimental' : ''
       }.runtime.${dev ? 'dev' : 'prod'}.js`,
-      libraryTarget: 'commonjs2',
+      library: {
+        type: 'commonjs2',
+      },
     },
     devtool: 'source-map',
     optimization:
@@ -196,6 +230,12 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
             minimizer: [
               new webpack.SwcJsMinimizerRspackPlugin({
                 minimizerOptions: {
+                  compress: {
+                    defaults: true,
+                    // FIXME: compiler bug: wrongly merging two conditionals with different return values into one
+                    // (in `prepareValidationInputsInPartialPrefetching`)
+                    conditionals: false,
+                  },
                   mangle:
                     dev || process.env.NEXT_SERVER_NO_MANGLE ? false : true,
                 },
@@ -220,6 +260,9 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
         'process.env.__NEXT_EXPERIMENTAL_REACT': JSON.stringify(
           experimental ? true : false
         ),
+        ...(bundleType === 'app' || bundleType === 'app-worker'
+          ? { 'process.env.__NEXT_USE_NODE_STREAMS': JSON.stringify(true) }
+          : {}),
         'process.env.NEXT_RUNTIME': JSON.stringify('nodejs'),
         'process.turbopack': JSON.stringify(turbo),
         'process.env.TURBOPACK': JSON.stringify(turbo),
@@ -258,7 +301,10 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
       rules: [
         { test: /\.m?js$/, loader: `source-map-loader`, enforce: `pre` },
         {
-          include: /[\\/]react-server\.node/,
+          include: [
+            /[\\/]react-server\.node/,
+            /server[\\/]dev[\\/]use-cache-probe-worker/,
+          ],
           layer: 'react-server',
         },
         {

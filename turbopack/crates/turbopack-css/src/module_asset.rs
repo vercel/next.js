@@ -5,26 +5,23 @@ use lightningcss::css_modules::CssModuleReference;
 use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, turbofmt};
-use turbo_tasks_fs::{FileSystemPath, rope::Rope};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
     context::{AssetContext, ProcessResult},
     ident::AssetIdent,
-    issue::{
-        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
-        OptionStyledString, StyledString,
-    },
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CssReferenceSubType, ReferenceType},
     resolve::{origin::ResolveOrigin, parse::Request},
     source::{OptionSource, Source},
+    source_map::structured::StructuredSourceMap,
 };
 use turbopack_ecmascript::{
     chunk::{
-        EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
-        ecmascript_chunk_item,
+        EcmascriptChunkItemContent, EcmascriptChunkItemOptions, EcmascriptChunkPlaceable,
+        EcmascriptExports, ecmascript_chunk_item,
     },
     parse::generate_js_source_map,
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_IMPORT},
@@ -45,19 +42,22 @@ use crate::{
 pub struct EcmascriptCssModule {
     pub source: ResolvedVc<Box<dyn Source>>,
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    /// The path of `source`, precomputed so that `ResolveOrigin::origin_path` is synchronous.
+    origin_path: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptCssModule {
     #[turbo_tasks::function]
-    pub fn new(
+    pub async fn new(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
-    ) -> Vc<Self> {
-        Self::cell(EcmascriptCssModule {
+    ) -> Result<Vc<Self>> {
+        Ok(Self::cell(EcmascriptCssModule {
+            origin_path: source.ident().await?.path.clone(),
             source,
             asset_context,
-        })
+        }))
     }
 }
 
@@ -68,8 +68,11 @@ impl Module for EcmascriptCssModule {
         Ok(self
             .source
             .ident()
+            .owned()
+            .await?
             .with_modifier(rcstr!("css module"))
-            .with_layer(self.asset_context.into_trait_ref().await?.layer()))
+            .with_layer(self.asset_context.into_trait_ref().await?.layer())
+            .into_vc())
     }
 
     #[turbo_tasks::function]
@@ -285,43 +288,18 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
                         original: original_name,
                         from,
                     } => {
-                        let resolved_module = from.resolve_reference().first_module().await?;
+                        let resolved_module =
+                            from.resolve_reference().await?.first_module().await?;
 
-                        let Some(resolved_module) = &*resolved_module else {
-                            CssModuleComposesIssue {
-                                severity: IssueSeverity::Error,
-                                // TODO(PACK-4879): this should include detailed location
-                                // information
-                                source: IssueSource::from_source_only(self.await?.source),
-                                message: turbofmt!(
-                                    "Module {} referenced in `composes: ... from ...;` can't be \
-                                     resolved.\n",
-                                    from.await?.request
-                                )
-                                .await?,
-                            }
-                            .resolved_cell()
-                            .emit();
+                        let Some(resolved_module) = resolved_module else {
+                            // Issue already emitted by CssModuleComposeReference::resolve_reference
                             continue;
                         };
 
                         let Some(css_module) =
-                            ResolvedVc::try_downcast_type::<EcmascriptCssModule>(*resolved_module)
+                            ResolvedVc::try_downcast_type::<EcmascriptCssModule>(resolved_module)
                         else {
-                            CssModuleComposesIssue {
-                                severity: IssueSeverity::Error,
-                                // TODO(PACK-4879): this should include detailed location
-                                // information
-                                source: IssueSource::from_source_only(self.await?.source),
-                                message: turbofmt!(
-                                    "Module {} referenced in `composes: ... from ...;` is not a \
-                                     CSS module.\n",
-                                    from.await?.request
-                                )
-                                .await?,
-                            }
-                            .resolved_cell()
-                            .emit();
+                            // Issue already emitted by CssModuleComposeReference::resolve_reference
                             continue;
                         };
 
@@ -367,6 +345,14 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
             } else {
                 None
             },
+            options: EcmascriptChunkItemOptions {
+                supports_arrow_functions: *chunking_context
+                    .environment()
+                    .runtime_versions()
+                    .supports_arrow_functions()
+                    .await?,
+                ..Default::default()
+            },
             ..Default::default()
         }
         .cell())
@@ -375,18 +361,16 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
 
 #[turbo_tasks::value_impl]
 impl ResolveOrigin for EcmascriptCssModule {
-    #[turbo_tasks::function]
-    fn origin_path(&self) -> Vc<FileSystemPath> {
-        self.source.ident().path()
+    fn origin_path(&self) -> FileSystemPath {
+        self.origin_path.clone()
     }
 
-    #[turbo_tasks::function]
-    fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
-        *self.asset_context
+    fn asset_context(&self) -> ResolvedVc<Box<dyn AssetContext>> {
+        self.asset_context
     }
 }
 
-fn generate_minimal_source_map(filename: String, source: String) -> Result<Rope> {
+fn generate_minimal_source_map(filename: String, source: String) -> Result<StructuredSourceMap> {
     let mut mappings = vec![];
     // Start from 1 because 0 is reserved for dummy spans in SWC.
     let mut pos = 1;
@@ -404,48 +388,4 @@ fn generate_minimal_source_map(filename: String, source: String) -> Result<Rope>
     sm.new_source_file(FileName::Custom(filename).into(), source);
     let map = generate_js_source_map(&*sm, mappings, None, true, true, Default::default())?;
     Ok(map)
-}
-
-#[turbo_tasks::value(shared)]
-struct CssModuleComposesIssue {
-    severity: IssueSeverity,
-    source: IssueSource,
-    message: RcStr,
-}
-
-#[turbo_tasks::value_impl]
-impl Issue for CssModuleComposesIssue {
-    fn severity(&self) -> IssueSeverity {
-        self.severity
-    }
-
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!(
-            "An issue occurred while resolving a CSS module `composes:` rule"
-        ))
-        .cell()
-    }
-
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::CodeGen.cell()
-    }
-
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.file_path()
-    }
-
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Text(self.message.clone()).resolved_cell(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
-    }
 }

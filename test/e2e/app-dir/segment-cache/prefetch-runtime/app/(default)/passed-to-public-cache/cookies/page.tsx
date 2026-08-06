@@ -3,10 +3,10 @@ import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind } from '../../../shared'
 import { connection } from 'next/server'
 
-export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [{ cookies: [{ name: 'testCookie', value: 'testValue' }] }],
+export const instant = {
+  unstable_samples: [{ cookies: [{ name: 'testCookie', value: 'testValue' }] }],
 }
+export const prefetch = 'partial'
 
 export default async function Page() {
   return (

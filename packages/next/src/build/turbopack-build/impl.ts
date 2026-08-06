@@ -2,6 +2,7 @@
 import { saveCpuProfile } from '../../server/lib/cpu-profile'
 import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
+import { seedTurbopackCacheIfNeeded } from '../../lib/turbopack-cache-seed'
 import { NextBuildContext } from '../build-context'
 import { createDefineEnv, getBindingsSync } from '../swc'
 import { installBindings } from '../swc/install-bindings'
@@ -15,6 +16,7 @@ import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
 import loadConfig from '../../server/config'
 import { hasCustomExportOutput } from '../../export/utils'
 import { Telemetry } from '../../telemetry/storage'
+import { eventBuildFeatureUsageFromTurbopack } from '../../telemetry/events/build'
 import {
   setGlobal,
   trace,
@@ -34,10 +36,11 @@ import type {
 } from '../swc/types'
 import { Bundler } from '../../lib/bundler'
 
-export async function turbopackBuild(): Promise<{
+export async function turbopackBuild(telemetry: Telemetry): Promise<{
   duration: number
   buildTraceContext: undefined
   shutdownPromise: Promise<void>
+  warnings: string[]
 }> {
   await validateTurboNextConfig({
     dir: NextBuildContext.dir!,
@@ -116,11 +119,19 @@ export async function turbopackBuild(): Promise<{
     nextVersion: process.env.__NEXT_VERSION as string,
   }
 
+  if (config.experimental.turbopackSeedCacheFromWorktree) {
+    seedTurbopackCacheIfNeeded({
+      projectDir: dir,
+      distDir,
+    })
+  }
+
   const sharedTurboOptions = {
-    memoryLimit: config.experimental?.turbopackMemoryLimit,
+    turbopackMemoryEviction: config.experimental.turbopackMemoryEvictionMode,
     dependencyTracking: persistentCaching || hasDeferredEntries,
     isCi: isCI,
     isShortSession: true,
+    skipCompaction: process.env.NEXT_USE_POST_BUILD === '1',
   }
 
   const sriEnabled = Boolean(config.experimental.sri?.algorithm)
@@ -172,7 +183,25 @@ export async function turbopackBuild(): Promise<{
     let appDirOnly = NextBuildContext.appDirOnly!
 
     const entrypoints = await project.writeAllEntrypointsToDisk(appDirOnly)
-    printBuildErrors(entrypoints, dev)
+    // Defer warnings so the caller can print them after static generation,
+    // keeping SSG errors more prominent than compile warnings.
+    const { warnings } = printBuildErrors(entrypoints, dev, {
+      deferWarnings: true,
+    })
+
+    // Skip when telemetry is fully off — featureUsage() isn't free.
+    if (telemetry.isEnabled || process.env.NEXT_TELEMETRY_DEBUG) {
+      try {
+        const featureUsage = await project.featureUsage()
+        const events = eventBuildFeatureUsageFromTurbopack(featureUsage)
+        if (events.length > 0) {
+          telemetry.record(events)
+        }
+      } catch (err) {
+        // Telemetry must never break a build.
+        console.warn('Failed to record Turbopack feature telemetry:', err)
+      }
+    }
 
     const routes = entrypoints.routes
     if (!routes) {
@@ -280,6 +309,7 @@ export async function turbopackBuild(): Promise<{
       duration: time[0] + time[1] / 1e9,
       buildTraceContext: undefined,
       shutdownPromise,
+      warnings,
     }
   } catch (err) {
     await project.shutdown()
@@ -331,11 +361,13 @@ export async function workerMain(workerData: {
       shutdownPromise: resultShutdownPromise,
       buildTraceContext,
       duration,
-    } = await turbopackBuild()
+      warnings,
+    } = await turbopackBuild(telemetry)
     shutdownPromise = resultShutdownPromise
     return {
       buildTraceContext,
       duration,
+      warnings,
     }
   } finally {
     // Always flush telemetry before worker exits (waits for async operations like setTimeout in debug mode)

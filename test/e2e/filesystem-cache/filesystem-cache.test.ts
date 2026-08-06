@@ -42,12 +42,16 @@ for (const cacheEnabled of [false, true]) {
       `TURBO_ENGINE_IGNORE_DIRTY=1`,
       // decrease the idle timeout to make the test more reliable
       `TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS=1000`,
+      // persist even tiny snapshots so the test doesn't depend on the
+      // minimum-compilation-time threshold
+      `TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS=0`,
     ].join(' ')
 
     const { skipped, next, isTurbopack } = nextTestSetup({
       files: __dirname,
       skipDeployment: true,
       packageJson: {
+        packageManager: 'npm@10.9.2',
         scripts: {
           build: `${envVars} next build`,
           dev: `${envVars} next dev`,

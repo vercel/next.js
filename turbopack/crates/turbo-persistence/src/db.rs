@@ -1,17 +1,21 @@
 use std::{
     borrow::Cow,
     collections::HashSet,
-    fs::{self, File, OpenOptions, ReadDir},
+    fmt::Display,
     io::{BufWriter, Write},
     mem::take,
     ops::RangeInclusive,
     path::{Path, PathBuf},
-    sync::atomic::{AtomicBool, AtomicU32, Ordering},
+    sync::{
+        OnceLock,
+        atomic::{AtomicBool, AtomicU32, Ordering},
+    },
 };
 
 use anyhow::{Context, Result, bail};
 use byteorder::{BE, ReadBytesExt, WriteBytesExt};
 use dashmap::DashSet;
+use fs_err::{self as fs, File, OpenOptions, ReadDir};
 use jiff::Timestamp;
 use memmap2::Mmap;
 use nohash_hasher::BuildNoHashHasher;
@@ -40,7 +44,7 @@ use crate::{
     sst_filter::SstFilter,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFileIter},
     static_sorted_file_builder::{StaticSortedFileBuilderMeta, StreamingSstWriter},
-    write_batch::{FinishResult, WriteBatch},
+    write_batch::{FinishResult, NewFile, WriteBatch},
 };
 
 #[cfg(feature = "stats")]
@@ -106,6 +110,136 @@ struct TrackedStats {
     miss_global: std::sync::atomic::AtomicU64,
 }
 
+/// State of the active write slot.
+enum ActiveWriteState {
+    /// A write operation or compaction is in progress.
+    /// The string is a human-readable name used in error messages.
+    Active(&'static str),
+    /// A previous write or compaction failed and recovery also failed.
+    /// No further writes are possible.
+    Error,
+}
+
+/// A single superseded file whose deletion failed and is being retried.
+///
+/// On Linux/macOS, deleting a memory-mapped file is safe and this list is
+/// normally empty. On Windows, open memory maps prevent deletion; failed files
+/// are collected here and retried on the next commit or shutdown.
+enum DeferredDeletion {
+    Sst(u32),
+    Meta(u32),
+    Blob(u32),
+}
+
+/// RAII guard for an active write operation.
+///
+/// When dropped without [`WriteOperationGuard::success`] being called first, the guard rolls back
+/// the operation by deleting any files whose sequence number exceeds `seq_before` (the sequence
+/// number at the time the operation started). If rollback itself fails the write slot is set to
+/// [`ActiveWriteState::Error`], permanently disabling further writes.
+pub(crate) struct WriteOperationGuard<'a> {
+    /// Reference to the active-write-operation slot, so we can clear or error it on drop.
+    active: &'a Mutex<Option<ActiveWriteState>>,
+    /// Database directory path, needed for orphan-file deletion during rollback.
+    path: &'a Path,
+    /// Sequence number at the time the operation started (= the last committed seq on disk).
+    /// Files with seq > this were created by the current operation and must be deleted on
+    /// rollback.
+    seq_before: u32,
+    /// Set to `true` by [`WriteOperationGuard::success`] to skip rollback on drop.
+    succeeded: bool,
+}
+
+impl WriteOperationGuard<'_> {
+    /// Mark the operation as successfully completed.
+    ///
+    /// After this call the guard's `Drop` impl will release the write slot without rolling back.
+    pub(crate) fn success(&mut self) {
+        self.succeeded = true;
+    }
+}
+
+/// Durably and atomically updates the `CURRENT` file in the database directory `path` to point at
+/// `seq`.
+///
+/// The write is made atomic by writing `seq` to a temporary `CURRENT.next` file, flushing it, and
+/// then `rename`ing it over `CURRENT`. A `rename` within a directory is atomic on POSIX and
+/// replaces the destination on Windows, so a concurrent or crashing writer can never observe a
+/// torn `CURRENT` (in-place overwrites, by contrast, can leave a partially-written value on a
+/// crash mid-write). After the rename we fsync the directory so the new `CURRENT` → inode mapping
+/// survives a crash.
+fn commit_current(path: &Path, seq: u32) -> Result<()> {
+    let next_path = path.join("CURRENT.next");
+    let mut next_file = File::create(&next_path)?;
+    next_file.write_u32::<BE>(seq)?;
+    next_file.sync_data()?;
+    drop(next_file);
+
+    fs::rename(&next_path, path.join("CURRENT"))?;
+
+    // Fsync the directory. This is the single durability barrier for a commit: by the time we get
+    // here every file created earlier in the commit (SST/meta/blob and any `.del` file) already
+    // exists, so this one fsync flushes *all* of their directory entries together with the CURRENT
+    // rename. Because the file *contents* were already `sync_data`'d before this call and the
+    // rename is the last directory mutation, a crash can never leave a durable CURRENT pointing at
+    // files whose directory entries were lost. Callers therefore do not need a separate directory
+    // fsync before invoking this.
+    //
+    // Skipped on Windows: `sync_data` on a directory handle fails with ERROR_ACCESS_DENIED (the
+    // handle `File::open` returns for a directory has no write access).Apparently metadata changes
+    // are always atomic on windows so this is simply unneeded.
+    #[cfg(not(windows))]
+    File::open(path)
+        .and_then(|dir| dir.sync_data())
+        .context("Failed to sync database directory after updating CURRENT")?;
+    Ok(())
+}
+
+/// Deletes all files in `path` whose numeric stem is greater than `seq_before`.
+///
+/// Called on rollback to clean up any SST, meta, blob, or del files written during a
+/// failed write operation or compaction.
+fn delete_orphan_files(path: &Path, seq_before: u32) -> Result<()> {
+    // Restore CURRENT to seq_before first, so the on-disk state is consistent before we start
+    // deleting the orphan files that a failed write/compaction left behind.
+    commit_current(path, seq_before).context("Unable to restore CURRENT file")?;
+
+    for entry in fs::read_dir(path)? {
+        let entry = entry?;
+        let path = entry.path();
+        if let Some(ext) = path.extension().and_then(|s| s.to_str())
+            && let Some(seq) = path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .and_then(|s| s.parse::<u32>().ok())
+            && seq > seq_before
+        {
+            match ext {
+                "sst" | "meta" | "blob" | "del" => fs::remove_file(&path)?,
+                _ => {}
+            }
+        }
+    }
+    Ok(())
+}
+
+impl Drop for WriteOperationGuard<'_> {
+    fn drop(&mut self) {
+        if self.succeeded {
+            // Happy path: just release the slot.
+            *self.active.lock() = None;
+            return;
+        }
+
+        // Unhappy path: the operation failed (or was dropped without commit).
+        // Delete every file that was created during this operation (seq > seq_before).
+        match delete_orphan_files(self.path, self.seq_before) {
+            Ok(()) => *self.active.lock() = None,
+            Err(_) => *self.active.lock() = Some(ActiveWriteState::Error),
+        }
+    }
+}
+
 /// TurboPersistence is a persistent key-value store. It is limited to a single writer at a time
 /// using a single write batch. It allows for concurrent reads.
 pub struct TurboPersistence<S: ParallelScheduler, const FAMILIES: usize> {
@@ -117,13 +251,23 @@ pub struct TurboPersistence<S: ParallelScheduler, const FAMILIES: usize> {
     read_only: bool,
     /// The inner state of the database. Writing will update that.
     inner: RwLock<Inner<FAMILIES>>,
-    /// A flag to indicate if a write operation is currently active. Prevents multiple concurrent
-    /// write operations.
-    active_write_operation: AtomicBool,
-    /// A cache for decompressed key blocks.
-    key_block_cache: BlockCache,
-    /// A cache for decompressed value blocks.
-    value_block_cache: BlockCache,
+    /// A flag to indicate if the database is empty (no meta files). This is an atomic mirror of
+    /// `inner.meta_files.is_empty()` to avoid taking a lock on the hot path.
+    is_empty: AtomicBool,
+    /// Tracks whether a write operation is in progress or has permanently failed.
+    /// `None` = idle, `Some(Active)` = in progress, `Some(Error)` = permanently disabled.
+    active_write_operation: Mutex<Option<ActiveWriteState>>,
+    /// Files from superseded commits whose deletion failed (e.g. on Windows due to open memory
+    /// maps) and will be retried on the next commit or at shutdown.
+    /// Protected by `active_write_operation` (only mutated inside a write operation).
+    deferred_deletions: Mutex<Vec<DeferredDeletion>>,
+    /// A cache for decompressed key blocks. Allocated lazily on first read via
+    /// [`Self::key_block_cache`] so write-only or empty sessions never pay the cache's fixed
+    /// hash-table overhead.
+    key_block_cache: OnceLock<BlockCache>,
+    /// A cache for decompressed value blocks. Allocated lazily on first read via
+    /// [`Self::value_block_cache`]; see [`Self::key_block_cache`].
+    value_block_cache: OnceLock<BlockCache>,
     /// Per-family configuration for file limits.
     config: DbConfig<FAMILIES>,
     /// Statistics for the database.
@@ -144,13 +288,52 @@ struct Inner<const FAMILIES: usize> {
 }
 
 pub struct CommitOptions {
-    new_meta_files: Vec<(u32, File)>,
-    new_sst_files: Vec<(u32, File)>,
-    new_blob_files: Vec<(u32, File)>,
-    sst_seq_numbers_to_delete: Vec<u32>,
+    new_meta_files: Vec<NewFile>,
+    new_sst_files: Vec<NewFile>,
+    new_blob_files: Vec<NewFile>,
+    sst_files_to_delete: Vec<DeletedFile>,
     blob_seq_numbers_to_delete: Vec<u32>,
     sequence_number: u32,
     keys_written: u64,
+}
+
+/// An SST file superseded by a commit, carrying its on-disk size (known when the deletion is
+/// decided) so `commit` can sum deleted bytes without scanning meta entries or stat'ing the file.
+#[derive(Clone, Copy)]
+struct DeletedFile {
+    seq: u32,
+    /// On-disk size in bytes
+    size: u64,
+}
+
+/// Physical byte volume of a single commit/compaction cycle, measured from on-disk file sizes
+/// (post-compression, including `.sst`, `.blob`, and `.meta` files).
+#[derive(Clone, Copy, Debug, Default)]
+pub struct CommitStats {
+    /// Total bytes of new files created by this commit.
+    pub bytes_written: u64,
+    /// Total bytes of files removed/superseded by this commit.
+    pub bytes_deleted: u64,
+}
+
+impl Display for CommitStats {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let CommitStats {
+            bytes_written,
+            bytes_deleted,
+        } = self;
+        write!(
+            f,
+            "bytes_written={bytes_written} bytes_deleted={bytes_deleted}"
+        )
+    }
+}
+
+struct OpenOpts<S: ParallelScheduler, const FAMILIES: usize> {
+    path: PathBuf,
+    read_only: bool,
+    parallel_scheduler: S,
+    config: DbConfig<FAMILIES>,
 }
 
 impl<S: ParallelScheduler + Default, const FAMILIES: usize> TurboPersistence<S, FAMILIES> {
@@ -172,14 +355,30 @@ impl<S: ParallelScheduler + Default, const FAMILIES: usize> TurboPersistence<S, 
     pub fn open_read_only_with_config(path: PathBuf, config: DbConfig<FAMILIES>) -> Result<Self> {
         Self::open_read_only_with_parallel_scheduler(path, config, Default::default())
     }
+
+    /// Construct an empty, read-only `TurboPersistence` that owns no on-disk state and never
+    /// touches the filesystem. Reads return None; writes bail via the existing `read_only` guard.
+    /// Used to provide a "noop" backing storage with the same concrete type as the real one.
+    pub fn empty_in_memory_with_config(config: DbConfig<FAMILIES>) -> Self {
+        // `path` is `PathBuf::new()` but never read because `meta_files` is empty and
+        // `read_only` is true (so no write/compaction path is reachable).
+        Self::new(OpenOpts {
+            path: PathBuf::new(),
+            read_only: true,
+            parallel_scheduler: Default::default(),
+            config,
+        })
+    }
 }
 
 impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> {
     fn new(
-        path: PathBuf,
-        read_only: bool,
-        parallel_scheduler: S,
-        config: DbConfig<FAMILIES>,
+        OpenOpts {
+            path,
+            read_only,
+            parallel_scheduler,
+            config,
+        }: OpenOpts<S, FAMILIES>,
     ) -> Self {
         Self {
             parallel_scheduler,
@@ -191,21 +390,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 accessed_key_hashes: [(); FAMILIES]
                     .map(|_| DashSet::with_hasher(BuildNoHashHasher::default())),
             }),
-            active_write_operation: AtomicBool::new(false),
-            key_block_cache: BlockCache::with(
-                KEY_BLOCK_CACHE_SIZE as usize / KEY_BLOCK_AVG_SIZE,
-                KEY_BLOCK_CACHE_SIZE,
-                Default::default(),
-                Default::default(),
-                Default::default(),
-            ),
-            value_block_cache: BlockCache::with(
-                VALUE_BLOCK_CACHE_SIZE as usize / VALUE_BLOCK_AVG_SIZE,
-                VALUE_BLOCK_CACHE_SIZE,
-                Default::default(),
-                Default::default(),
-                Default::default(),
-            ),
+            is_empty: AtomicBool::new(true),
+            active_write_operation: Mutex::new(None),
+            deferred_deletions: Mutex::new(Vec::new()),
+            key_block_cache: OnceLock::new(),
+            value_block_cache: OnceLock::new(),
             config,
             #[cfg(feature = "stats")]
             stats: TrackedStats::default(),
@@ -226,7 +415,12 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         config: DbConfig<FAMILIES>,
         parallel_scheduler: S,
     ) -> Result<Self> {
-        let mut db = Self::new(path, false, parallel_scheduler, config);
+        let mut db = Self::new(OpenOpts {
+            path,
+            read_only: false,
+            parallel_scheduler,
+            config,
+        });
         db.open_directory(false)?;
         Ok(db)
     }
@@ -238,7 +432,12 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         config: DbConfig<FAMILIES>,
         parallel_scheduler: S,
     ) -> Result<Self> {
-        let mut db = Self::new(path, true, parallel_scheduler, config);
+        let mut db = Self::new(OpenOpts {
+            path,
+            read_only: true,
+            parallel_scheduler,
+            config,
+        });
         db.open_directory(false)?;
         Ok(db)
     }
@@ -254,7 +453,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     if read_only {
                         bail!("Failed to open database");
                     }
-                    self.init_directory()
+                    commit_current(&self.path, 0)
                         .context("Initializing persistence directory failed")?;
                 }
                 Ok(())
@@ -274,15 +473,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// Creates the directory and initializes it.
     fn create_and_init_directory(&mut self) -> Result<()> {
         fs::create_dir_all(&self.path)?;
-        self.init_directory()
-    }
-
-    /// Initializes the directory by creating the CURRENT file.
-    fn init_directory(&mut self) -> Result<()> {
-        let mut current = File::create(self.path.join("CURRENT"))?;
-        current.write_u32::<BE>(0)?;
-        current.flush()?;
-        Ok(())
+        commit_current(&self.path, 0)
     }
 
     /// Loads an existing database directory and performs cleanup if necessary.
@@ -306,6 +497,15 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             let entry = entry?;
             let path = entry.path();
             if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+                // A leftover `CURRENT.next` means a crash interrupted a `commit_current` before
+                // the rename onto `CURRENT` completed. The current `CURRENT` (already read above)
+                // is authoritative, so the stale temp file is just deleted.
+                if path.file_stem().and_then(|s| s.to_str()) == Some("CURRENT") {
+                    if !read_only {
+                        fs::remove_file(&path)?;
+                    }
+                    continue;
+                }
                 let seq: u32 = path
                     .file_stem()
                     .context("File has no file stem")?
@@ -395,6 +595,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
 
         let inner = self.inner.get_mut();
+        self.is_empty
+            .store(meta_files.is_empty(), Ordering::Relaxed);
         inner.meta_files = meta_files;
         inner.current_sequence_number = current;
         Ok(true)
@@ -404,9 +606,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     #[tracing::instrument(level = "info", name = "reading database blob", skip_all)]
     fn read_blob(&self, seq: u32) -> Result<ArcBytes> {
         let path = self.path.join(format!("{seq:08}.blob"));
-        let file = File::open(&path)
-            .with_context(|| format!("Failed to open blob file {}", path.display()))?;
-        let mmap = unsafe { Mmap::map(&file) }.with_context(|| {
+        let file = File::open(&path)?;
+        let mmap = unsafe { Mmap::map(file.file()) }.with_context(|| {
             format!(
                 "Failed to mmap blob file {} ({} bytes)",
                 path.display(),
@@ -442,29 +643,62 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
     /// Returns true if the database is empty.
     pub fn is_empty(&self) -> bool {
-        self.inner.read().meta_files.is_empty()
+        self.is_empty.load(Ordering::Relaxed)
+    }
+
+    /// Returns `true` if a previous write or compaction left the database in an unrecoverable error
+    /// state, permanently disabling further writes.
+    pub fn has_unrecoverable_write_error(&self) -> bool {
+        matches!(
+            *self.active_write_operation.lock(),
+            Some(ActiveWriteState::Error)
+        )
+    }
+
+    /// Acquires the write-operation slot, returning an RAII guard that rolls back and releases it
+    /// on drop. Only one write operation (write batch or compaction) is allowed at a time.
+    /// `name` is a short human-readable label used in error messages (e.g. `"write batch"`).
+    fn acquire_write_operation(&self, name: &'static str) -> Result<WriteOperationGuard<'_>> {
+        if self.read_only {
+            bail!("Cannot perform write operations on a read-only database");
+        }
+        let mut slot = self.active_write_operation.lock();
+        match &*slot {
+            Some(ActiveWriteState::Active(active_name)) => {
+                bail!(
+                    "Another {active_name} is already active (only a single write operation is \
+                     allowed at a time)"
+                );
+            }
+            Some(ActiveWriteState::Error) => {
+                bail!(
+                    "A previous write operation failed with an unrecoverable error; no further \
+                     writes are possible"
+                );
+            }
+            None => {}
+        }
+        *slot = Some(ActiveWriteState::Active(name));
+        drop(slot); // release before acquiring inner read lock
+        let seq_before = self.inner.read().current_sequence_number;
+        Ok(WriteOperationGuard {
+            active: &self.active_write_operation,
+            path: &self.path,
+            seq_before,
+            succeeded: false,
+        })
     }
 
     /// Starts a new WriteBatch for the database. Only a single write operation is allowed at a
     /// time. The WriteBatch need to be committed with [`TurboPersistence::commit_write_batch`].
     /// Note that the WriteBatch might start writing data to disk while it's filled up with data.
     /// This data will only become visible after the WriteBatch is committed.
-    pub fn write_batch<K: StoreKey + Send + Sync>(&self) -> Result<WriteBatch<K, S, FAMILIES>> {
-        if self.read_only {
-            bail!("Cannot write to a read-only database");
-        }
-        if self
-            .active_write_operation
-            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
-            .is_err()
-        {
-            bail!(
-                "Another write batch or compaction is already active (Only a single write \
-                 operations is allowed at a time)"
-            );
-        }
-        let current = self.inner.read().current_sequence_number;
+    pub fn write_batch<K: StoreKey + Send + Sync>(&self) -> Result<WriteBatch<'_, K, S, FAMILIES>> {
+        let guard = self.acquire_write_operation("write batch")?;
+        // seq_before is already the current sequence number, no second read needed.
+        let current = guard.seq_before;
         Ok(WriteBatch::new(
+            guard,
             self.path.clone(),
             current,
             self.parallel_scheduler.clone(),
@@ -472,19 +706,47 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         ))
     }
 
+    fn key_block_cache(&self) -> &BlockCache {
+        self.key_block_cache.get_or_init(|| {
+            BlockCache::with(
+                KEY_BLOCK_CACHE_SIZE as usize / KEY_BLOCK_AVG_SIZE,
+                KEY_BLOCK_CACHE_SIZE,
+                Default::default(),
+                Default::default(),
+                Default::default(),
+            )
+        })
+    }
+
+    fn value_block_cache(&self) -> &BlockCache {
+        self.value_block_cache.get_or_init(|| {
+            BlockCache::with(
+                VALUE_BLOCK_CACHE_SIZE as usize / VALUE_BLOCK_AVG_SIZE,
+                VALUE_BLOCK_CACHE_SIZE,
+                Default::default(),
+                Default::default(),
+                Default::default(),
+            )
+        })
+    }
+
     /// Clears all caches of the database.
     pub fn clear_cache(&self) {
-        self.key_block_cache.clear();
-        self.value_block_cache.clear();
+        self.clear_block_caches();
         for meta in self.inner.write().meta_files.iter_mut() {
             meta.clear_cache();
         }
     }
 
-    /// Clears block caches of the database.
+    /// Clears block caches of the database. Caches that have not been allocated yet are left
+    /// uninitialized, so clearing never forces allocation.
     pub fn clear_block_caches(&self) {
-        self.key_block_cache.clear();
-        self.value_block_cache.clear();
+        if let Some(cache) = self.key_block_cache.get() {
+            cache.clear();
+        }
+        if let Some(cache) = self.value_block_cache.get() {
+            cache.clear();
+        }
     }
 
     /// Prefetches all SST files which are usually lazy loaded. This can be used to reduce latency
@@ -511,8 +773,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// visible to readers.
     pub fn commit_write_batch<K: StoreKey + Send + Sync>(
         &self,
-        mut write_batch: WriteBatch<K, S, FAMILIES>,
-    ) -> Result<()> {
+        mut write_batch: WriteBatch<'_, K, S, FAMILIES>,
+    ) -> Result<CommitStats> {
         if self.read_only {
             unreachable!("It's not possible to create a write batch for a read-only database");
         }
@@ -528,6 +790,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             // len is only a snapshot at that time and it can change while we create the filter.
             // So we give it 5% more space to make resizes less likely.
             let initial_capacity = set.len() * 20 / 19;
+            // TODO: Using u64::BITS as fingerprint size is wasteful for a
+            // probabilistic membership filter. A smaller fingerprint (e.g. via
+            // Filter::new with a target fp_rate) would significantly reduce size,
+            // but would make merging slower since mismatched fingerprint sizes
+            // fall back to one-by-one insertion instead of sorted merge.
             let mut amqf =
                 qfilter::Filter::with_fingerprint_size(initial_capacity as u64, u64::BITS as u8)
                     .unwrap();
@@ -543,17 +810,18 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             });
             amqf
         })?;
-        self.commit(CommitOptions {
+        let stats = self.commit(CommitOptions {
             new_meta_files,
             new_sst_files,
             new_blob_files,
-            sst_seq_numbers_to_delete: vec![],
+            sst_files_to_delete: vec![],
             blob_seq_numbers_to_delete: vec![],
             sequence_number,
             keys_written,
         })?;
-        self.active_write_operation.store(false, Ordering::Release);
-        Ok(())
+        // Mark the guard inside the write batch as succeeded so it skips the rollback on drop.
+        write_batch.mark_succeeded();
+        Ok(stats)
     }
 
     /// fsyncs the new files and updates the CURRENT file. Updates the database state to include the
@@ -563,40 +831,84 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         CommitOptions {
             mut new_meta_files,
             new_sst_files,
-            mut new_blob_files,
-            mut sst_seq_numbers_to_delete,
+            new_blob_files,
+            sst_files_to_delete,
             mut blob_seq_numbers_to_delete,
             sequence_number: mut seq,
             keys_written,
         }: CommitOptions,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<CommitStats, anyhow::Error> {
         let time = Timestamp::now();
 
-        new_meta_files.sort_unstable_by_key(|(seq, _)| *seq);
+        new_meta_files.sort_unstable_by_key(|f| f.seq);
 
-        let sync_span = tracing::info_span!("sync new files").entered();
-        let mut new_meta_files = self
+        let mut stats = CommitStats::default();
+
+        let sync_span = tracing::trace_span!("sync new files").entered();
+
+        enum SyncItem {
+            Meta(u32, File),
+            Sst(File),
+            Blob(u32, File),
+        }
+        enum SyncResult {
+            Meta(MetaFile),
+            Sst,
+            Blob(u32, File),
+        }
+
+        let mut sync_items: Vec<SyncItem> =
+            Vec::with_capacity(new_meta_files.len() + new_sst_files.len() + new_blob_files.len());
+        for NewFile { seq, file, size } in new_meta_files {
+            stats.bytes_written += size;
+            sync_items.push(SyncItem::Meta(seq, file));
+        }
+        for NewFile { file, size, .. } in new_sst_files {
+            stats.bytes_written += size;
+            sync_items.push(SyncItem::Sst(file));
+        }
+        for NewFile { seq, file, size } in new_blob_files {
+            stats.bytes_written += size;
+            sync_items.push(SyncItem::Blob(seq, file));
+        }
+
+        let results: Vec<SyncResult> = self
             .parallel_scheduler
-            .parallel_map_collect_owned::<_, _, Result<Vec<_>>>(new_meta_files, |(seq, file)| {
-                file.sync_all()?;
-                let meta_file = MetaFile::open(&self.path, seq)?;
-                Ok(meta_file)
+            .parallel_map_collect_owned::<_, _, Result<Vec<_>>>(sync_items, |item| match item {
+                SyncItem::Meta(seq, file) => {
+                    file.sync_data()?;
+                    let meta_file = MetaFile::open(&self.path, seq)?;
+                    Ok(SyncResult::Meta(meta_file))
+                }
+                SyncItem::Sst(file) => {
+                    file.sync_data()?;
+                    Ok(SyncResult::Sst)
+                }
+                SyncItem::Blob(seq, file) => {
+                    file.sync_data()?;
+                    Ok(SyncResult::Blob(seq, file))
+                }
             })?;
+
+        let mut new_meta_files: Vec<MetaFile> = Vec::new();
+        let mut new_blob_files: Vec<(u32, File)> = Vec::new();
+        for result in results {
+            match result {
+                SyncResult::Meta(mf) => new_meta_files.push(mf),
+                SyncResult::Sst => {}
+                SyncResult::Blob(seq, file) => new_blob_files.push((seq, file)),
+            }
+        }
 
         let mut sst_filter = SstFilter::new();
         for meta_file in new_meta_files.iter_mut().rev() {
             sst_filter.apply_filter(meta_file);
         }
 
-        self.parallel_scheduler.block_in_place(|| {
-            for (_, file) in new_sst_files.iter() {
-                file.sync_all()?;
-            }
-            for (_, file) in new_blob_files.iter() {
-                file.sync_all()?;
-            }
-            anyhow::Ok(())
-        })?;
+        // Note: the file *contents* were made durable by the `sync_data()` calls above. The
+        // directory entries (file name → inode mappings) are made durable by the single directory
+        // fsync inside `commit_current` below, which also commits the CURRENT rename. See
+        // `commit_current` for why one trailing fsync is sufficient.
         drop(sync_span);
 
         let new_meta_info = new_meta_files
@@ -622,33 +934,86 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             })
             .collect::<Vec<_>>();
 
+        // ── Phase A: compute what will change without modifying inner. ──
+        //
+        // We need `meta_seq_numbers_to_delete` and `has_delete_file` to write
+        // the .del file BEFORE writing CURRENT. We must not modify `inner` at
+        // all — if a disk error occurs before CURRENT is durable, the
+        // WriteOperationGuard rollback can only clean up orphan files, not undo
+        // in-memory mutations. The MetaFile in-memory optimization
+        // (retain_entries) is deferred to Phase C.
         let has_delete_file;
         let mut meta_seq_numbers_to_delete = Vec::new();
+        let entries_to_remove;
+        // Deleted SST bytes: the caller knows each deleted SST's size when it decides to delete it,
+        // so it's carried on `DeletedFile` and summed here (no scan, no stat).
+        stats.bytes_deleted += sst_files_to_delete.iter().map(|f| f.size).sum::<u64>();
+        // The rest of the commit only needs the sequence numbers of the deleted SSTs.
+        let mut sst_seq_numbers_to_delete = sst_files_to_delete
+            .iter()
+            .map(|f| f.seq)
+            .collect::<Vec<_>>();
 
         {
-            let mut inner = self.inner.write();
-            for meta_file in inner.meta_files.iter_mut().rev() {
-                sst_filter.apply_filter(meta_file);
+            let inner = self.inner.read();
+
+            // (A1) Run the SST filter on existing meta files. This only
+            // updates the SstFilter state — the MetaFile in-memory layout is
+            // not modified yet (that happens in Phase C via retain_entries).
+            // Collects the set of SST entry sequence numbers to remove from
+            // each meta file, keyed by position in `inner.meta_files`.
+            entries_to_remove = inner
+                .meta_files
+                .iter()
+                .rev()
+                .map(|meta_file| sst_filter.apply_filter_collect(meta_file))
+                .collect::<Vec<_>>();
+
+            // (A2) Determine which meta files are fully obsolete by running
+            // `apply_and_get_remove` in newest-first order. Process new metas
+            // first (they are newer than existing ones) to advance the filter
+            // state, then existing ones. New metas are never candidates for
+            // removal (just created), so only their filter-state side-effects
+            // matter.
+            for meta_file in new_meta_files.iter().rev() {
+                let should_remove = sst_filter.apply_and_get_remove(meta_file);
+                debug_assert!(
+                    !should_remove,
+                    "newly created meta file should never be a candidate for removal"
+                );
             }
-            inner.meta_files.append(&mut new_meta_files);
-            // apply_and_get_remove need to run in reverse order
-            inner.meta_files.reverse();
-            inner.meta_files.retain(|meta| {
-                if sst_filter.apply_and_get_remove(meta) {
-                    meta_seq_numbers_to_delete.push(meta.sequence_number());
-                    false
-                } else {
-                    true
+            for i in (0..inner.meta_files.len()).rev() {
+                if sst_filter.apply_and_get_remove(&inner.meta_files[i]) {
+                    meta_seq_numbers_to_delete.push(inner.meta_files[i].sequence_number());
+                    // Deleted meta bytes, read from the `MetaFile`'s mmap length (no stat).
+                    stats.bytes_deleted += inner.meta_files[i].byte_size();
                 }
-            });
-            inner.meta_files.reverse();
-            has_delete_file = !sst_seq_numbers_to_delete.is_empty()
+            }
+
+            // (A3) Compute the final sequence number that will be written to
+            // CURRENT. A .del file is created only when there are files to
+            // delete, which consumes one extra sequence number.
+            has_delete_file = !sst_files_to_delete.is_empty()
                 || !blob_seq_numbers_to_delete.is_empty()
                 || !meta_seq_numbers_to_delete.is_empty();
-            if has_delete_file {
-                seq += 1;
-            }
-            inner.current_sequence_number = seq;
+        }
+
+        // Deleted blob bytes. Unlike SST/meta sizes (both already in memory), blob sizes aren't
+        // tracked, so we stat them by sequence number before Phase C unlinks them. Best-effort: a
+        // file already gone reports 0 rather than failing the commit (these stats are reported, not
+        // load-bearing). Left serial rather than dispatched to the scheduler: blob deletions are
+        // rare and few, so the fan-out overhead would outweigh a handful of `stat` calls.
+        stats.bytes_deleted += blob_seq_numbers_to_delete
+            .iter()
+            .map(|seq| {
+                fs::metadata(self.path.join(format!("{seq:08}.blob")))
+                    .map(|m| m.len())
+                    .unwrap_or(0)
+            })
+            .sum::<u64>();
+
+        if has_delete_file {
+            seq += 1;
         }
 
         self.parallel_scheduler.block_in_place(|| {
@@ -672,30 +1037,32 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 for seq in blob_seq_numbers_to_delete.iter() {
                     buf.write_u32::<BE>(*seq)?;
                 }
-                let mut file = File::create(self.path.join(format!("{seq:08}.del")))?;
+                let del_path = self.path.join(format!("{seq:08}.del"));
+                let mut file = File::create(&del_path)?;
                 file.write_all(&buf)?;
-                file.sync_all()?;
+                file.sync_data()?;
             }
 
-            let mut current_file = OpenOptions::new()
-                .write(true)
-                .truncate(false)
-                .read(false)
-                .open(self.path.join("CURRENT"))?;
-            current_file.write_u32::<BE>(seq)?;
-            current_file.sync_all()?;
+            commit_current(&self.path, seq).context("Committing CURRENT file failed")?;
 
-            for seq in sst_seq_numbers_to_delete.iter() {
-                fs::remove_file(self.path.join(format!("{seq:08}.sst")))?;
-            }
-            for seq in meta_seq_numbers_to_delete.iter() {
-                fs::remove_file(self.path.join(format!("{seq:08}.meta")))?;
-            }
-            for seq in blob_seq_numbers_to_delete.iter() {
-                fs::remove_file(self.path.join(format!("{seq:08}.blob")))?;
-            }
+            // ── Point of no return ──────────────────────────────────────────
+            //
+            // CURRENT has been durably updated. The commit is now visible to
+            // future readers (including after a crash/restart via
+            // `load_directory`). Everything below is best-effort cleanup:
+            //
+            // • Writing the LOG is purely informational.
+            //
+            // • Superseded files are NOT deleted here — Phase C handles that
+            //   after `inner` is updated. On Linux/macOS they are deleted
+            //   immediately; on Windows (where open memory maps prevent
+            //   deletion) they are retried on the next commit or shutdown.
+            //
+            // Errors here must NOT propagate, because the WriteOperationGuard
+            // would then run its rollback and delete the *newly committed*
+            // files, corrupting the database.
 
-            {
+            if let Err(e) = (|| {
                 let mut log = self.open_log()?;
                 writeln!(log, "Time {time}")?;
                 let span = time.until(Timestamp::now())?;
@@ -720,16 +1087,12 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     }
                 }
 
-                fn write_seq_numbers<W: std::io::Write, T, I>(
+                fn write_seq_numbers<W: std::io::Write, T>(
                     log: &mut W,
-                    items: I,
+                    items: &[T],
                     label: &str,
                     extract_seq: fn(&T) -> u32,
-                ) -> std::io::Result<()>
-                where
-                    I: IntoIterator<Item = T>,
-                {
-                    let items: Vec<T> = items.into_iter().collect();
+                ) -> std::io::Result<()> {
                     for chunk in items.chunks(15) {
                         write!(log, "    |          |")?;
                         for item in chunk {
@@ -741,54 +1104,123 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 }
 
                 new_blob_files.sort_unstable_by_key(|(seq, _)| *seq);
-                write_seq_numbers(&mut log, new_blob_files, "NEW BLOB", |&(seq, _)| seq)?;
+                write_seq_numbers(&mut log, &new_blob_files, "NEW BLOB", |&(seq, _)| seq)?;
                 write_seq_numbers(
                     &mut log,
-                    blob_seq_numbers_to_delete,
+                    &blob_seq_numbers_to_delete,
                     "BLOB DELETED",
                     |&seq| seq,
                 )?;
-                write_seq_numbers(&mut log, sst_seq_numbers_to_delete, "SST DELETED", |&seq| {
-                    seq
-                })?;
                 write_seq_numbers(
                     &mut log,
-                    meta_seq_numbers_to_delete,
+                    &sst_seq_numbers_to_delete,
+                    "SST DELETED",
+                    |&seq| seq,
+                )?;
+                write_seq_numbers(
+                    &mut log,
+                    &meta_seq_numbers_to_delete,
                     "META DELETED",
                     |&seq| seq,
                 )?;
-                #[cfg(feature = "verbose_log")]
-                {
-                    writeln!(log, "New database state:")?;
-                    writeln!(log, "FAM | META SEQ | SST SEQ  FLAGS | RANGE")?;
-                    let inner = self.inner.read();
-                    let families = inner.meta_files.iter().map(|meta| meta.family()).filter({
-                        let mut set = HashSet::new();
-                        move |family| set.insert(*family)
-                    });
-                    for family in families {
-                        for meta in inner.meta_files.iter() {
-                            if meta.family() != family {
-                                continue;
-                            }
-                            let meta_seq = meta.sequence_number();
-                            for entry in meta.entries().iter() {
-                                let seq = entry.sequence_number();
-                                let range = entry.range();
-                                writeln!(
-                                    log,
-                                    "{family:3} | {meta_seq:08} | {seq:08} {:>6} | {}",
-                                    entry.flags(),
-                                    range_to_str(range.min_hash, range.max_hash)
-                                )?;
-                            }
+                anyhow::Ok(())
+            })() {
+                eprintln!("turbo-persistence: failed to write LOG after commit {seq:08}: {e:#}");
+            }
+
+            anyhow::Ok(())
+        })?;
+
+        // ── Phase C: structurally update inner (CURRENT is already durable). ──
+        //
+        // Between Phase A's read-lock drop and this point no other writer can
+        // run (WriteOperationGuard ensures exclusivity) and readers never mutate
+        // inner, so the snapshot from Phase A is still valid.
+        {
+            let mut inner = self.inner.write();
+
+            // Apply the deferred MetaFile mutations from Phase A1. apply_filter
+            // was called read-only earlier; now we actually move superseded
+            // entries from active to obsolete inside each MetaFile.
+            // entries_to_remove was collected in reverse order, so iterate it
+            // in reverse to match the forward order of inner.meta_files.
+            for (meta_file, to_remove) in inner
+                .meta_files
+                .iter_mut()
+                .zip(entries_to_remove.into_iter().rev())
+            {
+                if !to_remove.is_empty() {
+                    meta_file.retain_entries(|seq| !to_remove.contains(&seq));
+                }
+            }
+
+            inner.meta_files.append(&mut new_meta_files);
+            if !meta_seq_numbers_to_delete.is_empty() {
+                let to_delete: HashSet<u32> = meta_seq_numbers_to_delete.iter().copied().collect();
+                inner
+                    .meta_files
+                    .retain(|meta| !to_delete.contains(&meta.sequence_number()));
+            }
+            inner.current_sequence_number = seq;
+            self.is_empty
+                .store(inner.meta_files.is_empty(), Ordering::Relaxed);
+        }
+
+        // Try to delete superseded files immediately. On Linux/macOS this always
+        // works even if readers have the files memory-mapped. On Windows, open
+        // memory maps prevent deletion; any file that fails is kept in
+        // `deferred_deletions` and retried on the next commit or at shutdown.
+        self.deferred_deletions.lock().extend(
+            Self::try_delete_files(&self.path, &sst_seq_numbers_to_delete, "sst")
+                .map(DeferredDeletion::Sst)
+                .chain(
+                    Self::try_delete_files(&self.path, &meta_seq_numbers_to_delete, "meta")
+                        .map(DeferredDeletion::Meta),
+                )
+                .chain(
+                    Self::try_delete_files(&self.path, &blob_seq_numbers_to_delete, "blob")
+                        .map(DeferredDeletion::Blob),
+                ),
+        );
+
+        // Retry any deletions that failed in earlier commits.
+        self.retry_deferred_deletions();
+
+        // Best-effort verbose log of the new database state after Phase C.
+        #[cfg(feature = "verbose_log")]
+        {
+            let _: Result<(), _> = (|| -> anyhow::Result<()> {
+                let mut log = self.open_log()?;
+                writeln!(log, "New database state:")?;
+                writeln!(log, "FAM | META SEQ | SST SEQ  FLAGS | RANGE")?;
+                let inner = self.inner.read();
+                let families = inner.meta_files.iter().map(|meta| meta.family()).filter({
+                    let mut set = HashSet::new();
+                    move |family| set.insert(*family)
+                });
+                for family in families {
+                    for meta in inner.meta_files.iter() {
+                        if meta.family() != family {
+                            continue;
+                        }
+                        let meta_seq = meta.sequence_number();
+                        for entry in meta.entries().iter() {
+                            let seq = entry.sequence_number();
+                            let range = entry.range();
+                            writeln!(
+                                log,
+                                "{family:3} | {meta_seq:08} | {seq:08} {:>6} | {}",
+                                entry.flags(),
+                                range_to_str(range.min_hash, range.max_hash)
+                            )?;
                         }
                     }
                 }
-            }
-            anyhow::Ok(())
-        })?;
-        Ok(())
+                Ok(())
+            })();
+        }
+
+        Ok(stats)
     }
 
     /// Runs a full compaction on the database. This will rewrite all SST files, removing all
@@ -810,21 +1242,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// files is above the given threshold. The coverage is the average number of SST files that
     /// need to be read to find a key. It also limits the maximum number of SST files that are
     /// merged at once, which is the main factor for the runtime of the compaction.
-    pub fn compact(&self, compact_config: &CompactConfig) -> Result<bool> {
-        if self.read_only {
-            bail!("Compaction is not allowed on a read only database");
-        }
-        let _span = tracing::info_span!("compact database").entered();
-        if self
-            .active_write_operation
-            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
-            .is_err()
-        {
-            bail!(
-                "Another write batch or compaction is already active (Only a single write \
-                 operations is allowed at a time)"
-            );
-        }
+    ///
+    /// Returns `Some(stats)` describing the bytes written/deleted if a compaction commit happened,
+    /// or `None` if there was nothing to compact.
+    pub fn compact(&self, compact_config: &CompactConfig) -> Result<Option<CommitStats>> {
+        let mut guard = self.acquire_write_operation("compaction")?;
 
         // Free block caches and SST mmaps before compaction. The block caches
         // are not used during compaction (we iterate uncached), and any cached
@@ -835,7 +1257,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         let mut sequence_number;
         let mut new_meta_files = Vec::new();
         let mut new_sst_files = Vec::new();
-        let mut sst_seq_numbers_to_delete = Vec::new();
+        let mut sst_files_to_delete = Vec::new();
         let mut blob_seq_numbers_to_delete = Vec::new();
         let mut keys_written = 0;
 
@@ -847,7 +1269,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 &sequence_number,
                 &mut new_meta_files,
                 &mut new_sst_files,
-                &mut sst_seq_numbers_to_delete,
+                &mut sst_files_to_delete,
                 &mut blob_seq_numbers_to_delete,
                 &mut keys_written,
                 compact_config,
@@ -856,22 +1278,25 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
 
         let has_changes = !new_meta_files.is_empty();
-        if has_changes {
-            self.commit(CommitOptions {
-                new_meta_files,
-                new_sst_files,
-                new_blob_files: Vec::new(),
-                sst_seq_numbers_to_delete,
-                blob_seq_numbers_to_delete,
-                sequence_number: *sequence_number.get_mut(),
-                keys_written,
-            })
-            .context("Failed to commit the database compaction")?;
-        }
+        let stats = if has_changes {
+            let stats = self
+                .commit(CommitOptions {
+                    new_meta_files,
+                    new_sst_files,
+                    new_blob_files: Vec::new(),
+                    sst_files_to_delete,
+                    blob_seq_numbers_to_delete,
+                    sequence_number: *sequence_number.get_mut(),
+                    keys_written,
+                })
+                .context("Failed to commit the database compaction")?;
+            Some(stats)
+        } else {
+            None
+        };
 
-        self.active_write_operation.store(false, Ordering::Release);
-
-        Ok(has_changes)
+        guard.success();
+        Ok(stats)
     }
 
     /// Internal function to perform a compaction.
@@ -879,9 +1304,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         &self,
         meta_files: &[MetaFile],
         sequence_number: &AtomicU32,
-        new_meta_files: &mut Vec<(u32, File)>,
-        new_sst_files: &mut Vec<(u32, File)>,
-        sst_seq_numbers_to_delete: &mut Vec<u32>,
+        new_meta_files: &mut Vec<NewFile>,
+        new_sst_files: &mut Vec<NewFile>,
+        sst_files_to_delete: &mut Vec<DeletedFile>,
         blob_seq_numbers_to_delete: &mut Vec<u32>,
         keys_written: &mut u64,
         compact_config: &CompactConfig,
@@ -944,9 +1369,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         let log_mutex = Mutex::new(());
 
         struct PartialResultPerFamily {
-            new_meta_file: Option<(u32, File)>,
-            new_sst_files: Vec<(u32, File)>,
-            sst_seq_numbers_to_delete: Vec<u32>,
+            new_meta_file: Option<NewFile>,
+            new_sst_files: Vec<NewFile>,
+            sst_files_to_delete: Vec<DeletedFile>,
             blob_seq_numbers_to_delete: Vec<u32>,
             keys_written: u64,
         }
@@ -977,7 +1402,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         return Ok(PartialResultPerFamily {
                             new_meta_file: None,
                             new_sst_files: Vec::new(),
-                            sst_seq_numbers_to_delete: Vec::new(),
+                            sst_files_to_delete: Vec::new(),
                             blob_seq_numbers_to_delete: Vec::new(),
                             keys_written: 0,
                         });
@@ -988,7 +1413,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     // during the merge loop. Empty filters (from commits with no
                     // reads) are discarded.
                     let used_key_hashes: Option<qfilter::Filter> = {
-                        let filters: Vec<qfilter::Filter> = meta_files
+                        let filters: Vec<qfilter::FilterRef<'_>> = meta_files
                             .iter()
                             .filter(|m| m.family() == family)
                             .filter_map(|meta_file| {
@@ -1002,9 +1427,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             None
                         } else if filters.len() == 1 {
                             // Just directly use the single item
-                            filters.into_iter().next()
+                            Some(filters[0].to_owned())
                         } else {
                             let total_len: u64 = filters.iter().map(|f| f.len()).sum();
+                            // Fingerprint size must match the source filters to
+                            // enable the efficient sorted merge path in qfilter.
                             let mut merged =
                                 qfilter::Filter::with_fingerprint_size(total_len, u64::BITS as u8)
                                     .expect("Failed to create merged AMQF filter");
@@ -1018,16 +1445,23 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         }
                     };
 
-                    // Later we will remove the merged files
-                    let sst_seq_numbers_to_delete = merge_jobs
+                    // Later we will remove the merged files. Capture each one's size now (we know
+                    // exactly which SST it is) so `commit` can report deleted bytes without a scan.
+                    let sst_files_to_delete = merge_jobs
                         .iter()
                         .filter(|l| l.len() > 1)
                         .flat_map(|l| l.iter().copied())
-                        .map(|index| ssts_with_ranges[index].seq)
+                        .map(|index| DeletedFile {
+                            seq: ssts_with_ranges[index].seq,
+                            size: ssts_with_ranges[index].size,
+                        })
                         .collect::<Vec<_>>();
 
                     // Merge SST files
-                    let span = tracing::trace_span!("merge files");
+                    let span = tracing::trace_span!(
+                        "merge files",
+                        family = self.config.family_configs[family as usize].name
+                    );
                     enum PartialMergeResult<'l> {
                         Merged {
                             new_sst_files: Vec<(u32, File, StaticSortedFileBuilderMeta<'static>)>,
@@ -1324,8 +1758,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                             meta.flags
                                         )?;
 
+                                        let size = meta.size;
                                         meta_file_builder.add(seq, meta);
-                                        new_sst_files.push((seq, file));
+                                        new_sst_files.push(NewFile { seq, file, size });
                                     }
                                     blob_seq_numbers_to_delete
                                         .extend(merged_blob_seq_numbers_to_delete);
@@ -1350,20 +1785,26 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         anyhow::Ok(())
                     })?;
 
-                    for &seq in sst_seq_numbers_to_delete.iter() {
-                        meta_file_builder.add_obsolete_sst_file(seq);
+                    for f in sst_files_to_delete.iter() {
+                        meta_file_builder.add_obsolete_sst_file(f.seq);
                     }
 
-                    let meta_file = {
+                    let new_meta_file = {
                         let _span = tracing::trace_span!("write meta file").entered();
-                        self.parallel_scheduler
-                            .block_in_place(|| meta_file_builder.write(&self.path, meta_seq))?
+                        let (file, size) = self
+                            .parallel_scheduler
+                            .block_in_place(|| meta_file_builder.write(&self.path, meta_seq))?;
+                        NewFile {
+                            seq: meta_seq,
+                            file,
+                            size,
+                        }
                     };
 
                     Ok(PartialResultPerFamily {
-                        new_meta_file: Some((meta_seq, meta_file)),
+                        new_meta_file: Some(new_meta_file),
                         new_sst_files,
-                        sst_seq_numbers_to_delete,
+                        sst_files_to_delete,
                         blob_seq_numbers_to_delete,
                         keys_written,
                     })
@@ -1373,14 +1814,14 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         for PartialResultPerFamily {
             new_meta_file: inner_new_meta_file,
             new_sst_files: mut inner_new_sst_files,
-            sst_seq_numbers_to_delete: mut inner_sst_seq_numbers_to_delete,
+            sst_files_to_delete: mut inner_sst_files_to_delete,
             blob_seq_numbers_to_delete: mut inner_blob_seq_numbers_to_delete,
             keys_written: inner_keys_written,
         } in result
         {
             new_meta_files.extend(inner_new_meta_file);
             new_sst_files.append(&mut inner_new_sst_files);
-            sst_seq_numbers_to_delete.append(&mut inner_sst_seq_numbers_to_delete);
+            sst_files_to_delete.append(&mut inner_sst_files_to_delete);
             blob_seq_numbers_to_delete.append(&mut inner_blob_seq_numbers_to_delete);
             *keys_written += inner_keys_written;
         }
@@ -1400,7 +1841,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
         let span = tracing::trace_span!(
             "database read",
-            name = family,
+            name = self.config.family_configs[family].name,
             result_size = tracing::field::Empty
         )
         .entered();
@@ -1430,7 +1871,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
         let span = tracing::trace_span!(
             "database read multiple",
-            name = family,
+            name = self.config.family_configs[family].name,
             result_count = tracing::field::Empty,
             result_size = tracing::field::Empty
         )
@@ -1464,8 +1905,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 family as u32,
                 hash,
                 key,
-                &self.key_block_cache,
-                &self.value_block_cache,
+                self.key_block_cache(),
+                self.value_block_cache(),
             )? {
                 MetaLookupResult::FamilyMiss => {
                     #[cfg(feature = "stats")]
@@ -1567,7 +2008,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
         let span = tracing::trace_span!(
             "database batch read",
-            name = family,
+            name = self.config.family_configs[family].name,
             keys = keys.len(),
             not_found = tracing::field::Empty,
             deleted = tracing::field::Empty,
@@ -1588,8 +2029,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 keys,
                 &mut cells,
                 &mut empty_cells,
-                &self.key_block_cache,
-                &self.value_block_cache,
+                self.key_block_cache(),
+                self.value_block_cache(),
             )?;
 
             #[cfg(feature = "stats")]
@@ -1673,8 +2114,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         Statistics {
             meta_files: inner.meta_files.len(),
             sst_files: inner.meta_files.iter().map(|m| m.entries().len()).sum(),
-            key_block_cache: CacheStatistics::new(&self.key_block_cache),
-            value_block_cache: CacheStatistics::new(&self.value_block_cache),
+            key_block_cache: CacheStatistics::new(self.key_block_cache()),
+            value_block_cache: CacheStatistics::new(self.value_block_cache()),
             hits: self.stats.hits_deleted.load(Ordering::Relaxed)
                 + self.stats.hits_small.load(Ordering::Relaxed)
                 + self.stats.hits_blob.load(Ordering::Relaxed),
@@ -1722,10 +2163,41 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     }
 
     /// Shuts down the database. This will print statistics if the `print_stats` feature is enabled.
+    /// Retries deletion of all previously-deferred files and clears successfully deleted batches.
     pub fn shutdown(&self) -> Result<()> {
         #[cfg(feature = "print_stats")]
         println!("{:#?}", self.statistics());
+        self.retry_deferred_deletions();
         Ok(())
+    }
+
+    /// Attempts to delete files with the given extension, returning an iterator of sequence
+    /// numbers for files that could not be deleted (e.g. due to open memory maps on Windows).
+    fn try_delete_files<'a>(
+        dir: &'a Path,
+        seqs: &'a [u32],
+        ext: &'a str,
+    ) -> impl Iterator<Item = u32> + 'a {
+        seqs.iter()
+            .copied()
+            .filter(move |&seq| fs::remove_file(dir.join(format!("{seq:08}.{ext}"))).is_err())
+    }
+
+    /// Retries deletion of files that previously failed (typically due to open memory maps on
+    /// Windows). Any file that still fails is kept for the next retry.
+    /// Best-effort: persistent failures are acceptable because `load_directory` cleans up
+    /// any leftover files on the next open via the `.del` file.
+    fn retry_deferred_deletions(&self) {
+        let mut deferred = self.deferred_deletions.lock();
+        deferred.retain(|entry| {
+            let (seq, ext) = match *entry {
+                DeferredDeletion::Sst(seq) => (seq, "sst"),
+                DeferredDeletion::Meta(seq) => (seq, "meta"),
+                DeferredDeletion::Blob(seq) => (seq, "blob"),
+            };
+            // Keep the entry only if deletion still fails.
+            fs::remove_file(self.path.join(format!("{seq:08}.{ext}"))).is_err()
+        });
     }
 }
 

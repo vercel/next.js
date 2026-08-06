@@ -1,47 +1,65 @@
 [
     (
         "exported_t_r",
-        Call(
-            3,
-            FreeVar(
-                "require",
-            ),
-            [
-                Constant(
-                    Str(
-                        Atom(
-                            "exported_t_r",
+        Unknown {
+            original_value: Some(
+                Call(
+                    3,
+                    Unknown {
+                        original_value: Some(
+                            FreeVar(
+                                "require",
+                            ),
                         ),
-                    ),
+                        reason: "turbopackIgnore",
+                        has_side_effects: true,
+                    },
+                    [
+                        Constant(
+                            Str(
+                                Atom(
+                                    "exported_t_r",
+                                ),
+                            ),
+                        ),
+                    ],
                 ),
-            ],
-        ),
+            ),
+            reason: "turbopackIgnore",
+            has_side_effects: true,
+        },
     ),
     (
         "t_i",
         Awaited(
-            4,
-            Call(
-                3,
-                FreeVar(
-                    "import",
-                ),
-                [
-                    Constant(
-                        Str(
-                            Atom(
-                                "t_i",
-                            ),
+            2,
+            Unknown {
+                original_value: Some(
+                    Call(
+                        3,
+                        FreeVar(
+                            "import",
                         ),
+                        [
+                            Constant(
+                                Str(
+                                    Atom(
+                                        "t_i",
+                                    ),
+                                ),
+                            ),
+                        ],
                     ),
-                ],
-            ),
+                ),
+                reason: "turbopackIgnore",
+                has_side_effects: true,
+            },
         ),
     ),
     (
         "t_r",
         Alternatives {
-            total_nodes: 13,
+            total_nodes: 11,
             values: [
                 Call(
                     3,
@@ -73,21 +91,33 @@
                         ),
                     ],
                 ),
-                Call(
-                    3,
-                    FreeVar(
-                        "require",
-                    ),
-                    [
-                        Constant(
-                            Str(
-                                Atom(
-                                    "t_r_t",
+                Unknown {
+                    original_value: Some(
+                        Call(
+                            3,
+                            Unknown {
+                                original_value: Some(
+                                    FreeVar(
+                                        "require",
+                                    ),
                                 ),
-                            ),
+                                reason: "turbopackIgnore",
+                                has_side_effects: true,
+                            },
+                            [
+                                Constant(
+                                    Str(
+                                        Atom(
+                                            "t_r_t",
+                                        ),
+                                    ),
+                                ),
+                            ],
                         ),
-                    ],
-                ),
+                    ),
+                    reason: "turbopackIgnore",
+                    has_side_effects: true,
+                },
                 Call(
                     3,
                     FreeVar(
@@ -110,44 +140,62 @@
     (
         "w_i",
         Awaited(
-            4,
-            Call(
-                3,
-                FreeVar(
-                    "import",
-                ),
-                [
-                    Constant(
-                        Str(
-                            Atom(
-                                "w_i",
-                            ),
+            2,
+            Unknown {
+                original_value: Some(
+                    Call(
+                        3,
+                        FreeVar(
+                            "import",
                         ),
+                        [
+                            Constant(
+                                Str(
+                                    Atom(
+                                        "w_i",
+                                    ),
+                                ),
+                            ),
+                        ],
                     ),
-                ],
-            ),
+                ),
+                reason: "turbopackIgnore",
+                has_side_effects: true,
+            },
         ),
     ),
     (
         "w_r",
         Alternatives {
-            total_nodes: 7,
+            total_nodes: 5,
             values: [
-                Call(
-                    3,
-                    FreeVar(
-                        "require",
-                    ),
-                    [
-                        Constant(
-                            Str(
-                                Atom(
-                                    "w_r_t",
+                Unknown {
+                    original_value: Some(
+                        Call(
+                            3,
+                            Unknown {
+                                original_value: Some(
+                                    FreeVar(
+                                        "require",
+                                    ),
                                 ),
-                            ),
+                                reason: "turbopackIgnore",
+                                has_side_effects: true,
+                            },
+                            [
+                                Constant(
+                                    Str(
+                                        Atom(
+                                            "w_r_t",
+                                        ),
+                                    ),
+                                ),
+                            ],
                         ),
-                    ],
-                ),
+                    ),
+                    reason: "turbopackIgnore",
+                    has_side_effects: true,
+                },
                 Call(
                     3,
                     FreeVar(

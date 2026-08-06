@@ -186,7 +186,7 @@ impl RequireContextMap {
         issue_source: Option<IssueSource>,
         error_mode: ResolveErrorMode,
     ) -> Result<Vc<Self>> {
-        let origin_path = origin.origin_path().await?.parent();
+        let origin_path = origin.into_trait_ref().await?.origin_path().parent();
 
         let list = &*FlatDirList::read(dir, recursive, filter).await?;
 
@@ -260,7 +260,12 @@ impl RequireContextAssetReference {
     ) -> Result<Self> {
         let map = RequireContextMap::generate(
             *origin,
-            origin.origin_path().await?.parent().join(&dir)?,
+            origin
+                .into_trait_ref()
+                .await?
+                .origin_path()
+                .parent()
+                .join(&dir)?,
             include_subdirs,
             filter,
             issue_source,
@@ -300,6 +305,10 @@ impl ModuleReference for RequireContextAssetReference {
             inherit_async: false,
             hoisted: false,
         })
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        self.issue_source
     }
 }
 
@@ -403,10 +412,14 @@ fn modifier(dir: &RcStr, include_subdirs: bool) -> RcStr {
 #[turbo_tasks::value_impl]
 impl Module for RequireContextAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.source
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .source
             .ident()
+            .owned()
+            .await?
             .with_modifier(modifier(&self.dir, self.include_subdirs))
+            .into_vc())
     }
 
     #[turbo_tasks::function]
@@ -475,6 +488,7 @@ impl EcmascriptChunkPlaceable for RequireContextAsset {
                 chunking_context,
                 *entry.result,
                 ResolveType::ChunkItem,
+                None,
             )
             .await?;
 

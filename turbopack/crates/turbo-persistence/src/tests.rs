@@ -1521,6 +1521,7 @@ fn compaction_multi_value_preserves_different_values() -> Result<()> {
 fn multi_value_config() -> DbConfig<1> {
     let mut config = DbConfig::<1>::default();
     config.family_configs[0] = FamilyConfig {
+        name: "test",
         kind: FamilyKind::MultiValue,
     };
     config
@@ -2022,18 +2023,19 @@ fn compaction_deletes_superseded_blob() -> Result<()> {
     // Compact — the old blob entry is superseded by the newer small value
     db.full_compact()?;
 
-    // After compaction, the old blob file should be deleted
+    // The new value should still be readable
+    let result = db.get(0, &vec![1u8])?;
+    assert_eq!(result.as_deref(), Some(&[99u8][..]));
+
+    // After compaction, the old blob file should be deleted immediately.
     assert_eq!(
         count_blob_files(path),
         0,
         "Old blob file should be deleted after compaction"
     );
 
-    // The new value should still be readable
-    let result = db.get(0, &vec![1u8])?;
-    assert_eq!(result.as_deref(), Some(&[99u8][..]));
-
     db.shutdown()?;
+
     Ok(())
 }
 
@@ -2073,18 +2075,19 @@ fn compaction_deletes_blob_on_tombstone() -> Result<()> {
     // Compact — tombstone supersedes the blob entry
     db.full_compact()?;
 
-    // After compaction, the blob file should be deleted
+    // Key should not be found
+    let result = db.get(0, &vec![1u8])?;
+    assert!(result.is_none());
+
+    // After compaction, the blob file should be deleted immediately.
     assert_eq!(
         count_blob_files(path),
         0,
         "Blob file should be deleted after compaction"
     );
 
-    // Key should not be found
-    let result = db.get(0, &vec![1u8])?;
-    assert!(result.is_none());
-
     db.shutdown()?;
+
     Ok(())
 }
 
@@ -2097,6 +2100,7 @@ fn compaction_deletes_blob_multi_value_tombstone() -> Result<()> {
 
     let config = DbConfig {
         family_configs: [FamilyConfig {
+            name: "test",
             kind: FamilyKind::MultiValue,
         }],
     };
@@ -2128,19 +2132,20 @@ fn compaction_deletes_blob_multi_value_tombstone() -> Result<()> {
     // Compact — tombstone prunes the old blob entry
     db.full_compact()?;
 
-    // After compaction, the old blob file should be deleted
+    // The new value should still be readable
+    let results = db.get_multiple(0, &vec![1u8].as_slice())?;
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].as_ref(), &[99u8]);
+
+    // After compaction, the old blob file should be deleted immediately.
     assert_eq!(
         count_blob_files(path),
         0,
         "Blob file should be deleted after compaction"
     );
 
-    // The new value should still be readable
-    let results = db.get_multiple(0, &vec![1u8].as_slice())?;
-    assert_eq!(results.len(), 1);
-    assert_eq!(results[0].as_ref(), &[99u8]);
-
     db.shutdown()?;
+
     Ok(())
 }
 
@@ -2185,5 +2190,42 @@ fn compaction_preserves_active_blob() -> Result<()> {
     assert_eq!(result.as_deref(), Some(&blob_value[..]));
 
     db.shutdown()?;
+    Ok(())
+}
+
+/// A `CURRENT.next` file left behind by a crash mid-`commit_current` (before the rename onto
+/// `CURRENT` completed) must not break opening the database: it should be ignored/cleaned up and
+/// the last committed `CURRENT` should remain authoritative.
+#[test]
+fn stale_current_next_is_recovered() -> Result<()> {
+    use crate::parallel_scheduler::SerialScheduler;
+
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    // Commit a value so CURRENT points at a real sequence number.
+    {
+        let db = TurboPersistence::<SerialScheduler, 1>::open(path.to_path_buf())?;
+        let batch = db.write_batch()?;
+        batch.put(0, vec![1u8], vec![42u8].into())?;
+        db.commit_write_batch(batch)?;
+        db.shutdown()?;
+    }
+
+    // Simulate a crash partway through a later CURRENT update: a stray, even garbage-length,
+    // CURRENT.next is present on disk while CURRENT itself is untouched.
+    fs::write(path.join("CURRENT.next"), b"\xAA")?;
+
+    // Opening must succeed, remove the stale temp file, and still read the committed value.
+    {
+        let db = TurboPersistence::<SerialScheduler, 1>::open(path.to_path_buf())?;
+        assert_eq!(db.get(0, &vec![1u8])?.as_deref(), Some(&[42u8][..]));
+        db.shutdown()?;
+    }
+    assert!(
+        !path.join("CURRENT.next").exists(),
+        "stale CURRENT.next should be cleaned up on open"
+    );
+
     Ok(())
 }

@@ -115,6 +115,14 @@ export interface RequestMeta {
   serverComponentsHmrCache?: ServerComponentsHmrCache
 
   /**
+   * The hash of the most recent server component change (dev only), set by the
+   * router-server from the hot-reloader. Included in `"use cache"` cache keys
+   * so that cached entries are revalidated after an edit, for every client,
+   * regardless of whether it runs the HMR client.
+   */
+  hmrRefreshHash?: string
+
+  /**
    * Equals the segment path that was used for the prefetch RSC request.
    */
   segmentPrefetchRSCRequest?: string
@@ -147,10 +155,13 @@ export interface RequestMeta {
   isNextDataReq?: true
 
   /**
-   * Postponed state to use for resumption. If present it's assumed that the
-   * request is for a page that has postponed (there are no guarantees that the
-   * page actually has postponed though as it would incur an additional cache
-   * lookup).
+   * Postponed state to use for resumption. When absent, the request is not a
+   * resume request. A non-empty string contains the state to resume, while an
+   * empty string represents a resume request without postponed state and
+   * signals that the renderer should perform a full dynamic render.
+   *
+   * There are no guarantees that the page actually postponed, as verifying
+   * that would incur an additional cache lookup.
    */
   postponed?: string
 
@@ -219,6 +230,14 @@ export interface RequestMeta {
    * Whether the request should render the fallback shell or not.
    */
   renderFallbackShell?: boolean
+
+  /**
+   * Route param keys that were explicitly resolved from partial nxtP*
+   * query params during background revalidation. Used by app-page.ts to
+   * determine which fallback params should remain deferred vs resolved
+   * in intermediate PPR shells.
+   */
+  resolvedRouteParamKeys?: Set<string>
 
   /**
    * Whether the request is for the custom error page.

@@ -2,14 +2,15 @@ import type { Instant } from 'next'
 import { headers } from 'next/headers'
 import { ClientChild } from './client'
 
-export const unstable_instant: Instant = {
-  prefetch: 'runtime',
-  samples: [
+export const instant: Instant = {
+  level: 'experimental-error',
+  unstable_samples: [
     {
       headers: [['x-test-header', 'testValue']],
     },
   ],
 }
+export const prefetch = 'partial'
 
 export default async function Page() {
   return (

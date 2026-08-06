@@ -3,9 +3,9 @@ use serde::Serialize;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
-use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
+use turbo_tasks_hash::{DeterministicHash, HashAlgorithm, Xxh3Hash64Hasher, hash_xxh3_hash64};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::{Asset, AssetContent, no_hash_salt},
     module::{Module, Modules},
     module_graph::{GraphTraversalAction, ModuleGraph},
     output::{
@@ -57,39 +57,31 @@ pub async fn endpoints_outputs(endpoints: Vc<Endpoints>) -> Result<Vc<OutputAsse
         .map(async |endpoint| Ok(endpoint.output().await?.output_assets.await?))
         .try_join()
         .await?;
-    let set = all_outputs
-        .into_iter()
-        .flatten()
-        .copied()
-        .collect::<FxIndexSet<_>>();
+    let set = all_outputs.into_iter().flatten().collect::<FxIndexSet<_>>();
     Ok(Vc::cell(set.into_iter().collect()))
 }
 
 #[turbo_tasks::function]
-pub async fn outputs_hash(outputs: Vc<OutputAssets>) -> Result<Vc<u64>> {
+pub async fn outputs_hash(outputs: Vc<OutputAssets>, hash_salt: Vc<RcStr>) -> Result<Vc<u64>> {
     let output_assets = expand_output_assets(
         outputs
             .await?
             .into_iter()
-            .map(|asset| ExpandOutputAssetsInput::Asset(*asset)),
+            .map(ExpandOutputAssetsInput::Asset),
         true,
     )
     .await?;
     let outputs_hashes = output_assets
         .iter()
-        .map(|asset| asset.content().hash())
+        .map(|asset| {
+            asset
+                .content()
+                .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
+        })
         .try_join()
         .await?;
 
-    let outputs_hash = {
-        let mut hasher = Xxh3Hash64Hasher::new();
-        for hash in outputs_hashes.iter() {
-            hash.deterministic_hash(&mut hasher);
-        }
-        hasher.finish()
-    };
-
-    Ok(Vc::cell(outputs_hash))
+    Ok(Vc::cell(hash_xxh3_hash64(outputs_hashes)))
 }
 
 #[turbo_tasks::function]
@@ -97,13 +89,11 @@ pub async fn endpoint_entry_modules(
     base_module_graph: Vc<ModuleGraph>,
     endpoint: Vc<Box<dyn Endpoint>>,
 ) -> Result<Vc<Modules>> {
-    let entries = endpoint.entries();
-    let additional_entries = endpoint.additional_entries(base_module_graph);
+    let entries = endpoint.entries().await?;
+    let additional_entries = endpoint.additional_entries(base_module_graph).await?;
     let modules = entries
-        .await?
-        .into_iter()
-        .chain(additional_entries.await?.into_iter())
-        .flat_map(|e| e.entries())
+        .chunk_group_modules()
+        .chain(additional_entries.chunk_group_modules())
         .collect::<FxIndexSet<_>>();
     Ok(Vc::cell(modules.into_iter().collect()))
 }
@@ -124,19 +114,22 @@ pub async fn endpoints_entry_modules(
         .try_join()
         .await?;
     let modules = entries_and_additional_entries
-        .into_iter()
+        .iter()
         .flat_map(|(entries, additional_entries)| {
             entries
-                .into_iter()
-                .chain(additional_entries.into_iter())
-                .flat_map(|e| e.entries())
+                .chunk_group_modules()
+                .chain(additional_entries.chunk_group_modules())
         })
         .collect::<FxIndexSet<_>>();
     Ok(Vc::cell(modules.into_iter().collect()))
 }
 
 #[turbo_tasks::function]
-pub async fn sources_hash(module_graph: Vc<ModuleGraph>, modules: Vc<Modules>) -> Result<Vc<u64>> {
+pub async fn sources_hash(
+    module_graph: Vc<ModuleGraph>,
+    modules: Vc<Modules>,
+    hash_salt: Vc<RcStr>,
+) -> Result<Vc<u64>> {
     let modules = modules.await?;
 
     let mut all_modules = FxIndexSet::default();
@@ -144,7 +137,7 @@ pub async fn sources_hash(module_graph: Vc<ModuleGraph>, modules: Vc<Modules>) -
     let module_graph = module_graph.await?;
 
     module_graph.traverse_nodes_dfs(
-        modules.into_iter().copied(),
+        modules,
         &mut all_modules,
         |module, all_modules| {
             all_modules.insert(*module);
@@ -159,19 +152,15 @@ pub async fn sources_hash(module_graph: Vc<ModuleGraph>, modules: Vc<Modules>) -
         .try_flat_join()
         .await?
         .into_iter()
-        .map(|source| source.content().hash())
+        .map(|source| {
+            source
+                .content()
+                .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
+        })
         .try_join()
         .await?;
 
-    let sources_hash = {
-        let mut hasher = Xxh3Hash64Hasher::new();
-        for source in sources.iter() {
-            source.deterministic_hash(&mut hasher);
-        }
-        hasher.finish()
-    };
-
-    Ok(Vc::cell(sources_hash))
+    Ok(Vc::cell(hash_xxh3_hash64(sources)))
 }
 
 #[derive(Serialize)]
@@ -204,6 +193,7 @@ impl RoutesHashesManifestAsset {
 impl Asset for RoutesHashesManifestAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
+        let hash_salt = no_hash_salt();
         let module_graphs = self.project.whole_app_module_graphs().await?;
         let base_module_graph = *module_graphs.base;
         let full_module_graph = *module_graphs.full;
@@ -212,14 +202,15 @@ impl Asset for RoutesHashesManifestAsset {
 
         let entrypoint_groups = self.project.get_all_endpoint_groups(false).await?;
 
-        for (key, EndpointGroup { primary, .. }) in entrypoint_groups {
+        for (key, EndpointGroup { primary, .. }) in &entrypoint_groups {
             let entry = if let &[entry] = &primary.as_slice() {
                 (
                     sources_hash(
                         full_module_graph,
                         endpoint_entry_modules(base_module_graph, *entry.endpoint),
+                        hash_salt,
                     ),
-                    outputs_hash(endpoint_outputs(*entry.endpoint)),
+                    outputs_hash(endpoint_outputs(*entry.endpoint), hash_salt),
                 )
             } else {
                 let endpoints = Vc::cell(primary.iter().map(|entry| entry.endpoint).collect());
@@ -227,8 +218,9 @@ impl Asset for RoutesHashesManifestAsset {
                     sources_hash(
                         full_module_graph,
                         endpoints_entry_modules(base_module_graph, endpoints),
+                        hash_salt,
                     ),
-                    outputs_hash(endpoints_outputs(endpoints)),
+                    outputs_hash(endpoints_outputs(endpoints), hash_salt),
                 )
             };
             entrypoint_hashes.insert(key.as_str(), entry);
@@ -245,7 +237,7 @@ impl Asset for RoutesHashesManifestAsset {
         let manifest = serde_json::to_string_pretty(&RoutesHashesManifest {
             routes: entrypoint_hashes
                 .into_keys()
-                .zip(entrypoint_hashes_values.into_iter())
+                .zip(entrypoint_hashes_values)
                 .map(|(k, (sources_hash, outputs_hash))| {
                     (
                         k,

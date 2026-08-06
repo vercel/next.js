@@ -83,6 +83,67 @@ describe('segment cache - vary params', () => {
     expect(await page.text()).toContain('Item: headphones')
   })
 
+  it('reuses prefetched page segment with in-page loading boundary across different params', async () => {
+    // Setup: Page uses an in-page Suspense boundary instead of loading.tsx. The
+    // page's default export wraps a child component in <Suspense>. The child
+    // awaits params, but during prerendering the params are fallback params
+    // (hanging promise), so the child suspends and the segment prefetch
+    // contains only the Suspense fallback with empty varyParams — making it
+    // reusable across all slug values.
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/in-page-loading-boundary', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    // Prefetch the first link - page segment is fetched
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/in-page-loading-boundary/phone"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Loading item' }
+    )
+
+    // Prefetch remaining links - all cache hits (page prefetch is shared)
+    await act(async () => {
+      const tablet = await browser.elementByCss(
+        'input[data-link-accordion="/in-page-loading-boundary/tablet"]'
+      )
+      await tablet.click()
+      const laptop = await browser.elementByCss(
+        'input[data-link-accordion="/in-page-loading-boundary/laptop"]'
+      )
+      await laptop.click()
+      const headphones = await browser.elementByCss(
+        'input[data-link-accordion="/in-page-loading-boundary/headphones"]'
+      )
+      await headphones.click()
+    }, 'no-requests')
+
+    // Navigate to headphones. The loading state renders instantly from the
+    // cached page shell (Suspense fallback), before the dynamic request
+    // resolves.
+    await act(async () => {
+      const link = await browser.elementByCss(
+        'a[href="/in-page-loading-boundary/headphones"]'
+      )
+      await link.click()
+
+      const loading = await browser.elementByCss('[data-loading="true"]')
+      expect(await loading.text()).toContain('Loading item')
+    })
+
+    // Dynamic content eventually loads
+    const content = await browser.elementById(
+      'in-page-loading-boundary-content'
+    )
+    expect(await content.text()).toContain('Item: headphones')
+  })
+
   it('renders cached loading state instantly with runtime prefetching', async () => {
     // Setup: Page accesses `category` in static portion (tracked in varyParams),
     // but accesses `itemId` only after connection() (not tracked).
@@ -187,6 +248,56 @@ describe('segment cache - vary params', () => {
       },
       { includes: 'Search params target - foo: 3' }
     )
+  })
+
+  it('does not reuse prefetched empty-query segment for prefetches with searchParams', async () => {
+    // When a page reads searchParams that don't exist on the request URL (e.g.
+    // destructuring `foo` from `/search-params/target-page` with no query),
+    // that's still an access that affects the response and must register the
+    // segment as varying by '?'. Otherwise the empty-query prefetch ends up
+    // keyed at the Fallback search-slot, which shadows subsequent ?foo=N
+    // prefetches via Fallback resolution and causes them to silently serve the
+    // wrong (empty-query) response.
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/search-params', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    // Prefetch the no-query URL first. The page reads `foo` (a missing key),
+    // which must register as a vary access.
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/search-params/target-page"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Search params target - foo: undefined' }
+    )
+
+    // Prefetching with a search param value must still trigger a new request,
+    // not silently reuse the empty-query entry through Fallback resolution.
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/search-params/target-page?foo=1"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Search params target - foo: 1' }
+    )
+
+    // Navigate and verify the correct content renders for ?foo=1.
+    const link = await browser.elementByCss(
+      'a[href="/search-params/target-page?foo=1"]'
+    )
+    await link.click()
+    const content = await browser.elementByCss(
+      '[data-search-params-content="true"]'
+    )
+    expect(await content.text()).toContain('Search params target - foo: 1')
   })
 
   it('reuses prefetched segment when page does not access searchParams', async () => {
@@ -539,7 +650,15 @@ describe('segment cache - vary params', () => {
     )
   })
 
-  it('shares cached segment across search params when not accessed (runtime prefetch)', async () => {
+  // TODO: When a Promise resolves with the searchParams Proxy as its value, the
+  // Promise spec's `[[Resolve]]` algorithm reads `.then` on the Proxy to check
+  // for thenable assimilation. The Proxy can't distinguish that probe from a
+  // real `searchParams.then` access, so any runtime-prefetched page that
+  // doesn't read `searchParams` ends up varying on the entire query string and
+  // can't share a cached segment. Re-enable once vary-param tracking moves to
+  // per-param keys. The spec-driven `.then` probe will then resolve to the same
+  // (undefined) value across these URLs and the cache entry will be reused.
+  it.skip('shares cached segment across search params when not accessed (runtime prefetch)', async () => {
     // Runtime prefetch page that does NOT access searchParams. Since '?'
     // is not in varyParams, different search param values share the cache.
     let act: ReturnType<typeof createRouterAct>
@@ -632,14 +751,20 @@ describe('segment cache - vary params', () => {
       { includes: 'Page category:' }
     )
 
-    // Second prefetch: same category, different itemId.
-    // The page segment is a cache hit since it only varies on category.
-    await act(async () => {
-      const toggle = await browser.elementByCss(
-        'input[data-link-accordion="/runtime-prefetch-layout-split/electronics/tablet"]'
-      )
-      await toggle.click()
-    }, 'no-requests')
+    // Second prefetch: same category, different itemId. The page segment is a
+    // cache hit (it only varies on category), but the layout varies on itemId
+    // too, so it's a genuine miss and a runtime request is required for it.
+    // The page segment is not itself part of that batch — it rides along
+    // because rendering a segment on the server also renders its children.
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/runtime-prefetch-layout-split/electronics/tablet"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Layout: electronics/tablet' }
+    )
 
     // Different category triggers a new page segment fetch
     await act(

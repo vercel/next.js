@@ -61,6 +61,8 @@ export async function walkTreeWithFlightRouterState({
     getDynamicParamFromSegment,
     parsedRequestHeaders,
   } = ctx
+  const prefetchInliningEnabled = Boolean(experimental.prefetchInlining)
+  const partialPrefetching = ctx.renderOpts.partialPrefetching
 
   const [segment, parallelRoutes, modules] = loaderTreeToFilter
 
@@ -155,13 +157,21 @@ export async function walkTreeWithFlightRouterState({
         await createRouteTreePrefetch(
           loaderTreeToFilter,
           hintTree,
-          getDynamicParamFromSegment
+          prefetchInliningEnabled,
+          ctx.missingPrefetchHintPolicy,
+          partialPrefetching,
+          getDynamicParamFromSegment,
+          rootLayoutIncluded
         )
       : await createFlightRouterStateFromLoaderTree(
           loaderTreeToFilter,
           hintTree,
+          prefetchInliningEnabled,
+          ctx.missingPrefetchHintPolicy,
+          partialPrefetching,
           getDynamicParamFromSegment,
-          query
+          query,
+          rootLayoutIncluded
         )
 
     return [
@@ -187,13 +197,20 @@ export async function walkTreeWithFlightRouterState({
       ? await createRouteTreePrefetch(
           loaderTreeToFilter,
           hintTree,
+          prefetchInliningEnabled,
+          ctx.missingPrefetchHintPolicy,
+          partialPrefetching,
           getDynamicParamFromSegment
         )
       : await createFlightRouterStateFromLoaderTree(
           loaderTreeToFilter,
           hintTree,
+          prefetchInliningEnabled,
+          ctx.missingPrefetchHintPolicy,
+          partialPrefetching,
           getDynamicParamFromSegment,
-          query
+          query,
+          rootLayoutIncluded
         )
     return [
       [
@@ -220,8 +237,12 @@ export async function walkTreeWithFlightRouterState({
       // Create router state using the slice of the loaderTree
       loaderTreeToFilter,
       hintTree,
+      prefetchInliningEnabled,
+      ctx.missingPrefetchHintPolicy,
+      partialPrefetching,
       getDynamicParamFromSegment,
-      query
+      query,
+      rootLayoutIncluded
     )
 
     // Create component tree using the slice of the loaderTree
@@ -241,6 +262,7 @@ export async function walkTreeWithFlightRouterState({
         preloadCallbacks,
         authInterrupts: experimental.authInterrupts,
         MetadataOutlet,
+        isPrerendering: false,
       }
     )
 
@@ -347,6 +369,9 @@ export async function createFullTreeFlightDataForNavigation({
   const routerState = await createFlightRouterStateFromLoaderTree(
     loaderTree,
     hintTreeForInitialRender,
+    Boolean(experimental.prefetchInlining),
+    ctx.missingPrefetchHintPolicy,
+    ctx.renderOpts.partialPrefetching,
     getDynamicParamFromSegment,
     query
   )
@@ -365,6 +390,7 @@ export async function createFullTreeFlightDataForNavigation({
     preloadCallbacks,
     authInterrupts: experimental.authInterrupts,
     MetadataOutlet,
+    isPrerendering: false,
   })
 
   return [

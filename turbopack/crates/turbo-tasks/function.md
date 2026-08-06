@@ -1,6 +1,6 @@
 Tasks are created by defining a Rust function annotated with the `#[turbo_tasks::function]` macro and calling it with arguments. Each unique combination of function and arguments create a new task at runtime. Tasks are the fundamental units of work within the build system.
 
-```rust
+```ignore
 #[turbo_tasks::function]
 fn add(a: i32, b: i32) -> Vc<Something> {
     // Task implementation goes here...
@@ -9,7 +9,7 @@ fn add(a: i32, b: i32) -> Vc<Something> {
 
 - Tasks can be implemented as either a **synchronous or asynchronous** function.
 - Arguments must implement the **[`TaskInput`] trait**. Usually these are primitives or types wrapped in [`Vc<T>`].
-- The **external signature** of a task always **returns a [`Vc<T>`]** or an [`OperationVc<T>`].
+- The **external signature** of a task always **returns a [`Vc<T>`]** or an [`OperationVc<T>`]. A task may declare its return type as [`Vc<T>`] or [`ResolvedVc<T>`] (optionally wrapped in `Result<...>`); a [`ResolvedVc<T>`] return is rewritten to [`Vc<T>`] in the external signature.
 - **Generics** (type or lifetime parameters) are **not supported** in task functions.
 
 [`Vc<T>`]: crate::Vc
@@ -34,6 +34,9 @@ The `#[turbo_tasks::function]` macro **rewrites the arguments and return values*
 
 - A return type of **`Result<Vc<T>>` is rewritten into `Vc<T>`**.
   - The `Result<Vc<T>>` return type allows for idiomatic use of the `?` operator inside of task functions.
+- A return type of **[`ResolvedVc<T>`] is rewritten into `Vc<T>`**.
+  - This lets a task return an already-resolved cell (e.g. from [`ResolvedVc::cell`] or a `.resolved_cell()` method) without an explicit conversion back to `Vc<T>`.
+  - This also applies when wrapped in a `Result`: **`Result<ResolvedVc<T>>` is rewritten into `Vc<T>`**.
 - A function with **no return type** is rewritten to return **`Vc<()>` instead of `()`**.
 - The **[`impl Future<Output = Vc<T>>`][Future]** type implicitly returned by an async function is **flattened into the `Vc<T>` type**, which implements [`IntoFuture`] and can be `.await`ed.
 
@@ -41,6 +44,7 @@ Some of this logic is represented by the [`TaskOutput`] trait and its associated
 
 [`TaskOutput`]: crate::task::TaskOutput
 [`Return`]: crate::task::TaskOutput::Return
+[`ResolvedVc::cell`]: crate::ResolvedVc::cell
 
 ### External Signature Example
 
@@ -54,22 +58,94 @@ async fn foo(
     b: Vc<i32>,
     c: ResolvedVc<i32>,
     d: Option<Vec<ResolvedVc<i32>>>,
-) -> Result<Vc<i32>> {
+) -> Result<ResolvedVc<i32>> {
     // ...
 }
 ```
 
 will have an external signature of
 
-```rust
+```ignore
 fn foo(
     self: Vc<Self>,           // was: &self
     a: i32,
     b: Vc<i32>,
     c: Vc<i32>,               // was: ResolvedVc<i32>
     d: Option<Vec<Vc<i32>>>,  // was: Option<Vec<ResolvedVc<i32>>>
-) -> Vc<i32>;                 // was: impl Future<Output = Result<Vc<i32>>>
+) -> Vc<i32>;                 // was: impl Future<Output = Result<ResolvedVc<i32>>>
 ```
+
+## Attributes
+
+The `#[turbo_tasks::function]` macro accepts optional attributes that modify the behavior of the
+task. Multiple attributes can be combined by separating them with commas.
+
+```ignore
+#[turbo_tasks::function(fs, session_dependent)]
+async fn read_file(path: RcStr) -> Result<Vc<FileContent>> {
+    // ...
+}
+```
+
+### `operation`
+
+Marks the task as an **operation**. The external signature will return an [`OperationVc<T>`] instead
+of a [`Vc<T>`], and all arguments must implement `OperationValue`. Operation tasks serve as explicit
+entry points into the task graph and can be used to connect non-reactive code to the reactive
+computation graph. Mutually exclusive with `&self` receivers.
+
+### `root`
+
+Marks the task as a **root** in the aggregation graph. Root tasks start with the maximum aggregation
+number (`u32::MAX`), which places them at the top of the aggregation tree. This is used for tasks
+that represent top-level entry points into the computation.
+
+### `fs`
+
+An **I/O marker** indicating the task directly performs filesystem operations. This should only be
+applied to the task that directly performs the I/O, not tasks that transitively call it.
+
+### `network`
+
+An **I/O marker** indicating the task directly performs network operations. Like `fs`, this should
+only be applied to the task that directly performs the I/O.
+
+### `session_dependent`
+
+Marks the task as **session dependent**. Session-dependent tasks are re-executed when restored from
+persistent cache because they depend on external state (filesystem, environment, network) that may
+have changed between sessions.
+
+When a session-dependent task completes, it is not marked as fully clean — it retains a special
+"session dependent" dirty state. If the task is later restored from persistent cache in a new
+session, this state causes it to be re-executed rather than reusing the cached result.
+
+Typical use cases:
+
+- **Filesystem reads** — file contents may have changed on disk between sessions.
+- **Environment variable reads** — process environment may differ between sessions.
+- **Network requests** — remote resources may return different results.
+
+```rust
+#[turbo_tasks::function(fs, session_dependent)]
+async fn read(&self, path: FileSystemPath) -> Result<Vc<FileContent>> {
+    // File contents may have changed since the last session,
+    // so this task is always re-executed on cache restore.
+    // ...
+}
+
+#[turbo_tasks::function(session_dependent)]
+fn read_all_env(&self) -> Vc<TransientEnvMap> {
+    // Environment variables may differ between sessions.
+    Vc::cell(self.vars.clone())
+}
+```
+
+Note: `session_dependent` should be applied to the **leaf task** that directly reads external state.
+Tasks that transitively depend on a session-dependent task do not need this attribute — they will
+naturally re-execute when the session-dependent task they depend on produces a new result.
+
+[`OperationVc<T>`]: crate::OperationVc
 
 ## Methods and Self
 
@@ -79,7 +155,7 @@ Tasks can be methods associated with a value or a trait implementation using the
 
 ### Inherent Implementations
 
-```rust
+```ignore
 #[turbo_tasks::value_impl]
 impl Something {
     #[turbo_tasks::function]
@@ -125,7 +201,7 @@ impl Something {
 
 ### Trait Implementations
 
-```rust
+```ignore
 #[turbo_tasks::value_impl]
 impl Trait for Something {
     #[turbo_tasks::function]

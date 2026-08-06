@@ -13,9 +13,10 @@ use anyhow::{Context, Result};
 use turbo_rcstr::RcStr;
 use turbo_tasks::Vc;
 use turbo_tasks_hash::HashAlgorithm;
-use turbopack_core::asset::Asset;
+use turbopack_core::asset::{Asset, no_hash_salt};
 
 pub(crate) mod analysis;
+pub mod embed;
 pub(crate) mod loader;
 pub mod module_asset;
 pub(crate) mod output_asset;
@@ -26,7 +27,7 @@ pub mod source;
 pub async fn wasm_edge_var_name(asset: Vc<Box<dyn Asset>>) -> Result<Vc<RcStr>> {
     let hash = asset
         .content()
-        .content_hash(HashAlgorithm::Xxh3Hash128Hex)
+        .content_hash(no_hash_salt(), HashAlgorithm::Xxh3Hash128Hex)
         .await?;
     let hash = hash
         .as_ref()

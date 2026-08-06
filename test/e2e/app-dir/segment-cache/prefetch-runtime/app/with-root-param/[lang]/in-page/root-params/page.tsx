@@ -4,10 +4,10 @@ import { connection } from 'next/server'
 import { lang } from 'next/root-params'
 import { cookies } from 'next/headers'
 
-export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [{ params: { lang: 'en' } }],
+export const instant = {
+  unstable_samples: [{ params: { lang: 'en' } }],
 }
+export const prefetch = 'partial'
 
 export default async function Page() {
   return (

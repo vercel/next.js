@@ -6,9 +6,6 @@ describe('empty-shell-route-cache', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    // This regression inspects on-disk .next artifacts, so it only applies to
-    // self-hosted build + start and is not portable to deployment mode.
-    skipDeployment: true,
   })
 
   beforeAll(async () => {

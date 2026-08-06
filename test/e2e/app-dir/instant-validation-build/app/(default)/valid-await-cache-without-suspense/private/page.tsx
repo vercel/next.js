@@ -1,7 +1,5 @@
-export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [{}],
-}
+export const instant = { level: 'experimental-error' }
+export const prefetch = 'partial'
 
 export default async function Page() {
   await privateCachedIO()

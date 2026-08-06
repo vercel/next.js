@@ -1,9 +1,7 @@
 import { cookies } from 'next/headers'
 
-export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [{ cookies: [] }],
-}
+export const instant = { level: 'experimental-error' }
+export const prefetch = 'partial'
 
 export default async function RuntimeLayout({ children }) {
   await cookies()

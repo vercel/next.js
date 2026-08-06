@@ -3,10 +3,8 @@
  */
 const nextConfig = {
   cacheComponents: true,
+  partialPrefetching: true,
   adapterPath: require.resolve('./my-adapter.mjs'),
-  experimental: {
-    partialFallbacks: true,
-  },
 }
 
 module.exports = nextConfig

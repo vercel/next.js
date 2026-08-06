@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useInsertionEffect } from 'react'
 
 export default function ClientPage() {
-  useEffect(() => {
-    // Logging in client component useEffect
+  useInsertionEffect(() => {
+    // Logging in client component useInsertionEffect
     // Test complex partial circular object
     const circularObj: any = {
       name: 'test',

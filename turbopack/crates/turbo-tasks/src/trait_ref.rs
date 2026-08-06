@@ -2,6 +2,7 @@ use std::{fmt::Debug, marker::PhantomData};
 
 use crate::{
     Vc, VcValueTrait, registry::get_value_type, task::shared_reference::TypedSharedReference,
+    vc::UpcastStrict,
 };
 
 /// Similar to a [`ReadRef<T>`][crate::ReadRef], but contains a value trait object instead.
@@ -60,7 +61,7 @@ where
     fn deref(&self) -> &Self::Target {
         // This lookup will fail if the value type stored does not actually implement the trait,
         // which implies a bug in either the registry code or the macro code.
-        let downcast_ptr = <Box<U> as VcValueTrait>::get_impl_vtables().cast(
+        let downcast_ptr = <Box<U> as VcValueTrait>::IMPL_VTABLES.cast(
             self.shared_reference.type_id,
             self.shared_reference.reference.0.as_ptr() as *const (),
         );
@@ -110,5 +111,19 @@ where
         } = trait_ref;
         let value_type = get_value_type(shared_reference.type_id);
         (value_type.raw_cell)(shared_reference).into()
+    }
+
+    /// Attempts to downcast this trait reference to a sub-trait `K`, where `K`
+    /// is of the form `Box<dyn L>` and `L: T` is a value trait.
+    ///
+    /// [`ResolvedVc::try_downcast`]: crate::ResolvedVc::try_downcast
+    /// [`ResolvedVc`]: crate::ResolvedVc
+    pub fn try_downcast<K>(this: TraitRef<T>) -> Option<TraitRef<K>>
+    where
+        K: UpcastStrict<T> + VcValueTrait + ?Sized,
+    {
+        get_value_type(this.shared_reference.type_id)
+            .has_trait(&<K as VcValueTrait>::get_trait_type_id())
+            .then(|| TraitRef::new(this.shared_reference))
     }
 }

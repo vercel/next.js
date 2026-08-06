@@ -2,10 +2,10 @@ import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind, uncachedIO } from '../../../../shared'
 import { connection } from 'next/server'
 
-export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [{ params: { id: 'test' } }],
+export const instant = {
+  unstable_samples: [{ params: { id: 'test' } }],
 }
+export const prefetch = 'partial'
 
 type Params = { id: string }
 

@@ -3,19 +3,20 @@ use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     code_builder::{Code, CodeBuilder},
-    environment::Environment,
+    context::AssetContext,
 };
 
-use crate::{RuntimeType, asset_context::get_runtime_asset_context, embed_js::embed_static_code};
+use crate::{RuntimeType, embed_js::embed_static_code};
 
 /// Returns the code for the Node.js ECMAScript runtime.
 #[turbo_tasks::function]
 pub async fn get_nodejs_runtime_code(
-    environment: ResolvedVc<Environment>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
     runtime_type: RuntimeType,
+    include_async_module_runtime: bool,
     generate_source_map: bool,
 ) -> Result<Vc<Code>> {
-    let asset_context = get_runtime_asset_context(*environment).resolve().await?;
+    let asset_context = *asset_context;
 
     let shared_runtime_utils_code = embed_static_code(
         asset_context,
@@ -32,12 +33,6 @@ pub async fn get_nodejs_runtime_code(
         rcstr!("shared-node/node-externals-utils.ts"),
         generate_source_map,
     );
-    let shared_node_wasm_utils_code = embed_static_code(
-        asset_context,
-        rcstr!("shared-node/node-wasm-utils.ts"),
-        generate_source_map,
-    );
-
     // Runtime base is shared between production and development
     let runtime_base_code = embed_static_code(
         asset_context,
@@ -47,9 +42,18 @@ pub async fn get_nodejs_runtime_code(
 
     let mut code = CodeBuilder::default();
     code.push_code(&*shared_runtime_utils_code.await?);
+    if include_async_module_runtime {
+        code.push_code(
+            &*embed_static_code(
+                asset_context,
+                rcstr!("shared/runtime/async-module.ts"),
+                generate_source_map,
+            )
+            .await?,
+        );
+    }
     code.push_code(&*shared_base_external_utils_code.await?);
     code.push_code(&*shared_node_external_utils_code.await?);
-    code.push_code(&*shared_node_wasm_utils_code.await?);
     code.push_code(&*runtime_base_code.await?);
 
     match runtime_type {

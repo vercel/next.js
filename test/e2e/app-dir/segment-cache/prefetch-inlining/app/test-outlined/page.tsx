@@ -1,3 +1,3 @@
 export default function Page() {
-  return <p>Outlined test page</p>
+  return <p id="page-outlined">Outlined test page</p>
 }

@@ -3,7 +3,7 @@ use std::fmt::Display;
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, trace::TraceRawVcs};
 
 use crate::{loader::ResolvedWebpackLoaderItem, module::Module, resolve::ModulePart};
 
@@ -30,47 +30,23 @@ impl InnerAssets {
 // TODO when plugins are supported, replace u8 with a trait that defines the
 // behavior.
 
-#[derive(
-    PartialEq,
-    Eq,
-    TraceRawVcs,
-    NonLocalValue,
-    Debug,
-    Default,
-    Clone,
-    Copy,
-    Hash,
-    TaskInput,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(PartialEq, Eq, TraceRawVcs, Debug, Default, Clone, Copy, Hash, Encode, Decode)]
 pub enum CommonJsReferenceSubType {
     Custom(u8),
     #[default]
     Undefined,
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Copy, Hash, TaskInput, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(PartialEq, Eq, TraceRawVcs, Debug, Clone, Copy, Hash, Encode, Decode)]
 pub enum ImportWithType {
     Json,
     Bytes,
 }
 
-#[derive(
-    PartialEq,
-    Eq,
-    TraceRawVcs,
-    NonLocalValue,
-    Debug,
-    Default,
-    Clone,
-    Hash,
-    TaskInput,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(PartialEq, Eq, TraceRawVcs, Debug, Default, Clone, Hash, Encode, Decode)]
 pub enum EcmaScriptModulesReferenceSubType {
     ImportPart(ModulePart),
     Import,
@@ -205,20 +181,8 @@ impl ImportContext {
     }
 }
 
-#[derive(
-    PartialEq,
-    Eq,
-    TraceRawVcs,
-    NonLocalValue,
-    Debug,
-    Default,
-    Clone,
-    Copy,
-    Hash,
-    TaskInput,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(PartialEq, Eq, TraceRawVcs, Debug, Default, Clone, Copy, Hash, Encode, Decode)]
 pub enum CssReferenceSubType {
     AtImport(Option<ResolvedVc<ImportContext>>),
     /// Reference from EcmascriptCssModule to an imported EcmascriptCssModule for retrieving the
@@ -233,20 +197,8 @@ pub enum CssReferenceSubType {
     Undefined,
 }
 
-#[derive(
-    PartialEq,
-    Eq,
-    TraceRawVcs,
-    NonLocalValue,
-    Debug,
-    Default,
-    Clone,
-    Copy,
-    Hash,
-    TaskInput,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(PartialEq, Eq, TraceRawVcs, Debug, Default, Clone, Copy, Hash, Encode, Decode)]
 pub enum UrlReferenceSubType {
     EcmaScriptNewUrl,
     CssUrl,
@@ -255,17 +207,15 @@ pub enum UrlReferenceSubType {
     Undefined,
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Copy, Hash, TaskInput, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(PartialEq, Eq, TraceRawVcs, Debug, Clone, Copy, Hash, Encode, Decode)]
 pub enum TypeScriptReferenceSubType {
     Custom(u8),
     Undefined,
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Copy, Hash, TaskInput, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(PartialEq, Eq, TraceRawVcs, Debug, Clone, Copy, Hash, Encode, Decode)]
 pub enum WorkerReferenceSubType {
     WebWorker,
     SharedWorker,
@@ -277,9 +227,8 @@ pub enum WorkerReferenceSubType {
 
 // TODO(sokra) this was next.js specific values. We want to solve this in a
 // different way.
-#[derive(
-    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Copy, Hash, TaskInput, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(PartialEq, Eq, TraceRawVcs, Debug, Clone, Copy, Hash, Encode, Decode)]
 pub enum EntryReferenceSubType {
     Web,
     Page,
@@ -297,19 +246,8 @@ pub enum EntryReferenceSubType {
     Undefined,
 }
 
-#[derive(
-    PartialEq,
-    Eq,
-    TraceRawVcs,
-    NonLocalValue,
-    Debug,
-    Default,
-    Clone,
-    Hash,
-    TaskInput,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(PartialEq, Eq, TraceRawVcs, Debug, Default, Clone, Hash, Encode, Decode)]
 pub enum ReferenceType {
     CommonJs(CommonJsReferenceSubType),
     EcmaScriptModules(EcmaScriptModulesReferenceSubType),
@@ -372,9 +310,8 @@ impl ReferenceType {
 /// - to match against a specific subtype, e.g. with
 ///   `ReferenceTypeCondition::Url(Some(UrlReferenceSubType::EcmaScriptNewUrl))` matching
 ///   `ReferenceType::Url(UrlReferenceSubType::EcmaScriptNewUrl)`
-#[derive(
-    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Hash, TaskInput, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(PartialEq, Eq, TraceRawVcs, Debug, Clone, Hash, Encode, Decode)]
 pub enum ReferenceTypeCondition {
     CommonJs(Option<CommonJsReferenceSubType>),
     EcmaScriptModules(Option<EcmaScriptModulesReferenceSubType>),

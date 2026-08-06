@@ -115,7 +115,8 @@ pub async fn compute_binding_usage_info(
             ResolvedVc<Box<dyn Module>>,
         )>::default();
         let mut unused_references_edges = FxHashSet::default();
-        let mut unused_references = FxHashSet::default();
+        let mut unused_references =
+            FxHashMap::<_, FxHashSet<ResolvedVc<Box<dyn Module>>>>::default();
 
         let graph = graph.connect();
         let graph_ref = graph.await?;
@@ -144,7 +145,7 @@ pub async fn compute_binding_usage_info(
             None
         };
 
-        let entries = graph_ref.graphs.iter().flat_map(|g| g.entry_modules());
+        let entries = graph_ref.all_chunk_group_entry_modules();
 
         let visit_count = graph_ref.traverse_edges_fixed_point_with_priority(
             entries.map(|m| (m, 0)),
@@ -173,7 +174,10 @@ pub async fn compute_binding_usage_info(
                             target,
                         ));
                         unused_references_edges.insert(edge);
-                        unused_references.insert(ref_data.reference);
+                        unused_references
+                            .entry(ref_data.reference)
+                            .or_default()
+                            .insert(target);
                         return Ok(GraphTraversalAction::Skip);
                     }
                     // If the current edge is an unused import, skip it
@@ -194,7 +198,10 @@ pub async fn compute_binding_usage_info(
                                     target,
                                 ));
                                 unused_references_edges.insert(edge);
-                                unused_references.insert(ref_data.reference);
+                                unused_references
+                                    .entry(ref_data.reference)
+                                    .or_default()
+                                    .insert(target);
 
                                 return Ok(GraphTraversalAction::Skip);
                             } else {
@@ -205,7 +212,14 @@ pub async fn compute_binding_usage_info(
                                     target,
                                 ));
                                 unused_references_edges.remove(&edge);
-                                unused_references.remove(&ref_data.reference);
+                                if let Entry::Occupied(mut e) =
+                                    unused_references.entry(ref_data.reference)
+                                {
+                                    e.get_mut().remove(&target);
+                                    if e.get().is_empty() {
+                                        e.remove();
+                                    }
+                                }
                                 // Continue, add export
                             }
                         }
@@ -217,7 +231,14 @@ pub async fn compute_binding_usage_info(
                                 target,
                             ));
                             unused_references_edges.remove(&edge);
-                            unused_references.remove(&ref_data.reference);
+                            if let Entry::Occupied(mut e) =
+                                unused_references.entry(ref_data.reference)
+                            {
+                                e.get_mut().remove(&target);
+                                if e.get().is_empty() {
+                                    e.remove();
+                                }
+                            }
                             // Continue, has to always be included
                         }
                     }
@@ -252,7 +273,7 @@ pub async fn compute_binding_usage_info(
 
         graph_ref.traverse_cycles(
             // No need to traverse edges that are unused.
-            |e| e.chunking_type.is_parallel() && !unused_references.contains(&e.reference),
+            |e| e.chunking_type.is_parallel() && !unused_references.contains_key(&e.reference),
             |cycle| {
                 // We could compute this based on the module graph via a DFS from each entry point
                 // to the cycle.  Whatever node is hit first is an entry point to the cycle.
@@ -272,8 +293,8 @@ pub async fn compute_binding_usage_info(
 
         #[cfg(debug_assertions)]
         {
-            use once_cell::sync::Lazy;
-            static PRINT_UNUSED_REFERENCES: Lazy<bool> = Lazy::new(|| {
+            use std::sync::LazyLock;
+            static PRINT_UNUSED_REFERENCES: LazyLock<bool> = LazyLock::new(|| {
                 std::env::var_os("TURBOPACK_PRINT_UNUSED_REFERENCES")
                     .is_some_and(|v| v == "1" || v == "true")
             });
@@ -288,6 +309,22 @@ pub async fn compute_binding_usage_info(
                             e,
                             t.ident_string().await?,
                         )))
+                        .try_join()
+                        .await?
+                );
+            }
+
+            static PRINT_USED_EXPORTS: LazyLock<bool> = LazyLock::new(|| {
+                std::env::var_os("TURBOPACK_PRINT_USED_EXPORTS")
+                    .is_some_and(|v| v == "1" || v == "true")
+            });
+            if *PRINT_USED_EXPORTS {
+                use turbo_tasks::TryJoinIterExt;
+                println!(
+                    "used exports: {:#?}",
+                    used_exports
+                        .iter()
+                        .map(async |(m, v)| Ok((m.ident_string().await?, v,)))
                         .try_join()
                         .await?
                 );
