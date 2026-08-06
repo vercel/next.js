@@ -2,19 +2,19 @@
 
 use std::{
     any::Any,
-    collections::VecDeque,
     marker::PhantomData,
     num::NonZeroUsize,
     panic::{self, AssertUnwindSafe, catch_unwind},
     sync::{
         Arc,
         atomic::{AtomicUsize, Ordering},
+        mpmc::{self, Receiver, Sender},
     },
     thread::{self, Thread},
     time::{Duration, Instant},
 };
 
-use parking_lot::{Condvar, Mutex};
+use parking_lot::Mutex;
 use tokio::{runtime::Handle, task::block_in_place};
 use tracing::{Span, info_span};
 
@@ -23,25 +23,16 @@ use crate::{TurboTasksApi, manager::try_turbo_tasks, turbo_tasks_scope};
 /// A job placed on the work queue: its result-slot index and the closure to run.
 type WorkQueueJob = (usize, Box<dyn FnOnce() + Send + 'static>);
 
-struct WorkQueue {
-    /// Jobs that have not yet been picked up by a drainer.
-    jobs: VecDeque<WorkQueueJob>,
-    /// Set once no more jobs will be enqueued. A drainer that finds the queue empty exits when
-    /// this is set, or parks otherwise. Guarded by the same lock as `jobs`, so the "empty + not
-    /// closed → park" and "close + notify" sequences are serialized and cannot lose a wakeup.
-    closed: bool,
-}
-
 struct ScopeInner {
     main_thread: Thread,
     remaining_tasks: AtomicUsize,
     /// The first panic that occurred in the tasks, by task index.
     /// The usize value is the index of the task.
     panic: Mutex<Option<(Box<dyn Any + Send + 'static>, usize)>>,
-    /// The work queue for spawned jobs that have not yet been picked up by a worker task.
-    work_queue: Mutex<WorkQueue>,
-    /// A condition variable to notify worker tasks of new work or end of work.
-    work_queue_condition_var: Condvar,
+    /// Receiving end of the work queue. Every drainer pulls from this; `recv` blocks while the
+    /// queue is empty and fails once the `Scope`'s sender is dropped, which is what tells drainers
+    /// no more jobs are coming.
+    work_queue: Receiver<WorkQueueJob>,
 }
 
 impl ScopeInner {
@@ -98,44 +89,15 @@ impl ScopeInner {
 
     /// Pulls jobs from the shared work queue and runs them until the queue is closed and drained,
     /// recording any panic. Both the opportunistic helper worker tasks and the calling thread (via
-    /// `end_and_help_complete`) run this.
+    /// `Scope::drop`) run this.
     fn run_jobs(&self) {
-        while let Some((index, job)) = self.pick_job_from_work_queue() {
+        // `recv` blocks while the queue is empty and returns `Err` once the sender is dropped and
+        // the queue is drained, so this ends exactly when there is no more work.
+        while let Ok((index, job)) = self.work_queue.recv() {
             let result = catch_unwind(AssertUnwindSafe(job));
             let panic = result.err().map(|e| (e, index));
             self.on_task_finished(panic);
         }
-    }
-
-    fn pick_job_from_work_queue(&self) -> Option<WorkQueueJob> {
-        let mut work_queue = self.work_queue.lock();
-        loop {
-            if let Some(job) = work_queue.jobs.pop_front() {
-                // If work remains, let other threads try to handle it in parallel
-                if !work_queue.jobs.is_empty() {
-                    self.work_queue_condition_var.notify_one();
-                }
-                return Some(job);
-            } else if work_queue.closed {
-                // No more jobs will ever be enqueued: this drainer is done.
-                return None;
-            } else {
-                // Empty but not closed: wait for a job to arrive or for the queue to be closed.
-                self.work_queue_condition_var.wait(&mut work_queue);
-            }
-        }
-    }
-
-    fn end_and_help_complete(&self) {
-        // Close the queue and wake every parked drainer once; each will drain any remaining jobs
-        // and then observe `closed` and exit.
-        {
-            let mut work_queue = self.work_queue.lock();
-            work_queue.closed = true;
-        }
-        self.work_queue_condition_var.notify_all();
-        // Drain whatever remains inline.
-        self.run_jobs();
     }
 }
 
@@ -146,6 +108,9 @@ pub struct Scope<'scope, 'env: 'scope, R: Send + 'env> {
     results: &'scope [Mutex<Option<R>>],
     index: AtomicUsize,
     inner: Arc<ScopeInner>,
+    /// Sending end of the work queue. This is the only sender, and it is dropped in `Drop` to
+    /// signal the drainers that no more jobs are coming.
+    work_queue: Option<Sender<WorkQueueJob>>,
     handle: Handle,
     /// Max number of threads to use, threads are only spawned when needed. The calling thread
     /// counts towards this budget, so we spawn at most `worker_tasks - 1` helpers.
@@ -171,6 +136,7 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
         // The calling thread always participates, so this is at least 1.
         let worker_tasks = NonZeroUsize::new(handle.metrics().num_workers().min(results.len()))
             .unwrap_or(NonZeroUsize::MIN);
+        let (sender, receiver) = mpmc::channel();
         Self {
             results,
             index: AtomicUsize::new(0),
@@ -178,14 +144,9 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
                 main_thread: thread::current(),
                 remaining_tasks: AtomicUsize::new(0),
                 panic: Mutex::new(None),
-                work_queue: Mutex::new(WorkQueue {
-                    // Presize to the job count so `push_back` never reallocates while holding the
-                    // queue lock during the enqueue loop.
-                    jobs: VecDeque::with_capacity(results.len()),
-                    closed: false,
-                }),
-                work_queue_condition_var: Condvar::new(),
+                work_queue: receiver,
             }),
+            work_queue: Some(sender),
             handle,
             worker_tasks,
             turbo_tasks: try_turbo_tasks(),
@@ -232,10 +193,14 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
 
         self.inner.remaining_tasks.fetch_add(1, Ordering::Relaxed);
 
-        // Add to the shared work queue, all threads read from this
-        self.inner.work_queue.lock().jobs.push_back((index, f));
-        // If there's currently an idle worker, wake it up
-        self.inner.work_queue_condition_var.notify_one();
+        // Add to the shared work queue, all threads read from this. `inner` holds the receiver and
+        // outlives every drainer, so neither the `expect` nor the `send` can fail; if a job were
+        // ever dropped here `remaining_tasks` would never reach zero and the scope would hang.
+        self.work_queue
+            .as_ref()
+            .expect("sender is only taken in Drop")
+            .send((index, f))
+            .expect("receiver is owned by inner and outlives the scope");
 
         // Spawn a tokio worker for each job until we hit the max `worker_tasks`. The calling thread
         // covers one slot of the budget, so we spawn at most `worker_tasks - 1` helpers.
@@ -252,7 +217,12 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
 
 impl<'scope, 'env: 'scope, R: Send + 'env> Drop for Scope<'scope, 'env, R> {
     fn drop(&mut self) {
-        self.inner.end_and_help_complete();
+        // Dropping the only sender closes the queue: each drainer finishes the jobs still in it
+        // and then sees `recv` fail and exits.
+        self.work_queue.take();
+        // Help drain whatever remains inline, so completion never depends on a helper being
+        // scheduled.
+        self.inner.run_jobs();
         self.inner.wait_and_rethrow_panic();
     }
 }

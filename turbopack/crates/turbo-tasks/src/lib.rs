@@ -10,6 +10,7 @@
 #![feature(async_fn_traits)]
 #![feature(impl_trait_in_assoc_type)]
 #![feature(const_type_name)]
+#![feature(mpmc_channel)]
 
 pub mod backend;
 mod capture_future;
