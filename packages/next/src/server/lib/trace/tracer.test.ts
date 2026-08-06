@@ -2,6 +2,8 @@
  * @jest-environment node
  */
 
+/* eslint-disable jest/no-standalone-expect -- Assertions run inside the controller-scoped test wrapper. */
+
 import type {
   Context,
   ContextManager,
@@ -47,6 +49,8 @@ import {
   traceCompileRoutePhase,
   traceCompileRouteResolution,
 } from '../../dev/route-compilation-tracing'
+import { RequestInsights } from './request-insights'
+import { runWithRequestInsights } from './request-insights-runtime'
 
 const customContextKey = createContextKey('next.tracer.test.custom-context')
 const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
@@ -179,12 +183,15 @@ describe('withPropagatedContext', () => {
 })
 
 describe('local span recording', () => {
+  let requestInsights: RequestInsights
+
   beforeEach(() => {
     process.env.__NEXT_DEV_SERVER = '1'
     delete process.env.__NEXT_REQUEST_INSIGHTS
     delete process.env.NEXT_OTEL_VERBOSE
     setSpanRecorderForTest((span) => spanRecords.push(span))
     registerLocalSpanRecorder()
+    requestInsights = new RequestInsights()
   })
 
   afterEach(() => {
@@ -212,7 +219,12 @@ describe('local span recording', () => {
     trace.disable()
     setSpanRecorderForTest(undefined)
     spanRecords.length = 0
+    requestInsights.dispose()
   })
+
+  function test(name: string, fn: () => unknown | Promise<unknown>): void {
+    it(name, () => runWithRequestInsights(requestInsights, fn))
+  }
 
   it('does not mirror spans by default', () => {
     setSpanRecorderForTest(undefined)
@@ -234,7 +246,7 @@ describe('local span recording', () => {
     expect(getSpanRecords()).toEqual([])
   })
 
-  it('records a one-shot phase with its captured parent and elapsed timing', () => {
+  test('records a one-shot phase with its captured parent and elapsed timing', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     let finishPhase: ReturnType<typeof createOneShotTracePhase>
 
@@ -267,7 +279,7 @@ describe('local span recording', () => {
     expect(phaseSpans[0].durationMs).toBeGreaterThanOrEqual(0)
   })
 
-  it('records Error and non-Error phase failures without throwing them', () => {
+  test('records Error and non-Error phase failures without throwing them', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
 
     const finishErrorPhase = createOneShotTracePhase(
@@ -303,7 +315,7 @@ describe('local span recording', () => {
     )
   })
 
-  it('records a successful route compilation phase under its compile owner', async () => {
+  test('records a successful route compilation phase under its compile owner', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
 
     const result = await traceCompileRoute(() =>
@@ -327,7 +339,7 @@ describe('local span recording', () => {
     ])
   })
 
-  it('records candidate route misses as successful resolution work', async () => {
+  test('records candidate route misses as successful resolution work', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     const miss = new PageNotFoundError('candidate route')
 
@@ -356,7 +368,7 @@ describe('local span recording', () => {
     ])
   })
 
-  it('does not wrap candidate misses shared with an untraced caller', async () => {
+  test('does not wrap candidate misses shared with an untraced caller', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     const miss = new PageNotFoundError('shared candidate route')
     const batcher = Batcher.create<string, void>()
@@ -398,7 +410,7 @@ describe('local span recording', () => {
     )
   })
 
-  it('only lets the traced work owner consume a shared candidate miss', async () => {
+  test('only lets the traced work owner consume a shared candidate miss', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     const miss = new PageNotFoundError('shared traced candidate route')
     const batcher = Batcher.create<string, void>()
@@ -446,7 +458,7 @@ describe('local span recording', () => {
     ).toEqual(expect.objectContaining({ status: 'error' }))
   })
 
-  it('does not attach late async descendants to a completed compile owner', async () => {
+  test('does not attach late async descendants to a completed compile owner', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     let resumeDescendant!: () => void
     const descendantCanResume = new Promise<void>((resolve) => {
@@ -478,7 +490,7 @@ describe('local span recording', () => {
     expect(getSpanRecords({ name: 'late build route' })).toEqual([])
   })
 
-  it('records genuine route resolution failures as errors', async () => {
+  test('records genuine route resolution failures as errors', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     const failure = new TypeError('route analysis failed')
 
@@ -506,7 +518,7 @@ describe('local span recording', () => {
     ])
   })
 
-  it('keeps terminal page-not-found failures outside resolution probes failed', async () => {
+  test('keeps terminal page-not-found failures outside resolution probes failed', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     const failure = new PageNotFoundError('terminal route')
 
@@ -527,7 +539,7 @@ describe('local span recording', () => {
     ])
   })
 
-  it('does not record route phases without a compile owner', async () => {
+  test('does not record route phases without a compile owner', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
 
     await traceCompileRoutePhase(
@@ -541,7 +553,7 @@ describe('local span recording', () => {
     expect(getSpanRecords({ name: 'resolve route' })).toEqual([])
   })
 
-  it('does not assign route phases to a different active parent', async () => {
+  test('does not assign route phases to a different active parent', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
 
     await traceCompileRoute(() =>
@@ -588,7 +600,7 @@ describe('local span recording', () => {
     )
   }
 
-  it('records one failed RSC phase when a ReactServerResult source errors', async () => {
+  test('records one failed RSC phase when a ReactServerResult source errors', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     process.env.__NEXT_USE_NODE_STREAMS = '1'
     const source = new PassThrough()
@@ -605,7 +617,7 @@ describe('local span recording', () => {
     expectSingleFailedRSCPhase()
   })
 
-  it('records one failed RSC phase when both tee branches are cancelled', async () => {
+  test('records one failed RSC phase when both tee branches are cancelled', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     delete process.env.__NEXT_USE_NODE_STREAMS
     const cancel = jest.fn()
@@ -623,7 +635,7 @@ describe('local span recording', () => {
     expectSingleFailedRSCPhase()
   })
 
-  it('records non-vanilla trace and wrapped spans for request insights', () => {
+  test('records non-vanilla trace and wrapped spans for request insights', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
 
     getTracer().trace(BaseServerSpan.render, () => undefined)
@@ -649,7 +661,7 @@ describe('local span recording', () => {
     ])
   })
 
-  it('only exports non-vanilla spans when verbose tracing is enabled', () => {
+  test('only exports non-vanilla spans when verbose tracing is enabled', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     const exportedSpans: string[] = []
     const delegateSpan = trace.wrapSpanContext({
@@ -747,7 +759,7 @@ describe('local span recording', () => {
     expect(exportedSpans).toEqual(['compile route', 'build route'])
   })
 
-  it('does not record or export hidden spans', () => {
+  test('does not record or export hidden spans', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     let receivedSpan: unknown = 'not-called'
     const startSpan = jest.fn()
@@ -848,7 +860,7 @@ describe('local span recording', () => {
     ])
   })
 
-  it('keeps OTel-isolated spans out of the active OTel context', async () => {
+  test('keeps OTel-isolated spans out of the active OTel context', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     process.env.NEXT_OTEL_VERBOSE = '1'
     context.disable()

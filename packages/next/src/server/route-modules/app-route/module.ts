@@ -92,8 +92,8 @@ import { LazyModule } from '../../lib/lazy-module'
 import { createPrerenderResumeDataCache } from '../../resume-data-cache/resume-data-cache'
 
 type AppRouteRequestInsightsRuntime = {
+  getActiveRequestInsights: typeof import('../../lib/trace/request-insights-runtime').getActiveRequestInsights
   getRequestInsightsIdentity: typeof import('../../lib/trace/request-insights-identity').getRequestInsightsIdentity
-  recordRequestInsightSource: typeof import('../../lib/trace/request-insights').recordRequestInsightSource
 }
 
 let appRouteRequestInsightsRuntime: AppRouteRequestInsightsRuntime | undefined
@@ -103,21 +103,20 @@ function markAppRouteRequestSource(): void {
     if (!appRouteRequestInsightsRuntime) {
       const { getRequestInsightsIdentity } =
         require('../../lib/trace/request-insights-identity') as typeof import('../../lib/trace/request-insights-identity')
-      const { recordRequestInsightSource } =
-        require('../../lib/trace/request-insights') as typeof import('../../lib/trace/request-insights')
+      const { getActiveRequestInsights } =
+        require('../../lib/trace/request-insights-runtime') as typeof import('../../lib/trace/request-insights-runtime')
 
       appRouteRequestInsightsRuntime = {
+        getActiveRequestInsights,
         getRequestInsightsIdentity,
-        recordRequestInsightSource,
       }
     }
 
     const identity = appRouteRequestInsightsRuntime.getRequestInsightsIdentity()
     if (identity) {
-      appRouteRequestInsightsRuntime.recordRequestInsightSource(
-        identity,
-        'app-route'
-      )
+      appRouteRequestInsightsRuntime
+        .getActiveRequestInsights()
+        ?.recordSource(identity, 'app-route')
     }
   }
 }

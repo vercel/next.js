@@ -1,12 +1,12 @@
 import type { McpServer } from 'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp'
 import z from 'next/dist/compiled/zod'
-import {
-  getRequestInsightsSnapshot,
-  isRequestInsightsEnabled,
-} from '../../lib/trace/request-insights'
+import type { RequestInsights } from '../../lib/trace/request-insights'
 import { mcpTelemetryTracker } from '../mcp-telemetry-tracker'
 
-export function registerGetRequestInsightsTool(server: McpServer) {
+export function registerGetRequestInsightsTool(
+  server: McpServer,
+  getRequestInsights: () => RequestInsights | undefined
+) {
   server.registerTool(
     'get_request_insights',
     {
@@ -20,7 +20,8 @@ export function registerGetRequestInsightsTool(server: McpServer) {
     async (request) => {
       mcpTelemetryTracker.recordToolCall('mcp/get_request_insights')
 
-      if (!isRequestInsightsEnabled()) {
+      const requestInsights = getRequestInsights()
+      if (!requestInsights) {
         return {
           content: [
             {
@@ -34,7 +35,7 @@ export function registerGetRequestInsightsTool(server: McpServer) {
         }
       }
 
-      const snapshot = getRequestInsightsSnapshot()
+      const snapshot = requestInsights.getSnapshot()
       const requests = snapshot.requests.filter((insight) => {
         return (
           (request.requestId === undefined ||

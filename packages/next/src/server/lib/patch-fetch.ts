@@ -4,11 +4,6 @@ import type {
 } from '../app-render/work-async-storage.external'
 
 import { AppRenderSpan, NextNodeServerSpan } from './trace/constants'
-import {
-  isRequestInsightsEnabled,
-  recordRequestInsightFetch,
-} from './trace/request-insights'
-import { getRequestInsightsIdentity } from './trace/request-insights-identity'
 import { getTracer, SpanKind } from './trace/tracer'
 import {
   CACHE_ONE_YEAR_SECONDS,
@@ -41,6 +36,34 @@ import { encodeCacheTag } from './encode-cache-tag'
 import type { Span } from './trace/tracer'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
+
+type PatchFetchRequestInsightsRuntime = {
+  getActiveRequestInsights: typeof import('./trace/request-insights-runtime').getActiveRequestInsights
+  getRequestInsightsIdentity: typeof import('./trace/request-insights-identity').getRequestInsightsIdentity
+}
+
+let patchFetchRequestInsightsRuntime:
+  | PatchFetchRequestInsightsRuntime
+  | undefined
+
+function getPatchFetchRequestInsightsRuntime():
+  | PatchFetchRequestInsightsRuntime
+  | undefined {
+  if (process.env.__NEXT_DEV_SERVER) {
+    if (!patchFetchRequestInsightsRuntime) {
+      const { getActiveRequestInsights } =
+        require('./trace/request-insights-runtime') as typeof import('./trace/request-insights-runtime')
+      const { getRequestInsightsIdentity } =
+        require('./trace/request-insights-identity') as typeof import('./trace/request-insights-identity')
+      patchFetchRequestInsightsRuntime = {
+        getActiveRequestInsights,
+        getRequestInsightsIdentity,
+      }
+    }
+    return patchFetchRequestInsightsRuntime
+  }
+  return undefined
+}
 
 /**
  * Whether fetch cache configuration needs to be processed for the current work
@@ -187,13 +210,16 @@ function trackFetchMetric(
     'next.fetch.cache_reason': metric.cacheReason,
   })
 
-  if (isRequestInsightsEnabled()) {
-    const requestInsightsIdentity = getRequestInsightsIdentity()
+  const requestInsightsRuntime = getPatchFetchRequestInsightsRuntime()
+  const requestInsights = requestInsightsRuntime?.getActiveRequestInsights()
+  if (requestInsights) {
+    const requestInsightsIdentity =
+      requestInsightsRuntime?.getRequestInsightsIdentity()
     const requestInsightsRequestId =
       requestInsightsIdentity?.requestId ?? workStore.requestId
 
     if (requestInsightsRequestId) {
-      recordRequestInsightFetch(
+      requestInsights.recordFetch(
         {
           requestId: requestInsightsRequestId,
           kind: requestInsightsIdentity?.kind,

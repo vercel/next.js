@@ -1394,9 +1394,9 @@ function markServerActionRequest(): void {
       require('../lib/trace/request-insights-identity') as typeof import('../lib/trace/request-insights-identity')
     const identity = getRequestInsightsIdentity()
     if (identity) {
-      const { recordRequestInsightServerAction } =
-        require('../lib/trace/request-insights') as typeof import('../lib/trace/request-insights')
-      recordRequestInsightServerAction(identity)
+      const { getActiveRequestInsights } =
+        require('../lib/trace/request-insights-runtime') as typeof import('../lib/trace/request-insights-runtime')
+      getActiveRequestInsights()?.recordServerAction(identity)
     }
   }
 }

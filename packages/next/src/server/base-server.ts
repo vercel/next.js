@@ -114,11 +114,7 @@ import {
   SpanStatusCode,
 } from './lib/trace/tracer'
 import { BaseServerSpan } from './lib/trace/constants'
-import {
-  resolveRequestInsightsIdentity,
-  runWithRequestInsightsIdentity,
-} from './lib/trace/request-insights-identity'
-import { isRequestInsightsEnabled } from './lib/trace/span-store'
+import type { RequestInsights } from './lib/trace/request-insights'
 import { I18NProvider } from './lib/i18n-provider'
 import { sendResponse } from './send-response'
 import { normalizeNextQueryParam } from './web/utils'
@@ -172,6 +168,41 @@ import {
   computeCacheBustingSearchParam,
   computeLegacyCacheBustingSearchParam,
 } from '../shared/lib/router/utils/cache-busting-search-param'
+
+type BaseServerRequestInsightsRuntime = {
+  RequestInsights: typeof import('./lib/trace/request-insights').RequestInsights
+  resolveRequestInsightsIdentity: typeof import('./lib/trace/request-insights-identity').resolveRequestInsightsIdentity
+  runWithRequestInsights: typeof import('./lib/trace/request-insights-runtime').runWithRequestInsights
+  runWithRequestInsightsIdentity: typeof import('./lib/trace/request-insights-identity').runWithRequestInsightsIdentity
+}
+
+let baseServerRequestInsightsRuntime:
+  | BaseServerRequestInsightsRuntime
+  | undefined
+
+function getBaseServerRequestInsightsRuntime():
+  | BaseServerRequestInsightsRuntime
+  | undefined {
+  if (process.env.__NEXT_DEV_SERVER) {
+    if (!baseServerRequestInsightsRuntime) {
+      const { RequestInsights } =
+        require('./lib/trace/request-insights') as typeof import('./lib/trace/request-insights')
+      const { resolveRequestInsightsIdentity, runWithRequestInsightsIdentity } =
+        require('./lib/trace/request-insights-identity') as typeof import('./lib/trace/request-insights-identity')
+      const { runWithRequestInsights } =
+        require('./lib/trace/request-insights-runtime') as typeof import('./lib/trace/request-insights-runtime')
+
+      baseServerRequestInsightsRuntime = {
+        RequestInsights,
+        resolveRequestInsightsIdentity,
+        runWithRequestInsights,
+        runWithRequestInsightsIdentity,
+      }
+    }
+    return baseServerRequestInsightsRuntime
+  }
+  return undefined
+}
 
 export type FindComponentsResult<
   NextModule extends GenericComponentMod = GenericComponentMod,
@@ -254,6 +285,10 @@ export interface Options {
    * The HTTP Server that Next.js is running behind
    */
   httpServer?: HTTPServer
+  /** Internal controller shared by one dev server, its bundler, and tools. */
+  requestInsights?: RequestInsights
+  /** Whether this server owns and must dispose the injected controller. */
+  requestInsightsOwner?: boolean
 }
 
 export type RenderOpts = PagesRenderOptsPartial & AppRenderOptsPartial
@@ -346,6 +381,9 @@ export default abstract class Server<
   protected readonly dev: boolean
   protected readonly minimalMode: boolean
   protected readonly renderOpts: BaseRenderOpts
+  protected readonly requestInsights: RequestInsights | undefined
+  /** Whether this server created and therefore owns its controller. */
+  protected readonly ownsRequestInsights: boolean
   protected readonly serverOptions: Readonly<ServerOptions>
   protected readonly appPathRoutes?: Record<string, string[]>
   protected readonly clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
@@ -483,12 +521,17 @@ export default abstract class Server<
     // TODO: should conf be normalized to prevent missing
     // values from causing issues as this can be user provided
     this.nextConfig = conf as NextConfigRuntime
-    if (
-      (dev || process.env.__NEXT_DEV_SERVER) &&
-      this.nextConfig.experimental.requestInsights
-    ) {
-      process.env.__NEXT_REQUEST_INSIGHTS = 'true'
-    }
+    const requestInsightsRuntime = getBaseServerRequestInsightsRuntime()
+    this.requestInsights = requestInsightsRuntime
+      ? (options.requestInsights ??
+        (dev && this.nextConfig.experimental.requestInsights
+          ? new requestInsightsRuntime.RequestInsights()
+          : undefined))
+      : undefined
+    this.ownsRequestInsights =
+      this.requestInsights !== undefined &&
+      (options.requestInsights === undefined ||
+        options.requestInsightsOwner === true)
 
     if (this.nextConfig.experimental.runtimeServerDeploymentId) {
       if (!process.env.NEXT_DEPLOYMENT_ID) {
@@ -1001,17 +1044,26 @@ export default abstract class Server<
         )
       })
 
-    if (!isRequestInsightsEnabled()) {
-      return handleRequest()
+    const requestInsightsRuntime = getBaseServerRequestInsightsRuntime()
+    if (!this.requestInsights || !requestInsightsRuntime) {
+      return requestInsightsRuntime
+        ? requestInsightsRuntime.runWithRequestInsights(undefined, () =>
+            requestInsightsRuntime.runWithRequestInsightsIdentity(
+              undefined,
+              handleRequest
+            )
+          )
+        : handleRequest()
     }
 
-    const requestInsightsIdentity = resolveRequestInsightsIdentity({
-      previousIdentity: getRequestMeta(req, 'requestInsightsIdentity'),
-      requestIdHeader: req.headers[NEXT_REQUEST_ID_HEADER],
-      htmlRequestIdHeader: req.headers[NEXT_HTML_REQUEST_ID_HEADER],
-      url: req.url,
-      createRequestId: nanoid,
-    })
+    const requestInsightsIdentity =
+      requestInsightsRuntime.resolveRequestInsightsIdentity({
+        previousIdentity: getRequestMeta(req, 'requestInsightsIdentity'),
+        requestIdHeader: req.headers[NEXT_REQUEST_ID_HEADER],
+        htmlRequestIdHeader: req.headers[NEXT_HTML_REQUEST_ID_HEADER],
+        url: req.url,
+        createRequestId: nanoid,
+      })
     const isMiddlewareInvoke = getRequestMeta(req, 'middlewareInvoke') === true
     const sourceBeforeMiddleware = requestInsightsIdentity.source
     if (isMiddlewareInvoke) {
@@ -1023,9 +1075,13 @@ export default abstract class Server<
     // its workStore. Carry their identity in this outer scope; App Render copies
     // it into the workStore so the complete timeline uses one request ID.
     try {
-      return await runWithRequestInsightsIdentity(
-        requestInsightsIdentity,
-        handleRequest
+      return await requestInsightsRuntime.runWithRequestInsights(
+        this.requestInsights,
+        () =>
+          requestInsightsRuntime.runWithRequestInsightsIdentity(
+            requestInsightsIdentity,
+            handleRequest
+          )
       )
     } finally {
       if (isMiddlewareInvoke && requestInsightsIdentity.source === 'proxy') {
