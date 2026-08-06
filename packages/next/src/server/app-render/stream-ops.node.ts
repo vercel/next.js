@@ -14,7 +14,7 @@ import {
   resumeToPipeableStream,
 } from 'react-dom/server'
 import { prerender } from 'react-dom/static'
-import { PassThrough, Readable, Transform } from 'node:stream'
+import { PassThrough, Readable, Transform, pipeline } from 'node:stream'
 import { isUtf8 } from 'node:buffer'
 
 import {
@@ -74,6 +74,34 @@ export type {
 // ---------------------------------------------------------------------------
 
 export type AnyStream = AnyStreamType
+
+/**
+ * Pipes a render stream through the given transforms using Node's pipeline()
+ * instead of chained pipe() calls. Unlike pipe(), pipeline() propagates errors
+ * downstream (each stage is destroyed with the error, so the consumer sees an
+ * 'error' event instead of hanging) and destroys upstream stages when a
+ * downstream stage is torn down (e.g. on client disconnect), cancelling the
+ * chain back to the render — matching pipeThrough() semantics of the web
+ * implementation.
+ *
+ * The completion callback intentionally ignores errors: they are surfaced to
+ * consumers via the returned stream's 'error'/'close' events, and a client
+ * disconnect manifests as ERR_STREAM_PREMATURE_CLOSE, which is an expected
+ * teardown path (handled by pipe-readable.ts).
+ */
+function pipelineTransforms(
+  first: Readable,
+  transforms: Array<Transform>
+): Readable {
+  if (transforms.length === 0) {
+    return first
+  }
+  // pipeline() returns the last stream, but its types don't reflect that.
+  const last = transforms[transforms.length - 1]
+  pipeline([first, ...transforms], () => {})
+  return last
+}
+
 
 export type FlightComponentMod = {
   renderToReadableStream: (
@@ -191,6 +219,13 @@ function createFlightDataInjectionTransform(
         () => callback(),
         (err) => callback(err as Error)
       )
+    },
+    destroy(err, callback) {
+      // When the transform is torn down (e.g. client disconnect), stop
+      // pulling from the data stream as well instead of leaking the read
+      // loop — the iterator would otherwise keep waiting on new chunks.
+      dataStream.destroy()
+      callback(err)
     },
   })
 
@@ -720,56 +755,41 @@ export async function continueFizzStream(
   // 1. Buffer – coalesces chunks written in the same microtask into one Uint8Array
   // 2. Flight data injection – interleaves RSC data chunks with the HTML stream
   // 3. Head insertion – inserts server-generated HTML before </head>
-  const buffered = createNodeBufferedTransformStream()
-  webToReadable(renderStream).pipe(buffered)
-
-  let source: Readable = buffered
+  const transforms: Array<Transform> = [createNodeBufferedTransformStream()]
 
   if (deploymentId) {
-    const dplId = createHtmlDataDplIdTransform(deploymentId)
-    source.pipe(dplId)
-    source = dplId
+    transforms.push(createHtmlDataDplIdTransform(deploymentId))
   }
 
   // Metadata (icon mark replacement)
-  const metadata = createMetadataTransform(getServerInsertedMetadata)
-  source.pipe(metadata)
-  source = metadata
+  transforms.push(createMetadataTransform(getServerInsertedMetadata))
 
   // Insert suffix content
   if (suffixUnclosed != null && suffixUnclosed.length > 0) {
-    const deferredSuffix = createDeferredSuffixTransform(suffixUnclosed)
-    source.pipe(deferredSuffix)
-    source = deferredSuffix
+    transforms.push(createDeferredSuffixTransform(suffixUnclosed))
   }
 
   // Flight data injection – interleaves RSC data chunks with the HTML stream
   if (inlinedDataStream) {
-    const flightInjection = createFlightDataInjectionTransform(
-      webToReadable(inlinedDataStream),
-      true
+    transforms.push(
+      createFlightDataInjectionTransform(
+        webToReadable(inlinedDataStream),
+        true
+      )
     )
-    source.pipe(flightInjection)
-    source = flightInjection
   }
 
   if (validateRootLayout) {
-    const rootLayoutValidator = createRootLayoutValidatorTransform()
-    source.pipe(rootLayoutValidator)
-    source = rootLayoutValidator
+    transforms.push(createRootLayoutValidatorTransform())
   }
 
   // Close tags should always be deferred to the end
-  const moveSuffix = createMoveSuffixTransform()
-  source.pipe(moveSuffix)
-  source = moveSuffix
+  transforms.push(createMoveSuffixTransform())
 
   // Head insertion – inserts server-generated HTML before </head>
-  const headInsertion = createHeadInsertionTransform(getServerInsertedHTML)
-  source.pipe(headInsertion)
-  source = headInsertion
+  transforms.push(createHeadInsertionTransform(getServerInsertedHTML))
 
-  return source
+  return pipelineTransforms(webToReadable(renderStream), transforms)
 }
 
 export async function continueStaticPrerender(
@@ -831,37 +851,26 @@ export async function continueDynamicHTMLResumeNode(
 ): Promise<AnyStream> {
   await waitAtLeastOneReactRenderTask()
 
-  const buffered = createNodeBufferedTransformStream()
-  webToReadable(renderStream).pipe(buffered)
-
-  let source: Readable = buffered
+  const transforms: Array<Transform> = [createNodeBufferedTransformStream()]
 
   if (deploymentId) {
-    const dplId = createHtmlDataDplIdTransform(deploymentId)
-    source.pipe(dplId)
-    source = dplId
+    transforms.push(createHtmlDataDplIdTransform(deploymentId))
   }
 
-  const headInsertion = createHeadInsertionTransform(getServerInsertedHTML)
-  source.pipe(headInsertion)
-  source = headInsertion
+  transforms.push(createHeadInsertionTransform(getServerInsertedHTML))
 
-  const metadata = createMetadataTransform(getServerInsertedMetadata)
-  source.pipe(metadata)
-  source = metadata
+  transforms.push(createMetadataTransform(getServerInsertedMetadata))
 
-  const flightInjection = createFlightDataInjectionTransform(
-    webToReadable(inlinedDataStream),
-    delayDataUntilFirstHtmlChunk
+  transforms.push(
+    createFlightDataInjectionTransform(
+      webToReadable(inlinedDataStream),
+      delayDataUntilFirstHtmlChunk
+    )
   )
-  source.pipe(flightInjection)
-  source = flightInjection
 
-  const moveSuffix = createMoveSuffixTransform()
-  source.pipe(moveSuffix)
-  source = moveSuffix
+  transforms.push(createMoveSuffixTransform())
 
-  return source
+  return pipelineTransforms(webToReadable(renderStream), transforms)
 }
 
 export async function continueDynamicHTMLResumeWeb(
