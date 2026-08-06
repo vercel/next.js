@@ -391,7 +391,8 @@ export function getDefineEnv({
       config.experimental.instrumentationClientRouterTransitionEvents ?? false,
     'process.env.__NEXT_VARY_PARAMS': config.experimental.varyParams ?? false,
     'process.env.__NEXT_EXPOSE_TESTING_API':
-      dev || config.experimental.exposeTestingApiInProductionBuild === true,
+      isCacheComponentsEnabled &&
+      (dev || config.experimental.exposeTestingApiInProductionBuild === true),
     'process.env.__NEXT_CACHE_LIFE': config.cacheLife,
     'process.env.__NEXT_CLIENT_PARAM_PARSING_ORIGINS':
       config.experimental.clientParamParsingOrigins || [],
