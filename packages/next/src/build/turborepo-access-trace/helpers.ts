@@ -1,6 +1,11 @@
 import fs from 'fs/promises'
 import path from 'path'
-import type { FS, Addresses, EnvVars } from './types'
+import type {
+  FS,
+  Addresses,
+  EnvVars,
+  RestoreOriginalFunction,
+} from './types'
 import { envProxy } from './env'
 import { tcpProxy } from './tcp'
 import { TurborepoAccessTraceResult } from './result'
@@ -74,18 +79,38 @@ export async function writeTurborepoAccessTraceResult({
   }
 }
 
+// Access is traced through process-global proxies (process.env and
+// net.Socket.prototype.connect), so overlapping traces must share a single
+// set of proxies. Installing and restoring them per invocation is racy:
+// restores happen in completion order rather than LIFO, so an earlier
+// restore removes a still-active trace's instrumentation (silently dropping
+// its accesses) and a later restore reinstalls a stale proxy for the rest of
+// the process lifetime. Since every consumer ultimately merges all traces
+// into a single union (writeTurborepoAccessTraceResult), sharing one install
+// between concurrent traces yields the same final result without the race.
+let activeTraceCount = 0
+let sharedEnvVars: EnvVars | null = null
+let sharedAddresses: Addresses | null = null
+let sharedFsPaths: FS | null = null
+let restoreProxies: RestoreOriginalFunction[] = []
+
 async function withTurborepoTraceAccess<T>(
   f: () => T | Promise<T>
 ): Promise<[T, TurborepoAccessTraceResult]> {
-  const envVars: EnvVars = new Set([])
-  // addresses is an array of objects, so a set is useless
-  const addresses: Addresses = []
-  // TODO: watch fsPaths (removed from this implementation for now)
-  const fsPaths: FS = new Set<string>()
+  if (activeTraceCount === 0) {
+    // First trace installs the proxies; nested/concurrent traces share them.
+    sharedEnvVars = new Set([])
+    sharedAddresses = []
+    sharedFsPaths = new Set<string>()
+    restoreProxies = [tcpProxy(sharedAddresses), envProxy(sharedEnvVars)]
+  }
+  activeTraceCount++
 
-  // setup proxies
-  const restoreTCP = tcpProxy(addresses)
-  const restoreEnv = envProxy(envVars)
+  // Non-null by construction: a trace is active (count > 0) exactly while
+  // the shared proxies are installed.
+  const envVars = sharedEnvVars!
+  const addresses = sharedAddresses!
+  const fsPaths = sharedFsPaths!
 
   let functionResult
 
@@ -94,9 +119,20 @@ async function withTurborepoTraceAccess<T>(
     // call the wrapped function
     functionResult = await f()
   } finally {
-    // remove proxies
-    restoreTCP()
-    restoreEnv()
+    // The last concurrent trace to finish removes the proxies. The
+    // count/check/restore sequence is synchronous, so it can't interleave
+    // with another trace installing or restoring.
+    activeTraceCount--
+    if (activeTraceCount === 0) {
+      const restore = restoreProxies
+      restoreProxies = []
+      sharedEnvVars = null
+      sharedAddresses = null
+      sharedFsPaths = null
+      for (const r of restore) {
+        r()
+      }
+    }
   }
 
   const traceResult = new TurborepoAccessTraceResult(
