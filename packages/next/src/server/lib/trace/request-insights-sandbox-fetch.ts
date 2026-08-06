@@ -64,11 +64,11 @@ export function prepareRequestInsightsSandboxFetch({
     causalToken =
       credentials !== 'omit' &&
       context.identity.kind !== 'instant-insights' &&
-      context.identity.requestId &&
+      context.identity.rootRequestId &&
       isRequestInsightsSameOriginTarget(origin, target) &&
       target
         ? context.requestInsights.mintCausalToken({
-            parentRequestId: context.identity.requestId,
+            parentRootRequestId: context.identity.rootRequestId,
             parentFetchIndex: fetchIndex,
             target,
           })

@@ -141,8 +141,18 @@ export type LocalSpanRecorder = {
   isOpenTelemetryIsolatedSpan: typeof isOpenTelemetryIsolatedSpan
   isLocalSpanRecordingEnabled: typeof isLocalSpanRecordingEnabled
   isRequestInsightsEnabled: typeof isRequestInsightsEnabled
+  setRequestInsightsFetchIndex: typeof setRequestInsightsFetchIndex
   traceLocalSpan: typeof traceLocalSpan
   withLocalSpan: typeof withLocalSpan
+}
+
+export function setRequestInsightsFetchIndex(
+  span: Span | undefined,
+  index: number
+): void {
+  if (span instanceof LocalRecordingSpan) {
+    span.setRequestInsightsFetchIndex(index)
+  }
 }
 
 export function registerLocalSpanRecorder(): void {
@@ -158,6 +168,7 @@ export function registerLocalSpanRecorder(): void {
     isOpenTelemetryIsolatedSpan,
     isLocalSpanRecordingEnabled,
     isRequestInsightsEnabled,
+    setRequestInsightsFetchIndex,
     traceLocalSpan,
     withLocalSpan,
   }
@@ -199,6 +210,7 @@ class LocalRecordingSpan implements Span {
   private links?: SpanStoreLink[]
   private readonly parentSpanId?: string
   private requestIdentity: RequestIdentity
+  private requestInsightsFetchIndex: number | undefined
   private readonly startTime: number
   private statusCode: number | undefined
   private statusMessage: string | undefined
@@ -246,6 +258,7 @@ class LocalRecordingSpan implements Span {
     this.links = getSpanStoreLinks(links)
     this.parentSpanId = parentSpanId
     this.requestIdentity = requestIdentity
+    this.requestInsightsFetchIndex = undefined
     this.startTime = getTimestamp(startTime)
     this.statusCode = undefined
     this.statusMessage = undefined
@@ -286,6 +299,12 @@ class LocalRecordingSpan implements Span {
     }
     this.delegateSpan?.setAttributes(attributes)
     return this
+  }
+
+  setRequestInsightsFetchIndex(index: number): void {
+    if (!this.ended) {
+      this.requestInsightsFetchIndex = index
+    }
   }
 
   addEvent(
@@ -395,6 +414,7 @@ class LocalRecordingSpan implements Span {
           this.requestIdentity.requestInsightRouterActivity,
         requestInsightServerAction:
           this.requestIdentity.requestInsightServerAction,
+        requestInsightFetchIndex: this.requestInsightsFetchIndex,
         htmlRequestId: this.requestIdentity.htmlRequestId,
         route:
           getStringAttribute(recordAttributes, 'next.route') ??
@@ -422,6 +442,7 @@ class LocalRecordingSpan implements Span {
     this.delegateSpan = undefined
     this.links = undefined
     this.requestIdentity = {}
+    this.requestInsightsFetchIndex = undefined
     this.statusMessage = undefined
     this.exception = undefined
   }
