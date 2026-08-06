@@ -14,14 +14,40 @@ const VARIANTS_PREFIX_PATTERN = new RegExp(
 )
 
 /**
+ * A pathname split into its base path and the part after it.
+ *
+ * The prefix goes on after the base path, so every function here works on the
+ * part after it and the pattern above stays anchored to the start of that part.
+ * One split serves the writer and the readers. If they disagreed about where
+ * the prefix begins, a prefix would go on and never come off.
+ */
+function splitBasePath(
+  pathname: string,
+  basePath: string | undefined
+): [base: string, rest: string] {
+  if (!basePath || basePath === '/' || !pathname.startsWith(basePath)) {
+    return ['', pathname]
+  }
+
+  const rest = pathname.slice(basePath.length)
+
+  return [basePath, rest.startsWith('/') ? rest : `/${rest}`]
+}
+
+/**
  * Whether a pathname carries a variant prefix.
  *
  * The segment is matched by shape rather than against the set of combinations
  * that were prerendered, because a combination nobody enumerated is still valid
  * and still has to be recognized here.
  */
-export function hasVariantsPrefix(pathname: string): boolean {
-  return VARIANTS_PREFIX_PATTERN.test(pathname)
+export function hasVariantsPrefix(
+  pathname: string,
+  basePath?: string
+): boolean {
+  const [, rest] = splitBasePath(pathname, basePath)
+
+  return VARIANTS_PREFIX_PATTERN.test(rest)
 }
 
 /**
@@ -31,8 +57,13 @@ export function hasVariantsPrefix(pathname: string): boolean {
  * discard which combination the request resolved to. The hash is what the
  * origin recovers the declared values from.
  */
-export function readVariantsPrefixHash(pathname: string): string | null {
-  return VARIANTS_PREFIX_PATTERN.exec(pathname)?.[1] ?? null
+export function readVariantsPrefixHash(
+  pathname: string,
+  basePath?: string
+): string | null {
+  const [, rest] = splitBasePath(pathname, basePath)
+
+  return VARIANTS_PREFIX_PATTERN.exec(rest)?.[1] ?? null
 }
 
 /**
@@ -43,10 +74,16 @@ export function readVariantsPrefixHash(pathname: string): string | null {
  * afterwards from the values that travelled beside it, by keying the artifact
  * rather than by matching a different route.
  */
-export function removeVariantsPrefix(pathname: string): string {
-  const withoutPrefix = pathname.replace(VARIANTS_PREFIX_PATTERN, '')
+export function removeVariantsPrefix(
+  pathname: string,
+  basePath?: string
+): string {
+  const [base, rest] = splitBasePath(pathname, basePath)
+  const withoutPrefix = rest.replace(VARIANTS_PREFIX_PATTERN, '')
 
-  return withoutPrefix === '' ? '/' : withoutPrefix
+  // The base path stays on. Only the prefix is transport; a later normalizer
+  // removes the base path, and route matching runs after both.
+  return withoutPrefix === '' ? base || '/' : `${base}${withoutPrefix}`
 }
 
 export function getVariantOutputPath(
@@ -77,12 +114,8 @@ export function insertVariantsPrefix(
   segment: string,
   basePath?: string
 ): string {
+  const [base, rest] = splitBasePath(pathname, basePath)
   const prefix = `/${VARIANTS_PATH_PREFIX}/${segment}`
 
-  if (basePath && basePath !== '/' && pathname.startsWith(basePath)) {
-    const rest = pathname.slice(basePath.length)
-    return `${basePath}${prefix}${rest.startsWith('/') ? rest : `/${rest}`}`
-  }
-
-  return pathname === '/' ? prefix : `${prefix}${pathname}`
+  return rest === '/' ? `${base}${prefix}` : `${base}${prefix}${rest}`
 }

@@ -10,7 +10,7 @@ import {
   getVariantKey,
 } from '../request/variants'
 import { compileRouteVariants, findVariantsForPathname } from './route-variants'
-import { getProxyTarget } from './target'
+import { getProxyTarget, getTargetRoutePathname } from './target'
 import { encodeVariants } from './hash'
 
 type ProxyResult = Response | undefined | null | void
@@ -64,8 +64,13 @@ export function wrapProxy(
       return response
     }
 
+    // The table is keyed by route, and a route carries no base path, while the
+    // target does.
     const values = await resolveVariants(
-      findVariantsForPathname(matchers, target.pathname),
+      findVariantsForPathname(
+        matchers,
+        getTargetRoutePathname(target.pathname, request.nextUrl.basePath)
+      ),
       request
     )
 

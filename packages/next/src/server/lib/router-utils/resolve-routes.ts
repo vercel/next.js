@@ -362,7 +362,7 @@ export function getResolveRoutes(
           : undefined,
       data: new NextDataPathnameNormalizer(fsChecker.buildId),
       variants: config.experimental?.variants
-        ? new VariantsPathnameNormalizer()
+        ? new VariantsPathnameNormalizer(config.basePath)
         : undefined,
     }
 
@@ -772,7 +772,8 @@ export function getResolveRoutes(
               // renderer reads one channel rather than one per mode.
               if (normalizers.variants) {
                 const variantsHash = readVariantsPrefixHash(
-                  parsedUrl.pathname || ''
+                  parsedUrl.pathname || '',
+                  config.basePath
                 )
 
                 if (variantsHash) {

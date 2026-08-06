@@ -44,7 +44,7 @@ import {
   VARIANTS_NOT_ROUTED_PATH,
 } from '../../lib/constants'
 import { decodeVariants, encodeVariants } from '../variants/hash'
-import { getProxyTarget } from '../variants/target'
+import { getProxyTarget, getTargetRoutePathname } from '../variants/target'
 import { findMatchingVariantCombination } from '../variants/combinations'
 import type { VariantsManifest } from '../variants/manifest'
 import { findVariantGroupsForPathname } from '../variants/manifest'
@@ -134,12 +134,10 @@ function matchVariantsForTarget(
 
   // The manifest is keyed by route, which carries no base path, while the
   // target does.
-  const pathname =
-    basePath && basePath !== '/' && targetPathname.startsWith(basePath)
-      ? targetPathname.slice(basePath.length) || '/'
-      : targetPathname
-
-  const groups = findVariantGroupsForPathname(manifest, pathname)
+  const groups = findVariantGroupsForPathname(
+    manifest,
+    getTargetRoutePathname(targetPathname, basePath)
+  )
 
   if (!groups) {
     return null

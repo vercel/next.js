@@ -4,12 +4,17 @@ import { NEXT_VARIANTS_QUERY_PARAM } from 'next/dist/lib/constants'
 import { hashVariants } from 'next/dist/server/variants/hash'
 import { findVariantGroupsForPathname } from 'next/dist/server/variants/manifest'
 
+import { basePath, url } from './base-path'
 import { startExternalServer } from './external-server.mjs'
 
 describe('variants', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/default',
     skipDeployment: false,
+    // Handed to the build rather than read from `process.env` there, so that a
+    // deployed build receives it too: only what goes through here is forwarded
+    // to the remote build.
+    env: basePath ? { BASE_PATH: basePath } : undefined,
     // The proxy rewrites `/external` to a port that only exists once the
     // external server is listening, so Next.js is started by hand below.
     skipStart: true,
@@ -39,14 +44,14 @@ describe('variants', () => {
   })
 
   it('should resolve a variant to its default value', async () => {
-    const $ = await next.render$('/')
+    const $ = await next.render$(url('/'))
 
     expect($('#theme').text()).toBe('light')
     expect($('#locale').text()).toBe('en')
   })
 
   it('should resolve a variant from the request', async () => {
-    const $ = await next.render$('/', undefined, {
+    const $ = await next.render$(url('/'), undefined, {
       headers: { cookie: 'theme=dark' },
     })
 
@@ -54,7 +59,7 @@ describe('variants', () => {
   })
 
   it('should resolve several variants from one request', async () => {
-    const $ = await next.render$('/', undefined, {
+    const $ = await next.render$(url('/'), undefined, {
       headers: { cookie: 'theme=dark; locale=de' },
     })
 
@@ -65,14 +70,14 @@ describe('variants', () => {
   })
 
   it('should not expose the internal variants prefix to the client', async () => {
-    const browser = await next.browser('/')
+    const browser = await next.browser(url('/'))
 
     expect(await browser.elementByCss('#theme').text()).toBe('light')
-    expect(await browser.eval('location.pathname')).toBe('/')
+    expect(await browser.eval('location.pathname')).toBe(url('/'))
   })
 
   it('should resolve a variant on the route the proxy rewrote to', async () => {
-    const $ = await next.render$('/rewrite-source', undefined, {
+    const $ = await next.render$(url('/rewrite-source'), undefined, {
       headers: { cookie: 'theme=dark' },
     })
 
@@ -80,21 +85,21 @@ describe('variants', () => {
   })
 
   it('should expose neither the rewrite nor the variants prefix to the client', async () => {
-    const browser = await next.browser('/rewrite-source')
+    const browser = await next.browser(url('/rewrite-source'))
 
     expect(await browser.elementByCss('#theme').text()).toBe('light')
-    expect(await browser.eval('location.pathname')).toBe('/rewrite-source')
+    expect(await browser.eval('location.pathname')).toBe(url('/rewrite-source'))
   })
 
   it('should resolve enumerated variants on a prerendered route', async () => {
-    const dark = await next.render$('/enumerated/a', undefined, {
+    const dark = await next.render$(url('/enumerated/a'), undefined, {
       headers: { cookie: 'theme=dark' },
     })
 
     expect(dark('#theme').text()).toBe('dark')
     expect(dark('#locale').text()).toBe('en')
 
-    const light = await next.render$('/enumerated/a', undefined, {
+    const light = await next.render$(url('/enumerated/a'), undefined, {
       headers: { cookie: 'theme=light' },
     })
 
@@ -106,14 +111,14 @@ describe('variants', () => {
     // paths and the combinations are the only axis it is prerendered against.
     // Reading a variant above a boundary is only possible because of them: the
     // value is baked, so it leaves no hole to resume.
-    const dark = await next.render$('/paramless', undefined, {
+    const dark = await next.render$(url('/paramless'), undefined, {
       headers: { cookie: 'theme=dark' },
     })
 
     expect(dark('#theme').text()).toBe('dark')
     expect(dark('#locale').text()).toBe('en')
 
-    const light = await next.render$('/paramless', undefined, {
+    const light = await next.render$(url('/paramless'), undefined, {
       headers: { cookie: 'theme=light' },
     })
 
@@ -123,7 +128,7 @@ describe('variants', () => {
   if (isNextStart) {
     it('should serve a route without dynamic segments from its own prerender', async () => {
       for (const theme of ['light', 'dark']) {
-        const response = await next.fetch('/paramless', {
+        const response = await next.fetch(url('/paramless'), {
           headers: { cookie: `theme=${theme}` },
         })
 
@@ -137,7 +142,7 @@ describe('variants', () => {
       // this combination from rendering the route again, which would produce
       // the same markup either way.
       for (const theme of ['light', 'dark']) {
-        const response = await next.fetch('/enumerated/a', {
+        const response = await next.fetch(url('/enumerated/a'), {
           headers: { cookie: `theme=${theme}` },
         })
 
@@ -249,13 +254,13 @@ describe('variants', () => {
     // demand. The proxy has still resolved a combination for the request, and
     // generation specializes on it the same way it specializes on params,
     // rather than finding no value and bailing out of the render.
-    const dark = await next.render$('/enumerated/on-demand', undefined, {
+    const dark = await next.render$(url('/enumerated/on-demand'), undefined, {
       headers: { cookie: 'theme=dark' },
     })
 
     expect(dark('#theme').text()).toBe('dark')
 
-    const light = await next.render$('/enumerated/on-demand', undefined, {
+    const light = await next.render$(url('/enumerated/on-demand'), undefined, {
       headers: { cookie: 'theme=light' },
     })
 
@@ -267,7 +272,7 @@ describe('variants', () => {
     // only thing prerendered for it, and reading a variant above the boundary
     // means that shell can only exist if the combination is known. The param
     // itself stays a hole and resolves per request.
-    const dark = await next.render$('/shell/anything', undefined, {
+    const dark = await next.render$(url('/shell/anything'), undefined, {
       headers: { cookie: 'theme=dark' },
     })
 
@@ -276,7 +281,7 @@ describe('variants', () => {
     // after it, so both are present in the streamed HTML.
     expect(dark('#slug').last().text()).toBe('anything')
 
-    const light = await next.render$('/shell/other', undefined, {
+    const light = await next.render$(url('/shell/other'), undefined, {
       headers: { cookie: 'theme=light' },
     })
 
@@ -291,14 +296,14 @@ describe('variants', () => {
     // leaves the banner a hole that each request fills for itself. Were the
     // banner part of the cache key instead, neither request would find a
     // prerender at all.
-    const a = await next.render$('/shell/x', undefined, {
+    const a = await next.render$(url('/shell/x'), undefined, {
       headers: { cookie: 'theme=dark; banner=a' },
     })
 
     expect(a('#theme').text()).toBe('dark')
     expect(a('#banner').last().text()).toBe('a')
 
-    const b = await next.render$('/shell/x', undefined, {
+    const b = await next.render$(url('/shell/x'), undefined, {
       headers: { cookie: 'theme=dark; banner=b' },
     })
 
@@ -312,14 +317,14 @@ describe('variants', () => {
     // That entry's key covers the param and the declared combination, but not
     // `banner`, so baking the banner would serve this request's value to every
     // later one.
-    const first = await next.render$('/on-demand/fresh', undefined, {
+    const first = await next.render$(url('/on-demand/fresh'), undefined, {
       headers: { cookie: 'theme=dark; banner=first' },
     })
 
     expect(first('#theme').text()).toBe('dark')
     expect(first('#banner').last().text()).toBe('first')
 
-    const second = await next.render$('/on-demand/fresh', undefined, {
+    const second = await next.render$(url('/on-demand/fresh'), undefined, {
       headers: { cookie: 'theme=dark; banner=second' },
     })
 
@@ -331,7 +336,7 @@ describe('variants', () => {
     // `shell/[slug]` declares only `locale=en`, so this combination has no
     // prerender from the build. The proxy still resolved it, so a shell for it
     // is generated on demand rather than another combination's being served.
-    const $ = await next.render$('/shell/undeclared', undefined, {
+    const $ = await next.render$(url('/shell/undeclared'), undefined, {
       headers: { cookie: 'theme=dark; locale=de' },
     })
 
@@ -351,15 +356,18 @@ describe('variants', () => {
       'theme@variants.ts': 'light',
     })
 
-    const chosen = await next.fetch(`/__variants/${declared}/enumerated/a`, {
-      headers: { cookie: 'theme=dark; locale=en' },
-    })
+    const chosen = await next.fetch(
+      url(`/__variants/${declared}/enumerated/a`),
+      {
+        headers: { cookie: 'theme=dark; locale=en' },
+      }
+    )
 
     expect(chosen.status).toBe(404)
 
     // And one that names no combination at all must not reach the route either,
     // or every value invents a cache entry of its own.
-    const invented = await next.fetch('/__variants/zzzzz/enumerated/a', {
+    const invented = await next.fetch(url('/__variants/zzzzz/enumerated/a'), {
       headers: { cookie: 'theme=dark; locale=en' },
     })
 
@@ -383,7 +391,7 @@ describe('variants', () => {
     // the only one present, which is the case where a client could otherwise
     // name a combination.
     const undeclared = await next.fetch(
-      `/enumerated/a?${NEXT_VARIANTS_QUERY_PARAM}=${declared}`,
+      url(`/enumerated/a?${NEXT_VARIANTS_QUERY_PARAM}=${declared}`),
       { headers: { cookie: 'theme=dark; locale=de' } }
     )
 
@@ -392,7 +400,7 @@ describe('variants', () => {
     // These cookies resolve a combination that the build declared. A supplied
     // parameter would then be present next to the value that the router wrote.
     const alongsideMatched = await next.fetch(
-      `/enumerated/a?${NEXT_VARIANTS_QUERY_PARAM}=${declared}`,
+      url(`/enumerated/a?${NEXT_VARIANTS_QUERY_PARAM}=${declared}`),
       { headers: { cookie: 'theme=dark; locale=en' } }
     )
 
@@ -404,7 +412,7 @@ describe('variants', () => {
     // is the one channel both a routed request and one a platform rebuilt from
     // an artifact arrive on. It names no param and is not the page's to see, so
     // it must not reach `searchParams` the way a real query value does.
-    const $ = await next.render$('/search-params?q=1', undefined, {
+    const $ = await next.render$(url('/search-params?q=1'), undefined, {
       headers: { cookie: 'theme=dark' },
     })
 
@@ -421,7 +429,7 @@ describe('variants', () => {
     // empty for exactly that reason, and a resume fills it. Without them there
     // are no holes to fill, so the request has to be rendered for itself and
     // must not seed the entry the declared combinations are served from.
-    const $ = await next.render$('/enumerated/a', undefined, {
+    const $ = await next.render$(url('/enumerated/a'), undefined, {
       headers: { cookie: 'theme=dark; locale=de' },
     })
 
@@ -434,7 +442,7 @@ describe('variants', () => {
   // deployment cannot reach, so this one is inherently self-hosted.
   if (!isNextDeploy) {
     it('should not decorate a rewrite to another origin', async () => {
-      const $ = await next.render$('/external')
+      const $ = await next.render$(url('/external'))
 
       expect($('#external').text()).toBe('external')
       // A decorated destination would arrive as `/__variants/<hash>/external`,

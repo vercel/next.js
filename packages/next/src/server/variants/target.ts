@@ -22,3 +22,23 @@ export function getProxyTarget(
 
   return target.origin === requestURL.origin ? target : null
 }
+
+/**
+ * The route a target pathname belongs to, without the base path.
+ *
+ * A base path belongs to the request. Routes do not carry one, and neither do
+ * the keys of anything the build writes about them, but a target pathname does.
+ * Every site that matches a target against a route therefore removes it first,
+ * and does so here, because two of them that disagreed would match different
+ * routes for the same request.
+ */
+export function getTargetRoutePathname(
+  targetPathname: string,
+  basePath: string | undefined
+): string {
+  if (!basePath || basePath === '/' || !targetPathname.startsWith(basePath)) {
+    return targetPathname
+  }
+
+  return targetPathname.slice(basePath.length) || '/'
+}

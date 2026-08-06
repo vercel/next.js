@@ -12,11 +12,15 @@ import { hasVariantsPrefix, removeVariantsPrefix } from '../../variants/prefix'
  * `NEXT_VARIANTS_HEADER`, and are picked up by whoever needs them.
  */
 export class VariantsPathnameNormalizer implements PathnameNormalizer {
+  // The pathname still carries the base path here. The prefix sits after it,
+  // and a separate normalizer removes the base path later.
+  constructor(private readonly basePath?: string) {}
+
   public match(pathname: string): boolean {
-    return hasVariantsPrefix(pathname)
+    return hasVariantsPrefix(pathname, this.basePath)
   }
 
   public normalize(pathname: string): string {
-    return removeVariantsPrefix(pathname)
+    return removeVariantsPrefix(pathname, this.basePath)
   }
 }

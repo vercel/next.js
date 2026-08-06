@@ -24,7 +24,13 @@ export const proxy = wrapProxy(variantsByRoute, (request: NextRequest) => {
   const { pathname } = request.nextUrl
 
   if (pathname === '/rewrite-source') {
-    return NextResponse.rewrite(new URL('/rewrite-target', request.url))
+    // Cloned rather than built from `request.url`, so that a configured base
+    // path is kept: `nextUrl` holds the pathname without it and adds it back
+    // when the URL is stringified.
+    const target = request.nextUrl.clone()
+    target.pathname = '/rewrite-target'
+
+    return NextResponse.rewrite(target)
   }
 
   if (pathname === '/external') {
