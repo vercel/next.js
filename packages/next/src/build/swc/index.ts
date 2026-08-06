@@ -21,6 +21,7 @@ import type {
   NapiCodeFrameOptions,
 } from './generated-native'
 import type {
+  AppEntryName,
   Binding,
   BuildFeatureUsage,
   CompilationEvent,
@@ -36,6 +37,7 @@ import type {
   Route,
   TurboEngineOptions,
   TurbopackResult,
+  TurbopackRouteKey,
   TurbopackStackFrame,
   Update,
   UpdateMessage,
@@ -1202,7 +1204,7 @@ function bindingToApi(
   function napiEntrypointsToRawEntrypoints(
     entrypoints: TurbopackResult<NapiEntrypoints>
   ): TurbopackResult<RawEntrypoints> {
-    const routes = new Map()
+    const routes = new Map<TurbopackRouteKey, Route>()
     for (const { pathname, ...nativeRoute } of entrypoints.routes) {
       let route: Route
       const routeType = nativeRoute.type
@@ -1224,7 +1226,7 @@ function bindingToApi(
           route = {
             type: 'app-page',
             pages: nativeRoute.pages.map((page) => ({
-              originalName: page.originalName,
+              originalName: page.originalName as AppEntryName,
               htmlEndpoint: new EndpointImpl(page.htmlEndpoint),
               rscHmrEndpoint: new EndpointImpl(page.rscHmrEndpoint),
             })),
@@ -1233,7 +1235,7 @@ function bindingToApi(
         case 'app-route':
           route = {
             type: 'app-route',
-            originalName: nativeRoute.originalName,
+            originalName: nativeRoute.originalName as AppEntryName,
             endpoint: new EndpointImpl(nativeRoute.endpoint),
           }
           break
@@ -1250,7 +1252,7 @@ function bindingToApi(
           )
         }
       }
-      routes.set(pathname, route)
+      routes.set(pathname as TurbopackRouteKey, route)
     }
     const napiMiddlewareToMiddleware = (middleware: NapiMiddleware) => ({
       endpoint: new EndpointImpl(middleware.endpoint),

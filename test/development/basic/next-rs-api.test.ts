@@ -8,6 +8,7 @@ import type {
   RawEntrypoints,
   StyledString,
   TurbopackResult,
+  TurbopackRouteKey,
   UpdateInfo,
 } from 'next/dist/build/swc/types'
 import loadConfig from 'next/dist/server/config'
@@ -468,7 +469,7 @@ describe('next.rs api', () => {
         throw new Error('Entrypoints not available due to compilation errors')
       }
 
-      const route = entrypoints.routes.get(path)
+      const route = entrypoints.routes.get(path as TurbopackRouteKey)
       entrypointsSubscribtion.return()
 
       expect(route.type).toBe(type)
@@ -592,7 +593,7 @@ describe('next.rs api', () => {
           throw new Error('Entrypoints not available due to compilation errors')
         }
 
-        const route = entrypoints.routes.get(path)
+        const route = entrypoints.routes.get(path as TurbopackRouteKey)
         entrypointsSubscribtion.return()
 
         expect(route.type).toBe(type)
@@ -734,7 +735,7 @@ describe('next.rs api', () => {
       throw new Error('Entrypoints not available due to compilation errors')
     }
 
-    const route = entrypoints.routes.get('/')
+    const route = entrypoints.routes.get('/' as TurbopackRouteKey)
     entrypointsSubscribtion.return()
 
     if (route.type !== 'page') throw new Error('unknown route type')

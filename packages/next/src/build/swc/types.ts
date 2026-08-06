@@ -190,8 +190,32 @@ export interface Instrumentation {
   edge: Endpoint
 }
 
+// Route-shaped strings come in several namespaces that look alike but rarely
+// equal each other, so comparing across them silently never matches. The
+// brands turn a cross-namespace lookup into a type error. (`EntryKey` does
+// the same for entry keys.)
+declare const __routeStringBrand: unique symbol
+
+/**
+ * A key of `RawEntrypoints.routes`: the route pathname, as Turbopack keys
+ * routes. For an App Router page this is the route ("/blog"), not the entry
+ * name ("/blog/page").
+ */
+export type TurbopackRouteKey = string & {
+  [__routeStringBrand]: 'turbopack-route-key'
+}
+
+/**
+ * An App Router entry name, including the leaf: "/blog/page",
+ * "/api/hello/route". This is `originalName` in Turbopack's routes and the
+ * key of `AppEntrypoints`.
+ */
+export type AppEntryName = string & {
+  [__routeStringBrand]: 'app-entry-name'
+}
+
 export interface RawEntrypoints {
-  routes: Map<string, Route>
+  routes: Map<TurbopackRouteKey, Route>
   middleware?: Middleware
   instrumentation?: Instrumentation
   pagesDocumentEndpoint: Endpoint
@@ -385,14 +409,14 @@ export type Route =
   | {
       type: 'app-page'
       pages: {
-        originalName: string
+        originalName: AppEntryName
         htmlEndpoint: Endpoint
         rscHmrEndpoint: Endpoint
       }[]
     }
   | {
       type: 'app-route'
-      originalName: string
+      originalName: AppEntryName
       endpoint: Endpoint
     }
   | {
@@ -559,7 +583,7 @@ export type AppRoute =
 export type PageEntrypoints = Map<string, PageRoute>
 
 // originalName / page -> route
-export type AppEntrypoints = Map<string, AppRoute>
+export type AppEntrypoints = Map<AppEntryName, AppRoute>
 
 export type Entrypoints = {
   global: GlobalEntrypoints

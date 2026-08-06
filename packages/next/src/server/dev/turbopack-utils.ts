@@ -18,7 +18,12 @@ import * as Log from '../../build/output/log'
 import { warnAboutEdgeRuntime } from '../../build/warn-about-edge-runtime'
 import type { PropagateToWorkersField } from '../lib/router-utils/types'
 import type { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loader'
-import type { AppRoute, Entrypoints, PageRoute } from '../../build/swc/types'
+import type {
+  AppEntryName,
+  AppRoute,
+  Entrypoints,
+  PageRoute,
+} from '../../build/swc/types'
 import {
   type EntryKey,
   getEntryKey,
@@ -554,7 +559,8 @@ export function hasEntrypointForKey(
 
   switch (type) {
     case 'app':
-      return entrypoints.app.has(page)
+      // App entry keys are constructed from entry names.
+      return entrypoints.app.has(page as AppEntryName)
     case 'pages':
       switch (page) {
         case '_app':
@@ -1035,7 +1041,7 @@ export function addMetadataIdToRoute(route: string): string {
 export function normalizedPageToTurbopackStructureRoute(
   route: string,
   ext: string | false
-): string {
+): AppEntryName {
   let entrypointKey = route
   if (isMetadataRoute(entrypointKey)) {
     entrypointKey = entrypointKey.endsWith('/route')
@@ -1054,5 +1060,5 @@ export function normalizedPageToTurbopackStructureRoute(
     }
     entrypointKey = entrypointKey + '/route'
   }
-  return entrypointKey
+  return entrypointKey as AppEntryName
 }

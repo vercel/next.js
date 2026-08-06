@@ -28,6 +28,8 @@ import type {
   Entrypoints,
   NodeJsHmrUpdate,
   NodeJsPartialHmrUpdate,
+  AppEntryName,
+  TurbopackRouteKey,
 } from '../../build/swc/types'
 import { createDefineEnv, getBindingsSync, HmrTarget } from '../../build/swc'
 import * as Log from '../../build/output/log'
@@ -797,7 +799,7 @@ export async function createHotReloaderTurbopack(
   let hmrHash = 0
   // Undefined until the first entrypoints emission. That one has nothing to
   // compare against, so every route it lists would look added.
-  let previousRouteKeys: Set<string> | undefined
+  let previousRouteKeys: Set<TurbopackRouteKey> | undefined
 
   // HACK: Defer sending `building` messages. Turbopack emits a compile pass for every
   // foreground-job cycle, including empty no-op recompiles scheduled by
@@ -1969,7 +1971,8 @@ export async function createHotReloaderTurbopack(
                 page,
                 extname(routeDef.filename)
               )
-            : page
+            : // For non-metadata entries the entry name is the page name.
+              (page as AppEntryName)
 
           const route = isInsideAppDir
             ? currentEntrypoints.app.get(normalizedAppPage)
