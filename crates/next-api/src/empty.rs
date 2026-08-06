@@ -4,7 +4,7 @@ use turbo_tasks::{Completion, ResolvedVc, Vc};
 use turbopack_core::module_graph::GraphEntries;
 
 use crate::{
-    project::Project,
+    project::{OptionContentHash, Project},
     route::{Endpoint, EndpointOutput, ModuleGraphs},
 };
 
@@ -31,6 +31,11 @@ impl Endpoint for EmptyEndpoint {
     #[turbo_tasks::function]
     fn server_changed(self: Vc<Self>) -> Vc<Completion> {
         Completion::new()
+    }
+
+    #[turbo_tasks::function]
+    fn server_content_hash(self: Vc<Self>) -> Vc<OptionContentHash> {
+        Vc::cell(None)
     }
 
     #[turbo_tasks::function]

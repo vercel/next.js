@@ -21,6 +21,7 @@ import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
 import type {
   Update as TurbopackUpdate,
   Endpoint,
+  ServerChanged,
   WrittenEndpoint,
   TurbopackResult,
   Project,
@@ -917,14 +918,60 @@ export async function createHotReloaderTurbopack(
     sendEnqueuedMessagesDebounce()
   }
 
+  /**
+   * `hmrHash` is folded into every `"use cache"` key, so advancing it discards
+   * all cached entries. The subscription emits whenever the entry *may* have
+   * changed — including once for the entry's own initial build, and possibly
+   * coalescing several changes into one emission — so emissions can't be
+   * counted directly. Instead, compare the entry's compiled output and only
+   * advance the hash when it actually changed.
+   */
+  async function* serverChanges(
+    changedPromise: Promise<
+      AsyncIterableIterator<TurbopackResult<ServerChanged>>
+    >,
+    endpoint: Endpoint
+  ) {
+    const changed = await changedPromise
+    let contentHash = await endpoint.serverContentHash()
+
+    for await (const change of changed) {
+      // A null hash means the entry has no compiled output (it was removed,
+      // or it failed to build); that can't affect other entries' cached data,
+      // and its own entries are unreachable.
+      let contentChanged = false
+      if (change.contentHash !== null) {
+        contentChanged = change.contentHash !== contentHash
+        contentHash = change.contentHash
+        if (contentChanged) {
+          hmrHash++
+        }
+      }
+      yield { change, contentChanged }
+    }
+  }
+
+  /** Client-side output can't affect cached server data. */
+  async function* clientChanges(
+    changedPromise: Promise<AsyncIterableIterator<TurbopackResult>>
+  ) {
+    for await (const change of await changedPromise) {
+      yield { change, contentChanged: false }
+    }
+  }
+
   async function subscribeToClientChanges(
     key: EntryKey,
     includeIssues: boolean,
     endpoint: Endpoint,
     createMessage: (
       change: TurbopackResult,
-      hash: string
-    ) => Promise<HmrMessageSentToBrowser> | HmrMessageSentToBrowser | void,
+      hash: string,
+      contentChanged: boolean
+    ) =>
+      | Promise<HmrMessageSentToBrowser | void>
+      | HmrMessageSentToBrowser
+      | void,
     onError?: (
       error: Error
     ) => Promise<HmrMessageSentToBrowser> | HmrMessageSentToBrowser | void
@@ -935,15 +982,28 @@ export async function createHotReloaderTurbopack(
 
     const { side } = splitEntryKey(key)
 
-    const changedPromise = endpoint[`${side}Changed`](includeIssues)
-    changeSubscriptions.set(key, changedPromise)
-    try {
-      const changed = await changedPromise
+    let changes: AsyncIterable<{
+      change: TurbopackResult
+      contentChanged: boolean
+    }>
+    if (side === 'server') {
+      const changedPromise = endpoint.serverChanged(includeIssues)
+      changeSubscriptions.set(key, changedPromise)
+      changes = serverChanges(changedPromise, endpoint)
+    } else {
+      const changedPromise = endpoint.clientChanged()
+      changeSubscriptions.set(key, changedPromise)
+      changes = clientChanges(changedPromise)
+    }
 
-      for await (const change of changed) {
+    try {
+      for await (const { change, contentChanged } of changes) {
         processIssues(currentEntryIssues, key, change, false, true)
-        // TODO: Get an actual content hash from Turbopack.
-        const message = await createMessage(change, String(++hmrHash))
+        const message = await createMessage(
+          change,
+          String(hmrHash),
+          contentChanged
+        )
         if (message) {
           sendHmr(key, message)
         }

@@ -9,7 +9,8 @@ use next_api::{
     paths::AssetPath,
     route::{
         Endpoint, EndpointOutputPaths, endpoint_client_changed_operation,
-        endpoint_server_changed_operation, endpoint_write_to_disk_operation,
+        endpoint_server_changed_operation, endpoint_server_content_hash_operation,
+        endpoint_write_to_disk_operation,
     },
 };
 use tracing::Instrument;
@@ -177,6 +178,27 @@ pub async fn endpoint_write_to_disk(
     })
 }
 
+#[tracing::instrument(level = "info", name = "get endpoint server content hash", skip_all)]
+#[napi]
+pub async fn endpoint_server_content_hash(
+    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
+) -> napi::Result<Option<String>> {
+    let ctx = endpoint.turbopack_ctx();
+    let endpoint_op = ***endpoint;
+    let hash = endpoint
+        .turbopack_ctx()
+        .turbo_tasks()
+        .run(async move {
+            let read = endpoint_server_content_hash_operation(endpoint_op)
+                .read_strongly_consistent()
+                .await?;
+            Ok((*read).clone())
+        })
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
+        .await?;
+    Ok(hash.map(|h| h.to_string()))
+}
+
 #[tracing::instrument(level = "info", name = "get server-side endpoint changes", skip_all)]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn endpoint_server_changed_subscribe(
@@ -202,21 +224,32 @@ pub fn endpoint_server_changed_subscribe(
         |ctx| {
             let EndpointIssuesAndDiags {
                 changed: _,
+                server_content_hash,
                 issues,
                 effects: _,
             } = &*ctx.value;
 
             Ok(vec![TurbopackResult {
-                result: (),
+                result: NapiServerChanged {
+                    content_hash: server_content_hash.as_ref().map(|h| h.to_string()),
+                },
                 issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
             }])
         },
     )
 }
 
+#[napi(object)]
+pub struct NapiServerChanged {
+    /// A hash of the endpoint's compiled server-side output, or None when the
+    /// endpoint has no output (e.g. it was removed).
+    pub content_hash: Option<String>,
+}
+
 #[turbo_tasks::value(shared, serialization = "skip", eq = "manual")]
 struct EndpointIssuesAndDiags {
     changed: Option<ReadRef<Completion>>,
+    server_content_hash: Option<RcStr>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     effects: Arc<Effects>,
 }
@@ -227,7 +260,8 @@ impl PartialEq for EndpointIssuesAndDiags {
             (Some(a), Some(b)) => ReadRef::ptr_eq(a, b),
             (None, None) => true,
             (None, Some(_)) | (Some(_), None) => false,
-        }) && self.issues == other.issues
+        }) && self.server_content_hash == other.server_content_hash
+            && self.issues == other.issues
     }
 }
 
@@ -248,8 +282,18 @@ async fn subscribe_issues_and_diags_operation(
     let filter = issue_filter_from_endpoint(endpoint_op).await;
     let (changed_value, issues, effects) =
         strongly_consistent_catch_collectables(changed_op, &filter).await?;
+    // Reads the same asset contents that `server_changed` already depends on,
+    // so this doesn't create additional subscription triggers. Errors are
+    // already captured as issues by the read above; a failed hash read simply
+    // yields None.
+    let server_content_hash = endpoint_server_content_hash_operation(endpoint_op)
+        .read_strongly_consistent()
+        .await
+        .ok()
+        .and_then(|v| (*v).clone());
     Ok(EndpointIssuesAndDiags {
         changed: changed_value,
+        server_content_hash,
         issues: if should_include_issues {
             issues
         } else {

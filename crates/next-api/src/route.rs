@@ -13,7 +13,11 @@ use turbopack_core::{
     output::OutputAssets,
 };
 
-use crate::{operation::OptionEndpoint, paths::AssetPath, project::Project};
+use crate::{
+    operation::OptionEndpoint,
+    paths::AssetPath,
+    project::{OptionContentHash, Project},
+};
 
 #[derive(
     TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode,
@@ -52,6 +56,10 @@ pub trait Endpoint {
     // fn write_to_disk(self: Vc<Self>) -> Vc<EndpointOutputPaths>;
     #[turbo_tasks::function]
     fn server_changed(self: Vc<Self>) -> Vc<Completion>;
+    /// A hash of the endpoint's compiled server-side output (the same assets
+    /// `server_changed` watches). None when the endpoint has no output.
+    #[turbo_tasks::function]
+    fn server_content_hash(self: Vc<Self>) -> Vc<OptionContentHash>;
     #[turbo_tasks::function]
     fn client_changed(self: Vc<Self>) -> Vc<Completion>;
     /// The entry modules for the modules graph.
@@ -265,6 +273,17 @@ pub async fn endpoint_server_changed_operation(
         endpoint.server_changed()
     } else {
         Completion::new()
+    })
+}
+
+#[turbo_tasks::function(operation, root)]
+pub async fn endpoint_server_content_hash_operation(
+    endpoint: OperationVc<OptionEndpoint>,
+) -> Result<Vc<OptionContentHash>> {
+    Ok(if let Some(endpoint) = *endpoint.connect().await? {
+        endpoint.server_content_hash()
+    } else {
+        Vc::cell(None)
     })
 }
 

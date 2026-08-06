@@ -82,7 +82,7 @@ use crate::{
         all_asset_paths, all_paths_in_root, get_asset_paths_from_root, get_js_paths_from_root,
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
-    project::{BaseAndFullModuleGraph, Project},
+    project::{BaseAndFullModuleGraph, OptionContentHash, Project},
     route::{
         AppPageRoute, Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs, Route, Routes,
     },
@@ -2195,6 +2195,15 @@ impl Endpoint for AppEndpoint {
             .app_project
             .project()
             .server_changed(self.output().server_assets()))
+    }
+
+    #[turbo_tasks::function]
+    async fn server_content_hash(self: Vc<Self>) -> Result<Vc<OptionContentHash>> {
+        Ok(self
+            .await?
+            .app_project
+            .project()
+            .server_content_hash(self.output().server_assets()))
     }
 
     #[turbo_tasks::function]

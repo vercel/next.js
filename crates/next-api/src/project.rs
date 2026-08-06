@@ -48,6 +48,7 @@ use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
     canonicalize_to_rcstr, invalidation,
 };
+use turbo_tasks_hash::{HashAlgorithm, hash_xxh3_hash64};
 use turbo_unix_path::join_path;
 use turbopack::{
     ModuleAssetContext, evaluate_context::node_build_environment, externals_tracing_module_context,
@@ -55,6 +56,7 @@ use turbopack::{
 };
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME,
+    asset::{Asset, no_hash_salt},
     changed::content_changed,
     chunk::{
         ChunkingContext, EvaluatableAssets, UnusedReferences,
@@ -2716,6 +2718,17 @@ impl Project {
         Ok(any_output_changed(roots, path, true))
     }
 
+    /// A hash of the contents of the same output assets that `server_changed`
+    /// watches. None when there are no assets (e.g. the entry was removed).
+    #[turbo_tasks::function]
+    pub async fn server_content_hash(
+        self: Vc<Self>,
+        roots: Vc<OutputAssets>,
+    ) -> Result<Vc<OptionContentHash>> {
+        let path = self.node_root().owned().await?;
+        Ok(output_assets_content_hash(roots, path, true))
+    }
+
     /// Completion when client side changes are detected in output assets
     /// referenced from the roots
     #[turbo_tasks::function]
@@ -2961,18 +2974,21 @@ pub struct BaseAndFullModuleGraph {
     pub binding_usage_info: Option<OperationVc<BindingUsageInfo>>,
 }
 
-#[turbo_tasks::function]
-async fn any_output_changed(
+/// The output assets that change detection watches: everything reachable
+/// from the roots, minus source maps and (on the server) CSS, limited to
+/// assets inside `path`. Used by both `any_output_changed` and
+/// `output_assets_content_hash` so they can't drift apart.
+async fn watched_output_assets(
     roots: Vc<OutputAssets>,
     path: FileSystemPath,
     server: bool,
-) -> Result<Vc<Completion>> {
+) -> Result<Vec<(ReadRef<FileSystemPath>, ResolvedVc<Box<dyn OutputAsset>>)>> {
     let all_assets = expand_output_assets(
         roots.await?.into_iter().map(ExpandOutputAssetsInput::Asset),
         true,
     )
     .await?;
-    let completions = all_assets
+    all_assets
         .into_iter()
         .map(|m| {
             let path = path.clone();
@@ -2983,20 +2999,70 @@ async fn any_output_changed(
                     && (!server || !asset_path.path.ends_with(".css"))
                     && asset_path.is_inside_ref(&path)
                 {
-                    anyhow::Ok(Some(
-                        content_changed(*ResolvedVc::upcast(m))
-                            .to_resolved()
-                            .await?,
-                    ))
+                    anyhow::Ok(Some((asset_path, m)))
                 } else {
                     Ok(None)
                 }
             }
         })
         .try_flat_join()
+        .await
+}
+
+#[turbo_tasks::function]
+async fn any_output_changed(
+    roots: Vc<OutputAssets>,
+    path: FileSystemPath,
+    server: bool,
+) -> Result<Vc<Completion>> {
+    let completions = watched_output_assets(roots, path, server)
+        .await?
+        .into_iter()
+        .map(|(_, m)| async move { content_changed(*ResolvedVc::upcast(m)).to_resolved().await })
+        .try_join()
         .await?;
 
     Ok(Vc::<Completions>::cell(completions).completed())
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionContentHash(Option<RcStr>);
+
+/// Hashes the contents of the same output assets that `any_output_changed`
+/// watches. Returns None when no assets qualify.
+#[turbo_tasks::function]
+async fn output_assets_content_hash(
+    roots: Vc<OutputAssets>,
+    path: FileSystemPath,
+    server: bool,
+) -> Result<Vc<OptionContentHash>> {
+    let mut entries = watched_output_assets(roots, path, server)
+        .await?
+        .into_iter()
+        .map(|(asset_path, m)| async move {
+            let hash = m
+                .content()
+                .hash(no_hash_salt(), HashAlgorithm::Xxh3Hash128Hex)
+                .owned()
+                .await?;
+            anyhow::Ok((asset_path.path.clone(), hash))
+        })
+        .try_join()
+        .await?;
+    if entries.is_empty() {
+        return Ok(Vc::cell(None));
+    }
+    entries.sort();
+    let mut joined = String::new();
+    for (asset_path, hash) in entries {
+        joined.push_str(&asset_path);
+        joined.push(':');
+        joined.push_str(&hash);
+        joined.push('\n');
+    }
+    Ok(Vc::cell(Some(
+        format!("{:016x}", hash_xxh3_hash64(joined.as_bytes())).into(),
+    )))
 }
 
 #[turbo_tasks::function(operation, root)]

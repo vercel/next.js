@@ -423,7 +423,22 @@ export interface Endpoint {
    */
   serverChanged(
     includeIssues: boolean
-  ): Promise<AsyncIterableIterator<TurbopackResult>>
+  ): Promise<AsyncIterableIterator<TurbopackResult<ServerChanged>>>
+
+  /**
+   * A hash of the endpoint's compiled server-side output (the same assets
+   * `serverChanged` watches). Null when the endpoint has no output (e.g. it
+   * was removed).
+   */
+  serverContentHash(): Promise<string | null>
+}
+
+export interface ServerChanged {
+  /**
+   * A hash of the endpoint's compiled server-side output, or null when the
+   * endpoint has no output (e.g. it was removed).
+   */
+  contentHash: string | null
 }
 
 interface EndpointConfig {

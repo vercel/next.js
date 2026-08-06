@@ -35,7 +35,7 @@ use crate::{
         all_asset_paths, all_paths_in_root, get_asset_paths_from_root, get_js_paths_from_root,
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
-    project::Project,
+    project::{OptionContentHash, Project},
     route::{Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs},
 };
 
@@ -394,6 +394,14 @@ impl Endpoint for MiddlewareEndpoint {
     #[turbo_tasks::function]
     async fn server_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
         Ok(self.await?.project.server_changed(self.output_assets()))
+    }
+
+    #[turbo_tasks::function]
+    async fn server_content_hash(self: Vc<Self>) -> Result<Vc<OptionContentHash>> {
+        Ok(self
+            .await?
+            .project
+            .server_content_hash(self.output_assets()))
     }
 
     #[turbo_tasks::function]

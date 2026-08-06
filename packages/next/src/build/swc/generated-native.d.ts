@@ -171,11 +171,21 @@ export interface NapiWrittenEndpoint {
 export declare function endpointWriteToDisk(endpoint: {
   __napiType: 'Endpoint'
 }): Promise<TurbopackResult>
+export declare function endpointServerContentHash(endpoint: {
+  __napiType: 'Endpoint'
+}): Promise<string | null>
 export declare function endpointServerChangedSubscribe(
   endpoint: { __napiType: 'Endpoint' },
   issues: boolean,
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
+export interface NapiServerChanged {
+  /**
+   * A hash of the endpoint's compiled server-side output, or None when the
+   * endpoint has no output (e.g. it was removed).
+   */
+  contentHash?: string
+}
 export declare function endpointClientChangedSubscribe(
   endpoint: { __napiType: 'Endpoint' },
   func: (...args: any[]) => any

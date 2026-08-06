@@ -40,6 +40,7 @@ import type {
   Update,
   UpdateMessage,
   WrittenEndpoint,
+  ServerChanged,
 } from './types'
 import { runLoaderWorkerPool } from './loaderWorkerPool'
 
@@ -892,8 +893,8 @@ function bindingToApi(
 
     async serverChanged(
       includeIssues: boolean
-    ): Promise<AsyncIterableIterator<TurbopackResult>> {
-      const serverSubscription = subscribe<TurbopackResult>(
+    ): Promise<AsyncIterableIterator<TurbopackResult<ServerChanged>>> {
+      const serverSubscription = subscribe<TurbopackResult<ServerChanged>>(
         false,
         async (callback) =>
           binding.endpointServerChangedSubscribe(
@@ -904,6 +905,12 @@ function bindingToApi(
       )
       await serverSubscription.next()
       return serverSubscription
+    }
+
+    async serverContentHash(): Promise<string | null> {
+      return (
+        (await binding.endpointServerContentHash(this._nativeEndpoint)) ?? null
+      )
     }
   }
 
