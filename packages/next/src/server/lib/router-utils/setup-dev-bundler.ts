@@ -417,12 +417,15 @@ async function startWatcher(
     let enabledTypeScript = await verifyTypeScript(opts)
     let previousClientRouterFilters: any
     let previousConflictingPagePaths: Set<string> = new Set()
+    let hadInitialScan = false
 
     const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
     const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
 
     let initialWatchTime = performance.now() + performance.timeOrigin
     wp.on('aggregated', async () => {
+      const isInitialScan = !hadInitialScan
+      hadInitialScan = true
       let writeEnvDefinitions = false
       let typescriptStatusFromLastAggregation = enabledTypeScript
       let middlewareMatchers: ProxyMatcher[] | undefined
@@ -440,7 +443,8 @@ async function startWatcher(
       const layoutRoutes: RouteInfo[] = []
       const slots: SlotInfo[] = []
 
-      let envChange = false
+      let envFileChange = false
+      let clientRouterFiltersChange = false
       let tsconfigChange = false
       let conflictingPageChange = 0
       let hasRootAppNotFound = false
@@ -513,7 +517,7 @@ async function startWatcher(
 
         if (envFiles.includes(fileName)) {
           if (fileChanged) {
-            envChange = true
+            envFileChange = true
           }
           continue
         }
@@ -794,15 +798,19 @@ async function startWatcher(
           JSON.stringify(previousClientRouterFilters) !==
             JSON.stringify(clientRouterFilters)
         ) {
-          envChange = true
+          clientRouterFiltersChange = true
           previousClientRouterFilters = clientRouterFilters
         }
       }
 
-      if (envChange || tsconfigChange) {
-        if (envChange) {
-          writeEnvDefinitions = true
+      // Also set on the initial scan, so that typed env definitions exist
+      // from startup.
+      if (envFileChange || isInitialScan) {
+        writeEnvDefinitions = true
+      }
 
+      if (envFileChange || clientRouterFiltersChange || tsconfigChange) {
+        if (envFileChange) {
           await propagateServerField(opts, 'loadEnvConfig', [
             { dev: true, forceReload: true },
           ])
@@ -905,7 +913,7 @@ async function startWatcher(
               })
             }
 
-            if (envChange) {
+            if (envFileChange || clientRouterFiltersChange) {
               config.plugins?.forEach((plugin: any) => {
                 // we look for the DefinePlugin definitions so we can
                 // update them on the active compilers
@@ -943,7 +951,10 @@ async function startWatcher(
           })
         }
         await hotReloader.invalidate({
-          reloadAfterInvalidation: envChange,
+          // A router-filter change only requires the updated define to be
+          // compiled into the bundles; unlike env, it can't affect rendered
+          // output or cached data.
+          reloadAfterInvalidation: envFileChange,
         })
       }
 

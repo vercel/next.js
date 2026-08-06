@@ -259,12 +259,15 @@ export interface NextJsHotReloaderInterface {
    */
   sendToLegacyClients(action: HmrMessageSentToBrowser): void
   /**
-   * The hash of the most recent server component change, or `undefined` if no
-   * server component change has occurred yet. In dev, this is included in `"use
-   * cache"` cache keys so that cached entries are revalidated after an edit,
-   * for every client, regardless of whether it runs the HMR client.
+   * Identifies the current generation of the compiled server components. It is
+   * included in `"use cache"` cache keys so that cached entries are revalidated
+   * after an edit, for every client, regardless of whether it runs the HMR
+   * client. It is present from the first request on, so that entries created
+   * before the first edit are keyed by it too, and it differs between dev
+   * server runs, so that a cache handler that persists entries doesn't serve
+   * them for code that changed while the server was down.
    */
-  getServerComponentsHmrRefreshHash(): string | undefined
+  getServerComponentsHmrRefreshHash(): string
   setCacheStatus(status: ServerCacheStatus, htmlRequestId: string): void
   setReactDebugChannel(
     debugChannel: ReactDebugChannelForBrowser,
@@ -282,6 +285,13 @@ export interface NextJsHotReloaderInterface {
       context: { isLegacyClient: boolean }
     ) => void
   ): void
+  /**
+   * Rebuilds so that a changed configuration reaches the bundles. Pass
+   * `reloadAfterInvalidation` only when the change can also affect what a
+   * render produces: it makes connected clients refetch server components, and
+   * advances `getServerComponentsHmrRefreshHash`, discarding `"use cache"`
+   * entries.
+   */
   invalidate({
     reloadAfterInvalidation,
   }: {
