@@ -492,6 +492,7 @@ export async function initialize(opts: {
         resHeaders,
         bodyStream,
         matchedOutput,
+        didRewrite,
       } = await resolveRoutes({
         req,
         res,
@@ -758,6 +759,43 @@ export async function initialize(opts: {
         res.statusCode = 404
         res.end('')
         return null
+      }
+
+      // The filesystem route info is updated when the file watcher has
+      // processed a change, so it can lag behind the filesystem when a
+      // request arrives right after a file was written. Before rendering a
+      // 404, check the request path against the routes on disk via the
+      // development route matchers, and render the route when it exists.
+      // Plain-text 404s for static assets and subresources above stay on
+      // their fast path deliberately: they self-heal on retry and aren't
+      // worth a filesystem re-scan.
+      if (
+        opts.dev &&
+        // Filesystem routes are only served for rewritten requests when
+        // `useFileSystemPublicRoutes` is disabled.
+        (config.useFileSystemPublicRoutes || didRewrite) &&
+        parsedUrl.pathname &&
+        !parsedUrl.pathname.startsWith('/_next/') &&
+        !invokedOutputs.has(parsedUrl.pathname)
+      ) {
+        let routeExists = false
+        try {
+          routeExists = Boolean(
+            await renderServer?.instance?.propagateServerField(
+              opts.dir,
+              'testRouteMatch',
+              [parsedUrl.pathname]
+            )
+          )
+        } catch {
+          // The render server hasn't been initialized yet; there are no
+          // routes it could have missed.
+        }
+
+        if (routeExists) {
+          invokedOutputs.add(parsedUrl.pathname)
+          return await invokeRender(parsedUrl, parsedUrl.pathname, handleIndex)
+        }
       }
 
       const appNotFound = opts.dev

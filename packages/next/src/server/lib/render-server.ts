@@ -76,7 +76,7 @@ export async function propagateServerField(
   if (wrappedServer) {
     if (typeof wrappedServer[_field] === 'function') {
       // @ts-expect-error
-      await wrappedServer[_field].apply(
+      return await wrappedServer[_field].apply(
         wrappedServer,
         Array.isArray(value) ? value : []
       )

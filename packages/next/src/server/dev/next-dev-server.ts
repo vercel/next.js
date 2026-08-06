@@ -41,6 +41,7 @@ import Server, { WrappedBuildError } from '../next-server'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
+import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 import { Telemetry } from '../../telemetry/storage'
 import {
   type Span,
@@ -440,6 +441,35 @@ export default class DevServer extends Server {
     }
 
     return Boolean(appFile || pagesFile)
+  }
+
+  /**
+   * Called by the router server before it renders a 404 for a request
+   * pathname that its filesystem route info does not include. That info is
+   * updated when the file watcher has processed a change, so it can lag
+   * behind the filesystem when a request arrives right after a file was
+   * written. The development route matchers re-scan the filesystem when they
+   * don't have a match, so this reflects the routes that exist on disk at
+   * the time of the call.
+   */
+  public async testRouteMatch(pathname: string): Promise<boolean> {
+    const { basePath } = this.nextConfig
+    if (basePath) {
+      if (!pathHasPrefix(pathname, basePath)) {
+        return false
+      }
+      pathname = removePathPrefix(pathname, basePath) || '/'
+    }
+    pathname = removeTrailingSlash(pathname)
+
+    const i18n = this.i18nProvider?.analyze(pathname)
+    // API routes are not served under locale-prefixed paths; see the
+    // corresponding check in resolveRoutes.
+    if (i18n?.detectedLocale && pathHasPrefix(i18n.pathname, '/api')) {
+      return false
+    }
+
+    return this.matchers.test(pathname, { i18n })
   }
 
   async runMiddleware(params: {
