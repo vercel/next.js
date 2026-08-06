@@ -70,7 +70,21 @@ pub struct CssResource {
 #[serde(rename_all = "camelCase")]
 pub struct ModuleLoading {
     pub prefix: RcStr,
+    /// React Flight treats any string as CORS-enabled (normalizing everything
+    /// but "use-credentials" to anonymous), so `CrossOrigin::None` must
+    /// serialize as `null`, not as the string "none".
+    #[serde(serialize_with = "serialize_cross_origin")]
     pub cross_origin: CrossOrigin,
+}
+
+fn serialize_cross_origin<S>(
+    cross_origin: &CrossOrigin,
+    serializer: S,
+) -> std::result::Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    cross_origin.as_str().serialize(serializer)
 }
 
 #[derive(Serialize, Default, Debug, Clone)]
@@ -608,5 +622,33 @@ pub fn get_client_reference_module_key(server_path: &str, export_name: &str) -> 
         server_path.into()
     } else {
         format!("{server_path}#{export_name}").into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn module_loading_cross_origin_serialization() {
+        let json = |cross_origin| {
+            serde_json::to_string(&ModuleLoading {
+                prefix: rcstr!(""),
+                cross_origin,
+            })
+            .unwrap()
+        };
+        assert_eq!(
+            json(CrossOrigin::None),
+            r#"{"prefix":"","crossOrigin":null}"#
+        );
+        assert_eq!(
+            json(CrossOrigin::Anonymous),
+            r#"{"prefix":"","crossOrigin":"anonymous"}"#
+        );
+        assert_eq!(
+            json(CrossOrigin::UseCredentials),
+            r#"{"prefix":"","crossOrigin":"use-credentials"}"#
+        );
     }
 }
