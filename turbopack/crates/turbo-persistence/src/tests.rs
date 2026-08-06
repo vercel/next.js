@@ -11,7 +11,7 @@ use crate::{
     write_batch::WriteBatch,
 };
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 struct RayonParallelScheduler;
 
 impl ParallelScheduler for RayonParallelScheduler {
@@ -2228,4 +2228,65 @@ fn stale_current_next_is_recovered() -> Result<()> {
     );
 
     Ok(())
+}
+
+/// A read-only open must not mutate the directory: no cleanup of
+/// CURRENT.next, no deletion of files with seq > CURRENT, and no processing
+/// of pending .del files.
+#[test]
+fn read_only_open_does_not_mutate_directory() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    // A valid CURRENT file (sequence number 0).
+    fs::write(path.join("CURRENT"), 0u32.to_be_bytes())?;
+    // A leftover CURRENT.next from an interrupted commit.
+    fs::write(path.join("CURRENT.next"), 1u32.to_be_bytes())?;
+    // An in-flight SST file with a sequence number beyond CURRENT.
+    fs::write(path.join("00000005.sst"), b"in-flight")?;
+    // A pending deletion marker referencing another file.
+    fs::write(path.join("00000000.del"), 3u32.to_be_bytes())?;
+    fs::write(path.join("00000003.sst"), b"pending-deletion")?;
+
+    let snapshot = snapshot_dir(path)?;
+
+    let _db: TurboPersistence<RayonParallelScheduler, 1> =
+        TurboPersistence::open_read_only_with_config(path.to_path_buf(), DbConfig::default())?;
+
+    assert_eq!(
+        snapshot,
+        snapshot_dir(path)?,
+        "read-only open must not change the directory contents"
+    );
+    Ok(())
+}
+
+/// Opening a directory without a CURRENT file in read-only mode must fail
+/// instead of initializing a fresh database in it.
+#[test]
+fn read_only_open_without_current_fails() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let result: Result<TurboPersistence<RayonParallelScheduler, 1>> =
+        TurboPersistence::open_read_only_with_config(path.to_path_buf(), DbConfig::default());
+    assert!(result.is_err());
+    assert!(
+        fs::read_dir(path)?.next().is_none(),
+        "directory must stay empty"
+    );
+    Ok(())
+}
+
+fn snapshot_dir(path: &Path) -> Result<Vec<(String, Vec<u8>)>> {
+    let mut entries = Vec::new();
+    for entry in fs::read_dir(path)? {
+        let entry = entry?;
+        entries.push((
+            entry.file_name().to_string_lossy().into_owned(),
+            fs::read(entry.path())?,
+        ));
+    }
+    entries.sort();
+    Ok(entries)
 }
