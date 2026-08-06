@@ -1988,6 +1988,41 @@ describe('request insights', () => {
     }
   })
 
+  it('reuses cached byte lengths when projecting unchanged retained groups', () => {
+    const controller = new RequestInsights()
+    controller.recordFetch(
+      { requestId: 'root', rootRequestId: 'root', source: 'page' },
+      { url: '/root', startTime: 1, durationMs: 1 }
+    )
+    controller.recordFetch(
+      { requestId: 'child', rootRequestId: 'root', source: 'app-route' },
+      { url: '/child', startTime: 2, durationMs: 1 }
+    )
+
+    const stringify = jest.spyOn(JSON, 'stringify')
+    try {
+      controller.getSnapshot()
+      controller.getSnapshot()
+
+      expect(
+        stringify.mock.calls.some(([value]) => {
+          if (Array.isArray(value)) {
+            return value.some(
+              (item) =>
+                typeof item === 'object' && item !== null && 'requestId' in item
+            )
+          }
+          return (
+            typeof value === 'object' && value !== null && 'requestId' in value
+          )
+        })
+      ).toBe(false)
+    } finally {
+      stringify.mockRestore()
+      controller.dispose()
+    }
+  })
+
   it('projects whole logical roots fairly under the snapshot byte cap', () => {
     const maxSnapshotBytes = 3_500
     const controller = new RequestInsights({ maxSnapshotBytes })
