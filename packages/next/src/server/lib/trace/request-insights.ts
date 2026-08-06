@@ -2,6 +2,7 @@ import type { AttributeValue } from 'next/dist/compiled/@opentelemetry/api'
 import type {
   RequestInsight,
   RequestInsightFetch,
+  RequestInsightResponse,
   RequestInsightSpan,
   RequestInsightsCaptureState,
   RequestInsightsLiveSnapshot,
@@ -69,6 +70,19 @@ const MAX_REQUEST_INSIGHT_RAW_URL_LENGTH = 64 * 1024
 const MAX_REQUEST_INSIGHT_ATTRIBUTE_ARRAY_LENGTH = 8
 const CLIENT_COMPONENT_LOADING_SPAN_TYPE =
   'NextNodeServer.clientComponentLoading'
+const SAFE_RESPONSE_ERROR_TYPES = new Set([
+  'AbortError',
+  'AggregateError',
+  'Error',
+  'EvalError',
+  'RangeError',
+  'ReferenceError',
+  'ResponseAborted',
+  'SyntaxError',
+  'TypeError',
+  'URIError',
+  'UnknownResponseError',
+])
 
 export type RequestInsightsListener = (
   insight: RequestInsight,
@@ -273,12 +287,16 @@ export class RequestInsights {
       span.durationMs,
       span.attributes?.['next.span_type'] === REQUEST_INSIGHT_REQUEST_SPAN_TYPE
     )
-    insight.status =
-      insight.status === 'error' || span.status === 'error'
-        ? 'error'
-        : span.status === 'ok'
-          ? 'ok'
-          : insight.status
+    if (insight.status === 'aborted') {
+      // An actual client disconnect is authoritative over abort-shaped errors
+      // emitted later while the response stream is being cleaned up.
+    } else if (insight.status === 'error' || span.status === 'error') {
+      insight.status = 'error'
+    } else if (insight.response?.outcome === 'pending') {
+      insight.status = 'pending'
+    } else if (span.status === 'ok') {
+      insight.status = 'ok'
+    }
 
     this.recordSpanForInsight(insight, sanitizeSpan(span, spanStartTime))
     const fetch = getFetchInsight(span)
@@ -539,6 +557,99 @@ export class RequestInsights {
     this.nextRootRequestSequence = 0
   }
 
+  startResponse(identity: RequestInsightIdentity, trackingStartTime: number) {
+    if (this.disposed || !identity.requestId) {
+      return
+    }
+
+    const sanitizedTrackingStartTime = Number.isFinite(trackingStartTime)
+      ? trackingStartTime
+      : getCurrentTimestamp()
+    const insight = this.getOrCreateRequest(
+      identity,
+      sanitizedTrackingStartTime
+    )
+    if (!insight) {
+      return
+    }
+    if (insight.response) {
+      return
+    }
+
+    insight.response = {
+      trackingStartTime: sanitizedTrackingStartTime,
+      outcome: 'pending',
+    }
+    if (insight.status !== 'error' && insight.status !== 'aborted') {
+      insight.status = 'pending'
+    }
+    this.updateTiming(insight, sanitizedTrackingStartTime, undefined, false)
+    this.enforceInsightByteBudget(insight)
+    this.finishMutation(insight)
+  }
+
+  completeResponse(
+    identity: RequestInsightIdentity,
+    response: RequestInsightResponse
+  ) {
+    if (
+      this.disposed ||
+      !identity.requestId ||
+      response.outcome === 'pending'
+    ) {
+      return
+    }
+
+    const insight = this.requests.get(
+      getRequestInsightKey({
+        requestId: identity.requestId,
+        kind: identity.kind,
+      })
+    )
+    if (insight?.response?.outcome !== 'pending') {
+      return
+    }
+
+    const trackingStartTime = Number.isFinite(response.trackingStartTime)
+      ? response.trackingStartTime
+      : insight.response.trackingStartTime
+    const endTime = Math.max(
+      trackingStartTime,
+      Number.isFinite(response.endTime) ? response.endTime! : trackingStartTime
+    )
+    const statusCode = Number.isFinite(response.statusCode)
+      ? response.statusCode
+      : undefined
+
+    insight.response = {
+      trackingStartTime,
+      endTime,
+      statusCode,
+      outcome: response.outcome,
+      error: sanitizeResponseError(response.error),
+    }
+    this.updateTiming(
+      insight,
+      trackingStartTime,
+      endTime - trackingStartTime,
+      false
+    )
+
+    if (
+      insight.status === 'error' ||
+      response.outcome === 'errored' ||
+      (statusCode !== undefined && statusCode >= 500)
+    ) {
+      insight.status = 'error'
+    } else if (response.outcome === 'aborted') {
+      insight.status = 'aborted'
+    } else {
+      insight.status = 'ok'
+    }
+    this.enforceInsightByteBudget(insight)
+    this.finishMutation(insight)
+  }
+
   private updateTiming(
     insight: RequestInsight,
     startTime: number,
@@ -550,15 +661,20 @@ export class RequestInsights {
     if (isRequestSpan && durationMs !== undefined) {
       const timing = { startTime, durationMs: nextDurationMs }
       this.requestTimings.set(requestKey, timing)
-      insight.startTime = timing.startTime
-      insight.durationMs = timing.durationMs
-      return
     }
 
     const requestTiming = this.requestTimings.get(requestKey)
     if (requestTiming) {
-      insight.startTime = requestTiming.startTime
-      insight.durationMs = requestTiming.durationMs
+      const response = insight.response
+      const combinedStartTime = response
+        ? Math.min(requestTiming.startTime, response.trackingStartTime)
+        : requestTiming.startTime
+      const endTime = Math.max(
+        requestTiming.startTime + requestTiming.durationMs,
+        response?.endTime ?? combinedStartTime
+      )
+      insight.startTime = combinedStartTime
+      insight.durationMs = endTime - combinedStartTime
       return
     }
 
@@ -1438,6 +1554,18 @@ function sanitizeSpanName(
   )
 }
 
+function sanitizeResponseError(
+  error: RequestInsightResponse['error']
+): RequestInsightResponse['error'] {
+  if (!error?.type) {
+    return undefined
+  }
+
+  return {
+    type: SAFE_RESPONSE_ERROR_TYPES.has(error.type) ? error.type : 'Error',
+  }
+}
+
 function sanitizeSpanAttributes(
   attributes: SpanStoreRecord['attributes'],
   sanitizedSpanName: string | undefined,
@@ -1730,6 +1858,14 @@ function hasSameRequestInsightOrder(
 function cloneRequestInsight(insight: RequestInsight): RequestInsight {
   return {
     ...insight,
+    response: insight.response
+      ? {
+          ...insight.response,
+          error: insight.response.error
+            ? { ...insight.response.error }
+            : undefined,
+        }
+      : undefined,
     spans: insight.spans.map((span) => ({
       ...span,
       attributes: cloneAttributes(span.attributes),
