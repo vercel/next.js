@@ -22,6 +22,10 @@ export async function runLoaderWorkerPool(
         workerData: {
           bindingPath,
           cwd,
+          // The worker reports these exact options when it has booted:
+          // process.argv is inherited from the parent and cannot be used to
+          // identify the entrypoint.
+          filename,
         },
       })
 
@@ -31,7 +35,30 @@ export async function runLoaderWorkerPool(
       const workers =
         loaderWorkers[poolId] || (loaderWorkers[poolId] = new Map())
 
-      workers.set(worker.threadId, worker)
+      // The thread id must be captured up-front: by the time the 'error' and
+      // 'exit' events fire, `worker.threadId` has already reset to -1.
+      const threadId = worker.threadId
+      workers.set(threadId, worker)
+
+      const reportWorkerDeath = () => {
+        // Intentional terminations remove the worker from the map before
+        // terminating it, so a worker that is no longer registered died on
+        // purpose and must not be reported again. Any exit while still
+        // registered is unexpected, including a clean `process.exit(0)`.
+        // `workerDied` may also be absent when the loaded native binding
+        // predates it; in that case there is nothing to notify.
+        if (!workers.has(threadId) || typeof bindings.workerDied !== 'function') {
+          return
+        }
+        workers.delete(threadId)
+        bindings.workerDied({
+          options: { filename, cwd },
+          workerId: threadId,
+        })
+      }
+
+      worker.once('error', reportWorkerDeath)
+      worker.once('exit', reportWorkerDeath)
     },
     (termination) => {
       const {

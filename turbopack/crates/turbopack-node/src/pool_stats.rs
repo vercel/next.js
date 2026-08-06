@@ -44,6 +44,15 @@ impl NodeJsPoolStats {
         self.booting_workers = self.booting_workers.saturating_sub(1);
     }
 
+    /// A worker that was being booted died before it could be used: both the
+    /// booting counter and the total worker counter have to be decremented or
+    /// the pool statistics leak a phantom worker per boot crash.
+    #[allow(unused)]
+    pub fn failed_booting_worker(&mut self) {
+        self.booting_workers = self.booting_workers.saturating_sub(1);
+        self.workers = self.workers.saturating_sub(1);
+    }
+
     pub fn remove_worker(&mut self) {
         self.workers = self.workers.saturating_sub(1);
     }

@@ -15,7 +15,7 @@ use turbo_rcstr::RcStr;
 
 use crate::worker_pool::{
     WorkerOptions,
-    operation::{TaskMessage, WORKER_POOL_OPERATION},
+    operation::{TaskMessage, WORKER_POOL_OPERATION, WorkerDeath},
 };
 
 static WORKER_CREATOR: OnceLock<ThreadsafeFunction<NapiWorkerCreation, ErrorStrategy::Fatal>> =
@@ -25,7 +25,11 @@ static WORKER_TERMINATOR: OnceLock<
     ThreadsafeFunction<NapiWorkerTermination, ErrorStrategy::Fatal>,
 > = OnceLock::new();
 
-static PENDING_CREATIONS: OnceLock<Mutex<VecDeque<oneshot::Sender<u32>>>> = OnceLock::new();
+/// Creations are tagged with their pool options: boot completion (and boot
+/// failure) must be paired with the creation for the same pool, not just the
+/// oldest one globally.
+static PENDING_CREATIONS: OnceLock<Mutex<VecDeque<(Arc<WorkerOptions>, oneshot::Sender<u32>)>>> =
+    OnceLock::new();
 
 // Allow dead_code for test builds where napi exports are not entry points
 #[allow(dead_code)]
@@ -71,7 +75,7 @@ pub async fn create_worker(options: Arc<WorkerOptions>) -> anyhow::Result<u32> {
             .lock()
             .entry(options.clone())
             .or_default();
-        pending.lock().push_back(tx);
+        pending.lock().push_back((options.clone(), tx));
     }
 
     if let Some(creator) = WORKER_CREATOR.get() {
@@ -86,17 +90,51 @@ pub async fn create_worker(options: Arc<WorkerOptions>) -> anyhow::Result<u32> {
     }
 
     let worker_id = rx.await?;
+
+    // The boot completed: balance the booting counter here (not in the
+    // caller) so that every later death classification sees a uniform state
+    // for created workers. A boot that fails never reaches this point; the
+    // death path balances it with the matching pending creation instead.
+    if let Some(state) = WORKER_POOL_OPERATION
+        .pools
+        .lock()
+        .get(options.as_ref())
+        .cloned()
+    {
+        state.stats.lock().finished_booting_worker();
+    }
+
     Ok(worker_id)
 }
 
+/// Called from a worker once it finished booting. The worker reports the
+/// options it was created with (its entry filename and cwd) so the creation
+/// can be paired with the pending request for the same pool instead of
+/// blindly taking the oldest slot of any pool.
 // Allow dead_code for test builds where napi exports are not entry points
 #[allow(dead_code)]
 #[napi]
-pub fn worker_created(worker_id: u32) {
-    if let Some(pending) = PENDING_CREATIONS.get()
-        && let Some(tx) = pending.lock().pop_front()
-    {
-        let _ = tx.send(worker_id);
+pub fn worker_created(creation: NapiWorkerTermination) {
+    let NapiWorkerTermination { options, worker_id } = creation;
+    WORKER_POOL_OPERATION.mark_worker_created(worker_id);
+    if let Some(pending) = PENDING_CREATIONS.get() {
+        let tx = {
+            let mut pending = pending.lock();
+            let position = pending.iter().position(|(pending_options, _)| {
+                pending_options.filename == options.filename && pending_options.cwd == options.cwd
+            });
+            // Fall back to the oldest slot if the reported options do not
+            // match any pending creation exactly (e.g. path normalization
+            // differences): a mispaired worker is interchangeable, a pending
+            // creation that is never completed hangs.
+            position
+                .or(if pending.is_empty() { None } else { Some(0) })
+                .and_then(|position| pending.remove(position))
+                .map(|(_, tx)| tx)
+        };
+        if let Some(tx) = tx {
+            let _ = tx.send(worker_id);
+        }
     }
 }
 
@@ -140,6 +178,56 @@ where
 pub struct NapiWorkerTermination {
     pub options: NapiWorkerOptions,
     pub worker_id: u32,
+}
+
+/// Called from JavaScript when a pooled worker died unexpectedly (uncaught
+/// exception, `process.exit`, OOM). Intentional terminations do not reach
+/// this: the terminator removes the worker from the JavaScript-side map
+/// before terminating it, so the death is not reported.
+// Allow dead_code for test builds where napi exports are not entry points
+#[allow(dead_code)]
+#[napi]
+pub fn worker_died(termination: NapiWorkerTermination) {
+    let NapiWorkerTermination { options, worker_id } = termination;
+    let worker_options = Arc::new(WorkerOptions {
+        filename: options.filename.clone(),
+        cwd: options.cwd.clone(),
+    });
+
+    match WORKER_POOL_OPERATION.handle_worker_death(worker_options.clone(), worker_id) {
+        WorkerDeath::BootFailed => {
+            // The worker never reported itself as created, so it died while
+            // booting. Fail the pending creation *for the same pool* (failing
+            // an unrelated pool's creation would both hang this one and leak
+            // the other): dropping the sender errors the receiver, and the
+            // pool's booting statistics are balanced so no phantom worker
+            // remains.
+            if let Some(pending) = PENDING_CREATIONS.get() {
+                let failed = {
+                    let mut pending = pending.lock();
+                    pending
+                        .iter()
+                        .position(|(pending_options, _)| {
+                            pending_options.filename == options.filename
+                                && pending_options.cwd == options.cwd
+                        })
+                        .and_then(|position| pending.remove(position))
+                };
+                if let Some((failed_options, tx)) = failed {
+                    drop(tx);
+                    if let Some(state) = WORKER_POOL_OPERATION
+                        .pools
+                        .lock()
+                        .get(failed_options.as_ref())
+                        .cloned()
+                    {
+                        state.stats.lock().failed_booting_worker();
+                    }
+                }
+            }
+        }
+        WorkerDeath::Busy | WorkerDeath::Idle | WorkerDeath::CreatedUnassigned => {}
+    }
 }
 
 // Allow dead_code for test builds where napi exports are not entry points
