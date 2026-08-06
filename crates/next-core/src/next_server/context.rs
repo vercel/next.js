@@ -708,8 +708,7 @@ pub async fn get_server_module_options_context(
                     enable_jsx: Some(jsx_runtime_options),
                     enable_typescript_transform: Some(tsconfig),
                     enable_decorators: Some(decorators_options.to_resolved().await?),
-                    // React Compiler optimizes client runtime semantics. Keep App SSR aligned with
-                    // the existing Babel integration, which only runs it for the browser context.
+                    // React Compiler only optimizes the React client runtime, so skip it.
                     enable_rust_react_compiler: None,
                     ..module_options_context.ecmascript
                 },
