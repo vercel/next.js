@@ -39,8 +39,10 @@ describe('adapter output - styled-jsx', () => {
     const indexOutput = buildComplete.outputs.pages.find(
       (output) => output.id === '/index'
     )
-    expect(indexOutput).toBeDefined()
-    declaredAssets = new Set(Object.values(indexOutput!.assets))
+    if (!indexOutput) {
+      throw new Error('missing pages output for /index')
+    }
+    declaredAssets = new Set(Object.values(indexOutput.assets))
 
     // Resolve the same way next/dist/server/require-hook does at runtime: the aliases it registers
     // (`defaultOverrides`), resolved from Next.js' own location inside the app that was built.
