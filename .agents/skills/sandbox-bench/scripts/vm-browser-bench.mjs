@@ -62,18 +62,23 @@ function metricsMap(res) {
 // wait itself runs no in-page JS (CDP counters + wall-clock sleeps), so it
 // doesn't perturb what it measures.
 const SETTLE_WINDOW_MS = 250
+// Two consecutive quiet windows: a single one would declare quiescence
+// during any scheduling gap longer than the window itself.
+const SETTLE_QUIET_WINDOWS = 2
 const SETTLE_EPS_MS = 0.5
 const SETTLE_TIMEOUT_MS = 10_000
 
 async function settledMetrics(page, cdp) {
   let prev = metricsMap(await cdp.send('Performance.getMetrics'))
   const start = Date.now()
+  let quiet = 0
   for (;;) {
     await new Promise((r) => setTimeout(r, SETTLE_WINDOW_MS))
     const cur = metricsMap(await cdp.send('Performance.getMetrics'))
     const deltaMs = (cur.get('TaskDuration') - prev.get('TaskDuration')) * 1000
-    if (deltaMs < SETTLE_EPS_MS) return cur
     prev = cur
+    quiet = deltaMs < SETTLE_EPS_MS ? quiet + 1 : 0
+    if (quiet >= SETTLE_QUIET_WINDOWS) return cur
     if (Date.now() - start > SETTLE_TIMEOUT_MS) return cur
   }
 }
@@ -114,6 +119,16 @@ async function measureRoute(browser, route, navTarget) {
       }
     })
     const loadMetrics = await settledMetrics(page, cdp)
+    // Post-GC heap is retained memory; without the collection the reading
+    // is whatever allocation phase the page happened to be in.
+    let heapMb = null
+    try {
+      await cdp.send('HeapProfiler.collectGarbage')
+      const afterGc = metricsMap(await cdp.send('Performance.getMetrics'))
+      heapMb = afterGc.get('JSHeapUsedSize') / 1048576
+    } catch {
+      heapMb = loadMetrics.get('JSHeapUsedSize') / 1048576
+    }
     const load = {
       ...timings,
       // hydratedMs counts from navigationStart, so it includes server time;
@@ -125,7 +140,7 @@ async function measureRoute(browser, route, navTarget) {
           : null,
       scriptMs: loadMetrics.get('ScriptDuration') * 1000,
       taskMs: loadMetrics.get('TaskDuration') * 1000,
-      heapMb: loadMetrics.get('JSHeapUsedSize') / 1048576,
+      heapMb,
     }
 
     // Client-side navigation. window.next.router is the App Router's

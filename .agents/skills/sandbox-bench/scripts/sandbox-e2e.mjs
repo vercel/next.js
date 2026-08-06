@@ -663,12 +663,16 @@ for run in $(seq 1 ${total}); do
       cfg.browser
         ? `# Timed browser phase: same pairing as the HTTP phases, own port
     # per arm so a stale server can't be measured as the other arm.
+    # Server and browser get disjoint CPU sets so server render time and
+    # browser JS don't contend — wall milestones (ttfb, hydrate) stay
+    # attributable. Chromium's child processes inherit the affinity.
+    if command -v taskset >/dev/null 2>&1; then TSRV="taskset -c 0-3"; TBB="taskset -c 4-7"; else TSRV=""; TBB=""; fi
     if [ "$arm" = "${base}" ]; then BPORT=3730; else BPORT=3731; fi
     cd /vercel/sandbox/next-$arm/bench/basic-app
-    NEXT_TELEMETRY_DISABLED=1 node ../../packages/next/dist/bin/next start -p $BPORT >/tmp/bsrv.log 2>&1 & BSRV=$!
+    NEXT_TELEMETRY_DISABLED=1 $TSRV node ../../packages/next/dist/bin/next start -p $BPORT >/tmp/bsrv.log 2>&1 & BSRV=$!
     for i in $(seq 1 150); do curl -sf -o /dev/null http://127.0.0.1:$BPORT/ 2>/dev/null && break; kill -0 $BSRV || (tail -5 /tmp/bsrv.log; exit 1); sleep 0.2; done
     cd /vercel/sandbox/next-$arm
-    PLAYWRIGHT_BROWSERS_PATH=/vercel/sandbox/pw-browsers node /vercel/sandbox/browser-bench.mjs \\
+    PLAYWRIGHT_BROWSERS_PATH=/vercel/sandbox/pw-browsers $TBB node /vercel/sandbox/browser-bench.mjs \\
       --base-url=http://127.0.0.1:$BPORT --routes=${cfg.routes} \\
       --iterations=${cfg.browserIterations} --warmup=2 --cpu-throttle=${cfg.browserThrottle} \\
       --tree=/vercel/sandbox/next-$arm --json-out=/tmp/bb.json 2>/tmp/bb.log \\
