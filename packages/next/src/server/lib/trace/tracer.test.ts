@@ -571,8 +571,9 @@ describe('local span recording', () => {
       DevBundlerServiceSpan.analyzeRoute,
       DevBundlerServiceSpan.buildRoute,
     ]
+    const vanillaSpanAllowlist = NextVanillaSpanAllowlist as ReadonlySet<string>
     for (const spanType of routeSpanTypes) {
-      expect(NextVanillaSpanAllowlist.has(spanType)).toBe(false)
+      expect(vanillaSpanAllowlist.has(spanType)).toBe(false)
     }
 
     context.disable()
