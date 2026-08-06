@@ -12,6 +12,21 @@ import {
 import { runWithRequestInsights } from './request-insights-runtime'
 import { recordSpan } from './span-store'
 import { getRequestInsightRouterActivity } from './request-insights-router-activity'
+import {
+  createRequestInsightsRetentionContext,
+  isRequestInsightsRetentionContextOpen,
+} from './request-insights-identity'
+import {
+  createBoundedRequestInsightsSnapshotProjection,
+  REQUEST_INSIGHTS_MAX_BYTES_PER_RETENTION_BUCKET,
+  REQUEST_INSIGHTS_MAX_BYTES_PER_RECORD,
+  REQUEST_INSIGHTS_MAX_BYTES_PER_SPAN,
+  REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET,
+  REQUEST_INSIGHTS_MAX_RETAINED_BYTES,
+  REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES,
+  getRequestInsightsSerializedByteLength,
+  type RequestInsight,
+} from '../../../next-devtools/shared/request-insights'
 
 const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
 const originalDevServer = process.env.__NEXT_DEV_SERVER
@@ -136,56 +151,58 @@ describe('request insights', () => {
       },
     })
 
-    expect(getRequestInsightsSnapshot()).toEqual({
-      requests: [
-        expect.objectContaining({
-          requestId: 'req_1',
-          htmlRequestId: 'html_1',
-          route: '/products/[id]',
-          durationMs: 50,
-          status: 'ok',
-          spans: expect.arrayContaining([
-            expect.objectContaining({
-              name: 'fetch GET https://example.vercel.sh/',
-              attributes: expect.objectContaining({
-                'next.span_category': 'application',
+    expect(getRequestInsightsSnapshot()).toEqual(
+      expect.objectContaining({
+        requests: [
+          expect.objectContaining({
+            requestId: 'req_1',
+            htmlRequestId: 'html_1',
+            route: '/products/[id]',
+            durationMs: 50,
+            status: 'ok',
+            spans: expect.arrayContaining([
+              expect.objectContaining({
+                name: 'fetch GET https://example.vercel.sh/',
+                attributes: expect.objectContaining({
+                  'next.span_category': 'application',
+                }),
               }),
-            }),
-            expect.objectContaining({
-              traceId: 'trace_1',
-              spanId: 'span_1',
-              attributes: expect.objectContaining({
-                'next.span_category': 'nextjs',
+              expect.objectContaining({
+                traceId: 'trace_1',
+                spanId: 'span_1',
+                attributes: expect.objectContaining({
+                  'next.span_category': 'nextjs',
+                }),
+                events: [
+                  {
+                    name: 'metadata ready',
+                    timestamp: 130,
+                  },
+                ],
+                links: [
+                  {
+                    traceId: 'linked_trace',
+                    spanId: 'linked_span',
+                  },
+                ],
               }),
-              events: [
-                {
-                  name: 'metadata ready',
-                  timestamp: 130,
-                },
-              ],
-              links: [
-                {
-                  traceId: 'linked_trace',
-                  spanId: 'linked_span',
-                },
-              ],
-            }),
-          ]),
-          fetches: [
-            {
-              url: 'https://example.vercel.sh/',
-              method: 'GET',
-              statusCode: 200,
-              startTime: 120,
-              durationMs: 25,
-              cacheStatus: 'skip',
-              cacheReason: 'cache: no-store',
-              index: 1,
-            },
-          ],
-        }),
-      ],
-    })
+            ]),
+            fetches: [
+              {
+                url: 'https://example.vercel.sh/',
+                method: 'GET',
+                statusCode: 200,
+                startTime: 120,
+                durationMs: 25,
+                cacheStatus: 'skip',
+                cacheReason: 'cache: no-store',
+                index: 1,
+              },
+            ],
+          }),
+        ],
+      })
+    )
   })
 
   test('notifies subscribers when a request insight changes', () => {
@@ -571,24 +588,26 @@ describe('request insights', () => {
       }
     )
 
-    expect(getRequestInsightsSnapshot()).toEqual({
-      requests: [
-        expect.objectContaining({
-          requestId: 'req_3',
-          htmlRequestId: 'html_3',
-          route: '/reports',
-          durationMs: 75,
-          fetches: [
-            expect.objectContaining({
-              url: 'https://example.vercel.sh/api',
-              startTime: 200,
-              durationMs: 75,
-              cacheStatus: 'miss',
-            }),
-          ],
-        }),
-      ],
-    })
+    expect(getRequestInsightsSnapshot()).toEqual(
+      expect.objectContaining({
+        requests: [
+          expect.objectContaining({
+            requestId: 'req_3',
+            htmlRequestId: 'html_3',
+            route: '/reports',
+            durationMs: 75,
+            fetches: [
+              expect.objectContaining({
+                url: 'https://example.vercel.sh/api',
+                startTime: 200,
+                durationMs: 75,
+                cacheStatus: 'miss',
+              }),
+            ],
+          }),
+        ],
+      })
+    )
   })
 
   test('redacts sensitive request insight payload fields', () => {
@@ -763,5 +782,816 @@ describe('request insights', () => {
         )
       )
     ).not.toContain('sk_live_SENTINEL')
+  })
+
+  it('retains independent newest suffixes for each fixed request bucket', () => {
+    const controller = new RequestInsights({ maxRequestGroupsPerBucket: 2 })
+    try {
+      for (const [source, prefix] of [
+        ['page', 'page'],
+        ['app-route', 'api'],
+        ['asset', 'asset'],
+        ['proxy', 'proxy'],
+        ['instant-insights', 'instant'],
+        ['unknown', 'unknown'],
+      ] as const) {
+        for (let index = 0; index < 3; index++) {
+          controller.recordFetch(
+            {
+              requestId: `${prefix}-${index}`,
+              rootRequestId: `${prefix}-${index}`,
+              source,
+              kind:
+                source === 'instant-insights' ? 'instant-insights' : 'request',
+            },
+            { url: `/${prefix}/${index}`, startTime: index, durationMs: 1 }
+          )
+        }
+      }
+
+      const capture = controller.getCaptureState()
+      expect(capture.usage.retainedRequestGroupCount).toBe(12)
+      for (const bucket of capture.usage.buckets) {
+        expect(bucket).toEqual(
+          expect.objectContaining({
+            retainedRequestGroupCount: 2,
+            evictedRequestGroupCount: 1,
+          })
+        )
+      }
+      expect(
+        controller.getSnapshot().requests.map((request) => request.requestId)
+      ).not.toContain('page-0')
+      expect(
+        controller.getSnapshot().requests.map((request) => request.requestId)
+      ).toContain('page-2')
+    } finally {
+      controller.dispose()
+    }
+  })
+
+  it('enforces per-bucket and aggregate retained byte ceilings', () => {
+    const perBucket = new RequestInsights({
+      maxBytesPerRetentionBucket: 1_200,
+      maxRetainedBytes: 100_000,
+    })
+    const aggregate = new RequestInsights({
+      maxBytesPerRetentionBucket: 100_000,
+      maxRetainedBytes: 1_500,
+    })
+    try {
+      for (let index = 0; index < 10; index++) {
+        perBucket.recordSpan({
+          name: `page-${index}-${'x'.repeat(400)}`,
+          timestamp: index,
+          requestId: `page-${index}`,
+          rootRequestId: `page-${index}`,
+          requestInsightSource: 'page',
+        })
+      }
+      const pageUsage = perBucket
+        .getCaptureState()
+        .usage.buckets.find((bucket) => bucket.bucket === 'page')!
+      expect(pageUsage.retainedBytes).toBeLessThanOrEqual(1_200)
+      expect(pageUsage.evictedRequestGroupCount).toBeGreaterThan(0)
+
+      for (let index = 0; index < 10; index++) {
+        aggregate.recordSpan({
+          name: `${'x'.repeat(300)}-${index}`,
+          timestamp: index,
+          requestId: `global-${index}`,
+          rootRequestId: `global-${index}`,
+          requestInsightSource: index % 2 === 0 ? 'page' : 'app-route',
+        })
+      }
+      const aggregateCapture = aggregate.getCaptureState()
+      expect(aggregateCapture.usage.retainedBytes).toBeLessThanOrEqual(1_500)
+      expect(
+        aggregateCapture.usage.buckets.reduce(
+          (total, bucket) => total + bucket.evictedRequestGroupCount,
+          0
+        )
+      ).toBeGreaterThan(0)
+    } finally {
+      perBucket.dispose()
+      aggregate.dispose()
+    }
+  })
+
+  it('reports retained bytes from the serialized record payloads', () => {
+    const controller = new RequestInsights()
+    try {
+      controller.recordSpan({
+        name: 'page span',
+        timestamp: 1,
+        requestId: 'page-bytes',
+        rootRequestId: 'page-bytes',
+        requestInsightSource: 'page',
+      })
+      controller.recordSpan({
+        name: 'api span',
+        timestamp: 2,
+        requestId: 'api-bytes',
+        rootRequestId: 'api-bytes',
+        requestInsightSource: 'app-route',
+      })
+
+      const snapshot = controller.getSnapshot()
+      const expectedBytes = snapshot.requests.reduce(
+        (total, request) =>
+          total + Buffer.byteLength(JSON.stringify(request), 'utf8'),
+        0
+      )
+      expect(snapshot.capture?.usage.retainedBytes).toBe(expectedBytes)
+      expect(
+        snapshot.capture?.usage.buckets.reduce(
+          (total, bucket) => total + bucket.retainedBytes,
+          0
+        )
+      ).toBe(expectedBytes)
+    } finally {
+      controller.dispose()
+    }
+  })
+
+  it('bounds spans, fetches, record bytes, and reports irreversible loss', () => {
+    const controller = new RequestInsights()
+    try {
+      for (let index = 0; index < 205; index++) {
+        controller.recordSpan({
+          name: `operation-${index}-${'x'.repeat(400)}`,
+          timestamp: index,
+          requestId: 'bounded-record',
+          rootRequestId: 'bounded-record',
+        })
+        controller.recordFetch(
+          {
+            requestId: 'bounded-record',
+            rootRequestId: 'bounded-record',
+          },
+          {
+            url: `/fetch/${index}`,
+            startTime: index + 0.5,
+            durationMs: 1,
+            index,
+          }
+        )
+      }
+
+      const request = controller.getSnapshot().requests[0]
+      expect(request.spans.length).toBeLessThanOrEqual(200)
+      expect(request.fetches.length).toBeLessThanOrEqual(200)
+      expect(request.truncatedSpanCount).toBeGreaterThan(0)
+      expect(request.truncatedFetchCount).toBeGreaterThan(0)
+      expect(
+        Buffer.byteLength(JSON.stringify(request), 'utf8')
+      ).toBeLessThanOrEqual(REQUEST_INSIGHTS_MAX_BYTES_PER_RECORD)
+    } finally {
+      controller.dispose()
+    }
+  })
+
+  it('keeps exactly the newest 200 small spans and fetches per record', () => {
+    const controller = new RequestInsights()
+    try {
+      for (let index = 0; index < 205; index++) {
+        controller.recordSpan({
+          name: `s${index}`,
+          timestamp: index,
+          requestId: 'span-cap',
+          rootRequestId: 'span-cap',
+        })
+        controller.recordFetch(
+          { requestId: 'fetch-cap', rootRequestId: 'fetch-cap' },
+          { url: `/f/${index}`, startTime: index, index }
+        )
+      }
+
+      const requests = controller.getSnapshot().requests
+      const spanRequest = requests.find(
+        (request) => request.requestId === 'span-cap'
+      )!
+      const fetchRequest = requests.find(
+        (request) => request.requestId === 'fetch-cap'
+      )!
+      expect(spanRequest.spans).toHaveLength(200)
+      expect(spanRequest.spans[0].name).toBe('s5')
+      expect(spanRequest.truncatedSpanCount).toBe(5)
+      expect(fetchRequest.fetches).toHaveLength(200)
+      expect(fetchRequest.fetches[0].url).toBe('/f/5')
+      expect(fetchRequest.truncatedFetchCount).toBe(5)
+    } finally {
+      controller.dispose()
+    }
+  })
+
+  it('bounds individual spans and reports event, link, and metadata loss', () => {
+    const controller = new RequestInsights()
+    try {
+      controller.recordSpan({
+        name: 'x'.repeat(10_000),
+        timestamp: 1,
+        requestId: 'bounded-span',
+        rootRequestId: 'bounded-span',
+        attributes: {
+          'next.span_type': 'test.bounded',
+          'next.span_name': 'y'.repeat(10_000),
+          'next.segment': Array.from(
+            { length: 30 },
+            (_, index) => `segment-${index}-${'z'.repeat(100)}`
+          ),
+        },
+        events: Array.from({ length: 25 }, (_, index) => ({
+          name: `event-${index}-${'e'.repeat(500)}`,
+          timestamp: index,
+          attributes: { 'next.segment': 'a'.repeat(1_000) },
+        })),
+        links: Array.from({ length: 20 }, (_, index) => ({
+          traceId: `trace-${index}`,
+          spanId: `span-${index}`,
+          attributes: { 'next.segment': 'b'.repeat(1_000) },
+        })),
+      })
+
+      const span = controller.getSnapshot().requests[0].spans[0]
+      expect(span.name.length).toBeLessThanOrEqual(512)
+      expect(span.events?.length).toBeLessThanOrEqual(16)
+      expect(span.links?.length).toBeLessThanOrEqual(8)
+      expect(span.truncatedEventCount).toBeGreaterThanOrEqual(9)
+      expect(span.truncatedLinkCount).toBeGreaterThanOrEqual(12)
+      expect(span.truncatedMetadataValueCount).toBeGreaterThan(0)
+      expect(
+        Buffer.byteLength(JSON.stringify(span), 'utf8')
+      ).toBeLessThanOrEqual(REQUEST_INSIGHTS_MAX_BYTES_PER_SPAN)
+    } finally {
+      controller.dispose()
+    }
+  })
+
+  it('bounds each logical root atomically and keeps omission metadata on its root', () => {
+    const controller = new RequestInsights()
+    try {
+      controller.recordFetch(
+        { requestId: 'root', rootRequestId: 'root', source: 'page' },
+        { url: '/root', startTime: 0, durationMs: 1 }
+      )
+      for (let index = 0; index < 16; index++) {
+        controller.recordFetch(
+          {
+            requestId: `child-${index}`,
+            rootRequestId: 'root',
+            source: 'app-route',
+          },
+          { url: `/child/${index}`, startTime: index + 1, durationMs: 1 }
+        )
+      }
+
+      const requests = controller.getSnapshot().requests
+      expect(requests).toHaveLength(15)
+      expect(requests[0]).toEqual(
+        expect.objectContaining({
+          requestId: 'root',
+          omittedRequestCount: 2,
+        })
+      )
+      expect(
+        requests.every((request) => request.rootRequestId === 'root')
+      ).toBe(true)
+    } finally {
+      controller.dispose()
+    }
+  })
+
+  it('closes an evicted root so late spans and fetches cannot resurrect it', () => {
+    const controller = new RequestInsights({ maxRequestGroupsPerBucket: 1 })
+    const evictedRetention = createRequestInsightsRetentionContext()
+    const evictedChildRetention =
+      createRequestInsightsRetentionContext(evictedRetention)
+    try {
+      controller.recordFetch(
+        {
+          requestId: 'evicted',
+          rootRequestId: 'evicted',
+          retention: evictedRetention,
+          source: 'page',
+        },
+        { url: '/evicted', startTime: 1, durationMs: 1 }
+      )
+      controller.recordFetch(
+        {
+          requestId: 'evicted-child',
+          rootRequestId: 'evicted',
+          retention: evictedChildRetention,
+          source: 'app-route',
+        },
+        { url: '/evicted-child', startTime: 1.5, durationMs: 1 }
+      )
+      controller.recordFetch(
+        {
+          requestId: 'retained',
+          rootRequestId: 'retained',
+          retention: createRequestInsightsRetentionContext(),
+          source: 'page',
+        },
+        { url: '/retained', startTime: 2, durationMs: 1 }
+      )
+
+      expect(isRequestInsightsRetentionContextOpen(evictedRetention)).toBe(
+        false
+      )
+      expect(isRequestInsightsRetentionContextOpen(evictedChildRetention)).toBe(
+        false
+      )
+      controller.recordSpan({
+        name: 'late span',
+        timestamp: 3,
+        requestId: 'evicted-child',
+        rootRequestId: 'evicted',
+        requestInsightsRetention: evictedChildRetention,
+      })
+      controller.recordFetch(
+        {
+          requestId: 'evicted',
+          rootRequestId: 'evicted',
+          retention: evictedRetention,
+        },
+        { url: '/late', startTime: 3, durationMs: 1 }
+      )
+
+      expect(
+        controller.getSnapshot().requests.map((request) => request.requestId)
+      ).toEqual(['retained'])
+      expect(
+        controller
+          .getCaptureState()
+          .usage.buckets.find((bucket) => bucket.bucket === 'page')
+          ?.evictedRequestGroupCount
+      ).toBe(1)
+    } finally {
+      controller.dispose()
+    }
+  })
+
+  it('publishes isolated deep clones to snapshots and every subscriber', () => {
+    const controller = new RequestInsights()
+    const firstListener = jest.fn((insight) => {
+      insight.spans[0].name = 'mutated-listener'
+      const segment = insight.spans[0].attributes?.['next.segment']
+      if (Array.isArray(segment)) segment[0] = 'mutated-array'
+    })
+    const secondListener = jest.fn()
+    controller.subscribe(firstListener)
+    controller.subscribe(secondListener)
+    try {
+      controller.recordSpan({
+        name: 'original',
+        timestamp: 1,
+        requestId: 'isolated',
+        rootRequestId: 'isolated',
+        attributes: {
+          'next.segment': ['original-array'],
+        },
+      })
+
+      expect(secondListener.mock.calls[0][0].spans[0].name).toBe('original')
+      expect(
+        secondListener.mock.calls[0][0].spans[0].attributes?.['next.segment']
+      ).toEqual(['original-array'])
+
+      const firstSnapshot = controller.getSnapshot()
+      firstSnapshot.requests[0].spans[0].name = 'mutated-snapshot'
+      ;(
+        firstSnapshot.requests[0].spans[0].attributes?.[
+          'next.segment'
+        ] as string[]
+      )[0] = 'mutated-snapshot-array'
+      const secondSnapshot = controller.getSnapshot()
+      expect(secondSnapshot.requests[0].spans[0].name).toBe('original')
+      expect(
+        secondSnapshot.requests[0].spans[0].attributes?.['next.segment']
+      ).toEqual(['original-array'])
+    } finally {
+      controller.dispose()
+    }
+  })
+
+  it('projects whole logical roots fairly under the snapshot byte cap', () => {
+    const maxSnapshotBytes = 3_500
+    const controller = new RequestInsights({ maxSnapshotBytes })
+    try {
+      for (let index = 0; index < 6; index++) {
+        for (const source of ['page', 'app-route'] as const) {
+          const prefix = source === 'page' ? 'page' : 'api'
+          controller.recordSpan({
+            name: `${prefix}-${index}-${'x'.repeat(400)}`,
+            timestamp: index,
+            requestId: `${prefix}-${index}`,
+            rootRequestId: `${prefix}-${index}`,
+            requestInsightSource: source,
+          })
+        }
+      }
+
+      const snapshot = controller.getSnapshot()
+      expect(
+        getRequestInsightsSerializedByteLength(snapshot)
+      ).toBeLessThanOrEqual(maxSnapshotBytes)
+      expect(snapshot.projection?.omittedRequestGroupCount).toBeGreaterThan(0)
+      expect(
+        snapshot.requests.some((request) => request.source === 'page')
+      ).toBe(true)
+      expect(
+        snapshot.requests.some((request) => request.source === 'app-route')
+      ).toBe(true)
+      expect(snapshot.projection?.buckets).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ bucket: 'page' }),
+          expect.objectContaining({ bucket: 'api' }),
+        ])
+      )
+    } finally {
+      controller.dispose()
+    }
+  })
+
+  it('queries and limits whole logical roots without conflating projection loss with capture eviction', () => {
+    const controller = new RequestInsights({ maxRequestGroupsPerBucket: 3 })
+    try {
+      controller.recordFetch(
+        { requestId: 'root', rootRequestId: 'root', source: 'page' },
+        { url: '/root', startTime: 1, durationMs: 1 }
+      )
+      controller.recordFetch(
+        { requestId: 'child', rootRequestId: 'root', source: 'app-route' },
+        { url: '/child', startTime: 2, durationMs: 1 }
+      )
+      controller.recordFetch(
+        { requestId: 'other', rootRequestId: 'other', source: 'page' },
+        { url: '/other', startTime: 3, durationMs: 1 }
+      )
+      controller.recordFetch(
+        { requestId: 'newest', rootRequestId: 'newest', source: 'page' },
+        { url: '/newest', startTime: 4, durationMs: 1 }
+      )
+
+      const childQuery = controller.getSnapshot({ requestId: 'child' })
+      expect(childQuery.requests.map((request) => request.requestId)).toEqual([
+        'root',
+        'child',
+      ])
+
+      const limited = controller.getSnapshot({ limit: 1 })
+      expect(
+        new Set(limited.requests.map((request) => request.rootRequestId))
+      ).toEqual(new Set(['newest']))
+      expect(limited.projection?.omittedRequestGroupCount).toBe(2)
+      expect(
+        limited.capture?.usage.buckets.find(
+          (bucket) => bucket.bucket === 'page'
+        )?.evictedRequestGroupCount
+      ).toBe(0)
+      expect(
+        getRequestInsightsSerializedByteLength(controller.getSnapshot())
+      ).toBeLessThanOrEqual(REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES)
+    } finally {
+      controller.dispose()
+    }
+  })
+
+  it('counts serialized UTF-8 bytes exactly', () => {
+    for (const value of [
+      'ascii',
+      'é',
+      '😀',
+      '\ud800',
+      'line\nseparator\u2028',
+      { nested: ['😀', 'é', '\udfff'] },
+    ]) {
+      expect(getRequestInsightsSerializedByteLength(value)).toBe(
+        Buffer.byteLength(JSON.stringify(value), 'utf8')
+      )
+    }
+  })
+
+  it('enforces the exact snapshot boundary for UTF-8 logical roots', () => {
+    const createRequest = (
+      requestId: string,
+      source: RequestInsight['source'],
+      route: string
+    ): RequestInsight => ({
+      requestId,
+      rootRequestId: requestId,
+      source,
+      htmlRequestId: requestId,
+      route,
+      startTime: 1,
+      status: 'ok',
+      spans: [],
+      fetches: [],
+    })
+    const groups = Array.from({ length: 6 }, (_, index) => [
+      createRequest(`root-${index}`, 'page', `/é/😀/${index}`),
+    ])
+    const fullSnapshotByteLength = getRequestInsightsSerializedByteLength({
+      requests: groups.flat(),
+    })
+
+    const exact = createBoundedRequestInsightsSnapshotProjection(
+      groups,
+      fullSnapshotByteLength
+    )
+    expect(exact.snapshotByteLength).toBe(fullSnapshotByteLength)
+    expect(exact.snapshot.requests).toHaveLength(groups.length)
+
+    const below = createBoundedRequestInsightsSnapshotProjection(
+      groups,
+      fullSnapshotByteLength - 1
+    )
+    expect(below.snapshotByteLength).toBeLessThanOrEqual(
+      fullSnapshotByteLength - 1
+    )
+    expect(below.snapshot.requests.length).toBeLessThan(groups.length)
+
+    const largeGroups = Array.from({ length: 72 }, (_, index) => [
+      createRequest(`large-${index}`, 'page', `/${'é'.repeat(30_000)}`),
+    ])
+    const bounded = createBoundedRequestInsightsSnapshotProjection(
+      largeGroups,
+      REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES
+    )
+    expect(bounded.snapshotByteLength).toBeLessThanOrEqual(
+      REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES
+    )
+    expect(
+      bounded.snapshot.projection?.omittedRequestGroupCount
+    ).toBeGreaterThan(0)
+  })
+
+  it('uses the canonical root to bucket a child-first projection group', () => {
+    const createRequest = (
+      requestId: string,
+      rootRequestId: string,
+      source: RequestInsight['source']
+    ): RequestInsight => ({
+      requestId,
+      rootRequestId,
+      source,
+      htmlRequestId: rootRequestId,
+      startTime: 1,
+      status: 'ok',
+      spans: [],
+      fetches: [],
+    })
+    const childFirstPageGroup = [
+      createRequest('child', 'root', 'app-route'),
+      createRequest('root', 'root', 'page'),
+    ]
+    const newerApiGroup = [createRequest('api', 'api', 'app-route')]
+
+    const { snapshot } = createBoundedRequestInsightsSnapshotProjection(
+      [childFirstPageGroup, newerApiGroup],
+      REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES,
+      undefined,
+      1
+    )
+    expect(snapshot.requests.map((request) => request.requestId)).toEqual([
+      'api',
+    ])
+    expect(snapshot.projection?.buckets).toEqual([
+      { bucket: 'page', omittedRequestGroupCount: 1 },
+    ])
+  })
+
+  it('keeps creation order when a retained root changes buckets', () => {
+    const controller = new RequestInsights({ maxRequestGroupsPerBucket: 1 })
+    try {
+      controller.recordFetch(
+        { requestId: 'older', rootRequestId: 'older' },
+        { url: '/older', startTime: 1 }
+      )
+      controller.recordFetch(
+        { requestId: 'newer', rootRequestId: 'newer', source: 'page' },
+        { url: '/newer', startTime: 2 }
+      )
+
+      controller.recordSource(
+        { requestId: 'older', rootRequestId: 'older' },
+        'page'
+      )
+
+      expect(
+        controller.getSnapshot().requests.map((request) => request.requestId)
+      ).toEqual(['newer'])
+    } finally {
+      controller.dispose()
+    }
+  })
+
+  it('closes a record omitted from a retained logical root', () => {
+    const controller = new RequestInsights()
+    const rootRetention = createRequestInsightsRetentionContext()
+    const omittedRetention =
+      createRequestInsightsRetentionContext(rootRetention)
+    try {
+      controller.recordFetch(
+        {
+          requestId: 'root',
+          rootRequestId: 'root',
+          retention: rootRetention,
+          source: 'page',
+        },
+        { url: '/root', startTime: 0 }
+      )
+      for (let index = 0; index < 15; index++) {
+        controller.recordFetch(
+          {
+            requestId: `child-${index}`,
+            rootRequestId: 'root',
+            retention:
+              index === 0
+                ? omittedRetention
+                : createRequestInsightsRetentionContext(rootRetention),
+          },
+          { url: `/child/${index}`, startTime: index + 1 }
+        )
+      }
+
+      expect(isRequestInsightsRetentionContextOpen(rootRetention)).toBe(true)
+      expect(isRequestInsightsRetentionContextOpen(omittedRetention)).toBe(
+        false
+      )
+      controller.recordFetch(
+        {
+          requestId: 'child-0',
+          rootRequestId: 'root',
+          retention: omittedRetention,
+        },
+        { url: '/late', startTime: 100 }
+      )
+      const snapshot = controller.getSnapshot()
+      expect(
+        snapshot.requests.some((request) => request.requestId === 'child-0')
+      ).toBe(false)
+      expect(
+        snapshot.requests.find((request) => request.requestId === 'root')
+          ?.omittedRequestCount
+      ).toBe(1)
+    } finally {
+      controller.dispose()
+    }
+  })
+
+  it('rejects a related context created after its root was evicted', () => {
+    const controller = new RequestInsights({ maxRequestGroupsPerBucket: 1 })
+    const evictedRetention = createRequestInsightsRetentionContext()
+    try {
+      controller.recordFetch(
+        {
+          requestId: 'evicted',
+          rootRequestId: 'evicted',
+          retention: evictedRetention,
+          source: 'page',
+        },
+        { url: '/evicted', startTime: 1 }
+      )
+      controller.recordFetch(
+        {
+          requestId: 'retained',
+          rootRequestId: 'retained',
+          retention: createRequestInsightsRetentionContext(),
+          source: 'page',
+        },
+        { url: '/retained', startTime: 2 }
+      )
+
+      const lateChildRetention =
+        createRequestInsightsRetentionContext(evictedRetention)
+      expect(isRequestInsightsRetentionContextOpen(lateChildRetention)).toBe(
+        false
+      )
+      controller.recordFetch(
+        {
+          requestId: 'late-child',
+          rootRequestId: 'evicted',
+          retention: lateChildRetention,
+        },
+        { url: '/late-child', startTime: 3 }
+      )
+      expect(
+        controller.getSnapshot().requests.map((request) => request.requestId)
+      ).toEqual(['retained'])
+    } finally {
+      controller.dispose()
+    }
+  })
+
+  it('keeps late callbacks closed after clear and dispose', () => {
+    const cleared = new RequestInsights()
+    const clearedRetention = createRequestInsightsRetentionContext()
+    cleared.recordFetch(
+      {
+        requestId: 'cleared',
+        rootRequestId: 'cleared',
+        retention: clearedRetention,
+      },
+      { url: '/cleared', startTime: 1 }
+    )
+    cleared.clear()
+    cleared.recordFetch(
+      {
+        requestId: 'cleared',
+        rootRequestId: 'cleared',
+        retention: clearedRetention,
+      },
+      { url: '/late', startTime: 2 }
+    )
+    expect(cleared.getSnapshot().requests).toEqual([])
+    cleared.dispose()
+
+    const disposed = new RequestInsights()
+    const disposedRetention = createRequestInsightsRetentionContext()
+    disposed.recordFetch(
+      {
+        requestId: 'disposed',
+        rootRequestId: 'disposed',
+        retention: disposedRetention,
+      },
+      { url: '/disposed', startTime: 1 }
+    )
+    disposed.dispose()
+    disposed.recordFetch(
+      {
+        requestId: 'disposed',
+        rootRequestId: 'disposed',
+        retention: disposedRetention,
+      },
+      { url: '/late', startTime: 2 }
+    )
+    expect(disposed.getSnapshot()).toEqual({ requests: [] })
+  })
+
+  it('normalizes and copies configurable capture limits once', () => {
+    const mutableOptions = {
+      maxBytesPerRetentionBucket: 1_200.9,
+      maxRetainedBytes: 1_500.9,
+      maxRequestGroupsPerBucket: 2.9,
+      maxSnapshotBytes: 3_500.9,
+    }
+    const controller = new RequestInsights(mutableOptions)
+    mutableOptions.maxRequestGroupsPerBucket = 100
+    expect(controller.getCaptureState().limits).toEqual(
+      expect.objectContaining({
+        maxBytesPerBucket: 1_200,
+        maxRetainedBytes: 1_500,
+        maxRequestGroupsPerBucket: 2,
+        maxSnapshotBytes: 3_500,
+      })
+    )
+    controller.dispose()
+
+    const invalid = new RequestInsights({
+      maxBytesPerRetentionBucket: Number.NaN,
+      maxRetainedBytes: Number.POSITIVE_INFINITY,
+      maxRequestGroupsPerBucket: -1,
+      maxSnapshotBytes: -1,
+    })
+    expect(invalid.getCaptureState().limits).toEqual(
+      expect.objectContaining({
+        maxBytesPerBucket: REQUEST_INSIGHTS_MAX_BYTES_PER_RETENTION_BUCKET,
+        maxRetainedBytes: REQUEST_INSIGHTS_MAX_RETAINED_BYTES,
+        maxRequestGroupsPerBucket:
+          REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET,
+        maxSnapshotBytes: REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES,
+      })
+    )
+    invalid.dispose()
+
+    const zero = new RequestInsights({
+      maxBytesPerRetentionBucket: 0,
+      maxRetainedBytes: 0,
+      maxRequestGroupsPerBucket: 0,
+      maxSnapshotBytes: 0,
+    })
+    zero.recordFetch(
+      { requestId: 'not-retained', rootRequestId: 'not-retained' },
+      { url: '/not-retained', startTime: 1 }
+    )
+    const zeroSnapshot = zero.getSnapshot()
+    expect(zeroSnapshot.requests).toEqual([])
+    expect(zero.getCaptureState().limits).toEqual(
+      expect.objectContaining({
+        maxBytesPerBucket: 0,
+        maxRetainedBytes: 0,
+        maxRequestGroupsPerBucket: 0,
+      })
+    )
+    expect(zero.getCaptureState().limits.maxSnapshotBytes).toBeGreaterThan(0)
+    expect(zero.getCaptureState().limits.maxSnapshotBytes).toBeLessThan(
+      REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES
+    )
+    expect(
+      getRequestInsightsSerializedByteLength(zeroSnapshot)
+    ).toBeLessThanOrEqual(zero.getCaptureState().limits.maxSnapshotBytes)
+    zero.dispose()
   })
 })

@@ -222,6 +222,9 @@ function trackFetchMetric(
       requestInsights.recordFetch(
         {
           requestId: requestInsightsRequestId,
+          rootRequestId:
+            requestInsightsIdentity?.rootRequestId ?? requestInsightsRequestId,
+          retention: requestInsightsIdentity?.retention,
           kind: requestInsightsIdentity?.kind,
           htmlRequestId:
             requestInsightsIdentity?.htmlRequestId ?? workStore.htmlRequestId,

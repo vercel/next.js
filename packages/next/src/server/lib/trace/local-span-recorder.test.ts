@@ -7,6 +7,7 @@ import { setFlagsFromString } from 'node:v8'
 import { SpanStatusCode, trace } from 'next/dist/compiled/@opentelemetry/api'
 import { createLocalSpan, traceLocalSpan } from './local-span-recorder'
 import {
+  createRequestInsightsRetentionContext,
   resolveRequestInsightsIdentity,
   runWithRequestInsightsIdentity,
 } from './request-insights-identity'
@@ -84,6 +85,8 @@ describe('local recording span', () => {
         runWithRequestInsightsIdentity(
           {
             requestId: 'late-request',
+            rootRequestId: 'late-request',
+            retention: createRequestInsightsRetentionContext(),
             htmlRequestId: 'late-request',
             url: '/late',
           },
@@ -115,6 +118,8 @@ describe('local recording span', () => {
         runWithRequestInsightsIdentity(
           {
             requestId: 'first-request',
+            rootRequestId: 'first-request',
+            retention: createRequestInsightsRetentionContext(),
             htmlRequestId: 'first-request',
             url: '/first',
           },
@@ -130,7 +135,7 @@ describe('local recording span', () => {
           spans: [expect.objectContaining({ name: 'first late span' })],
         }),
       ])
-      expect(second.getSnapshot()).toEqual({ requests: [] })
+      expect(second.getSnapshot().requests).toEqual([])
     } finally {
       first.dispose()
       second.dispose()
@@ -145,6 +150,8 @@ describe('local recording span', () => {
       const span = runWithRequestInsightsIdentity(
         {
           requestId: 'unowned-request',
+          rootRequestId: 'unowned-request',
+          retention: createRequestInsightsRetentionContext(),
           htmlRequestId: 'unowned-request',
           url: '/unowned',
         },
@@ -153,7 +160,7 @@ describe('local recording span', () => {
 
       runWithRequestInsights(requestInsights, () => span.end())
 
-      expect(requestInsights.getSnapshot()).toEqual({ requests: [] })
+      expect(requestInsights.getSnapshot().requests).toEqual([])
     } finally {
       requestInsights.dispose()
     }
@@ -168,12 +175,15 @@ describe('local recording span', () => {
       createRequestId: () => 'server_request',
     })
 
-    expect(identity).toEqual({
-      requestId: 'server_request',
-      debugRequestId: '1a2b3c4d',
-      htmlRequestId: 'html_request',
-      url: '/dashboard',
-    })
+    expect(identity).toEqual(
+      expect.objectContaining({
+        requestId: 'server_request',
+        rootRequestId: 'server_request',
+        debugRequestId: '1a2b3c4d',
+        htmlRequestId: 'html_request',
+        url: '/dashboard',
+      })
+    )
     expect(
       resolveRequestInsightsIdentity({
         previousIdentity: identity,
@@ -189,6 +199,8 @@ describe('local recording span', () => {
     runWithRequestInsightsIdentity(
       {
         requestId: 'asset-request',
+        rootRequestId: 'asset-request',
+        retention: createRequestInsightsRetentionContext(),
         source: 'asset',
         htmlRequestId: 'asset-request',
         url: '/asset.svg',
@@ -217,12 +229,15 @@ describe('local recording span', () => {
         url: '/',
         createRequestId: () => 'server_request',
       })
-    ).toEqual({
-      requestId: 'server_request',
-      debugRequestId: undefined,
-      htmlRequestId: 'server_request',
-      url: '/',
-    })
+    ).toEqual(
+      expect.objectContaining({
+        requestId: 'server_request',
+        rootRequestId: 'server_request',
+        debugRequestId: undefined,
+        htmlRequestId: 'server_request',
+        url: '/',
+      })
+    )
   })
 
   it('drops malformed development correlation headers at router ingress', () => {
@@ -363,6 +378,8 @@ describe('local recording span', () => {
     runWithRequestInsightsIdentity(
       {
         requestId: 'request-1',
+        rootRequestId: 'request-1',
+        retention: createRequestInsightsRetentionContext(),
         htmlRequestId: 'html-1',
         url: '/dashboard?tab=overview',
       },
@@ -393,6 +410,8 @@ describe('local recording span', () => {
       runWithRequestInsightsIdentity(
         {
           requestId: 'originating-request',
+          rootRequestId: 'originating-request',
+          retention: createRequestInsightsRetentionContext(),
           kind: 'instant-insights',
           htmlRequestId: 'originating-html',
           url: '/dashboard',

@@ -8,6 +8,7 @@ import type {
   RequestInsightSource,
 } from '../../../shared/lib/request-insights'
 import type { RequestInsights } from './request-insights'
+import type { RequestInsightsRetentionContext } from './request-insights-identity'
 
 let spanStoreRequestInsightsRuntime:
   | typeof import('./request-insights-runtime')
@@ -47,6 +48,8 @@ export type SpanStoreRecord = {
   spanId?: string
   parentSpanId?: string
   requestId?: string
+  rootRequestId?: string
+  requestInsightsRetention?: RequestInsightsRetentionContext
   requestInsightKind?: RequestInsightKind
   requestInsightSource?: RequestInsightSource
   requestInsightProxyStatus?: RequestInsightProxyStatus
