@@ -1,4 +1,4 @@
-import { Interface } from '../index.js'
+import type { Interface } from '../index.js'
 
 export default function compose(...ifaces: Interface[]): Interface {
   const allKeys = new Set<keyof Interface>()

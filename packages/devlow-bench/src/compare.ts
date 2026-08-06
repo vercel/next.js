@@ -1,5 +1,5 @@
 import picocolors from 'picocolors'
-import { SnapshotRow } from './snapshot.js'
+import type { SnapshotRow } from './snapshot.js'
 import { mannWhitneyU, quantile } from './statistics.js'
 import { formatUnit } from './units.js'
 
