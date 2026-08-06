@@ -47,6 +47,21 @@ impl SnapshotItem {
 /// A GC-collected task to tombstone from persistent storage, applied in the same commit as the
 /// snapshot. See `save_snapshot` for how the tombstone is applied (the `TaskCache` bucket
 /// re-insertion of hash-colliding survivors lives there).
+///
+/// This is identity-only: the task's id and the hash of its type, with no copy of the value being
+/// deleted (neither the `TaskMeta`/`TaskData` buffers nor the full `CachedTaskType` behind the
+/// hash). That is enough for `TaskMeta` and `TaskData`, which are `SingleValue` key spaces where a
+/// key-granular delete is exact.
+///
+/// It costs us on `TaskCache`, which is `MultiValue`: a delete tombstones the entire hash bucket,
+/// so `save_snapshot` has to read the bucket back and re-insert every id that xxh3-collides with a
+/// deleted one. Carrying the full `CachedTaskType` here would not avoid that read — the underlying
+/// write batch has no delete-one-value-from-a-bucket operation, so removing a single entry from a
+/// `MultiValue` bucket is a read-modify-write no matter what the caller hands us. Doing better
+/// means a new persistence primitive (a value-granular `MultiValue` delete), not a fatter
+/// tombstone, so we keep the tombstone small and pay the read. In practice the read is cheap:
+/// hash collisions are rare, so almost every bucket contains exactly the one id being deleted and
+/// the survivor set is empty.
 pub struct TaskDeletion {
     pub task_id: TaskId,
     /// The deleted task's `TaskCache` key. Always present: only persistent tasks are collected,
