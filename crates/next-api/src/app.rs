@@ -39,8 +39,8 @@ use next_core::{
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
-    fxindexset, trace::TraceRawVcs,
+    Completion, FxIndexMap, NonLocalValue, OperationVc, ResolvedVc, TryJoinIterExt, ValueToString,
+    Vc, fxindexset, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack::{
@@ -52,13 +52,13 @@ use turbopack_core::{
     asset::AssetContent,
     chunk::{
         ChunkGroupResult, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
-        availability_info::AvailabilityInfo,
+        HmrChunkListSource, availability_info::AvailabilityInfo,
     },
     file_source::FileSource,
     ident::{AssetIdent, Layer},
     module::Module,
     module_graph::{
-        GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
+        DeferAsyncLayers, GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
         binding_usage_info::compute_binding_usage_info,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
     },
@@ -90,6 +90,32 @@ use crate::{
     service_worker::service_worker_output_assets,
     sri_manifest::get_sri_manifest_asset,
 };
+
+fn new_app_single_module_graph(
+    entries: GraphEntries,
+    visited_modules: OperationVc<VisitedModules>,
+    include_traced: bool,
+    include_binding_usage: bool,
+    defer_async: bool,
+) -> OperationVc<SingleModuleGraph> {
+    if defer_async {
+        SingleModuleGraph::new_with_entries_visited_intern_defer_layers(
+            entries,
+            visited_modules,
+            include_traced,
+            include_binding_usage,
+            DeferAsyncLayers(vec![rcstr!("app-client"), rcstr!("client")]),
+        )
+    } else {
+        SingleModuleGraph::new_with_entries_visited_intern(
+            entries,
+            visited_modules,
+            include_traced,
+            include_binding_usage,
+            /* defer_async */ false,
+        )
+    }
+}
 
 #[turbo_tasks::value]
 pub struct AppProject {
@@ -890,6 +916,7 @@ impl AppProject {
             let next_mode_ref = next_mode.await?;
             let should_trace = *self.project.should_write_nft_manifests().await?;
             let should_read_binding_usage = next_mode_ref.is_production();
+            let defer_async = *self.project.defer_async_graph().await?;
 
             // Implements layout segment optimization to compute a graph "chain" for each layout
             // segment
@@ -920,7 +947,7 @@ impl AppProject {
 
                     // SEGMENT: client_shared_entries and server utils shared by the layout segments
                     // and the page
-                    let graph = SingleModuleGraph::new_with_entries_visited_intern(
+                    let graph = new_app_single_module_graph(
                         GraphEntries::from_chunk_groups(vec![
                             ChunkGroupEntry::Entry {
                                 modules: client_shared_entries,
@@ -937,6 +964,7 @@ impl AppProject {
                         visited_modules,
                         should_trace,
                         should_read_binding_usage,
+                        defer_async,
                     );
                     graphs.push(graph);
                     visited_modules = VisitedModules::concatenate(visited_modules, graph);
@@ -949,13 +977,14 @@ impl AppProject {
                         .take(server_component_entries.len().saturating_sub(1))
                     {
                         // SEGMENT: layout segment
-                        let graph = SingleModuleGraph::new_with_entries_visited_intern(
+                        let graph = new_app_single_module_graph(
                             GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Shared(
                                 ResolvedVc::upcast(*module),
                             )]),
                             visited_modules,
                             should_trace,
                             should_read_binding_usage,
+                            /* defer_async */ false,
                         );
                         graphs.push(graph);
                         let is_layout = module.server_path().await?.file_stem() == Some("layout");
@@ -974,22 +1003,24 @@ impl AppProject {
                 }
 
                 // SEGMENT: rsc entry chunk group
-                let graph = SingleModuleGraph::new_with_entries_visited_intern(
+                let graph = new_app_single_module_graph(
                     GraphEntries::from_chunk_groups(vec![rsc_entry_chunk_group]),
                     visited_modules,
                     should_trace,
                     should_read_binding_usage,
+                    defer_async,
                 );
                 graphs.push(graph);
                 visited_modules = VisitedModules::concatenate(visited_modules, graph);
 
                 let base = ModuleGraph::from_graphs(graphs.clone(), None);
                 let additional_entries = endpoint.additional_entries(base.connect());
-                let additional_module_graph = SingleModuleGraph::new_with_entries_visited_intern(
+                let additional_module_graph = new_app_single_module_graph(
                     additional_entries.owned().await?,
                     visited_modules,
                     should_trace,
                     should_read_binding_usage,
+                    defer_async,
                 );
                 graphs.push(additional_module_graph);
 
@@ -1427,7 +1458,11 @@ impl AppEndpoint {
             let client_reference_chunks =
                 get_client_references_chunks_for_hmr(*client_references_chunks);
             client_chunking_context
-                .hmr_chunk_list(client_components_chunks_ident, client_reference_chunks)
+                .hmr_chunk_list(
+                    client_components_chunks_ident,
+                    client_reference_chunks,
+                    HmrChunkListSource::Entry,
+                )
                 .await?
                 .iter()
                 .copied()

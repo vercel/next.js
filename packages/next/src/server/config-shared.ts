@@ -870,6 +870,14 @@ export interface ExperimentalConfig {
   turbopackServerSideNestedAsyncChunking?: boolean
 
   /**
+   * Defer the chunk-group computation for a dynamic `import()` until the browser first requests it,
+   * instead of performing it while compiling the route. Development only.
+   *
+   * Defaults to `false`.
+   */
+  turbopackLazyDynamicImports?: boolean
+
+  /**
    * Enable filesystem cache for the turbopack dev server.
    *
    * Defaults to `true`.

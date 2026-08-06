@@ -358,6 +358,11 @@ export interface Project {
   getSourceMap(filePath: string): Promise<string | null>
   getSourceMapSync(filePath: string): string | null
 
+  /** Materialize a lazy dynamic-import boundary. */
+  materializeLazyChunk(
+    chunkUrlPath: string
+  ): Promise<TurbopackResult<{ clientPaths: string[] }>>
+
   traceSource(
     stackFrame: TurbopackStackFrame,
     currentDirectoryFileUrl: string

@@ -5,14 +5,16 @@ use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkData, ChunkableModule, ChunkingContext, ChunkingContextExt,
-        ChunksData, availability_info::AvailabilityInfo,
+        ChunksData, HmrChunkListSource, availability_info::AvailabilityInfo,
     },
     ident::AssetIdent,
+    lazy_output_asset::LazyOutputAsset,
     module::{Module, ModuleSideEffects},
     module_graph::{
-        ModuleGraph, chunk_group_info::ChunkGroup, module_batch::ChunkableModuleOrBatch,
+        ModuleGraph, async_graph_materialization, chunk_group_info::ChunkGroup,
+        module_batch::ChunkableModuleOrBatch,
     },
-    output::OutputAssetsWithReferenced,
+    output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
 };
 
 use crate::{
@@ -61,13 +63,40 @@ impl ManifestAsyncModule {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn chunk_group(&self) -> Vc<OutputAssetsWithReferenced> {
-        self.chunking_context.chunk_group_assets(
+    pub(super) async fn chunk_group(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
+        let module_graph = if *self
+            .chunking_context
+            .is_async_graph_deferral_enabled()
+            .await?
+        {
+            ModuleGraph::isolated_async_entry_seeded(Vc::upcast(*self.inner), *self.module_graph)
+        } else {
+            *self.module_graph
+        };
+        Ok(self.chunking_context.chunk_group_assets(
             self.inner.ident(),
             ChunkGroup::Async(ResolvedVc::upcast(self.inner)),
-            *self.module_graph,
+            module_graph,
             self.availability_info,
-        )
+        ))
+    }
+
+    /// Returns the dynamic import's HMR chunk list.
+    #[turbo_tasks::function]
+    async fn hmr_chunk_list(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
+        let this = self.await?;
+        if !*this
+            .chunking_context
+            .is_hot_module_replacement_enabled()
+            .await?
+        {
+            return Ok(OutputAssets::empty());
+        }
+        Ok(this.chunking_context.hmr_chunk_list(
+            self.ident(),
+            *self.chunk_group().await?.assets,
+            HmrChunkListSource::Dynamic,
+        ))
     }
 
     #[turbo_tasks::function]
@@ -94,12 +123,46 @@ impl ManifestAsyncModule {
                 .cell());
             }
         }
-        Ok(this.chunking_context.chunk_group_assets(
-            self.ident(),
-            ChunkGroup::Async(ResolvedVc::upcast(self)),
-            *this.module_graph,
-            this.availability_info,
-        ))
+        let module_graph = ModuleGraph::isolated_async_entry(*ResolvedVc::upcast(self));
+        let manifest_group = this
+            .chunking_context
+            .chunk_group_assets(
+                self.ident(),
+                ChunkGroup::Async(ResolvedVc::upcast(self)),
+                module_graph,
+                this.availability_info,
+            )
+            .await?;
+
+        // Group-level references would bypass the lazy asset boundary.
+        debug_assert!(
+            manifest_group.referenced_assets.await?.is_empty()
+                && manifest_group.references.await?.is_empty(),
+            "manifest chunk groups must not have group-level references"
+        );
+
+        let assets = manifest_group
+            .assets
+            .await?
+            .iter()
+            .map(async |asset| {
+                Ok(ResolvedVc::upcast::<Box<dyn OutputAsset>>(
+                    LazyOutputAsset::new(
+                        **asset,
+                        async_graph_materialization(*ResolvedVc::upcast(this.inner)),
+                    )
+                    .to_resolved()
+                    .await?,
+                ))
+            })
+            .try_join()
+            .await?;
+        Ok(OutputAssetsWithReferenced {
+            assets: ResolvedVc::cell(assets),
+            referenced_assets: manifest_group.referenced_assets,
+            references: manifest_group.references,
+        }
+        .cell())
     }
 
     #[turbo_tasks::function]
@@ -128,7 +191,10 @@ impl ManifestAsyncModule {
         let this = self.await?;
         Ok(ChunkData::from_assets(
             this.chunking_context.output_root().owned().await?,
-            *self.chunk_group().await?.assets,
+            self.chunk_group()
+                .await?
+                .assets
+                .concatenate(self.hmr_chunk_list()),
         ))
     }
 }
@@ -186,8 +252,22 @@ impl EcmascriptChunkPlaceable for ManifestAsyncModule {
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
         _module_graph: Vc<ModuleGraph>,
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
-        _estimated: bool,
+        estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        if estimated {
+            let code = formatdoc! {
+                r#"
+                    {TURBOPACK_EXPORT_VALUE}({:#});
+                "#,
+                StringifyJs(&Vec::<EcmascriptChunkData<'_>>::new())
+            };
+            return Ok(EcmascriptChunkItemContent {
+                inner_code: code.into(),
+                ..Default::default()
+            }
+            .cell());
+        }
+
         let chunks_data = self.chunks_data().await?;
         let chunks_data = chunks_data.iter().try_join().await?;
         let chunks_data: Vec<_> = chunks_data
@@ -219,11 +299,28 @@ impl EcmascriptChunkPlaceable for ManifestAsyncModule {
     }
 
     #[turbo_tasks::function]
-    fn chunk_item_output_assets(
+    async fn chunk_item_output_assets(
         self: Vc<Self>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
         _module_graph: Vc<ModuleGraph>,
-    ) -> Vc<OutputAssetsWithReferenced> {
-        self.chunk_group()
+    ) -> Result<Vc<OutputAssetsWithReferenced>> {
+        let this = self.await?;
+        if *this
+            .chunking_context
+            .is_async_graph_deferral_enabled()
+            .await?
+            && !async_graph_materialization(*ResolvedVc::upcast(this.inner))
+                .await?
+                .is_materialized()
+        {
+            return Ok(OutputAssetsWithReferenced::from_assets(
+                OutputAssets::empty(),
+            ));
+        }
+        Ok(self
+            .chunk_group()
+            .concatenate(OutputAssetsWithReferenced::from_assets(
+                self.hmr_chunk_list(),
+            )))
     }
 }

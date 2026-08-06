@@ -83,6 +83,15 @@ impl AsyncLoaderModule {
                 .cell());
             }
         }
+        let module_graph = if *self
+            .chunking_context
+            .is_async_graph_deferral_enabled()
+            .await?
+        {
+            ModuleGraph::isolated_async_entry_seeded(Vc::upcast(*self.inner), module_graph)
+        } else {
+            module_graph
+        };
         Ok(self.chunking_context.chunk_group_assets(
             self.inner.ident(),
             ChunkGroup::Async(ResolvedVc::upcast(self.inner)),

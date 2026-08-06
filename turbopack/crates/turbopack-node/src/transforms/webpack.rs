@@ -285,6 +285,7 @@ impl WebpackLoadersProcessedAsset {
                     entries.graph_entries().to_resolved().await?,
                     false,
                     false,
+                    /* defer_async */ false,
                 )],
                 None,
             )
@@ -759,6 +760,7 @@ impl EvaluateContext for WebpackLoaderContext {
                     },
                     false,
                     false,
+                    /* defer_async */ false,
                 );
                 let import_module_graph = ModuleGraph::from_graphs(vec![single_graph], None)
                     .connect()

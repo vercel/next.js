@@ -831,6 +831,16 @@ function bindingToApi(
       return binding.projectGetSourceMapSync(this._nativeProject, filePath)
     }
 
+    async materializeLazyChunk(
+      chunkUrlPath: string
+    ): Promise<TurbopackResult<{ clientPaths: string[] }>> {
+      const napiResult = (await binding.projectMaterializeLazyChunk(
+        this._nativeProject,
+        chunkUrlPath
+      )) as TurbopackResult<{ clientPaths: string[] }>
+      return napiResult
+    }
+
     updateInfoSubscribe(aggregationMs: number) {
       return subscribe<TurbopackResult<UpdateMessage>>(true, async (callback) =>
         binding.projectUpdateInfoSubscribe(

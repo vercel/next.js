@@ -5,7 +5,8 @@ import { __turbopack_module_id__ as id } from "../components/hello" with {
 import dynamic from 'next/dynamic';
 const DynamicComponent = dynamic(()=>import('../components/hello', {
         with: {
-            "turbopack-transition": "next-dynamic"
+            "turbopack-transition": "next-dynamic",
+            "turbopack-chunking-type": "parallel"
         }
     }), {
     loadableGenerated: {

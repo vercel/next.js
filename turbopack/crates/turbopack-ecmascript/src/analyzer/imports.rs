@@ -11,7 +11,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 use swc_core::{
     atoms::Wtf8Atom,
-    common::{BytePos, GLOBALS, Mark, Span, Spanned, SyntaxContext, comments::Comments},
+    common::{BytePos, DUMMY_SP, GLOBALS, Mark, Span, Spanned, SyntaxContext, comments::Comments},
     ecma::{
         ast::*,
         atoms::{Atom, atom},
@@ -168,6 +168,7 @@ impl ImportAnnotations {
 
     pub fn parse_dynamic(with: &JsValue<'_>) -> Option<ImportAnnotations> {
         let mut map = BTreeMap::new();
+        let mut chunking_type = None;
 
         let JsValue::Object { parts, .. } = with else {
             return None;
@@ -185,19 +186,23 @@ impl ImportAnnotations {
                 continue;
             };
 
-            map.insert(
-                key.as_atom().into_owned().into(),
-                value.as_atom().into_owned().into(),
-            );
+            let key = key.as_atom().into_owned();
+            let value = value.as_atom().into_owned();
+            if key == "turbopack-chunking-type" {
+                chunking_type = parse_chunking_type_annotation(DUMMY_SP, value.as_str())
+                    .filter(|chunking_type| *chunking_type != SpecifiedChunkingType::None);
+            } else {
+                map.insert(key.into(), value.into());
+            }
         }
 
-        if !map.is_empty() {
+        if !map.is_empty() || chunking_type.is_some() {
             Some(ImportAnnotations {
                 map,
                 turbopack_loader: None,
                 turbopack_rename_as: None,
                 turbopack_module_type: None,
-                chunking_type: None,
+                chunking_type,
             })
         } else {
             None

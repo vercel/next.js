@@ -909,6 +909,26 @@ impl ProjectContainer {
             FileContent::NotFound.cell()
         }
     }
+
+    /// Materializes a lazy dynamic-import boundary and returns its client-relative output paths.
+    #[turbo_tasks::function]
+    pub async fn materialize_lazy_chunk(
+        self: Vc<Self>,
+        client_path: FileSystemPath,
+    ) -> Result<Vc<Vec<RcStr>>> {
+        let Some(map) = self.await?.versioned_content_map else {
+            return Ok(Vc::cell(vec![]));
+        };
+        let project = self.project();
+        let node_root = project.node_root().owned().await?;
+        let client_relative_path = project.client_relative_path().owned().await?;
+        Ok(map.materialize_lazy_boundary(
+            client_path,
+            node_root.clone(),
+            client_relative_path,
+            node_root,
+        ))
+    }
 }
 
 #[derive(Clone)]
@@ -1233,6 +1253,21 @@ impl Project {
         Ok(Vc::cell(*self.mode.await? == NextMode::Development))
     }
 
+    /// Whether dynamic import subgraphs are deferred in development.
+    #[turbo_tasks::function]
+    pub(super) async fn defer_async_graph(self: Vc<Self>) -> Result<Vc<bool>> {
+        let this = self.await?;
+        Ok(Vc::cell(
+            *this.mode.await? == NextMode::Development
+                && *this
+                    .next_config
+                    .turbopack_lazy_dynamic_imports()
+                    .await?
+                // NFT tracing requires complete graphs.
+                && !*self.should_write_nft_manifests().await?,
+        ))
+    }
+
     #[turbo_tasks::function]
     pub(super) fn encryption_key(&self) -> Vc<RcStr> {
         Vc::cell(self.encryption_key.clone())
@@ -1489,6 +1524,7 @@ impl Project {
                     },
                     /* include_traced */ *self.should_write_nft_manifests().await?,
                     /* include_binding_usage */ self.next_mode().await?.is_production(),
+                    /* defer_async */ false,
                 )],
                 None,
             )
@@ -1519,6 +1555,7 @@ impl Project {
                     .resolved_cell(),
                     /* include_traced */ *self.should_write_nft_manifests().await?,
                     /* include_binding_usage */ self.next_mode().await?.is_production(),
+                    /* defer_async */ *self.defer_async_graph().await?,
                 )],
                 None,
             )
@@ -1629,6 +1666,7 @@ impl Project {
                 .turbo_nested_async_chunking(self.next_mode(), true),
             shared_runtime: self.next_config().turbo_shared_runtime(self.next_mode()),
             per_page_module_graph: self.per_page_module_graph(),
+            lazy_dynamic_imports: self.next_config().turbopack_lazy_dynamic_imports(),
             debug_ids: self.next_config().turbopack_debug_ids(),
             worker_asset_prefix: self.next_config().turbopack_worker_asset_prefix(),
             should_use_absolute_url_references: self.next_config().inline_css(),
@@ -1716,6 +1754,7 @@ impl Project {
             nested_async_chunking: self
                 .next_config()
                 .turbo_nested_async_chunking(self.next_mode(), false),
+            defer_async_graph: Vc::cell(false),
             debug_ids: self.next_config().turbopack_debug_ids(),
             client_root: self.client_relative_path().owned().await?,
             client_static_folder_name: self
@@ -2867,10 +2906,12 @@ async fn whole_app_module_graph_operation(
         let next_mode = project.next_mode();
         let should_trace = *project.should_write_nft_manifests().await?;
         let should_read_binding_usage = next_mode.await?.is_production();
+        let defer_async = *project.defer_async_graph().await?;
         let base_single_module_graph = SingleModuleGraph::new_with_entries(
             project.get_all_entries().to_resolved().await?,
             should_trace,
             should_read_binding_usage,
+            defer_async,
         );
         let base_visited_modules = VisitedModules::from_graph(base_single_module_graph);
 
@@ -2900,6 +2941,7 @@ async fn whole_app_module_graph_operation(
             base_visited_modules,
             should_trace,
             should_read_binding_usage,
+            defer_async,
         );
 
         if !span.is_disabled() {

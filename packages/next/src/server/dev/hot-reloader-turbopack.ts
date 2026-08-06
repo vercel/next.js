@@ -1357,6 +1357,63 @@ export async function createHotReloaderTurbopack(
         }
       }
 
+      if (req.url?.startsWith('/_next/static/chunks/')) {
+        // Dev chunk names are stable across edits, so materialize on every request.
+        try {
+          const boundaryPath = decodeURIComponent(
+            req.url.split('?')[0].replace(/^\/_next\//, '')
+          )
+          const ownerKeys = assetMapper.getKeysByAsset(boundaryPath)
+          const { clientPaths, issues } = await project.materializeLazyChunk(
+            req.url
+          )
+
+          for (const issue of issues) {
+            if (issue.severity === 'warning') {
+              printNonFatalIssue(issue)
+            } else if (
+              issue.severity === 'error' ||
+              issue.severity === 'fatal'
+            ) {
+              Log.error(formatIssue(issue))
+            }
+          }
+
+          if (clientPaths.length > 0) {
+            // HMR subscriptions require the materialized paths to have an owning entry.
+            for (const key of ownerKeys) {
+              assetMapper.setPathsForKey(key, [
+                ...assetMapper.getAssetPathsByKey(key),
+                ...clientPaths,
+              ])
+            }
+
+            let actionManifestChanged = false
+            for (const key of ownerKeys) {
+              const { type, side, page } = splitEntryKey(key)
+              if (type !== 'app' || side !== 'server') continue
+
+              manifestLoader.loadActionManifest(page)
+              actionManifestChanged = true
+
+              const writtenEndpoint = currentWrittenEntrypoints.get(key)
+              if (writtenEndpoint) {
+                clearRequireCache(key, writtenEndpoint, { force: true })
+              }
+            }
+            if (actionManifestChanged) {
+              manifestLoader.writeManifests({
+                devRewrites: opts.fsChecker.rewrites,
+                productionRewrites: undefined,
+                entrypoints: currentEntrypoints,
+              })
+            }
+          }
+        } catch (err) {
+          console.error(err)
+        }
+      }
+
       for (const middleware of middlewares) {
         let calledNext = false
 

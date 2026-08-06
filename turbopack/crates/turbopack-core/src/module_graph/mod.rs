@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level, Span};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    CollectiblesSource, FxIndexMap, NonLocalValue, OperationVc, ReadRef, ResolvedVc,
+    CollectiblesSource, FxIndexMap, NonLocalValue, OperationVc, ReadRef, ResolvedVc, State,
     TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
@@ -60,6 +60,32 @@ pub mod style_groups_loose;
 mod traced_di_graph;
 
 pub use self::module_batches::BatchingConfig;
+
+#[turbo_tasks::value]
+pub struct AsyncGraphMaterialization {
+    materialized: State<bool>,
+}
+
+impl AsyncGraphMaterialization {
+    pub fn is_materialized(&self) -> bool {
+        *self.materialized.get()
+    }
+
+    pub fn materialize(&self) {
+        self.materialized.set(true);
+    }
+}
+
+/// Returns the materialization state associated with an async module graph.
+#[turbo_tasks::function]
+pub fn async_graph_materialization(
+    _module: ResolvedVc<Box<dyn Module>>,
+) -> Vc<AsyncGraphMaterialization> {
+    AsyncGraphMaterialization {
+        materialized: State::new(false),
+    }
+    .cell()
+}
 
 #[derive(
     Debug,
@@ -229,6 +255,11 @@ pub struct GraphEntries {
     traced_modules: Vec<ResolvedVc<Box<dyn Module>>>,
 }
 
+/// Limits async graph deferral to modules in the named layers.
+#[turbo_tasks::task_input]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+pub struct DeferAsyncLayers(pub Vec<RcStr>);
+
 #[turbo_tasks::value_impl]
 impl GraphEntries {
     #[turbo_tasks::function]
@@ -338,12 +369,14 @@ impl SingleModuleGraph {
         visited_modules: &FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
         include_traced: bool,
         include_binding_usage: bool,
+        defer_async: bool,
+        defer_async_layers: Option<&DeferAsyncLayers>,
     ) -> Result<Vc<Self>> {
         let emit_spans = tracing::enabled!(Level::INFO);
         let root_nodes = entries
             .all_modules_with_is_traced()
             .map(|(e, is_traced)| {
-                SingleModuleGraphBuilderNode::new_module(emit_spans, e, is_traced)
+                SingleModuleGraphBuilderNode::new_module(emit_spans, e, is_traced, false)
             })
             .try_join()
             .await?;
@@ -356,6 +389,8 @@ impl SingleModuleGraph {
                     emit_spans,
                     include_traced,
                     include_binding_usage,
+                    defer_async,
+                    defer_async_layers: defer_async_layers.map(|layers| layers.0.as_slice()),
                 },
             )
             .await
@@ -380,6 +415,7 @@ impl SingleModuleGraph {
                         module,
                         is_traced: _,
                         ident: _,
+                        defer_children: _,
                     } => (module, SingleModuleGraphNode::Module(module), 1),
                     SingleModuleGraphBuilderNode::VisitedModule { module, idx } => (
                         module,
@@ -807,11 +843,76 @@ impl ModuleGraph {
                 graphs: graphs.iter().map(|g| g.connect()).try_join().await?,
                 skip_visited_module_children: false,
                 graph_idx_override: None,
+                entry_override: None,
                 binding_usage: if let Some(binding_usage) = binding_usage {
                     Some(binding_usage.connect().await?)
                 } else {
                     None
                 },
+            },
+        }
+        .cell())
+    }
+
+    /// A graph containing nothing but `entry` and whatever it references, as an async chunk group
+    /// entry.
+    #[turbo_tasks::function]
+    pub fn isolated_async_entry(entry: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
+        Self::from_graphs(
+            vec![SingleModuleGraph::new_with_entry(
+                ChunkGroupEntry::Async(entry),
+                false,
+                false,
+                /* defer_async */ false,
+            )],
+            None,
+        )
+        .connect()
+    }
+
+    /// Like [`Self::isolated_async_entry`], seeded with modules from `parent`.
+    #[turbo_tasks::function]
+    pub async fn isolated_async_entry_seeded(
+        entry: ResolvedVc<Box<dyn Module>>,
+        parent: Vc<ModuleGraph>,
+    ) -> Result<Vc<Self>> {
+        let parent_graphs = parent.await?.input_graphs.clone();
+        let mut visited = VisitedModules::empty();
+        for graph in &parent_graphs {
+            visited = VisitedModules::concatenate(visited, *graph);
+        }
+        let isolated = SingleModuleGraph::new_with_entries_visited(
+            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Async(entry)]).resolved_cell(),
+            visited,
+            false,
+            false,
+            /* defer_async */ false,
+        );
+        let isolated_graph_idx = parent_graphs.len();
+        let mut graphs = parent_graphs;
+        graphs.push(isolated);
+        let snapshot_graphs = graphs.iter().map(|g| g.connect()).try_join().await?;
+        let node_idx = *snapshot_graphs[isolated_graph_idx]
+            .modules
+            .get(&entry)
+            .context("Expected isolated graph entry")?;
+        Ok(Self {
+            input_graphs: graphs,
+            input_binding_usage: None,
+            snapshot: ModuleGraphSnapshot {
+                graphs: snapshot_graphs,
+                skip_visited_module_children: false,
+                graph_idx_override: None,
+                // The parent contains a deferred copy of `entry`; chunking must start from the
+                // complete copy in the isolated graph while all other lookups retain normal order.
+                entry_override: Some((
+                    entry,
+                    GraphNodeIndex {
+                        graph_idx: isolated_graph_idx as u32,
+                        node_idx,
+                    },
+                )),
+                binding_usage: None,
             },
         }
         .cell())
@@ -942,6 +1043,7 @@ impl ModuleGraphLayer {
                 graphs: vec![graph.connect().await?],
                 skip_visited_module_children: true,
                 graph_idx_override: Some(graph_idx),
+                entry_override: None,
                 binding_usage: if let Some(binding_usage) = binding_usage {
                     Some(binding_usage.connect().await?)
                 } else {
@@ -984,6 +1086,9 @@ pub struct ModuleGraphSnapshot {
 
     graph_idx_override: Option<u32>,
 
+    /// Selects a specific graph when the same entry module has both deferred and complete nodes.
+    entry_override: Option<(ResolvedVc<Box<dyn Module>>, GraphNodeIndex)>,
+
     binding_usage: Option<ReadRef<BindingUsageInfo>>,
 }
 
@@ -991,6 +1096,12 @@ impl ModuleGraphSnapshot {
     fn get_entry(&self, entry: ResolvedVc<Box<dyn Module>>) -> Result<GraphNodeIndex> {
         if self.graph_idx_override.is_some() {
             debug_assert_eq!(self.graphs.len(), 1,);
+        }
+
+        if let Some((override_entry, idx)) = self.entry_override
+            && override_entry == entry
+        {
+            return Ok(idx);
         }
 
         let Some(idx) = self
@@ -1642,12 +1753,15 @@ impl SingleModuleGraph {
         entry: ChunkGroupEntry,
         include_traced: bool,
         include_binding_usage: bool,
+        defer_async: bool,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(
             &GraphEntries::from_chunk_groups(vec![entry]),
             &Default::default(),
             include_traced,
             include_binding_usage,
+            defer_async,
+            None,
         )
         .await
     }
@@ -1657,12 +1771,15 @@ impl SingleModuleGraph {
         entries: ResolvedVc<GraphEntries>,
         include_traced: bool,
         include_binding_usage: bool,
+        defer_async: bool,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(
             &*entries.await?,
             &Default::default(),
             include_traced,
             include_binding_usage,
+            defer_async,
+            None,
         )
         .await
     }
@@ -1673,12 +1790,15 @@ impl SingleModuleGraph {
         visited_modules: OperationVc<VisitedModules>,
         include_traced: bool,
         include_binding_usage: bool,
+        defer_async: bool,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(
             &*entries.await?,
             &visited_modules.connect().await?.modules,
             include_traced,
             include_binding_usage,
+            defer_async,
+            None,
         )
         .await
     }
@@ -1690,12 +1810,34 @@ impl SingleModuleGraph {
         visited_modules: OperationVc<VisitedModules>,
         include_traced: bool,
         include_binding_usage: bool,
+        defer_async: bool,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(
             &entries,
             &visited_modules.connect().await?.modules,
             include_traced,
             include_binding_usage,
+            defer_async,
+            None,
+        )
+        .await
+    }
+
+    #[turbo_tasks::function(operation)]
+    pub async fn new_with_entries_visited_intern_defer_layers(
+        entries: GraphEntries,
+        visited_modules: OperationVc<VisitedModules>,
+        include_traced: bool,
+        include_binding_usage: bool,
+        defer_async_layers: DeferAsyncLayers,
+    ) -> Result<Vc<Self>> {
+        SingleModuleGraph::new_inner(
+            &entries,
+            &visited_modules.connect().await?.modules,
+            include_traced,
+            include_binding_usage,
+            true,
+            Some(&defer_async_layers),
         )
         .await
     }
@@ -1760,6 +1902,7 @@ enum SingleModuleGraphBuilderNode {
         ident: Option<ReadRef<RcStr>>,
         /// whether this module is a tracing context
         is_traced: bool,
+        defer_children: bool,
     },
     /// A reference to a module that is already listed in visited_modules
     VisitedModule {
@@ -1773,6 +1916,7 @@ impl SingleModuleGraphBuilderNode {
         emit_spans: bool,
         module: ResolvedVc<Box<dyn Module>>,
         is_traced: bool,
+        defer_children: bool,
     ) -> Result<Self> {
         Ok(Self::Module {
             module,
@@ -1783,6 +1927,7 @@ impl SingleModuleGraphBuilderNode {
                 None
             },
             is_traced,
+            defer_children,
         })
     }
     fn new_visited_module(module: ResolvedVc<Box<dyn Module>>, idx: GraphNodeIndex) -> Self {
@@ -1798,6 +1943,12 @@ struct SingleModuleGraphBuilder<'a> {
     /// Whether to walk ChunkingType::Traced references
     include_traced: bool,
 
+    /// Whether to defer traversal below async references.
+    defer_async: bool,
+
+    /// When set, only defer async targets whose asset layer has one of these names.
+    defer_async_layers: Option<&'a [RcStr]>,
+
     /// Whether to read ModuleReference::binding_usage()
     include_binding_usage: bool,
 }
@@ -1811,6 +1962,10 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
         _edge: Option<&RefData>,
     ) -> VisitControlFlow {
         match node {
+            SingleModuleGraphBuilderNode::Module {
+                defer_children: true,
+                ..
+            } => VisitControlFlow::Skip,
             SingleModuleGraphBuilderNode::Module { .. } => VisitControlFlow::Continue,
             // Module was already visited previously
             SingleModuleGraphBuilderNode::VisitedModule { .. } => VisitControlFlow::Skip,
@@ -1830,6 +1985,8 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
         let emit_spans = self.emit_spans;
         let include_traced = self.include_traced;
         let include_binding_usage = self.include_binding_usage;
+        let defer_async = self.defer_async;
+        let defer_async_layers = self.defer_async_layers.map(<[RcStr]>::to_vec);
         async move {
             let refs_cell = if !is_traced {
                 primary_chunkable_referenced_modules(*module, include_traced, include_binding_usage)
@@ -1872,6 +2029,22 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
                     ) || is_traced
                 })
                 .map(async |(reference, ty, binding_usage, target)| {
+                    let layer_matches = if let Some(layers) = &defer_async_layers {
+                        target
+                            .ident()
+                            .await?
+                            .layer
+                            .as_ref()
+                            .is_some_and(|layer| layers.contains(layer.name()))
+                    } else {
+                        true
+                    };
+                    let defer_children = defer_async
+                        && matches!(ty, ChunkingType::Async)
+                        && layer_matches
+                        && !async_graph_materialization(*target)
+                            .await?
+                            .is_materialized();
                     let to = if let Some(idx) = visited_modules.get(&target) {
                         SingleModuleGraphBuilderNode::new_visited_module(target, *idx)
                     } else {
@@ -1879,6 +2052,7 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
                             emit_spans,
                             target,
                             is_traced || ty.is_traced(),
+                            defer_children,
                         )
                         .await?
                     };
@@ -2296,6 +2470,7 @@ pub mod tests {
                     .resolved_cell(),
                     false,
                     false,
+                    /* defer_async */ false,
                 );
 
                 let module_graph = ModuleGraph::from_graphs(
@@ -2310,6 +2485,7 @@ pub mod tests {
                             VisitedModules::from_graph(parent_graph),
                             false,
                             false,
+                            /* defer_async */ false,
                         ),
                     ],
                     None,
@@ -2477,6 +2653,7 @@ pub mod tests {
                     .resolved_cell(),
                     true,
                     false,
+                    /* defer_async */ false,
                 );
 
                 let module_graph = ModuleGraph::from_graphs(
@@ -2491,6 +2668,7 @@ pub mod tests {
                             VisitedModules::from_graph(parent_graph),
                             true,
                             false,
+                            /* defer_async */ false,
                         ),
                     ],
                     None,
@@ -2844,6 +3022,7 @@ pub mod tests {
                 )),
                 false,
                 false,
+                /* defer_async */ false,
             );
 
             // Create a simple name mapping to make analyzing the visitors easier.

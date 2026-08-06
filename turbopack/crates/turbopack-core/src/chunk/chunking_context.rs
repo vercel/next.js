@@ -293,6 +293,16 @@ pub struct ChunkingConfig {
 #[turbo_tasks::value(transparent)]
 pub struct ChunkingConfigs(FxHashMap<ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig>);
 
+/// The owner of a standalone HMR chunk list.
+#[turbo_tasks::task_input]
+#[derive(
+    Eq, PartialEq, Debug, Clone, Copy, Hash, TraceRawVcs, Serialize, Deserialize, Encode, Decode,
+)]
+pub enum HmrChunkListSource {
+    Entry,
+    Dynamic,
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone, Copy, Hash, Default, Deserialize)]
 pub enum SourceMapSourceType {
@@ -443,6 +453,16 @@ pub trait ChunkingContext {
     }
 
     #[turbo_tasks::function]
+    fn is_hot_module_replacement_enabled(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(false)
+    }
+
+    #[turbo_tasks::function]
+    fn is_async_graph_deferral_enabled(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(false)
+    }
+
+    #[turbo_tasks::function]
     fn minify_type(self: Vc<Self>) -> Vc<MinifyType> {
         MinifyType::NoMinify.cell()
     }
@@ -490,16 +510,13 @@ pub trait ChunkingContext {
         availability_info: AvailabilityInfo,
     ) -> Vc<ChunkGroupResult>;
 
-    /// In development, produces a standalone HMR chunk-list register chunk
-    /// that tracks `chunks` for hot-module-replacement without producing an
-    /// evaluate chunk. Returns `None` (empty vec) outside dev or when HMR is
-    /// disabled. Used to register a page-specific chunk list that covers
-    /// client-reference chunks built outside the shared module graph.
+    /// Produces a standalone HMR chunk list without an evaluate chunk.
     #[turbo_tasks::function]
     fn hmr_chunk_list(
         self: Vc<Self>,
         _ident: Vc<AssetIdent>,
         _chunks: Vc<OutputAssets>,
+        _source: HmrChunkListSource,
     ) -> Vc<OutputAssets> {
         OutputAssets::empty()
     }

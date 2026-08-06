@@ -12,6 +12,7 @@ use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
+    lazy_output_asset::LazyOutputAsset,
     output::{ExpandedOutputAssets, OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
 };
@@ -60,6 +61,9 @@ pub async fn emit_assets(
         .iter()
         .copied()
         .map(async |asset| {
+            if LazyOutputAsset::is_lazy(asset) {
+                return Ok(None);
+            }
             let path = asset.path().owned().await?;
             let location = if path.is_inside_ref(&node_root) {
                 Location::Node

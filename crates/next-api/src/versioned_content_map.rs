@@ -10,7 +10,8 @@ use turbo_tasks::{
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    output::{ExpandedOutputAssets, OptionOutputAsset, OutputAsset},
+    lazy_output_asset::LazyOutputAsset,
+    output::{ExpandedOutputAssets, OptionOutputAsset, OutputAsset, OutputAssetsReference},
     source_map::GenerateSourceMap,
     version::OptionVersionedContent,
 };
@@ -289,6 +290,80 @@ impl VersionedContentMap {
         Ok(Vc::cell(None))
     }
 
+    /// Materializes the lazy boundary at `path` and returns its client-relative output paths.
+    #[turbo_tasks::function]
+    pub async fn materialize_lazy_boundary(
+        self: Vc<Self>,
+        path: FileSystemPath,
+        node_root: FileSystemPath,
+        client_relative_path: FileSystemPath,
+        client_output_path: FileSystemPath,
+    ) -> Result<Vc<Vec<RcStr>>> {
+        let result = self.raw_get(path.clone()).await?;
+        let Some(entry) = &*result else {
+            return Ok(Vc::cell(vec![]));
+        };
+        let Some(&asset) = entry.path_to_asset.get(&path) else {
+            return Ok(Vc::cell(vec![]));
+        };
+        let Some(asset) = ResolvedVc::try_downcast_type::<LazyOutputAsset>(asset) else {
+            return Ok(Vc::cell(vec![]));
+        };
+
+        LazyOutputAsset::materialize(asset).await?;
+
+        let owner_entries = {
+            let this = self.await?;
+            let owners = this
+                .map_path_to_op
+                .get()
+                .0
+                .get(&path)
+                .map(|owners| owners.0.iter().copied().collect::<Vec<_>>())
+                .unwrap_or_default();
+            let entries = this.map_op_to_compute_entry.get();
+            owners
+                .into_iter()
+                .filter_map(|owner| entries.get(&owner).copied())
+                .collect::<Vec<_>>()
+        };
+        for entry in owner_entries {
+            entry.connect().await?;
+        }
+
+        let result = self.raw_get(path.clone()).await?;
+        let Some(entry) = &*result else {
+            return Ok(Vc::cell(vec![]));
+        };
+        let Some(&asset) = entry.path_to_asset.get(&path) else {
+            return Ok(Vc::cell(vec![]));
+        };
+
+        let assets_operation = lazy_asset_references_operation(asset);
+        let compute_entry = compute_entry_operation(
+            self.to_resolved().await?,
+            assets_operation,
+            node_root,
+            client_relative_path.clone(),
+            client_output_path,
+        );
+        self.await?
+            .map_op_to_compute_entry
+            .update_conditionally(|map| {
+                map.insert(assets_operation, compute_entry) != Some(compute_entry)
+            });
+        let Some(materialized) = &*compute_entry.connect().await? else {
+            return Ok(Vc::cell(vec![]));
+        };
+        Ok(Vc::cell(
+            materialized
+                .path_to_asset
+                .keys()
+                .filter_map(|path| client_relative_path.get_path_to(path).map(RcStr::from))
+                .collect(),
+        ))
+    }
+
     #[turbo_tasks::function]
     pub async fn keys_in_path(&self, root: FileSystemPath) -> Result<Vc<Vec<RcStr>>> {
         let keys = {
@@ -333,6 +408,13 @@ type GetEntriesResultT = Vec<(FileSystemPath, ResolvedVc<Box<dyn OutputAsset>>)>
 
 #[turbo_tasks::value(transparent)]
 struct GetEntriesResult(GetEntriesResultT);
+
+#[turbo_tasks::function(operation, root)]
+fn lazy_asset_references_operation(
+    asset: ResolvedVc<Box<dyn OutputAsset>>,
+) -> Vc<ExpandedOutputAssets> {
+    asset.references().expand_all_assets()
+}
 
 #[turbo_tasks::function(operation, root)]
 async fn get_entries(assets: OperationVc<ExpandedOutputAssets>) -> Result<Vc<GetEntriesResult>> {

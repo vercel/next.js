@@ -13,7 +13,8 @@ import { __turbopack_module_id__ as id2 } from "../components/hello" with {
 import dynamic from 'next/dynamic';
 const DynamicComponentWithCustomLoading = dynamic(()=>import('../components/hello', {
         with: {
-            "turbopack-transition": "next-dynamic"
+            "turbopack-transition": "next-dynamic",
+            "turbopack-chunking-type": "parallel"
         }
     }), {
     loadableGenerated: {
@@ -23,11 +24,7 @@ const DynamicComponentWithCustomLoading = dynamic(()=>import('../components/hell
     },
     loading: ()=><p>...</p>
 });
-const DynamicClientOnlyComponent = dynamic(()=>import('../components/hello', {
-        with: {
-            "turbopack-transition": "next-dynamic"
-        }
-    }), {
+const DynamicClientOnlyComponent = dynamic(async ()=>{}, {
     loadableGenerated: {
         modules: [
             id1
@@ -35,11 +32,7 @@ const DynamicClientOnlyComponent = dynamic(()=>import('../components/hello', {
     },
     ssr: false
 });
-const DynamicClientOnlyComponentWithSuspense = dynamic(()=>import('../components/hello', {
-        with: {
-            "turbopack-transition": "next-dynamic"
-        }
-    }), {
+const DynamicClientOnlyComponentWithSuspense = dynamic(async ()=>{}, {
     loadableGenerated: {
         modules: [
             id2

@@ -7,7 +7,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::FileSystemPath;
 
-use crate::asset::Asset;
+use crate::{asset::Asset, lazy_output_asset::LazyOutputAsset};
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionOutputAsset(Option<ResolvedVc<Box<dyn OutputAsset>>>);
@@ -245,7 +245,7 @@ async fn get_referenced_assets(
 ) -> Result<impl Iterator<Item = ExpandOutputAssetsInput>> {
     let refs = match input {
         ExpandOutputAssetsInput::Asset(output_asset) => {
-            if !inner_output_assets {
+            if !inner_output_assets || LazyOutputAsset::is_lazy(output_asset) {
                 return Ok(Either::Left(std::iter::empty()));
             }
             output_asset.references().await?

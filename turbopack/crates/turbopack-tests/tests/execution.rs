@@ -539,6 +539,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         entries.graph_entries().to_resolved().await?,
         false,
         true,
+        /* defer_async */ false,
     );
     let mut module_graph = ModuleGraph::from_graphs(vec![single_graph], None);
 

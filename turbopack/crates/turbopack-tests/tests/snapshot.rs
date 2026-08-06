@@ -486,6 +486,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         .resolved_cell(),
         false,
         true,
+        /* defer_async */ false,
     );
     let mut module_graph = ModuleGraph::from_graphs(vec![single_graph], None);
 

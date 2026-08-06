@@ -176,6 +176,7 @@ pub async fn create_web_entry_source(
             .resolved_cell(),
             false,
             false,
+            /* defer_async */ false,
         )],
         None,
     );

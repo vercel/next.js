@@ -326,6 +326,7 @@ async fn build_internal(
         .resolved_cell(),
         false,
         true,
+        /* defer_async */ false,
     );
     let mut module_graph = ModuleGraph::from_graphs(vec![single_graph], None);
     let binding_usage = compute_binding_usage_info(module_graph, true);

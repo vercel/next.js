@@ -290,7 +290,8 @@ impl VisitMut for NextDynamicPatcher {
             let should_skip_ssr_compile = has_ssr_false
                 && self.is_server_compiler
                 && !self.is_react_server_layer
-                && self.prefer_esm;
+                && (self.prefer_esm
+                    || matches!(self.state, NextDynamicPatcherState::Turbopack { .. }));
 
             match &self.state {
                 NextDynamicPatcherState::Webpack => {
@@ -375,6 +376,7 @@ impl VisitMut for NextDynamicPatcher {
                         // Add `{with:{turbopack-transition: ...}}` to the dynamic import
                         let mut visitor = DynamicImportTransitionAdder {
                             transition_name: dynamic_transition_name,
+                            chunking_type: self.is_server_compiler.then_some("parallel"),
                         };
                         expr.args[0].visit_mut_with(&mut visitor);
                     }
@@ -400,18 +402,25 @@ impl VisitMut for NextDynamicPatcher {
 
 struct DynamicImportTransitionAdder<'a> {
     transition_name: &'a str,
+    chunking_type: Option<&'a str>,
 }
-// Add `{with:{turbopack-transition: <self.transition_name>}}` to any dynamic imports
+// Add Turbopack transition and optional chunking annotations to any dynamic imports.
 impl VisitMut for DynamicImportTransitionAdder<'_> {
     fn visit_mut_call_expr(&mut self, expr: &mut CallExpr) {
         if let Callee::Import(..) = &expr.callee {
+            let with = match self.chunking_type {
+                Some(chunking_type) => {
+                    *with_transition_chunking_type(self.transition_name, chunking_type)
+                }
+                None => with_transition(self.transition_name),
+            };
             let options = ExprOrSpread {
                 expr: Box::new(
                     ObjectLit {
                         span: DUMMY_SP,
                         props: vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
                             key: PropName::Ident(IdentName::new(atom!("with"), DUMMY_SP)),
-                            value: with_transition(self.transition_name).into(),
+                            value: with.into(),
                         })))],
                     }
                     .into(),

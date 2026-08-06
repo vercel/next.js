@@ -12,9 +12,9 @@ use turbopack_core::{
     chunk::{
         AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkLoadRetry, ChunkType,
         ChunkableModule, ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing,
-        CrossOrigin, EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets, MinifyType,
-        SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
-        WorkerConfigurationOptions,
+        CrossOrigin, EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets,
+        HmrChunkListSource, MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences,
+        UrlBehavior, WorkerConfigurationOptions,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
@@ -131,6 +131,11 @@ impl BrowserChunkingContextBuilder {
 
     pub fn manifest_chunks(mut self, manifest_chunks: bool) -> Self {
         self.chunking_context.manifest_chunks = manifest_chunks;
+        self
+    }
+
+    pub fn defer_async_graph(mut self, defer_async_graph: bool) -> Self {
+        self.chunking_context.defer_async_graph = defer_async_graph;
         self
     }
 
@@ -381,6 +386,7 @@ pub struct BrowserChunkingContext {
     current_chunk_method: CurrentChunkMethod,
     /// Whether to use manifest chunks for lazy compilation
     manifest_chunks: bool,
+    defer_async_graph: bool,
     /// The module id strategy to use
     module_id_strategy: Option<ResolvedVc<ModuleIdStrategy>>,
     /// The module export usage info, if available.
@@ -453,6 +459,7 @@ impl BrowserChunkingContext {
                 source_maps_type: SourceMapsType::Full,
                 current_chunk_method: CurrentChunkMethod::StringLiteral,
                 manifest_chunks: false,
+                defer_async_graph: false,
                 module_id_strategy: None,
                 export_usage: None,
                 unused_references: None,
@@ -862,6 +869,16 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
+    fn is_hot_module_replacement_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.enable_hot_module_replacement)
+    }
+
+    #[turbo_tasks::function]
+    fn is_async_graph_deferral_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.defer_async_graph)
+    }
+
+    #[turbo_tasks::function]
     pub fn minify_type(&self) -> Vc<MinifyType> {
         self.minify_type.cell()
     }
@@ -1075,6 +1092,7 @@ impl ChunkingContext for BrowserChunkingContext {
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
         chunks: Vc<OutputAssets>,
+        source: HmrChunkListSource,
     ) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
         if !this.enable_hot_module_replacement {
@@ -1088,7 +1106,10 @@ impl ChunkingContext for BrowserChunkingContext {
                 ident,
                 EvaluatableAssets::empty(),
                 chunks,
-                EcmascriptDevChunkListSource::Entry,
+                match source {
+                    HmrChunkListSource::Entry => EcmascriptDevChunkListSource::Entry,
+                    HmrChunkListSource::Dynamic => EcmascriptDevChunkListSource::Dynamic,
+                },
             )
             .to_resolved()
             .await?,

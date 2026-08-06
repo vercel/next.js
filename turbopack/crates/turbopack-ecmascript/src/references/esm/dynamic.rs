@@ -29,6 +29,7 @@ use crate::{
     references::{
         AstPath,
         pattern_mapping::{PatternMapping, ResolveType},
+        util::SpecifiedChunkingType,
     },
 };
 
@@ -46,6 +47,7 @@ pub struct EsmAsyncAssetReference {
     /// callback destructuring, or webpackExports/turbopackExports comments.
     pub export_usage: ExportUsage,
     pub resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+    pub chunking_type: Option<SpecifiedChunkingType>,
 }
 
 impl EsmAsyncAssetReference {
@@ -60,8 +62,8 @@ impl EsmAsyncAssetReference {
         export_usage: ExportUsage,
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
     ) -> Result<Self> {
-        // Apply any annotation-driven transition eagerly so the stored origin is final and the
-        // `annotations` don't need to be retained on the reference.
+        let chunking_type = annotations.chunking_type();
+        // Apply any annotation-driven transition eagerly so the stored origin is final.
         let origin = if let Some(transition) = annotations.transition() {
             origin
                 .with_transition(transition.into())
@@ -79,6 +81,7 @@ impl EsmAsyncAssetReference {
             import_externals,
             export_usage,
             resolve_override,
+            chunking_type,
         })
     }
 }
@@ -102,7 +105,10 @@ impl ModuleReference for EsmAsyncAssetReference {
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
-        Some(ChunkingType::Async)
+        self.chunking_type
+            .map_or(Some(ChunkingType::Async), |chunking_type| {
+                chunking_type.as_chunking_type(false, false)
+            })
     }
 
     fn binding_usage(&self) -> BindingUsage {
@@ -153,7 +159,9 @@ impl EsmAsyncAssetReferenceCodeGen {
             *reference.origin,
             chunking_context,
             self.reference.resolve_reference(),
-            if chunking_context.chunk_loading().await?.can_split_async() {
+            if reference.chunking_type.is_none()
+                && chunking_context.chunk_loading().await?.can_split_async()
+            {
                 ResolveType::AsyncChunkLoader
             } else {
                 ResolveType::ChunkItem

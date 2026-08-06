@@ -114,6 +114,11 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
+    pub fn defer_async_graph(mut self, defer_async_graph: bool) -> Self {
+        self.chunking_context.defer_async_graph = defer_async_graph;
+        self
+    }
+
     pub fn source_map_source_type(mut self, source_map_source_type: SourceMapSourceType) -> Self {
         self.chunking_context.source_map_source_type = source_map_source_type;
         self
@@ -232,6 +237,7 @@ pub struct NodeJsChunkingContext {
     source_maps_type: SourceMapsType,
     /// Whether to use manifest chunks for lazy compilation
     manifest_chunks: bool,
+    defer_async_graph: bool,
     /// The strategy to use for generating module ids
     module_id_strategy: Option<ResolvedVc<ModuleIdStrategy>>,
     /// The module export usage info, if available.
@@ -289,6 +295,7 @@ impl NodeJsChunkingContext {
                 minify_type: MinifyType::NoMinify,
                 source_maps_type: SourceMapsType::Full,
                 manifest_chunks: false,
+                defer_async_graph: false,
                 source_map_source_type: SourceMapSourceType::TurbopackUri,
                 module_id_strategy: None,
                 export_usage: None,
@@ -429,6 +436,11 @@ impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
     fn is_dynamic_chunk_content_loading_enabled(&self) -> Vc<bool> {
         Vc::cell(self.enable_dynamic_chunk_content_loading)
+    }
+
+    #[turbo_tasks::function]
+    fn is_async_graph_deferral_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.defer_async_graph)
     }
 
     #[turbo_tasks::function]

@@ -533,6 +533,7 @@ impl PostCssTransformedAsset {
                 entries.graph_entries().to_resolved().await?,
                 false,
                 false,
+                /* defer_async */ false,
             )],
             None,
         )

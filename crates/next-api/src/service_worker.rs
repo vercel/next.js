@@ -115,6 +115,7 @@ async fn service_worker_chunk(
             },
             /* include_traced */ *project.should_write_nft_manifests().await?,
             /* include_binding_usage */ is_production,
+            /* defer_async */ false,
         )],
         /* binding_usage */ None,
     )

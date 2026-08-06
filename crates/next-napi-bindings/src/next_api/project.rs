@@ -2676,6 +2676,88 @@ pub fn project_get_source_map_sync(
     })
 }
 
+#[napi(object)]
+pub struct NapiMaterializedLazyChunk {
+    /// Paths contributed by the boundary, relative to the client root.
+    pub client_paths: Vec<String>,
+}
+
+#[turbo_tasks::value(serialization = "skip")]
+struct MaterializedLazyChunk {
+    client_paths: Option<ReadRef<Vec<RcStr>>>,
+    issues: Arc<Vec<ReadRef<PlainIssue>>>,
+    effects: Arc<Effects>,
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn materialize_lazy_chunk_operation(
+    container: ResolvedVc<ProjectContainer>,
+    chunk_url_path: RcStr,
+) -> Result<Vc<MaterializedLazyChunk>> {
+    let inner_op = materialize_lazy_chunk_inner_operation(container, chunk_url_path);
+    let filter = container.project().issue_filter().await?;
+    let (client_paths, issues, effects) =
+        strongly_consistent_catch_collectables(inner_op, &filter).await?;
+    Ok(MaterializedLazyChunk {
+        client_paths,
+        issues,
+        effects,
+    }
+    .cell())
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn materialize_lazy_chunk_inner_operation(
+    container: ResolvedVc<ProjectContainer>,
+    chunk_url_path: RcStr,
+) -> Result<Vc<Vec<RcStr>>> {
+    let project = container.project();
+    let path = chunk_url_path
+        .split_once('?')
+        .map_or(&*chunk_url_path, |(path, _)| path);
+    let rel = path.strip_prefix("/_next/").unwrap_or(path);
+    let rel = urlencoding::decode(rel)
+        .map(|s| s.into_owned())
+        .unwrap_or_else(|_| rel.to_string());
+    let client_path = project.client_relative_path().await?.join(&rel)?;
+    Ok(container.materialize_lazy_chunk(client_path))
+}
+
+#[tracing::instrument(level = "info", name = "materialize lazy chunk", skip_all)]
+#[napi]
+pub async fn project_materialize_lazy_chunk(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    chunk_url_path: RcStr,
+) -> napi::Result<TurbopackResult<NapiMaterializedLazyChunk>> {
+    let container = project.container;
+    let (client_paths, issues) = project
+        .turbopack_ctx
+        .turbo_tasks()
+        .run(async move {
+            let op = materialize_lazy_chunk_operation(container, chunk_url_path);
+            let read = read_strongly_consistent_and_apply_effects(op, |v| &v.effects).await?;
+            let MaterializedLazyChunk {
+                client_paths,
+                issues,
+                ..
+            } = &*read;
+            Ok((
+                client_paths
+                    .iter()
+                    .flat_map(|paths| paths.iter().map(|path| path.to_string()))
+                    .collect::<Vec<_>>(),
+                issues.clone(),
+            ))
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))?;
+
+    Ok(TurbopackResult {
+        result: NapiMaterializedLazyChunk { client_paths },
+        issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
+    })
+}
+
 #[napi]
 pub async fn project_write_analyze_data(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,

@@ -6,7 +6,8 @@ import dynamic from 'next/dynamic';
 import somethingElse from 'something-else';
 const DynamicComponent = dynamic(()=>import('../components/hello', {
         with: {
-            "turbopack-transition": "next-dynamic"
+            "turbopack-transition": "next-dynamic",
+            "turbopack-chunking-type": "parallel"
         }
     }), {
     loadableGenerated: {

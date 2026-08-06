@@ -110,6 +110,7 @@ impl Asset for ServerNftJsonAsset {
                 GraphEntries::new(vec![], self.entries().owned().await?).resolved_cell(),
                 true,
                 false,
+                /* defer_async */ false,
             )],
             None,
         )

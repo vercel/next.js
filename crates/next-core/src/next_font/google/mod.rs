@@ -739,6 +739,7 @@ async fn get_mock_stylesheet(
             entries.graph_entries().to_resolved().await?,
             false,
             false,
+            /* defer_async */ false,
         )],
         None,
     );

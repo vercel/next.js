@@ -5,7 +5,8 @@ import { __turbopack_module_id__ as id } from "../text-dynamic-no-ssr-server" wi
 import dynamic from 'next/dynamic';
 export const NextDynamicNoSSRServerComponent = dynamic(()=>import('../text-dynamic-no-ssr-server', {
         with: {
-            "turbopack-transition": "next-dynamic"
+            "turbopack-transition": "next-dynamic",
+            "turbopack-chunking-type": "parallel"
         }
     }), {
     loadableGenerated: {
