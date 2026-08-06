@@ -447,6 +447,14 @@ impl Issue for ReactCompilerIssue {
     }
 }
 
+fn should_run_rust_react_compiler(
+    program: &Program,
+    compilation_mode: ReactCompilerCompilationMode,
+) -> bool {
+    !matches!(compilation_mode, ReactCompilerCompilationMode::Infer)
+        || next_custom_transforms::react_compiler::may_require(program)
+}
+
 async fn apply_rust_react_compiler(
     program: &mut Program,
     ctx: &TransformContext<'_>,
@@ -457,6 +465,13 @@ async fn apply_rust_react_compiler(
     let Program::Module(_) = program else {
         return Ok(helpers);
     };
+
+    // Match the legacy React Compiler loader: in infer mode, avoid invoking the compiler for
+    // modules that cannot contain a component or hook. The detector runs on the SWC AST we
+    // already parsed, so this is cheaper than converting every module to the compiler AST.
+    if !should_run_rust_react_compiler(program, compilation_mode) {
+        return Ok(helpers);
+    }
 
     let single_threaded_comments =
         crate::swc_comments::swc_comments_to_single_threaded(ctx.comments);
@@ -581,5 +596,34 @@ pub fn remove_directives(program: &mut Program) {
                 .count();
             script.body.drain(0..directive_count);
         }
+    }
+}
+
+#[cfg(test)]
+mod react_compiler_tests {
+    use swc_core::{common::DUMMY_SP, ecma::ast::Module};
+
+    use super::*;
+
+    #[test]
+    fn infer_mode_skips_ineligible_modules_without_affecting_explicit_modes() {
+        let program = Program::Module(Module {
+            span: DUMMY_SP,
+            body: Vec::new(),
+            shebang: None,
+        });
+
+        assert!(!should_run_rust_react_compiler(
+            &program,
+            ReactCompilerCompilationMode::Infer
+        ));
+        assert!(should_run_rust_react_compiler(
+            &program,
+            ReactCompilerCompilationMode::Annotation
+        ));
+        assert!(should_run_rust_react_compiler(
+            &program,
+            ReactCompilerCompilationMode::All
+        ));
     }
 }
