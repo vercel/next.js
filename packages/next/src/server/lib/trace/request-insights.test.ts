@@ -1,5 +1,9 @@
 /* eslint-disable jest/no-standalone-expect -- Assertions run inside the controller-scoped test wrapper. */
 
+import { EventEmitter } from 'node:events'
+import type { ServerResponse } from 'node:http'
+
+import { WebNextResponse } from '../../base-http/web'
 import {
   RequestInsights,
   getRequestInsightsSnapshot,
@@ -16,6 +20,11 @@ import {
   createRequestInsightsRetentionContext,
   isRequestInsightsRetentionContextOpen,
 } from './request-insights-identity'
+import {
+  trackRequestInsightNodeResponse,
+  trackRequestInsightWebResponse,
+  type RequestInsightResponseLifecycle,
+} from './request-insights-response'
 import {
   createBoundedRequestInsightsSnapshotProjection,
   REQUEST_INSIGHTS_MAX_BYTES_PER_RETENTION_BUCKET,
@@ -2588,5 +2597,392 @@ describe('request insights', () => {
     } finally {
       controller.dispose()
     }
+  })
+
+  test('keeps a response pending until delivery actually finishes', () => {
+    const identity = { requestId: 'response-pending' }
+
+    requestInsights.startResponse(identity, 100)
+    recordSpan({
+      name: 'GET /stream',
+      requestId: identity.requestId,
+      startTime: 110,
+      durationMs: 20,
+      status: 'ok',
+      attributes: {
+        'next.span_type': 'BaseServer.handleRequest',
+      },
+    })
+
+    expect(requestInsights.getSnapshot().requests[0]).toEqual(
+      expect.objectContaining({
+        status: 'pending',
+        response: {
+          trackingStartTime: 100,
+          outcome: 'pending',
+        },
+      })
+    )
+
+    requestInsights.completeResponse(identity, {
+      trackingStartTime: 100,
+      endTime: 175,
+      statusCode: 202,
+      outcome: 'finished',
+    })
+
+    expect(requestInsights.getSnapshot().requests[0]).toEqual(
+      expect.objectContaining({
+        startTime: 100,
+        durationMs: 75,
+        status: 'ok',
+        response: {
+          trackingStartTime: 100,
+          endTime: 175,
+          statusCode: 202,
+          outcome: 'finished',
+          error: undefined,
+        },
+      })
+    )
+  })
+
+  test('accounts for response lifecycle bytes and isolates published response data', () => {
+    const unsubscribe = requestInsights.subscribe((insight) => {
+      if (insight.response?.outcome !== 'errored') {
+        return
+      }
+
+      insight.response.endTime = 1
+      if (insight.response.error) {
+        insight.response.error.type = 'mutated'
+      }
+    })
+
+    requestInsights.startResponse({ requestId: 'isolated-response' }, 100)
+    requestInsights.completeResponse(
+      { requestId: 'isolated-response' },
+      {
+        trackingStartTime: 100,
+        endTime: 150,
+        statusCode: 500,
+        outcome: 'errored',
+        error: { type: 'private-error-name' },
+      }
+    )
+
+    const snapshot = requestInsights.getSnapshot()
+    expect(snapshot.requests[0].response).toEqual({
+      trackingStartTime: 100,
+      endTime: 150,
+      statusCode: 500,
+      outcome: 'errored',
+      error: { type: 'Error' },
+    })
+    expect(snapshot.capture?.usage.retainedBytes).toBe(
+      Buffer.byteLength(JSON.stringify(snapshot.requests[0]), 'utf8')
+    )
+    unsubscribe()
+  })
+
+  test('keeps delivery timing when the request span arrives after completion', () => {
+    const identity = { requestId: 'response-before-request-span' }
+
+    requestInsights.startResponse(identity, 100)
+    requestInsights.completeResponse(identity, {
+      trackingStartTime: 100,
+      endTime: 200,
+      statusCode: 200,
+      outcome: 'finished',
+    })
+    recordSpan({
+      name: 'GET /stream',
+      requestId: identity.requestId,
+      startTime: 110,
+      durationMs: 20,
+      status: 'ok',
+      attributes: {
+        'next.span_type': 'BaseServer.handleRequest',
+      },
+    })
+
+    expect(requestInsights.getSnapshot().requests[0]).toEqual(
+      expect.objectContaining({
+        startTime: 100,
+        durationMs: 100,
+        status: 'ok',
+        response: expect.objectContaining({
+          endTime: 200,
+          outcome: 'finished',
+        }),
+      })
+    )
+  })
+
+  test('keeps aborts and errors sticky after response completion', () => {
+    const abortedIdentity = { requestId: 'response-aborted' }
+    requestInsights.startResponse(abortedIdentity, 100)
+    requestInsights.completeResponse(abortedIdentity, {
+      trackingStartTime: 100,
+      endTime: 125,
+      statusCode: 200,
+      outcome: 'aborted',
+      error: { type: 'ResponseAborted' },
+    })
+    recordSpan({
+      name: 'late abort cleanup',
+      requestId: abortedIdentity.requestId,
+      startTime: 120,
+      durationMs: 10,
+      status: 'error',
+      error: { type: 'AbortError' },
+    })
+    requestInsights.completeResponse(abortedIdentity, {
+      trackingStartTime: 100,
+      endTime: 150,
+      statusCode: 200,
+      outcome: 'finished',
+    })
+
+    const erroredIdentity = { requestId: 'response-errored' }
+    requestInsights.startResponse(erroredIdentity, 200)
+    requestInsights.completeResponse(erroredIdentity, {
+      trackingStartTime: 200,
+      endTime: 225,
+      statusCode: 200,
+      outcome: 'errored',
+      error: { type: 'private-error-name' },
+    })
+    recordSpan({
+      name: 'late successful cleanup',
+      requestId: erroredIdentity.requestId,
+      startTime: 225,
+      durationMs: 5,
+      status: 'ok',
+    })
+
+    const routeErrorIdentity = { requestId: 'route-error-then-abort' }
+    requestInsights.startResponse(routeErrorIdentity, 300)
+    recordSpan({
+      name: 'route failed',
+      requestId: routeErrorIdentity.requestId,
+      startTime: 310,
+      durationMs: 5,
+      status: 'error',
+      error: { type: 'Error' },
+    })
+    requestInsights.completeResponse(routeErrorIdentity, {
+      trackingStartTime: 300,
+      endTime: 325,
+      statusCode: 200,
+      outcome: 'aborted',
+      error: { type: 'ResponseAborted' },
+    })
+
+    expect(requestInsights.getSnapshot().requests).toEqual([
+      expect.objectContaining({
+        requestId: abortedIdentity.requestId,
+        status: 'aborted',
+        response: expect.objectContaining({ outcome: 'aborted' }),
+      }),
+      expect.objectContaining({
+        requestId: erroredIdentity.requestId,
+        status: 'error',
+        response: expect.objectContaining({
+          outcome: 'errored',
+          error: { type: 'Error' },
+        }),
+      }),
+      expect.objectContaining({
+        requestId: routeErrorIdentity.requestId,
+        status: 'error',
+        response: expect.objectContaining({ outcome: 'aborted' }),
+      }),
+    ])
+  })
+
+  test('captures the committed Node status and completes only once', () => {
+    const originalWriteHead = function (
+      this: ServerResponse,
+      statusCode: number
+    ) {
+      Object.assign(this, { headersSent: true, statusCode })
+      return this
+    } as ServerResponse['writeHead']
+    const response = Object.assign(new EventEmitter(), {
+      destroyed: false,
+      errored: null,
+      headersSent: false,
+      statusCode: 200,
+      writableFinished: false,
+      writeHead: originalWriteHead,
+    }) as unknown as ServerResponse
+    const identity = { requestId: 'node-response' }
+    const onComplete = jest.fn((lifecycle: RequestInsightResponseLifecycle) => {
+      requestInsights.completeResponse(identity, lifecycle)
+    })
+
+    trackRequestInsightNodeResponse(response, {
+      onAttach(trackingStartTime) {
+        requestInsights.startResponse(identity, trackingStartTime)
+      },
+      onComplete,
+    })
+    response.writeHead(202)
+    expect(response.writeHead).toBe(originalWriteHead)
+
+    Object.assign(response, {
+      statusCode: 500,
+      writableFinished: true,
+    })
+    response.emit('finish')
+    response.emit('close')
+
+    expect(onComplete).toHaveBeenCalledTimes(1)
+    expect(requestInsights.getSnapshot().requests[0]).toEqual(
+      expect.objectContaining({
+        status: 'ok',
+        response: expect.objectContaining({
+          statusCode: 202,
+          outcome: 'finished',
+        }),
+      })
+    )
+    expect(response.listenerCount('finish')).toBe(0)
+    expect(response.listenerCount('close')).toBe(0)
+  })
+
+  test('does not let diagnostic callback failures affect a Node response', () => {
+    const response = Object.assign(new EventEmitter(), {
+      destroyed: false,
+      errored: null,
+      headersSent: true,
+      statusCode: 200,
+      writableFinished: false,
+    }) as unknown as ServerResponse
+    const consoleError = jest.spyOn(console, 'error').mockImplementation()
+
+    try {
+      expect(() =>
+        trackRequestInsightNodeResponse(response, {
+          onAttach() {
+            throw new Error('attach failed')
+          },
+          onComplete() {
+            throw new Error('complete failed')
+          },
+        })
+      ).not.toThrow()
+
+      Object.assign(response, { writableFinished: true })
+      expect(() => response.emit('finish')).not.toThrow()
+      expect(consoleError).toHaveBeenCalledTimes(2)
+      expect(response.listenerCount('finish')).toBe(0)
+      expect(response.listenerCount('close')).toBe(0)
+    } finally {
+      consoleError.mockRestore()
+    }
+  })
+
+  it('completes the controller captured at attachment after ALS exits', () => {
+    process.env.__NEXT_DEV_SERVER = '1'
+    const first = new RequestInsights()
+    const second = new RequestInsights()
+    const response = Object.assign(new EventEmitter(), {
+      destroyed: false,
+      errored: null,
+      headersSent: true,
+      statusCode: 200,
+      writableFinished: false,
+    }) as unknown as ServerResponse
+    const identity = { requestId: 'owned-response' }
+
+    try {
+      trackRequestInsightNodeResponse(response, {
+        onAttach(trackingStartTime) {
+          first.startResponse(identity, trackingStartTime)
+        },
+        onComplete(lifecycle) {
+          first.completeResponse(identity, lifecycle)
+        },
+      })
+
+      Object.assign(response, { writableFinished: true })
+      runWithRequestInsights(second, () => response.emit('finish'))
+
+      expect(first.getSnapshot().requests[0]).toEqual(
+        expect.objectContaining({
+          response: expect.objectContaining({ outcome: 'finished' }),
+        })
+      )
+      expect(second.getSnapshot()).toEqual({ requests: [] })
+    } finally {
+      first.dispose()
+      second.dispose()
+    }
+  })
+
+  it('records Web completion on the controller captured before consumption', async () => {
+    process.env.__NEXT_DEV_SERVER = '1'
+    const first = new RequestInsights()
+    const second = new RequestInsights()
+    const response = new WebNextResponse(undefined).body('complete')
+    response.statusCode = 202
+    const identity = { requestId: 'owned-web-response' }
+
+    try {
+      trackRequestInsightWebResponse(response, {
+        onAttach(trackingStartTime) {
+          first.startResponse(identity, trackingStartTime)
+        },
+        onComplete(lifecycle) {
+          first.completeResponse(identity, lifecycle)
+        },
+      })
+      response.send()
+      const webResponse = await response.toResponse()
+      await runWithRequestInsights(second, () => webResponse.text())
+
+      expect(first.getSnapshot().requests[0]).toEqual(
+        expect.objectContaining({
+          status: 'ok',
+          response: expect.objectContaining({
+            outcome: 'finished',
+            statusCode: 202,
+          }),
+        })
+      )
+      expect(second.getSnapshot()).toEqual({ requests: [] })
+    } finally {
+      first.dispose()
+      second.dispose()
+    }
+  })
+
+  it('ignores late response callbacks after controller disposal', () => {
+    process.env.__NEXT_DEV_SERVER = '1'
+    const controller = new RequestInsights()
+    const response = Object.assign(new EventEmitter(), {
+      destroyed: false,
+      errored: null,
+      headersSent: true,
+      statusCode: 200,
+      writableFinished: false,
+    }) as unknown as ServerResponse
+    const identity = { requestId: 'disposed-response' }
+
+    trackRequestInsightNodeResponse(response, {
+      onAttach(trackingStartTime) {
+        controller.startResponse(identity, trackingStartTime)
+      },
+      onComplete(lifecycle) {
+        controller.completeResponse(identity, lifecycle)
+      },
+    })
+    controller.dispose()
+    Object.assign(response, { writableFinished: true })
+
+    expect(() => response.emit('finish')).not.toThrow()
+    expect(controller.getSnapshot()).toEqual({ requests: [] })
   })
 })
