@@ -27,7 +27,7 @@ describe('server-side dev errors', () => {
         if (/^[✓⚠△] /.test(trimmed)) return false
         // Individual entries under the `- Experiments` header are indented and
         // use status glyphs (✓ enabled, ⨯ disabled, · value), e.g.
-        // `  ⨯ appNewScrollHandler (disabled by ...)`. Only these banner entries
+        // `  ⨯ exampleFlag (disabled by ...)`. Only these banner entries
         // are indented; real dev errors start at column 0 (`⨯ ReferenceError:
         // ...`), so key off the leading indentation to avoid dropping them.
         if (/^\s+[✓⚠△⨯·] /.test(item)) return false

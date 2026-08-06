@@ -171,11 +171,9 @@ export function getDefineEnv({
     'process.env.__NEXT_APP_NAV_FAIL_HANDLING': Boolean(
       config.experimental.appNavFailHandling
     ),
-    'process.env.__NEXT_APP_NEW_SCROLL_HANDLER': Boolean(
-      config.experimental.appNewScrollHandler
-    ),
     'process.env.__NEXT_TURBOPACK_SHARED_RUNTIME':
       config.experimental.turbopackSharedRuntime !== false,
+    ),
     'process.env.__NEXT_PPR': isPPREnabled,
     'process.env.__NEXT_CACHE_COMPONENTS': isCacheComponentsEnabled,
     'process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS': Boolean(
@@ -393,7 +391,8 @@ export function getDefineEnv({
       config.experimental.instrumentationClientRouterTransitionEvents ?? false,
     'process.env.__NEXT_VARY_PARAMS': config.experimental.varyParams ?? false,
     'process.env.__NEXT_EXPOSE_TESTING_API':
-      dev || config.experimental.exposeTestingApiInProductionBuild === true,
+      isCacheComponentsEnabled &&
+      (dev || config.experimental.exposeTestingApiInProductionBuild === true),
     'process.env.__NEXT_CACHE_LIFE': config.cacheLife,
     'process.env.__NEXT_CLIENT_PARAM_PARSING_ORIGINS':
       config.experimental.clientParamParsingOrigins || [],

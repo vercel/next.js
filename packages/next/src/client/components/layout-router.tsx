@@ -22,7 +22,6 @@ import React, {
   type JSX,
   type ActivityProps,
 } from 'react'
-import ReactDOM from 'react-dom'
 import {
   LayoutRouterContext,
   GlobalLayoutRouterContext,
@@ -50,56 +49,6 @@ import {
 import { getParamValueFromCacheKey } from '../route-params'
 import type { Params } from '../../server/request/params'
 import { isDeferredRsc } from './router-reducer/ppr-navigations'
-
-const enableNewScrollHandler = process.env.__NEXT_APP_NEW_SCROLL_HANDLER
-
-const __DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = (
-  ReactDOM as any
-).__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE
-
-// TODO-APP: Replace with new React API for finding dom nodes without a `ref` when available
-/**
- * Wraps ReactDOM.findDOMNode with additional logic to hide React Strict Mode warning
- */
-function findDOMNode(
-  instance: React.ReactInstance | null | undefined
-): Element | Text | null {
-  // Tree-shake for server bundle
-  if (typeof window === 'undefined') return null
-
-  // __DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE.findDOMNode is null during module init.
-  // We need to lazily reference it.
-  const internal_reactDOMfindDOMNode =
-    __DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE.findDOMNode
-  return internal_reactDOMfindDOMNode(instance)
-}
-
-const rectProperties = [
-  'bottom',
-  'height',
-  'left',
-  'right',
-  'top',
-  'width',
-  'x',
-  'y',
-] as const
-/**
- * Check if a HTMLElement is hidden or fixed/sticky position
- */
-function shouldSkipElement(element: HTMLElement) {
-  // we ignore fixed or sticky positioned elements since they'll likely pass the "in-viewport" check
-  // and will result in a situation we bail on scroll because of something like a fixed nav,
-  // even though the actual page content is offscreen
-  if (['sticky', 'fixed'].includes(getComputedStyle(element).position)) {
-    return true
-  }
-
-  // Uses `getBoundingClientRect` to check if the element is hidden instead of `offsetParent`
-  // because `offsetParent` doesn't consider document/body
-  const rect = element.getBoundingClientRect()
-  return rectProperties.every((item) => rect[item] === 0)
-}
 
 const enum ScrollTargetState {
   NoClientRects,
@@ -189,145 +138,14 @@ interface ScrollAndMaybeFocusHandlerProps {
   children: React.ReactNode
   cacheNode: CacheNode
 }
-class InnerScrollAndFocusHandlerOld extends React.Component<ScrollAndMaybeFocusHandlerProps> {
-  handlePotentialScroll = () => {
-    // Handle scroll and focus, it's only applied once.
-    const { focusAndScrollRef, cacheNode } = this.props
-
-    const scrollRef = focusAndScrollRef.forceScroll
-      ? focusAndScrollRef.scrollRef
-      : cacheNode.scrollRef
-    if (scrollRef === null || !scrollRef.current) return
-
-    let domNode:
-      | ReturnType<typeof getHashFragmentDomNode>
-      | ReturnType<typeof findDOMNode> = null
-    const hashFragment = focusAndScrollRef.hashFragment
-
-    if (hashFragment) {
-      domNode = getHashFragmentDomNode(hashFragment)
-      if (domNode === null) {
-        // A missing hash target is still a handled scroll intent. Do not
-        // fall back to the route segment or leave the intent pending.
-        scrollRef.current = false
-        focusAndScrollRef.onlyHashChange = false
-        focusAndScrollRef.hashFragment = null
-        return
-      }
-    }
-
-    // `findDOMNode` is tricky because it returns just the first child if the component is a fragment.
-    // This already caused a bug where the first child was a <link/> in head.
-    if (!domNode) {
-      domNode = findDOMNode(this)
-    }
-
-    // If there is no DOM node this layout-router level is skipped. It'll be handled higher-up in the tree.
-    if (!(domNode instanceof Element)) {
-      return
-    }
-
-    // Verify if the element is a HTMLElement and if we want to consider it for scroll behavior.
-    // If the element is skipped, try to select the next sibling and try again.
-    while (!(domNode instanceof HTMLElement) || shouldSkipElement(domNode)) {
-      if (process.env.NODE_ENV !== 'production') {
-        if (domNode.parentElement?.localName === 'head') {
-          // We enter this state when metadata was rendered as part of the page or via Next.js.
-          // This is always a bug in Next.js and caused by React hoisting metadata.
-          // Fixed with `experimental.appNewScrollHandler`
-        }
-      }
-
-      // No siblings found that match the criteria are found, so handle scroll higher up in the tree instead.
-      if (domNode.nextElementSibling === null) {
-        return
-      }
-      domNode = domNode.nextElementSibling
-    }
-
-    // Mark as scrolled so no other segment scrolls for this navigation.
-    scrollRef.current = false
-
-    disableSmoothScrollDuringRouteTransition(
-      () => {
-        // In case of hash scroll, we only need to scroll the element into view
-        if (hashFragment) {
-          domNode.scrollIntoView()
-
-          return
-        }
-        // Store the current viewport height because reading `clientHeight` causes a reflow,
-        // and it won't change during this function.
-        const htmlElement = document.documentElement
-        const viewportHeight = htmlElement.clientHeight
-        let scrollPaddingTop: number | null = null
-        const getScrollPaddingTop = () => {
-          if (scrollPaddingTop === null) {
-            // Reuse the style and layout update from the geometry read above.
-            scrollPaddingTop = getScrollPaddingTopInPixels(
-              htmlElement,
-              viewportHeight
-            )
-          }
-          return scrollPaddingTop
-        }
-
-        // If the element's top edge is already in the viewport, exit early.
-        if (
-          getScrollTargetState(domNode, viewportHeight, getScrollPaddingTop) ===
-          ScrollTargetState.InViewport
-        ) {
-          return
-        }
-
-        // Otherwise, try scrolling go the top of the document to be backward compatible with pages
-        // scrollIntoView() called on `<html/>` element scrolls horizontally on chrome and firefox (that shouldn't happen)
-        // We could use it to scroll horizontally following RTL but that also seems to be broken - it will always scroll left
-        // scrollLeft = 0 also seems to ignore RTL and manually checking for RTL is too much hassle so we will scroll just vertically
-        htmlElement.scrollTop = 0
-
-        // Scroll to domNode if domNode is not in viewport when scrolled to top of document
-        if (
-          getScrollTargetState(domNode, viewportHeight, getScrollPaddingTop) !==
-          ScrollTargetState.InViewport
-        ) {
-          // Scroll into view doesn't scroll horizontally by default when not needed
-          domNode.scrollIntoView()
-        }
-      },
-      {
-        // We will force layout by querying domNode position
-        dontForceLayout: true,
-        onlyHashChange: focusAndScrollRef.onlyHashChange,
-      }
-    )
-
-    // Mutate after scrolling so that it can be read by `disableSmoothScrollDuringRouteTransition`
-    focusAndScrollRef.onlyHashChange = false
-    focusAndScrollRef.hashFragment = null
-
-    // Set focus on the element
-    domNode.focus()
-  }
-
-  componentDidMount() {
-    this.handlePotentialScroll()
-  }
-
-  componentDidUpdate() {
-    this.handlePotentialScroll()
-  }
-
-  render() {
-    return this.props.children
-  }
-}
 
 /**
- * Fork of InnerScrollAndFocusHandlerOld using Fragment refs for scrolling.
- * No longer focuses the first host descendant.
+ * Uses Fragment refs for scrolling.
+ * Does not focus the first host descendant.
  */
-function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
+function InnerScrollAndMaybeFocusHandler(
+  props: ScrollAndMaybeFocusHandlerProps
+) {
   const childrenRef = React.useRef<FragmentInstance>(null)
 
   useLayoutEffect(
@@ -458,10 +276,6 @@ function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
 
   return <Fragment ref={childrenRef}>{props.children}</Fragment>
 }
-
-const InnerScrollAndMaybeFocusHandler = enableNewScrollHandler
-  ? InnerScrollHandlerNew
-  : InnerScrollAndFocusHandlerOld
 
 function ScrollAndMaybeFocusHandler({
   children,

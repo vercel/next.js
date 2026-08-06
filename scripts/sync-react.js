@@ -659,8 +659,6 @@ Or run this command again without the --no-install flag to do both automatically
   }
 
   if (createPull) {
-    // Authenticate as the release app so the Pull Request is opened by the
-    // same identity that authors the signed commits pushed below.
     const octokit = new Octokit({ auth: releaseGithubToken })
     const prTitle = `Upgrade React from \`${baseSha}-${baseDateString}\` to \`${newSha}-${newDateString}\``
 
