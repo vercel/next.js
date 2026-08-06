@@ -35,21 +35,13 @@ export function registerGetRequestInsightsTool(
         }
       }
 
-      const snapshot = requestInsights.getSnapshot()
-      const requests = snapshot.requests.filter((insight) => {
-        return (
-          (request.requestId === undefined ||
-            insight.requestId === request.requestId) &&
-          (request.htmlRequestId === undefined ||
-            insight.htmlRequestId === request.htmlRequestId)
-        )
-      })
+      const snapshot = requestInsights.getSnapshot(request)
 
       return {
         content: [
           {
             type: 'text',
-            text: JSON.stringify({ requests }, null, 2),
+            text: JSON.stringify(snapshot),
           },
         ],
       }

@@ -2,32 +2,72 @@ import type { AttributeValue } from 'next/dist/compiled/@opentelemetry/api'
 import type {
   RequestInsight,
   RequestInsightFetch,
+  RequestInsightSpan,
+  RequestInsightsCaptureState,
   RequestInsightsSnapshot,
 } from '../../../next-devtools/shared/request-insights'
-import type { RequestInsightKind } from '../../../shared/lib/request-insights'
+import {
+  createBoundedRequestInsightsSnapshotProjection,
+  REQUEST_INSIGHTS_MAX_BYTES_PER_RECORD,
+  REQUEST_INSIGHTS_MAX_BYTES_PER_RETENTION_BUCKET,
+  REQUEST_INSIGHTS_MAX_BYTES_PER_SPAN,
+  REQUEST_INSIGHTS_MAX_EVENTS_PER_SPAN,
+  REQUEST_INSIGHTS_MAX_FETCHES_PER_RECORD,
+  REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET,
+  REQUEST_INSIGHTS_MAX_LINKS_PER_SPAN,
+  REQUEST_INSIGHTS_MAX_RECORDS_PER_GROUP,
+  REQUEST_INSIGHTS_MAX_RETAINED_BYTES,
+  REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES,
+  REQUEST_INSIGHTS_MAX_SPANS_PER_RECORD,
+} from '../../../next-devtools/shared/request-insights'
+import type { RequestInsightKind } from '../../../next-devtools/shared/request-insights'
 import {
   getRequestInsightKey,
   getRequestInsightKind,
+  getRequestInsightRetentionBucket,
+  getRequestInsightRootId,
   getRequestInsightSource,
   REQUEST_INSIGHT_PROXY_SPAN_TYPE,
   REQUEST_INSIGHT_REQUEST_SPAN_TYPE,
+  REQUEST_INSIGHT_RETENTION_BUCKETS,
   type RequestInsightProxyStatus,
+  type RequestInsightRetentionBucket,
   type RequestInsightRouterActivity,
   type RequestInsightSource,
 } from '../../../shared/lib/request-insights'
 import type { SpanStoreRecord } from './span-store'
 import { getActiveRequestInsights } from './request-insights-runtime'
+import {
+  closeRequestInsightsRetentionRecord,
+  closeRequestInsightsRetentionRoot,
+  hasSameRequestInsightsRetentionContext,
+  hasSameRequestInsightsRetentionRoot,
+  isRequestInsightsRetentionContextOpen,
+  type RequestInsightsRetentionContext,
+} from './request-insights-identity'
 export { isRequestInsightsEnabled } from './span-store'
 
-const MAX_REQUEST_INSIGHTS = 100
+const MAX_REQUEST_INSIGHT_STRING_LENGTH = 256
+const MAX_REQUEST_INSIGHT_SPAN_NAME_LENGTH = 512
+const MAX_REQUEST_INSIGHT_ROUTE_LENGTH = 1024
 const MAX_REQUEST_INSIGHT_URL_LENGTH = 2048
 const MAX_REQUEST_INSIGHT_RAW_URL_LENGTH = 64 * 1024
+const MAX_REQUEST_INSIGHT_ATTRIBUTE_ARRAY_LENGTH = 8
+const MAX_REQUEST_INSIGHT_ID_LENGTH = 128
 const CLIENT_COMPONENT_LOADING_SPAN_TYPE =
   'NextNodeServer.clientComponentLoading'
 
 export type RequestInsightsListener = (insight: RequestInsight) => void
+export type RequestInsightsSnapshotQuery = {
+  requestId?: string
+  htmlRequestId?: string
+  limit?: number
+}
+
 type RequestInsightIdentity = {
   requestId?: string
+  rootRequestId?: string
+  retention?: RequestInsightsRetentionContext
   kind?: RequestInsightKind
   source?: RequestInsightSource
   proxyStatus?: RequestInsightProxyStatus
@@ -37,6 +77,23 @@ type RequestInsightIdentity = {
   route?: string
   url?: string
 }
+
+export type RequestInsightsOptions = {
+  maxBytesPerRetentionBucket?: number
+  maxRetainedBytes?: number
+  maxRequestGroupsPerBucket?: number
+  maxSnapshotBytes?: number
+}
+
+type RequestInsightsLimits = {
+  maxBytesPerRetentionBucket: number
+  maxRetainedBytes: number
+  maxRequestGroupsPerBucket: number
+  maxSnapshotBytes: number
+}
+
+// Leave room for the fixed capture and projection metadata envelope.
+const MIN_REQUEST_INSIGHTS_SNAPSHOT_BYTES = 2 * 1024
 
 const REDACTED_VALUE = 'redacted'
 const SAFE_SPAN_ATTRIBUTE_KEYS = new Set([
@@ -57,15 +114,65 @@ const SAFE_SPAN_ATTRIBUTE_KEYS = new Set([
   'next.span_name',
   'next.span_type',
 ])
+const KNOWN_ERROR_TYPES = new Set([
+  'AbortError',
+  'AggregateError',
+  'Error',
+  'EvalError',
+  'RangeError',
+  'ReferenceError',
+  'SyntaxError',
+  'TypeError',
+  'URIError',
+])
+
+type SanitizationState = {
+  truncatedMetadataValueCount: number
+}
+
 export class RequestInsights {
   private readonly requests = new Map<string, RequestInsight>()
   private readonly requestTimings = new Map<
     string,
     { startTime: number; durationMs: number }
   >()
-  private readonly requestOrder: string[] = []
+  private readonly rootRequestOrder = new Set<string>()
+  private readonly rootRequestSequence = new Map<string, number>()
+  private readonly requestKeysByRootRequestId = new Map<string, Set<string>>()
+  private readonly rootRetentionBuckets = new Map<
+    string,
+    RequestInsightRetentionBucket
+  >()
+  private readonly rootRequestOrderByRetentionBucket = new Map<
+    RequestInsightRetentionBucket,
+    Set<string>
+  >()
+  private readonly requestByteLengths = new Map<string, number>()
+  private readonly rootByteLengths = new Map<string, number>()
+  private readonly retainedBytesByBucket = new Map<
+    RequestInsightRetentionBucket,
+    number
+  >()
+  private readonly retentionContextsByRequestKey = new Map<
+    string,
+    RequestInsightsRetentionContext
+  >()
+  private readonly omittedRequestCountsByRootRequestId = new Map<
+    string,
+    number
+  >()
+  private readonly evictedRequestGroupCounts = new Map<
+    RequestInsightRetentionBucket,
+    number
+  >()
   private readonly listeners = new Set<RequestInsightsListener>()
+  private readonly limits: RequestInsightsLimits
+  private nextRootRequestSequence = 0
   private disposed = false
+
+  constructor(options: RequestInsightsOptions = {}) {
+    this.limits = normalizeRequestInsightsLimits(options)
+  }
 
   recordSpan(span: SpanStoreRecord): void {
     if (
@@ -76,9 +183,14 @@ export class RequestInsights {
       return
     }
 
+    const spanStartTime =
+      sanitizeFiniteNumber(span.startTime ?? span.timestamp) ??
+      getCurrentTimestamp()
     const insight = this.getOrCreateRequest(
       {
         requestId: span.requestId,
+        rootRequestId: span.rootRequestId,
+        retention: span.requestInsightsRetention,
         kind: span.requestInsightKind,
         source: span.requestInsightSource,
         proxyStatus: span.requestInsightProxyStatus,
@@ -88,11 +200,12 @@ export class RequestInsights {
         route: span.route,
         url: span.url,
       },
-      span.startTime ?? span.timestamp
+      spanStartTime
     )
+    if (!insight) return
 
-    const spanStartTime = span.startTime ?? span.timestamp
-    insight.htmlRequestId = span.htmlRequestId ?? insight.htmlRequestId
+    insight.htmlRequestId =
+      sanitizeRequestInsightId(span.htmlRequestId) ?? insight.htmlRequestId
     this.updateClassification(
       insight,
       {
@@ -104,13 +217,14 @@ export class RequestInsights {
       },
       span
     )
-    insight.route = insight.route ?? span.route
+    const route = sanitizeText(span.route, MAX_REQUEST_INSIGHT_ROUTE_LENGTH)
+    insight.route = insight.route ?? route
     insight.url = insight.url ?? sanitizeUrl(span.url)
     this.updateTiming(
       insight,
       spanStartTime,
       span.durationMs,
-      span.attributes?.['next.span_type'] === 'BaseServer.handleRequest'
+      span.attributes?.['next.span_type'] === REQUEST_INSIGHT_REQUEST_SPAN_TYPE
     )
     insight.status =
       insight.status === 'error' || span.status === 'error'
@@ -119,44 +233,27 @@ export class RequestInsights {
           ? 'ok'
           : insight.status
 
-    insight.spans.push({
-      name: sanitizeSpanName(span),
-      startTime: spanStartTime,
-      durationMs: span.durationMs,
-      status: span.status,
-      traceId: span.traceId,
-      spanId: span.spanId,
-      parentSpanId: span.parentSpanId,
-      attributes: sanitizeSpanAttributes(span.attributes),
-      links: sanitizeSpanLinks(span.links),
-      events: sanitizeSpanEvents(span.events),
-      error: span.error,
-    })
-
+    this.recordSpanForInsight(insight, sanitizeSpan(span, spanStartTime))
     const fetch = getFetchInsight(span)
-    if (fetch) {
-      this.recordFetchForInsight(insight, fetch)
-    }
-
-    this.notify(insight)
+    if (fetch) this.recordFetchForInsight(insight, fetch)
+    this.finishMutation(insight)
   }
 
   recordFetch(identity: RequestInsightIdentity, fetch: RequestInsightFetch) {
-    if (this.disposed || !identity.requestId) {
-      return
-    }
+    if (this.disposed || !identity.requestId) return
 
-    const fetchStartTime = fetch.startTime ?? getCurrentTimestamp()
+    const fetchStartTime =
+      sanitizeFiniteNumber(fetch.startTime) ?? getCurrentTimestamp()
     const insight = this.getOrCreateRequest(identity, fetchStartTime)
+    if (!insight) return
+
     this.updateTiming(insight, fetchStartTime, fetch.durationMs, false)
-    this.recordFetchForInsight(insight, sanitizeFetchInsight(fetch))
-    this.notify(insight)
+    this.recordFetchForInsight(insight, fetch)
+    this.finishMutation(insight)
   }
 
   recordClassification(identity: RequestInsightIdentity): void {
-    if (this.disposed || !identity.requestId) {
-      return
-    }
+    if (this.disposed || !identity.requestId) return
 
     const insight = this.requests.get(
       getRequestInsightKey({
@@ -164,55 +261,10 @@ export class RequestInsights {
         kind: identity.kind,
       })
     )
-    if (!insight) {
-      return
-    }
+    if (!insight) return
 
     this.updateClassification(insight, identity)
-    this.notify(insight)
-  }
-
-  getSnapshot(): RequestInsightsSnapshot {
-    if (this.disposed) {
-      return { requests: [] }
-    }
-
-    return {
-      requests: this.requestOrder
-        .map((insightKey) => this.requests.get(insightKey))
-        .filter((request): request is RequestInsight => request !== undefined),
-    }
-  }
-
-  subscribe(listener: RequestInsightsListener): () => void {
-    if (this.disposed) {
-      return () => {}
-    }
-
-    this.listeners.add(listener)
-    return () => {
-      this.listeners.delete(listener)
-    }
-  }
-
-  clear(): void {
-    if (this.disposed) {
-      return
-    }
-
-    this.requests.clear()
-    this.requestTimings.clear()
-    this.requestOrder.length = 0
-  }
-
-  dispose(): void {
-    if (this.disposed) {
-      return
-    }
-
-    this.clear()
-    this.disposed = true
-    this.listeners.clear()
+    this.finishMutation(insight)
   }
 
   recordRouterActivity(
@@ -236,79 +288,295 @@ export class RequestInsights {
     this.recordClassification(identity)
   }
 
+  getSnapshot(
+    query: RequestInsightsSnapshotQuery = {}
+  ): RequestInsightsSnapshot {
+    if (this.disposed) return { requests: [] }
+
+    const requestId = sanitizeRequestInsightId(query.requestId)
+    const htmlRequestId = sanitizeRequestInsightId(query.htmlRequestId)
+    if (
+      (query.requestId !== undefined && requestId === undefined) ||
+      (query.htmlRequestId !== undefined && htmlRequestId === undefined)
+    ) {
+      return { requests: [], capture: this.getCaptureState() }
+    }
+
+    const matchingRootIds = new Set<string>()
+    for (const insight of this.requests.values()) {
+      if (
+        (requestId === undefined || insight.requestId === requestId) &&
+        (htmlRequestId === undefined || insight.htmlRequestId === htmlRequestId)
+      ) {
+        matchingRootIds.add(getRequestInsightRootId(insight))
+      }
+    }
+
+    const groups: RequestInsight[][] = []
+    for (const rootRequestId of this.rootRequestOrder) {
+      if (!matchingRootIds.has(rootRequestId)) continue
+      const group = Array.from(
+        this.requestKeysByRootRequestId.get(rootRequestId) ?? []
+      ).flatMap((requestKey) => {
+        const request = this.requests.get(requestKey)
+        return request ? [request] : []
+      })
+      if (group.length > 0) groups.push(group)
+    }
+
+    const { snapshot } = createBoundedRequestInsightsSnapshotProjection(
+      groups,
+      this.limits.maxSnapshotBytes,
+      this.getCaptureState(),
+      sanitizeSnapshotLimit(query.limit)
+    )
+    return {
+      ...snapshot,
+      requests: snapshot.requests.map(cloneRequestInsight),
+    }
+  }
+
+  getCaptureState(): RequestInsightsCaptureState {
+    const retainedRequestGroupCountByBucket = new Map<
+      RequestInsightRetentionBucket,
+      number
+    >()
+    const retainedRequestCountByBucket = new Map<
+      RequestInsightRetentionBucket,
+      number
+    >()
+    for (const rootRequestId of this.rootRequestOrder) {
+      const bucket = this.rootRetentionBuckets.get(rootRequestId) ?? 'unknown'
+      retainedRequestGroupCountByBucket.set(
+        bucket,
+        (retainedRequestGroupCountByBucket.get(bucket) ?? 0) + 1
+      )
+      retainedRequestCountByBucket.set(
+        bucket,
+        (retainedRequestCountByBucket.get(bucket) ?? 0) +
+          (this.requestKeysByRootRequestId.get(rootRequestId)?.size ?? 0)
+      )
+    }
+
+    const buckets = REQUEST_INSIGHT_RETENTION_BUCKETS.map((bucket) => ({
+      bucket,
+      retainedRequestGroupCount:
+        retainedRequestGroupCountByBucket.get(bucket) ?? 0,
+      retainedRequestCount: retainedRequestCountByBucket.get(bucket) ?? 0,
+      retainedBytes: this.retainedBytesByBucket.get(bucket) ?? 0,
+      evictedRequestGroupCount: this.evictedRequestGroupCounts.get(bucket) ?? 0,
+    }))
+
+    return {
+      limits: {
+        maxRequestGroupsPerBucket: this.limits.maxRequestGroupsPerBucket,
+        maxBytesPerBucket: this.limits.maxBytesPerRetentionBucket,
+        maxRetainedBytes: this.limits.maxRetainedBytes,
+        maxRecordsPerGroup: REQUEST_INSIGHTS_MAX_RECORDS_PER_GROUP,
+        maxSpansPerRecord: REQUEST_INSIGHTS_MAX_SPANS_PER_RECORD,
+        maxFetchesPerRecord: REQUEST_INSIGHTS_MAX_FETCHES_PER_RECORD,
+        maxBytesPerRecord: REQUEST_INSIGHTS_MAX_BYTES_PER_RECORD,
+        maxBytesPerSpan: REQUEST_INSIGHTS_MAX_BYTES_PER_SPAN,
+        maxEventsPerSpan: REQUEST_INSIGHTS_MAX_EVENTS_PER_SPAN,
+        maxLinksPerSpan: REQUEST_INSIGHTS_MAX_LINKS_PER_SPAN,
+        maxSnapshotBytes: this.limits.maxSnapshotBytes,
+      },
+      usage: {
+        retainedRequestGroupCount: this.rootRequestOrder.size,
+        retainedRequestCount: this.requests.size,
+        retainedBytes: buckets.reduce(
+          (total, bucket) => total + bucket.retainedBytes,
+          0
+        ),
+        buckets,
+      },
+    }
+  }
+
+  subscribe(listener: RequestInsightsListener): () => void {
+    if (this.disposed) return () => {}
+    this.listeners.add(listener)
+    return () => this.listeners.delete(listener)
+  }
+
+  clear(): void {
+    if (this.disposed) return
+    this.clearRetainedState()
+    this.evictedRequestGroupCounts.clear()
+  }
+
+  dispose(): void {
+    if (this.disposed) return
+    this.clearRetainedState()
+    this.disposed = true
+    this.listeners.clear()
+  }
+
+  private clearRetainedState(): void {
+    for (const retention of this.retentionContextsByRequestKey.values()) {
+      closeRequestInsightsRetentionRoot(retention)
+      closeRequestInsightsRetentionRecord(retention)
+    }
+    this.requests.clear()
+    this.requestTimings.clear()
+    this.rootRequestOrder.clear()
+    this.rootRequestSequence.clear()
+    this.requestKeysByRootRequestId.clear()
+    this.rootRetentionBuckets.clear()
+    this.rootRequestOrderByRetentionBucket.clear()
+    this.requestByteLengths.clear()
+    this.rootByteLengths.clear()
+    this.retainedBytesByBucket.clear()
+    this.retentionContextsByRequestKey.clear()
+    this.omittedRequestCountsByRootRequestId.clear()
+    this.nextRootRequestSequence = 0
+  }
+
   private updateTiming(
     insight: RequestInsight,
     startTime: number,
     durationMs: number | undefined,
     isRequestSpan: boolean
   ): void {
-    const insightKey = getRequestInsightKey(insight)
+    const requestKey = getRequestInsightKey(insight)
+    const nextDurationMs = sanitizeFiniteNumber(durationMs) ?? 0
     if (isRequestSpan && durationMs !== undefined) {
-      const requestTiming = { startTime, durationMs }
-      this.requestTimings.set(insightKey, requestTiming)
-      insight.startTime = requestTiming.startTime
-      insight.durationMs = requestTiming.durationMs
+      const timing = { startTime, durationMs: nextDurationMs }
+      this.requestTimings.set(requestKey, timing)
+      insight.startTime = timing.startTime
+      insight.durationMs = timing.durationMs
       return
     }
 
-    const requestTiming = this.requestTimings.get(insightKey)
+    const requestTiming = this.requestTimings.get(requestKey)
     if (requestTiming) {
       insight.startTime = requestTiming.startTime
       insight.durationMs = requestTiming.durationMs
       return
     }
 
-    const endTime = startTime + (durationMs ?? 0)
-    const requestEndTime = insight.startTime + (insight.durationMs ?? 0)
-    insight.startTime = Math.min(insight.startTime, startTime)
-    insight.durationMs = Math.max(requestEndTime, endTime) - insight.startTime
+    const current = this.requestTimings.get(requestKey) ?? {
+      startTime: insight.startTime,
+      durationMs: insight.durationMs ?? 0,
+    }
+    const nextStartTime = Math.min(current.startTime, startTime)
+    const nextEndTime = Math.max(
+      current.startTime + current.durationMs,
+      startTime + nextDurationMs
+    )
+    const timing = {
+      startTime: nextStartTime,
+      durationMs: nextEndTime - nextStartTime,
+    }
+    insight.startTime = timing.startTime
+    insight.durationMs = timing.durationMs
   }
 
   private notify(insight: RequestInsight): void {
     for (const listener of this.listeners) {
-      listener(insight)
+      try {
+        listener(cloneRequestInsight(insight))
+      } catch (error) {
+        console.error('[request-insights] listener failed', error)
+      }
     }
   }
 
   private getOrCreateRequest(
     identity: RequestInsightIdentity,
     startTime: number
-  ): RequestInsight {
-    const requestId = identity.requestId!
-    const insightKey = getRequestInsightKey({
+  ): RequestInsight | undefined {
+    const requestId = sanitizeRequestInsightId(identity.requestId)
+    if (!requestId) return undefined
+
+    const rootRequestId =
+      sanitizeRequestInsightId(identity.rootRequestId) ?? requestId
+    const requestKey = getRequestInsightKey({
       requestId,
       kind: identity.kind,
     })
-    let insight = this.requests.get(insightKey)
+    const retention = identity.retention
+    if (retention && !isRequestInsightsRetentionContextOpen(retention)) {
+      return undefined
+    }
 
+    const retainedContext = this.retentionContextsByRequestKey.get(requestKey)
+    const retainedRootContext =
+      retainedContext ?? this.getRetentionContextForRoot(rootRequestId)
+    if (
+      retainedContext
+        ? !retention ||
+          !hasSameRequestInsightsRetentionContext(retainedContext, retention)
+        : retainedRootContext &&
+          (!retention ||
+            !hasSameRequestInsightsRetentionRoot(
+              retainedRootContext,
+              retention
+            ))
+    ) {
+      return undefined
+    }
+
+    let insight = this.requests.get(requestKey)
     if (!insight) {
       insight = {
         requestId,
+        rootRequestId,
         kind: getRequestInsightKind(identity),
         source: getRequestInsightSource(identity),
         proxyStatus: identity.proxyStatus,
         routerActivity: identity.routerActivity,
         serverAction: identity.serverAction,
-        htmlRequestId: identity.htmlRequestId ?? requestId,
-        route: identity.route,
+        htmlRequestId:
+          sanitizeRequestInsightId(identity.htmlRequestId) ?? requestId,
+        route: sanitizeText(identity.route, MAX_REQUEST_INSIGHT_ROUTE_LENGTH),
         url: sanitizeUrl(identity.url),
-        startTime,
+        startTime: sanitizeFiniteNumber(startTime) ?? getCurrentTimestamp(),
         status: 'pending',
         spans: [],
         fetches: [],
       }
-      this.requests.set(insightKey, insight)
-      this.requestOrder.push(insightKey)
-      this.trim()
+      this.requests.set(requestKey, insight)
+      let requestKeys = this.requestKeysByRootRequestId.get(rootRequestId)
+      if (!requestKeys) {
+        requestKeys = new Set()
+        this.requestKeysByRootRequestId.set(rootRequestId, requestKeys)
+        this.rootRequestOrder.add(rootRequestId)
+        this.rootRequestSequence.set(
+          rootRequestId,
+          this.nextRootRequestSequence++
+        )
+        const bucket = getRequestInsightRetentionBucket(insight)
+        this.rootRetentionBuckets.set(rootRequestId, bucket)
+        this.getRootRequestOrderForBucket(bucket).add(rootRequestId)
+      }
+      requestKeys.add(requestKey)
+      if (retention)
+        this.retentionContextsByRequestKey.set(requestKey, retention)
+    } else if (!retainedContext && retention) {
+      this.retentionContextsByRequestKey.set(requestKey, retention)
     }
 
-    insight.htmlRequestId = identity.htmlRequestId ?? insight.htmlRequestId
-    this.updateClassification(insight, identity)
-    insight.route = insight.route ?? identity.route
+    insight.htmlRequestId =
+      sanitizeRequestInsightId(identity.htmlRequestId) ?? insight.htmlRequestId
+    insight.route =
+      insight.route ??
+      sanitizeText(identity.route, MAX_REQUEST_INSIGHT_ROUTE_LENGTH)
     insight.url = insight.url ?? sanitizeUrl(identity.url)
-    insight.startTime = Math.min(insight.startTime, startTime)
-
+    this.updateClassification(insight, identity)
     return insight
+  }
+
+  private getRetentionContextForRoot(
+    rootRequestId: string
+  ): RequestInsightsRetentionContext | undefined {
+    for (const requestKey of this.requestKeysByRootRequestId.get(
+      rootRequestId
+    ) ?? []) {
+      const retention = this.retentionContextsByRequestKey.get(requestKey)
+      if (retention) return retention
+    }
+    return undefined
   }
 
   private updateClassification(
@@ -327,39 +595,378 @@ export class RequestInsights {
     insight: RequestInsight,
     fetch: RequestInsightFetch
   ): void {
+    const sanitizedFetch = sanitizeFetchInsight(fetch)
     if (
       insight.fetches.some(
         (existingFetch) =>
-          existingFetch.url === fetch.url &&
-          (existingFetch.index !== undefined && fetch.index !== undefined
-            ? existingFetch.index === fetch.index
-            : existingFetch.startTime === fetch.startTime)
+          existingFetch.url === sanitizedFetch.url &&
+          (existingFetch.index !== undefined &&
+          sanitizedFetch.index !== undefined
+            ? existingFetch.index === sanitizedFetch.index
+            : existingFetch.startTime === sanitizedFetch.startTime)
       )
     ) {
       return
     }
 
-    insight.fetches.push(sanitizeFetchInsight(fetch))
+    if (insight.fetches.length >= REQUEST_INSIGHTS_MAX_FETCHES_PER_RECORD) {
+      insight.fetches.shift()
+      insight.truncatedFetchCount = (insight.truncatedFetchCount ?? 0) + 1
+    }
+    insight.fetches.push(sanitizedFetch)
+    this.enforceInsightByteBudget(insight)
   }
 
-  private trim(): void {
-    while (this.requestOrder.length > MAX_REQUEST_INSIGHTS) {
-      const insightKey = this.requestOrder.shift()
-      if (insightKey) {
-        this.requests.delete(insightKey)
-        this.requestTimings.delete(insightKey)
+  private recordSpanForInsight(
+    insight: RequestInsight,
+    span: RequestInsightSpan
+  ): void {
+    if (insight.spans.length < REQUEST_INSIGHTS_MAX_SPANS_PER_RECORD) {
+      insight.spans.push(span)
+      this.enforceInsightByteBudget(insight)
+      return
+    }
+
+    const removableSpanIndex = insight.spans.findIndex(
+      (retainedSpan) => !isRootRequestInsightSpan(retainedSpan)
+    )
+    if (removableSpanIndex !== -1) {
+      insight.spans.splice(removableSpanIndex, 1)
+      insight.spans.push(span)
+    } else if (isRootRequestInsightSpan(span)) {
+      insight.spans.shift()
+      insight.spans.push(span)
+    }
+    insight.truncatedSpanCount = (insight.truncatedSpanCount ?? 0) + 1
+    this.enforceInsightByteBudget(insight)
+  }
+
+  private enforceInsightByteBudget(insight: RequestInsight): void {
+    while (
+      getSerializedByteLength(insight) >
+        REQUEST_INSIGHTS_MAX_BYTES_PER_RECORD &&
+      (insight.spans.length > 1 || insight.fetches.length > 0)
+    ) {
+      const nonRootSpanIndex = insight.spans.findIndex(
+        (span) => !isRootRequestInsightSpan(span)
+      )
+      const removableSpanIndex =
+        nonRootSpanIndex === -1 && insight.spans.length > 1
+          ? 0
+          : nonRootSpanIndex
+      const oldestSpan =
+        removableSpanIndex === -1
+          ? undefined
+          : insight.spans[removableSpanIndex]
+      const oldestFetch = insight.fetches[0]
+
+      if (
+        oldestSpan &&
+        (!oldestFetch ||
+          oldestSpan.startTime <=
+            (oldestFetch.startTime ?? Number.POSITIVE_INFINITY))
+      ) {
+        insight.spans.splice(removableSpanIndex, 1)
+        insight.truncatedSpanCount = (insight.truncatedSpanCount ?? 0) + 1
+      } else if (oldestFetch) {
+        insight.fetches.shift()
+        insight.truncatedFetchCount = (insight.truncatedFetchCount ?? 0) + 1
+      } else {
+        break
       }
     }
   }
+
+  private finishMutation(insight: RequestInsight): void {
+    const metadataUpdates = this.trimGroup(getRequestInsightRootId(insight))
+    if (this.requests.has(getRequestInsightKey(insight))) {
+      this.updateStoredInsightByteLength(insight)
+    }
+    for (const updated of metadataUpdates) {
+      if (this.requests.has(getRequestInsightKey(updated))) {
+        this.updateStoredInsightByteLength(updated)
+      }
+    }
+
+    const bucket = this.refreshRootRetentionBucket(
+      getRequestInsightRootId(insight)
+    )
+    this.trimRetentionBucket(bucket)
+    this.trimGlobalRetention()
+
+    if (this.requests.has(getRequestInsightKey(insight))) this.notify(insight)
+    for (const updated of metadataUpdates) {
+      if (
+        updated !== insight &&
+        this.requests.has(getRequestInsightKey(updated))
+      ) {
+        this.notify(updated)
+      }
+    }
+  }
+
+  private trimGroup(rootRequestId: string): RequestInsight[] {
+    const requestKeys = this.requestKeysByRootRequestId.get(rootRequestId)
+    if (!requestKeys) return []
+
+    const orderedKeys = Array.from(requestKeys)
+    const canonicalRootKey = orderedKeys.find((requestKey) => {
+      const request = this.requests.get(requestKey)
+      return (
+        request?.requestId === rootRequestId &&
+        getRequestInsightKind(request) === 'request'
+      )
+    })
+    let omittedRequestCount = 0
+    while (orderedKeys.length > REQUEST_INSIGHTS_MAX_RECORDS_PER_GROUP) {
+      const removableIndex = orderedKeys.findIndex(
+        (requestKey) => requestKey !== canonicalRootKey
+      )
+      if (removableIndex === -1) break
+      const [requestKey] = orderedKeys.splice(removableIndex, 1)
+      this.removeRequest(requestKey, false)
+      omittedRequestCount++
+    }
+
+    if (omittedRequestCount > 0) {
+      this.omittedRequestCountsByRootRequestId.set(
+        rootRequestId,
+        (this.omittedRequestCountsByRootRequestId.get(rootRequestId) ?? 0) +
+          omittedRequestCount
+      )
+    }
+
+    const retained = orderedKeys.flatMap((requestKey) => {
+      const request = this.requests.get(requestKey)
+      return request ? [request] : []
+    })
+    const metadataHolder =
+      (canonicalRootKey ? this.requests.get(canonicalRootKey) : undefined) ??
+      retained[0]
+    const totalOmitted =
+      this.omittedRequestCountsByRootRequestId.get(rootRequestId)
+    const updates: RequestInsight[] = []
+    for (const request of retained) {
+      const nextOmitted = request === metadataHolder ? totalOmitted : undefined
+      if (request.omittedRequestCount !== nextOmitted) {
+        request.omittedRequestCount = nextOmitted
+        this.enforceInsightByteBudget(request)
+        updates.push(request)
+      }
+    }
+    return updates
+  }
+
+  private updateStoredInsightByteLength(insight: RequestInsight): void {
+    const requestKey = getRequestInsightKey(insight)
+    if (!this.requests.has(requestKey)) return
+
+    const rootRequestId = getRequestInsightRootId(insight)
+    const previousByteLength = this.requestByteLengths.get(requestKey) ?? 0
+    const nextByteLength = getSerializedByteLength(insight)
+    const delta = nextByteLength - previousByteLength
+    if (delta === 0) return
+
+    this.requestByteLengths.set(requestKey, nextByteLength)
+    this.rootByteLengths.set(
+      rootRequestId,
+      (this.rootByteLengths.get(rootRequestId) ?? 0) + delta
+    )
+    const bucket =
+      this.rootRetentionBuckets.get(rootRequestId) ??
+      getRequestInsightRetentionBucket(insight)
+    this.retainedBytesByBucket.set(
+      bucket,
+      (this.retainedBytesByBucket.get(bucket) ?? 0) + delta
+    )
+  }
+
+  private refreshRootRetentionBucket(
+    rootRequestId: string
+  ): RequestInsightRetentionBucket {
+    const requests = Array.from(
+      this.requestKeysByRootRequestId.get(rootRequestId) ?? []
+    ).flatMap((requestKey) => {
+      const request = this.requests.get(requestKey)
+      return request ? [request] : []
+    })
+    const representative =
+      requests.find(
+        (request) =>
+          request.requestId === rootRequestId &&
+          getRequestInsightKind(request) === 'request'
+      ) ??
+      requests.find(
+        (request) => getRequestInsightKind(request) === 'request'
+      ) ??
+      requests[0]
+    const nextBucket = getRequestInsightRetentionBucket(representative ?? {})
+    const previousBucket = this.rootRetentionBuckets.get(rootRequestId)
+    if (previousBucket === nextBucket) return nextBucket
+
+    const rootByteLength = this.rootByteLengths.get(rootRequestId) ?? 0
+    if (previousBucket) {
+      this.rootRequestOrderByRetentionBucket
+        .get(previousBucket)
+        ?.delete(rootRequestId)
+      this.retainedBytesByBucket.set(
+        previousBucket,
+        Math.max(
+          0,
+          (this.retainedBytesByBucket.get(previousBucket) ?? 0) - rootByteLength
+        )
+      )
+    }
+    this.retainedBytesByBucket.set(
+      nextBucket,
+      (this.retainedBytesByBucket.get(nextBucket) ?? 0) + rootByteLength
+    )
+    this.rootRetentionBuckets.set(rootRequestId, nextBucket)
+    this.addRootRequestToBucketOrder(nextBucket, rootRequestId)
+    return nextBucket
+  }
+
+  private addRootRequestToBucketOrder(
+    bucket: RequestInsightRetentionBucket,
+    rootRequestId: string
+  ): void {
+    const order = this.getRootRequestOrderForBucket(bucket)
+    const sequence = this.rootRequestSequence.get(rootRequestId)
+    if (sequence === undefined || order.size === 0) {
+      order.add(rootRequestId)
+      return
+    }
+
+    const nextOrder = new Set<string>()
+    let inserted = false
+    for (const existingRootRequestId of order) {
+      if (
+        !inserted &&
+        (this.rootRequestSequence.get(existingRootRequestId) ?? -1) > sequence
+      ) {
+        nextOrder.add(rootRequestId)
+        inserted = true
+      }
+      nextOrder.add(existingRootRequestId)
+    }
+    if (!inserted) nextOrder.add(rootRequestId)
+    this.rootRequestOrderByRetentionBucket.set(bucket, nextOrder)
+  }
+
+  private getRootRequestOrderForBucket(
+    bucket: RequestInsightRetentionBucket
+  ): Set<string> {
+    let order = this.rootRequestOrderByRetentionBucket.get(bucket)
+    if (!order) {
+      order = new Set()
+      this.rootRequestOrderByRetentionBucket.set(bucket, order)
+    }
+    return order
+  }
+
+  private trimRetentionBucket(bucket: RequestInsightRetentionBucket): void {
+    const roots = this.getRootRequestOrderForBucket(bucket)
+    while (roots.size > this.limits.maxRequestGroupsPerBucket) {
+      const rootRequestId = roots.values().next().value
+      if (rootRequestId) this.evictRoot(rootRequestId)
+    }
+
+    while (
+      (this.retainedBytesByBucket.get(bucket) ?? 0) >
+      this.limits.maxBytesPerRetentionBucket
+    ) {
+      const rootRequestId = roots.values().next().value
+      if (!rootRequestId) break
+      this.evictRoot(rootRequestId)
+    }
+  }
+
+  private trimGlobalRetention(): void {
+    while (this.getRetainedByteLength() > this.limits.maxRetainedBytes) {
+      const rootRequestId = this.rootRequestOrder.values().next().value
+      if (!rootRequestId || !this.evictRoot(rootRequestId)) break
+    }
+  }
+
+  private getRetainedByteLength(): number {
+    let total = 0
+    for (const bucket of REQUEST_INSIGHT_RETENTION_BUCKETS) {
+      total += this.retainedBytesByBucket.get(bucket) ?? 0
+    }
+    return total
+  }
+
+  private evictRoot(rootRequestId: string): boolean {
+    const requestKeys = Array.from(
+      this.requestKeysByRootRequestId.get(rootRequestId) ?? []
+    )
+    if (requestKeys.length === 0) return false
+    const bucket = this.rootRetentionBuckets.get(rootRequestId) ?? 'unknown'
+    for (const requestKey of requestKeys) this.removeRequest(requestKey, true)
+    this.evictedRequestGroupCounts.set(
+      bucket,
+      (this.evictedRequestGroupCounts.get(bucket) ?? 0) + 1
+    )
+    return true
+  }
+
+  private removeRequest(requestKey: string, closeRoot: boolean): void {
+    const insight = this.requests.get(requestKey)
+    if (!insight) return
+
+    const rootRequestId = getRequestInsightRootId(insight)
+    const retention = this.retentionContextsByRequestKey.get(requestKey)
+    if (retention) {
+      if (closeRoot) closeRequestInsightsRetentionRoot(retention)
+      closeRequestInsightsRetentionRecord(retention)
+      this.retentionContextsByRequestKey.delete(requestKey)
+    }
+
+    const byteLength = this.requestByteLengths.get(requestKey) ?? 0
+    const bucket = this.rootRetentionBuckets.get(rootRequestId)
+    this.requestByteLengths.delete(requestKey)
+    this.rootByteLengths.set(
+      rootRequestId,
+      Math.max(0, (this.rootByteLengths.get(rootRequestId) ?? 0) - byteLength)
+    )
+    if (bucket) {
+      this.retainedBytesByBucket.set(
+        bucket,
+        Math.max(0, (this.retainedBytesByBucket.get(bucket) ?? 0) - byteLength)
+      )
+    }
+
+    this.requests.delete(requestKey)
+    this.requestTimings.delete(requestKey)
+    const requestKeys = this.requestKeysByRootRequestId.get(rootRequestId)
+    requestKeys?.delete(requestKey)
+    if (requestKeys?.size === 0) {
+      this.requestKeysByRootRequestId.delete(rootRequestId)
+      this.rootRequestOrder.delete(rootRequestId)
+      this.rootRequestSequence.delete(rootRequestId)
+      if (bucket) {
+        this.rootRequestOrderByRetentionBucket
+          .get(bucket)
+          ?.delete(rootRequestId)
+      }
+      this.rootRetentionBuckets.delete(rootRequestId)
+      this.rootByteLengths.delete(rootRequestId)
+      this.omittedRequestCountsByRootRequestId.delete(rootRequestId)
+    }
+  }
+}
+
+function isRootRequestInsightSpan(span: RequestInsightSpan): boolean {
+  return (
+    span.attributes?.['next.span_type'] === REQUEST_INSIGHT_REQUEST_SPAN_TYPE
+  )
 }
 
 function refineSource(
   current: RequestInsightSource,
   candidate: RequestInsightSource | undefined
 ): RequestInsightSource {
-  if (!candidate || candidate === 'unknown') {
-    return current
-  }
+  if (!candidate || candidate === 'unknown') return current
   if (
     candidate === 'app-route' ||
     candidate === 'pages-api' ||
@@ -369,20 +976,33 @@ function refineSource(
   ) {
     return candidate
   }
-  if (current === 'unknown' || current === 'proxy') {
-    return candidate
-  }
+  if (current === 'unknown' || current === 'proxy') return candidate
   return current
+}
+
+function getSourceFromSpan(
+  span: SpanStoreRecord | undefined
+): RequestInsightSource | undefined {
+  if (!span) return undefined
+  const spanType = getStringAttribute(span.attributes?.['next.span_type'])
+  const markedSource = getStringAttribute(
+    span.attributes?.['next.request_source']
+  )
+  if (markedSource === 'image' || markedSource === 'asset') return markedSource
+  if (spanType === 'AppRouteRouteHandlers.runHandler') return 'app-route'
+  if (spanType === 'Node.runHandler') return 'pages-api'
+  if (spanType === 'NextNodeServer.imageOptimizer') return 'image'
+  if (spanType === REQUEST_INSIGHT_REQUEST_SPAN_TYPE) return 'page'
+  if (spanType === REQUEST_INSIGHT_PROXY_SPAN_TYPE) return 'proxy'
+  return undefined
 }
 
 export function recordRequestInsightSpan(span: SpanStoreRecord): void {
   if (
-    span.attributes?.['next.span_type'] === CLIENT_COMPONENT_LOADING_SPAN_TYPE
+    span.attributes?.['next.span_type'] !== CLIENT_COMPONENT_LOADING_SPAN_TYPE
   ) {
-    return
+    getActiveRequestInsights()?.recordSpan(span)
   }
-
-  getActiveRequestInsights()?.recordSpan(span)
 }
 
 export function recordRequestInsightFetch(
@@ -428,13 +1048,11 @@ export function clearRequestInsightsForTest(): void {
 
 function getFetchInsight(span: SpanStoreRecord): RequestInsightFetch | null {
   const attributes = span.attributes
-
   if (!attributes || attributes['next.span_type'] !== 'AppRender.fetch') {
     return null
   }
-
   return {
-    url: sanitizeUrl(getStringAttribute(attributes['http.url']) ?? span.url),
+    url: getStringAttribute(attributes['http.url']) ?? span.url,
     method: getStringAttribute(attributes['http.method']),
     statusCode: getNumberAttribute(attributes['http.status_code']),
     startTime: span.startTime ?? span.timestamp,
@@ -445,132 +1063,258 @@ function getFetchInsight(span: SpanStoreRecord): RequestInsightFetch | null {
   }
 }
 
-function getSourceFromSpan(
-  span: SpanStoreRecord | undefined
-): RequestInsightSource | undefined {
-  if (!span) {
-    return undefined
-  }
-
-  const spanType = getStringAttribute(span.attributes?.['next.span_type'])
-  const markedSource = getStringAttribute(
-    span.attributes?.['next.request_source']
-  )
-  if (markedSource === 'image' || markedSource === 'asset') {
-    return markedSource
-  }
-
-  if (spanType === 'AppRouteRouteHandlers.runHandler') {
-    return 'app-route'
-  }
-  if (spanType === 'Node.runHandler') {
-    return 'pages-api'
-  }
-  if (spanType === 'NextNodeServer.imageOptimizer') {
-    return 'image'
-  }
-  if (spanType === REQUEST_INSIGHT_REQUEST_SPAN_TYPE) {
-    return 'page'
-  }
-  if (spanType === REQUEST_INSIGHT_PROXY_SPAN_TYPE) {
-    return 'proxy'
-  }
-  return undefined
-}
-
 function sanitizeFetchInsight(fetch: RequestInsightFetch): RequestInsightFetch {
   return {
-    ...fetch,
     url: sanitizeUrl(fetch.url),
+    method: sanitizeText(fetch.method, 32),
+    statusCode: sanitizeFiniteNumber(fetch.statusCode),
+    startTime: sanitizeFiniteNumber(fetch.startTime),
+    durationMs: sanitizeFiniteNumber(fetch.durationMs),
+    cacheStatus: sanitizeText(
+      fetch.cacheStatus,
+      MAX_REQUEST_INSIGHT_STRING_LENGTH
+    ),
+    cacheReason: sanitizeText(
+      fetch.cacheReason,
+      MAX_REQUEST_INSIGHT_STRING_LENGTH
+    ),
+    index: sanitizeFiniteNumber(fetch.index),
   }
 }
 
-function getCurrentTimestamp(): number {
-  return performance.timeOrigin + performance.now()
+function sanitizeSpan(
+  span: SpanStoreRecord,
+  startTime: number
+): RequestInsightSpan {
+  const state: SanitizationState = { truncatedMetadataValueCount: 0 }
+  const name = sanitizeSpanName(span, state)
+  const retainedEvents = span.events?.slice(
+    0,
+    REQUEST_INSIGHTS_MAX_EVENTS_PER_SPAN
+  )
+  const retainedLinks = span.links?.slice(
+    0,
+    REQUEST_INSIGHTS_MAX_LINKS_PER_SPAN
+  )
+  const events = retainedEvents?.map((event) => {
+    const eventName =
+      sanitizeText(event.name, MAX_REQUEST_INSIGHT_SPAN_NAME_LENGTH, state) ??
+      ''
+    return {
+      name: eventName,
+      timestamp: sanitizeFiniteNumber(event.timestamp) ?? 0,
+      attributes: sanitizeSpanAttributes(event.attributes, eventName, state),
+    }
+  })
+  const links = retainedLinks?.flatMap((link) => {
+    const traceId = sanitizeText(
+      link.traceId,
+      MAX_REQUEST_INSIGHT_ID_LENGTH,
+      state
+    )
+    const spanId = sanitizeText(
+      link.spanId,
+      MAX_REQUEST_INSIGHT_ID_LENGTH,
+      state
+    )
+    return traceId && spanId
+      ? [
+          {
+            traceId,
+            spanId,
+            attributes: sanitizeSpanAttributes(
+              link.attributes,
+              undefined,
+              state
+            ),
+          },
+        ]
+      : []
+  })
+  const sanitized: RequestInsightSpan = {
+    name,
+    startTime,
+    durationMs: sanitizeFiniteNumber(span.durationMs),
+    status: span.status,
+    traceId: sanitizeText(span.traceId, MAX_REQUEST_INSIGHT_ID_LENGTH, state),
+    spanId: sanitizeText(span.spanId, MAX_REQUEST_INSIGHT_ID_LENGTH, state),
+    parentSpanId: sanitizeText(
+      span.parentSpanId,
+      MAX_REQUEST_INSIGHT_ID_LENGTH,
+      state
+    ),
+    attributes: sanitizeSpanAttributes(span.attributes, name, state),
+    events,
+    links,
+    error: sanitizeSpanError(span.error, state),
+    truncatedMetadataValueCount: state.truncatedMetadataValueCount || undefined,
+    truncatedEventCount:
+      span.events && retainedEvents
+        ? span.events.length - retainedEvents.length || undefined
+        : undefined,
+    truncatedLinkCount:
+      span.links && retainedLinks
+        ? span.links.length - links!.length || undefined
+        : undefined,
+  }
+  return enforceSpanByteBudget(sanitized)
+}
+
+function sanitizeSpanName(
+  span: SpanStoreRecord,
+  state: SanitizationState
+): string {
+  if (span.attributes?.['next.span_type'] !== 'AppRender.fetch') {
+    return (
+      sanitizeText(span.name, MAX_REQUEST_INSIGHT_SPAN_NAME_LENGTH, state) ?? ''
+    )
+  }
+  const method = getStringAttribute(span.attributes['http.method'])
+  const url = sanitizeUrl(
+    getStringAttribute(span.attributes['http.url']) ?? span.url,
+    state
+  )
+  return (
+    sanitizeText(
+      ['fetch', method, url].filter(Boolean).join(' '),
+      MAX_REQUEST_INSIGHT_SPAN_NAME_LENGTH,
+      state
+    ) ?? ''
+  )
 }
 
 function sanitizeSpanAttributes(
-  attributes: SpanStoreRecord['attributes']
+  attributes: SpanStoreRecord['attributes'],
+  sanitizedSpanName: string | undefined,
+  state: SanitizationState
 ): SpanStoreRecord['attributes'] {
-  if (!attributes) {
-    return undefined
-  }
-
+  if (!attributes) return undefined
   const sanitized: NonNullable<SpanStoreRecord['attributes']> = {}
-  const sanitizedFetchSpanName =
-    attributes['next.span_type'] === 'AppRender.fetch'
-      ? getSanitizedFetchSpanName(attributes)
-      : undefined
   for (const [key, value] of Object.entries(attributes)) {
-    if (!SAFE_SPAN_ATTRIBUTE_KEYS.has(key)) {
-      continue
-    }
-
-    sanitized[key] =
+    if (!SAFE_SPAN_ATTRIBUTE_KEYS.has(key)) continue
+    const sanitizedValue =
       key === 'http.url'
-        ? sanitizeUrlAttribute(value)
-        : key === 'next.span_name' && sanitizedFetchSpanName
-          ? sanitizedFetchSpanName
-          : value
+        ? sanitizeUrlAttribute(value, state)
+        : key === 'next.span_name' && sanitizedSpanName
+          ? sanitizedSpanName
+          : sanitizeAttributeValue(value, state)
+    if (sanitizedValue !== undefined) sanitized[key] = sanitizedValue
   }
-
   return Object.keys(sanitized).length > 0 ? sanitized : undefined
 }
 
-function sanitizeSpanName(span: SpanStoreRecord): string {
-  if (span.attributes?.['next.span_type'] !== 'AppRender.fetch') {
-    return span.name
+function sanitizeUrlAttribute(
+  value: AttributeValue,
+  state: SanitizationState
+): AttributeValue | undefined {
+  if (typeof value === 'string') {
+    return sanitizeUrl(value, state) ?? REDACTED_VALUE
+  }
+  if (!Array.isArray(value)) return sanitizeAttributeValue(value, state)
+  const retained = value.slice(0, MAX_REQUEST_INSIGHT_ATTRIBUTE_ARRAY_LENGTH)
+  if (retained.length < value.length) state.truncatedMetadataValueCount++
+  return retained.map((item) =>
+    typeof item === 'string'
+      ? (sanitizeUrl(item, state) ?? REDACTED_VALUE)
+      : item
+  ) as AttributeValue
+}
+
+function sanitizeAttributeValue(
+  value: AttributeValue,
+  state: SanitizationState
+): AttributeValue | undefined {
+  if (typeof value === 'string') {
+    return sanitizeText(value, MAX_REQUEST_INSIGHT_STRING_LENGTH, state)
+  }
+  if (typeof value === 'number')
+    return Number.isFinite(value) ? value : undefined
+  if (typeof value === 'boolean') return value
+  if (!Array.isArray(value)) return undefined
+  const retained = value.slice(0, MAX_REQUEST_INSIGHT_ATTRIBUTE_ARRAY_LENGTH)
+  if (retained.length < value.length) state.truncatedMetadataValueCount++
+  return retained.map((item) =>
+    typeof item === 'string'
+      ? sanitizeText(item, 64, state)
+      : typeof item === 'number' && !Number.isFinite(item)
+        ? undefined
+        : item
+  ) as AttributeValue
+}
+
+function sanitizeSpanError(
+  error: SpanStoreRecord['error'],
+  state: SanitizationState
+): RequestInsightSpan['error'] {
+  if (!error) return undefined
+  return {
+    type:
+      typeof error.type === 'string' && KNOWN_ERROR_TYPES.has(error.type)
+        ? error.type
+        : 'Error',
+    message: sanitizeText(
+      error.message,
+      MAX_REQUEST_INSIGHT_STRING_LENGTH,
+      state
+    ),
+  }
+}
+
+function enforceSpanByteBudget(span: RequestInsightSpan): RequestInsightSpan {
+  if (getSerializedByteLength(span) <= REQUEST_INSIGHTS_MAX_BYTES_PER_SPAN) {
+    return span
   }
 
-  return getSanitizedFetchSpanName(span.attributes, span.url)
-}
+  let truncatedMetadataValueCount = span.truncatedMetadataValueCount ?? 0
+  span.events = span.events?.map((event) => {
+    truncatedMetadataValueCount += Object.keys(event.attributes ?? {}).length
+    return { name: event.name, timestamp: event.timestamp }
+  })
+  span.links = span.links?.map((link) => {
+    truncatedMetadataValueCount += Object.keys(link.attributes ?? {}).length
+    return { traceId: link.traceId, spanId: link.spanId }
+  })
 
-function getSanitizedFetchSpanName(
-  attributes: NonNullable<SpanStoreRecord['attributes']>,
-  fallbackUrl?: string
-): string {
-  const method = getStringAttribute(attributes['http.method'])
-  const url = sanitizeUrl(
-    getStringAttribute(attributes['http.url']) ?? fallbackUrl
-  )
-  return ['fetch', method, url].filter(Boolean).join(' ')
-}
-
-function sanitizeSpanEvents(
-  events: SpanStoreRecord['events']
-): SpanStoreRecord['events'] {
-  return events?.map((event) => ({
-    ...event,
-    attributes: sanitizeSpanAttributes(event.attributes),
-  }))
-}
-
-function sanitizeSpanLinks(
-  links: SpanStoreRecord['links']
-): SpanStoreRecord['links'] {
-  return links?.map((link) => ({
-    ...link,
-    attributes: sanitizeSpanAttributes(link.attributes),
-  }))
-}
-
-function sanitizeUrlAttribute(value: AttributeValue): AttributeValue {
-  return typeof value === 'string' ? (sanitizeUrl(value) ?? '') : value
-}
-
-function sanitizeUrl(value: string | undefined): string | undefined {
-  if (!value) {
-    return value
+  while (
+    getSerializedByteLength(span) > REQUEST_INSIGHTS_MAX_BYTES_PER_SPAN &&
+    span.events?.length
+  ) {
+    span.events.shift()
+    span.truncatedEventCount = (span.truncatedEventCount ?? 0) + 1
   }
+  while (
+    getSerializedByteLength(span) > REQUEST_INSIGHTS_MAX_BYTES_PER_SPAN &&
+    span.links?.length
+  ) {
+    span.links.shift()
+    span.truncatedLinkCount = (span.truncatedLinkCount ?? 0) + 1
+  }
+  if (getSerializedByteLength(span) > REQUEST_INSIGHTS_MAX_BYTES_PER_SPAN) {
+    const spanType = span.attributes?.['next.span_type']
+    truncatedMetadataValueCount += Math.max(
+      0,
+      Object.keys(span.attributes ?? {}).length -
+        (spanType === undefined ? 0 : 1)
+    )
+    span.attributes =
+      spanType === undefined ? undefined : { 'next.span_type': spanType }
+  }
+  span.truncatedMetadataValueCount = truncatedMetadataValueCount || undefined
+  return span
+}
 
+function sanitizeUrl(
+  value: string | undefined,
+  state?: SanitizationState
+): string | undefined {
+  if (!value) return value
   if (value.length > MAX_REQUEST_INSIGHT_RAW_URL_LENGTH) {
+    if (state) state.truncatedMetadataValueCount++
     return undefined
   }
-
   const isProtocolRelativeUrl = value.startsWith('//')
   const isRootRelativeUrl = !isProtocolRelativeUrl && value.startsWith('/')
   const hasProtocol = /^[a-z][a-z\d+.-]*:/i.test(value)
-
   if (!isProtocolRelativeUrl && !isRootRelativeUrl && !hasProtocol) {
     return undefined
   }
@@ -580,50 +1324,143 @@ function sanitizeUrl(value: string | undefined): string | undefined {
       isProtocolRelativeUrl || isRootRelativeUrl
         ? new URL(value, 'http://n')
         : new URL(value)
-
-    if (
-      url.protocol !== 'http:' &&
-      url.protocol !== 'https:' &&
-      !isProtocolRelativeUrl &&
-      !isRootRelativeUrl
-    ) {
+    if (url.protocol === 'data:' || url.protocol === 'blob:') {
       return `${url.protocol}${REDACTED_VALUE}`
     }
-
+    if (url.origin === 'null' && !url.hostname) {
+      return `${url.protocol}${REDACTED_VALUE}`
+    }
     url.username = ''
     url.password = ''
     url.hash = ''
-
     const hasApplicationQuery = Array.from(url.searchParams.keys()).some(
       (name) => name !== '_rsc'
     )
     url.search = hasApplicationQuery ? `?query=${REDACTED_VALUE}` : ''
-
     const sanitizedUrl = isProtocolRelativeUrl
       ? `//${url.host}${url.pathname}${url.search}`
       : isRootRelativeUrl
         ? `${url.pathname}${url.search}`
         : url.href
-
-    return truncateText(sanitizedUrl, MAX_REQUEST_INSIGHT_URL_LENGTH)
+    return sanitizeText(sanitizedUrl, MAX_REQUEST_INSIGHT_URL_LENGTH, state)
   } catch {
     return undefined
   }
 }
 
-function truncateText(value: string, maxLength: number): string {
-  if (value.length <= maxLength) {
-    return value
-  }
-
+function sanitizeText(
+  value: string | undefined,
+  maxLength: number,
+  state?: SanitizationState
+): string | undefined {
+  if (value === undefined || value.length <= maxLength) return value
+  if (state) state.truncatedMetadataValueCount++
   let end = Math.max(0, maxLength - 1)
   if (end > 0) {
-    const lastCharCode = value.charCodeAt(end - 1)
-    if (lastCharCode >= 0xd800 && lastCharCode <= 0xdbff) {
-      end--
-    }
+    const charCode = value.charCodeAt(end - 1)
+    if (charCode >= 0xd800 && charCode <= 0xdbff) end--
   }
   return `${value.slice(0, end)}…`
+}
+
+function sanitizeRequestInsightId(value: string | undefined) {
+  if (
+    !value ||
+    value.length > MAX_REQUEST_INSIGHT_ID_LENGTH ||
+    !/^[A-Za-z0-9._:-]+$/.test(value)
+  ) {
+    return undefined
+  }
+  return value
+}
+
+function sanitizeSnapshotLimit(value: number | undefined): number {
+  if (value === undefined) return Number.POSITIVE_INFINITY
+  if (!Number.isSafeInteger(value) || value <= 0) return 1
+  return Math.min(
+    value,
+    REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET *
+      REQUEST_INSIGHT_RETENTION_BUCKETS.length
+  )
+}
+
+function normalizeRequestInsightsLimits(
+  options: RequestInsightsOptions
+): RequestInsightsLimits {
+  return {
+    maxBytesPerRetentionBucket: normalizeNonNegativeInteger(
+      options.maxBytesPerRetentionBucket,
+      REQUEST_INSIGHTS_MAX_BYTES_PER_RETENTION_BUCKET
+    ),
+    maxRetainedBytes: normalizeNonNegativeInteger(
+      options.maxRetainedBytes,
+      REQUEST_INSIGHTS_MAX_RETAINED_BYTES
+    ),
+    maxRequestGroupsPerBucket: normalizeNonNegativeInteger(
+      options.maxRequestGroupsPerBucket,
+      REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET
+    ),
+    maxSnapshotBytes: Math.max(
+      MIN_REQUEST_INSIGHTS_SNAPSHOT_BYTES,
+      normalizeNonNegativeInteger(
+        options.maxSnapshotBytes,
+        REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES
+      )
+    ),
+  }
+}
+
+function normalizeNonNegativeInteger(
+  value: number | undefined,
+  fallback: number
+): number {
+  if (value === undefined) return fallback
+  if (!Number.isFinite(value) || value < 0) return fallback
+  return Math.min(Number.MAX_SAFE_INTEGER, Math.floor(value))
+}
+
+function sanitizeFiniteNumber(value: number | undefined): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+function getCurrentTimestamp(): number {
+  return performance.timeOrigin + performance.now()
+}
+
+function getSerializedByteLength(value: unknown): number {
+  return Buffer.byteLength(JSON.stringify(value), 'utf8')
+}
+
+function cloneRequestInsight(insight: RequestInsight): RequestInsight {
+  return {
+    ...insight,
+    spans: insight.spans.map((span) => ({
+      ...span,
+      attributes: cloneAttributes(span.attributes),
+      links: span.links?.map((link) => ({
+        ...link,
+        attributes: cloneAttributes(link.attributes),
+      })),
+      events: span.events?.map((event) => ({
+        ...event,
+        attributes: cloneAttributes(event.attributes),
+      })),
+      error: span.error ? { ...span.error } : undefined,
+    })),
+    fetches: insight.fetches.map((fetch) => ({ ...fetch })),
+  }
+}
+
+function cloneAttributes(
+  attributes: RequestInsightSpan['attributes']
+): RequestInsightSpan['attributes'] {
+  if (!attributes) return undefined
+  return Object.fromEntries(
+    Object.entries(attributes).map(([key, value]) => [
+      key,
+      Array.isArray(value) ? value.slice() : value,
+    ])
+  )
 }
 
 function getStringAttribute(value: AttributeValue | undefined) {

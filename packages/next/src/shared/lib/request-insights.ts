@@ -26,8 +26,21 @@ export const REQUEST_INSIGHT_ROUTER_ACTIVITIES = [
 export type RequestInsightRouterActivity =
   (typeof REQUEST_INSIGHT_ROUTER_ACTIVITIES)[number]
 
+export const REQUEST_INSIGHT_RETENTION_BUCKETS = [
+  'page',
+  'api',
+  'asset',
+  'proxy',
+  'instant-insights',
+  'unknown',
+] as const
+
+export type RequestInsightRetentionBucket =
+  (typeof REQUEST_INSIGHT_RETENTION_BUCKETS)[number]
+
 export type RequestInsightIdentity = {
   requestId: string
+  rootRequestId?: string
   kind?: RequestInsightKind
   source?: RequestInsightSource
   proxyStatus?: RequestInsightProxyStatus
@@ -49,6 +62,25 @@ export function getRequestInsightSource(
   return insight.source ?? 'unknown'
 }
 
+export function getRequestInsightRetentionBucket(
+  insight: Pick<RequestInsightIdentity, 'kind' | 'source'>
+): RequestInsightRetentionBucket {
+  const source = getRequestInsightSource(insight)
+  if (source === 'app-route' || source === 'pages-api') {
+    return 'api'
+  }
+  if (source === 'image' || source === 'asset') {
+    return 'asset'
+  }
+  return source
+}
+
 export function getRequestInsightKey(insight: RequestInsightIdentity): string {
   return `${getRequestInsightKind(insight)}:${insight.requestId}`
+}
+
+export function getRequestInsightRootId(
+  insight: Pick<RequestInsightIdentity, 'requestId' | 'rootRequestId'>
+): string {
+  return insight.rootRequestId ?? insight.requestId
 }

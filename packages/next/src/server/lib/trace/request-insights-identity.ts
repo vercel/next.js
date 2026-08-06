@@ -15,6 +15,8 @@ export type RequestInsightsIdentity = {
   // This is a server-owned storage key. Browser-provided IDs are only used by
   // the development debug channel and must never become Request Insights keys.
   requestId: string
+  rootRequestId: string
+  retention: RequestInsightsRetentionContext
   debugRequestId?: string
   kind?: RequestInsightKind
   source?: RequestInsightSource
@@ -45,11 +47,104 @@ export function resolveRequestInsightsIdentity({
   const requestId = createRequestId()
   return {
     requestId,
+    rootRequestId: requestId,
+    retention: createRequestInsightsRetentionContext(),
     debugRequestId: getValidatedDevRequestId(requestIdHeader),
     htmlRequestId:
       getValidatedDevHtmlRequestId(htmlRequestIdHeader) ?? requestId,
     url,
   }
+}
+
+declare const requestInsightsRetentionContextBrand: unique symbol
+
+export type RequestInsightsRetentionContext = {
+  readonly [requestInsightsRetentionContextBrand]: true
+}
+
+type RequestInsightsRetentionGate = { closed: boolean }
+type RequestInsightsRetentionState = {
+  rootGate: RequestInsightsRetentionGate
+  recordGate: RequestInsightsRetentionGate
+}
+
+const REQUEST_INSIGHTS_RETENTION_STATES_KEY = Symbol.for(
+  '@next/request-insights-retention-states'
+)
+
+function getRequestInsightsRetentionStates(): WeakMap<
+  RequestInsightsRetentionContext,
+  RequestInsightsRetentionState
+> {
+  const globalStore = globalThis as typeof globalThis & {
+    [REQUEST_INSIGHTS_RETENTION_STATES_KEY]?: WeakMap<
+      RequestInsightsRetentionContext,
+      RequestInsightsRetentionState
+    >
+  }
+  return (globalStore[REQUEST_INSIGHTS_RETENTION_STATES_KEY] ??= new WeakMap())
+}
+
+export function createRequestInsightsRetentionContext(
+  parent?: RequestInsightsRetentionContext
+): RequestInsightsRetentionContext {
+  const parentState = parent
+    ? getRequestInsightsRetentionStates().get(parent)
+    : undefined
+  const context = Object.freeze({}) as RequestInsightsRetentionContext
+  getRequestInsightsRetentionStates().set(context, {
+    rootGate: parentState?.rootGate ?? { closed: false },
+    recordGate: { closed: false },
+  })
+  return context
+}
+
+export function isRequestInsightsRetentionContextOpen(
+  context: RequestInsightsRetentionContext
+): boolean {
+  const state = getRequestInsightsRetentionStates().get(context)
+  return Boolean(state && !state.rootGate.closed && !state.recordGate.closed)
+}
+
+export function hasSameRequestInsightsRetentionContext(
+  left: RequestInsightsRetentionContext,
+  right: RequestInsightsRetentionContext
+): boolean {
+  const states = getRequestInsightsRetentionStates()
+  const leftState = states.get(left)
+  const rightState = states.get(right)
+  return Boolean(
+    leftState &&
+      rightState &&
+      leftState.rootGate === rightState.rootGate &&
+      leftState.recordGate === rightState.recordGate
+  )
+}
+
+export function hasSameRequestInsightsRetentionRoot(
+  left: RequestInsightsRetentionContext,
+  right: RequestInsightsRetentionContext
+): boolean {
+  const states = getRequestInsightsRetentionStates()
+  const leftState = states.get(left)
+  const rightState = states.get(right)
+  return Boolean(
+    leftState && rightState && leftState.rootGate === rightState.rootGate
+  )
+}
+
+export function closeRequestInsightsRetentionRecord(
+  context: RequestInsightsRetentionContext
+): void {
+  const state = getRequestInsightsRetentionStates().get(context)
+  if (state) state.recordGate.closed = true
+}
+
+export function closeRequestInsightsRetentionRoot(
+  context: RequestInsightsRetentionContext
+): void {
+  const state = getRequestInsightsRetentionStates().get(context)
+  if (state) state.rootGate.closed = true
 }
 
 // This storage covers the part of BaseServer request handling that runs before

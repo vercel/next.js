@@ -337,6 +337,7 @@ import { hasNonRootStaticParams } from '../lib/params-utils'
 
 type AppRenderRequestInsightsRuntime = {
   getActiveLocalSpan: typeof import('../lib/trace/local-span-recorder').getActiveLocalSpan
+  createRequestInsightsRetentionContext: typeof import('../lib/trace/request-insights-identity').createRequestInsightsRetentionContext
   getActiveRequestInsights: typeof import('../lib/trace/request-insights-runtime').getActiveRequestInsights
   getRequestInsightsIdentity: typeof import('../lib/trace/request-insights-identity').getRequestInsightsIdentity
   getRequestInsightRouterActivity: typeof import('../lib/trace/request-insights-router-activity').getRequestInsightRouterActivity
@@ -351,7 +352,11 @@ function getAppRenderRequestInsightsRuntime():
   | undefined {
   if (process.env.__NEXT_DEV_SERVER) {
     if (!appRenderRequestInsightsRuntime) {
-      const { getRequestInsightsIdentity, runWithRequestInsightsIdentity } =
+      const {
+        createRequestInsightsRetentionContext,
+        getRequestInsightsIdentity,
+        runWithRequestInsightsIdentity,
+      } =
         require('../lib/trace/request-insights-identity') as typeof import('../lib/trace/request-insights-identity')
       const { getRequestInsightRouterActivity } =
         require('../lib/trace/request-insights-router-activity') as typeof import('../lib/trace/request-insights-router-activity')
@@ -364,6 +369,7 @@ function getAppRenderRequestInsightsRuntime():
 
       appRenderRequestInsightsRuntime = {
         getActiveLocalSpan,
+        createRequestInsightsRetentionContext,
         getActiveRequestInsights,
         getRequestInsightsIdentity,
         getRequestInsightRouterActivity,
@@ -5093,48 +5099,52 @@ async function runInstantInsightsWithTracing<T>(
     instantInsightsCtx: AppRenderContext
   ) => Promise<T>
 ): Promise<T> {
-  const requestInsightsRuntime = getAppRenderRequestInsightsRuntime()
-  if (!requestInsightsRuntime?.isRequestInsightsEnabled()) {
-    return fn(runWithoutInstantInsightsSpan, ctx)
-  }
+  if (process.env.__NEXT_DEV_SERVER) {
+    const requestInsightsRuntime = getAppRenderRequestInsightsRuntime()
+    if (requestInsightsRuntime?.isRequestInsightsEnabled()) {
+      const { createInstantInsightsWorkStore } =
+        require('./instant-insights-work-store') as typeof import('./instant-insights-work-store')
+      const workStore = createInstantInsightsWorkStore(ctx.workStore)
+      const instantInsightsCtx: AppRenderContext = {
+        ...ctx,
+        workStore,
+      }
+      const outerIdentity = requestInsightsRuntime.getRequestInsightsIdentity()
 
-  const { createInstantInsightsWorkStore } =
-    require('./instant-insights-work-store') as typeof import('./instant-insights-work-store')
-  const workStore = createInstantInsightsWorkStore(ctx.workStore)
-  const instantInsightsCtx: AppRenderContext = {
-    ...ctx,
-    workStore,
-  }
-  const outerRequestInsightsIdentity =
-    requestInsightsRuntime.getRequestInsightsIdentity()
-
-  return requestInsightsRuntime.runWithRequestInsightsIdentity(
-    {
-      requestId:
-        outerRequestInsightsIdentity?.requestId ?? ctx.requestId,
-      debugRequestId: outerRequestInsightsIdentity?.debugRequestId,
-      kind: 'instant-insights',
-      htmlRequestId:
-        outerRequestInsightsIdentity?.htmlRequestId ?? ctx.htmlRequestId,
-      url: ctx.url.href,
-    },
-    () =>
-      workAsyncStorage.run(workStore, () =>
-        traceLocalSpan(
-          {
-            name: 'Instant Insights',
-            parentSpan: null,
-            attributes: {
-              'next.span_category': 'nextjs',
-              'next.span_name': 'Instant Insights',
-              'next.span_type': AppRenderSpan.instantInsights,
-              'next.route': ctx.pagePath,
-            },
-          },
-          () => fn(runInstantInsightsSpan, instantInsightsCtx)
-        )
+      return requestInsightsRuntime.runWithRequestInsightsIdentity(
+        {
+          requestId: outerIdentity?.requestId ?? ctx.requestId,
+          rootRequestId: outerIdentity?.rootRequestId ?? ctx.requestId,
+          retention:
+            requestInsightsRuntime.createRequestInsightsRetentionContext(
+              outerIdentity?.retention
+            ),
+          debugRequestId: outerIdentity?.debugRequestId,
+          kind: 'instant-insights',
+          htmlRequestId: outerIdentity?.htmlRequestId ?? ctx.htmlRequestId,
+          url: ctx.url.href,
+        },
+        () =>
+          workAsyncStorage.run(workStore, () =>
+            traceLocalSpan(
+              {
+                name: 'Instant Insights',
+                parentSpan: null,
+                attributes: {
+                  'next.span_category': 'nextjs',
+                  'next.span_name': 'Instant Insights',
+                  'next.span_type': AppRenderSpan.instantInsights,
+                  'next.route': ctx.pagePath,
+                },
+              },
+              () => fn(runInstantInsightsSpan, instantInsightsCtx)
+            )
+          )
       )
-  )
+    }
+  }
+
+  return fn(runWithoutInstantInsightsSpan, ctx)
 }
 
 /**
