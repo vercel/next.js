@@ -78,6 +78,8 @@ export type RequestInsightResponse = {
 
 export type RequestInsight = {
   requestId: string
+  parentRequestId?: string
+  parentFetchIndex?: number
   kind?: RequestInsightKind
   source: RequestInsightSource
   proxyStatus?: RequestInsightProxyStatus

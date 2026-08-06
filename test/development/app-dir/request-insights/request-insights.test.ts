@@ -9,6 +9,8 @@ import {
 
 type RequestInsight = {
   requestId: string
+  parentRequestId?: string
+  parentFetchIndex?: number
   kind?: 'request' | 'instant-insights'
   source:
     | 'page'
@@ -41,6 +43,7 @@ type RequestInsight = {
     attributes?: Record<string, string | number | boolean>
   }>
   fetches: Array<{
+    index?: number
     durationMs: number
     statusCode: number
     cacheStatus: string
@@ -194,6 +197,183 @@ describe('request insights', () => {
           'AppRender.getBodyResult',
         ])
       )
+    })
+  })
+
+  it('links nested same-origin server fetches without merging their requests', async () => {
+    const existingRequestIds = new Set(
+      (
+        (await next
+          .fetch('/_next/development/request-insights')
+          .then((response) => response.json())) as {
+          requests: RequestInsight[]
+        }
+      ).requests.map((request) => request.requestId)
+    )
+
+    const response = await next.fetch('/causal?dedupe=nested-chain')
+    expect(response.status).toBe(200)
+    const responseBody = await response.text()
+    expect(responseBody).toContain('data-request-counts="1,1"')
+    expect(responseBody).toContain('data-causal-cookie-visible="false"')
+
+    await retry(async () => {
+      const snapshot = (await next
+        .fetch('/_next/development/request-insights')
+        .then((insightsResponse) => insightsResponse.json())) as {
+        requests: RequestInsight[]
+      }
+      const requests = snapshot.requests.filter(
+        (request) =>
+          !existingRequestIds.has(request.requestId) &&
+          request.kind !== 'instant-insights'
+      )
+      const page = requests.find((request) => request.route === '/causal')
+      const first = requests.find(
+        (request) =>
+          request.route === '/api/causal/[step]' &&
+          request.url?.startsWith('/api/causal/one')
+      )
+      const second = requests.find(
+        (request) =>
+          request.route === '/api/causal/[step]' &&
+          request.url?.startsWith('/api/causal/two')
+      )
+
+      expect(page).toBeDefined()
+      expect(first).toEqual(
+        expect.objectContaining({ parentRequestId: page?.requestId })
+      )
+      expect(second).toEqual(
+        expect.objectContaining({ parentRequestId: first?.requestId })
+      )
+      expect(first?.requestId).not.toBe(second?.requestId)
+      expect(
+        page?.fetches.some(
+          (fetch) =>
+            fetch.url.includes('/api/causal/one') &&
+            fetch.index === first?.parentFetchIndex
+        )
+      ).toBe(true)
+      expect(
+        first?.fetches.some(
+          (fetch) =>
+            fetch.url.includes('/api/causal/two') &&
+            fetch.index === second?.parentFetchIndex
+        )
+      ).toBe(true)
+    })
+  })
+
+  it('ignores spoofed forwarded headers when matching the router-owned origin', async () => {
+    const existingRequestIds = new Set(
+      (
+        (await next
+          .fetch('/_next/development/request-insights')
+          .then((response) => response.json())) as {
+          requests: RequestInsight[]
+        }
+      ).requests.map((request) => request.requestId)
+    )
+
+    const response = await next.fetch('/causal?spoof=1')
+    expect(await response.text()).toContain(
+      'data-causal-cookie-visible="false"'
+    )
+
+    await retry(async () => {
+      const snapshot = (await next
+        .fetch('/_next/development/request-insights')
+        .then((insightsResponse) => insightsResponse.json())) as {
+        requests: RequestInsight[]
+      }
+      const requests = snapshot.requests.filter(
+        (request) => !existingRequestIds.has(request.requestId)
+      )
+      const page = requests.find((request) => request.route === '/causal')
+      const child = requests.find(
+        (request) =>
+          request.route === '/api/causal/[step]' &&
+          request.url?.startsWith('/api/causal/two')
+      )
+
+      expect(page).toBeDefined()
+      expect(child).toEqual(
+        expect.objectContaining({ parentRequestId: page?.requestId })
+      )
+    })
+  })
+
+  it('does not propagate causality to an external fetch or redirect', async () => {
+    const receivedCookies: Array<string | undefined> = []
+    const server = createServer((request, response) => {
+      receivedCookies.push(request.headers.cookie)
+      response.statusCode = 200
+      response.end('external')
+    })
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+
+    try {
+      const address = server.address() as AddressInfo
+      const externalUrl = `http://127.0.0.1:${address.port}/external`
+
+      expect(
+        await next
+          .fetch(`/causal?external=${encodeURIComponent(externalUrl)}`)
+          .then((response) => response.text())
+      ).toContain('external')
+      expect(
+        await next
+          .fetch(`/causal?redirect=${encodeURIComponent(externalUrl)}`)
+          .then((response) => response.text())
+      ).toContain('external')
+
+      expect(receivedCookies).toHaveLength(2)
+      for (const cookie of receivedCookies) {
+        expect(cookie ?? '').not.toContain('__next_request_insights_causal')
+      }
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()))
+      })
+    }
+  })
+
+  it('strips forged causal cookies without creating a relationship', async () => {
+    const existingRequestIds = new Set(
+      (
+        (await next
+          .fetch('/_next/development/request-insights')
+          .then((insightsResponse) => insightsResponse.json())) as {
+          requests: RequestInsight[]
+        }
+      ).requests.map((request) => request.requestId)
+    )
+    const forgedToken = 'A'.repeat(32)
+    const response = await next.fetch('/api/causal/two?forged=1', {
+      headers: {
+        cookie: `user=value; __next_request_insights_causal=${forgedToken}`,
+      },
+    })
+    expect(await response.json()).toEqual({
+      causalCookieVisible: false,
+      step: 'two',
+    })
+
+    await retry(async () => {
+      const snapshot = (await next
+        .fetch('/_next/development/request-insights')
+        .then((insightsResponse) => insightsResponse.json())) as {
+        requests: RequestInsight[]
+      }
+      const forgedRequest = snapshot.requests.find(
+        (request) =>
+          request.route === '/api/causal/[step]' &&
+          !existingRequestIds.has(request.requestId)
+      )
+      expect(forgedRequest).toBeDefined()
+      expect(forgedRequest?.parentRequestId).toBeUndefined()
+      expect(forgedRequest?.parentFetchIndex).toBeUndefined()
     })
   })
 
@@ -1348,6 +1528,31 @@ describe('request insights', () => {
       expect(forgedRequest?.serverAction).toBeUndefined()
       expect(JSON.stringify(forgedRequest)).not.toContain(forgedActionId)
     })
+  })
+
+  it('does not reserve the causal cookie when Request Insights is disabled', async () => {
+    await next.patchFile(
+      'next.config.js',
+      (content) =>
+        content.replace('requestInsights: true', 'requestInsights: false'),
+      async () => {
+        await retry(async () => {
+          expect(
+            (await next.fetch('/_next/development/request-insights')).status
+          ).toBe(404)
+        })
+
+        const response = await next.fetch('/api/causal/two', {
+          headers: {
+            cookie: '__next_request_insights_causal=user-value; user=value',
+          },
+        })
+        expect(await response.json()).toEqual({
+          causalCookieVisible: true,
+          step: 'two',
+        })
+      }
+    )
   })
 
   it('uses the development endpoint and reports truncated output', async () => {

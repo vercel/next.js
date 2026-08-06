@@ -21,6 +21,13 @@ import {
   trackRequestInsightWebResponse,
   type RequestInsightResponseLifecycle,
 } from './request-insights-response'
+import {
+  getRequestInsightsCausalTarget,
+  getRequestInsightsCausalTargetFromRequest,
+  RequestInsightsCausalRegistry,
+  setRequestInsightsCausalCookie,
+  takeRequestInsightsCausalToken,
+} from './request-insights-causal'
 
 const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
 const originalDevServer = process.env.__NEXT_DEV_SERVER
@@ -92,6 +99,164 @@ describe('request insights', () => {
       first.dispose()
       second.dispose()
     }
+  })
+
+  test('records an immutable causal relationship on the child request', () => {
+    requestInsights.startResponse(
+      {
+        requestId: 'child',
+        parentRequestId: 'parent',
+        parentFetchIndex: 3,
+      },
+      100
+    )
+
+    expect(requestInsights.getSnapshot().requests[0]).toEqual(
+      expect.objectContaining({
+        requestId: 'child',
+        parentRequestId: 'parent',
+        parentFetchIndex: 3,
+      })
+    )
+
+    requestInsights.recordSource(
+      {
+        requestId: 'child',
+        parentRequestId: 'different-parent',
+        parentFetchIndex: 4,
+      },
+      'app-route'
+    )
+    expect(requestInsights.getSnapshot().requests[0]).toEqual(
+      expect.objectContaining({
+        parentRequestId: 'parent',
+        parentFetchIndex: 3,
+      })
+    )
+  })
+
+  it('uses bounded single-use capabilities scoped to one controller', () => {
+    const target = {
+      origin: 'http://localhost:3000',
+      pathname: '/api/child',
+      method: 'GET',
+    }
+    const first = new RequestInsightsCausalRegistry({
+      createToken: () => 'A'.repeat(32),
+    })
+    const second = new RequestInsightsCausalRegistry()
+    const token = first.mintCausalToken({
+      parentRequestId: 'parent',
+      parentFetchIndex: 1,
+      target,
+    })
+
+    expect(token).toBe('A'.repeat(32))
+    expect(second.consumeCausalToken(token!, target)).toBeUndefined()
+    expect(
+      first.consumeCausalToken(token!, { ...target, pathname: '/wrong' })
+    ).toBeUndefined()
+    expect(first.consumeCausalToken(token!, target)).toBeUndefined()
+  })
+
+  it('evicts old capabilities and expires retained capabilities', () => {
+    const target = {
+      origin: 'http://localhost:3000',
+      pathname: '/api/child',
+      method: 'GET',
+    }
+    let now = 1_000
+    let tokenIndex = 0
+    const tokens = ['A'.repeat(32), 'B'.repeat(32), 'C'.repeat(32)]
+    const registry = new RequestInsightsCausalRegistry({
+      createToken: () => tokens[tokenIndex++],
+      maxEntries: 1,
+      now: () => now,
+      ttlMs: 10,
+    })
+    const first = registry.mintCausalToken({
+      parentRequestId: 'parent',
+      parentFetchIndex: 1,
+      target,
+    })!
+    const second = registry.mintCausalToken({
+      parentRequestId: 'parent',
+      parentFetchIndex: 2,
+      target,
+    })!
+
+    expect(registry.consumeCausalToken(first, target)).toBeUndefined()
+    now += 11
+    expect(registry.consumeCausalToken(second, target)).toBeUndefined()
+  })
+
+  it('matches only exact loopback origins, paths, protocols, ports, and methods', () => {
+    expect(
+      getRequestInsightsCausalTarget(
+        new URL('http://app.localhost:3000/api/child?ignored=1'),
+        'post'
+      )
+    ).toEqual({
+      origin: 'http://app.localhost:3000',
+      pathname: '/api/child',
+      method: 'POST',
+    })
+    expect(
+      getRequestInsightsCausalTarget(
+        new URL('https://example.com/api/child'),
+        'GET'
+      )
+    ).toBeUndefined()
+    expect(
+      getRequestInsightsCausalTargetFromRequest({
+        method: 'GET',
+        origin: 'https://localhost:3000',
+        url: '/api/child',
+      })
+    ).toEqual({
+      origin: 'https://localhost:3000',
+      pathname: '/api/child',
+      method: 'GET',
+    })
+    expect(
+      getRequestInsightsCausalTargetFromRequest({
+        method: 'GET',
+        origin: 'https://example.com',
+        url: '/api/child',
+      })
+    ).toBeUndefined()
+    expect(
+      getRequestInsightsCausalTargetFromRequest({
+        method: 'GET',
+        origin: 'http://localhost:3000',
+        url: 'http://attacker.localhost:3000/api/child',
+      })
+    ).toBeUndefined()
+  })
+
+  it('strips malformed, duplicate, and oversized causal cookies', () => {
+    const token = 'B'.repeat(32)
+    const outgoing = new Headers({ cookie: 'user=value' })
+    expect(setRequestInsightsCausalCookie(outgoing, token)).toBe(true)
+    expect(outgoing.get('cookie')).toBe(
+      `user=value; __next_request_insights_causal=${token}`
+    )
+
+    const incoming = { cookie: outgoing.get('cookie') ?? undefined }
+    expect(takeRequestInsightsCausalToken(incoming)).toBe(token)
+    expect(incoming.cookie).toBe('user=value')
+
+    const duplicate = {
+      cookie: `__next_request_insights_causal=${token}; __next_request_insights_causal=${token}`,
+    }
+    expect(takeRequestInsightsCausalToken(duplicate)).toBeUndefined()
+    expect(duplicate.cookie).toBeUndefined()
+
+    const oversized = {
+      cookie: `user=${'x'.repeat(17 * 1024)}; __next_request_insights_causal=${token}`,
+    }
+    expect(takeRequestInsightsCausalToken(oversized)).toBeUndefined()
+    expect(oversized.cookie).not.toContain('__next_request_insights_causal')
   })
 
   test('derives request history from local span records', () => {

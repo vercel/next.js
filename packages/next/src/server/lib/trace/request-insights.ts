@@ -18,6 +18,11 @@ import {
 } from '../../../shared/lib/request-insights'
 import type { SpanStoreRecord } from './span-store'
 import { getActiveRequestInsights } from './request-insights-runtime'
+import {
+  RequestInsightsCausalRegistry,
+  type RequestInsightsCausalParent,
+  type RequestInsightsCausalTarget,
+} from './request-insights-causal'
 export { isRequestInsightsEnabled } from './span-store'
 
 const MAX_REQUEST_INSIGHTS = 100
@@ -42,6 +47,8 @@ const SAFE_RESPONSE_ERROR_TYPES = new Set([
 export type RequestInsightsListener = (insight: RequestInsight) => void
 type RequestInsightIdentity = {
   requestId?: string
+  parentRequestId?: string
+  parentFetchIndex?: number
   kind?: RequestInsightKind
   source?: RequestInsightSource
   proxyStatus?: RequestInsightProxyStatus
@@ -72,6 +79,7 @@ const SAFE_SPAN_ATTRIBUTE_KEYS = new Set([
   'next.span_type',
 ])
 export class RequestInsights {
+  private readonly causalRegistry = new RequestInsightsCausalRegistry()
   private readonly requests = new Map<string, RequestInsight>()
   private readonly requestTimings = new Map<
     string,
@@ -80,6 +88,31 @@ export class RequestInsights {
   private readonly requestOrder: string[] = []
   private readonly listeners = new Set<RequestInsightsListener>()
   private disposed = false
+
+  mintCausalToken(
+    input: RequestInsightsCausalParent & {
+      target: RequestInsightsCausalTarget
+    }
+  ): string | undefined {
+    return this.disposed
+      ? undefined
+      : this.causalRegistry.mintCausalToken(input)
+  }
+
+  consumeCausalToken(
+    token: string,
+    target: RequestInsightsCausalTarget
+  ): RequestInsightsCausalParent | undefined {
+    return this.disposed
+      ? undefined
+      : this.causalRegistry.consumeCausalToken(token, target)
+  }
+
+  revokeCausalToken(token: string): void {
+    if (!this.disposed) {
+      this.causalRegistry.revokeCausalToken(token)
+    }
+  }
 
   recordSpan(span: SpanStoreRecord): void {
     if (
@@ -221,6 +254,7 @@ export class RequestInsights {
     this.requests.clear()
     this.requestTimings.clear()
     this.requestOrder.length = 0
+    this.causalRegistry.clear()
   }
 
   dispose(): void {
@@ -394,6 +428,14 @@ export class RequestInsights {
     if (!insight) {
       insight = {
         requestId,
+        ...(identity.parentRequestId !== requestId &&
+        identity.parentRequestId !== undefined &&
+        identity.parentFetchIndex !== undefined
+          ? {
+              parentRequestId: identity.parentRequestId,
+              parentFetchIndex: identity.parentFetchIndex,
+            }
+          : undefined),
         kind: getRequestInsightKind(identity),
         source: getRequestInsightSource(identity),
         proxyStatus: identity.proxyStatus,
@@ -417,6 +459,16 @@ export class RequestInsights {
     insight.route = insight.route ?? identity.route
     insight.url = insight.url ?? sanitizeUrl(identity.url)
     insight.startTime = Math.min(insight.startTime, startTime)
+    if (
+      insight.parentRequestId === undefined &&
+      insight.parentFetchIndex === undefined &&
+      identity.parentRequestId !== requestId &&
+      identity.parentRequestId !== undefined &&
+      identity.parentFetchIndex !== undefined
+    ) {
+      insight.parentRequestId = identity.parentRequestId
+      insight.parentFetchIndex = identity.parentFetchIndex
+    }
 
     return insight
   }
