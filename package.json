@@ -146,7 +146,7 @@
     "@slack/web-api": "7.9.1",
     "@swc/cli": "0.1.55",
     "@swc/core": "1.11.24",
-    "@swc/helpers": "0.5.15",
+    "@swc/helpers": "0.5.23",
     "@swc/types": "0.1.7",
     "@taskr/esnext": "1.1.0",
     "@testing-library/jest-dom": "6.1.2",
