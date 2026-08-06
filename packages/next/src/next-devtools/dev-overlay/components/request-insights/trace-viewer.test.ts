@@ -184,6 +184,22 @@ describe('request insights trace viewer', () => {
     })
     const api = createRequest({ requestId: 'api', source: 'app-route' })
     const asset = createRequest({ requestId: 'asset', source: 'asset' })
+    const active = createRequest({
+      requestId: 'active',
+      response: { trackingStartTime: 100, outcome: 'pending' },
+    })
+    const finished = createRequest({
+      requestId: 'finished',
+      response: { trackingStartTime: 100, outcome: 'finished' },
+    })
+    const aborted = createRequest({
+      requestId: 'aborted',
+      response: { trackingStartTime: 100, outcome: 'aborted' },
+    })
+    const errored = createRequest({
+      requestId: 'errored',
+      response: { trackingStartTime: 100, outcome: 'errored' },
+    })
     const instantInsights = createRequest({
       requestId: 'page',
       kind: 'instant-insights',
@@ -245,6 +261,32 @@ describe('request insights trace viewer', () => {
         ({ request }) => request
       )
     ).toEqual([page])
+
+    const deliveryEntries = getRequestListEntries(
+      [active, finished, aborted, errored, api],
+      false
+    )
+    expect(
+      getRequestInsightFilterResult(deliveryEntries, [
+        'delivery:active',
+        'delivery:finished',
+      ]).entries.map(({ request }) => request.requestId)
+    ).toEqual(['active', 'finished'])
+    expect(
+      getRequestInsightFilterResult(deliveryEntries, [
+        'delivery:aborted',
+      ]).entries.map(({ request }) => request.requestId)
+    ).toEqual(['aborted'])
+    expect(
+      getRequestInsightFilterResult(deliveryEntries, [
+        'delivery:errored',
+      ]).entries.map(({ request }) => request.requestId)
+    ).toEqual(['errored'])
+    expect(
+      getRequestInsightFilterResult(deliveryEntries, [
+        'delivery:unknown',
+      ]).entries.map(({ request }) => request.requestId)
+    ).toEqual(['api'])
   })
 
   it('only marks the exact initial document request as the page load', () => {
