@@ -13,8 +13,10 @@ import {
   createRequestInsightsRetentionContext,
   getRequestInsightsIdentity,
   runWithRequestInsightsIdentity,
+  type RequestInsightsIdentity,
 } from './trace/request-insights-identity'
 import { runWithRequestInsights } from './trace/request-insights-runtime'
+import { prepareRequestInsightsSandboxFetch } from './trace/request-insights-sandbox-fetch'
 import {
   setSpanRecorderForTest,
   type SpanStoreRecord,
@@ -107,6 +109,67 @@ describe('createPatchedFetcher', () => {
     expect(requestInsights.getSnapshot().requests[0]?.fetches[0]).toEqual(
       expect.objectContaining({ index: 1, statusCode: 201 })
     )
+    requestInsights.dispose()
+  })
+
+  it('shares fetch indexes with the Edge sandbox bridge', async () => {
+    const requestInsights = new RequestInsights()
+    const workAsyncStorage = new AsyncLocalStorage<WorkStore>()
+    const workUnitAsyncStorage = new AsyncLocalStorage<WorkUnitStore>()
+    const identity: RequestInsightsIdentity = {
+      requestId: 'mixed-runtime-parent',
+      htmlRequestId: 'mixed-runtime-parent',
+      origin: 'http://app.localhost',
+      url: '/',
+    }
+    prepareRequestInsightsSandboxFetch({
+      context: { identity, requestInsights },
+      init: {},
+      url: 'https://example.com/from-edge',
+    }).complete({ status: 200 })
+
+    const target = getRequestInsightsCausalTarget(
+      new URL('http://app.localhost/api/from-node'),
+      'GET'
+    )!
+    let causalParent:
+      | { parentRequestId: string; parentFetchIndex: number }
+      | undefined
+    const mockFetch: jest.MockedFunction<typeof fetch> = jest.fn(
+      async (_input, init) => {
+        const token = takeRequestInsightsCausalToken(
+          Object.fromEntries(new Headers(init?.headers))
+        )
+        causalParent = token
+          ? requestInsights.consumeCausalToken(token, target)
+          : undefined
+        return new Response('ok', { status: 201 })
+      }
+    )
+    const patchedFetch = createPatchedFetcher(mockFetch, {
+      workAsyncStorage,
+      workUnitAsyncStorage,
+    })
+    const workStore = { page: '/', route: '/' } as WorkStore
+
+    await runWithRequestInsights(requestInsights, () =>
+      runWithRequestInsightsIdentity(identity, () =>
+        workAsyncStorage.run(workStore, () =>
+          patchedFetch('http://app.localhost/api/from-node', {
+            cache: 'no-store',
+          })
+        )
+      )
+    )
+
+    expect(causalParent).toEqual({
+      parentRequestId: 'mixed-runtime-parent',
+      parentFetchIndex: 2,
+    })
+    expect(requestInsights.getSnapshot().requests[0].fetches).toEqual([
+      expect.objectContaining({ index: 1, statusCode: 200 }),
+      expect.objectContaining({ index: 2, statusCode: 201 }),
+    ])
     requestInsights.dispose()
   })
 

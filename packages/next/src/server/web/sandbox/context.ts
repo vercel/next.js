@@ -35,6 +35,9 @@ interface ModuleContext {
 
 let getServerError: typeof import('../../dev/node-stack-frames').getServerError
 let decorateServerError: typeof import('../../../shared/lib/error-source').decorateServerError
+let requestInsightsSandboxFetchRuntime:
+  | typeof import('../../lib/trace/request-insights-sandbox-fetch')
+  | undefined
 
 if (process.env.NODE_ENV === 'development') {
   getServerError = (
@@ -46,6 +49,17 @@ if (process.env.NODE_ENV === 'development') {
 } else {
   getServerError = (error) => error
   decorateServerError = () => {}
+}
+
+function getRequestInsightsSandboxFetchRuntime():
+  | typeof import('../../lib/trace/request-insights-sandbox-fetch')
+  | undefined {
+  if (process.env.__NEXT_DEV_SERVER) {
+    return (requestInsightsSandboxFetchRuntime ??=
+      require('../../lib/trace/request-insights-sandbox-fetch') as typeof import('../../lib/trace/request-insights-sandbox-fetch'))
+  } else {
+    return undefined
+  }
 }
 
 /**
@@ -248,6 +262,7 @@ const NativeModuleMap = (() => {
 
 export const requestStore = new AsyncLocalStorage<{
   headers: Headers
+  requestInsightsFetchContext?: import('../../lib/trace/request-insights-sandbox-fetch').RequestInsightsSandboxFetchContext
 }>()
 
 export const edgeSandboxNextRequestContext = createLocalRequestContext()
@@ -367,35 +382,56 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
           init.headers.set(`user-agent`, `Next.js Middleware`)
         }
 
-        const response =
-          typeof input === 'object' && 'url' in input
-            ? __fetch(input.url, {
-                ...pick(input, [
-                  'method',
-                  'body',
-                  'cache',
-                  'credentials',
-                  'integrity',
-                  'keepalive',
-                  'mode',
-                  'redirect',
-                  'referrer',
-                  'referrerPolicy',
-                  'signal',
-                ]),
-                ...init,
-                headers: {
-                  ...Object.fromEntries(input.headers),
-                  ...Object.fromEntries(init.headers),
-                },
-              })
-            : __fetch(String(input), init)
+        const isRequestInput = typeof input === 'object' && 'url' in input
+        const fetchUrl = isRequestInput ? input.url : String(input)
+        const fetchInit = isRequestInput
+          ? {
+              ...pick(input, [
+                'method',
+                'body',
+                'cache',
+                'credentials',
+                'integrity',
+                'keepalive',
+                'mode',
+                'redirect',
+                'referrer',
+                'referrerPolicy',
+                'signal',
+              ]),
+              ...init,
+              headers: {
+                ...Object.fromEntries(input.headers),
+                ...Object.fromEntries(init.headers),
+              },
+            }
+          : init
+        const requestInsightsFetchContext =
+          requestStore.getStore()?.requestInsightsFetchContext
+        const requestInsightsFetch = requestInsightsFetchContext
+          ? getRequestInsightsSandboxFetchRuntime()?.prepareRequestInsightsSandboxFetch(
+              {
+                context: requestInsightsFetchContext,
+                init: fetchInit,
+                url: fetchUrl,
+              }
+            )
+          : undefined
 
-        return await response.catch((err) => {
-          callingError.message = err.message
-          err.stack = callingError.stack
+        try {
+          const response = await __fetch(
+            fetchUrl,
+            requestInsightsFetch?.init ?? fetchInit
+          )
+          requestInsightsFetch?.complete(response)
+          return response
+        } catch (err) {
+          requestInsightsFetch?.complete()
+          const fetchError = err as Error
+          callingError.message = fetchError.message
+          fetchError.stack = callingError.stack
           throw err
-        })
+        }
       }
 
       const __Request = context.Request
