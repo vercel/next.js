@@ -2,7 +2,7 @@ import type { Socket } from 'net'
 import { access, mkdir, writeFile } from 'fs/promises'
 import { realpathSync } from 'fs'
 import * as inspector from 'inspector'
-import { join, extname, relative, isAbsolute, sep } from 'path'
+import { join, extname, relative, isAbsolute, sep, dirname } from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 
 import ws from 'next/dist/compiled/ws'
@@ -158,16 +158,6 @@ const sessionId = Math.floor(Number.MAX_SAFE_INTEGER * Math.random())
 
 /** Output directory (relative to `distDir`) of server-HMR-managed chunks. */
 const SERVER_HMR_CHUNKS_DIR = join('server', 'chunks')
-
-/**
- * How long `ensurePage` waits for a route whose file exists on disk to show
- * up in Turbopack's entrypoints. The expected wake-up is the next entrypoints
- * update; this deadline is only a liveness backstop for states where no
- * update ever arrives (e.g. a broken file watcher, or a build error that
- * prevents entrypoints from being computed), in which case the request fails
- * with "not found" as it did before waiting.
- */
-const ENSURE_PAGE_ENTRYPOINTS_WAIT_MS = 10_000
 
 declare const __next__clear_chunk_cache__: (() => void) | null | undefined
 
@@ -1945,34 +1935,48 @@ export async function createHotReloaderTurbopack(
             // The route can be missing from the entrypoints even though its
             // file exists on disk: routes are discovered by a separate watcher
             // in setup-dev-bundler.ts, which can pick up a freshly written
-            // file before Turbopack's own watcher does. As long as the file
-            // exists, wait for Turbopack to catch up instead of failing the
-            // request.
-            const deadline = Date.now() + ENSURE_PAGE_ENTRYPOINTS_WAIT_MS
+            // file before Turbopack's own watcher does. Ask Turbopack
+            // directly, forcing it to re-read the file's directory. While it
+            // reports that the route exists, the entrypoints subscription is
+            // guaranteed to deliver an update containing it (under the same
+            // key; see handleEntrypoints), so wait for that instead of
+            // failing the request.
+            const routeKey = isInsideAppDir ? normalizedAppPage : page
+            const relativeDir = relative(
+              projectPath,
+              dirname(routeDef.filename)
+            )
+            // Files outside the project (e.g. built-in fallback routes)
+            // aren't watched, so there is nothing to invalidate for them.
+            const invalidateDirs =
+              relativeDir.startsWith('..') || isAbsolute(relativeDir)
+                ? []
+                : [relativeDir.split(sep).join('/')]
+            let invalidated = false
             while (!route) {
               try {
                 await access(routeDef.filename)
               } catch {
                 break
               }
-              const timeLeft = deadline - Date.now()
-              if (timeLeft <= 0) break
-              const pending = pendingEntrypointsUpdate
-              const updated = await new Promise<boolean>((resolve) => {
-                const timer = setTimeout(() => resolve(false), timeLeft)
-                timer.unref()
-                pending.then(() => {
-                  clearTimeout(timer)
-                  resolve(true)
-                })
-              })
+              let routeExists = false
+              try {
+                routeExists = await project.containsRoute(
+                  routeKey,
+                  invalidated ? [] : invalidateDirs
+                )
+              } catch {
+                // The entrypoints cannot currently be computed, e.g. because
+                // of a build error in a file they depend on.
+                break
+              }
+              invalidated = true
+              if (!routeExists) break
+              await pendingEntrypointsUpdate
               pendingEntrypointsUpdate = nextEntrypointsUpdate.promise
               route = isInsideAppDir
                 ? currentEntrypoints.app.get(normalizedAppPage)
                 : currentEntrypoints.page.get(page)
-              // The route is checked once more even when the deadline was
-              // hit, in case an update finished at the same time.
-              if (!updated) break
             }
           }
 

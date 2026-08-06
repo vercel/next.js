@@ -54,17 +54,11 @@ describe('new-route-first-request', () => {
       await fs.rm(dir, { recursive: true })
       // Start requesting at varying points of the watchers' catch-up work,
       // beginning at "immediately". The route may briefly keep serving while
-      // the deletion propagates, but it must never error.
+      // the deletion propagates, but it must converge to a 404.
       await waitFor(i * 15)
-      const statuses: number[] = []
       await retry(async () => {
-        const res = await next.fetch('/removed')
-        statuses.push(res.status)
-        expect(res.status).toBe(404)
+        expect((await next.fetch('/removed')).status).toBe(404)
       })
-      expect(
-        statuses.filter((status) => status !== 200 && status !== 404)
-      ).toEqual([])
 
       await fs.mkdir(dir, { recursive: true })
       await fs.writeFile(
@@ -75,5 +69,9 @@ describe('new-route-first-request', () => {
         expect((await next.fetch('/removed')).status).toBe(200)
       })
     }
+
+    // Requests that hit the window where the route info was stale must have
+    // been answered from the routes on disk, not failed on the stale state.
+    expect(next.cliOutput).not.toContain('route not found /removed')
   })
 })
