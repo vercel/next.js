@@ -1682,6 +1682,10 @@ export default class NextNodeServer extends BaseServer<
         'To use middleware you must provide a `hostname` and `port` to the Next.js Server'
       )
     }
+    const requestInsightsIdentity =
+      process.env.__NEXT_DEV_SERVER && this.requestInsights
+        ? getRequestMeta(params.request, 'requestInsightsIdentity')
+        : undefined
 
     const page: {
       name?: string
@@ -1784,6 +1788,16 @@ export default class NextNodeServer extends BaseServer<
         clientAssetToken: this.nextConfig.supportsImmutableAssets
           ? ''
           : this.deploymentId,
+        requestInsightsFetchContext:
+          process.env.__NEXT_DEV_SERVER &&
+          this.requestInsights &&
+          requestInsightsIdentity
+            ? {
+                identity: requestInsightsIdentity,
+                origin: new URL(url).origin,
+                requestInsights: this.requestInsights,
+              }
+            : undefined,
       })
     }
 
@@ -2070,6 +2084,20 @@ export default class NextNodeServer extends BaseServer<
       )
     }
 
+    const requestInsightsIdentity =
+      process.env.__NEXT_DEV_SERVER && this.requestInsights
+        ? getRequestMeta(params.req, 'requestInsightsIdentity')
+        : undefined
+
+    if (
+      process.env.__NEXT_DEV_SERVER &&
+      this.requestInsights &&
+      requestInsightsIdentity &&
+      match?.definition.kind === RouteKind.APP_ROUTE
+    ) {
+      this.requestInsights.recordSource(requestInsightsIdentity, 'app-route')
+    }
+
     const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
     const result = await run({
       distDir: this.distDir,
@@ -2106,10 +2134,54 @@ export default class NextNodeServer extends BaseServer<
       clientAssetToken: this.nextConfig.supportsImmutableAssets
         ? ''
         : this.deploymentId,
+      requestInsightsFetchContext:
+        process.env.__NEXT_DEV_SERVER &&
+        this.requestInsights &&
+        requestInsightsIdentity
+          ? {
+              identity: requestInsightsIdentity,
+              origin: new URL(url).origin,
+              requestInsights: this.requestInsights,
+            }
+          : undefined,
     })
 
     if (result.fetchMetrics) {
       params.req.fetchMetrics = result.fetchMetrics
+    }
+
+    if (
+      process.env.__NEXT_DEV_SERVER &&
+      this.requestInsights &&
+      requestInsightsIdentity &&
+      (match?.definition.kind === RouteKind.APP_PAGE ||
+        Array.isArray(params.appPaths)) &&
+      result.response.status < 400
+    ) {
+      const { ACTION_HEADER } =
+        require('../client/components/app-router-headers') as typeof import('../client/components/app-router-headers')
+      const { extractInfoFromServerReferenceId, mightBeServerReferenceId } =
+        require('../shared/lib/server-reference-info') as typeof import('../shared/lib/server-reference-info')
+      const { getRequestInsightRouterActivity } =
+        require('./lib/trace/request-insights-router-activity') as typeof import('./lib/trace/request-insights-router-activity')
+      const routerActivity = getRequestInsightRouterActivity(params.req.headers)
+      if (routerActivity) {
+        this.requestInsights.recordRouterActivity(
+          requestInsightsIdentity,
+          routerActivity
+        )
+      }
+
+      const actionId = params.req.headers[ACTION_HEADER]
+      if (
+        params.req.method === 'POST' &&
+        typeof actionId === 'string' &&
+        mightBeServerReferenceId(actionId) &&
+        /^[0-9a-f]+$/i.test(actionId) &&
+        extractInfoFromServerReferenceId(actionId).type === 'server-action'
+      ) {
+        this.requestInsights.recordServerAction(requestInsightsIdentity)
+      }
     }
 
     if (!params.res.statusCode || params.res.statusCode < 400) {
