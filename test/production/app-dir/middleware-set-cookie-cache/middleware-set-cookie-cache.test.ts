@@ -3,14 +3,12 @@ import { nextTestSetup } from 'e2e-utils'
 describe('middleware-set-cookie-cache', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
-    skipStart: true,
+    // Cache-Control is applied outside of the Next.js server when deployed, so
+    // these assertions only hold for `next start`.
     skipDeployment: true,
   })
 
   if (skipped) return
-
-  beforeAll(() => next.start())
-  afterAll(() => next.stop())
 
   it('replaces a prerendered page cache-control with no-store when middleware sets a cookie', async () => {
     const res = await next.fetch('/with-cookie')
