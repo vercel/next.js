@@ -70,9 +70,8 @@ pub struct CssResource {
 #[serde(rename_all = "camelCase")]
 pub struct ModuleLoading {
     pub prefix: RcStr,
-    /// React Flight treats any string as CORS-enabled (normalizing everything
-    /// but "use-credentials" to anonymous), so `CrossOrigin::None` must
-    /// serialize as `null`, not as the string "none".
+    /// React treats any string here as CORS-enabled, so `CrossOrigin::None`
+    /// must serialize as `null`, not `"none"`.
     #[serde(serialize_with = "serialize_cross_origin")]
     pub cross_origin: CrossOrigin,
 }
