@@ -241,10 +241,6 @@ impl TurboBackingStorage {
 
         {
             let span = tracing::trace_span!("update task data");
-            // Each `Delete` item's `TaskMeta`/`TaskData` tombstone is applied inline in the
-            // parallel put phase; its `TaskCache` tombstone is deferred (returned in
-            // `shard_deletes`) to the sequential phase below, which merges these with
-            // the caller-supplied deletes.
             let per_shard =
                 parallel::map_collect_owned::<_, _, Result<Vec<_>>>(snapshots, |shard: I| {
                     let _span = span.clone().entered();
@@ -262,14 +258,14 @@ impl TurboBackingStorage {
                                 task_type_hash,
                             } => (task_id, meta, data, task_type_hash),
                             SnapshotItem::Delete(deletion) => {
-                                // `TaskMeta`/`TaskData` are SingleValue: tombstone them inline
-                                // here. The `TaskCache` tombstone
-                                // (a MultiValue read-modify-write) is
-                                // carried out in `deletion` for the sequential phase below.
                                 let key = IntKey::new(*deletion.task_id);
                                 let key = key.as_ref();
+                                // apply these deletions immediately: TaskMeta/TaskData are
+                                // SingleValue, so a key-granular delete is exact
                                 batch.delete(KeySpace::TaskMeta, WriteBuffer::Borrowed(key))?;
                                 batch.delete(KeySpace::TaskData, WriteBuffer::Borrowed(key))?;
+                                // defer these until after the parallel block: the TaskCache
+                                // tombstone is a MultiValue read-modify-write
                                 shard_deletes.push(deletion);
                                 continue;
                             }
