@@ -65,6 +65,29 @@ export const VARIANTS_PATH_PREFIX = '__variants'
  */
 export const NEXT_VARIANTS_HEADER = 'x-next-internal-variants'
 
+/**
+ * Asserts that the variants prefix on this request's path was written by the
+ * proxy rather than supplied by whoever made the request.
+ *
+ * A prefixed path is where the prerender for one combination lives, and an
+ * artifact's path is reachable whether or not any route names it, so the prefix
+ * cannot simply be treated as internal. Without this, a client could name a
+ * combination and be served it, which for a variant the server decides is the
+ * thing the variant exists to prevent, and a combination nobody declared would
+ * invent a cache entry for every value it was given. Knowing a valid hash does
+ * not help, because the assertion is about who routed the request rather than
+ * about the hash being secret.
+ *
+ * Trustworthy on arrival for the same reason `NEXT_VARIANTS_HEADER` is: the
+ * `x-next-internal-` prefix is reserved for the deployment's own routing layer
+ * and stripped from incoming client requests before routing sees them.
+ *
+ * Separate from `NEXT_VARIANTS_HEADER` because that one is absent exactly when
+ * a combination matched and covered every variant its route reads, which is the
+ * case this most needs to admit.
+ */
+export const NEXT_VARIANTS_PREFIX_HEADER = 'x-next-internal-variants-prefix'
+
 export const NEXT_NAV_DEPLOYMENT_ID_HEADER = 'x-nextjs-deployment-id'
 
 export const NEXT_CACHE_TAGS_HEADER = 'x-next-cache-tags'

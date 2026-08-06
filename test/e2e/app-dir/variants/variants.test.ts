@@ -339,6 +339,32 @@ describe('variants', () => {
     expect($('#slug').last().text()).toBe('undeclared')
   })
 
+  it('should not let a client name the combination it is served', async () => {
+    // The prefix names an artifact, and the proxy writes it from what `decide`
+    // resolved. Supplying one directly would let a client pick its own
+    // combination, which for a variant the server decides is exactly what the
+    // variant exists to prevent. A path nobody was routed to therefore names
+    // nothing.
+    const declared = hashVariants({
+      'locale@variants.ts': 'en',
+      'theme@variants.ts': 'light',
+    })
+
+    const chosen = await next.fetch(`/__variants/${declared}/enumerated/a`, {
+      headers: { cookie: 'theme=dark; locale=en' },
+    })
+
+    expect(chosen.status).toBe(404)
+
+    // And one that names no combination at all must not reach the route either,
+    // or every value invents a cache entry of its own.
+    const invented = await next.fetch('/__variants/zzzzz/enumerated/a', {
+      headers: { cookie: 'theme=dark; locale=en' },
+    })
+
+    expect(invented.status).toBe(404)
+  })
+
   it('should not expose the internal combination query parameter to the page', async () => {
     // The combination travels to the origin as a query parameter, because that
     // is the one channel both a routed request and one a platform rebuilt from

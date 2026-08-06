@@ -21,6 +21,7 @@ import {
   type PHASE_TYPE,
 } from '../../shared/lib/constants'
 import {
+  NEXT_VARIANTS_PREFIX_HEADER,
   NEXT_VARIANTS_QUERY_PARAM,
   VARIANTS_PATH_PREFIX,
 } from '../../lib/constants'
@@ -2509,6 +2510,41 @@ export async function handleBuildComplete({
         fallback: routesManifest.rewrites.fallback.map(buildRewriteItem),
       }
 
+      // A prefixed path is where one combination's prerender lives, and an
+      // artifact's path is reachable whether or not a route names it. The
+      // prefix is therefore public input rather than internal transport, and a
+      // request that arrives carrying one nobody routed has to name nothing:
+      // otherwise a client picks which combination it is served, which for a
+      // variant the server decides is what the variant exists to prevent, and a
+      // hash nobody declared invents a cache entry per value it is given.
+      //
+      // The rejection cannot state its own status. A rule carrying a
+      // destination is a rewrite, and a rewrite's status is not part of what
+      // reaches the routing output, so naming the not-found page would serve
+      // that page with the status of a page that exists. Sending the request
+      // somewhere no output is written to instead lets it miss, which answers
+      // exactly as any other request for something that does not exist, and
+      // that is what such a path now is.
+      //
+      // Consulted before the files are, and after the proxy has run, so that a
+      // path the proxy vouched for is admitted.
+      const variantsPrefixGate: Route[] = config.experimental.variants
+        ? [
+            {
+              source: `/${VARIANTS_PATH_PREFIX}/:path*`,
+              sourceRegex: `^${config.basePath && config.basePath !== '/' ? path.posix.join('/', config.basePath) : ''}[/]?/${VARIANTS_PATH_PREFIX}(?:/.*)?$`,
+              missing: [{ type: 'header', key: NEXT_VARIANTS_PREFIX_HEADER }],
+              // Deliberately outside the prefix's own namespace, so the rule
+              // cannot match its own destination.
+              destination: path.posix.join(
+                '/',
+                config.basePath,
+                `${VARIANTS_PATH_PREFIX}-not-routed`
+              ),
+            },
+          ]
+        : []
+
       const redirects = routesManifest.redirects.map((route) => {
         const converted = convertRedirects([route], 307)[0]
         const regex = converted.src || route.regex
@@ -2541,7 +2577,7 @@ export async function handleBuildComplete({
               has: matcher.has,
               missing: matcher.missing,
             })) ?? [],
-          beforeFiles: rewrites.beforeFiles,
+          beforeFiles: [...variantsPrefixGate, ...rewrites.beforeFiles],
           afterFiles: rewrites.afterFiles,
           dynamicRoutes: combinedDynamicRoutes,
           onMatch: [

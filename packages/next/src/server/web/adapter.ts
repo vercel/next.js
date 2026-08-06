@@ -37,7 +37,10 @@ import { CloseController } from './web-on-close'
 import { getEdgePreviewProps } from './get-edge-preview-props'
 import { getBuiltinRequestContext } from '../after/builtin-request-context'
 import { getImplicitTags } from '../lib/implicit-tags'
-import { NEXT_VARIANTS_HEADER } from '../../lib/constants'
+import {
+  NEXT_VARIANTS_HEADER,
+  NEXT_VARIANTS_PREFIX_HEADER,
+} from '../../lib/constants'
 import { decodeVariants, encodeVariants } from '../variants/hash'
 import { getProxyTarget } from '../variants/target'
 import { findMatchingVariantCombination } from '../variants/combinations'
@@ -662,6 +665,18 @@ export async function adapter(
           )
 
           response.headers.set('x-middleware-rewrite', target.toString())
+
+          // Vouches for the prefix just written, so that routing can tell a
+          // path we routed from one a client supplied. The prerender for this
+          // combination lives at that path, and an artifact's path is reachable
+          // whether or not a route names it, so without this a client could
+          // select a combination for itself.
+          setRequestHeaderOverride(
+            response,
+            requestHeaders,
+            NEXT_VARIANTS_PREFIX_HEADER,
+            '1'
+          )
         }
 
         const undeclaredVariants = matchedVariants
