@@ -173,7 +173,7 @@ export function getDefineEnv({
     ),
     'process.env.__NEXT_TURBOPACK_SHARED_RUNTIME':
       config.experimental.turbopackSharedRuntime !== false,
-    ),
+    ,
     'process.env.__NEXT_PPR': isPPREnabled,
     'process.env.__NEXT_CACHE_COMPONENTS': isCacheComponentsEnabled,
     'process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS': Boolean(
