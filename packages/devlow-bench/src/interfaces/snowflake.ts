@@ -83,7 +83,7 @@ export default function createInterface({
         git_branch: GIT_BRANCH,
       })
     },
-    end: async (scenario, props) => {
+    end: async (_scenario, _props) => {
       await trackAnalytics(gatewayUri, topicName, schemaId, records)
     },
   }
