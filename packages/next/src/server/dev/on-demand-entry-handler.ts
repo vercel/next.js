@@ -48,6 +48,11 @@ import { PAGE_TYPES } from '../../lib/page-types'
 import { getNextFlightSegmentPath } from '../../client/flight-data-helpers'
 import { handleErrorStateResponse } from '../mcp/tools/get-errors'
 import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
+import {
+  traceCompileRoutePhase,
+  traceCompileRouteResolution,
+} from './route-compilation-tracing'
+import { DevBundlerServiceSpan } from '../lib/trace/constants'
 
 const debug = createDebug('next:on-demand-entry-handler')
 
@@ -831,19 +836,18 @@ export function onDemandEntryHandler({
     }, stalledTime * 1000)
 
     try {
-      let route: Pick<RouteDefinition, 'filename' | 'bundlePath' | 'page'>
-      if (definition) {
-        route = definition
-      } else {
-        route = await findPagePathData(
-          rootDir,
-          page,
-          nextConfig.pageExtensions,
-          pagesDir,
-          appDir,
-          !!nextConfig.experimental.globalNotFound
-        )
-      }
+      const route: Pick<RouteDefinition, 'filename' | 'bundlePath' | 'page'> =
+        definition ??
+        (await traceCompileRouteResolution(() =>
+          findPagePathData(
+            rootDir,
+            page,
+            nextConfig.pageExtensions,
+            pagesDir,
+            appDir,
+            !!nextConfig.experimental.globalNotFound
+          )
+        ))
 
       const isInsideAppDir = !!appDir && route.filename.startsWith(appDir)
 
@@ -916,15 +920,20 @@ export function onDemandEntryHandler({
         }
       }
 
-      const staticInfo = await getStaticInfoIncludingLayouts({
-        page,
-        pageFilePath: route.filename,
-        isInsideAppDir,
-        pageExtensions: nextConfig.pageExtensions,
-        isDev: true,
-        config: nextConfig,
-        appDir,
-      })
+      const staticInfo = await traceCompileRoutePhase(
+        DevBundlerServiceSpan.analyzeRoute,
+        'analyze route',
+        () =>
+          getStaticInfoIncludingLayouts({
+            page,
+            pageFilePath: route.filename,
+            isInsideAppDir,
+            pageExtensions: nextConfig.pageExtensions,
+            isDev: true,
+            config: nextConfig,
+            appDir,
+          })
+      )
 
       const added = new Map<CompilerNameValues, ReturnType<typeof addEntry>>()
       const isServerComponent =
@@ -1020,8 +1029,14 @@ export function onDemandEntryHandler({
           })
         )
 
-        curInvalidator.invalidate([...added.keys()])
-        await invalidatePromise
+        await traceCompileRoutePhase(
+          DevBundlerServiceSpan.buildRoute,
+          'build route',
+          async () => {
+            curInvalidator.invalidate([...added.keys()])
+            await invalidatePromise
+          }
+        )
       }
     } finally {
       clearTimeout(stalledEnsureTimeout)
