@@ -169,7 +169,11 @@ import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { getStaticMetadataPrerenderPathname } from '../lib/metadata/get-metadata-route'
 import { isStaticMetadataFile } from '../lib/metadata/is-metadata-route'
 import { createClientRouterFilter } from '../lib/create-client-router-filter'
-import { startTypeChecking } from './type-check'
+import {
+  isTypeCheckError,
+  prepareTypeChecking,
+  startTypeChecking,
+} from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
 
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
@@ -1687,8 +1691,24 @@ export default async function build(
           })
         )
 
+      const useTurbopackBuildWorker =
+        process.env.NEXT_TURBOPACK_USE_WORKER === undefined ||
+        process.env.NEXT_TURBOPACK_USE_WORKER !== '0'
+      // Keep pure Pages builds sequential: they historically type check before
+      // compilation, so overlapping would delay failures and increase their
+      // peak memory. App builds historically run the post-compile hook before
+      // type checking, so it may generate or modify files the checker observes.
+      const shouldOverlapTurbopackTypeChecking =
+        bundler === Bundler.Turbopack &&
+        !!appDir &&
+        useTurbopackBuildWorker &&
+        !config.typescript.ignoreBuildErrors &&
+        !config.compiler?.runAfterProductionCompile &&
+        !isCompileMode &&
+        !isGenerateMode
+
       // For pages directory, we run type checking after route collection but before build.
-      if (!appDir && !isCompileMode) {
+      if (!appDir && !isCompileMode && !shouldOverlapTurbopackTypeChecking) {
         await startTypeChecking(typeCheckingOptions)
       }
 
@@ -1774,6 +1794,25 @@ export default async function build(
         },
       })
 
+      let typeCheckingPromise: Promise<void> | undefined
+      let preparedTypeChecking = false
+      if (shouldOverlapTurbopackTypeChecking && (appDir || pagesDir)) {
+        const shouldRunTypeChecking =
+          await prepareTypeChecking(typeCheckingOptions)
+        preparedTypeChecking = true
+        if (shouldRunTypeChecking) {
+          typeCheckingPromise = startTypeChecking({
+            ...typeCheckingOptions,
+            typeCheckPreflightDone: true,
+            deferExitOnError: true,
+            showTypeCheckingSpinner: false,
+          })
+          // Compilation can fail before this promise is awaited below.
+          // Handle rejections immediately to avoid an unhandled rejection.
+          void typeCheckingPromise.catch(() => {})
+        }
+      }
+
       let shutdownPromise = Promise.resolve()
       if (!isGenerateMode) {
         if (bundler === Bundler.Turbopack) {
@@ -1782,11 +1821,7 @@ export default async function build(
             shutdownPromise: p,
             warnings,
             ...rest
-          } = await turbopackBuild(
-            process.env.NEXT_TURBOPACK_USE_WORKER === undefined ||
-              process.env.NEXT_TURBOPACK_USE_WORKER !== '0',
-            telemetry
-          )
+          } = await turbopackBuild(useTurbopackBuildWorker, telemetry)
           shutdownPromise = p
           deferredTurbopackWarnings = warnings
           traceMemoryUsage('Finished build', nextBuildSpan)
@@ -1938,12 +1973,45 @@ export default async function build(
 
       // #endregion
 
-      // For app directory, we run type checking after build.
-      if (appDir && !isCompileMode && !isGenerateMode) {
+      // Ensure type checking finishes before output generation.
+      // Turbopack starts it alongside compilation above.
+      if (
+        (appDir || typeCheckingPromise) &&
+        !isCompileMode &&
+        !isGenerateMode
+      ) {
         await updateBuildDiagnostics({
           buildStage: 'type-checking',
         })
-        await startTypeChecking(typeCheckingOptions)
+        if (typeCheckingPromise) {
+          const [typeCheckingResult, shutdownResult] = await Promise.allSettled(
+            [
+              typeCheckingPromise,
+              // Sequential builds naturally give Turbopack time to release its
+              // compiler memory while type checking. Preserve that memory bound
+              // before static generation now that both phases run concurrently.
+              shutdownPromise,
+            ]
+          )
+          if (typeCheckingResult.status === 'rejected') {
+            if (isTypeCheckError(typeCheckingResult.reason)) {
+              // The checker already printed the error. Exit only after compilation
+              // and shutdown finish so compiler errors are not hidden and the
+              // filesystem cache is flushed.
+              Log.error('Build failed because of TypeScript errors.')
+              process.exit(1)
+            }
+            // Preserve actionable diagnostics for worker or telemetry failures.
+            throw typeCheckingResult.reason
+          }
+          if (shutdownResult.status === 'rejected') {
+            throw shutdownResult.reason
+          }
+        } else {
+          if (!preparedTypeChecking) {
+            await startTypeChecking(typeCheckingOptions)
+          }
+        }
         traceMemoryUsage('Finished type checking', nextBuildSpan)
       }
 

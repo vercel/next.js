@@ -33,6 +33,8 @@ function verifyAndRunTypeScript(
   pagesDir: string | undefined,
   debugBuildPaths: { app: string[]; pages: string[] } | undefined,
   useTypeScriptCli: boolean,
+  typeCheckPreflightDone: boolean,
+  deferExitOnError: boolean,
   onFirstCliOutput?: () => void
 ) {
   let impl: typeof import('../lib/verify-typescript-setup').verifyAndRunTypeScript
@@ -51,6 +53,9 @@ function verifyAndRunTypeScript(
         numWorkers: 1,
         enableWorkerThreads,
         maxRetries: 0,
+        // Concurrent builds need the rejection so they can finish compiler
+        // shutdown and surface a checker-specific diagnostic.
+        exitOnWorkerExit: !deferExitOnError,
       }
     ) as typeof typeCheckWorker
     impl = typeCheckWorker!.verifyAndRunTypeScriptInWorker
@@ -77,19 +82,103 @@ function verifyAndRunTypeScript(
     pagesDir,
     debugBuildPaths,
     useTypeScriptCli,
+    typeCheckPreflightDone,
+    deferExitOnError,
     onFirstCliOutput,
   })
     .then((result) => {
       typeCheckWorker?.end()
       return result
     })
-    .catch(() => {
-      // The error is already logged (in the worker for the API checker, or
-      // directly for the in-process CLI checker); we simply exit to prevent the
-      // `Jest worker encountered 1 child process exceptions, exceeding retry
-      // limit` message from showing up.
+    .catch((error) => {
+      typeCheckWorker?.end()
+      // The error is already logged in the worker for the API checker, or
+      // directly for the in-process CLI checker. Sequential builds exit here
+      // to avoid surfacing jest-worker's internal retry message. Concurrent
+      // builds propagate the rejection so the caller can wait for compilation
+      // and Turbopack shutdown before exiting.
+      if (deferExitOnError) {
+        throw error
+      }
       process.exit(1)
     })
+}
+
+export function isTypeCheckError(error: unknown): error is Error {
+  return isError(error) && error.name === 'NextTypeCheckError'
+}
+
+type TypeCheckingOptions = {
+  cacheDir: string
+  config: NextConfigComplete
+  dir: string
+  nextBuildSpan: Span
+  pagesDir?: string
+  telemetry: Telemetry
+  appDir?: string
+  debugBuildPaths: { app: string[]; pages: string[] } | undefined
+  typeCheckPreflightDone?: boolean
+  deferExitOnError?: boolean
+  showTypeCheckingSpinner?: boolean
+}
+
+/**
+ * Finish TypeScript's project setup before compilation starts. The actual type
+ * check can then run concurrently without racing writes to tsconfig.json or
+ * next-env.d.ts against the compiler reading those files. Returns false when
+ * the project does not need the standard TypeScript checker.
+ */
+export async function prepareTypeChecking({
+  cacheDir,
+  config,
+  dir,
+  pagesDir,
+  appDir,
+  debugBuildPaths,
+  telemetry,
+}: TypeCheckingOptions) {
+  const useTypeScriptCli = Boolean(config.experimental.useTypeScriptCli)
+  const preflightStart = process.hrtime()
+  const { verifyAndRunTypeScript: verifyTypeScriptSetup } =
+    require('../lib/verify-typescript-setup') as typeof import('../lib/verify-typescript-setup')
+
+  try {
+    const result = await verifyTypeScriptSetup({
+      dir,
+      distDir: config.distDir,
+      strictRouteTypes: Boolean(config.experimental.strictRouteTypes),
+      shouldRunTypeCheck: false,
+      tsconfigPath: config.typescript.tsconfigPath,
+      typedRoutes: Boolean(config.typedRoutes),
+      disableStaticImages: config.images.disableStaticImages,
+      cacheDir,
+      hasAppDir: !!appDir,
+      hasPagesDir: !!pagesDir,
+      appDir,
+      pagesDir,
+      debugBuildPaths,
+      useTypeScriptCli,
+    })
+    if (result.version === null) {
+      const preflightEnd = process.hrtime(preflightStart)
+      // Preserve the event emitted by the old sequential path even though
+      // JavaScript-only/native-preview projects can now skip its empty phase.
+      telemetry.record(
+        eventTypeCheckCompleted({
+          durationInSeconds: preflightEnd[0],
+          typescriptVersion: null,
+          typeCheckMode: result.typeCheckMode,
+        })
+      )
+      return false
+    }
+    return true
+  } catch {
+    // The setup helper already printed its user-facing error. Match the worker
+    // path by avoiding a second copy and an internal stack from the build CLI.
+    await telemetry.flush()
+    process.exit(1)
+  }
 }
 
 export async function startTypeChecking({
@@ -101,16 +190,10 @@ export async function startTypeChecking({
   telemetry,
   appDir,
   debugBuildPaths,
-}: {
-  cacheDir: string
-  config: NextConfigComplete
-  dir: string
-  nextBuildSpan: Span
-  pagesDir?: string
-  telemetry: Telemetry
-  appDir?: string
-  debugBuildPaths: { app: string[]; pages: string[] } | undefined
-}) {
+  typeCheckPreflightDone = false,
+  deferExitOnError = false,
+  showTypeCheckingSpinner = true,
+}: TypeCheckingOptions) {
   const ignoreTypeScriptErrors = Boolean(config.typescript.ignoreBuildErrors)
   const useTypeScriptCli = Boolean(config.experimental.useTypeScriptCli)
 
@@ -126,7 +209,13 @@ export async function startTypeChecking({
   }
 
   if (typeCheckingSpinnerPrefixText) {
-    typeCheckingSpinner = createSpinner(typeCheckingSpinnerPrefixText)
+    if (showTypeCheckingSpinner) {
+      typeCheckingSpinner = createSpinner(typeCheckingSpinnerPrefixText)
+    } else {
+      // Turbopack's build worker writes directly to stdout/stderr, bypassing
+      // spinner interception. Use a stable line while both workers are active.
+      Log.info(typeCheckingSpinnerPrefixText)
+    }
   }
 
   const typeCheckAndLintStart = process.hrtime()
@@ -151,6 +240,8 @@ export async function startTypeChecking({
           pagesDir,
           debugBuildPaths,
           useTypeScriptCli,
+          typeCheckPreflightDone,
+          deferExitOnError,
           // Stop the spinner before as soon as the subprocess reports output.
           useTypeScriptCli && typeCheckingSpinner
             ? () => typeCheckingSpinner.stop()
@@ -182,10 +273,20 @@ export async function startTypeChecking({
       )
     }
   } catch (err) {
+    typeCheckingSpinner?.stop()
     // prevent showing jest-worker internal error as it
     // isn't helpful for users and clutters output
-    if (isError(err) && err.message === 'Call retries were exceeded') {
+    if (
+      isError(err) &&
+      (err.message === 'Call retries were exceeded' ||
+        ('type' in err && err.type === 'WorkerError'))
+    ) {
       await telemetry.flush()
+      if (deferExitOnError) {
+        throw new Error(
+          'TypeScript checker worker exited unexpectedly. This may be caused by insufficient memory.'
+        )
+      }
       process.exit(1)
     }
     throw err

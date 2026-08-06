@@ -6,6 +6,7 @@ import spawn from 'next/dist/compiled/cross-spawn'
 
 import { bold } from '../picocolors'
 import { resolveFrom } from '../resolve-from'
+import { TypeScriptDiagnosticError } from '../compile-error'
 
 export interface TypeScriptPackageInfo {
   packageJsonPath: string
@@ -242,7 +243,7 @@ export async function getTypeScriptConfigurationCli({
   })
 
   if (result.exitCode !== 0) {
-    throw new Error(
+    throw new TypeScriptDiagnosticError(
       [result.stdout, result.stderr].filter(Boolean).join('\n').trim()
     )
   }
