@@ -13,6 +13,7 @@ import { workAsyncStorageInstance } from './work-async-storage-instance' with { 
 import type { LazyResult } from '../lib/lazy-result'
 import type { DigestedError } from './create-error-handler'
 import type { ActionRevalidationKind } from '../../shared/lib/action-revalidation-kind'
+import type { RequestInsightsIdentity } from '../lib/trace/request-insights-identity'
 
 export interface WorkStore {
   /**
@@ -154,6 +155,7 @@ export interface WorkStore {
    */
   requestId?: string
   htmlRequestId?: string
+  requestInsightsIdentity?: RequestInsightsIdentity
 
   /**
    * This only exists because it's needed in use-cache-wrapper
