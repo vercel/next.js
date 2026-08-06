@@ -1485,7 +1485,9 @@ function getFetchInsight(span: SpanStoreRecord): RequestInsightFetch | null {
     durationMs: span.durationMs,
     cacheStatus: getStringAttribute(attributes['next.fetch.cache_status']),
     cacheReason: getStringAttribute(attributes['next.fetch.cache_reason']),
-    index: getNumberAttribute(attributes['next.fetch.idx']),
+    index:
+      sanitizeFiniteNumber(span.requestInsightFetchIndex) ??
+      getNumberAttribute(attributes['next.fetch.idx']),
   }
 }
 

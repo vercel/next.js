@@ -5,7 +5,8 @@ import { retry } from 'next-test-utils'
 
 type RequestInsight = {
   requestId: string
-  parentRequestId?: string
+  rootRequestId?: string
+  parentRootRequestId?: string
   parentFetchIndex?: number
   url?: string
   source?: string
@@ -61,7 +62,7 @@ describe('Request Insights Edge bridge', () => {
 
     expect(parent).toEqual(expect.objectContaining({ source: 'app-route' }))
     expect(child).toEqual(
-      expect.objectContaining({ parentRequestId: parent?.requestId })
+      expect.objectContaining({ parentRootRequestId: parent?.rootRequestId })
     )
     expect(
       parent?.fetches.some(
@@ -139,7 +140,7 @@ describe('Request Insights Edge bridge', () => {
     expect(page?.fetches).toEqual([
       expect.objectContaining({ statusCode: 200 }),
     ])
-    expect(child?.parentRequestId).toBe(page?.requestId)
+    expect(child?.parentRootRequestId).toBe(page?.rootRequestId)
   })
 
   it('classifies successful Edge Server Actions without retaining action IDs', async () => {

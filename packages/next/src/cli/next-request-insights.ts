@@ -4,6 +4,8 @@ import { getProjectDir } from '../lib/get-project-dir'
 import type {
   RequestInsight,
   RequestInsightFetch,
+  RequestInsightResponse,
+  RequestInsightSpan,
   RequestInsightsCaptureState,
   RequestInsightsSnapshot,
 } from '../next-devtools/shared/request-insights'
@@ -39,6 +41,7 @@ const MAX_DEV_SERVER_URL_LENGTH = 2048
 const MAX_REQUEST_INSIGHT_ROUTE_LENGTH = 1024
 const MAX_REQUEST_INSIGHT_URL_LENGTH = 2048
 const MAX_REQUEST_INSIGHT_LABEL_LENGTH = 256
+const MAX_REQUEST_INSIGHT_SPAN_NAME_LENGTH = 8 * 1024
 
 export type NextRequestInsightsOptions = {
   url?: string
@@ -354,10 +357,10 @@ function getResponseError(data: unknown, status: number): string {
   return `Request failed with ${status}`
 }
 
-function isRequestInsightsSnapshot(
+export function isRequestInsightsSnapshot(
   data: unknown
 ): data is RequestInsightsSnapshot {
-  if (typeof data !== 'object' || data === null) return false
+  if (!isRecord(data)) return false
   const candidate = data as Partial<RequestInsightsSnapshot>
   return (
     Array.isArray(candidate.requests) &&
@@ -406,17 +409,18 @@ function isRequestInsightsProjection(
 function isRequestInsightsCaptureState(
   capture: unknown
 ): capture is RequestInsightsCaptureState {
-  if (typeof capture !== 'object' || capture === null) return false
+  if (!isRecord(capture)) return false
   const candidate = capture as Partial<RequestInsightsCaptureState>
   return (
-    typeof candidate.limits === 'object' &&
-    candidate.limits !== null &&
-    Number.isSafeInteger(candidate.limits.maxRequestGroupsPerBucket)
+    isRecord(candidate.limits) &&
+    Number.isSafeInteger(candidate.limits.maxRequestGroupsPerBucket) &&
+    isRecord(candidate.usage) &&
+    Array.isArray(candidate.usage.buckets)
   )
 }
 
 function isRequestInsight(request: unknown): request is RequestInsight {
-  if (typeof request !== 'object' || request === null) return false
+  if (!isRecord(request)) return false
   const candidate = request as Partial<RequestInsight>
   return (
     isBoundedString(candidate.requestId, REQUEST_INSIGHTS_MAX_ID_LENGTH) &&
@@ -425,6 +429,11 @@ function isRequestInsight(request: unknown): request is RequestInsight {
       candidate.rootRequestId,
       REQUEST_INSIGHTS_MAX_ID_LENGTH
     ) &&
+    isOptionalBoundedString(
+      candidate.parentRootRequestId,
+      REQUEST_INSIGHTS_MAX_ID_LENGTH
+    ) &&
+    isOptionalNonNegativeSafeInteger(candidate.parentFetchIndex) &&
     isRequestInsightSource(candidate.source) &&
     (candidate.kind === undefined ||
       candidate.kind === 'request' ||
@@ -438,15 +447,54 @@ function isRequestInsight(request: unknown): request is RequestInsight {
     isOptionalFiniteNumber(candidate.durationMs) &&
     (candidate.status === 'ok' ||
       candidate.status === 'error' ||
+      candidate.status === 'aborted' ||
       candidate.status === 'pending') &&
+    (candidate.response === undefined ||
+      isRequestInsightResponse(candidate.response)) &&
     Array.isArray(candidate.spans) &&
+    candidate.spans.every(isRequestInsightSpan) &&
     Array.isArray(candidate.fetches) &&
     candidate.fetches.every(isRequestInsightFetch)
   )
 }
 
+function isRequestInsightResponse(
+  response: unknown
+): response is RequestInsightResponse {
+  if (!isRecord(response)) return false
+  const candidate = response as Partial<RequestInsightResponse>
+  return (
+    Number.isFinite(candidate.trackingStartTime) &&
+    isOptionalFiniteNumber(candidate.endTime) &&
+    isOptionalNonNegativeSafeInteger(candidate.statusCode) &&
+    (candidate.outcome === 'pending' ||
+      candidate.outcome === 'finished' ||
+      candidate.outcome === 'aborted' ||
+      candidate.outcome === 'errored') &&
+    (candidate.error === undefined ||
+      (isRecord(candidate.error) &&
+        isOptionalBoundedString(
+          candidate.error.type,
+          MAX_REQUEST_INSIGHT_LABEL_LENGTH
+        )))
+  )
+}
+
+function isRequestInsightSpan(span: unknown): span is RequestInsightSpan {
+  if (!isRecord(span)) return false
+  const candidate = span as Partial<RequestInsightSpan>
+  return (
+    isBoundedString(candidate.name, MAX_REQUEST_INSIGHT_SPAN_NAME_LENGTH) &&
+    Number.isFinite(candidate.startTime) &&
+    isOptionalFiniteNumber(candidate.durationMs) &&
+    (candidate.status === undefined ||
+      candidate.status === 'ok' ||
+      candidate.status === 'error')
+  )
+}
+
 function isRequestInsightFetch(fetch: unknown): fetch is RequestInsightFetch {
-  if (typeof fetch !== 'object' || fetch === null) return false
+  if (!isRecord(fetch)) return false
   const candidate = fetch as RequestInsightFetch
   return (
     isOptionalBoundedString(candidate.url, MAX_REQUEST_INSIGHT_URL_LENGTH) &&
@@ -459,7 +507,8 @@ function isRequestInsightFetch(fetch: unknown): fetch is RequestInsightFetch {
       MAX_REQUEST_INSIGHT_LABEL_LENGTH
     ) &&
     isOptionalFiniteNumber(candidate.statusCode) &&
-    isOptionalFiniteNumber(candidate.durationMs)
+    isOptionalFiniteNumber(candidate.durationMs) &&
+    isOptionalNonNegativeSafeInteger(candidate.index)
   )
 }
 
@@ -476,6 +525,10 @@ function isRequestInsightSource(
     source === 'instant-insights' ||
     source === 'unknown'
   )
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function isBoundedString(value: unknown, maxLength: number): value is string {
@@ -497,6 +550,12 @@ function isOptionalFiniteNumber(value: unknown): value is number | undefined {
 
 function isNonNegativeSafeInteger(value: unknown): value is number {
   return Number.isSafeInteger(value) && (value as number) >= 0
+}
+
+function isOptionalNonNegativeSafeInteger(
+  value: unknown
+): value is number | undefined {
+  return value === undefined || isNonNegativeSafeInteger(value)
 }
 
 function formatEndpoint(endpoint: URL): string {

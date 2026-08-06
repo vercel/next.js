@@ -3114,7 +3114,7 @@ describe('request insights', () => {
           response: expect.objectContaining({ outcome: 'finished' }),
         })
       )
-      expect(second.getSnapshot()).toEqual({ requests: [] })
+      expect(second.getSnapshot().requests).toEqual([])
     } finally {
       first.dispose()
       second.dispose()
@@ -3151,7 +3151,7 @@ describe('request insights', () => {
           }),
         })
       )
-      expect(second.getSnapshot()).toEqual({ requests: [] })
+      expect(second.getSnapshot().requests).toEqual([])
     } finally {
       first.dispose()
       second.dispose()

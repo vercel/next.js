@@ -43,6 +43,7 @@ type PatchFetchRequestInsightsRuntime = {
   getNextRequestInsightsFetchIndex: typeof import('./trace/request-insights-sandbox-fetch').getNextRequestInsightsFetchIndex
   getRequestInsightsIdentity: typeof import('./trace/request-insights-identity').getRequestInsightsIdentity
   isRequestInsightsSameOriginTarget: typeof import('./trace/request-insights-causal').isRequestInsightsSameOriginTarget
+  setRequestInsightsFetchIndex: typeof import('./trace/local-span-recorder').setRequestInsightsFetchIndex
   setRequestInsightsCausalCookie: typeof import('./trace/request-insights-causal').setRequestInsightsCausalCookie
 }
 
@@ -61,6 +62,8 @@ function getPatchFetchRequestInsightsRuntime():
         require('./trace/request-insights-identity') as typeof import('./trace/request-insights-identity')
       const { getNextRequestInsightsFetchIndex } =
         require('./trace/request-insights-sandbox-fetch') as typeof import('./trace/request-insights-sandbox-fetch')
+      const { setRequestInsightsFetchIndex } =
+        require('./trace/local-span-recorder') as typeof import('./trace/local-span-recorder')
       const {
         getRequestInsightsCausalTarget,
         isRequestInsightsSameOriginTarget,
@@ -73,6 +76,7 @@ function getPatchFetchRequestInsightsRuntime():
         getNextRequestInsightsFetchIndex,
         getRequestInsightsIdentity,
         isRequestInsightsSameOriginTarget,
+        setRequestInsightsFetchIndex,
         setRequestInsightsCausalCookie,
       }
     }
@@ -222,6 +226,14 @@ function trackFetchMetric(
     end: performance.timeOrigin + performance.now(),
     idx: workStore.nextFetchId || 0,
   }
+  const requestInsightsRuntime = getPatchFetchRequestInsightsRuntime()
+
+  if (requestInsightsIndex !== undefined) {
+    requestInsightsRuntime?.setRequestInsightsFetchIndex(
+      span,
+      requestInsightsIndex
+    )
+  }
 
   span?.setAttributes({
     'http.status_code': metric.status,
@@ -230,7 +242,6 @@ function trackFetchMetric(
     'next.fetch.cache_reason': metric.cacheReason,
   })
 
-  const requestInsightsRuntime = getPatchFetchRequestInsightsRuntime()
   const requestInsights = requestInsightsRuntime?.getActiveRequestInsights()
   if (requestInsights) {
     const requestInsightsIdentity =
@@ -1083,7 +1094,7 @@ export function createPatchedFetcher(
         let requestInsightsIdentity:
           | import('./trace/request-insights-identity').RequestInsightsIdentity
           | undefined
-        let requestInsightsFetchIdx = fetchIdx
+        let requestInsightsFetchIdx: number | undefined
         if (process.env.__NEXT_DEV_SERVER) {
           requestInsightsRuntime = getPatchFetchRequestInsightsRuntime()
           requestInsightsIdentity =
