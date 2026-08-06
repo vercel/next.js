@@ -4,15 +4,15 @@ use next_core::emit_assets;
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, OperationValue, OperationVc, ResolvedVc, State, TryFlatJoinIterExt,
-    TryJoinIterExt, Vc, debug::ValueDebugFormat, trace::TraceRawVcs, turbobail,
+    FxIndexMap, FxIndexSet, NonLocalValue, OperationValue, OperationVc, ResolvedVc, State,
+    TryFlatJoinIterExt, TryJoinIterExt, Vc, debug::ValueDebugFormat, trace::TraceRawVcs, turbobail,
 };
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     output::{ExpandedOutputAssets, OptionOutputAsset, OutputAsset},
     source_map::GenerateSourceMap,
-    version::OptionVersionedContent,
+    version::{OptionVersionedContent, VersionedContent},
 };
 
 use crate::aggregate_hmr::{HmrChunkWithContent, is_entry_chunk_list_content};
@@ -61,12 +61,91 @@ struct ExpandedOutputAssetsOperationSet(
     #[bincode(with = "turbo_bincode::indexset")] FxIndexSet<OperationVc<ExpandedOutputAssets>>,
 );
 
-// HACK: This is technically incorrect because the map's key contains a `ResolvedVc`...
+#[turbo_tasks::value(transparent)]
+struct HmrEntryChunks(Vec<(FileSystemPath, ResolvedVc<Box<dyn VersionedContent>>)>);
+
+#[derive(
+    Clone,
+    Default,
+    TraceRawVcs,
+    PartialEq,
+    Eq,
+    ValueDebugFormat,
+    Debug,
+    NonLocalValue,
+    Encode,
+    Decode,
+)]
+struct HmrEntryChunkOperations(
+    #[bincode(with = "turbo_bincode::indexmap")]
+    FxIndexMap<OperationVc<ExpandedOutputAssets>, ResolvedVc<Box<dyn VersionedContent>>>,
+);
+
+#[derive(
+    Clone,
+    Default,
+    TraceRawVcs,
+    PartialEq,
+    Eq,
+    ValueDebugFormat,
+    Debug,
+    NonLocalValue,
+    Encode,
+    Decode,
+)]
+struct PathToHmrEntryChunks(FxHashMap<FileSystemPath, HmrEntryChunkOperations>);
+
+// HACK: These maps contain `ResolvedVc`s in their keys or values.
 unsafe impl OperationValue for PathToOutputOperation {}
+unsafe impl OperationValue for PathToHmrEntryChunks {}
+unsafe impl OperationValue for HmrEntryOperationGenerations {}
+unsafe impl OperationValue for HmrEntryRootGenerations {}
 
 // A precomputed map for quick access to output asset by filepath
 type OutputOperationToComputeEntry =
     FxHashMap<OperationVc<ExpandedOutputAssets>, OperationVc<OptionMapEntry>>;
+
+#[derive(
+    Clone,
+    Default,
+    TraceRawVcs,
+    PartialEq,
+    Eq,
+    ValueDebugFormat,
+    Debug,
+    NonLocalValue,
+    Encode,
+    Decode,
+)]
+struct HmrEntryOperationGenerations(
+    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<OperationVc<ExpandedOutputAssets>, u64>,
+);
+
+#[derive(
+    Clone,
+    Default,
+    TraceRawVcs,
+    PartialEq,
+    Eq,
+    ValueDebugFormat,
+    Debug,
+    NonLocalValue,
+    Encode,
+    Decode,
+)]
+struct HmrEntryRootGenerations(FxHashMap<FileSystemPath, HmrEntryOperationGenerations>);
+
+fn scope_hmr_entry_refresh<T>(refresh: Result<T>, is_current_owner: bool) -> Result<Option<T>> {
+    match refresh {
+        Ok(value) => Ok(Some(value)),
+        // An indexed owner must preserve the existing full-recovery behavior
+        // and its last-good baseline.
+        Err(error) if is_current_owner => Err(error),
+        // A pending-only operation may belong to another root, so its error
+        // must not poison this root; leave its generation pending.
+        Err(_) => Ok(None),
+    }
+}
 
 // TODO: Ideally this structure is never persisted, so new sessions start from scratch and don't
 // accumulate entries or force rebuilds of all chunks when a new session is only interested in some
@@ -76,7 +155,10 @@ pub struct VersionedContentMap {
     // TODO: turn into a bi-directional multimap, ExpandedOutputAssets ->
     // FxIndexSet<FileSystemPath>
     map_path_to_op: State<PathToOutputOperation>,
+    map_path_to_hmr_entry_chunks: State<PathToHmrEntryChunks>,
     map_op_to_compute_entry: State<OutputOperationToComputeEntry>,
+    hmr_entry_operation_generations: State<HmrEntryOperationGenerations>,
+    hmr_entry_root_generations: State<HmrEntryRootGenerations>,
 }
 
 impl VersionedContentMap {
@@ -85,7 +167,10 @@ impl VersionedContentMap {
     pub fn new() -> ResolvedVc<Self> {
         VersionedContentMap {
             map_path_to_op: State::new(PathToOutputOperation(FxHashMap::default())),
+            map_path_to_hmr_entry_chunks: State::new(PathToHmrEntryChunks(FxHashMap::default())),
             map_op_to_compute_entry: State::new(FxHashMap::default()),
+            hmr_entry_operation_generations: State::new(HmrEntryOperationGenerations::default()),
+            hmr_entry_root_generations: State::new(HmrEntryRootGenerations::default()),
         }
         .resolved_cell()
     }
@@ -96,55 +181,115 @@ impl VersionedContentMap {
     /// entries are included by narrowing `root` (e.g. the aggregate server-HMR
     /// subscription passes `server/app` to include App Router entries only).
     ///
-    /// `map_path_to_op` is an `FxHashMap`, whose iteration order depends on
-    /// bucket layout rather than insertion order, so the same set of paths can
-    /// come out in a different order across calls. Since this map contains
-    /// entries that span server and client contexts, changes for one context
-    /// can shift the internals of the map, making iteration order different
-    /// for the same set of paths.
+    /// The entry index is maintained when endpoint output sets change. Reading
+    /// it here avoids reconnecting every side-effectful output operation on an
+    /// ordinary source edit.
     pub async fn hmr_chunks_in_path(
         self: Vc<Self>,
         root: &FileSystemPath,
     ) -> Result<Vec<HmrChunkWithContent>> {
-        let this = self.await?;
-        // `State::get` returns a lock guard, which can't be held across the
-        // awaits below, so snapshot the keys and release it.
-        let paths: Vec<FileSystemPath> = {
-            let map = &this.map_path_to_op.get().0;
-            map.keys().cloned().collect()
+        // Refresh operations whose structural generation has not yet been
+        // observed under this root, plus the operations that currently own an
+        // indexed entry here. Per-root generations make deleted and out-of-root
+        // endpoints inactive while preserving empty -> non-empty discovery and
+        // preventing a concurrent newer generation from being cleared.
+        let resolved_self = self.to_resolved().await?;
+        let this = resolved_self.await?;
+        let compute_operations = {
+            let operation_generations = this.hmr_entry_operation_generations.get();
+            // This state is bookkeeping, not a discovery signal. Reading it
+            // untracked avoids self-invalidating this task when successful
+            // generations are recorded below.
+            let root_generations = this.hmr_entry_root_generations.get_untracked();
+            let processed_generations = root_generations.0.get(root);
+            let mut assets_operations = operation_generations
+                .0
+                .iter()
+                .filter(|(operation, generation)| {
+                    processed_generations
+                        .and_then(|processed| processed.0.get(*operation))
+                        .copied()
+                        != Some(**generation)
+                })
+                .map(|(operation, generation)| (*operation, (*generation, false)))
+                .collect::<FxIndexMap<_, _>>();
+
+            // The final index read below is tracked after refresh. This
+            // pre-refresh owner snapshot is only scheduling input and must not
+            // self-invalidate the caller when a scan changes the index.
+            for (path, entries) in &this.map_path_to_hmr_entry_chunks.get_untracked().0 {
+                if root.get_path_to(path).is_some() {
+                    for operation in entries.0.keys() {
+                        if let Some(&generation) = operation_generations.0.get(operation) {
+                            assets_operations
+                                .entry(*operation)
+                                .and_modify(|(_, is_current_owner)| *is_current_owner = true)
+                                .or_insert((generation, true));
+                        }
+                    }
+                }
+            }
+
+            let registered_operations = this.map_op_to_compute_entry.get();
+            assets_operations
+                .into_iter()
+                .filter(|(operation, _)| registered_operations.contains_key(operation))
+                .map(|(operation, (generation, is_current_owner))| {
+                    let compute_operation =
+                        compute_hmr_entry_operation(resolved_self, operation, root.clone());
+                    (operation, generation, is_current_owner, compute_operation)
+                })
+                .collect::<Vec<_>>()
         };
-
-        let mut chunks = paths
+        let refreshed_generations = compute_operations
             .into_iter()
-            .filter_map(|path| {
-                let rel = root.get_path_to(&path)?;
-                Some((RcStr::from(rel), path))
-            })
-            .map(|(name, path)| async move {
-                // Skip Redirect assets: they're symlinks with no file content,
-                // so versioning them would bail with "not a file".
-                let Some(asset) = *self.get_asset(path).await? else {
-                    return Ok::<_, anyhow::Error>(None);
-                };
-                if !matches!(*asset.content().await?, AssetContent::File(_)) {
-                    return Ok(None);
-                }
-                let content = asset.versioned_content().to_resolved().await?;
-
-                // *Important*: only chunk lists are subscribed to. Individual chunks are already
-                // covered by the chunk list that owns them, so including them here
-                // would produce duplicate updates for the same change.
-                if !is_entry_chunk_list_content(content) {
-                    return Ok(None);
-                }
-
-                Ok(Some(HmrChunkWithContent {
-                    path: name,
-                    content,
-                }))
-            })
+            .map(
+                |(assets_operation, generation, is_current_owner, operation)| async move {
+                    scope_hmr_entry_refresh(
+                        operation
+                            .connect()
+                            .await
+                            .map(|_| (assets_operation, generation)),
+                        is_current_owner,
+                    )
+                },
+            )
             .try_flat_join()
             .await?;
+
+        self.await?
+            .hmr_entry_root_generations
+            .update_conditionally(|root_generations| {
+                let processed = root_generations.0.entry(root.clone()).or_default();
+                let mut changed = false;
+                for (operation, generation) in refreshed_generations {
+                    if processed
+                        .0
+                        .get(&operation)
+                        .is_none_or(|&processed| processed < generation)
+                    {
+                        processed.0.insert(operation, generation);
+                        changed = true;
+                    }
+                }
+                changed
+            });
+
+        let this = self.await?;
+        let mut chunks = this
+            .map_path_to_hmr_entry_chunks
+            .get()
+            .0
+            .iter()
+            .filter_map(|(path, operations)| {
+                let rel = root.get_path_to(path)?;
+                let content = operations.0.values().next().copied()?;
+                Some(HmrChunkWithContent {
+                    path: RcStr::from(rel),
+                    content,
+                })
+            })
+            .collect::<Vec<_>>();
         chunks.sort_by(|a, b| a.path.cmp(&b.path));
         Ok(chunks)
     }
@@ -177,6 +322,67 @@ impl VersionedContentMap {
         this.map_op_to_compute_entry.update_conditionally(|map| {
             map.insert(assets_operation, compute_entry) != Some(compute_entry)
         });
+        this.hmr_entry_operation_generations
+            .update_conditionally(|generations| {
+                *generations.0.entry(assets_operation).or_default() += 1;
+                true
+            });
+        Ok(())
+    }
+
+    /// Maintains the aggregate-HMR entry index without reconnecting the full
+    /// `compute_entry` operation and its asset-emission side effect.
+    #[turbo_tasks::function]
+    async fn compute_hmr_entry(
+        &self,
+        assets_operation: OperationVc<ExpandedOutputAssets>,
+        root: FileSystemPath,
+    ) -> Result<()> {
+        // Propagate in-root structural scan failures so the HMR subscriber
+        // performs its full-recovery path. The last good index stays intact
+        // until the scan succeeds, preventing a recovered entry from being
+        // misclassified as new. Out-of-root asset content is never evaluated.
+        let hmr_entry_chunks = get_hmr_entry_chunks(assets_operation, root.clone())
+            .read_strongly_consistent()
+            .await?;
+
+        self.map_path_to_hmr_entry_chunks
+            .update_conditionally(|map| {
+                let mut changed = false;
+                let mut stale_paths = map
+                    .0
+                    .iter()
+                    .filter_map(|(path, operations)| {
+                        (root.get_path_to(path).is_some()
+                            && operations.0.contains_key(&assets_operation))
+                        .then_some(path.clone())
+                    })
+                    .collect::<FxHashSet<_>>();
+
+                for (path, content) in hmr_entry_chunks.iter() {
+                    let previous = map
+                        .0
+                        .entry(path.clone())
+                        .or_default()
+                        .0
+                        .insert(assets_operation, *content);
+                    stale_paths.remove(path);
+                    changed = changed || previous != Some(*content);
+                }
+
+                for path in &stale_paths {
+                    let remove_path = {
+                        let operations = map.0.get_mut(path).unwrap();
+                        changed = operations.0.swap_remove(&assets_operation).is_some() || changed;
+                        operations.0.is_empty()
+                    };
+                    if remove_path {
+                        map.0.remove(path);
+                    }
+                }
+                changed
+            });
+
         Ok(())
     }
 
@@ -195,7 +401,6 @@ impl VersionedContentMap {
             .await
             // Any error should result in an empty list, which removes all assets from the map
             .ok();
-
         self.map_path_to_op.update_conditionally(|map| {
             let mut changed = false;
 
@@ -226,6 +431,15 @@ impl VersionedContentMap {
             }
             changed
         });
+        // Structural output changes are the discovery signal for new, deleted,
+        // or recreated aggregate-HMR entries. Every root records the exact
+        // generation completed by its lightweight scan, so concurrent changes
+        // cannot be cleared by an older scan.
+        self.hmr_entry_operation_generations
+            .update_conditionally(|generations| {
+                *generations.0.entry(assets_operation).or_default() += 1;
+                true
+            });
 
         // Make sure all written client assets are up-to-date
         emit_assets(
@@ -348,6 +562,48 @@ async fn get_entries(assets: OperationVc<ExpandedOutputAssets>) -> Result<Vc<Get
     Ok(Vc::cell(entries))
 }
 
+/// Computes only the entry chunks needed by aggregate HMR. This reconnects the
+/// endpoint output operation to inspect its structure, but avoids reconnecting the
+/// full `compute_entry` operation that owns the asset-emission side effect.
+#[turbo_tasks::function(operation, root)]
+async fn get_hmr_entry_chunks(
+    assets: OperationVc<ExpandedOutputAssets>,
+    root: FileSystemPath,
+) -> Result<Vc<HmrEntryChunks>> {
+    let assets_ref = assets.read_strongly_consistent().await?;
+    let entries = assets_ref
+        .iter()
+        .map(|&asset| {
+            let root = root.clone();
+            async move {
+                let path = asset.path().owned().await?;
+                if root.get_path_to(&path).is_none() {
+                    return Ok::<_, anyhow::Error>(None);
+                }
+                if !matches!(*asset.content().await?, AssetContent::File(_)) {
+                    return Ok(None);
+                }
+                let content = asset.versioned_content().to_resolved().await?;
+                if !is_entry_chunk_list_content(content) {
+                    return Ok(None);
+                }
+                Ok(Some((path, content)))
+            }
+        })
+        .try_flat_join()
+        .await?;
+    Ok(Vc::cell(entries))
+}
+
+#[turbo_tasks::function(operation, root)]
+fn compute_hmr_entry_operation(
+    map: ResolvedVc<VersionedContentMap>,
+    assets_operation: OperationVc<ExpandedOutputAssets>,
+    root: FileSystemPath,
+) -> Vc<()> {
+    map.compute_hmr_entry(assets_operation, root)
+}
+
 #[turbo_tasks::function(operation, root)]
 fn compute_entry_operation(
     map: ResolvedVc<VersionedContentMap>,
@@ -362,4 +618,28 @@ fn compute_entry_operation(
         client_relative_path,
         client_output_path,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::anyhow;
+
+    use super::scope_hmr_entry_refresh;
+
+    #[test]
+    fn hmr_entry_refresh_errors_are_scoped_to_current_owners() {
+        assert_eq!(
+            scope_hmr_entry_refresh::<u8>(Ok(7), false).unwrap(),
+            Some(7)
+        );
+
+        let owner_error =
+            scope_hmr_entry_refresh::<()>(Err(anyhow!("owner scan failed")), true).unwrap_err();
+        assert_eq!(owner_error.to_string(), "owner scan failed");
+
+        assert_eq!(
+            scope_hmr_entry_refresh::<()>(Err(anyhow!("other root failed")), false).unwrap(),
+            None
+        );
+    }
 }
