@@ -9,6 +9,8 @@ type TooltipDirection = 'top' | 'bottom' | 'left' | 'right'
 interface TooltipProps {
   children: React.ReactNode
   title: string | null
+  open?: React.ComponentProps<typeof BaseTooltip.Root>['open']
+  onOpenChange?: React.ComponentProps<typeof BaseTooltip.Root>['onOpenChange']
   anchor?: React.ComponentProps<typeof BaseTooltip.Positioner>['anchor']
   asChild?: boolean
   direction?: TooltipDirection
@@ -22,6 +24,8 @@ export const Tooltip = forwardRef<HTMLElement, TooltipProps>(function Tooltip(
     className,
     children,
     title,
+    open,
+    onOpenChange,
     anchor,
     asChild = false,
     direction = 'top',
@@ -36,7 +40,7 @@ export const Tooltip = forwardRef<HTMLElement, TooltipProps>(function Tooltip(
   }
   return (
     <BaseTooltip.Provider>
-      <BaseTooltip.Root delay={400}>
+      <BaseTooltip.Root delay={400} onOpenChange={onOpenChange} open={open}>
         <BaseTooltip.Trigger
           ref={ref}
           render={
