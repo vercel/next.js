@@ -20,6 +20,7 @@ import type {
   RequestInsightSource,
 } from '../../../shared/lib/request-insights'
 import type { RequestInsights } from './request-insights'
+import type { RequestInsightsRetentionContext } from './request-insights-identity'
 
 export { isLocalSpanRecordingEnabled } from './span-store'
 
@@ -175,6 +176,8 @@ function getLocalSpanAsyncStorage(): AsyncLocalStorage<Span> {
 type RequestIdentity = {
   requestInsights?: RequestInsights
   requestId?: string
+  rootRequestId?: string
+  requestInsightsRetention?: RequestInsightsRetentionContext
   requestInsightKind?: RequestInsightKind
   requestInsightSource?: RequestInsightSource
   requestInsightProxyStatus?: RequestInsightProxyStatus
@@ -382,6 +385,8 @@ class LocalRecordingSpan implements Span {
         spanId: this.spanContextValue.spanId,
         parentSpanId: this.parentSpanId,
         requestId: this.requestIdentity.requestId,
+        rootRequestId: this.requestIdentity.rootRequestId,
+        requestInsightsRetention: this.requestIdentity.requestInsightsRetention,
         requestInsightKind: this.requestIdentity.requestInsightKind,
         requestInsightSource: this.requestIdentity.requestInsightSource,
         requestInsightProxyStatus:
@@ -594,6 +599,9 @@ function getCurrentRequestIdentity(): RequestIdentity {
     return {
       requestInsights,
       requestId: requestInsightsIdentity?.requestId ?? workStore?.requestId,
+      rootRequestId:
+        requestInsightsIdentity?.rootRequestId ?? workStore?.requestId,
+      requestInsightsRetention: requestInsightsIdentity?.retention,
       requestInsightKind: requestInsightsIdentity?.kind,
       requestInsightSource: requestInsightsIdentity?.source,
       requestInsightProxyStatus: requestInsightsIdentity?.proxyStatus,

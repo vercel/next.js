@@ -75,21 +75,23 @@ describe('span recording', () => {
         route: '/dashboard',
       })
 
-      expect(getRequestInsightsSnapshot()).toEqual({
-        requests: [
-          expect.objectContaining({
-            requestId: 'req_1',
-            route: '/dashboard',
-            spans: [
-              expect.objectContaining({
-                name: 'render route (app) /dashboard',
-                startTime: 100,
-                durationMs: 25,
-              }),
-            ],
-          }),
-        ],
-      })
+      expect(getRequestInsightsSnapshot()).toEqual(
+        expect.objectContaining({
+          requests: [
+            expect.objectContaining({
+              requestId: 'req_1',
+              route: '/dashboard',
+              spans: [
+                expect.objectContaining({
+                  name: 'render route (app) /dashboard',
+                  startTime: 100,
+                  durationMs: 25,
+                }),
+              ],
+            }),
+          ],
+        })
+      )
     })
   })
 

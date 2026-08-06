@@ -333,6 +333,7 @@ import type { StageEndTimes } from './instant-validation/instant-validation'
 import { hasNonRootStaticParams } from '../lib/params-utils'
 
 type AppRenderRequestInsightsRuntime = {
+  createRequestInsightsRetentionContext: typeof import('../lib/trace/request-insights-identity').createRequestInsightsRetentionContext
   getActiveRequestInsights: typeof import('../lib/trace/request-insights-runtime').getActiveRequestInsights
   getRequestInsightsIdentity: typeof import('../lib/trace/request-insights-identity').getRequestInsightsIdentity
   getRequestInsightRouterActivity: typeof import('../lib/trace/request-insights-router-activity').getRequestInsightRouterActivity
@@ -347,7 +348,11 @@ function getAppRenderRequestInsightsRuntime():
   | undefined {
   if (process.env.__NEXT_DEV_SERVER) {
     if (!appRenderRequestInsightsRuntime) {
-      const { getRequestInsightsIdentity, runWithRequestInsightsIdentity } =
+      const {
+        createRequestInsightsRetentionContext,
+        getRequestInsightsIdentity,
+        runWithRequestInsightsIdentity,
+      } =
         require('../lib/trace/request-insights-identity') as typeof import('../lib/trace/request-insights-identity')
       const { getRequestInsightRouterActivity } =
         require('../lib/trace/request-insights-router-activity') as typeof import('../lib/trace/request-insights-router-activity')
@@ -357,6 +362,7 @@ function getAppRenderRequestInsightsRuntime():
         require('../lib/trace/span-store') as typeof import('../lib/trace/span-store')
 
       appRenderRequestInsightsRuntime = {
+        createRequestInsightsRetentionContext,
         getActiveRequestInsights,
         getRequestInsightsIdentity,
         getRequestInsightRouterActivity,
@@ -4982,11 +4988,15 @@ async function runInstantInsightsWithTracing<T>(
     return fn(runWithoutInstantInsightsSpan)
   }
 
+  const outerIdentity = requestInsightsRuntime.getRequestInsightsIdentity()
+
   return requestInsightsRuntime.runWithRequestInsightsIdentity(
     {
-      requestId:
-        requestInsightsRuntime.getRequestInsightsIdentity()?.requestId ??
-        ctx.requestId,
+      requestId: outerIdentity?.requestId ?? ctx.requestId,
+      rootRequestId: outerIdentity?.rootRequestId ?? ctx.requestId,
+      retention: requestInsightsRuntime.createRequestInsightsRetentionContext(
+        outerIdentity?.retention
+      ),
       kind: 'instant-insights',
       htmlRequestId: ctx.htmlRequestId,
       url: ctx.url.href,
