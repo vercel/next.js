@@ -218,8 +218,14 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
 impl<'scope, 'env: 'scope, R: Send + 'env> Drop for Scope<'scope, 'env, R> {
     fn drop(&mut self) {
         // Dropping the only sender closes the queue: each drainer finishes the jobs still in it
-        // and then sees `recv` fail and exits.
-        self.work_queue.take();
+        // and then sees `recv` fail and exits. This must happen *before* we drain below —
+        // `run_jobs` blocks in `recv` until the queue is closed, so a live sender here would hang
+        // the scope.
+        drop(
+            self.work_queue
+                .take()
+                .expect("sender is taken exactly once, here in Drop"),
+        );
         // Help drain whatever remains inline, so completion never depends on a helper being
         // scheduled.
         self.inner.run_jobs();
