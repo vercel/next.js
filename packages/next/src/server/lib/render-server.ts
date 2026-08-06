@@ -36,6 +36,8 @@ export type ServerInitResult = {
   agentRules?: boolean
   // Whether the development server memory threshold restart is enabled
   devMemoryThresholdRestart: boolean
+  // Whether public custom-server close() callers own WebSocket failures.
+  webSocketRouteHandlersEnabled: boolean
 }
 
 let initializations: Record<string, Promise<ServerInitResult> | undefined> = {}
@@ -117,6 +119,7 @@ async function initializeImpl(opts: {
   cacheComponents: boolean
   partialPrefetching?: boolean
   devMemoryThresholdRestart: boolean
+  webSocketRouteHandlersEnabled: boolean
 }): Promise<ServerInitResult> {
   const type = process.env.__NEXT_PRIVATE_RENDER_WORKER
   if (type) {
@@ -212,6 +215,7 @@ async function initializeImpl(opts: {
     cacheComponents: opts.cacheComponents,
     partialPrefetching: opts.partialPrefetching,
     devMemoryThresholdRestart: opts.devMemoryThresholdRestart,
+    webSocketRouteHandlersEnabled: opts.webSocketRouteHandlersEnabled,
   }
 }
 

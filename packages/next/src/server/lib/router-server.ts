@@ -80,6 +80,7 @@ import {
   getRawHttpResponseStatus,
   isWebSocketUpgradeRequest,
   isWebSocketClientDisconnectError,
+  ownWebSocketUpgradeSocketErrors,
   preflightWebSocketUpgrade,
   validateWebSocketHandshake,
   validateWebSocketOrigin,
@@ -159,6 +160,7 @@ export async function initialize(opts: {
   customServer?: boolean
   experimentalHttpsServer?: boolean
   serverFastRefresh?: boolean
+  restartServer?: () => Promise<void>
   startServerSpan?: Span
   quiet?: boolean
 }): Promise<ServerInitResult> {
@@ -274,6 +276,7 @@ export async function initialize(opts: {
         turbo: !!process.env.TURBOPACK,
         port: opts.port,
         onDevServerCleanup: opts.onDevServerCleanup,
+        restartServer: opts.restartServer,
         resetFetch,
         serverFastRefresh: effectiveServerFastRefresh,
       })
@@ -935,6 +938,9 @@ export async function initialize(opts: {
     cacheComponents: config.cacheComponents,
     partialPrefetching: config.partialPrefetching,
     devMemoryThresholdRestart,
+    webSocketRouteHandlersEnabled: Boolean(
+      config.experimental.webSocketRouteHandlers
+    ),
   }
   renderServerOpts.serverFields.routerServerHandler = requestHandlerImpl
 
@@ -1007,10 +1013,8 @@ export async function initialize(opts: {
       )
     }
 
-    const webSocketUpgradeExclusiveOwner = getRequestMeta(
-      req,
-      'webSocketUpgradeExclusiveOwner'
-    )
+    const webSocketUpgradeOwnership =
+      getRequestMeta(req, 'webSocketUpgradeOwnership') ?? 'shared'
     let isWebSocketRequest = Boolean(
       config.experimental.webSocketRouteHandlers &&
         !isHMRRequest &&
@@ -1021,7 +1025,7 @@ export async function initialize(opts: {
     if (
       config.experimental.webSocketRouteHandlers &&
       !isHMRRequest &&
-      webSocketUpgradeExclusiveOwner === false
+      webSocketUpgradeOwnership === 'shared'
     ) {
       // Node dispatches upgrade listeners synchronously and does not await
       // their promises. Until the lifecycle layer installs a coordinated
@@ -1029,7 +1033,7 @@ export async function initialize(opts: {
       // to its embedding listeners. Those listeners may already have accepted
       // the socket and are allowed to mutate the request headers.
       Log.warnOnce(
-        'Next.js delegated an upgrade event because another custom-server upgrade listener may own the socket. WebSocket Route Handlers require Next.js to exclusively own the upgrade event; pass `httpServer` to `next()` without additional upgrade listeners.'
+        'Next.js delegated an upgrade event because another custom-server upgrade listener may own the socket. Use app.getUpgradeHandler() from one outer dispatcher to coordinate WebSocket Route Handlers with another protocol.'
       )
       return
     }
@@ -1044,18 +1048,28 @@ export async function initialize(opts: {
       }
     }
 
+    let releaseUpgradeErrorOwnership: (() => unknown[]) | undefined
+    const releaseCoordinatedUpgrade = () => {
+      const failures = releaseUpgradeErrorOwnership?.() ?? []
+      releaseUpgradeErrorOwnership = undefined
+      for (const failure of failures) {
+        try {
+          console.error(
+            'Failed to release a delegated WebSocket upgrade socket error owner',
+            failure
+          )
+        } catch {}
+      }
+    }
+
     try {
       if (isWebSocketRequest) {
         addRequestMeta(req, 'webSocketRegistryScope', webSocketRegistryScope)
       }
-      req.on('error', (_err) => {
-        // TODO: log socket errors?
-        // console.error(_err);
-      })
-      socket.on('error', (_err) => {
-        // TODO: log socket errors?
-        // console.error(_err);
-      })
+      releaseUpgradeErrorOwnership = ownWebSocketUpgradeSocketErrors(
+        req,
+        socket
+      )
 
       if (config.experimental.webSocketRouteHandlers && !isHMRRequest) {
         const preflight = await preflightWebSocketUpgrade(req, socket)
@@ -1238,6 +1252,10 @@ export async function initialize(opts: {
       }
 
       if (matchedOutput) {
+        if (webSocketUpgradeOwnership === 'coordinated') {
+          releaseCoordinatedUpgrade()
+          return
+        }
         await writeRawHttpError(req, socket, 404, 'Not Found')
         return
       }
@@ -1254,8 +1272,16 @@ export async function initialize(opts: {
         return
       }
 
-      // Shared-server requests return before route resolution, so reaching
-      // this point means Next.js exclusively owns the unmatched socket.
+      if (webSocketUpgradeOwnership === 'coordinated') {
+        // Internal-header filtering intentionally remains applied before
+        // delegation: a fallback protocol must not regain headers which the
+        // server entry point treats as forgeable Next.js control metadata.
+        releaseCoordinatedUpgrade()
+        return
+      }
+
+      // Shared-server requests returned before route resolution, while an
+      // exclusive dispatcher owns both matched and unmatched sockets.
       await writeRawHttpError(req, socket, 404, 'Not Found')
     } catch (err) {
       if (!isWebSocketClientDisconnectError(err)) {
@@ -1303,5 +1329,8 @@ export async function initialize(opts: {
     partialPrefetching: config.partialPrefetching,
     agentRules: config.agentRules,
     devMemoryThresholdRestart,
+    webSocketRouteHandlersEnabled: Boolean(
+      config.experimental.webSocketRouteHandlers
+    ),
   }
 }

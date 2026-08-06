@@ -44,7 +44,14 @@ import { AsyncCallbackSet } from './async-callback-set'
 import type { NextServer } from '../next'
 import { durationToString } from '../../build/duration-to-string'
 import { addRequestMeta } from '../request-meta'
+import { PendingWebSocketUpgradeTracker } from '../websocket-lifecycle'
+import { isRawHttpResponseCommitted } from '../websocket-http'
 import { createWebSocketUpgradeListenerOwnershipTracker } from '../websocket-upgrade-listener'
+import {
+  latchServerCleanupExitCode,
+  runServerCleanupPhases,
+  scheduleServerCleanup,
+} from './server-cleanup'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
@@ -150,6 +157,7 @@ export async function getRequestHandlers({
   experimentalHttpsServer,
   serverFastRefresh,
   quiet,
+  restartServer,
 }: {
   dir: string
   port: number
@@ -162,6 +170,7 @@ export async function getRequestHandlers({
   experimentalHttpsServer?: boolean
   serverFastRefresh?: boolean
   quiet?: boolean
+  restartServer?: () => Promise<void>
 }): ReturnType<typeof initialize> {
   return initialize({
     dir,
@@ -176,6 +185,7 @@ export async function getRequestHandlers({
     serverFastRefresh,
     startServerSpan,
     quiet,
+    restartServer,
   })
 }
 
@@ -232,6 +242,11 @@ export async function startServer(
 
   let nextServer: NextServer | undefined
   let devMemoryThresholdRestart = true
+  let restartServer = async (): Promise<void> => {
+    await flushAllTraces()
+    process.exit(RESTART_EXIT_CODE)
+  }
+  const scheduleServerRestart = () => scheduleServerCleanup(restartServer)
 
   // setup server listener as fast as possible
   if (selfSignedCertificate && !isDev) {
@@ -266,8 +281,9 @@ export async function startServer(
           'memory.heapSizeLimit': String(memoryRestartStats.heap_size_limit),
           'memory.heapUsed': String(memoryRestartStats.used_heap_size),
         }).stop()
-        flushAllTraces()
-        process.exit(RESTART_EXIT_CODE)
+        // Let this request listener return before shutdown waits for the HTTP
+        // server to drain, otherwise server.close() would wait on itself.
+        scheduleServerRestart()
       }
     }
   }
@@ -285,22 +301,45 @@ export async function startServer(
   if (keepAliveTimeout) {
     server.keepAliveTimeout = keepAliveTimeout
   }
+  const pendingUpgrades = new PendingWebSocketUpgradeTracker()
+  let isClosingUpgrades = false
   const handleServerUpgrade: WorkerUpgradeHandler = async (
     req,
     socket,
     head
   ) => {
-    addRequestMeta(
-      req,
-      'webSocketUpgradeExclusiveOwner',
-      webSocketUpgradeOwnership.isExclusiveOwner()
-    )
+    let finishUpgrade: (() => void) | undefined
     try {
+      finishUpgrade = pendingUpgrades.track(socket)
+      if (
+        isClosingUpgrades ||
+        socket.destroyed ||
+        socket.readableEnded ||
+        socket.writableEnded
+      ) {
+        if (!socket.destroyed) socket.destroy()
+        return
+      }
+      addRequestMeta(
+        req,
+        'webSocketUpgradeOwnership',
+        webSocketUpgradeOwnership.getOwnership()
+      )
       await upgradeHandler(req, socket, head)
     } catch (err) {
-      socket.destroy()
+      let committed = false
+      try {
+        committed = isRawHttpResponseCommitted(socket)
+      } catch {}
+      if ((!isClosingUpgrades || !committed) && !socket.destroyed) {
+        try {
+          socket.destroy()
+        } catch {}
+      }
       Log.error(`Failed to handle request for ${req.url}`)
       console.error(err)
+    } finally {
+      finishUpgrade?.()
     }
   }
   const webSocketUpgradeOwnership =
@@ -330,6 +369,88 @@ export async function startServer(
   })
 
   let cleanupListeners = isDev ? new AsyncCallbackSet() : undefined
+  let closeUpgraded: ((code?: number) => Promise<void>) | null = null
+  let cleanupPromise: Promise<void> | undefined
+  let cleanupExitCode: number | undefined
+
+  const cleanup = (exitCode: number, webSocketCloseCode = 1001) => {
+    cleanupExitCode = latchServerCleanupExitCode(cleanupExitCode, exitCode)
+    if (cleanupPromise) return cleanupPromise
+
+    let resolveCleanup!: () => void
+    let rejectCleanup!: (error: unknown) => void
+    cleanupPromise = new Promise<void>((resolve, reject) => {
+      resolveCleanup = resolve
+      rejectCleanup = reject
+    })
+
+    // Publish cleanupPromise and close raw-upgrade admission before invoking
+    // EventEmitter hooks. A removeListener observer can synchronously request
+    // another restart, but it must join this cleanup generation.
+    isClosingUpgrades = true
+    const closePendingUpgrades = pendingUpgrades.closePending()
+    void closePendingUpgrades.catch(() => {})
+    let removeUpgradeListenerFailure: unknown
+    try {
+      server.off('upgrade', handleServerUpgrade)
+      webSocketUpgradeOwnership.dispose()
+    } catch (error) {
+      removeUpgradeListenerFailure = error
+    }
+
+    const runCleanup = async () => {
+      debug('start-server process cleanup')
+      try {
+        await runServerCleanupPhases([
+          [
+            () => {
+              if (removeUpgradeListenerFailure !== undefined) {
+                throw removeUpgradeListenerFailure
+              }
+            },
+            () =>
+              new Promise<void>((resolve, reject) => {
+                server.close((error) => {
+                  if (error) reject(error)
+                  else resolve()
+                })
+                if (isDev) server.closeAllConnections()
+              }),
+            () => closePendingUpgrades,
+          ],
+          // Every admitted route has now either handed the connection to the
+          // registry or completed, so one snapshot closes all upgraded peers.
+          [() => closeUpgraded?.(webSocketCloseCode)],
+          [() => nextServer?.close(), () => cleanupListeners?.runAll()],
+          [() => flushAllTraces()],
+        ])
+
+        if (isDev) {
+          try {
+            const { traceGlobals } =
+              require('../../trace/shared') as typeof import('../../trace/shared')
+            const telemetry = traceGlobals.get('telemetry') as
+              | InstanceType<typeof import('../../telemetry/storage').Telemetry>
+              | undefined
+            if (telemetry) telemetry.flushDetached('dev', dir)
+          } catch (_) {
+            // Ignore telemetry errors during cleanup.
+          }
+        }
+        resolveCleanup()
+      } catch (error) {
+        rejectCleanup(error)
+      } finally {
+        debug('start-server process cleanup finished')
+        process.exit(cleanupExitCode)
+      }
+    }
+
+    void runCleanup()
+    return cleanupPromise
+  }
+
+  restartServer = () => cleanup(RESTART_EXIT_CODE, 1012)
 
   const distDir = await new Promise<string>((resolve) => {
     server.on('listening', async () => {
@@ -409,93 +530,17 @@ export async function startServer(
       Log.event(`Ready in ${formattedStartDuration}`)
 
       try {
-        let cleanupStarted = false
-        let closeUpgraded: ((code?: number) => Promise<void>) | null = null
-        const cleanup = (signal: 'SIGINT' | 'SIGTERM') => {
-          if (cleanupStarted) {
-            // We can get duplicate signals, e.g. when `ctrl+c` is used in an
-            // interactive shell (i.e. bash, zsh), the shell will recursively
-            // send SIGINT to children. The parent `next-dev` process will also
-            // send us SIGINT.
-            return
-          }
-          cleanupStarted = true
-          ;(async () => {
-            debug('start-server process cleanup')
-
-            // First stop accepting new connections. Then finish pending HTTP
-            // requests and upgraded connections before `nextServer.close()`;
-            // either may still schedule `after` work while closing.
-            const closeHttpServer = new Promise<void>((res) => {
-              server.close((err) => {
-                if (err) console.error(err)
-                res()
-              })
-              if (isDev) {
-                server.closeAllConnections()
-              }
-            })
-            const closeUpgradedConnections = closeUpgraded
-              ? closeUpgraded(1001).catch(console.error)
-              : Promise.resolve()
-            await Promise.all([closeHttpServer, closeUpgradedConnections])
-
-            // now that no new requests can come in, clean up the rest
-            await Promise.all([
-              nextServer?.close().catch(console.error),
-              cleanupListeners?.runAll().catch(console.error),
-            ])
-
-            // Flush any remaining traces to the trace file on shutdown
-            flushAllTraces()
-
-            // Flush telemetry if this is a dev server
-            if (isDev) {
-              try {
-                const { traceGlobals } =
-                  require('../../trace/shared') as typeof import('../../trace/shared')
-                const telemetry = traceGlobals.get('telemetry') as
-                  | InstanceType<
-                      typeof import('../../telemetry/storage').Telemetry
-                    >
-                  | undefined
-                if (telemetry) {
-                  // Use flushDetached to avoid blocking process exit
-                  // Each process writes to a unique file (_events_${pid}.json)
-                  // to avoid race conditions with the parent process
-                  telemetry.flushDetached('dev', dir)
-                }
-              } catch (_) {
-                // Ignore telemetry errors during cleanup
-              }
-            }
-
-            debug('start-server process cleanup finished')
-
-            // Exit with signal-based exit code (128 + signal number) so that
-            // Node.js treats this as a signal termination, not a normal exit.
-            // This avoids waiting for the debugger to disconnect.
-            switch (signal) {
-              case 'SIGINT':
-                process.exit(130)
-                break
-              case 'SIGTERM':
-                process.exit(143)
-                break
-              default:
-                // Make sure all handled signals have explicit exit codes.
-                // This is just a fallback to guard against unsound types.
-                signal satisfies never
-                process.exit(128)
-            }
-          })()
+        const cleanupSignal = (signal: 'SIGINT' | 'SIGTERM') => {
+          // Do not await from the signal listener; cleanup drains the listener
+          // graph and exits with the latched signal code when it is complete.
+          void cleanup(signal === 'SIGINT' ? 130 : 143)
         }
 
         // Make sure commands gracefully respect termination signals (e.g. from Docker)
         // Allow the graceful termination to be manually configurable
         if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
-          process.on('SIGINT', cleanup)
-          process.on('SIGTERM', cleanup)
+          process.on('SIGINT', cleanupSignal)
+          process.on('SIGTERM', cleanupSignal)
         }
 
         // Now load config via getRequestHandlers (single loadConfig call)
@@ -512,6 +557,7 @@ export async function startServer(
           keepAliveTimeout,
           experimentalHttpsServer: !!selfSignedCertificate,
           serverFastRefresh,
+          restartServer,
         })
         devMemoryThresholdRestart = initResult.devMemoryThresholdRestart
         requestHandler = initResult.requestHandler
@@ -604,7 +650,7 @@ export async function startServer(
       files: configFiles,
       missing: dirWatchPaths,
     })
-    wp.on('change', async (filename) => {
+    wp.on('change', (filename) => {
       if (!configFiles.includes(filename)) {
         return
       }
@@ -613,7 +659,7 @@ export async function startServer(
           filename
         )}. Restarting the server to apply the changes...`
       )
-      process.exit(RESTART_EXIT_CODE)
+      scheduleServerRestart()
     })
     wp.on('remove', (removedPath: string) => {
       if (dirWatchPaths.includes(removedPath)) {
@@ -622,7 +668,7 @@ export async function startServer(
             'Deleting this directory while Next.js is running can lead to ' +
             'undefined behavior. Restarting the server to recover...'
         )
-        process.exit(RESTART_EXIT_CODE)
+        scheduleServerRestart()
       }
     })
   }

@@ -7,8 +7,24 @@ type UpgradeListenerOwnershipState = {
 }
 
 export interface WebSocketUpgradeListenerOwnershipTracker {
-  isExclusiveOwner(): boolean
+  getOwnership(): Extract<WebSocketUpgradeOwnership, 'exclusive' | 'shared'>
   dispose(): void
+}
+
+export type WebSocketUpgradeOwnership = 'exclusive' | 'coordinated' | 'shared'
+
+export function classifyWebSocketUpgradeOwnership(
+  listeners: unknown[] | undefined,
+  ownListener: object
+): WebSocketUpgradeOwnership {
+  if (!listeners || listeners.length === 0) return 'shared'
+  const ownRegistered = listeners.includes(ownListener)
+  if (ownRegistered) {
+    return listeners.length === 1 && listeners[0] === ownListener
+      ? 'exclusive'
+      : 'shared'
+  }
+  return listeners.length === 1 ? 'coordinated' : 'shared'
 }
 
 function hasExternalUpgradeListener(
@@ -71,8 +87,8 @@ export function createWebSocketUpgradeListenerOwnershipTracker(
 
   let disposed = false
   return {
-    isExclusiveOwner() {
-      if (disposed) return false
+    getOwnership() {
+      if (disposed) return 'shared'
       // Retain a live scan as a fallback if embedding code removed the
       // observer.
       if (
@@ -81,7 +97,7 @@ export function createWebSocketUpgradeListenerOwnershipTracker(
       ) {
         markExternalUpgradeListener(server, state)
       }
-      return !state.externalListenerSeen
+      return state.externalListenerSeen ? 'shared' : 'exclusive'
     },
     dispose() {
       if (disposed) return
