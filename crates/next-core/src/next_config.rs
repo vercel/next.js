@@ -2496,11 +2496,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn turbopack_cjs_tree_shaking(&self) -> Vc<bool> {
-        Vc::cell(
-            self.experimental
-                .turbopack_cjs_tree_shaking
-                .unwrap_or(false),
-        )
+        Vc::cell(self.experimental.turbopack_cjs_tree_shaking.unwrap_or(true))
     }
 
     #[turbo_tasks::function]
