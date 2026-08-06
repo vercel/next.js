@@ -682,6 +682,7 @@ for run in $(seq 1 ${total}); do
         // Metrics are OMITTED when absent — a zero would pair against a
         // real value as a fabricated -100% claim.
         if (r.load.hydratedMs>0) row.hydrate=r.load.hydratedMs;
+        if (r.load.hydrateClientMs>0) row.hydrateClient=r.load.hydrateClientMs;
         if (r.load.fcpMs>0) row.fcp=r.load.fcpMs;
         if (r.load.scriptMs>0) row.script=r.load.scriptMs;
         if (r.load.taskMs>0) row.task=r.load.taskMs;
@@ -838,6 +839,7 @@ function analyze(cfg) {
     'rss',
     'rssHw',
     'hydrate',
+    'hydrateClient',
     'fcp',
     'script',
     'task',

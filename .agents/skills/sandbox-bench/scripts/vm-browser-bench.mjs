@@ -54,6 +54,30 @@ function metricsMap(res) {
   return out
 }
 
+// Wait until the page's cumulative task time stops moving, then return the
+// final counter snapshot. A fixed read point (load, hydration mark, rAF)
+// under-counts work the page schedules later — streamed Suspense hydration
+// and lazily initialized Flight chunks land exactly there, and an arm that
+// defers work past a fixed read point would look artificially cheap. The
+// wait itself runs no in-page JS (CDP counters + wall-clock sleeps), so it
+// doesn't perturb what it measures.
+const SETTLE_WINDOW_MS = 250
+const SETTLE_EPS_MS = 0.5
+const SETTLE_TIMEOUT_MS = 10_000
+
+async function settledMetrics(page, cdp) {
+  let prev = metricsMap(await cdp.send('Performance.getMetrics'))
+  const start = Date.now()
+  for (;;) {
+    await new Promise((r) => setTimeout(r, SETTLE_WINDOW_MS))
+    const cur = metricsMap(await cdp.send('Performance.getMetrics'))
+    const deltaMs = (cur.get('TaskDuration') - prev.get('TaskDuration')) * 1000
+    if (deltaMs < SETTLE_EPS_MS) return cur
+    prev = cur
+    if (Date.now() - start > SETTLE_TIMEOUT_MS) return cur
+  }
+}
+
 async function measureRoute(browser, route, navTarget) {
   const context = await browser.newContext()
   const page = await context.newPage()
@@ -75,15 +99,6 @@ async function measureRoute(browser, route, navTarget) {
       null,
       { timeout: HYDRATE_TIMEOUT_MS }
     )
-    // Two rAFs so post-hydration work (paint, pending microtasks) lands in
-    // the counters before we read them.
-    await page.evaluate(
-      () =>
-        new Promise((r) =>
-          requestAnimationFrame(() => requestAnimationFrame(r))
-        )
-    )
-
     const timings = await page.evaluate(() => {
       const nav = performance.getEntriesByType('navigation')[0]
       const fcp = performance
@@ -98,9 +113,16 @@ async function measureRoute(browser, route, navTarget) {
         hydratedMs: hydrated ? hydrated.startTime : null,
       }
     })
-    const loadMetrics = metricsMap(await cdp.send('Performance.getMetrics'))
+    const loadMetrics = await settledMetrics(page, cdp)
     const load = {
       ...timings,
+      // hydratedMs counts from navigationStart, so it includes server time;
+      // the ttfb-relative variant isolates the client's share and doesn't
+      // let a server-side latency shift masquerade as a hydration change.
+      hydrateClientMs:
+        timings.hydratedMs !== null && timings.ttfbMs !== null
+          ? timings.hydratedMs - timings.ttfbMs
+          : null,
       scriptMs: loadMetrics.get('ScriptDuration') * 1000,
       taskMs: loadMetrics.get('TaskDuration') * 1000,
       heapMb: loadMetrics.get('JSHeapUsedSize') / 1048576,
@@ -114,6 +136,8 @@ async function measureRoute(browser, route, navTarget) {
       () => !!(window.next && window.next.router && window.next.router.push)
     )
     if (hasRouter && navTarget) {
+      // The in-page 5ms poll below adds a small constant to the deltas; it
+      // is identical in both arms (a noise floor, not a bias).
       const before = metricsMap(await cdp.send('Performance.getMetrics'))
       const navMs = await page.evaluate(async (target) => {
         const start = performance.now()
@@ -122,14 +146,16 @@ async function measureRoute(browser, route, navTarget) {
           if (performance.now() - start > 20000) return null
           await new Promise((r) => setTimeout(r, 5))
         }
-        // Settle paint after the route content commits.
+        // Settle paint after the route content commits. Content streaming
+        // in later is caught by the counter settle below — this wall
+        // measurement is time-to-committed-route.
         await new Promise((r) =>
           requestAnimationFrame(() => requestAnimationFrame(r))
         )
         return performance.now() - start
       }, navTarget)
       if (navMs !== null) {
-        const after = metricsMap(await cdp.send('Performance.getMetrics'))
+        const after = await settledMetrics(page, cdp)
         nav = {
           navMs,
           scriptMs:

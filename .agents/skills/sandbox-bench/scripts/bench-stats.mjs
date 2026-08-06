@@ -100,6 +100,7 @@ export const METRICS = {
   rssHw: { unit: 'MB peak', better: 'lower' },
   // Browser phase (vm-browser-bench.mjs), all under a fixed CPU throttle.
   hydrate: { unit: 'ms', better: 'lower' },
+  hydrateClient: { unit: 'ms', better: 'lower' },
   fcp: { unit: 'ms', better: 'lower' },
   script: { unit: 'ms', better: 'lower' },
   task: { unit: 'ms', better: 'lower' },

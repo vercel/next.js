@@ -90,6 +90,7 @@ if (rows[0].route === '') {
     'rss',
     'rssHw',
     'hydrate',
+    'hydrateClient',
     'fcp',
     'script',
     'task',
