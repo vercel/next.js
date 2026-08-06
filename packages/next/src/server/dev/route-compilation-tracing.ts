@@ -8,17 +8,19 @@ import {
 } from '../lib/trace/phase'
 import { getTracer } from '../lib/trace/tracer'
 
-let compileRouteAsyncStorage: AsyncLocalStorage<Span> | undefined
-
-class ExpectedRouteResolutionMiss {
-  constructor(readonly error: PageNotFoundError) {}
+type CompileRouteContext = {
+  span: Span
+  expectedResolutionMisses: WeakSet<PageNotFoundError>
+  active: boolean
 }
+
+let compileRouteAsyncStorage: AsyncLocalStorage<CompileRouteContext> | undefined
 
 type CompileRouteOutcome<T> =
   | { kind: 'result'; value: T }
   | { kind: 'resolution-miss'; error: PageNotFoundError }
 
-function getCompileRouteAsyncStorage(): AsyncLocalStorage<Span> {
+function getCompileRouteAsyncStorage(): AsyncLocalStorage<CompileRouteContext> {
   if (!compileRouteAsyncStorage) {
     const { createAsyncLocalStorage } =
       require('../app-render/async-local-storage') as typeof import('../app-render/async-local-storage')
@@ -28,15 +30,23 @@ function getCompileRouteAsyncStorage(): AsyncLocalStorage<Span> {
 }
 
 async function runCompileRouteOperation<T>(
-  operation: () => Promise<T>
+  operation: () => Promise<T>,
+  compileRouteContext?: CompileRouteContext
 ): Promise<CompileRouteOutcome<T>> {
   try {
     return { kind: 'result', value: await operation() }
   } catch (error) {
-    if (error instanceof ExpectedRouteResolutionMiss) {
-      return { kind: 'resolution-miss', error: error.error }
+    if (
+      error instanceof PageNotFoundError &&
+      compileRouteContext?.expectedResolutionMisses.delete(error)
+    ) {
+      return { kind: 'resolution-miss', error }
     }
     throw error
+  } finally {
+    if (compileRouteContext) {
+      compileRouteContext.active = false
+    }
   }
 }
 
@@ -50,12 +60,20 @@ export async function traceCompileRoute<T>(
   const outcome = await getTracer().trace(
     DevBundlerServiceSpan.ensurePage,
     { spanName: 'compile route' },
-    (compileRouteSpan) =>
-      compileRouteSpan
-        ? getCompileRouteAsyncStorage().run(compileRouteSpan, () =>
-            runCompileRouteOperation(operation)
-          )
-        : runCompileRouteOperation(operation)
+    (compileRouteSpan) => {
+      if (!compileRouteSpan) {
+        return runCompileRouteOperation(operation)
+      }
+
+      const compileRouteContext: CompileRouteContext = {
+        span: compileRouteSpan,
+        expectedResolutionMisses: new WeakSet(),
+        active: true,
+      }
+      return getCompileRouteAsyncStorage().run(compileRouteContext, () =>
+        runCompileRouteOperation(operation, compileRouteContext)
+      )
+    }
   )
 
   if (outcome.kind === 'resolution-miss') {
@@ -64,23 +82,28 @@ export async function traceCompileRoute<T>(
   return outcome.value
 }
 
-function getCompileRouteParentSpan() {
+function getCompileRouteContext() {
   if (!isInternalTracingEnabled()) {
     return undefined
   }
 
-  const compileRouteSpan = compileRouteAsyncStorage?.getStore()
+  const compileRouteContext = compileRouteAsyncStorage?.getStore()
   const activeSpan = getTracer().getActiveScopeSpan()
-  if (!compileRouteSpan || !activeSpan) {
+  if (!compileRouteContext?.active || !activeSpan) {
     return undefined
   }
 
-  const compileRouteContext = compileRouteSpan.spanContext()
+  const compileRouteSpan = compileRouteContext.span
+  const compileRouteSpanContext = compileRouteSpan.spanContext()
   const activeContext = activeSpan.spanContext()
-  return compileRouteContext.traceId === activeContext.traceId &&
-    compileRouteContext.spanId === activeContext.spanId
-    ? compileRouteSpan
+  return compileRouteSpanContext.traceId === activeContext.traceId &&
+    compileRouteSpanContext.spanId === activeContext.spanId
+    ? compileRouteContext
     : undefined
+}
+
+function getCompileRouteParentSpan() {
+  return getCompileRouteContext()?.span
 }
 
 export async function traceCompileRoutePhase<T>(
@@ -102,7 +125,8 @@ export async function traceCompileRoutePhase<T>(
 export async function traceCompileRouteResolution<T>(
   operation: () => Promise<T>
 ): Promise<T> {
-  if (!getCompileRouteParentSpan()) {
+  const compileRouteContext = getCompileRouteContext()
+  if (!compileRouteContext) {
     return await operation()
   }
 
@@ -120,7 +144,10 @@ export async function traceCompileRouteResolution<T>(
     // failed child for a probe that its caller is expected to catch.
     if (error instanceof PageNotFoundError) {
       finishResolution()
-      throw new ExpectedRouteResolutionMiss(error)
+      if (compileRouteContext.active) {
+        compileRouteContext.expectedResolutionMisses.add(error)
+      }
+      throw error
     } else {
       finishResolution({ error })
       throw error

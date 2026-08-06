@@ -41,6 +41,7 @@ import {
   type AnyStream,
 } from '../../app-render/app-render-prerender-utils'
 import { PageNotFoundError } from '../../../shared/lib/utils'
+import { Batcher } from '../../../lib/batcher'
 import {
   traceCompileRoute,
   traceCompileRoutePhase,
@@ -353,6 +354,128 @@ describe('local span recording', () => {
         error: undefined,
       }),
     ])
+  })
+
+  it('does not wrap candidate misses shared with an untraced caller', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const miss = new PageNotFoundError('shared candidate route')
+    const batcher = Batcher.create<string, void>()
+    let rejectSharedOperation!: (error: PageNotFoundError) => void
+    const sharedOperation = new Promise<void>((_, reject) => {
+      rejectSharedOperation = reject
+    })
+
+    const traced = traceCompileRoute(() =>
+      batcher.batch('candidate route', async () =>
+        traceCompileRouteResolution(() => sharedOperation)
+      )
+    )
+    const untraced = batcher.batch('candidate route', async () => {
+      throw new Error('deduplicated work unexpectedly ran twice')
+    })
+
+    rejectSharedOperation(miss)
+
+    const [tracedResult, untracedResult] = await Promise.allSettled([
+      traced,
+      untraced,
+    ])
+    expect(tracedResult.status).toBe('rejected')
+    expect(untracedResult.status).toBe('rejected')
+    if (
+      tracedResult.status !== 'rejected' ||
+      untracedResult.status !== 'rejected'
+    ) {
+      throw new Error('expected both callers to reject')
+    }
+    expect(tracedResult.reason).toBe(miss)
+    expect(untracedResult.reason).toBe(miss)
+    expect(getSpanRecords({ name: 'resolve route' })[0]).toEqual(
+      expect.objectContaining({ status: 'ok', error: undefined })
+    )
+    expect(getSpanRecords({ name: 'compile route' })[0]).toEqual(
+      expect.objectContaining({ status: 'ok', error: undefined })
+    )
+  })
+
+  it('only lets the traced work owner consume a shared candidate miss', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const miss = new PageNotFoundError('shared traced candidate route')
+    const batcher = Batcher.create<string, void>()
+    let rejectSharedOperation!: (error: PageNotFoundError) => void
+    const sharedOperation = new Promise<void>((_, reject) => {
+      rejectSharedOperation = reject
+    })
+
+    const workOwner = traceCompileRoute(() =>
+      batcher.batch('candidate route', async () =>
+        traceCompileRouteResolution(() => sharedOperation)
+      )
+    )
+    const joiningOwner = traceCompileRoute(() =>
+      batcher.batch('candidate route', async () => {
+        throw new Error('deduplicated work unexpectedly ran twice')
+      })
+    )
+
+    rejectSharedOperation(miss)
+
+    const [workOwnerResult, joiningOwnerResult] = await Promise.allSettled([
+      workOwner,
+      joiningOwner,
+    ])
+    expect(workOwnerResult.status).toBe('rejected')
+    expect(joiningOwnerResult.status).toBe('rejected')
+    if (
+      workOwnerResult.status !== 'rejected' ||
+      joiningOwnerResult.status !== 'rejected'
+    ) {
+      throw new Error('expected both callers to reject')
+    }
+    expect(workOwnerResult.reason).toBe(miss)
+    expect(joiningOwnerResult.reason).toBe(miss)
+
+    const resolutionSpan = getSpanRecords({ name: 'resolve route' })[0]
+    const compileSpans = getSpanRecords({ name: 'compile route' })
+    expect(compileSpans).toHaveLength(2)
+    expect(
+      compileSpans.find((span) => span.spanId === resolutionSpan.parentSpanId)
+    ).toEqual(expect.objectContaining({ status: 'ok', error: undefined }))
+    expect(
+      compileSpans.find((span) => span.spanId !== resolutionSpan.parentSpanId)
+    ).toEqual(expect.objectContaining({ status: 'error' }))
+  })
+
+  it('does not attach late async descendants to a completed compile owner', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    let resumeDescendant!: () => void
+    const descendantCanResume = new Promise<void>((resolve) => {
+      resumeDescendant = resolve
+    })
+    let descendant!: Promise<void>
+    let descendantRan = false
+
+    await traceCompileRoute(async () => {
+      descendant = (async () => {
+        await descendantCanResume
+        await traceCompileRoutePhase(
+          DevBundlerServiceSpan.buildRoute,
+          'late build route',
+          async () => {
+            descendantRan = true
+          }
+        )
+      })()
+    })
+
+    resumeDescendant()
+    await descendant
+
+    expect(descendantRan).toBe(true)
+    expect(getSpanRecords({ name: 'compile route' })).toEqual([
+      expect.objectContaining({ status: 'ok' }),
+    ])
+    expect(getSpanRecords({ name: 'late build route' })).toEqual([])
   })
 
   it('records genuine route resolution failures as errors', async () => {
