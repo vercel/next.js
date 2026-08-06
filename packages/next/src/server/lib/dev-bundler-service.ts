@@ -22,6 +22,7 @@ export class DevBundlerService {
   public setReactDebugChannel: NextJsHotReloaderInterface['setReactDebugChannel']
   public sendErrorsToBrowser: NextJsHotReloaderInterface['sendErrorsToBrowser']
   private unsubscribeRequestInsights?: () => void
+  private unsubscribeRequestInsightsSnapshots?: () => void
 
   constructor(
     private readonly bundler: DevBundler,
@@ -44,17 +45,28 @@ export class DevBundlerService {
     this.sendErrorsToBrowser = hotReloader.sendErrorsToBrowser.bind(hotReloader)
 
     if (requestInsights) {
-      this.unsubscribeRequestInsights = requestInsights.subscribe((insight) => {
-        hotReloader.send({
-          type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE,
-          insight,
+      this.unsubscribeRequestInsights = requestInsights.subscribe(
+        (insight, capture) => {
+          hotReloader.send({
+            type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE,
+            insight,
+            capture,
+          })
+        }
+      )
+      this.unsubscribeRequestInsightsSnapshots =
+        requestInsights.subscribeSnapshots((snapshot) => {
+          hotReloader.send({
+            type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_SNAPSHOT,
+            snapshot,
+          })
         })
-      })
     }
   }
 
   public close: NextJsHotReloaderInterface['close'] = () => {
     this.unsubscribeRequestInsights?.()
+    this.unsubscribeRequestInsightsSnapshots?.()
     this.bundler.hotReloader.close()
   }
 

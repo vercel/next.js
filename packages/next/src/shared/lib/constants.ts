@@ -101,6 +101,8 @@ export const SERVER_FILES_MANIFEST = 'required-server-files'
 export const DEV_CLIENT_PAGES_MANIFEST = '_devPagesManifest.json'
 export const REQUEST_INSIGHTS_DEV_ENDPOINT =
   '/_next/development/request-insights'
+export const REQUEST_INSIGHTS_CLEAR_DEV_ENDPOINT =
+  '/_next/development/request-insights/clear'
 export const MIDDLEWARE_MANIFEST = 'middleware-manifest.json'
 export const TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST =
   '_clientMiddlewareManifest.js'

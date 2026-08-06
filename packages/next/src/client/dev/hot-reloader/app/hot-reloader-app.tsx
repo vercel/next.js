@@ -494,7 +494,11 @@ export function processMessage(
       return
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE: {
-      dispatcher.onRequestInsightsUpdate(message.insight)
+      dispatcher.onRequestInsightsUpdate(message.insight, message.capture)
+      return
+    }
+    case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_SNAPSHOT: {
+      dispatcher.onRequestInsightsSnapshot(message.snapshot)
       return
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK: {

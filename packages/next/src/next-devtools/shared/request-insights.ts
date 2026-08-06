@@ -11,6 +11,7 @@ import {
 } from '../../shared/lib/request-insights'
 
 export const REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET = 200
+export const REQUEST_INSIGHTS_MIN_GROUPS_PER_RETENTION_BUCKET = 1
 export const REQUEST_INSIGHTS_MAX_BYTES_PER_RETENTION_BUCKET =
   18.75 * 1024 * 1024
 export const REQUEST_INSIGHTS_MAX_RETAINED_BYTES = 93.75 * 1024 * 1024
@@ -162,7 +163,9 @@ export function createBoundedRequestInsightsSnapshotProjection(
   groups: readonly (readonly RequestInsight[])[],
   maxSnapshotBytes: number,
   capture?: RequestInsightsCaptureState,
-  maxRetainedGroupCount = Number.POSITIVE_INFINITY
+  maxRetainedGroupCount = Number.POSITIVE_INFINITY,
+  groupSerializedByteLengths?: readonly number[],
+  baseProjection?: RequestInsightsSnapshot['projection']
 ): BoundedRequestInsightsSnapshotProjection {
   type IndexedGroup = {
     group: readonly RequestInsight[]
@@ -179,6 +182,13 @@ export function createBoundedRequestInsightsSnapshotProjection(
     RequestInsightRetentionBucket,
     number
   >()
+  for (const bucket of baseProjection?.buckets ?? []) {
+    availableGroupCountByBucket.set(
+      bucket.bucket,
+      (availableGroupCountByBucket.get(bucket.bucket) ?? 0) +
+        bucket.omittedRequestGroupCount
+    )
+  }
   const indexedGroups: IndexedGroup[] = []
 
   for (let index = 0; index < groups.length; index++) {
@@ -190,7 +200,9 @@ export function createBoundedRequestInsightsSnapshotProjection(
     const indexedGroup = {
       group,
       index,
-      byteLength: getRequestInsightsSerializedByteLength(group),
+      byteLength:
+        groupSerializedByteLengths?.[index] ??
+        getRequestInsightsSerializedByteLength(group),
       bucket,
     }
     indexedGroups.push(indexedGroup)
@@ -265,12 +277,18 @@ export function createBoundedRequestInsightsSnapshotProjection(
     retainedGroupCountByBucket,
     capture
   )
-  const snapshotByteLength = getRequestInsightsSerializedByteLength(snapshot)
+  const snapshotByteLength = getProjectedSnapshotByteLength(
+    retainedGroupContentsByteLength,
+    retainedGroups.length,
+    availableGroupCountByBucket,
+    retainedGroupCountByBucket,
+    capture
+  )
 
   return { snapshot, snapshotByteLength }
 }
 
-function getRequestInsightGroupRepresentative(
+export function getRequestInsightGroupRepresentative(
   group: readonly RequestInsight[]
 ): RequestInsight {
   const rootRequestId = getRequestInsightRootId(group[0])

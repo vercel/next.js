@@ -133,6 +133,42 @@ describe('DevTools config middleware', () => {
     expect(sendUpdateSignal).toHaveBeenLastCalledWith(config)
   })
 
+  it('persists a bounded Request Insights limit and rejects unsafe values', async () => {
+    const sendUpdateSignal = jest.fn()
+    const middleware = devToolsConfigMiddleware({
+      distDir,
+      sendUpdateSignal,
+    })
+
+    const validResponse = createResponse()
+    await middleware(
+      createRequest({
+        requestInsights: { maxRequestGroupsPerBucket: 25 },
+      }),
+      validResponse,
+      jest.fn()
+    )
+    expect(validResponse.statusCode).toBe(204)
+    await expect(getDevToolsConfig(distDir)).resolves.toEqual({
+      requestInsights: { maxRequestGroupsPerBucket: 25 },
+    })
+
+    for (const maxRequestGroupsPerBucket of [0, 201, 1.5]) {
+      const invalidResponse = createResponse()
+      await middleware(
+        createRequest({ requestInsights: { maxRequestGroupsPerBucket } }),
+        invalidResponse,
+        jest.fn()
+      )
+      expect(invalidResponse.statusCode).toBe(400)
+    }
+
+    await expect(getDevToolsConfig(distDir)).resolves.toEqual({
+      requestInsights: { maxRequestGroupsPerBucket: 25 },
+    })
+    expect(sendUpdateSignal).toHaveBeenCalledTimes(1)
+  })
+
   it('keeps a queue reservation after an invalid request finishes early', async () => {
     const middleware = devToolsConfigMiddleware({
       distDir,
