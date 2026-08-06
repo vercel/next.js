@@ -2,7 +2,6 @@
 
 use std::{
     any::Any,
-    collections::VecDeque,
     marker::PhantomData,
     num::NonZeroUsize,
     ops::ControlFlow,
@@ -16,7 +15,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use parking_lot::{Condvar, Mutex};
+use parking_lot::Mutex;
 use tokio::{runtime::Handle, task::block_in_place};
 use tracing::{Span, info_span};
 
@@ -290,16 +289,20 @@ struct UnboundedInner<T: Send + 'static> {
     remaining_tasks: AtomicUsize,
     /// First panic raised while processing an item; propagated to the caller after the join.
     panic: Mutex<Option<Box<dyn Any + Send + 'static>>>,
-    /// Items awaiting processing.
-    work_queue: Mutex<VecDeque<T>>,
-    work_queue_condition_var: Condvar,
-    /// Set once the count reaches zero, so a drainer with an empty queue can tell "more coming"
-    /// from "done". Read/written under the queue lock so the check-then-park can't lose a wakeup.
-    done: AtomicBool,
+    /// Receiving end of the work queue, shared by every drainer.
+    work_queue: Receiver<T>,
+    /// Sending end. This is the *only* sender — drainers never hold a clone, because a clone
+    /// parked in `recv` would keep the channel open and deadlock the close.
+    /// [`UnboundedInner::abort`] takes it to close the channel; the `Joiner` takes it on the
+    /// normal path.
+    work_queue_sender: Mutex<Option<Sender<T>>>,
     /// Set by [`UnboundedInner::abort`] when a `run` returns [`ControlFlow::Break`]. Latches: once
-    /// set, the queue has been cleared and [`Spawner::spawn`] drops further items, so the scope
-    /// winds down as soon as the in-flight `run` calls return. Written under the queue lock (like
-    /// `done`) so a concurrent `spawn` can't slip an item past the `clear()`.
+    /// set, [`Spawner::spawn`] drops further items and drainers discard what is still buffered, so
+    /// the scope winds down as soon as the in-flight `run` calls return.
+    ///
+    /// Dropping the sender alone is not enough: it stops *new* sends, but items already buffered
+    /// in the channel are still delivered, and a racing `spawn` must be turned into a no-op
+    /// before it touches `remaining_tasks`.
     aborted: AtomicBool,
     /// Reference to the per-item closure (with turbo-tasks context re-established), shared by
     /// every drainer. It lives on `scope_unbounded`'s stack; its `'env` borrows are erased to
@@ -317,53 +320,36 @@ impl<T: Send + 'static> UnboundedInner<T> {
         self.remaining_tasks.fetch_add(1, Ordering::Relaxed);
     }
 
-    /// Latches `done` and wakes all drainers + the main thread. Set under the queue lock so a
-    /// drainer can't observe an empty queue, decide to park, and miss the wakeup. Idempotent.
+    /// Closes the work queue by dropping the only sender, then wakes the main thread.
+    ///
+    /// Every blocked `recv` returns `Err` once this runs and the buffer is drained, which is how
+    /// drainers learn the scope is finished. Idempotent: the sender is only there the first time.
     fn close(&self) {
-        let _guard = self.work_queue.lock();
-        self.done.store(true, Ordering::Release);
-        self.work_queue_condition_var.notify_all();
+        drop(self.work_queue_sender.lock().take());
         self.main_thread.unpark();
     }
 
-    /// Abandons all queued-but-unstarted work: latches `aborted`, drops the queue in one shot, and
-    /// discharges the dropped items from `remaining_tasks`.
+    /// Abandons all queued-but-unstarted work: latches `aborted` and closes the queue so no further
+    /// item can be enqueued.
     ///
-    /// Dropping the queue wholesale is the point — letting each abandoned item be popped, wrapped
-    /// in `catch_unwind`, dispatched to `run` only to return immediately, and then accounted costs
-    /// a queue-lock round trip per item across every drainer, and a still-running job's spawns keep
-    /// re-growing the queue while we are trying to wind down. One `clear()` plus one batched
-    /// `fetch_sub` replaces all of that.
+    /// Closing is what makes the wind-down terminate. Items still buffered in the channel are
+    /// *not* discarded by the close — they are still delivered — but [`UnboundedInner::drain`]
+    /// sees `aborted` and discards each without running it, and because a discarded item never
+    /// reaches `run` it can never spawn a successor. The buffer therefore drains monotonically to
+    /// empty instead of being re-grown by jobs that are still finishing.
     ///
     /// Items already being processed on other threads are **not** interrupted; they run to
     /// completion. Only unstarted work is discarded.
     ///
-    /// Both the flag store and the `clear()` happen under the queue lock, so a `spawn` racing this
-    /// either lands before the clear (and is counted in `dropped`) or observes `aborted` and drops
-    /// its item — nothing can be enqueued and then leaked from the count. Idempotent: a second
-    /// abort finds an empty queue and subtracts nothing.
+    /// `aborted` is stored before the close so a `spawn` racing this either lands while the channel
+    /// is open (and is discarded later by `drain`) or observes the flag and never counts its item —
+    /// nothing can be counted and then leaked. Idempotent.
     fn abort(&self) {
-        let dropped = {
-            let mut work_queue = self.work_queue.lock();
-            // Store under the lock so `spawn`'s check-then-enqueue can't interleave with the clear.
-            self.aborted.store(true, Ordering::Release);
-            let dropped = work_queue.len();
-            work_queue.clear();
-            dropped
-        };
-        if dropped == 0 {
-            return;
-        }
-        // Discharge the abandoned items. `on_item_finished` does this one at a time and closes on
-        // the 1 -> 0 edge; the same edge can happen here when the queue held the last outstanding
-        // work (the aborting job itself is still counted until its own `on_item_finished` runs, so
-        // usually it does not — but it can when several drainers abort concurrently).
-        if self.remaining_tasks.fetch_sub(dropped, Ordering::Release) == dropped {
-            self.close();
-        }
+        self.aborted.store(true, Ordering::Release);
+        self.close();
     }
 
-    /// Records that one item finished. `Release` pairs with the `Acquire` loads in `wait`/`pick` so
+    /// Records that one item finished. `Release` pairs with the `Acquire` loads in `wait` so
     /// observing zero also observes every prior queue/panic write.
     fn on_item_finished(&self, panic: Option<Box<dyn Any + Send + 'static>>) {
         if let Some(err) = panic {
@@ -377,8 +363,8 @@ impl<T: Send + 'static> UnboundedInner<T> {
         }
     }
 
-    /// Latches `done` if nothing is in flight. Needed for the empty-initial / already-drained case,
-    /// where `on_item_finished` never fires (or already fired) so nothing else would `close`.
+    /// Closes the queue if nothing is in flight. Needed for the empty-initial / already-drained
+    /// case, where `on_item_finished` never fires (or already fired) so nothing else would close.
     fn close_if_idle(&self) {
         if self.remaining_tasks.load(Ordering::Acquire) == 0 {
             self.close();
@@ -387,12 +373,24 @@ impl<T: Send + 'static> UnboundedInner<T> {
 
     /// Drain loop, run by both helpers and the calling thread until the scope terminates.
     fn drain(&self) {
-        while let Some(item) = self.pick() {
+        // `recv` blocks while the queue is empty and fails once the sender is dropped and the
+        // buffer is drained, so this ends exactly when the scope is finished.
+        //
+        // TODO: a single long-running tail item can leave other drainers blocked here (queue empty,
+        // sender still alive) while it runs alone, with no work to steal. Consider a timeout/steal
+        // strategy if that becomes a problem in practice.
+        while let Ok(item) = self.work_queue.recv() {
+            // Post-abort: discard without running. Skipping `run` is what stops the wind-down from
+            // re-growing the queue, since only `run` can spawn a successor.
+            if self.aborted.load(Ordering::Acquire) {
+                self.on_item_finished(None);
+                continue;
+            }
             let spawner = Spawner { inner: self };
             let result = catch_unwind(AssertUnwindSafe(|| (self.run)(&spawner, item)));
             // `Break` abandons the rest of the queue. Do this *before* `on_item_finished` so the
-            // batched decrement and this item's decrement can't both observe a non-zero count and
-            // leave nobody to `close()`.
+            // close and this item's decrement can't both observe a non-zero count and leave nobody
+            // to close the queue.
             let panic = match result {
                 Ok(ControlFlow::Continue(())) => None,
                 Ok(ControlFlow::Break(())) => {
@@ -402,30 +400,6 @@ impl<T: Send + 'static> UnboundedInner<T> {
                 Err(panic) => Some(panic),
             };
             self.on_item_finished(panic);
-        }
-    }
-
-    /// Blocks until an item is available (`Some`) or the scope is done (`None`). An empty queue is
-    /// not "done" — more items may still be spawned — so park and re-check until `done`.
-    fn pick(&self) -> Option<T> {
-        let mut work_queue = self.work_queue.lock();
-        loop {
-            if let Some(item) = work_queue.pop_front() {
-                // Hand off a wakeup for another idle helper (parking_lot notifications aren't
-                // latched, so an enqueue-time `notify_one` can be lost if no one was parked yet).
-                if !work_queue.is_empty() {
-                    self.work_queue_condition_var.notify_one();
-                }
-                drop(work_queue);
-                return Some(item);
-            }
-            if self.done.load(Ordering::Acquire) {
-                return None;
-            }
-            // TODO: a single long-running tail item can leave other drainers parked here (queue
-            // empty, not yet done) while it runs alone, with no work to steal. Consider a
-            // timeout/steal strategy if that becomes a problem in practice.
-            self.work_queue_condition_var.wait(&mut work_queue);
         }
     }
 
@@ -474,8 +448,8 @@ impl<T: Send + 'static> Spawner<'_, T> {
     /// `run`, on any drainer thread.
     ///
     /// **After any `run` has returned [`ControlFlow::Break`], this silently drops `item`.** The
-    /// scope is winding down and the queue has already been cleared; re-filling it from jobs that
-    /// are still finishing would defeat the abort. Callers that abort must therefore treat
+    /// scope is winding down and the queue is closed; re-filling it from jobs that are still
+    /// finishing would defeat the abort. Callers that abort must therefore treat
     /// unspawned work as abandoned — for a work-list that can be recomputed (like GC's, where
     /// collectibility is re-derived from durable state each pass) that is exactly the desired
     /// behaviour.
@@ -490,28 +464,28 @@ impl<T: Send + 'static> Spawner<'_, T> {
 /// every item (initial + transitively spawned) is done. Pushing first would let a worker pop and
 /// finish the child before the increment, corrupting the count.
 fn enqueue<T: Send + 'static>(inner: &UnboundedInner<T>, item: T) {
-    // Cheap pre-check: once aborted, nothing will ever drain this item, and re-growing the queue
-    // would fight the wind-down. The authoritative check is the re-test under the queue lock below
-    // (`abort` latches the flag while holding that lock), so this is purely to skip the accounting
-    // in the common post-abort case.
+    // Once aborted, nothing will ever run this item and re-growing the queue would fight the
+    // wind-down. Checking before the increment keeps the common post-abort case free of accounting.
     if inner.aborted.load(Ordering::Acquire) {
         return;
     }
     inner.account_new_item();
-    {
-        let mut work_queue = inner.work_queue.lock();
-        // Re-check under the lock: `abort` sets the flag and clears the queue in the same critical
-        // section, so an abort that landed between the check above and here would otherwise leave
-        // this item queued (and counted) with nobody to drain it — hanging the scope. Back the
-        // accounting out instead.
-        if inner.aborted.load(Ordering::Relaxed) {
-            drop(work_queue);
-            inner.on_item_finished(None);
-            return;
+    // Take the send lock before testing the sender: `close` takes the sender under the same lock,
+    // so either we get a live sender and our item is buffered (and later discarded by `drain` if an
+    // abort has landed), or the sender is already gone. Either way the item cannot be counted and
+    // then stranded with nobody to drain it.
+    let sent = {
+        let sender = inner.work_queue_sender.lock();
+        match sender.as_ref() {
+            Some(sender) => sender.send(item).is_ok(),
+            // Closed: the scope is winding down (aborted, or already finished).
+            None => false,
         }
-        work_queue.push_back(item);
+    };
+    if !sent {
+        // Back the accounting out; this may be the 1 -> 0 edge that closes the scope.
+        inner.on_item_finished(None);
     }
-    inner.work_queue_condition_var.notify_one();
 }
 
 /// Like [`scope_and_block`], but the `run` closure receives a [`Spawner`] and may enqueue more
@@ -531,8 +505,9 @@ fn enqueue<T: Send + 'static>(inner: &UnboundedInner<T>, item: T) {
 /// # Aborting
 ///
 /// Returning [`ControlFlow::Break`] from `run` abandons all queued-but-unstarted items: the queue
-/// is dropped in one shot and [`Spawner::spawn`] becomes a no-op, so the scope returns as soon as
-/// the currently-running jobs finish. Jobs already in flight on other threads are **not**
+/// is closed and [`Spawner::spawn`] becomes a no-op, so the scope returns as soon as the
+/// currently-running jobs finish. Items still buffered are discarded without being run rather than
+/// dispatched, so they cannot spawn successors. Jobs already in flight on other threads are **not**
 /// interrupted — they run to completion. Use this when the remaining work is discardable (it can be
 /// recomputed on a later run) and finishing it is not worth the latency.
 ///
@@ -576,13 +551,13 @@ where
     let run: RunFn<'static, T> =
         unsafe { std::mem::transmute::<RunFn<'_, T>, RunFn<'static, T>>(run) };
 
+    let (sender, receiver) = mpmc::channel();
     let inner = Arc::new(UnboundedInner {
         main_thread: thread::current(),
         remaining_tasks: AtomicUsize::new(0),
         panic: Mutex::new(None),
-        work_queue: Mutex::new(VecDeque::new()),
-        work_queue_condition_var: Condvar::new(),
-        done: AtomicBool::new(false),
+        work_queue: receiver,
+        work_queue_sender: Mutex::new(Some(sender)),
         aborted: AtomicBool::new(false),
         run,
     });
@@ -626,9 +601,15 @@ where
 
     // Fill the initial items. A panic here (from `initial`'s iterator) unwinds into `joiner`'s
     // Drop, which drains and joins before the panic propagates.
+    //
+    // Count the seeding loop itself as one outstanding item. Helpers are already draining, so
+    // without this `remaining_tasks` could transiently hit zero between two seeds, close the queue,
+    // and leave every remaining seed silently dropped.
+    inner.account_new_item();
     for item in initial {
         enqueue(&inner, item);
     }
+    inner.on_item_finished(None);
 
     // Normal completion: run `joiner`'s Drop now (drain-and-join) before checking for a panic.
     drop(joiner);
