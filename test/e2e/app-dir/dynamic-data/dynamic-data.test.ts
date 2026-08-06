@@ -314,11 +314,11 @@ describe('dynamic-data inside cache scope', () => {
          Learn more: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
            "environmentLabel": "Server",
            "label": "Runtime Error",
-           "source": "app/cookies/page.js (4:40) @ eval
+           "source": "app/cookies/page.js (4:40) @ <anonymous>
          > 4 | const cookies = cache(() => nextCookies())
              |                                        ^",
            "stack": [
-             "eval app/cookies/page.js (4:40)",
+             "<anonymous> app/cookies/page.js (4:40)",
              "Page app/cookies/page.js (15:11)",
            ],
          }
@@ -336,11 +336,11 @@ describe('dynamic-data inside cache scope', () => {
          Learn more: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
            "environmentLabel": "Server",
            "label": "Runtime Error",
-           "source": "app/connection/page.js (4:54) @ eval
+           "source": "app/connection/page.js (4:54) @ <anonymous>
          > 4 | const cachedConnection = cache(async () => connection())
              |                                                      ^",
            "stack": [
-             "eval app/connection/page.js (4:54)",
+             "<anonymous> app/connection/page.js (4:54)",
              "Page app/connection/page.js (7:3)",
            ],
          }
@@ -358,11 +358,11 @@ describe('dynamic-data inside cache scope', () => {
          Learn more: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
            "environmentLabel": "Server",
            "label": "Runtime Error",
-           "source": "app/headers/page.js (4:40) @ eval
+           "source": "app/headers/page.js (4:40) @ <anonymous>
          > 4 | const headers = cache(() => nextHeaders())
              |                                        ^",
            "stack": [
-             "eval app/headers/page.js (4:40)",
+             "<anonymous> app/headers/page.js (4:40)",
              "Page app/headers/page.js (15:21)",
            ],
          }

@@ -23,8 +23,9 @@ export function registerUseCachePrivateTests(
           if (isTurbopack) {
             await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E1016",
-                 "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
+                 "code": "E1470",
+                 "description": "\`"use cache: private"\` can't be used inside \`unstable_cache()\`.
+               Learn more: https://nextjs.org/docs/messages/use-cache-private-composition",
                  "environmentLabel": "Server",
                  "label": "Runtime Error",
                  "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ <anonymous>
@@ -71,7 +72,8 @@ export function registerUseCachePrivateTests(
           if (isDebugPrerender) {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: "use cache: private" must not be used within \`unstable_cache()\`.
+                 "Error: \`"use cache: private"\` can't be used inside \`unstable_cache()\`.
+                 Learn more: https://nextjs.org/docs/messages/use-cache-private-composition
                      at <unknown> (app/use-cache-private-in-unstable-cache/page.tsx:21:38)
                      at async ComponentWithCachedData (app/use-cache-private-in-unstable-cache/page.tsx:16:16)
                    19 | }
@@ -110,7 +112,8 @@ export function registerUseCachePrivateTests(
           } else {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: "use cache: private" must not be used within \`unstable_cache()\`.
+                 "Error: \`"use cache: private"\` can't be used inside \`unstable_cache()\`.
+                 Learn more: https://nextjs.org/docs/messages/use-cache-private-composition
                      at <unknown> (app/use-cache-private-in-unstable-cache/page.tsx:21:38)
                      at async g (app/use-cache-private-in-unstable-cache/page.tsx:16:16)
                    19 | }
@@ -183,7 +186,8 @@ export function registerUseCachePrivateTests(
           if (isDebugPrerender) {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                 "Error: \`"use cache: private"\` can't be nested inside \`"use cache"\`. It can only be nested inside another \`"use cache: private"\`.
+                 Learn more: https://nextjs.org/docs/messages/use-cache-private-composition
                      at Private (app/use-cache-private-in-use-cache/page.tsx:15:1)
                    13 | }
                    14 |
@@ -223,7 +227,8 @@ export function registerUseCachePrivateTests(
           } else {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-                 "⨯ Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                 "⨯ Error: \`"use cache: private"\` can't be nested inside \`"use cache"\`. It can only be nested inside another \`"use cache: private"\`.
+                 Learn more: https://nextjs.org/docs/messages/use-cache-private-composition
                      at <unknown> (app/use-cache-private-in-use-cache/page.tsx:15:1)
                    13 | }
                    14 |
@@ -234,7 +239,8 @@ export function registerUseCachePrivateTests(
                    18 |   return <p>Private</p> {
                    digest: '<error-digest>'
                  }
-                 Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                 Error: \`"use cache: private"\` can't be nested inside \`"use cache"\`. It can only be nested inside another \`"use cache: private"\`.
+                 Learn more: https://nextjs.org/docs/messages/use-cache-private-composition
                      at <unknown> (app/use-cache-private-in-use-cache/page.tsx:15:1)
                    13 | }
                    14 |

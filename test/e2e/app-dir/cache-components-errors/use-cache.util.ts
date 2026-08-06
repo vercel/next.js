@@ -52,7 +52,8 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route /use-cache-cookies used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
+                 "Error: Route "/use-cache-cookies": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at CookiesReadingComponent (app/use-cache-cookies/page.tsx:22:18)
                      at Page (app/use-cache-cookies/page.tsx:10:7)
                    20 |   // in userland.
@@ -70,7 +71,8 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
                 `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route /use-cache-cookies used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
+                 "Error: Route "/use-cache-cookies": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at a (app/use-cache-cookies/page.tsx:22:11)
                    20 |   // in userland.
                    21 |   try {
@@ -164,7 +166,8 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
           if (isDebugPrerender) {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route /use-cache-draft-mode used "draftMode().enable()" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
+                 "Error: Route "/use-cache-draft-mode": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read from a cached function, but enabling or disabling it must happen outside.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at DraftModeEnablingComponent (app/use-cache-draft-mode/page.tsx:20:26)
                      at Page (app/use-cache-draft-mode/page.tsx:9:7)
                    18 |   // here to ensure that this error is shown even when it's caught in userland.
@@ -203,7 +206,8 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
           } else {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route /use-cache-draft-mode used "draftMode().enable()" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
+                 "Error: Route "/use-cache-draft-mode": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read from a cached function, but enabling or disabling it must happen outside.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at a (app/use-cache-draft-mode/page.tsx:20:26)
                    18 |   // here to ensure that this error is shown even when it's caught in userland.
                    19 |   try {
@@ -275,7 +279,8 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route /use-cache-headers used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
+                 "Error: Route "/use-cache-headers": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at HeadersReadingComponent (app/use-cache-headers/page.tsx:21:18)
                      at Page (app/use-cache-headers/page.tsx:10:7)
                    19 |   // to ensure that this error is shown even when it's caught in userland.
@@ -293,7 +298,8 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
                 `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route /use-cache-headers used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
+                 "Error: Route "/use-cache-headers": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at a (app/use-cache-headers/page.tsx:21:11)
                    19 |   // to ensure that this error is shown even when it's caught in userland.
                    20 |   try {
@@ -385,7 +391,8 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route /use-cache-connection used \`connection()\` inside "use cache". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual request, but caches must be able to be produced before a request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
+                 "Error: Route "/use-cache-connection": \`connection()\` can't be used inside \`"use cache"\`. A cache entry can be built before any request exists, so it can't depend on one.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at ConnectionCallingComponent (app/use-cache-connection/page.tsx:21:21)
                      at Page (app/use-cache-connection/page.tsx:10:7)
                    19 |   // here to ensure that this error is shown even when it's caught in userland.
@@ -403,7 +410,8 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
                 `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route /use-cache-connection used \`connection()\` inside "use cache". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual request, but caches must be able to be produced before a request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
+                 "Error: Route "/use-cache-connection": \`connection()\` can't be used inside \`"use cache"\`. A cache entry can be built before any request exists, so it can't depend on one.
+                 Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at a (app/use-cache-connection/page.tsx:21:11)
                    19 |   // here to ensure that this error is shown even when it's caught in userland.
                    20 |   try {
@@ -745,7 +753,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             if (isTurbopack) {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: A "use cache" with short \`expire\` (under 5 minutes) is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                   "Error: A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose: a longer \`expire\` to prerender it, or a short \`expire\` to keep it dynamic.
+                   Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                        at async Page (app/use-cache-low-expire/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
@@ -774,7 +783,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                   `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: A "use cache" with short \`expire\` (under 5 minutes) is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                   "Error: A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose: a longer \`expire\` to prerender it, or a short \`expire\` to keep it dynamic.
+                   Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                        at async k (app/use-cache-low-expire/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
@@ -1143,7 +1153,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             if (isTurbopack) {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: A "use cache" with zero \`revalidate\` is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                   "Error: A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose: a non-zero \`revalidate\` to prerender it, or \`revalidate: 0\` to keep it dynamic.
+                   Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                        at async Page (app/use-cache-revalidate-0/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
@@ -1172,7 +1183,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                   `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: A "use cache" with zero \`revalidate\` is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                   "Error: A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose: a non-zero \`revalidate\` to prerender it, or \`revalidate: 0\` to keep it dynamic.
+                   Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                        at async k (app/use-cache-revalidate-0/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
@@ -1572,7 +1584,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             if (isTurbopack) {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: Route /use-cache-cookies-third-party used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
+                   "Error: Route "/use-cache-cookies-third-party": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+                   Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                        at Page (app/use-cache-cookies-third-party/page.tsx:10:7)
                       8 |         which triggers an error.
                       9 |       </p>
@@ -1589,7 +1602,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                   `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: Route /use-cache-cookies-third-party used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
+                   "Error: Route "/use-cache-cookies-third-party": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+                   Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                        at ignore-listed frames
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-cookies-third-party" in your browser to investigate the error.
@@ -1674,7 +1688,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             if (isDebugPrerender) {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: Route /use-cache-draft-mode-third-party used "draftMode().enable()" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
+                   "Error: Route "/use-cache-draft-mode-third-party": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read from a cached function, but enabling or disabling it must happen outside.
+                   Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                        at Page (app/use-cache-draft-mode-third-party/page.tsx:10:7)
                       8 |         which triggers an error.
                       9 |       </p>
@@ -1711,7 +1726,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             } else {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: Route /use-cache-draft-mode-third-party used "draftMode().enable()" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
+                   "Error: Route "/use-cache-draft-mode-third-party": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read from a cached function, but enabling or disabling it must happen outside.
+                   Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                        at ignore-listed frames
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-draft-mode-third-party" in your browser to investigate the error.
@@ -1773,7 +1789,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             if (isTurbopack) {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: Route /use-cache-headers-third-party used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
+                   "Error: Route "/use-cache-headers-third-party": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+                   Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                        at Page (app/use-cache-headers-third-party/page.tsx:10:7)
                       8 |         which triggers an error.
                       9 |       </p>
@@ -1790,7 +1807,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                   `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: Route /use-cache-headers-third-party used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
+                   "Error: Route "/use-cache-headers-third-party": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
+                   Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                        at ignore-listed frames
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-headers-third-party" in your browser to investigate the error.
@@ -1875,7 +1893,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             if (isTurbopack) {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: Route /use-cache-connection-third-party used \`connection()\` inside "use cache". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual request, but caches must be able to be produced before a request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
+                   "Error: Route "/use-cache-connection-third-party": \`connection()\` can't be used inside \`"use cache"\`. A cache entry can be built before any request exists, so it can't depend on one.
+                   Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                        at Page (app/use-cache-connection-third-party/page.tsx:10:7)
                       8 |         which triggers an error.
                       9 |       </p>
@@ -1892,7 +1911,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                   `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: Route /use-cache-connection-third-party used \`connection()\` inside "use cache". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual request, but caches must be able to be produced before a request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
+                   "Error: Route "/use-cache-connection-third-party": \`connection()\` can't be used inside \`"use cache"\`. A cache entry can be built before any request exists, so it can't depend on one.
+                   Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                        at ignore-listed frames
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-connection-third-party" in your browser to investigate the error.
