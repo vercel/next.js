@@ -530,17 +530,17 @@ properties with no changes needed. `BASE_URL` reflects the Next.js
 [`basePath`](/docs/app/api-reference/config/next-config-js/basePath) configuration and includes a
 trailing slash, matching Vite's format.
 
-**`import.meta.glob`** is supported by Turbopack (the default Next.js bundler) with no changes needed. If you were using the `as` option (deprecated in Vite 5), replace it with `query`:
+**`import.meta.glob`** is supported by Turbopack (the default Next.js bundler) with no changes needed. The `as` option (deprecated in Vite 5) is not supported. To load matched files as strings, register a loader for the extension and glob it as usual:
 
 ```js
 // Before (Vite)
 const modules = import.meta.glob('./dir/*.txt', { as: 'raw' })
 
-// After (Next.js / Turbopack)
-const modules = import.meta.glob('./dir/*.txt', { query: '?raw' })
+// After (Next.js / Turbopack), with a loader registered for *.txt
+const modules = import.meta.glob('./dir/*.txt', { eager: true })
 ```
 
-See the [import.meta.glob docs](/docs/app/api-reference/turbopack#importmetaglob) for the full API.
+See [Configuring webpack loaders](/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders) for the loader setup, and the [import.meta.glob docs](/docs/app/api-reference/turbopack#importmetaglob) for the full API.
 
 If your Vite application configured a custom base URL, set the equivalent
 [`basePath`](/docs/app/api-reference/config/next-config-js/basePath) in your `next.config.mjs` file:
