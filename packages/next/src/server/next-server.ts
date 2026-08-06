@@ -98,6 +98,7 @@ import type { PagesAPIRouteMatch } from './route-matches/pages-api-route-match'
 import type { MatchOptions } from './route-matcher-managers/route-matcher-manager'
 import { BubbledError, getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
+import { isInternalTracingEnabled } from './lib/trace/phase'
 import { nodeFs } from './lib/node-fs-methods'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { pipeToNodeResponse } from './pipe-readable'
@@ -1128,7 +1129,14 @@ export default class NextNodeServer extends BaseServer<
       const options: MatchOptions = {
         i18n: this.i18nProvider?.fromRequest(req, pathname),
       }
-      const match = await this.matchers.match(pathname, options)
+      const matchPathname = pathname
+      const match = isInternalTracingEnabled()
+        ? await getTracer().trace(
+            NextNodeServerSpan.matchRoute,
+            { spanName: 'match route' },
+            () => this.matchers.match(matchPathname, options)
+          )
+        : await this.matchers.match(matchPathname, options)
 
       // If we don't have a match, try to render it anyways.
       if (!match) {

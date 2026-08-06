@@ -27,8 +27,10 @@ import {
 import {
   AppRenderSpan,
   BaseServerSpan,
+  DevBundlerServiceSpan,
   LoadComponentsSpan,
   NextNodeServerSpan,
+  NextVanillaSpanAllowlist,
   NodeSpan,
 } from './constants'
 import { createOneShotTracePhase } from './phase'
@@ -38,6 +40,12 @@ import {
   ReactServerResult,
   type AnyStream,
 } from '../../app-render/app-render-prerender-utils'
+import { PageNotFoundError } from '../../../shared/lib/utils'
+import {
+  traceCompileRoute,
+  traceCompileRoutePhase,
+  traceCompileRouteResolution,
+} from '../../dev/route-compilation-tracing'
 
 const customContextKey = createContextKey('next.tracer.test.custom-context')
 const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
@@ -294,6 +302,140 @@ describe('local span recording', () => {
     )
   })
 
+  it('records a successful route compilation phase under its compile owner', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+
+    const result = await traceCompileRoute(() =>
+      traceCompileRoutePhase(
+        DevBundlerServiceSpan.analyzeRoute,
+        'analyze route',
+        async () => 'analyzed'
+      )
+    )
+
+    expect(result).toBe('analyzed')
+    const compileSpan = getSpanRecords({ name: 'compile route' })[0]
+    expect(getSpanRecords({ name: 'analyze route' })).toEqual([
+      expect.objectContaining({
+        parentSpanId: compileSpan.spanId,
+        status: 'ok',
+        attributes: expect.objectContaining({
+          'next.span_type': DevBundlerServiceSpan.analyzeRoute,
+        }),
+      }),
+    ])
+  })
+
+  it('records candidate route misses as successful resolution work', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const miss = new PageNotFoundError('candidate route')
+
+    await expect(
+      traceCompileRoute(() =>
+        traceCompileRouteResolution(async () => {
+          throw miss
+        })
+      )
+    ).rejects.toBe(miss)
+
+    expect(getSpanRecords({ name: 'resolve route' })).toEqual([
+      expect.objectContaining({
+        status: 'ok',
+        error: undefined,
+        attributes: expect.objectContaining({
+          'next.span_type': DevBundlerServiceSpan.resolveRoute,
+        }),
+      }),
+    ])
+    expect(getSpanRecords({ name: 'compile route' })).toEqual([
+      expect.objectContaining({
+        status: 'ok',
+        error: undefined,
+      }),
+    ])
+  })
+
+  it('records genuine route resolution failures as errors', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const failure = new TypeError('route analysis failed')
+
+    await expect(
+      traceCompileRoute(() =>
+        traceCompileRouteResolution(async () => {
+          throw failure
+        })
+      )
+    ).rejects.toBe(failure)
+
+    expect(getSpanRecords({ name: 'resolve route' })).toEqual([
+      expect.objectContaining({
+        status: 'error',
+        error: {
+          type: 'TypeError',
+          message: 'route analysis failed',
+        },
+      }),
+    ])
+    expect(getSpanRecords({ name: 'compile route' })).toEqual([
+      expect.objectContaining({
+        status: 'error',
+      }),
+    ])
+  })
+
+  it('keeps terminal page-not-found failures outside resolution probes failed', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const failure = new PageNotFoundError('terminal route')
+
+    await expect(
+      traceCompileRoute(async () => {
+        throw failure
+      })
+    ).rejects.toBe(failure)
+
+    expect(getSpanRecords({ name: 'compile route' })).toEqual([
+      expect.objectContaining({
+        status: 'error',
+        error: {
+          type: 'PageNotFoundError',
+          message: 'Cannot find module for page: terminal route',
+        },
+      }),
+    ])
+  })
+
+  it('does not record route phases without a compile owner', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+
+    await traceCompileRoutePhase(
+      DevBundlerServiceSpan.buildRoute,
+      'build route',
+      async () => undefined
+    )
+    await traceCompileRouteResolution(async () => undefined)
+
+    expect(getSpanRecords({ name: 'build route' })).toEqual([])
+    expect(getSpanRecords({ name: 'resolve route' })).toEqual([])
+  })
+
+  it('does not assign route phases to a different active parent', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+
+    await traceCompileRoute(() =>
+      getTracer().trace(BaseServerSpan.render, () =>
+        traceCompileRoutePhase(
+          DevBundlerServiceSpan.buildRoute,
+          'build route',
+          async () => undefined
+        )
+      )
+    )
+
+    expect(getSpanRecords({ name: 'compile route' })).toHaveLength(1)
+    expect(getSpanRecords({ name: BaseServerSpan.render })).toHaveLength(1)
+    expect(getSpanRecords({ name: 'build route' })).toEqual([])
+  })
+
   async function createTrackedReactServerResult(
     createStream: () => AnyStream | Promise<AnyStream>
   ) {
@@ -419,6 +561,66 @@ describe('local span recording', () => {
     process.env.NEXT_OTEL_VERBOSE = '1'
     getTracer().trace(BaseServerSpan.render, () => undefined)
     expect(exportedSpans).toEqual([NodeSpan.runHandler, BaseServerSpan.render])
+  })
+
+  it('keeps route phases out of default public OTel while preserving verbose tracing', async () => {
+    const routeSpanTypes = [
+      NextNodeServerSpan.matchRoute,
+      DevBundlerServiceSpan.waitForEntrypoints,
+      DevBundlerServiceSpan.resolveRoute,
+      DevBundlerServiceSpan.analyzeRoute,
+      DevBundlerServiceSpan.buildRoute,
+    ]
+    for (const spanType of routeSpanTypes) {
+      expect(NextVanillaSpanAllowlist.has(spanType)).toBe(false)
+    }
+
+    context.disable()
+    context.setGlobalContextManager(new TestContextManager())
+    const exportedSpans: string[] = []
+    const delegateSpan = trace.wrapSpanContext({
+      traceId: '0123456789abcdef0123456789abcdef',
+      spanId: '0123456789abcdef',
+      traceFlags: 1,
+    })
+    trace.setGlobalTracerProvider({
+      getTracer() {
+        return {
+          startSpan: () => delegateSpan,
+          startActiveSpan(...args: unknown[]) {
+            exportedSpans.push(args[0] as string)
+            const callback = args.at(-1) as (
+              span: typeof delegateSpan
+            ) => unknown
+            return context.with(
+              trace.setSpan(context.active(), delegateSpan),
+              callback,
+              undefined,
+              delegateSpan
+            )
+          },
+        }
+      },
+    })
+
+    await traceCompileRoute(() =>
+      traceCompileRoutePhase(
+        DevBundlerServiceSpan.buildRoute,
+        'build route',
+        async () => undefined
+      )
+    )
+    expect(exportedSpans).toEqual([])
+
+    process.env.NEXT_OTEL_VERBOSE = '1'
+    await traceCompileRoute(() =>
+      traceCompileRoutePhase(
+        DevBundlerServiceSpan.buildRoute,
+        'build route',
+        async () => undefined
+      )
+    )
+    expect(exportedSpans).toEqual(['compile route', 'build route'])
   })
 
   it('does not record or export hidden spans', () => {

@@ -1,17 +1,19 @@
 import type { SpanTypes } from './constants'
 import { getTracer, SpanStatusCode } from './tracer'
+import { isRequestInsightsEnabled } from './span-store'
 
 export type TracePhaseCompletion = { error: unknown }
 export type FinishTracePhase = (completion?: TracePhaseCompletion) => void
+
+export function isInternalTracingEnabled(): boolean {
+  return isRequestInsightsEnabled() || process.env.NEXT_OTEL_VERBOSE === '1'
+}
 
 export function createOneShotTracePhase(
   type: SpanTypes,
   spanName: string
 ): FinishTracePhase {
-  if (
-    !process.env.__NEXT_REQUEST_INSIGHTS &&
-    process.env.NEXT_OTEL_VERBOSE !== '1'
-  ) {
+  if (!isInternalTracingEnabled()) {
     return () => {}
   }
 

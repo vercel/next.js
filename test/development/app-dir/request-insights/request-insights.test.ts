@@ -12,12 +12,16 @@ type RequestInsight = {
   kind?: 'request' | 'instant-insights'
   htmlRequestId: string
   route: string
+  url?: string
   startTime: number
   status: 'ok'
   spans: Array<{
     name?: string
     spanId?: string
     parentSpanId?: string
+    startTime?: number
+    durationMs?: number
+    status?: 'ok' | 'error'
     attributes?: Record<string, string | number | boolean>
   }>
   fetches: Array<{
@@ -30,7 +34,7 @@ type RequestInsight = {
 }
 
 describe('request insights', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -93,6 +97,191 @@ describe('request insights', () => {
       verbose: false,
     })
     shouldResetRequestInsightsConfig = false
+  })
+
+  describe('cold route resolution and compilation phases', () => {
+    // These spans only appear together on the first request, so both ownership
+    // assertions share one settled cold render.
+    let coldRenderRequestId: Promise<string> | undefined
+
+    function recordColdRender(): Promise<string> {
+      coldRenderRequestId ??= (async () => {
+        const existingRequestIds = new Set(
+          (
+            (await next
+              .fetch('/_next/development/request-insights')
+              .then((response) => response.json())) as {
+              requests: RequestInsight[]
+            }
+          ).requests.map((request) => request.requestId)
+        )
+
+        await next.render('/route-phases-r4')
+
+        let requestId: string
+        await retry(async () => {
+          const snapshot = (await next
+            .fetch('/_next/development/request-insights')
+            .then((response) => response.json())) as {
+            requests: RequestInsight[]
+          }
+          const request = snapshot.requests.find(
+            (candidate) =>
+              candidate.route === '/route-phases-r4' &&
+              !existingRequestIds.has(candidate.requestId)
+          )
+
+          expect(request).toBeDefined()
+          expect(request!.status).toBe('ok')
+          expect(
+            request!.spans.filter((span) => span.status === 'error')
+          ).toEqual([])
+          requestId = request!.requestId
+        })
+        return requestId!
+      })().catch((error) => {
+        coldRenderRequestId = undefined
+        throw error
+      })
+      return coldRenderRequestId
+    }
+
+    async function getColdRenderSpans(): Promise<RequestInsight['spans']> {
+      const requestId = await recordColdRender()
+      const snapshot = (await next
+        .fetch('/_next/development/request-insights')
+        .then((response) => response.json())) as {
+        requests: RequestInsight[]
+      }
+      const request = snapshot.requests.find(
+        (candidate) => candidate.requestId === requestId
+      )
+      expect(request).toBeDefined()
+      return request!.spans
+    }
+
+    it('records route matching with route preparation ownership', async () => {
+      await retry(async () => {
+        const spans = await getColdRenderSpans()
+        const matchSpan = spans.find(
+          (span) =>
+            span.attributes?.['next.span_type'] === 'NextNodeServer.matchRoute'
+        )
+        expect(matchSpan).toBeDefined()
+        expect(
+          spans.some(
+            (span) =>
+              span.parentSpanId === matchSpan?.spanId &&
+              span.attributes?.['next.span_type'] ===
+                'DevRouteMatcherManager.ensureRoute'
+          )
+        ).toBe(true)
+      })
+    })
+
+    it('records bundler phases inside the compile route span', async () => {
+      await retry(async () => {
+        const spans = await getColdRenderSpans()
+        const compileSpan = spans.find(
+          (candidate) =>
+            candidate.attributes?.['next.span_type'] ===
+              'DevBundlerService.ensurePage' &&
+            spans.some(
+              (child) =>
+                child.parentSpanId === candidate.spanId &&
+                child.attributes?.['next.span_type'] ===
+                  'DevBundlerService.buildRoute'
+            )
+        )
+
+        expect(compileSpan).toBeDefined()
+        const compileChildren = spans.filter(
+          (span) => span.parentSpanId === compileSpan?.spanId
+        )
+        const expectedCompilePhases = isTurbopack
+          ? [
+              'DevBundlerService.waitForEntrypoints',
+              'DevBundlerService.buildRoute',
+            ]
+          : ['DevBundlerService.analyzeRoute', 'DevBundlerService.buildRoute']
+
+        expect(
+          compileChildren.map(
+            (span) => span.attributes?.['next.span_type'] as string
+          )
+        ).toEqual(expect.arrayContaining(expectedCompilePhases))
+
+        const compileStart = compileSpan!.startTime!
+        const compileEnd = compileStart + compileSpan!.durationMs!
+        for (const child of compileChildren) {
+          expect(child.startTime).toBeGreaterThanOrEqual(compileStart - 1)
+          expect(child.startTime! + child.durationMs!).toBeLessThanOrEqual(
+            compileEnd + 1
+          )
+        }
+      })
+    })
+
+    it('records definition-less resolution for a missing route', async () => {
+      const missingRoute = '/route-phases-r4-missing'
+      const existingRequestIds = new Set(
+        (
+          (await next
+            .fetch('/_next/development/request-insights')
+            .then((response) => response.json())) as {
+            requests: RequestInsight[]
+          }
+        ).requests.map((request) => request.requestId)
+      )
+
+      const response = await next.fetch(missingRoute)
+      expect(response.status).toBe(404)
+
+      await retry(async () => {
+        const snapshot = (await next
+          .fetch('/_next/development/request-insights')
+          .then((result) => result.json())) as {
+          requests: RequestInsight[]
+        }
+        const request = snapshot.requests.find(
+          (candidate) =>
+            candidate.url === missingRoute &&
+            !existingRequestIds.has(candidate.requestId)
+        )
+        expect(request).toBeDefined()
+        expect(request!.status).toBe('ok')
+
+        const compileSpan = request!.spans.find(
+          (span) =>
+            span.attributes?.['next.span_type'] ===
+              'DevBundlerService.ensurePage' &&
+            request!.spans.some(
+              (child) =>
+                child.parentSpanId === span.spanId &&
+                child.attributes?.['next.span_type'] ===
+                  'DevBundlerService.resolveRoute'
+            )
+        )
+        const resolutionSpan = request!.spans.find(
+          (span) =>
+            span.parentSpanId === compileSpan?.spanId &&
+            span.attributes?.['next.span_type'] ===
+              'DevBundlerService.resolveRoute'
+        )
+
+        expect(compileSpan).toBeDefined()
+        expect(resolutionSpan).toBeDefined()
+        expect(resolutionSpan!.status).toBe('ok')
+        expect(resolutionSpan!.startTime).toBeGreaterThanOrEqual(
+          compileSpan!.startTime! - 1
+        )
+        expect(
+          resolutionSpan!.startTime! + resolutionSpan!.durationMs!
+        ).toBeLessThanOrEqual(
+          compileSpan!.startTime! + compileSpan!.durationMs! + 1
+        )
+      })
+    })
   })
 
   async function runWithResponse(body: unknown, args: string[] = []) {

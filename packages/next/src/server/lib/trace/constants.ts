@@ -61,6 +61,7 @@ enum NextNodeServerSpan {
   renderError = 'NextNodeServer.renderError',
   renderErrorToHTML = 'NextNodeServer.renderErrorToHTML',
   render404 = 'NextNodeServer.render404',
+  matchRoute = 'NextNodeServer.matchRoute',
   startResponse = 'NextNodeServer.startResponse',
 
   // nested inner span, does not require parent scope name
@@ -105,6 +106,10 @@ enum DevRouteMatcherManagerSpan {
 
 enum DevBundlerServiceSpan {
   ensurePage = 'DevBundlerService.ensurePage',
+  waitForEntrypoints = 'DevBundlerService.waitForEntrypoints',
+  resolveRoute = 'DevBundlerService.resolveRoute',
+  analyzeRoute = 'DevBundlerService.analyzeRoute',
+  buildRoute = 'DevBundlerService.buildRoute',
 }
 
 enum RouterSpan {

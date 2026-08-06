@@ -70,6 +70,11 @@ import {
 } from '../lib/router-utils/setup-dev-bundler'
 import { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loader'
 import { findPagePathData } from './on-demand-entry-handler'
+import {
+  traceCompileRoutePhase,
+  traceCompileRouteResolution,
+} from './route-compilation-tracing'
+import { DevBundlerServiceSpan } from '../lib/trace/constants'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import {
   type EntryKey,
@@ -1811,7 +1816,11 @@ export async function createHotReloaderTurbopack(
             return
           }
 
-          await currentEntriesHandling
+          await traceCompileRoutePhase(
+            DevBundlerServiceSpan.waitForEntrypoints,
+            'wait for route entrypoints',
+            () => currentEntriesHandling
+          )
 
           // TODO We shouldn't look into the filesystem again. This should use the information from entrypoints
           let routeDef: Pick<
@@ -1819,13 +1828,15 @@ export async function createHotReloaderTurbopack(
             'filename' | 'bundlePath' | 'page'
           > =
             definition ??
-            (await findPagePathData(
-              projectPath,
-              inputPage,
-              nextConfig.pageExtensions,
-              opts.pagesDir,
-              opts.appDir,
-              !!nextConfig.experimental.globalNotFound
+            (await traceCompileRouteResolution(() =>
+              findPagePathData(
+                projectPath,
+                inputPage,
+                nextConfig.pageExtensions,
+                opts.pagesDir,
+                opts.appDir,
+                !!nextConfig.experimental.globalNotFound
+              )
             ))
 
           // If the route is actually an app page route, then we should have access
@@ -1866,24 +1877,29 @@ export async function createHotReloaderTurbopack(
           if (page === '/_error') {
             let finishBuilding = startBuilding(pathname, requestUrl, false)
             try {
-              await handlePagesErrorRoute({
-                currentEntryIssues,
-                entrypoints: currentEntrypoints,
-                manifestLoader,
-                devRewrites: opts.fsChecker.rewrites,
-                productionRewrites: undefined,
-                logErrors: true,
-                hooks: {
-                  subscribeToChanges: subscribeToClientChanges,
-                  handleWrittenEndpoint: (id, result, forceDeleteCache) => {
-                    currentWrittenEntrypoints.set(id, result)
-                    assetMapper.setPathsForKey(id, result.clientPaths)
-                    return clearRequireCache(id, result, {
-                      force: forceDeleteCache,
-                    })
-                  },
-                },
-              })
+              await traceCompileRoutePhase(
+                DevBundlerServiceSpan.buildRoute,
+                'build route',
+                () =>
+                  handlePagesErrorRoute({
+                    currentEntryIssues,
+                    entrypoints: currentEntrypoints,
+                    manifestLoader,
+                    devRewrites: opts.fsChecker.rewrites,
+                    productionRewrites: undefined,
+                    logErrors: true,
+                    hooks: {
+                      subscribeToChanges: subscribeToClientChanges,
+                      handleWrittenEndpoint: (id, result, forceDeleteCache) => {
+                        currentWrittenEntrypoints.set(id, result)
+                        assetMapper.setPathsForKey(id, result.clientPaths)
+                        return clearRequireCache(id, result, {
+                          force: forceDeleteCache,
+                        })
+                      },
+                    },
+                  })
+              )
             } finally {
               finishBuilding()
             }
@@ -1928,36 +1944,41 @@ export async function createHotReloaderTurbopack(
 
           const finishBuilding = startBuilding(pathname, requestUrl, false)
           try {
-            await handleRouteType({
-              dev,
-              page,
-              pathname,
-              route,
-              currentEntryIssues,
-              entrypoints: currentEntrypoints,
-              manifestLoader,
-              readyIds,
-              devRewrites: opts.fsChecker.rewrites,
-              productionRewrites: undefined,
-              logErrors: true,
+            await traceCompileRoutePhase(
+              DevBundlerServiceSpan.buildRoute,
+              'build route',
+              () =>
+                handleRouteType({
+                  dev,
+                  page,
+                  pathname,
+                  route,
+                  currentEntryIssues,
+                  entrypoints: currentEntrypoints,
+                  manifestLoader,
+                  readyIds,
+                  devRewrites: opts.fsChecker.rewrites,
+                  productionRewrites: undefined,
+                  logErrors: true,
 
-              hooks: {
-                // Pass a no-o subscribeToChanges to skip wiring HMR subscriptions for
-                // one-shot compilations (e.g. compile_route MCP tool).
-                subscribeToChanges: subscribeToChanges
-                  ? subscribeToClientChanges
-                  : ((async () => {}) as StartChangeSubscription),
-                handleServerComponentChanges,
-                handleWrittenEndpoint: (id, result, forceDeleteCache) => {
-                  currentWrittenEntrypoints.set(id, result)
-                  assetMapper.setPathsForKey(id, result.clientPaths)
-                  return clearRequireCache(id, result, {
-                    force: forceDeleteCache,
-                  })
-                },
-                serverFastRefresh,
-              },
-            })
+                  hooks: {
+                    // Pass a no-o subscribeToChanges to skip wiring HMR subscriptions for
+                    // one-shot compilations (e.g. compile_route MCP tool).
+                    subscribeToChanges: subscribeToChanges
+                      ? subscribeToClientChanges
+                      : ((async () => {}) as StartChangeSubscription),
+                    handleServerComponentChanges,
+                    handleWrittenEndpoint: (id, result, forceDeleteCache) => {
+                      currentWrittenEntrypoints.set(id, result)
+                      assetMapper.setPathsForKey(id, result.clientPaths)
+                      return clearRequireCache(id, result, {
+                        force: forceDeleteCache,
+                      })
+                    },
+                    serverFastRefresh,
+                  },
+                })
+            )
           } finally {
             finishBuilding()
             // Remove non-deferred entry from building set
