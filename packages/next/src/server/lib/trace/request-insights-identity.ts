@@ -10,6 +10,7 @@ import {
   getValidatedDevHtmlRequestId,
   getValidatedDevRequestId,
 } from '../dev-request-id'
+import type { RequestInsightsCausalParent } from './request-insights-causal'
 
 export type RequestInsightsIdentity = {
   // This is a server-owned storage key. Browser-provided IDs are only used by
@@ -25,18 +26,25 @@ export type RequestInsightsIdentity = {
   serverAction?: true
   htmlRequestId: string
   url: string | undefined
+  origin?: string
+  parentRootRequestId?: string
+  parentFetchIndex?: number
 }
 
 export function resolveRequestInsightsIdentity({
   previousIdentity,
   requestIdHeader,
   htmlRequestIdHeader,
+  causalParent,
+  origin,
   url,
   createRequestId,
 }: {
   previousIdentity: RequestInsightsIdentity | undefined
   requestIdHeader: string | string[] | undefined
   htmlRequestIdHeader: string | string[] | undefined
+  causalParent?: RequestInsightsCausalParent
+  origin?: string
   url: string | undefined
   createRequestId: () => string
 }): RequestInsightsIdentity {
@@ -53,6 +61,10 @@ export function resolveRequestInsightsIdentity({
     htmlRequestId:
       getValidatedDevHtmlRequestId(htmlRequestIdHeader) ?? requestId,
     url,
+    origin,
+    ...(causalParent?.parentRootRequestId !== requestId
+      ? causalParent
+      : undefined),
   }
 }
 

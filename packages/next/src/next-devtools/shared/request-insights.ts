@@ -108,6 +108,10 @@ export type RequestInsightResponse = {
 export type RequestInsight = {
   requestId: string
   rootRequestId?: string
+  /** A distinct request root causally started by a same-origin server fetch. */
+  parentRootRequestId?: string
+  /** The parent request's retained fetch index when available. */
+  parentFetchIndex?: number
   kind?: RequestInsightKind
   source: RequestInsightSource
   proxyStatus?: RequestInsightProxyStatus

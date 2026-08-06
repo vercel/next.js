@@ -4,6 +4,17 @@ import type { WorkStore } from '../app-render/work-async-storage.external'
 import type { IncrementalCache } from './incremental-cache'
 import { createPatchedFetcher } from './patch-fetch'
 import { registerLocalSpanRecorder } from './trace/local-span-recorder'
+import { RequestInsights } from './trace/request-insights'
+import {
+  getRequestInsightsCausalTarget,
+  takeRequestInsightsCausalToken,
+} from './trace/request-insights-causal'
+import {
+  createRequestInsightsRetentionContext,
+  getRequestInsightsIdentity,
+  runWithRequestInsightsIdentity,
+} from './trace/request-insights-identity'
+import { runWithRequestInsights } from './trace/request-insights-runtime'
 import {
   setSpanRecorderForTest,
   type SpanStoreRecord,
@@ -11,6 +22,17 @@ import {
 
 const originalDevServer = process.env.__NEXT_DEV_SERVER
 const spanRecords: SpanStoreRecord[] = []
+
+function createTestRequestInsightsIdentity(requestId: string) {
+  return {
+    requestId,
+    rootRequestId: `${requestId}-root`,
+    retention: createRequestInsightsRetentionContext(),
+    htmlRequestId: requestId,
+    origin: 'http://app.localhost',
+    url: '/',
+  }
+}
 
 describe('createPatchedFetcher', () => {
   beforeEach(() => {
@@ -27,6 +49,364 @@ describe('createPatchedFetcher', () => {
     setSpanRecorderForTest(undefined)
     spanRecords.length = 0
   })
+
+  it('keeps a same-origin causal link on the captured controller after context exit', async () => {
+    const requestInsights = new RequestInsights()
+    const workAsyncStorage = new AsyncLocalStorage<WorkStore>()
+    const workUnitAsyncStorage = new AsyncLocalStorage<WorkUnitStore>()
+    const target = getRequestInsightsCausalTarget(
+      new URL('http://app.localhost/api/child'),
+      'GET'
+    )!
+    let causalParent:
+      | { parentRootRequestId: string; parentFetchIndex: number }
+      | undefined
+    let releaseFetch!: () => void
+    const fetchCanFinish = new Promise<void>((resolve) => {
+      releaseFetch = resolve
+    })
+    const mockFetch: jest.MockedFunction<typeof fetch> = jest.fn(
+      async (_input, init) => {
+        const headers = Object.fromEntries(new Headers(init?.headers))
+        const token = takeRequestInsightsCausalToken(headers)
+        causalParent = token
+          ? requestInsights.consumeCausalToken(token, target)
+          : undefined
+        await fetchCanFinish
+        return new Response('ok', { status: 201 })
+      }
+    )
+    const patchedFetch = createPatchedFetcher(mockFetch, {
+      workAsyncStorage,
+      workUnitAsyncStorage,
+    })
+    const workStore = {
+      page: '/',
+      route: '/',
+    } as WorkStore
+
+    const responsePromise = runWithRequestInsights(requestInsights, () =>
+      runWithRequestInsightsIdentity(
+        createTestRequestInsightsIdentity('parent-request'),
+        () =>
+          workAsyncStorage.run(workStore, () =>
+            patchedFetch('http://app.localhost/api/child', {
+              cache: 'no-store',
+            })
+          )
+      )
+    )
+
+    expect(getRequestInsightsIdentity()).toBeUndefined()
+    expect(causalParent).toEqual({
+      parentRootRequestId: 'parent-request-root',
+      parentFetchIndex: 1,
+    })
+    releaseFetch()
+    expect((await responsePromise).status).toBe(201)
+    expect(requestInsights.getSnapshot().requests[0]?.fetches[0]).toEqual(
+      expect.objectContaining({ index: 1, statusCode: 201 })
+    )
+    requestInsights.dispose()
+  })
+
+  it('revokes a causal token when the original fetch throws synchronously', async () => {
+    const requestInsights = new RequestInsights()
+    const workAsyncStorage = new AsyncLocalStorage<WorkStore>()
+    const workUnitAsyncStorage = new AsyncLocalStorage<WorkUnitStore>()
+    const target = getRequestInsightsCausalTarget(
+      new URL('http://app.localhost/api/child'),
+      'GET'
+    )!
+    let causalToken: string | undefined
+    const error = new Error('synchronous fetch failure')
+    const mockFetch: jest.MockedFunction<typeof fetch> = jest.fn(
+      (_input, init) => {
+        causalToken = takeRequestInsightsCausalToken(
+          Object.fromEntries(new Headers(init?.headers))
+        )
+        throw error
+      }
+    )
+    const patchedFetch = createPatchedFetcher(mockFetch, {
+      workAsyncStorage,
+      workUnitAsyncStorage,
+    })
+    const workStore = {
+      page: '/',
+      route: '/',
+    } as WorkStore
+
+    const response = runWithRequestInsights(requestInsights, () =>
+      runWithRequestInsightsIdentity(
+        createTestRequestInsightsIdentity('parent-request'),
+        () =>
+          workAsyncStorage.run(workStore, () =>
+            patchedFetch('http://app.localhost/api/child', {
+              cache: 'no-store',
+            })
+          )
+      )
+    )
+
+    await expect(response).rejects.toBe(error)
+    expect(causalToken).toBeDefined()
+    expect(
+      requestInsights.consumeCausalToken(causalToken!, target)
+    ).toBeUndefined()
+    requestInsights.dispose()
+  })
+
+  it('leaves draft-mode fetch state and headers unchanged', async () => {
+    setSpanRecorderForTest((span) => spanRecords.push(span))
+    const requestInsights = new RequestInsights()
+    const workAsyncStorage = new AsyncLocalStorage<WorkStore>()
+    const workUnitAsyncStorage = new AsyncLocalStorage<WorkUnitStore>()
+    const init = {
+      cache: 'no-store' as const,
+      headers: {
+        cookie: '__next_request_insights_causal=user-value; user=value',
+      },
+    }
+    const mockFetch: jest.MockedFunction<typeof fetch> = jest.fn(
+      async (_input, receivedInit) => {
+        expect(receivedInit).toBe(init)
+        return new Response('ok')
+      }
+    )
+    const patchedFetch = createPatchedFetcher(mockFetch, {
+      workAsyncStorage,
+      workUnitAsyncStorage,
+    })
+    const workStore = {
+      isDraftMode: true,
+      nextFetchId: 7,
+      page: '/',
+      route: '/',
+      shouldTrackFetchMetrics: true,
+    } as WorkStore
+
+    await runWithRequestInsights(requestInsights, () =>
+      runWithRequestInsightsIdentity(
+        createTestRequestInsightsIdentity('draft-request'),
+        () =>
+          workAsyncStorage.run(workStore, () =>
+            patchedFetch('http://app.localhost/api/child', init)
+          )
+      )
+    )
+
+    expect(workStore.nextFetchId).toBe(7)
+    expect(workStore.fetchMetrics).toBeUndefined()
+    expect(requestInsights.getSnapshot().requests[0]?.fetches[0]).toEqual(
+      expect.objectContaining({
+        cacheStatus: undefined,
+        index: undefined,
+        statusCode: undefined,
+      })
+    )
+    expect(
+      spanRecords.find(
+        (span) => span.name === 'fetch GET http://app.localhost/api/child'
+      )?.attributes
+    ).not.toEqual(
+      expect.objectContaining({
+        'next.fetch.idx': expect.anything(),
+      })
+    )
+    requestInsights.dispose()
+  })
+
+  it('does not reserve a user cookie while Request Insights is disabled', async () => {
+    const workAsyncStorage = new AsyncLocalStorage<WorkStore>()
+    const workUnitAsyncStorage = new AsyncLocalStorage<WorkUnitStore>()
+    const cookie = '__next_request_insights_causal=user-value; user=value'
+    const mockFetch: jest.MockedFunction<typeof fetch> = jest.fn(
+      async (_input, init) => {
+        expect(new Headers(init?.headers).get('cookie')).toBe(cookie)
+        return new Response('ok')
+      }
+    )
+    const patchedFetch = createPatchedFetcher(mockFetch, {
+      workAsyncStorage,
+      workUnitAsyncStorage,
+    })
+    const workStore = { page: '/', route: '/' } as WorkStore
+
+    await workAsyncStorage.run(workStore, () =>
+      patchedFetch('http://app.localhost/api/child', {
+        cache: 'no-store',
+        headers: { cookie },
+      })
+    )
+
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not attach causality when credentials are omitted', async () => {
+    const requestInsights = new RequestInsights()
+    const workAsyncStorage = new AsyncLocalStorage<WorkStore>()
+    const workUnitAsyncStorage = new AsyncLocalStorage<WorkUnitStore>()
+    let causalToken: string | undefined
+    const mockFetch: jest.MockedFunction<typeof fetch> = jest.fn(
+      async (_input, init) => {
+        const headers = Object.fromEntries(new Headers(init?.headers))
+        causalToken = takeRequestInsightsCausalToken(headers)
+        expect(headers.cookie).toBe('session=value')
+        return new Response('ok')
+      }
+    )
+    const patchedFetch = createPatchedFetcher(mockFetch, {
+      workAsyncStorage,
+      workUnitAsyncStorage,
+    })
+    const workStore = { page: '/', route: '/' } as WorkStore
+
+    await runWithRequestInsights(requestInsights, () =>
+      runWithRequestInsightsIdentity(
+        createTestRequestInsightsIdentity('parent-request'),
+        () =>
+          workAsyncStorage.run(workStore, () =>
+            patchedFetch('http://app.localhost/api/child', {
+              cache: 'no-store',
+              credentials: 'omit',
+              headers: { cookie: 'session=value' },
+            })
+          )
+      )
+    )
+
+    expect(causalToken).toBeUndefined()
+    requestInsights.dispose()
+  })
+
+  it('preserves a streamed POST Request body while attaching causality', async () => {
+    const requestInsights = new RequestInsights()
+    const workAsyncStorage = new AsyncLocalStorage<WorkStore>()
+    const workUnitAsyncStorage = new AsyncLocalStorage<WorkUnitStore>()
+    const target = getRequestInsightsCausalTarget(
+      new URL('http://app.localhost/api/child'),
+      'POST'
+    )!
+    let causalParent:
+      | { parentRootRequestId: string; parentFetchIndex: number }
+      | undefined
+    let receivedBody: string | undefined
+    const mockFetch: jest.MockedFunction<typeof fetch> = jest.fn(
+      async (input, init) => {
+        const request = new Request(input, init)
+        const headers = Object.fromEntries(request.headers)
+        const token = takeRequestInsightsCausalToken(headers)
+        causalParent = token
+          ? requestInsights.consumeCausalToken(token, target)
+          : undefined
+        expect(headers.cookie).toBe('session=value')
+        receivedBody = await request.text()
+        return new Response('ok')
+      }
+    )
+    const patchedFetch = createPatchedFetcher(mockFetch, {
+      workAsyncStorage,
+      workUnitAsyncStorage,
+    })
+    const workStore = { page: '/', route: '/' } as WorkStore
+    const body = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('streamed body'))
+        controller.close()
+      },
+    })
+    const request = new Request('http://app.localhost/api/child', {
+      body,
+      // @ts-expect-error -- Node fetch requires duplex for streamed bodies.
+      duplex: 'half',
+      headers: { cookie: 'session=value' },
+      method: 'POST',
+    })
+
+    await runWithRequestInsights(requestInsights, () =>
+      runWithRequestInsightsIdentity(
+        createTestRequestInsightsIdentity('parent-request'),
+        () =>
+          workAsyncStorage.run(workStore, () =>
+            patchedFetch(request, undefined)
+          )
+      )
+    )
+
+    expect(receivedBody).toBe('streamed body')
+    expect(causalParent).toEqual({
+      parentRootRequestId: 'parent-request-root',
+      parentFetchIndex: 1,
+    })
+    requestInsights.dispose()
+  })
+
+  it.each([
+    { isStale: false, expectedOriginCalls: 0 },
+    { isStale: true, expectedOriginCalls: 1 },
+  ])(
+    'does not attach causality for a cache hit with isStale=$isStale',
+    async ({ isStale, expectedOriginCalls }) => {
+      const requestInsights = new RequestInsights()
+      const workAsyncStorage = new AsyncLocalStorage<WorkStore>()
+      const workUnitAsyncStorage = new AsyncLocalStorage<WorkUnitStore>()
+      let causalToken: string | undefined
+      const mockFetch: jest.MockedFunction<typeof fetch> = jest.fn(
+        async (_input, init) => {
+          causalToken = takeRequestInsightsCausalToken(
+            Object.fromEntries(new Headers(init?.headers))
+          )
+          return new Response('fresh')
+        }
+      )
+      const incrementalCache = {
+        generateCacheKey: jest.fn(() => 'cache-key'),
+        get: jest.fn(() => ({
+          isStale,
+          value: {
+            kind: 'FETCH',
+            data: {
+              body: Buffer.from('cached').toString('base64'),
+              headers: {},
+              status: 200,
+              url: 'http://app.localhost/api/child',
+            },
+            revalidate: 60,
+          },
+        })),
+        lock: jest.fn(() => () => {}),
+        set: jest.fn(),
+      } as unknown as IncrementalCache
+      const patchedFetch = createPatchedFetcher(mockFetch, {
+        workAsyncStorage,
+        workUnitAsyncStorage,
+      })
+      const workStore = {
+        incrementalCache,
+        page: '/',
+        route: '/',
+      } as WorkStore
+
+      const response = await runWithRequestInsights(requestInsights, () =>
+        runWithRequestInsightsIdentity(
+          createTestRequestInsightsIdentity('parent-request'),
+          () =>
+            workAsyncStorage.run(workStore, () =>
+              patchedFetch('http://app.localhost/api/child', {
+                cache: 'force-cache',
+              })
+            )
+        )
+      )
+
+      expect(await response.text()).toBe('cached')
+      await workStore.pendingRevalidates?.['cache-key']
+      expect(mockFetch).toHaveBeenCalledTimes(expectedOriginCalls)
+      expect(causalToken).toBeUndefined()
+      requestInsights.dispose()
+    }
+  )
 
   it('should not buffer a streamed response', async () => {
     const mockFetch: jest.MockedFunction<typeof fetch> = jest.fn()
