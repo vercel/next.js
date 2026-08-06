@@ -3,6 +3,7 @@ export type PropagateToWorkersField =
   | 'actualInstrumentationHookFile'
   | 'reloadMatchers'
   | 'testRouteMatch'
+  | 'devRouteDefinitions'
   | 'loadEnvConfig'
   | 'appPathRoutes'
   | 'middleware'

@@ -408,6 +408,28 @@ export declare function projectContainsRoute(
   routeKey: string,
   invalidateDirs: Array<string>
 ): Promise<boolean>
+export interface NapiRouteInfo {
+  pathname: RcStr
+  routeType: string
+  /**
+   * The original names of the app pages behind this route (there are
+   * multiple for parallel routes), or the original name of an app route.
+   * Empty for pages routes.
+   */
+  originalNames: Array<RcStr>
+}
+/**
+ * Returns the routes in the entrypoints, recomputed against the current
+ * state of the filesystem: tracked directory reads under the given
+ * project-relative directories are invalidated first, so files that were
+ * created or deleted after Turbopack's file watcher last reported are taken
+ * into account. Routes are keyed the same way `entrypointsSubscribe` emits
+ * them.
+ */
+export declare function projectGetRoutes(
+  project: { __napiType: 'Project' },
+  invalidateDirs: Array<string>
+): Promise<Array<NapiRouteInfo>>
 export interface NapiDebugBuildPaths {
   app: Array<RcStr>
   pages: Array<RcStr>

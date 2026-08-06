@@ -17,7 +17,13 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
   constructor(
     private readonly production: RouteMatcherManager,
     private readonly ensurer: RouteEnsurer,
-    private readonly dir: string
+    private readonly dir: string,
+    /**
+     * Called before retrying an unmatched request path, so the providers can
+     * refresh the routes they serve from. When not given, the retry relies
+     * on the providers re-scanning the filesystem in `reload`.
+     */
+    private readonly refresh?: () => Promise<void>
   ) {
     super()
   }
@@ -65,10 +71,10 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
 
   /**
    * Iterates over the development matches for the request path. The
-   * development matchers are reloaded when the file watcher has processed a
-   * change, so they can lag behind the filesystem when a request arrives
-   * right after a file was written. On a miss, this re-scans the filesystem
-   * once and retries before treating the request path as unmatched.
+   * development matchers are reloaded when the bundler or file watcher has
+   * processed a change, so they can lag behind the filesystem when a request
+   * arrives right after a file was written. On a miss, this refreshes the
+   * routes once and retries before treating the request path as unmatched.
    */
   private async *developmentMatchAll(
     pathname: string,
@@ -83,6 +89,7 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
 
       if (matched || attempt === 1) break
 
+      await this.refresh?.()
       await super.reload()
     }
 

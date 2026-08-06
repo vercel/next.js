@@ -34,6 +34,7 @@ import type {
   ProjectOptions,
   RawEntrypoints,
   Route,
+  RouteInfo,
   TurboEngineOptions,
   TurbopackResult,
   TurbopackStackFrame,
@@ -708,6 +709,10 @@ function bindingToApi(
         routeKey,
         invalidateDirs
       )
+    }
+
+    getRoutes(invalidateDirs: string[]): Promise<RouteInfo[]> {
+      return binding.projectGetRoutes(this._nativeProject, invalidateDirs)
     }
 
     async writeAnalyzeData(

@@ -134,6 +134,7 @@ export type ServerFields = {
   actualMiddlewareFile?: string | undefined
   actualInstrumentationHookFile?: string | undefined
   appPathRoutes?: Record<string, string | string[]>
+  devRouteDefinitions?: import('../../route-definitions/route-definition').RouteDefinition[]
   middleware?:
     | {
         page: string

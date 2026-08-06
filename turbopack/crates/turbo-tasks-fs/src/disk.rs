@@ -375,6 +375,64 @@ impl DiskFileSystemInner {
         });
     }
 
+    /// Invalidates tracked directory reads for `paths`, their children, and
+    /// all their parent directories, so that file creations/deletions that
+    /// the file watcher has not reported yet are picked up by the next read.
+    /// Unlike [`Self::invalidate_path_and_children_with_reason`], tracked
+    /// file content reads are not invalidated.
+    fn invalidate_dir_reads_with_reason<R: InvalidationReason + Clone>(
+        &self,
+        paths: impl IntoIterator<Item = PathBuf>,
+        reason: impl Fn(&Path) -> R + Sync,
+    ) {
+        let _span =
+            tracing::info_span!("invalidate filesystem directories", name = &*self.root).entered();
+        let Some(turbo_tasks) = self.turbo_tasks.upgrade() else {
+            return;
+        };
+        let _guard = self.tokio_handle.enter();
+
+        let mut dir_invalidator_map = self.dir_invalidator_map.lock().unwrap();
+        let mut invalidators = Vec::new();
+        let mut parent_dirs_to_invalidate = FxHashSet::default();
+
+        for path in paths {
+            let mut current_parent = path.parent();
+            while let Some(parent) = current_parent {
+                parent_dirs_to_invalidate.insert(parent.to_path_buf());
+                current_parent = parent.parent();
+            }
+
+            for (invalidated_path, path_invalidators) in
+                dir_invalidator_map.extract_path_with_children(&path)
+            {
+                let reason_for_path = reason(&invalidated_path);
+                invalidators.extend(
+                    path_invalidators
+                        .into_iter()
+                        .map(|invalidator| (reason_for_path.clone(), invalidator)),
+                );
+            }
+        }
+
+        for path in parent_dirs_to_invalidate {
+            if let Some(path_invalidators) = dir_invalidator_map.remove(path.as_path()) {
+                let reason_for_path = reason(&path);
+                invalidators.extend(
+                    path_invalidators
+                        .into_iter()
+                        .map(|invalidator| (reason_for_path.clone(), invalidator)),
+                );
+            }
+        }
+
+        drop(dir_invalidator_map);
+
+        parallel::for_each_owned(invalidators, |(reason, invalidator)| {
+            invalidator.invalidate_with_reason(&*turbo_tasks, reason)
+        });
+    }
+
     /// Invalidates tracked files/directories for `paths` and their children.
     /// Also invalidates tracked directory reads for all parent directories to
     /// account for file creations/deletions under the deferred subtree.
@@ -521,6 +579,21 @@ impl DiskFileSystem {
         let _lock = self.inner.invalidation_lock.write().await;
         self.inner
             .invalidate_path_and_children_with_reason(paths, reason);
+    }
+
+    /// Invalidates tracked directory reads for `paths`, their children, and
+    /// all their parent directories, so that file creations/deletions that
+    /// the file watcher has not reported yet are picked up by the next read.
+    /// Tracked file content reads are not invalidated. Serialized against the
+    /// file watcher's own invalidation batches and against in-flight reads,
+    /// the same way watcher-driven invalidations are.
+    pub async fn invalidate_dir_reads_with_reason_synced<R: InvalidationReason + Clone>(
+        &self,
+        paths: impl IntoIterator<Item = PathBuf>,
+        reason: impl Fn(&Path) -> R + Sync,
+    ) {
+        let _lock = self.inner.invalidation_lock.write().await;
+        self.inner.invalidate_dir_reads_with_reason(paths, reason);
     }
 
     pub async fn start_watching(&self, poll_interval: Option<Duration>) -> Result<()> {
