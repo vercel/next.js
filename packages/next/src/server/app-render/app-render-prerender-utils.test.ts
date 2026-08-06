@@ -16,6 +16,19 @@ function tick(): Promise<void> {
   return new Promise((resolve) => setImmediate(resolve))
 }
 
+async function waitForChunks(
+  replayable: ReplayableNodeStream,
+  count: number
+): Promise<void> {
+  for (let i = 0; i < 100; i++) {
+    if ((replayable as any)._chunks.length >= count) {
+      return
+    }
+    await tick()
+  }
+  throw new Error('timed out waiting for chunks to buffer')
+}
+
 describe('ReplayableNodeStream', () => {
   describe('construction and buffering', () => {
     it('buffers Uint8Array chunks from the source', async () => {
@@ -387,6 +400,52 @@ describe('ReplayableNodeStream', () => {
         [1, 2],
         [3, 4],
       ])
+    })
+  })
+
+  describe('ordering', () => {
+    it('delivers buffered and live chunks in order when a chunk arrives between createReplayStream() and the first read', async () => {
+      const source = new PassThrough()
+      const replayable = new ReplayableNodeStream(source)
+
+      source.write(new Uint8Array([1]))
+      // The first chunk is buffered before the replay stream is created.
+      await waitForChunks(replayable, 1)
+
+      const replay = replayable.createReplayStream()
+
+      // A new chunk arrives after createReplayStream() but before the
+      // consumer reads. It must not overtake the buffered chunk.
+      source.write(new Uint8Array([2]))
+      await waitForChunks(replayable, 2)
+      source.end()
+
+      const collected = await collectBytes(replay)
+      expect(collected).toEqual([[1], [2]])
+    })
+
+    it('delivers buffered chunks when the source ends before the first read', async () => {
+      const source = new PassThrough()
+      const replayable = new ReplayableNodeStream(source)
+
+      source.write(new Uint8Array([1]))
+      await waitForChunks(replayable, 1)
+
+      const replay = replayable.createReplayStream()
+
+      // The source ends before the consumer reads anything; the buffered
+      // chunk must still be delivered (not truncated by an early end).
+      source.end()
+      await waitForChunks(replayable, 1)
+      await new Promise<void>((resolve) => {
+        if ((replayable as any)._done) {
+          return resolve()
+        }
+        source.on('end', () => resolve())
+      })
+
+      const collected = await collectBytes(replay)
+      expect(collected).toEqual([[1]])
     })
   })
 })
