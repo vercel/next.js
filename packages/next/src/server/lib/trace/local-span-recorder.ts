@@ -96,6 +96,14 @@ export function withLocalSpan<T>(span: Span, fn: () => T): T {
   return getLocalSpanAsyncStorage().run(span, fn)
 }
 
+/** Runs a callback without retaining the currently active local span. */
+export function runWithoutLocalSpan<T>(fn: () => T): T {
+  if (!localSpanAsyncStorage) {
+    return fn()
+  }
+  return localSpanAsyncStorage.exit(fn)
+}
+
 /**
  * Records an async operation without replacing or exporting through the active
  * OpenTelemetry context. Nested Next.js spans remain in the local trace.
@@ -134,6 +142,7 @@ export type LocalSpanRecorder = {
   isOpenTelemetryIsolatedSpan: typeof isOpenTelemetryIsolatedSpan
   isLocalSpanRecordingEnabled: typeof isLocalSpanRecordingEnabled
   isRequestInsightsEnabled: typeof isRequestInsightsEnabled
+  runWithoutLocalSpan: typeof runWithoutLocalSpan
   traceLocalSpan: typeof traceLocalSpan
   withLocalSpan: typeof withLocalSpan
 }
@@ -151,6 +160,7 @@ export function registerLocalSpanRecorder(): void {
     isOpenTelemetryIsolatedSpan,
     isLocalSpanRecordingEnabled,
     isRequestInsightsEnabled,
+    runWithoutLocalSpan,
     traceLocalSpan,
     withLocalSpan,
   }
