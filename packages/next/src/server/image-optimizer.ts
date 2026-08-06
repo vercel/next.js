@@ -90,7 +90,8 @@ export function getSharp(concurrency: number | null | undefined) {
     return _sharp
   }
   try {
-    _sharp = (require('sharp') as typeof import('sharp'))
+    // eslint-disable-next-line @next/internal/typechecked-require -- sharp 0.34 and 0.35 type the module differently, see SharpModule
+    _sharp = require('sharp') as SharpModule
     if (_sharp && _sharp.concurrency() > 1) {
       // Reducing concurrency should reduce the memory usage too.
       // We more aggressively reduce in dev but also reduce in prod.
