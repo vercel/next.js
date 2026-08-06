@@ -140,14 +140,37 @@ export function bootLevelStats(perBootDeltas) {
   return result
 }
 
+// The largest effect still compatible with the data: the interval's
+// far edge from zero. This is what a null cell failed to rule out, and
+// without it "measured nothing" is indistinguishable from "could not
+// have measured anything" — a ±1% null and a ±12% null read the same.
+export function resolutionFloor(s) {
+  if (s === null || s.ci95 === Infinity) return null
+  return Math.max(Math.abs(s.mean - s.ci95), Math.abs(s.mean + s.ci95))
+}
+
 export function formatStat(name, candName, baseName, s) {
   if (s === null) return `  ${name.padEnd(6)} (no data)`
   const pct = (x) => `${(x * 100).toFixed(1)}%`
   const ci = s.ci95 === Infinity ? '±∞' : `±${(s.ci95 * 100).toFixed(1)}`
   const m = METRICS[name]
-  const meta = m
-    ? ` [${m.unit}; ${s.mean > 0 === (m.better === 'higher') ? 'IMPROVEMENT' : 'regression'} if real]`
-    : ''
+  const dir =
+    s.mean > 0 === (m?.better === 'higher') ? 'IMPROVEMENT' : 'regression'
+  const floor = resolutionFloor(s)
+  const cannot =
+    floor === null
+      ? 'resolution unknown'
+      : floor === 0
+        ? 'identical in every boot'
+        : `cannot rule out <${(floor * 100).toFixed(1)}%`
+  // Three bands, matching the claim policy: claimable, flag-only, null.
+  const verdict =
+    s.p < 0.01
+      ? dir
+      : s.p < 0.05
+        ? `borderline ${dir} — flag not claim; ${cannot}`
+        : `no effect resolved; ${cannot}`
+  const meta = m ? ` [${m.unit}; ${verdict}]` : ` [${verdict}]`
   // Byte metrics are deterministic per build, so a ±0.0 near-zero cell
   // with p=0 is normal; the absolute values say whether it matters.
   const abs =
@@ -195,6 +218,9 @@ export function analyzeE2eRows(rows, baseName, candName, metrics) {
   // "Absent" must be distinguishable from "identical": metrics the run
   // never captured are named at the end instead of silently missing.
   const captured = new Set()
+  const claims = []
+  const flags = []
+  const nulls = []
   for (const phase of [
     ...new Set(rows.map((r) => `${r.route ?? ''} ${r.phase}`)),
   ].sort()) {
@@ -231,6 +257,8 @@ export function analyzeE2eRows(rows, baseName, candName, metrics) {
         s.absBase = baseVals.reduce((a, b) => a + b, 0) / baseVals.length
         s.absCand = candVals.reduce((a, b) => a + b, 0) / candVals.length
         console.log(formatStat(metric, candName, baseName, s))
+        const cell = { phase, metric, s, floor: resolutionFloor(s) }
+        ;(s.p < 0.01 ? claims : s.p < 0.05 ? flags : nulls).push(cell)
       }
     }
   }
@@ -238,5 +266,41 @@ export function analyzeE2eRows(rows, baseName, candName, metrics) {
   if (absent.length > 0) {
     console.log(`\nnot captured on this run: ${absent.join(', ')}`)
   }
+  printSummary(claims, flags, nulls)
   return true
+}
+
+// The report skeleton, so a writeup transcribes the three bands instead
+// of re-deriving them from the per-cell lines.
+function printSummary(claims, flags, nulls) {
+  const pct = (x) => `${x > 0 ? '+' : ''}${(x * 100).toFixed(1)}%`
+  const name = (c) => `${c.phase} ${c.metric}`.trim().padEnd(38)
+  const effect = (c) => {
+    const m = METRICS[c.metric]
+    const dir = c.s.mean > 0 === (m?.better === 'higher') ? 'better' : 'worse'
+    const ci = c.s.ci95 === Infinity ? '±∞' : `±${(c.s.ci95 * 100).toFixed(1)}`
+    return `${pct(c.s.mean)} ${ci}  ${m?.unit ?? ''} ${dir}  p=${c.s.p.toFixed(4)}`
+  }
+  const limit = (c) =>
+    c.floor === null
+      ? 'resolution unknown'
+      : c.floor === 0
+        ? 'identical in every boot'
+        : `cannot rule out <${(c.floor * 100).toFixed(1)}%`
+  console.log('\n=== summary ===')
+  console.log(`claims (p < 0.01): ${claims.length === 0 ? 'none' : ''}`)
+  for (const c of claims) console.log(`  ${name(c)} ${effect(c)}`)
+  if (flags.length > 0) {
+    console.log('flags (0.01 <= p < 0.05 — report as flags, never as claims):')
+    for (const c of flags) console.log(`  ${name(c)} ${effect(c)}`)
+  }
+  if (nulls.length > 0) {
+    // Tightest first: the top of this list is real evidence of no
+    // effect, the bottom is a cell that could not have seen one.
+    console.log('no effect resolved (tightest first):')
+    for (const c of [...nulls].sort(
+      (a, b) => (a.floor ?? Infinity) - (b.floor ?? Infinity)
+    ))
+      console.log(`  ${name(c)} ${limit(c)}`)
+  }
 }
