@@ -1,5 +1,5 @@
 import { DetachedPromise } from '../../lib/detached-promise'
-import { trackStreamConsumed } from './web-on-close'
+import { CloseController, trackStreamConsumed } from './web-on-close'
 
 describe('trackStreamConsumed', () => {
   it('calls onEnd when the stream finishes', async () => {
@@ -26,6 +26,7 @@ describe('trackStreamConsumed', () => {
 
     await endPromise.promise
     expect(onEnd).toHaveBeenCalledTimes(1)
+    expect(onEnd).toHaveBeenCalledWith({ outcome: 'finished' })
   })
 
   it('calls onEnd when the stream errors', async () => {
@@ -51,6 +52,7 @@ describe('trackStreamConsumed', () => {
 
     await endPromise.promise
     expect(onEnd).toHaveBeenCalledTimes(1)
+    expect(onEnd).toHaveBeenCalledWith({ outcome: 'errored', error })
   })
 
   it('calls onEnd when the stream is cancelled', async () => {
@@ -83,10 +85,57 @@ describe('trackStreamConsumed', () => {
 
     await endPromise.promise
     expect(onEnd).toHaveBeenCalledTimes(1)
+    expect(onEnd).toHaveBeenCalledWith({
+      outcome: 'aborted',
+      error: cancellationReason,
+    })
 
     //  the cancellation should propagate to back to the underlying stream
     await cancelledPromise.promise
     expect(onCancel).toHaveBeenCalledWith(cancellationReason)
+  })
+
+  it('isolates close callback failures from stream completion and other listeners', async () => {
+    const queuedMicrotasks: Array<() => void> = []
+    const queueMicrotaskSpy = jest
+      .spyOn(globalThis, 'queueMicrotask')
+      .mockImplementation((callback) => {
+        queuedMicrotasks.push(callback)
+      })
+    const closeController = new CloseController()
+    const secondCallback = jest.fn()
+
+    try {
+      closeController.onClose(() => {
+        throw new Error('callback failed')
+      })
+      closeController.onClose(secondCallback)
+
+      const trackedStream = trackStreamConsumed(
+        new ReadableStream<string>({
+          start(controller) {
+            controller.enqueue('value')
+            controller.close()
+          },
+        }),
+        (result) => closeController.dispatchClose(result)
+      )
+      const reader = trackedStream.getReader()
+
+      await expect(reader.read()).resolves.toEqual({
+        done: false,
+        value: 'value',
+      })
+      await expect(reader.read()).resolves.toEqual({
+        done: true,
+        value: undefined,
+      })
+      expect(secondCallback).toHaveBeenCalledWith({ outcome: 'finished' })
+      expect(queuedMicrotasks).toHaveLength(1)
+      expect(closeController.listeners).toBe(0)
+    } finally {
+      queueMicrotaskSpy.mockRestore()
+    }
   })
 })
 
