@@ -2093,7 +2093,7 @@ export default class Router implements BaseRouter {
       const isBackground = isQueryUpdating
       const fetchNextDataParams: FetchNextDataParams = {
         dataHref: this.pageLoader.getDataHref({
-          href: formatWithValidation({ pathname, query }),
+          href: isNotFound ? '/404' : formatWithValidation({ pathname, query }),
           skipInterpolation: true,
           asPath: isNotFound ? '/404' : resolvedAs,
           locale,
@@ -2113,7 +2113,7 @@ export default class Router implements BaseRouter {
         | (Pick<WithMiddlewareEffectsOutput, 'json'> &
             Omit<Partial<WithMiddlewareEffectsOutput>, 'json'>)
         | null =
-        isQueryUpdating && !isMiddlewareRewrite
+        isNotFound || (isQueryUpdating && !isMiddlewareRewrite)
           ? null
           : await withMiddlewareEffects({
               fetchData: () => fetchNextData(fetchNextDataParams),
@@ -2231,8 +2231,10 @@ export default class Router implements BaseRouter {
           const dataHref = data?.dataHref
             ? data.dataHref
             : this.pageLoader.getDataHref({
-                href: formatWithValidation({ pathname, query }),
-                asPath: resolvedAs,
+                href: isNotFound
+                  ? '/404'
+                  : formatWithValidation({ pathname, query }),
+                asPath: isNotFound ? '/404' : resolvedAs,
                 locale,
               })
 
