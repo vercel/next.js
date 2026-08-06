@@ -359,6 +359,63 @@ describe('request insights', () => {
     })
   })
 
+  it('records HTML completion inside the app render span', async () => {
+    const existingRequestIds = new Set(
+      (
+        (await next
+          .fetch('/_next/development/request-insights')
+          .then((response) => response.json())) as {
+          requests: RequestInsight[]
+        }
+      ).requests.map((request) => request.requestId)
+    )
+
+    await next.render('/html-completion-r5')
+
+    await retry(async () => {
+      const snapshot = (await next
+        .fetch('/_next/development/request-insights')
+        .then((response) => response.json())) as {
+        requests: RequestInsight[]
+      }
+      const request = snapshot.requests.find(
+        (candidate) =>
+          candidate.route === '/html-completion-r5' &&
+          !existingRequestIds.has(candidate.requestId)
+      )
+      expect(request).toBeDefined()
+
+      const appRenderSpan = request!.spans.find(
+        (span) =>
+          span.attributes?.['next.span_type'] === 'AppRender.getBodyResult'
+      )
+      const completionSpan = request!.spans.find(
+        (span) =>
+          span.attributes?.['next.span_type'] ===
+          'AppRender.waitForHTMLCompletion'
+      )
+
+      expect(appRenderSpan).toBeDefined()
+      expect(completionSpan).toEqual(
+        expect.objectContaining({
+          name: 'wait for HTML completion',
+          parentSpanId: appRenderSpan!.spanId,
+          status: 'ok',
+          startTime: expect.any(Number),
+          durationMs: expect.any(Number),
+        })
+      )
+      expect(completionSpan!.startTime).toBeGreaterThanOrEqual(
+        appRenderSpan!.startTime! - 1
+      )
+      expect(
+        completionSpan!.startTime! + completionSpan!.durationMs!
+      ).toBeLessThanOrEqual(
+        appRenderSpan!.startTime! + appRenderSpan!.durationMs! + 1
+      )
+    })
+  })
+
   it('does not attribute Request Insights bookkeeping to the app', async () => {
     const outputIndex = next.cliOutput.length
     const browser = await next.browser('/safe-clock')

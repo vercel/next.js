@@ -120,6 +120,7 @@ import { createOneShotTracePhase } from '../lib/trace/phase'
 import { traceLocalSpan } from '../lib/trace/local-span-recorder'
 import { isRequestInsightsEnabled } from '../lib/trace/request-insights'
 import { FlightRenderResult } from './flight-render-result'
+import { createHTMLRenderCompletionTracker } from './html-render-completion'
 import {
   createReactServerErrorHandler,
   createHTMLErrorHandler,
@@ -3675,9 +3676,19 @@ async function renderToStream(
     renderSpan.end()
   }
 
+  const htmlRenderCompletion = createHTMLRenderCompletionTracker(
+    (completion) => {
+      if (completion) {
+        endSpanWithError(completion.error)
+      } else if (renderSpan.isRecording()) {
+        renderSpan.end()
+      }
+    }
+  )
+
   // Run the rest of the function within the span's context so child spans
   // (like "build component tree", "generateMetadata") are properly parented.
-  return getTracer().withSpan(renderSpan, async () => {
+  const renderResult = getTracer().withSpan(renderSpan, async () => {
     // MARK: renderToStream errorHandlers
     const { reactServerErrorsByDigest } = workStore
 
@@ -4151,10 +4162,7 @@ async function renderToStream(
                 { onError: htmlRendererErrorHandler, nonce }
               )
 
-            // End the render span only after React completed rendering (including anything inside Suspense boundaries)
-            allReady.finally(() => {
-              if (renderSpan.isRecording()) renderSpan.end()
-            })
+            htmlRenderCompletion.track(allReady)
 
             return await continueDynamicHTMLResumeNode(htmlStream, {
               delayDataUntilFirstHtmlChunk:
@@ -4219,10 +4227,7 @@ async function renderToStream(
             )
         )
 
-        // End the render span only after React completed rendering (including anything inside Suspense boundaries)
-        allReady.finally(() => {
-          if (renderSpan.isRecording()) renderSpan.end()
-        })
+        htmlRenderCompletion.track(allReady)
 
         return await continueFizzStream(htmlStream, {
           inlinedDataStream: createNodeInlinedDataStream(
@@ -4292,10 +4297,7 @@ async function renderToStream(
                 { onError: htmlRendererErrorHandler, nonce }
               )
 
-            // End the render span only after React completed rendering (including anything inside Suspense boundaries)
-            allReady.finally(() => {
-              if (renderSpan.isRecording()) renderSpan.end()
-            })
+            htmlRenderCompletion.track(allReady)
 
             return await continueDynamicHTMLResumeWeb(htmlStream, {
               delayDataUntilFirstHtmlChunk:
@@ -4354,10 +4356,7 @@ async function renderToStream(
           fizzOptions
         )
 
-        // End the render span only after React completed rendering (including anything inside Suspense boundaries)
-        allReady.finally(() => {
-          if (renderSpan.isRecording()) renderSpan.end()
-        })
+        htmlRenderCompletion.track(allReady)
 
         return await continueFizzStream(htmlStream, {
           inlinedDataStream: createWebInlinedDataStream(
@@ -4375,6 +4374,8 @@ async function renderToStream(
       }
       // MARK: renderToStream errorRecovery
     } catch (err) {
+      htmlRenderCompletion.supersede(err)
+
       if (
         isStaticGenBailoutError(err) ||
         (typeof err === 'object' &&
@@ -4516,9 +4517,7 @@ async function renderToStream(
               { waitForAllReady }
             )
 
-          errorAllReady.finally(() => {
-            if (renderSpan.isRecording()) renderSpan.end()
-          })
+          htmlRenderCompletion.track(errorAllReady)
 
           return await continueFizzStream(errorHtmlStream, {
             inlinedDataStream: createNodeInlinedDataStream(
@@ -4542,6 +4541,7 @@ async function renderToStream(
             validateRootLayout: !!process.env.__NEXT_DEV_SERVER,
           })
         } catch (finalErr: any) {
+          htmlRenderCompletion.supersede(finalErr)
           if (
             process.env.__NEXT_DEV_SERVER &&
             isHTTPAccessFallbackError(finalErr)
@@ -4611,9 +4611,7 @@ async function renderToStream(
               }
             )
 
-          errorAllReady.finally(() => {
-            if (renderSpan.isRecording()) renderSpan.end()
-          })
+          htmlRenderCompletion.track(errorAllReady)
 
           return await continueFizzStream(errorHtmlStream, {
             inlinedDataStream: createWebInlinedDataStream(
@@ -4637,6 +4635,7 @@ async function renderToStream(
             validateRootLayout: !!process.env.__NEXT_DEV_SERVER,
           })
         } catch (finalErr: any) {
+          htmlRenderCompletion.supersede(finalErr)
           if (
             process.env.__NEXT_DEV_SERVER &&
             isHTTPAccessFallbackError(finalErr)
@@ -4650,6 +4649,12 @@ async function renderToStream(
         }
       }
     }
+  })
+
+  return renderResult.catch((err) => {
+    htmlRenderCompletion.supersede(err)
+    endSpanWithError(err)
+    throw err
   })
   /* eslint-enable @next/internal/no-ambiguous-jsx */
 }
