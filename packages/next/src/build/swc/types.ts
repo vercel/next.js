@@ -311,6 +311,18 @@ export interface UpdateInfo {
 export interface Project {
   update(options: Partial<ProjectOptions>): Promise<void>
 
+  /**
+   * Begin one source-edit transaction for the given filesystem-root-relative paths. Returns
+   * `null` when another edit transaction is active.
+   */
+  beginEditTransaction(changedPaths: string[]): Promise<number | null>
+
+  /** Renew the matching transaction's bounded lease. */
+  renewEditTransaction(token: number): Promise<boolean>
+
+  /** End the matching transaction, resolving after its invalidations have been submitted. */
+  endEditTransaction(token: number): Promise<boolean>
+
   writeAnalyzeData(appDirOnly: boolean): Promise<TurbopackResult<void>>
 
   getAllCompilationIssues(): Promise<TurbopackResult<void>>

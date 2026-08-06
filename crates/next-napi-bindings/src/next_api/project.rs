@@ -738,6 +738,74 @@ async fn benchmark_file_io(turbo_tasks: &NextTurboTasks, dir: &Path) -> Result<(
     Ok(())
 }
 
+#[turbo_tasks::function(operation, root)]
+fn project_fs_control_operation(container: ResolvedVc<ProjectContainer>) -> Vc<DiskFileSystem> {
+    container.project().project_fs()
+}
+
+/// Begin one acknowledged source edit. Returns no token when another edit transaction is active.
+#[napi]
+pub async fn project_begin_edit_transaction(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    changed_paths: Vec<String>,
+) -> napi::Result<Option<u32>> {
+    let ctx = &project.turbopack_ctx;
+    let container = project.container;
+    let changed_paths = changed_paths.into_iter().map(PathBuf::from).collect();
+
+    ctx.turbo_tasks()
+        .run(async move {
+            project_fs_control_operation(container)
+                .read_strongly_consistent()
+                .await?
+                .begin_edit_transaction(changed_paths)
+                .await
+        })
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
+        .await
+}
+
+#[napi]
+pub async fn project_renew_edit_transaction(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    token: u32,
+) -> napi::Result<bool> {
+    let ctx = &project.turbopack_ctx;
+    let container = project.container;
+
+    ctx.turbo_tasks()
+        .run(async move {
+            project_fs_control_operation(container)
+                .read_strongly_consistent()
+                .await?
+                .renew_edit_transaction(token)
+                .await
+        })
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
+        .await
+}
+
+/// End the matching source edit. A `true` result is acknowledged after invalidation is submitted.
+#[napi]
+pub async fn project_end_edit_transaction(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    token: u32,
+) -> napi::Result<bool> {
+    let ctx = &project.turbopack_ctx;
+    let container = project.container;
+
+    ctx.turbo_tasks()
+        .run(async move {
+            project_fs_control_operation(container)
+                .read_strongly_consistent()
+                .await?
+                .end_edit_transaction(token)
+                .await
+        })
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
+        .await
+}
+
 #[tracing::instrument(level = "info", name = "update project", skip_all)]
 #[napi]
 pub async fn project_update(

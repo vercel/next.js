@@ -330,6 +330,20 @@ export declare function projectNew(
   turboEngineOptions: NapiTurboEngineOptions,
   napiCallbacks: NapiNextTurbopackCallbacksJsObject
 ): Promise<{ __napiType: 'Project' }>
+/** Begin one acknowledged source edit. Returns no token when another edit transaction is active. */
+export declare function projectBeginEditTransaction(
+  project: { __napiType: 'Project' },
+  changedPaths: Array<string>
+): Promise<number | null>
+export declare function projectRenewEditTransaction(
+  project: { __napiType: 'Project' },
+  token: number
+): Promise<boolean>
+/** End the matching source edit. A `true` result is acknowledged after invalidation is submitted. */
+export declare function projectEndEditTransaction(
+  project: { __napiType: 'Project' },
+  token: number
+): Promise<boolean>
 export declare function projectUpdate(
   project: { __napiType: 'Project' },
   options: NapiPartialProjectOptions
