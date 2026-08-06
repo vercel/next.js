@@ -1,12 +1,15 @@
 import type { ServerResponse, IncomingMessage } from 'http'
 import {
-  getOrCreateMcpServer,
+  createMcpServer,
   type McpServerOptions,
 } from './get-or-create-mcp-server'
 import { parseBody } from '../api-utils/node/parse-body'
 import { StreamableHTTPServerTransport } from 'next/dist/compiled/@modelcontextprotocol/sdk/server/streamableHttp'
 
 export function getMcpMiddleware(options: McpServerOptions) {
+  // Each middleware closure belongs to one dev server/project.
+  let mcpServer: ReturnType<typeof createMcpServer> | undefined
+
   return async function (
     req: IncomingMessage,
     res: ServerResponse,
@@ -16,7 +19,7 @@ export function getMcpMiddleware(options: McpServerOptions) {
     if (!pathname.startsWith('/_next/mcp')) {
       return next()
     }
-    const mcpServer = getOrCreateMcpServer(options)
+    mcpServer ??= createMcpServer(options)
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
     })

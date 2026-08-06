@@ -16,16 +16,16 @@ import {
   type RequestInsightSource,
 } from '../../../shared/lib/request-insights'
 import type { SpanStoreRecord } from './span-store'
+import { getActiveRequestInsights } from './request-insights-runtime'
 export { isRequestInsightsEnabled } from './span-store'
 
 const MAX_REQUEST_INSIGHTS = 100
 const MAX_REQUEST_INSIGHT_URL_LENGTH = 2048
 const MAX_REQUEST_INSIGHT_RAW_URL_LENGTH = 64 * 1024
-const REQUEST_INSIGHTS_STORE_KEY = Symbol.for('@next/request-insights-store')
 const CLIENT_COMPONENT_LOADING_SPAN_TYPE =
   'NextNodeServer.clientComponentLoading'
 
-type RequestInsightsListener = (insight: RequestInsight) => void
+export type RequestInsightsListener = (insight: RequestInsight) => void
 type RequestInsightIdentity = {
   requestId?: string
   kind?: RequestInsightKind
@@ -57,7 +57,7 @@ const SAFE_SPAN_ATTRIBUTE_KEYS = new Set([
   'next.span_name',
   'next.span_type',
 ])
-class InMemoryRequestInsightsStore {
+export class RequestInsights {
   private readonly requests = new Map<string, RequestInsight>()
   private readonly requestTimings = new Map<
     string,
@@ -65,9 +65,14 @@ class InMemoryRequestInsightsStore {
   >()
   private readonly requestOrder: string[] = []
   private readonly listeners = new Set<RequestInsightsListener>()
+  private disposed = false
 
   recordSpan(span: SpanStoreRecord): void {
-    if (!span.requestId) {
+    if (
+      this.disposed ||
+      !span.requestId ||
+      span.attributes?.['next.span_type'] === CLIENT_COMPONENT_LOADING_SPAN_TYPE
+    ) {
       return
     }
 
@@ -137,7 +142,7 @@ class InMemoryRequestInsightsStore {
   }
 
   recordFetch(identity: RequestInsightIdentity, fetch: RequestInsightFetch) {
-    if (!identity.requestId) {
+    if (this.disposed || !identity.requestId) {
       return
     }
 
@@ -149,7 +154,7 @@ class InMemoryRequestInsightsStore {
   }
 
   recordClassification(identity: RequestInsightIdentity): void {
-    if (!identity.requestId) {
+    if (this.disposed || !identity.requestId) {
       return
     }
 
@@ -168,6 +173,10 @@ class InMemoryRequestInsightsStore {
   }
 
   getSnapshot(): RequestInsightsSnapshot {
+    if (this.disposed) {
+      return { requests: [] }
+    }
+
     return {
       requests: this.requestOrder
         .map((insightKey) => this.requests.get(insightKey))
@@ -176,6 +185,10 @@ class InMemoryRequestInsightsStore {
   }
 
   subscribe(listener: RequestInsightsListener): () => void {
+    if (this.disposed) {
+      return () => {}
+    }
+
     this.listeners.add(listener)
     return () => {
       this.listeners.delete(listener)
@@ -183,9 +196,44 @@ class InMemoryRequestInsightsStore {
   }
 
   clear(): void {
+    if (this.disposed) {
+      return
+    }
+
     this.requests.clear()
     this.requestTimings.clear()
     this.requestOrder.length = 0
+  }
+
+  dispose(): void {
+    if (this.disposed) {
+      return
+    }
+
+    this.clear()
+    this.disposed = true
+    this.listeners.clear()
+  }
+
+  recordRouterActivity(
+    identity: RequestInsightIdentity,
+    routerActivity: RequestInsightRouterActivity
+  ): void {
+    identity.routerActivity = routerActivity
+    this.recordClassification(identity)
+  }
+
+  recordServerAction(identity: RequestInsightIdentity): void {
+    identity.serverAction = true
+    this.recordClassification(identity)
+  }
+
+  recordSource(
+    identity: RequestInsightIdentity,
+    source: RequestInsightSource
+  ): void {
+    identity.source = source
+    this.recordClassification(identity)
   }
 
   private updateTiming(
@@ -334,60 +382,48 @@ export function recordRequestInsightSpan(span: SpanStoreRecord): void {
     return
   }
 
-  getRequestInsightsStore().recordSpan(span)
+  getActiveRequestInsights()?.recordSpan(span)
 }
 
 export function recordRequestInsightFetch(
   identity: RequestInsightIdentity,
   fetch: RequestInsightFetch
 ): void {
-  getRequestInsightsStore().recordFetch(identity, fetch)
+  getActiveRequestInsights()?.recordFetch(identity, fetch)
 }
 
 export function recordRequestInsightRouterActivity(
   identity: RequestInsightIdentity,
   routerActivity: RequestInsightRouterActivity
 ): void {
-  identity.routerActivity = routerActivity
-  getRequestInsightsStore().recordClassification(identity)
+  getActiveRequestInsights()?.recordRouterActivity(identity, routerActivity)
 }
 
 export function recordRequestInsightServerAction(
   identity: RequestInsightIdentity
 ): void {
-  identity.serverAction = true
-  getRequestInsightsStore().recordClassification(identity)
+  getActiveRequestInsights()?.recordServerAction(identity)
 }
 
 export function recordRequestInsightSource(
   identity: RequestInsightIdentity,
   source: RequestInsightSource
 ): void {
-  identity.source = source
-  getRequestInsightsStore().recordClassification(identity)
+  getActiveRequestInsights()?.recordSource(identity, source)
 }
 
 export function getRequestInsightsSnapshot(): RequestInsightsSnapshot {
-  return getRequestInsightsStore().getSnapshot()
+  return getActiveRequestInsights()?.getSnapshot() ?? { requests: [] }
 }
 
 export function subscribeRequestInsights(
   listener: RequestInsightsListener
 ): () => void {
-  return getRequestInsightsStore().subscribe(listener)
+  return getActiveRequestInsights()?.subscribe(listener) ?? (() => {})
 }
 
 export function clearRequestInsightsForTest(): void {
-  getRequestInsightsStore().clear()
-}
-
-function getRequestInsightsStore(): InMemoryRequestInsightsStore {
-  const globalStore = globalThis as typeof globalThis & {
-    [REQUEST_INSIGHTS_STORE_KEY]?: InMemoryRequestInsightsStore
-  }
-
-  return (globalStore[REQUEST_INSIGHTS_STORE_KEY] ??=
-    new InMemoryRequestInsightsStore())
+  getActiveRequestInsights()?.clear()
 }
 
 function getFetchInsight(span: SpanStoreRecord): RequestInsightFetch | null {

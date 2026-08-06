@@ -12,6 +12,7 @@ import type { HmrMessageSentToBrowser } from '../dev/hot-reloader-types'
 import type { NextConfigComplete } from '../config-shared'
 import type { Project } from '../../build/swc/types'
 import type { FormattedIssue } from './tools/utils/format-compilation-issues'
+import type { RequestInsights } from '../lib/trace/request-insights'
 
 export interface McpServerOptions {
   projectPath: string
@@ -22,6 +23,7 @@ export interface McpServerOptions {
   sendHmrMessage: (message: HmrMessageSentToBrowser) => void
   getActiveConnectionCount: () => number
   getDevServerUrl: () => string | undefined
+  getRequestInsights: () => RequestInsights | undefined
   getTurbopackProject?: () => Project | undefined
   compileRoute?: (opts: {
     routeSpecifier?: string
@@ -29,14 +31,8 @@ export interface McpServerOptions {
   }) => Promise<{ routeSpecifier: string; issues: FormattedIssue[] }>
 }
 
-let mcpServer: McpServer | undefined
-
-export const getOrCreateMcpServer = (options: McpServerOptions) => {
-  if (mcpServer) {
-    return mcpServer
-  }
-
-  mcpServer = new McpServer({
+export const createMcpServer = (options: McpServerOptions) => {
+  const mcpServer = new McpServer({
     name: 'Next.js MCP Server',
     version: '0.2.0',
   })
@@ -64,7 +60,7 @@ export const getOrCreateMcpServer = (options: McpServerOptions) => {
     pagesDir: options.pagesDir,
     appDir: options.appDir,
   })
-  registerGetRequestInsightsTool(mcpServer)
+  registerGetRequestInsightsTool(mcpServer, options.getRequestInsights)
 
   if (options.getTurbopackProject) {
     registerGetCompilationIssuesTool(mcpServer, options.getTurbopackProject)

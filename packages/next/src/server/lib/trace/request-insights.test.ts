@@ -1,5 +1,7 @@
+/* eslint-disable jest/no-standalone-expect -- Assertions run inside the controller-scoped test wrapper. */
+
 import {
-  clearRequestInsightsForTest,
+  RequestInsights,
   getRequestInsightsSnapshot,
   recordRequestInsightFetch,
   recordRequestInsightRouterActivity,
@@ -7,6 +9,7 @@ import {
   recordRequestInsightSource,
   subscribeRequestInsights,
 } from './request-insights'
+import { runWithRequestInsights } from './request-insights-runtime'
 import { recordSpan } from './span-store'
 import { getRequestInsightRouterActivity } from './request-insights-router-activity'
 
@@ -22,17 +25,66 @@ function restoreEnv(name: string, value: string | undefined) {
 }
 
 describe('request insights', () => {
+  let requestInsights: RequestInsights
+
   beforeEach(() => {
     process.env.__NEXT_DEV_SERVER = '1'
+    requestInsights = new RequestInsights()
   })
 
   afterEach(() => {
     restoreEnv('__NEXT_REQUEST_INSIGHTS', originalRequestInsights)
     restoreEnv('__NEXT_DEV_SERVER', originalDevServer)
-    clearRequestInsightsForTest()
+    requestInsights.dispose()
   })
 
-  it('derives request history from local span records', () => {
+  function withRequestInsights<TArgs extends unknown[]>(
+    fn: (...args: TArgs) => unknown
+  ): (...args: TArgs) => unknown {
+    return (...args) =>
+      runWithRequestInsights(requestInsights, () => fn(...args))
+  }
+
+  function test(name: string, fn: () => unknown): void {
+    it(name, withRequestInsights(fn))
+  }
+
+  it('isolates retained data by active controller', () => {
+    const first = new RequestInsights()
+    const second = new RequestInsights()
+    try {
+      runWithRequestInsights(first, () => {
+        recordRequestInsightFetch(
+          { requestId: 'first' },
+          { url: '/first', startTime: 1, durationMs: 1 }
+        )
+        runWithRequestInsights(second, () => {
+          recordRequestInsightFetch(
+            { requestId: 'second' },
+            { url: '/second', startTime: 2, durationMs: 1 }
+          )
+        })
+        runWithRequestInsights(undefined, () => {
+          recordRequestInsightFetch(
+            { requestId: 'disabled' },
+            { url: '/disabled', startTime: 3, durationMs: 1 }
+          )
+        })
+      })
+
+      expect(
+        first.getSnapshot().requests.map(({ requestId }) => requestId)
+      ).toEqual(['first'])
+      expect(
+        second.getSnapshot().requests.map(({ requestId }) => requestId)
+      ).toEqual(['second'])
+    } finally {
+      first.dispose()
+      second.dispose()
+    }
+  })
+
+  test('derives request history from local span records', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
 
     recordSpan({
@@ -135,7 +187,7 @@ describe('request insights', () => {
     })
   })
 
-  it('notifies subscribers when a request insight changes', () => {
+  test('notifies subscribers when a request insight changes', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     const listener = jest.fn()
     const unsubscribe = subscribeRequestInsights(listener)
@@ -158,7 +210,7 @@ describe('request insights', () => {
     unsubscribe()
   })
 
-  it('uses the HTTP request span as the end-to-end request timing', () => {
+  test('uses the HTTP request span as the end-to-end request timing', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
 
     recordSpan({
@@ -189,7 +241,7 @@ describe('request insights', () => {
     )
   })
 
-  it('classifies framework request sources without letting the root span erase a specific source', () => {
+  test('classifies framework request sources without letting the root span erase a specific source', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
 
     recordSpan({
@@ -216,23 +268,26 @@ describe('request insights', () => {
     ['Node.runHandler', 'pages-api'],
     ['NextNodeServer.imageOptimizer', 'image'],
     ['Middleware.execute', 'proxy'],
-  ] as const)('classifies %s spans as %s requests', (spanType, source) => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+  ] as const)(
+    'classifies %s spans as %s requests',
+    withRequestInsights((spanType, source) => {
+      process.env.__NEXT_REQUEST_INSIGHTS = 'true'
 
-    recordSpan({
-      name: spanType,
-      requestId: `req_${source}`,
-      attributes: {
-        'next.span_type': spanType,
-      },
+      recordSpan({
+        name: spanType,
+        requestId: `req_${source}`,
+        attributes: {
+          'next.span_type': spanType,
+        },
+      })
+
+      expect(getRequestInsightsSnapshot().requests[0]).toEqual(
+        expect.objectContaining({ source })
+      )
     })
+  )
 
-    expect(getRequestInsightsSnapshot().requests[0]).toEqual(
-      expect.objectContaining({ source })
-    )
-  })
-
-  it('records an authoritative static asset source after tracing starts', () => {
+  test('records an authoritative static asset source after tracing starts', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     const identity: Parameters<typeof recordRequestInsightSource>[0] = {
       requestId: 'req_asset',
@@ -253,7 +308,7 @@ describe('request insights', () => {
     )
   })
 
-  it('does not create a request only because a source was recorded', () => {
+  test('does not create a request only because a source was recorded', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
 
     recordRequestInsightSource({ requestId: 'untraced-asset' }, 'asset')
@@ -261,7 +316,7 @@ describe('request insights', () => {
     expect(getRequestInsightsSnapshot().requests).toEqual([])
   })
 
-  it('does not classify the middleware pass as a page before an App Route runs', () => {
+  test('does not classify the middleware pass as a page before an App Route runs', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     const identity = {
       requestId: 'middleware-app-route',
@@ -321,7 +376,7 @@ describe('request insights', () => {
     ])
   })
 
-  it('classifies the route pass as a page after middleware completes', () => {
+  test('classifies the route pass as a page after middleware completes', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     const identity = {
       requestId: 'middleware-page',
@@ -365,7 +420,7 @@ describe('request insights', () => {
     ])
   })
 
-  it('records normalized router activity and confirmed Server Actions', () => {
+  test('records normalized router activity and confirmed Server Actions', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     const identity = { requestId: 'req_activity' }
 
@@ -386,7 +441,7 @@ describe('request insights', () => {
     )
   })
 
-  it('derives router activity only from valid RSC protocol headers', () => {
+  test('derives router activity only from valid RSC protocol headers', () => {
     expect(
       getRequestInsightRouterActivity({
         rsc: '1',
@@ -407,7 +462,7 @@ describe('request insights', () => {
     ).toBe('hmr-refresh')
   })
 
-  it('keeps request and Instant Insights data separate for the same request ID', () => {
+  test('keeps request and Instant Insights data separate for the same request ID', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     const listener = jest.fn()
     const unsubscribe = subscribeRequestInsights(listener)
@@ -481,7 +536,7 @@ describe('request insights', () => {
     unsubscribe()
   })
 
-  it('does not treat aggregate client component loading as a trace span', () => {
+  test('does not treat aggregate client component loading as a trace span', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
 
     recordSpan({
@@ -497,7 +552,7 @@ describe('request insights', () => {
     expect(getRequestInsightsSnapshot().requests).toEqual([])
   })
 
-  it('records request fetch metrics when the OTel fetch span does not complete locally', () => {
+  test('records request fetch metrics when the OTel fetch span does not complete locally', () => {
     recordRequestInsightFetch(
       {
         requestId: 'req_3',
@@ -535,7 +590,7 @@ describe('request insights', () => {
     })
   })
 
-  it('redacts sensitive request insight payload fields', () => {
+  test('redacts sensitive request insight payload fields', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
 
     const secret = 'Q2_SECRET_SENTINEL'
@@ -628,7 +683,7 @@ describe('request insights', () => {
     expect(JSON.stringify(getRequestInsightsSnapshot())).not.toContain(secret)
   })
 
-  it('only exposes bounded URLs without query payloads', () => {
+  test('only exposes bounded URLs without query payloads', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
 
     const cases = [

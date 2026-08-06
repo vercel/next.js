@@ -19,6 +19,7 @@ import type {
   RequestInsightRouterActivity,
   RequestInsightSource,
 } from '../../../shared/lib/request-insights'
+import type { RequestInsights } from './request-insights'
 
 export { isLocalSpanRecordingEnabled } from './span-store'
 
@@ -172,6 +173,7 @@ function getLocalSpanAsyncStorage(): AsyncLocalStorage<Span> {
 }
 
 type RequestIdentity = {
+  requestInsights?: RequestInsights
   requestId?: string
   requestInsightKind?: RequestInsightKind
   requestInsightSource?: RequestInsightSource
@@ -370,35 +372,39 @@ class LocalRecordingSpan implements Span {
     const recordAttributes =
       Object.keys(this.attributes).length > 0 ? this.attributes : undefined
 
-    recordSpan({
-      name: this.name,
-      startTime: this.startTime,
-      durationMs: Math.max(0, getTimestamp(endTime) - this.startTime),
-      status: this.statusCode === SpanStatusCode.ERROR ? 'error' : 'ok',
-      traceId: this.spanContextValue.traceId,
-      spanId: this.spanContextValue.spanId,
-      parentSpanId: this.parentSpanId,
-      requestId: this.requestIdentity.requestId,
-      requestInsightKind: this.requestIdentity.requestInsightKind,
-      requestInsightSource: this.requestIdentity.requestInsightSource,
-      requestInsightProxyStatus: this.requestIdentity.requestInsightProxyStatus,
-      requestInsightRouterActivity:
-        this.requestIdentity.requestInsightRouterActivity,
-      requestInsightServerAction:
-        this.requestIdentity.requestInsightServerAction,
-      htmlRequestId: this.requestIdentity.htmlRequestId,
-      route:
-        getStringAttribute(recordAttributes, 'next.route') ??
-        getStringAttribute(recordAttributes, 'http.route') ??
-        this.requestIdentity.route,
-      url:
-        getStringAttribute(recordAttributes, 'http.url') ??
-        this.requestIdentity.url,
-      attributes: recordAttributes,
-      links: this.links,
-      events: this.events.length > 0 ? this.events : undefined,
-      error: this.getRecordError(),
-    })
+    recordSpan(
+      {
+        name: this.name,
+        startTime: this.startTime,
+        durationMs: Math.max(0, getTimestamp(endTime) - this.startTime),
+        status: this.statusCode === SpanStatusCode.ERROR ? 'error' : 'ok',
+        traceId: this.spanContextValue.traceId,
+        spanId: this.spanContextValue.spanId,
+        parentSpanId: this.parentSpanId,
+        requestId: this.requestIdentity.requestId,
+        requestInsightKind: this.requestIdentity.requestInsightKind,
+        requestInsightSource: this.requestIdentity.requestInsightSource,
+        requestInsightProxyStatus:
+          this.requestIdentity.requestInsightProxyStatus,
+        requestInsightRouterActivity:
+          this.requestIdentity.requestInsightRouterActivity,
+        requestInsightServerAction:
+          this.requestIdentity.requestInsightServerAction,
+        htmlRequestId: this.requestIdentity.htmlRequestId,
+        route:
+          getStringAttribute(recordAttributes, 'next.route') ??
+          getStringAttribute(recordAttributes, 'http.route') ??
+          this.requestIdentity.route,
+        url:
+          getStringAttribute(recordAttributes, 'http.url') ??
+          this.requestIdentity.url,
+        attributes: recordAttributes,
+        links: this.links,
+        events: this.events.length > 0 ? this.events : undefined,
+        error: this.getRecordError(),
+      },
+      this.requestIdentity.requestInsights
+    )
   }
 
   private releaseReferences(): void {
@@ -571,6 +577,14 @@ function getCurrentRequestIdentity(): RequestIdentity {
       require('../../app-render/work-async-storage.external') as typeof import('../../app-render/work-async-storage.external')
     const { workUnitAsyncStorage } =
       require('../../app-render/work-unit-async-storage.external') as typeof import('../../app-render/work-unit-async-storage.external')
+    let requestInsights: RequestInsights | undefined
+    if (process.env.__NEXT_DEV_SERVER) {
+      const { getActiveRequestInsights } =
+        require('./request-insights-runtime') as typeof import('./request-insights-runtime')
+      requestInsights = getActiveRequestInsights()
+    } else {
+      requestInsights = undefined
+    }
     const workStore = workAsyncStorage.getStore()
     const workUnitStore = workUnitAsyncStorage.getStore()
     const requestInsightsIdentity = getRequestInsightsIdentity()
@@ -578,6 +592,7 @@ function getCurrentRequestIdentity(): RequestIdentity {
       workUnitStore && 'url' in workUnitStore ? workUnitStore.url : undefined
 
     return {
+      requestInsights,
       requestId: requestInsightsIdentity?.requestId ?? workStore?.requestId,
       requestInsightKind: requestInsightsIdentity?.kind,
       requestInsightSource: requestInsightsIdentity?.source,

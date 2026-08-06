@@ -2,6 +2,8 @@
  * @jest-environment node
  */
 
+/* eslint-disable jest/no-standalone-expect -- Assertions run inside the controller-scoped test wrapper. */
+
 import type {
   Context,
   ContextManager,
@@ -31,6 +33,8 @@ import {
   NodeSpan,
 } from './constants'
 import { SpanKind, SpanStatusCode, getTracer } from './tracer'
+import { RequestInsights } from './request-insights'
+import { runWithRequestInsights } from './request-insights-runtime'
 
 const customContextKey = createContextKey('next.tracer.test.custom-context')
 const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
@@ -162,12 +166,15 @@ describe('withPropagatedContext', () => {
 })
 
 describe('local span recording', () => {
+  let requestInsights: RequestInsights
+
   beforeEach(() => {
     process.env.__NEXT_DEV_SERVER = '1'
     delete process.env.__NEXT_REQUEST_INSIGHTS
     delete process.env.NEXT_OTEL_VERBOSE
     setSpanRecorderForTest((span) => spanRecords.push(span))
     registerLocalSpanRecorder()
+    requestInsights = new RequestInsights()
   })
 
   afterEach(() => {
@@ -190,7 +197,12 @@ describe('local span recording', () => {
     trace.disable()
     setSpanRecorderForTest(undefined)
     spanRecords.length = 0
+    requestInsights.dispose()
   })
+
+  function test(name: string, fn: () => unknown | Promise<unknown>): void {
+    it(name, () => runWithRequestInsights(requestInsights, fn))
+  }
 
   it('does not mirror spans by default', () => {
     setSpanRecorderForTest(undefined)
@@ -201,7 +213,7 @@ describe('local span recording', () => {
     expect(getSpanRecords()).toEqual([])
   })
 
-  it('records non-vanilla trace and wrapped spans for request insights', () => {
+  test('records non-vanilla trace and wrapped spans for request insights', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
 
     getTracer().trace(BaseServerSpan.render, () => undefined)
@@ -227,7 +239,7 @@ describe('local span recording', () => {
     ])
   })
 
-  it('only exports non-vanilla spans when verbose tracing is enabled', () => {
+  test('only exports non-vanilla spans when verbose tracing is enabled', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     const exportedSpans: string[] = []
     const delegateSpan = trace.wrapSpanContext({
@@ -264,7 +276,7 @@ describe('local span recording', () => {
     expect(exportedSpans).toEqual([NodeSpan.runHandler, BaseServerSpan.render])
   })
 
-  it('does not record or export hidden spans', () => {
+  test('does not record or export hidden spans', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     let receivedSpan: unknown = 'not-called'
     const startSpan = jest.fn()
@@ -365,7 +377,7 @@ describe('local span recording', () => {
     ])
   })
 
-  it('keeps OTel-isolated spans out of the active OTel context', async () => {
+  test('keeps OTel-isolated spans out of the active OTel context', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     process.env.NEXT_OTEL_VERBOSE = '1'
     context.disable()

@@ -5,6 +5,21 @@ import type {
   RequestInsightRouterActivity,
   RequestInsightSource,
 } from '../../../shared/lib/request-insights'
+import type { RequestInsights } from './request-insights'
+
+let spanStoreRequestInsightsRuntime:
+  | typeof import('./request-insights-runtime')
+  | undefined
+
+function getSpanStoreRequestInsightsRuntime():
+  | typeof import('./request-insights-runtime')
+  | undefined {
+  if (process.env.__NEXT_DEV_SERVER) {
+    return (spanStoreRequestInsightsRuntime ??=
+      require('./request-insights-runtime') as typeof import('./request-insights-runtime'))
+  }
+  return undefined
+}
 
 export type SpanStoreAttributes = Record<string, AttributeValue>
 
@@ -51,8 +66,20 @@ type SpanRecorderForTest = (span: SpanStoreRecord) => void
 
 let spanRecorderForTest: SpanRecorderForTest | undefined
 
-export function recordSpan(record: Omit<SpanStoreRecord, 'timestamp'>): void {
-  if (!isLocalSpanRecordingEnabled()) {
+export function recordSpan(
+  record: Omit<SpanStoreRecord, 'timestamp'>,
+  ...requestInsightsOverride: [] | [RequestInsights | undefined]
+): void {
+  if (!process.env.__NEXT_DEV_SERVER) {
+    return
+  }
+
+  const requestInsights =
+    requestInsightsOverride.length === 0
+      ? getSpanStoreRequestInsightsRuntime()?.getActiveRequestInsights()
+      : requestInsightsOverride[0]
+
+  if (!spanRecorderForTest && !requestInsights) {
     return
   }
 
@@ -63,10 +90,8 @@ export function recordSpan(record: Omit<SpanStoreRecord, 'timestamp'>): void {
 
   spanRecorderForTest?.(spanRecord)
 
-  if (isRequestInsightsEnabled() && spanRecord.requestId) {
-    const { recordRequestInsightSpan } =
-      require('./request-insights') as typeof import('./request-insights')
-    recordRequestInsightSpan(spanRecord)
+  if (requestInsights && spanRecord.requestId) {
+    requestInsights.recordSpan(spanRecord)
   }
 }
 
@@ -85,16 +110,10 @@ export function isLocalSpanRecordingEnabled(): boolean {
 }
 
 export function isRequestInsightsEnabled(): boolean {
-  if (!process.env.__NEXT_DEV_SERVER) {
-    return false
-  }
-
-  const value = process.env.__NEXT_REQUEST_INSIGHTS
-  return isEnabledEnvValue(value)
-}
-
-function isEnabledEnvValue(value: string | undefined): boolean {
-  return value === '1' || value === 'true' || (value as unknown) === true
+  return (
+    getSpanStoreRequestInsightsRuntime()?.isRequestInsightsRuntimeActive() ??
+    false
+  )
 }
 
 function getCurrentTimestamp(): number {

@@ -226,15 +226,6 @@ export default class NextNodeServer extends BaseServer<
     if (this.renderOpts.nextScriptWorkers) {
       process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
     }
-    if (
-      (isDev || process.env.__NEXT_DEV_SERVER) &&
-      this.nextConfig.experimental.requestInsights
-    ) {
-      process.env.__NEXT_REQUEST_INSIGHTS = 'true'
-    } else {
-      delete process.env.__NEXT_REQUEST_INSIGHTS
-    }
-
     if (!this.minimalMode) {
       this.imageResponseCache = new ResponseCache(this.minimalMode)
     }
@@ -2181,6 +2172,9 @@ export default class NextNodeServer extends BaseServer<
   }
 
   async close(): Promise<void> {
+    if (this.ownsRequestInsights) {
+      this.requestInsights?.dispose()
+    }
     await this.cleanupListeners.runAll()
   }
 

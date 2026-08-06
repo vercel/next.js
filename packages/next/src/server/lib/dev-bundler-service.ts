@@ -9,7 +9,7 @@ import {
   type HmrMessageSentToBrowser,
   type NextJsHotReloaderInterface,
 } from '../dev/hot-reloader-types'
-import { subscribeRequestInsights } from './trace/request-insights'
+import type { RequestInsights } from './trace/request-insights'
 
 /**
  * The DevBundlerService provides an interface to perform tasks with the
@@ -25,7 +25,7 @@ export class DevBundlerService {
   constructor(
     private readonly bundler: DevBundler,
     private readonly handler: WorkerRequestHandler,
-    requestInsightsEnabled: boolean
+    public readonly requestInsights: RequestInsights | undefined
   ) {
     this.appIsrManifestInner = new LRUCache(
       8_000,
@@ -42,8 +42,8 @@ export class DevBundlerService {
       hotReloader.setReactDebugChannel.bind(hotReloader)
     this.sendErrorsToBrowser = hotReloader.sendErrorsToBrowser.bind(hotReloader)
 
-    if (requestInsightsEnabled) {
-      this.unsubscribeRequestInsights = subscribeRequestInsights((insight) => {
+    if (requestInsights) {
+      this.unsubscribeRequestInsights = requestInsights.subscribe((insight) => {
         hotReloader.send({
           type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE,
           insight,

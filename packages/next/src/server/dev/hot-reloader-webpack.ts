@@ -113,6 +113,7 @@ import { recordMcpTelemetry } from '../mcp/mcp-telemetry-tracker'
 import { getFileLogger } from './browser-logs/file-logger'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
 import type { Lockfile } from '../../build/lockfile'
+import type { RequestInsights } from '../lib/trace/request-insights'
 import {
   sendSerializedErrorsToClient,
   sendSerializedErrorsToClientForHtmlRequest,
@@ -255,6 +256,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private telemetry: Telemetry
   private resetFetch: () => void
   private lockfile: Lockfile | undefined
+  private getRequestInsights: () => RequestInsights | undefined
   private versionInfo: VersionInfo = {
     staleness: 'unknown',
     installed: '0.0.0',
@@ -287,6 +289,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       resetFetch,
       lockfile,
       onDevServerCleanup,
+      getRequestInsights,
     }: {
       config: NextConfigComplete
       isSrcDir: boolean
@@ -301,6 +304,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       resetFetch: () => void
       lockfile: Lockfile | undefined
       onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
+      getRequestInsights: () => RequestInsights | undefined
     }
   ) {
     this.hasAppRouterEntrypoints = false
@@ -320,6 +324,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.telemetry = telemetry
     this.resetFetch = resetFetch
     this.lockfile = lockfile
+    this.getRequestInsights = getRequestInsights
 
     this.config = config
     this.previewProps = previewProps
@@ -1614,7 +1619,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       this.versionInfo,
       this.devtoolsFrontendUrl,
       this.config,
-      initialDevToolsConfig
+      initialDevToolsConfig,
+      () => this.getRequestInsights()?.getSnapshot()
     )
 
     let booted = false
@@ -1695,6 +1701,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               getActiveConnectionCount: () =>
                 this.webpackHotMiddleware?.getClientCount() ?? 0,
               getDevServerUrl: () => process.env.__NEXT_PRIVATE_ORIGIN,
+              getRequestInsights: this.getRequestInsights,
               // compile_route is Turbopack-only; intentionally omitted here.
             }),
           ]

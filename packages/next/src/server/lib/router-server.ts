@@ -69,17 +69,45 @@ import {
 } from './chrome-devtools-workspace'
 import { getNextConfigRuntime, type NextConfigComplete } from '../config-shared'
 import {
-  getRequestInsightsSnapshot,
-  isRequestInsightsEnabled,
-  recordRequestInsightSource,
-} from './trace/request-insights'
-import {
   NEXT_HTML_REQUEST_ID_HEADER,
   NEXT_REQUEST_ID_HEADER,
 } from '../../client/components/app-router-headers'
 import { nanoid } from 'next/dist/compiled/nanoid'
 import { filterInvalidDevRequestIdHeaders } from './dev-request-id'
-import { resolveRequestInsightsIdentity } from './trace/request-insights-identity'
+
+type RouterServerRequestInsightsRuntime = {
+  RequestInsights: typeof import('./trace/request-insights').RequestInsights
+  resolveRequestInsightsIdentity: typeof import('./trace/request-insights-identity').resolveRequestInsightsIdentity
+  runWithRequestInsights: typeof import('./trace/request-insights-runtime').runWithRequestInsights
+  runWithRequestInsightsIdentity: typeof import('./trace/request-insights-identity').runWithRequestInsightsIdentity
+}
+
+let routerServerRequestInsightsRuntime:
+  | RouterServerRequestInsightsRuntime
+  | undefined
+
+function getRouterServerRequestInsightsRuntime():
+  | RouterServerRequestInsightsRuntime
+  | undefined {
+  if (process.env.__NEXT_DEV_SERVER) {
+    if (!routerServerRequestInsightsRuntime) {
+      const { RequestInsights } =
+        require('./trace/request-insights') as typeof import('./trace/request-insights')
+      const { resolveRequestInsightsIdentity, runWithRequestInsightsIdentity } =
+        require('./trace/request-insights-identity') as typeof import('./trace/request-insights-identity')
+      const { runWithRequestInsights } =
+        require('./trace/request-insights-runtime') as typeof import('./trace/request-insights-runtime')
+      routerServerRequestInsightsRuntime = {
+        RequestInsights,
+        resolveRequestInsightsIdentity,
+        runWithRequestInsights,
+        runWithRequestInsightsIdentity,
+      }
+    }
+    return routerServerRequestInsightsRuntime
+  }
+  return undefined
+}
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -153,6 +181,11 @@ export async function initialize(opts: {
   })
 
   const renderServer: LazyRenderServerInstance = {}
+  const requestInsightsRuntime = getRouterServerRequestInsightsRuntime()
+  const requestInsights =
+    requestInsightsRuntime && opts.dev && config.experimental.requestInsights
+      ? new requestInsightsRuntime.RequestInsights()
+      : undefined
 
   let development:
     | {
@@ -227,6 +260,7 @@ export async function initialize(opts: {
         onDevServerCleanup: opts.onDevServerCleanup,
         resetFetch,
         serverFastRefresh: effectiveServerFastRefresh,
+        getRequestInsights: () => requestInsights,
       })
     )
 
@@ -237,7 +271,7 @@ export async function initialize(opts: {
       (req, res) => {
         return requestHandlers[opts.dir](req, res)
       },
-      Boolean(developmentConfig.experimental.requestInsights)
+      requestInsights
     )
 
     development = {
@@ -252,31 +286,8 @@ export async function initialize(opts: {
   renderServer.instance =
     require('./render-server') as typeof import('./render-server')
 
-  const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
-    addRequestMeta(req, 'relativeProjectDir', relativeProjectDir)
-
-    // internal headers should not be honored by the request handler
-    if (!process.env.NEXT_PRIVATE_TEST_HEADERS) {
-      filterInternalHeaders(req.headers)
-    }
-
-    if (opts.dev) {
-      filterInvalidDevRequestIdHeaders(req.headers)
-    }
-
+  const requestHandlerImplInner: WorkerRequestHandler = async (req, res) => {
     if (opts.dev && req.url) {
-      if (config.experimental.requestInsights) {
-        process.env.__NEXT_REQUEST_INSIGHTS = 'true'
-        const identity = resolveRequestInsightsIdentity({
-          previousIdentity: getRequestMeta(req, 'requestInsightsIdentity'),
-          requestIdHeader: req.headers[NEXT_REQUEST_ID_HEADER],
-          htmlRequestIdHeader: req.headers[NEXT_HTML_REQUEST_ID_HEADER],
-          url: req.url,
-          createRequestId: nanoid,
-        })
-        addRequestMeta(req, 'requestInsightsIdentity', identity)
-      }
-
       const urlParts = req.url.split('?', 1)
       const pathname = removePathPrefix(urlParts[0] || '', config.basePath)
 
@@ -294,10 +305,7 @@ export async function initialize(opts: {
         }
 
         res.setHeader('Content-Type', 'application/json; charset=utf-8')
-        if (
-          !config.experimental.requestInsights &&
-          !isRequestInsightsEnabled()
-        ) {
+        if (!requestInsights) {
           res.statusCode = 404
           res.end(
             JSON.stringify({
@@ -309,7 +317,7 @@ export async function initialize(opts: {
         }
 
         res.statusCode = 200
-        res.end(JSON.stringify(getRequestInsightsSnapshot()))
+        res.end(JSON.stringify(requestInsights.getSnapshot()))
         return
       }
     }
@@ -639,13 +647,13 @@ export async function initialize(opts: {
         }
 
         try {
-          if (config.experimental.requestInsights) {
+          if (requestInsights) {
             const requestInsightsIdentity = getRequestMeta(
               req,
               'requestInsightsIdentity'
             )
             if (requestInsightsIdentity) {
-              recordRequestInsightSource(requestInsightsIdentity, 'asset')
+              requestInsights.recordSource(requestInsightsIdentity, 'asset')
             }
           }
           return await serveStatic(req, res, matchedOutput.itemPath, {
@@ -836,6 +844,47 @@ export async function initialize(opts: {
     }
   }
 
+  const requestHandlerImpl: WorkerRequestHandler = (req, res) => {
+    addRequestMeta(req, 'relativeProjectDir', relativeProjectDir)
+
+    // Internal and invalid debug headers must be removed before they can be
+    // considered while creating the server-owned request identity.
+    if (!process.env.NEXT_PRIVATE_TEST_HEADERS) {
+      filterInternalHeaders(req.headers)
+    }
+    if (opts.dev) {
+      filterInvalidDevRequestIdHeaders(req.headers)
+    }
+
+    const handleRequest = () => requestHandlerImplInner(req, res)
+    if (!requestInsights || !requestInsightsRuntime) {
+      return requestInsightsRuntime
+        ? requestInsightsRuntime.runWithRequestInsights(undefined, () =>
+            requestInsightsRuntime.runWithRequestInsightsIdentity(
+              undefined,
+              handleRequest
+            )
+          )
+        : handleRequest()
+    }
+
+    const identity = requestInsightsRuntime.resolveRequestInsightsIdentity({
+      previousIdentity: getRequestMeta(req, 'requestInsightsIdentity'),
+      requestIdHeader: req.headers[NEXT_REQUEST_ID_HEADER],
+      htmlRequestIdHeader: req.headers[NEXT_HTML_REQUEST_ID_HEADER],
+      url: req.url,
+      createRequestId: nanoid,
+    })
+    addRequestMeta(req, 'requestInsightsIdentity', identity)
+
+    return requestInsightsRuntime.runWithRequestInsights(requestInsights, () =>
+      requestInsightsRuntime.runWithRequestInsightsIdentity(
+        identity,
+        handleRequest
+      )
+    )
+  }
+
   let requestHandler: WorkerRequestHandler = requestHandlerImpl
   if (config.experimental.testProxy) {
     // Intercept fetch and other testmode apis.
@@ -865,6 +914,10 @@ export async function initialize(opts: {
     experimentalTestProxy: !!config.experimental.testProxy,
     experimentalHttpsServer: !!opts.experimentalHttpsServer,
     bundlerService: development?.service,
+    requestInsights,
+    // The render server has a non-optional close lifecycle, including for
+    // direct router initialization where no dev cleanup registrar is supplied.
+    requestInsightsOwner: requestInsights !== undefined,
     startServerSpan: opts.startServerSpan,
     quiet: opts.quiet,
     onDevServerCleanup: opts.onDevServerCleanup,

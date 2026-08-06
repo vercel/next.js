@@ -16,6 +16,8 @@ import {
   type WorkStore,
 } from '../../app-render/work-async-storage.external'
 import { filterInvalidDevRequestIdHeaders } from '../dev-request-id'
+import { RequestInsights } from './request-insights'
+import { runWithRequestInsights } from './request-insights-runtime'
 
 const originalDevServer = process.env.__NEXT_DEV_SERVER
 const spanRecords: SpanStoreRecord[] = []
@@ -71,6 +73,78 @@ describe('local recording span', () => {
         },
       }),
     ])
+  })
+
+  it('records on the controller captured when a span started after its scope exits', () => {
+    setSpanRecorderForTest(undefined)
+    const requestInsights = new RequestInsights()
+
+    try {
+      const span = runWithRequestInsights(requestInsights, () =>
+        runWithRequestInsightsIdentity(
+          { requestId: 'late-request', url: '/late' },
+          () => createLocalSpan({ name: 'late span' })
+        )
+      )
+
+      span.end()
+
+      expect(requestInsights.getSnapshot().requests).toEqual([
+        expect.objectContaining({
+          requestId: 'late-request',
+          url: '/late',
+          spans: [expect.objectContaining({ name: 'late span' })],
+        }),
+      ])
+    } finally {
+      requestInsights.dispose()
+    }
+  })
+
+  it('keeps a late span on its captured controller while another is active', () => {
+    setSpanRecorderForTest(undefined)
+    const first = new RequestInsights()
+    const second = new RequestInsights()
+
+    try {
+      const span = runWithRequestInsights(first, () =>
+        runWithRequestInsightsIdentity(
+          { requestId: 'first-request', url: '/first' },
+          () => createLocalSpan({ name: 'first late span' })
+        )
+      )
+
+      runWithRequestInsights(second, () => span.end())
+
+      expect(first.getSnapshot().requests).toEqual([
+        expect.objectContaining({
+          requestId: 'first-request',
+          spans: [expect.objectContaining({ name: 'first late span' })],
+        }),
+      ])
+      expect(second.getSnapshot()).toEqual({ requests: [] })
+    } finally {
+      first.dispose()
+      second.dispose()
+    }
+  })
+
+  it('does not fall back to the active controller when none was captured', () => {
+    setSpanRecorderForTest(undefined)
+    const requestInsights = new RequestInsights()
+
+    try {
+      const span = runWithRequestInsightsIdentity(
+        { requestId: 'unowned-request', url: '/unowned' },
+        () => createLocalSpan({ name: 'unowned late span' })
+      )
+
+      runWithRequestInsights(requestInsights, () => span.end())
+
+      expect(requestInsights.getSnapshot()).toEqual({ requests: [] })
+    } finally {
+      requestInsights.dispose()
+    }
   })
 
   it('keeps browser debug IDs separate from server-owned storage IDs', () => {

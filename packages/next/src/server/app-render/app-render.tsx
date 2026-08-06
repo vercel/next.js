@@ -111,14 +111,8 @@ import {
 import { isRedirectError } from '../../client/components/redirect-error'
 import { getImplicitTags, type ImplicitTags } from '../lib/implicit-tags'
 import { AppRenderSpan, NextNodeServerSpan } from '../lib/trace/constants'
-import {
-  getRequestInsightsIdentity,
-  runWithRequestInsightsIdentity,
-} from '../lib/trace/request-insights-identity'
-import { getRequestInsightRouterActivity } from '../lib/trace/request-insights-router-activity'
 import { getTracer, SpanStatusCode } from '../lib/trace/tracer'
 import { traceLocalSpan } from '../lib/trace/local-span-recorder'
-import { isRequestInsightsEnabled } from '../lib/trace/request-insights'
 import { FlightRenderResult } from './flight-render-result'
 import {
   createReactServerErrorHandler,
@@ -337,6 +331,43 @@ import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolv
 import { RENDER_STAGES_BY_DATA_KIND } from '../dynamic-rendering-utils'
 import type { StageEndTimes } from './instant-validation/instant-validation'
 import { hasNonRootStaticParams } from '../lib/params-utils'
+
+type AppRenderRequestInsightsRuntime = {
+  getActiveRequestInsights: typeof import('../lib/trace/request-insights-runtime').getActiveRequestInsights
+  getRequestInsightsIdentity: typeof import('../lib/trace/request-insights-identity').getRequestInsightsIdentity
+  getRequestInsightRouterActivity: typeof import('../lib/trace/request-insights-router-activity').getRequestInsightRouterActivity
+  isRequestInsightsEnabled: typeof import('../lib/trace/span-store').isRequestInsightsEnabled
+  runWithRequestInsightsIdentity: typeof import('../lib/trace/request-insights-identity').runWithRequestInsightsIdentity
+}
+
+let appRenderRequestInsightsRuntime: AppRenderRequestInsightsRuntime | undefined
+
+function getAppRenderRequestInsightsRuntime():
+  | AppRenderRequestInsightsRuntime
+  | undefined {
+  if (process.env.__NEXT_DEV_SERVER) {
+    if (!appRenderRequestInsightsRuntime) {
+      const { getRequestInsightsIdentity, runWithRequestInsightsIdentity } =
+        require('../lib/trace/request-insights-identity') as typeof import('../lib/trace/request-insights-identity')
+      const { getRequestInsightRouterActivity } =
+        require('../lib/trace/request-insights-router-activity') as typeof import('../lib/trace/request-insights-router-activity')
+      const { getActiveRequestInsights } =
+        require('../lib/trace/request-insights-runtime') as typeof import('../lib/trace/request-insights-runtime')
+      const { isRequestInsightsEnabled } =
+        require('../lib/trace/span-store') as typeof import('../lib/trace/span-store')
+
+      appRenderRequestInsightsRuntime = {
+        getActiveRequestInsights,
+        getRequestInsightsIdentity,
+        getRequestInsightRouterActivity,
+        isRequestInsightsEnabled,
+        runWithRequestInsightsIdentity,
+      }
+    }
+    return appRenderRequestInsightsRuntime
+  }
+  return undefined
+}
 
 export type GetDynamicParamFromSegment = (
   // The LoaderTree to extract the dynamic param from
@@ -2756,19 +2787,21 @@ async function prepareAppPageRender(
 
   let requestId: string
   let htmlRequestId: string
-  const requestInsightsIdentity = process.env.__NEXT_REQUEST_INSIGHTS
-    ? getRequestInsightsIdentity()
-    : undefined
+  const requestInsightsRuntime = getAppRenderRequestInsightsRuntime()
+  const requestInsightsIdentity =
+    requestInsightsRuntime?.isRequestInsightsEnabled()
+      ? requestInsightsRuntime.getRequestInsightsIdentity()
+      : undefined
 
   const { flightRouterState, isPrefetchRequest, nonce } = parsedRequestHeaders
 
   const routerActivity = requestInsightsIdentity
-    ? getRequestInsightRouterActivity(req.headers)
+    ? requestInsightsRuntime?.getRequestInsightRouterActivity(req.headers)
     : undefined
-  if (requestInsightsIdentity && routerActivity) {
-    const { recordRequestInsightRouterActivity } =
-      require('../lib/trace/request-insights') as typeof import('../lib/trace/request-insights')
-    recordRequestInsightRouterActivity(requestInsightsIdentity, routerActivity)
+  if (requestInsightsIdentity && routerActivity && requestInsightsRuntime) {
+    requestInsightsRuntime
+      .getActiveRequestInsights()
+      ?.recordRouterActivity(requestInsightsIdentity, routerActivity)
   }
 
   if (requestInsightsIdentity?.debugRequestId) {
@@ -4944,13 +4977,16 @@ async function runInstantInsightsWithTracing<T>(
   ctx: AppRenderContext,
   fn: (runSpan: RunInstantInsightsSpan) => Promise<T>
 ): Promise<T> {
-  if (!isRequestInsightsEnabled()) {
+  const requestInsightsRuntime = getAppRenderRequestInsightsRuntime()
+  if (!requestInsightsRuntime?.isRequestInsightsEnabled()) {
     return fn(runWithoutInstantInsightsSpan)
   }
 
-  return runWithRequestInsightsIdentity(
+  return requestInsightsRuntime.runWithRequestInsightsIdentity(
     {
-      requestId: getRequestInsightsIdentity()?.requestId ?? ctx.requestId,
+      requestId:
+        requestInsightsRuntime.getRequestInsightsIdentity()?.requestId ??
+        ctx.requestId,
       kind: 'instant-insights',
       htmlRequestId: ctx.htmlRequestId,
       url: ctx.url.href,

@@ -102,6 +102,7 @@ import {
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
 import { Lockfile, type DevServerInfo } from '../../../build/lockfile'
 import { deobfuscateText } from '../../../shared/lib/magic-identifier'
+import type { RequestInsights } from '../trace/request-insights'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -119,6 +120,7 @@ export type SetupOpts = {
   onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
   resetFetch: () => void
   serverFastRefresh?: boolean
+  getRequestInsights: () => RequestInsights | undefined
 }
 
 export interface DevRoutesManifest {
@@ -272,6 +274,7 @@ async function startWatcher(
           resetFetch,
           lockfile,
           onDevServerCleanup: opts.onDevServerCleanup,
+          getRequestInsights: opts.getRequestInsights,
         })
       })()
 
