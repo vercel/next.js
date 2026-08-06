@@ -7,7 +7,10 @@ import {
   getUtf8ByteLength,
   stringifyTerminalSafeJson,
 } from '../../../packages/next/src/next-devtools/shared/terminal-safe-json'
-import { serializeSnapshotForOutput } from '../../../packages/next/src/cli/next-request-insights'
+import {
+  projectSnapshotToLogicalGroups,
+  serializeSnapshotForOutput,
+} from '../../../packages/next/src/cli/next-request-insights'
 
 function createRequest(
   requestId: string,
@@ -27,6 +30,32 @@ function createRequest(
 }
 
 describe('next experimental-request-insights serialization', () => {
+  it('limits complete newest logical root groups', () => {
+    const oldestRoot = createRequest('oldest')
+    const oldestChild = createRequest('oldest-child', {
+      rootRequestId: oldestRoot.requestId,
+    })
+    const newestRoot = createRequest('newest')
+    const newestChild = createRequest('newest-child', {
+      rootRequestId: newestRoot.requestId,
+      kind: 'instant-insights',
+    })
+
+    const projected = projectSnapshotToLogicalGroups(
+      {
+        requests: [oldestRoot, oldestChild, newestRoot, newestChild],
+      },
+      1
+    )
+
+    expect(projected.requests).toEqual([newestRoot, newestChild])
+    expect(projected.projection?.omittedRequestGroupCount).toBe(1)
+
+    const reprojected = projectSnapshotToLogicalGroups(projected, 1)
+    expect(reprojected.requests).toEqual(projected.requests)
+    expect(reprojected.projection).toEqual(projected.projection)
+  })
+
   it('falls back to compact JSON for a bounded near-cap snapshot', () => {
     const sources: RequestInsight['source'][] = [
       'page',

@@ -7,9 +7,14 @@ import type {
   RequestInsightsCaptureState,
   RequestInsightsSnapshot,
 } from '../next-devtools/shared/request-insights'
-import { getRequestInsightKind } from '../next-devtools/shared/request-insights'
 import {
+  createBoundedRequestInsightsSnapshotProjection,
+  getRequestInsightKind,
+  getRequestInsightRootId,
+  REQUEST_INSIGHT_RETENTION_BUCKETS,
+  REQUEST_INSIGHTS_ID_PATTERN,
   REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET,
+  REQUEST_INSIGHTS_MAX_ID_LENGTH,
   REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES,
   REQUEST_INSIGHTS_MIN_GROUPS_PER_RETENTION_BUCKET,
 } from '../next-devtools/shared/request-insights'
@@ -31,7 +36,6 @@ const DEFAULT_FETCH_LIMIT = 5
 const DEV_SERVER_DISCOVERY_TIMEOUT_MS = 1000
 const DEV_SERVER_DISCOVERY_RETRY_MS = 50
 const MAX_DEV_SERVER_URL_LENGTH = 2048
-const MAX_REQUEST_INSIGHT_ID_LENGTH = 128
 const MAX_REQUEST_INSIGHT_ROUTE_LENGTH = 1024
 const MAX_REQUEST_INSIGHT_URL_LENGTH = 2048
 const MAX_REQUEST_INSIGHT_LABEL_LENGTH = 256
@@ -40,6 +44,8 @@ export type NextRequestInsightsOptions = {
   url?: string
   json?: boolean
   limit?: number
+  requestId?: string
+  htmlRequestId?: string
   captureGroupsPerType?: number
   clear?: boolean
 }
@@ -48,6 +54,7 @@ export async function nextRequestInsights(
   options: NextRequestInsightsOptions,
   directory?: string
 ) {
+  const query = getSnapshotQuery(options)
   const devServerUrl = options.url
     ? parseDevServerUrl(options.url)
     : await discoverDevServerUrl(directory)
@@ -108,6 +115,13 @@ export async function nextRequestInsights(
   }
 
   const endpoint = new URL(REQUEST_INSIGHTS_DEV_ENDPOINT, devServerUrl)
+  endpoint.searchParams.set('limit', String(query.limit))
+  if (query.requestId !== undefined) {
+    endpoint.searchParams.set('requestId', query.requestId)
+  }
+  if (query.htmlRequestId !== undefined) {
+    endpoint.searchParams.set('htmlRequestId', query.htmlRequestId)
+  }
 
   const response = await fetch(endpoint).catch((error) => {
     exitWithRequestError(endpoint, error)
@@ -124,7 +138,8 @@ export async function nextRequestInsights(
     )
   }
 
-  const serialized = serializeSnapshotForOutput(data, options.json ? 2 : 0)
+  const snapshot = projectSnapshotToLogicalGroups(data, query.limit)
+  const serialized = serializeSnapshotForOutput(snapshot, options.json ? 2 : 0)
   if (options.json) {
     console.log(serialized)
     return
@@ -137,19 +152,20 @@ export async function nextRequestInsights(
     )
   }
 
-  const requests = data.requests
+  const requests = snapshot.requests
   if (requests.length === 0) {
     console.log('No request insights captured yet.')
     return
   }
 
-  const limit = options.limit ?? DEFAULT_REQUEST_LIMIT
-  const visibleRequests = requests.slice(-limit).reverse()
+  const visibleGroups = groupRequests(requests).reverse()
+  const totalGroupCount =
+    visibleGroups.length + (snapshot.projection?.omittedRequestGroupCount ?? 0)
   console.log(
-    `Showing ${visibleRequests.length} of ${requests.length} retained requests (newest first).`
+    `Showing ${visibleGroups.length} of ${totalGroupCount} retained logical request groups (newest first).`
   )
 
-  for (const request of visibleRequests) {
+  for (const request of visibleGroups.flat()) {
     const route = escapeTerminalText(
       request.route ?? request.url ?? request.requestId
     )
@@ -175,6 +191,72 @@ export async function nextRequestInsights(
       )
     }
   }
+}
+
+function getSnapshotQuery(options: NextRequestInsightsOptions): {
+  limit: number
+  requestId?: string
+  htmlRequestId?: string
+} {
+  const limit = options.limit ?? DEFAULT_REQUEST_LIMIT
+  if (
+    !Number.isSafeInteger(limit) ||
+    limit < 1 ||
+    limit > REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET
+  ) {
+    return exitWithError(
+      `Invalid request limit ${limit}. Pass an integer from 1 to ${REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET}.`
+    )
+  }
+
+  validateSnapshotId(options.requestId, 'request ID')
+  validateSnapshotId(options.htmlRequestId, 'HTML request ID')
+  return {
+    limit,
+    requestId: options.requestId,
+    htmlRequestId: options.htmlRequestId,
+  }
+}
+
+function validateSnapshotId(value: string | undefined, label: string): void {
+  if (
+    value !== undefined &&
+    (value.length === 0 ||
+      value.length > REQUEST_INSIGHTS_MAX_ID_LENGTH ||
+      !REQUEST_INSIGHTS_ID_PATTERN.test(value))
+  ) {
+    exitWithError(
+      `Invalid ${label}. Pass 1 to ${REQUEST_INSIGHTS_MAX_ID_LENGTH} letters, numbers, periods, underscores, colons, or hyphens.`
+    )
+  }
+}
+
+export function projectSnapshotToLogicalGroups(
+  snapshot: RequestInsightsSnapshot,
+  limit: number
+): RequestInsightsSnapshot {
+  return createBoundedRequestInsightsSnapshotProjection(
+    groupRequests(snapshot.requests),
+    REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES,
+    snapshot.capture,
+    limit,
+    undefined,
+    snapshot.projection
+  ).snapshot
+}
+
+function groupRequests(requests: readonly RequestInsight[]) {
+  const groupsByRootId = new Map<string, RequestInsight[]>()
+  for (const request of requests) {
+    const rootRequestId = getRequestInsightRootId(request)
+    const group = groupsByRootId.get(rootRequestId)
+    if (group) {
+      group.push(request)
+    } else {
+      groupsByRootId.set(rootRequestId, [request])
+    }
+  }
+  return Array.from(groupsByRootId.values())
 }
 
 async function readJsonResponse(response: Response, endpoint: URL) {
@@ -281,8 +363,44 @@ function isRequestInsightsSnapshot(
     Array.isArray(candidate.requests) &&
     candidate.requests.every(isRequestInsight) &&
     (candidate.capture === undefined ||
-      isRequestInsightsCaptureState(candidate.capture))
+      isRequestInsightsCaptureState(candidate.capture)) &&
+    (candidate.projection === undefined ||
+      isRequestInsightsProjection(candidate.projection))
   )
+}
+
+function isRequestInsightsProjection(
+  projection: unknown
+): projection is NonNullable<RequestInsightsSnapshot['projection']> {
+  if (typeof projection !== 'object' || projection === null) return false
+  const candidate = projection as NonNullable<
+    RequestInsightsSnapshot['projection']
+  >
+  if (
+    !isNonNegativeSafeInteger(candidate.omittedRequestGroupCount) ||
+    !Array.isArray(candidate.buckets) ||
+    candidate.buckets.length > REQUEST_INSIGHT_RETENTION_BUCKETS.length
+  ) {
+    return false
+  }
+
+  const seenBuckets = new Set<string>()
+  let omittedRequestGroupCount = 0
+  for (const bucket of candidate.buckets) {
+    if (
+      typeof bucket !== 'object' ||
+      bucket === null ||
+      !REQUEST_INSIGHT_RETENTION_BUCKETS.includes(bucket.bucket) ||
+      seenBuckets.has(bucket.bucket) ||
+      !isNonNegativeSafeInteger(bucket.omittedRequestGroupCount)
+    ) {
+      return false
+    }
+    seenBuckets.add(bucket.bucket)
+    omittedRequestGroupCount += bucket.omittedRequestGroupCount
+    if (!Number.isSafeInteger(omittedRequestGroupCount)) return false
+  }
+  return omittedRequestGroupCount === candidate.omittedRequestGroupCount
 }
 
 function isRequestInsightsCaptureState(
@@ -301,11 +419,11 @@ function isRequestInsight(request: unknown): request is RequestInsight {
   if (typeof request !== 'object' || request === null) return false
   const candidate = request as Partial<RequestInsight>
   return (
-    isBoundedString(candidate.requestId, MAX_REQUEST_INSIGHT_ID_LENGTH) &&
-    isBoundedString(candidate.htmlRequestId, MAX_REQUEST_INSIGHT_ID_LENGTH) &&
+    isBoundedString(candidate.requestId, REQUEST_INSIGHTS_MAX_ID_LENGTH) &&
+    isBoundedString(candidate.htmlRequestId, REQUEST_INSIGHTS_MAX_ID_LENGTH) &&
     isOptionalBoundedString(
       candidate.rootRequestId,
-      MAX_REQUEST_INSIGHT_ID_LENGTH
+      REQUEST_INSIGHTS_MAX_ID_LENGTH
     ) &&
     isRequestInsightSource(candidate.source) &&
     (candidate.kind === undefined ||
@@ -375,6 +493,10 @@ function isOptionalFiniteNumber(value: unknown): value is number | undefined {
   return (
     value === undefined || (typeof value === 'number' && Number.isFinite(value))
   )
+}
+
+function isNonNegativeSafeInteger(value: unknown): value is number {
+  return Number.isSafeInteger(value) && (value as number) >= 0
 }
 
 function formatEndpoint(endpoint: URL): string {

@@ -78,6 +78,9 @@ import { filterInvalidDevRequestIdHeaders } from './dev-request-id'
 
 type RouterServerRequestInsightsRuntime = {
   RequestInsights: typeof import('./trace/request-insights').RequestInsights
+  REQUEST_INSIGHTS_ID_PATTERN: typeof import('./trace/request-insights').REQUEST_INSIGHTS_ID_PATTERN
+  REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET: typeof import('./trace/request-insights').REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET
+  REQUEST_INSIGHTS_MAX_ID_LENGTH: typeof import('./trace/request-insights').REQUEST_INSIGHTS_MAX_ID_LENGTH
   resolveRequestInsightsIdentity: typeof import('./trace/request-insights-identity').resolveRequestInsightsIdentity
   runWithRequestInsights: typeof import('./trace/request-insights-runtime').runWithRequestInsights
   runWithRequestInsightsIdentity: typeof import('./trace/request-insights-identity').runWithRequestInsightsIdentity
@@ -92,7 +95,12 @@ function getRouterServerRequestInsightsRuntime():
   | undefined {
   if (process.env.__NEXT_DEV_SERVER) {
     if (!routerServerRequestInsightsRuntime) {
-      const { RequestInsights } =
+      const {
+        RequestInsights,
+        REQUEST_INSIGHTS_ID_PATTERN,
+        REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET,
+        REQUEST_INSIGHTS_MAX_ID_LENGTH,
+      } =
         require('./trace/request-insights') as typeof import('./trace/request-insights')
       const { resolveRequestInsightsIdentity, runWithRequestInsightsIdentity } =
         require('./trace/request-insights-identity') as typeof import('./trace/request-insights-identity')
@@ -100,6 +108,9 @@ function getRouterServerRequestInsightsRuntime():
         require('./trace/request-insights-runtime') as typeof import('./trace/request-insights-runtime')
       routerServerRequestInsightsRuntime = {
         RequestInsights,
+        REQUEST_INSIGHTS_ID_PATTERN,
+        REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET,
+        REQUEST_INSIGHTS_MAX_ID_LENGTH,
         resolveRequestInsightsIdentity,
         runWithRequestInsights,
         runWithRequestInsightsIdentity,
@@ -321,6 +332,9 @@ export async function initialize(opts: {
           )
           return
         }
+        if (!requestInsightsRuntime) {
+          throw new Error('Invariant: missing Request Insights runtime')
+        }
 
         if (pathname === REQUEST_INSIGHTS_CLEAR_DEV_ENDPOINT) {
           if (req.method !== 'POST') {
@@ -334,7 +348,12 @@ export async function initialize(opts: {
             return
           }
           requestInsights.clear()
-        } else if (req.method !== 'GET') {
+          res.statusCode = 200
+          res.end(JSON.stringify(requestInsights.getSnapshot()))
+          return
+        }
+
+        if (req.method !== 'GET') {
           res.statusCode = 405
           res.setHeader('Allow', 'GET')
           res.end(
@@ -345,8 +364,59 @@ export async function initialize(opts: {
           return
         }
 
+        const requestInsightsUrl = new URL(req.url, 'http://n')
+        const rawLimit = requestInsightsUrl.searchParams.get('limit')
+        let limit: number | undefined
+        if (rawLimit !== null) {
+          limit = Number(rawLimit)
+          if (
+            !/^\d+$/.test(rawLimit) ||
+            !Number.isSafeInteger(limit) ||
+            limit < 1 ||
+            limit >
+              requestInsightsRuntime.REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET
+          ) {
+            res.statusCode = 400
+            res.end(
+              JSON.stringify({
+                error: `Invalid Request Insights limit. Expected an integer from 1 to ${requestInsightsRuntime.REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET}.`,
+              })
+            )
+            return
+          }
+        }
+
+        const requestId =
+          requestInsightsUrl.searchParams.get('requestId') ?? undefined
+        const htmlRequestId =
+          requestInsightsUrl.searchParams.get('htmlRequestId') ?? undefined
+        if (
+          !isValidRequestInsightsQueryId(
+            requestId,
+            requestInsightsRuntime.REQUEST_INSIGHTS_MAX_ID_LENGTH,
+            requestInsightsRuntime.REQUEST_INSIGHTS_ID_PATTERN
+          ) ||
+          !isValidRequestInsightsQueryId(
+            htmlRequestId,
+            requestInsightsRuntime.REQUEST_INSIGHTS_MAX_ID_LENGTH,
+            requestInsightsRuntime.REQUEST_INSIGHTS_ID_PATTERN
+          )
+        ) {
+          res.statusCode = 400
+          res.end(
+            JSON.stringify({
+              error: `Invalid Request Insights identifier. Expected 1 to ${requestInsightsRuntime.REQUEST_INSIGHTS_MAX_ID_LENGTH} letters, numbers, periods, underscores, colons, or hyphens.`,
+            })
+          )
+          return
+        }
+
         res.statusCode = 200
-        res.end(JSON.stringify(requestInsights.getSnapshot()))
+        res.end(
+          JSON.stringify(
+            requestInsights.getSnapshot({ limit, requestId, htmlRequestId })
+          )
+        )
         return
       }
     }
@@ -1137,4 +1207,15 @@ export async function initialize(opts: {
     agentRules: config.agentRules,
     devMemoryThresholdRestart,
   }
+}
+
+function isValidRequestInsightsQueryId(
+  value: string | undefined,
+  maxLength: number,
+  pattern: RegExp
+): boolean {
+  return (
+    value === undefined ||
+    (value.length > 0 && value.length <= maxLength && pattern.test(value))
+  )
 }

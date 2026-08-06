@@ -9,6 +9,7 @@ import {
 
 type RequestInsight = {
   requestId: string
+  rootRequestId?: string
   kind?: 'request' | 'instant-insights'
   source:
     | 'page'
@@ -1697,30 +1698,135 @@ describe('request insights', () => {
     })
   })
 
-  it('uses the development endpoint and reports truncated output', async () => {
+  it('queries complete logical request groups from the CLI in human and JSON output', async () => {
+    const oldestRoot = createRequest(1)
+    const oldestChild = {
+      ...createRequest(2),
+      rootRequestId: oldestRoot.requestId,
+      htmlRequestId: oldestRoot.htmlRequestId,
+    }
+    const newestRoot = createRequest(3)
+    const newestChild = {
+      ...createRequest(4, 7),
+      rootRequestId: newestRoot.requestId,
+      htmlRequestId: newestRoot.htmlRequestId,
+      kind: 'instant-insights' as const,
+    }
     const { result, requestedPaths } = await runWithResponse(
       {
-        requests: [
-          createRequest(1),
-          createRequest(2),
-          { ...createRequest(3, 7), kind: 'instant-insights' },
-        ],
+        requests: [oldestRoot, oldestChild, newestRoot, newestChild],
       },
-      ['--limit', '1']
+      [
+        '--limit',
+        '1',
+        '--request-id',
+        newestChild.requestId,
+        '--html-request-id',
+        newestRoot.htmlRequestId,
+      ]
     )
 
     expect(result.code).toBe(0)
-    expect(requestedPaths).toEqual(['/_next/development/request-insights'])
+    expect(requestedPaths).toEqual([
+      `/_next/development/request-insights?limit=1&requestId=${newestChild.requestId}&htmlRequestId=${newestRoot.htmlRequestId}`,
+    ])
     expect(result.stdout).toContain(
-      'Showing 1 of 3 retained requests (newest first).'
+      'Showing 1 of 2 retained logical request groups (newest first).'
     )
     expect(result.stdout).toContain('/route-3')
-    expect(result.stdout).toContain('Instant Insights · /route-3')
+    expect(result.stdout).toContain('/route-4')
+    expect(result.stdout).toContain('Instant Insights · /route-4')
     expect(result.stdout).toContain('kind instant-insights')
     expect(result.stdout).not.toContain('/route-2')
     expect(result.stdout).toContain('showing first 5 of 7 fetches')
     expect(result.stdout).toContain('https://example.com/fetch-4')
     expect(result.stdout).not.toContain('https://example.com/fetch-5')
+
+    const json = await runWithResponse(
+      {
+        requests: [oldestRoot, oldestChild, newestRoot, newestChild],
+      },
+      ['--json', '--limit', '1']
+    )
+    expect(json.result.code).toBe(0)
+    expect(json.requestedPaths).toEqual([
+      '/_next/development/request-insights?limit=1',
+    ])
+    expect(
+      (JSON.parse(json.result.stdout) as { requests: RequestInsight[] })
+        .requests
+    ).toEqual([newestRoot, newestChild])
+  })
+
+  it('validates bounded CLI snapshot query options before making a request', async () => {
+    for (const args of [
+      ['--limit', '201'],
+      ['--request-id', 'x'.repeat(129)],
+      ['--html-request-id', 'invalid id'],
+    ]) {
+      const result = await next.runCommand([
+        'experimental-request-insights',
+        '--url',
+        'http://127.0.0.1:1',
+        ...args,
+      ])
+      expect(result.code).toBe(1)
+      expect(result.stderr).toMatch(
+        /Invalid (request limit|request ID|HTML request ID)/
+      )
+      expect(result.stderr).not.toContain('Failed to reach')
+    }
+  })
+
+  it('parses bounded snapshot queries at the development endpoint', async () => {
+    await next.fetch('/api/source?query=endpoint')
+
+    const snapshot = (await next
+      .fetch('/_next/development/request-insights')
+      .then((response) => response.json())) as { requests: RequestInsight[] }
+    const request = snapshot.requests.find(
+      (candidate) => candidate.url === '/api/source?query=redacted'
+    )
+    expect(request).toBeDefined()
+
+    const query = new URLSearchParams({
+      limit: '1',
+      requestId: request!.requestId,
+      htmlRequestId: request!.htmlRequestId,
+    })
+    const filteredResponse = await next.fetch(
+      `/_next/development/request-insights?${query}`
+    )
+    expect(filteredResponse.status).toBe(200)
+    const filtered = (await filteredResponse.json()) as {
+      requests: RequestInsight[]
+    }
+    expect(filtered.requests.length).toBeGreaterThan(0)
+    expect(
+      new Set(
+        filtered.requests.map(
+          (candidate) => candidate.rootRequestId ?? candidate.requestId
+        )
+      )
+    ).toEqual(new Set([request!.rootRequestId ?? request!.requestId]))
+
+    for (const invalidQuery of [
+      'limit=201',
+      `requestId=${'x'.repeat(129)}`,
+      'htmlRequestId=invalid%20id',
+    ]) {
+      const response = await next.fetch(
+        `/_next/development/request-insights?${invalidQuery}`
+      )
+      expect(response.status).toBe(400)
+    }
+
+    const clearResponse = await next.fetch(
+      '/_next/development/request-insights/clear?limit=invalid',
+      { method: 'POST' }
+    )
+    expect(clearResponse.status).toBe(200)
+    await expect(clearResponse.json()).resolves.toMatchObject({ requests: [] })
   })
 
   it('updates the bounded capture limit through the CLI and can clear data', async () => {
@@ -1824,7 +1930,11 @@ describe('request insights', () => {
     expect(Buffer.byteLength(JSON.stringify(expansionSnapshot))).toBeLessThan(
       4 * 1024 * 1024
     )
-    const expanded = await runWithResponse(expansionSnapshot, ['--json'])
+    const expanded = await runWithResponse(expansionSnapshot, [
+      '--json',
+      '--limit',
+      '200',
+    ])
     expect(expanded.result.code).toBe(1)
     expect(expanded.result.stderr).toContain(
       'exceeds the terminal-safe 4194304 byte limit'
@@ -1915,6 +2025,16 @@ describe('request insights', () => {
         requests: [{ ...createRequest(1), status: 'ok\u001b]0;unsafe\u0007' }],
       },
       args: [],
+    },
+    {
+      body: {
+        requests: [createRequest(1)],
+        projection: {
+          omittedRequestGroupCount: 2,
+          buckets: [{ bucket: 'page', omittedRequestGroupCount: 1 }],
+        },
+      },
+      args: ['--json'],
     },
     {
       body: {
