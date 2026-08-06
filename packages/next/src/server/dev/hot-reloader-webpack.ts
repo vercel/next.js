@@ -1623,7 +1623,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       this.devtoolsFrontendUrl,
       this.config,
       initialDevToolsConfig,
-      () => this.getRequestInsights()?.getSnapshot()
+      () => this.getRequestInsights()?.getLiveSnapshot()
     )
 
     let booted = false

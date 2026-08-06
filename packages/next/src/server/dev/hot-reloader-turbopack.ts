@@ -146,6 +146,11 @@ import {
   sendSerializedErrorsToClientForHtmlRequest,
   setErrorsRscStreamForHtmlRequest,
 } from './serialized-errors'
+import {
+  isRequestInsightsHmrMessage,
+  isRequestInsightsHmrSocketActive,
+  RequestInsightsHmrClientBuffer,
+} from './request-insights-hmr-backpressure'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -807,8 +812,36 @@ export async function createHotReloaderTurbopack(
   const clientsByHtmlRequestId = new Map<string, ws>()
   const cacheStatusesByHtmlRequestId = new Map<string, ServerCacheStatus>()
   const clientStates = new WeakMap<ws, ClientState>()
+  const requestInsightsClientBuffers = new Map<
+    ws,
+    RequestInsightsHmrClientBuffer
+  >()
+
+  function getRequestInsightsClientBuffer(
+    client: ws
+  ): RequestInsightsHmrClientBuffer | undefined {
+    let buffer = requestInsightsClientBuffers.get(client)
+    if (!buffer && isRequestInsightsHmrSocketActive(client)) {
+      buffer = new RequestInsightsHmrClientBuffer(
+        client,
+        () => opts.getRequestInsights()?.getLiveSnapshot(),
+        () => requestInsightsClientBuffers.delete(client)
+      )
+      requestInsightsClientBuffers.set(client, buffer)
+    }
+    return buffer
+  }
+
+  function deleteRequestInsightsClientBuffer(client: ws): void {
+    requestInsightsClientBuffers.get(client)?.close()
+    requestInsightsClientBuffers.delete(client)
+  }
 
   function sendToClient(client: ws, message: HmrMessageSentToBrowser) {
+    if (isRequestInsightsHmrMessage(message)) {
+      getRequestInsightsClientBuffer(client)?.send(message)
+      return
+    }
     const data =
       typeof message.type === 'number'
         ? createBinaryHmrMessageData(message)
@@ -1445,6 +1478,7 @@ export async function createHotReloaderTurbopack(
             subscription.return?.()
           }
           clientStates.delete(client)
+          deleteRequestInsightsClientBuffer(client)
 
           if (htmlRequestId) {
             clientsByHtmlRequestId.delete(htmlRequestId)
@@ -1599,6 +1633,8 @@ export async function createHotReloaderTurbopack(
         ;(async function () {
           const versionInfo = await getVersionInfoCached()
           const devToolsConfig = await getDevToolsConfig(distDir)
+          if (!isRequestInsightsHmrSocketActive(client)) return
+          const requestInsights = opts.getRequestInsights()?.getLiveSnapshot()
 
           const syncMessage: SyncMessage = {
             type: HMR_MESSAGE_SENT_TO_BROWSER.SYNC,
@@ -1611,15 +1647,30 @@ export async function createHotReloaderTurbopack(
             },
             devIndicator: devIndicatorServerState,
             devToolsConfig,
-            requestInsights: opts.getRequestInsights()?.getSnapshot(),
           }
 
           sendToClient(client, syncMessage)
+          if (requestInsights) {
+            getRequestInsightsClientBuffer(client)?.send({
+              type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_SNAPSHOT,
+              snapshot: requestInsights,
+              authoritative: true,
+            })
+          }
         })()
       })
     },
 
     send(action) {
+      if (isRequestInsightsHmrMessage(action)) {
+        for (const client of [
+          ...clientsWithoutHtmlRequestId,
+          ...clientsByHtmlRequestId.values(),
+        ]) {
+          getRequestInsightsClientBuffer(client)?.send(action)
+        }
+        return
+      }
       const payload = JSON.stringify(action)
 
       for (const client of [
@@ -2000,6 +2051,7 @@ export async function createHotReloaderTurbopack(
         ...clientsWithoutHtmlRequestId,
         ...clientsByHtmlRequestId.values(),
       ]) {
+        deleteRequestInsightsClientBuffer(wsClient)
         // it's okay to not cleanly close these websocket connections, this is dev
         wsClient.terminate()
       }

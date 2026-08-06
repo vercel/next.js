@@ -14,8 +14,8 @@ import type {
 } from '../../next-devtools/dev-overlay/cache-indicator'
 import type { DevToolsConfig } from '../../next-devtools/dev-overlay/shared'
 import type {
-  RequestInsight,
-  RequestInsightsCaptureState,
+  RequestInsightsLiveSnapshot,
+  RequestInsightsLiveUpdate,
   RequestInsightsSnapshot,
 } from '../../next-devtools/shared/request-insights'
 import type { ReactDebugChannelForBrowser } from './debug-channel'
@@ -197,13 +197,19 @@ export interface CacheIndicatorMessage {
 
 export interface RequestInsightsUpdateMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE
-  insight: RequestInsight
-  capture: RequestInsightsCaptureState
+  insight: RequestInsightsLiveUpdate['insight']
+  capture: RequestInsightsLiveUpdate['capture']
+  generation: RequestInsightsLiveUpdate['generation']
+  sequence: RequestInsightsLiveUpdate['sequence']
+  retentionRevision: RequestInsightsLiveUpdate['retentionRevision']
+  requiresResync?: RequestInsightsLiveUpdate['requiresResync']
 }
 
 export interface RequestInsightsSnapshotMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_SNAPSHOT
-  snapshot: RequestInsightsSnapshot
+  snapshot: RequestInsightsLiveSnapshot
+  /** A newly connected client may adopt this snapshot as a new sequence epoch. */
+  authoritative?: boolean
 }
 
 export type HmrMessageSentToBrowser =

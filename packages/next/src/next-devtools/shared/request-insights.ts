@@ -1,4 +1,5 @@
 import {
+  getRequestInsightKey,
   getRequestInsightKind,
   getRequestInsightRootId,
   getRequestInsightRetentionBucket,
@@ -149,9 +150,232 @@ export type RequestInsightsSnapshot = {
   }
 }
 
+/** Ordering metadata used only by the development HMR transport. */
+export type RequestInsightsLiveSnapshot = RequestInsightsSnapshot & {
+  live: {
+    generation: number
+    sequence: number
+    retentionRevision: number
+  }
+}
+
+/** A single ordered Request Insights mutation sent over development HMR. */
+export type RequestInsightsLiveUpdate = {
+  insight: RequestInsight
+  capture: RequestInsightsCaptureState
+  generation: number
+  sequence: number
+  retentionRevision: number
+  requiresResync?: boolean
+}
+
+function isNonNegativeSafeInteger(value: unknown): value is number {
+  return Number.isSafeInteger(value) && (value as number) >= 0
+}
+
+function isRequestInsightsRecord(
+  value: unknown
+): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+export function isRequestInsightsLiveSnapshot(
+  value: unknown
+): value is RequestInsightsLiveSnapshot {
+  if (
+    !isRequestInsightsRecord(value) ||
+    !Array.isArray(value.requests) ||
+    !isRequestInsightsRecord(value.live)
+  ) {
+    return false
+  }
+
+  return (
+    isNonNegativeSafeInteger(value.live.generation) &&
+    isNonNegativeSafeInteger(value.live.sequence) &&
+    isNonNegativeSafeInteger(value.live.retentionRevision)
+  )
+}
+
+export function isRequestInsightsLiveUpdate(
+  value: unknown
+): value is RequestInsightsLiveUpdate {
+  if (
+    !isRequestInsightsRecord(value) ||
+    !isRequestInsightsRecord(value.insight) ||
+    !isRequestInsightsRecord(value.capture) ||
+    !isNonNegativeSafeInteger(value.generation) ||
+    !isNonNegativeSafeInteger(value.sequence) ||
+    !isNonNegativeSafeInteger(value.retentionRevision)
+  ) {
+    return false
+  }
+
+  return (
+    typeof value.insight.requestId === 'string' &&
+    typeof value.insight.htmlRequestId === 'string' &&
+    Array.isArray(value.insight.spans) &&
+    Array.isArray(value.insight.fetches) &&
+    (value.requiresResync === undefined ||
+      typeof value.requiresResync === 'boolean')
+  )
+}
+
 export type BoundedRequestInsightsSnapshotProjection = {
   snapshot: RequestInsightsSnapshot
   snapshotByteLength: number
+}
+
+export type RequestInsightsByteLengthCache = {
+  readonly records: ReadonlyMap<string, number>
+  readonly groups: ReadonlyMap<string, number>
+}
+
+export function createRequestInsightsByteLengthCache(
+  requests: readonly RequestInsight[],
+  recordByteLengths?: ReadonlyMap<string, number>
+): RequestInsightsByteLengthCache {
+  const records = new Map<string, number>()
+  const groups = new Map<string, number>()
+  for (const request of requests) {
+    const requestKey = getRequestInsightKey(request)
+    const byteLength =
+      recordByteLengths?.get(requestKey) ??
+      getRequestInsightsSerializedByteLength(request)
+    records.set(requestKey, byteLength)
+    const rootRequestId = getRequestInsightRootId(request)
+    const groupByteLength = groups.get(rootRequestId)
+    groups.set(
+      rootRequestId,
+      groupByteLength === undefined
+        ? byteLength + 2
+        : groupByteLength + byteLength + 1
+    )
+  }
+  return { records, groups }
+}
+
+export function updateBoundedRequestInsightsProjection(
+  currentRequests: readonly RequestInsight[],
+  currentByteLengths: RequestInsightsByteLengthCache,
+  insight: RequestInsight,
+  capture?: RequestInsightsCaptureState,
+  insightByteLength = getRequestInsightsSerializedByteLength(insight)
+): {
+  requests: RequestInsight[]
+  byteLengths: RequestInsightsByteLengthCache
+} {
+  const insightKey = getRequestInsightKey(insight)
+  const requests = [...currentRequests]
+  const existingIndex = requests.findIndex(
+    (request) => getRequestInsightKey(request) === insightKey
+  )
+  const previousRootRequestId =
+    existingIndex === -1
+      ? undefined
+      : getRequestInsightRootId(requests[existingIndex])
+  if (existingIndex === -1) {
+    requests.push(insight)
+  } else {
+    requests[existingIndex] = insight
+  }
+
+  const recordByteLengths = new Map(currentByteLengths.records)
+  recordByteLengths.set(insightKey, insightByteLength)
+
+  const groupsByRootId = new Map<string, RequestInsight[]>()
+  for (const request of requests) {
+    const rootRequestId = getRequestInsightRootId(request)
+    const group = groupsByRootId.get(rootRequestId)
+    if (group) {
+      group.push(request)
+    } else {
+      groupsByRootId.set(rootRequestId, [request])
+    }
+  }
+
+  const groupByteLengths = new Map(currentByteLengths.groups)
+  const changedRootRequestIds = new Set([
+    getRequestInsightRootId(insight),
+    ...(previousRootRequestId === undefined ? [] : [previousRootRequestId]),
+  ])
+  for (const rootRequestId of changedRootRequestIds) {
+    const group = groupsByRootId.get(rootRequestId)
+    if (!group) {
+      groupByteLengths.delete(rootRequestId)
+      continue
+    }
+    groupByteLengths.set(
+      rootRequestId,
+      getGroupSerializedByteLength(group, recordByteLengths)
+    )
+  }
+
+  const retainedGroupCountByBucket = new Map(
+    capture?.usage.buckets.map((bucket) => [
+      bucket.bucket,
+      bucket.retainedRequestGroupCount,
+    ])
+  )
+  const seenGroupCountByBucket = new Map<string, number>()
+  const boundedGroups = Array.from(groupsByRootId.values())
+    .reverse()
+    .filter((group) => {
+      const bucket = getRequestInsightRetentionBucket(
+        getRequestInsightGroupRepresentative(group)
+      )
+      const seenGroupCount = (seenGroupCountByBucket.get(bucket) ?? 0) + 1
+      seenGroupCountByBucket.set(bucket, seenGroupCount)
+      const retainedGroupCount =
+        retainedGroupCountByBucket.get(bucket) ??
+        capture?.limits.maxRequestGroupsPerBucket ??
+        REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET
+      return seenGroupCount <= retainedGroupCount
+    })
+    .reverse()
+
+  const boundedGroupByteLengths = boundedGroups.map(
+    (group) => groupByteLengths.get(getRequestInsightRootId(group[0]))!
+  )
+  const requestsProjection = createBoundedRequestInsightsSnapshotProjection(
+    boundedGroups,
+    capture?.limits.maxSnapshotBytes ?? REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES,
+    capture,
+    Number.POSITIVE_INFINITY,
+    boundedGroupByteLengths
+  ).snapshot.requests
+  const retainedRequestKeys = new Set(
+    requestsProjection.map(getRequestInsightKey)
+  )
+  const retainedRootRequestIds = new Set(
+    requestsProjection.map(getRequestInsightRootId)
+  )
+  for (const requestKey of recordByteLengths.keys()) {
+    if (!retainedRequestKeys.has(requestKey)) {
+      recordByteLengths.delete(requestKey)
+    }
+  }
+  for (const rootRequestId of groupByteLengths.keys()) {
+    if (!retainedRootRequestIds.has(rootRequestId)) {
+      groupByteLengths.delete(rootRequestId)
+    }
+  }
+
+  return {
+    requests: requestsProjection,
+    byteLengths: { records: recordByteLengths, groups: groupByteLengths },
+  }
+}
+
+function getGroupSerializedByteLength(
+  group: readonly RequestInsight[],
+  recordByteLengths: ReadonlyMap<string, number>
+): number {
+  let byteLength = 2 + Math.max(0, group.length - 1)
+  for (const request of group) {
+    byteLength += recordByteLengths.get(getRequestInsightKey(request))!
+  }
+  return byteLength
 }
 
 /**

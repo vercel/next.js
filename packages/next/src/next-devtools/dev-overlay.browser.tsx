@@ -53,9 +53,8 @@ import type { DevToolsConfig } from './dev-overlay/shared'
 import type { SegmentTrieData } from '../shared/lib/mcp-page-metadata-types'
 import { EventQueue } from './dev-overlay/event-queue'
 import type {
-  RequestInsight,
-  RequestInsightsCaptureState,
-  RequestInsightsSnapshot,
+  RequestInsightsLiveSnapshot,
+  RequestInsightsLiveUpdate,
 } from './shared/request-insights'
 
 export interface Dispatcher {
@@ -85,11 +84,11 @@ export interface Dispatcher {
     tree: FlightRouterState | null
   ): void
   instantNavsToggle(): void
-  onRequestInsightsSnapshot(snapshot: RequestInsightsSnapshot): void
-  onRequestInsightsUpdate(
-    insight: RequestInsight,
-    capture: RequestInsightsCaptureState
+  onRequestInsightsSnapshot(
+    snapshot: RequestInsightsLiveSnapshot,
+    authoritative: boolean
   ): void
+  onRequestInsightsUpdate(update: RequestInsightsLiveUpdate): void
 }
 
 type Dispatch = ReturnType<typeof useErrorOverlayReducer>[1]
@@ -246,17 +245,21 @@ export const dispatcher: Dispatcher = {
     dispatch({ type: ACTION_INSTANT_NAVS_TOGGLE })
   }),
   onRequestInsightsSnapshot: createQueuable(
-    (dispatch: Dispatch, snapshot: RequestInsightsSnapshot) => {
-      dispatch({ type: ACTION_REQUEST_INSIGHTS_SNAPSHOT, snapshot })
+    (
+      dispatch: Dispatch,
+      snapshot: RequestInsightsLiveSnapshot,
+      authoritative: boolean
+    ) => {
+      dispatch({
+        type: ACTION_REQUEST_INSIGHTS_SNAPSHOT,
+        snapshot,
+        authoritative,
+      })
     }
   ),
   onRequestInsightsUpdate: createQueuable(
-    (
-      dispatch: Dispatch,
-      insight: RequestInsight,
-      capture: RequestInsightsCaptureState
-    ) => {
-      dispatch({ type: ACTION_REQUEST_INSIGHTS_UPDATE, insight, capture })
+    (dispatch: Dispatch, update: RequestInsightsLiveUpdate) => {
+      dispatch({ type: ACTION_REQUEST_INSIGHTS_UPDATE, update })
     }
   ),
 }
