@@ -154,7 +154,6 @@ export interface WorkStore {
    */
   requestId?: string
   htmlRequestId?: string
-
   /**
    * This only exists because it's needed in use-cache-wrapper
    */

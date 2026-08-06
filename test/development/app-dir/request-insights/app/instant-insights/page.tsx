@@ -1,5 +1,17 @@
 export const instant = { level: 'experimental-error' }
 
-export default function Page() {
-  return <p>instant insights</p>
+async function fillCache() {
+  'use cache'
+
+  return 'instant insights'
+}
+
+export default async function Page() {
+  const message = await fetch('data:text/plain,instant insights', {
+    cache: 'force-cache',
+  }).then((response) => response.text())
+
+  await fillCache()
+
+  return <p>{message}</p>
 }

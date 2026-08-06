@@ -292,6 +292,16 @@ describe('request insights', () => {
         })
       )
       expect(instantInsights?.htmlRequestId).toBe(request?.htmlRequestId)
+      expect(request?.fetches).toEqual([
+        expect.objectContaining({
+          url: 'data:text/plain,instant insights',
+        }),
+      ])
+      expect(instantInsights?.fetches).toEqual([
+        expect.objectContaining({
+          url: 'data:text/plain,instant insights',
+        }),
+      ])
       const rootSpans = instantInsights?.spans.filter(
         (span) =>
           span.attributes?.['next.span_type'] === 'AppRender.instantInsights' &&
