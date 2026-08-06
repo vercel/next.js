@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { headers } from 'next/headers'
 
 const CAUSAL_COOKIE = '__next_request_insights_causal='
 const dedupeRequestCounts = new Map<string, number>()
@@ -28,11 +27,7 @@ export async function GET(
     if (dedupeKey && requestCount !== undefined) {
       dedupeRequestCounts.set(dedupeKey, requestCount)
     }
-    const requestHeaders = await headers()
-    const target = new URL(
-      '/api/causal/two',
-      `${requestHeaders.get('x-forwarded-proto') ?? 'http'}://${requestHeaders.get('host')}`
-    )
+    const target = new URL('/api/causal/two', request.url)
     const response = await fetch(target, {
       cache: 'no-store',
     })
