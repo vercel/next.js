@@ -52,6 +52,7 @@ describe('prepareRequestInsightsSandboxFetch', () => {
     const requestInsights = new RequestInsights()
     const identity = {
       requestId: 'edge-parent',
+      rootRequestId: 'edge-parent-root',
       htmlRequestId: 'edge-parent',
       origin: 'http://app.localhost',
       url: '/edge',
@@ -80,7 +81,7 @@ describe('prepareRequestInsightsSandboxFetch', () => {
     expect(headers.cookie).toBe('user=value')
     expect(token).toBeDefined()
     expect(requestInsights.consumeCausalToken(token!, target)).toEqual({
-      parentRequestId: 'edge-parent',
+      parentRootRequestId: 'edge-parent-root',
       parentFetchIndex: 1,
     })
 
@@ -125,6 +126,7 @@ describe('prepareRequestInsightsSandboxFetch', () => {
       context: {
         identity: {
           requestId: 'edge-request',
+          rootRequestId: 'edge-request-root',
           htmlRequestId: 'edge-request',
           origin: 'http://app.localhost',
           url: '/edge',
@@ -326,6 +328,7 @@ describe('prepareRequestInsightsSandboxFetch', () => {
       context: {
         identity: {
           requestId: 'edge-request',
+          rootRequestId: 'edge-request-root',
           htmlRequestId: 'edge-request',
           origin: 'http://app.localhost',
           url: '/edge',

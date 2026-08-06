@@ -112,12 +112,14 @@ describe('createPatchedFetcher', () => {
     requestInsights.dispose()
   })
 
-  it('shares fetch indexes with the Edge sandbox bridge', async () => {
+  it('deduplicates mixed Edge and Node fetches with shared insight indexes', async () => {
+    setSpanRecorderForTest((span) => spanRecords.push(span))
     const requestInsights = new RequestInsights()
     const workAsyncStorage = new AsyncLocalStorage<WorkStore>()
     const workUnitAsyncStorage = new AsyncLocalStorage<WorkUnitStore>()
     const identity: RequestInsightsIdentity = {
       requestId: 'mixed-runtime-parent',
+      rootRequestId: 'mixed-runtime-parent-root',
       htmlRequestId: 'mixed-runtime-parent',
       origin: 'http://app.localhost',
       url: '/',
@@ -133,7 +135,7 @@ describe('createPatchedFetcher', () => {
       'GET'
     )!
     let causalParent:
-      | { parentRequestId: string; parentFetchIndex: number }
+      | { parentRootRequestId: string; parentFetchIndex: number }
       | undefined
     const mockFetch: jest.MockedFunction<typeof fetch> = jest.fn(
       async (_input, init) => {
@@ -150,7 +152,7 @@ describe('createPatchedFetcher', () => {
       workAsyncStorage,
       workUnitAsyncStorage,
     })
-    const workStore = { page: '/', route: '/' } as WorkStore
+    const workStore = { nextFetchId: 7, page: '/', route: '/' } as WorkStore
 
     await runWithRequestInsights(requestInsights, () =>
       runWithRequestInsightsIdentity(identity, () =>
@@ -163,12 +165,32 @@ describe('createPatchedFetcher', () => {
     )
 
     expect(causalParent).toEqual({
-      parentRequestId: 'mixed-runtime-parent',
+      parentRootRequestId: 'mixed-runtime-parent-root',
       parentFetchIndex: 2,
     })
+    expect(
+      spanRecords.find(
+        (span) =>
+          span.attributes?.['next.span_type'] === 'AppRender.fetch' &&
+          span.url === 'http://app.localhost/api/from-node'
+      )
+    ).toEqual(
+      expect.objectContaining({
+        requestInsightFetchIndex: 2,
+        attributes: expect.objectContaining({ 'next.fetch.idx': 8 }),
+      })
+    )
     expect(requestInsights.getSnapshot().requests[0].fetches).toEqual([
-      expect.objectContaining({ index: 1, statusCode: 200 }),
-      expect.objectContaining({ index: 2, statusCode: 201 }),
+      expect.objectContaining({
+        index: 1,
+        statusCode: 200,
+        url: 'https://example.com/from-edge',
+      }),
+      expect.objectContaining({
+        index: 2,
+        statusCode: 201,
+        url: 'http://app.localhost/api/from-node',
+      }),
     ])
     requestInsights.dispose()
   })
