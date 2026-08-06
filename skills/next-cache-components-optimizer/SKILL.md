@@ -118,6 +118,7 @@ scaffolding; the user never needs to hear those words.
 
 ```
 - [ ] P  PREREQS      Next.js 16.3+ with cacheComponents: true; upgrade first → below
+- [ ]      P1 partialPrefetching sets what the instant UI can include        → below
 - [ ] 0  SETUP        once per repo: discover + write instant-nav.rig.md     → rig-template.md
 - [ ] A  RIG          production build with the testing API exposed          → below
 - [ ] B  BASELINE     unlocked: the marker renders for the test user         → test-template.md
@@ -161,6 +162,14 @@ Cache Components.
 
 This gate is deliberate: the skill targets current Next.js, and none of the
 verdicts below are meaningful on older versions.
+
+### P1. Partial Prefetching sets the ceiling
+
+If `partialPrefetching` is off, only the static App Shell can be made instant
+here. Optimize the shell as usual, but where a route's URL or runtime data
+can't reach the prefetch without it, leave a `TODO(runtime-prefetch)` marker
+(the same one adoption leaves) and handle it in
+[After optimization](#after-optimization).
 
 ## 0. SETUP: discover this project's rig, once per repo
 
@@ -472,10 +481,9 @@ during an incremental rollout and keep checking any other target routes.
   result and locks it in with `instant()`. Don't add per-link prefetching from
   this loop. Keep the default link behavior everywhere else so the shared App
   Shell remains the low-cost baseline.
-- **Not adopted yet:** recommend
-  [`next-partial-prefetching-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-adoption).
-  That skill moves the app onto the better prefetching model: shared App Shell
-  prefetches by default, fewer duplicated full-prefetch requests for visible
-  links, a link audit for existing `<Link prefetch={true}>` usage, and optional
-  per-link runtime prefetching only where URL-specific content is worth the
-  extra server work.
+- **Not adopted yet:** any `TODO(runtime-prefetch)` markers the loop left are
+  routes whose runtime data can't reach the prefetch without Partial
+  Prefetching. It's the user's call: adopt it with
+  [`next-partial-prefetching-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-adoption)
+  to unlock them (the PPF optimizer then works the markers), or keep the
+  shell-only default and delete the ones they decline.
