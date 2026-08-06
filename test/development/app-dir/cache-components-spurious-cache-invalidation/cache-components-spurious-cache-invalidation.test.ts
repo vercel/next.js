@@ -51,6 +51,40 @@ describe('cache-components-spurious-cache-invalidation', () => {
     }, 15_000)
   }
 
+  it('keeps use cache entries when an unrelated page is added and removed', async () => {
+    const browser = await next.browser('/')
+    const stableValue = await waitForStableCachedValue(next, browser)
+
+    try {
+      await addPageAndWaitUntilServable('/unrelated')
+
+      await browser.loadPage(next.url + '/')
+      expect(await readCachedValue(browser)).toBe(stableValue)
+      await browser.loadPage(next.url + '/')
+      expect(await readCachedValue(browser)).toBe(stableValue)
+
+      await next.deleteFile('app/unrelated/page.tsx')
+      await retry(async () => {
+        expect((await next.fetch('/unrelated')).status).toBe(404)
+      }, 15_000)
+
+      // Removal doesn't compile anything we could wait for, so push another
+      // page addition through as a barrier before asserting.
+      await addPageAndWaitUntilServable('/unrelated-barrier')
+
+      await browser.loadPage(next.url + '/')
+      expect(await readCachedValue(browser)).toBe(stableValue)
+      await browser.loadPage(next.url + '/')
+      expect(await readCachedValue(browser)).toBe(stableValue)
+    } finally {
+      for (const dir of ['app/unrelated', 'app/unrelated-barrier']) {
+        if (nodeFs.existsSync(nodePath.join(next.testDir, dir))) {
+          await next.deleteFile(`${dir}/page.tsx`)
+        }
+      }
+    }
+  })
+
   // Turbopack-only: on webpack, adding a page recompiles the server bundle
   // (the compiled-in client router filter changes), which replaces the
   // serving module instances, so module state doesn't survive there.
