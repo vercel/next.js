@@ -616,9 +616,10 @@ export default abstract class Server<
           this.nextConfig.experimental.maxPostponedStateSize
         ),
         exposeTestingApi:
-          this.dev === true ||
-          this.nextConfig.experimental.exposeTestingApiInProductionBuild ===
-            true,
+          this.nextConfig.cacheComponents === true &&
+          (this.dev === true ||
+            this.nextConfig.experimental.exposeTestingApiInProductionBuild ===
+              true),
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
