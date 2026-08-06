@@ -377,8 +377,8 @@ describe(`Terminal Logging (${bundlerName})`, () => {
        https://react.dev/link/hydration-mismatch
 
          ...
-           <ScrollAndMaybeFocusHandler cacheNode={{rsc:{...}, ...}}>
-             <InnerScrollAndMaybeFocusHandler focusAndScrollRef={{scrollRef:null, ...}} cacheNode={{rsc:{...}, ...}}>
+           <ScrollHandler cacheNode={{rsc:{...}, ...}}>
+             <InnerScrollHandler scrollRef={{scrollRef:null, ...}} cacheNode={{rsc:{...}, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                  <LoadingBoundary name="hydration-..." loading={null}>
                    <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>

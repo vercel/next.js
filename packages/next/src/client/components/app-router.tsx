@@ -452,7 +452,7 @@ function Router({
     }
   }, [])
 
-  const { cache, tree, nextUrl, focusAndScrollRef, previousNextUrl } = state
+  const { cache, tree, nextUrl, scrollRef, previousNextUrl } = state
 
   const matchingHead = useMemo(() => {
     return findHeadInCache(cache, tree[1])
@@ -500,11 +500,11 @@ function Router({
   const globalLayoutRouterContext = useMemo(() => {
     return {
       tree,
-      focusAndScrollRef,
+      scrollRef,
       nextUrl,
       previousNextUrl,
     }
-  }, [tree, focusAndScrollRef, nextUrl, previousNextUrl])
+  }, [tree, scrollRef, nextUrl, previousNextUrl])
 
   let head
   if (matchingHead !== null) {
