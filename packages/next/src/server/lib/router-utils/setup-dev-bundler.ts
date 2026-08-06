@@ -1094,6 +1094,8 @@ async function startWatcher(
             prevSortedRoutes.length !== sortedRoutes.length ||
             prevSortedRoutes.some((route, idx) => route !== sortedRoutes[idx])
 
+          // The first aggregation has nothing to compare against, so every
+          // route would look added to a client that is already connected.
           if (hasComputedSortedRoutes && sortedRoutesChanged) {
             const addedRoutes = sortedRoutes.filter(
               (route) => !prevSortedRoutes.includes(route)

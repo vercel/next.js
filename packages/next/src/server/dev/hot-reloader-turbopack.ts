@@ -789,6 +789,8 @@ export async function createHotReloaderTurbopack(
   // advancing there would both churn the hash without an edit and fail to
   // advance it at all when no client is connected.
   let hmrHash = 0
+  // Undefined until the first entrypoints emission. That one has nothing to
+  // compare against, so every route it lists would look added.
   let previousRouteKeys: Set<string> | undefined
 
   // HACK: Defer sending `building` messages. Turbopack emits a compile pass for every

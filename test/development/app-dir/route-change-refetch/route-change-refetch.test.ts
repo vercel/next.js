@@ -1,8 +1,37 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
 import type { Playwright } from 'next-webdriver'
+import type { Page } from 'playwright'
 import * as nodeFs from 'node:fs'
 import * as nodePath from 'node:path'
+
+// The client decides whether an announcement is about the page it's showing by
+// comparing the announced name against its pathname, so the name has to be the
+// route ("/zz-added"), not the entrypoint ("/zz-added/page").
+function recordRouteAnnouncements(announcements: string[]) {
+  return (page: Page) => {
+    page.on('websocket', (ws) => {
+      if (!ws.url().includes('/_next/hmr')) {
+        return
+      }
+      ws.on('framereceived', (frame) => {
+        const payload =
+          typeof frame.payload === 'string'
+            ? frame.payload
+            : frame.payload.toString('utf8')
+        let message: { type?: string; data?: unknown[] }
+        try {
+          message = JSON.parse(payload)
+        } catch {
+          return
+        }
+        if (message.type === 'addedPage' || message.type === 'removedPage') {
+          announcements.push(`${message.type} ${message.data?.[0]}`)
+        }
+      })
+    })
+  }
+}
 
 describe('route-change-refetch - App Router', () => {
   const { next } = nextTestSetup({
@@ -30,6 +59,27 @@ describe('route-change-refetch - App Router', () => {
       }, 15_000)
     }
   }
+
+  it('announces an added page under its route name, and announces nothing else', async () => {
+    const announcements: string[] = []
+    const browser = await next.browser('/existing', {
+      beforePageLoad: recordRouteAnnouncements(announcements),
+    })
+    expect(await browser.elementById('existing').text()).toBe('existing')
+
+    try {
+      await addPageAndWaitUntilServable('/zz-added')
+      await retry(async () => {
+        expect(announcements).toEqual(['addedPage /zz-added'])
+      }, 15_000)
+      // Announcing a route that didn't change makes every tab showing it
+      // refetch for nothing.
+      await waitFor(1000)
+      expect(announcements).toEqual(['addedPage /zz-added'])
+    } finally {
+      await cleanupAddedPage()
+    }
+  })
 
   it('updates a tab showing a 404 when that page is added', async () => {
     // Regression test: a route that sorts after all existing ones used to
@@ -60,7 +110,10 @@ describe('route-change-refetch - App Router', () => {
   })
 
   it('updates a tab showing a page when that page is removed', async () => {
-    const browser = await next.browser('/existing')
+    const announcements: string[] = []
+    const browser = await next.browser('/existing', {
+      beforePageLoad: recordRouteAnnouncements(announcements),
+    })
     expect(await browser.elementById('existing').text()).toBe('existing')
 
     try {
@@ -70,6 +123,7 @@ describe('route-change-refetch - App Router', () => {
           'This page could not be found'
         )
       }, 15_000)
+      expect(announcements).toEqual(['removedPage /existing'])
     } finally {
       if (
         nodeFs.existsSync(nodePath.join(next.testDir, 'app/existing/page.bak'))
@@ -77,6 +131,38 @@ describe('route-change-refetch - App Router', () => {
         await next.renameFile('app/existing/page.bak', 'app/existing/page.tsx')
         await retry(async () => {
           expect((await next.fetch('/existing')).status).toBe(200)
+        }, 15_000)
+      }
+    }
+  })
+
+  it('updates a tab showing a page that is renamed', async () => {
+    // A rename keeps the number of routes the same, so a diff that only
+    // compares how many there are sees no change at all.
+    const announcements: string[] = []
+    const browser = await next.browser('/renamed-a', {
+      beforePageLoad: recordRouteAnnouncements(announcements),
+    })
+    expect(await browser.elementById('renamed').text()).toBe('renamed')
+
+    try {
+      await next.renameFile('app/renamed-a', 'app/renamed-b')
+      await retry(async () => {
+        expect(await browser.elementByCss('body').text()).toContain(
+          'This page could not be found'
+        )
+      }, 15_000)
+      await retry(async () => {
+        expect([...announcements].sort()).toEqual([
+          'addedPage /renamed-b',
+          'removedPage /renamed-a',
+        ])
+      }, 15_000)
+    } finally {
+      if (nodeFs.existsSync(nodePath.join(next.testDir, 'app/renamed-b'))) {
+        await next.renameFile('app/renamed-b', 'app/renamed-a')
+        await retry(async () => {
+          expect((await next.fetch('/renamed-a')).status).toBe(200)
         }, 15_000)
       }
     }
