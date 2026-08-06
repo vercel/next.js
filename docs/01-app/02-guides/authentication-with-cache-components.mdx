@@ -33,7 +33,12 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-This guide assumes you're comfortable with Cache Components. If not, read [Caching](/docs/app/getting-started/caching) first. It also assumes you already have a session set on login. See [How to implement authentication in Next.js](/docs/app/guides/authentication) for sign-up, login, and session creation.
+This guide covers code patterns for authentication with Cache Components: reading the session at request time, streaming authenticated UI, and caching session-derived data. It assumes you're comfortable with Cache Components (if not, read [Caching](/docs/app/getting-started/caching) first) and that you already have a session set on login.
+
+For the fundamentals this builds on, we recommend two guides:
+
+- [Authentication](/docs/app/guides/authentication) covers sign-up, login, session management, authorization, and the Data Access Layer.
+- [Data Security](/docs/app/guides/data-security) covers keeping data access on the server and sensitive data off the client.
 
 ## Migrating an existing app
 
@@ -244,7 +249,7 @@ async function getNotesByUserId(userId: string) {
 }
 ```
 
-Keep `getNotesByUserId` unexported. An exported getter that takes a user id trusts its caller to pass the right one, and the wrong id returns another user's data. See [Data Access Layer](/docs/app/guides/data-security#data-access-layer).
+Keep `getNotesByUserId` unexported so a caller can't request another user's notes by passing a different id. Resolving the user inside the exported getter is what makes that safe. See [Data Security](/docs/app/guides/data-security#data-access-layer).
 
 Call it from a Server Component that renders the notes. There's no user id to pass, and the `getCurrentUser()` call inside the getter hits the private cache, so the session isn't read again:
 
