@@ -2229,3 +2229,147 @@ fn stale_current_next_is_recovered() -> Result<()> {
 
     Ok(())
 }
+
+/// A corrupt or truncated .meta file must produce an open error, never a
+/// panic (the AMQF offsets are file-derived and were previously used as raw
+/// slice indices / range bounds).
+#[test]
+fn corrupt_meta_file_returns_error_instead_of_panicking() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    {
+        let db = TurboPersistence::<RayonParallelScheduler, 16>::open_with_parallel_scheduler(
+            path.to_path_buf(),
+            RayonParallelScheduler,
+        )?;
+        let mut batch = db.write_batch()?;
+        for i in 10..20u8 {
+            batch.put(0, vec![1, i], vec![i].into())?;
+        }
+        db.commit_write_batch(batch)?;
+        drop(db);
+    }
+
+    let meta_path = fs::read_dir(path)?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .find(|p| p.extension().is_some_and(|e| e == "meta"))
+        .expect("no .meta file produced");
+    let original = fs::read(&meta_path)?;
+
+    // Sanity: the file parses fine as-is.
+    {
+        let db = TurboPersistence::<RayonParallelScheduler, 16>::open_with_parallel_scheduler(
+            path.to_path_buf(),
+            RayonParallelScheduler,
+        )?;
+        drop(db);
+    }
+
+    let meta_prefix_len = 16; // magic + family + obsolete_count + count
+    let entry_header_size = 38; // EntryHeader: u32 + u16 + u64*3 + u32*2
+    let first_amqf_end_offset_pos = meta_prefix_len + entry_header_size - 4;
+
+    let cases: [(&str, Box<dyn Fn(&mut Vec<u8>)>); 7] = [
+        // The first entry's amqf_end_offset points way past the file.
+        (
+            "offset out of bounds",
+            Box::new(move |data: &mut Vec<u8>| {
+                data[first_amqf_end_offset_pos..first_amqf_end_offset_pos + 4]
+                    .copy_from_slice(&u32::MAX.to_be_bytes());
+            }),
+        ),
+        // The entry count is huge, overflowing/misplacing the AMQF region.
+        (
+            "huge entry count",
+            Box::new(move |data: &mut Vec<u8>| {
+                data[12..16].copy_from_slice(&u32::MAX.to_be_bytes());
+            }),
+        ),
+        // The obsolete-SST count is huge, which would otherwise drive a huge
+        // speculative allocation before any bounds check.
+        (
+            "huge obsolete count",
+            Box::new(move |data: &mut Vec<u8>| {
+                data[8..12].copy_from_slice(&u32::MAX.to_be_bytes());
+            }),
+        ),
+        // The first entry's block_count is zero, which would underflow
+        // `block_count - 1` in the SST lookup path later.
+        (
+            "zero block count",
+            Box::new(move |data: &mut Vec<u8>| {
+                data[16 + 4..16 + 6].copy_from_slice(&0u16.to_be_bytes());
+            }),
+        ),
+        // The first entry's block_count exceeds what the SST file can hold,
+        // which would underflow block_offsets_start when the SST is opened.
+        (
+            "oversized block count",
+            Box::new(move |data: &mut Vec<u8>| {
+                data[16 + 4..16 + 6].copy_from_slice(&u16::MAX.to_be_bytes());
+            }),
+        ),
+        // The used-keys AMQF end offset (stored after the last entry header)
+        // points past the AMQF region — previously dereferenced much later
+        // during compaction.
+        (
+            "used-keys offset out of bounds",
+            Box::new(move |data: &mut Vec<u8>| {
+                // Layout: magic(4) + family(4) + obsolete_count(4) + count(4)
+                // + count * EntryHeader(38) + used_keys_end_offset(4).
+                let count = u32::from_be_bytes(data[12..16].try_into().unwrap()) as usize;
+                let pos = 16 + count * 38;
+                data[pos..pos + 4].copy_from_slice(&u32::MAX.to_be_bytes());
+            }),
+        ),
+        // The block count is incremented by one: in-bounds for the offset
+        // table size check, but the table now points into payload bytes.
+        (
+            "off-by-one block count",
+            Box::new(move |data: &mut Vec<u8>| {
+                let pos = 16 + 4;
+                let bc = u16::from_be_bytes(data[pos..pos + 2].try_into().unwrap());
+                data[pos..pos + 2].copy_from_slice(&(bc + 1).to_be_bytes());
+            }),
+        ),
+    ];
+    for (name, corrupt) in cases {
+        let mut corrupted = original.clone();
+        corrupt(&mut corrupted);
+        fs::write(&meta_path, &corrupted)?;
+        let result = TurboPersistence::<RayonParallelScheduler, 16>::open_with_parallel_scheduler(
+            path.to_path_buf(),
+            RayonParallelScheduler,
+        );
+        // Open must not panic; if it succeeds (the SST itself is opened
+        // lazily), reading must return an error rather than panic.
+        match result {
+            Ok(db) => {
+                let read = db.get(0, &[1, 12u8]);
+                assert!(
+                    read.is_err(),
+                    "corrupt meta ({name}) must return an error on read, not panic"
+                );
+                drop(db);
+            }
+            Err(_) => {}
+        }
+        // Restore for the next case.
+        fs::write(&meta_path, &original)?;
+    }
+
+    // Truncated right after the magic number.
+    fs::write(&meta_path, &original[..8])?;
+    let result = TurboPersistence::<RayonParallelScheduler, 16>::open_with_parallel_scheduler(
+        path.to_path_buf(),
+        RayonParallelScheduler,
+    );
+    assert!(
+        result.is_err(),
+        "truncated meta must return an error, not panic"
+    );
+
+    Ok(())
+}
