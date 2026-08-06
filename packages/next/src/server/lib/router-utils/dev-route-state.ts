@@ -1,11 +1,68 @@
 import type { FilesystemDynamicRoute } from './filesystem'
 import type { NextConfigComplete } from '../../config-shared'
-import type { Route } from '../../../build/swc/types'
+import type { Route, RouteInfo } from '../../../build/swc/types'
+import type { RouteDefinition } from '../../route-definitions/route-definition'
+import type { AppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
+import type { AppRouteRouteDefinition } from '../../route-definitions/app-route-route-definition'
+import type { PagesRouteDefinition } from '../../route-definitions/pages-route-definition'
+import type { PagesAPIRouteDefinition } from '../../route-definitions/pages-api-route-definition'
+import { RouteKind } from '../../route-kind'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { getNamedRouteRegex } from '../../../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
 import { compareAppPaths } from '../../../shared/lib/router/utils/app-paths'
+import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
+import { posix, join } from 'path'
 import { buildDataRoute } from './build-data-route'
+
+/**
+ * The part of a Turbopack route that the dev route state is derived from,
+ * shared between the entrypoints subscription (which carries full routes with
+ * endpoints) and the on-demand route list (which doesn't).
+ */
+export interface DevRouteInfo {
+  type: Route['type']
+  /**
+   * The original names of the app pages behind the route (there are multiple
+   * for parallel routes), or the original name of an app route. Empty for
+   * pages routes.
+   */
+  originalNames: string[]
+}
+
+export function toDevRouteInfoMap(
+  routes: ReadonlyMap<string, Route>
+): Map<string, DevRouteInfo> {
+  const infos = new Map<string, DevRouteInfo>()
+  for (const [pathname, route] of routes) {
+    let originalNames: string[]
+    switch (route.type) {
+      case 'app-page':
+        originalNames = route.pages.map((page) => page.originalName)
+        break
+      case 'app-route':
+        originalNames = [route.originalName]
+        break
+      default:
+        originalNames = []
+    }
+    infos.set(pathname, { type: route.type, originalNames })
+  }
+  return infos
+}
+
+export function routeInfoListToDevRouteInfoMap(
+  routes: RouteInfo[]
+): Map<string, DevRouteInfo> {
+  const infos = new Map<string, DevRouteInfo>()
+  for (const route of routes) {
+    infos.set(route.pathname, {
+      type: route.routeType as Route['type'],
+      originalNames: route.originalNames,
+    })
+  }
+  return infos
+}
 
 /**
  * Everything the dev router needs in order to serve a route: which pathnames
@@ -80,7 +137,7 @@ export function buildDevDynamicRoutes(
  * `/_not-found` route the App Router synthesizes for us.
  */
 export function deriveDevRouteState(
-  routes: ReadonlyMap<string, Route>,
+  routes: ReadonlyMap<string, DevRouteInfo>,
   {
     useFileSystemPublicRoutes,
     i18n,
@@ -95,8 +152,6 @@ export function deriveDevRouteState(
   const routedPages: string[] = []
 
   for (const [pathname, route] of routes) {
-    let originalNames: string[]
-
     switch (route.type) {
       case 'page':
       case 'page-api':
@@ -106,15 +161,12 @@ export function deriveDevRouteState(
         routedPages.push(pathname)
         continue
       case 'app-page':
-        originalNames = route.pages.map((page) => page.originalName)
-        break
       case 'app-route':
-        originalNames = [route.originalName]
         break
       case 'conflict':
         continue
       default:
-        route satisfies never
+        route.type satisfies never
         continue
     }
 
@@ -126,7 +178,7 @@ export function deriveDevRouteState(
       appFiles.add(pathname)
     }
     // Make sure to sort parallel routes to make the result deterministic.
-    appPathRoutes[pathname] = originalNames.sort(compareAppPaths)
+    appPathRoutes[pathname] = [...route.originalNames].sort(compareAppPaths)
     routedPages.push(pathname)
   }
 
@@ -136,4 +188,90 @@ export function deriveDevRouteState(
     appPathRoutes,
     dynamicRoutes: buildDevDynamicRoutes(routedPages, i18n),
   }
+}
+
+/**
+ * Derives the route definitions the dev route matchers serve from. These are
+ * the same definitions the filesystem-scanning dev matcher providers would
+ * produce, except that the filename is a reconstruction: Turbopack doesn't
+ * report source paths, and nothing routes on the filename. Pages routes are
+ * keyed by pathname and app routes by original name, matching how
+ * `ensurePage` looks routes up in the entrypoints.
+ */
+export function deriveDevRouteDefinitions(
+  routes: ReadonlyMap<string, DevRouteInfo>,
+  {
+    appDir,
+    pagesDir,
+  }: {
+    appDir: string | undefined
+    pagesDir: string | undefined
+  }
+): RouteDefinition[] {
+  const definitions: RouteDefinition[] = []
+
+  for (const [pathname, route] of routes) {
+    switch (route.type) {
+      case 'page':
+      case 'page-api': {
+        if (!pagesDir) continue
+        const shared = {
+          pathname,
+          page: pathname,
+          bundlePath: posix.join('pages', normalizePagePath(pathname)),
+          filename: join(pagesDir, pathname),
+          // Matches all locales; the matcher parses the locale from the
+          // request when the application is configured for i18n.
+          i18n: {},
+        }
+        definitions.push(
+          route.type === 'page'
+            ? ({
+                kind: RouteKind.PAGES,
+                ...shared,
+              } satisfies PagesRouteDefinition)
+            : ({
+                kind: RouteKind.PAGES_API,
+                ...shared,
+              } satisfies PagesAPIRouteDefinition)
+        )
+        continue
+      }
+      case 'app-page': {
+        if (!appDir || pathname === '/_not-found') continue
+        const appPaths = [...route.originalNames].sort(compareAppPaths)
+        for (const originalName of appPaths) {
+          const definition: AppPageRouteDefinition = {
+            kind: RouteKind.APP_PAGE,
+            pathname,
+            page: originalName,
+            bundlePath: posix.join('app', originalName),
+            filename: join(appDir, originalName),
+            appPaths,
+          }
+          definitions.push(definition)
+        }
+        continue
+      }
+      case 'app-route': {
+        if (!appDir || pathname === '/_not-found') continue
+        const originalName = route.originalNames[0]
+        if (originalName === undefined) continue
+        definitions.push({
+          kind: RouteKind.APP_ROUTE,
+          pathname,
+          page: originalName,
+          bundlePath: posix.join('app', originalName),
+          filename: join(appDir, originalName),
+        } satisfies AppRouteRouteDefinition)
+        continue
+      }
+      case 'conflict':
+        continue
+      default:
+        route.type satisfies never
+    }
+  }
+
+  return definitions
 }

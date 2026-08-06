@@ -295,6 +295,17 @@ export type UpdateMessage =
       value: UpdateInfo
     }
 
+export interface RouteInfo {
+  pathname: string
+  routeType: string
+  /**
+   * The original names of the app pages behind this route (there are
+   * multiple for parallel routes), or the original name of an app route.
+   * Empty for pages routes.
+   */
+  originalNames: string[]
+}
+
 export type CompilationEvent = {
   typeName: string
   message: string
@@ -339,6 +350,16 @@ export interface Project {
    * original name — the same keys `entrypointsSubscribe` emits.
    */
   containsRoute(routeKey: string, invalidateDirs: string[]): Promise<boolean>
+
+  /**
+   * Returns the routes in the entrypoints, recomputed against the current
+   * state of the filesystem: tracked directory reads under `invalidateDirs`
+   * (project-relative) are invalidated first, so files that were created or
+   * deleted after Turbopack's file watcher last reported are taken into
+   * account. Routes are keyed the same way `entrypointsSubscribe` emits
+   * them.
+   */
+  getRoutes(invalidateDirs: string[]): Promise<RouteInfo[]>
 
   entrypointsSubscribe(): AsyncIterableIterator<
     TurbopackResult<RawEntrypoints | {}>

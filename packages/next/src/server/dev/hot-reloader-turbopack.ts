@@ -1,5 +1,5 @@
 import type { Socket } from 'net'
-import { access, mkdir, writeFile } from 'fs/promises'
+import { mkdir, writeFile } from 'fs/promises'
 import { realpathSync } from 'fs'
 import * as inspector from 'inspector'
 import { join, extname, relative, isAbsolute, sep, dirname } from 'path'
@@ -69,7 +69,13 @@ import {
   type ServerFields,
   type SetupOpts,
 } from '../lib/router-utils/setup-dev-bundler'
-import { deriveDevRouteState } from '../lib/router-utils/dev-route-state'
+import {
+  deriveDevRouteDefinitions,
+  deriveDevRouteState,
+  routeInfoListToDevRouteInfoMap,
+  toDevRouteInfoMap,
+  type DevRouteInfo,
+} from '../lib/router-utils/dev-route-state'
 import { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loader'
 import { findPagePathData } from './on-demand-entry-handler'
 import type { RouteDefinition } from '../route-definitions/route-definition'
@@ -519,6 +525,13 @@ export async function createHotReloaderTurbopack(
     await lockfile?.unlock()
   })
   const entrypointsSubscription = project.entrypointsSubscribe()
+
+  // Invalidated when the route list is recomputed on demand, so that files
+  // the file watcher hasn't reported yet are taken into account.
+  const devRouteRefreshDirs = [opts.appDir, opts.pagesDir]
+    .filter((dir): dir is string => Boolean(dir))
+    .map((dir) => relative(projectPath, dir).split(sep).join('/'))
+    .filter((dir) => dir !== '' && !dir.startsWith('..'))
 
   const currentWrittenEntrypoints: Map<EntryKey, WrittenEndpoint> = new Map()
   const currentEntrypoints: Entrypoints = {
@@ -1034,6 +1047,53 @@ export async function createHotReloaderTurbopack(
     state.clientIssues.delete(key)
   }
 
+  /**
+   * Writes everything that is derived from the routes Turbopack has
+   * compiled: the router's route tables, `appPathRoutes`, and the route
+   * definitions the dev matchers serve from. Called on every entrypoints
+   * update, and from `refreshDevRouteState` with a freshly recomputed route
+   * list when a request path doesn't match.
+   */
+  async function applyDevRouteState(infos: Map<string, DevRouteInfo>) {
+    let routeState
+    try {
+      routeState = deriveDevRouteState(infos, {
+        useFileSystemPublicRoutes: opts.nextConfig.useFileSystemPublicRoutes,
+        i18n: opts.nextConfig.i18n,
+      })
+    } catch (e) {
+      // Conflicting routes make building the route list throw. Keep serving
+      // the previous route state, like the file watcher pass does.
+      Log.warn('Failed to reload dynamic routes:', e)
+      return
+    }
+
+    const { appFiles, pageFiles, nextDataRoutes } = opts.fsChecker
+    appFiles.clear()
+    pageFiles.clear()
+    for (const pathname of routeState.appFiles) {
+      appFiles.add(pathname)
+    }
+    for (const pathname of routeState.pageFiles) {
+      pageFiles.add(pathname)
+      nextDataRoutes.add(pathname)
+    }
+    opts.fsChecker.dynamicRoutes = routeState.dynamicRoutes
+
+    serverFields.appPathRoutes = routeState.appPathRoutes
+    await propagateServerField(opts, 'appPathRoutes', routeState.appPathRoutes)
+
+    serverFields.devRouteDefinitions = deriveDevRouteDefinitions(infos, {
+      appDir: opts.appDir,
+      pagesDir: opts.pagesDir,
+    })
+    await propagateServerField(
+      opts,
+      'devRouteDefinitions',
+      serverFields.devRouteDefinitions
+    )
+  }
+
   async function handleEntrypointsSubscription() {
     for await (const entrypoints of entrypointsSubscription) {
       if (!currentEntriesHandlingResolve) {
@@ -1104,39 +1164,7 @@ export async function createHotReloaderTurbopack(
       // router takes its route table from here. Otherwise it would announce a
       // route it can't serve yet, and the browser would refetch too early and
       // get a 404.
-      let routeState
-      try {
-        routeState = deriveDevRouteState(routes, {
-          useFileSystemPublicRoutes: opts.nextConfig.useFileSystemPublicRoutes,
-          i18n: opts.nextConfig.i18n,
-        })
-      } catch (e) {
-        // Conflicting routes make building the route list throw. Keep serving
-        // the previous route state, like the file watcher pass does.
-        Log.warn('Failed to reload dynamic routes:', e)
-        routeState = undefined
-      }
-
-      if (routeState) {
-        const { appFiles, pageFiles, nextDataRoutes } = opts.fsChecker
-        appFiles.clear()
-        pageFiles.clear()
-        for (const pathname of routeState.appFiles) {
-          appFiles.add(pathname)
-        }
-        for (const pathname of routeState.pageFiles) {
-          pageFiles.add(pathname)
-          nextDataRoutes.add(pathname)
-        }
-        opts.fsChecker.dynamicRoutes = routeState.dynamicRoutes
-
-        serverFields.appPathRoutes = routeState.appPathRoutes
-        await propagateServerField(
-          opts,
-          'appPathRoutes',
-          routeState.appPathRoutes
-        )
-      }
+      await applyDevRouteState(toDevRouteInfoMap(routes))
 
       // Reload matchers when the files have been compiled
       await propagateServerField(opts, 'reloadMatchers', undefined)
@@ -1678,6 +1706,11 @@ export async function createHotReloaderTurbopack(
       return String(hmrHash)
     },
 
+    async refreshDevRouteState() {
+      const routeInfos = await project.getRoutes(devRouteRefreshDirs)
+      await applyDevRouteState(routeInfoListToDevRouteInfoMap(routeInfos))
+    },
+
     sendToLegacyClients(action) {
       const payload = JSON.stringify(action)
 
@@ -1968,45 +2001,44 @@ export async function createHotReloaderTurbopack(
           }
 
           if (!route) {
-            // The route can be missing from the entrypoints even though its
-            // file exists on disk: routes are discovered by a separate watcher
-            // in setup-dev-bundler.ts, which can pick up a freshly written
-            // file before Turbopack's own watcher does. Ask Turbopack
-            // directly, forcing it to re-read the file's directory. While it
-            // reports that the route exists, the entrypoints subscription is
-            // guaranteed to deliver an update containing it (under the same
-            // key; see handleEntrypoints), so wait for that instead of
-            // failing the request.
+            // The route can be missing from the entrypoints even though
+            // Turbopack knows it: the entrypoints are only updated by the
+            // subscription, which may not have delivered a freshly
+            // discovered route yet. Ask Turbopack directly. While it
+            // reports that the route exists, the subscription is guaranteed
+            // to deliver an update containing it (under the same key; see
+            // handleEntrypoints), so wait for that instead of failing the
+            // request.
             const routeKey = isInsideAppDir ? normalizedAppPage : page
-            const relativeDir = relative(
-              projectPath,
-              dirname(routeDef.filename)
-            )
-            // Files outside the project (e.g. built-in fallback routes)
-            // aren't watched, so there is nothing to invalidate for them.
-            const invalidateDirs =
-              relativeDir.startsWith('..') || isAbsolute(relativeDir)
-                ? []
-                : [relativeDir.split(sep).join('/')]
-            let invalidated = false
-            while (!route) {
-              try {
-                await access(routeDef.filename)
-              } catch {
-                break
+            // When the route was looked up on the filesystem above, its
+            // directory may not have been read by Turbopack yet, so it is
+            // invalidated for the first check. Routes with a definition were
+            // matched from Turbopack's own routes and need no invalidation.
+            let invalidateDirs: string[] = []
+            if (!definition) {
+              const relativeDir = relative(
+                projectPath,
+                dirname(routeDef.filename)
+              )
+              // Files outside the project (e.g. built-in fallback routes)
+              // aren't watched, so there is nothing to invalidate for them.
+              if (!relativeDir.startsWith('..') && !isAbsolute(relativeDir)) {
+                invalidateDirs = [relativeDir.split(sep).join('/')]
               }
+            }
+            while (!route) {
               let routeExists = false
               try {
                 routeExists = await project.containsRoute(
                   routeKey,
-                  invalidated ? [] : invalidateDirs
+                  invalidateDirs
                 )
               } catch {
                 // The entrypoints cannot currently be computed, e.g. because
                 // of a build error in a file they depend on.
                 break
               }
-              invalidated = true
+              invalidateDirs = []
               if (!routeExists) break
               await pendingEntrypointsUpdate
               pendingEntrypointsUpdate = nextEntrypointsUpdate.promise

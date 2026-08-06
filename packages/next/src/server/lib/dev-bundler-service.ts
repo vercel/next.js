@@ -68,6 +68,10 @@ export class DevBundlerService {
     return this.bundler.hotReloader.getServerComponentsHmrRefreshHash()
   }
 
+  public async refreshDevRouteState(): Promise<void> {
+    await this.bundler.hotReloader.refreshDevRouteState?.()
+  }
+
   public logErrorWithOriginalStack =
     this.bundler.logErrorWithOriginalStack.bind(this.bundler)
 

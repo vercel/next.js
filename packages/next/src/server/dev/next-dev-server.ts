@@ -68,6 +68,7 @@ import { DevPagesRouteMatcherProvider } from '../route-matcher-providers/dev/dev
 import { DevPagesAPIRouteMatcherProvider } from '../route-matcher-providers/dev/dev-pages-api-route-matcher-provider'
 import { DevAppPageRouteMatcherProvider } from '../route-matcher-providers/dev/dev-app-page-route-matcher-provider'
 import { DevAppRouteRouteMatcherProvider } from '../route-matcher-providers/dev/dev-app-route-route-matcher-provider'
+import { DevEntrypointsRouteMatcherProvider } from '../route-matcher-providers/dev/dev-entrypoints-route-matcher-provider'
 import { NodeManifestLoader } from '../route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
 import { BatchedFileReader } from '../route-matcher-providers/dev/helpers/file-reader/batched-file-reader'
 import { DefaultFileReader } from '../route-matcher-providers/dev/helpers/file-reader/default-file-reader'
@@ -143,6 +144,7 @@ export default class DevServer extends Server {
   private actualMiddlewareFile?: string
   private actualInstrumentationHookFile?: string
   private middleware?: MiddlewareRoutingItem
+  private devRouteDefinitions?: RouteDefinition[]
   private readonly bundlerService: DevBundlerService
   private staticPathsCache: LRUCache<
     UnwrapPromise<ReturnType<DevServer['getStaticPaths']>>
@@ -278,6 +280,28 @@ export default class DevServer extends Server {
           url: pathname,
         })
       },
+    }
+
+    // With Turbopack the matchers serve from the route definitions derived
+    // from the compiled entrypoints, so all route knowledge comes from a
+    // single source. On a match miss they ask the bundler for a fresh route
+    // list instead of re-scanning the filesystem.
+    if (process.env.TURBOPACK) {
+      const matchers = new DevRouteMatcherManager(
+        super.getRouteMatchers(),
+        ensurer,
+        this.dir,
+        async () => {
+          await this.bundlerService?.refreshDevRouteState()
+        }
+      )
+      matchers.push(
+        new DevEntrypointsRouteMatcherProvider(
+          () => this.devRouteDefinitions,
+          Boolean(this.i18nProvider)
+        )
+      )
+      return matchers
     }
 
     const matchers = new DevRouteMatcherManager(

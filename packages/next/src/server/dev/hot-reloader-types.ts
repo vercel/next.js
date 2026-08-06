@@ -265,6 +265,12 @@ export interface NextJsHotReloaderInterface {
    * for every client, regardless of whether it runs the HMR client.
    */
   getServerComponentsHmrRefreshHash(): string | undefined
+  /**
+   * Refreshes the derived dev route state from the bundler's current routes,
+   * recomputed against the current state of the filesystem. Called when a
+   * request path doesn't match any known route. Turbopack only.
+   */
+  refreshDevRouteState?(): Promise<void>
   setCacheStatus(status: ServerCacheStatus, htmlRequestId: string): void
   setReactDebugChannel(
     debugChannel: ReactDebugChannelForBrowser,

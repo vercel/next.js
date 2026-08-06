@@ -1054,6 +1054,139 @@ async fn project_contains_route_operation(
     Ok(Vc::cell(contains))
 }
 
+/// Invalidates any tracked filesystem reads under the given
+/// project-relative directories, so that files created or deleted after
+/// Turbopack's file watcher last reported are taken into account by the
+/// next read.
+async fn invalidate_project_relative_dirs(
+    container: ResolvedVc<ProjectContainer>,
+    invalidate_dirs: &[String],
+) -> Result<()> {
+    if invalidate_dirs.is_empty() {
+        return Ok(());
+    }
+
+    #[turbo_tasks::value(cell = "new", eq = "manual")]
+    struct ProjectDirInfo(FileSystemPath, DiskFileSystem);
+
+    #[turbo_tasks::function(operation, root)]
+    async fn project_dir_info_operation(
+        container: ResolvedVc<ProjectContainer>,
+    ) -> Result<Vc<ProjectDirInfo>> {
+        let project = container.project();
+        let project_path = project.project_path().owned().await?;
+        let project_fs = project.project_fs().owned().await?;
+        Ok(ProjectDirInfo(project_path, project_fs).cell())
+    }
+
+    let ProjectDirInfo(project_path, project_fs) = &*project_dir_info_operation(container)
+        .read_strongly_consistent()
+        .await?;
+
+    // Use `to_sys_path_raw` (not `to_sys_path`): these paths are compared against
+    // the invalidator map keys inside `invalidate_path_and_children_with_reason`,
+    // which use the internal (verbatim on Windows) representation.
+    let project_sys_path = project_fs.to_sys_path_raw(project_path);
+    let paths_to_invalidate = invalidate_dirs
+        .iter()
+        .map(|dir| {
+            let relative_dir = dir.trim_start_matches('/');
+            if relative_dir.is_empty() {
+                project_sys_path.clone()
+            } else {
+                project_sys_path.join(unix_to_sys(relative_dir).as_ref())
+            }
+        })
+        .collect::<Vec<_>>();
+
+    // The synced variant serializes with the file watcher's own invalidation
+    // batches, so a concurrent read cannot observe directory listings and
+    // file contents from different sides of this invalidation.
+    project_fs
+        .invalidate_path_and_children_with_reason_synced(paths_to_invalidate, |path| {
+            invalidation::Initialize {
+                path: RcStr::from(path.to_string_lossy()),
+            }
+        })
+        .await;
+
+    Ok(())
+}
+
+#[napi(object)]
+#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs)]
+pub struct NapiRouteInfo {
+    pub pathname: RcStr,
+    pub route_type: String,
+    /// The original names of the app pages behind this route (there are
+    /// multiple for parallel routes), or the original name of an app route.
+    /// Empty for pages routes.
+    pub original_names: Vec<RcStr>,
+}
+
+#[turbo_tasks::value(transparent, serialization = "skip")]
+struct RouteInfos(#[turbo_tasks(trace_ignore)] Vec<NapiRouteInfo>);
+
+#[turbo_tasks::function(operation, root)]
+async fn project_route_infos_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Result<Vc<RouteInfos>> {
+    let entrypoints = container.entrypoints().await?;
+    let infos = entrypoints
+        .routes
+        .iter()
+        .map(|(pathname, route)| {
+            let (route_type, original_names) = match route {
+                Route::Page { .. } => ("page", Vec::new()),
+                Route::PageApi { .. } => ("page-api", Vec::new()),
+                Route::AppPage(pages) => (
+                    "app-page",
+                    pages
+                        .iter()
+                        .map(|page| page.original_name.clone())
+                        .collect(),
+                ),
+                Route::AppRoute { original_name, .. } => ("app-route", vec![original_name.clone()]),
+                Route::Conflict => ("conflict", Vec::new()),
+            };
+            NapiRouteInfo {
+                pathname: pathname.clone(),
+                route_type: route_type.into(),
+                original_names,
+            }
+        })
+        .collect();
+    Ok(Vc::cell(infos))
+}
+
+/// Returns the routes in the entrypoints, recomputed against the current
+/// state of the filesystem: tracked filesystem reads under the given
+/// project-relative directories are invalidated first, so files that were
+/// created or deleted after Turbopack's file watcher last reported are taken
+/// into account. Routes are keyed the same way `entrypointsSubscribe` emits
+/// them.
+#[napi]
+pub async fn project_get_routes(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    invalidate_dirs: Vec<String>,
+) -> napi::Result<Vec<NapiRouteInfo>> {
+    let container = project.container;
+
+    project
+        .turbopack_ctx
+        .turbo_tasks()
+        .run_once(async move {
+            invalidate_project_relative_dirs(container, &invalidate_dirs).await?;
+
+            let infos = project_route_infos_operation(container)
+                .read_strongly_consistent()
+                .await?;
+            Ok(infos.to_vec())
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))
+}
+
 /// Returns whether the entrypoints contain the given route, recomputed
 /// against the current state of the filesystem: any tracked filesystem reads
 /// under the given project-relative directories are invalidated first, so a
@@ -1073,53 +1206,7 @@ pub async fn project_contains_route(
         .turbopack_ctx
         .turbo_tasks()
         .run_once(async move {
-            if !invalidate_dirs.is_empty() {
-                #[turbo_tasks::value(cell = "new", eq = "manual")]
-                struct ProjectDirInfo(FileSystemPath, DiskFileSystem);
-
-                #[turbo_tasks::function(operation, root)]
-                async fn project_dir_info_operation(
-                    container: ResolvedVc<ProjectContainer>,
-                ) -> Result<Vc<ProjectDirInfo>> {
-                    let project = container.project();
-                    let project_path = project.project_path().owned().await?;
-                    let project_fs = project.project_fs().owned().await?;
-                    Ok(ProjectDirInfo(project_path, project_fs).cell())
-                }
-
-                let ProjectDirInfo(project_path, project_fs) =
-                    &*project_dir_info_operation(container)
-                        .read_strongly_consistent()
-                        .await?;
-
-                // Use `to_sys_path_raw` (not `to_sys_path`): these paths are compared against
-                // the invalidator map keys inside `invalidate_path_and_children_with_reason`,
-                // which use the internal (verbatim on Windows) representation.
-                let project_sys_path = project_fs.to_sys_path_raw(project_path);
-                let paths_to_invalidate = invalidate_dirs
-                    .iter()
-                    .map(|dir| {
-                        let relative_dir = dir.trim_start_matches('/');
-                        if relative_dir.is_empty() {
-                            project_sys_path.clone()
-                        } else {
-                            project_sys_path.join(unix_to_sys(relative_dir).as_ref())
-                        }
-                    })
-                    .collect::<Vec<_>>();
-
-                // The synced variant serializes with the file watcher's own
-                // invalidation batches, so a concurrent read cannot observe
-                // directory listings and file contents from different sides
-                // of this invalidation.
-                project_fs
-                    .invalidate_path_and_children_with_reason_synced(paths_to_invalidate, |path| {
-                        invalidation::Initialize {
-                            path: RcStr::from(path.to_string_lossy()),
-                        }
-                    })
-                    .await;
-            }
+            invalidate_project_relative_dirs(container, &invalidate_dirs).await?;
 
             let contains = project_contains_route_operation(container, route_key)
                 .read_strongly_consistent()
