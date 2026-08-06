@@ -156,4 +156,27 @@ describe('use-cache-custom-handler', () => {
       )
     })
   })
+
+  it('should reach the cache handler only once for sequential calls in a request', async () => {
+    const $ = await next.render$('/sequential-dedupe')
+
+    expect($('#first').text()).toBe($('#second').text())
+
+    await retry(async () => {
+      const cliOutput = next.cliOutput.slice(outputIndex)
+
+      // The first call misses and fills. The second is served from the entry
+      // retained for this request, so it never reaches the handler, which for a
+      // registered handler can be a remote round trip.
+      expect(cliOutput).toIncludeRepeated(`ModernCustomCacheHandler::get`, 1)
+
+      // Matched up to the escaped opening bracket of the logged cache key,
+      // since `::set-resolved-entry` would otherwise count as another `::set`.
+      // The matcher compiles its argument as a regular expression.
+      expect(cliOutput).toIncludeRepeated(
+        `ModernCustomCacheHandler::set \\[`,
+        1
+      )
+    })
+  })
 })

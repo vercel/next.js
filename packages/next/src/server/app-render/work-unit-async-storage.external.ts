@@ -342,6 +342,12 @@ export type StaticPrerenderStore = Exclude<
 export interface CommonCacheStore
   extends Omit<CommonWorkUnitStore, 'implicitTags'> {
   /**
+   * Whether this work unit will persist the results it consumes in a server
+   * cache. This only describes the immediate consumer; it is not inherited
+   * from outer scopes.
+   */
+  readonly consumerWillServerCache: boolean
+  /**
    * A cache work unit store might not always have an outer work unit store,
    * from which implicit tags could be inherited.
    */
@@ -438,6 +444,33 @@ export type WorkUnitStore =
   | CacheStore
   | PrerenderStore
   | GenerateStaticParamsStore
+
+export function willConsumerServerCache(
+  workUnitStore: WorkUnitStore | undefined
+): boolean {
+  if (!workUnitStore) {
+    return false
+  }
+
+  switch (workUnitStore.type) {
+    case 'cache':
+    case 'private-cache':
+    case 'unstable-cache':
+      return workUnitStore.consumerWillServerCache
+    case 'prerender':
+    case 'prerender-client':
+    case 'prerender-ppr':
+    case 'prerender-legacy':
+      return true
+    case 'request':
+    case 'prerender-runtime':
+    case 'validation-client':
+    case 'generate-static-params':
+      return false
+    default:
+      return workUnitStore satisfies never
+  }
+}
 
 export type WorkUnitAsyncStorage = AsyncLocalStorage<WorkUnitStore>
 
