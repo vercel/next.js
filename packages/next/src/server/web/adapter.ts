@@ -321,7 +321,6 @@ export async function adapter(
 
             const workStore = createWorkStore({
               page,
-              executionMode: 'request',
               renderOpts: {
                 cacheLifeProfiles: proxyCacheLifeProfiles,
                 // Proxy doesn't do static generation, so this value does not
