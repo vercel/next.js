@@ -588,6 +588,8 @@ function Trace({
     items[0]?.id ?? null
   )
   const [activeTraceRow, setActiveTraceRow] = useState<HTMLElement | null>(null)
+  const [isTraceFocused, setIsTraceFocused] = useState(false)
+  const [isTraceTooltipOpen, setIsTraceTooltipOpen] = useState(false)
   const traceRowsRef = useRef<HTMLDivElement>(null)
   const shouldScrollActiveItemIntoViewRef = useRef(false)
   const traceId = useId()
@@ -647,7 +649,7 @@ function Trace({
     },
     [activeItemIndex, items]
   )
-  const handleTracePointerOver = useCallback(
+  const handleTracePointerMove = useCallback(
     (event: PointerEvent<HTMLDivElement>) => {
       const target = event.target
       if (!(target instanceof Element)) {
@@ -683,7 +685,10 @@ function Trace({
         </div>
       </div>
       <div className="request-insights-trace-viewport">
-        <div className="request-insights-trace">
+        <div
+          className="request-insights-trace"
+          onPointerMove={handleTracePointerMove}
+        >
           <div className="request-insights-trace-header">
             <span>Span</span>
             <span className="request-insights-trace-axis">
@@ -713,6 +718,8 @@ function Trace({
             asChild
             className="request-insights-trace-tooltip"
             direction="top"
+            onOpenChange={setIsTraceTooltipOpen}
+            open={isTraceFocused || isTraceTooltipOpen}
             title={activeItemDescription}
           >
             <div
@@ -723,8 +730,9 @@ function Trace({
               }
               aria-label={`Trace spans, ${items.length} item${items.length === 1 ? '' : 's'}. Use arrow keys to inspect timing.`}
               className="request-insights-trace-rows"
+              onBlur={() => setIsTraceFocused(false)}
+              onFocus={() => setIsTraceFocused(true)}
               onKeyDown={handleTraceKeyDown}
-              onPointerOver={handleTracePointerOver}
               ref={traceRowsRef}
               role="listbox"
               tabIndex={items.length === 0 ? undefined : 0}
