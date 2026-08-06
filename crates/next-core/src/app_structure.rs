@@ -19,8 +19,9 @@ use crate::{
     next_app::{
         AppPage, AppPath, PageSegment, PageType,
         metadata::{
-            GlobalMetadataFileMatch, MetadataFileMatch, match_global_metadata_file,
-            match_local_metadata_file, normalize_metadata_route,
+            GlobalMetadataFileMatch, MetadataFileMatch, is_multi_dynamic_metadata,
+            match_global_metadata_file, match_local_metadata_file, multi_dynamic_metadata_page,
+            normalize_metadata_route,
         },
     },
     next_import_map::get_next_package,
@@ -1650,14 +1651,12 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         .chain(open_graph.iter().cloned().map(MetadataItem::from))
     {
         let app_page = app_page.clone_push_str(&get_metadata_route_name(meta.clone()).await?)?;
+        let mut page = normalize_metadata_route(app_page)?;
+        if *is_multi_dynamic_metadata(meta.clone()).await? {
+            page = multi_dynamic_metadata_page(page)?;
+        }
 
-        add_app_metadata_route(
-            app_dir.clone(),
-            &mut result,
-            normalize_metadata_route(app_page)?,
-            meta,
-            root_params,
-        );
+        add_app_metadata_route(app_dir.clone(), &mut result, page, meta, root_params);
     }
 
     // root path: /
@@ -1671,11 +1670,15 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         for meta in favicon.iter().chain(robots.iter()).chain(manifest.iter()) {
             let app_page =
                 app_page.clone_push_str(&get_metadata_route_name(meta.clone()).await?)?;
+            let mut page = normalize_metadata_route(app_page)?;
+            if *is_multi_dynamic_metadata(meta.clone()).await? {
+                page = multi_dynamic_metadata_page(page)?;
+            }
 
             add_app_metadata_route(
                 app_dir.clone(),
                 &mut result,
-                normalize_metadata_route(app_page)?,
+                page,
                 meta.clone(),
                 root_params,
             );

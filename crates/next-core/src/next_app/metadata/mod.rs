@@ -3,10 +3,16 @@ use std::sync::LazyLock;
 use anyhow::Result;
 use phf::phf_map;
 use regex::Regex;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
+use turbopack_core::file_source::FileSource;
 
-use crate::next_app::{AppPage, AppPath, PageSegment, PageType};
+use crate::{
+    app_structure::MetadataItem,
+    next_app::{AppPage, AppPath, PageSegment, PageType},
+    segment_config::{ParseSegmentMode, parse_segment_config_from_source},
+};
 
 pub mod image;
 pub mod route;
@@ -415,6 +421,39 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
 
         page.push(PageSegment::PageType(PageType::Route))?;
     }
+
+    Ok(page)
+}
+
+/// Whether a dynamic metadata file exports a generator
+/// (`generateSitemaps`/`generateImageMetadata`), in which case its route is
+/// served under an id instead of its own name.
+#[turbo_tasks::function]
+pub async fn is_multi_dynamic_metadata(metadata: MetadataItem) -> Result<Vc<bool>> {
+    Ok(match metadata {
+        MetadataItem::Dynamic { path } => {
+            let source = Vc::upcast(FileSource::new(path));
+            let config = parse_segment_config_from_source(source, ParseSegmentMode::App).await?;
+            Vc::cell(config.generate_sitemaps || config.generate_image_metadata)
+        }
+        MetadataItem::Static { .. } => Vc::cell(false),
+    })
+}
+
+/// Maps the page of a multi-dynamic metadata route to the page it is served
+/// under, e.g. /sitemap.xml/route -> /sitemap/[__metadata_id__]/route.
+pub fn multi_dynamic_metadata_page(mut page: AppPage) -> Result<AppPage> {
+    // remove the last /route segment of page
+    page.0.pop();
+
+    // For sitemap.xml routes with generateSitemaps, revert to sitemap
+    // since multi-dynamic sitemaps use /sitemap/[__metadata_id__]
+    if page.last() == Some(&PageSegment::Static(rcstr!("sitemap.xml"))) {
+        page.0.pop();
+        page.push(PageSegment::Static(rcstr!("sitemap")))?;
+    }
+    page.push(PageSegment::Dynamic(rcstr!("__metadata_id__")))?;
+    page.push(PageSegment::PageType(PageType::Route))?;
 
     Ok(page)
 }

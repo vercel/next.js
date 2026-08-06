@@ -1037,12 +1037,13 @@ export function normalizedPageToTurbopackStructureRoute(
       : entrypointKey
 
     if (ext) {
-      if (entrypointKey.endsWith('/[__metadata_id__]')) {
-        entrypointKey = entrypointKey.slice(0, -'/[__metadata_id__]'.length)
-      }
-      // After stripping [__metadata_id__], add .xml for dynamic sitemap routes
-      // to match the Turbopack entry key from normalize_metadata_route
-      if (entrypointKey.endsWith('/sitemap') && ext !== '.xml') {
+      // Dynamic sitemap routes without a generator are keyed with an .xml
+      // extension (see normalize_metadata_route).
+      if (
+        !entrypointKey.endsWith('/[__metadata_id__]') &&
+        entrypointKey.endsWith('/sitemap') &&
+        ext !== '.xml'
+      ) {
         entrypointKey = entrypointKey + '.xml'
       }
     }

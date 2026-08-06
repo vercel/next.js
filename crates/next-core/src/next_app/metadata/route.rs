@@ -24,7 +24,8 @@ use crate::{
     app_structure::MetadataItem,
     mode::NextMode,
     next_app::{
-        AppPage, PageSegment, PageType, app_entry::AppEntry, app_route_entry::get_app_route_entry,
+        AppPage, app_entry::AppEntry, app_route_entry::get_app_route_entry,
+        metadata::is_multi_dynamic_metadata,
     },
     next_config::NextConfig,
     parse_segment_config_from_source,
@@ -60,7 +61,7 @@ pub async fn get_app_metadata_route_entry(
     nodejs_context: Vc<ModuleAssetContext>,
     edge_context: Vc<ModuleAssetContext>,
     project_root: FileSystemPath,
-    mut page: AppPage,
+    page: AppPage,
     mode: NextMode,
     metadata: MetadataItem,
     next_config: Vc<NextConfig>,
@@ -71,35 +72,7 @@ pub async fn get_app_metadata_route_entry(
 
     let source = Vc::upcast(FileSource::new(original_path));
     let segment_config = parse_segment_config_from_source(source, ParseSegmentMode::App);
-    let is_dynamic_metadata = matches!(metadata, MetadataItem::Dynamic { .. });
-    let is_multi_dynamic: bool = if Some(segment_config).is_some() {
-        // is_multi_dynamic is true when config.generateSitemaps or
-        // config.generateImageMetadata is defined in dynamic routes
-        let config = segment_config.await.unwrap();
-        config.generate_sitemaps || config.generate_image_metadata
-    } else {
-        false
-    };
-
-    // Map dynamic sitemap and image routes based on the exports.
-    // if there's generator export: add /[__metadata_id__] to the route;
-    // otherwise keep the original route.
-    if is_dynamic_metadata {
-        // remove the last /route segment of page
-        page.0.pop();
-
-        if is_multi_dynamic {
-            // For sitemap.xml routes with generateSitemaps, revert to sitemap
-            // since multi-dynamic sitemaps use /sitemap/[__metadata_id__]
-            if page.last() == Some(&PageSegment::Static(rcstr!("sitemap.xml"))) {
-                page.0.pop();
-                page.push(PageSegment::Static(rcstr!("sitemap")))?;
-            }
-            page.push(PageSegment::Dynamic(rcstr!("__metadata_id__")))?;
-        };
-        // Push /route back
-        page.push(PageSegment::PageType(PageType::Route))?;
-    };
+    let is_multi_dynamic = *is_multi_dynamic_metadata(metadata.clone()).await?;
 
     Ok(get_app_route_entry(
         nodejs_context,
