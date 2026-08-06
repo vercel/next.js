@@ -2444,7 +2444,7 @@ async function getSharedNodeAssets({
       require.resolve('next/dist/server/require-hook'),
       require.resolve('next/dist/server/node-polyfill-crypto'),
       // Nothing references these, the require hook resolves them at runtime.
-      // Turbopack traces them via `Project::additional_traced_modules`.
+      // Turbopack traces them via `Project::pages_traced_modules`.
       ...Object.values(defaultOverrides).filter((item) => path.extname(item)),
     ]
 
