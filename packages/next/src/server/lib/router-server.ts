@@ -492,6 +492,7 @@ export async function initialize(opts: {
         resHeaders,
         bodyStream,
         matchedOutput,
+        didRewrite,
       } = await resolveRoutes({
         req,
         res,
@@ -765,10 +766,16 @@ export async function initialize(opts: {
       // request arrives right after a file was written. Before rendering a
       // 404, check the request path against the routes on disk via the
       // development route matchers, and render the route when it exists.
+      // Plain-text 404s for static assets and subresources above stay on
+      // their fast path deliberately: they self-heal on retry and aren't
+      // worth a filesystem re-scan.
       if (
         opts.dev &&
-        config.useFileSystemPublicRoutes &&
+        // Filesystem routes are only served for rewritten requests when
+        // `useFileSystemPublicRoutes` is disabled.
+        (config.useFileSystemPublicRoutes || didRewrite) &&
         parsedUrl.pathname &&
+        !parsedUrl.pathname.startsWith('/_next/') &&
         !invokedOutputs.has(parsedUrl.pathname)
       ) {
         let routeExists = false

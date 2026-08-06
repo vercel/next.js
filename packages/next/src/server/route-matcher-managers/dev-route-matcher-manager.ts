@@ -1,4 +1,5 @@
 import { RouteKind } from '../route-kind'
+import { PageNotFoundError } from '../../shared/lib/utils'
 import type { RouteMatch } from '../route-matches/route-match'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import { DefaultRouteMatcherManager } from './default-route-matcher-manager'
@@ -100,7 +101,15 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
     )) {
       // We're here, which means that we haven't seen this match yet, so we
       // should try to ensure it and recompile the production matcher.
-      await this.ensurer.ensure(developmentMatch, pathname)
+      try {
+        await this.ensurer.ensure(developmentMatch, pathname)
+      } catch (err) {
+        // The route was removed after the matchers last scanned the
+        // filesystem. Treat the stale match as no match rather than failing
+        // the request.
+        if (err instanceof PageNotFoundError) continue
+        throw err
+      }
       await this.production.reload()
 
       // Iterate over the production matches again, this time we should be able

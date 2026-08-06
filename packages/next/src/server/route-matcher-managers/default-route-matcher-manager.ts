@@ -36,13 +36,44 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
   private waitTillReadyPromise?: Promise<void>
   public async waitTillReady(): Promise<void> {
     if (this.waitTillReadyPromise) {
-      await this.waitTillReadyPromise
-      delete this.waitTillReadyPromise
+      try {
+        await this.waitTillReadyPromise
+      } finally {
+        // Also delete the promise when it rejected, so that one failed
+        // reload doesn't fail every subsequent request.
+        delete this.waitTillReadyPromise
+      }
     }
   }
 
+  private inFlightReload?: Promise<void>
+  private queuedReload?: Promise<void>
+
+  public reload(): Promise<void> {
+    // Coalesce concurrent reloads. A caller that arrives while a reload is
+    // in flight cannot join it, because that reload may have scanned the
+    // filesystem before the change the caller wants to observe, so it waits
+    // for one queued follow-up reload instead. This bounds the work under
+    // concurrent reloads to one running and one queued scan.
+    if (!this.inFlightReload) {
+      this.inFlightReload = this.reloadImpl().finally(() => {
+        this.inFlightReload = undefined
+      })
+      return this.inFlightReload
+    }
+
+    if (!this.queuedReload) {
+      this.queuedReload = this.inFlightReload.then(() => {
+        this.queuedReload = undefined
+        return this.reload()
+      })
+    }
+
+    return this.queuedReload
+  }
+
   private previousMatchers: ReadonlyArray<RouteMatcher> = []
-  public async reload() {
+  private async reloadImpl() {
     const { promise, resolve, reject } = new DetachedPromise<void>()
     this.waitTillReadyPromise = promise
 

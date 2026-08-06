@@ -1966,11 +1966,13 @@ export async function createHotReloaderTurbopack(
                   resolve(true)
                 })
               })
-              if (!updated) break
               pendingEntrypointsUpdate = nextEntrypointsUpdate.promise
               route = isInsideAppDir
                 ? currentEntrypoints.app.get(normalizedAppPage)
                 : currentEntrypoints.page.get(page)
+              // The route is checked once more even when the deadline was
+              // hit, in case an update finished at the same time.
+              if (!updated) break
             }
           }
 

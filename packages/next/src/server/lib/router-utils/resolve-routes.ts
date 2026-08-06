@@ -133,6 +133,7 @@ export function getResolveRoutes(
     resHeaders: Record<string, string | string[]> | null
     parsedUrl: NextUrlWithParsedQuery
     matchedOutput?: FsOutput | null
+    didRewrite?: boolean
   }> {
     let finished = false
     let resHeaders: Record<string, string | string[]> = {}
@@ -953,6 +954,7 @@ export function getResolveRoutes(
       parsedUrl,
       resHeaders,
       matchedOutput,
+      didRewrite,
     }
   }
 

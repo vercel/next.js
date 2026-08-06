@@ -41,6 +41,7 @@ import Server, { WrappedBuildError } from '../next-server'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
+import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 import { Telemetry } from '../../telemetry/storage'
 import {
   type Span,
@@ -459,6 +460,7 @@ export default class DevServer extends Server {
       }
       pathname = removePathPrefix(pathname, basePath) || '/'
     }
+    pathname = removeTrailingSlash(pathname)
 
     return this.matchers.test(pathname, {
       i18n: this.i18nProvider?.analyze(pathname),
