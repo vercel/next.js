@@ -59,6 +59,11 @@ export class Worker {
       logger?: Pick<typeof console, 'error' | 'info' | 'warn'>
       exposedMethods: ReadonlyArray<string>
       enableWorkerThreads?: boolean
+      /**
+       * Exit the parent when a child-process worker terminates unexpectedly.
+       * When false, reject the current worker call instead. Defaults to true.
+       */
+      exitOnWorkerExit?: boolean
     }
   ) {
     let {
@@ -70,6 +75,7 @@ export class Worker {
       isolatedMemory,
       onActivity,
       onActivityAbort,
+      exitOnWorkerExit = true,
       ...farmOptions
     } = options
 
@@ -78,7 +84,18 @@ export class Worker {
 
     let restartPromise: Promise<typeof RESTARTED>
     let resolveRestartPromise: (arg: typeof RESTARTED) => void
+    let workerExitPromise!: Promise<never>
+    let rejectWorkerExitPromise!: (error: Error) => void
     let activeTasks = 0
+
+    const resetWorkerExitPromise = () => {
+      workerExitPromise = new Promise((_, reject) => {
+        rejectWorkerExitPromise = reject
+      })
+      // A worker may exit before its first call. Keep that rejection observed;
+      // method calls still race the original promise and receive the error.
+      void workerExitPromise.catch(() => {})
+    }
 
     this._worker = undefined
 
@@ -123,6 +140,8 @@ export class Worker {
       formatNodeOptions(nodeOptions)
 
     const createWorker = () => {
+      resetWorkerExitPromise()
+      const rejectWorkerExit = rejectWorkerExitPromise
       const workerEnv: NodeJS.ProcessEnv = {
         ...process.env,
         ...((farmOptions.forkOptions?.env || {}) as any),
@@ -176,12 +195,17 @@ export class Worker {
         }[]) {
           worker._child?.on('exit', (code, signal) => {
             if ((code || (signal && signal !== 'SIGINT')) && this._worker) {
-              logger.error(
-                `Next.js build worker exited with code: ${code} and signal: ${signal}`
-              )
+              const message = `Next.js build worker exited with code: ${code} and signal: ${signal}`
+              if (exitOnWorkerExit) {
+                logger.error(message)
 
-              // if a child process doesn't exit gracefully, we want to bubble up the exit code to the parent process
-              process.exit(code ?? 1)
+                // if a child process doesn't exit gracefully, we want to bubble up the exit code to the parent process
+                process.exit(code ?? 1)
+              } else {
+                const error = new Error(message) as Error & { type: string }
+                error.type = 'WorkerError'
+                rejectWorkerExit(error)
+              }
             }
           })
 
@@ -268,10 +292,14 @@ export class Worker {
               let attempts = 0
               for (;;) {
                 onActivityImpl()
-                const result = await Promise.race([
-                  (this._worker as any)[method](...sanitizedArgs),
-                  restartPromise,
-                ])
+                const workerCall = (this._worker as any)[method](
+                  ...sanitizedArgs
+                )
+                const result = await Promise.race(
+                  exitOnWorkerExit
+                    ? [workerCall, restartPromise]
+                    : [workerCall, restartPromise, workerExitPromise]
+                )
                 if (result !== RESTARTED) return result
                 if (onRestart) onRestart(method, sanitizedArgs, ++attempts)
               }
@@ -280,8 +308,15 @@ export class Worker {
               onActivityImpl()
             }
           }
-        : (...args: any[]) =>
-            (this._worker as any)[method](...sanitizeArgs(args))
+        : // eslint-disable-next-line no-loop-func
+          (...args: any[]) => {
+            const workerCall = (this._worker as any)[method](
+              ...sanitizeArgs(args)
+            )
+            return exitOnWorkerExit
+              ? workerCall
+              : Promise.race([workerCall, workerExitPromise])
+          }
     }
   }
 

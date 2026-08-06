@@ -2,14 +2,23 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('ci-missing-typescript-deps', () => {
   describe('missing typescript dep', () => {
-    const { next } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       nextConfig: {
         experimental: { useTypeScriptCli: false },
       },
       files: {
-        'pages/index.tsx': `
+        'app/page.tsx': `
           export default function Page() {
             return <p>hello world</p>
+          }
+        `,
+        'app/layout.tsx': `
+          export default function RootLayout({
+            children,
+          }: {
+            children: React.ReactNode
+          }) {
+            return <html><body>{children}</body></html>
           }
         `,
       },
@@ -38,6 +47,35 @@ describe('ci-missing-typescript-deps', () => {
       )
       expect(next.cliOutput).not.toContain('Call retries were exceeded')
       expect(next.cliOutput).not.toContain('WorkerError')
+      expect(next.cliOutput).not.toContain('Build error occurred')
+      expect(next.cliOutput).not.toContain('at ignore-listed frames')
+    })
+
+    it('should skip TypeScript setup for a JavaScript-only App project', async () => {
+      await next.deleteFile('app/page.tsx')
+      await next.deleteFile('app/layout.tsx')
+      await next.deleteFile('tsconfig.json').catch(() => {})
+      await next.deleteFile('next-env.d.ts').catch(() => {})
+      await next.patchFile(
+        'app/page.js',
+        'export default function Page() { return <p>hello world</p> }'
+      )
+      await next.patchFile(
+        'app/layout.js',
+        `export default function RootLayout({ children }) {
+          return <html><body>{children}</body></html>
+        }`
+      )
+
+      const { cliOutput, exitCode } = await next.build()
+
+      expect(exitCode).toBe(0)
+      if (isTurbopack) {
+        expect(cliOutput).not.toContain('Running TypeScript')
+        expect(cliOutput).not.toContain('Finished TypeScript')
+      }
+      expect(await next.hasFile('tsconfig.json')).toBe(false)
+      expect(await next.hasFile('next-env.d.ts')).toBe(false)
     })
   })
 

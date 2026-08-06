@@ -7,7 +7,7 @@ import type {
   NecessaryDependencies,
 } from './has-necessary-dependencies'
 import semver from 'next/dist/compiled/semver'
-import { CompileError } from './compile-error'
+import { CompileError, TypeScriptDiagnosticError } from './compile-error'
 import * as log from '../build/output/log'
 
 import { getTypeScriptIntent } from './typescript/getTypeScriptIntent'
@@ -65,6 +65,8 @@ export async function verifyAndRunTypeScript({
   debugBuildPaths,
   useTypeScriptCli = false,
   onFirstCliOutput,
+  typeCheckPreflightDone = false,
+  deferExitOnError = false,
 }: {
   dir: string
   distDir: string
@@ -85,6 +87,15 @@ export async function verifyAndRunTypeScript({
    * stop the build spinner. Only used on the in-process CLI path.
    */
   onFirstCliOutput?: () => void
+  /**
+   * TypeScript dependencies and generated project files were already prepared.
+   */
+  typeCheckPreflightDone?: boolean
+  /**
+   * Propagate worker failures without terminating the worker process so the
+   * caller can wait for concurrent compilation and shutdown work.
+   */
+  deferExitOnError?: boolean
 }): Promise<{
   result?: TypeCheckResult
   version: string | null
@@ -139,6 +150,10 @@ export async function verifyAndRunTypeScript({
         deps.missing.length === 1 && deps.missing[0].pkg === 'typescript'
 
       if (onlyTypescriptMissing) {
+        if (typeCheckPreflightDone) {
+          return { version: null, typeCheckMode }
+        }
+
         // @typescript/native-preview is installed and only typescript is missing
         // Skip installation and return early - the project can use the native preview
         log.info(
@@ -220,33 +235,35 @@ export async function verifyAndRunTypeScript({
 
     const typescriptVersion = typeScriptPackage.version
 
-    if (semver.lt(typescriptVersion, '5.1.0')) {
-      log.warn(
-        `Minimum recommended TypeScript version is v5.1.0, older versions can potentially be incompatible with Next.js. Detected: ${typescriptVersion}`
-      )
-    }
+    if (!typeCheckPreflightDone) {
+      if (semver.lt(typescriptVersion, '5.1.0')) {
+        log.warn(
+          `Minimum recommended TypeScript version is v5.1.0, older versions can potentially be incompatible with Next.js. Detected: ${typescriptVersion}`
+        )
+      }
 
-    // Reconfigure (or create) the user's `tsconfig.json` for them:
-    await writeConfigurationDefaults(
-      typescriptVersion,
-      resolvedTsConfigPath,
-      intent.firstTimeSetup,
-      hasAppDir,
-      distDir,
-      hasPagesDir,
-      strictRouteTypes
-    )
-    // Write out the necessary `next-env.d.ts` file to correctly register
-    // Next.js' types:
-    await writeAppTypeDeclarations({
-      baseDir: dir,
-      distDir,
-      imageImportsEnabled: !disableStaticImages,
-      hasPagesDir,
-      hasAppDir,
-      strictRouteTypes,
-      typedRoutes,
-    })
+      // Reconfigure (or create) the user's `tsconfig.json` for them:
+      await writeConfigurationDefaults(
+        typescriptVersion,
+        resolvedTsConfigPath,
+        intent.firstTimeSetup,
+        hasAppDir,
+        distDir,
+        hasPagesDir,
+        strictRouteTypes
+      )
+      // Write out the necessary `next-env.d.ts` file to correctly register
+      // Next.js' types:
+      await writeAppTypeDeclarations({
+        baseDir: dir,
+        distDir,
+        imageImportsEnabled: !disableStaticImages,
+        hasPagesDir,
+        hasAppDir,
+        strictRouteTypes,
+        typedRoutes,
+      })
+    }
 
     let result
     if (shouldRunTypeCheck) {
@@ -295,11 +312,14 @@ export async function verifyAndRunTypeScript({
   } catch (err) {
     // Print the user-facing message here and rethrow. This function runs both
     // in-process (next dev / next test / next typegen, and the CLI type-check
-    // during build) and inside a jest worker (the TypeScript-API type-check
-    // during build). A thrown error does not survive the worker boundary — the
-    // parent only sees `Call retries were exceeded` — so the message must be
-    // printed on this side. The caller decides what to do with the throw (exit,
-    // or tolerate it as `next dev` does on re-verification).
+    // during build) and inside a jest worker (the TypeScript-API type-check during
+    // build). Sequential builds exit that worker directly to avoid jest-worker's
+    // retry error. Concurrent Turbopack builds propagate the serialized error so
+    // the parent can wait for compilation and shutdown before exiting, but the
+    // parent intentionally does not print the serialized error again. The message
+    // must therefore be printed on this side in both modes. In-process callers
+    // decide what to do with the throw (exit, or tolerate it as `next dev` does on
+    // re-verification).
     if (err instanceof CompileError) {
       // The checker already printed its diagnostics.
       console.error(red('Failed to type check.\n'))
@@ -311,24 +331,37 @@ export async function verifyAndRunTypeScript({
     } else {
       console.error(err)
     }
+    if (
+      deferExitOnError &&
+      (err instanceof CompileError || err instanceof TypeScriptDiagnosticError)
+    ) {
+      // This marker survives jest-worker serialization and tells the parent
+      // that a compiler or configuration diagnostic was already printed.
+      // Binding and other infrastructure failures remain unmarked.
+      err.name = 'NextTypeCheckError'
+    }
     throw err
   }
 }
 
 /**
  * Worker entrypoint used by `next build` for the TypeScript-API type-check.
- * `verifyAndRunTypeScript` has already printed any error, so on failure we exit
- * the worker directly rather than rethrowing: a thrown error would be retried by
- * jest-worker and surface in the parent as the unhelpful
- * `Jest worker encountered 1 child process exceptions, exceeding retry limit`.
+ * `verifyAndRunTypeScript` has already printed any error. Sequential builds exit
+ * the worker directly so jest-worker cannot retry it and replace the diagnostic
+ * with an internal retry error. Concurrent Turbopack builds instead propagate the
+ * error with retries disabled, allowing the parent to finish compilation and
+ * shutdown before it exits.
  */
 export async function verifyAndRunTypeScriptInWorker(
   options: Parameters<typeof verifyAndRunTypeScript>[0]
 ): ReturnType<typeof verifyAndRunTypeScript> {
   try {
     return await verifyAndRunTypeScript(options)
-  } catch {
+  } catch (error) {
     // The error was already printed by `verifyAndRunTypeScript`.
+    if (options.deferExitOnError) {
+      throw error
+    }
     // Kill the worker with a non-zero exit code.
     process.exit(1)
   }
