@@ -1,0 +1,70 @@
+---
+title: webSocketRouteHandlers
+description: Enable experimental WebSocket Route Handlers in the App Router.
+version: canary
+related:
+  links:
+    - app/api-reference/functions/next-response
+    - app/guides/custom-server
+---
+
+The `webSocketRouteHandlers` experimental option allows a dynamic App Route Handler to return [`NextResponse.upgrade()`](/docs/app/api-reference/functions/next-response#upgrade) and accept a WebSocket connection.
+
+## Usage
+
+Enable the option in `next.config.ts`:
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    webSocketRouteHandlers: true,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    webSocketRouteHandlers: true,
+  },
+}
+
+module.exports = nextConfig
+```
+
+Browser WebSocket requests are restricted to the request's exact origin by default. To allow additional origins, use the object form:
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    webSocketRouteHandlers: {
+      allowedOrigins: [
+        'https://app.example.com',
+        'https://preview.example.com',
+      ],
+    },
+  },
+}
+
+export default nextConfig
+```
+
+Each entry must be an exact HTTP or HTTPS origin, including the port when it is not the scheme's default. Wildcards, paths, queries, fragments, credentials, and forwarding headers are not used for origin authorization.
+
+## Supported deployments
+
+WebSocket Route Handlers require the Node.js runtime and work with `next dev`, `next start`, [`output: 'standalone'`](/docs/app/api-reference/config/next-config-js/output), and [custom servers](/docs/app/guides/custom-server#websocket-route-handlers-experimental). They are not supported with:
+
+- the Edge Runtime
+- [`output: 'export'`](/docs/app/guides/static-exports)
+- prerendered or ISR-cached Route Handlers
+- [`adapterPath`](/docs/app/api-reference/config/next-config-js/adapterPath), until an adapter contract for Node.js upgrade handling is available
+
+The built-in connection registry is process-local. Applications deployed across multiple processes or instances need an external broker for broadcasts or shared realtime state. Next.js does not impose an application-level connection count, rate limit, or idle timeout; enforce those policies in your application or reverse proxy.
