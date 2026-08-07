@@ -1619,6 +1619,9 @@ impl PageEndpoint {
             Some(pages_function_name(&this.original_name).into()),
             ssr_module_graph,
             Vc::cell(vec![ssr_module]),
+            // The Pages Router renderer resolves `styled-jsx` through the require hook at
+            // runtime, so those modules have to be traced for pages endpoints.
+            this.pages_project.project().pages_traced_modules(),
         ))
     }
 }
