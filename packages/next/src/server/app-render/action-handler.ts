@@ -564,6 +564,18 @@ type HandleActionResult =
   /** The request turned out not to be a server action. */
   | null
 
+function getRevalidationWaitUntil(
+  workStore: WorkStore,
+  skipPageRendering: boolean
+): Promise<void> | undefined {
+  if (!skipPageRendering) {
+    return undefined
+  }
+
+  const revalidatesPromise = executeRevalidates(workStore)
+  return revalidatesPromise === false ? undefined : revalidatesPromise
+}
+
 export async function handleAction({
   req,
   res,
@@ -1244,10 +1256,6 @@ export async function handleAction({
           // If we skip page rendering, we need to ensure pending revalidates
           // are awaited before closing the response. Otherwise, this will be
           // done after rendering the page.
-          const maybeRevalidatesPromise = skipPageRendering
-            ? executeRevalidates(workStore)
-            : false
-
           return {
             type: 'done',
             result: await actionAsyncStorage.exit(() =>
@@ -1255,10 +1263,10 @@ export async function handleAction({
                 actionResult: Promise.resolve(actionResult),
                 skipPageRendering,
                 temporaryReferences,
-                waitUntil:
-                  maybeRevalidatesPromise === false
-                    ? undefined
-                    : maybeRevalidatesPromise,
+                waitUntil: getRevalidationWaitUntil(
+                  workStore,
+                  skipPageRendering
+                ),
               })
             ),
           }
@@ -1325,6 +1333,10 @@ export async function handleAction({
             skipPageRendering: shouldSkipPageRendering,
             actionResult: promise,
             temporaryReferences,
+            waitUntil: getRevalidationWaitUntil(
+              workStore,
+              shouldSkipPageRendering
+            ),
           }),
         }
       }
@@ -1355,17 +1367,20 @@ export async function handleAction({
         // swallow error, it's gonna be handled on the client
       }
 
+      const skipPageRendering =
+        workStore.pathWasRevalidated === undefined ||
+        workStore.pathWasRevalidated === ActionDidNotRevalidate ||
+        shouldSkipPageRendering
+
       return {
         type: 'done',
         result: await generateFlight(req, ctx, requestStore, {
           actionResult: promise,
           // If the page was not revalidated, or if this is an action-only
           // request, we can skip rendering the page.
-          skipPageRendering:
-            workStore.pathWasRevalidated === undefined ||
-            workStore.pathWasRevalidated === ActionDidNotRevalidate ||
-            shouldSkipPageRendering,
+          skipPageRendering,
           temporaryReferences,
+          waitUntil: getRevalidationWaitUntil(workStore, skipPageRendering),
         }),
       }
     }

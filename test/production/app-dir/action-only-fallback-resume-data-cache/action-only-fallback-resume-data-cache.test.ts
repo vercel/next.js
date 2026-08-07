@@ -9,6 +9,7 @@ describe('action-only fallback resume data cache', () => {
       : {
           NEXT_PRIVATE_TEST_HEADERS: '1',
           NEXT_PRIVATE_MINIMAL_MODE: '1',
+          TEST_CACHE_HANDLER: '1',
         },
   })
 
@@ -79,13 +80,19 @@ describe('action-only fallback resume data cache', () => {
       expect(responseBody).not.toContain('destination page rendered')
     })
 
-    it('does not render the fallback route when the action calls notFound', async () => {
+    it('applies pending revalidations without rendering the fallback route when the action calls notFound', async () => {
+      const outputIndex = next.cliOutput.length
+
       const response = await invokeAction('notFoundAfterRevalidation')
 
       expect(response.status).toBe(404)
       expect(response.headers.get('content-type')).toContain('text/x-component')
       const responseBody = await response.text()
       expect(responseBody).not.toContain('destination page rendered')
+
+      const output = next.cliOutput.slice(outputIndex)
+      expect(output).toContain('ActionOnlyFallbackCacheHandler::updateTags')
+      expect(output).toContain('_N_T_/events/foo/group')
     })
   }
 })
