@@ -44,11 +44,12 @@ export function wrapClientComponentLoader(
       const result = ComponentMod.__next_app__.loadChunk(...args)
       // Avoid wrapping `loadChunk`'s result in an extra promise in case something like React depends on its identity.
       // We only need to know when it's settled.
-      result.finally(() => {
+      const onSettled = () => {
         const endTime = performance.now()
         clientComponentLoadEnd = endTime
         clientComponentLoadTimes += endTime - startTime
-      })
+      }
+      result.then(onSettled, onSettled)
       return result
     },
   }
