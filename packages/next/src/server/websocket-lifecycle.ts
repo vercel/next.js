@@ -1,6 +1,9 @@
 import type { Duplex } from 'node:stream'
 
-import { isRawHttpResponseCommitted } from './websocket-http'
+import {
+  createOwnedListeners,
+  isRawHttpResponseCommitted,
+} from './websocket-http'
 
 const UPGRADE_HANDLER_CLOSE_GRACE_PERIOD_MS = 5_000
 
@@ -69,30 +72,7 @@ export class PendingWebSocketUpgradeTracker {
     let installing = true
     let finishRequested = false
     let endRemovalRequested = false
-    let endInstalled = false
-    let closeInstalled = false
-    let onEnd!: () => void
-    let onClose!: () => void
-    const removeListeners = (): unknown[] => {
-      const failures: unknown[] = []
-      if (endInstalled) {
-        endInstalled = false
-        try {
-          socket.off('end', onEnd)
-        } catch (error) {
-          failures.push(error)
-        }
-      }
-      if (closeInstalled) {
-        closeInstalled = false
-        try {
-          socket.off('close', onClose)
-        } catch (error) {
-          failures.push(error)
-        }
-      }
-      return failures
-    }
+    const listeners = createOwnedListeners()
     const pending: PendingUpgrade = {
       socket,
       done,
@@ -104,7 +84,7 @@ export class PendingWebSocketUpgradeTracker {
         }
         finished = true
         try {
-          return removeListeners()
+          return listeners.remove()
         } finally {
           this.pending.delete(pending)
           resolve()
@@ -112,10 +92,10 @@ export class PendingWebSocketUpgradeTracker {
       },
     }
     this.pending.add(pending)
-    onClose = () => {
+    const onClose = () => {
       this.record(pending.finish())
     }
-    onEnd = () => {
+    const onEnd = () => {
       let committed = false
       try {
         committed = isCommittedOrFlushing(socket)
@@ -125,43 +105,29 @@ export class PendingWebSocketUpgradeTracker {
       if (committed) {
         if (installing) {
           endRemovalRequested = true
-        } else if (endInstalled) {
-          endInstalled = false
-          try {
-            socket.off('end', onEnd)
-          } catch (error) {
-            if (!this.failures.includes(error)) this.failures.push(error)
-          }
+        } else {
+          this.record(listeners.remove(endEntry))
         }
         return
       }
       this.destroy(socket)
       this.record(pending.finish())
     }
+    const endEntry = { target: socket, event: 'end', listener: onEnd }
+    const closeEntry = { target: socket, event: 'close', listener: onClose }
 
-    try {
-      socket.on('end', onEnd)
-      endInstalled = true
-      socket.on('close', onClose)
-      closeInstalled = true
-    } catch (error) {
-      installing = false
-      const failures = [error, ...removeListeners()]
+    const installFailures = listeners.install([endEntry, closeEntry])
+    installing = false
+    if (installFailures.length > 0) {
       finished = true
       this.pending.delete(pending)
       resolve()
-      this.record(failures)
-      throwFailures(failures)
+      this.record(installFailures)
+      throwFailures(installFailures)
     }
-    installing = false
 
-    if (endRemovalRequested && endInstalled) {
-      endInstalled = false
-      try {
-        socket.off('end', onEnd)
-      } catch (error) {
-        this.record([error])
-      }
+    if (endRemovalRequested) {
+      this.record(listeners.remove(endEntry))
     }
 
     if (finishRequested || socket.destroyed || socket.closed) {
