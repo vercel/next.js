@@ -1,9 +1,13 @@
 import { DetachedPromise } from '../../lib/detached-promise'
-import { CloseController, trackStreamConsumed } from './web-on-close'
+import {
+  CloseController,
+  trackStreamConsumed,
+  type ResponseBodyConsumption,
+} from './web-on-close'
 
 describe('trackStreamConsumed', () => {
   it('calls onEnd when the stream finishes', async () => {
-    const endPromise = new DetachedPromise<void>()
+    const endPromise = new DetachedPromise<ResponseBodyConsumption>()
     const onEnd = jest.fn(endPromise.resolve)
 
     const { stream: inputStream, controller } =
@@ -30,7 +34,7 @@ describe('trackStreamConsumed', () => {
   })
 
   it('calls onEnd when the stream errors', async () => {
-    const endPromise = new DetachedPromise<void>()
+    const endPromise = new DetachedPromise<ResponseBodyConsumption>()
     const onEnd = jest.fn(endPromise.resolve)
 
     const { stream: inputStream, controller } =
@@ -56,7 +60,7 @@ describe('trackStreamConsumed', () => {
   })
 
   it('calls onEnd when the stream is cancelled', async () => {
-    const endPromise = new DetachedPromise<void>()
+    const endPromise = new DetachedPromise<ResponseBodyConsumption>()
     const onEnd = jest.fn(endPromise.resolve)
 
     const cancelledPromise = new DetachedPromise<unknown>()
