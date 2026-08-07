@@ -2261,6 +2261,345 @@ fn current_file_is_json_with_commit_time() -> Result<()> {
         "commit_time {} outside [{before}, {after}]",
         version.commit_time
     );
+    Ok(())
+}
 
+/// A key-value tombstone deletes only the pair it names, leaving other values for the same key.
+#[test]
+fn valued_tombstone_deletes_only_its_pair() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let key = vec![1u8];
+
+    let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
+        path.to_path_buf(),
+        multi_value_config(),
+        RayonParallelScheduler,
+    )?;
+
+    // Three values under one key, each in its own SST.
+    for v in [10u32, 20, 30] {
+        let batch = db.write_batch()?;
+        batch.put(0, key.clone(), v.to_be_bytes().to_vec().into())?;
+        db.commit_write_batch(batch)?;
+    }
+
+    // Delete just the middle one.
+    let batch = db.write_batch()?;
+    batch.delete_value(0, key.clone(), 20u32.to_be_bytes())?;
+    db.commit_write_batch(batch)?;
+
+    let mut results = db
+        .get_multiple(0, &key.as_slice())?
+        .iter()
+        .map(|v| u32::from_be_bytes((**v).try_into().unwrap()))
+        .collect::<Vec<_>>();
+    results.sort();
+    assert_eq!(results, vec![10, 30], "only the named pair should be gone");
+
+    db.shutdown()?;
+    Ok(())
+}
+
+/// A partial compaction must NOT drop a key-value tombstone: an unmerged older SST may still hold a
+/// matching value, and dropping the tombstone would resurrect it.
+#[test]
+fn valued_tombstone_survives_partial_compaction() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let key = vec![7u8];
+
+    let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
+        path.to_path_buf(),
+        multi_value_config(),
+        RayonParallelScheduler,
+    )?;
+
+    // Oldest SST holds the value that the tombstone must keep suppressing.
+    let batch = db.write_batch()?;
+    batch.put(0, key.clone(), 42u32.to_be_bytes().to_vec().into())?;
+    db.commit_write_batch(batch)?;
+
+    // A few unrelated SSTs so compaction has something to merge partially.
+    for v in [1u32, 2, 3] {
+        let batch = db.write_batch()?;
+        batch.put(0, vec![8u8], v.to_be_bytes().to_vec().into())?;
+        db.commit_write_batch(batch)?;
+    }
+
+    let batch = db.write_batch()?;
+    batch.delete_value(0, key.clone(), 42u32.to_be_bytes())?;
+    db.commit_write_batch(batch)?;
+
+    // Compact repeatedly; whatever coverage the selector chooses, 42 must stay deleted.
+    for _ in 0..3 {
+        db.compact(&CompactConfig {
+            optimal_merge_count: 2,
+            min_merge_duplication_bytes: 1,
+            optimal_merge_duplication_bytes: 1,
+            ..Default::default()
+        })?;
+        assert!(
+            db.get_multiple(0, &key.as_slice())?.is_empty(),
+            "42 was resurrected by compaction"
+        );
+    }
+
+    db.shutdown()?;
+    Ok(())
+}
+
+/// Deletes must survive a reopen: the tombstone is persisted, not just held in memory.
+#[test]
+fn valued_tombstone_persists_across_reopen() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let key = vec![3u8];
+
+    {
+        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
+            path.to_path_buf(),
+            multi_value_config(),
+            RayonParallelScheduler,
+        )?;
+        let batch = db.write_batch()?;
+        batch.put(0, key.clone(), 100u32.to_be_bytes().to_vec().into())?;
+        batch.put(0, key.clone(), 200u32.to_be_bytes().to_vec().into())?;
+        db.commit_write_batch(batch)?;
+
+        let batch = db.write_batch()?;
+        batch.delete_value(0, key.clone(), 100u32.to_be_bytes())?;
+        db.commit_write_batch(batch)?;
+        db.shutdown()?;
+    }
+
+    {
+        let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
+            path.to_path_buf(),
+            multi_value_config(),
+            RayonParallelScheduler,
+        )?;
+        let results = db
+            .get_multiple(0, &key.as_slice())?
+            .iter()
+            .map(|v| u32::from_be_bytes((**v).try_into().unwrap()))
+            .collect::<Vec<_>>();
+        assert_eq!(results, vec![200], "tombstone lost across reopen");
+        db.shutdown()?;
+    }
+
+    Ok(())
+}
+
+/// A key tombstone still deletes everything, including values a key-value tombstone left alone.
+#[test]
+fn whole_key_tombstone_still_deletes_all_values() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let key = vec![5u8];
+
+    let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
+        path.to_path_buf(),
+        multi_value_config(),
+        RayonParallelScheduler,
+    )?;
+
+    let batch = db.write_batch()?;
+    batch.put(0, key.clone(), 1u32.to_be_bytes().to_vec().into())?;
+    batch.put(0, key.clone(), 2u32.to_be_bytes().to_vec().into())?;
+    db.commit_write_batch(batch)?;
+
+    let batch = db.write_batch()?;
+    batch.delete_value(0, key.clone(), 1u32.to_be_bytes())?;
+    db.commit_write_batch(batch)?;
+
+    let batch = db.write_batch()?;
+    batch.delete(0, key.clone())?;
+    db.commit_write_batch(batch)?;
+
+    assert!(
+        db.get_multiple(0, &key.as_slice())?.is_empty(),
+        "key tombstone should remove everything"
+    );
+
+    db.shutdown()?;
+    Ok(())
+}
+
+/// Counts tombstone entries (both kinds) across every live SST, by reading the files directly.
+/// Tombstone counts are not tracked in the meta file, so there is nothing cheaper to read.
+fn count_tombstones(
+    path: &std::path::Path,
+    db: &TurboPersistence<RayonParallelScheduler, 1>,
+) -> Result<usize> {
+    use crate::{lookup_entry::IterValue, static_sorted_file::StaticSortedFileIter};
+
+    let mut count = 0;
+    for meta in db.meta_info()? {
+        for entry in &meta.entries {
+            let sst = crate::static_sorted_file::StaticSortedFileMetaData {
+                sequence_number: entry.sequence_number,
+                block_count: entry.block_count,
+            };
+            for item in StaticSortedFileIter::open(path, sst)? {
+                if matches!(
+                    item?.value,
+                    IterValue::KeyDeleted | IterValue::KeyValueDeleted { .. }
+                ) {
+                    count += 1;
+                }
+            }
+        }
+    }
+    Ok(count)
+}
+
+/// Compaction reclaims tombstones once no *older* SST outside the job can still hold the key.
+/// Without this, tombstones accumulate forever.
+#[test]
+fn compaction_reclaims_tombstones_when_no_older_sst_has_the_key() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
+        path.to_path_buf(),
+        multi_value_config(),
+        RayonParallelScheduler,
+    )?;
+
+    // Enough distinct keys that the SSTs span a real hash range: the compaction selector
+    // estimates duplication by scaling sizes against the key-space spread, and a handful of
+    // keys sharing one hash makes that estimate degenerate.
+    const KEYS: u32 = 2000;
+
+    let batch = db.write_batch()?;
+    for k in 0..KEYS {
+        batch.put(
+            0,
+            k.to_be_bytes().to_vec(),
+            1u32.to_be_bytes().to_vec().into(),
+        )?;
+        batch.put(
+            0,
+            k.to_be_bytes().to_vec(),
+            2u32.to_be_bytes().to_vec().into(),
+        )?;
+    }
+    db.commit_write_batch(batch)?;
+
+    // Delete one of the two values for every key.
+    let batch = db.write_batch()?;
+    for k in 0..KEYS {
+        batch.delete_value(0, k.to_be_bytes().to_vec(), 1u32.to_be_bytes())?;
+    }
+    db.commit_write_batch(batch)?;
+
+    assert_eq!(
+        count_tombstones(path, &db)?,
+        KEYS as usize,
+        "tombstones should be on disk before compaction"
+    );
+
+    db.compact(&CompactConfig {
+        min_merge_count: 2,
+        optimal_merge_count: 2,
+        min_merge_duplication_bytes: 1,
+        optimal_merge_duplication_bytes: 1,
+        ..Default::default()
+    })?;
+
+    // No older SST holds these keys, so every tombstone is dead weight and must be gone. Assert
+    // on the tombstone entries themselves: total file size would shrink from dropping the deleted
+    // values alone, so it cannot distinguish a working probe from one that never fires.
+    assert_eq!(
+        count_tombstones(path, &db)?,
+        0,
+        "compaction should have reclaimed every tombstone"
+    );
+
+    // ...and the deletes must still hold after reclamation.
+    for k in [0u32, KEYS / 2, KEYS - 1] {
+        let results = db
+            .get_multiple(0, &k.to_be_bytes().to_vec().as_slice())?
+            .iter()
+            .map(|v| u32::from_be_bytes((**v).try_into().unwrap()))
+            .collect::<Vec<_>>();
+        assert_eq!(results, vec![2], "value 1 must stay deleted for key {k}");
+    }
+
+    db.shutdown()?;
+    Ok(())
+}
+
+/// When an older SST *outside* the compaction job still holds the key, the tombstone must be
+/// kept. Dropping it would resurrect the value.
+#[test]
+fn compaction_keeps_tombstone_when_older_sst_has_the_key() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
+        path.to_path_buf(),
+        multi_value_config(),
+        RayonParallelScheduler,
+    )?;
+
+    const KEYS: u32 = 2000;
+
+    // Oldest layer: the values that must stay suppressed.
+    let batch = db.write_batch()?;
+    for k in 0..KEYS {
+        batch.put(
+            0,
+            k.to_be_bytes().to_vec(),
+            1u32.to_be_bytes().to_vec().into(),
+        )?;
+    }
+    db.commit_write_batch(batch)?;
+
+    // Newer layers: an unrelated value per key, then a tombstone for the old one.
+    let batch = db.write_batch()?;
+    for k in 0..KEYS {
+        batch.put(
+            0,
+            k.to_be_bytes().to_vec(),
+            2u32.to_be_bytes().to_vec().into(),
+        )?;
+    }
+    db.commit_write_batch(batch)?;
+
+    let batch = db.write_batch()?;
+    for k in 0..KEYS {
+        batch.delete_value(0, k.to_be_bytes().to_vec(), 1u32.to_be_bytes())?;
+    }
+    db.commit_write_batch(batch)?;
+
+    // Compact repeatedly. Whatever subset each job picks, value 1 must never come back: while an
+    // older SST still holds it, the probe has to keep the tombstone alive.
+    for round in 0..4 {
+        db.compact(&CompactConfig {
+            min_merge_count: 2,
+            optimal_merge_count: 2,
+            min_merge_duplication_bytes: 1,
+            optimal_merge_duplication_bytes: 1,
+            ..Default::default()
+        })?;
+
+        for k in [0u32, KEYS / 2, KEYS - 1] {
+            let mut results = db
+                .get_multiple(0, &k.to_be_bytes().to_vec().as_slice())?
+                .iter()
+                .map(|v| u32::from_be_bytes((**v).try_into().unwrap()))
+                .collect::<Vec<_>>();
+            results.sort();
+            assert_eq!(
+                results,
+                vec![2],
+                "value 1 resurrected for key {k} in round {round}"
+            );
+        }
+    }
+
+    db.shutdown()?;
     Ok(())
 }

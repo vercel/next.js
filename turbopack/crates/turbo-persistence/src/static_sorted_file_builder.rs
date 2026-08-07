@@ -15,10 +15,11 @@ use crate::{
     meta_file::MetaEntryFlags,
     static_sorted_file::{
         BLOB_VALUE_REF_SIZE, BLOCK_TYPE_FIXED_KEY_NO_HASH, BLOCK_TYPE_FIXED_KEY_WITH_HASH,
-        BLOCK_TYPE_INDEX, BLOCK_TYPE_KEY_NO_HASH, BLOCK_TYPE_KEY_WITH_HASH, DELETED_VALUE_REF_SIZE,
-        KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_DELETED, KEY_BLOCK_ENTRY_TYPE_INLINE_MIN,
-        KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL, MEDIUM_VALUE_REF_SIZE,
-        SMALL_VALUE_REF_SIZE,
+        BLOCK_TYPE_INDEX, BLOCK_TYPE_KEY_NO_HASH, BLOCK_TYPE_KEY_WITH_HASH,
+        KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_INLINE_MIN,
+        KEY_BLOCK_ENTRY_TYPE_KEY_DELETED, KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED,
+        KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL, KEY_DELETED_REF_SIZE,
+        KEY_VALUE_DELETED_REF_SIZE, MEDIUM_VALUE_REF_SIZE, SMALL_VALUE_REF_SIZE,
     },
 };
 
@@ -250,7 +251,11 @@ pub enum EntryValue<'l> {
     /// Large-sized value. They are stored in a blob file.
     Large { blob: u32 },
     /// Tombstone. The value was removed.
-    Deleted,
+    KeyDeleted,
+    /// Key-value tombstone. Only the one carried value was removed; other values for the same key
+    /// survive. MultiValue families only. The value must be exactly
+    /// [`KEY_VALUE_DELETED_REF_SIZE`] bytes.
+    KeyValueDeleted { value: &'l [u8] },
 }
 
 #[derive(Debug, Clone)]
@@ -392,7 +397,11 @@ enum ValueRef {
     /// Large blob stored externally.
     Blob { blob_id: u32 },
     /// Tombstone.
-    Deleted,
+    KeyDeleted,
+    /// Key-value tombstone: deletes only the carried value from the key's group.
+    KeyValueDeleted {
+        data: [u8; KEY_VALUE_DELETED_REF_SIZE],
+    },
 }
 
 impl ValueRef {
@@ -403,7 +412,8 @@ impl ValueRef {
             ValueRef::Medium { .. } => KEY_BLOCK_ENTRY_TYPE_MEDIUM,
             ValueRef::Inline { len, .. } => KEY_BLOCK_ENTRY_TYPE_INLINE_MIN + *len,
             ValueRef::Blob { .. } => KEY_BLOCK_ENTRY_TYPE_BLOB,
-            ValueRef::Deleted => KEY_BLOCK_ENTRY_TYPE_DELETED,
+            ValueRef::KeyDeleted => KEY_BLOCK_ENTRY_TYPE_KEY_DELETED,
+            ValueRef::KeyValueDeleted { .. } => KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED,
         })
     }
 
@@ -437,7 +447,10 @@ impl ValueRef {
                 BE::write_u32(&mut scratch, *blob_id);
                 buffer.extend(scratch);
             }
-            ValueRef::Deleted => { /* no value bytes */ }
+            ValueRef::KeyDeleted => { /* no value bytes */ }
+            ValueRef::KeyValueDeleted { data } => {
+                buffer.extend(data);
+            }
             ValueRef::PendingSmall { .. } => {
                 unreachable!("PendingSmall should have been resolved");
             }
@@ -703,7 +716,18 @@ impl<E: Entry> StreamingSstWriter<E> {
                 }
             }
             EntryValue::Large { blob } => ValueRef::Blob { blob_id: blob },
-            EntryValue::Deleted => ValueRef::Deleted,
+            EntryValue::KeyDeleted => ValueRef::KeyDeleted,
+            EntryValue::KeyValueDeleted { value } => {
+                assert_eq!(
+                    value.len(),
+                    KEY_VALUE_DELETED_REF_SIZE,
+                    "key-value tombstone payload must be exactly {KEY_VALUE_DELETED_REF_SIZE} \
+                     bytes"
+                );
+                let mut data = [0u8; KEY_VALUE_DELETED_REF_SIZE];
+                data.copy_from_slice(value);
+                ValueRef::KeyValueDeleted { data }
+            }
         };
 
         self.push_pending_key_entry(entry, value_ref);
@@ -1186,7 +1210,8 @@ fn value_type_val_size(ty: EntryType) -> usize {
         KEY_BLOCK_ENTRY_TYPE_SMALL => SMALL_VALUE_REF_SIZE,
         KEY_BLOCK_ENTRY_TYPE_MEDIUM => MEDIUM_VALUE_REF_SIZE,
         KEY_BLOCK_ENTRY_TYPE_BLOB => BLOB_VALUE_REF_SIZE,
-        KEY_BLOCK_ENTRY_TYPE_DELETED => DELETED_VALUE_REF_SIZE,
+        KEY_BLOCK_ENTRY_TYPE_KEY_DELETED => KEY_DELETED_REF_SIZE,
+        KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED => KEY_VALUE_DELETED_REF_SIZE,
         ty if ty >= KEY_BLOCK_ENTRY_TYPE_INLINE_MIN => {
             (ty - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN) as usize
         }
@@ -1260,7 +1285,7 @@ mod tests {
         /// Already-formatted block with `uncompressed_size = 0` (stored as-is).
         MediumRaw(Vec<u8>),
         Blob(u32),
-        Deleted,
+        KeyDeleted,
     }
 
     impl TestEntry {
@@ -1292,7 +1317,7 @@ mod tests {
         }
 
         fn deleted(key: &[u8]) -> Self {
-            Self::new(key, TestValueKind::Deleted)
+            Self::new(key, TestValueKind::KeyDeleted)
         }
 
         fn medium_raw(key: &[u8], value: &[u8]) -> Self {
@@ -1335,7 +1360,7 @@ mod tests {
                     block: v,
                 },
                 TestValueKind::Blob(id) => EntryValue::Large { blob: *id },
-                TestValueKind::Deleted => EntryValue::Deleted,
+                TestValueKind::KeyDeleted => EntryValue::KeyDeleted,
             }
         }
     }
@@ -1409,8 +1434,8 @@ mod tests {
                 };
                 assert_eq!(*sequence_number, *expected_id);
             }
-            (TestValueKind::Deleted, SstLookupResult::Found(values))
-                if values.len() == 1 && matches!(values[0], LookupValue::Deleted) => {}
+            (TestValueKind::KeyDeleted, SstLookupResult::Found(values))
+                if values.len() == 1 && matches!(values[0], LookupValue::KeyDeleted) => {}
             _ => {
                 panic!(
                     "Unexpected lookup result for key {:?}",
@@ -1710,7 +1735,7 @@ mod tests {
                                 std::str::from_utf8(&entry.key)
                             );
                         }
-                        (LookupValue::Deleted, LookupValue::Deleted) => {}
+                        (LookupValue::KeyDeleted, LookupValue::KeyDeleted) => {}
                         (
                             LookupValue::Blob {
                                 sequence_number: s1,

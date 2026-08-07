@@ -6,8 +6,9 @@
 //! Entry types:
 //! - 0: Small value (stored in value block)
 //! - 1: Blob reference
-//! - 2: Deleted/tombstone
+//! - 2: Key tombstone (deletes all values for the key)
 //! - 3: Medium value
+//! - 4: Key-value tombstone (deletes one value from the key's group)
 //! - 8-255: Inline value where (type - 8) = value byte count
 
 use std::{
@@ -28,8 +29,9 @@ use turbo_persistence::{
     sst_filter::SstFilter,
     static_sorted_file::{
         BLOCK_TYPE_FIXED_KEY_NO_HASH, BLOCK_TYPE_FIXED_KEY_WITH_HASH, BLOCK_TYPE_KEY_NO_HASH,
-        BLOCK_TYPE_KEY_WITH_HASH, KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_DELETED,
-        KEY_BLOCK_ENTRY_TYPE_INLINE_MIN, KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
+        BLOCK_TYPE_KEY_WITH_HASH, KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_INLINE_MIN,
+        KEY_BLOCK_ENTRY_TYPE_KEY_DELETED, KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED,
+        KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
     },
 };
 
@@ -96,10 +98,11 @@ struct SstStats {
 
     /// Value sizes by type (inline values track actual bytes)
     inline_value_bytes: u64,
-    small_value_refs: u64,  // Count of references to value blocks
-    medium_value_refs: u64, // Count of references to medium values
-    blob_refs: u64,         // Count of blob references
-    deleted_count: u64,     // Count of deleted entries
+    small_value_refs: u64,        // Count of references to value blocks
+    medium_value_refs: u64,       // Count of references to medium values
+    blob_refs: u64,               // Count of blob references
+    deleted_count: u64,           // Count of key tombstones
+    key_value_deleted_count: u64, // Count of key-value tombstones
 
     /// File size in bytes
     file_size: u64,
@@ -122,6 +125,7 @@ impl SstStats {
         self.medium_value_refs += other.medium_value_refs;
         self.blob_refs += other.blob_refs;
         self.deleted_count += other.deleted_count;
+        self.key_value_deleted_count += other.key_value_deleted_count;
         self.file_size += other.file_size;
     }
 }
@@ -144,8 +148,11 @@ fn track_entry_type(stats: &mut SstStats, entry_type: u8) {
         KEY_BLOCK_ENTRY_TYPE_BLOB => {
             stats.blob_refs += 1;
         }
-        KEY_BLOCK_ENTRY_TYPE_DELETED => {
+        KEY_BLOCK_ENTRY_TYPE_KEY_DELETED => {
             stats.deleted_count += 1;
+        }
+        KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED => {
+            stats.key_value_deleted_count += 1;
         }
         KEY_BLOCK_ENTRY_TYPE_MEDIUM => {
             stats.medium_value_refs += 1;
@@ -162,7 +169,8 @@ fn entry_type_description(ty: u8) -> String {
     match ty {
         KEY_BLOCK_ENTRY_TYPE_SMALL => "small value (in value block)".to_string(),
         KEY_BLOCK_ENTRY_TYPE_BLOB => "blob reference".to_string(),
-        KEY_BLOCK_ENTRY_TYPE_DELETED => "deleted/tombstone".to_string(),
+        KEY_BLOCK_ENTRY_TYPE_KEY_DELETED => "key tombstone".to_string(),
+        KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED => "key-value tombstone".to_string(),
         KEY_BLOCK_ENTRY_TYPE_MEDIUM => "medium value".to_string(),
         ty if ty >= KEY_BLOCK_ENTRY_TYPE_INLINE_MIN => {
             let inline_size = ty - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN;
@@ -647,9 +655,16 @@ fn print_value_storage(stats: &SstStats, prefix: &str) {
     }
     if stats.deleted_count > 0 {
         println!(
-            "{}  Deleted: {} entries",
+            "{}  Key tombstones: {} entries",
             prefix,
             format_number(stats.deleted_count)
+        );
+    }
+    if stats.key_value_deleted_count > 0 {
+        println!(
+            "{}  Key-value tombstones: {} entries",
+            prefix,
+            format_number(stats.key_value_deleted_count)
         );
     }
 }
@@ -832,8 +847,9 @@ fn main() -> Result<()> {
             eprintln!("Entry types:");
             eprintln!("  0: Small value (stored in separate value block)");
             eprintln!("  1: Blob reference");
-            eprintln!("  2: Deleted/tombstone");
+            eprintln!("  2: Key tombstone (deletes all values for the key)");
             eprintln!("  3: Medium value");
+            eprintln!("  4: Key-value tombstone (deletes one value from the key's group)");
             eprintln!("  8+: Inline value (size = type - 8)");
             eprintln!();
             eprintln!("For TaskCache (family 3), values are 4-byte TaskIds.");
