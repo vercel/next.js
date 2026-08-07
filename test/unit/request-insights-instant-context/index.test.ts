@@ -75,6 +75,7 @@ describe('Instant Insights work store', () => {
       kind: 'instant-insights',
     }
     const foregroundWorkStore = createTestWorkStore()
+    foregroundWorkStore.requestInsightsIdentity = foregroundIdentity
     const foregroundWorkUnitStore = {
       type: 'request',
       phase: 'render',
@@ -92,8 +93,10 @@ describe('Instant Insights work store', () => {
       )
     )
 
-    const instantInsightsWorkStore =
-      createInstantInsightsWorkStore(foregroundWorkStore)
+    const instantInsightsWorkStore = createInstantInsightsWorkStore(
+      foregroundWorkStore,
+      instantInsightsIdentity
+    )
     const instantInsightsSpan = createLocalSpan({ name: 'Instant Insights' })
 
     let observed:
@@ -128,6 +131,12 @@ describe('Instant Insights work store', () => {
       workUnitStore: undefined,
       span: instantInsightsSpan,
     })
+    expect(instantInsightsWorkStore.requestInsightsIdentity).toBe(
+      instantInsightsIdentity
+    )
+    expect(instantInsightsWorkStore.requestInsightsIdentity).not.toBe(
+      foregroundIdentity
+    )
     expect(instantInsightsWorkStore.fetchMetrics).toEqual([])
     expect(instantInsightsWorkStore.fetchMetrics).not.toBe(
       foregroundWorkStore.fetchMetrics

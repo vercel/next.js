@@ -5104,28 +5104,31 @@ async function runInstantInsightsWithTracing<T>(
   if (process.env.__NEXT_DEV_SERVER) {
     const requestInsightsRuntime = getAppRenderRequestInsightsRuntime()
     if (requestInsightsRuntime?.isRequestInsightsEnabled()) {
+      const outerIdentity = requestInsightsRuntime.getRequestInsightsIdentity()
+      const instantInsightsIdentity = {
+        requestId: outerIdentity?.requestId ?? ctx.requestId,
+        rootRequestId: outerIdentity?.rootRequestId ?? ctx.requestId,
+        retention: requestInsightsRuntime.createRequestInsightsRetentionContext(
+          outerIdentity?.retention
+        ),
+        debugRequestId: outerIdentity?.debugRequestId,
+        kind: 'instant-insights' as const,
+        htmlRequestId: outerIdentity?.htmlRequestId ?? ctx.htmlRequestId,
+        url: ctx.url.href,
+      }
       const { createInstantInsightsWorkStore } =
         require('./instant-insights-work-store') as typeof import('./instant-insights-work-store')
-      const workStore = createInstantInsightsWorkStore(ctx.workStore)
+      const workStore = createInstantInsightsWorkStore(
+        ctx.workStore,
+        instantInsightsIdentity
+      )
       const instantInsightsCtx: AppRenderContext = {
         ...ctx,
         workStore,
       }
-      const outerIdentity = requestInsightsRuntime.getRequestInsightsIdentity()
 
       return requestInsightsRuntime.runWithRequestInsightsIdentity(
-        {
-          requestId: outerIdentity?.requestId ?? ctx.requestId,
-          rootRequestId: outerIdentity?.rootRequestId ?? ctx.requestId,
-          retention:
-            requestInsightsRuntime.createRequestInsightsRetentionContext(
-              outerIdentity?.retention
-            ),
-          debugRequestId: outerIdentity?.debugRequestId,
-          kind: 'instant-insights',
-          htmlRequestId: outerIdentity?.htmlRequestId ?? ctx.htmlRequestId,
-          url: ctx.url.href,
-        },
+        instantInsightsIdentity,
         () =>
           workAsyncStorage.run(workStore, () =>
             traceLocalSpan(

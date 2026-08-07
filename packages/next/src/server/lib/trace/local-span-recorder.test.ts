@@ -5,7 +5,11 @@
 import { runInNewContext } from 'node:vm'
 import { setFlagsFromString } from 'node:v8'
 import { SpanStatusCode, trace } from 'next/dist/compiled/@opentelemetry/api'
-import { createLocalSpan, traceLocalSpan } from './local-span-recorder'
+import {
+  createLocalSpan,
+  setRequestInsightsFetchIndex,
+  traceLocalSpan,
+} from './local-span-recorder'
 import {
   createRequestInsightsRetentionContext,
   resolveRequestInsightsIdentity,
@@ -74,6 +78,17 @@ describe('local recording span', () => {
         },
       }),
     ])
+  })
+
+  it('sets fetch indices on spans created by another module instance', () => {
+    const setFetchIndex = jest.fn()
+    const span = {
+      [Symbol.for('@next/request-insights-fetch-index-setter')]: setFetchIndex,
+    } as unknown as Parameters<typeof setRequestInsightsFetchIndex>[0]
+
+    setRequestInsightsFetchIndex(span, 7)
+
+    expect(setFetchIndex).toHaveBeenCalledWith(7)
   })
 
   it('records on the controller captured when a span started after its scope exits', () => {
