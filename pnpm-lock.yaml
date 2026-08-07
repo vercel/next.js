@@ -249,7 +249,7 @@ importers:
         version: 2.3.2(patch_hash=cb53bfa5effb15b3a361e176003df667cadf757b27b7c9b458c2f0fce86ea893)
       '@vercel/devlow-bench':
         specifier: workspace:*
-        version: link:turbopack/packages/devlow-bench
+        version: link:packages/devlow-bench
       '@vercel/kv':
         specifier: 3.0.0
         version: 3.0.0
@@ -2003,7 +2003,7 @@ importers:
         specifier: ^5.1.2
         version: 5.1.6(@babel/core@7.26.10)(babel-plugin-macros@3.1.0)(react@19.3.0-canary-11eddecd-20260805)
 
-  turbopack/packages/devlow-bench:
+  packages/devlow-bench:
     dependencies:
       '@datadog/datadog-api-client':
         specifier: ^1.13.0
@@ -2048,31 +2048,6 @@ importers:
       tsx:
         specifier: 4.19.2
         version: 4.19.2
-
-  turbopack/packages/node-module-trace: {}
-
-  turbopack/packages/turbo-tracing-next-plugin:
-    dependencies:
-      '@vercel/webpack-nft':
-        specifier: workspace:*
-        version: link:../webpack-nmt
-    devDependencies:
-      next:
-        specifier: workspace:*
-        version: link:../../../packages/next
-
-  turbopack/packages/webpack-nmt:
-    dependencies:
-      '@vercel/experimental-nft':
-        specifier: workspace:*
-        version: link:../node-module-trace
-    devDependencies:
-      '@types/webpack':
-        specifier: ^5.28.0
-        version: 5.28.5(@swc/core@1.11.24(@swc/helpers@0.5.23))
-      webpack:
-        specifier: 5.98.0
-        version: 5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.23))
 
 packages:
 
