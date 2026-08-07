@@ -1333,7 +1333,6 @@ pub struct ExperimentalConfig {
     adjust_font_fallbacks_with_size_adjust: Option<bool>,
     after: Option<bool>,
     app_document_preloading: Option<bool>,
-    app_new_scroll_handler: Option<bool>,
     case_sensitive_routes: Option<bool>,
     cpus: Option<f64>,
     cra_compat: Option<bool>,
@@ -2496,11 +2495,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn turbopack_cjs_tree_shaking(&self) -> Vc<bool> {
-        Vc::cell(
-            self.experimental
-                .turbopack_cjs_tree_shaking
-                .unwrap_or(false),
-        )
+        Vc::cell(self.experimental.turbopack_cjs_tree_shaking.unwrap_or(true))
     }
 
     #[turbo_tasks::function]
@@ -2563,7 +2558,7 @@ impl NextConfig {
             // The shared runtime / inlined bootstrap is a production-only optimization; in
             // development the per-route runtime is required for HMR.
             NextMode::Development => false,
-            NextMode::Build => self.experimental.turbopack_shared_runtime.unwrap_or(false),
+            NextMode::Build => self.experimental.turbopack_shared_runtime.unwrap_or(true),
         }))
     }
 
