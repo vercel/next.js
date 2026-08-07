@@ -585,7 +585,10 @@ impl<'a> Parser<'a> {
                     if in_range {
                         // invariant: in_range is only set when there is
                         // already at least one character seen.
-                        if let Some(kind) = add_to_last_range(ranges.last_mut().unwrap(), '-') {
+                        // Pass the consumed character — hardcoding '-' here
+                        // would close every range at U+002D, rejecting common
+                        // ranges ([a-z]) or silently mis-parsing ([*-z]).
+                        if let Some(kind) = add_to_last_range(ranges.last_mut().unwrap(), c) {
                             return Err(self.error(kind));
                         }
                     } else {
@@ -604,7 +607,7 @@ impl<'a> Parser<'a> {
         // handle this as an alternation if it matches a `/`
         let matches_slash = if negated {
             // If all of the ranges exclude `/`, then the negation includes it.
-            !ranges.iter().all(|r| r.0 > '/' || r.1 < '/')
+            ranges.iter().all(|r| r.0 > '/' || r.1 < '/')
         } else {
             // If any of the ranges include `/`, then the class includes it.
             ranges.iter().any(|r| r.0 <= '/' && r.1 >= '/')
@@ -653,6 +656,13 @@ mod tests {
         "(?:a|b|c(?:/)?)(?:/h(?:/.*)?)?"
     )]
     #[case::classes("[abc]/d/**", "[abc]/d/.*", "[abc](?:/d(?:/.*)?)?")]
+    #[case::class_range("[a-z]/d/**", "[a-z]/d/.*", "[a-z](?:/d(?:/.*)?)?")]
+    #[case::class_range_digits("[0-9]/**", "[0-9]/.*", "[0-9](?:/.*)?")]
+    #[case::class_range_mixed("[a-z0-9_]/x/**", "[a-z0-9_]/x/.*", "[a-z0-9_](?:/x(?:/.*)?)?")]
+    // The range '*'..'z' contains '/', so the directory-match regex allows
+    // the empty path (the class itself may match the separator).
+    #[case::class_range_star_end("[*-z]/x/**", "[\\*-z]/x/.*", "(?:[\\*-z](?:/x(?:/.*)?)?)?")]
+    #[case::class_range_dash_literal_end("[a-]/x/**", "[a\\-]/x/.*", "[a\\-](?:/x(?:/.*)?)?")]
     fn glob_regex_mapping(
         #[case] glob: &str,
         #[case] glob_regex: &str,
@@ -668,5 +678,31 @@ mod tests {
 
         assert_eq!(glob_regex, strip_overhead(glob_re));
         assert_eq!(directory_match_regex, strip_overhead(directory_match_re));
+    }
+
+    #[test]
+    fn negated_range_including_slash_makes_directory_match_optional() {
+        // [!b-z] matches '/' (the complement of b..z includes it), so a
+        // directory like "a" may contain matches of a[!b-z]x/** — the
+        // directory-match regex must not require the class.
+        let (_, dir_re) = parse("a[!b-z]x/**", GlobOptions::default()).unwrap();
+        // The whole 'a[^b-z]x/...' portion must be optional.
+        assert_eq!(dir_re, "(?-u)^a(?:[^b-z]x(?:/.*)?)?$");
+    }
+
+    #[test]
+    fn negated_class_excluding_slash_keeps_directory_anchor() {
+        // [!-/] excludes '/' (the range '-'..'/' contains it), so the class
+        // cannot consume a separator and the directory regex must require it.
+        let (_, dir_re) = parse("a[!-/]x/**", GlobOptions::default()).unwrap();
+        assert_eq!(dir_re, "(?-u)^a[^\\-/]x(?:/.*)?$");
+    }
+
+    #[test]
+    fn negated_class_with_range_parses() {
+        // Previously the range end was hardcoded to '-', so [!a-z] failed
+        // with InvalidRange.
+        let (glob_re, _) = parse("[!a-z]/x/**", GlobOptions::default()).unwrap();
+        assert!(glob_re.contains("[^a-z]"));
     }
 }
