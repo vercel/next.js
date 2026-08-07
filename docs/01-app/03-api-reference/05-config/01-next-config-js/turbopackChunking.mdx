@@ -4,12 +4,28 @@ description: Configure how Turbopack splits your client-side JavaScript into chu
 version: experimental
 ---
 
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
+<AppOnly>
+
 `experimental.turbopackChunking` lets you configure Turbopack's production JavaScript
 chunker. These options allow you to change the assumptions the chunker makes about user
 behaviour, tweak the raw size thresholds it uses, and enable the experimental component
 chunks feature.
 
+</AppOnly>
+
+<PagesOnly>
+
+`experimental.turbopackChunking` lets you configure Turbopack's production JavaScript
+chunker. These options allow you to change the assumptions the chunker makes about user
+behaviour and tweak the raw size thresholds it uses.
+
+</PagesOnly>
+
 By default, Turbopack's chunking is configured as follows:
+
+<AppOnly>
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
@@ -46,6 +62,43 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
+</AppOnly>
+
+<PagesOnly>
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig = {
+  experimental: {
+    turbopackChunking: {
+      minChunkSize: 50000,
+      maxChunkCountPerGroup: 40,
+      maxMergeChunkSize: 200000,
+    },
+  },
+} satisfies NextConfig
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    turbopackChunking: {
+      minChunkSize: 50000,
+      maxChunkCountPerGroup: 40,
+      maxMergeChunkSize: 200000,
+    },
+  },
+}
+
+module.exports = nextConfig
+```
+
+</PagesOnly>
+
 ## Size Thresholds
 
 The following options control how aggressively Turbopack merges chunks and how large a chunk is
@@ -69,6 +122,8 @@ When merging chunks, the trade-off being made is an improvement to performance o
 loads at the cost of navigation performance. This is because each additional network request
 being made is costly, however, smaller chunks are more likely to be re-usable across pages.
 
+<AppOnly>
+
 ## Component Chunks
 
 Producing component chunks is an experimental feature that aims to give you the initial
@@ -85,6 +140,8 @@ This avoids re-downloading JavaScript the browser already has when navigating.
 - **`minComponentChunkSize`** (default `20000`): component chunks smaller than
   this size are folded into a single component instead of being emitted on their own,
   to avoid producing many tiny chunks.
+
+</AppOnly>
 
 ## Heuristics
 
