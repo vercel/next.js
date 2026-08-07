@@ -106,7 +106,8 @@ impl ModuleReference for EsmAsyncAssetReference {
         .await?;
 
         // `const { x } = await import(...)`: follow the potential re-export to its origin.
-        // only follow the re-export if there's a single member to avoid splitting and introducing new dynamic entrypoints
+        // only follow the re-export if there's a single member to avoid splitting and introducing
+        // new dynamic entrypoints
         if self.follow_reexports
             && let ExportUsage::PartialNamespaceObject(names) = &self.export_usage
             && let [name] = &names[..]
