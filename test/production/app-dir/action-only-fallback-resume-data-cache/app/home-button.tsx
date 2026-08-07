@@ -4,7 +4,7 @@ import { useState } from 'react'
 
 declare global {
   interface Window {
-    forwardedAction?: () => Promise<string>
+    retainedAction?: () => Promise<string>
   }
 }
 
@@ -14,13 +14,13 @@ export function HomeButton() {
   return (
     <>
       <button
-        id="call-forwarded-action"
+        id="call-retained-action"
         onClick={async () => {
-          const action = window.forwardedAction
+          const action = window.retainedAction
           setResult(action ? await action() : 'missing action')
         }}
       >
-        call forwarded action
+        call retained action
       </button>
       <p id="action-result">{result}</p>
     </>

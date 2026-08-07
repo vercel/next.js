@@ -747,6 +747,8 @@ export async function handleAction({
     isFetchAction &&
     requestStore.fallbackParams != null &&
     typeof ctx.renderOpts.postponed === 'string'
+  const shouldSkipPageRendering =
+    actionWasForwarded || isActionOnlyFallbackRequest
 
   // Only attempt to forward if this request has not already been forwarded.
   // Otherwise middleware that rewrites the action POST can cause the receiving
@@ -1222,7 +1224,7 @@ export async function handleAction({
             boundActionArguments,
             workStore,
             requestStore,
-            actionWasForwarded || isActionOnlyFallbackRequest
+            shouldSkipPageRendering
           ).finally(() => {
             addRevalidationHeader(res, { workStore, requestStore })
             if (logInfo) {
@@ -1320,7 +1322,7 @@ export async function handleAction({
         return {
           type: 'done',
           result: await generateFlight(req, ctx, requestStore, {
-            skipPageRendering: false,
+            skipPageRendering: shouldSkipPageRendering,
             actionResult: promise,
             temporaryReferences,
           }),
@@ -1362,8 +1364,7 @@ export async function handleAction({
           skipPageRendering:
             workStore.pathWasRevalidated === undefined ||
             workStore.pathWasRevalidated === ActionDidNotRevalidate ||
-            actionWasForwarded ||
-            isActionOnlyFallbackRequest,
+            shouldSkipPageRendering,
           temporaryReferences,
         }),
       }

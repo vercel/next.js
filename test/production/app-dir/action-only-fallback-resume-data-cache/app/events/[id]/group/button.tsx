@@ -2,11 +2,12 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { readCachedValue } from './actions'
+import { notFoundAfterRevalidation, readCachedValue } from './actions'
 
 declare global {
   interface Window {
-    forwardedAction?: () => Promise<string>
+    retainedAction?: () => Promise<string>
+    retainedNotFoundAction?: () => Promise<void>
   }
 }
 
@@ -14,7 +15,8 @@ export function Button() {
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    window.forwardedAction = readCachedValue
+    window.retainedAction = readCachedValue
+    window.retainedNotFoundAction = notFoundAfterRevalidation
     setReady(true)
   }, [])
 

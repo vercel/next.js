@@ -1,7 +1,7 @@
 import { isNextDeploy, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
-describe('forwarded action resume data cache', () => {
+describe('action-only fallback resume data cache', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     env: isNextDeploy
@@ -13,7 +13,7 @@ describe('forwarded action resume data cache', () => {
   })
 
   if (isNextDeploy) {
-    it('executes a forwarded action through the deployment proxy', async () => {
+    it('executes an action that is not bundled by the current route', async () => {
       const browser = await next.browser('/events/foo/group')
 
       await retry(async () => {
@@ -25,7 +25,7 @@ describe('forwarded action resume data cache', () => {
         expect(await browser.eval('window.location.pathname')).toBe('/')
       })
 
-      await browser.elementByCss('#call-forwarded-action').click()
+      await browser.elementByCss('#call-retained-action').click()
       await retry(async () => {
         expect(await browser.elementByCss('#action-result').text()).toBe(
           'cached value'
@@ -37,7 +37,7 @@ describe('forwarded action resume data cache', () => {
       )
     })
   } else {
-    it('handles postponed state on the forwarded action worker', async () => {
+    async function invokeAction(exportedName: string) {
       const metadata = await next.readJSON(
         '.next/server/app/events/[id]/group.meta'
       )
@@ -48,7 +48,7 @@ describe('forwarded action resume data cache', () => {
         '.next/server/server-reference-manifest.json'
       )
       const actionId = Object.keys(manifest.node).find(
-        (id) => manifest.node[id].exportedName === 'readCachedValue'
+        (id) => manifest.node[id].exportedName === exportedName
       )
       expect(actionId).toEqual(expect.any(String))
 
@@ -57,7 +57,7 @@ describe('forwarded action resume data cache', () => {
       // state to the action body.
       const actionBody = Buffer.from('[]')
       const postponedBody = Buffer.from(postponed)
-      const response = await next.fetch('/events/[id]/group', {
+      return next.fetch('/events/[id]/group', {
         method: 'POST',
         headers: {
           'content-type': 'text/plain;charset=UTF-8',
@@ -67,11 +67,24 @@ describe('forwarded action resume data cache', () => {
         },
         body: Buffer.concat([postponedBody, actionBody]),
       })
+    }
+
+    it('handles postponed state on an action-only fallback request', async () => {
+      const response = await invokeAction('readCachedValue')
 
       expect(response.status).toBe(200)
       expect(response.headers.get('content-type')).toContain('text/x-component')
       const responseBody = await response.text()
       expect(responseBody).toContain('cached value')
+      expect(responseBody).not.toContain('destination page rendered')
+    })
+
+    it('does not render the fallback route when the action calls notFound', async () => {
+      const response = await invokeAction('notFoundAfterRevalidation')
+
+      expect(response.status).toBe(404)
+      expect(response.headers.get('content-type')).toContain('text/x-component')
+      const responseBody = await response.text()
       expect(responseBody).not.toContain('destination page rendered')
     })
   }
