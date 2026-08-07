@@ -6057,22 +6057,14 @@ async function stagedRenderWithCachesInDev({
   }
 }
 
-interface AccumulatedStreamChunks {
-  readonly shellStaticChunks: Array<Uint8Array>
-  readonly staticChunks: Array<Uint8Array>
-  readonly shellRuntimeChunks: Array<Uint8Array>
-  readonly runtimeChunks: Array<Uint8Array>
-  readonly dynamicChunks: Array<Uint8Array>
-}
+type AccumulatedStreamChunks = Record<AdvanceableRenderStage, Array<Uint8Array>>
 
 function createStageChunksAccumulator(): AccumulatedStreamChunks {
-  return {
-    shellStaticChunks: [],
-    staticChunks: [],
-    shellRuntimeChunks: [],
-    runtimeChunks: [],
-    dynamicChunks: [],
+  const result: Partial<AccumulatedStreamChunks> = {}
+  for (const stage of RENDER_STAGE_ADVANCE_ORDER) {
+    result[stage] = []
   }
+  return result as AccumulatedStreamChunks
 }
 
 async function accumulateStreamChunks(
@@ -6152,32 +6144,21 @@ async function accumulateStreamChunksInto(
 
 function collectStageChunk(
   accumulator: AccumulatedStreamChunks,
-  stage: RenderStage,
+  currentStage: RenderStage,
   value: Uint8Array
 ): void {
-  switch (stage) {
-    case RenderStage.Before:
-      throw new InvariantError('Unexpected stream chunk while in Before stage')
-    case RenderStage.ShellStatic:
-      accumulator.shellStaticChunks.push(value)
-    // fall through
-    case RenderStage.Static:
-      accumulator.staticChunks.push(value)
-    // fall through
-    case RenderStage.ShellRuntime:
-      accumulator.shellRuntimeChunks.push(value)
-    // fall through
-    case RenderStage.Runtime:
-      accumulator.runtimeChunks.push(value)
-    // fall through
-    case RenderStage.Dynamic:
-      accumulator.dynamicChunks.push(value)
+  if (currentStage === RenderStage.Before) {
+    throw new InvariantError('Unexpected stream chunk while in Before stage')
+  }
+  // Stage N+1 contains all the chunks of the stages 1..N,
+  // so add the chunk to the array for the current stage and all the stages that follow it.
+  // Starting at the end saves us from having to find the current stage in the order array.
+  for (let i = RENDER_STAGE_ADVANCE_ORDER.length - 1; i >= 0; i--) {
+    const stage = RENDER_STAGE_ADVANCE_ORDER[i]
+    if (stage < currentStage) {
       break
-    case RenderStage.Abandoned:
-      break
-    default:
-      stage satisfies never
-      break
+    }
+    accumulator[stage].push(value)
   }
 }
 
@@ -6717,8 +6698,7 @@ async function runValidationInDev(
   {
     // For warmup, we have to use the shared inputs if present -- the static inputs
     // may not have a proper dynamic stage.
-    const { runtimeChunks, dynamicChunks } = (instantInputs ?? staticInputs)
-      .accumulatedChunks
+    const { accumulatedChunks } = instantInputs ?? staticInputs
 
     // First we warmup SSR with the runtime chunks. This ensures that when we do
     // the full prerender pass with dynamic tracking module loading won't
@@ -6728,8 +6708,10 @@ async function runValidationInDev(
       // otherwise, for static shell validation, we only need to warm up to the runtime stage.
       // we also need to use a different store type, because instant validation allows more APIs to resolve.
       needsInstantValidation ? 'validation-client' : 'prerender-client',
-      needsInstantValidation ? dynamicChunks : runtimeChunks,
-      dynamicChunks,
+      needsInstantValidation
+        ? accumulatedChunks[RenderStage.Dynamic]
+        : accumulatedChunks[RenderStage.Runtime],
+      accumulatedChunks[RenderStage.Dynamic],
       rootParams,
       fallbackRouteParams,
       ctx,
@@ -6871,15 +6853,14 @@ async function validateStaticShell(
   const loaderTree = ComponentMod.routeModule.userland.loaderTree
 
   const { accumulatedChunks, stageEndTimes } = inputs
-  const { staticChunks, runtimeChunks, dynamicChunks } = accumulatedChunks
 
   const allowEmptyStaticShell =
     (renderOpts.allowEmptyStaticShell ?? false) ||
     (await isPageAllowedToBlock(loaderTree))
 
   const runtimeResult = await validateStagedShell(
-    runtimeChunks,
-    dynamicChunks,
+    accumulatedChunks[RenderStage.Runtime],
+    accumulatedChunks[RenderStage.Dynamic],
     debugChunks,
     stageEndTimes[RenderStage.Runtime],
     rootParams,
@@ -6903,8 +6884,8 @@ async function validateStaticShell(
   }
 
   const staticResult = await validateStagedShell(
-    staticChunks,
-    dynamicChunks,
+    accumulatedChunks[RenderStage.Static],
+    accumulatedChunks[RenderStage.Dynamic],
     debugChunks,
     stageEndTimes[RenderStage.Static],
     rootParams,
@@ -7328,12 +7309,7 @@ async function validateInstantConfigs(
     prefetchKind,
     ctx.componentMod,
     renderFlightStream,
-    {
-      [RenderStage.Static]: accumulatedChunks.staticChunks,
-      [RenderStage.ShellRuntime]: accumulatedChunks.shellRuntimeChunks,
-      [RenderStage.Runtime]: accumulatedChunks.runtimeChunks,
-      [RenderStage.Dynamic]: accumulatedChunks.dynamicChunks,
-    },
+    accumulatedChunks,
     debugChunks,
     startTime,
     stageEndTimes,
@@ -8334,8 +8310,8 @@ async function validateInstantConfigInBuildWithSample(
     const validationRenderCtx = toValidationRenderContext(validationCtx)
     await warmupClientModulesForStagedValidation(
       'validation-client',
-      accumulatedChunks.dynamicChunks,
-      accumulatedChunks.dynamicChunks,
+      accumulatedChunks[RenderStage.Dynamic],
+      accumulatedChunks[RenderStage.Dynamic],
       sampleRootParams,
       fallbackRouteParams,
       validationRenderCtx,
@@ -9218,8 +9194,8 @@ async function prerenderToStream(
           // NOTE: we must capture this *before* resolving staleTime/varyParams,
           // which always emit new static chunks.
           didLinkDataUnblockNewContent =
-            collectedChunksByStage.staticChunks.length >
-            collectedChunksByStage.shellStaticChunks.length
+            collectedChunksByStage[RenderStage.Static].length >
+            collectedChunksByStage[RenderStage.ShellStatic].length
 
           // Now that the prerendering is complete, we know the final stale
           // time and vary params. Close the stale time iterable and resolve
@@ -9237,7 +9213,7 @@ async function prerenderToStream(
 
           shellByteLengthDeferred.resolve(
             didLinkDataUnblockNewContent
-              ? collectedChunksByStage.shellStaticChunks.reduce(
+              ? collectedChunksByStage[RenderStage.ShellStatic].reduce(
                   (acc, chunk) => acc + chunk.byteLength,
                   0
                 )
