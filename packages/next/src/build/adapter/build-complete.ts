@@ -2545,6 +2545,27 @@ export async function handleBuildComplete({
                 VARIANTS_NOT_ROUTED_PATH
               ),
             },
+            // The same rejection for the query parameter a prefix becomes.
+            // Routing writes that parameter from a prefix the proxy vouched
+            // for, and it writes it after this rule, so one that is present
+            // here came from the client.
+            //
+            // The proxy rejects such a request where it runs, but it runs only
+            // for the paths its matcher names, and that matcher is independent
+            // of the table of variants per route. A route can declare
+            // combinations and still be left out of it. This rule is consulted
+            // for every request, so it also covers that route.
+            {
+              source: '/:path*',
+              sourceRegex: '^/.*$',
+              has: [{ type: 'query', key: NEXT_VARIANTS_QUERY_PARAM }],
+              missing: [{ type: 'header', key: NEXT_VARIANTS_PREFIX_HEADER }],
+              destination: path.posix.join(
+                '/',
+                config.basePath,
+                VARIANTS_NOT_ROUTED_PATH
+              ),
+            },
           ]
         : []
 

@@ -33,7 +33,10 @@ import { NextDataPathnameNormalizer } from '../../normalizers/request/next-data'
 import { BasePathPathnameNormalizer } from '../../normalizers/request/base-path'
 import { VariantsPathnameNormalizer } from '../../normalizers/request/variants'
 import { readVariantsPrefixHash } from '../../variants/prefix'
-import { NEXT_VARIANTS_QUERY_PARAM } from '../../../lib/constants'
+import {
+  NEXT_VARIANTS_QUERY_PARAM,
+  VARIANTS_NOT_ROUTED_PATH,
+} from '../../../lib/constants'
 
 import { addRequestMeta } from '../../request-meta'
 import { isRSCRequestHeader } from '../is-rsc-request'
@@ -142,6 +145,32 @@ export function getResolveRoutes(
     let matchedOutput: FsOutput | null = null
     let parsedUrl = parseUrl(req.url || '') as NextUrlWithParsedQuery
     let didRewrite = false
+
+    // Routing writes this query parameter, and only from a prefix the proxy
+    // wrote, which the branch below does. Therefore one that is present on
+    // arrival came from the client, and it names an artifact this request never
+    // resolved to.
+    //
+    // The proxy rejects such a request where it runs, but it runs only for the
+    // paths its `config.matcher` names, and that matcher is independent of the
+    // table of variants per route. A route can declare combinations and still
+    // be left out of it. This runs for every request, so it also covers that
+    // route.
+    //
+    // The request is rejected rather than the parameter removed, so that both
+    // modes answer alike. A deployment cannot remove it: a rewrite there merges
+    // the incoming query into the destination, so the rule that rejects this
+    // sends the request to a path no output is written to. This does the same.
+    //
+    // In minimal mode the platform in front owns this. It sets the parameter
+    // itself, from a prefix it vouched for, so this must not act there.
+    if (
+      config.experimental?.variants &&
+      !opts.minimalMode &&
+      NEXT_VARIANTS_QUERY_PARAM in parsedUrl.query
+    ) {
+      parsedUrl.pathname = `/${VARIANTS_NOT_ROUTED_PATH}`
+    }
 
     const urlParts = (req.url || '').split('?', 1)
     const urlNoQuery = urlParts[0]

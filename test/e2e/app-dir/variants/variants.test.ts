@@ -407,6 +407,30 @@ describe('variants', () => {
     expect(alongsideMatched.status).toBe(404)
   })
 
+  it('should not let a client name the combination on a route the proxy does not match', async () => {
+    // The reject in the proxy only runs where the proxy runs, and a route can
+    // declare combinations while `config.matcher` leaves it out. Such a route
+    // resolves nothing, so nothing overwrites a supplied parameter and nothing
+    // rejects it either. The combination it names would then supply the values
+    // the render reads, and the request would be answered from that
+    // combination's prerender.
+    const declared = hashVariants({
+      'locale@variants.ts': 'en',
+      'theme@variants.ts': 'dark',
+    })
+
+    const response = await next.fetch(
+      url(`/unmatched-by-proxy?${NEXT_VARIANTS_QUERY_PARAM}=${declared}`),
+      { headers: { cookie: 'theme=light; locale=en' } }
+    )
+
+    // The route is misconfigured, so what it answers with is its own failure.
+    // What must not happen is that naming a combination turns that failure into
+    // a rendered page.
+    expect(response.status).not.toBe(200)
+    expect(await response.text()).not.toContain('<p id="theme">dark</p>')
+  })
+
   it('should not expose the internal combination query parameter to the page', async () => {
     // The combination travels to the origin as a query parameter, because that
     // is the one channel both a routed request and one a platform rebuilt from

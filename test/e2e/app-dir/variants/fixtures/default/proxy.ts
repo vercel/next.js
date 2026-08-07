@@ -18,6 +18,8 @@ const variantsByRoute = {
   '/rewrite-target': [banner, locale, theme],
   '/search-params': [theme],
   '/shell/[slug]': [banner, locale, theme],
+  // Deliberately absent from `config.matcher` below. See the route itself.
+  '/unmatched-by-proxy': [locale, theme],
 }
 
 export const proxy = wrapProxy(variantsByRoute, (request: NextRequest) => {
