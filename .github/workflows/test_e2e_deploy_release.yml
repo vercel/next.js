@@ -95,6 +95,12 @@ jobs:
             echo 'value=${{ fromJson(steps.nextPackageInfo.outputs.value).version }}' >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Log resolved `next` version
+        env:
+          RESOLVED_NEXT_VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          echo "Resolved next version: $RESOLVED_NEXT_VERSION"
+
       - name: Install dependencies
         run: pnpm install
 
