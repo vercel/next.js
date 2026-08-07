@@ -1398,6 +1398,8 @@ function markServerActionRequest(): void {
         require('../lib/trace/request-insights-runtime') as typeof import('../lib/trace/request-insights-runtime')
       getActiveRequestInsights()?.recordServerAction(identity)
     }
+  } else {
+    return
   }
 }
 

@@ -200,8 +200,9 @@ function getBaseServerRequestInsightsRuntime():
       }
     }
     return baseServerRequestInsightsRuntime
+  } else {
+    return undefined
   }
-  return undefined
 }
 
 export type FindComponentsResult<

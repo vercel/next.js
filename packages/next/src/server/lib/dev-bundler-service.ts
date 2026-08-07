@@ -31,8 +31,9 @@ function getRequestInsightsHmrRuntime(): RequestInsightsHmrRuntime | undefined {
   if (process.env.__NEXT_DEV_SERVER) {
     return (requestInsightsHmrRuntime ??=
       require('../../next-devtools/shared/request-insights') as typeof import('../../next-devtools/shared/request-insights'))
+  } else {
+    return undefined
   }
-  return undefined
 }
 
 type RequestInsightsHmrCoalescerOptions = {
