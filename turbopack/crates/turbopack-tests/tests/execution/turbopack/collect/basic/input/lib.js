@@ -12,3 +12,8 @@ __turbopack_emit__('./c.js', {
 export default function () {
   import('./async')
 }
+
+__turbopack_emit__('./b.js', {
+  namespace: 'my-test',
+  data: 'more-data-for-b',
+})

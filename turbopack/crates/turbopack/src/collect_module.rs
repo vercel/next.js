@@ -3,7 +3,7 @@ use std::io::Write;
 use anyhow::{Context, Result, bail};
 use rustc_hash::FxHashSet;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::rope::RopeBuilder;
 use turbopack_core::{
     self,
@@ -261,7 +261,7 @@ impl EcmascriptChunkPlaceable for CollectModuleWithChunkGroup {
             .try_join()
             .await?
             .into_iter()
-            .collect::<FxIndexMap<_, _>>();
+            .collect::<Vec<_>>();
 
         let mut code = RopeBuilder::default();
 
