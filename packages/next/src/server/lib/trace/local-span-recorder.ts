@@ -22,6 +22,10 @@ import type {
 import type { RequestInsights } from './request-insights'
 import type { RequestInsightsRetentionContext } from './request-insights-identity'
 
+const REQUEST_INSIGHTS_FETCH_INDEX_SETTER = Symbol.for(
+  '@next/request-insights-fetch-index-setter'
+)
+
 export { isLocalSpanRecordingEnabled } from './span-store'
 
 const TRACE_ID_HEX_LENGTH = 32
@@ -150,8 +154,11 @@ export function setRequestInsightsFetchIndex(
   span: Span | undefined,
   index: number
 ): void {
-  if (span instanceof LocalRecordingSpan) {
-    span.setRequestInsightsFetchIndex(index)
+  const setter = (span as (Span & Record<PropertyKey, unknown>) | undefined)?.[
+    REQUEST_INSIGHTS_FETCH_INDEX_SETTER
+  ]
+  if (typeof setter === 'function') {
+    setter.call(span, index)
   }
 }
 
@@ -301,7 +308,7 @@ class LocalRecordingSpan implements Span {
     return this
   }
 
-  setRequestInsightsFetchIndex(index: number): void {
+  [REQUEST_INSIGHTS_FETCH_INDEX_SETTER](index: number): void {
     if (!this.ended) {
       this.requestInsightsFetchIndex = index
     }

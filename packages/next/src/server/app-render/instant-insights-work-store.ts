@@ -8,6 +8,7 @@ import {
 import {
   getRequestInsightsIdentity,
   runWithRequestInsightsIdentity,
+  type RequestInsightsIdentity,
 } from '../lib/trace/request-insights-identity'
 
 type WorkStoreFieldTreatment = 'inherit' | 'reset'
@@ -74,7 +75,8 @@ type _AssertInstantInsightsWorkStoreTreatmentsAreExhaustive = AssertNever<
 >
 
 export function createInstantInsightsWorkStore(
-  outerWorkStore: WorkStore
+  outerWorkStore: WorkStore,
+  requestInsightsIdentity: RequestInsightsIdentity
 ): WorkStore {
   const { AfterContext } =
     require('../after/after-context') as typeof import('../after/after-context')
@@ -94,6 +96,7 @@ export function createInstantInsightsWorkStore(
     refreshTagsByCacheKind: new Map(),
     fetchMetrics: [],
     shouldTrackFetchMetrics: false,
+    requestInsightsIdentity,
     pendingCacheInvocations: new Map(),
     completedCacheInvocations: new Map(),
     reactServerErrorsByDigest: new Map(),
@@ -112,7 +115,7 @@ export function createInstantInsightsWorkStore(
       fn: (...args: TArgs) => R,
       ...args: TArgs
     ): R {
-      const requestInsightsIdentity = getRequestInsightsIdentity()
+      const activeRequestInsightsIdentity = getRequestInsightsIdentity()
       const activeLocalSpan = getActiveLocalSpan()
 
       return outerWorkStore.runInCleanSnapshot(() =>
@@ -120,8 +123,11 @@ export function createInstantInsightsWorkStore(
           workAsyncStorage.run(workStore, () => {
             const run = () => fn(...args)
             const runWithIdentity = () =>
-              requestInsightsIdentity
-                ? runWithRequestInsightsIdentity(requestInsightsIdentity, run)
+              activeRequestInsightsIdentity
+                ? runWithRequestInsightsIdentity(
+                    activeRequestInsightsIdentity,
+                    run
+                  )
                 : run()
 
             return activeLocalSpan
