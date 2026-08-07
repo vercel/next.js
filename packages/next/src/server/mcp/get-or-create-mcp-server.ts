@@ -7,7 +7,6 @@ import { registerGetActionByIdTool } from './tools/get-server-action-by-id'
 import { registerGetRoutesTool } from './tools/get-routes'
 import { registerGetCompilationIssuesTool } from './tools/get-compilation-issues'
 import { registerCompileRouteTool } from './tools/compile-route'
-import { registerGetRequestInsightsTool } from './tools/get-request-insights'
 import type { HmrMessageSentToBrowser } from '../dev/hot-reloader-types'
 import type { NextConfigComplete } from '../config-shared'
 import type { Project } from '../../build/swc/types'
@@ -60,7 +59,11 @@ export const createMcpServer = (options: McpServerOptions) => {
     pagesDir: options.pagesDir,
     appDir: options.appDir,
   })
-  registerGetRequestInsightsTool(mcpServer, options.getRequestInsights)
+  if (process.env.__NEXT_DEV_SERVER) {
+    const { registerGetRequestInsightsTool } =
+      require('./tools/get-request-insights') as typeof import('./tools/get-request-insights')
+    registerGetRequestInsightsTool(mcpServer, options.getRequestInsights)
+  }
 
   if (options.getTurbopackProject) {
     registerGetCompilationIssuesTool(mcpServer, options.getTurbopackProject)
