@@ -23,7 +23,7 @@ import { getLastCommittedTree } from './reducers/committed-state'
 import {
   convertServerPatchToFullTree,
   type NavigationSeed,
-} from '../segment-cache/navigation'
+} from '../segment-cache/decode-server-response'
 import {
   type RouteTree,
   type RSCSegmentData,
@@ -1800,7 +1800,7 @@ async function fetchMissingDynamicData(
     const seed = convertServerPatchToFullTree(
       now,
       task.route,
-      result.flightData,
+      result.transportData,
       result.renderedSearch,
       result.dynamicStaleTime
     )
@@ -1828,9 +1828,8 @@ async function fetchMissingDynamicData(
           writePrerenderResponseIntoCache(
             now,
             FetchStrategy.PPR,
-            staticStageResponse.f,
+            staticStageResponse.t ?? null,
             buildId,
-            staticStageResponse.h,
             staticStageResponse.r ?? null,
             staleAt,
             dynamicRequestTree,
@@ -1856,7 +1855,6 @@ async function fetchMissingDynamicData(
             writeDynamicRenderResponseIntoCache(
               now,
               FetchStrategy.PPRRuntime,
-              processed.flightDatas,
               processed.buildId,
               processed.isResponsePartial,
               processed.headVaryParams,

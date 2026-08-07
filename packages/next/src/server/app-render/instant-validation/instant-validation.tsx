@@ -1,12 +1,18 @@
 import type {
   CacheNodeSeedData,
-  FlightRouterState,
   HeadData,
   InitialRSCPayload,
   Segment,
 } from '../../../shared/lib/app-router-types'
 import type { VaryParamsIterable } from '../../../shared/lib/segment-cache/vary-params-decoding'
 import { InvariantError } from '../../../shared/lib/invariant-error'
+import { convertInitialFlightDataToFullTransportData } from '../transport-adapter'
+import {
+  transportNodeToFlightRouterState,
+  transportSegmentToSegment,
+  type FullTransportNode,
+  type TransportSegmentData,
+} from '../../../shared/lib/rsc-transport'
 import { RenderStage } from '../staged-rendering'
 import { getServerModuleMap } from '../manifests-singleton'
 import { runInSequentialTasks } from '../app-render-render-utils'
@@ -108,62 +114,34 @@ export type RouteTree = {
 
 function traverseRootSeedDataSegments(
   initialRSCPayload: InitialRSCPayload,
-  processSegment: (
-    segmentPath: SegmentPath,
-    seedData: CacheNodeSeedData
-  ) => void
+  processSegment: (segmentPath: SegmentPath, data: TransportSegmentData) => void
 ) {
-  const { flightRouterState, seedData } =
-    getRootDataFromPayload(initialRSCPayload)
-
-  const [rootSegment] = flightRouterState
-  const rootPath = stringifySegment(rootSegment)
-  return traverseCacheNodeSegments(
-    rootPath,
-    flightRouterState,
-    seedData,
-    processSegment
-  )
+  const rootNode = initialRSCPayload.t.t
+  const rootPath = stringifySegment(transportSegmentToSegment(rootNode.s))
+  return traverseTransportNodeSegments(rootPath, rootNode, processSegment)
 }
 
-function traverseCacheNodeSegments(
+function traverseTransportNodeSegments(
   path: SegmentPath,
-  route: FlightRouterState,
-  seedData: CacheNodeSeedData,
-  processSegment: (
-    segmentPath: SegmentPath,
-    seedData: CacheNodeSeedData
-  ) => void
+  node: FullTransportNode,
+  processSegment: (segmentPath: SegmentPath, data: TransportSegmentData) => void
 ): void {
-  processSegment(path, seedData)
+  processSegment(path, node.d)
 
-  const [_segment, childRoutes] = route
-  const [_node, parallelRoutesData, _loading, _isPartial] = seedData
-
-  for (const parallelRouteKey in childRoutes) {
-    const childSeedData = parallelRoutesData[parallelRouteKey]
-    if (!childSeedData) {
-      throw new InvariantError(
-        `Got unexpected empty seed data during instant validation`
-      )
-    }
-
-    const childRoute = childRoutes[parallelRouteKey]
+  const children = node.c
+  if (children === undefined) {
+    return
+  }
+  for (const [parallelRouteKey, childNode] of children) {
     // NOTE: if this is a __PAGE__ segment, it might have search params appended.
     // Whoever reads from the cache needs to append them as well.
-    const [childSegment] = childRoute
     const childPath = createChildSegmentPath(
       path,
       parallelRouteKey,
-      childSegment
+      transportSegmentToSegment(childNode.s)
     )
 
-    traverseCacheNodeSegments(
-      childPath,
-      childRoute,
-      childSeedData,
-      processSegment
-    )
+    traverseTransportNodeSegments(childPath, childNode, processSegment)
   }
 }
 
@@ -354,7 +332,7 @@ async function collectSegmentDataForStage(
   // We have to preserve the stage information for each of them,
   // so that we can later render each segment in any stage we need.
 
-  const { head } = getRootDataFromPayload(payload)
+  const head = payload.t.h.r
 
   const segments = new Map<SegmentPath, SegmentData>()
   traverseRootSeedDataSegments(payload, (segmentPath, seedData) => {
@@ -664,29 +642,6 @@ export async function createCombinedPayloadStream(
   }
 }
 
-function getRootDataFromPayload(initialRSCPayload: InitialRSCPayload) {
-  // FlightDataPath is an unsound type, hence the additional checks. The
-  // valid shapes are a single root path with no segment prefix: 4 elements
-  // ([tree, seedData, head, isHeadPartial], per getRSCPayload) or 3 when
-  // reconstructed without the isHeadPartial flag (see the payload literals
-  // in this module).
-  const flightDataPaths = initialRSCPayload.f
-  if (
-    flightDataPaths.length !== 1 ||
-    (flightDataPaths[0].length !== 3 && flightDataPaths[0].length !== 4)
-  ) {
-    throw new InvariantError(
-      'InitialRSCPayload does not match the expected shape during instant validation.'
-    )
-  }
-  const flightRouterState: FlightRouterState = flightDataPaths[0][0]
-  const seedData: CacheNodeSeedData = flightDataPaths[0][1]
-  // TODO: handle head
-  const head: HeadData = flightDataPaths[0][2]
-
-  return { flightRouterState, seedData, head }
-}
-
 async function createValidationHead(
   cache: SegmentCache,
   releaseSignal: AbortSignal,
@@ -775,12 +730,11 @@ type SegmentData = {
   varyParams: VaryParamsIterable | null
 }
 
-function createSegmentData(seedData: CacheNodeSeedData): SegmentData {
-  const [node, _parallelRoutesData, _unused, isPartial, varyParams] = seedData
+function createSegmentData(data: TransportSegmentData): SegmentData {
   return {
-    node,
-    isPartial,
-    varyParams,
+    node: data.r,
+    isPartial: data.p,
+    varyParams: data.v,
   }
 }
 type CacheNodeSeedDataSlots = CacheNodeSeedData[1]
@@ -1454,7 +1408,12 @@ export async function createCombinedPayloadAtDepth(
   // that occur above any fork (no slot marker in the component stack).
   slotStacks[0] = createInstantStack
 
-  const { flightRouterState } = getRootDataFromPayload(initialRSCPayload)
+  // Identity + hints of the original payload's tree; zipped with the rebuilt
+  // seed data below. TODO: build the transport tree natively instead (this
+  // dies together with the transport adapter).
+  const flightRouterState = transportNodeToFlightRouterState(
+    initialRSCPayload.t.t
+  )
 
   let headStage: PrefetchedSegmentStage
   switch (prefetchKind) {
@@ -1500,7 +1459,13 @@ export async function createCombinedPayloadAtDepth(
 
   const payload: InitialRSCPayload = {
     ...initialRSCPayload,
-    f: [[flightRouterState, seedData, head]],
+    t: convertInitialFlightDataToFullTransportData(
+      flightRouterState,
+      seedData,
+      head,
+      initialRSCPayload.t.h.p,
+      initialRSCPayload.t.h.v
+    ),
   }
 
   return {
