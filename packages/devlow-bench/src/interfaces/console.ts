@@ -1,5 +1,5 @@
 import picocolors from 'picocolors'
-import { Interface } from '../index.js'
+import type { Interface } from '../index.js'
 import { formatUnit } from '../units.js'
 import { formatVariant } from '../utils.js'
 

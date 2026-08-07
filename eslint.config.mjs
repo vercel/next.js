@@ -601,15 +601,4 @@ export default defineConfig([
       'no-console': 'off',
     },
   },
-  {
-    // Moved from turbopack/, where the root config never applied. Exempted from
-    // the rules it doesn't currently satisfy rather than reformatting it as
-    // part of the move.
-    files: ['packages/devlow-bench/**'],
-    rules: {
-      '@typescript-eslint/no-shadow': 'off',
-      '@typescript-eslint/consistent-type-imports': 'off',
-      'import/no-extraneous-dependencies': 'off',
-    },
-  },
 ])

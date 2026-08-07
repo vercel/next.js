@@ -27,17 +27,17 @@ export async function waitForFile(
   }
   elements.reverse()
   try {
-    for (const path of elements) {
+    for (const element of elements) {
       const checkAccess = () =>
-        access(path, constants.F_OK)
+        access(element, constants.F_OK)
           .then(() => true)
           .catch(() => false)
       if (!(await checkAccess())) {
         let resolveCheckAgain = () => {}
-        const watcher = watch(dirname(path), () => {
+        const watcher = watch(dirname(element), () => {
           resolveCheckAgain()
         })
-        currentAction = `waiting for ${path}`
+        currentAction = `waiting for ${element}`
         let checkAgainPromise = new Promise<void>((resolve) => {
           resolveCheckAgain = resolve
         })

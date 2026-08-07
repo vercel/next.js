@@ -1,8 +1,10 @@
-import { ChildProcess, spawn } from 'child_process'
+import type { ChildProcess } from 'child_process'
+import { spawn } from 'child_process'
 import split2 from 'split2'
 import treeKill from 'tree-kill'
 import pidusage from 'pidusage-tree'
-import { PREVIOUS, reportMeasurement } from './describe.js'
+import type { PREVIOUS } from './describe.js'
+import { reportMeasurement } from './describe.js'
 
 export interface Command {
   ok(): Promise<void>
@@ -183,21 +185,21 @@ class CommandImpl {
 }
 
 export function command(
-  command: string,
+  executable: string,
   args: string[],
   options: {
     env?: Record<string, string>
     cwd?: string
   } = {}
 ): Command {
-  const process = spawn(command, args, {
+  const process = spawn(executable, args, {
     shell: true,
     ...options,
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   if (shellOutput) {
     console.log(
-      `[SHELL] ${command} ${args.join(' ')} ${JSON.stringify(options)}`
+      `[SHELL] ${executable} ${args.join(' ')} ${JSON.stringify(options)}`
     )
   }
   return new CommandImpl(process)

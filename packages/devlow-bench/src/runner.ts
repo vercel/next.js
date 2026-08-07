@@ -1,11 +1,11 @@
 import { withCurrent } from './describe.js'
-import {
+import type {
   FullInterface,
   Interface,
   Scenario,
   VariantStatistic,
-  intoFullInterface,
 } from './index.js'
+import { intoFullInterface } from './index.js'
 import { summary } from './statistics.js'
 import { formatVariant } from './utils.js'
 
@@ -44,12 +44,12 @@ export async function runScenarios(
   let variants = []
   for (const scenario of scenarios) {
     let props = [{}]
-    for (const [key, options] of Object.entries(scenario.config)) {
+    for (const [key, values] of Object.entries(scenario.config)) {
       const newProps = []
       for (const prop of props) {
         if (prop === 'scenario' || prop === 'name')
           throw new Error("Cannot use 'scenario' or 'name' as a property name")
-        for (const value of options) {
+        for (const value of values) {
           newProps.push({
             ...prop,
             [key]: value,
@@ -59,9 +59,9 @@ export async function runScenarios(
       props = newProps
     }
     variants.push(
-      ...props.map((props) => ({
+      ...props.map((variantProps) => ({
         scenario,
-        props,
+        props: variantProps,
       }))
     )
   }
