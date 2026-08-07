@@ -49,6 +49,7 @@ export type RootTreePrefetch = {
   buildId?: string
   tree: TreePrefetch
   staleTime: number
+  actionRoutingKeys?: readonly string[]
 }
 
 export type TreePrefetchParam = {
@@ -1013,6 +1014,7 @@ async function PrefetchTreeData({
   const treePrefetch: RootTreePrefetch = {
     tree,
     staleTime,
+    actionRoutingKeys: initialRSCPayload.A,
   }
   if (buildId) {
     treePrefetch.buildId = buildId

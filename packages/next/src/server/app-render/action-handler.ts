@@ -755,6 +755,13 @@ export async function handleAction({
   )
 
   const actionWasForwarded = Boolean(req.headers['x-action-forwarded'])
+  // A fetch action without a router state tree cannot produce a Flight patch
+  // for the currently rendered page. This occurs when the client dispatches an
+  // action directly to a different route, so only execute the action without
+  // rendering the destination route's page tree. Omitting this untrusted header
+  // does not affect action lookup, CSRF checks, or user authorization.
+  const isActionOnlyRequest =
+    isFetchAction && req.headers[NEXT_ROUTER_STATE_TREE_HEADER] === undefined
   // A fetch action targeting a fallback route has no concrete params with
   // which to resume the destination page.
   const isActionOnlyFallbackRequest =
@@ -762,7 +769,7 @@ export async function handleAction({
     requestStore.fallbackParams != null &&
     typeof ctx.renderOpts.postponed === 'string'
   const shouldSkipPageRendering =
-    actionWasForwarded || isActionOnlyFallbackRequest
+    actionWasForwarded || isActionOnlyRequest || isActionOnlyFallbackRequest
 
   // Only attempt to forward if this request has not already been forwarded.
   // Otherwise middleware that rewrites the action POST can cause the receiving

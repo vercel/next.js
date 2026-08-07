@@ -408,6 +408,8 @@ export type InitialRSCPayload = {
   G: [React.ComponentType<any>, React.ReactNode | undefined]
   /** supportsPerSegmentPrefetching */
   S: boolean
+  /** Opaque routing keys for Server Actions owned by this route. */
+  A?: readonly string[]
   /**
    * rootVaryParams - the root params accessed anywhere in the response, emitted
    * once. The client unions these into the head and every segment's vary
@@ -486,6 +488,8 @@ export type NavigationFlightResponse = {
   n?: string
   /** supportsPerSegmentPrefetching */
   S: boolean
+  /** Opaque routing keys for Server Actions owned by this route. */
+  A?: readonly string[]
   /** renderedSearch */
   q: string
   /** couldBeIntercepted */
@@ -557,6 +561,8 @@ export type ActionFlightResponse = {
   q: string
   /** couldBeIntercepted */
   i: boolean
+  /** Opaque routing keys, present when the response contains a redirect target. */
+  A?: readonly string[]
 }
 
 export type RSCPayload =

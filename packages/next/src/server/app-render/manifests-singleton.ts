@@ -7,6 +7,7 @@ import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import { mightBeServerReferenceId } from '../../shared/lib/server-reference-info'
 import { wellKnownProperties } from '../../shared/lib/utils/reflect-utils'
+import { createServerActionRoutingKey } from '../../shared/lib/server-action-routing-key'
 import { workAsyncStorage } from './work-async-storage.external'
 
 export interface ServerModuleMap {
@@ -73,6 +74,10 @@ interface ManifestsSingleton {
   readonly proxiedClientReferenceManifest: DeepReadonly<ClientReferenceManifest>
   serverActionsManifest: DeepReadonly<ActionManifest>
   serverModuleMap: ServerModuleMap
+  serverActionRoutingKeysPerPage: Map<
+    string,
+    Promise<readonly string[] | undefined>
+  >
 }
 
 type GlobalThisWithManifests = typeof globalThis & {
@@ -335,6 +340,36 @@ export function selectWorkerForForwarding(
   return denormalizeWorkerPageName(Object.keys(workers)[0])
 }
 
+export function getServerActionRoutingKeysForPage(
+  pageName: string
+): Promise<readonly string[] | undefined> {
+  const singleton = getManifestsSingleton()
+  const runtime = process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
+  const workerPageName = normalizeWorkerPageName(pageName)
+  const cacheKey = `${runtime}:${workerPageName}`
+  const cachedRoutingKeys =
+    singleton.serverActionRoutingKeysPerPage.get(cacheKey)
+
+  if (cachedRoutingKeys !== undefined) {
+    return cachedRoutingKeys
+  }
+
+  const actionIds: string[] = []
+  const actions = singleton.serverActionsManifest[runtime]
+  for (const actionId in actions) {
+    if (actions[actionId].workers[workerPageName] !== undefined) {
+      actionIds.push(actionId)
+    }
+  }
+
+  const routingKeys =
+    actionIds.length === 0
+      ? Promise.resolve(undefined)
+      : Promise.all(actionIds.map(createServerActionRoutingKey))
+  singleton.serverActionRoutingKeysPerPage.set(cacheKey, routingKeys)
+  return routingKeys
+}
+
 export function setManifestsSingleton({
   page,
   clientReferenceManifest,
@@ -362,6 +397,7 @@ export function setManifestsSingleton({
     })
 
     existingSingleton.serverActionsManifest = serverActionsManifest
+    existingSingleton.serverActionRoutingKeysPerPage.clear()
   } else {
     const clientReferenceManifestsPerRoute = new Map<
       string,
@@ -377,6 +413,7 @@ export function setManifestsSingleton({
       proxiedClientReferenceManifest,
       serverActionsManifest,
       serverModuleMap: createServerModuleMap(),
+      serverActionRoutingKeysPerPage: new Map(),
     }
   }
 }

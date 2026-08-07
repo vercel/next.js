@@ -65,6 +65,7 @@ export function createInitialRSCPayloadFromFallbackPrerender(
     m: fallbackInitialRSCPayload.m,
     G: fallbackInitialRSCPayload.G,
     S: fallbackInitialRSCPayload.S,
+    A: fallbackInitialRSCPayload.A,
   }
   if (fallbackInitialRSCPayload.b) {
     payload.b = fallbackInitialRSCPayload.b

@@ -81,6 +81,7 @@ type SpaFetchServerResponseResult = {
   renderedSearch: NormalizedSearch
   couldBeIntercepted: boolean
   supportsPerSegmentPrefetching: boolean
+  actionRoutingKeys: readonly string[] | null
   postponed: boolean
   dynamicStaleTime: number
   staticStageData: StaticStageData | null
@@ -285,6 +286,7 @@ export async function fetchServerResponse(
       renderedSearch: flightResponse.q as NormalizedSearch,
       couldBeIntercepted: interception,
       supportsPerSegmentPrefetching: flightResponse.S,
+      actionRoutingKeys: flightResponse.A ?? null,
       postponed,
       // The dynamicStaleTime is only present in the response body when
       // a page exports unstable_dynamicStaleTime and this is a dynamic render.

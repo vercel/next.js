@@ -43,6 +43,7 @@ import {
   convertServerPatchToFullTree,
   type NavigationSeed,
 } from './decode-server-response'
+import { registerServerActionDispatchContext } from '../../server-action-dispatch'
 
 /**
  * Navigate to a new URL, using the Segment Cache to construct a response.
@@ -406,6 +407,11 @@ function navigateUsingPrefetchedRouteTree(
   const routeTree = route.tree
   const canonicalUrl = route.canonicalUrl + url.hash
   const renderedSearch = route.renderedSearch
+  registerServerActionDispatchContext(
+    route.actionRoutingKeys ?? undefined,
+    canonicalUrl,
+    nextUrl
+  )
   const prefetchSeed: NavigationSeed = {
     renderedSearch,
     routeTree,
@@ -514,12 +520,19 @@ async function navigateToUnknownRoute(
     renderedSearch,
     couldBeIntercepted,
     supportsPerSegmentPrefetching,
+    actionRoutingKeys,
     dynamicStaleTime,
     staticStageData,
     runtimePrefetchStream,
     responseHeaders,
     debugInfo,
   } = result
+
+  registerServerActionDispatchContext(
+    actionRoutingKeys ?? undefined,
+    canonicalUrl,
+    nextUrl
+  )
 
   // Since the response format of dynamic requests and prefetches is slightly
   // different, we'll need to massage the data a bit. Create FlightRouterState
@@ -539,7 +552,7 @@ async function navigateToUnknownRoute(
   // retrying after a tree mismatch (see dispatchRetryDueToTreeMismatch).
   const metadataVaryPath = navigationSeed.metadataVaryPath
   if (metadataVaryPath !== null) {
-    discoverKnownRoute(
+    const fulfilledRoute = discoverKnownRoute(
       now,
       url.pathname,
       url.search as NormalizedSearch,
@@ -554,6 +567,7 @@ async function navigateToUnknownRoute(
       supportsPerSegmentPrefetching,
       false // hasDynamicRewrite - not a retry, rewrite detection happens during traversal
     )
+    fulfilledRoute.actionRoutingKeys = actionRoutingKeys
 
     if (staticStageData !== null) {
       const { response: staticStageResponse, isResponsePartial } =

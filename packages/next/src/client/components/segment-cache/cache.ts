@@ -217,6 +217,9 @@ type RouteCacheEntryShared = {
   // received a response from the server.
   couldBeIntercepted: boolean
 
+  // Opaque routing keys for Server Actions handled by this route's worker.
+  actionRoutingKeys: readonly string[] | null
+
   // When true, this entry should not be used as a template for route
   // prediction. Set when we discover that the URL was rewritten by middleware
   // to a different route structure (e.g., /foo was rewritten to /bar). Since
@@ -667,6 +670,7 @@ function createDetachedRouteCacheEntry(): PendingRouteCacheEntry {
     // could be intercepted. It's only set to false once we receive a response
     // from the server.
     couldBeIntercepted: true,
+    actionRoutingKeys: null,
     // Similarly, we don't yet know if the route supports PPR.
     supportsPerSegmentPrefetching: false,
     hasDynamicRewrite: false,
@@ -819,6 +823,7 @@ export function deprecated_requestOptimisticRouteCacheEntry(
     tree: optimisticRouteTree,
     metadata: optimisticMetadataTree,
     couldBeIntercepted: routeWithNoSearchParams.couldBeIntercepted,
+    actionRoutingKeys: routeWithNoSearchParams.actionRoutingKeys,
     supportsPerSegmentPrefetching:
       routeWithNoSearchParams.supportsPerSegmentPrefetching,
     hasDynamicRewrite: routeWithNoSearchParams.hasDynamicRewrite,
@@ -2156,6 +2161,7 @@ export async function fetchRouteOnCacheMiss(
         return null
       }
 
+      entry.actionRoutingKeys = serverData.actionRoutingKeys ?? null
       discoverKnownRoute(
         Date.now(),
         pathname,
@@ -3473,6 +3479,7 @@ function writeDynamicTreeResponseIntoCache(
     return
   }
 
+  entry.actionRoutingKeys = serverData.A ?? null
   discoverKnownRoute(
     now,
     originalPathname,
