@@ -152,11 +152,11 @@ export function getStaleTimeMs(staleTimeSeconds: number): number {
  * The output of a single segment from an RSC server response, stored
  * directly on the RouteTree node it describes.
  *
- * `rsc` may be null: that means the response covered this segment's position
- * without rendering it (e.g. an ancestor of a rendered subtree that the
- * client is expected to already have). This is distinct from the RouteTree
- * node's `data` slot being null, which means the response carried no
- * information about the segment at all.
+ * `rsc` may be null: that means the response skipped this segment — it
+ * acknowledged the position without rendering it (e.g. an ancestor of a
+ * rendered subtree that the client is expected to already have). This is
+ * distinct from the RouteTree node's `data` slot being null, which means
+ * the response carried no information about the segment at all.
  */
 export type RSCSegmentData = {
   rsc: React.ReactNode
@@ -2256,8 +2256,8 @@ export async function fetchRouteOnCacheMiss(
       }
 
       // Read head vary params synchronously (unioning in the response-level
-      // root params). Individual segments carry their own iterables in
-      // CacheNodeSeedData; the root iterable is threaded down so each segment
+      // root params). Individual segments carry their own iterables in the
+      // transport tree; the root iterable is threaded down so each segment
       // unions it too.
       writeDynamicTreeResponseIntoCache(
         Date.now(),
@@ -3446,7 +3446,7 @@ function writeDynamicTreeResponseIntoCache(
   if (
     transportData === undefined ||
     serverData.n !== undefined ||
-    // A covered root (data present without output) means the response's
+    // A skipped root (data present without output) means the response's
     // rendered content starts below the root — an unexpected format for this
     // flow, which always requests a full render from the root.
     (transportData.t.d !== undefined && transportData.t.d.r === null)
@@ -3686,9 +3686,9 @@ function writeSeedDataIntoCache(
       entriesOwnedByCurrentTask
     )
   } else {
-    // A null rsc with a non-null data object means the response covered this
-    // position without rendering it (an intermediate segment on the path to
-    // a patched subtree). Nothing to write, but the children may have output.
+    // A null rsc with a non-null data object means the response skipped this
+    // segment (an intermediate position on the path to a patched subtree).
+    // Nothing to write, but the children may have output.
   }
 
   // Recursively write the child data into the cache.

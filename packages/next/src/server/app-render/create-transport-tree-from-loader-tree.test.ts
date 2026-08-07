@@ -1,4 +1,4 @@
-import { getMissingPrefetchHintPolicy } from './create-flight-router-state-from-loader-tree'
+import { getMissingPrefetchHintPolicy } from './create-transport-tree-from-loader-tree'
 
 describe('getMissingPrefetchHintPolicy', () => {
   it('marks missing build-time hints as stale', () => {

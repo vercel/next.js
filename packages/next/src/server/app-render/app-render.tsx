@@ -1,8 +1,4 @@
 import type { ComponentType, ErrorInfo, JSX, ReactNode } from 'react'
-import {
-  convertFlightDataPathsToPartialTransportData,
-  convertInitialFlightDataToFullTransportData,
-} from './transport-adapter'
 import type { PartialTransportData } from '../../shared/lib/rsc-transport'
 import type { RenderOpts, PreloadCallbacks } from './types'
 import type {
@@ -10,7 +6,6 @@ import type {
   DynamicParamTypesShort,
   DynamicSegmentTuple,
   FlightRouterState,
-  CacheNodeSeedData,
   RSCPayload,
   NavigationFlightResponse,
   ActionFlightResponse,
@@ -135,10 +130,10 @@ import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param
 import { getScriptNonceFromHeader } from './get-script-nonce-from-header'
 import { parseAndValidateFlightRouterState } from './parse-and-validate-flight-router-state'
 import {
-  createFlightRouterStateFromLoaderTree,
+  createFullTransportTreeFromLoaderTree,
   getMissingPrefetchHintPolicy,
   type MissingPrefetchHintPolicy,
-} from './create-flight-router-state-from-loader-tree'
+} from './create-transport-tree-from-loader-tree'
 import { handleAction } from './action-handler'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { warn, error } from '../../build/output/log'
@@ -153,9 +148,9 @@ import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import { makeGetServerInsertedHTML } from './make-get-server-inserted-html'
 import {
   walkTreeWithFlightRouterState,
-  createFullTreeFlightDataForNavigation,
+  createFullTreeForNavigation,
 } from './walk-tree-with-flight-router-state'
-import { createComponentTree, getRootParams } from './create-component-tree'
+import { createFullComponentTree, getRootParams } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
 import {
   getClientReferenceManifest,
@@ -756,39 +751,41 @@ async function generateDynamicRSCPayload(
       })
     )
 
-    const flightDataPaths = (
-      needsFullTree
-        ? await createFullTreeFlightDataForNavigation({
-            ctx,
-            loaderTree,
-            rscHead,
-            injectedCSS: new Set(),
-            injectedJS: new Set(),
-            injectedFontPreloadTags: new Set(),
-            preloadCallbacks,
-            MetadataOutlet,
-          })
-        : await walkTreeWithFlightRouterState({
-            ctx,
-            loaderTreeToFilter: loaderTree,
-            parentParams: {},
-            flightRouterState,
-            rscHead,
-            injectedCSS: new Set(),
-            injectedJS: new Set(),
-            injectedFontPreloadTags: new Set(),
-            rootLayoutIncluded: false,
-            preloadCallbacks,
-            MetadataOutlet,
-            hintTree: ctx.renderOpts.prefetchHints?.[ctx.pagePath] ?? null,
-          })
-    ).map((path) => path.slice(1)) // remove the '' (root) segment
+    const responseTree = needsFullTree
+      ? await createFullTreeForNavigation({
+          ctx,
+          loaderTree,
+          rscHead,
+          injectedCSS: new Set(),
+          injectedJS: new Set(),
+          injectedFontPreloadTags: new Set(),
+          preloadCallbacks,
+          MetadataOutlet,
+        })
+      : await walkTreeWithFlightRouterState({
+          ctx,
+          loaderTreeToFilter: loaderTree,
+          parentParams: {},
+          flightRouterState,
+          rscHead,
+          injectedCSS: new Set(),
+          injectedJS: new Set(),
+          injectedFontPreloadTags: new Set(),
+          rootLayoutIncluded: false,
+          preloadCallbacks,
+          MetadataOutlet,
+          hintTree: ctx.renderOpts.prefetchHints?.[ctx.pagePath] ?? null,
+        })
 
-    if (flightDataPaths.length > 0) {
-      transportData = convertFlightDataPathsToPartialTransportData(
-        flightDataPaths,
-        getMetadataVaryParamsAccumulator()
-      )
+    if (responseTree !== null) {
+      transportData = {
+        t: responseTree.tree,
+        h: {
+          r: responseTree.head,
+          p: responseTree.isHeadPartial,
+          v: getMetadataVaryParamsAccumulator(),
+        },
+      }
     }
   }
 
@@ -919,7 +916,6 @@ async function generateDynamicFlightRenderResult(
   options?: {
     actionResult: ActionResult
     skipPageRendering: boolean
-    componentTree?: CacheNodeSeedData
     preloadCallbacks?: PreloadCallbacks
     temporaryReferences?: WeakMap<any, string>
     waitUntil?: Promise<unknown>
@@ -2141,7 +2137,6 @@ async function getRSCPayload(
   }
 
   const {
-    getDynamicParamFromSegment,
     query,
     appUsingSizeAdjustment,
     componentMod: { createMetadataComponents, createElement, Fragment },
@@ -2149,18 +2144,6 @@ async function getRSCPayload(
   } = ctx
 
   const hints = ctx.renderOpts.prefetchHints?.[ctx.pagePath] ?? null
-  const prefetchInliningEnabled = Boolean(
-    ctx.renderOpts.experimental.prefetchInlining
-  )
-  const initialTree = await createFlightRouterStateFromLoaderTree(
-    tree,
-    hints,
-    prefetchInliningEnabled,
-    ctx.missingPrefetchHintPolicy,
-    ctx.renderOpts.partialPrefetching,
-    getDynamicParamFromSegment,
-    query
-  )
   const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
   const hasGlobalNotFound = !!tree[2]['global-not-found']
 
@@ -2181,7 +2164,7 @@ async function getRSCPayload(
 
   const preloadCallbacks: PreloadCallbacks = []
 
-  const seedData = await createComponentTree({
+  const initialTree = await createFullComponentTree({
     ctx,
     loaderTree: tree,
     parentParams: {},
@@ -2196,6 +2179,7 @@ async function getRSCPayload(
     authInterrupts: ctx.renderOpts.experimental.authInterrupts,
     MetadataOutlet,
     isPrerendering,
+    hintTree: hints,
   })
 
   // When the `vary` response header is present with `Next-URL`, that means there's a chance
@@ -2251,13 +2235,14 @@ async function getRSCPayload(
     c: prepareInitialCanonicalUrl(url),
     q: getRenderedSearch(query),
     i: !!couldBeIntercepted,
-    t: convertInitialFlightDataToFullTransportData(
-      initialTree,
-      seedData,
-      initialHead,
-      isPossiblyPartialHead,
-      getMetadataVaryParamsAccumulator()
-    ),
+    t: {
+      t: initialTree,
+      h: {
+        r: initialHead,
+        p: isPossiblyPartialHead,
+        v: getMetadataVaryParamsAccumulator(),
+      },
+    },
     m: missingSlots,
     G: [GlobalError, globalErrorStyles],
     // Tells the client whether this route supports per-segment prefetching.
@@ -2348,15 +2333,6 @@ async function getErrorRSCPayload(
   const errorPrefetchInliningEnabled = Boolean(
     ctx.renderOpts.experimental.prefetchInlining
   )
-  const initialTree = await createFlightRouterStateFromLoaderTree(
-    tree,
-    errorHints,
-    errorPrefetchInliningEnabled,
-    ctx.missingPrefetchHintPolicy,
-    ctx.renderOpts.partialPrefetching,
-    getDynamicParamFromSegment,
-    query
-  )
 
   let err: Error | undefined = undefined
   if (ssrError) {
@@ -2365,30 +2341,37 @@ async function getErrorRSCPayload(
 
   // For metadata notFound error there's no global not found boundary on top
   // so we create a not found page with AppRouter
-  const seedData: CacheNodeSeedData = [
+  const errorShell = createElement(
+    'html',
+    {
+      id: '__next_error__',
+    },
+    createElement('head', null),
     createElement(
-      'html',
-      {
-        id: '__next_error__',
-      },
-      createElement('head', null),
-      createElement(
-        'body',
-        null,
-        process.env.__NEXT_DEV_SERVER && err
-          ? createElement('template', {
-              'data-next-error-message': err.message,
-              'data-next-error-digest': 'digest' in err ? err.digest : '',
-              'data-next-error-stack': err.stack,
-            })
-          : null
-      )
-    ),
-    {},
-    null,
-    false,
-    null, // varyParams - not tracked for error pages
-  ]
+      'body',
+      null,
+      process.env.__NEXT_DEV_SERVER && err
+        ? createElement('template', {
+            'data-next-error-message': err.message,
+            'data-next-error-digest': 'digest' in err ? err.digest : '',
+            'data-next-error-stack': err.stack,
+          })
+        : null
+    )
+  )
+
+  const initialTree = await createFullTransportTreeFromLoaderTree(
+    tree,
+    errorHints,
+    errorPrefetchInliningEnabled,
+    ctx.missingPrefetchHintPolicy,
+    ctx.renderOpts.partialPrefetching,
+    getDynamicParamFromSegment,
+    query
+  )
+  // Attach the error shell as the root's render output. Vary params are not
+  // tracked for error pages.
+  initialTree.d = { r: errorShell, p: false, v: null }
 
   const { GlobalError, styles: globalErrorStyles } = await getGlobalErrorStyles(
     tree,
@@ -2402,13 +2385,14 @@ async function getErrorRSCPayload(
     q: getRenderedSearch(query),
     m: undefined,
     i: false,
-    t: convertInitialFlightDataToFullTransportData(
-      initialTree,
-      seedData,
-      initialHead,
-      isPossiblyPartialHead,
-      getMetadataVaryParamsAccumulator()
-    ),
+    t: {
+      t: initialTree,
+      h: {
+        r: initialHead,
+        p: isPossiblyPartialHead,
+        v: getMetadataVaryParamsAccumulator(),
+      },
+    },
     G: [GlobalError, globalErrorStyles],
     // Tells the client whether this route supports per-segment prefetching.
     // With Cache Components, all routes support it. Without it, only fully
