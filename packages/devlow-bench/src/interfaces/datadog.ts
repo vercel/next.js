@@ -71,10 +71,10 @@ export default function createInterface({
         type: 'distribution',
         host,
         tags: Object.entries(props)
-          .filter(([, value]) => value !== null)
+          .filter(([, propValue]) => propValue !== null)
           .map(
-            ([key, value]) =>
-              `${toIdentifier(key)}:${toIdentifier(value!.toString())}`
+            ([key, propValue]) =>
+              `${toIdentifier(key)}:${toIdentifier(propValue!.toString())}`
           )
           .concat(commonTags),
         points: [[ts, [value]]],

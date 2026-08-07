@@ -1,7 +1,7 @@
 import minimist from 'minimist'
 import { setCurrentScenarios } from './describe.js'
 import { join } from 'path'
-import { Scenario, ScenarioVariant, runScenarios } from './index.js'
+import { type Scenario, type ScenarioVariant, runScenarios } from './index.js'
 import compose from './interfaces/compose.js'
 import { groupRows, printComparison } from './compare.js'
 import { readSnapshot, resolveCompareTarget } from './snapshot.js'
@@ -131,14 +131,14 @@ async function runRunSubcommand(argv: string[]): Promise<void> {
   setCurrentScenarios(null)
 
   const cliIface = {
-    filterScenarios: async (scenarios: Scenario[]) => {
+    filterScenarios: async (allScenarios: Scenario[]) => {
       if (args.scenario) {
-        const filter = [].concat(args.scenario)
-        return scenarios.filter((s) =>
-          filter.some((filter) => s.name.includes(filter))
+        const filters = [].concat(args.scenario)
+        return allScenarios.filter((s) =>
+          filters.some((filter) => s.name.includes(filter))
         )
       }
-      return scenarios
+      return allScenarios
     },
     filterScenarioVariants: async (variants: ScenarioVariant[]) => {
       const propEntries = Object.entries(args).filter(

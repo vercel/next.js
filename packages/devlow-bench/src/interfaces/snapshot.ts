@@ -1,8 +1,12 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import picocolors from 'picocolors'
-import { Interface } from '../index.js'
-import { SnapshotRow, defaultSnapshotPath, writeSnapshot } from '../snapshot.js'
+import type { Interface } from '../index.js'
+import {
+  type SnapshotRow,
+  defaultSnapshotPath,
+  writeSnapshot,
+} from '../snapshot.js'
 import { formatVariantProps } from '../utils.js'
 
 const execFileAsync = promisify(execFile)

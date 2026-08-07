@@ -1,4 +1,4 @@
-import { Interface } from '../index.js'
+import type { Interface } from '../index.js'
 import { quantile, mean as statsMean } from '../statistics.js'
 import { formatUnit } from '../units.js'
 import { writeFile } from 'fs/promises'
@@ -17,11 +17,11 @@ function filterProp(
 
 export default function createInterface(
   file: string = (() => {
-    const file = process.env.JSON_OUTPUT_FILE
-    if (!file) {
+    const fromEnv = process.env.JSON_OUTPUT_FILE
+    if (!fromEnv) {
       throw new Error('env var JSON_OUTPUT_FILE is not set')
     }
-    return file
+    return fromEnv
   })(),
   options: { n?: number } = {}
 ): Interface {

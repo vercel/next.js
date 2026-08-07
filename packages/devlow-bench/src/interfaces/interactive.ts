@@ -1,4 +1,4 @@
-import { Interface } from '../index.js'
+import type { Interface } from '../index.js'
 import inquirer from 'inquirer'
 import { formatVariant } from '../utils.js'
 

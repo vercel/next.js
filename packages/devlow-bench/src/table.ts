@@ -22,20 +22,20 @@ import minimist from 'minimist'
   let data = JSON.parse(await readFile(args._[0], 'utf-8')) as any[]
 
   const getValue = (
-    data: any,
+    entry: any,
     name: string | string[],
     includeKey: boolean
   ): string => {
     if (name === 'value') {
-      return data.text as string
+      return entry.text as string
     }
     if (Array.isArray(name)) {
       return name
-        .map((n) => getValue(data, n, true))
+        .map((n) => getValue(entry, n, true))
         .filter((x) => x)
         .join(' ')
     }
-    const value = data.key[name]
+    const value = entry.key[name]
     if (value === undefined) return ''
     if (value === true) return includeKey ? name : 'true'
     if (value === false) return includeKey ? '' : 'false'
@@ -61,10 +61,10 @@ import minimist from 'minimist'
     return
   }
 
-  const row = args.row || 'name'
-  const column = args.column || 'scenario'
-  const getRow = (data: any) => getValue(data, row, false)
-  const getColumn = (data: any) => getValue(data, column, false)
+  const rowKey = args.row || 'name'
+  const columnKey = args.column || 'scenario'
+  const getRow = (entry: any) => getValue(entry, rowKey, false)
+  const getColumn = (entry: any) => getValue(entry, columnKey, false)
 
   const allRows = new Set(data.map(getRow))
   const allColumns = new Set(data.map(getColumn))
@@ -77,7 +77,7 @@ import minimist from 'minimist'
     for (const column of allColumns) {
       let items = data
         .filter((d: any) => getRow(d) === row && getColumn(d) === column)
-        .map((i) => i.text)
+        .map((item) => item.text)
       rowData.push(items.join(', '))
       columnSizes[i] = Math.max(columnSizes[i], rowData[i].length)
       i++
@@ -93,34 +93,34 @@ import minimist from 'minimist'
 
   // Header
   {
-    let row = '| '
-    let sepRow = '|:'
-    row += ' '.repeat(firstColumnSize)
-    sepRow += '-'.repeat(firstColumnSize)
+    let line = '| '
+    let sepLine = '|:'
+    line += ' '.repeat(firstColumnSize)
+    sepLine += '-'.repeat(firstColumnSize)
     const allColumnsArray = [...allColumns]
     for (let i = 0; i < columnSizes.length; i++) {
-      row += ' | '
-      row += pad(allColumnsArray[i], columnSizes[i])
-      sepRow += ':|-'
-      sepRow += '-'.repeat(columnSizes[i])
+      line += ' | '
+      line += pad(allColumnsArray[i], columnSizes[i])
+      sepLine += ':|-'
+      sepLine += '-'.repeat(columnSizes[i])
     }
-    row += ' |'
-    sepRow += ':|'
-    console.log(row)
-    console.log(sepRow)
+    line += ' |'
+    sepLine += ':|'
+    console.log(line)
+    console.log(sepLine)
   }
 
   // Separator
   let r = 0
   for (const rowName of allRows) {
-    let row = '| '
-    row += pad(rowName, firstColumnSize)
+    let line = '| '
+    line += pad(rowName, firstColumnSize)
     for (let i = 0; i < columnSizes.length; i++) {
-      row += ' | '
-      row += pad(table[r][i], columnSizes[i])
+      line += ' | '
+      line += pad(table[r][i], columnSizes[i])
     }
-    row += ' |'
-    console.log(row)
+    line += ' |'
+    console.log(line)
     r++
   }
 })().catch((e) => {
