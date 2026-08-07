@@ -45,7 +45,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
+    DiskFileSystem, DiskWatcherConfig, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
     canonicalize_to_rcstr, invalidation,
 };
 use turbo_unix_path::join_path;
@@ -631,9 +631,7 @@ impl ProjectContainer {
                 .read_strongly_consistent()
                 .await?;
             if watch.enable {
-                project_fs
-                    .start_watching_with_invalidation_reason(watch.poll_interval)
-                    .await?;
+                project_fs.start_watching().await?;
             } else {
                 project_fs.invalidate_with_reason(|path| invalidation::Initialize {
                     // this path is just used for display purposes
@@ -776,9 +774,7 @@ impl ProjectContainer {
             if !ReadRef::ptr_eq(&prev_project_fs, &project_fs) {
                 if watch.enable {
                     // TODO stop watching: prev_project_fs.stop_watching()?;
-                    project_fs
-                        .start_watching_with_invalidation_reason(watch.poll_interval)
-                        .await?;
+                    project_fs.start_watching().await?;
                 } else {
                     project_fs.invalidate_with_reason(|path| invalidation::Initialize {
                         // this path is just used for display purposes
@@ -1087,10 +1083,16 @@ impl Project {
             .unwrap()
             .into();
 
-        Ok(DiskFileSystem::new_with_denied_paths(
+        Ok(DiskFileSystem::new_with_options(
             PROJECT_FILESYSTEM_NAME,
             *self.root_path,
             vec![denied_path, denied_profiles_path],
+            DiskWatcherConfig {
+                recursive_mode: None,
+                poll_interval: self.watch.poll_interval,
+                // the dev server reports these to the user
+                report_invalidation_reason: true,
+            },
         ))
     }
 
