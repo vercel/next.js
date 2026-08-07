@@ -211,6 +211,69 @@ export function isRequestInsightsSameOriginTarget(
   return origin !== undefined && target?.origin === origin
 }
 
+export function isRequestInsightsExecutionOriginTarget(
+  origin: string | undefined,
+  target: RequestInsightsCausalTarget | undefined
+): boolean {
+  if (!origin || !target) return false
+  if (target.origin === origin) return true
+
+  try {
+    const executionOrigin = new URL(origin)
+    const targetOrigin = new URL(target.origin)
+    return (
+      executionOrigin.protocol === targetOrigin.protocol &&
+      executionOrigin.port === targetOrigin.port &&
+      isRequestInsightsLoopbackHostname(executionOrigin.hostname) &&
+      isRequestInsightsLoopbackHostname(targetOrigin.hostname)
+    )
+  } catch {
+    return false
+  }
+}
+
+export function getRequestInsightsExecutionOrigin({
+  experimentalHttpsServer,
+  fallbackPort,
+  socket,
+}: {
+  experimentalHttpsServer: boolean | undefined
+  fallbackPort: number | undefined
+  socket:
+    | {
+        encrypted?: boolean
+        localPort?: number
+      }
+    | null
+    | undefined
+}): string | undefined {
+  let encrypted = false
+  let port = fallbackPort
+
+  try {
+    encrypted = Boolean(socket?.encrypted)
+  } catch {
+    // Optional socket metadata must not affect request handling.
+  }
+  try {
+    port = socket?.localPort ?? fallbackPort
+  } catch {
+    // Some internal requests use socket mocks without readable metadata.
+  }
+
+  if (
+    port === undefined ||
+    !Number.isInteger(port) ||
+    port < 1 ||
+    port > 65_535
+  ) {
+    return undefined
+  }
+
+  const protocol = encrypted || experimentalHttpsServer ? 'https' : 'http'
+  return `${protocol}://localhost:${port}`
+}
+
 export function takeRequestInsightsCausalToken(
   headers: RequestInsightsCausalHeaders
 ): string | undefined {
@@ -352,7 +415,7 @@ function targetsEqual(
   second: RequestInsightsCausalTarget
 ): boolean {
   return (
-    first.origin === second.origin &&
+    isRequestInsightsExecutionOriginTarget(first.origin, second) &&
     first.pathname === second.pathname &&
     first.method === second.method
   )
