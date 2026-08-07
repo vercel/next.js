@@ -197,12 +197,16 @@ describe('first response chunk tracing', () => {
   })
 
   it('does not replace Web first-chunk success with a later error', async () => {
-    const response = new MockedResponse()
     const { controller, readable } = createPendingWebStream()
+    const response = new MockedResponse({
+      resWriter() {
+        controller.error(new Error('failed after first chunk'))
+        return true
+      },
+    })
     const piping = pipeToNodeResponse(readable, response)
 
     controller.enqueue(new TextEncoder().encode('first'))
-    controller.error(new Error('failed after first chunk'))
     await expect(piping).rejects.toThrow('failed to pipe response')
 
     expect(getFirstResponseChunkSpans()).toEqual([
