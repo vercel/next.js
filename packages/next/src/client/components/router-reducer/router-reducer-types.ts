@@ -147,13 +147,6 @@ export enum PrefetchKind {
   FULL = 'full',
 }
 
-/**
- * Prefetch adds the provided FlightData to the prefetch cache
- * - Creates the router state tree based on the patch in FlightData
- * - Adds the FlightData to the prefetch cache
- * - In ACTION_NAVIGATE the prefetch cache is checked and the router state tree and FlightData are applied.
- */
-
 export interface PushRef {
   /**
    * If the app-router should push a new history entry in app-router's useEffect()

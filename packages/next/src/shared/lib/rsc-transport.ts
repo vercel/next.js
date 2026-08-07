@@ -54,21 +54,33 @@ export type TransportDynamicSegment = {
  * "rendered vs skipped" state is a single presence check. Also used for the
  * head (metadata/viewport), which is output without structure.
  *
- * `r` may be null: the response covered this segment's position without
- * rendering anything for it — e.g. a shared layout the client is expected to
- * already have. This is distinct from `d` being absent on the node, which
- * means the response makes no claim about the segment's output at all (the
- * client should fetch it lazily if it doesn't have it).
+ * `r` may be null: the segment was skipped — the response acknowledges its
+ * position without rendering anything for it, e.g. a shared layout the
+ * client is expected to already have. This is distinct from `d` being absent
+ * on the node, which means the response makes no claim about the segment's
+ * output at all (the client should fetch it lazily if it doesn't have it).
  */
 export type TransportSegmentData = {
-  /** rsc — the React node for this segment; null = covered but not rendered */
+  /** rsc — the React node for this segment; null = skipped (not rendered) */
   r: React.ReactNode
   /** isPartial — contains unresolved dynamic holes (static prerender) */
   p: boolean
   /**
-   * varyParams — params this segment's output depends on. Does not include
-   * root params, which are emitted once at the response level (`r` on the
-   * response wrapper).
+   * varyParams — an iterable of the route params this segment's output
+   * depends on (one name per yield, deduped). Used by the client router to
+   * determine cache key specificity: segments that only access certain
+   * params can be reused across navigations where unaccessed params change.
+   *
+   * Does NOT include root params; those are emitted once at the response
+   * level (`r` on the response wrapper) and unioned in by the consumer.
+   *
+   * - null: tracking was not enabled for this render (e.g., not a
+   *   prerender). Treat conservatively — assume all params vary.
+   * - Drains to empty: segment accesses no params (e.g., client components,
+   *   or server components that don't read params). Can be shared across
+   *   all param values.
+   * - Drains to non-empty: segment depends on those params. Can only be
+   *   reused when those specific params match.
    */
   v: VaryParamsIterable | null
 }
@@ -87,10 +99,9 @@ type TransportNodeShape = {
 /**
  * A node in a FULL response tree: every node carries data, and slot maps are
  * exhaustive. Produced by full renders: the initial document payload and
- * error payloads. "Full" means every node is covered by the response — there
+ * error payloads. "Full" means the response accounts for every node — there
  * is nothing for the client to fetch lazily. Data-level holes
- * (`d.p === true`) and covered-but-not-rendered nodes (`d.r === null`) are
- * still possible.
+ * (`d.p === true`) and skipped nodes (`d.r === null`) are still possible.
  */
 export type FullTransportNode = TransportNodeShape & {
   /** data — always present in a full tree */
@@ -113,16 +124,16 @@ export type FullTransportNode = TransportNodeShape & {
  *
  * - A node present in the tree is authoritative for that position's identity.
  * - `d` present: the response accounts for this segment. Its output is `d.r`,
- *   which may be null when the position is covered without rendering (e.g. a
- *   shared layout the client already has).
+ *   which may be null when the segment was skipped — not rendered because
+ *   the client already has it (e.g. a shared layout).
  * - `d` omitted: the response makes no claim about this segment's output.
  *   The client keeps what it has, or lazily fetches when it renders (e.g.
  *   segments beneath a loading boundary in a non-PPR prefetch).
- * - A slot key omitted from `c` (or `c` omitted): on a covered node
+ * - A slot key omitted from `c` (or `c` omitted): on a skipped node
  *   (`d.r === null`), the response carries no information about that slot
  *   and the client keeps its subtree untouched. On any other node the
  *   subtree is authoritative, so an omitted slot is simply absent.
- * - `h` omitted: on a covered node, the client keeps its existing hints for
+ * - `h` omitted: on a skipped node, the client keeps its existing hints for
  *   the segment; on any other node it means the hints are zero.
  *
  * TODO: A node with `d` omitted currently ends the client's cache write for
@@ -162,6 +173,16 @@ export type PartialTransportData = {
 }
 
 export type TransportData = FullTransportData | PartialTransportData
+
+/**
+ * Creates the data for a skipped segment: a null `r` marks the position as
+ * acknowledged by the response, with no output attached (see the note on
+ * TransportSegmentData). Used by producers for the segments along the path
+ * from the root down to the rendered subtrees.
+ */
+export function createSkippedSegmentData(): TransportSegmentData {
+  return { r: null, p: true, v: null }
+}
 
 /**
  * Converts a segment's client/server-internal representation to its wire

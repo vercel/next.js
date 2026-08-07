@@ -2,9 +2,16 @@ import type { LoaderTree } from '../lib/app-dir-module'
 import {
   PrefetchHint,
   propagateSubtreeBits,
-  type FlightRouterState,
   type PrefetchHints,
 } from '../../shared/lib/app-router-types'
+import type {
+  FullTransportNode,
+  PartialTransportNode,
+} from '../../shared/lib/rsc-transport'
+import {
+  createSkippedSegmentData,
+  segmentToTransportSegment,
+} from '../../shared/lib/rsc-transport'
 import type { GetDynamicParamFromSegment } from './app-render'
 import { addSearchParamsIfPageSegment } from '../../shared/lib/segment'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
@@ -38,24 +45,28 @@ export function getMissingPrefetchHintPolicy(
   return 'none'
 }
 
-async function createFlightRouterStateFromLoaderTreeImpl(
+/**
+ * Computes the segment-local prefetch hints for a loader tree node: the
+ * precomputed build-time hints unioned with the hints derived from the
+ * segment's own configuration (instant/prefetch exports, loading boundary,
+ * root layout position). Does not include the "subtree" bits propagated up
+ * from children — the caller folds those in with propagateSubtreeBits as it
+ * assembles the tree.
+ *
+ * Shared by createComponentTree (rendered trees) and the builders in this
+ * module (structure-only trees) so the two cannot drift.
+ */
+export async function computeSegmentPrefetchHints(
   loaderTree: LoaderTree,
   hintTree: PrefetchHints | null,
   prefetchInliningEnabled: boolean,
   missingPrefetchHintPolicy: MissingPrefetchHintPolicy,
   partialPrefetching: boolean | 'unstable_eager' | undefined,
-  getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  searchParams: any,
-  didFindRootLayout: boolean
-): Promise<FlightRouterState> {
-  const [segment, parallelRoutes, { layout, loading, page }] = loaderTree
-  const dynamicParam = getDynamicParamFromSegment(loaderTree)
-  const treeSegment = dynamicParam ? dynamicParam.treeSegment : segment
-
-  const segmentTree: FlightRouterState = [
-    addSearchParamsIfPageSegment(treeSegment, searchParams),
-    {},
-  ]
+  // Whether this segment is at or above the root layout (no layout was found
+  // above it).
+  isRootLayoutOrAbove: boolean
+): Promise<number> {
+  const { layout, loading, page } = loaderTree[2]
 
   // Load the layout or page module to check its instant and prefetch
   // configs. When a segment doesn't export prefetch, it defaults to
@@ -107,14 +118,9 @@ async function createFlightRouterStateFromLoaderTreeImpl(
     }
   }
 
-  // Mark every segment at or above the root layout (i.e. until we descend past
-  // the first segment that has a layout).
-  if (!didFindRootLayout) {
+  // Mark every segment at or above the root layout.
+  if (isRootLayoutOrAbove) {
     prefetchHints |= PrefetchHint.IsRootLayoutOrAbove
-    if (typeof layout !== 'undefined') {
-      // This segment is the root layout; its descendants are below it.
-      didFindRootLayout = true
-    }
   }
 
   if (instantConfig === false) {
@@ -150,14 +156,58 @@ async function createFlightRouterStateFromLoaderTreeImpl(
     prefetchHints |= PrefetchHint.SegmentHasLoadingBoundary
   }
 
-  const children: FlightRouterState[1] = {}
+  return prefetchHints
+}
+
+/**
+ * Builds a transport tree with no render output directly from the loader
+ * tree: each node carries its segment identity and prefetch hints. Rendered
+ * trees are produced by createComponentTree instead; this module covers the
+ * responses (and subtrees) where nothing is rendered — router-state-only
+ * responses, route tree prefetches, the structure beneath a loading-boundary
+ * cut in a non-PPR prefetch, and error payloads.
+ */
+async function createTransportTreeFromLoaderTreeImpl(
+  loaderTree: LoaderTree,
+  // What to emit for each position: nothing (the client fetches it lazily;
+  // false) or skipped data (true). Full trees require the latter — see
+  // createFullTransportTreeFromLoaderTree.
+  emitSkippedData: boolean,
+  hintTree: PrefetchHints | null,
+  prefetchInliningEnabled: boolean,
+  missingPrefetchHintPolicy: MissingPrefetchHintPolicy,
+  partialPrefetching: boolean | 'unstable_eager' | undefined,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  searchParams: any,
+  didFindRootLayout: boolean
+): Promise<PartialTransportNode> {
+  const [segment, parallelRoutes, { layout }] = loaderTree
+  const dynamicParam = getDynamicParamFromSegment(loaderTree)
+  const treeSegment = dynamicParam ? dynamicParam.treeSegment : segment
+
+  let prefetchHints = await computeSegmentPrefetchHints(
+    loaderTree,
+    hintTree,
+    prefetchInliningEnabled,
+    missingPrefetchHintPolicy,
+    partialPrefetching,
+    !didFindRootLayout
+  )
+
+  if (!didFindRootLayout && typeof layout !== 'undefined') {
+    // This segment is the root layout; its descendants are below it.
+    didFindRootLayout = true
+  }
+
+  let children: Map<string, PartialTransportNode> | undefined
   for (const parallelRouteKey in parallelRoutes) {
     // Look up the child hint node by parallel route key, traversing the
     // hint tree in parallel with the loader tree.
     const childHintNode = hintTree?.slots?.[parallelRouteKey] ?? null
 
-    const child = await createFlightRouterStateFromLoaderTreeImpl(
+    const child = await createTransportTreeFromLoaderTreeImpl(
       parallelRoutes[parallelRouteKey],
+      emitSkippedData,
       childHintNode,
       prefetchInliningEnabled,
       missingPrefetchHintPolicy,
@@ -167,21 +217,39 @@ async function createFlightRouterStateFromLoaderTreeImpl(
       didFindRootLayout
     )
     // Propagate subtree flags from children
-    if (child[4] !== undefined) {
-      prefetchHints = propagateSubtreeBits(prefetchHints, child[4])
+    if (child.h !== undefined) {
+      prefetchHints = propagateSubtreeBits(prefetchHints, child.h)
     }
-    children[parallelRouteKey] = child
+    if (children === undefined) {
+      children = new Map()
+    }
+    children.set(parallelRouteKey, child)
   }
-  segmentTree[1] = children
 
+  const node: PartialTransportNode = {
+    s: segmentToTransportSegment(
+      addSearchParamsIfPageSegment(treeSegment, searchParams)
+    ),
+  }
   if (prefetchHints !== 0) {
-    segmentTree[4] = prefetchHints
+    node.h = prefetchHints
   }
-
-  return segmentTree
+  if (emitSkippedData) {
+    node.d = createSkippedSegmentData()
+  }
+  if (children !== undefined) {
+    node.c = children
+  }
+  return node
 }
 
-export async function createFlightRouterStateFromLoaderTree(
+/**
+ * Builds a structure-only transport tree from the loader tree: identity and
+ * hints, no render output on any node. Used for router-state-only responses
+ * and for the structure beneath a loading-boundary cut in a non-PPR
+ * prefetch, where the client fetches the content lazily.
+ */
+export async function createTransportTreeFromLoaderTree(
   loaderTree: LoaderTree,
   hintTree: PrefetchHints | null,
   prefetchInliningEnabled: boolean,
@@ -193,9 +261,10 @@ export async function createFlightRouterStateFromLoaderTree(
   // slice that starts below the root layout doesn't mark a sub-layout as the
   // root layout.
   didFindRootLayout: boolean = false
-): Promise<FlightRouterState> {
-  return createFlightRouterStateFromLoaderTreeImpl(
+): Promise<PartialTransportNode> {
+  return createTransportTreeFromLoaderTreeImpl(
     loaderTree,
+    false,
     hintTree,
     prefetchInliningEnabled,
     missingPrefetchHintPolicy,
@@ -206,6 +275,40 @@ export async function createFlightRouterStateFromLoaderTree(
   )
 }
 
+/**
+ * Builds a full transport tree from the loader tree where every position is
+ * skipped. Used for error payloads, which don't render the route: the caller
+ * attaches the error shell to the root node's data.
+ */
+export async function createFullTransportTreeFromLoaderTree(
+  loaderTree: LoaderTree,
+  hintTree: PrefetchHints | null,
+  prefetchInliningEnabled: boolean,
+  missingPrefetchHintPolicy: MissingPrefetchHintPolicy,
+  partialPrefetching: boolean | 'unstable_eager' | undefined,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  searchParams: any
+): Promise<FullTransportNode> {
+  // With emitSkippedData, every node carries data, which is what
+  // FullTransportNode requires. TypeScript can't see through the flag,
+  // hence the cast.
+  return createTransportTreeFromLoaderTreeImpl(
+    loaderTree,
+    true,
+    hintTree,
+    prefetchInliningEnabled,
+    missingPrefetchHintPolicy,
+    partialPrefetching,
+    getDynamicParamFromSegment,
+    searchParams,
+    false
+  ) as Promise<FullTransportNode>
+}
+
+/**
+ * Builds the transport tree for a route tree prefetch response. Router state
+ * only — no render output.
+ */
 export async function createRouteTreePrefetch(
   loaderTree: LoaderTree,
   hintTree: PrefetchHints | null,
@@ -213,15 +316,16 @@ export async function createRouteTreePrefetch(
   missingPrefetchHintPolicy: MissingPrefetchHintPolicy,
   partialPrefetching: boolean | 'unstable_eager' | undefined,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  // See note on createFlightRouterStateFromLoaderTree's didFindRootLayout.
+  // See note on createTransportTreeFromLoaderTree's didFindRootLayout.
   didFindRootLayout: boolean = false
-): Promise<FlightRouterState> {
+): Promise<PartialTransportNode> {
   // Search params should not be added to page segment's cache key during a
   // route tree prefetch request, because they do not affect the structure of
   // the route. The client cache has its own logic to handle search params.
   const searchParams = {}
-  return createFlightRouterStateFromLoaderTreeImpl(
+  return createTransportTreeFromLoaderTreeImpl(
     loaderTree,
+    false,
     hintTree,
     prefetchInliningEnabled,
     missingPrefetchHintPolicy,

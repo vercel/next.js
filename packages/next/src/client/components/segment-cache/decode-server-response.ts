@@ -222,11 +222,10 @@ export function createRouteTreeNode<TData>(
  *   server-sent structure whose output the client fetches lazily — are
  *   authoritative: their identity, hints, and subtree come entirely from
  *   the response.
- * - Covered-but-not-rendered nodes (data with a null rsc) sit on the path
- *   from the root down to the rendered subtrees. The client is expected to
- *   already have them, so their refresh state and hints are inherited from
- *   the base tree, and any slot the response doesn't mention is reused from
- *   the base as-is.
+ * - Skipped nodes (data with a null rsc) sit on the path from the root down
+ *   to the rendered subtrees. The client is expected to already have them,
+ *   so their refresh state and hints are inherited from the base tree, and
+ *   any slot the response doesn't mention is reused from the base as-is.
  *
  * TODO: The base is a FlightRouterState only because that's the
  * representation the client router currently renders from (the router
@@ -363,7 +362,7 @@ function decodeTransportNode(
   if (inheritsFromBase) {
     // Recompute the propagated "subtree" prefetch hints for this segment,
     // since its children may combine response and base subtrees. Mirrors the
-    // propagation done on the server in createFlightRouterStateFromLoaderTree.
+    // propagation done on the server in createTransportTreeFromLoaderTree.
     let propagated = prefetchHints & ~SubtreePrefetchHints
     if (slots !== null) {
       for (const childTree of slots.values()) {

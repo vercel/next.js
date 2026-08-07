@@ -847,7 +847,7 @@ async function collectPrefetchHintsImpl(
 // collectPrefetchHints when prefetch inlining is disabled: there are no sizes
 // to measure, but the static-prefetch-attempt hint still needs a manifest
 // tree — the client reads the bit per node, and the runtime hint merging
-// (createFlightRouterStateFromLoaderTree) walks the manifest tree in parallel
+// (createTransportTreeFromLoaderTree) walks the manifest tree in parallel
 // with the loader tree, so a bit that's missing from a node never reaches the
 // corresponding segment.
 function createUniformHintTree(
