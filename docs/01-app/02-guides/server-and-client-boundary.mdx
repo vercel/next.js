@@ -16,9 +16,9 @@ Before React Server Components (RSC), there was just one kind of React component
 
 Putting anything on screen meant shipping JavaScript to the browser. Many apps were an empty shell with one node to mount into, rendered entirely on the client. React could also render to HTML on the server first, so the first response was not blank, but that HTML was inert markup until the JavaScript arrived and [hydrated](https://react.dev/reference/react-dom/client/hydrateRoot#hydrating-server-rendered-html) it. The same component had to render in both environments, which is what hydration depends on.
 
-React Server Components gave that original kind of component a name, the Client Component, and introduced the Server Component, which runs exclusively on the server.
+React Server Components gave that original kind of component a name, the Client Component, and introduced the Server Component, which runs exclusively on the server. Unlike a Client Component, a Server Component ships no JavaScript to the browser.
 
-The two compose in a single tree. Unlike a Client Component, a Server Component ships no JavaScript. The server renders that tree into the [RSC Payload](/docs/app/glossary#rsc-payload), a serialized description of the UI that carries references to the Client Components inside it.
+The two compose in a single component tree. The server renders that tree into the [RSC Payload](/docs/app/glossary#rsc-payload), a serialized description of the UI that carries references to the Client Components inside it.
 
 ```txt
 Server Component
@@ -27,9 +27,9 @@ Server Component
    └─ Client Component
 ```
 
-Each component in this tree belongs to the server module graph or the client module graph, and a module shared by both is compiled into each, one copy per graph. The server graph holds the references to the Client Components and the data it passes them at the boundary. The client graph has no knowledge of the server graph, only the data it receives there.
+Each component in this tree belongs to either the server [module graph](/docs/app/glossary#module-graph) or the client module graph. A module shared by both is compiled into each, one copy per graph. 
 
-That boundary is where most confusion about Server and Client Components starts. Things like "server vs client rendering," or why you cannot call `useState` in some files, feel like separate rules to memorize. Each is really a consequence of the same boundary. This guide takes them one at a time.
+The server graph holds the references to the Client Components and the data it passes them at the boundary. The client graph has no knowledge of the server graph, only the data it receives at the server-client boundary.
 
 ## Rendering environments
 
@@ -69,7 +69,7 @@ _When_ a component renders, at build time or per request, statically or dynamica
 
 ## How data enters the tree
 
-Before RSC, the tree did not fetch its own data while rendering. Data was gathered ahead of time, by a loader or `getServerSideProps`, and passed in as props. The tree received data, it did not go get it.
+Before RSC, in SSR applications, the component tree did not fetch its own data while rendering. Data was gathered ahead of time, by a loader or `getServerSideProps`, and passed in as props. The tree received data, it did not go get it.
 
 ```txt
 data
@@ -90,17 +90,17 @@ export default async function Page() {
 }
 ```
 
-Getting the data is no longer a separate step that feeds the tree. It is part of evaluating a node in the tree.
+Getting the data is no longer a separate step that passes initial props to the component tree. It is part of rendering that component tree.
 
 > **Good to know:** Because a Server Component can read secrets and server-only data directly, be deliberate about what you pass to Client Components, props are serialized and sent to the browser. See [Data Security](/docs/app/guides/data-security#passing-data-from-server-to-client).
 
-Client Components fetch too, so this is not reserved for the server. What differs is when, and who starts it. A Client Component can fetch after it mounts, in an effect or a data library. Or a Server Component can start the fetch during its own render and pass the pending promise down, and the Client Component reads it with [`use`](https://react.dev/reference/react/use#streaming-data-from-server-to-client) as it resolves, so the request is in flight before the client even runs.
+A Server Component can start a fetch request during its own render and pass the pending promise down to a Client Component, that reads it with [`use`](https://react.dev/reference/react/use#streaming-data-from-server-to-client), so the request is in flight before the client even runs. Which means that Client Component don't need fetch after mount, in an effect or a data library, although there are cases where the fetch request has to start from the browser. 
 
 Because fetching happens during a Server Component's render, the framework can optimize around it. It dedupes identical fetches in a single render, and it can cache a fetch, a function's output, or a component's output, and revalidate each on its own. With enough help from the bundler, it can even see which data feeds a component, which is what [Cache Components](/docs/app/getting-started/caching) builds on to revalidate at the granularity of the data itself, not the whole page. This starts with [fetching data](/docs/app/getting-started/fetching-data).
 
 ## State and interactivity
 
-A Server Component's code never reaches the browser, so on the client it holds no state, runs no effects, and never re-renders.
+A Server Component's code never reaches the browser, it can't hold client side state runs no effects, and never re-renders client side.
 
 A Client Component's code does reach the browser. React hydrates it, and from then on it runs on the client: it can hold state, run effects, respond to events, and re-render when its state or props change.
 
@@ -116,7 +116,7 @@ For the practical list of what belongs in each environment, see [When to use Ser
 
 You mark a Client Component with the [`'use client'`](/docs/app/api-reference/directives/use-client) directive. It draws a boundary in the module graph, and two rules decide what crosses it:
 
-- **Code** crosses through imports. Whatever a Client Component imports is pulled into the client bundle.
+- **Code** crosses through imports. Whatever a Client Component imports is pulled into the [client bundle](/docs/app/glossary#client-bundles).
 - **Data** crosses through props, and it must be [serializable](/docs/app/getting-started/server-and-client-components#passing-data-from-server-to-client-components), so functions like event handlers cannot cross.
 
 > **Good to know:**
@@ -172,6 +172,15 @@ export function Modal({ title, children }) {
 - The **parent** is whoever the child sits inside at render time. `Modal` is the parent of `Cart`.
 
 Because `Cart`'s owner is a Server Component, `Cart` renders on the server. `Modal` is only its parent, so it receives `Cart`'s output to place, never its code to run. That is how a Client Component can display a Server Component it never imported.
+
+</details>
+
+<details>
+  <summary>Compound components across the boundary</summary>
+
+Adding subcomponents to a parent as static properties, like `Menu.Item` or `Tabs.Panel`, works fine within one graph, whether the pieces are all Server Components or all Client Components. It breaks only when the static member has to cross the boundary: a Server Component that imports a Client Component receives a client reference, not the function, so `Menu.Item` is `undefined` and React itself throws "Element type is invalid."
+
+Consume a client compound from a Client Component, or export the pieces as named exports so what crosses the boundary is a real export, not a static property.
 
 </details>
 
