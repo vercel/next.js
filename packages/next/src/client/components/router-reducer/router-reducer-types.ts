@@ -1,6 +1,6 @@
 import type { CacheNode, ScrollRef } from '../../../shared/lib/app-router-types'
 import type { FlightRouterState } from '../../../shared/lib/app-router-types'
-import type { NavigationSeed } from '../segment-cache/navigation'
+import type { NavigationSeed } from '../segment-cache/decode-server-response'
 import type { FetchServerResponseResult } from './fetch-server-response'
 import type { FreshnessPolicy } from './ppr-navigations'
 
@@ -146,13 +146,6 @@ export enum PrefetchKind {
   AUTO = 'auto',
   FULL = 'full',
 }
-
-/**
- * Prefetch adds the provided FlightData to the prefetch cache
- * - Creates the router state tree based on the patch in FlightData
- * - Adds the FlightData to the prefetch cache
- * - In ACTION_NAVIGATE the prefetch cache is checked and the router state tree and FlightData are applied.
- */
 
 export interface PushRef {
   /**

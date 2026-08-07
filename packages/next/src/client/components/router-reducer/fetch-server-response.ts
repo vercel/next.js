@@ -30,11 +30,8 @@ import {
 } from '../app-router-headers'
 import { callServer } from '../../app-call-server'
 import { findSourceMapURL } from '../../app-find-source-map-url'
-import {
-  normalizeFlightData,
-  prepareFlightRouterStateForRequest,
-  type NormalizedFlightData,
-} from '../../flight-data-helpers'
+import { prepareFlightRouterStateForRequest } from '../../flight-data-helpers'
+import type { PartialTransportData } from '../../../shared/lib/rsc-transport'
 import { setCacheBustingSearchParam } from './set-cache-busting-search-param'
 import { urlToUrlWithoutFlightMarker } from '../../route-params'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
@@ -79,7 +76,7 @@ export type StaticStageData<
 }
 
 type SpaFetchServerResponseResult = {
-  flightData: NormalizedFlightData[]
+  transportData: PartialTransportData | null
   canonicalUrl: URL
   renderedSearch: NormalizedSearch
   couldBeIntercepted: boolean
@@ -279,9 +276,10 @@ export async function fetchServerResponse(
       return doMpaNavigation(res.url)
     }
 
-    const normalizedFlightData = normalizeFlightData(flightResponse.f)
-    if (typeof normalizedFlightData === 'string') {
-      return doMpaNavigation(normalizedFlightData)
+    if (flightResponse.n !== undefined) {
+      // The server responded with an MPA navigation URL instead of a
+      // SPA payload.
+      return doMpaNavigation(flightResponse.n)
     }
 
     const staticStageData =
@@ -290,7 +288,7 @@ export async function fetchServerResponse(
         : null
 
     return {
-      flightData: normalizedFlightData,
+      transportData: flightResponse.t ?? null,
       canonicalUrl: canonicalUrl,
       // TODO: We should be able to read this from the rewrite header, not the
       // Flight response. Theoretically they should always agree, but there are
