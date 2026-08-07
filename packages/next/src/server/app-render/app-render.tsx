@@ -161,6 +161,7 @@ import {
   type PostponedState,
   DynamicHTMLPreludeState,
   parsePostponedState,
+  parseResumeDataCacheFromPostponedState,
 } from './postponed-state'
 import {
   getDynamicDataPostponedState,
@@ -168,6 +169,7 @@ import {
   getPostponedFromState,
 } from './postponed-state'
 import { isDynamicServerError } from '../../client/components/hooks-server-context'
+import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
 import { getFlightStream } from './use-flight-response'
 import {
   StaticGenBailoutError,
@@ -3304,16 +3306,29 @@ function prepareAppPage(
   let postponedState: PostponedState | null = null
   if (typeof renderOpts.postponed === 'string') {
     if (fallbackRouteParams) {
-      throw new InvariantError(
-        'postponed state should not be provided when fallback params are provided'
+      if (!getServerActionRequestMetadata(req).isFetchAction) {
+        throw new InvariantError(
+          'postponed state should not be provided when fallback params are provided'
+        )
+      }
+
+      // A fetch action with fallback params cannot render this page, so its
+      // React postponed state cannot be resumed. The RDC is still useful while
+      // executing cached functions in the action.
+      postponedState = {
+        type: DynamicState.DATA,
+        renderResumeDataCache: parseResumeDataCacheFromPostponedState(
+          renderOpts.postponed,
+          renderOpts.experimental.maxPostponedStateSizeBytes
+        ),
+      }
+    } else {
+      postponedState = parsePostponedState(
+        renderOpts.postponed,
+        interpolatedParams,
+        renderOpts.experimental.maxPostponedStateSizeBytes
       )
     }
-
-    postponedState = parsePostponedState(
-      renderOpts.postponed,
-      interpolatedParams,
-      renderOpts.experimental.maxPostponedStateSizeBytes
-    )
   }
 
   if (

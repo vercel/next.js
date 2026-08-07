@@ -741,6 +741,12 @@ export async function handleAction({
   )
 
   const actionWasForwarded = Boolean(req.headers['x-action-forwarded'])
+  // A fetch action targeting a fallback route has no concrete params with
+  // which to resume the destination page.
+  const isActionOnlyFallbackRequest =
+    isFetchAction &&
+    requestStore.fallbackParams != null &&
+    typeof ctx.renderOpts.postponed === 'string'
 
   // Only attempt to forward if this request has not already been forwarded.
   // Otherwise middleware that rewrites the action POST can cause the receiving
@@ -1216,7 +1222,7 @@ export async function handleAction({
             boundActionArguments,
             workStore,
             requestStore,
-            actionWasForwarded
+            actionWasForwarded || isActionOnlyFallbackRequest
           ).finally(() => {
             addRevalidationHeader(res, { workStore, requestStore })
             if (logInfo) {
@@ -1351,12 +1357,13 @@ export async function handleAction({
         type: 'done',
         result: await generateFlight(req, ctx, requestStore, {
           actionResult: promise,
-          // If the page was not revalidated, or if the action was forwarded
-          // from another worker, we can skip rendering the page.
+          // If the page was not revalidated, or if this is an action-only
+          // request, we can skip rendering the page.
           skipPageRendering:
             workStore.pathWasRevalidated === undefined ||
             workStore.pathWasRevalidated === ActionDidNotRevalidate ||
-            actionWasForwarded,
+            actionWasForwarded ||
+            isActionOnlyFallbackRequest,
           temporaryReferences,
         }),
       }
@@ -1380,13 +1387,13 @@ async function executeActionAndPrepareForRender<
   args: Parameters<TFn>,
   workStore: WorkStore,
   requestStore: RequestStore,
-  actionWasForwarded: boolean
+  shouldSkipPageRendering: boolean
 ): Promise<{
   actionResult: Awaited<ReturnType<TFn>>
   skipPageRendering: boolean
 }> {
   requestStore.phase = 'action'
-  let skipPageRendering = actionWasForwarded
+  let skipPageRendering = shouldSkipPageRendering
 
   if (args.length > SERVER_ACTION_ARGS_LIMIT) {
     throw new Error(
@@ -1399,8 +1406,8 @@ async function executeActionAndPrepareForRender<
       action.apply(null, args)
     )
 
-    // If the page was not revalidated, or if the action was forwarded from
-    // another worker, we can skip rendering the page.
+    // If the page was not revalidated, or if this is an action-only request,
+    // we can skip rendering the page.
     skipPageRendering ||=
       workStore.pathWasRevalidated === undefined ||
       workStore.pathWasRevalidated === ActionDidNotRevalidate
