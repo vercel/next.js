@@ -43,6 +43,17 @@ jobs:
           echo "$(node scripts/run-for-change.mjs --not --type docs --exec echo 'false')" >> $GITHUB_OUTPUT;
           echo 'EOF' >> $GITHUB_OUTPUT
 
+      - name: check for turbopack only change
+        id: turbopack-change
+        run: |
+          set -euo pipefail
+          TURBOPACK_ONLY="$(node scripts/run-for-change.mjs --not --type turbopack --exec echo 'false')"
+          {
+            echo "TURBOPACK_ONLY<<EOF"
+            echo "$TURBOPACK_ONLY"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: check for release
         id: is-release
         run: |
@@ -56,6 +67,12 @@ jobs:
     outputs:
       docs-only: ${{ steps.docs-change.outputs.DOCS_ONLY != 'false' }}
       is-release: ${{ steps.is-release.outputs.IS_RELEASE == 'true' }}
+      # Pull requests only, so canary and release run all Webpack tests.
+      turbopack-only: >-
+        ${{
+          github.event_name == 'pull_request' &&
+          steps.turbopack-change.outputs.TURBOPACK_ONLY != 'false'
+        }}
       rspack: >-
         ${{
           steps.is-release.outputs.IS_RELEASE == 'true' || (
@@ -823,7 +840,7 @@ jobs:
         'build-next',
         'fetch-test-timings',
       ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.turbopack-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -932,7 +949,7 @@ jobs:
         'build-next',
         'fetch-test-timings',
       ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.turbopack-only == 'false' }}
 
     strategy:
       fail-fast: false

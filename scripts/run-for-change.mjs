@@ -55,6 +55,15 @@ const CHANGE_ITEM_GROUPS = {
     'test/production/create-next-app',
     'scripts/send-trace-to-jaeger',
   ],
+  // Changes confined to these paths cannot affect a webpack build.
+  turbopack: [
+    'turbopack/crates',
+    '!turbopack/crates/turbo-bincode',
+    '!turbopack/crates/turbo-rcstr', // also covers turbo-rcstr-macros
+    '!turbopack/crates/turbo-tasks-hash',
+    '!turbopack/crates/turbo-tasks-macros',
+    '!turbopack/crates/turbo-unix-path',
+  ],
 }
 
 async function main() {
@@ -106,6 +115,12 @@ async function main() {
       ).join(', ')}`
     )
   }
+  // an item prefixed with "!" excludes paths another item matched
+  const excludedItems = changeItems
+    .filter((item) => item.startsWith('!'))
+    .map((item) => item.slice(1))
+  const includedItems = changeItems.filter((item) => !item.startsWith('!'))
+
   let changedFilesCount = 0
   let changedDirectories = new Set()
 
@@ -124,13 +139,15 @@ async function main() {
       // if --not flag is provided we execute for any file changed
       // not included in the change items otherwise we only execute
       // if a change item is changed
-      const matchesItem = changeItems.some((item) => {
-        const found = file.startsWith(item)
-        if (found) {
-          changedDirectories.add(item)
-        }
-        return found
-      })
+      const matchesItem =
+        !excludedItems.some((item) => file.startsWith(item)) &&
+        includedItems.some((item) => {
+          const found = file.startsWith(item)
+          if (found) {
+            changedDirectories.add(item)
+          }
+          return found
+        })
 
       if (!matchesItem && isNegated) {
         hasMatchingChange = true
