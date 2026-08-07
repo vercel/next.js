@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process'
+import fs from 'node:fs'
 import path from 'node:path'
 
 const distDir = path.join(__dirname, '../../../packages/next/dist')
@@ -150,18 +151,12 @@ function probeDirectRouterLifecycle(): {
       path.join(os.tmpdir(), 'request-insights-router-lifecycle-')
     )
     const cleanupListeners = []
-    let fixtureCleaned = false
+    let cleanupFinished = false
 
-    async function cleanupFixture() {
-      if (fixtureCleaned) return
-      fixtureCleaned = true
+    async function runCleanupListeners() {
+      if (cleanupFinished) return
+      cleanupFinished = true
       await Promise.allSettled(cleanupListeners.map((cleanup) => cleanup()))
-      await fs.promises.rm(dir, {
-        recursive: true,
-        force: true,
-        maxRetries: 10,
-        retryDelay: 100,
-      })
     }
     fs.mkdirSync(path.join(dir, 'pages'), { recursive: true })
     fs.writeFileSync(path.join(dir, 'package.json'), '{"private":true}')
@@ -205,11 +200,12 @@ function probeDirectRouterLifecycle(): {
         await initialized.closeUpgraded()
         await initialized.server.close()
         initialized = undefined
-        await cleanupFixture()
+        await runCleanupListeners()
 
         process.stdout.write(
           '${resultMarker}' +
             JSON.stringify({
+              fixtureDir: dir,
               retainedBeforeClose,
               retainedAfterClose: controller.getSnapshot().requests.length,
             }),
@@ -220,7 +216,7 @@ function probeDirectRouterLifecycle(): {
           await initialized.closeUpgraded()
           await initialized.server.close().catch(() => {})
         }
-        await cleanupFixture().catch(() => {})
+        await runCleanupListeners().catch(() => {})
       }
     }
 
@@ -230,10 +226,20 @@ function probeDirectRouterLifecycle(): {
     })
   `
 
-  return runProbe(script, {
+  const result = runProbe(script, {
     IS_TURBOPACK_TEST: '',
     TURBOPACK: '',
-  }) as ReturnType<typeof probeDirectRouterLifecycle>
+  }) as ReturnType<typeof probeDirectRouterLifecycle> & { fixtureDir: string }
+  fs.rmSync(result.fixtureDir, {
+    recursive: true,
+    force: true,
+    maxRetries: 10,
+    retryDelay: 100,
+  })
+  return {
+    retainedBeforeClose: result.retainedBeforeClose,
+    retainedAfterClose: result.retainedAfterClose,
+  }
 }
 
 function probeConcurrentRealRequests(): {
