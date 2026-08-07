@@ -24,6 +24,8 @@ import { getConnectionHeaderTokens } from '../../web/spec-extension/websocket-co
 import type { NextRequest } from '../../web/spec-extension/request'
 import { CloseController } from '../../web/web-on-close'
 import {
+  combineListenerFailures,
+  createOwnedListeners,
   filterWebSocketUpgradeRequestHeaders,
   getRawHttpResponseStatus,
   isForbiddenWebSocketUpgradeResponseHeader,
@@ -152,17 +154,8 @@ export function installAppRouteWebSocketRequestCloseListener(
 ): () => void {
   let installing = true
   let closeRequested = false
-  let listenerInstalled = true
-  const removeListener = (): unknown[] => {
-    if (!listenerInstalled) return []
-    listenerInstalled = false
-    try {
-      socket.off('close', dispatchClose)
-      return []
-    } catch (error) {
-      return [error]
-    }
-  }
+  const listeners = createOwnedListeners()
+  const removeListener = (): unknown[] => listeners.remove()
   const dispatchClose = () => {
     if (
       installing &&
@@ -188,19 +181,16 @@ export function installAppRouteWebSocketRequestCloseListener(
       } catch {}
     }
   }
-  try {
-    socket.on('close', dispatchClose)
-  } catch (error) {
-    installing = false
-    const failures = [error, ...removeListener()]
-    if (failures.length === 1) throw failures[0]
-    throw new AggregateError(
-      failures,
-      'Failed to install an App Route WebSocket request close listener',
-      { cause: failures[0] }
+  const installFailures = listeners.install([
+    { target: socket, event: 'close', listener: dispatchClose },
+  ])
+  installing = false
+  if (installFailures.length > 0) {
+    throw combineListenerFailures(
+      installFailures,
+      'Failed to install an App Route WebSocket request close listener'
     )
   }
-  installing = false
   if (
     closeRequested ||
     socket.destroyed ||
