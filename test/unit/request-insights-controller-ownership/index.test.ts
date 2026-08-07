@@ -191,6 +191,7 @@ function probeDirectRouterLifecycle(): {
             cleanupListeners.push(cleanup)
           },
         })
+        await initialized.server.server.matchers.waitTillReady()
         const controller = initialized.server.server.requestInsights
         controller.recordSpan({
           requestId: 'router-owned',
