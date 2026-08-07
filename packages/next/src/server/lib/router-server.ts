@@ -81,6 +81,7 @@ type RouterServerRequestInsightsRuntime = {
   REQUEST_INSIGHTS_ID_PATTERN: typeof import('./trace/request-insights').REQUEST_INSIGHTS_ID_PATTERN
   REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET: typeof import('./trace/request-insights').REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET
   REQUEST_INSIGHTS_MAX_ID_LENGTH: typeof import('./trace/request-insights').REQUEST_INSIGHTS_MAX_ID_LENGTH
+  getRequestInsightsExecutionOrigin: typeof import('./trace/request-insights-causal').getRequestInsightsExecutionOrigin
   getRequestInsightsCausalTargetFromRequest: typeof import('./trace/request-insights-causal').getRequestInsightsCausalTargetFromRequest
   resolveRequestInsightsIdentity: typeof import('./trace/request-insights-identity').resolveRequestInsightsIdentity
   runWithRequestInsights: typeof import('./trace/request-insights-runtime').runWithRequestInsights
@@ -105,6 +106,7 @@ function getRouterServerRequestInsightsRuntime():
       } =
         require('./trace/request-insights') as typeof import('./trace/request-insights')
       const {
+        getRequestInsightsExecutionOrigin,
         getRequestInsightsCausalTargetFromRequest,
         takeRequestInsightsCausalToken,
       } =
@@ -118,6 +120,7 @@ function getRouterServerRequestInsightsRuntime():
         REQUEST_INSIGHTS_ID_PATTERN,
         REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET,
         REQUEST_INSIGHTS_MAX_ID_LENGTH,
+        getRequestInsightsExecutionOrigin,
         getRequestInsightsCausalTargetFromRequest,
         resolveRequestInsightsIdentity,
         runWithRequestInsights,
@@ -960,6 +963,13 @@ export async function initialize(opts: {
   const requestHandlerImpl: WorkerRequestHandler = (req, res) => {
     addRequestMeta(req, 'relativeProjectDir', relativeProjectDir)
 
+    const requestInsightsExecutionOrigin =
+      requestInsightsRuntime?.getRequestInsightsExecutionOrigin({
+        experimentalHttpsServer: opts.experimentalHttpsServer,
+        fallbackPort: opts.port,
+        socket: req.socket,
+      })
+
     let causalTarget: ReturnType<
       RouterServerRequestInsightsRuntime['getRequestInsightsCausalTargetFromRequest']
     >
@@ -973,7 +983,7 @@ export async function initialize(opts: {
       causalTarget =
         requestInsightsRuntime.getRequestInsightsCausalTargetFromRequest({
           method: req.method,
-          origin: requestInsightsOrigin,
+          origin: requestInsightsExecutionOrigin ?? requestInsightsOrigin,
           url: req.url,
         })
       causalParent =
@@ -1008,7 +1018,8 @@ export async function initialize(opts: {
       requestIdHeader: req.headers[NEXT_REQUEST_ID_HEADER],
       htmlRequestIdHeader: req.headers[NEXT_HTML_REQUEST_ID_HEADER],
       causalParent,
-      origin: causalTarget?.origin,
+      executionOrigin: requestInsightsExecutionOrigin,
+      origin: requestInsightsOrigin,
       url: req.url,
       createRequestId: nanoid,
     })

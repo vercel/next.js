@@ -90,6 +90,42 @@ describe('prepareRequestInsightsSandboxFetch', () => {
     requestInsights.dispose()
   })
 
+  it('links a direct server fetch when the ingress origin is proxied', () => {
+    const requestInsights = new RequestInsights()
+    const identity = {
+      requestId: 'proxied-edge-parent',
+      rootRequestId: 'proxied-edge-parent-root',
+      htmlRequestId: 'proxied-edge-parent',
+      origin: 'https://app.localhost',
+      executionOrigin: 'http://localhost:3012',
+      url: '/edge',
+    }
+    const target = getRequestInsightsCausalTarget(
+      new URL('http://localhost:3012/api/child'),
+      'GET'
+    )!
+    const prepared = prepareRequestInsightsSandboxFetch({
+      context: {
+        identity,
+        origin: 'https://app.localhost',
+        requestInsights,
+      },
+      init: {},
+      url: target.origin + target.pathname,
+    })
+    const headers = Object.fromEntries(new Headers(prepared.init.headers))
+    const token = takeRequestInsightsCausalToken(headers)
+
+    expect(token).toBeDefined()
+    expect(requestInsights.consumeCausalToken(token!, target)).toEqual({
+      parentRootRequestId: 'proxied-edge-parent-root',
+      parentFetchIndex: 1,
+    })
+
+    prepared.complete({ status: 200 })
+    requestInsights.dispose()
+  })
+
   it('uses unique indexes and completes each fetch once', () => {
     const requestInsights = new RequestInsights()
     const identity = {

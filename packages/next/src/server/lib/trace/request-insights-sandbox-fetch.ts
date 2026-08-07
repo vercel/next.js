@@ -1,5 +1,6 @@
 import {
   getRequestInsightsCausalTarget,
+  isRequestInsightsExecutionOriginTarget,
   isRequestInsightsSameOriginTarget,
   setRequestInsightsCausalCookie,
 } from './request-insights-causal'
@@ -58,14 +59,18 @@ export function prepareRequestInsightsSandboxFetch({
     const method = (initSnapshot.readString('method') ?? 'GET').toUpperCase()
     const fetchIndex = getNextRequestInsightsFetchIndex(context.identity)
     const target = getRequestInsightsCausalTarget(targetUrl, method)
-    const origin = context.origin ?? context.identity.origin
     const credentials = initSnapshot.readString('credentials')
 
     causalToken =
       credentials !== 'omit' &&
       context.identity.kind !== 'instant-insights' &&
       context.identity.rootRequestId &&
-      isRequestInsightsSameOriginTarget(origin, target) &&
+      (isRequestInsightsSameOriginTarget(context.origin, target) ||
+        isRequestInsightsSameOriginTarget(context.identity.origin, target) ||
+        isRequestInsightsExecutionOriginTarget(
+          context.identity.executionOrigin,
+          target
+        )) &&
       target
         ? context.requestInsights.mintCausalToken({
             parentRootRequestId: context.identity.rootRequestId,

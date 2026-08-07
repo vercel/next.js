@@ -313,7 +313,7 @@ export class RequestInsights {
       span
     )
     const route = sanitizeText(span.route, MAX_REQUEST_INSIGHT_ROUTE_LENGTH)
-    insight.route = insight.route ?? route
+    insight.route = refineRequestInsightRoute(insight.route, route)
     insight.url = insight.url ?? sanitizeUrl(span.url)
     this.updateTiming(
       insight,
@@ -932,9 +932,10 @@ export class RequestInsights {
 
     insight.htmlRequestId =
       sanitizeRequestInsightId(identity.htmlRequestId) ?? insight.htmlRequestId
-    insight.route =
-      insight.route ??
+    insight.route = refineRequestInsightRoute(
+      insight.route,
       sanitizeText(identity.route, MAX_REQUEST_INSIGHT_ROUTE_LENGTH)
+    )
     insight.url = insight.url ?? sanitizeUrl(identity.url)
     this.updateClassification(insight, identity)
     if (
@@ -1801,6 +1802,15 @@ function sanitizeText(
     if (charCode >= 0xd800 && charCode <= 0xdbff) end--
   }
   return `${value.slice(0, end)}…`
+}
+
+function refineRequestInsightRoute(
+  current: string | undefined,
+  candidate: string | undefined
+): string | undefined {
+  if (!candidate) return current
+  if (!current || (current === '/' && candidate !== '/')) return candidate
+  return current
 }
 
 function sanitizeRequestInsightId(value: string | undefined) {
