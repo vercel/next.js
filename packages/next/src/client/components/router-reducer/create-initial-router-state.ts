@@ -86,6 +86,15 @@ export function createInitialRouterState({
     // There's no base tree to overlay onto; the initial payload is a full
     // render from the root.
     null,
+    // The initial payload may still be streaming in while we hydrate, so its
+    // vary params can't be drained here — and nothing consumes them from
+    // this tree. The segment-cache write below re-decodes the transport data
+    // with the payload's root params once the stale time has resolved.
+    null,
+    // Same for partiality: only segment-cache writes consume it, and the
+    // write below re-decodes with the payload's actual response-level value.
+    // Pass the conservative value here.
+    true,
     // The initial payload always includes the param values in the tree
     // (fallback shells are patched with the parsed values before this runs —
     // see createInitialRSCPayloadFromFallbackPrerender), so there's no
@@ -127,8 +136,9 @@ export function createInitialRouterState({
     // Intentionally holding off on doing this until we decide how the Cached
     // Navigations behavior should work in combination with App Shells.
 
-    // Write the initial seed data into the segment cache so subsequent
-    // navigations to the initial page can serve cached segments instantly.
+    // Write the initial payload's segment data into the segment cache so
+    // subsequent navigations to the initial page can serve cached
+    // segments instantly.
     if (initialStaleTime !== undefined) {
       if (
         initialStaticStageByteLength !== undefined &&
@@ -161,17 +171,19 @@ export function createInitialRouterState({
             // rendered normally, we just won't write into the cache.
           })
       } else {
-        // Fully static page — cache the entire decoded seed data as-is. We're
-        // not using the initial response here (which would allow us to combine
-        // the two branches) to avoid unnecessary decoding of the Flight data,
-        // since we can just take the seed data that we already decoded during
-        // hydration and write it into the cache directly.
+        // Fully static page — cache the initial payload's segment data as-is.
+        // We're not using the initial response here (which would allow us to
+        // combine the two branches) to avoid unnecessary decoding of the
+        // Flight data, since we can just take the segment data that we
+        // already decoded during hydration and write it into the
+        // cache directly.
         spawnStaticStageCacheWrite(
           Date.now(),
           // The transport subset of the initial payload, already decoded
-          // during hydration. Synthesized so the helper can resolve the
-          // stale time from the response's own `s` field, the same as the
-          // truncated branch above.
+          // during hydration. `u` (the runtime-data verdict) is deliberately
+          // omitted from this synthesized subset — its writes record their
+          // strategy unrefined — while the truncated branch above forwards
+          // the decoded payload's own `u`.
           {
             t: initialTransportData,
             r: initialRootVaryParams,

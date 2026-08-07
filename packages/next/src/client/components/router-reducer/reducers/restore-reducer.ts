@@ -16,7 +16,7 @@ import {
   completeHardNavigation,
   completeTraverseNavigation,
 } from '../../segment-cache/navigation'
-import { convertServerPatchToFullTree } from '../../segment-cache/decode-server-response'
+import { createNavigationSeed } from '../../segment-cache/decode-server-response'
 import { segmentCacheMap } from '../../segment-cache/cache'
 import { UnknownDynamicStaleTime } from '../../segment-cache/bfcache'
 
@@ -53,12 +53,14 @@ export function restoreReducer(
     separateRefreshUrls: null,
     scrollRef: null,
   }
-  const restoreSeed = convertServerPatchToFullTree(
+  const restoreSeed = createNavigationSeed(
     now,
     treeToRestore,
-    // No transport data (and so no pathname to parse params from) — this
-    // converts the base tree alone.
+    // No transport data (and so no vary params, no partiality, and no
+    // pathname to parse params from) — this converts the base tree alone.
     null,
+    null,
+    true,
     null,
     renderedSearch,
     UnknownDynamicStaleTime

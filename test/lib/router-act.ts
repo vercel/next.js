@@ -23,7 +23,7 @@ const APP_SHELL_PREFETCH_VALUE = '3'
 // - 'static': per-segment static prefetches. These carry the
 //   `next-router-segment-prefetch` header (NEXT_ROUTER_SEGMENT_PREFETCH_HEADER
 //   in the client), which is sent both by the per-segment data fetch
-//   (`fetchSegmentsOnCacheMissImpl`) and the route tree fetch
+//   (`fetchSegmentPrefetchesUsingStaticRequest`) and the route tree fetch
 //   (`fetchRouteOnCacheMiss`).
 // - 'runtime': dynamic prefetch requests, issued by
 //   `fetchSegmentPrefetchesUsingRuntimeRequest` in the client. These carry a

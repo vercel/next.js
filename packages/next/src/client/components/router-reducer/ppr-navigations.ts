@@ -21,7 +21,7 @@ import {
 import { isNavigatingToNewRootLayout } from './is-navigating-to-new-root-layout'
 import { getLastCommittedTree } from './reducers/committed-state'
 import {
-  convertServerPatchToFullTree,
+  createNavigationSeed,
   type NavigationSeed,
 } from '../segment-cache/decode-server-response'
 import {
@@ -1818,10 +1818,16 @@ async function fetchMissingDynamicData(
     }
     const now = Date.now()
 
-    const seed = convertServerPatchToFullTree(
+    const seed = createNavigationSeed(
       now,
       task.route,
       result.transportData,
+      // Navigation responses stream in incrementally, so their vary params
+      // can't be drained here — and nothing consumes them from a navigation
+      // seed (only segment-cache writes read vary params, and those decode
+      // their own, buffered, payloads).
+      null,
+      result.isResponsePartial,
       // Navigation responses always include the param values in the tree, so
       // there's no pathname to parse them from (nor a need to).
       null,
@@ -1946,7 +1952,7 @@ function writeDynamicDataIntoNavigationTask(
 ): boolean {
   // A non-null data object means the response accounted for this segment,
   // even if it didn't render it (data.rsc may still be null, e.g. for the
-  // intermediate segments on the path to a patched subtree).
+  // intermediate segments on the path to a rendered subtree).
   const dynamicData = serverRouteTree.data
   if (task.status === NavigationTaskStatus.Pending && dynamicData !== null) {
     task.status = NavigationTaskStatus.Fulfilled
