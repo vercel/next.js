@@ -1,0 +1,289 @@
+---
+title: How to use WebSockets in Next.js
+nav_title: WebSockets
+description: Learn how to accept and manage WebSocket connections with App Router Route Handlers.
+version: experimental
+related:
+  title: Next steps
+  description: Review the WebSocket API, configuration, and deployment guidance.
+  links:
+    - app/api-reference/functions/next-response
+    - app/api-reference/config/next-config-js/webSocketRouteHandlers
+    - app/api-reference/file-conventions/route
+    - app/guides/custom-server
+---
+
+WebSocket Route Handlers let an App Router [Route Handler](/docs/app/api-reference/file-conventions/route) keep a full-duplex connection open after its initial HTTP request. The API is experimental and requires the Node.js runtime on a host that preserves raw sockets for the lifetime of each connection.
+
+WebSockets work with `next dev`, `next start`, [`output: 'standalone'`](/docs/app/api-reference/config/next-config-js/output), and [custom servers](/docs/app/guides/custom-server#websocket-route-handlers-experimental). They are not supported by the Edge Runtime, [static exports](/docs/app/guides/static-exports), or prerendered and ISR-cacheable Route Handlers: an upgrade targeting a cacheable route returns `404 Not Found` before the handler runs. [Draft Mode](/docs/app/guides/draft-mode) bypasses this cache restriction and runs the handler dynamically.
+
+## Enable WebSocket Route Handlers
+
+Enable the experimental flag in `next.config`:
+
+```ts filename="next.config.ts" highlight={5} switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    webSocketRouteHandlers: true,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" highlight={4} switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    webSocketRouteHandlers: true,
+  },
+}
+
+module.exports = nextConfig
+```
+
+## Create a WebSocket Route Handler
+
+Create a `GET` Route Handler and authenticate the handshake before returning [`NextResponse.upgrade()`](/docs/app/api-reference/functions/next-response#upgrade). The following example checks a session cookie and echoes complete text or binary messages back to the client. Replace the cookie presence check with your session verification:
+
+```ts filename="app/ws/route.ts" highlight={8-10,21} switcher
+import { cookies } from 'next/headers'
+import { NextResponse, type WebSocketHooks } from 'next/server'
+
+export const dynamic = 'force-dynamic'
+
+export async function GET() {
+  const cookieStore = await cookies()
+  if (!cookieStore.has('session')) {
+    return new Response('Unauthorized', { status: 401 })
+  }
+
+  const hooks: WebSocketHooks = {
+    open(peer) {
+      peer.send(JSON.stringify({ type: 'connected' }))
+    },
+    message(peer, message) {
+      peer.send(message.rawData)
+    },
+  }
+
+  return NextResponse.upgrade(hooks)
+}
+```
+
+```js filename="app/ws/route.js" highlight={8-10,21} switcher
+import { cookies } from 'next/headers'
+import { NextResponse } from 'next/server'
+
+export const dynamic = 'force-dynamic'
+
+export async function GET() {
+  const cookieStore = await cookies()
+  if (!cookieStore.has('session')) {
+    return new Response('Unauthorized', { status: 401 })
+  }
+
+  const hooks = {
+    open(peer) {
+      peer.send(JSON.stringify({ type: 'connected' }))
+    },
+    message(peer, message) {
+      peer.send(message.rawData)
+    },
+  }
+
+  return NextResponse.upgrade(hooks)
+}
+```
+
+The handler runs once per handshake. It can return an ordinary `Response`, such as a `401`, to decline the connection. After an upgrade, Next.js runs the `open`, `message`, `close`, and `error` hooks serially for that connection. See the [`NextResponse.upgrade()` reference](/docs/app/api-reference/functions/next-response#upgrade) for hook semantics, subprotocol selection, peer methods, message conversions, connection limits, and close codes.
+
+## Connect from a Client Component
+
+Derive `ws:` or `wss:` from the page URL so development and HTTPS deployments use the correct scheme. This example closes the socket when the component unmounts and retries transient closes, including development close code `1012`, with bounded backoff:
+
+```tsx filename="app/components/websocket-status.tsx" switcher
+'use client'
+
+import { useEffect, useState } from 'react'
+
+const RETRYABLE_CLOSE_CODES = new Set([1001, 1006, 1011, 1012])
+const MAX_RETRY_ATTEMPTS = 8
+
+export function WebSocketStatus() {
+  const [status, setStatus] = useState('connecting')
+  const [lastMessage, setLastMessage] = useState('')
+
+  useEffect(() => {
+    let socket: WebSocket | undefined
+    let retryTimer: ReturnType<typeof setTimeout> | undefined
+    let stableTimer: ReturnType<typeof setTimeout> | undefined
+    let retryAttempt = 0
+    let stopped = false
+
+    function connect() {
+      const scheme = location.protocol === 'https:' ? 'wss:' : 'ws:'
+      socket = new WebSocket(`${scheme}//${location.host}/ws`)
+
+      socket.addEventListener('open', () => {
+        setStatus('connected')
+        stableTimer = setTimeout(() => {
+          retryAttempt = 0
+        }, 30_000)
+      })
+      socket.addEventListener('message', (event) => {
+        setLastMessage(String(event.data))
+      })
+      socket.addEventListener('close', (event) => {
+        clearTimeout(stableTimer)
+        if (stopped) return
+        if (!RETRYABLE_CLOSE_CODES.has(event.code)) {
+          setStatus(`closed (${event.code})`)
+          return
+        }
+        if (retryAttempt >= MAX_RETRY_ATTEMPTS) {
+          setStatus('disconnected; retry when the session is ready')
+          return
+        }
+
+        const backoff = Math.min(500 * 2 ** retryAttempt, 10_000)
+        const delay = Math.round(backoff * (0.5 + Math.random() * 0.5))
+        retryAttempt += 1
+        setStatus(`reconnecting in ${delay}ms`)
+        retryTimer = setTimeout(connect, delay)
+      })
+    }
+
+    connect()
+    return () => {
+      stopped = true
+      clearTimeout(retryTimer)
+      clearTimeout(stableTimer)
+      socket?.close(1000, 'Component unmounted')
+    }
+  }, [])
+
+  return <p>{lastMessage ? `${status}: ${lastMessage}` : status}</p>
+}
+```
+
+```jsx filename="app/components/websocket-status.js" switcher
+'use client'
+
+import { useEffect, useState } from 'react'
+
+const RETRYABLE_CLOSE_CODES = new Set([1001, 1006, 1011, 1012])
+const MAX_RETRY_ATTEMPTS = 8
+
+export function WebSocketStatus() {
+  const [status, setStatus] = useState('connecting')
+  const [lastMessage, setLastMessage] = useState('')
+
+  useEffect(() => {
+    let socket
+    let retryTimer
+    let stableTimer
+    let retryAttempt = 0
+    let stopped = false
+
+    function connect() {
+      const scheme = location.protocol === 'https:' ? 'wss:' : 'ws:'
+      socket = new WebSocket(`${scheme}//${location.host}/ws`)
+
+      socket.addEventListener('open', () => {
+        setStatus('connected')
+        stableTimer = setTimeout(() => {
+          retryAttempt = 0
+        }, 30_000)
+      })
+      socket.addEventListener('message', (event) => {
+        setLastMessage(String(event.data))
+      })
+      socket.addEventListener('close', (event) => {
+        clearTimeout(stableTimer)
+        if (stopped) return
+        if (!RETRYABLE_CLOSE_CODES.has(event.code)) {
+          setStatus(`closed (${event.code})`)
+          return
+        }
+        if (retryAttempt >= MAX_RETRY_ATTEMPTS) {
+          setStatus('disconnected; retry when the session is ready')
+          return
+        }
+
+        const backoff = Math.min(500 * 2 ** retryAttempt, 10_000)
+        const delay = Math.round(backoff * (0.5 + Math.random() * 0.5))
+        retryAttempt += 1
+        setStatus(`reconnecting in ${delay}ms`)
+        retryTimer = setTimeout(connect, delay)
+      })
+    }
+
+    connect()
+    return () => {
+      stopped = true
+      clearTimeout(retryTimer)
+      clearTimeout(stableTimer)
+      socket?.close(1000, 'Component unmounted')
+    }
+  }, [])
+
+  return <p>{lastMessage ? `${status}: ${lastMessage}` : status}</p>
+}
+```
+
+The retry budget resets only after a connection stays open for 30 seconds, so a server that repeatedly accepts and immediately closes connections cannot create a tight reconnect loop. Same-origin browser WebSockets include cookies, so this client works with the HTTP-only session cookie from the server example. The browser `WebSocket` constructor cannot set an `Authorization` header; if your protocol uses another credential, prefer a short-lived, single-use value and account for where URLs and subprotocols may be logged. Browsers surface a rejected handshake as close code `1006`, so production clients should bound retries and restart them only after the application knows the session is valid.
+
+## Secure the handshake
+
+Treat every WebSocket Route Handler as a public endpoint:
+
+- Authenticate and authorize each handshake before returning the upgrade response. Origin checks do not replace authentication.
+- By default, browser handshakes must match the request's own origin, compared using the protocol of the Node.js socket and the request's `Host` header. Add exact trusted browser origins with [`allowedOrigins`](/docs/app/api-reference/config/next-config-js/webSocketRouteHandlers#allowedorigins).
+- Non-browser clients can omit the `Origin` header, so never use the presence of that header as an authentication signal.
+- Next.js does not trust forwarding headers such as `X-Forwarded-Host` or `X-Forwarded-Proto` for this comparison. If a reverse proxy terminates TLS or replaces `Host`, add the public origin to `allowedOrigins` explicitly.
+
+Origin validation runs before the matched Route Handler executes, so a disallowed browser origin is rejected with a `403` before your code runs.
+
+## Plan connection policy
+
+Next.js enforces [fixed per-connection limits](/docs/app/api-reference/functions/next-response#fixed-connection-limits) on message size, fragmentation, and queued work, and it answers WebSocket protocol pings from clients. Every policy that depends on your workload and deployment topology stays with your application and infrastructure:
+
+| Concern              | Recommended owner                                                                              |
+| -------------------- | ---------------------------------------------------------------------------------------------- |
+| Connection admission | Set process, replica, or load-balancer limits before accepting more sockets.                   |
+| Rate limiting        | Authenticate first, then enforce a distributed policy keyed on the trusted client identity.    |
+| Idle connections     | Apply load-balancer idle policies and application heartbeats appropriate for your protocol.    |
+| Backpressure         | Monitor `peer.bufferedAmount` and define stricter application limits when needed.              |
+| Reconnection         | Make clients reconnect after transient disconnects and development close code `1012`.          |
+| Broadcasting         | Track peers in application code, or use an external message broker to deliver across replicas. |
+
+There is no built-in process-wide connection cap, client rate limiter, idle timeout, or server-initiated heartbeat, and the `GET` handler has no execution deadline before the upgrade. Do not treat `peer.remoteAddress` as a client identity behind a proxy unless the deployment verifies and enforces that proxy boundary.
+
+For an application-level idle policy, track message activity in the connection hooks and call `peer.close()` after your chosen interval. This measures application-message inactivity; it is not protocol-level ping/pong and does not detect half-open TCP connections. Keep infrastructure idle timeouts in place as the backstop.
+
+## Broadcast to multiple clients
+
+Next.js does not include a broadcast or pub/sub API. For broadcasting within one process, keep an application-owned collection of peers: add each peer in `open`, remove it in `close`, and iterate the collection with `peer.send()` when publishing an event.
+
+A process-local collection only reaches the clients connected to that process. When your deployment runs multiple processes or replicas, route events through an external message broker so every replica receives them, and define ordering, retries, duplicate suppression, and authorization in your application protocol.
+
+## Deploy and shut down cleanly
+
+Choose a deployment that supports persistent Node.js sockets:
+
+| Deployment                                                                                           | Support                                                                                                                     |
+| ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `next dev`                                                                                           | Supported for local development. Development updates close affected connections with code `1012`; clients should reconnect. |
+| `next start` and [`output: 'standalone'`](/docs/app/api-reference/config/next-config-js/output)      | Supported on a persistent Node.js host.                                                                                     |
+| [Custom Node.js server](/docs/app/guides/custom-server#websocket-route-handlers-experimental)        | Supported. Register `app.getUpgradeHandler()` before the server starts listening.                                           |
+| [`adapterPath`](/docs/app/api-reference/config/next-config-js/adapterPath)                           | Not supported. Next.js rejects the configuration while `webSocketRouteHandlers` is enabled.                                 |
+| Edge Runtime, [static exports](/docs/app/guides/static-exports), request-scoped serverless platforms | Not supported. WebSockets need a runtime that keeps the raw socket and process alive after the initial request finishes.    |
+
+Configure the reverse proxy or load balancer to forward HTTP/1.1 upgrade requests, keep connections open for your expected session lengths, and allow enough time for graceful process termination.
+
+During graceful shutdown, Next.js closes accepted WebSocket Route Handler connections with close code `1001`; peers that finish their handshake while shutdown is in progress are closed with the same code. Custom servers own their HTTP server's lifecycle: see the [custom server guide](/docs/app/guides/custom-server#websocket-route-handlers-experimental) for the required registration and shutdown order.
+
+In `next dev`, editing a WebSocket Route Handler or one of its local dependencies closes the affected route's connections with code `1012` while unrelated routes stay connected. A development-server restart or a failed in-process update can close every WebSocket Route Handler connection, so clients should always treat `1012` as retryable.

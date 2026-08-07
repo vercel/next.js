@@ -4,11 +4,14 @@ description: Enable experimental WebSocket Route Handlers in the App Router.
 version: canary
 related:
   links:
+    - app/guides/websockets
     - app/api-reference/functions/next-response
     - app/guides/custom-server
 ---
 
 The `webSocketRouteHandlers` experimental option allows a dynamic App Route Handler to return [`NextResponse.upgrade()`](/docs/app/api-reference/functions/next-response#upgrade) and accept a WebSocket connection.
+
+For an end-to-end setup, client reconnection guidance, and a deployment checklist, see the [WebSockets guide](/docs/app/guides/websockets).
 
 ## Usage
 
@@ -37,9 +40,11 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
+### `allowedOrigins`
+
 Browser WebSocket requests are restricted to the request's exact origin by default. To allow additional origins, use the object form:
 
-```ts filename="next.config.ts"
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -56,7 +61,25 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-Each entry must be an exact HTTP or HTTPS origin, including the port when it is not the scheme's default. Wildcards, paths, queries, fragments, credentials, and forwarding headers are not used for origin authorization.
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    webSocketRouteHandlers: {
+      allowedOrigins: [
+        'https://app.example.com',
+        'https://preview.example.com',
+      ],
+    },
+  },
+}
+
+module.exports = nextConfig
+```
+
+Each entry must be an exact HTTP or HTTPS origin, including the port when it is not the scheme's default. Wildcards, paths, queries, fragments, credentials, and forwarding headers are not used for origin authorization. Same-origin browser requests remain allowed when this list is present, and requests without an `Origin` header (non-browser clients) are accepted, so the Route Handler must authenticate every connection.
+
+The default same-origin comparison uses the protocol of the Node.js socket and the request's `Host` header. If a reverse proxy terminates TLS or replaces `Host` before forwarding to Next.js, add the browser's exact public origin to `allowedOrigins`.
 
 ## Supported deployments
 
@@ -66,6 +89,15 @@ WebSocket Route Handlers require the Node.js runtime and work with `next dev`, `
 - [`output: 'export'`](/docs/app/guides/static-exports)
 - prerendered or ISR-cached Route Handlers
 - [`adapterPath`](/docs/app/api-reference/config/next-config-js/adapterPath), until an adapter contract for Node.js upgrade handling is available
-- rewrites to external destinations for WebSocket upgrade requests. When this option is enabled, Next.js returns `501 Not Implemented` instead of proxying these WebSocket rewrites.
+- rewrites to external destinations for WebSocket upgrade requests. While this option is enabled, Next.js returns `501 Not Implemented` instead of proxying these WebSocket rewrites. When the option is disabled, the legacy proxying behavior for upgrade requests is unchanged.
 
-The built-in connection registry is process-local. Applications deployed across multiple processes or instances need an external broker for broadcasts or shared realtime state. Next.js does not impose an application-level connection count, rate limit, or idle timeout; enforce those policies in your application or reverse proxy.
+## Connection policy
+
+Next.js applies [fixed per-connection safety limits](/docs/app/api-reference/functions/next-response#fixed-connection-limits) to message size, fragmentation, and queued work. Policies that depend on your workload and deployment topology stay with your application and infrastructure:
+
+- **Concurrent connections**: Next.js does not impose a process-wide or global connection cap. Enforce admission limits at the load balancer, platform, or process manager.
+- **Handshake rate limiting**: the `GET` handler runs before the connection is accepted, so authenticate first and rate limit on the trusted identity there or in your proxy. Next.js does not provide a client rate limiter.
+- **Idle connections and heartbeats**: Next.js answers WebSocket protocol pings from clients but never initiates its own pings and applies no idle timeout. Apply load-balancer idle policies and application heartbeats appropriate for your protocol.
+- **Handler deadlines**: like other Route Handlers, the `GET` handler has no execution deadline before the upgrade. Use proxy or platform timeouts to bound slow handshakes.
+
+The built-in connection lifecycle tracking is process-local. Applications deployed across multiple processes or instances need an external broker for broadcasts or shared realtime state.

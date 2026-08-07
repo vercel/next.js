@@ -77,7 +77,7 @@ response.cookies.delete('experiments')
 
 ## `upgrade()`
 
-`upgrade()` is experimental. It upgrades a request to a WebSocket from a dynamic App Route Handler. Enable [`experimental.webSocketRouteHandlers`](/docs/app/api-reference/config/next-config-js/webSocketRouteHandlers) before using this method.
+`upgrade()` is experimental. It accepts a WebSocket handshake in a dynamic App Route Handler using the Node.js runtime and returns a response that switches the connection to the WebSocket protocol. Enable [`experimental.webSocketRouteHandlers`](/docs/app/api-reference/config/next-config-js/webSocketRouteHandlers) before using this method. For an end-to-end setup, see the [WebSockets guide](/docs/app/guides/websockets).
 
 ```ts filename="app/ws/route.ts" switcher
 import { NextResponse } from 'next/server'
@@ -113,27 +113,107 @@ export function GET() {
 }
 ```
 
-`upgrade(hooks, options)` accepts the following hooks:
+The handler runs once for each handshake. Validate authentication and authorization before returning `NextResponse.upgrade()`: the handler can return an ordinary `Response`, such as a `401`, to decline the connection, and Next.js writes that response to the raw socket without upgrading it. Cookies and application headers set on the upgrade response are included in the `101 Switching Protocols` response.
 
-- `open(peer)`: Runs after the connection is accepted.
-- `message(peer, message)`: Runs for each incoming text or binary message.
-- `close(peer, details)`: Runs when the connection closes. `details` contains `code` and `reason`.
-- `error(peer, error)`: Runs when the WebSocket transport emits an error.
+When an ordinary HTTP `GET` request, without a WebSocket handshake, reaches a handler that returns `NextResponse.upgrade()`, Next.js responds with `426 Upgrade Required` instead. The `426` response advertises `Upgrade: websocket` and `Sec-WebSocket-Version: 13`, sets `Connection: close`, is marked uncacheable, and carries the plain-text body `This route only accepts WebSocket upgrade requests.`. Cookies and other safe application headers are preserved on it.
 
-Hook callbacks can return a promise and run serially for each connection. The `peer` object exposes `id`, `remoteAddress`, the opening `request`, and `bufferedAmount`. Use `peer.send(data)`, `peer.close(code, reason)`, or `peer.terminate()` to control the connection. `send()` returns the current queued byte count.
-
-The `message` object exposes `rawData` and the `text()`, `json()`, `uint8Array()`, and `arrayBuffer()` conversion methods. The optional `protocol` option selects one WebSocket subprotocol that the client offered:
+### Parameters
 
 ```ts
-return NextResponse.upgrade(hooks, { protocol: 'chat.v1' })
+NextResponse.upgrade(hooks, options?)
 ```
 
-Validate authentication and authorization before returning `NextResponse.upgrade()`. You can return an ordinary `Response`, such as a `401`, to decline the upgrade.
+#### `hooks`
 
-> **Good to know**:
->
-> - This API is available only in dynamic App Route Handlers using the Node.js runtime. It is not supported in Proxy, the Edge Runtime, static exports, or prerendered and ISR-cached routes.
-> - Next.js closes accepted connections with code `1001` during graceful shutdown and `1012` when their route is replaced during development.
+The hooks for one WebSocket connection. Every hook is optional, and no other keys are accepted:
+
+| Hook                     | Runs when                                                      |
+| ------------------------ | -------------------------------------------------------------- |
+| `open(peer)`             | The handshake is committed and the connection is open.         |
+| `message(peer, message)` | A complete text or binary message is received.                 |
+| `close(peer, details)`   | The connection closes. `details` contains `code` and `reason`. |
+| `error(peer, error)`     | The transport reports a connection error.                      |
+
+Hooks can return a promise. Next.js runs the hooks of one connection serially and waits for each returned promise before running the next hook. If an `open` or `message` hook throws or rejects, Next.js reports the error and closes the peer with code `1011`. While asynchronous `message` hooks are pending, the transport pauses inbound message delivery for that connection.
+
+#### `options`
+
+| Option     | Type     | Description                                                                                                                                   |
+| ---------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `protocol` | `string` | Selects one WebSocket subprotocol. The client must offer the exact token in its handshake; otherwise Next.js declines the upgrade with `400`. |
+
+Protocol-critical headers such as `Upgrade`, `Connection`, `Sec-WebSocket-Accept`, `Sec-WebSocket-Protocol`, `Content-Length`, and `Transfer-Encoding` are owned by Next.js and cannot be set on the returned response. Use the `protocol` option to select a subprotocol. Custom response headers and cookies on the `101` response must contain only visible ASCII characters, spaces, and tabs; percent-encode anything else.
+
+### Peer methods and properties
+
+The `peer` passed to every hook represents one connection:
+
+| Member                  | Description                                                         |
+| ----------------------- | ------------------------------------------------------------------- |
+| `id`                    | Unique identifier for the connection.                               |
+| `remoteAddress`         | Remote IP address when the Node.js transport exposes one.           |
+| `request`               | The `NextRequest` used for the handshake.                           |
+| `bufferedAmount`        | Bytes queued by the transport but not yet written to the network.   |
+| `send(data)`            | Sends text or binary data and returns the updated `bufferedAmount`. |
+| `close(code?, reason?)` | Starts the WebSocket closing handshake.                             |
+| `terminate()`           | Abruptly destroys the connection.                                   |
+
+`send()` accepts strings, `ArrayBuffer`, `SharedArrayBuffer`, and `ArrayBufferView` values; other values throw a `TypeError`, so serialize structured values explicitly, for example with `peer.send(JSON.stringify(value))`. After a successful send, `send()` returns the updated `bufferedAmount`. If the connection is not open, or a [connection limit](#fixed-connection-limits) rejects the message and starts a close, `send()` returns the last observed `bufferedAmount` without throwing.
+
+For `close()`, the code must be an integer from `1000` through `1014` (excluding `1004`, `1005`, and `1006`), or from `3000` through `4999`. The optional reason is limited to 123 UTF-8 bytes. Invalid arguments throw synchronously, including after closing has started. A `reason` without a `code` is ignored.
+
+Next.js does not negotiate `permessage-deflate` compression. If your application compresses payloads, evaluate compression side channels before combining sensitive and attacker-controlled data in one message.
+
+### Message methods and properties
+
+The `message` passed to the `message` hook exposes the following members:
+
+| Member          | Description                                                                    |
+| --------------- | ------------------------------------------------------------------------------ |
+| `rawData`       | The original data: a string for text messages, a `Uint8Array` for binary ones. |
+| `text()`        | Returns the message decoded as UTF-8 text.                                     |
+| `json<T>()`     | Parses the message text as JSON.                                               |
+| `uint8Array()`  | Returns the data as a `Uint8Array`.                                            |
+| `arrayBuffer()` | Returns the data as an `ArrayBuffer`.                                          |
+
+### Fixed connection limits
+
+These per-connection limits are fixed for the experimental transport:
+
+| Limit                                      | Threshold                      | Result when exceeded                                            |
+| ------------------------------------------ | ------------------------------ | --------------------------------------------------------------- |
+| Inbound message payload                    | 16 MiB                         | Closes the peer with `1009`.                                    |
+| Fragments in one inbound message           | 1,024                          | Closes the peer with `1008`.                                    |
+| Unread chunks buffered by the frame parser | 1,024                          | Closes the peer with `1008`.                                    |
+| Pending asynchronous `message` hooks       | 32 hooks or 16 MiB of messages | Closes the peer with `1008`.                                    |
+| One outbound message                       | 16 MiB                         | Closes the peer with `1009`.                                    |
+| Outbound transport queue                   | 16 MiB per peer                | Closes the peer with `1008`.                                    |
+| Closing-handshake grace                    | 5 seconds                      | Terminates the peer if the closing handshake has not completed. |
+
+The 5-second value is the per-connection closing-handshake window, not a process-shutdown deadline. These limits bound one connection: applications and deployment platforms still own workload-level policy such as connection counts, handshake rate limits, and idle timeouts. See [connection policy](/docs/app/guides/websockets#plan-connection-policy) in the WebSockets guide.
+
+### Origin and authentication
+
+Browser handshakes are limited to the request's own origin by default, compared using the protocol of the Node.js socket and the request's `Host` header. Forwarding headers such as `X-Forwarded-Host` and `X-Forwarded-Proto` are not trusted for this comparison. Allow exact cross-origin browser clients with [`allowedOrigins`](/docs/app/api-reference/config/next-config-js/webSocketRouteHandlers#allowedorigins). Origin validation runs before the matched Route Handler executes.
+
+Requests without an `Origin` header are accepted so non-browser WebSocket clients can connect. Origin checks are therefore not authentication: authenticate and authorize every connection in the `GET` handler before returning `NextResponse.upgrade()`.
+
+### Runtime and lifecycle
+
+`NextResponse.upgrade()` is available only in dynamic App Route Handlers using the Node.js runtime, on [deployments that keep the process and raw socket alive](/docs/app/api-reference/config/next-config-js/webSocketRouteHandlers#supported-deployments). It is not supported in Proxy, the Edge Runtime, static exports, or prerendered and ISR-cached routes. An upgrade targeting a prerendered or ISR-cacheable route returns `404 Not Found` before the handler runs; Draft Mode bypasses this restriction and runs the handler dynamically.
+
+Connection hooks run after the HTTP request that accepted the connection has completed:
+
+- [`after()`](/docs/app/api-reference/functions/after) tasks start once the handshake response commits. They do not wait for the WebSocket to close.
+- The request trace ends at the handshake, and hooks execute outside the request context. Request-scoped APIs such as `cookies()` and `headers()` fail inside `open`, `message`, `close`, and `error`. Read request data in `GET` and capture the values the hooks need, or read immutable handshake data from `peer.request`.
+
+Next.js uses these close codes for framework lifecycle events, in addition to the policy codes listed under [fixed connection limits](#fixed-connection-limits):
+
+| Code   | Meaning                                                                    |
+| ------ | -------------------------------------------------------------------------- |
+| `1001` | The Next.js server or custom server is shutting down.                      |
+| `1011` | An application connection hook failed.                                     |
+| `1012` | The route was replaced during development and the client should reconnect. |
 
 </AppOnly>
 

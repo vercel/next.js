@@ -111,7 +111,7 @@ The returned `app` can then be used to let Next.js handle requests as required.
 
 ## WebSocket Route Handlers (experimental)
 
-When [`experimental.webSocketRouteHandlers`](/docs/app/api-reference/config/next-config-js/webSocketRouteHandlers) is enabled, attach `app.getUpgradeHandler()` to the custom HTTP server after `app.prepare()` finishes. This allows [`NextResponse.upgrade()`](/docs/app/api-reference/functions/next-response#upgrade) App Route Handlers to receive WebSocket upgrades, including when the WebSocket is the server's first request.
+When [`experimental.webSocketRouteHandlers`](/docs/app/api-reference/config/next-config-js/webSocketRouteHandlers) is enabled, attach `app.getUpgradeHandler()` to the custom HTTP server after `app.prepare()` finishes. This allows [`NextResponse.upgrade()`](/docs/app/api-reference/functions/next-response#upgrade) App Route Handlers to receive WebSocket upgrades, including when the WebSocket is the server's first request. For an end-to-end walkthrough, including client reconnection and connection policy guidance, see the [WebSockets guide](/docs/app/guides/websockets).
 
 ```js filename="server.js"
 import { createServer } from 'node:http'
