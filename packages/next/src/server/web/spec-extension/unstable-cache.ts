@@ -34,22 +34,22 @@ let unstableCacheRequestInsightsRuntime:
 function getUnstableCacheRequestInsightsRuntime():
   | UnstableCacheRequestInsightsRuntime
   | undefined {
-  if (!process.env.__NEXT_DEV_SERVER) {
+  if (process.env.__NEXT_DEV_SERVER) {
+    if (!unstableCacheRequestInsightsRuntime) {
+      const { getNextRequestInsightsFetchIndex } =
+        require('../../lib/trace/request-insights-sandbox-fetch') as typeof import('../../lib/trace/request-insights-sandbox-fetch')
+      const { getRequestInsightsIdentity } =
+        require('../../lib/trace/request-insights-identity') as typeof import('../../lib/trace/request-insights-identity')
+      unstableCacheRequestInsightsRuntime = {
+        getNextRequestInsightsFetchIndex,
+        getRequestInsightsIdentity,
+      }
+    }
+
+    return unstableCacheRequestInsightsRuntime
+  } else {
     return undefined
   }
-
-  if (!unstableCacheRequestInsightsRuntime) {
-    const { getNextRequestInsightsFetchIndex } =
-      require('../../lib/trace/request-insights-sandbox-fetch') as typeof import('../../lib/trace/request-insights-sandbox-fetch')
-    const { getRequestInsightsIdentity } =
-      require('../../lib/trace/request-insights-identity') as typeof import('../../lib/trace/request-insights-identity')
-    unstableCacheRequestInsightsRuntime = {
-      getNextRequestInsightsFetchIndex,
-      getRequestInsightsIdentity,
-    }
-  }
-
-  return unstableCacheRequestInsightsRuntime
 }
 
 type Callback = (...args: any[]) => Promise<any>
