@@ -3286,7 +3286,7 @@ where
                             }
                         }
                         match result.len() {
-                            0 => ExportUsage::All,
+                            0 => ExportUsage::Evaluation,
                             1 => ExportUsage::Named(result.into_iter().next().unwrap()),
                             _ => ExportUsage::PartialNamespaceObject(result.into()),
                         }
