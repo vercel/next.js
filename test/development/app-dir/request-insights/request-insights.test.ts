@@ -294,12 +294,12 @@ describe('request insights', () => {
       expect(instantInsights?.htmlRequestId).toBe(request?.htmlRequestId)
       expect(request?.fetches).toEqual([
         expect.objectContaining({
-          url: 'data:text/plain,instant insights',
+          url: 'data:redacted',
         }),
       ])
       expect(instantInsights?.fetches).toEqual([
         expect.objectContaining({
-          url: 'data:text/plain,instant insights',
+          url: 'data:redacted',
         }),
       ])
       const rootSpans = instantInsights?.spans.filter(
