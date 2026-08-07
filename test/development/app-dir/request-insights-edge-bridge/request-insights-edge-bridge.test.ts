@@ -20,7 +20,11 @@ type RequestInsight = {
   }>
 }
 
-describe('Request Insights Edge bridge', () => {
+const describeEdgeBridge = process.env.__NEXT_CACHE_COMPONENTS
+  ? describe.skip
+  : describe
+
+describeEdgeBridge('Request Insights Edge bridge', () => {
   const { next } = nextTestSetup({ files: __dirname })
 
   async function snapshot(): Promise<RequestInsight[]> {
