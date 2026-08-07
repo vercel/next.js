@@ -162,4 +162,30 @@ describe('client component renderer logger', () => {
       clientComponentLoadCount: 0,
     })
   })
+
+  it('tracks rejected chunk loads without changing the returned promise', async () => {
+    jest
+      .spyOn(performance, 'now')
+      .mockReturnValueOnce(100)
+      .mockReturnValueOnce(150)
+
+    const error = new Error('chunk failed')
+    const chunk = Promise.reject(error)
+    const loader = wrapClientComponentLoader(
+      createComponentModule(
+        () => undefined,
+        () => chunk
+      ),
+      true
+    )
+
+    expect(loader.loadChunk('rejected')).toBe(chunk)
+    await expect(chunk).rejects.toBe(error)
+    expect(getClientComponentLoaderMetrics()).toEqual({
+      clientComponentLoadStart: 100,
+      clientComponentLoadEnd: 150,
+      clientComponentLoadTimes: 50,
+      clientComponentLoadCount: 0,
+    })
+  })
 })
