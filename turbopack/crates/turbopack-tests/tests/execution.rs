@@ -5,11 +5,10 @@
 
 mod util;
 
-use std::{env, path::PathBuf};
+use std::{env, fs::canonicalize, path::PathBuf};
 
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
-use dunce::canonicalize;
 use serde::Deserialize;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_rcstr::{RcStr, rcstr};
@@ -27,7 +26,10 @@ use turbo_tasks_fs::{
 use turbo_unix_path::sys_to_unix;
 use turbopack::{
     ModuleAssetContext,
-    module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
+    module_options::{
+        EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions,
+        side_effect_free_packages_glob,
+    },
 };
 use turbopack_core::{
     chunk::{ChunkingConfig, MangleType, MinifyType},
@@ -275,9 +277,15 @@ struct TestOptions {
     #[serde(default = "default_true")]
     scope_hoisting: bool,
     #[serde(default)]
+    cjs_tree_shaking: bool,
+    #[serde(default)]
     minify: bool,
     #[serde(default)]
     production_chunking: bool,
+    /// Packages that are assumed to be side effect free, unless they declare otherwise in their
+    /// package.json.
+    #[serde(default)]
+    side_effect_free_packages: Vec<RcStr>,
 }
 
 fn default_true() -> bool {
@@ -292,8 +300,10 @@ impl Default for TestOptions {
             remove_unused_exports: default_true(),
             remove_unused_imports: default_true(),
             scope_hoisting: default_true(),
+            cjs_tree_shaking: false,
             minify: false,
             production_chunking: false,
+            side_effect_free_packages: Vec::new(),
         }
     }
 }
@@ -421,6 +431,16 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             .resolved_cell(),
     );
 
+    let side_effect_free_packages = if options.side_effect_free_packages.is_empty() {
+        None
+    } else {
+        Some(
+            side_effect_free_packages_glob(Vc::cell(options.side_effect_free_packages.clone()))
+                .to_resolved()
+                .await?,
+        )
+    };
+
     let mut fallback_import_map = ImportMap::empty();
     fallback_import_map.insert_exact_alias(
         rcstr!("fallback"),
@@ -444,16 +464,19 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 import_externals: true,
                 enable_exports_info_inlining: true,
                 infer_module_side_effects: true,
+                cjs_tree_shaking: options.cjs_tree_shaking,
                 ..Default::default()
             },
             environment: Some(env),
             follow_reexports: options.follow_reexports,
             module_fragments_enabled: options.module_fragments_enabled,
+            side_effect_free_packages,
             rules: vec![(
                 ContextCondition::InNodeModules,
                 ModuleOptionsContext {
                     follow_reexports: options.follow_reexports,
                     module_fragments_enabled: options.module_fragments_enabled,
+                    side_effect_free_packages,
                     ..Default::default()
                 }
                 .resolved_cell(),

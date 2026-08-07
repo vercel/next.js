@@ -523,7 +523,7 @@ function SlugHeading({ slug }: { slug: string }) {
 
 Now `<Sidebar />`, `{children}`, and the Suspense fallback are all part of the static shell. Only `SlugHeading` streams in at request time. You can also pass the entire `params` promise and await it in the child component.
 
-The same principle applies to `cookies()`, `headers()`, `searchParams`, and data fetches. See [Sharing data with context and `React.cache`](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache) for a related pattern.
+The same principle applies to `cookies()`, `headers()`, `searchParams`, and data fetches. See [Reusing data with `React.cache`](/docs/app/getting-started/fetching-data#reusing-data-with-reactcache) for a related pattern.
 
 ### Instant navigation
 
@@ -533,9 +533,9 @@ Read the [Instant navigation guide](/docs/app/guides/instant-navigation) for exa
 
 ### Runtime prefetching
 
-By default, the router prefetches each route's [App Shell](/docs/app/glossary#app-shell), which already includes static content and the session data derived from `cookies()` and `headers()`. Runtime prefetching extends the prefetch with **URL data**: the `searchParams` and dynamic `params` that vary per destination link.
+With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching) enabled, the router prefetches each route's [App Shell](/docs/app/glossary#app-shell) by default, which already includes static content and the session data derived from `cookies()` and `headers()`. Runtime prefetching extends the prefetch with **URL data**: the `searchParams` and dynamic `params` that vary per destination link.
 
-With [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) on a route, Next.js renders that route's component tree again at prefetch time, this time with the destination URL resolved. The same rules apply, but more of the tree resolves now that its `searchParams` and `params` are in scope:
+With [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) pointing at a [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching) route, Next.js renders that route's component tree again at prefetch time, this time with the destination URL resolved. The same rules apply, but more of the tree resolves now that its `searchParams` and `params` are in scope:
 
 - [`use cache`](#usage) called with values extracted from runtime APIs (passed as arguments) joins the runtime prerender
 - [`use cache: private`](/docs/app/api-reference/directives/use-cache-private) executes on the server, reads runtime data directly, and caches the result in the browser, joining the runtime prerender
@@ -543,12 +543,10 @@ With [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/rou
 
 This generates a **runtime prerender** that extends past the static shell with content the destination URL unlocks. Because it happens during the prefetch, the navigation has nothing to wait on. The cost is a server invocation per prefetchable link.
 
-For example, take a search page that reads `searchParams` from the URL and opts into runtime prefetching:
+For example, take a search page that reads `searchParams` from the URL:
 
 ```tsx filename="app/search/page.tsx"
 import { Suspense } from 'react'
-
-export const prefetch = 'allow-runtime'
 
 export default function SearchPage(props: PageProps<'/search'>) {
   return (

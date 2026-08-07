@@ -285,6 +285,8 @@ The consumer passes a callback (`changeAction`), and the design component runs i
 
 The `data-pending` attribute on the `ChipGroup` root element lets ancestor components react through CSS without any coordination. The board on the home page uses `group-has-data-pending:opacity-50` to dim while the transition runs, without replacing the board with a skeleton. Because `ChipGroup` renders inside the `group` element, the attribute is available to any ancestor for styling.
 
+> **Good to know:** `group-has-data-pending:` and `has-data-pending:` compile to the CSS [`:has()`](https://developer.mozilla.org/en-US/docs/Web/CSS/:has) selector, which the browser re-evaluates over the anchored subtree whenever `data-pending` toggles. That stays cheap here because the board toggles it only twice per filter, and dragging (Step 5) deliberately skips it. Reach for client state instead when a broad `:has()` anchor toggles on a high-frequency interaction like dragging or scrolling, where repeated recalculation over a large subtree adds up.
+
 The "Frontend" chip now highlights on the current frame. The board dims while the filtered data loads, then updates with the filtered tasks.
 
 ### Step 4: Add comments with instant feedback
@@ -697,22 +699,22 @@ Enabling Cache Components applies prerender validation across every route, not j
 
 #### Cache reusable reads
 
-For each server read, ask whether the next viewer would see the same thing. Tasks and comments would, so mark each one with [`'use cache'`](/docs/app/api-reference/directives/use-cache) and tag it for invalidation:
+For each server read, ask whether it should be reused across requests and whether each write can invalidate it precisely. A task is stable enough to cache and has a clear per-id tag:
 
 ```ts filename="features/task/task-queries.ts"
-import { cache } from 'react'
-import { cacheTag } from 'next/cache'
+import { cacheLife, cacheTag } from 'next/cache'
 import { getTaskById } from '@/lib/db'
 
-export const getTask = cache(async (id: string) => {
+export async function getTask(id: string) {
   'use cache'
+  cacheLife('hours')
   cacheTag('tasks', `task-${id}`)
 
   return getTaskById(id)
-})
+}
 ```
 
-The per-id tag `task-${id}` gives a single task its own handle. The broader `tasks` tag covers the list. See the [Caching guide](/docs/app/getting-started/caching) for cache scoping (`'use cache: private'`, `'use cache: remote'`) and tag patterns.
+The per-id tag `task-${id}` gives a single task its own handle. The broader `tasks` tag covers the list. See the [Caching guide](/docs/app/getting-started/caching) for cache scoping (`'use cache: private'`, `'use cache: remote'`), cache lifetimes, and tag patterns.
 
 #### Invalidate from mutations
 
@@ -730,23 +732,13 @@ export async function updateStatus(taskId: string, newStatus: Status) {
 }
 ```
 
-Every Server Function follows the same shape: run the write, then call `updateTag` for the cached reads that changed. See the [Revalidating guide](/docs/app/getting-started/revalidating) for tag patterns, time-based revalidation, and on-demand invalidation from route handlers.
+Every Server Function follows the same shape: run the write, then call `updateTag` for the cached reads that changed. Dynamic reads do not have tags to invalidate, so use `refresh()` for those mutations.
+
+In this demo, the comment thread stays dynamic because readers expect the current discussion to update immediately on the open task page. Adding or deleting a comment calls `refresh()`, which reruns the dynamic comment read for the current route while leaving the task caches in place. See the [Revalidating guide](/docs/app/getting-started/revalidating) for tag patterns, time-based revalidation, and on-demand invalidation from route handlers.
 
 #### Prefetch the destination with the real request
 
-> **Good to know:** Partial Prefetching ships in Next.js 16.3 and later with [`partialPrefetching: true`](/docs/app/api-reference/config/next-config-js/partialPrefetching) set in `next.config.ts`. See the [Adopting Partial Prefetching guide](/docs/app/guides/adopting-partial-prefetching) for the migration path, plus the [Runtime Prefetching](/docs/app/guides/runtime-prefetching) and [Instant Navigation](/docs/app/guides/instant-navigation) guides for the full picture.
-
-Under [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), [`<Link>`](/docs/app/api-reference/components/link) prefetches the destination's [App Shell](/docs/app/glossary#app-shell) (static and cached content) by default. Pulling content that depends on request data ahead of the click means opting the route into runtime prefetching.
-
-If the destination's cached reads depend on request data (cookies, headers, `searchParams`, or `params` not resolved by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params)), opt the route into [runtime prefetching](/docs/app/guides/runtime-prefetching) with the [`prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) segment export so those reads resolve at prefetch time:
-
-```tsx filename="app/task/[id]/page.tsx"
-export const prefetch = 'allow-runtime'
-
-export default function TaskPage({ params }) {
-  // …
-}
-```
+Under [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) (Next.js 16.3 and later), `<Link>` prefetches the destination's [App Shell](/docs/app/glossary#app-shell): the route output that is shared across links for the current user. The shell does not include [URL data](/docs/app/glossary#url-data), because `params` and `searchParams` are link-specific. Opt the link into [runtime prefetching](/docs/app/guides/runtime-prefetching) with `prefetch={true}` to resolve that URL data ahead of the click:
 
 ```tsx filename="features/task/components/task-card.tsx"
 <Link href={`/task/${id}`} prefetch={true}>
@@ -754,7 +746,7 @@ export default function TaskPage({ params }) {
 </Link>
 ```
 
-A prefetch only pays off when the destination's reads are cached: the tags from the previous subsections give the prefetched output a stable slot in the [Client Cache](/docs/app/glossary#client-cache), so a later navigation reuses it instead of refetching. In the companion app, each task card is a [`<Link>`](/docs/app/api-reference/components/link) to the task detail page. The same element is also `draggable`, and the browser distinguishes a click from a drag natively. Because the cards are links, the detail page prefetches as they scroll into view, so the destination paints instantly by the time the user clicks. See the [Prefetching guide](/docs/app/guides/prefetching) and [Runtime Prefetching guide](/docs/app/guides/runtime-prefetching) for prefetch modes, and the [Instant Navigation guide](/docs/app/guides/instant-navigation) for validating that navigations stay instant in production.
+Runtime prefetching is most valuable when the destination has URL-specific work that users are likely to need next. Cached reads make the prefetched output reusable and tag-invalidatable in the [Client Cache](/docs/app/glossary#client-cache); dynamic reads can still resolve before the click, but each prefetch can do real server work. In the companion app, the task cards prefetch the detail page as they scroll into view, so it paints instantly by the time the user clicks.
 
 ## Next steps
 
@@ -768,7 +760,7 @@ The patterns in this guide combine a handful of primitives:
 | A form needs pending, reset, and result state                             | [`useActionState`](https://react.dev/reference/react/useActionState)                                                                                                                                                                                                         |
 | An ancestor should show pending state for work happening elsewhere        | [`data-pending`](https://react.dev/reference/react-dom/components/form#props) attribute styled with CSS                                                                                                                                                                      |
 | Reusable reads should survive across requests and stay fresh after writes | [`'use cache'`](/docs/app/api-reference/directives/use-cache) with [`cacheTag`](/docs/app/api-reference/functions/cacheTag), revalidated by [`updateTag`](/docs/app/api-reference/functions/updateTag) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) |
-| Navigation between pages of an interactive app should feel instant        | [`<Link>`](/docs/app/api-reference/components/link) prefetching with [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), and [Runtime prefetching](/docs/app/guides/runtime-prefetching) for request-dependent reads                                       |
+| Navigation between pages of an interactive app should feel instant        | [`<Link>`](/docs/app/api-reference/components/link) prefetching with [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), and [Runtime prefetching](/docs/app/guides/runtime-prefetching) via `prefetch={true}` for content that depends on URL data        |
 
 Most patterns mix two or more of these. Reach for whichever primitive fits the constraint you're solving.
 

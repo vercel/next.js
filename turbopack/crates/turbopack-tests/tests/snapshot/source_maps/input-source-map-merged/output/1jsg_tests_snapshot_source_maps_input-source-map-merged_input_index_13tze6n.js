@@ -2,9 +2,9 @@
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/input-source-map-merged/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
+__turbopack_context__.s([], "[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/input-source-map-merged/input/index.js [test] (ecmascript)");
 // MERGED MODULE: [project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/input-source-map-merged/input/index.js [test] (ecmascript)
 ;
-__turbopack_context__.s([], "[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/input-source-map-merged/input/index.js [test] (ecmascript)");
 // MERGED MODULE: [project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/input-source-map-merged/input/sourcemapped.js [test] (ecmascript)
 ;
 function runExternalSourceMapped(fn) {

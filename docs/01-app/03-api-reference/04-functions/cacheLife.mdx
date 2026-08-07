@@ -99,6 +99,7 @@ Cache profiles control caching behavior through three timing properties:
 During this time, the client-side router displays cached content immediately without any network request. After this period expires, the router must check with the server on the next navigation or request. This provides instant page loads from the client cache, but data may be outdated.
 
 - If omitted, defaults to the `default` profile's `stale` value (5 minutes, see [`staleTimes`](/docs/app/api-reference/config/next-config-js/staleTimes))
+- Also determines whether the content can be part of the route's [App Shell](/docs/app/glossary#app-shell). See [Prerendering behavior](#prerendering-behavior).
 
 ```tsx
 cacheLife({ stale: 300 }) // 5 minutes
@@ -260,7 +261,13 @@ When you call revalidation functions from a Server Action ([`revalidateTag`](/do
 
 ### Prerendering behavior
 
-Caches with very short lifetimes — zero `revalidate` or `expire` under 5 minutes — are automatically excluded from prerenders and become "dynamic holes" instead. This includes the `seconds` profile.
+A short cache lifetime changes where the cached content can be delivered from:
+
+- **`revalidate` of `0`, or `expire` under 5 minutes**: excluded from prerenders, becoming a "dynamic hole" resolved at request time.
+- **`stale` under 30 seconds**: excluded from prerenders, because a prefetch would expire before the user could click.
+- **`stale` from 30 seconds up to 5 minutes**: included in prerenders, but excluded from the route's [App Shell](/docs/app/glossary#app-shell).
+
+Of the presets, only `seconds` falls under any of these thresholds: its `expire` of 1 minute excludes it from prerenders.
 
 This behavior allows you to mix static and dynamic content within the same page. Static parts are prerendered, while short-lived caches create boundaries where data is fetched at request time rather than build time. Use a `<Suspense>` boundary around dynamic caches to provide a fallback while content loads.
 

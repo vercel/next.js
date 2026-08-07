@@ -31,6 +31,7 @@ use turbopack_core::{
     server_fs::ServerFileSystem,
     source_map::{
         GenerateSourceMap,
+        structured::StructuredSourceMap,
         utils::{absolute_fileify_source_map, relative_fileify_source_map},
     },
 };
@@ -97,28 +98,26 @@ impl CssChunk {
             let close = write_import_context(&mut body, content.import_context).await?;
 
             let chunking_context = self.chunking_context();
-            let source_map = content.source_map.await?;
-            let source_map = source_map.as_content().map(|f| f.content());
-            let source_map = match *chunking_context.source_map_source_type().await? {
-                SourceMapSourceType::AbsoluteFileUri => {
-                    absolute_fileify_source_map(
-                        source_map,
-                        chunking_context.root_path().owned().await?,
-                    )
-                    .await?
-                }
-                SourceMapSourceType::RelativeUri => {
+            let source_map = match (
+                *chunking_context.source_map_source_type().await?,
+                &content.source_map,
+            ) {
+                (SourceMapSourceType::AbsoluteFileUri, Some(map)) => Some(
+                    absolute_fileify_source_map(map, chunking_context.root_path().owned().await?)
+                        .await?,
+                ),
+                (SourceMapSourceType::RelativeUri, Some(map)) => Some(
                     relative_fileify_source_map(
-                        source_map,
+                        map,
                         chunking_context.root_path().owned().await?,
                         chunking_context
                             .relative_path_from_chunk_root_to_project_root()
                             .owned()
                             .await?,
                     )
-                    .await?
-                }
-                SourceMapSourceType::TurbopackUri => source_map.cloned(),
+                    .await?,
+                ),
+                (_, map) => map.clone(),
             };
 
             body.push_source(&content.inner_code, source_map);
@@ -452,7 +451,7 @@ pub struct CssChunkItemContent {
     pub import_context: Option<ResolvedVc<ImportContext>>,
     pub imports: Vec<CssImport>,
     pub inner_code: Rope,
-    pub source_map: ResolvedVc<FileContent>,
+    pub source_map: Option<StructuredSourceMap>,
 }
 
 #[turbo_tasks::value_trait]

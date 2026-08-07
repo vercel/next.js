@@ -9,15 +9,23 @@ describe('multiple-lockfiles - has-output-file-tracing-root', () => {
       'next.config.js': `module.exports = { outputFileTracingRoot: __dirname }`,
       // Write a package-lock.json file to the parent directory to simulate
       // multiple lockfiles.
+      '../package.json': JSON.stringify({
+        name: 'parent-workspace',
+        version: '1.0.0',
+      }),
       '../package-lock.json': JSON.stringify({
         name: 'parent-workspace',
         version: '1.0.0',
         lockfileVersion: 3,
+        packages: { '': { name: 'parent-workspace', version: '1.0.0' } },
       }),
     },
     // So that ../package-lock.json doesn't leave the isolated testDir
     subDir: 'test',
     skipDeployment: true,
+    // The workspace file would suppress the warning itself, so the test
+    // wouldn't be exercising `outputFileTracingRoot`.
+    deleteWorkspaceFile: true,
   })
 
   if (skipped) {

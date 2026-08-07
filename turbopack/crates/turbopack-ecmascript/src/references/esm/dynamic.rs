@@ -204,6 +204,7 @@ impl EsmAsyncAssetReferenceCodeGen {
             } else {
                 ResolveType::ChunkItem
             },
+            Some(Vc::upcast(*self.reference)),
         )
         .await?;
 

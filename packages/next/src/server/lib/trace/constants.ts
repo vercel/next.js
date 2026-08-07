@@ -89,6 +89,9 @@ enum AppRenderSpan {
   fetch = 'AppRender.fetch',
   waitShellReady = 'AppRender.waitShellReady',
   renderToNodeFizzStream = 'AppRender.renderToNodeFizzStream',
+  instantInsights = 'AppRender.instantInsights',
+  instantInsightsPrepareValidation = 'AppRender.instantInsights.prepareValidation',
+  instantInsightsRunValidation = 'AppRender.instantInsights.runValidation',
 }
 
 enum RouterSpan {

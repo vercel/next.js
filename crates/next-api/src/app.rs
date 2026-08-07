@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use next_core::{
     app_structure::{
@@ -39,8 +39,8 @@ use next_core::{
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, NonLocalValue, OperationVc, ResolvedVc, TryJoinIterExt, ValueToString,
-    Vc, fxindexset, trace::TraceRawVcs,
+    Completion, FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    fxindexset, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack::{
@@ -78,8 +78,6 @@ use crate::{
     module_graph::{ClientReferencesGraphs, NextDynamicGraphs, ServerActionsGraphs},
     nft::{EndpointTraceResult, trace_endpoint},
     nft_json::NftJsonAsset,
-    operation::OptionEndpoint,
-    output_mode::{OptionSsrMarkTarget, SsrMarkTarget},
     paths::{
         all_asset_paths, all_paths_in_root, get_asset_paths_from_root, get_js_paths_from_root,
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
@@ -1108,49 +1106,9 @@ pub fn app_entry_point_to_route(
     .cell()
 }
 
-/// Resolves the [`crate::output_mode::OutputModeState`] and page key for an
-/// app page HTML endpoint, so that [`crate::output_mode::mark_as_ssr`] can
-/// insert the page.
-#[turbo_tasks::function(operation, root)]
-pub(crate) async fn mark_as_ssr_operation(
-    endpoint_op: OperationVc<OptionEndpoint>,
-) -> Result<Vc<OptionSsrMarkTarget>> {
-    // Skip marking if the endpoint fails to resolve.
-    let Some(endpoint) = endpoint_op.connect().await.ok().and_then(|e| *e) else {
-        return Ok(Vc::cell(None));
-    };
-    let Some(app_endpoint) = ResolvedVc::try_downcast_type::<AppEndpoint>(endpoint) else {
-        bail!("mark_as_ssr is only called for app pages");
-    };
-    let app_endpoint = app_endpoint.await?;
-    if !matches!(
-        app_endpoint.ty,
-        AppEndpointType::Page {
-            ty: AppPageEndpointType::Html,
-            ..
-        }
-    ) {
-        bail!("mark_as_ssr is only called for app page HTML endpoints");
-    }
-    let Some(state) = *app_endpoint
-        .app_project
-        .project()
-        .output_mode_state()
-        .await?
-    else {
-        bail!("mark_as_ssr is never called outside of a dev session");
-    };
-    Ok(Vc::cell(Some(SsrMarkTarget {
-        state,
-        page: app_endpoint.page.to_string().into(),
-    })))
-}
-
 #[derive(Copy, Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
 enum AppPageEndpointType {
     Html,
-    /// HMR-only: detects Server Component changes but emits no manifests, so it
-    /// cannot serve a request.
     RscHmr,
 }
 
@@ -1274,38 +1232,26 @@ impl AppEndpoint {
             /// All manifests: `Minimal` plus next-font, next-dynamic, ...
             Full,
         }
-        let (process_client_assets, process_ssr, emit_manifests, emit_rsc_manifests) = match &this
-            .ty
-        {
-            AppEndpointType::Page { ty, .. } => (
-                true,
-                match ty {
-                    AppPageEndpointType::Html => {
-                        match &*project.output_mode_state().await? {
-                            // In development, skip building the Client Component SSR
-                            // chunks until the page has been rendered as a document.
-                            // A page only ever reached through RSC-only soft
-                            // navigations never needs to compile its SSR output.
-                            Some(state) => *state.is_ssr_page(this.page.to_string().into()).await?,
-                            None => true,
-                        }
-                    }
-                    AppPageEndpointType::RscHmr => false,
-                },
-                match ty {
-                    AppPageEndpointType::Html => EmitManifests::Full,
-                    AppPageEndpointType::RscHmr => EmitManifests::None,
-                },
-                matches!(ty, AppPageEndpointType::Html),
-            ),
-            AppEndpointType::Route { .. } => (false, false, EmitManifests::Minimal, true),
-            AppEndpointType::Metadata { metadata } => (
-                false,
-                false,
-                EmitManifests::Minimal,
-                matches!(metadata, MetadataItem::Dynamic { .. }),
-            ),
-        };
+        let (process_client_assets, process_ssr, emit_manifests, emit_rsc_manifests) =
+            match &this.ty {
+                AppEndpointType::Page { ty, .. } => (
+                    true,
+                    matches!(ty, AppPageEndpointType::Html),
+                    if matches!(ty, AppPageEndpointType::Html) {
+                        EmitManifests::Full
+                    } else {
+                        EmitManifests::None
+                    },
+                    matches!(ty, AppPageEndpointType::Html),
+                ),
+                AppEndpointType::Route { .. } => (false, false, EmitManifests::Minimal, true),
+                AppEndpointType::Metadata { metadata } => (
+                    false,
+                    false,
+                    EmitManifests::Minimal,
+                    matches!(metadata, MetadataItem::Dynamic { .. }),
+                ),
+            };
 
         let node_root = project.node_root().owned().await?;
         let client_relative_path = project.client_relative_path().owned().await?;
@@ -1334,7 +1280,7 @@ impl AppEndpoint {
 
         let client_chunking_context = project.client_chunking_context().to_resolved().await?;
 
-        let server_chunking_context = if process_ssr || is_app_page {
+        let ssr_chunking_context = if process_ssr {
             Some(
                 match runtime {
                     NextRuntime::NodeJs => Vc::upcast(project.server_chunking_context(true)),
@@ -1346,12 +1292,6 @@ impl AppEndpoint {
                 .to_resolved()
                 .await?,
             )
-        } else {
-            None
-        };
-
-        let ssr_chunking_context = if process_ssr {
-            server_chunking_context
         } else {
             None
         };
@@ -1423,12 +1363,45 @@ impl AppEndpoint {
         {
             client_assets.extend(assets.all_assets().await?.iter().copied());
         }
+        let mut ssr_client_reference_chunks: Vec<ResolvedVc<Box<dyn OutputAsset>>> = vec![];
         for &assets in client_references_chunks_ref
             .client_component_ssr_chunks
             .values()
         {
             // TODO(alexkirsz) In which manifest does this go?
-            server_assets.extend(assets.all_assets().await?.iter().copied());
+            let all = assets.all_assets().await?;
+            server_assets.extend(all.iter().copied());
+            ssr_client_reference_chunks.extend(all.iter().copied());
+        }
+
+        // In development, register a server-side HMR chunk list that owns all
+        // client-component SSR chunks. This is a bit of a hack to provide a single subscription
+        // point for these chunks, which aren't normally reachable from the rest of the server-side
+        // chunk lists.
+        //
+        // TODO: This anchor can go away once edges to chunk references are represented explicitly
+        // in the chunk graph (rsc chunk -> ssr chunk), which would make the SSR chunks reachable
+        // from the RSC chunk lists directly.
+        if is_app_page
+            && runtime == NextRuntime::NodeJs
+            && project
+                .client_compile_time_info()
+                .await?
+                .hot_module_replacement_enabled
+        {
+            let ssr_hmr_chunk_list_path = server_path.join(&format!(
+                "app{original_name}/client-components-ssr.js",
+                original_name = app_entry.original_name
+            ))?;
+            let ssr_hmr_chunks = project
+                .server_chunking_context(process_client_assets)
+                .server_hmr_chunk_list(
+                    ssr_hmr_chunk_list_path,
+                    Vc::cell(ssr_client_reference_chunks),
+                )
+                .to_resolved()
+                .await?;
+            server_assets.insert(ssr_hmr_chunks);
         }
 
         // In development, register a page-specific HMR chunk list that owns all client
@@ -1608,13 +1581,6 @@ impl AppEndpoint {
                     client_references_chunks,
                     client_chunking_context,
                     ssr_chunking_context,
-                    // Only pages need `rscModuleMapping`; route handlers and
-                    // metadata routes keep emitting no module mappings.
-                    rsc_chunking_context: if is_app_page {
-                        server_chunking_context
-                    } else {
-                        None
-                    },
                     async_module_info: module_graphs.full.async_module_info().to_resolved().await?,
                     next_config: project.next_config().to_resolved().await?,
                     runtime,
@@ -2095,6 +2061,7 @@ impl AppEndpoint {
             Some(app_function_name(&app_entry.original_name).into()),
             *module_graphs.full,
             Vc::cell(entry_modules),
+            this.app_project.project().additional_traced_modules(),
         ))
     }
 }
@@ -2244,13 +2211,13 @@ impl Endpoint for AppEndpoint {
     async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let this = self.await?;
         let app_entry = self.app_endpoint_entry().await?;
-        // The route's chunking heuristics from `experimental.turbopackChunkingHeuristics`. They are
+        // The route's chunking heuristics from `experimental.turbopackChunking`. They are
         // attached to the route's entry chunk group.
         let heuristics = this
             .app_project
             .project()
             .next_config()
-            .chunking_heuristics()
+            .turbopack_chunking()
             .await?
             .entry_heuristics_for(&app_entry.pathname);
         Ok(GraphEntries::from_chunk_groups(vec![
