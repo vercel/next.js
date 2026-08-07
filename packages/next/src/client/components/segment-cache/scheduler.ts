@@ -1236,6 +1236,54 @@ function wouldRuntimeRequestProvideMore(
 }
 
 /**
+ * Whether a fulfilled shell-tier entry should take a static attempt (a
+ * spawned revalidation at the walk's static tier) before its position deopts
+ * to a runtime request. A shell-tier recorded entry (StaticShell or
+ * RuntimeShell) is not evidence that a static attempt would be pointless —
+ * unlike a concrete static (PPR) entry, where a static re-fetch would return
+ * the same bytes — so when the segment's hint says a static attempt is
+ * worthwhile (the build-time prerender accessed no runtime data), the
+ * attempt is taken and its response's own verdict decides whether to
+ * escalate afterward.
+ *
+ * Consults the revalidation slot so an attempt that already ran and settled
+ * without healing the entry (a rejected attempt: server miss or network
+ * error; a successful one upserts over the shell-tier entry, so the caller
+ * reads the healed entry instead) doesn't suppress the runtime deopt
+ * forever. The slot read creates an Empty placeholder on first evaluation —
+ * there is no read-only variant — which is harmless: when the entry is
+ * eligible, the spawn that follows claims the same slot.
+ */
+function isShellEntryEligibleForStaticAttempt(
+  now: number,
+  map: CacheMap<SegmentCacheEntry>,
+  entry: SegmentCacheEntry,
+  tree: RouteTree<null>,
+  fetchStrategy: FetchStrategy.PPR | FetchStrategy.StaticShell
+): boolean {
+  if (
+    (entry.fetchStrategy !== FetchStrategy.StaticShell &&
+      entry.fetchStrategy !== FetchStrategy.RuntimeShell) ||
+    (tree.prefetchHints & PrefetchHint.ShouldAttemptStaticPrefetch) === 0 ||
+    // A StaticShell walk's static attempt is the shell tier itself, so it
+    // only applies when the walk's static strategy outranks the entry.
+    !canNewFetchStrategyProvideMoreContent(entry.fetchStrategy, fetchStrategy)
+  ) {
+    return false
+  }
+  const revalidatingEntry = readOrCreateRevalidatingSegmentEntry(
+    now,
+    map,
+    fetchStrategy,
+    tree
+  )
+  return (
+    revalidatingEntry.status === EntryStatus.Empty ||
+    revalidatingEntry.status === EntryStatus.Pending
+  )
+}
+
+/**
  * Register a subtree root (or the head's metadata key) for the batched
  * runtime request issued by the gate at the end of pingRootRouteTree.
  */
@@ -2090,7 +2138,9 @@ function pingRuntimePrefetches(
  * produced the entry). The callers surface this signal to the per-segment
  * decision point in pingNewPartOfCacheComponentsTree (and its analog for
  * the head in pingStaticHead), which uses it during a static attempt to
- * decide whether to fall back to a runtime prefetch.
+ * decide whether to fall back to a runtime prefetch. One exception withholds
+ * the signal: a shell-tier entry whose segment carries the static-attempt
+ * hint spawns a concrete static attempt first — see the Fulfilled case.
  */
 function pingSegmentBundle(
   now: number,
@@ -2108,8 +2158,8 @@ function pingSegmentBundle(
   // already settled or in flight: the chain's terminal segments are inside
   // the deopted subtree, and re-fetching their static bundle would at best
   // duplicate the runtime request and at worst replace a runtime-complete
-  // entry (e.g. a runtime App Shell) with a less complete static fallback
-  // response.
+  // entry (e.g. a RuntimeShell-tier entry) with a less complete static
+  // fallback response.
   spawnRevalidations: boolean
 ): boolean {
   let needsRuntimeRequest = false
@@ -2226,10 +2276,30 @@ function pingSegmentBundle(
           nodeEntry,
           fetchStrategy
         )
-        if (runtimeWouldProvideMore) {
+
+        // An eligible shell-tier entry takes the static attempt path below
+        // (the revalidation) instead of deopting straight to a runtime
+        // request; see isShellEntryEligibleForStaticAttempt. The attempt
+        // can't recur: its response records at least the concrete static
+        // tier, which fails the shell-tier check on the re-run pass — and an
+        // attempt that already settled without healing the entry reads as
+        // ineligible, so the deopt proceeds after all.
+        const shellEntryEligibleForStaticAttempt =
+          isShellEntryEligibleForStaticAttempt(
+            now,
+            task.segmentCacheMap,
+            nodeEntry,
+            nodeTree,
+            fetchStrategy
+          )
+
+        if (runtimeWouldProvideMore && !shellEntryEligibleForStaticAttempt) {
           // A runtime request would return more content for this segment
           // than the entry contains. Surface it via the return value, so the
-          // caller can deopt this subtree to a runtime prefetch.
+          // caller can deopt this subtree to a runtime prefetch. (An
+          // eligible shell-tier entry withholds the signal for this pass:
+          // the static attempt spawned below blocks the task, and the re-run
+          // pass reads the attempt's result instead.)
           needsRuntimeRequest = true
         }
 
@@ -2240,11 +2310,12 @@ function pingSegmentBundle(
         // re-fetched.
         //
         // Exception: when a runtime request would return more AND this walk
-        // permits one, skip the static path entirely. The runtime request
-        // covers this segment and supersedes anything a static fetch could
-        // add, so a static upgrade would at best duplicate it — delivering
-        // the same content twice — and at worst replace runtime content with
-        // static content.
+        // permits one, skip the static path entirely — unless the entry is
+        // an eligible shell-tier entry (see above), whose static attempt IS
+        // this upgrade. Otherwise the runtime request covers this segment
+        // and supersedes anything a static fetch could add, so a static
+        // upgrade would at best duplicate it — delivering the same content
+        // twice — and at worst replace runtime content with static content.
         //
         // When no runtime request is permitted, the signal is irrelevant:
         // nothing can act on it, so it must not suppress the static upgrade.
@@ -2252,6 +2323,7 @@ function pingSegmentBundle(
         // cached shell.
         const willBeSupersededByRuntimeRequest =
           runtimeWouldProvideMore &&
+          !shellEntryEligibleForStaticAttempt &&
           walkRequiresRuntimeCompleteness(fetchStrategy, route)
 
         // Check if we should attempt to upgrade a fallback ISR response to
@@ -2306,7 +2378,11 @@ function pingSegmentBundle(
               // pass depends on its response. Wait for it before the phase
               // can complete. (A settled revalidation we chose not to use
               // needs no waiting and is not a prefetch failure — the base
-              // entry here is already Fulfilled.)
+              // entry here is already Fulfilled. A settled revalidation
+              // can't strand an eligible shell-tier entry either:
+              // isShellEntryEligibleForStaticAttempt reads the slot, so a
+              // settled attempt makes the entry ineligible and the runtime
+              // deopt proceeds above.)
               blockTaskOnPendingResponse(task, revalidatingEntry)
             }
           }
@@ -2398,10 +2474,21 @@ function accumulateSegmentBundle(
       // ping only reaches the terminal descendant, and if that descendant is
       // itself a decision point it consumes the signal for its own subtree,
       // leaving this ancestor's insufficiency invisible to the decision
-      // point above it.
+      // point above it. An eligible shell-tier entry withholds the signal,
+      // the same exception the bundle ping applies: deopting here would
+      // pre-empt the static attempt the chain ping spawns for this node when
+      // it reaches the terminal descendant (its Fulfilled case runs for
+      // every node in the chain).
       needsRuntimeRequest:
         segment.status === EntryStatus.Fulfilled &&
-        wouldRuntimeRequestProvideMore(segment, fetchStrategy),
+        wouldRuntimeRequestProvideMore(segment, fetchStrategy) &&
+        !isShellEntryEligibleForStaticAttempt(
+          now,
+          task.segmentCacheMap,
+          segment,
+          tree,
+          fetchStrategy
+        ),
     }
   }
 

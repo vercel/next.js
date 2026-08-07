@@ -1421,7 +1421,11 @@ function pingBlockedTasks(entry: {
 }
 
 export function createMetadataRouteTree(
-  metadataVaryPath: PageVaryPath
+  metadataVaryPath: PageVaryPath,
+  // The route root's prefetch hints. The head has no node of its own on the
+  // wire, so route-level hints are read from the root on its behalf — the
+  // same convention as pingStaticHead in scheduler.ts.
+  rootPrefetchHints: number
 ): RouteTree<null> {
   // The Head is not actually part of the route tree, but other than that, it's
   // fetched and cached like a segment. Some functions expect a RouteTree
@@ -1439,7 +1443,13 @@ export function createMetadataRouteTree(
     // one. If this logic ever gets more complex we can change this to an enum.
     isPage: true,
     slots: null,
-    prefetchHints: 0,
+    // Only the static-attempt bit applies to the head: it's a route-level
+    // fact ("static per-segment responses may exist for this route"), and
+    // it's what lets a shell-tier cached head attempt a static head fetch
+    // before deopting to a runtime request (see the shell-tier eligibility
+    // check in pingSegmentBundle). The other bits describe tree structure
+    // the head doesn't participate in.
+    prefetchHints: rootPrefetchHints & PrefetchHint.ShouldAttemptStaticPrefetch,
   }
   return metadata
 }
@@ -1523,7 +1533,10 @@ export function fulfillRouteCacheEntry(
   const fulfilledEntry: FulfilledRouteCacheEntry = entry as any
   fulfilledEntry.status = EntryStatus.Fulfilled
   fulfilledEntry.tree = stripDataFromRouteTree(tree)
-  fulfilledEntry.metadata = createMetadataRouteTree(metadataVaryPath)
+  fulfilledEntry.metadata = createMetadataRouteTree(
+    metadataVaryPath,
+    tree.prefetchHints
+  )
   // Route structure is essentially static — it only changes on deploy.
   // Always use the static stale time.
   // NOTE: An exception is rewrites/redirects in middleware or proxy, which can
@@ -3170,7 +3183,12 @@ function writeServerResponseIntoCache(
     metadataVaryPath = navigationSeed.metadataVaryPath
   }
   const metadataTree =
-    metadataVaryPath !== null ? createMetadataRouteTree(metadataVaryPath) : null
+    metadataVaryPath !== null
+      ? createMetadataRouteTree(
+          metadataVaryPath,
+          navigationSeed.routeTree.prefetchHints
+        )
+      : null
 
   // The route tree carries the render output of every segment the response
   // included, so a single traversal from the root writes all of it into
