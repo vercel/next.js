@@ -190,6 +190,90 @@ function isSocketWriteClosed(socket: Duplex): boolean {
   )
 }
 
+interface OwnedListenerTarget {
+  on(event: string, listener: (...args: any[]) => void): unknown
+  off(event: string, listener: (...args: any[]) => void): unknown
+}
+
+/** @internal One listener installed and owned through `createOwnedListeners`. */
+export interface OwnedListenerEntry {
+  target: OwnedListenerTarget
+  event: string
+  listener: (...args: any[]) => void
+}
+
+/**
+ * Combines listener-bookkeeping failures into one error value: the sole
+ * failure itself, or an AggregateError caused by the first one.
+ *
+ * @internal
+ */
+export function combineListenerFailures(
+  failures: unknown[],
+  message: string
+): unknown {
+  if (failures.length === 1) return failures[0]
+  return new AggregateError(failures, message, { cause: failures[0] })
+}
+
+/**
+ * Owns the listeners one bookkeeping site installs on potentially hostile
+ * EventEmitters. Every listener is recorded as owned before `on` runs, so a
+ * `newListener` hook which inserts the listener and then throws can never
+ * leave an installed listener untracked, and removal collects throwing
+ * `removeListener` hooks as failures instead of propagating them.
+ *
+ * Only bookkeeping lives here. Each site keeps its own install-phase deferral
+ * latch, replay predicates, and terminal action, because its callbacks can run
+ * reentrantly while `install` is still executing.
+ *
+ * @internal
+ */
+export function createOwnedListeners(): {
+  /**
+   * Installs entries in order. On a failure, removes every listener recorded
+   * so far and returns `[installError, ...removalFailures]`; returns an empty
+   * array on success.
+   */
+  install(entries: readonly OwnedListenerEntry[]): unknown[]
+  /**
+   * Removes the still-owned listeners (optionally only one exact entry) in
+   * install order and returns removal failures.
+   */
+  remove(onlyEntry?: OwnedListenerEntry): unknown[]
+} {
+  const owned: OwnedListenerEntry[] = []
+  const remove = (onlyEntry?: OwnedListenerEntry): unknown[] => {
+    const failures: unknown[] = []
+    for (let index = 0; index < owned.length; ) {
+      const entry = owned[index]
+      if (onlyEntry !== undefined && entry !== onlyEntry) {
+        index += 1
+        continue
+      }
+      owned.splice(index, 1)
+      try {
+        entry.target.off(entry.event, entry.listener)
+      } catch (error) {
+        failures.push(error)
+      }
+    }
+    return failures
+  }
+  const install = (entries: readonly OwnedListenerEntry[]): unknown[] => {
+    for (const entry of entries) {
+      owned.push(entry)
+      try {
+        entry.target.on(entry.event, entry.listener)
+      } catch (error) {
+        return [error, ...remove()]
+      }
+    }
+    return []
+  }
+  return { install, remove }
+}
+
 /**
  * Installs one silent, idempotent fallback owner before upgrade routing can
  * await. It never removes or replaces listeners installed by an embedding
@@ -208,13 +292,16 @@ export function ownWebSocketUpgradeSocketErrors(
   let installing = true
   let closeRequested = false
   let cleaned = false
-  let requestErrorInstalled = false
-  let socketErrorInstalled = false
-  let closeInstalled = false
+  const listeners = createOwnedListeners()
   const destroy = () => {
     try {
       if (!socket.destroyed) socket.destroy()
     } catch {}
+  }
+  const releaseOwner = () => {
+    if (ownedSocket[RAW_UPGRADE_ERROR_OWNER] === owner) {
+      delete ownedSocket[RAW_UPGRADE_ERROR_OWNER]
+    }
   }
   const cleanup = (): unknown[] => {
     if (cleaned) return []
@@ -223,39 +310,13 @@ export function ownWebSocketUpgradeSocketErrors(
       return []
     }
     cleaned = true
-    const failures: unknown[] = []
-    const remove = (
-      target: IncomingMessage | Duplex,
-      event: string,
-      listener: (...args: any[]) => void
-    ) => {
-      try {
-        target.off(event, listener)
-      } catch (error) {
-        failures.push(error)
-      }
-    }
-    if (requestErrorInstalled) {
-      requestErrorInstalled = false
-      remove(req, 'error', destroy)
-    }
-    if (socketErrorInstalled) {
-      socketErrorInstalled = false
-      remove(socket, 'error', destroy)
-    }
-    if (closeInstalled) {
-      closeInstalled = false
-      remove(socket, 'close', onClose)
-    }
-    if (ownedSocket[RAW_UPGRADE_ERROR_OWNER] === owner) {
-      delete ownedSocket[RAW_UPGRADE_ERROR_OWNER]
-    }
+    const failures = listeners.remove()
+    releaseOwner()
     return failures
   }
   const onClose = () => {
     if (!isSocketWriteClosed(socket)) return
-    const failures = cleanup()
-    for (const failure of failures) {
+    for (const failure of cleanup()) {
       try {
         console.error(
           'Failed to remove a WebSocket upgrade socket error owner',
@@ -269,24 +330,19 @@ export function ownWebSocketUpgradeSocketErrors(
     configurable: true,
     value: owner,
   })
-  try {
-    requestErrorInstalled = true
-    req.on('error', destroy)
-    socketErrorInstalled = true
-    socket.on('error', destroy)
-    closeInstalled = true
-    socket.on('close', onClose)
-  } catch (error) {
-    installing = false
-    const failures = [error, ...cleanup()]
-    if (failures.length === 1) throw failures[0]
-    throw new AggregateError(
-      failures,
-      'Failed to install the WebSocket upgrade socket error owner',
-      { cause: failures[0] }
+  const installFailures = listeners.install([
+    { target: req, event: 'error', listener: destroy },
+    { target: socket, event: 'error', listener: destroy },
+    { target: socket, event: 'close', listener: onClose },
+  ])
+  installing = false
+  if (installFailures.length > 0) {
+    releaseOwner()
+    throw combineListenerFailures(
+      installFailures,
+      'Failed to install the WebSocket upgrade socket error owner'
     )
   }
-  installing = false
   if (closeRequested || isSocketWriteClosed(socket)) onClose()
 }
 
@@ -308,33 +364,8 @@ async function writeSocket(socket: Duplex, chunk: Uint8Array | string) {
     let settled = false
     let installing = true
     let pendingOutcome: Outcome | undefined
-    let drainInstalled = false
-    let closeInstalled = false
-    let errorInstalled = false
+    const listeners = createOwnedListeners()
 
-    const cleanup = (): unknown[] => {
-      const failures: unknown[] = []
-      const remove = (event: string, listener: (...args: any[]) => void) => {
-        try {
-          socket.off(event, listener)
-        } catch (error) {
-          failures.push(error)
-        }
-      }
-      if (drainInstalled) {
-        drainInstalled = false
-        remove('drain', onDrain)
-      }
-      if (closeInstalled) {
-        closeInstalled = false
-        remove('close', onDisconnect)
-      }
-      if (errorInstalled) {
-        errorInstalled = false
-        remove('error', onError)
-      }
-      return failures
-    }
     const settle = (outcome: Outcome) => {
       if (settled) return
       if (installing) {
@@ -342,22 +373,16 @@ async function writeSocket(socket: Duplex, chunk: Uint8Array | string) {
         return
       }
       settled = true
-      const cleanupFailures = cleanup()
+      const cleanupFailures = listeners.remove()
       if (cleanupFailures.length > 0) {
-        const failures =
-          outcome.kind === 'error'
-            ? [outcome.error, ...cleanupFailures]
-            : cleanupFailures
-        if (failures.length === 1) reject(failures[0])
-        else {
-          reject(
-            new AggregateError(
-              failures,
-              'Failed to finish a backpressured WebSocket upgrade socket write',
-              { cause: failures[0] }
-            )
+        reject(
+          combineListenerFailures(
+            outcome.kind === 'error'
+              ? [outcome.error, ...cleanupFailures]
+              : cleanupFailures,
+            'Failed to finish a backpressured WebSocket upgrade socket write'
           )
-        }
+        )
         return
       }
       if (outcome.kind === 'error') reject(outcome.error)
@@ -382,33 +407,25 @@ async function writeSocket(socket: Duplex, chunk: Uint8Array | string) {
       settle({ kind: 'error', error: markRawSocketIoError(error) })
     }
 
-    try {
-      // Own ordinary listeners so EventEmitter's once wrapper cannot remove
-      // itself through a throwing public removeListener hook before invoking
-      // the promise resolver.
-      drainInstalled = true
-      socket.on('drain', onDrain)
-      closeInstalled = true
-      socket.on('close', onDisconnect)
-      errorInstalled = true
-      socket.on('error', onError)
-    } catch (error) {
-      installing = false
+    // Own ordinary listeners so EventEmitter's once wrapper cannot remove
+    // itself through a throwing public removeListener hook before invoking
+    // the promise resolver.
+    const installFailures = listeners.install([
+      { target: socket, event: 'drain', listener: onDrain },
+      { target: socket, event: 'close', listener: onDisconnect },
+      { target: socket, event: 'error', listener: onError },
+    ])
+    installing = false
+    if (installFailures.length > 0) {
       settled = true
-      const failures = [error, ...cleanup()]
-      if (failures.length === 1) reject(failures[0])
-      else {
-        reject(
-          new AggregateError(
-            failures,
-            'Failed to install WebSocket upgrade socket backpressure listeners',
-            { cause: failures[0] }
-          )
+      reject(
+        combineListenerFailures(
+          installFailures,
+          'Failed to install WebSocket upgrade socket backpressure listeners'
         )
-      }
+      )
       return
     }
-    installing = false
 
     if (pendingOutcome) {
       settle(pendingOutcome)
@@ -428,28 +445,7 @@ async function endAndDestroySocket(socket: Duplex): Promise<void> {
     let settled = false
     let installing = true
     let finishRequested = false
-    let closeInstalled = false
-    let errorInstalled = false
-    const removeListeners = (): unknown[] => {
-      const failures: unknown[] = []
-      if (closeInstalled) {
-        closeInstalled = false
-        try {
-          socket.off('close', onTerminal)
-        } catch (error) {
-          failures.push(error)
-        }
-      }
-      if (errorInstalled) {
-        errorInstalled = false
-        try {
-          socket.off('error', onError)
-        } catch (error) {
-          failures.push(error)
-        }
-      }
-      return failures
-    }
+    const listeners = createOwnedListeners()
     const reportFailures = (failures: unknown[]) => {
       for (const failure of failures) {
         try {
@@ -467,7 +463,7 @@ async function endAndDestroySocket(socket: Duplex): Promise<void> {
         return
       }
       settled = true
-      const failures = removeListeners()
+      const failures = listeners.remove()
       try {
         if (!socket.destroyed) socket.destroy()
       } catch (error) {
@@ -493,15 +489,14 @@ async function endAndDestroySocket(socket: Duplex): Promise<void> {
       finish()
     }
 
-    try {
-      closeInstalled = true
-      socket.on('close', onTerminal)
-      errorInstalled = true
-      socket.on('error', onError)
-    } catch (error) {
-      installing = false
+    const installFailures = listeners.install([
+      { target: socket, event: 'close', listener: onTerminal },
+      { target: socket, event: 'error', listener: onError },
+    ])
+    installing = false
+    if (installFailures.length > 0) {
       settled = true
-      reportFailures([error, ...removeListeners()])
+      reportFailures(installFailures)
       try {
         if (!socket.destroyed) socket.destroy()
       } catch (destroyError) {
@@ -510,7 +505,6 @@ async function endAndDestroySocket(socket: Duplex): Promise<void> {
       resolve()
       return
     }
-    installing = false
     if (finishRequested || isSocketWriteClosed(socket)) {
       finish()
       return
