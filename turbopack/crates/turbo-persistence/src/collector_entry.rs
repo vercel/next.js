@@ -3,6 +3,7 @@ use std::cmp::Ordering;
 use crate::{
     constants::MAX_INLINE_VALUE_SIZE,
     key::StoreKey,
+    static_sorted_file::KEY_VALUE_DELETED_REF_SIZE,
     static_sorted_file_builder::{Entry, EntryValue},
 };
 
@@ -32,7 +33,11 @@ pub enum CollectorEntryValue {
     Large {
         blob: u32,
     },
-    Deleted,
+    KeyDeleted,
+    /// Key-value tombstone: deletes only this one value from the key's group. MultiValue only.
+    KeyValueDeleted {
+        value: [u8; KEY_VALUE_DELETED_REF_SIZE],
+    },
 }
 
 impl CollectorEntryValue {
@@ -42,7 +47,8 @@ impl CollectorEntryValue {
             CollectorEntryValue::Small { value } => value.len(),
             CollectorEntryValue::Medium { value } => value.len(),
             CollectorEntryValue::Large { blob: _ } => 0,
-            CollectorEntryValue::Deleted => 0,
+            CollectorEntryValue::KeyDeleted => 0,
+            CollectorEntryValue::KeyValueDeleted { .. } => 0,
         }
     }
 
@@ -62,9 +68,21 @@ impl CollectorEntryValue {
         }
     }
 
-    /// Returns true if this value is a deletion tombstone.
-    pub fn is_deleted(&self) -> bool {
-        matches!(self, CollectorEntryValue::Deleted)
+    /// Sort rank within a key group. The two tombstone kinds sit at opposite ends:
+    ///
+    /// - Key-value tombstones (rank 0) go **first**, so a reader collects them before the values
+    ///   they filter and can apply them in one forward pass.
+    /// - Values (rank 1) go in the middle.
+    /// - Key tombstones (rank 2) go **last**, because they shadow only entries older than
+    ///   themselves — including entries in this same SST. A batch doing `put(A); delete; put(B)`
+    ///   must keep A and B, so a reader that stops at the first key tombstone it sees still returns
+    ///   the same-batch values it already collected.
+    pub fn sort_rank(&self) -> u8 {
+        match self {
+            CollectorEntryValue::KeyValueDeleted { .. } => 0,
+            CollectorEntryValue::KeyDeleted => 2,
+            _ => 1,
+        }
     }
 }
 
@@ -133,7 +151,8 @@ impl<K: StoreKey> Entry for CollectorEntry<K> {
             }
             CollectorEntryValue::Medium { value } => EntryValue::Medium { value },
             CollectorEntryValue::Large { blob } => EntryValue::Large { blob: *blob },
-            CollectorEntryValue::Deleted => EntryValue::Deleted,
+            CollectorEntryValue::KeyDeleted => EntryValue::KeyDeleted,
+            CollectorEntryValue::KeyValueDeleted { value } => EntryValue::KeyValueDeleted { value },
         }
     }
 }

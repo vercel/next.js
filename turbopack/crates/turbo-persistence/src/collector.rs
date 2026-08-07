@@ -7,6 +7,7 @@ use crate::{
         DATA_THRESHOLD_PER_INITIAL_FILE, MAX_ENTRIES_PER_INITIAL_FILE, MAX_SMALL_VALUE_SIZE,
     },
     key::{StoreKey, hash_key},
+    static_sorted_file::KEY_VALUE_DELETED_REF_SIZE,
     value_block_count_tracker::ValueBlockCountTracker,
 };
 
@@ -86,7 +87,7 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
         });
     }
 
-    /// Adds a tombstone pair to the collector.
+    /// Adds a tombstone pair to the collector. This deletes *all* values for `key`.
     pub fn delete(&mut self, key: K) {
         let key = EntryKey {
             hash: hash_key(&key),
@@ -95,7 +96,24 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
         self.total_key_size += key.len();
         self.entries.push(CollectorEntry {
             key,
-            value: CollectorEntryValue::Deleted,
+            value: CollectorEntryValue::KeyDeleted,
+        });
+    }
+
+    /// Adds a key-value tombstone to the collector: deletes only the single `key` -> `value` pair,
+    /// leaving any other values for `key` intact.
+    ///
+    /// Only meaningful for [`FamilyKind::MultiValue`] families. Callers must not insert and delete
+    /// the same key-value pair in one batch; the resolution order between them is undefined.
+    pub fn delete_value(&mut self, key: K, value: [u8; KEY_VALUE_DELETED_REF_SIZE]) {
+        let key = EntryKey {
+            hash: hash_key(&key),
+            data: key,
+        };
+        self.total_key_size += key.len();
+        self.entries.push(CollectorEntry {
+            key,
+            value: CollectorEntryValue::KeyValueDeleted { value },
         });
     }
 
@@ -110,19 +128,19 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
         self.entries.push(entry);
     }
 
-    /// Sorts entries by key. Tombstones are placed last within each key group.
+    /// Sorts entries by key. Within a key group, key-value tombstones are placed first and key
+    /// tombstones last (see [`CollectorEntryValue::sort_rank`]).
     /// This method does not deduplicate entries.
     ///
     /// In debug builds, asserts that SingleValue families have no duplicate keys.
     pub fn sorted(&mut self, family_kind: FamilyKind) -> (&[CollectorEntry<K>], usize) {
-        // Sort by (hash, key) with tombstones placed last within each key group.
         // We can use unstable sort because the relative order of equal elements
         // doesn't matter — duplicates are either disallowed (SingleValue) or
         // allowed without deduplication (MultiValue).
         self.entries.sort_unstable_by(|a, b| {
             a.key
                 .cmp(&b.key)
-                .then_with(|| a.value.is_deleted().cmp(&b.value.is_deleted()))
+                .then_with(|| a.value.sort_rank().cmp(&b.value.sort_rank()))
         });
 
         #[cfg(debug_assertions)]
