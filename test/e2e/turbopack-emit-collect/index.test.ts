@@ -43,10 +43,14 @@ import { nextTestSetup } from 'e2e-utils'
            "app/client/a/unique.js [app-client]               : "data-for-unique-client-a" ==> "unique /client/a"",
            "app/client/a/unique.js [app-ssr]                  : "data-for-unique-client-a" ==> "unique /client/a"",
            "app/client/shared-app-client.js [app-client]      : "data-for-shared-app-client-a" ==> "app client"",
+           "app/client/shared-app-client.js [app-client]      : "data-for-shared-app-client-b" ==> "app client"",
            "app/client/shared-app-client.js [app-ssr]         : "data-for-shared-app-client-a" ==> "app client"",
+           "app/client/shared-app-client.js [app-ssr]         : "data-for-shared-app-client-b" ==> "app client"",
            "app/layout-target.js [app-rsc]                    : "data-for-layout" ==> "layout"",
            "app/rsc/shared-app/target.js [app-rsc]            : "data-for-shared-app" ==> "shared-app"",
+           "shared-pages-client.js [client]                   : "data-for-shared-pages-a" ==> "shared pages client"",
            "shared-pages-client.js [client]                   : "data-for-shared-pages-client-only" ==> "shared pages client"",
+           "shared-pages-client.js [ssr]                      : "data-for-shared-pages-a" ==> "shared pages client"",
            "shared-pages-client.js [ssr]                      : "data-for-shared-pages-client-only" ==> "shared pages client"",
          ]
         `)
@@ -72,10 +76,14 @@ import { nextTestSetup } from 'e2e-utils'
            "app/client/b/unique.js [app-client]               : "data-for-unique-client-b" ==> "unique /client/b"",
            "app/client/b/unique.js [app-ssr]                  : "data-for-unique-client-b" ==> "unique /client/b"",
            "app/client/shared-app-client.js [app-client]      : "data-for-shared-app-client-a" ==> "app client"",
+           "app/client/shared-app-client.js [app-client]      : "data-for-shared-app-client-b" ==> "app client"",
            "app/client/shared-app-client.js [app-ssr]         : "data-for-shared-app-client-a" ==> "app client"",
+           "app/client/shared-app-client.js [app-ssr]         : "data-for-shared-app-client-b" ==> "app client"",
            "app/layout-target.js [app-rsc]                    : "data-for-layout" ==> "layout"",
            "app/rsc/shared-app/target.js [app-rsc]            : "data-for-shared-app" ==> "shared-app"",
+           "shared-pages-client.js [client]                   : "data-for-shared-pages-a" ==> "shared pages client"",
            "shared-pages-client.js [client]                   : "data-for-shared-pages-client-only" ==> "shared pages client"",
+           "shared-pages-client.js [ssr]                      : "data-for-shared-pages-a" ==> "shared pages client"",
            "shared-pages-client.js [ssr]                      : "data-for-shared-pages-client-only" ==> "shared pages client"",
          ]
         `)
@@ -98,12 +106,16 @@ import { nextTestSetup } from 'e2e-utils'
         expect(formatData(response)).toMatchInlineSnapshot(`
          [
            "app/client/shared-app-client.js [app-client]      : "data-for-shared-app-client-a" ==> "app client"",
+           "app/client/shared-app-client.js [app-client]      : "data-for-shared-app-client-b" ==> "app client"",
            "app/client/shared-app-client.js [app-ssr]         : "data-for-shared-app-client-a" ==> "app client"",
+           "app/client/shared-app-client.js [app-ssr]         : "data-for-shared-app-client-b" ==> "app client"",
            "app/layout-target.js [app-rsc]                    : "data-for-layout" ==> "layout"",
            "app/rsc/a/unique.js [app-rsc]                     : "data-for-unique-rsc-a" ==> "unique /rsc/a"",
            "app/rsc/shared-app/target.js [app-rsc]            : "data-for-shared-app" ==> "shared-app"",
            "app/rsc/shared-page/target.js [app-rsc]           : "data-for-shared-page" ==> "shared-page"",
+           "shared-pages-client.js [client]                   : "data-for-shared-pages-a" ==> "shared pages client"",
            "shared-pages-client.js [client]                   : "data-for-shared-pages-client-only" ==> "shared pages client"",
+           "shared-pages-client.js [ssr]                      : "data-for-shared-pages-a" ==> "shared pages client"",
            "shared-pages-client.js [ssr]                      : "data-for-shared-pages-client-only" ==> "shared pages client"",
          ]
         `)
@@ -126,12 +138,16 @@ import { nextTestSetup } from 'e2e-utils'
         expect(formatData(response)).toMatchInlineSnapshot(`
          [
            "app/client/shared-app-client.js [app-client]      : "data-for-shared-app-client-a" ==> "app client"",
+           "app/client/shared-app-client.js [app-client]      : "data-for-shared-app-client-b" ==> "app client"",
            "app/client/shared-app-client.js [app-ssr]         : "data-for-shared-app-client-a" ==> "app client"",
+           "app/client/shared-app-client.js [app-ssr]         : "data-for-shared-app-client-b" ==> "app client"",
            "app/layout-target.js [app-rsc]                    : "data-for-layout" ==> "layout"",
            "app/rsc/b/unique.js [app-rsc]                     : "data-for-unique-rsc-b" ==> "unique /rsc/b"",
            "app/rsc/shared-app/target.js [app-rsc]            : "data-for-shared-app" ==> "shared-app"",
            "app/rsc/shared-page/target.js [app-rsc]           : "data-for-shared-page" ==> "shared-page"",
+           "shared-pages-client.js [client]                   : "data-for-shared-pages-a" ==> "shared pages client"",
            "shared-pages-client.js [client]                   : "data-for-shared-pages-client-only" ==> "shared pages client"",
+           "shared-pages-client.js [ssr]                      : "data-for-shared-pages-a" ==> "shared pages client"",
            "shared-pages-client.js [ssr]                      : "data-for-shared-pages-client-only" ==> "shared pages client"",
          ]
         `)
@@ -153,11 +169,15 @@ import { nextTestSetup } from 'e2e-utils'
         expect(formatData(response)).toMatchInlineSnapshot(`
          [
            "app/client/shared-app-client.js [app-client]      : "data-for-shared-app-client-a" ==> "app client"",
+           "app/client/shared-app-client.js [app-client]      : "data-for-shared-app-client-b" ==> "app client"",
            "app/client/shared-app-client.js [app-ssr]         : "data-for-shared-app-client-a" ==> "app client"",
+           "app/client/shared-app-client.js [app-ssr]         : "data-for-shared-app-client-b" ==> "app client"",
            "app/layout-target.js [app-rsc]                    : "data-for-layout" ==> "layout"",
            "app/rsc/shared-app/target.js [app-rsc]            : "data-for-shared-app" ==> "shared-app"",
            "app/rsc/shared-page/target.js [app-rsc]           : "data-for-shared-page" ==> "shared-page"",
+           "shared-pages-client.js [client]                   : "data-for-shared-pages-a" ==> "shared pages client"",
            "shared-pages-client.js [client]                   : "data-for-shared-pages-client-only" ==> "shared pages client"",
+           "shared-pages-client.js [ssr]                      : "data-for-shared-pages-a" ==> "shared pages client"",
            "shared-pages-client.js [ssr]                      : "data-for-shared-pages-client-only" ==> "shared pages client"",
          ]
         `)
@@ -180,10 +200,14 @@ import { nextTestSetup } from 'e2e-utils'
         expect(formatData(response)).toMatchInlineSnapshot(`
          [
            "app/client/shared-app-client.js [app-client]      : "data-for-shared-app-client-a" ==> "app client"",
+           "app/client/shared-app-client.js [app-client]      : "data-for-shared-app-client-b" ==> "app client"",
            "app/client/shared-app-client.js [app-ssr]         : "data-for-shared-app-client-a" ==> "app client"",
+           "app/client/shared-app-client.js [app-ssr]         : "data-for-shared-app-client-b" ==> "app client"",
            "app/rsc/shared-app/target.js [app-rsc]            : "data-for-shared-app" ==> "shared-app"",
            "pages-lib/a/unique.js [ssr]                       : "data-for-unique-pages-a" ==> "unique /pages/a"",
+           "shared-pages-client.js [client]                   : "data-for-shared-pages-a" ==> "shared pages client"",
            "shared-pages-client.js [client]                   : "data-for-shared-pages-client-only" ==> "shared pages client"",
+           "shared-pages-client.js [ssr]                      : "data-for-shared-pages-a" ==> "shared pages client"",
            "shared-pages-client.js [ssr]                      : "data-for-shared-pages-client-only" ==> "shared pages client"",
          ]
         `)
@@ -206,10 +230,14 @@ import { nextTestSetup } from 'e2e-utils'
         expect(formatData(response)).toMatchInlineSnapshot(`
          [
            "app/client/shared-app-client.js [app-client]      : "data-for-shared-app-client-a" ==> "app client"",
+           "app/client/shared-app-client.js [app-client]      : "data-for-shared-app-client-b" ==> "app client"",
            "app/client/shared-app-client.js [app-ssr]         : "data-for-shared-app-client-a" ==> "app client"",
+           "app/client/shared-app-client.js [app-ssr]         : "data-for-shared-app-client-b" ==> "app client"",
            "app/rsc/shared-app/target.js [app-rsc]            : "data-for-shared-app" ==> "shared-app"",
            "pages-lib/client-only/unique.js [ssr]             : "data-for-unique-pages-client-only" ==> "unique /pages/client-only"",
+           "shared-pages-client.js [client]                   : "data-for-shared-pages-a" ==> "shared pages client"",
            "shared-pages-client.js [client]                   : "data-for-shared-pages-client-only" ==> "shared pages client"",
+           "shared-pages-client.js [ssr]                      : "data-for-shared-pages-a" ==> "shared pages client"",
            "shared-pages-client.js [ssr]                      : "data-for-shared-pages-client-only" ==> "shared pages client"",
          ]
         `)
@@ -229,9 +257,13 @@ import { nextTestSetup } from 'e2e-utils'
          [
            "app/api/unique.js [app-route]                     : "data-for-unique-api" ==> "unique api"",
            "app/client/shared-app-client.js [app-client]      : "data-for-shared-app-client-a" ==> "app client"",
+           "app/client/shared-app-client.js [app-client]      : "data-for-shared-app-client-b" ==> "app client"",
            "app/client/shared-app-client.js [app-ssr]         : "data-for-shared-app-client-a" ==> "app client"",
+           "app/client/shared-app-client.js [app-ssr]         : "data-for-shared-app-client-b" ==> "app client"",
            "app/rsc/shared-app/target.js [app-rsc]            : "data-for-shared-app" ==> "shared-app"",
+           "shared-pages-client.js [client]                   : "data-for-shared-pages-a" ==> "shared pages client"",
            "shared-pages-client.js [client]                   : "data-for-shared-pages-client-only" ==> "shared pages client"",
+           "shared-pages-client.js [ssr]                      : "data-for-shared-pages-a" ==> "shared pages client"",
            "shared-pages-client.js [ssr]                      : "data-for-shared-pages-client-only" ==> "shared pages client"",
          ]
         `)
@@ -246,9 +278,13 @@ import { nextTestSetup } from 'e2e-utils'
         expect(formatData(response)).toMatchInlineSnapshot(`
          [
            "app/client/shared-app-client.js [app-client]      : "data-for-shared-app-client-a" ==> "app client"",
+           "app/client/shared-app-client.js [app-client]      : "data-for-shared-app-client-b" ==> "app client"",
            "app/client/shared-app-client.js [app-ssr]         : "data-for-shared-app-client-a" ==> "app client"",
+           "app/client/shared-app-client.js [app-ssr]         : "data-for-shared-app-client-b" ==> "app client"",
            "app/rsc/shared-app/target.js [app-rsc]            : "data-for-shared-app" ==> "shared-app"",
+           "shared-pages-client.js [client]                   : "data-for-shared-pages-a" ==> "shared pages client"",
            "shared-pages-client.js [client]                   : "data-for-shared-pages-client-only" ==> "shared pages client"",
+           "shared-pages-client.js [ssr]                      : "data-for-shared-pages-a" ==> "shared pages client"",
            "shared-pages-client.js [ssr]                      : "data-for-shared-pages-client-only" ==> "shared pages client"",
          ]
         `)
