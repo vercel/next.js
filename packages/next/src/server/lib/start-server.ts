@@ -401,6 +401,19 @@ export async function startServer(
     const runCleanup = async () => {
       debug('start-server process cleanup')
       try {
+        // Stop accepting HTTP connections immediately, but do not wait for the
+        // close callback before draining upgraded connections. Node keeps
+        // upgraded sockets in the server's connection set, so awaiting
+        // server.close() first can deadlock WebSocket shutdown.
+        const httpServerClosed = new Promise<void>((resolve, reject) => {
+          server.close((error) => {
+            if (error) reject(error)
+            else resolve()
+          })
+          if (isDev) server.closeAllConnections()
+        })
+        void httpServerClosed.catch(() => {})
+
         await runServerCleanupPhases([
           [
             () => {
@@ -408,20 +421,16 @@ export async function startServer(
                 throw removeUpgradeListenerFailure
               }
             },
-            () =>
-              new Promise<void>((resolve, reject) => {
-                server.close((error) => {
-                  if (error) reject(error)
-                  else resolve()
-                })
-                if (isDev) server.closeAllConnections()
-              }),
             () => closePendingUpgrades,
           ],
           // Every admitted route has now either handed the connection to the
           // registry or completed, so one snapshot closes all upgraded peers.
           [() => closeUpgraded?.(webSocketCloseCode)],
-          [() => nextServer?.close(), () => cleanupListeners?.runAll()],
+          [
+            () => httpServerClosed,
+            () => nextServer?.close(),
+            () => cleanupListeners?.runAll(),
+          ],
           [() => flushAllTraces()],
         ])
 
