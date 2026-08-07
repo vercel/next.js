@@ -33,6 +33,21 @@ function countSubstring(str: string, substr: string): number {
       expect($('#dynamic-content').text()).toBe('dynamic content')
     })
 
+    it('should block metadata for googleweblight within a full user agent', async () => {
+      const res = await next.fetch('/partial', {
+        headers: {
+          'user-agent':
+            'Mozilla/5.0 (Linux; Android 4.2.1; en-us; Nexus 5 Build/JOP40D) AppleWebKit/535.19 (KHTML, like Gecko; googleweblight) Chrome/38.0.1025.166 Mobile Safari/535.19',
+        },
+      })
+
+      expect(res.status).toBe(200)
+
+      const $ = cheerio.load(await res.text())
+      expect($('head title').text()).toBe('dynamic title')
+      expect($('body title').length).toBe(0)
+    })
+
     it('should block metadata while continuing to stream the body for a default HTML-limited bot', async () => {
       const abortController = new AbortController()
       let body:

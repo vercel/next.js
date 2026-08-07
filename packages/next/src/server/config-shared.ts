@@ -469,7 +469,6 @@ export interface ExperimentalConfig {
    */
   outputHashSalt?: string
 
-  appNewScrollHandler?: boolean
   /**
    * Shows a persistent "Cold cache" badge in the dev overlay after a load that
    * filled an empty cache while streaming. Off by default while the badge's
@@ -2156,7 +2155,6 @@ export const defaultConfig = Object.freeze({
   },
   adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
   experimental: {
-    appNewScrollHandler: true,
     coldCacheBadge: false,
     devValidationWorker: true,
     useSkewCookie: false,

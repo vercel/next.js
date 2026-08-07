@@ -1,9 +1,9 @@
-import { DetachedPromise } from '../../lib/detached-promise'
+import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import { trackStreamConsumed } from './web-on-close'
 
 describe('trackStreamConsumed', () => {
   it('calls onEnd when the stream finishes', async () => {
-    const endPromise = new DetachedPromise<void>()
+    const endPromise = createPromiseWithResolvers<void>()
     const onEnd = jest.fn(endPromise.resolve)
 
     const { stream: inputStream, controller } =
@@ -29,7 +29,7 @@ describe('trackStreamConsumed', () => {
   })
 
   it('calls onEnd when the stream errors', async () => {
-    const endPromise = new DetachedPromise<void>()
+    const endPromise = createPromiseWithResolvers<void>()
     const onEnd = jest.fn(endPromise.resolve)
 
     const { stream: inputStream, controller } =
@@ -54,10 +54,10 @@ describe('trackStreamConsumed', () => {
   })
 
   it('calls onEnd when the stream is cancelled', async () => {
-    const endPromise = new DetachedPromise<void>()
+    const endPromise = createPromiseWithResolvers<void>()
     const onEnd = jest.fn(endPromise.resolve)
 
-    const cancelledPromise = new DetachedPromise<unknown>()
+    const cancelledPromise = createPromiseWithResolvers<unknown>()
     const onCancel = jest.fn(cancelledPromise.resolve)
 
     const { stream: inputStream, controller } =
