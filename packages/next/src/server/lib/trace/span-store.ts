@@ -20,8 +20,9 @@ function getSpanStoreRequestInsightsRuntime():
   if (process.env.__NEXT_DEV_SERVER) {
     return (spanStoreRequestInsightsRuntime ??=
       require('./request-insights-runtime') as typeof import('./request-insights-runtime'))
+  } else {
+    return undefined
   }
-  return undefined
 }
 
 export type SpanStoreAttributes = Record<string, RequestInsightAttributeValue>

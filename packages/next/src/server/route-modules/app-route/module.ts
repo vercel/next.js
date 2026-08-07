@@ -118,6 +118,8 @@ function markAppRouteRequestSource(): void {
         .getActiveRequestInsights()
         ?.recordSource(identity, 'app-route')
     }
+  } else {
+    return
   }
 }
 

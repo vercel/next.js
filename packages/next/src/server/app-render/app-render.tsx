@@ -378,8 +378,9 @@ function getAppRenderRequestInsightsRuntime():
       }
     }
     return appRenderRequestInsightsRuntime
+  } else {
+    return undefined
   }
-  return undefined
 }
 
 export type GetDynamicParamFromSegment = (
@@ -4896,14 +4897,14 @@ function runDevValidationInBackground(
           const requestInsightsRuntime = getAppRenderRequestInsightsRuntime()
           const validationOnError =
             requestInsightsRuntime?.isRequestInsightsEnabled()
-            ? createReactServerErrorHandler(
-                true,
-                false,
-                instantInsightsCtx.workStore.reactServerErrorsByDigest,
-                () => {},
-                requestInsightsRuntime.getActiveLocalSpan()
-              )
-            : onError
+              ? createReactServerErrorHandler(
+                  true,
+                  false,
+                  instantInsightsCtx.workStore.reactServerErrorsByDigest,
+                  () => {},
+                  requestInsightsRuntime.getActiveLocalSpan()
+                )
+              : onError
 
           // Read whether the streamed render errored only now that it has fully
           // settled.

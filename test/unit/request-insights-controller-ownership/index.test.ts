@@ -149,14 +149,20 @@ function probeDirectRouterLifecycle(): {
     const dir = fs.mkdtempSync(
       path.join(os.tmpdir(), 'request-insights-router-lifecycle-')
     )
-    process.on('exit', () =>
-      fs.rmSync(dir, {
+    const cleanupListeners = []
+    let fixtureCleaned = false
+
+    async function cleanupFixture() {
+      if (fixtureCleaned) return
+      fixtureCleaned = true
+      await Promise.allSettled(cleanupListeners.map((cleanup) => cleanup()))
+      await fs.promises.rm(dir, {
         recursive: true,
         force: true,
         maxRetries: 10,
         retryDelay: 100,
       })
-    )
+    }
     fs.mkdirSync(path.join(dir, 'pages'), { recursive: true })
     fs.writeFileSync(path.join(dir, 'package.json'), '{"private":true}')
     fs.writeFileSync(
@@ -181,7 +187,9 @@ function probeDirectRouterLifecycle(): {
           dev: true,
           hostname: 'localhost',
           quiet: true,
-          onDevServerCleanup: undefined,
+          onDevServerCleanup(cleanup) {
+            cleanupListeners.push(cleanup)
+          },
         })
         const controller = initialized.server.server.requestInsights
         controller.recordSpan({
@@ -196,6 +204,7 @@ function probeDirectRouterLifecycle(): {
         await initialized.closeUpgraded()
         await initialized.server.close()
         initialized = undefined
+        await cleanupFixture()
 
         process.stdout.write(
           '${resultMarker}' +
@@ -210,6 +219,7 @@ function probeDirectRouterLifecycle(): {
           await initialized.closeUpgraded()
           await initialized.server.close().catch(() => {})
         }
+        await cleanupFixture().catch(() => {})
       }
     }
 

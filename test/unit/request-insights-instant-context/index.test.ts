@@ -14,6 +14,7 @@ import {
   withLocalSpan,
 } from '../../../packages/next/src/server/lib/trace/local-span-recorder'
 import {
+  createRequestInsightsRetentionContext,
   getRequestInsightsIdentity,
   runWithRequestInsightsIdentity,
   type RequestInsightsIdentity,
@@ -64,6 +65,8 @@ describe('Instant Insights work store', () => {
   it('isolates validation state and restores diagnostic ownership in clean snapshots', () => {
     const foregroundIdentity: RequestInsightsIdentity = {
       requestId: 'request',
+      rootRequestId: 'request',
+      retention: createRequestInsightsRetentionContext(),
       htmlRequestId: 'page',
       url: '/instant-insights',
     }

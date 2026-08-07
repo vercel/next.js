@@ -39,7 +39,10 @@ import {
   REQUEST_INSIGHTS_HMR_MAX_BUFFERED_BYTES,
   RequestInsightsHmrClientBuffer,
 } from '../../dev/request-insights-hmr-backpressure'
-import { HMR_MESSAGE_SENT_TO_BROWSER } from '../../dev/hot-reloader-types'
+import {
+  HMR_MESSAGE_SENT_TO_BROWSER,
+  type RequestInsightsUpdateMessage,
+} from '../../dev/hot-reloader-types'
 
 const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
 const originalDevServer = process.env.__NEXT_DEV_SERVER
@@ -142,7 +145,7 @@ describe('request insights', () => {
     const buffer = new RequestInsightsHmrClientBuffer(client, () =>
       createLiveSnapshot(2)
     )
-    const message = {
+    const message: RequestInsightsUpdateMessage = {
       type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE,
       ...createLiveUpdate(1),
     }
