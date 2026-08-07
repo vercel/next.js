@@ -59,7 +59,20 @@ export function getRequestInsightSource(
   if (getRequestInsightKind(insight) === 'instant-insights') {
     return 'instant-insights'
   }
-  return insight.source ?? 'unknown'
+  switch (insight.source) {
+    case 'page':
+    case 'app-route':
+    case 'pages-api':
+    case 'image':
+    case 'asset':
+    case 'proxy':
+    case 'instant-insights':
+      return insight.source
+    case 'unknown':
+    case undefined:
+    default:
+      return 'unknown'
+  }
 }
 
 export function getRequestInsightRetentionBucket(
