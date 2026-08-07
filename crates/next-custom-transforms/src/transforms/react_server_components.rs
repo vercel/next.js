@@ -912,7 +912,11 @@ impl ReactServerComponentValidator {
         .unwrap();
         let is_app_entry = re.is_match(&self.filepath);
 
-        if is_app_entry {
+        if is_app_entry
+            && let Some(app_dir) = &self.app_dir
+            && let Some(app_dir) = app_dir.to_str()
+            && self.filepath.starts_with(app_dir)
+        {
             let mut possibly_invalid_exports: FxIndexMap<Atom, (InvalidExportKind, Span)> =
                 FxIndexMap::default();
 
