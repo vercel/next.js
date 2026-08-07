@@ -2,7 +2,10 @@
 
 use turbo_tasks::{ValueToString, Vc};
 
-use crate::{FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent, RawDirectoryContent};
+use crate::{
+    FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent, RawDirectoryContent,
+    WriteLinkContent,
+};
 
 #[derive(ValueToString)]
 #[value_to_string("null")]
@@ -18,7 +21,12 @@ impl FileSystem for NullFileSystem {
 
     #[turbo_tasks::function]
     fn read_link(&self, _fs_path: FileSystemPath) -> Vc<LinkContent> {
-        LinkContent::NotFound.cell()
+        LinkContent::Invalid.cell()
+    }
+
+    #[turbo_tasks::function]
+    fn is_junction_point(&self, _fs_path: FileSystemPath) -> Vc<bool> {
+        Vc::cell(false)
     }
 
     #[turbo_tasks::function]
@@ -30,7 +38,7 @@ impl FileSystem for NullFileSystem {
     fn write(&self, _fs_path: FileSystemPath, _content: Vc<FileContent>) {}
 
     #[turbo_tasks::function]
-    fn write_link(&self, _fs_path: FileSystemPath, _target: Vc<LinkContent>) {}
+    fn write_link(&self, _fs_path: FileSystemPath, _target: Vc<WriteLinkContent>) {}
 
     #[turbo_tasks::function]
     fn metadata(&self, _fs_path: FileSystemPath) -> Vc<FileMeta> {

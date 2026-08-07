@@ -6,7 +6,7 @@ use turbo_tasks::{ValueToString, Vc};
 
 use crate::{
     File, FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent, RawDirectoryContent,
-    RawDirectoryEntry,
+    RawDirectoryEntry, WriteLinkContent,
 };
 
 #[derive(ValueToString)]
@@ -38,7 +38,12 @@ impl FileSystem for EmbeddedFileSystem {
 
     #[turbo_tasks::function]
     fn read_link(&self, _path: FileSystemPath) -> Vc<LinkContent> {
-        LinkContent::NotFound.cell()
+        LinkContent::Invalid.cell()
+    }
+
+    #[turbo_tasks::function]
+    fn is_junction_point(&self, _path: FileSystemPath) -> Vc<bool> {
+        Vc::cell(false)
     }
 
     #[turbo_tasks::function]
@@ -77,7 +82,7 @@ impl FileSystem for EmbeddedFileSystem {
     }
 
     #[turbo_tasks::function]
-    fn write_link(&self, _path: FileSystemPath, _target: Vc<LinkContent>) -> Result<Vc<()>> {
+    fn write_link(&self, _path: FileSystemPath, _target: Vc<WriteLinkContent>) -> Result<Vc<()>> {
         bail!("Writing is not possible to the embedded filesystem")
     }
 
