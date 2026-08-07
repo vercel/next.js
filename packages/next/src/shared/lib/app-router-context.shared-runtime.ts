@@ -11,6 +11,7 @@ import type {
   CacheNode,
   LoadingModuleData,
 } from './app-router-types'
+import type { BaseUrlPart } from './relative-href'
 import React from 'react'
 
 export interface NavigateOptions {
@@ -108,6 +109,24 @@ export const GlobalLayoutRouterContext = React.createContext<{
   focusAndScrollRef: FocusAndScrollRef
   nextUrl: string | null
   previousNextUrl: string | null
+  /**
+   * The current page's URL path parts, resolved once per router state by
+   * AppRouter for `unstable_useRelativeHref`. On the initial render this is
+   * the server-computed matched route (see `getMatchedRoute` and
+   * `InitialRSCPayload.u`), so SSR and hydration resolve hrefs
+   * identically. After the first router state update — or on the initial
+   * render when the route has no statically resolvable path — it's the
+   * actual URL pathname split into parts, the same source `usePathname`
+   * reads.
+   *
+   * Null when the current render has no usable base at all: a
+   * fallback-shell prerender of a route with no statically resolvable
+   * path, where the pathname is a placeholder rather than a real URL.
+   * Never null in the browser. An individual part is null when its value
+   * is not known (a fallback param during a static prerender; also never
+   * in the browser).
+   */
+  matchedRoute: readonly BaseUrlPart[] | null
 }>(null as any)
 
 export const TemplateContext = React.createContext<React.ReactNode>(null as any)

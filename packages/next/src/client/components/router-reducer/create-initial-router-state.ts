@@ -39,6 +39,7 @@ export function createInitialRouterState({
     c: initialCanonicalUrlParts,
     f: initialFlightData,
     q: initialRenderedSearch,
+    u: initialMatchedRoute,
     i: initialCouldBeIntercepted,
     S: initialSupportsPerSegmentPrefetching,
     s: initialStaleTime,
@@ -269,6 +270,7 @@ export function createInitialRouterState({
       (extractPathFromFlightRouterState(initialTree) || location?.pathname) ??
       null,
     previousNextUrl: null,
+    initialMatchedRoute: initialMatchedRoute ?? null,
     debugInfo: null,
   }
 

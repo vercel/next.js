@@ -212,6 +212,15 @@ export async function fetchServerResponse(
     }
 
     const responseUrl = urlToUrlWithoutFlightMarker(new URL(res.url))
+    // A fetched URL never includes a fragment — not even the redirect
+    // Location's — so on a redirect, carry over the original URL's hash.
+    // This matches browser behavior for redirects whose Location has no
+    // fragment of its own (e.g. the trailing-slash normalization redirect).
+    // When the Location does specify a fragment, we can't see it, so the
+    // original hash wins where a browser would prefer the redirect's.
+    if (url.hash) {
+      responseUrl.hash = url.hash
+    }
     const canonicalUrl = res.redirected ? responseUrl : originalUrl
 
     const contentType = res.headers.get('content-type') || ''
@@ -230,11 +239,8 @@ export async function fetchServerResponse(
     // If fetch returns something different than flight response handle it like a mpa navigation
     // If the fetch was not 200, we also handle it like a mpa navigation
     if (!isFlightResponse || !res.ok || !res.body) {
-      // in case the original URL came with a hash, preserve it before redirecting to the new URL
-      if (url.hash) {
-        responseUrl.hash = url.hash
-      }
-
+      // The original URL's hash was already carried over onto responseUrl
+      // above, so an MPA navigation preserves it too.
       return doMpaNavigation(responseUrl.toString())
     }
 

@@ -135,6 +135,7 @@ import {
   getMissingPrefetchHintPolicy,
   type MissingPrefetchHintPolicy,
 } from './create-flight-router-state-from-loader-tree'
+import { getMatchedRoute } from './get-matched-route'
 import { handleAction } from './action-handler'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { warn, error } from '../../build/output/log'
@@ -2149,6 +2150,13 @@ async function getRSCPayload(
     getDynamicParamFromSegment,
     query
   )
+  // The current page's URL path parts, derived from the matched route, for
+  // unstable_useRelativeHref. Null when the route has no statically
+  // resolvable path (every path to a page goes through a catch-all). A part
+  // is null when its value is a fallback param of this prerender; those are
+  // filled in from the actual URL before hydration.
+  const matchedRoute = getMatchedRoute(initialTree)
+
   const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
   const hasGlobalNotFound = !!tree[2]['global-not-found']
 
@@ -2238,6 +2246,12 @@ async function getRSCPayload(
     }),
     c: prepareInitialCanonicalUrl(url),
     q: getRenderedSearch(query),
+    // TODO: Consider consolidating this with `c`: both describe the URL the
+    // server rendered, but `c` is the request URL (as parts of a joined
+    // href, including the search) while `u` is derived from the matched
+    // route — it can differ under rewrites and can carry null parts during
+    // a fallback prerender.
+    u: matchedRoute ?? undefined,
     i: !!couldBeIntercepted,
     f: [
       [

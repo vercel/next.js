@@ -9,6 +9,7 @@ import type {
   InitialRSCPayload,
 } from '../shared/lib/app-router-types'
 import { PAGE_SEGMENT_KEY } from '../shared/lib/segment'
+import type { BaseUrlPart } from '../shared/lib/relative-href'
 import type { NormalizedSearch } from './components/segment-cache/cache-key'
 import {
   getCacheKeyForDynamicParam,
@@ -126,7 +127,30 @@ export function createInitialRSCPayloadFromFallbackPrerender(
   if (fallbackInitialRSCPayload.b) {
     payload.b = fallbackInitialRSCPayload.b
   }
+  if (fallbackInitialRSCPayload.u) {
+    payload.u = fillInFallbackMatchedRoute(
+      fallbackInitialRSCPayload.u,
+      renderedPathname
+    )
+  }
   return payload
+}
+
+/**
+ * Fills in the parts of the prerendered matched route (see
+ * `InitialRSCPayload.u`) whose values were fallback params of the prerender
+ * (null parts). Each part corresponds positionally to one URL path part, so
+ * the values come straight from the rendered pathname — the same way
+ * `fillInFallbackFlightRouterState` fills the router tree's params.
+ */
+function fillInFallbackMatchedRoute(
+  matchedRoute: BaseUrlPart[],
+  renderedPathname: string
+): BaseUrlPart[] {
+  const pathnameParts = renderedPathname.split('/').filter((p) => p !== '')
+  return matchedRoute.map((part, i) =>
+    part === null ? (pathnameParts[i] ?? null) : part
+  )
 }
 
 function fillInFallbackFlightRouterState(

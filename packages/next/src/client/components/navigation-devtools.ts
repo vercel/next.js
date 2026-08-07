@@ -120,6 +120,14 @@ export function createRootNavigationPromises(
       readonlySearchParams
     ),
     params: createDevToolsInstrumentedPromise('useParams', pathParams),
+    // One promise for all unstable_useRelativeHref instances (see
+    // NavigationPromises); relative hrefs are position-independent, so
+    // nested layouts share it through the spread in
+    // createNestedLayoutNavigationPromises.
+    relativeHref: createDevToolsInstrumentedPromise(
+      'unstable_useRelativeHref',
+      tree
+    ),
     ...layoutSegmentPromises,
   }
 

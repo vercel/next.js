@@ -21,6 +21,7 @@
  */
 
 import type { WorkStore } from '../app-render/work-async-storage.external'
+import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 import type {
   WorkUnitStore,
   PrerenderStoreLegacy,
@@ -644,7 +645,21 @@ export function annotateDynamicAccess(
   }
 }
 
-export function useDynamicRouteParams(expression: string) {
+/**
+ * Called by a client navigation hook whose output depends on the values of
+ * the route params. During a prerender whose params aren't all known (a
+ * fallback shell), makes the calling component dynamic.
+ *
+ * Not a hook — it reads no hook state, only the ambient stores, so callers
+ * may invoke it conditionally (e.g. `unstable_useRelativeHref` only calls it
+ * when its result actually depends on an unknown param value). Instead of
+ * suspending itself, it returns a hanging promise when the render should
+ * block; the calling hook must pass it to `use()`, which is where the
+ * suspension belongs (and where a conditional `use` call is legal).
+ */
+export function trackDynamicRouteParamsAccess(
+  expression: string
+): Promise<never> | undefined {
   const workStore = workAsyncStorage.getStore()
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workStore && workUnitStore) {
@@ -653,14 +668,13 @@ export function useDynamicRouteParams(expression: string) {
         const fallbackParams = workUnitStore.fallbackRouteParams
 
         if (fallbackParams && fallbackParams.size > 0) {
-          // We are in a prerender with cacheComponents semantics. We are going to
-          // hang here and never resolve. This will cause the currently
-          // rendering component to effectively be a dynamic hole.
-          React.use(
-            makeClientHookHangingPromise(
-              workUnitStore.renderSignal,
-              new ClientHookDynamicError(workStore.route, expression)
-            )
+          // We are in a prerender with cacheComponents semantics. The
+          // returned promise hangs and never resolves, so when the calling
+          // hook passes it to `use()`, the currently rendering component
+          // effectively becomes a dynamic hole.
+          return makeClientHookHangingPromise(
+            workUnitStore.renderSignal,
+            new ClientHookDynamicError(workStore.route, expression)
           )
         }
         break
@@ -708,7 +722,52 @@ export function useDynamicRouteParams(expression: string) {
   }
 }
 
-export function useDynamicSearchParams(expression: string) {
+/**
+ * Reads the fallback route params of the current render, if it's a prerender
+ * that has any: the route params whose values are not known because the
+ * output being generated is shared across all values (e.g. the fallback
+ * shell of a route with dynamic params). Returns null during regular request
+ * rendering, where every param value is known.
+ *
+ * Used by client hooks whose output only sometimes depends on the values of
+ * route params (e.g. `unstable_useRelativeHref`) to detect which values are
+ * unknown, rather than unconditionally deopting.
+ */
+export function getPrerenderFallbackParams(): OpaqueFallbackRouteParams | null {
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  if (workUnitStore) {
+    switch (workUnitStore.type) {
+      case 'prerender':
+      case 'prerender-client':
+      case 'prerender-ppr':
+      case 'validation-client':
+        return workUnitStore.fallbackRouteParams
+      case 'request':
+      case 'cache':
+      case 'private-cache':
+      case 'unstable-cache':
+      case 'prerender-legacy':
+      case 'prerender-runtime':
+      case 'generate-static-params':
+        return null
+      default:
+        workUnitStore satisfies never
+        return null
+    }
+  }
+  return null
+}
+
+/**
+ * Called by `useSearchParams` in a client page. Search params are always
+ * request time values, so this makes the calling component dynamic in any
+ * prerender. Like `trackDynamicRouteParamsAccess`, not a hook: it returns a
+ * hanging promise when the render should block, and the calling hook passes
+ * it to `use()`.
+ */
+export function trackDynamicSearchParamsAccess(
+  expression: string
+): Promise<never> | undefined {
   const workStore = workAsyncStorage.getStore()
   const workUnitStore = workUnitAsyncStorage.getStore()
 
@@ -727,13 +786,12 @@ export function useDynamicSearchParams(expression: string) {
       // so this shouldn't hang during SSR.
       return
     case 'prerender-client': {
-      React.use(
-        makeClientHookHangingPromise(
-          workUnitStore.renderSignal,
-          new ClientHookDynamicError(workStore.route, expression)
-        )
+      // The returned promise hangs and never resolves; the calling hook
+      // passes it to `use()`, making the component a dynamic hole.
+      return makeClientHookHangingPromise(
+        workUnitStore.renderSignal,
+        new ClientHookDynamicError(workStore.route, expression)
       )
-      break
     }
     case 'prerender-legacy':
     case 'prerender-ppr': {
