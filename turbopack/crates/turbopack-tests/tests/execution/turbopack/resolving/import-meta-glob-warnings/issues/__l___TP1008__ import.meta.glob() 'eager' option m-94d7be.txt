@@ -13,10 +13,3 @@ warning - [analysis] /turbopack/crates/turbopack-tests/tests/execution/turbopack
        9 | // Warning: unknown option — should be ignored, glob still works
       10 | const unknown = import.meta.glob(['./dir/*.js', './dir2/*.js'], {
       11 |   exhaust: true,
-  
-  
-  
-  Import trace:
-    test:
-      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-warnings/input/index.js
-      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-warnings/input/index.js

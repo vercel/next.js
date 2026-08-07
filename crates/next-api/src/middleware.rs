@@ -345,6 +345,7 @@ impl MiddlewareEndpoint {
             None,
             this.project.module_graph(*userland_module),
             Vc::cell(vec![userland_module]),
+            this.project.additional_traced_modules(),
         ))
     }
 }
