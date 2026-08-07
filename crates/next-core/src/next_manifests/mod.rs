@@ -488,28 +488,6 @@ impl<'a> From<&'a turbopack_core::chunk::ModuleId> for ActionManifestModuleId<'a
     }
 }
 
-#[turbo_tasks::task_input]
-#[derive(
-    Debug,
-    Copy,
-    Clone,
-    Hash,
-    Eq,
-    PartialEq,
-    Ord,
-    PartialOrd,
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    Encode,
-    Decode,
-)]
-#[serde(rename_all = "kebab-case")]
-pub enum ActionLayer {
-    Rsc,
-    ActionBrowser,
-}
-
 #[derive(Serialize, Debug, Eq, PartialEq, Hash, Clone)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]

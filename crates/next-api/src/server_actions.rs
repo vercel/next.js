@@ -4,9 +4,7 @@ use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use next_core::{
     next_client_reference::{CssClientReferenceModule, EcmascriptClientReferenceModule},
-    next_manifests::{
-        ActionLayer, ActionManifestEntry, ActionManifestWorkerEntry, ServerReferenceManifest,
-    },
+    next_manifests::{ActionManifestEntry, ActionManifestWorkerEntry, ServerReferenceManifest},
     util::NextRuntime,
 };
 use swc_core::{
@@ -122,10 +120,19 @@ async fn collect_actions(
     Ok(Vc::cell(
         actions
             .map(async |(data, module)| {
-                let namespace = match &data.chunking_type {
-                    ChunkingType::Collected { merge_tag, .. } => merge_tag,
-                    _ => bail!("unexpected chunking type for collected reference"),
-                };
+                if cfg!(debug_assertions) {
+                    match &data.chunking_type {
+                        ChunkingType::Collected { namespace, .. } => match namespace.as_str() {
+                            "next/server-actions/rsc-edge"
+                            | "next/server-actions/rsc-nodejs"
+                            | "next/server-actions/browser-edge"
+                            | "next/server-actions/browser-nodejs" => {}
+                            _ => bail!("unexpected namespace {namespace} for collected reference"),
+                        },
+                        _ => bail!("unexpected chunking type for collected reference"),
+                    };
+                }
+
                 let data =
                     ResolvedVc::try_sidecast::<Box<dyn EmittedModuleReference>>(data.reference)
                         .context(
@@ -146,14 +153,6 @@ async fn collect_actions(
                 Ok((
                     hash.to_string(),
                     (
-                        match namespace.as_str() {
-                            "next/server-actions/rsc-edge" | "next/server-actions/rsc-nodejs" => {
-                                ActionLayer::Rsc
-                            }
-                            "next/server-actions/browser-edge"
-                            | "next/server-actions/browser-nodejs" => ActionLayer::ActionBrowser,
-                            _ => bail!("unexpected namespace {namespace} for collected reference"),
-                        },
                         ActionMeta {
                             name: name.to_string(),
                             // TODO set properly
@@ -253,7 +252,7 @@ impl Asset for ServerActionManifestAsset {
 
         let action_metadata: Vec<(&str, ActionMetadata<'_>)> = actions_value
             .iter()
-            .map(async |(hash_id, (_layer, meta, module))| {
+            .map(async |(hash_id, (meta, module))| {
                 // Use source_path from the action comment if available (contains original .ts/.tsx
                 // path), otherwise fall back to module.ident().path() (may be compiled .js
                 // path)
@@ -707,15 +706,12 @@ pub struct ActionMeta {
     pub source_path: String,
 }
 
-type HashToLayerNameModule = Vec<(
-    String,
-    (ActionLayer, ActionMeta, ResolvedVc<Box<dyn Module>>),
-)>;
+type HashToAction = Vec<(String, (ActionMeta, ResolvedVc<Box<dyn Module>>))>;
 
 /// A mapping of every module which exports a Server Action, with the hashed id
 /// and exported name of each found action.
 #[turbo_tasks::value(transparent)]
-pub struct AllActions(HashToLayerNameModule);
+pub struct AllActions(HashToAction);
 
 #[turbo_tasks::value_impl]
 impl AllActions {
@@ -739,12 +735,11 @@ pub struct ActionMap {
 #[turbo_tasks::value(transparent)]
 struct OptionActionMap(Option<ResolvedVc<ActionMap>>);
 
-type LayerAndActions = (ActionLayer, ResolvedVc<ActionMap>);
 /// A mapping of every module module containing Server Actions, mapping to its layer and actions.
 #[turbo_tasks::value(transparent)]
 pub struct AllModuleActions(
     #[bincode(with = "turbo_bincode::indexmap")]
-    FxIndexMap<ResolvedVc<Box<dyn Module>>, LayerAndActions>,
+    FxIndexMap<ResolvedVc<Box<dyn Module>>, ResolvedVc<ActionMap>>,
 );
 
 #[turbo_tasks::function]
