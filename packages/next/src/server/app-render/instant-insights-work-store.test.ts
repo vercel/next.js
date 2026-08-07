@@ -1,25 +1,25 @@
-import { createSnapshot } from '../../../packages/next/src/server/app-render/async-local-storage'
-import { createInstantInsightsWorkStore } from '../../../packages/next/src/server/app-render/instant-insights-work-store'
-import {
-  workAsyncStorage,
-  type WorkStore,
-} from '../../../packages/next/src/server/app-render/work-async-storage.external'
+import { createSnapshot } from './async-local-storage'
+import { createInstantInsightsWorkStore } from './instant-insights-work-store'
+import { workAsyncStorage, type WorkStore } from './work-async-storage.external'
 import {
   workUnitAsyncStorage,
   type RequestStore,
-} from '../../../packages/next/src/server/app-render/work-unit-async-storage.external'
+} from './work-unit-async-storage.external'
 import {
   createLocalSpan,
   getActiveLocalSpan,
   withLocalSpan,
-} from '../../../packages/next/src/server/lib/trace/local-span-recorder'
+} from '../lib/trace/local-span-recorder'
 import {
   getRequestInsightsIdentity,
   runWithRequestInsightsIdentity,
   type RequestInsightsIdentity,
-} from '../../../packages/next/src/server/lib/trace/request-insights-identity'
+} from '../lib/trace/request-insights-identity'
 
 function createTestWorkStore(): WorkStore {
+  const runInCleanSnapshot: WorkStore['runInCleanSnapshot'] = (fn, ...args) =>
+    fn(...args)
+
   return {
     route: '/instant-insights',
     invalidDynamicUsageError: new Error('foreground'),
@@ -42,7 +42,7 @@ function createTestWorkStore(): WorkStore {
       ['foreground', new Error('foreground')],
     ]),
     additionalClientReferenceManifestPages: new Set(['/foreground']),
-    runInCleanSnapshot: (fn, ...args) => fn(...args),
+    runInCleanSnapshot,
   } as unknown as WorkStore
 }
 
