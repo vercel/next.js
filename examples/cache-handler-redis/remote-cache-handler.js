@@ -43,8 +43,10 @@ module.exports = {
 
     const data = JSON.parse(stored);
 
-    // Drop the entry once it's past its revalidate window.
-    if (Date.now() > data.timestamp + data.revalidate * 1000) {
+    // Only `expire` means the entry is unusable. Past `revalidate` it's stale,
+    // not expired: return it so Next.js can serve it while it refreshes in the
+    // background. (`expire: Infinity` never trips this, which is intended.)
+    if (Date.now() > data.timestamp + data.expire * 1000) {
       return undefined;
     }
 
@@ -85,6 +87,18 @@ module.exports = {
 
     const bytes = Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)));
 
+    // A TTL needs a positive integer. By definition, `expire: Infinity`
+    // ("never expire") maps to no TTL at all, so omit it and let Redis persist
+    // the key.
+    const options = Number.isFinite(entry.expire)
+      ? {
+          expiration: {
+            type: "EX",
+            value: Math.max(1, Math.ceil(entry.expire)),
+          },
+        }
+      : {};
+
     await redis.set(
       ENTRY_PREFIX + cacheKey,
       JSON.stringify({
@@ -95,8 +109,7 @@ module.exports = {
         expire: entry.expire,
         revalidate: entry.revalidate,
       }),
-      // Let Redis expire the entry automatically.
-      { EX: Math.max(1, Math.ceil(entry.expire)) },
+      options,
     );
   },
 
@@ -115,7 +128,16 @@ module.exports = {
     return timestamps.length ? Math.max(...timestamps) : 0;
   },
 
-  // Record when each tag was revalidated so `getExpiration` can report it.
+  // Record when each tag was last revalidated so `getExpiration` can report
+  // it. There's one key per distinct tag, overwritten in place, so a small
+  // fixed tag set (like this example's single `time-data` tag) never grows.
+  //
+  // An app that mints many distinct, short-lived tags (e.g. `user-<id>`) would
+  // instead keep a key per tag forever. To bound that, give each key a TTL
+  // (`{ expiration: { type: "EX", value } }`) at least as long as your longest
+  // entry `expire`: the timestamp only needs to outlive entries created before
+  // this revalidation, so a shorter TTL could drop it while such an entry is
+  // still cached and serve it as fresh when it should be stale.
   async updateTags(tags) {
     const redis = await getClient();
     if (!redis) return;

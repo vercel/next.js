@@ -54,6 +54,18 @@ The `/[timezone]` page renders a mostly static shell and, inside it, a `'use cac
 
 > **Note:** This example fetches the current time from a public API (`timeapi.io`) purely as sample data to demonstrate caching and revalidation. It is included for learning purposes only. If you reuse it, review and respect that API's terms of use and rate limits, and swap in your own data source for real applications.
 
+## Revalidation: paths, soft tags, and advisory parameters
+
+The **Revalidate** button ([`revalidate-from.tsx`](./app/revalidate-from.tsx)) calls [`updateTag('time-data')`](https://nextjs.org/docs/app/api-reference/functions/updateTag), but that is only one entry point into the remote handler's tag machinery. Two related capabilities are handled without extra code, and two handler parameters are intentionally unused:
+
+- **[`revalidatePath`](https://nextjs.org/docs/app/api-reference/functions/revalidatePath) works without extra code.** Next.js derives implicit _soft tags_ from the route path (prefixed `_N_T_`, e.g. `_N_T_/[timezone]`) and routes path revalidation through the same tags as `revalidateTag`. A `revalidatePath('/…')` call therefore reaches `updateTags(['_N_T_/…'])`, and the next read calls `getExpiration(['_N_T_/…'])`. Because both methods operate generically over any tag string, path revalidation propagates across instances through Redis exactly like an explicit tag.
+
+- **`get(cacheKey, softTags)` ignores `softTags` by design.** A handler can honor soft tags one of two ways: implement `getExpiration` to return the most recent revalidation timestamp (Next.js then performs the soft-tag staleness check itself), or return `Infinity` from `getExpiration` and compare timestamps inside `get`. This handler does the former, so it never needs to read the `softTags` argument.
+
+- **`updateTags(tags, durations)` ignores `durations` by design.** `durations` (`{ expire }`) is only populated when a revalidation call carries a [`cacheLife`](https://nextjs.org/docs/app/api-reference/functions/cacheLife) profile, such as `revalidateTag(tag, 'max')`; it defers a tag's expiration into the future instead of expiring it immediately. This example performs only immediate revalidation, so `durations` is always `undefined` — equivalent to recording the current timestamp, which is what `updateTags` already does.
+
+See the [Soft Tags](https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheHandlers#soft-tags) section of the `cacheHandlers` documentation for the full tag architecture.
+
 ## Documentation
 
 For detailed information, see the official Next.js documentation:

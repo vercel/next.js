@@ -95,9 +95,20 @@ module.exports = class CacheHandler {
       .filter(Boolean);
     const tags = [...new Set([...(ctx?.tags ?? []), ...headerTags])];
 
+    // Let Redis auto-expire the entry when it carries a finite `expire`. Key
+    // the TTL on `expire`, never `revalidate`: past `revalidate` the entry is
+    // only stale (Next.js serves it while refreshing), so evicting it there
+    // would defeat that. ISR entries often omit `expire` entirely, in which
+    // case we set no TTL and rely on `revalidateTag` to invalidate.
+    const expire = ctx?.cacheControl?.expire;
+    const options = Number.isFinite(expire)
+      ? { expiration: { type: "EX", value: Math.max(1, Math.ceil(expire)) } }
+      : {};
+
     await client.set(
       CACHE_PREFIX + key,
       serialize({ value: data, lastModified: Date.now(), tags }),
+      options,
     );
 
     // Index this key under each of its tags so `revalidateTag` can find it.
