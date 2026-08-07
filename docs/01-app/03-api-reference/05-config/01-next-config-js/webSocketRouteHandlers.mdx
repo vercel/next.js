@@ -66,5 +66,6 @@ WebSocket Route Handlers require the Node.js runtime and work with `next dev`, `
 - [`output: 'export'`](/docs/app/guides/static-exports)
 - prerendered or ISR-cached Route Handlers
 - [`adapterPath`](/docs/app/api-reference/config/next-config-js/adapterPath), until an adapter contract for Node.js upgrade handling is available
+- rewrites to external destinations for WebSocket upgrade requests. When this option is enabled, Next.js returns `501 Not Implemented` instead of proxying these WebSocket rewrites.
 
 The built-in connection registry is process-local. Applications deployed across multiple processes or instances need an external broker for broadcasts or shared realtime state. Next.js does not impose an application-level connection count, rate limit, or idle timeout; enforce those policies in your application or reverse proxy.
