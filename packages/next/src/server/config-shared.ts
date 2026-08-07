@@ -52,7 +52,6 @@ export type NextConfigComplete = Required<
   // Don't apply `Required<>` for these properties. They really can be undefined in the finalized config.
   Pick<
     NextConfig,
-    | 'configFile'
     | 'cacheLife'
     | 'expireTime'
     | 'output'
