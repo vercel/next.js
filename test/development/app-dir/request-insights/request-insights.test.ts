@@ -98,6 +98,45 @@ describe('request insights', () => {
     })
   }
 
+  async function createReverseProxy() {
+    const upstreamOrigin = new URL(next.url)
+    const server = createServer((request, response) => {
+      const upstreamRequest = httpRequest(
+        new URL(request.url ?? '/', upstreamOrigin),
+        {
+          method: request.method,
+          headers: {
+            ...request.headers,
+            host: upstreamOrigin.host,
+          },
+        },
+        (upstreamResponse) => {
+          response.writeHead(
+            upstreamResponse.statusCode ?? 500,
+            upstreamResponse.headers
+          )
+          upstreamResponse.pipe(response)
+        }
+      )
+      upstreamRequest.once('error', (error) => response.destroy(error))
+      request.pipe(upstreamRequest)
+    })
+
+    await new Promise<void>((resolve) => {
+      server.listen(0, '127.0.0.1', resolve)
+    })
+    const address = server.address() as AddressInfo
+
+    return {
+      origin: `http://127.0.0.1:${address.port}`,
+      async close() {
+        await new Promise<void>((resolve, reject) => {
+          server.close((error) => (error ? reject(error) : resolve()))
+        })
+      },
+    }
+  }
+
   async function patchRequestInsightsConfig(patch: {
     showInternal?: boolean
     verbose?: boolean
@@ -453,6 +492,147 @@ describe('request insights', () => {
             fetch.index === second?.parentFetchIndex
         )
       ).toBe(true)
+    })
+  })
+
+  it('links a Cache Component child request through the direct server behind a proxy', async () => {
+    const existingRequestIds = new Set(
+      (
+        (await next
+          .fetch('/_next/development/request-insights')
+          .then((response) => response.json())) as {
+          requests: RequestInsight[]
+        }
+      ).requests.map((request) => request.requestId)
+    )
+    const key = `request-${Date.now()}`
+    const childPath = `/api/cache-causal/${key}`
+    const reverseProxy = await createReverseProxy()
+    const directServerOrigin = new URL(next.url)
+    directServerOrigin.hostname =
+      directServerOrigin.hostname === 'localhost' ? '127.0.0.1' : 'localhost'
+
+    try {
+      const response = await fetch(
+        `${reverseProxy.origin}/cache-causal?key=${encodeURIComponent(key)}&origin=${encodeURIComponent(directServerOrigin.origin)}`
+      )
+      const body = await response.text()
+      expect(body).toContain('Cache child: <!-- -->200')
+      expect(body).toContain('Causal cookie visible: <!-- -->false')
+
+      await retry(async () => {
+        const snapshot = (await next
+          .fetch('/_next/development/request-insights')
+          .then((insightsResponse) => insightsResponse.json())) as {
+          requests: RequestInsight[]
+        }
+        const parent = snapshot.requests
+          .filter(
+            (request) =>
+              request.route === '/cache-causal' &&
+              request.kind !== 'instant-insights' &&
+              request.parentRootRequestId === undefined &&
+              !existingRequestIds.has(request.requestId)
+          )
+          .at(-1)
+        const parentRootRequestId = parent?.rootRequestId ?? parent?.requestId
+        const child = snapshot.requests.find(
+          (request) =>
+            request.route === '/api/cache-causal/[key]' &&
+            request.url?.includes(childPath) &&
+            request.parentRootRequestId === parentRootRequestId
+        )
+        const parentFetch = snapshot.requests
+          .filter(
+            (request) =>
+              (request.rootRequestId ?? request.requestId) ===
+              parentRootRequestId
+          )
+          .flatMap((request) => request.fetches)
+          .find(
+            (fetchMetric) =>
+              fetchMetric.url.includes(childPath) &&
+              fetchMetric.index === child?.parentFetchIndex
+          )
+
+        expect(parent).toBeDefined()
+        expect(child).toBeDefined()
+        expect(parentFetch).toBeDefined()
+        expect(child?.parentFetchIndex).toBe(parentFetch?.index)
+      })
+    } finally {
+      await reverseProxy.close()
+    }
+  })
+
+  it('links proxy and App Render fetches with one index sequence', async () => {
+    const existingRequestIds = new Set(
+      (
+        (await next
+          .fetch('/_next/development/request-insights')
+          .then((response) => response.json())) as {
+          requests: RequestInsight[]
+        }
+      ).requests.map((request) => request.requestId)
+    )
+    const response = await next.fetch('/proxy-causal')
+    const body = await response.text()
+    expect(body).toContain('Proxy fetch: <!-- -->200')
+    expect(body).toContain('Page fetch: <!-- -->200')
+    expect(body).toContain('Causal cookie visible: <!-- -->false')
+
+    await retry(async () => {
+      const snapshot = (await next
+        .fetch('/_next/development/request-insights')
+        .then((insightsResponse) => insightsResponse.json())) as {
+        requests: RequestInsight[]
+      }
+      const parent = snapshot.requests
+        .filter(
+          (request) =>
+            request.route === '/proxy-causal' &&
+            request.kind !== 'instant-insights' &&
+            request.parentRootRequestId === undefined &&
+            !existingRequestIds.has(request.requestId)
+        )
+        .at(-1)
+      const parentRootRequestId = parent?.rootRequestId ?? parent?.requestId
+      const proxyFetch = parent?.fetches.find((fetchMetric) =>
+        fetchMetric.url.includes('/api/proxy-causal/proxy')
+      )
+      const pageFetch = parent?.fetches.find((fetchMetric) =>
+        fetchMetric.url.includes('/api/proxy-causal/page')
+      )
+      const children = snapshot.requests.filter(
+        (request) =>
+          request.route === '/api/proxy-causal/[source]' &&
+          request.parentRootRequestId === parentRootRequestId
+      )
+      const proxyChild = children.find((request) =>
+        request.url?.includes('/api/proxy-causal/proxy')
+      )
+      const pageChild = children.find((request) =>
+        request.url?.includes('/api/proxy-causal/page')
+      )
+
+      expect(proxyFetch).toEqual(
+        expect.objectContaining({ index: 1, statusCode: 200 })
+      )
+      expect(pageFetch).toEqual(
+        expect.objectContaining({ index: 2, statusCode: 200 })
+      )
+      expect(proxyChild).toEqual(
+        expect.objectContaining({
+          parentFetchIndex: proxyFetch?.index,
+          parentRootRequestId,
+        })
+      )
+      expect(pageChild).toEqual(
+        expect.objectContaining({
+          parentFetchIndex: pageFetch?.index,
+          parentRootRequestId,
+        })
+      )
     })
   })
 
@@ -1807,6 +1987,46 @@ describe('request insights', () => {
           'BaseServer.handleRequest',
           'AppRouteRouteHandlers.runHandler',
         ])
+      )
+    })
+  })
+
+  it('records a delivered Edge API response', async () => {
+    const existingRequestIds = new Set(
+      (
+        (await next
+          .fetch('/_next/development/request-insights')
+          .then((response) => response.json())) as {
+          requests: RequestInsight[]
+        }
+      ).requests.map((request) => request.requestId)
+    )
+    const responsePromise = next.fetch('/api/edge-response-lifecycle')
+    const response = await responsePromise
+    expect(response.status).toBe(203)
+    expect(await response.text()).toContain('finished')
+
+    await retry(async () => {
+      const snapshot = (await next
+        .fetch('/_next/development/request-insights')
+        .then((insightsResponse) => insightsResponse.json())) as {
+        requests: RequestInsight[]
+      }
+      const request = snapshot.requests.find(
+        (candidate) =>
+          candidate.url === '/api/edge-response-lifecycle' &&
+          !existingRequestIds.has(candidate.requestId)
+      )
+
+      expect(request).toEqual(
+        expect.objectContaining({
+          source: 'pages-api',
+          status: 'ok',
+          response: expect.objectContaining({
+            statusCode: 203,
+            outcome: 'finished',
+          }),
+        })
       )
     })
   })

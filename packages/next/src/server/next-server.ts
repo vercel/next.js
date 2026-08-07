@@ -1686,6 +1686,15 @@ export default class NextNodeServer extends BaseServer<
       process.env.__NEXT_DEV_SERVER && this.requestInsights
         ? getRequestMeta(params.request, 'requestInsightsIdentity')
         : undefined
+    if (requestInsightsIdentity) {
+      const { patchFetch } =
+        require('./lib/patch-fetch') as typeof import('./lib/patch-fetch')
+      const { workAsyncStorage } =
+        require('./app-render/work-async-storage.external') as typeof import('./app-render/work-async-storage.external')
+      const { workUnitAsyncStorage } =
+        require('./app-render/work-unit-async-storage.external') as typeof import('./app-render/work-unit-async-storage.external')
+      patchFetch({ workAsyncStorage, workUnitAsyncStorage })
+    }
 
     const page: {
       name?: string
@@ -2092,10 +2101,17 @@ export default class NextNodeServer extends BaseServer<
     if (
       process.env.__NEXT_DEV_SERVER &&
       this.requestInsights &&
-      requestInsightsIdentity &&
-      match?.definition.kind === RouteKind.APP_ROUTE
+      requestInsightsIdentity
     ) {
-      this.requestInsights.recordSource(requestInsightsIdentity, 'app-route')
+      const source =
+        match?.definition.kind === RouteKind.APP_ROUTE
+          ? 'app-route'
+          : match?.definition.kind === RouteKind.PAGES_API
+            ? 'pages-api'
+            : undefined
+      if (source) {
+        this.requestInsights.recordSource(requestInsightsIdentity, source)
+      }
     }
 
     const { run } = require('./web/sandbox') as typeof import('./web/sandbox')

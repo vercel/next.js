@@ -55,6 +55,8 @@ import {
 import {
   getRequestInsightsCausalTarget,
   getRequestInsightsCausalTargetFromRequest,
+  getRequestInsightsExecutionOrigin,
+  isRequestInsightsExecutionOriginTarget,
   RequestInsightsCausalRegistry,
   setRequestInsightsCausalCookie,
   takeRequestInsightsCausalToken,
@@ -929,7 +931,33 @@ describe('request insights', () => {
     expect(registry.consumeCausalToken(second, target)).toBeUndefined()
   })
 
-  it('matches only exact loopback origins, paths, protocols, ports, and methods', () => {
+  it('consumes a capability through an equivalent loopback hostname', () => {
+    const registry = new RequestInsightsCausalRegistry({
+      createToken: () => 'L'.repeat(32),
+    })
+    const token = registry.mintCausalToken({
+      parentRootRequestId: 'parent-root',
+      parentFetchIndex: 1,
+      target: {
+        origin: 'http://127.0.0.1:3000',
+        pathname: '/api/child',
+        method: 'GET',
+      },
+    })
+
+    expect(
+      registry.consumeCausalToken(token!, {
+        origin: 'http://localhost:3000',
+        pathname: '/api/child',
+        method: 'GET',
+      })
+    ).toEqual({
+      parentRootRequestId: 'parent-root',
+      parentFetchIndex: 1,
+    })
+  })
+
+  it('validates loopback origins and exact paths, protocols, ports, and methods', () => {
     expect(
       getRequestInsightsCausalTarget(
         new URL('http://app.localhost:3000/api/child?ignored=1'),
@@ -971,6 +999,51 @@ describe('request insights', () => {
         url: 'http://attacker.localhost:3000/api/child',
       })
     ).toBeUndefined()
+  })
+
+  it('derives the direct execution origin only from server-owned socket data', () => {
+    expect(
+      getRequestInsightsExecutionOrigin({
+        experimentalHttpsServer: false,
+        fallbackPort: 3000,
+        socket: { localPort: 3012 },
+      })
+    ).toBe('http://localhost:3012')
+    expect(
+      getRequestInsightsExecutionOrigin({
+        experimentalHttpsServer: false,
+        fallbackPort: 3000,
+        socket: { encrypted: true, localPort: 3013 },
+      })
+    ).toBe('https://localhost:3013')
+    expect(
+      getRequestInsightsExecutionOrigin({
+        experimentalHttpsServer: true,
+        fallbackPort: 3014,
+        socket: undefined,
+      })
+    ).toBe('https://localhost:3014')
+    expect(
+      getRequestInsightsExecutionOrigin({
+        experimentalHttpsServer: false,
+        fallbackPort: 0,
+        socket: undefined,
+      })
+    ).toBeUndefined()
+
+    const target = getRequestInsightsCausalTarget(
+      new URL('http://127.0.0.1:3012/api/child'),
+      'GET'
+    )
+    expect(
+      isRequestInsightsExecutionOriginTarget('http://localhost:3012', target)
+    ).toBe(true)
+    expect(
+      isRequestInsightsExecutionOriginTarget('http://localhost:3013', target)
+    ).toBe(false)
+    expect(
+      isRequestInsightsExecutionOriginTarget('https://localhost:3012', target)
+    ).toBe(false)
   })
 
   it('strips malformed, duplicate, and oversized causal cookies', () => {
@@ -1100,6 +1173,25 @@ describe('request insights', () => {
           }),
         ],
       })
+    )
+  })
+
+  test('refines a provisional root route with the matched app route', () => {
+    requestInsights.recordSpan({
+      name: 'GET',
+      requestId: 'refined-route',
+      htmlRequestId: 'refined-route',
+      route: '/',
+    })
+    requestInsights.recordSpan({
+      name: 'render route (app) /proxy-causal',
+      requestId: 'refined-route',
+      htmlRequestId: 'refined-route',
+      route: '/proxy-causal',
+    })
+
+    expect(requestInsights.getSnapshot().requests[0]?.route).toBe(
+      '/proxy-causal'
     )
   })
 
@@ -3125,7 +3217,9 @@ describe('request insights', () => {
     process.env.__NEXT_DEV_SERVER = '1'
     const first = new RequestInsights()
     const second = new RequestInsights()
-    const response = new WebNextResponse(undefined).body('complete')
+    const stream = new TransformStream<Uint8Array, Uint8Array>()
+    const writer = stream.writable.getWriter()
+    const response = new WebNextResponse(stream)
     response.statusCode = 202
     const identity = { requestId: 'owned-web-response' }
 
@@ -3138,9 +3232,21 @@ describe('request insights', () => {
           first.completeResponse(identity, lifecycle)
         },
       })
+      expect(first.getSnapshot().requests[0]).toEqual(
+        expect.objectContaining({
+          status: 'pending',
+          response: expect.objectContaining({ outcome: 'pending' }),
+        })
+      )
       response.send()
       const webResponse = await response.toResponse()
-      await runWithRequestInsights(second, () => webResponse.text())
+      const bodyPromise = runWithRequestInsights(second, () =>
+        webResponse.text()
+      )
+      await writer.write(new TextEncoder().encode('complete'))
+      expect(first.getSnapshot().requests[0]?.response?.outcome).toBe('pending')
+      await writer.close()
+      await bodyPromise
 
       expect(first.getSnapshot().requests[0]).toEqual(
         expect.objectContaining({
@@ -3156,6 +3262,63 @@ describe('request insights', () => {
       first.dispose()
       second.dispose()
     }
+  })
+
+  it('records Web response cancellation as an abort', async () => {
+    const response = new WebNextResponse()
+    const identity = { requestId: 'aborted-web-response' }
+
+    trackRequestInsightWebResponse(response, {
+      onAttach(trackingStartTime) {
+        requestInsights.startResponse(identity, trackingStartTime)
+      },
+      onComplete(lifecycle) {
+        requestInsights.completeResponse(identity, lifecycle)
+      },
+    })
+    response.send()
+    const webResponse = await response.toResponse()
+    await webResponse.body!.cancel(new Error('consumer cancelled'))
+
+    expect(requestInsights.getSnapshot().requests[0]).toEqual(
+      expect.objectContaining({
+        status: 'aborted',
+        response: expect.objectContaining({
+          outcome: 'aborted',
+          error: { type: 'ResponseAborted' },
+        }),
+      })
+    )
+  })
+
+  it('records Web source-stream failure as a response error', async () => {
+    const stream = new TransformStream()
+    const response = new WebNextResponse(stream)
+    const identity = { requestId: 'errored-web-response' }
+
+    trackRequestInsightWebResponse(response, {
+      onAttach(trackingStartTime) {
+        requestInsights.startResponse(identity, trackingStartTime)
+      },
+      onComplete(lifecycle) {
+        requestInsights.completeResponse(identity, lifecycle)
+      },
+    })
+    response.send()
+    const webResponse = await response.toResponse()
+    const streamError = new Error('source failed')
+    await stream.writable.abort(streamError)
+    await expect(webResponse.text()).rejects.toThrow(streamError)
+
+    expect(requestInsights.getSnapshot().requests[0]).toEqual(
+      expect.objectContaining({
+        status: 'error',
+        response: expect.objectContaining({
+          outcome: 'errored',
+          error: { type: 'Error' },
+        }),
+      })
+    )
   })
 
   it('ignores late response callbacks after controller disposal', () => {

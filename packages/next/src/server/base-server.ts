@@ -175,6 +175,7 @@ import {
 
 type BaseServerRequestInsightsRuntime = {
   RequestInsights: typeof import('./lib/trace/request-insights').RequestInsights
+  getRequestInsightsExecutionOrigin: typeof import('./lib/trace/request-insights-causal').getRequestInsightsExecutionOrigin
   resolveRequestInsightsIdentity: typeof import('./lib/trace/request-insights-identity').resolveRequestInsightsIdentity
   runWithRequestInsights: typeof import('./lib/trace/request-insights-runtime').runWithRequestInsights
   runWithRequestInsightsIdentity: typeof import('./lib/trace/request-insights-identity').runWithRequestInsightsIdentity
@@ -193,6 +194,8 @@ function getBaseServerRequestInsightsRuntime():
     if (!baseServerRequestInsightsRuntime) {
       const { RequestInsights } =
         require('./lib/trace/request-insights') as typeof import('./lib/trace/request-insights')
+      const { getRequestInsightsExecutionOrigin } =
+        require('./lib/trace/request-insights-causal') as typeof import('./lib/trace/request-insights-causal')
       const { resolveRequestInsightsIdentity, runWithRequestInsightsIdentity } =
         require('./lib/trace/request-insights-identity') as typeof import('./lib/trace/request-insights-identity')
       const { runWithRequestInsights } =
@@ -205,6 +208,7 @@ function getBaseServerRequestInsightsRuntime():
 
       baseServerRequestInsightsRuntime = {
         RequestInsights,
+        getRequestInsightsExecutionOrigin,
         resolveRequestInsightsIdentity,
         runWithRequestInsights,
         runWithRequestInsightsIdentity,
@@ -1071,11 +1075,23 @@ export default abstract class Server<
     }
 
     const requestInsights = this.requestInsights
+    const originalRequest = isNodeNextRequest(req)
+      ? req.originalRequest
+      : undefined
+    const requestInsightsExecutionOrigin =
+      requestInsightsRuntime.getRequestInsightsExecutionOrigin({
+        experimentalHttpsServer: this.serverOptions.experimentalHttpsServer,
+        fallbackPort: this.port,
+        socket: originalRequest?.socket,
+      })
     const requestInsightsIdentity =
       requestInsightsRuntime.resolveRequestInsightsIdentity({
         previousIdentity: getRequestMeta(req, 'requestInsightsIdentity'),
         requestIdHeader: req.headers[NEXT_REQUEST_ID_HEADER],
         htmlRequestIdHeader: req.headers[NEXT_HTML_REQUEST_ID_HEADER],
+        executionOrigin: requestInsightsExecutionOrigin,
+        origin:
+          process.env.__NEXT_PRIVATE_ORIGIN ?? requestInsightsExecutionOrigin,
         url: req.url,
         createRequestId: nanoid,
       })
