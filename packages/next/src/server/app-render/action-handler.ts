@@ -1255,9 +1255,6 @@ export async function handleAction({
 
         // For form actions, we need to continue rendering the page.
         if (isFetchAction) {
-          // If we skip page rendering, we need to ensure pending revalidates
-          // are awaited before closing the response. Otherwise, this will be
-          // done after rendering the page.
           return {
             type: 'done',
             result: await actionAsyncStorage.exit(() =>
