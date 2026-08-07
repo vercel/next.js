@@ -1,10 +1,7 @@
 /* eslint-disable @next/internal/no-ambiguous-jsx -- Bundled in entry-base so it gets the right JSX runtime. */
 import type {
-  CacheNodeSeedData,
-  FlightRouterState,
   InitialRSCPayload,
   DynamicParamTypesShort,
-  HeadData,
   PrefetchHints,
 } from '../../shared/lib/app-router-types'
 import {
@@ -41,6 +38,10 @@ import {
   printDebugThrownValueForProspectiveRender,
 } from './prospective-render-utils'
 import { workAsyncStorage } from './work-async-storage.external'
+import {
+  type FullTransportNode,
+  transportSegmentToSegment,
+} from '../../shared/lib/rsc-transport'
 
 // Contains metadata about the route tree. The client must fetch this before
 // it can fetch any actual segment data.
@@ -240,39 +241,6 @@ function onSegmentPrerenderError(error: unknown) {
       workStore?.route ?? 'unknown route',
       Phase.SegmentCollection
     )
-  }
-}
-
-/**
- * Extract the FlightRouterState, seed data, and head from a prerendered
- * InitialRSCPayload. Returns null if the payload doesn't match the expected
- * shape: a single root path with no segment prefix, which has 4 elements
- * ([tree, seedData, head, isHeadPartial], per getRSCPayload) or 3 when
- * reconstructed without the isHeadPartial flag (per instant-validation).
- */
-function extractFlightData(initialRSCPayload: InitialRSCPayload): {
-  buildId: string | undefined
-  flightRouterState: FlightRouterState
-  seedData: CacheNodeSeedData
-  head: HeadData
-} | null {
-  const flightDataPaths = initialRSCPayload.f
-  // FlightDataPath is an unsound type, hence the additional checks.
-  if (
-    flightDataPaths.length !== 1 ||
-    (flightDataPaths[0].length !== 3 && flightDataPaths[0].length !== 4)
-  ) {
-    console.error(
-      'Internal Next.js error: InitialRSCPayload does not match the expected ' +
-        'shape for a prerendered page during segment prefetch generation.'
-    )
-    return null
-  }
-  return {
-    buildId: initialRSCPayload.b,
-    flightRouterState: flightDataPaths[0][0],
-    seedData: flightDataPaths[0][1],
-    head: flightDataPaths[0][2],
   }
 }
 
@@ -516,11 +484,10 @@ export async function collectPrefetchHints(
     }
   )
 
-  const flightData = extractFlightData(initialRSCPayload)
-  if (flightData === null) {
-    return { hints: 0, slots: null }
-  }
-  const { buildId, flightRouterState, seedData, head } = flightData
+  const transportData = initialRSCPayload.t
+  const rootNode = transportData.t
+  const buildId = initialRSCPayload.b
+  const head = transportData.h.r
 
   // The hints every node starts from. The static-prefetch-attempt hint is
   // page-global (the tracking that feeds it is), so it goes on every node,
@@ -535,7 +502,7 @@ export async function collectPrefetchHints(
     // bits may be emitted (the client would act on them even though the
     // responses aren't bundled). Just mirror the route tree's shape with
     // the base hints on every node.
-    return createUniformHintTree(flightRouterState, baseHints)
+    return createUniformHintTree(rootNode, baseHints)
   }
   const { maxSize, maxBundleSize } = inlining
 
@@ -568,7 +535,7 @@ export async function collectPrefetchHints(
     staleTimeIterable,
     head,
     HEAD_REQUEST_KEY,
-    initialRSCPayload.h,
+    initialRSCPayload.t.h.v,
     rootVaryParamsIterable,
     clientModules,
     null,
@@ -585,10 +552,9 @@ export async function collectPrefetchHints(
 
   // Walk the tree with the parent-first, child-decides algorithm.
   const { node } = await collectPrefetchHintsImpl(
-    flightRouterState,
+    rootNode,
     buildId,
     staleTimeIterable,
-    seedData,
     clientModules,
     ROOT_SEGMENT_REQUEST_KEY,
     null, // root has no parent to inline
@@ -637,10 +603,9 @@ export async function collectPrefetchHints(
 // both ParentInlinedIntoSelf (on the child) and InlinedIntoChild (on the
 // parent) in a single pass.
 async function collectPrefetchHintsImpl(
-  route: FlightRouterState,
+  node: FullTransportNode,
   buildId: string | undefined,
   staleTimeIterable: AsyncIterable<number>,
-  seedData: CacheNodeSeedData | null,
   clientModules: ManifestNode,
   // TODO: Consider persisting the computed requestKey into the hints output
   // so it doesn't need to be recomputed during the build. This might also
@@ -678,18 +643,19 @@ async function collectPrefetchHintsImpl(
   // runtime request is needed — and are measured and inlined like any other
   // segment.
   const isStaticPrefetchDisabled =
-    ((route[4] ?? 0) & StaticPrefetchDisabled) !== 0
+    ((node.h ?? 0) & StaticPrefetchDisabled) !== 0
 
   // Render current segment and measure its gzip size. Skip measurement for
   // segments with static prefetching disabled since they contribute nothing.
+  const nodeRsc = node.d.r
   let currentGzipSize: number | null = null
-  if (!isStaticPrefetchDisabled && seedData !== null) {
+  if (!isStaticPrefetchDisabled && nodeRsc !== null) {
     const [, buffer] = await renderSegmentPrefetch(
       buildId,
       staleTimeIterable,
-      seedData[0],
+      nodeRsc,
       requestKey,
-      seedData[4],
+      node.d.v,
       rootVaryParamsIterable,
       clientModules,
       null,
@@ -716,8 +682,7 @@ async function collectPrefetchHintsImpl(
   // accepts, we stop offering to remaining siblings — the parent is only
   // inlined into one child. In parallel routes, this avoids duplicating the
   // parent's data across multiple sibling responses.
-  const children = route[1]
-  const seedDataChildren = seedData !== null ? seedData[1] : null
+  const children = node.c
 
   let slots: Record<string, PrefetchHints> | null = null
   let didInlineIntoChild = false
@@ -727,74 +692,64 @@ async function collectPrefetchHintsImpl(
   // can accept its data, the parent's bytes would flow through to the child
   // with the most remaining headroom.
   let smallestChildInlinedBytes = Infinity
-  let hasChildren = false
 
-  for (const parallelRouteKey in children) {
-    hasChildren = true
-    const childRoute = children[parallelRouteKey]
-    const childSegment = childRoute[0]
-    const childSeedData =
-      seedDataChildren !== null
-        ? (seedDataChildren[parallelRouteKey] ?? null)
-        : null
+  if (children === undefined) {
+    // Leaf segment: no children have consumed any budget yet.
+    smallestChildInlinedBytes = 0
+  } else {
+    for (const [parallelRouteKey, childNode] of children) {
+      const childRequestKey = appendSegmentRequestKeyPart(
+        requestKey,
+        parallelRouteKey,
+        createSegmentRequestKeyPart(transportSegmentToSegment(childNode.s))
+      )
 
-    const childRequestKey = appendSegmentRequestKeyPart(
-      requestKey,
-      parallelRouteKey,
-      createSegmentRequestKeyPart(childSegment)
-    )
+      // Determine what size to offer children for inlining. Normally we offer
+      // our own size. But if static prefetching is disabled for this segment,
+      // it has no data of its own — instead it passes the parent's offer
+      // through to children. This allows a static grandparent to inline
+      // through a disabled intermediate segment into a static grandchild.
+      const sizeToOfferChild = isStaticPrefetchDisabled
+        ? parentGzipSize
+        : sizeToInline
 
-    // Determine what size to offer children for inlining. Normally we offer
-    // our own size. But if static prefetching is disabled for this segment,
-    // it has no data of its own — instead it passes the parent's offer
-    // through to children. This allows a static grandparent to inline
-    // through a disabled intermediate segment into a static grandchild.
-    const sizeToOfferChild = isStaticPrefetchDisabled
-      ? parentGzipSize
-      : sizeToInline
+      const childResult = await collectPrefetchHintsImpl(
+        childNode,
+        buildId,
+        staleTimeIterable,
+        clientModules,
+        childRequestKey,
+        // Once a child has accepted us, stop offering to remaining siblings.
+        didInlineIntoChild ? null : sizeToOfferChild,
+        baseHints,
+        maxSize,
+        maxBundleSize,
+        headGzipSize,
+        headInlineState,
+        rootVaryParamsIterable,
+        needsRuntimeRequest,
+        shellStageRelease
+      )
 
-    const childResult = await collectPrefetchHintsImpl(
-      childRoute,
-      buildId,
-      staleTimeIterable,
-      childSeedData,
-      clientModules,
-      childRequestKey,
-      // Once a child has accepted us, stop offering to remaining siblings.
-      didInlineIntoChild ? null : sizeToOfferChild,
-      baseHints,
-      maxSize,
-      maxBundleSize,
-      headGzipSize,
-      headInlineState,
-      rootVaryParamsIterable,
-      needsRuntimeRequest,
-      shellStageRelease
-    )
+      if (slots === null) {
+        slots = {}
+      }
+      slots[parallelRouteKey] = childResult.node
 
-    if (slots === null) {
-      slots = {}
-    }
-    slots[parallelRouteKey] = childResult.node
-
-    if (childResult.node.hints & PrefetchHint.ParentInlinedIntoSelf) {
-      // This child accepted our data — it will include our segment's
-      // response in its own. No need to track headroom anymore since
-      // we already know which child we're inlined into.
-      didInlineIntoChild = true
-      acceptingChildInlinedBytes = childResult.inlinedBytes
-    } else if (!didInlineIntoChild) {
-      // Track the child with the most remaining headroom. Used below
-      // when deciding whether to accept our own parent's data.
-      if (childResult.inlinedBytes < smallestChildInlinedBytes) {
-        smallestChildInlinedBytes = childResult.inlinedBytes
+      if (childResult.node.hints & PrefetchHint.ParentInlinedIntoSelf) {
+        // This child accepted our data — it will include our segment's
+        // response in its own. No need to track headroom anymore since
+        // we already know which child we're inlined into.
+        didInlineIntoChild = true
+        acceptingChildInlinedBytes = childResult.inlinedBytes
+      } else if (!didInlineIntoChild) {
+        // Track the child with the most remaining headroom. Used below
+        // when deciding whether to accept our own parent's data.
+        if (childResult.inlinedBytes < smallestChildInlinedBytes) {
+          smallestChildInlinedBytes = childResult.inlinedBytes
+        }
       }
     }
-  }
-
-  // Leaf segment: no children have consumed any budget yet.
-  if (!hasChildren) {
-    smallestChildInlinedBytes = 0
   }
 
   // Mark this segment as InlinedIntoChild if one of its children accepted.
@@ -835,11 +790,11 @@ async function collectPrefetchHintsImpl(
   // always be reachable through the static responses — inlined into one of
   // them, or outlined.
   const isBundleTerminal = !didInlineIntoChild && !isStaticPrefetchDisabled
-  const segment = route[0]
+  const segment = node.s
   const isPageSegment =
     typeof segment === 'string'
       ? segment === PAGE_SEGMENT_KEY
-      : segment[0] === PAGE_SEGMENT_KEY
+      : segment.n === PAGE_SEGMENT_KEY
   if (!headInlineState.inlined && isBundleTerminal && isPageSegment) {
     // The head counts against the bundle budget.
     if (inlinedBytes + headGzipSize < maxBundleSize) {
@@ -896,19 +851,18 @@ async function collectPrefetchHintsImpl(
 // with the loader tree, so a bit that's missing from a node never reaches the
 // corresponding segment.
 function createUniformHintTree(
-  route: FlightRouterState,
+  node: FullTransportNode,
   hints: number
 ): PrefetchHints {
   let slots: Record<string, PrefetchHints> | null = null
-  const children = route[1]
-  for (const parallelRouteKey in children) {
-    if (slots === null) {
-      slots = {}
+  const children = node.c
+  if (children !== undefined) {
+    for (const [parallelRouteKey, childNode] of children) {
+      if (slots === null) {
+        slots = {}
+      }
+      slots[parallelRouteKey] = createUniformHintTree(childNode, hints)
     }
-    slots[parallelRouteKey] = createUniformHintTree(
-      children[parallelRouteKey],
-      hints
-    )
   }
   return { hints, slots }
 }
@@ -974,11 +928,10 @@ async function PrefetchTreeData({
     }
   )
 
-  const flightData = extractFlightData(initialRSCPayload)
-  if (flightData === null) {
-    return null
-  }
-  const { buildId, flightRouterState, seedData, head } = flightData
+  const transportData = initialRSCPayload.t
+  const rootNode = transportData.t
+  const buildId = initialRSCPayload.b
+  const head = transportData.h.r
 
   // Root params are forwarded once at the top level of each segment
   // response, same as the page response's own root vary params; the client
@@ -1009,14 +962,13 @@ async function PrefetchTreeData({
   // each segment. When prefetch inlining is enabled, small segments are bundled
   // into their children's responses based on the hint bits.
   const headBundle: SegmentBundleNode | null = headIsInlined
-    ? { rsc: head, varyParams: initialRSCPayload.h, next: null }
+    ? { rsc: head, varyParams: initialRSCPayload.t.h.v, next: null }
     : null
   const tree = collectSegmentDataImpl(
     isClientParamParsingEnabled,
-    flightRouterState,
+    rootNode,
     buildId,
     staleTimeIterable,
-    seedData,
     clientModules,
     ROOT_SEGMENT_REQUEST_KEY,
     segmentTasks,
@@ -1040,7 +992,7 @@ async function PrefetchTreeData({
           staleTimeIterable,
           head,
           HEAD_REQUEST_KEY,
-          initialRSCPayload.h,
+          initialRSCPayload.t.h.v,
           rootVaryParamsIterable,
           clientModules,
           null,
@@ -1070,10 +1022,9 @@ async function PrefetchTreeData({
 
 function collectSegmentDataImpl(
   isClientParamParsingEnabled: boolean,
-  route: FlightRouterState,
+  node: FullTransportNode,
   buildId: string | undefined,
   staleTimeIterable: AsyncIterable<number>,
-  seedData: CacheNodeSeedData | null,
   clientModules: ManifestNode,
   requestKey: SegmentRequestKey,
   segmentTasks: Array<Promise<[string, Buffer]>>,
@@ -1098,12 +1049,12 @@ function collectSegmentDataImpl(
   // response produced here always has correct hints, so the client should
   // never see InliningHintsStale in a /_tree response.
   const prefetchHints =
-    ((route[4] ?? 0) | (hintTree !== null ? hintTree.hints : 0)) &
+    ((node.h ?? 0) | (hintTree !== null ? hintTree.hints : 0)) &
     ~PrefetchHint.InliningHintsStale
 
   // The params this segment's own output varies on, forwarded into its
   // response as-is. Root params are forwarded separately, once per response.
-  const varyParams = seedData !== null ? seedData[4] : null
+  const varyParams = node.d.v
 
   // If static prefetching is disabled for this segment
   // (prefetch: 'force-disabled' / instant = false), it still participates in
@@ -1118,7 +1069,8 @@ function collectSegmentDataImpl(
   // attempt a static prefetch before deciding whether the segment's runtime
   // request is actually needed.
   const staticPrefetchDisabled = (prefetchHints & StaticPrefetchDisabled) !== 0
-  const rsc = seedData !== null && !staticPrefetchDisabled ? seedData[0] : null
+  const nodeRsc = node.d.r
+  const rsc = !staticPrefetchDisabled ? nodeRsc : null
 
   // Determine whether this segment's data should be accumulated into a
   // child's response (inlining) or spawned as its own task. When inlining
@@ -1132,7 +1084,7 @@ function collectSegmentDataImpl(
     // of its children's responses. Don't spawn a separate task — prepend
     // this segment's data onto the linked list so the accepting child can
     // bundle it into its response.
-    if (seedData !== null) {
+    if (nodeRsc !== null) {
       childBundle = {
         rsc,
         varyParams,
@@ -1147,7 +1099,7 @@ function collectSegmentDataImpl(
     //
     // Skip spawning a task if rsc is null (disabled segment) — there's no
     // data to serve and the client won't request it.
-    if (seedData !== null && rsc !== null) {
+    if (rsc !== null) {
       let bundle =
         prefetchHints & PrefetchHint.ParentInlinedIntoSelf ? parentBundle : null
       // If this page accepts the head, append it at the tail of the chain.
@@ -1183,63 +1135,56 @@ function collectSegmentDataImpl(
   // there are no children.
   let slotMetadata: { [parallelRouteKey: string]: TreePrefetch } | null = null
 
-  const children = route[1]
-  const seedDataChildren = seedData !== null ? seedData[1] : null
-  for (const parallelRouteKey in children) {
-    const childRoute = children[parallelRouteKey]
-    const childSegment = childRoute[0]
-    const childSeedData =
-      seedDataChildren !== null
-        ? (seedDataChildren[parallelRouteKey] ?? null)
-        : null
-
-    const childRequestKey = appendSegmentRequestKeyPart(
-      requestKey,
-      parallelRouteKey,
-      createSegmentRequestKeyPart(childSegment)
-    )
-    const childHintTree =
-      hintTree !== null && hintTree.slots !== null
-        ? (hintTree.slots[parallelRouteKey] ?? null)
-        : null
-    const childTree = collectSegmentDataImpl(
-      isClientParamParsingEnabled,
-      childRoute,
-      buildId,
-      staleTimeIterable,
-      childSeedData,
-      clientModules,
-      childRequestKey,
-      segmentTasks,
-      prefetchInlining,
-      childHintTree,
-      childBundle,
-      headBundle,
-      rootVaryParamsIterable,
-      isUpgradeableISRFallback,
-      needsRuntimeRequest,
-      shellStageRelease
-    )
-    if (slotMetadata === null) {
-      slotMetadata = {}
+  const children = node.c
+  if (children !== undefined) {
+    for (const [parallelRouteKey, childNode] of children) {
+      const childRequestKey = appendSegmentRequestKeyPart(
+        requestKey,
+        parallelRouteKey,
+        createSegmentRequestKeyPart(transportSegmentToSegment(childNode.s))
+      )
+      const childHintTree =
+        hintTree !== null && hintTree.slots !== null
+          ? (hintTree.slots[parallelRouteKey] ?? null)
+          : null
+      const childTree = collectSegmentDataImpl(
+        isClientParamParsingEnabled,
+        childNode,
+        buildId,
+        staleTimeIterable,
+        clientModules,
+        childRequestKey,
+        segmentTasks,
+        prefetchInlining,
+        childHintTree,
+        childBundle,
+        headBundle,
+        rootVaryParamsIterable,
+        isUpgradeableISRFallback,
+        needsRuntimeRequest,
+        shellStageRelease
+      )
+      if (slotMetadata === null) {
+        slotMetadata = {}
+      }
+      slotMetadata[parallelRouteKey] = childTree
     }
-    slotMetadata[parallelRouteKey] = childTree
   }
 
-  const segment = route[0]
+  const segment = node.s
   let name: string
   let param: TreePrefetchParam | null
   if (typeof segment === 'string') {
     name = segment
     param = null
   } else {
-    name = segment[0]
+    name = segment.n
     param = {
-      type: segment[2],
+      type: segment.t,
       // This value is omitted from the prefetch response when cacheComponents
       // is enabled.
-      key: isClientParamParsingEnabled ? null : segment[1],
-      siblings: segment[3],
+      key: isClientParamParsingEnabled ? null : segment.k,
+      siblings: segment.s,
     }
   }
 
