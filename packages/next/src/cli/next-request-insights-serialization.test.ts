@@ -1,16 +1,16 @@
 import type {
   RequestInsight,
   RequestInsightsSnapshot,
-} from '../../../packages/next/src/next-devtools/shared/request-insights'
-import { REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES } from '../../../packages/next/src/next-devtools/shared/request-insights'
+} from '../next-devtools/shared/request-insights'
+import { REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES } from '../next-devtools/shared/request-insights'
 import {
   getUtf8ByteLength,
   stringifyTerminalSafeJson,
-} from '../../../packages/next/src/next-devtools/shared/terminal-safe-json'
+} from '../next-devtools/shared/terminal-safe-json'
 import {
   projectSnapshotToLogicalGroups,
   serializeSnapshotForOutput,
-} from '../../../packages/next/src/cli/next-request-insights'
+} from './next-request-insights'
 
 function createRequest(
   requestId: string,
