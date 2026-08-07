@@ -72,7 +72,7 @@ Then, for each one:
 
    ```tsx
    // TODO(runtime-prefetch): assess with the user whether URL data should resolve before click.
-   // See: https://nextjs.org/docs/app/guides/runtime-prefetching
+   // See: https://nextjs.org/docs/app/guides/optimizing-prefetching
    export const prefetch = 'partial'
    ```
 
@@ -131,9 +131,9 @@ Then check in with the user. Speak their language — no insight slugs or step l
 
 ## step 5: runtime prefetching (optional)
 
-The audit marked the candidates instead of deciding them. Grep for `TODO(runtime-prefetch)` and walk the list with the user in one conversation. The question per route is whether they want the URL-dependent content prefetched ahead of the click, or streaming in after navigation is fine. A runtime prefetch costs a server invocation per prefetchable link — the guide's [per-link prefetching trade-offs](https://nextjs.org/docs/app/guides/runtime-prefetching#per-link-prefetching-trade-offs) section is the checklist. Don't make these calls alone.
+The audit marked the candidates instead of deciding them. Grep for `TODO(runtime-prefetch)` and walk the list with the user in one conversation. The question per route is whether they want the URL-dependent content prefetched ahead of the click, or streaming in after navigation is fine. A runtime prefetch costs a server invocation per prefetchable link — the guide's [trade-offs](https://nextjs.org/docs/app/guides/optimizing-prefetching#trade-offs) section is the checklist. Don't make these calls alone.
 
-Where the answer is yes, follow the [runtime prefetching guide](https://nextjs.org/docs/app/guides/runtime-prefetching): keep [`<Link prefetch={true}>`](https://nextjs.org/docs/app/api-reference/components/link#prefetch) on the links that should resolve more than the App Shell, and cache the content behind the URL-data read using the guide's patterns (`use cache` with the runtime value passed in, or `use cache: private` for per-user data). Each per-link prefetch is a server render when the destination needs non-static data, so use the guide's [per-link trade-offs](https://nextjs.org/docs/app/guides/runtime-prefetching#per-link-prefetching-trade-offs) to decide when viewport prefetching is worth it and when [hover-triggered prefetch](https://nextjs.org/docs/app/guides/prefetching#hover-triggered-prefetch) is a better fit. Where it's no, delete the marker and leave the route on the App Shell default. Either way no `TODO(runtime-prefetch)` marker survives this step. Confirm the opted-in links against a production run (`next build` and `next start` — the runtime prefetch fires there, not in `next dev`), give the user the same click-through for them, and keep this as its own commit or PR.
+Where the answer is yes, follow the [Optimizing prefetching guide](https://nextjs.org/docs/app/guides/optimizing-prefetching): keep [`<Link prefetch={true}>`](https://nextjs.org/docs/app/api-reference/components/link#prefetch) on the links that should resolve more than the App Shell, and cache the content behind the URL-data read using the guide's patterns (`use cache` with the runtime value passed in, or `use cache: private` for per-user data). Each per-link prefetch is a server render when the destination needs non-static data, so use the guide's [per-link trade-offs](https://nextjs.org/docs/app/guides/optimizing-prefetching#trade-offs) to decide when viewport prefetching is worth it and when [hover-triggered prefetch](https://nextjs.org/docs/app/guides/prefetching#hover-triggered-prefetch) is a better fit. Where it's no, delete the marker and leave the route on the App Shell default. Either way no `TODO(runtime-prefetch)` marker survives this step. Confirm the opted-in links against a production run (`next build` and `next start` — the runtime prefetch fires there, not in `next dev`), give the user the same click-through for them, and keep this as its own commit or PR.
 
 ## further reading
 

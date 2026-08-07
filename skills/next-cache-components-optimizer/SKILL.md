@@ -372,7 +372,7 @@ this gate is as machine-checkable as the others. Detail:
 shell to grow. Don't force one. Runtime prefetching can make the soft
 navigation instant, but it is outside this optimizer loop: it requires Partial
 Prefetching, a `<Link prefetch={true}>`, and cached URL-dependent content. See
-[Runtime Prefetching](https://nextjs.org/docs/app/guides/runtime-prefetching)
+[Optimizing prefetching](https://nextjs.org/docs/app/guides/optimizing-prefetching)
 and pattern 10 in `reference/patterns.md` for the requirements, cost trade-offs,
 manual prefetch caveat, and `instant()` test gotchas.
 
