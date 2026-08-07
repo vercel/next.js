@@ -1182,12 +1182,14 @@ describe('request insights', () => {
       requestId: 'refined-route',
       htmlRequestId: 'refined-route',
       route: '/',
+      timestamp: 1,
     })
     requestInsights.recordSpan({
       name: 'render route (app) /proxy-causal',
       requestId: 'refined-route',
       htmlRequestId: 'refined-route',
       route: '/proxy-causal',
+      timestamp: 2,
     })
 
     expect(requestInsights.getSnapshot().requests[0]?.route).toBe(

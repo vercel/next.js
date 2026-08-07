@@ -1,24 +1,39 @@
 import { RequestInsights } from './request-insights'
 import {
+  createRequestInsightsRetentionContext,
+  type RequestInsightsIdentity,
+} from './request-insights-identity'
+import {
   getRequestInsightsCausalTarget,
   takeRequestInsightsCausalToken,
 } from './request-insights-causal'
 import { prepareRequestInsightsSandboxFetch } from './request-insights-sandbox-fetch'
 
+function createTestIdentity(
+  identity: Pick<RequestInsightsIdentity, 'requestId'> &
+    Partial<RequestInsightsIdentity>
+): RequestInsightsIdentity {
+  return {
+    rootRequestId: identity.requestId,
+    retention: createRequestInsightsRetentionContext(),
+    htmlRequestId: identity.requestId,
+    url: undefined,
+    ...identity,
+  }
+}
+
 describe('prepareRequestInsightsSandboxFetch', () => {
   it('keeps fetches isolated by controller and identity', () => {
     const first = new RequestInsights()
     const second = new RequestInsights()
-    const firstIdentity = {
+    const firstIdentity = createTestIdentity({
       requestId: 'first-edge-request',
-      htmlRequestId: 'first-edge-request',
       url: '/first',
-    }
-    const secondIdentity = {
+    })
+    const secondIdentity = createTestIdentity({
       requestId: 'second-edge-request',
-      htmlRequestId: 'second-edge-request',
       url: '/second',
-    }
+    })
 
     prepareRequestInsightsSandboxFetch({
       context: { identity: firstIdentity, requestInsights: first },
@@ -50,13 +65,13 @@ describe('prepareRequestInsightsSandboxFetch', () => {
 
   it('links and revokes a same-origin causal capability', () => {
     const requestInsights = new RequestInsights()
-    const identity = {
+    const identity = createTestIdentity({
       requestId: 'edge-parent',
       rootRequestId: 'edge-parent-root',
       htmlRequestId: 'edge-parent',
       origin: 'http://app.localhost',
       url: '/edge',
-    }
+    })
     const target = getRequestInsightsCausalTarget(
       new URL('http://app.localhost/api/child'),
       'POST'
@@ -92,14 +107,14 @@ describe('prepareRequestInsightsSandboxFetch', () => {
 
   it('links a direct server fetch when the ingress origin is proxied', () => {
     const requestInsights = new RequestInsights()
-    const identity = {
+    const identity = createTestIdentity({
       requestId: 'proxied-edge-parent',
       rootRequestId: 'proxied-edge-parent-root',
       htmlRequestId: 'proxied-edge-parent',
       origin: 'https://app.localhost',
       executionOrigin: 'http://localhost:3012',
       url: '/edge',
-    }
+    })
     const target = getRequestInsightsCausalTarget(
       new URL('http://localhost:3012/api/child'),
       'GET'
@@ -128,11 +143,11 @@ describe('prepareRequestInsightsSandboxFetch', () => {
 
   it('uses unique indexes and completes each fetch once', () => {
     const requestInsights = new RequestInsights()
-    const identity = {
+    const identity = createTestIdentity({
       requestId: 'edge-request',
       htmlRequestId: 'edge-request',
       url: '/edge',
-    }
+    })
     const first = prepareRequestInsightsSandboxFetch({
       context: { identity, requestInsights },
       init: {},
@@ -160,13 +175,13 @@ describe('prepareRequestInsightsSandboxFetch', () => {
     const mintCausalToken = jest.spyOn(requestInsights, 'mintCausalToken')
     const prepared = prepareRequestInsightsSandboxFetch({
       context: {
-        identity: {
+        identity: createTestIdentity({
           requestId: 'edge-request',
           rootRequestId: 'edge-request-root',
           htmlRequestId: 'edge-request',
           origin: 'http://app.localhost',
           url: '/edge',
-        },
+        }),
         requestInsights,
       },
       init: {
@@ -207,11 +222,11 @@ describe('prepareRequestInsightsSandboxFetch', () => {
     }) as RequestInit
     const prepared = prepareRequestInsightsSandboxFetch({
       context: {
-        identity: {
+        identity: createTestIdentity({
           requestId: 'edge-request',
           htmlRequestId: 'edge-request',
           url: '/edge',
-        },
+        }),
         requestInsights,
       },
       init,
@@ -236,11 +251,11 @@ describe('prepareRequestInsightsSandboxFetch', () => {
     }) as RequestInit
     const prepared = prepareRequestInsightsSandboxFetch({
       context: {
-        identity: {
+        identity: createTestIdentity({
           requestId: 'edge-request',
           htmlRequestId: 'edge-request',
           url: '/edge',
-        },
+        }),
         requestInsights,
       },
       init,
@@ -280,11 +295,11 @@ describe('prepareRequestInsightsSandboxFetch', () => {
     ) as RequestInit
     const prepared = prepareRequestInsightsSandboxFetch({
       context: {
-        identity: {
+        identity: createTestIdentity({
           requestId: 'edge-request',
           htmlRequestId: 'edge-request',
           url: '/edge',
-        },
+        }),
         requestInsights,
       },
       init,
@@ -330,11 +345,11 @@ describe('prepareRequestInsightsSandboxFetch', () => {
     } as unknown as HeadersInit
     const prepared = prepareRequestInsightsSandboxFetch({
       context: {
-        identity: {
+        identity: createTestIdentity({
           requestId: 'edge-request',
           htmlRequestId: 'edge-request',
           url: '/edge',
-        },
+        }),
         requestInsights,
       },
       init: { headers },
@@ -362,13 +377,13 @@ describe('prepareRequestInsightsSandboxFetch', () => {
     })
     const prepared = prepareRequestInsightsSandboxFetch({
       context: {
-        identity: {
+        identity: createTestIdentity({
           requestId: 'edge-request',
           rootRequestId: 'edge-request-root',
           htmlRequestId: 'edge-request',
           origin: 'http://app.localhost',
           url: '/edge',
-        },
+        }),
         requestInsights,
       },
       init: {

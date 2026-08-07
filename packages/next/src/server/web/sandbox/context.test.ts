@@ -1,4 +1,5 @@
 import { RequestInsights } from '../../lib/trace/request-insights'
+import { createRequestInsightsRetentionContext } from '../../lib/trace/request-insights-identity'
 import { getModuleContext, requestStore } from './context'
 import { validateURL } from '../utils'
 
@@ -111,6 +112,8 @@ describe('Next.js sandbox Request constructor', () => {
           requestInsightsFetchContext: {
             identity: {
               requestId: 'edge-fetch',
+              rootRequestId: 'edge-fetch',
+              retention: createRequestInsightsRetentionContext(),
               htmlRequestId: 'edge-fetch',
               url: '/edge',
             },
@@ -183,6 +186,8 @@ describe('Next.js sandbox Request constructor', () => {
           requestInsightsFetchContext: {
             identity: {
               requestId: 'edge-boxed-fetch',
+              rootRequestId: 'edge-boxed-fetch',
+              retention: createRequestInsightsRetentionContext(),
               htmlRequestId: 'edge-boxed-fetch',
               url: '/edge',
             },

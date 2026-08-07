@@ -286,6 +286,7 @@ describe('createPatchedFetcher', () => {
     const identity: RequestInsightsIdentity = {
       requestId: 'mixed-runtime-parent',
       rootRequestId: 'mixed-runtime-parent-root',
+      retention: createRequestInsightsRetentionContext(),
       htmlRequestId: 'mixed-runtime-parent',
       origin: 'http://app.localhost',
       url: '/',
