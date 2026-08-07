@@ -569,6 +569,8 @@ function getRevalidationWaitUntil(
   skipPageRendering: boolean
 ): Promise<void> | undefined {
   if (!skipPageRendering) {
+    // Page rendering executes pending revalidations before rendering. We only
+    // need to attach them to waitUntil when no page render will take place.
     return undefined
   }
 
