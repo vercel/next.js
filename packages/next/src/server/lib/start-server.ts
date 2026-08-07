@@ -43,6 +43,8 @@ import { isIPv6 } from './is-ipv6'
 import { AsyncCallbackSet } from './async-callback-set'
 import type { NextServer } from '../next'
 import { durationToString } from '../../build/duration-to-string'
+import { addRequestMeta } from '../request-meta'
+import { createWebSocketUpgradeListenerOwnershipTracker } from '../websocket-upgrade-listener'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
@@ -283,7 +285,16 @@ export async function startServer(
   if (keepAliveTimeout) {
     server.keepAliveTimeout = keepAliveTimeout
   }
-  server.on('upgrade', async (req, socket, head) => {
+  const handleServerUpgrade: WorkerUpgradeHandler = async (
+    req,
+    socket,
+    head
+  ) => {
+    addRequestMeta(
+      req,
+      'webSocketUpgradeExclusiveOwner',
+      webSocketUpgradeOwnership.isExclusiveOwner()
+    )
     try {
       await upgradeHandler(req, socket, head)
     } catch (err) {
@@ -291,7 +302,11 @@ export async function startServer(
       Log.error(`Failed to handle request for ${req.url}`)
       console.error(err)
     }
-  })
+  }
+  const webSocketUpgradeOwnership =
+    createWebSocketUpgradeListenerOwnershipTracker(server, handleServerUpgrade)
+  server.on('upgrade', handleServerUpgrade)
+  server.once('close', () => webSocketUpgradeOwnership.dispose())
 
   let portRetryCount = 0
   const originalPort = port
@@ -395,7 +410,7 @@ export async function startServer(
 
       try {
         let cleanupStarted = false
-        let closeUpgraded: (() => Promise<void>) | null = null
+        let closeUpgraded: ((code?: number) => Promise<void>) | null = null
         const cleanup = (signal: 'SIGINT' | 'SIGTERM') => {
           if (cleanupStarted) {
             // We can get duplicate signals, e.g. when `ctrl+c` is used in an
@@ -408,10 +423,10 @@ export async function startServer(
           ;(async () => {
             debug('start-server process cleanup')
 
-            // Stop accepting new connections before snapshotting and closing
-            // upgraded sockets. Otherwise an upgrade can land between those
-            // operations and survive shutdown.
-            const serverClosePromise = new Promise<void>((res) => {
+            // First stop accepting new connections. Then finish pending HTTP
+            // requests and upgraded connections before `nextServer.close()`;
+            // either may still schedule `after` work while closing.
+            const closeHttpServer = new Promise<void>((res) => {
               server.close((err) => {
                 if (err) console.error(err)
                 res()
@@ -420,12 +435,10 @@ export async function startServer(
                 server.closeAllConnections()
               }
             })
-            const closeUpgradedPromise =
-              closeUpgraded?.().catch(console.error) ?? Promise.resolve()
-
-            // Pending HTTP requests and upgraded sockets can drain in parallel
-            // after the listener has stopped accepting connections.
-            await Promise.all([serverClosePromise, closeUpgradedPromise])
+            const closeUpgradedConnections = closeUpgraded
+              ? closeUpgraded(1001).catch(console.error)
+              : Promise.resolve()
+            await Promise.all([closeHttpServer, closeUpgradedConnections])
 
             // now that no new requests can come in, clean up the rest
             await Promise.all([

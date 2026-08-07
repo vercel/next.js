@@ -498,6 +498,7 @@ export interface ExperimentalConfig {
    * regardless of this flag.
    */
   coldCacheBadge?: boolean
+<<<<<<< HEAD
   /**
    * Whether a build may serve several dynamic routes from one entry in the
    * route table that it passes to an adapter. Several routes of an app can
@@ -512,7 +513,13 @@ export interface ExperimentalConfig {
    * @default false
    */
   collapseAdapterRoutes?: boolean
-  webSocketRouteHandlers?: boolean
+  /** @experimental WebSocket Route Handlers are an experimental feature. */
+  webSocketRouteHandlers?:
+    | boolean
+    | {
+        /** Exact HTTP(S) origins allowed to open cross-origin WebSockets. */
+        allowedOrigins?: string[]
+      }
   useSkewCookie?: boolean
   /** @deprecated use top-level `cacheHandlers` instead */
   cacheHandlers?: NextConfig['cacheHandlers']

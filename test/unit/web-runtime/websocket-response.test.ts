@@ -1,392 +1,244 @@
-import type { IncomingMessage } from 'node:http'
-import { EventEmitter } from 'node:events'
-import { PassThrough } from 'node:stream'
-
-import { NextResponse } from 'next/dist/server/web/spec-extension/response'
+import { NextResponse } from 'next/server'
+import { createWebSocketUpgradeFallbackResponse } from 'next/dist/server/web/spec-extension/websocket-upgrade-fallback'
 import {
-  filterWebSocketUpgradeRequestHeaders,
-  getUpgradeResponseHeaders,
-  validateWebSocketHandshake,
-  validateWebSocketRequestPolicy,
-  validateUpgradeResponseHeaders,
-  writeRawHttpResponse,
-} from 'next/dist/server/websocket-upgrade'
-import {
-  closeAllWebSockets,
-  registerWebSocketPeer,
-} from 'next/dist/server/websocket-connection-registry'
+  getWebSocketUpgradeMetadata,
+  type WebSocketHooks,
+} from 'next/dist/server/web/spec-extension/response'
 
-const { getWebSocketUpgradeMetadata } =
-  require('next/dist/server/web/spec-extension/response') as {
-    getWebSocketUpgradeMetadata(response: Response):
-      | {
-          hooks: unknown
-          allowedOrigins?: readonly string[]
-          protocol?: string
-        }
-      | undefined
-  }
-
-describe('NextResponse.upgrade()', () => {
-  const originalRuntime = process.env.NEXT_RUNTIME
-  const originalFlag = process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS
+describe('NextResponse.upgrade', () => {
+  const previousRuntime = process.env.NEXT_RUNTIME
+  const previousFlag = process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS
 
   afterEach(() => {
-    process.env.NEXT_RUNTIME = originalRuntime
-    process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS = originalFlag
+    if (previousRuntime === undefined) delete process.env.NEXT_RUNTIME
+    else process.env.NEXT_RUNTIME = previousRuntime
+    if (previousFlag === undefined) {
+      delete process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS
+    } else {
+      process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS = previousFlag
+    }
   })
 
-  it('requires the experimental flag', () => {
-    delete process.env.NEXT_RUNTIME
+  it('creates a marked response independently of the project flag', () => {
     delete process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS
+    const open = jest.fn()
 
-    expect(() => NextResponse.upgrade({})).toThrow(
-      'experimental.webSocketRouteHandlers'
-    )
-  })
+    const response = NextResponse.upgrade({ open }, { protocol: 'chat.v1' })
 
-  it('throws a targeted Edge Runtime error', () => {
-    process.env.NEXT_RUNTIME = 'edge'
-    process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS = '1'
-
-    expect(() => NextResponse.upgrade({})).toThrow(
-      'not supported in the Edge Runtime'
-    )
-  })
-
-  it('preserves hooks, headers, cookies, and metadata through clone()', () => {
-    delete process.env.NEXT_RUNTIME
-    process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS = '1'
-    const hooks = { open: async () => {} }
-    const response = NextResponse.upgrade(hooks, {
-      allowedOrigins: ['https://client.example/'],
-      protocol: 'chat.v1',
-    })
-    response.headers.set('x-upgrade', 'yes')
-    response.cookies.set('session', 'value')
-
-    const cloned = response.clone() as NextResponse<null>
-    expect(cloned.headers.get('x-upgrade')).toBe('yes')
-    expect(cloned.cookies.get('session')?.value).toBe('value')
-    expect(getWebSocketUpgradeMetadata(cloned)).toEqual({
-      hooks,
-      allowedOrigins: ['https://client.example'],
+    expect(response).toBeInstanceOf(NextResponse)
+    expect(response.body).toBeNull()
+    expect(getWebSocketUpgradeMetadata(response)).toEqual({
+      hooks: { open },
       protocol: 'chat.v1',
     })
   })
 
-  it('validates the hooks object and hook functions', () => {
-    delete process.env.NEXT_RUNTIME
-    process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS = '1'
-    expect(() => NextResponse.upgrade(null as any)).toThrow('hooks object')
-    expect(() => NextResponse.upgrade({ open: 'invalid' } as any)).toThrow(
-      'hook "open" must be a function'
-    )
-    expect(() => NextResponse.upgrade({ upgrade() {} } as any)).toThrow(
-      'does not support the "upgrade" hook'
-    )
-  })
+  it('snapshots hook and option accessors exactly once', () => {
+    const open = jest.fn()
+    const hooks = Object.create(null)
+    const options = Object.create(null)
+    const hookGetter = jest.fn(() => open)
+    const protocolGetter = jest.fn(() => 'chat')
+    Object.defineProperty(hooks, 'open', {
+      enumerable: true,
+      get: hookGetter,
+    })
+    Object.defineProperty(options, 'protocol', {
+      enumerable: true,
+      get: protocolGetter,
+    })
 
-  it('allows an empty hooks object', () => {
-    delete process.env.NEXT_RUNTIME
-    process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS = '1'
-    const hooks = {}
-    expect(getWebSocketUpgradeMetadata(NextResponse.upgrade(hooks))).toEqual({
-      hooks,
+    const response = NextResponse.upgrade(hooks, options)
+
+    expect(hookGetter).toHaveBeenCalledTimes(1)
+    expect(protocolGetter).toHaveBeenCalledTimes(1)
+    expect(getWebSocketUpgradeMetadata(response)).toEqual({
+      hooks: { open },
+      protocol: 'chat',
     })
   })
 
-  it('validates origin and subprotocol options', () => {
-    delete process.env.NEXT_RUNTIME
-    process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS = '1'
-
-    expect(() =>
-      NextResponse.upgrade({}, { allowedOrigins: ['ftp://example.test'] })
-    ).toThrow('must be an HTTP(S) origin')
-    expect(() =>
-      NextResponse.upgrade({}, { allowedOrigins: ['https://example.test/x'] })
-    ).toThrow('without credentials, path, query, or fragment')
-    expect(() => NextResponse.upgrade({}, { protocol: 'not valid' })).toThrow(
-      'valid WebSocket subprotocol token'
+  /* eslint-disable no-extend-native -- Intentionally simulate prototype pollution. */
+  it('ignores supported fields inherited through Object.prototype', () => {
+    const inheritedOpen = jest.fn()
+    const previousOpen = Object.getOwnPropertyDescriptor(
+      Object.prototype,
+      'open'
     )
-    expect(() => NextResponse.upgrade({}, { unknown: true } as any)).toThrow(
-      'does not support the "unknown" option'
+    const previousProtocol = Object.getOwnPropertyDescriptor(
+      Object.prototype,
+      'protocol'
     )
-  })
-})
-
-describe('WebSocket handshake security', () => {
-  function createRequest(
-    headers: IncomingMessage['headers'] = {}
-  ): IncomingMessage {
-    return {
-      method: 'GET',
-      httpVersion: '1.1',
-      headers: {
-        host: 'example.test',
-        connection: 'Upgrade',
-        upgrade: 'websocket',
-        'sec-websocket-key': Buffer.alloc(16).toString('base64'),
-        'sec-websocket-version': '13',
-        ...headers,
-      },
-    } as IncomingMessage
-  }
-
-  it('uses the patched compiled WebSocket parser', () => {
-    expect(require('next/dist/compiled/ws/package.json').version).toBe('8.21.1')
-  })
-
-  it('returns protocol-appropriate handshake errors', () => {
-    const invalidVersion = createRequest({
-      'sec-websocket-version': '12',
+    Object.defineProperty(Object.prototype, 'open', {
+      configurable: true,
+      value: inheritedOpen,
     })
-    expect(validateWebSocketHandshake(invalidVersion)).toEqual({
-      status: 426,
-      message: 'Unsupported WebSocket version.',
-      headers: { 'sec-websocket-version': '13' },
-    })
-
-    const invalidKey = createRequest({ 'sec-websocket-key': 'invalid' })
-    expect(validateWebSocketHandshake(invalidKey)).toEqual({
-      status: 400,
-      message: 'Invalid Sec-WebSocket-Key header.',
-    })
-  })
-
-  it('filters client-forged internal headers', () => {
-    const originalTestHeaders = process.env.NEXT_PRIVATE_TEST_HEADERS
-    delete process.env.NEXT_PRIVATE_TEST_HEADERS
-    const request = createRequest({
-      authorization: 'Bearer secret',
-      'x-middleware-set-cookie': 'forged=1',
-      'x-nextjs-data': 'forged',
+    Object.defineProperty(Object.prototype, 'protocol', {
+      configurable: true,
+      value: 'polluted',
     })
 
     try {
-      filterWebSocketUpgradeRequestHeaders(request)
-      expect(request.headers.authorization).toBe('Bearer secret')
-      expect(request.headers['x-middleware-set-cookie']).toBeUndefined()
-      expect(request.headers['x-nextjs-data']).toBeUndefined()
+      const response = NextResponse.upgrade({})
+      expect(getWebSocketUpgradeMetadata(response)).toEqual({ hooks: {} })
+      expect(inheritedOpen).not.toHaveBeenCalled()
     } finally {
-      if (originalTestHeaders === undefined) {
-        delete process.env.NEXT_PRIVATE_TEST_HEADERS
+      if (previousOpen) {
+        Object.defineProperty(Object.prototype, 'open', previousOpen)
       } else {
-        process.env.NEXT_PRIVATE_TEST_HEADERS = originalTestHeaders
+        delete (Object.prototype as any).open
+      }
+      if (previousProtocol) {
+        Object.defineProperty(Object.prototype, 'protocol', previousProtocol)
+      } else {
+        delete (Object.prototype as any).protocol
       }
     }
   })
+  /* eslint-enable no-extend-native */
 
-  it('enforces same-host origins, exact allowlists, and offered protocols', () => {
-    const sameHost = createRequest({ origin: 'https://example.test' })
-    expect(
-      validateWebSocketRequestPolicy(sameHost, { hooks: {} })
-    ).toBeUndefined()
+  it('copies and freezes metadata without freezing caller-owned hooks', () => {
+    const first = jest.fn()
+    const second = jest.fn()
+    const hooks: WebSocketHooks = { open: first }
+    const response = NextResponse.upgrade(hooks)
+    hooks.open = second
 
-    const crossOrigin = createRequest({ origin: 'https://client.example' })
-    expect(validateWebSocketRequestPolicy(crossOrigin, { hooks: {} })).toEqual({
-      status: 403,
-      message: 'WebSocket origin is not allowed.',
-    })
-    expect(
-      validateWebSocketRequestPolicy(crossOrigin, {
-        hooks: {},
-        allowedOrigins: ['https://client.example'],
-      })
-    ).toBeUndefined()
+    const metadata = getWebSocketUpgradeMetadata(response)!
+    expect(metadata.hooks.open).toBe(first)
+    expect(Object.isFrozen(metadata)).toBe(true)
+    expect(Object.isFrozen(metadata.hooks)).toBe(true)
+    expect(Object.isFrozen(hooks)).toBe(false)
+  })
 
-    const protocolRequest = createRequest({
-      'sec-websocket-protocol': 'other, chat',
-    })
-    expect(
-      validateWebSocketRequestPolicy(protocolRequest, {
-        hooks: {},
-        protocol: 'chat',
-      })
-    ).toBeUndefined()
-    expect(
-      validateWebSocketRequestPolicy(protocolRequest, {
-        hooks: {},
-        protocol: 'missing',
-      })
-    ).toEqual({
-      status: 400,
-      message: 'Selected WebSocket subprotocol was not offered by the client.',
-    })
+  it('clones headers and cookies while preserving the immutable marker', () => {
+    const response = NextResponse.upgrade({})
+    response.headers.set('x-route', 'original')
+    response.cookies.set('session', 'one')
+
+    const clone = response.clone()
+    clone.headers.set('x-route', 'clone')
+    clone.cookies.set('session', 'two')
+
+    expect(getWebSocketUpgradeMetadata(clone)).toBe(
+      getWebSocketUpgradeMetadata(response)
+    )
+    expect(response.headers.get('x-route')).toBe('original')
+    expect(clone.headers.get('x-route')).toBe('clone')
+    expect(response.cookies.get('session')?.value).toBe('one')
+    expect(clone.cookies.get('session')?.value).toBe('two')
+  })
+
+  it.each([
+    [null, 'requires a hooks object'],
+    [[], 'requires a hooks object'],
+    [Object.create({ open() {} }), 'requires a hooks object'],
+    [{ unsupported() {} }, 'does not support the "unsupported" hook'],
+    [{ open: true }, 'hook "open" must be a function'],
+  ])('rejects invalid hooks %#', (hooks, message) => {
+    expect(() => NextResponse.upgrade(hooks as any)).toThrow(message)
+  })
+
+  it.each([
+    [null, 'options must be an object'],
+    [[], 'options must be an object'],
+    [Object.create({ protocol: 'chat' }), 'options must be an object'],
+    [{ unsupported: true }, 'does not support the "unsupported" option'],
+    [{ protocol: '' }, 'must be a valid WebSocket subprotocol token'],
+    [{ protocol: 'chat,other' }, 'must be a valid WebSocket subprotocol token'],
+    [{ protocol: 1 }, 'must be a valid WebSocket subprotocol token'],
+  ])('rejects invalid options %#', (options, message) => {
+    expect(() => NextResponse.upgrade({}, options as any)).toThrow(message)
+  })
+
+  it('rejects the Edge Runtime with a targeted error', () => {
+    process.env.NEXT_RUNTIME = 'edge'
+    expect(() => NextResponse.upgrade({})).toThrow(
+      'NextResponse.upgrade() is not supported in the Edge Runtime.'
+    )
   })
 })
 
-describe('writeRawHttpResponse()', () => {
-  it('preserves status, repeated cookies, and chunked body framing', async () => {
-    const socket = new PassThrough()
-    const chunks: Buffer[] = []
-    socket.on('data', (chunk) => chunks.push(Buffer.from(chunk)))
+describe('ordinary HTTP WebSocket fallback', () => {
+  it('preserves public headers and repeated cookies', () => {
+    const response = NextResponse.upgrade({})
+    response.headers.set('x-public', 'yes')
+    response.headers.append('set-cookie', 'first=1; Path=/')
+    response.headers.append('set-cookie', 'second=2; Path=/')
 
-    const headers = new Headers({ 'x-response': 'yes' })
-    headers.append('set-cookie', 'first=1; Path=/')
-    headers.append('set-cookie', 'second=2; Path=/')
-    await writeRawHttpResponse(
-      { method: 'GET' } as IncomingMessage,
-      socket,
-      new Response('hello', { status: 403, statusText: 'Forbidden', headers })
+    const fallback = createWebSocketUpgradeFallbackResponse(response)
+
+    expect(fallback.status).toBe(426)
+    expect(fallback.headers.get('upgrade')).toBe('websocket')
+    expect(fallback.headers.get('sec-websocket-version')).toBe('13')
+    expect(fallback.headers.get('x-public')).toBe('yes')
+    expect(fallback.headers.getSetCookie()).toEqual([
+      'first=1; Path=/',
+      'second=2; Path=/',
+    ])
+  })
+
+  it('strips internal, framing, handshake, and nominated headers', () => {
+    const response = NextResponse.upgrade({})
+    response.headers.set('connection', 'x-nominated, set-cookie')
+    response.headers.set('x-nominated', 'secret')
+    response.headers.set('x-nextjs-test', 'internal')
+    response.headers.set('x-middleware-test', 'internal')
+    response.headers.set('content-length', '123')
+    response.headers.set('sec-websocket-protocol', 'unsafe')
+    response.headers.append('set-cookie', 'hidden=1')
+
+    const fallback = createWebSocketUpgradeFallbackResponse(response)
+
+    expect(fallback.headers.get('connection')).toBe('close')
+    expect(fallback.headers.get('x-nominated')).toBeNull()
+    expect(fallback.headers.get('x-nextjs-test')).toBeNull()
+    expect(fallback.headers.get('x-middleware-test')).toBeNull()
+    expect(fallback.headers.get('content-length')).not.toBe('123')
+    expect(fallback.headers.get('sec-websocket-protocol')).toBeNull()
+    expect(fallback.headers.getSetCookie()).toEqual([])
+  })
+
+  it('replaces stale cache, validator, and representation metadata', () => {
+    const response = NextResponse.upgrade({})
+    response.headers.set('cache-control', 'public, max-age=86400')
+    response.headers.set('cdn-cache-control', 'public, max-age=86400')
+    response.headers.set('content-range', 'bytes 0-0/1')
+    response.headers.set('content-digest', 'sha-256=:unsafe:')
+    response.headers.set('etag', '"upgrade-metadata"')
+    response.headers.set('last-modified', new Date(0).toUTCString())
+    response.headers.set('x-accel-redirect', '/private')
+
+    const inheritedHeaders = new Headers({
+      connection: 'x-routing-secret',
+      'content-length': '999999',
+      'x-routing-secret': 'routing-secret',
+    })
+    const fallback = createWebSocketUpgradeFallbackResponse(
+      response,
+      inheritedHeaders
     )
 
-    const raw = Buffer.concat(chunks).toString()
-    expect(raw).toContain('HTTP/1.1 403 Forbidden\r\n')
-    expect(raw).toContain('set-cookie: first=1; Path=/\r\n')
-    expect(raw).toContain('set-cookie: second=2; Path=/\r\n')
-    expect(raw).toContain('Transfer-Encoding: chunked\r\n')
-    expect(raw).toContain('\r\n5\r\nhello\r\n0\r\n\r\n')
-  })
-
-  it('overrides conflicting application response framing', async () => {
-    const socket = new PassThrough()
-    const chunks: Buffer[] = []
-    socket.on('data', (chunk) => chunks.push(Buffer.from(chunk)))
-
-    await writeRawHttpResponse(
-      { method: 'GET', httpVersion: '1.1' } as IncomingMessage,
-      socket,
-      new Response('hello', {
-        headers: {
-          connection: 'keep-alive',
-          'content-length': '1',
-          'transfer-encoding': 'identity',
-        },
-      })
+    expect(fallback.headers.get('cache-control')).toBe(
+      'private, no-cache, no-store, max-age=0, must-revalidate'
     )
-
-    const raw = Buffer.concat(chunks).toString()
-    expect(raw).toContain('Connection: close\r\n')
-    expect(raw).toContain('Transfer-Encoding: chunked\r\n')
-    expect(raw).not.toContain('content-length: 1')
-    expect(raw).not.toContain('transfer-encoding: identity')
-    expect(raw).toContain('\r\n5\r\nhello\r\n0\r\n\r\n')
-  })
-})
-
-describe('validateUpgradeResponseHeaders()', () => {
-  it.each(['content-length', 'transfer-encoding'])(
-    'rejects the protocol-critical %s header',
-    (name) => {
-      expect(() =>
-        validateUpgradeResponseHeaders(
-          new Response(null, { headers: { [name]: '1' } })
-        )
-      ).toThrow(`protocol-critical "${name}" header`)
+    expect(fallback.headers.get('content-type')).toBe(
+      'text/plain; charset=utf-8'
+    )
+    expect(fallback.headers.get('connection')).toBe('close')
+    expect(fallback.headers.get('content-length')).toBe(
+      String('This route only accepts WebSocket upgrade requests.'.length)
+    )
+    for (const name of [
+      'cdn-cache-control',
+      'content-range',
+      'content-digest',
+      'etag',
+      'last-modified',
+      'x-accel-redirect',
+      'x-routing-secret',
+    ]) {
+      expect(fallback.headers.get(name)).toBeNull()
     }
-  )
-})
-
-describe('getUpgradeResponseHeaders()', () => {
-  it('strips internal middleware cookie headers from the handshake response', () => {
-    const headers = new Headers({
-      'x-middleware-set-cookie': 'internal=1',
-      'x-response': 'yes',
-    })
-    headers.append('set-cookie', 'public=1')
-
-    const filtered = getUpgradeResponseHeaders(new Response(null, { headers }))
-
-    expect(filtered.get('x-middleware-set-cookie')).toBeNull()
-    expect(filtered.get('x-response')).toBe('yes')
-    expect(filtered.get('set-cookie')).toContain('public=1')
-  })
-})
-
-describe('WebSocket connection registry', () => {
-  afterEach(async () => {
-    jest.useRealTimers()
-    await closeAllWebSockets()
-  })
-
-  function createPeer() {
-    const websocket = new EventEmitter() as EventEmitter & {
-      readyState: number
-    }
-    websocket.readyState = 1
-
-    return {
-      websocket,
-      close: jest.fn(() => {
-        websocket.readyState = 2
-      }),
-      terminate: jest.fn(() => {
-        websocket.readyState = 3
-        websocket.emit('close')
-      }),
-    }
-  }
-
-  it('waits for peers to close before resolving', async () => {
-    const peer = createPeer()
-    registerWebSocketPeer('app/ws/route', peer as any)
-
-    const closed = closeAllWebSockets(1001)
-    expect(peer.close).toHaveBeenCalledWith(1001)
-
-    let resolved = false
-    void closed.then(() => {
-      resolved = true
-    })
-    await Promise.resolve()
-    expect(resolved).toBe(false)
-
-    peer.websocket.readyState = 3
-    peer.websocket.emit('close')
-    await closed
-    expect(resolved).toBe(true)
-    expect(peer.terminate).not.toHaveBeenCalled()
-  })
-
-  it('terminates peers after the grace period', async () => {
-    jest.useFakeTimers()
-    const peer = createPeer()
-    registerWebSocketPeer('app/ws/route', peer as any)
-
-    const closed = closeAllWebSockets(1001)
-    await Promise.resolve()
-
-    jest.advanceTimersByTime(5_000)
-    await closed
-
-    expect(peer.close).toHaveBeenCalledWith(1001)
-    expect(peer.terminate).toHaveBeenCalled()
-  })
-
-  it('settles shutdown when transport termination throws', async () => {
-    jest.useFakeTimers()
-    const peer = createPeer()
-    peer.terminate.mockImplementation(() => {
-      throw new Error('already failed')
-    })
-    registerWebSocketPeer('app/ws/route', peer as any)
-
-    const closed = closeAllWebSockets(1001)
-    await Promise.resolve()
-    jest.advanceTimersByTime(5_000)
-
-    await expect(closed).resolves.toBeUndefined()
-  })
-
-  it('isolates shutdown to the owning router-server scope', async () => {
-    const scopeA = Symbol('server-a')
-    const scopeB = Symbol('server-b')
-    const peerA = createPeer()
-    const peerB = createPeer()
-    registerWebSocketPeer('app/ws/route', peerA as any, scopeA)
-    registerWebSocketPeer('app/ws/route', peerB as any, scopeB)
-
-    const closedA = closeAllWebSockets(1001, scopeA)
-    expect(peerA.close).toHaveBeenCalledWith(1001)
-    expect(peerB.close).not.toHaveBeenCalled()
-    peerA.websocket.readyState = 3
-    peerA.websocket.emit('close')
-    await closedA
-
-    const closedB = closeAllWebSockets(1001, scopeB)
-    peerB.websocket.readyState = 3
-    peerB.websocket.emit('close')
-    await closedB
   })
 })

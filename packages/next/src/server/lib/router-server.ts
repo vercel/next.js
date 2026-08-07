@@ -30,7 +30,10 @@ import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import setupCompression from 'next/dist/compiled/compression'
 import { releaseCompressionStream } from './release-compression-stream'
-import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
+import {
+  signalFromNodeResponse,
+  signalFromNodeUpgradeSocket,
+} from '../web/spec-extension/adapters/next-request'
 import { isNonHtmlSecFetchDest } from './is-non-html-sec-fetch-dest'
 import { parseUrl as parseUrlUtil } from '../../shared/lib/router/utils/parse-url'
 
@@ -74,11 +77,21 @@ import {
 } from './trace/request-insights'
 import { fromNodeOutgoingHttpHeaders } from '../web/utils'
 import {
+  getRawHttpResponseStatus,
+  isWebSocketUpgradeRequest,
+  isWebSocketClientDisconnectError,
+  preflightWebSocketUpgrade,
   validateWebSocketHandshake,
+  validateWebSocketOrigin,
   writeRawHttpError,
   writeRawHttpResponse,
-} from '../websocket-upgrade'
-import { closeAllWebSockets } from '../websocket-connection-registry'
+} from '../websocket-http'
+import {
+  closeWebSocketScope,
+  settleWebSocketShutdownStages,
+  tryAcquireWebSocketScopeLease,
+  type WebSocketScopeLease,
+} from '../websocket-connection-registry'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -186,6 +199,7 @@ export async function initialize(opts: {
     config,
     minimalMode: opts.minimalMode,
   })
+  const webSocketRegistryScope = {}
 
   const renderServer: LazyRenderServerInstance = {}
 
@@ -976,10 +990,64 @@ export async function initialize(opts: {
     renderServerOpts,
     development?.bundler?.ensureMiddleware
   )
-  const webSocketRegistryScope = Symbol('next.websocket.router-server')
 
   const upgradeHandler: WorkerUpgradeHandler = async (req, socket, head) => {
+    let isHMRRequest = false
+    if (opts.dev && development && req.url) {
+      const { basePath, assetPrefix } = config
+      let hmrPrefix = basePath
+      if (assetPrefix) {
+        hmrPrefix = normalizedAssetPrefix(assetPrefix)
+        if (URL.canParse(hmrPrefix)) {
+          hmrPrefix = new URL(hmrPrefix).pathname.replace(/\/$/, '')
+        }
+      }
+      isHMRRequest = req.url.startsWith(
+        ensureLeadingSlash(`${hmrPrefix}/_next/hmr`)
+      )
+    }
+
+    const webSocketUpgradeExclusiveOwner = getRequestMeta(
+      req,
+      'webSocketUpgradeExclusiveOwner'
+    )
+    let isWebSocketRequest = Boolean(
+      config.experimental.webSocketRouteHandlers &&
+        !isHMRRequest &&
+        isWebSocketUpgradeRequest(req)
+    )
+    let webSocketScopeLease: WebSocketScopeLease | undefined
+
+    if (
+      config.experimental.webSocketRouteHandlers &&
+      !isHMRRequest &&
+      webSocketUpgradeExclusiveOwner === false
+    ) {
+      // Node dispatches upgrade listeners synchronously and does not await
+      // their promises. Until the lifecycle layer installs a coordinated
+      // dispatcher, a shared server must leave every non-HMR upgrade entirely
+      // to its embedding listeners. Those listeners may already have accepted
+      // the socket and are allowed to mutate the request headers.
+      Log.warnOnce(
+        'Next.js delegated an upgrade event because another custom-server upgrade listener may own the socket. WebSocket Route Handlers require Next.js to exclusively own the upgrade event; pass `httpServer` to `next()` without additional upgrade listeners.'
+      )
+      return
+    }
+
+    if (isWebSocketRequest) {
+      webSocketScopeLease = tryAcquireWebSocketScopeLease(
+        webSocketRegistryScope
+      )
+      if (!webSocketScopeLease) {
+        socket.destroy()
+        return
+      }
+    }
+
     try {
+      if (isWebSocketRequest) {
+        addRequestMeta(req, 'webSocketRegistryScope', webSocketRegistryScope)
+      }
       req.on('error', (_err) => {
         // TODO: log socket errors?
         // console.error(_err);
@@ -989,24 +1057,44 @@ export async function initialize(opts: {
         // console.error(_err);
       })
 
-      // Upgrade requests bypass the ordinary request handler, so apply the
-      // same trust-boundary filtering before middleware or route resolution.
-      if (!process.env.NEXT_PRIVATE_TEST_HEADERS) {
-        filterInternalHeaders(req.headers)
+      if (config.experimental.webSocketRouteHandlers && !isHMRRequest) {
+        const preflight = await preflightWebSocketUpgrade(req, socket)
+        if (preflight.kind === 'rejected') return
+        isWebSocketRequest = preflight.kind === 'continue-routing'
       }
-      addRequestMeta(req, 'webSocketUpgradeHeadersFiltered', true)
-      addRequestMeta(req, 'webSocketRegistryScope', webSocketRegistryScope)
 
-      const handshakeError = validateWebSocketHandshake(req)
-      if (handshakeError) {
-        await writeRawHttpError(
+      if (isWebSocketRequest) {
+        const handshakeError = validateWebSocketHandshake(req)
+        if (handshakeError) {
+          await writeRawHttpError(
+            req,
+            socket,
+            handshakeError.status,
+            handshakeError.message,
+            handshakeError.headers
+          )
+          return
+        }
+
+        const webSocketConfig = config.experimental.webSocketRouteHandlers as
+          | true
+          | { allowedOrigins?: string[] }
+        const originError = validateWebSocketOrigin(
           req,
-          socket,
-          handshakeError.status,
-          handshakeError.message,
-          handshakeError.headers
+          typeof webSocketConfig === 'object'
+            ? webSocketConfig.allowedOrigins
+            : undefined
         )
-        return
+        if (originError) {
+          await writeRawHttpError(
+            req,
+            socket,
+            originError.status,
+            originError.message,
+            originError.headers
+          )
+          return
+        }
       }
 
       if (opts.dev && development && req.url) {
@@ -1020,25 +1108,6 @@ export async function initialize(opts: {
         ) {
           return
         }
-        const { basePath, assetPrefix } = config
-
-        let hmrPrefix = basePath
-
-        // assetPrefix overrides basePath for HMR path
-        if (assetPrefix) {
-          hmrPrefix = normalizedAssetPrefix(assetPrefix)
-
-          if (URL.canParse(hmrPrefix)) {
-            // remove trailing slash from pathname
-            // return empty string if pathname is '/'
-            // to avoid conflicts with '/_next' below
-            hmrPrefix = new URL(hmrPrefix).pathname.replace(/\/$/, '')
-          }
-        }
-
-        const isHMRRequest = req.url.startsWith(
-          ensureLeadingSlash(`${hmrPrefix}/_next/hmr`)
-        )
 
         // only handle HMR requests if the basePath in the request
         // matches the basePath for the handler responding to the request
@@ -1068,6 +1137,34 @@ export async function initialize(opts: {
         }
       }
 
+      if (!isWebSocketRequest) {
+        // Preserve the legacy upgrade path exactly when the flag is disabled
+        // or another protocol owns this request.
+        const res = new MockedResponse({
+          resWriter: () => {
+            throw new Error(
+              'Invariant: did not expect response writer to be written to for upgrade request'
+            )
+          },
+        })
+        const { finished, matchedOutput, parsedUrl, statusCode } =
+          await resolveRoutes({
+            req,
+            res,
+            isUpgradeReq: true,
+            signal: signalFromNodeResponse(socket),
+          })
+
+        if (matchedOutput) return socket.end()
+        if (finished && parsedUrl.protocol) {
+          if (!statusCode) {
+            return await proxyRequest(req, socket, parsedUrl, head)
+          }
+          return socket.end()
+        }
+        return
+      }
+
       const res = new MockedResponse()
       const {
         finished,
@@ -1080,30 +1177,31 @@ export async function initialize(opts: {
         req,
         res,
         isUpgradeReq: true,
-        signal: signalFromNodeResponse(socket),
+        signal: signalFromNodeUpgradeSocket(socket),
       })
-
       const responseHeaders = fromNodeOutgoingHttpHeaders(resHeaders || {})
-
       if (finished && bodyStream) {
+        const responseStatus = statusCode || 200
+        const responseBody = [204, 205, 304].includes(responseStatus)
+          ? null
+          : bodyStream
+        if (responseBody === null) {
+          void bodyStream
+            .cancel('Response body omitted by HTTP semantics.')
+            .catch(() => {})
+        }
         await writeRawHttpResponse(
           req,
           socket,
-          new Response(bodyStream, {
-            status: statusCode || 200,
+          new Response(responseBody, {
+            status: responseStatus,
             headers: responseHeaders,
           })
         )
         return
       }
 
-      if (
-        finished &&
-        resHeaders !== null &&
-        statusCode &&
-        statusCode >= 300 &&
-        statusCode < 400
-      ) {
+      if (finished && statusCode && statusCode >= 300 && statusCode < 400) {
         const destination = url.format(parsedUrl)
         if (!responseHeaders.has('location')) {
           responseHeaders.set('location', destination)
@@ -1119,16 +1217,17 @@ export async function initialize(opts: {
         return
       }
 
-      if (finished && parsedUrl.protocol) {
-        if (!statusCode) {
-          return await proxyRequest(req, socket, parsedUrl, head)
-        }
+      if (finished && parsedUrl.protocol && !statusCode) {
+        await writeRawHttpError(
+          req,
+          socket,
+          501,
+          'WebSocket proxy rewrites require server lifecycle support.'
+        )
+        return
       }
 
-      if (
-        matchedOutput?.type === 'appFile' &&
-        config.experimental.webSocketRouteHandlers
-      ) {
+      if (matchedOutput?.type === 'appFile') {
         addRequestMeta(req, 'invokePath', parsedUrl.pathname || '/')
         addRequestMeta(req, 'invokeQuery', parsedUrl.query)
         addRequestMeta(req, 'invokeOutput', matchedOutput.itemPath)
@@ -1138,7 +1237,10 @@ export async function initialize(opts: {
         return
       }
 
-      if (matchedOutput) return socket.end()
+      if (matchedOutput) {
+        await writeRawHttpError(req, socket, 404, 'Not Found')
+        return
+      }
 
       if (res.finished) {
         await writeRawHttpResponse(
@@ -1152,13 +1254,33 @@ export async function initialize(opts: {
         return
       }
 
-      // If there's no matched output, we don't handle the request as user's
-      // custom WS server may be listening on the same path.
+      // Shared-server requests return before route resolution, so reaching
+      // this point means Next.js exclusively owns the unmatched socket.
+      await writeRawHttpError(req, socket, 404, 'Not Found')
     } catch (err) {
-      console.error('Error handling upgrade request', err)
-      if (!socket.destroyed && !socket.writableEnded) {
-        await writeRawHttpError(req, socket, 500, 'Internal Server Error')
+      if (!isWebSocketClientDisconnectError(err)) {
+        console.error('Error handling upgrade request', err)
       }
+      if (!isWebSocketRequest) {
+        socket.end()
+      } else if (getRawHttpResponseStatus(socket) !== undefined) {
+        socket.destroy()
+      } else if (
+        !socket.destroyed &&
+        !socket.writableEnded &&
+        !socket.readableEnded
+      ) {
+        try {
+          await writeRawHttpError(req, socket, 500, 'Internal Server Error')
+        } catch (writeError) {
+          socket.destroy()
+          if (!isWebSocketClientDisconnectError(writeError)) {
+            console.error('Failed to write upgrade error response', writeError)
+          }
+        }
+      }
+    } finally {
+      webSocketScopeLease?.release()
     }
   }
 
@@ -1166,9 +1288,14 @@ export async function initialize(opts: {
     requestHandler,
     upgradeHandler,
     server: handlers.server,
-    async closeUpgraded() {
-      development?.bundler?.hotReloader?.close()
-      await closeAllWebSockets(1001, webSocketRegistryScope)
+    async closeUpgraded(code = 1001) {
+      await settleWebSocketShutdownStages(
+        [
+          () => closeWebSocketScope(webSocketRegistryScope, code),
+          () => handlers.closeUpgraded(code),
+        ],
+        'Failed to close router-server WebSocket infrastructure'
+      )
     },
     distDir: config.distDir,
     experimentalFeatures,

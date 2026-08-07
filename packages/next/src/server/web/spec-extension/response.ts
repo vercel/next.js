@@ -4,71 +4,93 @@ import { NextURL } from '../next-url'
 import { toNodeOutgoingHttpHeaders, validateURL } from '../utils'
 import { ReflectAdapter } from './adapters/reflect'
 import { ResponseCookies } from './cookies'
+import type { NextRequest } from './request'
+import {
+  getWebSocketUpgradeMetadata as getInternalWebSocketUpgradeMetadata,
+  setWebSocketUpgradeMetadata,
+} from './websocket-upgrade-response'
+import { HTTP_TOKEN as WEBSOCKET_TOKEN } from './websocket-connection-headers'
 
 const INTERNALS = Symbol('internal response')
-const WEBSOCKET_UPGRADE = Symbol.for('next.internal.websocket-upgrade-response')
 const REDIRECTS = new Set([301, 302, 303, 307, 308])
 const WEBSOCKET_HOOKS = new Set(['open', 'message', 'close', 'error'])
-const WEBSOCKET_UPGRADE_OPTIONS = new Set(['allowedOrigins', 'protocol'])
-const WEBSOCKET_TOKEN = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/
+const WEBSOCKET_UPGRADE_OPTIONS = new Set(['protocol'])
 
-export type WebSocketPeer = import('next/dist/compiled/crossws').Peer
-export type WebSocketMessage = import('next/dist/compiled/crossws').Message
-export type WebSocketError = import('next/dist/compiled/crossws').WSError
+function readOwnProperty<T>(object: object, name: string): T | undefined {
+  const descriptor = Object.getOwnPropertyDescriptor(object, name)
+  if (!descriptor) return undefined
+  return (
+    'value' in descriptor ? descriptor.value : descriptor.get?.call(object)
+  ) as T | undefined
+}
+
+/** @experimental WebSocket Route Handlers are an experimental feature. */
+export type WebSocketMessageData =
+  | string
+  | ArrayBuffer
+  | SharedArrayBuffer
+  | ArrayBufferView
+
+/** @experimental WebSocket Route Handlers are an experimental feature. */
+export interface WebSocketPeer {
+  /** Unique identifier for this connection. */
+  readonly id: string
+  /** Remote IP address when the transport exposes one. */
+  readonly remoteAddress: string | undefined
+  /** The request which opened this connection. */
+  readonly request: NextRequest
+  /** Bytes queued by the transport but not yet written to the network. */
+  readonly bufferedAmount: number
+  /**
+   * Starts the closing handshake. `code` must be an integer from 1000 through
+   * 1014 (excluding 1004, 1005, and 1006), or from 3000 through 4999. `reason`
+   * must be at most 123 UTF-8 bytes. Invalid arguments throw synchronously,
+   * including after closing has started. A reason without a code is ignored.
+   */
+  close(code?: number, reason?: string): void
+  terminate(): void
+  send(data: WebSocketMessageData): number
+}
+
+/** @experimental WebSocket Route Handlers are an experimental feature. */
+export interface WebSocketMessage {
+  readonly rawData: string | Uint8Array
+  uint8Array(): Uint8Array
+  arrayBuffer(): ArrayBuffer
+  text(): string
+  json<T = unknown>(): T
+}
+
+/** @experimental WebSocket Route Handlers are an experimental feature. */
 export type WebSocketCloseDetails = {
-  code?: number
-  reason?: string
+  code: number
+  reason: string
 }
-export type WebSocketHooks = Pick<
-  Partial<import('next/dist/compiled/crossws').Hooks>,
-  'open' | 'message' | 'close' | 'error'
->
 
+/** @experimental WebSocket Route Handlers are an experimental feature. */
+export interface WebSocketHooks {
+  open?: (peer: WebSocketPeer) => void | Promise<void>
+  message?: (
+    peer: WebSocketPeer,
+    message: WebSocketMessage
+  ) => void | Promise<void>
+  close?: (
+    peer: WebSocketPeer,
+    details: WebSocketCloseDetails
+  ) => void | Promise<void>
+  error?: (peer: WebSocketPeer, error: Error) => void | Promise<void>
+}
+
+/** @internal */
 export interface WebSocketUpgradeMetadata {
-  hooks: WebSocketHooks
-  allowedOrigins?: readonly string[]
-  protocol?: string
+  readonly hooks: Readonly<WebSocketHooks>
+  readonly protocol?: string
 }
 
+/** @experimental WebSocket Route Handlers are an experimental feature. */
 export interface WebSocketUpgradeOptions {
-  /** Exact HTTP(S) origins which may connect in addition to the request host. */
-  allowedOrigins?: readonly string[]
   /** A single server-selected subprotocol offered by the client. */
   protocol?: string
-}
-
-function normalizeAllowedOrigins(origins: readonly string[]): string[] {
-  return origins.map((origin) => {
-    if (typeof origin !== 'string') {
-      throw new TypeError(
-        'NextResponse.upgrade() allowedOrigins entries must be strings.'
-      )
-    }
-
-    let url: URL
-    try {
-      url = new URL(origin)
-    } catch {
-      throw new TypeError(
-        `NextResponse.upgrade() received an invalid allowed origin: "${origin}".`
-      )
-    }
-
-    if (
-      (url.protocol !== 'http:' && url.protocol !== 'https:') ||
-      url.username ||
-      url.password ||
-      url.pathname !== '/' ||
-      url.search ||
-      url.hash
-    ) {
-      throw new TypeError(
-        `NextResponse.upgrade() allowed origin must be an HTTP(S) origin without credentials, path, query, or fragment: "${origin}".`
-      )
-    }
-
-    return url.origin
-  })
 }
 
 function handleMiddlewareField(
@@ -213,6 +235,7 @@ export class NextResponse<Body = unknown> extends Response {
     return new NextResponse(null, { ...init, headers })
   }
 
+  /** @experimental WebSocket Route Handlers are an experimental feature. */
   static upgrade(
     hooks: WebSocketHooks,
     options: WebSocketUpgradeOptions = {}
@@ -223,76 +246,86 @@ export class NextResponse<Body = unknown> extends Response {
       )
     }
 
-    if (!process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS) {
-      throw new Error(
-        'NextResponse.upgrade() requires experimental.webSocketRouteHandlers to be enabled in next.config.js.'
-      )
-    }
-
-    if (!hooks || typeof hooks !== 'object' || Array.isArray(hooks)) {
+    if (
+      !hooks ||
+      typeof hooks !== 'object' ||
+      Array.isArray(hooks) ||
+      ![Object.prototype, null].includes(Object.getPrototypeOf(hooks))
+    ) {
       throw new TypeError('NextResponse.upgrade() requires a hooks object.')
     }
 
-    for (const name of Object.keys(hooks)) {
-      if (!WEBSOCKET_HOOKS.has(name)) {
+    for (const name of Reflect.ownKeys(hooks)) {
+      if (typeof name !== 'string' || !WEBSOCKET_HOOKS.has(name)) {
         throw new TypeError(
-          `NextResponse.upgrade() does not support the "${name}" hook.`
+          `NextResponse.upgrade() does not support the "${String(name)}" hook.`
         )
       }
     }
 
+    const open = readOwnProperty<WebSocketHooks['open']>(hooks, 'open')
+    const message = readOwnProperty<WebSocketHooks['message']>(hooks, 'message')
+    const close = readOwnProperty<WebSocketHooks['close']>(hooks, 'close')
+    const error = readOwnProperty<WebSocketHooks['error']>(hooks, 'error')
+    const hookSnapshot = { open, message, close, error }
+
     for (const name of ['open', 'message', 'close', 'error'] as const) {
-      if (hooks[name] !== undefined && typeof hooks[name] !== 'function') {
+      const hook = hookSnapshot[name]
+      if (hook !== undefined && typeof hook !== 'function') {
         throw new TypeError(
           `NextResponse.upgrade() hook "${name}" must be a function.`
         )
       }
     }
 
-    if (!options || typeof options !== 'object' || Array.isArray(options)) {
+    if (
+      !options ||
+      typeof options !== 'object' ||
+      Array.isArray(options) ||
+      ![Object.prototype, null].includes(Object.getPrototypeOf(options))
+    ) {
       throw new TypeError('NextResponse.upgrade() options must be an object.')
     }
-    for (const name of Object.keys(options)) {
-      if (!WEBSOCKET_UPGRADE_OPTIONS.has(name)) {
+    for (const name of Reflect.ownKeys(options)) {
+      if (typeof name !== 'string' || !WEBSOCKET_UPGRADE_OPTIONS.has(name)) {
         throw new TypeError(
-          `NextResponse.upgrade() does not support the "${name}" option.`
+          `NextResponse.upgrade() does not support the "${String(name)}" option.`
         )
       }
     }
 
-    let allowedOrigins: string[] | undefined
-    if (options.allowedOrigins !== undefined) {
-      if (!Array.isArray(options.allowedOrigins)) {
-        throw new TypeError(
-          'NextResponse.upgrade() allowedOrigins must be an array.'
-        )
-      }
-      allowedOrigins = normalizeAllowedOrigins(options.allowedOrigins)
-    }
-
+    const protocol = readOwnProperty<WebSocketUpgradeOptions['protocol']>(
+      options,
+      'protocol'
+    )
     if (
-      options.protocol !== undefined &&
-      !WEBSOCKET_TOKEN.test(options.protocol)
+      protocol !== undefined &&
+      (typeof protocol !== 'string' || !WEBSOCKET_TOKEN.test(protocol))
     ) {
       throw new TypeError(
         'NextResponse.upgrade() protocol must be a valid WebSocket subprotocol token.'
       )
     }
 
-    return new WebSocketUpgradeResponse({
-      hooks,
-      ...(allowedOrigins ? { allowedOrigins } : undefined),
-      ...(options.protocol ? { protocol: options.protocol } : undefined),
+    const frozenHooks = Object.freeze({
+      ...(open === undefined ? undefined : { open }),
+      ...(message === undefined ? undefined : { message }),
+      ...(close === undefined ? undefined : { close }),
+      ...(error === undefined ? undefined : { error }),
     })
+    const metadata = Object.freeze({
+      hooks: frozenHooks,
+      ...(protocol === undefined ? undefined : { protocol }),
+    })
+
+    return new WebSocketUpgradeResponse(metadata)
   }
 }
 
 class WebSocketUpgradeResponse extends NextResponse<null> {
   constructor(metadata: WebSocketUpgradeMetadata, headers?: HeadersInit) {
     super(null, { headers })
-    Object.defineProperty(this, WEBSOCKET_UPGRADE, {
-      value: metadata,
-    })
+    setWebSocketUpgradeMetadata(this, metadata)
   }
 
   clone(): WebSocketUpgradeResponse {
@@ -305,18 +338,9 @@ class WebSocketUpgradeResponse extends NextResponse<null> {
 export function getWebSocketUpgradeMetadata(
   response: Response
 ): WebSocketUpgradeMetadata | undefined {
-  return (
-    response as Response & {
-      [WEBSOCKET_UPGRADE]?: WebSocketUpgradeMetadata
-    }
-  )[WEBSOCKET_UPGRADE]
-}
-
-/** @internal */
-export function isWebSocketUpgradeResponse(
-  response: Response
-): response is NextResponse<null> {
-  return getWebSocketUpgradeMetadata(response) !== undefined
+  return getInternalWebSocketUpgradeMetadata(response) as
+    | WebSocketUpgradeMetadata
+    | undefined
 }
 
 interface ResponseInit extends globalThis.ResponseInit {

@@ -362,7 +362,7 @@ function createServerDefinitions() {
     export { NextFetchEvent } from 'next/dist/server/web/spec-extension/fetch-event'
     export { NextRequest } from 'next/dist/server/web/spec-extension/request'
     export { NextResponse } from 'next/dist/server/web/spec-extension/response'
-    export type { WebSocketCloseDetails, WebSocketError, WebSocketHooks, WebSocketMessage, WebSocketPeer } from 'next/dist/server/web/spec-extension/response'
+    export type { WebSocketCloseDetails, WebSocketHooks, WebSocketMessage, WebSocketMessageData, WebSocketPeer, WebSocketUpgradeOptions } from 'next/dist/server/web/spec-extension/response'
     export { NextMiddleware, MiddlewareConfig, NextProxy, ProxyConfig } from 'next/dist/server/web/types'
     export { userAgentFromString } from 'next/dist/server/web/spec-extension/user-agent'
     export { userAgent } from 'next/dist/server/web/spec-extension/user-agent'

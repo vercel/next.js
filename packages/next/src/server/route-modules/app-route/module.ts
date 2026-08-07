@@ -96,7 +96,10 @@ import {
   createRouteHandlerRequestInUseCacheError,
   createRouteHandlerRequestInUnstableCacheError,
 } from '../../use-cache/use-cache-messages'
-import { isWebSocketUpgradeResponse } from '../../web/spec-extension/response'
+import { isWebSocketUpgradeResponse } from '../../web/spec-extension/websocket-upgrade-response'
+import { getRequestMeta } from '../../request-meta'
+import { setManifestsSingleton } from '../../app-render/manifests-singleton'
+import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 
 export class WrappedNextRouterError {
   constructor(
@@ -484,23 +487,12 @@ export class AppRouteRouteModule extends RouteModule<
     }
 
     if (isWebSocketUpgradeResponse(res)) {
-      let message: string | undefined
-      if (this.nextConfigOutput === 'export') {
-        message = 'NextResponse.upgrade() cannot be used with output: "export".'
-      } else if (workStore.forceStatic) {
-        message =
-          'NextResponse.upgrade() cannot be used in a route configured with dynamic = "force-static".'
-      } else if (workStore.isStaticGeneration) {
-        message =
-          'NextResponse.upgrade() cannot be used while an App Route is being prerendered or cached.'
-      }
-
-      if (message) {
-        const error = new DynamicServerError(message)
-        workStore.dynamicUsageDescription = message
-        workStore.dynamicUsageStack = error.stack
-        throw error
-      }
+      const error = getWebSocketUpgradeResponseError(
+        this.nextConfigOutput,
+        workStore,
+        prerenderStore
+      )
+      if (error) throw error
     }
 
     context.renderOpts.fetchMetrics = workStore.fetchMetrics
@@ -516,8 +508,12 @@ export class AppRouteRouteModule extends RouteModule<
     // It's possible cookies were set in the handler, so we need to merge the
     // modified cookies and the returned response here.
     if (isWebSocketUpgradeResponse(res)) {
-      appendMutableCookies(res.headers, requestStore.mutableCookies)
-      return res
+      // An upgrade response may be reused from module scope. Keep request-local
+      // cookies from mutating that shared response and leaking into a later
+      // handshake. Its clone() implementation preserves the upgrade metadata.
+      const response = res.clone()
+      appendMutableCookies(response.headers, requestStore.mutableCookies)
+      return response
     }
 
     const headers = new Headers(res.headers)
@@ -589,7 +585,7 @@ export class AppRouteRouteModule extends RouteModule<
          */
         const prospectiveController = new AbortController()
         let prospectiveRenderIsDynamic = false
-        let prospectiveReturnedUpgrade = false
+        let prospectiveUpgradeError: Error | undefined
         const cacheSignal = new CacheSignal()
         let dynamicTracking = createDynamicTrackingState(undefined)
 
@@ -653,6 +649,19 @@ export class AppRouteRouteModule extends RouteModule<
             )
           }
         }
+        const inspectProspectiveResult = (result: unknown) => {
+          if (
+            result instanceof Response &&
+            isWebSocketUpgradeResponse(result)
+          ) {
+            prospectiveRenderIsDynamic = true
+            prospectiveUpgradeError = getWebSocketUpgradeResponseError(
+              this.nextConfigOutput,
+              workStore,
+              prospectiveRoutePrerenderStore
+            )
+          }
+        }
         if (
           typeof prospectiveResult === 'object' &&
           prospectiveResult !== null &&
@@ -661,15 +670,7 @@ export class AppRouteRouteModule extends RouteModule<
           // The handler returned a Thenable. We'll listen for rejections to determine
           // if the route is erroring for dynamic reasons.
           ;(prospectiveResult as any as Promise<unknown>).then(
-            (result) => {
-              if (
-                result instanceof Response &&
-                isWebSocketUpgradeResponse(result)
-              ) {
-                prospectiveRenderIsDynamic = true
-                prospectiveReturnedUpgrade = true
-              }
-            },
+            inspectProspectiveResult,
             (err) => {
               if (prospectiveController.signal.aborted) {
                 // the route handler called an API which is always dynamic
@@ -684,17 +685,15 @@ export class AppRouteRouteModule extends RouteModule<
               }
             }
           )
+        } else {
+          inspectProspectiveResult(prospectiveResult)
         }
 
         trackPendingModules(cacheSignal)
         await cacheSignal.cacheReady()
 
         if (prospectiveRenderIsDynamic) {
-          if (prospectiveReturnedUpgrade) {
-            throw new DynamicServerError(
-              `Route ${workStore.route} couldn't be rendered statically because it returned NextResponse.upgrade().`
-            )
-          }
+          if (prospectiveUpgradeError) throw prospectiveUpgradeError
           // the route handler called an API which is always dynamic
           // there is no need to try again
           const dynamicReason = getFirstDynamicReason(dynamicTracking)
@@ -761,6 +760,14 @@ export class AppRouteRouteModule extends RouteModule<
               }
 
               responseHandled = true
+
+              if (isWebSocketUpgradeResponse(result)) {
+                throw getWebSocketUpgradeResponseError(
+                  this.nextConfigOutput,
+                  workStore,
+                  finalRoutePrerenderStore
+                )
+              }
 
               let bodyHandled = false
               result.arrayBuffer().then((body) => {
@@ -1156,6 +1163,113 @@ export class AppRouteRouteModule extends RouteModule<
 
     return this.executePrerender(req, context, prepared, workStore)
   }
+
+  /** @internal Shared request preparation for Node.js App Route entrypoints. */
+  public async prepareNodeRequest(
+    req: Parameters<AppRouteRouteModule['prepare']>[0],
+    res: Parameters<AppRouteRouteModule['prepare']>[1],
+    options: Parameters<AppRouteRouteModule['prepare']>[2]
+  ) {
+    const prepareResult = await this.prepare(req, res, options)
+    if (!prepareResult) return
+
+    const normalizedSrcPage = normalizeAppPath(options.srcPage)
+    return {
+      prepareResult,
+      normalizedSrcPage,
+      isIsr: Boolean(
+        prepareResult.prerenderManifest.dynamicRoutes[normalizedSrcPage] ||
+          prepareResult.prerenderManifest.routes[prepareResult.resolvedPathname]
+      ),
+    }
+  }
+
+  /** @internal Creates the shared execution context for Node.js App Routes. */
+  public async createNodeRequestContext(
+    req: Parameters<AppRouteRouteModule['prepare']>[0],
+    srcPage: string,
+    prepareResult: NonNullable<
+      Awaited<ReturnType<AppRouteRouteModule['prepare']>>
+    >,
+    lifecycle: Pick<
+      AppRouteRouteHandlerContext['renderOpts'],
+      'waitUntil' | 'onClose' | 'onAfterTaskError'
+    >
+  ) {
+    const {
+      buildId,
+      deploymentId,
+      params,
+      nextConfig,
+      isDraftMode,
+      prerenderManifest,
+      routerServerContext,
+      clientReferenceManifest,
+      serverActionsManifest,
+    } = prepareResult
+
+    // Register the reference manifests used by Server Actions at module scope.
+    if (serverActionsManifest && clientReferenceManifest) {
+      setManifestsSingleton({
+        page: srcPage,
+        clientReferenceManifest,
+        serverActionsManifest,
+      })
+    }
+
+    const isMinimalMode = Boolean(getRequestMeta(req, 'minimalMode'))
+    const incrementalCache =
+      getRequestMeta(req, 'incrementalCache') ||
+      (await this.getIncrementalCache(
+        req,
+        nextConfig,
+        prerenderManifest.preview,
+        prerenderManifest,
+        isMinimalMode
+      ))
+
+    incrementalCache?.resetRequestCache()
+    ;(globalThis as any).__incrementalCache = incrementalCache
+
+    const context: AppRouteRouteHandlerContext = {
+      params,
+      previewProps: prerenderManifest.preview,
+      renderOpts: {
+        experimental: {
+          authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
+          useCacheTimeout: nextConfig.experimental.useCacheTimeout,
+          durableUseCacheEntries: Boolean(
+            nextConfig.experimental.durableUseCacheEntries
+          ),
+        },
+        cacheComponents: Boolean(nextConfig.cacheComponents),
+        validationLevel:
+          nextConfig.experimental.instantInsights.validationLevel,
+        isDraftMode,
+        incrementalCache,
+        hmrRefreshHash: getRequestMeta(req, 'hmrRefreshHash'),
+        cacheLifeProfiles: nextConfig.cacheLife,
+        staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,
+        ...lifecycle,
+        onInstrumentationRequestError: (
+          error,
+          _request,
+          errorContext,
+          silenceLog
+        ) =>
+          this.onRequestError(
+            req,
+            error,
+            errorContext,
+            silenceLog,
+            routerServerContext
+          ),
+      },
+      sharedContext: { buildId, deploymentId },
+    }
+
+    return { context, isMinimalMode }
+  }
 }
 
 export default AppRouteRouteModule
@@ -1487,6 +1601,47 @@ function createCacheComponentsError(route: string) {
   return new DynamicServerError(
     `Route ${route} couldn't be rendered statically because it used IO that was not cached. See more info here: https://nextjs.org/docs/messages/cache-components`
   )
+}
+
+function getWebSocketUpgradeResponseError(
+  nextConfigOutput: NextConfig['output'] | undefined,
+  workStore: WorkStore,
+  prerenderStore: PrerenderStore
+): Error
+function getWebSocketUpgradeResponseError(
+  nextConfigOutput: NextConfig['output'] | undefined,
+  workStore: WorkStore,
+  prerenderStore: PrerenderStore | null
+): Error | undefined
+function getWebSocketUpgradeResponseError(
+  nextConfigOutput: NextConfig['output'] | undefined,
+  workStore: WorkStore,
+  prerenderStore: PrerenderStore | null
+): Error | undefined {
+  let message: string | undefined
+  if (nextConfigOutput === 'export') {
+    message = 'NextResponse.upgrade() cannot be used with output: "export".'
+  } else if (workStore.dynamicShouldError) {
+    message =
+      'NextResponse.upgrade() cannot be used in a route configured with dynamic = "error".'
+  } else if (workStore.forceStatic) {
+    message =
+      'NextResponse.upgrade() cannot be used in a route configured with dynamic = "force-static".'
+  } else if (prerenderStore !== null) {
+    message =
+      'NextResponse.upgrade() cannot be used while an App Route is being prerendered or cached.'
+  }
+
+  if (!message) return
+  const error =
+    nextConfigOutput === 'export' ||
+    workStore.dynamicShouldError ||
+    workStore.forceStatic
+      ? new Error(message)
+      : new DynamicServerError(message)
+  workStore.dynamicUsageDescription = message
+  workStore.dynamicUsageStack = error.stack
+  return error
 }
 
 function trackDynamic(

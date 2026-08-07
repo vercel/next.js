@@ -1,5 +1,5 @@
 import type { IncomingMessage } from 'node:http'
-import { once } from 'node:events'
+import { EventEmitter, once } from 'node:events'
 import { connect as connectTcp, createServer, type Socket } from 'node:net'
 import { PassThrough } from 'node:stream'
 
@@ -18,6 +18,96 @@ import {
   writeRawHttpError,
   writeRawHttpResponse,
 } from './websocket-http'
+import { createWebSocketUpgradeListenerOwnershipTracker } from './websocket-upgrade-listener'
+
+describe('WebSocket upgrade listener ownership', () => {
+  it.each(['on', 'once', 'prependListener', 'prependOnceListener'] as const)(
+    'permanently delegates after an external %s listener is registered',
+    (method) => {
+      const server = new EventEmitter()
+      const ownListener = jest.fn()
+      const externalListener = jest.fn()
+      const { isExclusiveOwner } =
+        createWebSocketUpgradeListenerOwnershipTracker(server, ownListener)
+
+      server.on('upgrade', ownListener)
+      expect(isExclusiveOwner()).toBe(true)
+
+      server[method]('upgrade', externalListener)
+      server.emit('upgrade')
+      server.removeListener('upgrade', externalListener)
+
+      expect(server.listeners('upgrade')).toEqual([ownListener])
+      expect(isExclusiveOwner()).toBe(false)
+    }
+  )
+
+  it('seeds existing listeners', () => {
+    const server = new EventEmitter()
+    const externalListener = jest.fn()
+    const ownListener = jest.fn()
+
+    server.on('upgrade', externalListener)
+    const { isExclusiveOwner } = createWebSocketUpgradeListenerOwnershipTracker(
+      server,
+      ownListener
+    )
+    server.on('upgrade', ownListener)
+    server.removeListener('upgrade', externalListener)
+
+    expect(isExclusiveOwner()).toBe(false)
+  })
+
+  it('rejects duplicate and multiple Next listener registrations', () => {
+    const duplicateServer = new EventEmitter()
+    const duplicateListener = jest.fn()
+    const { isExclusiveOwner: isDuplicateExclusiveOwner } =
+      createWebSocketUpgradeListenerOwnershipTracker(
+        duplicateServer,
+        duplicateListener
+      )
+    duplicateServer.on('upgrade', duplicateListener)
+    expect(isDuplicateExclusiveOwner()).toBe(true)
+    duplicateServer.on('upgrade', duplicateListener)
+    expect(isDuplicateExclusiveOwner()).toBe(false)
+
+    const sharedServer = new EventEmitter()
+    const firstOwnListener = jest.fn()
+    const secondOwnListener = jest.fn()
+    const { isExclusiveOwner: isFirstExclusiveOwner } =
+      createWebSocketUpgradeListenerOwnershipTracker(
+        sharedServer,
+        firstOwnListener
+      )
+    sharedServer.on('upgrade', firstOwnListener)
+    const { isExclusiveOwner: isSecondExclusiveOwner } =
+      createWebSocketUpgradeListenerOwnershipTracker(
+        sharedServer,
+        secondOwnListener
+      )
+    sharedServer.on('upgrade', secondOwnListener)
+
+    expect(isFirstExclusiveOwner()).toBe(false)
+    expect(isSecondExclusiveOwner()).toBe(false)
+  })
+
+  it('disposes its new-listener observer', () => {
+    const server = new EventEmitter()
+    const ownListener = jest.fn()
+    const baseline = server.listenerCount('newListener')
+    const tracker = createWebSocketUpgradeListenerOwnershipTracker(
+      server,
+      ownListener
+    )
+
+    expect(server.listenerCount('newListener')).toBe(baseline + 1)
+    tracker.dispose()
+    tracker.dispose()
+
+    expect(server.listenerCount('newListener')).toBe(baseline)
+    expect(tracker.isExclusiveOwner()).toBe(false)
+  })
+})
 
 function failNextListenerRemoval(
   socket: PassThrough,

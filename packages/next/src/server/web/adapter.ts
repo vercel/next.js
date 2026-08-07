@@ -7,10 +7,8 @@ import {
   getWaitUntilPromiseFromEvent,
 } from './spec-extension/fetch-event'
 import { NextRequest } from './spec-extension/request'
-import {
-  isWebSocketUpgradeResponse,
-  NextResponse,
-} from './spec-extension/response'
+import { NextResponse } from './spec-extension/response'
+import { isWebSocketUpgradeResponse } from './spec-extension/websocket-upgrade-response'
 import {
   parseRelativeURL,
   getRelativeURL,

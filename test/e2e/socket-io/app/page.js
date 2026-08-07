@@ -17,17 +17,8 @@ export default function Home() {
       path: '/api/my_awesome_socket',
     })
 
-    const markConnectedWhenUpgraded = () => {
-      if (socket.io.engine.transport.name === 'websocket') {
-        setConnected(true)
-      } else {
-        socket.io.engine.once('upgrade', () => setConnected(true))
-      }
-    }
-
     socket.on('connect', () => {
       console.log('Connected', socket.id)
-      markConnectedWhenUpgraded()
     })
 
     socket.on('newIncomingMessage', (msg) => {
@@ -47,7 +38,9 @@ export default function Home() {
   }
 
   useEffect(() => {
-    socketInitializer()
+    socketInitializer().then(() => {
+      setConnected(true)
+    })
   }, [])
 
   return (
