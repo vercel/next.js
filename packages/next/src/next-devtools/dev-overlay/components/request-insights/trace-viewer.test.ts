@@ -2,7 +2,10 @@ import {
   REQUEST_INSIGHT_REQUEST_SPAN_TYPE,
   type RequestInsight,
 } from '../../../shared/request-insights'
-import { getRequestInsightFilterResult } from './request-filters'
+import {
+  getRequestInsightDeliveryPresentation,
+  getRequestInsightFilterResult,
+} from './request-filters'
 import {
   getActiveRequestKey,
   getRequestInsightRowType,
@@ -229,6 +232,18 @@ describe('request insights trace viewer', () => {
     expect(getRequestInsightRowType(action).label).toBe('Action')
     expect(getRequestInsightRowType(api).label).toBe('API')
     expect(getRequestInsightRowType(asset).label).toBe('Asset')
+    expect(
+      getRequestInsightRowType(
+        createRequest({ source: 'future-source' as RequestInsight['source'] })
+      ).label
+    ).toBe('Unknown')
+    expect(
+      getRequestInsightDeliveryPresentation({
+        response: {
+          outcome: 'future-outcome',
+        } as unknown as RequestInsight['response'],
+      })
+    ).toEqual({ filter: 'delivery:unknown' })
     expect(
       getRequestInsightFilterResult(entries, [
         'source:page',
