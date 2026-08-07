@@ -78,7 +78,7 @@ export type NavigationSeed = {
   // request tree derived from a cached route entry, as during a prefetch:
   // divergence then means the entry doesn't describe what the server renders
   // — the URL has a rewrite that behaves dynamically (see
-  // fetchSegmentPrefetchesUsingDynamicRequest). During a navigation the base
+  // fetchSegmentPrefetchesUsingRuntimeRequest). During a navigation the base
   // is the current page's tree, so divergence carries no signal. False when
   // there was no base to compare against.
   treeDivergedFromBase: boolean

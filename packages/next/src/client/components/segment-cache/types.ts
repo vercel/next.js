@@ -40,7 +40,7 @@ export const enum FetchStrategy {
   //
   // These numeric values are client-internal and never cross the wire — the
   // `next-router-prefetch` request header values are mapped explicitly in
-  // fetchSegmentPrefetchesUsingDynamicRequest (cache.ts) — so the members can
+  // fetchSegmentPrefetchesUsingRuntimeRequest (cache.ts) — so the members can
   // be renumbered freely as long as the relative order is preserved.
   LoadingBoundary = 0,
   // The App Shell variant extracted from a static per-segment prefetch
