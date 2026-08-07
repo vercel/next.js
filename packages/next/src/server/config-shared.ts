@@ -769,8 +769,18 @@ export interface ExperimentalConfig {
 
   /**
    * Enable minification. Defaults to true in build mode and false in dev mode.
+   *
+   * Pass an object to configure each environment separately, e.g.
+   * `{ server: false, client: true }`. The `server` option takes precedence
+   * over `experimental.serverMinification`.
+   *
+   * We don't recommend disabling minification in production. Disabling it
+   * increases server function size, slows down cold starts, and leads to
+   * degraded performance.
    */
-  turbopackMinify?: boolean
+  turbopackMinify?:
+    | boolean
+    | { server?: boolean; client?: boolean; edge?: boolean }
 
   /**
    * Enable support for `with {type: "bytes"}` for ESM imports.
@@ -1153,6 +1163,9 @@ export interface ExperimentalConfig {
 
   /**
    * enables the minification of server code.
+   *
+   * Under Turbopack this is overridden by `experimental.turbopackMinify` when
+   * that option specifies a `server` value.
    */
   serverMinification?: boolean
 

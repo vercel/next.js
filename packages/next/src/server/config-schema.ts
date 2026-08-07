@@ -374,7 +374,16 @@ export const experimentalSchema = {
   turbopackPluginRuntimeStrategy: z
     .enum(['workerThreads', 'childProcesses'])
     .optional(),
-  turbopackMinify: z.boolean().optional(),
+  turbopackMinify: z
+    .union([
+      z.boolean(),
+      z.strictObject({
+        server: z.boolean().optional(),
+        client: z.boolean().optional(),
+        edge: z.boolean().optional(),
+      }),
+    ])
+    .optional(),
   turbopackFileSystemCacheForDev: z.boolean().optional(),
   turbopackFileSystemCacheForBuild: z.boolean().optional(),
   turbopackSeedCacheFromWorktree: z.boolean().optional(),
