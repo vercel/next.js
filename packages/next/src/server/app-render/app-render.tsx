@@ -2863,6 +2863,7 @@ async function prepareAppPageRender(
     requestId
   workStore.requestId = requestId
   workStore.htmlRequestId = htmlRequestId
+  workStore.requestInsightsIdentity = requestInsightsIdentity
 
   const getDynamicParamFromSegment = makeGetDynamicParamFromSegment(
     interpolatedParams,

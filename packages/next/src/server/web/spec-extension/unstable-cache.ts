@@ -22,6 +22,36 @@ import type {
   WorkUnitStore,
 } from '../../app-render/work-unit-async-storage.external'
 
+type UnstableCacheRequestInsightsRuntime = {
+  getNextRequestInsightsFetchIndex: typeof import('../../lib/trace/request-insights-sandbox-fetch').getNextRequestInsightsFetchIndex
+  getRequestInsightsIdentity: typeof import('../../lib/trace/request-insights-identity').getRequestInsightsIdentity
+}
+
+let unstableCacheRequestInsightsRuntime:
+  | UnstableCacheRequestInsightsRuntime
+  | undefined
+
+function getUnstableCacheRequestInsightsRuntime():
+  | UnstableCacheRequestInsightsRuntime
+  | undefined {
+  if (!process.env.__NEXT_DEV_SERVER) {
+    return undefined
+  }
+
+  if (!unstableCacheRequestInsightsRuntime) {
+    const { getNextRequestInsightsFetchIndex } =
+      require('../../lib/trace/request-insights-sandbox-fetch') as typeof import('../../lib/trace/request-insights-sandbox-fetch')
+    const { getRequestInsightsIdentity } =
+      require('../../lib/trace/request-insights-identity') as typeof import('../../lib/trace/request-insights-identity')
+    unstableCacheRequestInsightsRuntime = {
+      getNextRequestInsightsFetchIndex,
+      getRequestInsightsIdentity,
+    }
+  }
+
+  return unstableCacheRequestInsightsRuntime
+}
+
 type Callback = (...args: any[]) => Promise<any>
 
 let noStoreFetchIdx = 0
@@ -139,8 +169,17 @@ export function unstable_cache<T extends Callback>(
         await incrementalCache.generateSimpleCacheKey(invocationKey)
       // $urlWithPath,$sortedQueryStringKeys,$hashOfEveryThingElse
       const fetchUrl = `unstable_cache ${fetchUrlPrefix} ${cb.name ? ` ${cb.name}` : cacheKey}`
+      const requestInsightsRuntime = getUnstableCacheRequestInsightsRuntime()
+      const requestInsightsIdentity = requestInsightsRuntime
+        ? (requestInsightsRuntime.getRequestInsightsIdentity() ??
+          workStore?.requestInsightsIdentity)
+        : undefined
       const fetchIdx =
-        (workStore ? workStore.nextFetchId : noStoreFetchIdx) ?? 1
+        requestInsightsIdentity && requestInsightsRuntime
+          ? requestInsightsRuntime.getNextRequestInsightsFetchIndex(
+              requestInsightsIdentity
+            )
+          : ((workStore ? workStore.nextFetchId : noStoreFetchIdx) ?? 1)
 
       const implicitTags = workUnitStore?.implicitTags
 
@@ -338,7 +377,9 @@ export function unstable_cache<T extends Callback>(
 
         return result
       } else {
-        noStoreFetchIdx += 1
+        if (!requestInsightsIdentity) {
+          noStoreFetchIdx += 1
+        }
         // We are in Pages Router or were called outside of a render. We don't have a store
         // so we just call the callback directly when it needs to run.
         // If the entry is fresh we return it. If the entry is stale we return it but revalidate the entry in

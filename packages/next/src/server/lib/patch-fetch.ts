@@ -34,6 +34,7 @@ import type { IncrementalCache } from './incremental-cache'
 import { RenderStage } from '../app-render/staged-rendering'
 import { encodeCacheTag } from './encode-cache-tag'
 import type { Span } from './trace/tracer'
+import type { RequestInsightsIdentity } from './trace/request-insights-identity'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -42,7 +43,9 @@ type PatchFetchRequestInsightsRuntime = {
   getRequestInsightsCausalTarget: typeof import('./trace/request-insights-causal').getRequestInsightsCausalTarget
   getNextRequestInsightsFetchIndex: typeof import('./trace/request-insights-sandbox-fetch').getNextRequestInsightsFetchIndex
   getRequestInsightsIdentity: typeof import('./trace/request-insights-identity').getRequestInsightsIdentity
+  isRequestInsightsExecutionOriginTarget: typeof import('./trace/request-insights-causal').isRequestInsightsExecutionOriginTarget
   isRequestInsightsSameOriginTarget: typeof import('./trace/request-insights-causal').isRequestInsightsSameOriginTarget
+  prepareRequestInsightsSandboxFetch: typeof import('./trace/request-insights-sandbox-fetch').prepareRequestInsightsSandboxFetch
   setRequestInsightsFetchIndex: typeof import('./trace/local-span-recorder').setRequestInsightsFetchIndex
   setRequestInsightsCausalCookie: typeof import('./trace/request-insights-causal').setRequestInsightsCausalCookie
 }
@@ -60,12 +63,16 @@ function getPatchFetchRequestInsightsRuntime():
         require('./trace/request-insights-runtime') as typeof import('./trace/request-insights-runtime')
       const { getRequestInsightsIdentity } =
         require('./trace/request-insights-identity') as typeof import('./trace/request-insights-identity')
-      const { getNextRequestInsightsFetchIndex } =
+      const {
+        getNextRequestInsightsFetchIndex,
+        prepareRequestInsightsSandboxFetch,
+      } =
         require('./trace/request-insights-sandbox-fetch') as typeof import('./trace/request-insights-sandbox-fetch')
       const { setRequestInsightsFetchIndex } =
         require('./trace/local-span-recorder') as typeof import('./trace/local-span-recorder')
       const {
         getRequestInsightsCausalTarget,
+        isRequestInsightsExecutionOriginTarget,
         isRequestInsightsSameOriginTarget,
         setRequestInsightsCausalCookie,
       } =
@@ -75,7 +82,9 @@ function getPatchFetchRequestInsightsRuntime():
         getRequestInsightsCausalTarget,
         getNextRequestInsightsFetchIndex,
         getRequestInsightsIdentity,
+        isRequestInsightsExecutionOriginTarget,
         isRequestInsightsSameOriginTarget,
+        prepareRequestInsightsSandboxFetch,
         setRequestInsightsFetchIndex,
         setRequestInsightsCausalCookie,
       }
@@ -245,7 +254,8 @@ function trackFetchMetric(
   const requestInsights = requestInsightsRuntime?.getActiveRequestInsights()
   if (requestInsights) {
     const requestInsightsIdentity =
-      requestInsightsRuntime?.getRequestInsightsIdentity()
+      requestInsightsRuntime?.getRequestInsightsIdentity() ??
+      workStore.requestInsightsIdentity
     const requestInsightsRequestId =
       requestInsightsIdentity?.requestId ?? workStore.requestId
 
@@ -259,7 +269,10 @@ function trackFetchMetric(
           kind: requestInsightsIdentity?.kind,
           htmlRequestId:
             requestInsightsIdentity?.htmlRequestId ?? workStore.htmlRequestId,
-          route: workStore.route,
+          route:
+            requestInsightsIdentity?.source === 'proxy'
+              ? undefined
+              : workStore.route,
         },
         {
           url: metric.url,
@@ -291,6 +304,7 @@ function prepareRequestInsightsCausalFetch({
   input,
   isStale,
   method,
+  requestInsightsIdentity,
   targetUrl,
 }: {
   allowCausalLink: boolean
@@ -299,6 +313,7 @@ function prepareRequestInsightsCausalFetch({
   input: RequestInfo | URL
   isStale: boolean
   method: string
+  requestInsightsIdentity: RequestInsightsIdentity | undefined
   targetUrl: URL | undefined
 }): { init: RequestInit; revoke: () => void } {
   const runtime = getPatchFetchRequestInsightsRuntime()
@@ -312,7 +327,6 @@ function prepareRequestInsightsCausalFetch({
   }
   let token: string | undefined
   try {
-    const identity = runtime.getRequestInsightsIdentity()
     const target = targetUrl
       ? runtime.getRequestInsightsCausalTarget(targetUrl, method)
       : undefined
@@ -328,12 +342,19 @@ function prepareRequestInsightsCausalFetch({
       allowCausalLink &&
       !isStale &&
       credentials !== 'omit' &&
-      identity?.kind !== 'instant-insights' &&
-      identity?.rootRequestId &&
-      runtime.isRequestInsightsSameOriginTarget(identity.origin, target) &&
+      requestInsightsIdentity?.kind !== 'instant-insights' &&
+      requestInsightsIdentity?.rootRequestId &&
+      (runtime.isRequestInsightsSameOriginTarget(
+        requestInsightsIdentity.origin,
+        target
+      ) ||
+        runtime.isRequestInsightsExecutionOriginTarget(
+          requestInsightsIdentity.executionOrigin,
+          target
+        )) &&
       target
         ? requestInsights.mintCausalToken({
-            parentRootRequestId: identity.rootRequestId,
+            parentRootRequestId: requestInsightsIdentity.rootRequestId,
             parentFetchIndex: fetchIndex,
             target,
           })
@@ -381,6 +402,7 @@ function fetchWithRequestInsightsCausality({
   isStale,
   method,
   originFetch,
+  requestInsightsIdentity,
   targetUrl,
 }: {
   allowCausalLink: boolean
@@ -390,6 +412,7 @@ function fetchWithRequestInsightsCausality({
   isStale: boolean
   method: string
   originFetch: Fetcher
+  requestInsightsIdentity: RequestInsightsIdentity | undefined
   targetUrl: URL | undefined
 }): Promise<Response> {
   const prepared = prepareRequestInsightsCausalFetch({
@@ -399,6 +422,7 @@ function fetchWithRequestInsightsCausality({
     input,
     isStale,
     method,
+    requestInsightsIdentity,
     targetUrl,
   })
 
@@ -607,10 +631,53 @@ export function createPatchedFetcher(
           return dedupeFetch(input, init)
         }
 
-        // If the workStore is not available, we can't do any
-        // special treatment of fetch, therefore fallback to the original
-        // fetch implementation.
         if (!workStore) {
+          const requestInsightsRuntime = getPatchFetchRequestInsightsRuntime()
+          const requestInsights =
+            requestInsightsRuntime?.getActiveRequestInsights()
+          const requestInsightsIdentity =
+            requestInsightsRuntime?.getRequestInsightsIdentity()
+
+          if (
+            requestInsightsRuntime &&
+            requestInsights &&
+            requestInsightsIdentity &&
+            url
+          ) {
+            const effectiveRequest =
+              input instanceof Request ? new Request(input, init) : undefined
+            const requestInsightsFetch =
+              requestInsightsRuntime.prepareRequestInsightsSandboxFetch({
+                context: {
+                  identity: requestInsightsIdentity,
+                  requestInsights,
+                },
+                init: effectiveRequest
+                  ? {
+                      credentials: effectiveRequest.credentials,
+                      headers: effectiveRequest.headers,
+                      method: effectiveRequest.method,
+                    }
+                  : (init ?? {}),
+                url: fetchUrl,
+              })
+
+            try {
+              const response = await (effectiveRequest
+                ? dedupeFetch(
+                    new Request(effectiveRequest, {
+                      headers: requestInsightsFetch.init.headers,
+                    })
+                  )
+                : dedupeFetch(input, requestInsightsFetch.init))
+              requestInsightsFetch.complete(response)
+              return response
+            } catch (error) {
+              requestInsightsFetch.complete()
+              throw error
+            }
+          }
+
           return dedupeFetch(input, init)
         }
 
@@ -1091,14 +1158,13 @@ export function createPatchedFetcher(
         const fetchIdx = workStore.nextFetchId ?? 1
         workStore.nextFetchId = fetchIdx + 1
         let requestInsightsRuntime: PatchFetchRequestInsightsRuntime | undefined
-        let requestInsightsIdentity:
-          | import('./trace/request-insights-identity').RequestInsightsIdentity
-          | undefined
+        let requestInsightsIdentity: RequestInsightsIdentity | undefined
         let requestInsightsFetchIdx: number | undefined
         if (process.env.__NEXT_DEV_SERVER) {
           requestInsightsRuntime = getPatchFetchRequestInsightsRuntime()
           requestInsightsIdentity =
-            requestInsightsRuntime?.getRequestInsightsIdentity()
+            requestInsightsRuntime?.getRequestInsightsIdentity() ??
+            workStore.requestInsightsIdentity
           if (requestInsightsIdentity && requestInsightsRuntime) {
             requestInsightsFetchIdx =
               requestInsightsRuntime.getNextRequestInsightsFetchIndex(
@@ -1171,6 +1237,7 @@ export function createPatchedFetcher(
               isStale: Boolean(isStale),
               method: effectiveMethod,
               originFetch,
+              requestInsightsIdentity,
               targetUrl: url,
             })
           )

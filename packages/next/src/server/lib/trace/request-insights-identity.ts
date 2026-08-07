@@ -27,6 +27,9 @@ export type RequestInsightsIdentity = {
   htmlRequestId: string
   url: string | undefined
   origin?: string
+  // Direct, server-owned listener origin. This can differ from `origin` when
+  // the development server is reached through a reverse proxy.
+  executionOrigin?: string
   parentRootRequestId?: string
   parentFetchIndex?: number
 }
@@ -36,6 +39,7 @@ export function resolveRequestInsightsIdentity({
   requestIdHeader,
   htmlRequestIdHeader,
   causalParent,
+  executionOrigin,
   origin,
   url,
   createRequestId,
@@ -44,6 +48,7 @@ export function resolveRequestInsightsIdentity({
   requestIdHeader: string | string[] | undefined
   htmlRequestIdHeader: string | string[] | undefined
   causalParent?: RequestInsightsCausalParent
+  executionOrigin?: string
   origin?: string
   url: string | undefined
   createRequestId: () => string
@@ -62,6 +67,7 @@ export function resolveRequestInsightsIdentity({
       getValidatedDevHtmlRequestId(htmlRequestIdHeader) ?? requestId,
     url,
     origin,
+    executionOrigin,
     ...(causalParent?.parentRootRequestId !== requestId
       ? causalParent
       : undefined),
