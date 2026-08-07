@@ -761,11 +761,7 @@ function pingRoute(
         if (background(task)) {
           routeWithoutSearch.status = EntryStatus.Pending
           spawnPrefetchSubtask(
-            fetchRouteOnCacheMiss(
-              routeWithoutSearch,
-              keyWithoutSearch,
-              task.segmentCacheMap
-            )
+            fetchRouteOnCacheMiss(routeWithoutSearch, keyWithoutSearch)
           )
         }
         break
@@ -817,9 +813,7 @@ function pingRootRouteTree(
       // behavior if PPR is disabled for a route (via the incremental opt-in).
       //
       // Those cases will be handled here.
-      spawnPrefetchSubtask(
-        fetchRouteOnCacheMiss(route, task.key, task.segmentCacheMap)
-      )
+      spawnPrefetchSubtask(fetchRouteOnCacheMiss(route, task.key))
 
       // If the request takes longer than a minute, a subsequent request should
       // retry instead of waiting for this one. When the response is received,

@@ -56,6 +56,9 @@ export function restoreReducer(
   const restoreSeed = convertServerPatchToFullTree(
     now,
     treeToRestore,
+    // No transport data (and so no pathname to parse params from) — this
+    // converts the base tree alone.
+    null,
     null,
     renderedSearch,
     UnknownDynamicStaleTime

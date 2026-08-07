@@ -89,6 +89,11 @@ export function createInitialRouterState({
     // There's no base tree to overlay onto; the initial payload is a full
     // render from the root.
     null,
+    // The initial payload always includes the param values in the tree
+    // (fallback shells are patched with the parsed values before this runs —
+    // see createInitialRSCPayloadFromFallbackPrerender), so there's no
+    // pathname to parse them from.
+    null,
     initialRenderedSearch as NormalizedSearch,
     acc
   )
