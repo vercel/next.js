@@ -4,7 +4,7 @@ import type { RequestInsights } from '../../lib/trace/request-insights'
 import type {
   RequestInsight,
   RequestInsightsSnapshot,
-} from '../../../next-devtools/shared/request-insights'
+} from '../../../shared/lib/request-insights-data'
 import {
   createBoundedRequestInsightsSnapshotProjection,
   getRequestInsightRootId,
@@ -12,7 +12,7 @@ import {
   REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET,
   REQUEST_INSIGHTS_MAX_ID_LENGTH,
   REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES,
-} from '../../../next-devtools/shared/request-insights'
+} from '../../../shared/lib/request-insights-data'
 import {
   getTerminalSafeJsonByteLength,
   getUtf8ByteLength,

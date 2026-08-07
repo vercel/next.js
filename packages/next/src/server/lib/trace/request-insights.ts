@@ -7,7 +7,7 @@ import type {
   RequestInsightsLiveSnapshot,
   RequestInsightsLiveUpdate,
   RequestInsightsSnapshot,
-} from '../../../next-devtools/shared/request-insights'
+} from '../../../shared/lib/request-insights-data'
 import {
   createBoundedRequestInsightsSnapshotProjection,
   createRequestInsightsByteLengthCache,
@@ -25,11 +25,11 @@ import {
   REQUEST_INSIGHTS_MAX_SNAPSHOT_BYTES,
   REQUEST_INSIGHTS_MAX_SPANS_PER_RECORD,
   updateBoundedRequestInsightsProjection,
-} from '../../../next-devtools/shared/request-insights'
+} from '../../../shared/lib/request-insights-data'
 import type {
   RequestInsightKind,
   RequestInsightsByteLengthCache,
-} from '../../../next-devtools/shared/request-insights'
+} from '../../../shared/lib/request-insights-data'
 import {
   getRequestInsightKey,
   getRequestInsightKind,
@@ -59,7 +59,7 @@ export {
   REQUEST_INSIGHTS_ID_PATTERN,
   REQUEST_INSIGHTS_MAX_GROUPS_PER_RETENTION_BUCKET,
   REQUEST_INSIGHTS_MAX_ID_LENGTH,
-} from '../../../next-devtools/shared/request-insights'
+} from '../../../shared/lib/request-insights-data'
 
 const MAX_REQUEST_INSIGHT_STRING_LENGTH = 256
 const MAX_REQUEST_INSIGHT_SPAN_NAME_LENGTH = 512

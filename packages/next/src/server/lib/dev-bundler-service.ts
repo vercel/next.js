@@ -17,7 +17,7 @@ import type {
 } from '../../next-devtools/shared/request-insights'
 
 type RequestInsightsHmrRuntime = Pick<
-  typeof import('../../next-devtools/shared/request-insights'),
+  typeof import('../../shared/lib/request-insights-data'),
   | 'getRequestInsightKey'
   | 'getRequestInsightsSerializedByteLength'
   | 'REQUEST_INSIGHT_RETENTION_BUCKETS'
@@ -30,7 +30,7 @@ let requestInsightsHmrRuntime: RequestInsightsHmrRuntime | undefined
 function getRequestInsightsHmrRuntime(): RequestInsightsHmrRuntime | undefined {
   if (process.env.__NEXT_DEV_SERVER) {
     return (requestInsightsHmrRuntime ??=
-      require('../../next-devtools/shared/request-insights') as typeof import('../../next-devtools/shared/request-insights'))
+      require('../../shared/lib/request-insights-data') as typeof import('../../shared/lib/request-insights-data'))
   } else {
     return undefined
   }
