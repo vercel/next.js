@@ -5,6 +5,7 @@ import {
 import {
   clearServerHmrChunkCaches,
   getServerHmrRuntimeRoot,
+  getWebSocketRouteBundlePathFromTurbopackEntry,
 } from 'next/dist/server/dev/hot-reloader-turbopack'
 import { backgroundLogCompilationEvents } from 'next/dist/shared/lib/turbopack/compilation-events'
 import type { Project } from 'next/dist/build/swc/types'
@@ -457,5 +458,22 @@ describe('server HMR runtime identity', () => {
     } finally {
       rmSync(temporaryDirectory, { force: true, recursive: true })
     }
+  })
+})
+
+describe('Turbopack WebSocket route mapping', () => {
+  it('accepts only relative JavaScript entry paths', () => {
+    expect(getWebSocketRouteBundlePathFromTurbopackEntry('chat/route.js')).toBe(
+      'app/chat/route'
+    )
+    expect(
+      getWebSocketRouteBundlePathFromTurbopackEntry('rooms\\[id]\\route.js')
+    ).toBe('app/rooms/[id]/route')
+    expect(
+      getWebSocketRouteBundlePathFromTurbopackEntry('../outside/route.js')
+    ).toBe(undefined)
+    expect(
+      getWebSocketRouteBundlePathFromTurbopackEntry('/chat/route.js')
+    ).toBe(undefined)
   })
 })

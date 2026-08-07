@@ -15,7 +15,7 @@ import {
 } from './middleware-webpack'
 import { WebpackHotMiddleware } from './hot-middleware'
 import * as inspector from 'inspector'
-import { randomUUID } from 'crypto'
+import { createHash, randomUUID } from 'crypto'
 import { join, relative, isAbsolute, posix, dirname } from 'path'
 import {
   createEntrypoints,
@@ -90,6 +90,12 @@ import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
 import { getDevOverlayFontMiddleware } from '../../next-devtools/server/font/get-dev-overlay-font-middleware'
 import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev-indicator-middleware'
 import getWebpackBundler from '../../shared/lib/get-webpack-bundler'
+import {
+  closeWebSocketRoute,
+  getWebSocketRouteBundlePath,
+  isWebSocketRouteActive,
+  reloadWebSocketScope,
+} from '../websocket-connection-registry'
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
 import { checkFileSystemCacheInvalidationAndCleanup } from '../../build/webpack/cache-invalidation'
 import { receiveBrowserLogsWebpack } from './browser-logs/receive-logs'
@@ -126,6 +132,182 @@ const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
+}
+
+function getWebSocketBundlePathFromEntrypoint(
+  entryName: string
+): string | undefined {
+  if (
+    entryName !== 'app/route' &&
+    !(entryName.startsWith('app/') && entryName.endsWith('/route'))
+  ) {
+    return undefined
+  }
+
+  const page = getRouteFromEntrypoint(entryName, true)
+  return page ? getWebSocketRouteBundlePath(page) : undefined
+}
+
+function frameFingerprintValue(value: string): string {
+  return `${Buffer.byteLength(value)}:${value}`
+}
+
+type WebSocketRouteModule = webpack.Module & {
+  resource?: string
+  originalSource?: () => { buffer(): Buffer } | null
+}
+type WebpackRuntime = webpack.Chunk['runtime']
+
+function getWebSocketRouteFingerprints(
+  compilation: webpack.Compilation,
+  pageExtensionRegex: RegExp
+): Map<string, string> {
+  const fingerprints = new Map<string, string>()
+  // A named vendor chunk can contain modules which are not reachable from
+  // every entrypoint that references it, so chunk hashes are too broad here.
+  // Keep exact ModuleGraph reachability while caching the expensive graph and
+  // hash lookups shared by routes during this compilation.
+  const normalizedResources = new Map<webpack.Module, string | undefined>()
+  const moduleIdentifiers = new Map<webpack.Module, string>()
+  const sourceHashes = new Map<webpack.Module, string>()
+  const moduleHashes = new Map<webpack.Module, Map<WebpackRuntime, string>>()
+  const outgoingModules = new Map<
+    webpack.Module,
+    Map<WebpackRuntime, webpack.Module[]>
+  >()
+
+  const getNormalizedResource = (module: webpack.Module) => {
+    if (normalizedResources.has(module)) {
+      return normalizedResources.get(module)
+    }
+
+    const resource = (module as WebSocketRouteModule).resource?.replaceAll(
+      '\\',
+      '/'
+    )
+    normalizedResources.set(module, resource)
+    return resource
+  }
+
+  const getModuleHash = (
+    module: webpack.Module,
+    runtime: WebpackRuntime,
+    useOriginalSource: boolean
+  ) => {
+    if (useOriginalSource) {
+      const cached = sourceHashes.get(module)
+      if (cached) return cached
+
+      const originalSource = (module as WebSocketRouteModule).originalSource?.()
+      if (originalSource) {
+        const hash = createHash('sha256')
+          .update(originalSource.buffer())
+          .digest('hex')
+        sourceHashes.set(module, hash)
+        return hash
+      }
+    }
+
+    let hashesByRuntime = moduleHashes.get(module)
+    if (!hashesByRuntime) {
+      hashesByRuntime = new Map()
+      moduleHashes.set(module, hashesByRuntime)
+    }
+
+    const cached = hashesByRuntime.get(runtime)
+    if (cached) return cached
+
+    const hash = compilation.chunkGraph.getModuleHash(module, runtime)
+    hashesByRuntime.set(runtime, hash)
+    return hash
+  }
+
+  const getOutgoingModules = (
+    module: webpack.Module,
+    runtime: WebpackRuntime
+  ) => {
+    let modulesByRuntime = outgoingModules.get(module)
+    if (!modulesByRuntime) {
+      modulesByRuntime = new Map()
+      outgoingModules.set(module, modulesByRuntime)
+    }
+
+    const cached = modulesByRuntime.get(runtime)
+    if (cached) return cached
+
+    const modules: webpack.Module[] = []
+    for (const connection of compilation.moduleGraph.getOutgoingConnections(
+      module
+    )) {
+      if (connection.getActiveState(runtime) !== false) {
+        modules.push(connection.module)
+      }
+    }
+    modulesByRuntime.set(runtime, modules)
+    return modules
+  }
+
+  for (const [entryName, entrypoint] of compilation.entrypoints) {
+    const bundlePath = getWebSocketBundlePathFromEntrypoint(entryName)
+    if (!bundlePath) continue
+
+    const entry = compilation.entries.get(entryName)
+    if (!entry) {
+      throw new Error(`Missing Webpack entry data for ${entryName}`)
+    }
+
+    const runtime = entrypoint.getEntrypointChunk().runtime
+    const pendingModules: webpack.Module[] = []
+    for (const dependency of [
+      ...entry.dependencies,
+      ...entry.includeDependencies,
+    ]) {
+      const module = compilation.moduleGraph.getResolvedModule(dependency)
+      if (!module) {
+        throw new Error(`Unresolved Webpack entry dependency for ${entryName}`)
+      }
+      pendingModules.push(module)
+    }
+
+    // StringXor is Webpack's order-independent compilation hash primitive. A
+    // separate identity accumulator distinguishes module membership when two
+    // modules happen to have the same content hash, without sorting the full
+    // reachable module set for every route.
+    const contentFingerprint = new StringXor()
+    const identityFingerprint = new StringXor()
+    const visitedModules = new Set<webpack.Module>()
+    for (let index = 0; index < pendingModules.length; index++) {
+      const module = pendingModules[index]
+      if (visitedModules.has(module)) continue
+      visitedModules.add(module)
+
+      const resource = getNormalizedResource(module)
+      const isEntryModule =
+        resource?.includes(entryName) && pageExtensionRegex.test(resource)
+
+      contentFingerprint.add(
+        getModuleHash(module, runtime, Boolean(isEntryModule))
+      )
+      let identifier = moduleIdentifiers.get(module)
+      if (!identifier) {
+        identifier = module.identifier()
+        moduleIdentifiers.set(module, identifier)
+      }
+      identityFingerprint.add(identifier)
+
+      for (const outgoingModule of getOutgoingModules(module, runtime)) {
+        pendingModules.push(outgoingModule)
+      }
+    }
+
+    const fingerprint = createHash('sha256')
+      .update(frameFingerprintValue(contentFingerprint.toString()))
+      .update(frameFingerprintValue(identityFingerprint.toString()))
+      .digest('hex')
+    fingerprints.set(bundlePath, fingerprint)
+  }
+
+  return fingerprints
 }
 
 const wsServer = new ws.Server({ noServer: true })
@@ -262,6 +444,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private resetFetch: () => void
   private restartServer: (() => Promise<void>) | undefined
   private lockfile: Lockfile | undefined
+  private webSocketRegistryScope: object | undefined
   private versionInfo: VersionInfo = {
     staleness: 'unknown',
     installed: '0.0.0',
@@ -295,6 +478,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       lockfile,
       onDevServerCleanup,
       restartServer,
+      webSocketRegistryScope,
     }: {
       config: NextConfigComplete
       isSrcDir: boolean
@@ -310,6 +494,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       lockfile: Lockfile | undefined
       onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
       restartServer?: () => Promise<void>
+      webSocketRegistryScope?: object
     }
   ) {
     this.hasAppRouterEntrypoints = false
@@ -330,6 +515,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.resetFetch = resetFetch
     this.restartServer = restartServer
     this.lockfile = lockfile
+    this.webSocketRegistryScope = webSocketRegistryScope
 
     this.config = config
     this.previewProps = previewProps
@@ -1338,6 +1524,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     const prevServerPageHashes = new Map<string, string>()
     const prevEdgeServerPageHashes = new Map<string, string>()
     const prevCSSImportModuleHashes = new Map<string, string>()
+    let previousWebSocketRouteFingerprints: Map<string, string> | undefined
 
     const pageExtensionRegex = new RegExp(
       `\\.(?:${this.config.pageExtensions.join('|')})$`
@@ -1561,6 +1748,50 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       const reloadAfterInvalidation = this.reloadAfterInvalidation
       this.reloadAfterInvalidation = false
 
+      const webSocketRegistryScope = this.webSocketRegistryScope
+      if (
+        this.config.experimental.webSocketRouteHandlers &&
+        webSocketRegistryScope
+      ) {
+        if (reloadAfterInvalidation) {
+          void reloadWebSocketScope(webSocketRegistryScope)
+        }
+        const serverStats = stats.stats[1]
+        const edgeServerStats = stats.stats[2]
+        if (
+          !serverStats ||
+          serverStats.hasErrors() ||
+          edgeServerStats?.hasErrors()
+        ) {
+          void reloadWebSocketScope(webSocketRegistryScope)
+        } else {
+          try {
+            const currentFingerprints = getWebSocketRouteFingerprints(
+              serverStats.compilation,
+              pageExtensionRegex
+            )
+            if (previousWebSocketRouteFingerprints) {
+              for (const [
+                bundlePath,
+                previousFingerprint,
+              ] of previousWebSocketRouteFingerprints) {
+                if (
+                  currentFingerprints.get(bundlePath) !== previousFingerprint
+                ) {
+                  void closeWebSocketRoute(webSocketRegistryScope, bundlePath)
+                }
+              }
+            }
+            previousWebSocketRouteFingerprints = currentFingerprints
+          } catch (error) {
+            // An unknown Webpack graph shape must not leave a route executing
+            // code from a generation which may have changed.
+            console.error(error)
+            void reloadWebSocketScope(webSocketRegistryScope)
+          }
+        }
+      }
+
       const serverOnlyChanges = difference<string>(
         changedServerPages,
         changedClientPages
@@ -1686,6 +1917,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       )
     })
 
+    const webSocketRegistryScope = this.webSocketRegistryScope
     this.onDemandEntries = onDemandEntryHandler({
       hotReloader: this,
       multiCompiler: this.multiCompiler,
@@ -1693,6 +1925,12 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       appDir: this.appDir,
       rootDir: this.dir,
       nextConfig: this.config,
+      isEntryPinned:
+        this.config.experimental.webSocketRouteHandlers &&
+        webSocketRegistryScope
+          ? (bundlePath) =>
+              isWebSocketRouteActive(webSocketRegistryScope, bundlePath)
+          : undefined,
       ...(this.config.onDemandEntries as {
         maxInactiveAge: number
         pagesBufferLength: number
