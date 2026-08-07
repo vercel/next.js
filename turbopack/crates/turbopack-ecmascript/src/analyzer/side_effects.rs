@@ -425,14 +425,17 @@ fn for_each_top_level_assign(program: &Program, f: impl FnMut(&AssignExpr)) {
 ///
 /// A reassignment to an alias (`module.exports = require('./x')`,
 /// `module.exports = other`) would make later changes to properties on
-/// `module.exports` have side effects.
+/// `module.exports` have side effects. A fresh object/array literal is safe,
+/// but not one capturing a value the module does not own
+/// (`module.exports = { g: globalThis }` is unsafe: a later
+/// `module.exports.g.x = 1` mutates the global).
 fn module_exports_is_tainted(program: &Program, unresolved_mark: Mark) -> bool {
     let mut tainted = false;
     for_each_top_level_assign(program, |assign| {
         if assign.op == AssignOp::Assign
             && let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &assign.left
             && is_module_dot_exports(member, unresolved_mark)
-            && !is_object_or_array_literal(&assign.right)
+            && (!is_object_or_array_literal(&assign.right) || !is_fresh_value(&assign.right))
         {
             tainted = true;
         }
@@ -2707,6 +2710,12 @@ mod tests {
         side_effects!(
             test_cjs_export_alias_then_write,
             "module.exports = other; module.exports.foo = 1;"
+        );
+        // A fresh literal capturing a value the module does not own also taints
+        // it: `module.exports.g.x = 1` mutates the global, not the exports object.
+        side_effects!(
+            test_cjs_export_literal_capturing_global_then_write,
+            "module.exports = { g: globalThis }; module.exports.g.x = 1;"
         );
         // The reassignment is also detected when hidden inside a top-level
         // comma-sequence expression rather than a standalone statement.
