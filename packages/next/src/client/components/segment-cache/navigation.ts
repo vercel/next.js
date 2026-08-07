@@ -33,6 +33,7 @@ import {
   processRuntimePrefetchStream,
   writeDynamicRenderResponseIntoCache,
   type RouteTree,
+  type RSCSegmentData,
   type FulfilledRouteCacheEntry,
 } from './cache'
 import { discoverKnownRoute } from './optimistic-routes'
@@ -340,7 +341,6 @@ export function navigateToKnownRoute(
     navigationSeed.routeTree,
     navigationSeed.metadataVaryPath,
     freshnessPolicy,
-    navigationSeed.data,
     navigationSeed.head,
     navigationSeed.dynamicStaleAt,
     isSamePageNavigation,
@@ -401,7 +401,6 @@ function navigateUsingPrefetchedRouteTree(
     renderedSearch,
     routeTree,
     metadataVaryPath: route.metadata.varyPath as any,
-    data: null,
     head: null,
     dynamicStaleAt: computeDynamicStaleAt(now, UnknownDynamicStaleTime),
   }
@@ -857,9 +856,8 @@ export function completeTraverseNavigation(
 
 export type NavigationSeed = {
   renderedSearch: string
-  routeTree: RouteTree
+  routeTree: RouteTree<RSCSegmentData | null>
   metadataVaryPath: PageVaryPath | null
-  data: CacheNodeSeedData | null
   head: HeadData | null
   dynamicStaleAt: number
 }
@@ -877,10 +875,9 @@ export function convertServerPatchToFullTree(
   // This applies the patch to the base tree to create a full representation of
   // the resulting tree.
   //
-  // The return type includes a full FlightRouterState tree and a full
-  // CacheNodeSeedData tree. (Conceptually these are the same tree, and should
-  // eventually be unified, but there's still lots of existing code that
-  // operates on FlightRouterState trees alone without the CacheNodeSeedData.)
+  // The returned RouteTree carries the response's render output on each
+  // node (RSCSegmentData); this is the only place on the client where the
+  // wire format's separate CacheNodeSeedData tree is consumed.
   //
   // TODO: This similar to what apply-router-state-patch-to-tree does. It
   // will eventually fully replace it. We should get rid of all the remaining
@@ -924,6 +921,9 @@ export function convertServerPatchToFullTree(
   const acc = { metadataVaryPath: null }
   const routeTree = convertRootFlightRouterStateToRouteTree(
     finalFlightRouterState,
+    // Embed the response's seed data directly into the RouteTree, so each
+    // node carries its own render output.
+    baseData,
     renderedSearch as NormalizedSearch,
     acc
   )
@@ -931,7 +931,6 @@ export function convertServerPatchToFullTree(
   return {
     routeTree,
     metadataVaryPath: acc.metadataVaryPath,
-    data: baseData,
     renderedSearch,
     head,
     dynamicStaleAt: computeDynamicStaleAt(now, dynamicStaleTimeSeconds),

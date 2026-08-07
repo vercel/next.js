@@ -1236,7 +1236,7 @@ function pingSharedPartOfCacheComponentsTree(
   task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
   oldTree: FlightRouterState,
-  newTree: RouteTree,
+  newTree: RouteTree<null>,
   parentBundle: SegmentBundle | null,
   // The per-pass static walk strategy; see pingRootRouteTree where
   // it's derived.
@@ -1352,7 +1352,7 @@ function pingNewPartOfCacheComponentsTree(
   now: number,
   task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
-  tree: RouteTree,
+  tree: RouteTree<null>,
   parentBundle: SegmentBundle | null,
   // The per-pass static walk strategy; see pingRootRouteTree where
   // it's derived.
@@ -1503,7 +1503,7 @@ function diffRouteTreeAgainstCurrent(
   task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
   oldTree: FlightRouterState,
-  newTree: RouteTree,
+  newTree: RouteTree<null>,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry>,
   fetchStrategy:
     | FetchStrategy.Full
@@ -1652,7 +1652,7 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
   now: number,
   task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
-  tree: RouteTree,
+  tree: RouteTree<null>,
   refetchMarkerContext: 'refetch' | 'inside-shared-layout' | null,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry>
 ): FlightRouterState {
@@ -1807,7 +1807,7 @@ function pingRouteTreeAndIncludeDynamicData(
   now: number,
   task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
-  tree: RouteTree,
+  tree: RouteTree<null>,
   isInsideRefetchingParent: boolean,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry>,
   fetchStrategy:
@@ -1982,7 +1982,7 @@ function pingRuntimePrefetches(
   now: number,
   task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
-  tree: RouteTree,
+  tree: RouteTree<null>,
   spawnedRuntimePrefetches: Set<SegmentRequestKey>,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry>,
   fetchStrategy: FetchStrategy.PPRRuntime | FetchStrategy.RuntimeShell
@@ -2051,7 +2051,7 @@ function pingSegmentBundle(
   task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
   routeKey: RouteCacheKey,
-  tree: RouteTree,
+  tree: RouteTree<null>,
   segments: SegmentBundle,
   // Per-pass static walk strategy; see pingRootRouteTree where it's derived.
   fetchStrategy: FetchStrategy.PPR | FetchStrategy.StaticShell,
@@ -2302,7 +2302,7 @@ function accumulateSegmentBundle(
   now: number,
   task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
-  tree: RouteTree,
+  tree: RouteTree<null>,
   parentBundle: SegmentBundle | null,
   // Per-pass static walk strategy; see pingRootRouteTree where it's derived.
   // PPR for the normal static bundling walk; StaticShell during the Shell
@@ -2395,7 +2395,7 @@ function finishStaticBundleOnRuntimeBailout(
   now: number,
   task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
-  tree: RouteTree,
+  tree: RouteTree<null>,
   parentBundle: SegmentBundle,
   // The same static walk strategy the parent bundle was accumulated with.
   // Any needs-runtime signal from finishing the bundle is dropped: the
@@ -2437,7 +2437,7 @@ function finishStaticBundleOnRuntimeBailout(
 function pingFullSegmentRevalidation(
   now: number,
   task: PrefetchTask,
-  tree: RouteTree,
+  tree: RouteTree<null>,
   fetchStrategy:
     | FetchStrategy.Full
     | FetchStrategy.PPRRuntime

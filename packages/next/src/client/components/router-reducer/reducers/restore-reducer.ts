@@ -69,7 +69,6 @@ export function restoreReducer(
     restoreSeed.metadataVaryPath,
     FreshnessPolicy.HistoryTraversal,
     null,
-    null,
     restoreSeed.dynamicStaleAt,
     false,
     accumulation,
