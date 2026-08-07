@@ -3263,7 +3263,7 @@ fn emit_server_action(
             PathBuf::from(file_name).file_name().unwrap().display()
         )
         .into();
-        let data: Expr = format!("{action_id}|{export}").into();
+        let data: Expr = format!("{action_id}\0{export}\0{file_name}").into();
 
         if is_react_server_layer {
             // Don't transition, we are already in the RSC layer

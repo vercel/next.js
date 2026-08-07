@@ -146,17 +146,18 @@ async fn collect_actions(
                     _ => bail!("Expected emitted module reference data to be string"),
                 };
                 let mut data = data
-                    .split("|");
+                    // `{action_id}|{export_name}|{source_path}`
+                    .splitn(3, '\0');
                 let hash = data.next().context("expected more data")?;
                 let name = data.next().context("expected more data")?;
+                let source_path = data.next().context("expected more data")?;
 
                 Ok((
                     hash.to_string(),
                     (
                         ActionMeta {
                             name: name.to_string(),
-                            // TODO set properly
-                            source_path: "".to_string(),
+                            source_path: source_path.to_string(),
                         },
                         *module,
                     ),
@@ -253,14 +254,7 @@ impl Asset for ServerActionManifestAsset {
         let action_metadata: Vec<(&str, ActionMetadata<'_>)> = actions_value
             .iter()
             .map(async |(hash_id, (meta, module))| {
-                // Use source_path from the action comment if available (contains original .ts/.tsx
-                // path), otherwise fall back to module.ident().path() (may be compiled .js
-                // path)
-                let filename = if !meta.source_path.is_empty() {
-                    Cow::Borrowed(&*meta.source_path)
-                } else {
-                    Cow::Owned(module.ident().await?.path.to_string())
-                };
+                let filename = Cow::Borrowed(&*meta.source_path);
 
                 Ok((
                     &**hash_id,
