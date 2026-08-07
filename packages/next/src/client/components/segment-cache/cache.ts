@@ -306,10 +306,12 @@ type SegmentCacheEntryShared = {
    * which may be deeper than the strategy that requested it: an entry is
    * recorded at the tier of the payload that fully satisfied it (e.g. a
    * shell-spawned entry fulfilled by a response whose shell IS the full
-   * response is recorded at the full tier, while still keyed at the shell
-   * vary path — valid precisely because the variants coincide). Compared
-   * via `canNewFetchStrategyProvideMoreContent` to decide whether a new
-   * request could yield more content than what's already cached.
+   * response is recorded at the concrete tier — and keyed by it too: without
+   * server vary evidence the entry is re-keyed to the concrete vary path
+   * rather than parked in the shell slot; see the keying derivation in
+   * writeSegmentDataIntoCache). Compared via
+   * `canNewFetchStrategyProvideMoreContent` to decide whether a new request
+   * could yield more content than what's already cached.
    *
    * "Effectively" spans both of the tier axes, static-vs-runtime included: a
    * static response that accessed no runtime data is as complete as a runtime
@@ -1041,6 +1043,14 @@ function isExistingSegmentEntryPreferred(
   existingEntry: SegmentCacheEntry,
   candidateEntry: SegmentCacheEntry
 ): boolean {
+  if (existingEntry.status === EntryStatus.Empty) {
+    // An Empty entry is a placeholder that carries no data, and its
+    // fetchStrategy is a spawn-time default, not a fact about any content —
+    // it must never win a precedence comparison. (Without this, a candidate
+    // fetched at a tier below the placeholder's default would be discarded
+    // in favor of an entry with nothing in it.)
+    return false
+  }
   return (
     // We fetched the new segment using a different, less specific fetch
     // strategy than the segment we already have in the cache, so it can't
@@ -1182,9 +1192,10 @@ export function upsertSegmentEntry(
  * upsert applies at its own keypath — we know we never want to match against
  * it again, so delete it, making the candidate reachable.
  *
- * Non-settled entries are never evicted here: a Pending entry is owned by an
- * in-flight request that will settle it, and an Empty entry is a placeholder
- * that a scheduler pass may still claim and upgrade.
+ * Pending entries are never evicted here: they're owned by an in-flight
+ * request that will settle them. Empty entries ARE evictable — they're
+ * unclaimed placeholders with nothing in them, so they must not shadow real
+ * data; their blocked tasks are pinged so they re-run against the candidate.
  */
 function evictShadowingSegmentEntries(
   now: number,
@@ -1215,12 +1226,13 @@ function evictShadowingSegmentEntries(
       // entirely, e.g. because the candidate expired). Done.
       return
     }
-    if (
-      shadowEntry.status !== EntryStatus.Fulfilled &&
-      shadowEntry.status !== EntryStatus.Rejected
-    ) {
-      // Only settled entries may be evicted. A Pending entry is held by an
-      // in-flight request and will settle on its own.
+    if (shadowEntry.status === EntryStatus.Pending) {
+      // A Pending entry may not be evicted: it's held by an in-flight
+      // request and will settle on its own. (An Empty shadow entry, by
+      // contrast, is an unclaimed placeholder with nothing in it — never
+      // preferred over the candidate, per isExistingSegmentEntryPreferred —
+      // so it falls through to the eviction below, waking any tasks blocked
+      // on it so they re-run and find the candidate.)
       return
     }
     if (isExistingSegmentEntryPreferred(shadowEntry, candidateEntry)) {
@@ -1231,8 +1243,9 @@ function evictShadowingSegmentEntries(
     }
     // The candidate supersedes the shadowing entry. Evict it. Settled entries
     // shouldn't have blocked tasks (Fulfilled always has `blockedTasks:
-    // null`, and Rejected entries were pinged at rejection), but ping
-    // defensively before deleting, matching the upsert-evict pattern above.
+    // null`, and Rejected entries were pinged at rejection), but an Empty
+    // entry may have them — ping before deleting, matching the upsert-evict
+    // pattern above.
     pingBlockedTasks(shadowEntry)
     deleteFromCacheMap(shadowEntry)
   }
@@ -3249,13 +3262,10 @@ function writeTreeDataIntoCache(
 /**
  * Writes one segment's render output into the cache: fulfills the entry at
  * the same tree position if this task owns one, otherwise creates one (or
- * upserts a detached one). Shared by every response kind, but the two
- * write families currently diverge on keying and on the recorded tier,
- * so the write forks on `payloadFetchStrategy` below: non-null means this
- * is a payload of a per-segment prefetch response; null means the response
- * was written through the live-render path (live renders and prerendered
- * page payloads).
- * TODO: Converge the two branches on a single keying policy.
+ * upserts a detached one). Shared by every response kind; responses that
+ * carry a runtime-data verdict (per-segment prefetch responses and
+ * prerendered page payloads) additionally refine the tier the entry
+ * records — see `recordedFetchStrategy` below.
  */
 function writeSegmentDataIntoCache(
   now: number,
@@ -3275,9 +3285,8 @@ function writeSegmentDataIntoCache(
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry> | null,
   // Non-null for the payloads of per-segment prefetch responses: the
   // strategy tier describing the CONTENT of the payload this write came
-  // from, which drives the per-segment branch's keying fallback and
-  // recorded tier. Null for everything else (live renders and prerendered
-  // page payloads), which takes the live-render branch below. See
+  // from, which drives the keying fallback and recorded tier below. Null
+  // for everything else (live renders and prerendered page payloads). See
   // writeServerResponseIntoCache.
   payloadFetchStrategy: FetchStrategy.PPR | FetchStrategy.StaticShell | null,
   // Whether the response is an upgradeable fallback shell. Always false for
@@ -3287,113 +3296,53 @@ function writeSegmentDataIntoCache(
   // this payload accessed runtime data (page-global; combined with the
   // segment's own `isPartial` to decide the tier the entry records below).
   // Null when the response carries no verdict (`u`) — live renders emit
-  // none; per-segment prefetch responses and prerendered page payloads do.
-  // Only the per-segment branch consults it; entries written through the
-  // live-render branch record the request's own strategy unrefined.
+  // none; per-segment prefetch responses and prerendered page payloads do —
+  // in which case the entry records the request's own strategy unrefined.
   responseNeedsRuntimeRequest: boolean | null
 ) {
-  if (payloadFetchStrategy !== null) {
-    // This is a payload of a per-segment prefetch response.
+  // A runtime prefetch can only provide more content than this entry if the
+  // render accessed runtime data AND this particular segment has holes — a
+  // fully static segment gains nothing from a runtime request no matter
+  // what the page accessed.
+  const needsRuntimeRequest = responseNeedsRuntimeRequest === true && isPartial
 
-    // A runtime prefetch can only provide more content than this entry if the
-    // render accessed runtime data AND this particular segment has holes — a
-    // fully static segment gains nothing from a runtime request no matter
-    // what the page accessed.
-    const needsRuntimeRequest =
-      responseNeedsRuntimeRequest === true && isPartial
-
-    // An entry records the tier of the content that actually satisfied it,
-    // which spans both axes: shell-vs-concrete AND static-vs-runtime.
-    //
-    // When this payload fully satisfied the segment — no runtime request
-    // needed — the content is as complete as a RUNTIME response of the same
-    // variant would have been, so it records that runtime tier. That's what
-    // lets the scheduler decide "would a runtime request return more?" by
-    // comparing tiers alone, with no separate signal to consult.
-    //
-    // Otherwise the content is only as complete as the static tier it was
-    // requested at, so a follow-up runtime request can still supersede it.
-    const recordedFetchStrategy = !needsRuntimeRequest
-      ? payloadFetchStrategy === FetchStrategy.StaticShell
+  // An entry records the tier of the content that actually satisfied it,
+  // which spans both axes: shell-vs-concrete AND static-vs-runtime.
+  //
+  // When this payload fully satisfied the segment — no runtime request
+  // needed — the content is as complete as a RUNTIME response of the same
+  // variant would have been, so it records that runtime tier. That's what
+  // lets the scheduler decide "would a runtime request return more?" by
+  // comparing tiers alone, with no separate signal to consult.
+  //
+  // Otherwise the content is only as complete as the static tier it was
+  // requested at, so a follow-up runtime request can still supersede it.
+  //
+  // A response that carries no verdict (a live render's, or the
+  // synthesized initial-payload subset's — see create-initial-router-state)
+  // records the request's own strategy unrefined. A verdict is honored
+  // wherever it appears: prerendered page payloads carry one too (the
+  // prerender's runtime-data probe), and refining on it is correct — a
+  // prerendered response whose verdict is `false` is genuinely
+  // runtime-complete content.
+  // The refinement maps a static tier UP to the runtime tier of the same
+  // variant. Only the static tiers have a runtime counterpart to refine to;
+  // any other payload tier records itself — never below the payload's own
+  // tier. (This also makes the verdict inert for Full payloads, which
+  // matters because the Full flow decodes incrementally and `response.u` is
+  // read off the thenable's status — only sound on fully-buffered decodes. A
+  // prerendered page payload served to a Full prefetch carries a verdict; a
+  // not-yet-arrived row misreads as `false`, and without this clamp that
+  // would downgrade a Full-tier write to PPRRuntime.)
+  const payloadTier = payloadFetchStrategy ?? fetchStrategy
+  const recordedFetchStrategy =
+    responseNeedsRuntimeRequest !== null && !needsRuntimeRequest
+      ? payloadTier === FetchStrategy.StaticShell
         ? FetchStrategy.RuntimeShell
-        : FetchStrategy.PPRRuntime
+        : payloadTier === FetchStrategy.PPR
+          ? FetchStrategy.PPRRuntime
+          : payloadTier
       : fetchStrategy
-
-    // Key the entry by which params the server said this segment depends on.
-    // Reusing one copy across param values is the point of the shell, but it
-    // requires knowing the content doesn't depend on those params, and the
-    // server's report is the direct evidence of that.
-    //
-    // Without that report, assume every param varies. The exception is a
-    // shell variant, which reduces param-dependent content to param
-    // fallbacks, so it really is good for any value of them.
-    const payloadVaryPath =
-      process.env.__NEXT_VARY_PARAMS && segmentVaryParams !== null
-        ? getFulfilledSegmentVaryPath(tree.varyPath, segmentVaryParams)
-        : getSegmentVaryPathForRequest(payloadFetchStrategy, tree)
-
-    // We should only write into cache entries that are owned by us. Or
-    // create a new one and write into that. We must never write over an
-    // entry that was created by a different task, because that causes
-    // data races.
-    //
-    // The status check matters for the fallback-retry loop, which re-writes
-    // a response over entries the initial fetch already settled: those
-    // writes must fall through to the detached path below.
-    const ownedEntry =
-      spawnedEntries !== null ? spawnedEntries.get(tree.requestKey) : undefined
-    if (ownedEntry !== undefined && ownedEntry.status === EntryStatus.Pending) {
-      // We own this entry — fulfill it directly.
-      const fulfilledEntry = fulfillSegmentCacheEntry(
-        ownedEntry,
-        rsc,
-        staleAt,
-        isPartial,
-        isUpgradeableISRFallback,
-        recordedFetchStrategy
-      )
-      // Move the entry to that key. This is load-bearing rather than a no-op:
-      // a task spawns its entries before it knows what the response will
-      // contain, so the key it guessed can be more reusable than the response
-      // turned out to deserve.
-      //
-      // Pass the concrete lookup path — the most specific path a read for
-      // this segment position would use — so that if the entry lands at a
-      // more generic key, a stale entry at a more specific one can't shadow
-      // it. See evictShadowingSegmentEntries. The upsert (rather than a bare
-      // set) applies the usual precedence rules, so a concurrent task's more
-      // complete response already in this slot isn't downgraded.
-      upsertSegmentEntry(
-        now,
-        map,
-        payloadVaryPath,
-        fulfilledEntry,
-        tree.varyPath
-      )
-    } else {
-      // We don't own this entry. Create a detached entry and attempt to
-      // upsert it into this payload's slot.
-      const detachedEntry = createDetachedSegmentCacheEntry(now)
-      const fulfilledEntry = fulfillSegmentCacheEntry(
-        upgradeToPendingSegment(detachedEntry, fetchStrategy),
-        rsc,
-        staleAt,
-        isPartial,
-        isUpgradeableISRFallback,
-        recordedFetchStrategy
-      )
-      upsertSegmentEntry(
-        now,
-        map,
-        payloadVaryPath,
-        fulfilledEntry,
-        tree.varyPath
-      )
-    }
-    return
-  }
-
-  // This is a live-render response.
 
   // Decide whether to re-key the entry under a more generic vary path based on
   // which params the segment actually depends on.
@@ -3406,130 +3355,142 @@ function writeSegmentDataIntoCache(
   // untrustworthy set could replace concrete params with Fallback and let
   // unrelated URLs read each other's content from the cache.
   //
-  // For RuntimeShell prefetches, always re-key to the precomputed shell vary
-  // path. A shell entry is spawned at a concrete param path but is reusable
-  // across all of them; tree.shellVaryPath (root-param values kept, every other
-  // param replaced with Fallback) is exactly the path that shell reads look it
-  // up under.
+  // Key the entry by which params the server said this segment depends on
+  // (judged by the payload's CONTENT: payloadFetchStrategy differs from
+  // fetchStrategy exactly when a shell request's response turned out to
+  // carry more — the coincident case). Reusing one copy across param values
+  // is the point of the shell, but it requires knowing the content doesn't
+  // depend on those params, and the server's report is the direct evidence
+  // of that.
+  //
+  // Without that report, assume every param varies — a response without a
+  // shell/full split is also what a page fully prerendered at concrete
+  // params looks like, and keying that at the shell path would serve one
+  // slug's content to every sibling. The exception is a shell variant,
+  // which reduces param-dependent content to param fallbacks, so it really
+  // is good for any value of them (its request path below IS the shell
+  // vary path).
+  const payloadStrategy = payloadFetchStrategy ?? fetchStrategy
   let fulfilledVaryPath: SegmentVaryPath | null = null
-  if (process.env.__NEXT_VARY_PARAMS) {
-    if (fetchStrategy === FetchStrategy.RuntimeShell) {
-      fulfilledVaryPath = tree.shellVaryPath
-    } else if (
-      fetchStrategy !== FetchStrategy.Full &&
-      segmentVaryParams !== null
-    ) {
-      fulfilledVaryPath = getFulfilledSegmentVaryPath(
-        tree.varyPath,
-        segmentVaryParams
-      )
+  if (
+    process.env.__NEXT_VARY_PARAMS &&
+    payloadStrategy !== FetchStrategy.Full &&
+    segmentVaryParams !== null
+  ) {
+    let varyParams = segmentVaryParams
+    if (payloadStrategy === FetchStrategy.RuntimeShell && varyParams.has('?')) {
+      // SPECIAL CASE: for a RuntimeShell payload, the search params entry
+      // ('?') is dropped from the server's vary evidence before deriving the
+      // key, so the search component of the resulting path is marked as the
+      // fallback. This exists ONLY because of a known compromise in how the
+      // server reports search params: accessing `searchParams` records a
+      // dependency on '?' at access time, even when the render suspends on
+      // that access and cuts the content at the param fallback. A shell
+      // render's page and head segments therefore report '?' while the
+      // emitted bytes contain no search-dependent content. Trusting that
+      // report would key shell-grade content at a concrete search value,
+      // where shell-restricted reads (which generalize every non-root
+      // param — see getShellSegmentVaryPath) can never find it. A
+      // RuntimeShell payload's search-dependent content is reduced to
+      // fallbacks by construction, so its key must not vary on search
+      // regardless of the over-reported evidence. Every other component of
+      // the evidence is still honored as-is.
+      //
+      // Nothing else should rely on this branch; for every other payload
+      // grade — and every other param — the server's evidence
+      // is authoritative.
+      //
+      // TODO: Reconsider special-casing this on the server instead: don't
+      // report a param access that never resolved past the fallback cut in
+      // the emitted stage. A shell payload's evidence would then be
+      // accurate, and this branch could be deleted.
+      varyParams = new Set(varyParams)
+      varyParams.delete('?')
     }
+    fulfilledVaryPath = getFulfilledSegmentVaryPath(tree.varyPath, varyParams)
   }
+
+  // The canonical path to (re-)key the entry at. When the derivation above
+  // produced a path, use that; otherwise fall back to the payload's own
+  // keying (this is load-bearing for entries spawned as revalidations:
+  // without the re-key they'd stay in their Revalidation slot forever,
+  // invisible to canonical reads, and the partial entry that prompted the
+  // revalidation would keep serving navigations). Full responses are
+  // excluded, matching the varyParams re-key: they're spawned as canonical
+  // entries at their final path, and their vary tracking can't be trusted
+  // for re-keying (see the fulfilledVaryPath derivation above).
+  const canonicalVaryPath =
+    fulfilledVaryPath !== null
+      ? fulfilledVaryPath
+      : payloadStrategy !== FetchStrategy.Full
+        ? getSegmentVaryPathForRequest(payloadStrategy, tree)
+        : null
 
   // We should only write into cache entries that are owned by us. Or create
   // a new one and write into that. We must never write over an entry that was
   // created by a different task, because that causes data races.
+  //
+  // The status check matters for the fallback-retry loop, which re-writes a
+  // response over entries the initial fetch already settled: those writes
+  // must fall through to the detached path below.
   const ownedEntry =
     spawnedEntries !== null ? spawnedEntries.get(tree.requestKey) : undefined
-  if (ownedEntry !== undefined) {
-    const fulfilledEntry = fulfillSegmentCacheEntry(
+  let fulfilledEntry: FulfilledSegmentCacheEntry
+  let insertVaryPath: SegmentVaryPath | null
+  if (ownedEntry !== undefined && ownedEntry.status === EntryStatus.Pending) {
+    // We own this entry — fulfill it directly.
+    fulfilledEntry = fulfillSegmentCacheEntry(
       ownedEntry,
       rsc,
       staleAt,
       isPartial,
       isUpgradeableISRFallback,
-      fetchStrategy
+      recordedFetchStrategy
     )
-    // Re-key the entry at its canonical path. When `varyParams` produced a
-    // generalized path above, use that; otherwise fall back to the request's
-    // own keying (this is load-bearing for entries spawned as revalidations:
-    // without the re-key they'd stay in their Revalidation slot forever,
-    // invisible to canonical reads, and the partial entry that prompted the
-    // revalidation would keep serving navigations). Full responses are
-    // excluded, matching the varyParams re-key: they're spawned as canonical
-    // entries at their final path, and their vary tracking can't be trusted
-    // for re-keying (see the fulfilledVaryPath derivation above).
-    const canonicalVaryPath =
-      fulfilledVaryPath !== null
-        ? fulfilledVaryPath
-        : fetchStrategy !== FetchStrategy.Full
-          ? getSegmentVaryPathForRequest(fetchStrategy, tree)
-          : null
-    if (canonicalVaryPath !== null) {
-      const isRevalidation = false
-      setInCacheMap(map, canonicalVaryPath, fulfilledEntry, isRevalidation)
-      // The re-key moved the entry to a more generic path (and, for a spawned
-      // revalidation, vacated its Revalidation slot). A stale settled entry
-      // at a more specific path — e.g. the partial entry that prompted the
-      // revalidation — would shadow every read at the concrete lookup path,
-      // causing the scheduler to keep re-reading the stale entry and respawn
-      // the revalidation forever. Evict it so the fulfilled entry is
-      // reachable. See evictShadowingSegmentEntries.
-      evictShadowingSegmentEntries(now, map, tree.varyPath, fulfilledEntry)
-    }
+    // Re-key the fulfilled entry at its canonical path. Owned Full entries
+    // are the exception (canonicalVaryPath is null): they were spawned as
+    // canonical entries at their final path, so no re-key happens.
+    insertVaryPath = canonicalVaryPath
   } else {
-    // There's no matching entry. Attempt to create a new one.
-    let possiblyNewEntry: SegmentCacheEntry | null = getFromCacheMap(
-      now,
-      getCurrentSegmentCacheVersion(),
-      map,
-      tree.varyPath,
-      false,
-      false
+    // We don't own an entry for this segment. Create a detached one and
+    // attempt to insert it at the canonical path — or, for a Full response
+    // (which has no canonical re-key), at the request's own path.
+    fulfilledEntry = fulfillSegmentCacheEntry(
+      upgradeToPendingSegment(
+        createDetachedSegmentCacheEntry(now),
+        fetchStrategy
+      ),
+      rsc,
+      staleAt,
+      isPartial,
+      isUpgradeableISRFallback,
+      recordedFetchStrategy
     )
-    if (possiblyNewEntry === null) {
-      possiblyNewEntry = insertEmptySegmentCacheEntry(
-        now,
-        map,
-        fetchStrategy,
-        tree
-      )
-    }
-    if (possiblyNewEntry.status === EntryStatus.Empty) {
-      // Confirmed this is a new entry. We can fulfill it.
-      const newEntry = possiblyNewEntry
-      const fulfilledEntry = fulfillSegmentCacheEntry(
-        upgradeToPendingSegment(newEntry, fetchStrategy),
-        rsc,
-        staleAt,
-        isPartial,
-        isUpgradeableISRFallback,
-        fetchStrategy
-      )
-      if (fulfilledVaryPath !== null) {
-        const isRevalidation = false
-        setInCacheMap(map, fulfilledVaryPath, fulfilledEntry, isRevalidation)
-        // Same as the owned-entry re-key above. Usually the entry really is
-        // new — the read a moment ago returned nothing at the concrete lookup
-        // path, so nothing can shadow it and this is a no-op — but this
-        // branch also claims a pre-existing Empty entry, and re-keying that
-        // away can expose a stale settled entry at an intermediate path.
-        evictShadowingSegmentEntries(now, map, tree.varyPath, fulfilledEntry)
-      }
-    } else {
-      // There was already an entry in the cache. But we may be able to
-      // replace it with the new one from the server.
-      const newEntry = fulfillSegmentCacheEntry(
-        upgradeToPendingSegment(
-          createDetachedSegmentCacheEntry(now),
-          fetchStrategy
-        ),
-        rsc,
-        staleAt,
-        isPartial,
-        isUpgradeableISRFallback,
-        fetchStrategy
-      )
-      const varyPath =
-        fulfilledVaryPath !== null
-          ? fulfilledVaryPath
-          : getSegmentVaryPathForRequest(fetchStrategy, tree)
-      // Pass the concrete lookup path so that if the entry was re-keyed to
-      // a more generic path, any stale settled entry at a more specific path
-      // that would shadow it is evicted (the upsert handles this; the other
-      // branches above call evictShadowingSegmentEntries themselves).
-      upsertSegmentEntry(now, map, varyPath, newEntry, tree.varyPath)
-    }
+    insertVaryPath =
+      canonicalVaryPath !== null
+        ? canonicalVaryPath
+        : getSegmentVaryPathForRequest(fetchStrategy, tree)
+  }
+  if (insertVaryPath !== null) {
+    // Insert through the upsert so the usual precedence rules apply — an
+    // existing entry with more complete content is never downgraded, and a
+    // shadowed Empty/Pending entry's blocked tasks are pinged. (In the
+    // common case the slot already holds the entry we just fulfilled, which
+    // the upsert replaces in place; but the re-key is load-bearing for
+    // entries whose spawn path differs from the canonical path — e.g.
+    // spawned revalidations, which would otherwise stay in their
+    // Revalidation slot forever, invisible to canonical reads, while the
+    // partial entry that prompted the revalidation kept serving
+    // navigations.)
+    //
+    // The concrete lookup path (tree.varyPath) is passed so that when the
+    // canonical path is more generic, any stale settled entry — or unclaimed
+    // Empty placeholder — at a more specific path that would shadow the
+    // fulfilled entry is evicted. Without this, a shadowed re-keyed entry is
+    // unreachable at the concrete read path: the scheduler would keep
+    // re-reading the stale entry and, for a revalidation, respawn it
+    // forever. See evictShadowingSegmentEntries.
+    upsertSegmentEntry(now, map, insertVaryPath, fulfilledEntry, tree.varyPath)
   }
 }
 
