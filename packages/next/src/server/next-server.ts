@@ -140,6 +140,12 @@ import {
   writeRawHttpError,
 } from './websocket-http'
 import {
+  getWebSocketRouteBundlePath,
+  isWebSocketRouteLeaseCurrent,
+  ownWebSocketRouteLease,
+  tryAcquireWebSocketRouteLease,
+} from './websocket-connection-registry'
+import {
   ensureInstrumentationRegistered,
   getInstrumentationModule,
 } from './lib/router-utils/instrumentation-globals.external'
@@ -465,6 +471,13 @@ export default class NextNodeServer extends BaseServer<
       return
     }
 
+    const webSocketRegistryScope = getRequestMeta(req, 'webSocketRegistryScope')
+    if (!webSocketRegistryScope) {
+      await writeRawHttpError(req, socket, 500, 'Internal Server Error')
+      return
+    }
+
+    const webSocketBundlePath = getWebSocketRouteBundlePath(page)
     const findUpgradeComponents = async () => {
       try {
         if (this.dev) {
@@ -492,36 +505,89 @@ export default class NextNodeServer extends BaseServer<
       }
     }
 
-    const result = await findUpgradeComponents()
-    if (
-      !result ||
-      result.components.routeModule?.definition.kind !== RouteKind.APP_ROUTE ||
-      typeof (result.components.ComponentMod as AppRouteModule)
-        .upgradeHandler !== 'function'
-    ) {
-      await writeRawHttpError(req, socket, 404, 'Not Found')
-      return
-    }
-
-    if (!getRequestMeta(req, 'hmrRefreshHash')) {
-      addRequestMeta(
-        req,
-        'hmrRefreshHash',
-        this.getServerComponentsHmrRefreshHash()
+    // A route can change while its first dev compilation or async module is
+    // resolving. Retry that pre-handler window once with a fresh generation;
+    // never replay user handler side effects.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const webSocketRouteLease = tryAcquireWebSocketRouteLease(
+        webSocketRegistryScope,
+        webSocketBundlePath
       )
-    }
-    addRequestMeta(req, 'relativeProjectDir', relative(process.cwd(), this.dir))
-    addRequestMeta(req, 'distDir', this.distDir)
-    await (result.components.ComponentMod as AppRouteModule).upgradeHandler(
-      {
-        waitUntil: this.getWaitUntil(),
-        requestMeta: getRequestMeta(req),
-        responseHeaders: getRequestMeta(req, 'webSocketUpgradeHeaders'),
-      },
-      {
-        node: { req, socket, head },
+      if (!webSocketRouteLease) {
+        socket.destroy()
+        return
       }
-    )
+
+      let leaseOwnership: ReturnType<typeof ownWebSocketRouteLease> | undefined
+      try {
+        leaseOwnership = ownWebSocketRouteLease(webSocketRouteLease, socket)
+        addRequestMeta(req, 'webSocketRouteLease', webSocketRouteLease)
+
+        if (
+          leaseOwnership.isSocketEnded() ||
+          !isWebSocketRouteLeaseCurrent(webSocketRouteLease)
+        ) {
+          if (!leaseOwnership.isSocketEnded() && attempt === 0) continue
+          return
+        }
+
+        const result = await findUpgradeComponents()
+        if (!isWebSocketRouteLeaseCurrent(webSocketRouteLease)) {
+          if (!leaseOwnership.isSocketEnded() && attempt === 0) continue
+          if (!leaseOwnership.isSocketEnded()) {
+            await writeRawHttpError(req, socket, 503, 'Service Unavailable')
+          }
+          return
+        }
+
+        if (
+          !result ||
+          result.components.routeModule?.definition.kind !==
+            RouteKind.APP_ROUTE ||
+          typeof (result.components.ComponentMod as AppRouteModule)
+            .upgradeHandler !== 'function'
+        ) {
+          await writeRawHttpError(req, socket, 404, 'Not Found')
+          return
+        }
+
+        if (!getRequestMeta(req, 'hmrRefreshHash')) {
+          addRequestMeta(
+            req,
+            'hmrRefreshHash',
+            this.getServerComponentsHmrRefreshHash()
+          )
+        }
+        addRequestMeta(
+          req,
+          'relativeProjectDir',
+          relative(process.cwd(), this.dir)
+        )
+        addRequestMeta(req, 'distDir', this.distDir)
+        await (result.components.ComponentMod as AppRouteModule).upgradeHandler(
+          {
+            waitUntil: this.getWaitUntil(),
+            requestMeta: getRequestMeta(req),
+            responseHeaders: getRequestMeta(req, 'webSocketUpgradeHeaders'),
+          },
+          {
+            node: { req, socket, head },
+          }
+        )
+        return
+      } finally {
+        const failures = leaseOwnership?.release() ?? []
+        webSocketRouteLease.release()
+        for (const failure of failures) {
+          try {
+            console.error(
+              'Failed to release a WebSocket route lease listener:',
+              failure
+            )
+          } catch {}
+        }
+      }
+    }
   }
 
   protected async loadInstrumentationModule() {

@@ -3,6 +3,9 @@ import type { WebSocketTransportConnection } from './websocket-upgrade'
 export type WebSocketRegistryConnection = WebSocketTransportConnection
 
 const REGISTRY_SYMBOL = Symbol.for('next.websocket.connection-registry')
+const ROUTE_LEASES_SYMBOL = Symbol.for(
+  'next.websocket.connection-registry-route-leases'
+)
 const CLOSED_SCOPES_SYMBOL = Symbol.for(
   'next.websocket.closed-connection-registry-scopes'
 )
@@ -22,7 +25,25 @@ const TASK_ADMISSION_CLOSED_SCOPES_SYMBOL = Symbol.for(
 const CLOSE_GRACE_PERIOD_MS = 5_000
 const TERMINATE_CLOSE_EVENT_GRACE_PERIOD_MS = 1_000
 
-type ScopedRegistry = WeakMap<object, Set<WebSocketRegistryConnection>>
+type WebSocketRouteState = {
+  readonly peers: Set<WebSocketRegistryConnection>
+  leases: number
+}
+type WebSocketScopeRegistry = {
+  readonly peers: Set<WebSocketRegistryConnection>
+  readonly routes: Map<string, WebSocketRouteState>
+}
+type ScopedRegistry = WeakMap<object, WebSocketScopeRegistry>
+type WebSocketRouteLeaseState = {
+  readonly scope: object
+  readonly bundlePath: string
+  readonly route: WebSocketRouteState
+  released: boolean
+}
+type WebSocketRouteLeases = WeakMap<
+  WebSocketRouteLease,
+  WebSocketRouteLeaseState
+>
 type ClosedScopes = WeakMap<object, number>
 type ScopeDrains = WeakMap<object, Promise<void>>
 type ScopedTasks = WeakMap<object, Set<Promise<void>>>
@@ -39,6 +60,48 @@ function getScopedRegistry(): ScopedRegistry {
     [REGISTRY_SYMBOL]?: ScopedRegistry
   }
   return (globalRegistry[REGISTRY_SYMBOL] ??= new WeakMap())
+}
+
+function getScopeRegistry(
+  scope: object,
+  create: boolean
+): WebSocketScopeRegistry | undefined {
+  const scopedRegistry = getScopedRegistry()
+  let registry = scopedRegistry.get(scope)
+  if (!registry && create) {
+    registry = { peers: new Set(), routes: new Map() }
+    scopedRegistry.set(scope, registry)
+  }
+  return registry
+}
+
+function getWebSocketRouteLeases(): WebSocketRouteLeases {
+  const globalRegistry = globalThis as typeof globalThis & {
+    [ROUTE_LEASES_SYMBOL]?: WebSocketRouteLeases
+  }
+  return (globalRegistry[ROUTE_LEASES_SYMBOL] ??= new WeakMap())
+}
+
+function pruneScopeRegistry(
+  scope: object,
+  registry: WebSocketScopeRegistry
+): void {
+  if (registry.peers.size === 0 && registry.routes.size === 0) {
+    const scopedRegistry = getScopedRegistry()
+    if (scopedRegistry.get(scope) === registry) scopedRegistry.delete(scope)
+  }
+}
+
+function pruneRouteState(
+  scope: object,
+  bundlePath: string,
+  route: WebSocketRouteState
+): void {
+  if (route.leases !== 0 || route.peers.size !== 0) return
+  const registry = getScopeRegistry(scope, false)
+  if (!registry || registry.routes.get(bundlePath) !== route) return
+  registry.routes.delete(bundlePath)
+  pruneScopeRegistry(scope, registry)
 }
 
 function getClosedScopes(): ClosedScopes {
@@ -160,6 +223,29 @@ export interface WebSocketScopeLease {
   release(): void
 }
 
+/** Opaque admission token for one resolved App Route generation. */
+export interface WebSocketRouteLease {
+  release(): void
+}
+
+export interface WebSocketRouteLeaseSocket {
+  readonly destroyed: boolean
+  readonly readableEnded: boolean
+  readonly writableEnded: boolean
+  once(event: 'close' | 'end', listener: () => void): unknown
+  off(event: 'close' | 'end', listener: () => void): unknown
+}
+
+export interface WebSocketRouteLeaseOwnership {
+  isSocketEnded(): boolean
+  release(): unknown[]
+}
+
+export function getWebSocketRouteBundlePath(page: string): string {
+  const normalizedPage = page.replaceAll('\\', '/')
+  return `app${normalizedPage.startsWith('/') ? '' : '/'}${normalizedPage}`
+}
+
 /** Admits one in-flight upgrade into a server scope's bounded shutdown. */
 export function tryAcquireWebSocketScopeLease(
   scope: object
@@ -185,6 +271,114 @@ export function tryAcquireWebSocketScopeLease(
       resolve()
     },
   }
+}
+
+/**
+ * Pins the current generation of a resolved WebSocket App Route while its
+ * module and upgrade handler are running.
+ */
+export function tryAcquireWebSocketRouteLease(
+  scope: object,
+  bundlePath: string
+): WebSocketRouteLease | undefined {
+  if (
+    getClosedScopes().has(scope) ||
+    getTaskAdmissionClosedScopes().has(scope)
+  ) {
+    return undefined
+  }
+
+  const registry = getScopeRegistry(scope, true)!
+  let route = registry.routes.get(bundlePath)
+  if (!route) {
+    route = { peers: new Set(), leases: 0 }
+    registry.routes.set(bundlePath, route)
+  }
+  route.leases++
+
+  const lease: WebSocketRouteLease = {
+    release() {
+      const state = getWebSocketRouteLeases().get(lease)
+      if (!state || state.released) return
+      state.released = true
+      state.route.leases--
+      pruneRouteState(state.scope, state.bundlePath, state.route)
+    },
+  }
+  getWebSocketRouteLeases().set(lease, {
+    scope,
+    bundlePath,
+    route,
+    released: false,
+  })
+  return lease
+}
+
+export function isWebSocketRouteLeaseCurrent(
+  lease: WebSocketRouteLease
+): boolean {
+  const state = getWebSocketRouteLeases().get(lease)
+  if (
+    !state ||
+    state.released ||
+    getClosedScopes().has(state.scope) ||
+    getTaskAdmissionClosedScopes().has(state.scope)
+  ) {
+    return false
+  }
+  return (
+    getScopeRegistry(state.scope, false)?.routes.get(state.bundlePath) ===
+    state.route
+  )
+}
+
+/** Releases a route lease on disconnect without letting listener cleanup win. */
+export function ownWebSocketRouteLease(
+  lease: WebSocketRouteLease,
+  socket: WebSocketRouteLeaseSocket
+): WebSocketRouteLeaseOwnership {
+  const releaseLease = () => lease.release()
+  let ownershipReleased = false
+  const ownership: WebSocketRouteLeaseOwnership = {
+    isSocketEnded() {
+      return socket.destroyed || socket.readableEnded || socket.writableEnded
+    },
+    release() {
+      if (ownershipReleased) return []
+      ownershipReleased = true
+
+      // The lease must be released even if a user-visible EventEmitter hook
+      // makes listener removal throw.
+      lease.release()
+      const failures: unknown[] = []
+      for (const event of ['close', 'end'] as const) {
+        try {
+          socket.off(event, releaseLease)
+        } catch (error) {
+          failures.push(error)
+        }
+      }
+      return failures
+    },
+  }
+
+  try {
+    socket.once('close', releaseLease)
+    socket.once('end', releaseLease)
+    // A terminal event can happen immediately before listener installation,
+    // or synchronously from a custom EventEmitter hook during installation.
+    if (ownership.isSocketEnded()) releaseLease()
+  } catch (error) {
+    for (const cleanupError of ownership.release()) {
+      console.error(
+        'Failed to release a WebSocket route lease listener:',
+        cleanupError
+      )
+    }
+    throw error
+  }
+
+  return ownership
 }
 
 async function waitForWebSocketTasks(scope: object): Promise<void> {
@@ -387,13 +581,7 @@ export function registerWebSocketPeer(
     return false
   }
 
-  const scopedRegistry = getScopedRegistry()
-  let connections = scopedRegistry.get(scope)
-  if (!connections) {
-    connections = new Set()
-    scopedRegistry.set(scope, connections)
-  }
-  connections.add(connection)
+  getScopeRegistry(scope, true)!.peers.add(connection)
   return true
 }
 
@@ -401,11 +589,137 @@ export function unregisterWebSocketPeer(
   connection: WebSocketRegistryConnection,
   scope: object
 ): void {
-  const scopedRegistry = getScopedRegistry()
-  const connections = scopedRegistry.get(scope)
-  if (!connections) return
-  connections.delete(connection)
-  if (connections.size === 0) scopedRegistry.delete(scope)
+  const registry = getScopeRegistry(scope, false)
+  if (!registry) return
+  registry.peers.delete(connection)
+  pruneScopeRegistry(scope, registry)
+}
+
+/** Registers a peer only if its route generation is still current. */
+export function registerWebSocketRoutePeer(
+  connection: WebSocketRegistryConnection,
+  lease: WebSocketRouteLease
+): boolean {
+  const state = getWebSocketRouteLeases().get(lease)
+  if (!state) {
+    try {
+      connection.close(1012)
+    } catch {
+      try {
+        connection.terminate()
+      } catch {}
+    }
+    return false
+  }
+
+  const shutdownCode = getClosedScopes().get(state.scope)
+  if (shutdownCode !== undefined) {
+    trackWebSocketTask(
+      closeConnections([connection], shutdownCode),
+      state.scope
+    )
+    return false
+  }
+  if (state.released) {
+    trackWebSocketTask(closeConnections([connection], 1012), state.scope)
+    return false
+  }
+
+  const registry = getScopeRegistry(state.scope, false)
+  if (!registry || registry.routes.get(state.bundlePath) !== state.route) {
+    trackWebSocketTask(closeConnections([connection], 1012), state.scope)
+    return false
+  }
+
+  state.route.peers.add(connection)
+  return true
+}
+
+export function unregisterWebSocketRoutePeer(
+  connection: WebSocketRegistryConnection,
+  lease: WebSocketRouteLease
+): void {
+  const state = getWebSocketRouteLeases().get(lease)
+  if (!state) return
+  state.route.peers.delete(connection)
+  pruneRouteState(state.scope, state.bundlePath, state.route)
+}
+
+export function isWebSocketRouteActive(
+  scope: object,
+  bundlePath: string
+): boolean {
+  const route = getScopeRegistry(scope, false)?.routes.get(bundlePath)
+  return Boolean(route && (route.leases !== 0 || route.peers.size !== 0))
+}
+
+function takeWebSocketRouteConnections(
+  scope: object,
+  bundlePath: string
+): Set<WebSocketRegistryConnection> | undefined {
+  const registry = getScopeRegistry(scope, false)
+  const route = registry?.routes.get(bundlePath)
+  if (!registry || !route) return undefined
+
+  // Removing the state before closing its peers makes every in-flight lease
+  // stale. A new request can create a fresh state without being captured by
+  // this reload.
+  registry.routes.delete(bundlePath)
+  const connections = new Set(route.peers)
+  route.peers.clear()
+  pruneScopeRegistry(scope, registry)
+  return connections
+}
+
+function takeWebSocketScopeConnections(
+  scope: object
+): Set<WebSocketRegistryConnection> {
+  const registry = getScopeRegistry(scope, false)
+  const connections = new Set(registry?.peers ?? [])
+  if (!registry) return connections
+
+  registry.peers.clear()
+  for (const route of registry.routes.values()) {
+    for (const connection of route.peers) connections.add(connection)
+    route.peers.clear()
+  }
+  registry.routes.clear()
+  getScopedRegistry().delete(scope)
+  return connections
+}
+
+function trackConnectionReload(
+  scope: object,
+  connections: Set<WebSocketRegistryConnection>,
+  code: number
+): Promise<void> {
+  if (connections.size === 0) return Promise.resolve()
+  const closing = closeConnections(connections, code)
+  trackWebSocketTask(closing, scope)
+  return closing
+}
+
+export function closeWebSocketRoute(
+  scope: object,
+  bundlePath: string,
+  code: number = 1012
+): Promise<void> {
+  const connections = takeWebSocketRouteConnections(scope, bundlePath)
+  return connections
+    ? trackConnectionReload(scope, connections, code)
+    : Promise.resolve()
+}
+
+/** Reloads every current route without permanently closing the server scope. */
+export function reloadWebSocketScope(
+  scope: object,
+  code: number = 1012
+): Promise<void> {
+  return trackConnectionReload(
+    scope,
+    takeWebSocketScopeConnections(scope),
+    code
+  )
 }
 
 export function closeWebSocketScope(
@@ -426,9 +740,7 @@ export function closeWebSocketScope(
       if (!failures.includes(error)) failures.push(error)
     }
 
-    const scopedRegistry = getScopedRegistry()
-    const connections = scopedRegistry.get(scope) ?? []
-    scopedRegistry.delete(scope)
+    const connections = takeWebSocketScopeConnections(scope)
 
     try {
       await closeConnections(connections, shutdownCode)
