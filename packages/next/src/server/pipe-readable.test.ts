@@ -21,7 +21,6 @@ import {
 } from './pipe-readable'
 
 const originalDevServer = process.env.__NEXT_DEV_SERVER
-const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
 const originalOtelVerbose = process.env.NEXT_OTEL_VERBOSE
 const spanRecords: SpanStoreRecord[] = []
 
@@ -47,7 +46,7 @@ function createPendingWebStream() {
 describe('first response chunk tracing', () => {
   beforeEach(() => {
     process.env.__NEXT_DEV_SERVER = '1'
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    process.env.NEXT_OTEL_VERBOSE = '1'
     setSpanRecorderForTest((span) => spanRecords.push(span))
     registerLocalSpanRecorder()
   })
@@ -57,11 +56,6 @@ describe('first response chunk tracing', () => {
       delete process.env.__NEXT_DEV_SERVER
     } else {
       process.env.__NEXT_DEV_SERVER = originalDevServer
-    }
-    if (originalRequestInsights === undefined) {
-      delete process.env.__NEXT_REQUEST_INSIGHTS
-    } else {
-      process.env.__NEXT_REQUEST_INSIGHTS = originalRequestInsights
     }
     if (originalOtelVerbose === undefined) {
       delete process.env.NEXT_OTEL_VERBOSE
@@ -81,7 +75,6 @@ describe('first response chunk tracing', () => {
   })
 
   it('does not record first response chunk timing when internal tracing is disabled', async () => {
-    delete process.env.__NEXT_REQUEST_INSIGHTS
     delete process.env.NEXT_OTEL_VERBOSE
     const response = new MockedResponse()
     const readable = new ReadableStream<Uint8Array>({

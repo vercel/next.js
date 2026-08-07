@@ -12,7 +12,7 @@ import {
 import { createHTMLRenderCompletionTracker } from './html-render-completion'
 
 const originalDevServer = process.env.__NEXT_DEV_SERVER
-const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
+const originalOtelVerbose = process.env.NEXT_OTEL_VERBOSE
 const spanRecords: SpanStoreRecord[] = []
 
 async function flushMicrotasks() {
@@ -23,7 +23,7 @@ async function flushMicrotasks() {
 describe('createHTMLRenderCompletionTracker', () => {
   beforeEach(() => {
     process.env.__NEXT_DEV_SERVER = '1'
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    process.env.NEXT_OTEL_VERBOSE = '1'
     setSpanRecorderForTest((span) => spanRecords.push(span))
     registerLocalSpanRecorder()
   })
@@ -34,10 +34,10 @@ describe('createHTMLRenderCompletionTracker', () => {
     } else {
       process.env.__NEXT_DEV_SERVER = originalDevServer
     }
-    if (originalRequestInsights === undefined) {
-      delete process.env.__NEXT_REQUEST_INSIGHTS
+    if (originalOtelVerbose === undefined) {
+      delete process.env.NEXT_OTEL_VERBOSE
     } else {
-      process.env.__NEXT_REQUEST_INSIGHTS = originalRequestInsights
+      process.env.NEXT_OTEL_VERBOSE = originalOtelVerbose
     }
     context.disable()
     trace.disable()

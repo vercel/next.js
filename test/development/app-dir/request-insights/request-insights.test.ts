@@ -335,7 +335,7 @@ describe('request insights', () => {
       throw new Error(result.cliOutput)
     }
     expect(result.cliOutput).toMatch(
-      /No request insights captured yet|retained requests \(newest first\)/
+      /No request insights captured yet|retained logical request groups \(newest first\)/
     )
   })
 
