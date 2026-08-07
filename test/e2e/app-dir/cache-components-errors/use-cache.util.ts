@@ -136,7 +136,7 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E1464",
-             "description": "Route "/use-cache-draft-mode": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read from a cached function, but enabling or disabling it must happen outside.
+             "description": "Route "/use-cache-draft-mode": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
              "environmentLabel": "Server",
              "label": "Console Error",
@@ -166,7 +166,7 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
           if (isDebugPrerender) {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-draft-mode": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read from a cached function, but enabling or disabling it must happen outside.
+                 "Error: Route "/use-cache-draft-mode": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
                  Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at DraftModeEnablingComponent (app/use-cache-draft-mode/page.tsx:20:26)
                      at Page (app/use-cache-draft-mode/page.tsx:9:7)
@@ -185,7 +185,7 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
                 `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/use-cache-draft-mode": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read from a cached function, but enabling or disabling it must happen outside.
+               "Error: Route "/use-cache-draft-mode": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
                Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                    at DraftModeEnablingComponent (webpack:///app/use-cache-draft-mode/page.tsx:20:26)
                    at Page (webpack:///app/use-cache-draft-mode/page.tsx:9:7)
@@ -206,7 +206,7 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
           } else {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-draft-mode": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read from a cached function, but enabling or disabling it must happen outside.
+                 "Error: Route "/use-cache-draft-mode": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
                  Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at a (app/use-cache-draft-mode/page.tsx:20:26)
                    18 |   // here to ensure that this error is shown even when it's caught in userland.
@@ -224,7 +224,7 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
                 `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/use-cache-draft-mode": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read from a cached function, but enabling or disabling it must happen outside.
+               "Error: Route "/use-cache-draft-mode": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
                Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                    at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -361,7 +361,7 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E1472",
-             "description": "Route "/use-cache-connection": \`connection()\` can't be used inside \`"use cache"\`. A cache entry can be built before any request exists, so it can't depend on one.
+             "description": "Route "/use-cache-connection": \`connection()\` can't be called inside \`"use cache"\`. Call it outside the cached function.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
              "environmentLabel": "Server",
              "label": "Console Error",
@@ -391,7 +391,7 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-connection": \`connection()\` can't be used inside \`"use cache"\`. A cache entry can be built before any request exists, so it can't depend on one.
+                 "Error: Route "/use-cache-connection": \`connection()\` can't be called inside \`"use cache"\`. Call it outside the cached function.
                  Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at ConnectionCallingComponent (app/use-cache-connection/page.tsx:21:21)
                      at Page (app/use-cache-connection/page.tsx:10:7)
@@ -410,7 +410,7 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
                 `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-connection": \`connection()\` can't be used inside \`"use cache"\`. A cache entry can be built before any request exists, so it can't depend on one.
+                 "Error: Route "/use-cache-connection": \`connection()\` can't be called inside \`"use cache"\`. Call it outside the cached function.
                  Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at a (app/use-cache-connection/page.tsx:21:11)
                    19 |   // here to ensure that this error is shown even when it's caught in userland.
@@ -430,7 +430,7 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/use-cache-connection": \`connection()\` can't be used inside \`"use cache"\`. A cache entry can be built before any request exists, so it can't depend on one.
+               "Error: Route "/use-cache-connection": \`connection()\` can't be called inside \`"use cache"\`. Call it outside the cached function.
                Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                    at ConnectionCallingComponent (webpack:///app/use-cache-connection/page.tsx:21:21)
                    at Page (webpack:///app/use-cache-connection/page.tsx:10:7)
@@ -449,7 +449,7 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/use-cache-connection": \`connection()\` can't be used inside \`"use cache"\`. A cache entry can be built before any request exists, so it can't depend on one.
+               "Error: Route "/use-cache-connection": \`connection()\` can't be called inside \`"use cache"\`. Call it outside the cached function.
                Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                    at a (<next-dist-dir>)
                    at b (<next-dist-dir>)
@@ -1659,7 +1659,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             await expect(browser).toDisplayCollapsedRedbox(`
              {
                "code": "E1464",
-               "description": "Route "/use-cache-draft-mode-third-party": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read from a cached function, but enabling or disabling it must happen outside.
+               "description": "Route "/use-cache-draft-mode-third-party": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
              Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -1688,7 +1688,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             if (isDebugPrerender) {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-draft-mode-third-party": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read from a cached function, but enabling or disabling it must happen outside.
+                   "Error: Route "/use-cache-draft-mode-third-party": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
                    Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                        at Page (app/use-cache-draft-mode-third-party/page.tsx:10:7)
                       8 |         which triggers an error.
@@ -1706,7 +1706,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                   `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-draft-mode-third-party": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read from a cached function, but enabling or disabling it must happen outside.
+                 "Error: Route "/use-cache-draft-mode-third-party": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
                  Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at Page (webpack:///app/use-cache-draft-mode-third-party/page.tsx:10:7)
                     8 |         which triggers an error.
@@ -1726,7 +1726,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             } else {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-draft-mode-third-party": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read from a cached function, but enabling or disabling it must happen outside.
+                   "Error: Route "/use-cache-draft-mode-third-party": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
                    Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                        at ignore-listed frames
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -1737,7 +1737,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                   `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-draft-mode-third-party": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read from a cached function, but enabling or disabling it must happen outside.
+                 "Error: Route "/use-cache-draft-mode-third-party": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
                  Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at a (<next-dist-dir>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -1864,7 +1864,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             await expect(browser).toDisplayCollapsedRedbox(`
              {
                "code": "E1472",
-               "description": "Route "/use-cache-connection-third-party": \`connection()\` can't be used inside \`"use cache"\`. A cache entry can be built before any request exists, so it can't depend on one.
+               "description": "Route "/use-cache-connection-third-party": \`connection()\` can't be called inside \`"use cache"\`. Call it outside the cached function.
              Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -1893,7 +1893,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             if (isTurbopack) {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-connection-third-party": \`connection()\` can't be used inside \`"use cache"\`. A cache entry can be built before any request exists, so it can't depend on one.
+                   "Error: Route "/use-cache-connection-third-party": \`connection()\` can't be called inside \`"use cache"\`. Call it outside the cached function.
                    Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                        at Page (app/use-cache-connection-third-party/page.tsx:10:7)
                       8 |         which triggers an error.
@@ -1911,7 +1911,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                   `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-connection-third-party": \`connection()\` can't be used inside \`"use cache"\`. A cache entry can be built before any request exists, so it can't depend on one.
+                   "Error: Route "/use-cache-connection-third-party": \`connection()\` can't be called inside \`"use cache"\`. Call it outside the cached function.
                    Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                        at ignore-listed frames
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -1924,7 +1924,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             } else {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-connection-third-party": \`connection()\` can't be used inside \`"use cache"\`. A cache entry can be built before any request exists, so it can't depend on one.
+                 "Error: Route "/use-cache-connection-third-party": \`connection()\` can't be called inside \`"use cache"\`. Call it outside the cached function.
                  Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at Page (webpack:///app/use-cache-connection-third-party/page.tsx:10:7)
                     8 |         which triggers an error.
@@ -1942,7 +1942,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-connection-third-party": \`connection()\` can't be used inside \`"use cache"\`. A cache entry can be built before any request exists, so it can't depend on one.
+                 "Error: Route "/use-cache-connection-third-party": \`connection()\` can't be called inside \`"use cache"\`. Call it outside the cached function.
                  Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at a (<next-dist-dir>)
                      at b (<next-dist-dir>)

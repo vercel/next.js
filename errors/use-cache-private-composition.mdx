@@ -4,11 +4,11 @@ title: 'Invalid `"use cache: private"` composition'
 
 ## Why This Error Occurred
 
-`"use cache: private"` creates a per-user cache entry that is scoped to the current request. That makes it more restrictive than the shared, request-independent `"use cache"`, so it can only be composed in certain ways. This error fires when one of those rules is broken:
+`"use cache: private"` caches data for the current request. That makes it more restrictive than the shared, request-independent `"use cache"`, so it can only be composed in certain ways. This error fires when one of those rules is broken:
 
-- **Nested inside a public `"use cache"`.** A shared cache entry can be built once and reused across every user, so it cannot contain a per-user (private) entry. `"use cache: private"` may only be nested inside another `"use cache: private"`.
+- **Nested inside a public `"use cache"`.** A shared cached function can reuse its result across users, so it cannot contain a private cached function. `"use cache: private"` may only be nested inside another `"use cache: private"`.
 - **Used inside `unstable_cache()`.** `unstable_cache()` is a shared cache and has the same restriction.
-- **Used without an active request.** A private entry is keyed to a request, so it cannot be produced during build-time contexts such as `generateStaticParams`.
+- **Used without an active request.** A private cached function depends on the current request, so it cannot run during build-time contexts such as `generateStaticParams`.
 
 ```jsx filename="app/page.js" highlight={2,7}
 async function PrivateSegment() {

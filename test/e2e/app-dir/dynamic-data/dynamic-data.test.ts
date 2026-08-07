@@ -334,7 +334,7 @@ describe('dynamic-data inside cache scope', () => {
         await expect(browser).toDisplayRedbox(`
          {
            "code": "E1461",
-           "description": "Route "/connection": \`connection()\` can't be used inside \`unstable_cache()\`. A cache entry can be built before any request exists, so it can't depend on one.
+           "description": "Route "/connection": \`connection()\` can't be called inside \`unstable_cache()\`. Call it outside the cached function.
          Learn more: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
            "environmentLabel": "Server",
            "label": "Runtime Error",
@@ -384,7 +384,7 @@ describe('dynamic-data inside cache scope', () => {
         'Error: Route "/cookies": `cookies()` can\'t be read inside `unstable_cache()`. Read it outside the cached function and pass what you need as an argument.'
       )
       expect(next.cliOutput).toMatch(
-        'Error: Route "/connection": `connection()` can\'t be used inside `unstable_cache()`. A cache entry can be built before any request exists, so it can\'t depend on one.'
+        'Error: Route "/connection": `connection()` can\'t be called inside `unstable_cache()`. Call it outside the cached function.'
       )
       expect(next.cliOutput).toMatch(
         'Error: Route "/headers": `headers()` can\'t be read inside `unstable_cache()`. Read it outside the cached function and pass what you need as an argument.'

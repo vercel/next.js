@@ -10,6 +10,9 @@ const NEXT_REQUEST_IN_USE_CACHE =
 const UNSTABLE_CACHE_API_DOCS =
   'https://nextjs.org/docs/app/api-reference/functions/unstable_cache'
 
+const USE_CACHE_PRIVATE_API_DOCS =
+  'https://nextjs.org/docs/app/api-reference/directives/use-cache-private'
+
 const CACHE_TAG_OUTSIDE_USE_CACHE =
   'https://nextjs.org/docs/messages/cache-tag-outside-use-cache'
 
@@ -54,33 +57,33 @@ export function createSearchParamsInUseCacheError(route: string): Error {
 
 export function createConnectionInPublicUseCacheError(route: string): Error {
   return new Error(
-    `Route "${route}": \`connection()\` can't be used inside \`"use cache"\`. A cache entry can be built before any request exists, so it can't depend on one.\nLearn more: ${NEXT_REQUEST_IN_USE_CACHE}`
+    `Route "${route}": \`connection()\` can't be called inside \`"use cache"\`. Call it outside the cached function.\nLearn more: ${NEXT_REQUEST_IN_USE_CACHE}`
   )
 }
 
 export function createConnectionInPrivateUseCacheError(route: string): Error {
   return new Error(
-    `Route "${route}": \`connection()\` can't be used inside \`"use cache: private"\`. A private cache entry can be built before a navigation request, so it can't depend on one.\nLearn more: ${NEXT_REQUEST_IN_USE_CACHE}`
+    `Route "${route}": \`connection()\` can't be called inside \`"use cache: private"\`. Call it outside the cached function.\nLearn more: ${USE_CACHE_PRIVATE_API_DOCS}`
   )
 }
 
 export function createConnectionInUnstableCacheError(route: string): Error {
   return new Error(
-    `Route "${route}": \`connection()\` can't be used inside \`unstable_cache()\`. A cache entry can be built before any request exists, so it can't depend on one.\nLearn more: ${UNSTABLE_CACHE_API_DOCS}`
+    `Route "${route}": \`connection()\` can't be called inside \`unstable_cache()\`. Call it outside the cached function.\nLearn more: ${UNSTABLE_CACHE_API_DOCS}`
   )
 }
 
 /**
  * Used when `draftMode().enable()` or `.disable()` is called inside
  * `"use cache"` or `"use cache: private"`. Reading `draftMode()` is fine
- * inside a cache, but toggling it is not.
+ * inside a cached function, but toggling it is not.
  */
 export function createDraftModeMutationInUseCacheError(
   route: string,
   expression: string
 ): Error {
   return new Error(
-    `Route "${route}": \`${expression}\` can't be called inside \`"use cache"\`. Draft mode can be read from a cached function, but enabling or disabling it must happen outside.\nLearn more: ${NEXT_REQUEST_IN_USE_CACHE}`
+    `Route "${route}": \`${expression}\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.\nLearn more: ${NEXT_REQUEST_IN_USE_CACHE}`
   )
 }
 
@@ -89,7 +92,7 @@ export function createDraftModeMutationInUnstableCacheError(
   expression: string
 ): Error {
   return new Error(
-    `Route "${route}": \`${expression}\` can't be called inside \`unstable_cache()\`. Draft mode can be read from a cached function, but enabling or disabling it must happen outside.\nLearn more: ${UNSTABLE_CACHE_API_DOCS}`
+    `Route "${route}": \`${expression}\` can't be called inside \`unstable_cache()\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.\nLearn more: ${UNSTABLE_CACHE_API_DOCS}`
   )
 }
 

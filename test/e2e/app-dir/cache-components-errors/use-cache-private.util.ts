@@ -445,7 +445,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
           await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "description": "Route /use-cache-private-connection used \`connection()\` inside "use cache: private". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual navigation request, but caches must be able to be produced before a navigation request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
+                 "description": "Route "/use-cache-private-connection": \`connection()\` can't be called inside \`"use cache: private"\`. Call it outside the cached function.
+               Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private",
                  "environmentLabel": null,
                  "label": "Runtime Error",
                  "source": "app/use-cache-private-connection/page.tsx (25:21) @ Private
