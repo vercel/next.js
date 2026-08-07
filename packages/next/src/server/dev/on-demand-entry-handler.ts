@@ -253,6 +253,79 @@ export const getEntries = (
   return entries
 }
 
+const doneCallbacks = new EventEmitter()
+
+export function getOnDemandEntryCallbackKey(
+  outputPath: string,
+  entryKey: string
+): string {
+  return `${normalizeOutputPath(outputPath)}\0${entryKey}`
+}
+
+export class RuntimeChangedError extends Error {
+  constructor(public readonly page: string) {
+    super(`The runtime changed while compiling page: ${page}`)
+    this.name = 'RuntimeChangedError'
+  }
+}
+
+function removeOnDemandEntry(
+  outputPath: string,
+  entryKey: string,
+  expectedEntry: EntryType,
+  error: Error
+): boolean {
+  const entries = getEntries(outputPath)
+  if (entries[entryKey] !== expectedEntry) return false
+
+  delete entries[entryKey]
+  doneCallbacks.emit(getOnDemandEntryCallbackKey(outputPath, entryKey), error)
+  return true
+}
+
+export function removeMissingOnDemandEntry(
+  outputPath: string,
+  entryKey: string,
+  expectedEntry: EntryType
+): boolean {
+  const page = entryKey.replace(/^[^@]+@[^@]+@/, '')
+  return removeOnDemandEntry(
+    outputPath,
+    entryKey,
+    expectedEntry,
+    new PageNotFoundError(page)
+  )
+}
+
+export function removeStaleOnDemandEntry(
+  outputPath: string,
+  entryKey: string,
+  expectedEntry: EntryType
+): boolean {
+  const page = entryKey.replace(/^[^@]+@[^@]+@/, '')
+  return removeOnDemandEntry(
+    outputPath,
+    entryKey,
+    expectedEntry,
+    new RuntimeChangedError(page)
+  )
+}
+
+export async function retryOnDemandEntryRuntimeChange(
+  page: string,
+  operation: () => Promise<void>
+): Promise<void> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await operation()
+      return
+    } catch (error) {
+      if (!(error instanceof RuntimeChangedError)) throw error
+      if (attempt === 2) throw new PageNotFoundError(page)
+    }
+  }
+}
+
 const invalidators: Map<string, Invalidator> = new Map()
 
 export const getInvalidator = (dir: string) => {
@@ -260,7 +333,6 @@ export const getInvalidator = (dir: string) => {
   return invalidators.get(dir)
 }
 
-const doneCallbacks: EventEmitter = new EventEmitter()
 const lastClientAccessPages = ['']
 const lastServerAccessPagesForAppDir = ['']
 
@@ -713,7 +785,9 @@ export function onDemandEntryHandler({
       }
 
       entry.status = BUILT
-      doneCallbacks.emit(name)
+      doneCallbacks.emit(
+        getOnDemandEntryCallbackKey(multiCompiler.outputPath, name)
+      )
     }
 
     getInvalidator(multiCompiler.outputPath)?.doneBuilding([...COMPILER_KEYS])
@@ -950,12 +1024,14 @@ export function onDemandEntryHandler({
             pageBundleType,
             route.page
           )
-          if (
-            curEntries[edgeServerEntry] &&
-            !isInstrumentationHookFile(route.page)
-          ) {
+          const staleEdgeEntry = curEntries[edgeServerEntry]
+          if (staleEdgeEntry && !isInstrumentationHookFile(route.page)) {
             // Runtime switched from edge to server
-            delete curEntries[edgeServerEntry]
+            removeStaleOnDemandEntry(
+              multiCompiler.outputPath,
+              edgeServerEntry,
+              staleEdgeEntry
+            )
           }
         },
         onEdgeServer: () => {
@@ -968,12 +1044,14 @@ export function onDemandEntryHandler({
             pageBundleType,
             route.page
           )
-          if (
-            curEntries[serverEntry] &&
-            !isInstrumentationHookFile(route.page)
-          ) {
+          const staleServerEntry = curEntries[serverEntry]
+          if (staleServerEntry && !isInstrumentationHookFile(route.page)) {
             // Runtime switched from server to edge
-            delete curEntries[serverEntry]
+            removeStaleOnDemandEntry(
+              multiCompiler.outputPath,
+              serverEntry,
+              staleServerEntry
+            )
           }
         },
       })
@@ -997,7 +1075,11 @@ export function onDemandEntryHandler({
         const invalidatePromise = Promise.all(
           entriesThatShouldBeInvalidated.map(([compilerKey, { entryKey }]) => {
             return new Promise<void>((resolve, reject) => {
-              doneCallbacks.once(entryKey, (err: Error) => {
+              const callbackKey = getOnDemandEntryCallbackKey(
+                multiCompiler.outputPath,
+                entryKey
+              )
+              doneCallbacks.once(callbackKey, (err: Error) => {
                 if (err) {
                   return reject(err)
                 }
@@ -1006,7 +1088,7 @@ export function onDemandEntryHandler({
                 // wait for that additional build to prevent race conditions.
                 const needsRebuild = curInvalidator.willRebuild(compilerKey)
                 if (needsRebuild) {
-                  doneCallbacks.once(entryKey, (rebuildErr: Error) => {
+                  doneCallbacks.once(callbackKey, (rebuildErr: Error) => {
                     if (rebuildErr) {
                       return reject(rebuildErr)
                     }
@@ -1069,13 +1151,15 @@ export function onDemandEntryHandler({
       // wrapper, which will ensure that we don't have multiple compilations
       // for the same page happening concurrently.
       return batcher.batch({ page, appPaths, definition, isApp }, async () => {
-        await ensurePageImpl({
-          page,
-          appPaths,
-          definition,
-          isApp,
-          url,
-        })
+        await retryOnDemandEntryRuntimeChange(page, () =>
+          ensurePageImpl({
+            page,
+            appPaths,
+            definition,
+            isApp,
+            url,
+          })
+        )
       })
     },
     onHMR(client: ws, getHmrServerError: () => Error | null) {
