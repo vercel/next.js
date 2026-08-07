@@ -37,6 +37,10 @@ function __turbopack_server_hmr_apply__(update: NodeJsHmrPayload): void {
 
 type HmrHandlerEntry = {
   handler: (update: NodeJsHmrPayload) => void
+  /** Clear the chunk-loading cache owned by this runtime. */
+  clearChunkCache: () => void
+  /** Absolute output root for the Next.js project which owns this runtime. */
+  runtimeRoot: string
   /** Output directory relative to RUNTIME_ROOT, e.g. "server/chunks/ssr". */
   chunkPrefix: string
 }
@@ -49,10 +53,12 @@ const handlers: Map<string, HmrHandlerEntry> =
 const chunkPrefix = path
   .relative(RUNTIME_ROOT, path.dirname(__filename))
   .replaceAll(path.sep, '/')
+const runtimeRoot = path.resolve(RUNTIME_ROOT)
 
 if (handlers.size === 0) {
   // First registration in this generation: install the routing dispatcher.
   globalThis.__turbopack_server_hmr_apply__ = (
+    targetRuntimeRoot: string,
     update: NodeJsHmrPayload
   ): void => {
     const registry: Map<string, HmrHandlerEntry> =
@@ -71,13 +77,19 @@ if (handlers.size === 0) {
 
     const toCall: HmrHandlerEntry[] = []
     if (updateChunkPaths.size === 0) {
-      for (const entry of registry.values()) toCall.push(entry)
+      for (const entry of registry.values()) {
+        if (entry.runtimeRoot === targetRuntimeRoot) toCall.push(entry)
+      }
     } else {
       const seen = new Set<string>()
       for (const chunkPath of updateChunkPaths) {
         const dir = path.dirname(chunkPath)
         for (const [key, entry] of registry) {
-          if (dir === entry.chunkPrefix && !seen.has(key)) {
+          if (
+            entry.runtimeRoot === targetRuntimeRoot &&
+            dir === entry.chunkPrefix &&
+            !seen.has(key)
+          ) {
             seen.add(key)
             toCall.push(entry)
           }
@@ -98,5 +110,7 @@ globalThis.__turbopack_server_hmr_handlers__ = handlers
 
 handlers.set(__filename, {
   handler: __turbopack_server_hmr_apply__,
+  clearChunkCache,
+  runtimeRoot,
   chunkPrefix,
 })

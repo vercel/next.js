@@ -2,7 +2,14 @@ import type { Socket } from 'net'
 import { mkdir, writeFile } from 'fs/promises'
 import { realpathSync } from 'fs'
 import * as inspector from 'inspector'
-import { join, extname, relative, isAbsolute, sep } from 'path'
+import {
+  join,
+  extname,
+  relative,
+  isAbsolute,
+  resolve as resolvePath,
+  sep,
+} from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 
 import ws from 'next/dist/compiled/ws'
@@ -185,14 +192,46 @@ const RETAINED_OUTPUT_PATHS = new Set([
 declare const __next__clear_chunk_cache__: (() => void) | null | undefined
 
 declare const __turbopack_server_hmr_apply__:
-  | ((update: NodeJsPartialHmrUpdate) => void)
+  | ((runtimeRoot: string, update: NodeJsPartialHmrUpdate) => void)
   | undefined
+
+interface ServerHmrHandlerEntry {
+  handler: (update: NodeJsPartialHmrUpdate) => void
+  clearChunkCache: () => void
+  runtimeRoot: string
+  chunkPrefix: string
+}
 
 declare global {
   /**
    * Sync with  `turbopack/crates/turbopack-ecmascript-runtime/js/src/nodejs/runtime/nodejs-globals.d.ts`.
    */
-  var __turbopack_server_hmr_handlers__: Map<string, unknown> | undefined
+  var __turbopack_server_hmr_handlers__:
+    | Map<string, ServerHmrHandlerEntry>
+    | undefined
+}
+
+/** Clears every loaded chunking context owned by one Next.js project. */
+export function clearServerHmrChunkCaches(runtimeRoot: string): void {
+  const clearers = new Set<() => void>()
+  for (const entry of globalThis.__turbopack_server_hmr_handlers__?.values() ??
+    []) {
+    if (entry.runtimeRoot === runtimeRoot) {
+      clearers.add(entry.clearChunkCache)
+    }
+  }
+  for (const clearChunkCache of clearers) {
+    clearChunkCache()
+  }
+}
+
+function removeServerHmrHandlers(runtimeRoot: string): void {
+  const handlers = globalThis.__turbopack_server_hmr_handlers__
+  if (!handlers) return
+
+  for (const [filename, entry] of handlers) {
+    if (entry.runtimeRoot === runtimeRoot) handlers.delete(filename)
+  }
 }
 
 /**
@@ -226,6 +265,7 @@ function collectUpdatedChunkPaths(
   return Array.from(paths)
 }
 
+
 function setupServerHmr(
   project: Project,
   {
@@ -233,7 +273,11 @@ function setupServerHmr(
     onApplied,
   }: {
     reEvaluateAllModulesExpensive: () => void | Promise<void>
-    onApplied: (chunkPaths: string[]) => void | Promise<void>
+    onApplied: (update: {
+      chunkPaths: string[]
+      affectedEntries: string[] | undefined
+      hasAffectedEntriesMetadata: boolean
+    }) => void | Promise<void>
   }
 ) {
   let pending = Promise.resolve()
@@ -278,26 +322,42 @@ function setupServerHmr(
             const handlers = globalThis.__turbopack_server_hmr_handlers__
             if (!handlers || handlers.size === 0) return
 
+            const instruction = update.instruction
             const payload: NodeJsPartialHmrUpdate = {
               type: 'partial',
-              instruction: update.instruction,
+              instruction,
             }
             if (typeof __turbopack_server_hmr_apply__ === 'function') {
               try {
                 __turbopack_server_hmr_apply__(payload)
+                // The validation worker keeps its own copy of the module
+                // graph, and applies the same update to it.
                 mirrorModuleStateToDevValidationWorker({
                   type: 'apply',
                   update: payload,
                 })
 
-                const updatedChunkPaths = collectUpdatedChunkPaths(
-                  update.instruction
-                )
-                // An empty partial only advances the version state (e.g. the seed
-                // transition or a new endpoint); nothing changed on disk, so don't
-                // invalidate manifests or ping browsers to refetch RSC.
-                if (updatedChunkPaths.length > 0) {
-                  await onApplied(updatedChunkPaths)
+                const chunkPaths = collectUpdatedChunkPaths(instruction)
+                const hasAffectedEntriesMetadata =
+                  instruction.type === 'ChunkListUpdate' &&
+                  Object.hasOwn(instruction, 'affectedEntries')
+                const affectedEntries =
+                  instruction.type === 'ChunkListUpdate'
+                    ? instruction.affectedEntries
+                    : undefined
+                const hasObservableChanges =
+                  chunkPaths.length > 0 ||
+                  (affectedEntries !== undefined && affectedEntries.length > 0)
+                // An empty partial only advances the version state (e.g. the
+                // seed transition or a new endpoint); nothing changed on disk,
+                // so don't invalidate manifests or ping browsers to refetch
+                // RSC.
+                if (hasObservableChanges) {
+                  await onApplied({
+                    chunkPaths,
+                    affectedEntries,
+                    hasAffectedEntriesMetadata,
+                  })
                 }
                 return
               } catch {}
@@ -407,6 +467,7 @@ export async function createHotReloaderTurbopack(
   const dev = true
   const buildId = 'development'
   const { nextConfig, dir: projectPath } = opts
+  const runtimeRoot = resolvePath(distDir)
 
   const bindings = getBindingsSync()
 
@@ -535,7 +596,8 @@ export async function createHotReloaderTurbopack(
       isShortSession: false,
     }
   )
-  backgroundLogCompilationEvents(project, {
+  const backgroundSubscriptionController = new AbortController()
+  const backgroundCompilationEvents = backgroundLogCompilationEvents(project, {
     eventTypes: [
       'StartupCacheInvalidationEvent',
       'TimingEvent',
@@ -545,6 +607,7 @@ export async function createHotReloaderTurbopack(
       'ServerHmrEntryDiffEvent',
     ],
     parentSpan: hotReloaderSpan,
+    signal: backgroundSubscriptionController.signal,
   })
   setBundlerFindSourceMapImplementation(
     getSourceMapFromTurbopack.bind(null, project)
@@ -566,6 +629,14 @@ export async function createHotReloaderTurbopack(
   opts.onDevServerCleanup?.(async () => {
     setBundlerFindSourceMapImplementation(() => undefined)
     setBundlerFindSourceMapURLImplementation(() => null)
+    backgroundSubscriptionController.abort()
+    await Promise.allSettled(
+      [backgroundCompilationEvents].filter(
+        (task): task is Promise<void> => task !== undefined
+      )
+    )
+    clearServerHmrChunkCaches(runtimeRoot)
+    removeServerHmrHandlers(runtimeRoot)
     await project.onExit()
     await lockfile?.unlock()
   })
@@ -792,11 +863,8 @@ export async function createHotReloaderTurbopack(
     // For App Router with server HMR, this is normally skipped as server HMR
     // manages module updates in-place. However, it *is* required when force is `true`
     // (like for .env file or tsconfig changes).
-    if (
-      (!usesServerHmr || force) &&
-      typeof __next__clear_chunk_cache__ === 'function'
-    ) {
-      __next__clear_chunk_cache__()
+    if (!usesServerHmr || force) {
+      clearServerHmrChunkCaches(runtimeRoot)
     }
 
     return true
@@ -2068,6 +2136,8 @@ export async function createHotReloaderTurbopack(
         })
     },
     close() {
+      backgroundSubscriptionController.abort()
+
       // Report MCP telemetry if MCP server is enabled
       recordMcpTelemetry(opts.telemetry)
 
@@ -2217,18 +2287,17 @@ export async function createHotReloaderTurbopack(
         )
         deleteCache(chunkPaths)
 
-        // Clear Turbopack's runtime caches
-        if (typeof __next__clear_chunk_cache__ === 'function') {
-          __next__clear_chunk_cache__()
-        }
+        // Clear only the runtime caches owned by this project. A process can
+        // host multiple Next.js projects during development.
+        clearServerHmrChunkCaches(runtimeRoot)
 
-        // Reset the server HMR handler registry. All server runtime chunks are
-        // cleared from require.cache above; when they're next required they'll
-        // re-register into this Map and reinstall the routing dispatcher.
-        globalThis.__turbopack_server_hmr_handlers__ = new Map()
+        // Drop only this project's runtime handlers. Other Next.js projects
+        // can share the process and must retain their own HMR registrations.
+        removeServerHmrHandlers(runtimeRoot)
 
-        // Clear all edge contexts
-        await clearAllModuleContexts()
+        // Server HMR only manages Node.js App Router entries. Edge contexts
+        // do not participate and the context API has no project-scoped clear,
+        // so a Node fallback must not evict contexts owned by other projects.
 
         resetFetch()
 
@@ -2237,7 +2306,7 @@ export async function createHotReloaderTurbopack(
         // the next validation loads the build output afresh.
         dropDevValidationWorker()
       },
-      onApplied: (chunkPaths: string[]) => {
+      onApplied: ({ chunkPaths }) => {
         // Clear the evalManifest() shared cache for each updated chunk so the
         // next RSC render picks up the HMR-applied module changes. Unlike
         // a full restart, this does NOT clear require.cache — the HMR-applied

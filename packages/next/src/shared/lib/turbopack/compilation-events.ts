@@ -29,6 +29,8 @@ export function backgroundLogCompilationEvents(
   }: { eventTypes?: string[]; signal?: AbortSignal; parentSpan?: Span } = {}
 ): Promise<void> {
   const iterator = project.compilationEventsSubscribe(eventTypes)
+  let abortStarted = false
+  let abortReturn: Promise<IteratorResult<unknown>> | undefined
 
   // If there is no signal assume there will be no clean shutdown,
   // to ensure trace spans aren't lost just flush after each one.
@@ -36,11 +38,22 @@ export function backgroundLogCompilationEvents(
 
   // Close the iterator as soon as the signal fires so the for-await loop
   // exits without waiting for the next compilation event.
-  signal?.addEventListener('abort', () => iterator.return?.(undefined as any), {
-    once: true,
-  })
+  const handleAbort = () => {
+    if (abortStarted) return
+    abortStarted = true
+    try {
+      abortReturn = iterator.return
+        ? Promise.resolve(iterator.return(undefined as never))
+        : Promise.resolve({ done: true, value: undefined })
+    } catch (error) {
+      abortReturn = Promise.reject(error)
+    }
+    // The loop normally observes the same close failure. Observe this owner
+    // independently in case an iterator reports it only to return().
+    void abortReturn.catch(() => {})
+  }
 
-  const promise = (async function () {
+  const loop = (async function () {
     for await (const event of iterator) {
       // Record TraceEvent compilation events as trace spans in .next/trace.
       if (parentSpan && event.typeName === 'TraceEvent' && event.eventJson) {
@@ -84,6 +97,29 @@ export function backgroundLogCompilationEvents(
       }
     }
   })()
+  if (signal) {
+    if (signal.aborted) {
+      handleAbort()
+    } else {
+      signal.addEventListener('abort', handleAbort, { once: true })
+      // Abort events are not replayed. Close a race between the initial state
+      // check and listener installation, with handleAbort remaining idempotent.
+      if (signal.aborted) handleAbort()
+    }
+  }
+
+  const promise = loop
+    .then(
+      async () => {
+        await abortReturn
+      },
+      async (error) => {
+        await abortReturn?.catch(() => {})
+        throw error
+      }
+    )
+    .finally(() => signal?.removeEventListener('abort', handleAbort))
   // Prevent unhandled rejection if the subscription errors after the project shuts down.
-  return promise.catch(() => {})
+  void promise.catch(() => {})
+  return promise
 }

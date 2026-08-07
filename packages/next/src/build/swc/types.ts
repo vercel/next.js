@@ -253,6 +253,8 @@ export interface NodeJsChunkListUpdate {
   type: 'ChunkListUpdate'
   merged?: NodeJsEcmascriptMergedUpdate[]
   chunks?: Record<string, { type: 'added' | 'deleted' | 'total' | 'partial' }>
+  /** Entry chunk lists which contributed real work to this aggregate update. */
+  affectedEntries?: string[]
 }
 
 /** In-process update; unlike wire updates, it has no resource or issues. */
