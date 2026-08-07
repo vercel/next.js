@@ -2150,84 +2150,12 @@ export async function ncc_write_file_atomic(task, opts) {
     .target('src/compiled/write-file-atomic')
 }
 
-externals['crossws'] = 'next/dist/compiled/crossws'
-externals['crossws/adapters/node'] = 'next/dist/compiled/crossws/adapters/node'
-export async function ncc_crossws(task, opts) {
-  const entry = require.resolve('crossws/adapters/node')
-  const distDir = dirname(dirname(entry))
-
-  await task
-    .source(relative(__dirname, entry))
-    .ncc({ packageName: 'crossws', externals, esm: false })
-    .target('src/compiled/crossws/adapters/node')
-
-  const runtimeDir = join(__dirname, 'src/compiled/crossws/adapters/node')
-  await fs.rename(
-    join(runtimeDir, basename(entry)),
-    join(runtimeDir, 'index.js')
-  )
-
-  const runtimeFile = join(runtimeDir, 'index.js')
-  const requestPrototypeSetup =
-    'Object.setPrototypeOf(StubRequest.prototype,globalThis.Request.prototype);'
-  const runtimeSource = await fs.readFile(runtimeFile, 'utf8')
-  if (!runtimeSource.includes(requestPrototypeSetup)) {
-    throw new Error('Failed to find the CrossWS StubRequest prototype setup.')
-  }
-  // CrossWS relies on a class field to shadow Request.prototype.url. That
-  // field can be removed when a user production bundle minifies this vendored
-  // module, leaving a getter-only inherited property which throws on assign.
-  await fs.writeFile(
-    runtimeFile,
-    runtimeSource.replace(
-      requestPrototypeSetup,
-      `${requestPrototypeSetup}Object.defineProperty(StubRequest.prototype,"url",{configurable:true,writable:true});`
-    )
-  )
-
-  const typeFiles = glob.sync(
-    '{index.d.mts,_chunks/adapter.d.mts,_chunks/node.d.mts,_chunks/web.d.mts,adapters/node.d.mts}',
-    { cwd: distDir }
-  )
-  for (const file of typeFiles) {
-    const destination = join(__dirname, 'src/compiled/crossws', file)
-    await fs.mkdir(dirname(destination), { recursive: true })
-    await fs.copyFile(join(distDir, file), destination)
-  }
-
-  const packageJson = JSON.parse(
-    await fs.readFile(join(distDir, '../package.json'), 'utf8')
-  )
-  await fs.writeFile(
-    join(__dirname, 'src/compiled/crossws/package.json'),
-    JSON.stringify({
-      name: packageJson.name,
-      version: packageJson.version,
-      license: packageJson.license,
-      types: 'index.d.mts',
-    })
-  )
-}
-
 externals['ws'] = 'next/dist/compiled/ws'
 export async function ncc_ws(task, opts) {
-  const packageJson = require('ws/package.json')
-
   await task
     .source(relative(__dirname, require.resolve('ws')))
     .ncc({ packageName: 'ws', externals })
     .target('src/compiled/ws')
-
-  await fs.writeFile(
-    join(__dirname, 'src/compiled/ws/package.json'),
-    JSON.stringify({
-      name: packageJson.name,
-      version: packageJson.version,
-      main: 'index.js',
-      author: packageJson.author,
-      license: packageJson.license,
-    })
-  )
 }
 
 export async function ncc_modelcontextprotocol_sdk(task, opts) {
@@ -2428,7 +2356,6 @@ export async function ncc(task, opts) {
         'ncc_webpack_sources1',
         'ncc_webpack_sources3',
         'ncc_write_file_atomic',
-        'ncc_crossws',
         'ncc_ws',
         'ncc_ua_parser_js',
         'ncc_minimatch',

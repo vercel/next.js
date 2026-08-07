@@ -1,68 +1,153 @@
+import { randomUUID } from 'node:crypto'
 import type { IncomingMessage } from 'node:http'
-import { STATUS_CODES } from 'node:http'
 import type { Duplex } from 'node:stream'
-
+import { types } from 'node:util'
+import { WS_CLOSE_TIMEOUT_MS } from './websocket-shutdown-budget'
 import type {
-  WebSocketMessage,
-  WebSocketPeer,
-  WebSocketUpgradeMetadata,
+  Server as WebSocketServer,
+  ServerOptions as WebSocketServerOptions,
+  WebSocket as VendoredWebSocket,
+} from 'ws'
+
+import type { NextRequest } from './web/spec-extension/request'
+import type {
+  WebSocketHooks as WebSocketTransportHooks,
+  WebSocketMessage as WebSocketTransportMessage,
+  WebSocketMessageData as WebSocketTransportMessageData,
+  WebSocketPeer as WebSocketTransportPeer,
 } from './web/spec-extension/response'
-import { getWebSocketUpgradeMetadata } from './web/spec-extension/response'
-import { filterInternalHeaders } from './lib/server-ipc/utils'
-import { splitCookiesString } from './web/utils'
+import type { WebSocketUpgradeMetadata } from './web/spec-extension/websocket-upgrade-response'
+import { getWebSocketUpgradeMetadata } from './web/spec-extension/websocket-upgrade-response'
+import {
+  createWebSocketClientDisconnectError,
+  getRawHttpResponseStatus,
+  getUpgradeResponseHeaderLines,
+  markRawHttpResponseCommitted,
+  validateWebSocketHandshake,
+  validateWebSocketRequestPolicy,
+  writeRawHttpError,
+} from './websocket-http'
 
-type CrossWSNodeAdapterFactory =
-  (typeof import('next/dist/compiled/crossws/adapters/node'))['default']
-type WebSocketServerConstructor =
-  (typeof import('next/dist/compiled/ws'))['Server']
-type CrossWSNodeAdapter = ReturnType<CrossWSNodeAdapterFactory>
+type WebSocketServerConstructor = typeof WebSocketServer
 
-let createCrossWSNodeAdapter: CrossWSNodeAdapterFactory | undefined
-let WebSocketServer: WebSocketServerConstructor | undefined
-if (process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS) {
-  createCrossWSNodeAdapter = (
-    require('next/dist/compiled/crossws/adapters/node') as typeof import('next/dist/compiled/crossws/adapters/node')
-  ).default
-  WebSocketServer = (
-    require('next/dist/compiled/ws') as typeof import('next/dist/compiled/ws')
-  ).Server
-} else {
-  createCrossWSNodeAdapter = undefined
-  WebSocketServer = undefined
+interface VendoredWebSocketServerOptions extends WebSocketServerOptions {
+  closeTimeout: number
+  maxBufferedChunks: number
+  maxFragments: number
 }
 
-const FORBIDDEN_UPGRADE_HEADERS = new Set([
-  'connection',
-  'content-length',
-  'sec-websocket-accept',
-  'sec-websocket-extensions',
-  'sec-websocket-protocol',
-  'transfer-encoding',
-  'upgrade',
-])
-const WEBSOCKET_TOKEN = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/
+interface WebSocketTransportDependencies {
+  WebSocketServer: WebSocketServerConstructor
+}
+
+let webSocketTransportDependencies: WebSocketTransportDependencies | undefined
+
+function loadWebSocketTransportDependencies(): WebSocketTransportDependencies {
+  if (webSocketTransportDependencies) return webSocketTransportDependencies
+
+  const WebSocketServer = (
+    require('next/dist/compiled/ws') as typeof import('next/dist/compiled/ws')
+  ).Server
+  return (webSocketTransportDependencies = { WebSocketServer })
+}
+
 const MAX_PAYLOAD = 16 * 1024 * 1024
 const MAX_FRAGMENTS = 1024
 const MAX_BUFFERED_CHUNKS = 1024
 const MAX_PENDING_MESSAGE_HOOKS = 32
-const CONNECTION_CONTEXT = Symbol('next.websocket.connection-context')
-const SELECTED_PROTOCOL = Symbol('next.websocket.selected-protocol')
-const UPGRADE_COMMITTED = Symbol('next.websocket.upgrade-committed')
+const MAX_PENDING_MESSAGE_BYTES = 16 * 1024 * 1024
+const MAX_OUTBOUND_BUFFER_BYTES = 16 * 1024 * 1024
+const textEncoder = new TextEncoder()
+// Threat model for the primordial getters below: `send()`/`publish()` accept
+// values authored by application code, which may share a realm with
+// dependencies that patch TypedArray/DataView prototypes. Byte lengths and
+// copies for those user-supplied values must ignore instance and prototype
+// overrides or the outbound limits could be mis-measured. Transport-supplied
+// inbound data (vendored ws) is trusted and read with plain property access.
+const typedArrayPrototype = Object.getPrototypeOf(Uint8Array.prototype)
+const typedArrayBufferGetter = Object.getOwnPropertyDescriptor(
+  typedArrayPrototype,
+  'buffer'
+)!.get!
+const typedArrayByteOffsetGetter = Object.getOwnPropertyDescriptor(
+  typedArrayPrototype,
+  'byteOffset'
+)!.get!
+const typedArrayByteLengthGetter = Object.getOwnPropertyDescriptor(
+  typedArrayPrototype,
+  'byteLength'
+)!.get!
+const typedArraySet = Object.getOwnPropertyDescriptor(
+  typedArrayPrototype,
+  'set'
+)!.value as (source: ArrayLike<number>, offset?: number) => void
+const dataViewBufferGetter = Object.getOwnPropertyDescriptor(
+  DataView.prototype,
+  'buffer'
+)!.get!
+const dataViewByteOffsetGetter = Object.getOwnPropertyDescriptor(
+  DataView.prototype,
+  'byteOffset'
+)!.get!
+const dataViewByteLengthGetter = Object.getOwnPropertyDescriptor(
+  DataView.prototype,
+  'byteLength'
+)!.get!
+const arrayBufferByteLengthGetter = Object.getOwnPropertyDescriptor(
+  ArrayBuffer.prototype,
+  'byteLength'
+)!.get!
+const sharedArrayBufferByteLengthGetter =
+  typeof SharedArrayBuffer === 'undefined'
+    ? undefined
+    : Object.getOwnPropertyDescriptor(
+        SharedArrayBuffer.prototype,
+        'byteLength'
+      )!.get!
+const EMPTY_OUTBOUND_PAYLOAD = Buffer.alloc(0)
+
+export type {
+  WebSocketTransportMessageData,
+  WebSocketTransportPeer,
+  WebSocketTransportMessage,
+  WebSocketTransportHooks,
+}
+
+interface WebSocketTransportUpgradeMetadata extends WebSocketUpgradeMetadata {
+  readonly hooks: Readonly<WebSocketTransportHooks>
+}
+
+export interface WebSocketTransportConnection {
+  getReadyState(): number
+  onClose(listener: () => void): () => void
+  /** Starts or resumes a graceful close without replacing an existing code. */
+  close(code?: number): void
+  terminate(): void
+}
 
 export interface WebSocketUpgradeTransportContext {
   onHookError?: (error: unknown) => void | Promise<void>
-  registryScope?: symbol
+  trackTask?: (promise: Promise<void>) => void
+  registryScope?: object
 }
 
 export interface WebSocketUpgradeTransportOptions {
+  runInHookContext?: <T>(fn: () => T) => T
   registerPeer?: (
-    peer: WebSocketPeer,
+    peer: WebSocketTransportPeer,
+    connection: WebSocketTransportConnection,
     context: WebSocketUpgradeTransportContext
-  ) => void
+  ) => boolean | void
   unregisterPeer?: (
-    peer: WebSocketPeer,
+    peer: WebSocketTransportPeer,
+    connection: WebSocketTransportConnection,
     context: WebSocketUpgradeTransportContext
   ) => void
+}
+
+export interface WebSocketUpgradeTransportOutcome {
+  statusCode: number
+  upgraded: boolean
 }
 
 export interface WebSocketUpgradeTransport {
@@ -70,379 +155,280 @@ export interface WebSocketUpgradeTransport {
     req: IncomingMessage,
     socket: Duplex,
     head: Buffer,
-    request: Request,
+    request: NextRequest,
     response: Response,
     context?: WebSocketUpgradeTransportContext
-  ): Promise<boolean>
+  ): Promise<WebSocketUpgradeTransportOutcome>
 }
 
 interface ConnectionContext {
-  metadata: WebSocketUpgradeMetadata
-  response: Response
+  metadata: WebSocketTransportUpgradeMetadata
   transportContext: WebSocketUpgradeTransportContext
   hookQueue: Promise<void>
   pendingMessages: number
+  pendingMessageBytes: number
   closed: boolean
   hookFailed: boolean
+  applicationHooksEnabled: boolean
+  runInHookContext: <T>(fn: () => T) => T
 }
 
-function validateHeaderPart(value: string, name: string): void {
-  if (/\r|\n/.test(value)) {
-    throw new TypeError(`Invalid ${name} in WebSocket upgrade response.`)
-  }
+interface PendingUpgrade {
+  socket: Duplex
+  protocol: string | undefined
+  headerLines: string[]
+  connection: ConnectionContext
+  request: NextRequest
+  /** Set when ws rejects the handshake after Next's pre-validation accepted it. */
+  clientError?: Error
 }
 
-async function writeSocket(socket: Duplex, chunk: Uint8Array | string) {
-  if (socket.destroyed || socket.writableEnded) {
-    throw new Error('WebSocket upgrade client disconnected.')
-  }
-
-  if (socket.write(chunk)) return
-
-  await new Promise<void>((resolve, reject) => {
-    const cleanup = () => {
-      socket.off('drain', onDrain)
-      socket.off('close', onClose)
-      socket.off('error', onError)
+type MeasuredWebSocketData =
+  | {
+      kind: 'string'
+      data: string
+      byteLength: number
     }
-    const onDrain = () => {
-      cleanup()
-      resolve()
-    }
-    const onClose = () => {
-      cleanup()
-      reject(new Error('WebSocket upgrade client disconnected.'))
-    }
-    const onError = (error: Error) => {
-      cleanup()
-      reject(error)
+  | {
+      kind: 'bytes'
+      buffer: ArrayBuffer | SharedArrayBuffer
+      byteOffset: number
+      byteLength: number
     }
 
-    socket.once('drain', onDrain)
-    socket.once('close', onClose)
-    socket.once('error', onError)
-  })
+interface WebSocketConnection {
+  peer: NextWebSocketPeer
+  websocket: VendoredWebSocket
+  transportConnection: WebSocketTransportConnection
 }
 
-function getResponseHeaderLines(headers: Headers): string[] {
-  const lines: string[] = []
+class NextWebSocketMessage implements WebSocketTransportMessage {
+  readonly rawData: string | Uint8Array
+  #bytes: Uint8Array | undefined
+  #buffer: ArrayBuffer | undefined
+  #string: string | undefined
+  #parsed: { value: unknown } | undefined
 
-  headers.forEach((value, name) => {
-    const lowerName = name.toLowerCase()
-    if (lowerName === 'x-middleware-set-cookie') return
+  constructor(rawData: string | Uint8Array) {
+    this.rawData = rawData
+    Object.freeze(this)
+  }
 
-    validateHeaderPart(name, 'header name')
-    if (lowerName === 'set-cookie') {
-      for (const cookie of splitCookiesString(value)) {
-        validateHeaderPart(cookie, 'header value')
-        lines.push(`${name}: ${cookie}`)
-      }
-    } else {
-      validateHeaderPart(value, 'header value')
-      lines.push(`${name}: ${value}`)
+  uint8Array(): Uint8Array {
+    return (this.#bytes ??=
+      typeof this.rawData === 'string'
+        ? textEncoder.encode(this.rawData)
+        : this.rawData)
+  }
+
+  arrayBuffer(): ArrayBuffer {
+    if (this.#buffer) return this.#buffer
+
+    const view = this.uint8Array()
+    const buffer = view.buffer
+    if (buffer instanceof ArrayBuffer) {
+      return (this.#buffer =
+        view.byteOffset === 0 && view.byteLength === buffer.byteLength
+          ? buffer
+          : buffer.slice(view.byteOffset, view.byteOffset + view.byteLength))
     }
-  })
 
-  return lines
-}
-
-export function getUpgradeResponseHeaders(response: Response): Headers {
-  const headers = new Headers(response.headers)
-  headers.delete('x-middleware-set-cookie')
-  return headers
-}
-
-/**
- * Writes an ordinary Response directly to a socket received from Node's
- * `upgrade` event. Node never creates a ServerResponse for these requests.
- */
-export async function writeRawHttpResponse(
-  req: IncomingMessage,
-  socket: Duplex,
-  response: Response
-): Promise<void> {
-  const bodyAllowed =
-    req.method !== 'HEAD' &&
-    response.body !== null &&
-    response.status !== 204 &&
-    response.status !== 304
-  const responseHeaders = new Headers(response.headers)
-  // The framework owns framing on this raw socket. Forwarding an application
-  // supplied length or transfer coding could create an ambiguous response for
-  // an intermediary which attempted the upgrade.
-  responseHeaders.delete('connection')
-  responseHeaders.delete('content-length')
-  responseHeaders.delete('transfer-encoding')
-  const headerLines = getResponseHeaderLines(responseHeaders)
-  headerLines.push('Connection: close')
-
-  const chunked = bodyAllowed && req.httpVersion !== '1.0'
-  if (chunked) {
-    headerLines.push('Transfer-Encoding: chunked')
-  } else if (!bodyAllowed) {
-    headerLines.push('Content-Length: 0')
+    // Keep the public conversion aligned with platform arrayBuffer() APIs even
+    // if a future transport supplies a SharedArrayBuffer-backed view.
+    const copy = new Uint8Array(view.byteLength)
+    copy.set(view)
+    return (this.#buffer = copy.buffer)
   }
 
-  const statusText = response.statusText || STATUS_CODES[response.status] || ''
-  validateHeaderPart(statusText, 'status text')
-  await writeSocket(
-    socket,
-    `HTTP/1.1 ${response.status} ${statusText}\r\n${headerLines.join(
-      '\r\n'
-    )}\r\n\r\n`
-  )
+  text(): string {
+    return (this.#string ??=
+      typeof this.rawData === 'string'
+        ? this.rawData
+        : Buffer.from(
+            this.rawData.buffer,
+            this.rawData.byteOffset,
+            this.rawData.byteLength
+          ).toString('utf8'))
+  }
 
-  if (bodyAllowed) {
-    const reader = response.body!.getReader()
-    const onClose = () => {
-      void reader.cancel('WebSocket upgrade client disconnected.')
+  json<T = unknown>(): T {
+    if (!this.#parsed) {
+      this.#parsed = { value: JSON.parse(this.text()) }
     }
-    socket.once('close', onClose)
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        if (!value.byteLength) continue
-
-        if (chunked) {
-          await writeSocket(socket, `${value.byteLength.toString(16)}\r\n`)
-          await writeSocket(socket, value)
-          await writeSocket(socket, '\r\n')
-        } else {
-          await writeSocket(socket, value)
-        }
-      }
-
-      if (chunked) {
-        await writeSocket(socket, '0\r\n\r\n')
-      }
-    } finally {
-      socket.off('close', onClose)
-      reader.releaseLock()
-    }
-  }
-
-  if (!socket.destroyed && !socket.writableEnded) {
-    socket.end()
+    return this.#parsed.value as T
   }
 }
 
-export function writeRawHttpError(
-  req: IncomingMessage,
-  socket: Duplex,
-  status: number,
-  message: string,
-  headers?: HeadersInit
-): Promise<void> {
-  const responseHeaders = new Headers(headers)
-  if (!responseHeaders.has('content-type')) {
-    responseHeaders.set('content-type', 'text/plain; charset=utf-8')
-  }
+class NextWebSocketPeer implements WebSocketTransportPeer {
+  readonly #websocket: VendoredWebSocket
+  readonly #request: NextRequest
+  readonly remoteAddress: string | undefined
+  #id: string | undefined
 
-  return writeRawHttpResponse(
-    req,
-    socket,
-    new Response(message, {
-      status,
-      headers: responseHeaders,
-    })
-  )
-}
-
-export interface WebSocketHandshakeError {
-  status: number
-  message: string
-  headers?: HeadersInit
-}
-
-/**
- * Strips headers which are meaningful only between trusted Next.js processes.
- */
-export function filterWebSocketUpgradeRequestHeaders(
-  req: IncomingMessage
-): void {
-  if (!process.env.NEXT_PRIVATE_TEST_HEADERS) {
-    filterInternalHeaders(req.headers)
-  }
-}
-
-/**
- * Validates protocol fields which must be safe before user code executes.
- */
-export function validateWebSocketHandshake(
-  req: IncomingMessage
-): WebSocketHandshakeError | undefined {
-  if (req.method !== 'GET') {
-    return {
-      status: 405,
-      message: 'WebSocket upgrades require GET.',
-      headers: { allow: 'GET' },
-    }
-  }
-  if (req.headers.upgrade?.toLowerCase() !== 'websocket') {
-    return { status: 400, message: 'Invalid WebSocket Upgrade header.' }
-  }
-  const connection = req.headers.connection
-  if (
-    !connection
-      ?.split(',')
-      .some((value) => value.trim().toLowerCase() === 'upgrade')
+  constructor(
+    websocket: VendoredWebSocket,
+    request: NextRequest,
+    socket: Duplex
   ) {
-    return { status: 400, message: 'Invalid WebSocket Connection header.' }
-  }
-  if (req.headers['sec-websocket-version'] !== '13') {
-    return {
-      status: 426,
-      message: 'Unsupported WebSocket version.',
-      headers: { 'sec-websocket-version': '13' },
-    }
+    this.#websocket = websocket
+    this.#request = request
+    this.remoteAddress = (
+      socket as Duplex & { remoteAddress?: string }
+    ).remoteAddress
   }
 
-  const host = req.headers.host
-  if (typeof host !== 'string' || !host) {
-    return { status: 400, message: 'Invalid WebSocket Host header.' }
+  get id(): string {
+    return (this.#id ??= randomUUID())
   }
 
-  const key = req.headers['sec-websocket-key']
-  if (
-    typeof key !== 'string' ||
-    !/^[+/0-9A-Za-z]{22}==$/.test(key) ||
-    Buffer.from(key, 'base64').byteLength !== 16
-  ) {
-    return { status: 400, message: 'Invalid Sec-WebSocket-Key header.' }
+  get request(): NextRequest {
+    return this.#request
   }
 
-  const protocolHeader = req.headers['sec-websocket-protocol']
-  if (protocolHeader) {
-    const protocols = Array.isArray(protocolHeader)
-      ? protocolHeader.join(',').split(',')
-      : protocolHeader.split(',')
-    const seen = new Set<string>()
-    for (const item of protocols) {
-      const protocol = item.trim()
-      if (!WEBSOCKET_TOKEN.test(protocol) || seen.has(protocol)) {
-        return {
-          status: 400,
-          message: 'Invalid Sec-WebSocket-Protocol header.',
-        }
-      }
-      seen.add(protocol)
-    }
+  get bufferedAmount(): number {
+    return getWebSocketBufferedAmount(this.#websocket)
   }
 
-  return undefined
-}
+  send(data: WebSocketTransportMessageData): number {
+    const bufferedAmount = getWebSocketBufferedAmount(this.#websocket)
+    if (!isWebSocketOpen(this.#websocket)) return bufferedAmount
 
-function getRequestedProtocols(req: IncomingMessage): Set<string> {
-  const protocolHeader = req.headers['sec-websocket-protocol']
-  if (!protocolHeader) return new Set()
-
-  return new Set(
-    (Array.isArray(protocolHeader) ? protocolHeader.join(',') : protocolHeader)
-      .split(',')
-      .map((protocol) => protocol.trim())
-  )
-}
-
-/**
- * Enforces browser-origin isolation and server-controlled protocol selection.
- */
-export function validateWebSocketRequestPolicy(
-  req: IncomingMessage,
-  metadata: WebSocketUpgradeMetadata
-): WebSocketHandshakeError | undefined {
-  const originHeader = req.headers.origin
-  if (originHeader !== undefined) {
-    if (typeof originHeader !== 'string') {
-      return { status: 403, message: 'WebSocket origin is not allowed.' }
-    }
-
-    let origin: URL
-    try {
-      origin = new URL(originHeader)
-    } catch {
-      return { status: 403, message: 'WebSocket origin is not allowed.' }
-    }
-
-    if (
-      (origin.protocol !== 'http:' && origin.protocol !== 'https:') ||
-      origin.origin !== originHeader
-    ) {
-      return { status: 403, message: 'WebSocket origin is not allowed.' }
-    }
-
-    let requestHost: string
-    try {
-      requestHost = new URL(`http://${req.headers.host}`).host
-    } catch {
-      return { status: 400, message: 'Invalid WebSocket Host header.' }
-    }
-
-    const sameHost = origin.host === requestHost
-    const explicitlyAllowed = metadata.allowedOrigins?.includes(origin.origin)
-    if (!sameHost && !explicitlyAllowed) {
-      return { status: 403, message: 'WebSocket origin is not allowed.' }
-    }
-  }
-
-  if (metadata.protocol && !getRequestedProtocols(req).has(metadata.protocol)) {
-    return {
-      status: 400,
-      message: 'Selected WebSocket subprotocol was not offered by the client.',
-    }
-  }
-
-  return undefined
-}
-
-export function validateUpgradeResponseHeaders(response: Response): void {
-  for (const name of response.headers.keys()) {
-    if (FORBIDDEN_UPGRADE_HEADERS.has(name.toLowerCase())) {
-      throw new TypeError(
-        `NextResponse.upgrade() cannot set the protocol-critical "${name}" header.`
+    const measured = measureWebSocketData(data)
+    if (measured.byteLength > MAX_OUTBOUND_BUFFER_BYTES) {
+      closeWebSocketAfterFailure(
+        this.#websocket,
+        1009,
+        'WebSocket message is too large'
       )
+      return bufferedAmount
     }
+    if (bufferedAmount > MAX_OUTBOUND_BUFFER_BYTES - measured.byteLength) {
+      closeWebSocketAfterFailure(
+        this.#websocket,
+        1008,
+        'WebSocket outbound buffer limit exceeded'
+      )
+      return bufferedAmount
+    }
+
+    this.#websocket.send(materializeWebSocketData(measured))
+    return getWebSocketBufferedAmount(this.#websocket)
+  }
+
+  close(code?: number, reason?: string): void {
+    if (code !== undefined) {
+      if (typeof code !== 'number' || !isValidCloseCode(code)) {
+        throw new TypeError(
+          'peer.close(): `code` must be an integer from 1000 to 1014 (excluding 1004, 1005, 1006), or from 3000 to 4999.'
+        )
+      }
+      if (reason !== undefined) {
+        if (typeof reason !== 'string') {
+          throw new TypeError('peer.close(): `reason` must be a string.')
+        }
+        if (Buffer.byteLength(reason) > 123) {
+          throw new RangeError(
+            'peer.close(): `reason` must be at most 123 UTF-8 bytes.'
+          )
+        }
+      }
+    }
+    closeAndResumeWebSocket(this.#websocket, () => {
+      if (code === undefined) this.#websocket.close()
+      else this.#websocket.close(code, reason)
+    })
+  }
+
+  terminate(): void {
+    this.#websocket.terminate()
   }
 }
 
-function getConnectionContext(
-  peer: WebSocketPeer
-): ConnectionContext | undefined {
+function isValidCloseCode(code: number): boolean {
   return (
-    peer.context as typeof peer.context & {
-      [CONNECTION_CONTEXT]?: ConnectionContext
-    }
-  )[CONNECTION_CONTEXT]
+    Number.isInteger(code) &&
+    ((code >= 1000 &&
+      code <= 1014 &&
+      code !== 1004 &&
+      code !== 1005 &&
+      code !== 1006) ||
+      (code >= 3000 && code <= 4999))
+  )
 }
 
-function reportHookError(connection: ConnectionContext, error: unknown): void {
+async function reportHookError(
+  connection: ConnectionContext,
+  error: unknown
+): Promise<void> {
   try {
-    Promise.resolve(connection.transportContext.onHookError?.(error)).catch(
-      (reportError) => {
-        console.error('Failed to report WebSocket hook error', reportError)
-      }
-    )
+    await connection.transportContext.onHookError?.(error)
   } catch (reportError) {
     console.error('Failed to report WebSocket hook error', reportError)
   }
 }
 
-function closePeerAfterHookError(peer: WebSocketPeer): void {
-  const readyState = peer.websocket.readyState
-  if (readyState === 2 || readyState === 3) return
+function pauseConnection(connection: WebSocketConnection): void {
+  try {
+    connection.websocket.pause()
+  } catch {}
+}
+
+function resumeConnection(connection: WebSocketConnection): void {
+  resumeWebSocket(connection.websocket)
+}
+
+function resumeWebSocket(websocket: VendoredWebSocket): void {
+  try {
+    websocket.resume()
+  } catch {}
+}
+
+/**
+ * Starts a graceful close before resuming a paused receiver. Calling close()
+ * first preserves ws's state transition and selected code; a transport which
+ * is already CLOSING is only resumed so its peer's close frame can be read.
+ */
+function closeAndResumeWebSocket(
+  websocket: VendoredWebSocket,
+  close: () => void
+): void {
+  const readyState = websocket.readyState
+  if (readyState === 3) return
+  if (readyState === 2) {
+    resumeWebSocket(websocket)
+    return
+  }
 
   try {
-    peer.close(1011, 'WebSocket handler failed')
+    close()
+  } finally {
+    if (websocket.readyState === 2) resumeWebSocket(websocket)
+  }
+}
+
+function closeWebSocketAfterFailure(
+  websocket: VendoredWebSocket,
+  code: number,
+  reason: string
+): void {
+  try {
+    closeAndResumeWebSocket(websocket, () => websocket.close(code, reason))
   } catch {
     try {
-      peer.terminate()
+      websocket.terminate()
     } catch {}
   }
 }
 
+function closeConnectionAfterFailure(
+  connection: WebSocketConnection,
+  reason: string
+): void {
+  closeWebSocketAfterFailure(connection.websocket, 1011, reason)
+}
+
 async function invokeHook(
-  peer: WebSocketPeer,
+  owned: WebSocketConnection,
   connection: ConnectionContext,
   invoke: () => void | Promise<void>,
   closeOnError: boolean
@@ -450,188 +436,451 @@ async function invokeHook(
   try {
     await invoke()
   } catch (error) {
-    reportHookError(connection, error)
     if (closeOnError) {
       connection.hookFailed = true
-      closePeerAfterHookError(peer)
+      closeConnectionAfterFailure(owned, 'WebSocket handler failed')
     }
+    await reportHookError(connection, error)
   }
 }
 
 function queueHook(
-  peer: WebSocketPeer,
+  owned: WebSocketConnection,
   connection: ConnectionContext,
   invoke: () => void | Promise<void>,
   closeOnError: boolean
-): void {
-  connection.hookQueue = connection.hookQueue.then(() =>
-    invokeHook(peer, connection, invoke, closeOnError)
+): Promise<void> {
+  connection.hookQueue = connection.runInHookContext(() =>
+    connection.hookQueue.then(() =>
+      invokeHook(owned, connection, invoke, closeOnError)
+    )
   )
+  return connection.hookQueue
 }
 
-function cleanupEmptyNamespace(
-  adapter: CrossWSNodeAdapter,
-  peer: WebSocketPeer
+function trackHookTask(
+  connection: ConnectionContext,
+  task: Promise<void>
 ): void {
-  const peers = adapter.peers.get(peer.namespace)
-  if (peers?.size === 0) {
-    adapter.peers.delete(peer.namespace)
+  try {
+    connection.transportContext.trackTask?.(task)
+  } catch (error) {
+    // Lifecycle tracking is framework-owned in Next.js, but an embedding
+    // transport may supply it. Do not let a faulty capability escape from a
+    // ws EventEmitter callback or suppress the already-queued application hook.
+    try {
+      connection.runInHookContext(() => {
+        void reportHookError(connection, error)
+      })
+    } catch (reportError) {
+      console.error(
+        'Failed to report WebSocket task tracking error',
+        reportError
+      )
+    }
   }
 }
 
-function pausePeer(peer: WebSocketPeer): void {
-  try {
-    ;(
-      peer.websocket as typeof peer.websocket & { pause?: () => void }
-    ).pause?.()
-  } catch {}
+function getMessageByteLength(message: WebSocketTransportMessage): number {
+  const data = message.rawData
+  return typeof data === 'string' ? Buffer.byteLength(data) : data.byteLength
 }
 
-function resumePeer(peer: WebSocketPeer): void {
+function measureWebSocketData(data: unknown): MeasuredWebSocketData {
+  if (typeof data === 'string') {
+    return { kind: 'string', data, byteLength: Buffer.byteLength(data) }
+  }
+  if (types.isTypedArray(data)) {
+    return {
+      kind: 'bytes',
+      buffer: typedArrayBufferGetter.call(data),
+      byteOffset: typedArrayByteOffsetGetter.call(data),
+      byteLength: typedArrayByteLengthGetter.call(data),
+    }
+  }
+  if (types.isDataView(data)) {
+    return {
+      kind: 'bytes',
+      buffer: dataViewBufferGetter.call(data),
+      byteOffset: dataViewByteOffsetGetter.call(data),
+      byteLength: dataViewByteLengthGetter.call(data),
+    }
+  }
+  if (types.isArrayBuffer(data)) {
+    return {
+      kind: 'bytes',
+      buffer: data,
+      byteOffset: 0,
+      byteLength: arrayBufferByteLengthGetter.call(data),
+    }
+  }
+  if (sharedArrayBufferByteLengthGetter && types.isSharedArrayBuffer(data)) {
+    return {
+      kind: 'bytes',
+      buffer: data,
+      byteOffset: 0,
+      byteLength: sharedArrayBufferByteLengthGetter.call(data),
+    }
+  }
+  throw new TypeError(
+    'Invalid WebSocket data: expected a string or binary data. Serialize objects with JSON.stringify() before sending.'
+  )
+}
+
+function materializeWebSocketData(
+  measured: MeasuredWebSocketData
+): string | Buffer {
+  if (measured.kind === 'string') {
+    return measured.data
+  }
+  if (measured.byteLength === 0) {
+    return EMPTY_OUTBOUND_PAYLOAD
+  }
+  return Buffer.from(
+    new Uint8Array(measured.buffer, measured.byteOffset, measured.byteLength)
+  )
+}
+
+function getWebSocketBufferedAmount(websocket: VendoredWebSocket): number {
+  const bufferedAmount = websocket.bufferedAmount
+  return Number.isFinite(bufferedAmount) && bufferedAmount > 0
+    ? bufferedAmount
+    : 0
+}
+
+function isWebSocketOpen(websocket: VendoredWebSocket): boolean {
+  return websocket.readyState === 1
+}
+
+function handleOpenEvent(
+  owned: WebSocketConnection,
+  connection: ConnectionContext,
+  options: WebSocketUpgradeTransportOptions
+): void {
+  if (
+    options.registerPeer?.(
+      owned.peer,
+      owned.transportConnection,
+      connection.transportContext
+    ) === false
+  ) {
+    // Refusal after the 101 response must still dispose of the socket: leaving
+    // it open would blackhole the accepted connection until client timeout.
+    connection.closed = true
+    closeAndResumeWebSocket(owned.websocket, () =>
+      owned.websocket.close(1013, 'Try Again Later')
+    )
+    return
+  }
+
+  connection.applicationHooksEnabled = true
+  const hook = connection.metadata.hooks.open
+  if (hook) {
+    queueHook(owned, connection, () => hook(owned.peer), true)
+  }
+}
+
+function handleMessageEvent(
+  owned: WebSocketConnection,
+  connection: ConnectionContext,
+  message: WebSocketTransportMessage
+): void {
+  const hook = connection.metadata.hooks.message
+  if (
+    !hook ||
+    !connection.applicationHooksEnabled ||
+    connection.closed ||
+    connection.hookFailed ||
+    !isWebSocketOpen(owned.websocket)
+  ) {
+    return
+  }
+
+  const messageBytes = getMessageByteLength(message)
+  if (
+    connection.pendingMessages >= MAX_PENDING_MESSAGE_HOOKS ||
+    connection.pendingMessageBytes + messageBytes > MAX_PENDING_MESSAGE_BYTES
+  ) {
+    connection.hookFailed = true
+    closeWebSocketAfterFailure(
+      owned.websocket,
+      1008,
+      'Too many pending messages'
+    )
+    return
+  }
+
+  connection.pendingMessages++
+  connection.pendingMessageBytes += messageBytes
+  pauseConnection(owned)
+  connection.hookQueue = connection.runInHookContext(() =>
+    connection.hookQueue
+      .then(() => {
+        if (
+          connection.closed ||
+          connection.hookFailed ||
+          !isWebSocketOpen(owned.websocket)
+        ) {
+          return
+        }
+        return invokeHook(
+          owned,
+          connection,
+          () => hook(owned.peer, message),
+          true
+        )
+      })
+      .finally(() => {
+        connection.pendingMessages--
+        connection.pendingMessageBytes -= messageBytes
+        if (
+          connection.pendingMessages === 0 &&
+          !connection.closed &&
+          !connection.hookFailed &&
+          isWebSocketOpen(owned.websocket)
+        ) {
+          resumeConnection(owned)
+        }
+      })
+  )
+}
+
+function handleCloseEvent(
+  owned: WebSocketConnection,
+  connection: ConnectionContext,
+  details: { code: number; reason: string },
+  options: WebSocketUpgradeTransportOptions
+): void {
+  if (connection.applicationHooksEnabled) {
+    try {
+      options.unregisterPeer?.(
+        owned.peer,
+        owned.transportConnection,
+        connection.transportContext
+      )
+    } catch (error) {
+      // Registry cleanup is a framework capability, but an embedding caller
+      // may supply it. Preserve close-hook delivery and report a faulty
+      // implementation through the same contained error channel as other
+      // detached work.
+      queueHook(
+        owned,
+        connection,
+        () => {
+          throw error
+        },
+        false
+      )
+    }
+  }
+  connection.closed = true
+  const hook = connection.applicationHooksEnabled
+    ? connection.metadata.hooks.close
+    : undefined
+  const pending = hook
+    ? queueHook(owned, connection, () => hook(owned.peer, details), false)
+    : connection.hookQueue
+  trackHookTask(connection, pending)
+}
+
+function handleErrorEvent(
+  owned: WebSocketConnection,
+  connection: ConnectionContext,
+  error: Error
+): void {
+  // ws may have already selected a more precise protocol close code. Preserve
+  // it when the transport is already CLOSING, otherwise make errors terminal.
+  closeConnectionAfterFailure(owned, 'WebSocket transport failed')
+  // A ws protocol error enters CLOSING before emitting `error` and can remain
+  // there until its close timer expires if the client withholds a close reply.
+  // Keep lifecycle ownership until the terminal `close` event so scope
+  // shutdown can still find and terminate the live transport.
+  connection.closed = true
+  const hook = connection.applicationHooksEnabled
+    ? connection.metadata.hooks.error
+    : undefined
+  const pending = hook
+    ? queueHook(owned, connection, () => hook(owned.peer, error), true)
+    : connection.hookQueue
+  trackHookTask(connection, pending)
+}
+
+function handlePingEvent(owned: WebSocketConnection, data: Buffer): void {
+  if (!isWebSocketOpen(owned.websocket)) return
+
+  const bufferedAmount = getWebSocketBufferedAmount(owned.websocket)
+  if (bufferedAmount > MAX_OUTBOUND_BUFFER_BYTES - data.byteLength) {
+    closeWebSocketAfterFailure(
+      owned.websocket,
+      1008,
+      'WebSocket outbound buffer limit exceeded'
+    )
+    return
+  }
+
   try {
-    ;(
-      peer.websocket as typeof peer.websocket & { resume?: () => void }
-    ).resume?.()
-  } catch {}
+    // Server control frames are unmasked. Socket write failures are owned by
+    // ws's close path, so a second callback error channel would double-report.
+    owned.websocket.pong(data)
+  } catch {
+    closeConnectionAfterFailure(owned, 'WebSocket transport failed')
+  }
+}
+
+function normalizeIncomingData(data: unknown): Buffer {
+  if (Array.isArray(data)) return Buffer.concat(data)
+  if (Buffer.isBuffer(data)) return data
+  if (types.isArrayBuffer(data)) return Buffer.from(data)
+  throw new TypeError('Unexpected WebSocket message data from the transport.')
+}
+
+function isolateIncomingBinaryData(data: Buffer): Uint8Array {
+  const isolated = new Uint8Array(data.byteLength)
+  typedArraySet.call(isolated, data)
+  return isolated
+}
+
+function createTransportConnection(
+  websocket: VendoredWebSocket
+): WebSocketTransportConnection {
+  const close = websocket.close.bind(websocket)
+  const terminate = websocket.terminate.bind(websocket)
+  const once = websocket.once.bind(websocket)
+  const off = websocket.off.bind(websocket)
+
+  return Object.freeze({
+    getReadyState: () => websocket.readyState,
+    onClose(listener: () => void) {
+      once('close', listener)
+      return () => off('close', listener)
+    },
+    close(code?: number) {
+      closeAndResumeWebSocket(websocket, () => close(code))
+    },
+    terminate,
+  })
+}
+
+function attachConnection(
+  websocket: VendoredWebSocket,
+  pending: PendingUpgrade,
+  options: WebSocketUpgradeTransportOptions
+): void {
+  const { connection, request, socket } = pending
+  const peer = new NextWebSocketPeer(websocket, request, socket)
+  const owned: WebSocketConnection = {
+    peer,
+    websocket,
+    transportConnection: createTransportConnection(websocket),
+  }
+  // Keep transport output in the one synchronous Node representation this
+  // transport owns. The raw transport is never exposed to application hooks.
+  websocket.binaryType = 'nodebuffer'
+
+  // Error must be owned before any other operation can emit it. All transport
+  // listeners precede registration because registration can reject and close
+  // the peer synchronously.
+  websocket.on('error', (error) => handleErrorEvent(owned, connection, error))
+  websocket.on('close', (code, reason) =>
+    handleCloseEvent(
+      owned,
+      connection,
+      { code, reason: reason.toString('utf8') },
+      options
+    )
+  )
+  websocket.on('message', (data, isBinary) => {
+    try {
+      const raw = normalizeIncomingData(data)
+      handleMessageEvent(
+        owned,
+        connection,
+        new NextWebSocketMessage(
+          isBinary ? isolateIncomingBinaryData(raw) : raw.toString('utf8')
+        )
+      )
+    } catch (error) {
+      handleErrorEvent(
+        owned,
+        connection,
+        error instanceof Error ? error : new Error(String(error))
+      )
+    }
+  })
+  websocket.on('ping', (data) => handlePingEvent(owned, data))
+  handleOpenEvent(owned, connection, options)
 }
 
 /**
- * Creates the shared CrossWS Node adapter for one generated App Route module.
+ * Creates the Next-owned ws transport for one generated App Route module.
  */
 export function createWebSocketUpgradeTransport(
   options: WebSocketUpgradeTransportOptions = {}
 ): WebSocketUpgradeTransport {
-  if (!createCrossWSNodeAdapter || !WebSocketServer) {
-    throw new Error(
-      'WebSocket Route Handlers are unavailable because experimental.webSocketRouteHandlers is not enabled.'
-    )
-  }
-
-  const pendingRequests = new WeakMap<Request, ConnectionContext>()
+  const { WebSocketServer } = loadWebSocketTransportDependencies()
+  const pendingUpgrades = new WeakMap<IncomingMessage, PendingUpgrade>()
   const wss = new WebSocketServer({
     noServer: true,
+    clientTracking: false,
+    // Pace coalesced frames one event per macrotask. This prevents same-stack
+    // multi-dispatch, while the count/byte limits remain the admission policy.
+    allowSynchronousEvents: false,
+    // Native automatic pongs bypass Next's outbound buffer policy.
+    autoPong: false,
     handleProtocols: (protocols, request) => {
-      const selected = (
-        request as IncomingMessage & { [SELECTED_PROTOCOL]?: string }
-      )[SELECTED_PROTOCOL]
+      const selected = pendingUpgrades.get(request)?.protocol
       return selected && protocols.has(selected) ? selected : false
     },
     maxPayload: MAX_PAYLOAD,
     perMessageDeflate: false,
     maxFragments: MAX_FRAGMENTS,
     maxBufferedChunks: MAX_BUFFERED_CHUNKS,
-  } as import('next/dist/compiled/ws').ServerOptions & {
-    maxFragments: number
-    maxBufferedChunks: number
+    closeTimeout: WS_CLOSE_TIMEOUT_MS,
+  } as VendoredWebSocketServerOptions)
+
+  // A listener prevents ws from writing its own raw HTTP rejection. Next
+  // pre-validates a stricter handshake and owns every fallback response.
+  // If the two validators ever drift (e.g. a ws upgrade adds a check Next did
+  // not pre-validate), record the failure per request so handleUpgrade
+  // answers a 400-class client fault instead of surfacing a 500.
+  // The vendored ws emits wsClientError(error, socket, req).
+  wss.on(
+    'wsClientError',
+    (error: Error, _socket: Duplex, request: IncomingMessage) => {
+      const pending = pendingUpgrades.get(request)
+      if (pending) pending.clientError = error
+    }
+  )
+  wss.on('headers', (headers, request) => {
+    const pending = pendingUpgrades.get(request)
+    if (!pending) {
+      throw new Error(
+        'Invariant: WebSocket upgrade is missing its transport state.'
+      )
+    }
+    headers.push(...pending.headerLines)
+    markRawHttpResponseCommitted(pending.socket, 101)
   })
-  wss.on('headers', (_headers, request) => {
-    ;(request as IncomingMessage & { [UPGRADE_COMMITTED]?: boolean })[
-      UPGRADE_COMMITTED
-    ] = true
-  })
-  let adapter: CrossWSNodeAdapter
-  adapter = createCrossWSNodeAdapter({
-    // CrossWS bundles its own copy of `ws`. Supplying Next.js's vetted copy
-    // keeps the network-facing parser on the version pinned by Next.js.
-    wss: wss as unknown as NonNullable<
-      Parameters<CrossWSNodeAdapterFactory>[0]
-    >['wss'],
-    hooks: {
-      upgrade(request) {
-        const connection = pendingRequests.get(request)
-        if (!connection) {
-          throw new Error(
-            'Invariant: CrossWS upgrade request is missing its App Route response.'
-          )
-        }
-
-        return {
-          headers: getUpgradeResponseHeaders(connection.response),
-          context: {
-            [CONNECTION_CONTEXT]: connection,
-          } as unknown as Record<string, unknown>,
-        }
-      },
-      open(peer) {
-        const connection = getConnectionContext(peer)
-        if (!connection) return
-
-        options.registerPeer?.(peer, connection.transportContext)
-        const hook = connection.metadata.hooks.open
-        if (hook) queueHook(peer, connection, () => hook(peer), true)
-      },
-      message(peer, message: WebSocketMessage) {
-        const connection = getConnectionContext(peer)
-        const hook = connection?.metadata.hooks.message
-        if (
-          !connection ||
-          !hook ||
-          connection.closed ||
-          connection.hookFailed
-        ) {
-          return
-        }
-
-        if (connection.pendingMessages >= MAX_PENDING_MESSAGE_HOOKS) {
-          connection.hookFailed = true
-          try {
-            peer.close(1008, 'Too many pending messages')
-          } catch {
-            try {
-              peer.terminate()
-            } catch {}
-          }
-          return
-        }
-
-        connection.pendingMessages++
-        pausePeer(peer)
-        connection.hookQueue = connection.hookQueue
-          .then(() => {
-            if (connection.closed || connection.hookFailed) return
-            return invokeHook(peer, connection, () => hook(peer, message), true)
-          })
-          .finally(() => {
-            connection.pendingMessages--
-            if (
-              connection.pendingMessages === 0 &&
-              !connection.closed &&
-              !connection.hookFailed
-            ) {
-              resumePeer(peer)
-            }
-          })
-      },
-      close(peer, details) {
-        const connection = getConnectionContext(peer)
-        if (connection) {
-          options.unregisterPeer?.(peer, connection.transportContext)
-        }
-        cleanupEmptyNamespace(adapter, peer)
-        if (connection) connection.closed = true
-        const hook = connection?.metadata.hooks.close
-        if (connection && hook) {
-          queueHook(peer, connection, () => hook(peer, details), false)
-        }
-      },
-      error(peer, error) {
-        const connection = getConnectionContext(peer)
-        if (connection) {
-          options.unregisterPeer?.(peer, connection.transportContext)
-        }
-        cleanupEmptyNamespace(adapter, peer)
-        const hook = connection?.metadata.hooks.error
-        if (connection && hook) {
-          queueHook(peer, connection, () => hook(peer, error), true)
-        }
-      },
-    },
+  wss.on('connection', (websocket, request) => {
+    const pending = pendingUpgrades.get(request)
+    if (!pending) {
+      throw new Error(
+        'Invariant: WebSocket connection is missing its transport state.'
+      )
+    }
+    attachConnection(websocket as VendoredWebSocket, pending, options)
   })
 
   return {
     async handleUpgrade(req, socket, head, request, response, context = {}) {
-      const metadata = getWebSocketUpgradeMetadata(response)
-      if (!metadata) return false
+      const metadata = getWebSocketUpgradeMetadata(response) as
+        | WebSocketTransportUpgradeMetadata
+        | undefined
+      if (!metadata) {
+        throw new Error(
+          'Invariant: WebSocket transport received a non-upgrade response.'
+        )
+      }
 
       const handshakeError = validateWebSocketHandshake(req)
       if (handshakeError) {
@@ -642,7 +891,10 @@ export function createWebSocketUpgradeTransport(
           handshakeError.message,
           handshakeError.headers
         )
-        return true
+        return {
+          statusCode: handshakeError.status,
+          upgraded: false,
+        }
       }
 
       const policyError = validateWebSocketRequestPolicy(req, metadata)
@@ -654,42 +906,68 @@ export function createWebSocketUpgradeTransport(
           policyError.message,
           policyError.headers
         )
-        return true
+        return {
+          statusCode: policyError.status,
+          upgraded: false,
+        }
       }
 
-      validateUpgradeResponseHeaders(response)
-      pendingRequests.set(request, {
-        metadata,
-        response,
-        transportContext: context,
-        hookQueue: Promise.resolve(),
-        pendingMessages: 0,
-        closed: false,
-        hookFailed: false,
-      })
+      const runInHookContext = options.runInHookContext ?? ((fn) => fn())
+      const pending: PendingUpgrade = {
+        socket,
+        protocol: metadata.protocol,
+        headerLines: getUpgradeResponseHeaderLines(response),
+        request,
+        connection: {
+          metadata,
+          transportContext: context,
+          hookQueue: runInHookContext(() => Promise.resolve()),
+          pendingMessages: 0,
+          pendingMessageBytes: 0,
+          closed: false,
+          hookFailed: false,
+          applicationHooksEnabled: false,
+          runInHookContext,
+        },
+      }
+      pendingUpgrades.set(req, pending)
 
+      let callbackInvoked = false
       try {
-        ;(req as IncomingMessage & { [SELECTED_PROTOCOL]?: string })[
-          SELECTED_PROTOCOL
-        ] = metadata.protocol
-        await adapter.handleUpgrade(req, socket, head, request)
+        wss.handleUpgrade(
+          req,
+          socket as import('node:net').Socket,
+          head,
+          (websocket) => {
+            callbackInvoked = true
+            wss.emit('connection', websocket, req)
+          }
+        )
       } catch (error) {
-        if (
-          (req as IncomingMessage & { [UPGRADE_COMMITTED]?: boolean })[
-            UPGRADE_COMMITTED
-          ]
-        ) {
+        if (getRawHttpResponseStatus(socket) !== undefined) {
           socket.destroy()
         }
         throw error
       } finally {
-        delete (req as IncomingMessage & { [SELECTED_PROTOCOL]?: string })[
-          SELECTED_PROTOCOL
-        ]
-        pendingRequests.delete(request)
+        pendingUpgrades.delete(req)
       }
 
-      return true
+      if (pending.clientError) {
+        // ws rejected a handshake that Next's pre-validation let through. This
+        // is a client protocol violation, not a server failure; ws guarantees
+        // an unwritten socket when a wsClientError listener exists.
+        if (getRawHttpResponseStatus(socket) === undefined) {
+          await writeRawHttpError(req, socket, 400, pending.clientError.message)
+        }
+        return { statusCode: 400, upgraded: false }
+      }
+
+      if (!callbackInvoked || getRawHttpResponseStatus(socket) !== 101) {
+        throw createWebSocketClientDisconnectError(
+          'WebSocket upgrade client disconnected.'
+        )
+      }
+      return { statusCode: 101, upgraded: true }
     },
   }
 }

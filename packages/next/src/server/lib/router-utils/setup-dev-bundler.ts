@@ -1497,26 +1497,13 @@ export async function setupDevBundler(opts: SetupOpts) {
   )
 
   // Track build features for dev server here:
-  opts.telemetry.record([
-    {
-      eventName: EVENT_BUILD_FEATURE_USAGE,
-      payload: {
-        featureName: 'experimental/webSocketRouteHandlers',
-        invocationCount: opts.nextConfig.experimental.webSocketRouteHandlers
-          ? 1
-          : 0,
-      },
+  opts.telemetry.record({
+    eventName: EVENT_BUILD_FEATURE_USAGE,
+    payload: {
+      featureName: 'turbopackFileSystemCache',
+      invocationCount: isFileSystemCacheEnabledForDev(opts.nextConfig) ? 1 : 0,
     },
-    {
-      eventName: EVENT_BUILD_FEATURE_USAGE,
-      payload: {
-        featureName: 'turbopackFileSystemCache',
-        invocationCount: isFileSystemCacheEnabledForDev(opts.nextConfig)
-          ? 1
-          : 0,
-      },
-    },
-  ])
+  })
 
   return result
 }

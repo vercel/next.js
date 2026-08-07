@@ -298,9 +298,6 @@ importers:
       cross-spawn:
         specifier: 6.0.5
         version: 6.0.5
-      crossws:
-        specifier: 0.4.4
-        version: 0.4.4
       dd-trace:
         specifier: 4.12.0
         version: 4.12.0
@@ -1500,9 +1497,6 @@ importers:
       cross-spawn:
         specifier: 7.0.3
         version: 7.0.3
-      crossws:
-        specifier: 0.4.4
-        version: 0.4.4
       crypto-browserify:
         specifier: 3.12.0
         version: 3.12.0
@@ -9387,14 +9381,6 @@ packages:
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
     engines: {node: '>= 8'}
-
-  crossws@0.4.4:
-    resolution: {integrity: sha512-w6c4OdpRNnudVmcgr7brb/+/HmYjMQvYToO/oTrprTwxRUiom3LYWU1PMWuD006okbUWpII1Ea9/+kwpUfmyRg==}
-    peerDependencies:
-      srvx: '>=0.7.1'
-    peerDependenciesMeta:
-      srvx:
-        optional: true
 
   crypto-browserify@3.12.0:
     resolution: {integrity: sha512-fz4spIh+znjO2VjL+IdhEpRJ3YN6sMzITSBijk6FK2UvTqruSQW+/cCZTSNsMiZNvUeq0CqurF+dAbyiGOY6Wg==}
@@ -27026,8 +27012,6 @@ snapshots:
       path-key: 3.1.1
       shebang-command: 2.0.0
       which: 2.0.2
-
-  crossws@0.4.4: {}
 
   crypto-browserify@3.12.0:
     dependencies:
