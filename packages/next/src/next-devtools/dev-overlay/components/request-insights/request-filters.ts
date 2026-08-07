@@ -260,6 +260,7 @@ export function getRequestInsightDeliveryPresentation(
     case 'errored':
       return { filter: 'delivery:errored', label: 'Delivery errored' }
     case undefined:
+    default:
       return { filter: 'delivery:unknown' }
   }
 }
