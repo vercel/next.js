@@ -4,10 +4,10 @@ use crate::{
     FamilyKind, ValueBuffer,
     collector_entry::{CollectorEntry, CollectorEntryValue, EntryKey, TINY_VALUE_THRESHOLD},
     constants::{
-        DATA_THRESHOLD_PER_INITIAL_FILE, MAX_ENTRIES_PER_INITIAL_FILE, MAX_SMALL_VALUE_SIZE,
+        DATA_THRESHOLD_PER_INITIAL_FILE, MAX_ENTRIES_PER_INITIAL_FILE, MAX_INLINE_VALUE_SIZE,
+        MAX_SMALL_VALUE_SIZE,
     },
     key::{StoreKey, hash_key},
-    static_sorted_file::KEY_VALUE_DELETED_REF_SIZE,
     value_block_count_tracker::ValueBlockCountTracker,
 };
 
@@ -105,15 +105,23 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
     ///
     /// Only meaningful for [`FamilyKind::MultiValue`] families. Callers must not insert and delete
     /// the same key-value pair in one batch; the resolution order between them is undefined.
-    pub fn delete_value(&mut self, key: K, value: [u8; KEY_VALUE_DELETED_REF_SIZE]) {
+    ///
+    /// `value` must be at most [`MAX_INLINE_VALUE_SIZE`] bytes; callers validate this.
+    pub fn delete_value(&mut self, key: K, value: &[u8]) {
+        debug_assert!(value.len() <= MAX_INLINE_VALUE_SIZE);
         let key = EntryKey {
             hash: hash_key(&key),
             data: key,
         };
         self.total_key_size += key.len();
+        let mut data = [0u8; MAX_INLINE_VALUE_SIZE];
+        data[..value.len()].copy_from_slice(value);
         self.entries.push(CollectorEntry {
             key,
-            value: CollectorEntryValue::KeyValueDeleted { value },
+            value: CollectorEntryValue::KeyValueDeleted {
+                value: data,
+                len: value.len() as u8,
+            },
         });
     }
 

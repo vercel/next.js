@@ -8,8 +8,8 @@
 //! - 1: Blob reference
 //! - 2: Key tombstone (deletes all values for the key)
 //! - 3: Medium value
-//! - 4: Key-value tombstone (deletes one value from the key's group)
-//! - 8-255: Inline value where (type - 8) = value byte count
+//! - 8-16: Inline value where (type - 8) = value byte count
+//! - 17-25: Key-value tombstone where (type - 17) = deleted value byte count
 
 use std::{
     collections::{BTreeMap, HashSet},
@@ -30,7 +30,7 @@ use turbo_persistence::{
     static_sorted_file::{
         BLOCK_TYPE_FIXED_KEY_NO_HASH, BLOCK_TYPE_FIXED_KEY_WITH_HASH, BLOCK_TYPE_KEY_NO_HASH,
         BLOCK_TYPE_KEY_WITH_HASH, KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_INLINE_MIN,
-        KEY_BLOCK_ENTRY_TYPE_KEY_DELETED, KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED,
+        KEY_BLOCK_ENTRY_TYPE_KEY_DELETED, KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN,
         KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
     },
 };
@@ -151,11 +151,12 @@ fn track_entry_type(stats: &mut SstStats, entry_type: u8) {
         KEY_BLOCK_ENTRY_TYPE_KEY_DELETED => {
             stats.deleted_count += 1;
         }
-        KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED => {
-            stats.key_value_deleted_count += 1;
-        }
         KEY_BLOCK_ENTRY_TYPE_MEDIUM => {
             stats.medium_value_refs += 1;
+        }
+        // Must precede the inline arm: both are open-ended and the tombstone range sits above it.
+        ty if ty >= KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN => {
+            stats.key_value_deleted_count += 1;
         }
         ty if ty >= KEY_BLOCK_ENTRY_TYPE_INLINE_MIN => {
             let inline_size = (ty - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN) as u64;
@@ -170,8 +171,12 @@ fn entry_type_description(ty: u8) -> String {
         KEY_BLOCK_ENTRY_TYPE_SMALL => "small value (in value block)".to_string(),
         KEY_BLOCK_ENTRY_TYPE_BLOB => "blob reference".to_string(),
         KEY_BLOCK_ENTRY_TYPE_KEY_DELETED => "key tombstone".to_string(),
-        KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED => "key-value tombstone".to_string(),
         KEY_BLOCK_ENTRY_TYPE_MEDIUM => "medium value".to_string(),
+        // Must precede the inline arm: both are open-ended and the tombstone range sits above it.
+        ty if ty >= KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN => {
+            let size = ty - KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN;
+            format!("key-value tombstone ({size} byte value)")
+        }
         ty if ty >= KEY_BLOCK_ENTRY_TYPE_INLINE_MIN => {
             let inline_size = ty - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN;
             format!("inline {} bytes", inline_size)
@@ -849,8 +854,8 @@ fn main() -> Result<()> {
             eprintln!("  1: Blob reference");
             eprintln!("  2: Key tombstone (deletes all values for the key)");
             eprintln!("  3: Medium value");
-            eprintln!("  4: Key-value tombstone (deletes one value from the key's group)");
-            eprintln!("  8+: Inline value (size = type - 8)");
+            eprintln!("  8-16: Inline value (size = type - 8)");
+            eprintln!("  17-25: Key-value tombstone (deleted value size = type - 17)");
             eprintln!();
             eprintln!("For TaskCache (family 3), values are 4-byte TaskIds.");
             eprintln!("Expected entry type is 12 (8 + 4) for inline optimization.");
