@@ -222,7 +222,7 @@ export function registerUseCachePrivateTests(
                Error occurred prerendering page "/use-cache-private-in-use-cache". Read more: https://nextjs.org/docs/messages/prerender-error
 
                > Export encountered errors on 1 path:
-               	/use-cache-private-in-use-cache/page: /use-cache-private-in-use-cache"
+               \t/use-cache-private-in-use-cache/page: /use-cache-private-in-use-cache"
               `)
           } else {
             if (isTurbopack) {

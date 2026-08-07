@@ -12,21 +12,27 @@ React's `<ViewTransition>` component integrates with the browser's [View Transit
 
 This guide walks through four patterns that cover the most common cases: morphing shared elements, animating loading states, adding directional navigation, and crossfading content within the same route.
 
-## Use the vercel-react-view-transitions skill
+## Add view transitions with an agent
 
-The [`vercel-react-view-transitions`](https://github.com/vercel-labs/agent-skills/tree/main/skills/react-view-transitions) skill teaches a coding agent the patterns in this guide, plus the CSS recipes and troubleshooting for applying them to an existing app.
+The [`vercel-react-view-transitions`](https://skills.sh/vercel-labs/agent-skills/vercel-react-view-transitions) skill teaches a coding agent the patterns in this guide, plus the CSS recipes and troubleshooting for applying them to an existing app.
 
 Install the skill:
 
 ```bash filename="Terminal"
-npx skills add https://github.com/vercel-labs/agent-skills --skill vercel-react-view-transitions
+npx skills add vercel-labs/agent-skills --skill vercel-react-view-transitions
 ```
 
-Then give the agent this prompt:
+Then prompt the agent with something like:
 
 ```prompt
 Add view transitions to this app using the vercel-react-view-transitions skill.
 ```
+
+Or prompt for a specific transition, such as:
+
+- Morphing a thumbnail into a hero image
+- Sliding between routes forward and back
+- Crossfading content within the same route
 
 To apply the patterns yourself, follow the walkthrough below.
 

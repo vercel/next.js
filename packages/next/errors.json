@@ -1489,5 +1489,6 @@
   "1488": "\\`experimental.useCache\\` cannot be disabled when \\`cacheComponents\\` is enabled, because Cache Components relies on the \\`\"use cache\"\\` directive. Please remove it from %s.",
   "1489": "TypeScript %s does not provide the compiler API required by Next.js. Set %s to true in your Next.js config to use the TypeScript CLI, or install TypeScript 6 instead.",
   "1490": "TypeScript %s does not provide the compiler API required by Next.js. Set %s back to true in your Next.js config to use the TypeScript CLI, or install TypeScript 6 instead.",
-  "1491": "Missing workUnitStore in createComponentTree"
+  "1491": "Missing workUnitStore in createComponentTree",
+  "1492": "The payload's transport tree is missing a slot that exists in the loader tree: %s"
 }

@@ -200,7 +200,7 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
                Error occurred prerendering page "/use-cache-draft-mode". Read more: https://nextjs.org/docs/messages/prerender-error
 
                > Export encountered errors on 1 path:
-               	/use-cache-draft-mode/page: /use-cache-draft-mode"
+               \t/use-cache-draft-mode/page: /use-cache-draft-mode"
               `)
             }
           } else {
@@ -1720,7 +1720,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                  Error occurred prerendering page "/use-cache-draft-mode-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
 
                  > Export encountered errors on 1 path:
-                 	/use-cache-draft-mode-third-party/page: /use-cache-draft-mode-third-party"
+                 \t/use-cache-draft-mode-third-party/page: /use-cache-draft-mode-third-party"
                 `)
               }
             } else {

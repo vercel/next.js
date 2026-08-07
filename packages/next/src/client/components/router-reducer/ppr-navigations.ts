@@ -1,5 +1,4 @@
 import type {
-  CacheNodeSeedData,
   FlightRouterState,
   Segment,
 } from '../../../shared/lib/app-router-types'
@@ -24,9 +23,10 @@ import { getLastCommittedTree } from './reducers/committed-state'
 import {
   convertServerPatchToFullTree,
   type NavigationSeed,
-} from '../segment-cache/navigation'
+} from '../segment-cache/decode-server-response'
 import {
   type RouteTree,
+  type RSCSegmentData,
   type RefreshState,
   type FulfilledRouteCacheEntry,
   convertReusedFlightRouterStateToRouteTree,
@@ -158,8 +158,7 @@ const noop = () => {}
 
 export function createInitialCacheNodeForHydration(
   navigatedAt: number,
-  initialTree: RouteTree,
-  seedData: CacheNodeSeedData | null,
+  initialTree: RouteTree<RSCSegmentData | null>,
   seedHead: HeadData,
   seedDynamicStaleAt: number
 ): NavigationTask {
@@ -175,7 +174,6 @@ export function createInitialCacheNodeForHydration(
     initialTree,
     null,
     FreshnessPolicy.Hydration,
-    seedData,
     seedHead,
     seedDynamicStaleAt,
     false,
@@ -220,10 +218,9 @@ export function startPPRNavigation(
   oldRenderedSearch: string,
   oldCacheNode: CacheNode | null,
   oldRouterState: FlightRouterState,
-  newRouteTree: RouteTree,
+  newRouteTree: RouteTree<RSCSegmentData | null>,
   newMetadataVaryPath: PageVaryPath | null,
   freshness: FreshnessPolicy,
-  seedData: CacheNodeSeedData | null,
   seedHead: HeadData | null,
   seedDynamicStaleAt: number,
   isSamePageNavigation: boolean,
@@ -246,7 +243,6 @@ export function startPPRNavigation(
     newRouteTree,
     newMetadataVaryPath,
     freshness,
-    seedData,
     seedHead,
     seedDynamicStaleAt,
     isSamePageNavigation,
@@ -263,10 +259,9 @@ function updateCacheNodeOnNavigation(
   oldUrl: URL,
   oldCacheNode: CacheNode | void,
   oldRouterState: FlightRouterState,
-  newRouteTree: RouteTree,
+  newRouteTree: RouteTree<RSCSegmentData | null>,
   newMetadataVaryPath: PageVaryPath | null,
   freshness: FreshnessPolicy,
-  seedData: CacheNodeSeedData | null,
   seedHead: HeadData | null,
   seedDynamicStaleAt: number,
   isSamePageNavigation: boolean,
@@ -332,7 +327,6 @@ function updateCacheNodeOnNavigation(
       newRouteTree,
       newMetadataVaryPath,
       freshness,
-      seedData,
       seedHead,
       seedDynamicStaleAt,
       parentNeedsDynamicRequest,
@@ -343,7 +337,6 @@ function updateCacheNodeOnNavigation(
 
   const newSlots = newRouteTree.slots
   const oldRouterStateChildren = oldRouterState[1]
-  const seedDataChildren = seedData !== null ? seedData[1] : null
 
   let shouldRefreshDynamicData: boolean = false
   switch (freshness) {
@@ -392,7 +385,8 @@ function updateCacheNodeOnNavigation(
   } else {
     // If this is part of a refresh, ignore the existing CacheNode and create a
     // new one.
-    const seedRsc = seedData !== null ? seedData[0] : null
+    const data = newRouteTree.data
+    const seedRsc = data !== null ? data.rsc : null
     const result = createCacheNodeForSegment(
       navigatedAt,
       newRouteTree,
@@ -500,9 +494,6 @@ function updateCacheNodeOnNavigation(
         return null
       }
 
-      let seedDataChild: CacheNodeSeedData | void | null =
-        seedDataChildren !== null ? seedDataChildren[parallelRouteKey] : null
-
       const oldSegmentChild = oldRouterStateChild[0]
       let newSegmentChild = createSegmentFromRouteTree(newRouteTreeChild)
       let seedHeadChild = seedHead
@@ -524,9 +515,10 @@ function updateCacheNodeOnNavigation(
         )
         newSegmentChild = createSegmentFromRouteTree(newRouteTreeChild)
 
-        // Since we're switching to a different route tree, these are no
-        // longer valid, because they correspond to the outer tree.
-        seedDataChild = null
+        // Discard the seed head, which corresponds to the outer route tree,
+        // not the reused one we're switching to. (Segment data needs no
+        // equivalent handling: it lives on the route tree nodes themselves,
+        // and a reused tree's nodes never carry data.)
         seedHeadChild = null
       }
 
@@ -543,7 +535,6 @@ function updateCacheNodeOnNavigation(
         newRouteTreeChild,
         newMetadataVaryPath,
         freshness,
-        seedDataChild ?? null,
         seedHeadChild,
         seedDynamicStaleAt,
         isSamePageNavigation,
@@ -656,10 +647,9 @@ function accumulateScrollRef(
 
 function createCacheNodeOnNavigation(
   navigatedAt: number,
-  newRouteTree: RouteTree,
+  newRouteTree: RouteTree<RSCSegmentData | null>,
   newMetadataVaryPath: PageVaryPath | null,
   freshness: FreshnessPolicy,
-  seedData: CacheNodeSeedData | null,
   seedHead: HeadData | null,
   seedDynamicStaleAt: number,
   parentNeedsDynamicRequest: boolean,
@@ -681,9 +671,9 @@ function createCacheNodeOnNavigation(
   const newSegment = createSegmentFromRouteTree(newRouteTree)
 
   const newSlots = newRouteTree.slots
-  const seedDataChildren = seedData !== null ? seedData[1] : null
 
-  const seedRsc = seedData !== null ? seedData[0] : null
+  const data = newRouteTree.data
+  const seedRsc = data !== null ? data.rsc : null
   const result = createCacheNodeForSegment(
     navigatedAt,
     newRouteTree,
@@ -720,15 +710,11 @@ function createCacheNodeOnNavigation(
     newCacheNode.slots = newCacheNodeSlots = {}
     taskChildren = new Map()
     for (const [parallelRouteKey, newRouteTreeChild] of newSlots) {
-      const seedDataChild: CacheNodeSeedData | void | null =
-        seedDataChildren !== null ? seedDataChildren[parallelRouteKey] : null
-
       const taskChild = createCacheNodeOnNavigation(
         navigatedAt,
         newRouteTreeChild,
         newMetadataVaryPath,
         freshness,
-        seedDataChild ?? null,
         seedHead,
         seedDynamicStaleAt,
         parentNeedsDynamicRequest || needsDynamicRequest,
@@ -780,7 +766,9 @@ function createCacheNodeOnNavigation(
   }
 }
 
-function createSegmentFromRouteTree(newRouteTree: RouteTree): Segment {
+function createSegmentFromRouteTree(
+  newRouteTree: RouteTree<RSCSegmentData | null>
+): Segment {
   if (newRouteTree.isPage) {
     // In a dynamic server response, the server embeds the search params into
     // the segment key, but in a static one it's omitted. The client handles
@@ -889,11 +877,11 @@ function accumulateRefreshUrl(
 }
 
 function reuseActiveSegmentInDefaultSlot(
-  parentRouteTree: RouteTree,
+  parentRouteTree: RouteTree<RSCSegmentData | null>,
   parallelRouteKey: string,
   oldRootRefreshState: RefreshState,
   oldRouterState: FlightRouterState
-): RouteTree {
+): RouteTree<RSCSegmentData | null> {
   // This is a "default" segment. These are never sent by the server during a
   // soft navigation; instead, the client reuses whatever segment was already
   // active in that slot on the previous route. This means if we later need to
@@ -952,7 +940,7 @@ function reuseSharedCacheNode(
 
 function createCacheNodeForSegment(
   now: number,
-  tree: RouteTree,
+  tree: RouteTree<RSCSegmentData | null>,
   seedRsc: React.ReactNode | null,
   metadataVaryPath: PageVaryPath | null,
   seedHead: HeadData | null,
@@ -1812,7 +1800,7 @@ async function fetchMissingDynamicData(
     const seed = convertServerPatchToFullTree(
       now,
       task.route,
-      result.flightData,
+      result.transportData,
       result.renderedSearch,
       result.dynamicStaleTime
     )
@@ -1840,9 +1828,8 @@ async function fetchMissingDynamicData(
           writePrerenderResponseIntoCache(
             now,
             FetchStrategy.PPR,
-            staticStageResponse.f,
+            staticStageResponse.t ?? null,
             buildId,
-            staticStageResponse.h,
             staticStageResponse.r ?? null,
             staleAt,
             dynamicRequestTree,
@@ -1868,7 +1855,6 @@ async function fetchMissingDynamicData(
             writeDynamicRenderResponseIntoCache(
               now,
               FetchStrategy.PPRRuntime,
-              processed.flightDatas,
               processed.buildId,
               processed.isResponsePartial,
               processed.headVaryParams,
@@ -1892,7 +1878,6 @@ async function fetchMissingDynamicData(
     const didReceiveUnknownParallelRoute = writeDynamicDataIntoNavigationTask(
       task,
       seed.routeTree,
-      seed.data,
       seed.head,
       dynamicStaleAt,
       result.debugInfo,
@@ -1963,13 +1948,16 @@ async function fetchMissingDynamicData(
 
 function writeDynamicDataIntoNavigationTask(
   task: NavigationTask,
-  serverRouteTree: RouteTree,
-  dynamicData: CacheNodeSeedData | null,
+  serverRouteTree: RouteTree<RSCSegmentData | null>,
   dynamicHead: HeadData,
   dynamicStaleAt: number,
   debugInfo: Array<any> | null,
   revealAfter: Promise<void> | null
 ): boolean {
+  // A non-null data object means the response accounted for this segment,
+  // even if it didn't render it (data.rsc may still be null, e.g. for the
+  // intermediate segments on the path to a patched subtree).
+  const dynamicData = serverRouteTree.data
   if (task.status === NavigationTaskStatus.Pending && dynamicData !== null) {
     task.status = NavigationTaskStatus.Fulfilled
     finishPendingCacheNode(
@@ -1990,7 +1978,6 @@ function writeDynamicDataIntoNavigationTask(
 
   const taskChildren = task.children
   const serverChildren = serverRouteTree.slots
-  const dynamicDataChildren = dynamicData !== null ? dynamicData[1] : null
 
   // Detect whether the server sends a parallel route slot that the client
   // doesn't know about.
@@ -1999,11 +1986,6 @@ function writeDynamicDataIntoNavigationTask(
   if (taskChildren !== null) {
     if (serverChildren !== null) {
       for (const [parallelRouteKey, serverRouteTreeChild] of serverChildren) {
-        const dynamicDataChild: CacheNodeSeedData | null | void =
-          dynamicDataChildren !== null
-            ? dynamicDataChildren[parallelRouteKey]
-            : null
-
         const taskChild = taskChildren.get(parallelRouteKey)
         if (taskChild === undefined) {
           // The server sent a child segment that the client doesn't know about.
@@ -2025,15 +2007,13 @@ function writeDynamicDataIntoNavigationTask(
           const serverSegment = createSegmentFromRouteTree(serverRouteTreeChild)
           if (
             matchSegment(serverSegment, taskSegment) &&
-            dynamicDataChild !== null &&
-            dynamicDataChild !== undefined
+            serverRouteTreeChild.data !== null
           ) {
             // Found a match for this task. Keep traversing down the task tree.
             const childDidReceiveUnknownParallelRoute =
               writeDynamicDataIntoNavigationTask(
                 taskChild,
                 serverRouteTreeChild,
-                dynamicDataChild,
                 dynamicHead,
                 dynamicStaleAt,
                 debugInfo,
@@ -2058,7 +2038,7 @@ function writeDynamicDataIntoNavigationTask(
 
 function finishPendingCacheNode(
   cacheNode: CacheNode,
-  dynamicData: CacheNodeSeedData,
+  dynamicData: RSCSegmentData,
   dynamicHead: HeadData,
   debugInfo: Array<any> | null,
   revealAfter: Promise<void> | null
@@ -2077,7 +2057,7 @@ function finishPendingCacheNode(
   // Use the dynamic data from the server to fulfill the deferred RSC promise
   // on the Cache Node.
   const rsc = cacheNode.rsc
-  const dynamicSegmentData = dynamicData[0]
+  const dynamicSegmentData = dynamicData.rsc
 
   if (dynamicSegmentData === null) {
     // This is an empty CacheNode; this particular server request did not

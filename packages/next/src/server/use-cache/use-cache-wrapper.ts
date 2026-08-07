@@ -34,7 +34,7 @@ import {
   getCacheSignal,
   isHmrRefresh,
   getServerComponentsHmrCache,
-  shouldRevalidateStaleCacheEntryInForeground,
+  willConsumerServerCache,
 } from '../app-render/work-unit-async-storage.external'
 
 import {
@@ -744,8 +744,7 @@ function createUseCacheStore(
     return {
       type: 'private-cache',
       phase: 'render',
-      shouldRevalidateStaleCacheEntryInForeground:
-        shouldRevalidateStaleCacheEntryInForeground(outerWorkUnitStore),
+      consumerWillServerCache: true,
       implicitTags: outerWorkUnitStore?.implicitTags,
       revalidate: defaultCacheLife.revalidate,
       expire: defaultCacheLife.expire,
@@ -795,8 +794,7 @@ function createUseCacheStore(
     return {
       type: 'cache',
       phase: 'render',
-      shouldRevalidateStaleCacheEntryInForeground:
-        shouldRevalidateStaleCacheEntryInForeground(outerWorkUnitStore),
+      consumerWillServerCache: true,
       implicitTags: outerWorkUnitStore.implicitTags,
       revalidate: defaultCacheLife.revalidate,
       expire: defaultCacheLife.expire,
@@ -3237,15 +3235,14 @@ export async function cache(
                 ? Math.max(entry.expire, MIN_PRERENDERABLE_EXPIRE)
                 : entry.expire) *
                 1000 ||
-          (shouldRevalidateStaleCacheEntryInForeground(workUnitStore) &&
+          (willConsumerServerCache(workUnitStore) &&
             currentTime > entry.timestamp + entry.revalidate * 1000)
         ) {
           // Miss. Generate a new result.
 
-          // If the cache entry is stale and the outer work unit requires
-          // foreground revalidation, don't use the stale entry since it would
-          // unnecessarily shorten the lifetime of the generated result. We're
-          // not time constrained here, so regenerate it now.
+          // If the cache entry is stale and its consumer will persist the
+          // result in a server cache, don't persist the stale entry into a new
+          // cache. We're not time constrained here, so regenerate it now.
 
           // We need to run this inside a clean AsyncLocalStorage snapshot so
           // that the cache generation cannot read anything from the context
@@ -3261,7 +3258,7 @@ export async function cache(
             }
 
             if (
-              shouldRevalidateStaleCacheEntryInForeground(workUnitStore) &&
+              willConsumerServerCache(workUnitStore) &&
               currentTime > entry.timestamp + entry.revalidate * 1000
             ) {
               debug?.(

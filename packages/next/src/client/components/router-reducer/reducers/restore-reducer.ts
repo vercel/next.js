@@ -15,8 +15,8 @@ import type { FlightRouterState } from '../../../../shared/lib/app-router-types'
 import {
   completeHardNavigation,
   completeTraverseNavigation,
-  convertServerPatchToFullTree,
 } from '../../segment-cache/navigation'
+import { convertServerPatchToFullTree } from '../../segment-cache/decode-server-response'
 import { UnknownDynamicStaleTime } from '../../segment-cache/bfcache'
 
 export function restoreReducer(
@@ -68,7 +68,6 @@ export function restoreReducer(
     restoreSeed.routeTree,
     restoreSeed.metadataVaryPath,
     FreshnessPolicy.HistoryTraversal,
-    null,
     null,
     restoreSeed.dynamicStaleAt,
     false,

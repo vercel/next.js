@@ -23,6 +23,48 @@ use turbopack_resolve::ecmascript::cjs_resolve;
 
 use crate::{nft::traced_modules_for_entries, project::Project};
 
+/// The modules `next/dist/server/require-hook` resolves its aliased requests to at runtime
+/// (currently all of styled-jsx), so that the Pages Router renderer and user code share a single
+/// `styled-jsx` module instance (see that file for why they otherwise wouldn't). Nothing in any
+/// module graph references these - user code only ever imports its own copy of `styled-jsx` - so
+/// whatever assembles a deployment's file list has to include them explicitly, or the hook fails
+/// to register its aliases and all styled-jsx styles silently disappear from the server-rendered
+/// HTML.
+///
+/// Used by the server NFTs below and, so that they are part of every endpoint's trace regardless
+/// of how the output is assembled, by [`Project::additional_traced_modules`].
+#[turbo_tasks::function]
+pub(crate) async fn require_hook_modules(project_path: FileSystemPath) -> Result<Vc<Modules>> {
+    let asset_context = Vc::upcast(externals_tracing_module_context(
+        get_tracing_compile_time_info(),
+        false,
+    ));
+    let next_resolve_origin = Vc::upcast(PlainResolveOrigin::new(
+        asset_context,
+        get_next_package(project_path).await?.join("_")?,
+    ));
+
+    Ok(Vc::cell(
+        ["styled-jsx", "styled-jsx/style", "styled-jsx/style.js"]
+            .into_iter()
+            .map(async |request| {
+                Ok(cjs_resolve(
+                    next_resolve_origin,
+                    Request::parse_string(request.into()),
+                    CommonJsReferenceSubType::Undefined,
+                    None,
+                    ResolveErrorMode::Error,
+                )
+                .await?
+                .primary_modules()
+                .await?
+                .into_iter())
+            })
+            .try_flat_join()
+            .await?,
+    ))
+}
+
 #[turbo_tasks::task_input]
 #[derive(PartialEq, Eq, TraceRawVcs, Debug, Clone, Hash, Encode, Decode)]
 enum ServerNftType {
@@ -33,8 +75,12 @@ enum ServerNftType {
 #[turbo_tasks::function]
 pub async fn next_server_nft_assets(project: Vc<Project>) -> Result<Vc<OutputAssets>> {
     if *project.next_config().is_using_adapter().await? {
-        // When using an adapter, we don't need to generate any server NFTs as build-complete
-        // doesn't use them at all.
+        // When using an adapter, `next-server.js.nft.json` / `next-minimal-server.js.nft.json` are
+        // not needed: they exist for `output: 'standalone'` (see `copyTracedFiles`), while an
+        // adapter assembles the deployment from the per-endpoint NFTs in build-complete.ts. What
+        // those two files trace on top of the endpoints - the `styled-jsx` modules the require hook
+        // needs at runtime - is part of every endpoint's trace via
+        // `Project::additional_traced_modules`, so nothing is lost here.
         return Ok(Vc::cell(vec![]));
     }
 
@@ -218,9 +264,6 @@ impl ServerNftJsonAsset {
             get_next_package(project_path.clone()).await?.join("_")?,
         ));
 
-        // These are used by packages/next/src/server/require-hook.ts
-        let shared_entries = ["styled-jsx", "styled-jsx/style", "styled-jsx/style.js"];
-
         let entries = match self.ty {
             ServerNftType::Full => Either::Left(
                 if is_standalone {
@@ -242,25 +285,33 @@ impl ServerNftJsonAsset {
             )),
         };
 
+        // The modules the require hook needs are part of every endpoint's trace (see
+        // `Project::additional_traced_modules`), but `next-server.js` / `next-minimal-server.js`
+        // are traced on their own for `output: 'standalone'`, so they have to be added here too.
+        let hook_modules = require_hook_modules(project_path).owned().await?;
+
         Ok(Vc::cell(
-            shared_entries
+            hook_modules
                 .into_iter()
-                .chain(entries)
-                .map(async |path| {
-                    Ok(cjs_resolve(
-                        next_resolve_origin,
-                        Request::parse_string(path.into()),
-                        CommonJsReferenceSubType::Undefined,
-                        None,
-                        ResolveErrorMode::Error,
-                    )
-                    .await?
-                    .primary_modules()
-                    .await?
-                    .into_iter())
-                })
-                .try_flat_join()
-                .await?,
+                .chain(
+                    entries
+                        .map(async |path| {
+                            Ok(cjs_resolve(
+                                next_resolve_origin,
+                                Request::parse_string(path.into()),
+                                CommonJsReferenceSubType::Undefined,
+                                None,
+                                ResolveErrorMode::Error,
+                            )
+                            .await?
+                            .primary_modules()
+                            .await?
+                            .into_iter())
+                        })
+                        .try_flat_join()
+                        .await?,
+                )
+                .collect(),
         ))
     }
 
