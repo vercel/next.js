@@ -1,4 +1,4 @@
-import { DetachedPromise } from '../../lib/detached-promise'
+import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import { AsyncLocalStorage } from 'async_hooks'
 
 import type { WorkStore } from '../app-render/work-async-storage.external'
@@ -67,12 +67,12 @@ describe('AfterContext', () => {
 
     // ==================================
 
-    const promise0 = new DetachedPromise<string>()
+    const promise0 = createPromiseWithResolvers<string>()
 
-    const promise1 = new DetachedPromise<string>()
+    const promise1 = createPromiseWithResolvers<string>()
     const afterCallback1 = jest.fn(() => promise1.promise)
 
-    const promise2 = new DetachedPromise<string>()
+    const promise2 = createPromiseWithResolvers<string>()
     const afterCallback2 = jest.fn(() => promise2.promise)
 
     await run(async () => {
@@ -138,7 +138,7 @@ describe('AfterContext', () => {
 
     // ==================================
 
-    const promise1 = new DetachedPromise<string>()
+    const promise1 = createPromiseWithResolvers<string>()
     const afterCallback1 = jest.fn(() => promise1.promise)
 
     await run(async () => {
@@ -187,13 +187,13 @@ describe('AfterContext', () => {
 
     // ==================================
 
-    const promise1 = new DetachedPromise<string>()
+    const promise1 = createPromiseWithResolvers<string>()
     const afterCallback1 = jest.fn(() => promise1.promise)
 
-    const promise2 = new DetachedPromise<string>()
+    const promise2 = createPromiseWithResolvers<string>()
     const afterCallback2 = jest.fn(() => promise2.promise)
 
-    const streamStarted = new DetachedPromise<void>()
+    const streamStarted = createPromiseWithResolvers<void>()
 
     const stream = run(() => {
       return new ReadableStream<string>({
@@ -278,13 +278,13 @@ describe('AfterContext', () => {
 
     // ==================================
 
-    const promise1 = new DetachedPromise<string>()
+    const promise1 = createPromiseWithResolvers<string>()
     const afterCallback1 = jest.fn(async () => {
       await promise1.promise
       after(afterCallback2)
     })
 
-    const promise2 = new DetachedPromise<string>()
+    const promise2 = createPromiseWithResolvers<string>()
     const afterCallback2 = jest.fn(() => promise2.promise)
 
     await run(async () => {
@@ -342,7 +342,7 @@ describe('AfterContext', () => {
 
     // ==================================
 
-    const promise = new DetachedPromise<void>()
+    const promise = createPromiseWithResolvers<void>()
     let promiseDidResolve = false
     promise.promise.then(() => {
       promiseDidResolve = true
@@ -383,8 +383,8 @@ describe('AfterContext', () => {
 
     // ==================================
 
-    const promise1 = new DetachedPromise<void>()
-    const promise2 = new DetachedPromise<void>()
+    const promise1 = createPromiseWithResolvers<void>()
+    const promise2 = createPromiseWithResolvers<void>()
 
     let afterCallback2DidFinish = false
     const afterCallback2 = jest.fn(async () => {
@@ -493,7 +493,7 @@ describe('AfterContext', () => {
 
     // ==================================
 
-    const promise1 = new DetachedPromise<string>()
+    const promise1 = createPromiseWithResolvers<string>()
     const afterCallback1 = jest.fn(() => promise1.promise)
 
     const thrownFromCallback2 = new Error('2')
@@ -501,7 +501,7 @@ describe('AfterContext', () => {
       throw thrownFromCallback2
     })
 
-    const promise3 = new DetachedPromise<string>()
+    const promise3 = createPromiseWithResolvers<string>()
     const afterCallback3 = jest.fn(() => promise3.promise)
 
     const thrownFromPromise4 = new Error('4')
@@ -595,7 +595,7 @@ describe('AfterContext', () => {
       workStore: WorkStore | undefined
       workUnitStore: WorkUnitStore | undefined
     }
-    const stores = new DetachedPromise<[Stores, Stores]>()
+    const stores = createPromiseWithResolvers<[Stores, Stores]>()
 
     await run(async () => {
       const stores1 = {
@@ -650,9 +650,10 @@ describe('AfterContext', () => {
 
     // ==================================
 
-    const stores = new DetachedPromise<
-      [TestStore | undefined, TestStore | undefined]
-    >()
+    const stores =
+      createPromiseWithResolvers<
+        [TestStore | undefined, TestStore | undefined]
+      >()
 
     await testStorage.run('value', () =>
       run(async () => {
@@ -706,7 +707,6 @@ const createMockWorkStore = (afterContext: AfterContext): WorkStore => {
     forceStatic: false,
     forceDynamic: false,
     dynamicShouldError: false,
-    isStaticGeneration: false,
     pendingRevalidatedTags: [],
     pendingRevalidates: undefined,
     pendingRevalidateWrites: undefined,

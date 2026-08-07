@@ -37,12 +37,18 @@ use crate::{
     next_client::context::ClientContextType,
     next_config::{NextConfig, OptionFileSystemPath},
     next_edge::unsupported::NextEdgeUnsupportedModuleReplacer,
-    next_font::google::{
-        GOOGLE_FONTS_INTERNAL_PREFIX, NextFontGoogleCssModuleReplacer,
-        NextFontGoogleFontFileReplacer, NextFontGoogleReplacer,
+    next_font::{
+        google::{
+            GOOGLE_FONTS_INTERNAL_PREFIX, NextFontGoogleCssModuleReplacer,
+            NextFontGoogleFontFileReplacer, NextFontGoogleReplacer,
+        },
+        local::{
+            NextFontLocalCssModuleReplacer, NextFontLocalFontFileReplacer, NextFontLocalReplacer,
+        },
     },
     next_root_params::insert_next_root_params_mapping,
     next_server::context::ServerContextType,
+    next_shared::ContextType,
     util::NextRuntime,
 };
 
@@ -64,6 +70,7 @@ pub async fn get_next_client_import_map(
         execution_context,
         next_config,
         next_mode,
+        ContextType::Client(ty.clone()),
         false,
     )
     .await?;
@@ -286,6 +293,7 @@ pub async fn get_next_server_import_map(
         execution_context,
         next_config,
         next_mode,
+        ContextType::Server(ty.clone()),
         false,
     )
     .await?;
@@ -431,6 +439,7 @@ pub async fn get_next_edge_import_map(
         execution_context,
         next_config,
         next_mode,
+        ContextType::Server(ty.clone()),
         true,
     )
     .await?;
@@ -1061,6 +1070,7 @@ async fn insert_next_shared_aliases(
     execution_context: Vc<ExecutionContext>,
     next_config: Vc<NextConfig>,
     next_mode: Vc<NextMode>,
+    ty: ContextType,
     is_runtime_edge: bool,
 ) -> Result<()> {
     let package_root = next_js_fs().root().owned().await?;
@@ -1082,10 +1092,43 @@ async fn insert_next_shared_aliases(
         package_root,
     );
 
-    // NOTE: `@next/font/local` has moved to a BeforeResolve Plugin, so it does not
-    // have ImportMapping replacers here.
-    //
-    // TODO: Add BeforeResolve plugins for `@next/font/google`
+    match ty {
+        ContextType::Client(_)
+        | ContextType::Server(
+            ServerContextType::Pages { .. }
+            | ServerContextType::AppSSR { .. }
+            | ServerContextType::AppRSC { .. },
+        ) => {
+            import_map.insert_alias(
+                AliasPattern::exact(rcstr!("next/font/local/target.css")),
+                ImportMapping::Dynamic(ResolvedVc::upcast(
+                    NextFontLocalReplacer::new(project_path.clone())
+                        .to_resolved()
+                        .await?,
+                ))
+                .resolved_cell(),
+            );
+
+            import_map.insert_alias(
+                AliasPattern::exact(rcstr!(
+                    "@vercel/turbopack-next/internal/font/local/cssmodule.module.css"
+                )),
+                ImportMapping::Dynamic(ResolvedVc::upcast(
+                    NextFontLocalCssModuleReplacer::new().to_resolved().await?,
+                ))
+                .resolved_cell(),
+            );
+
+            import_map.insert_alias(
+                AliasPattern::exact(rcstr!("@vercel/turbopack-next/internal/font/local/font")),
+                ImportMapping::Dynamic(ResolvedVc::upcast(
+                    NextFontLocalFontFileReplacer::new().to_resolved().await?,
+                ))
+                .resolved_cell(),
+            );
+        }
+        _ => {}
+    }
 
     let next_font_google_replacer_mapping = ImportMapping::Dynamic(ResolvedVc::upcast(
         NextFontGoogleReplacer::new(project_path.clone())

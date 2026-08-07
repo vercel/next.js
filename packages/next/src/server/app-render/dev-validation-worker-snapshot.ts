@@ -75,6 +75,7 @@ export async function buildDevValidationSnapshot(
       isDraftMode: requestStore.draftMode.isEnabled,
       isHmrRefresh: requestStore.isHmrRefresh ?? false,
       hmrRefreshHash: requestStore.hmrRefreshHash,
+      requestStartTime: ctx.workStore.requestStartTime,
     },
     interpolatedParams: ctx.interpolatedParams,
     requestFallbackRouteParams: ctx.fallbackRouteParams,

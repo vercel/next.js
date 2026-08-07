@@ -48,7 +48,6 @@ use crate::{
         transforms::get_next_client_transforms_rules,
     },
     next_config::NextConfig,
-    next_font::local::NextFontLocalResolvePlugin,
     next_import_map::{
         get_next_client_fallback_import_map, get_next_client_import_map,
         get_next_client_resolved_map,
@@ -189,11 +188,6 @@ pub async fn get_client_resolve_options_context(
         resolved_map: Some(next_client_resolved_map),
         browser: true,
         module: true,
-        before_resolve_plugins: vec![ResolvedVc::upcast(
-            NextFontLocalResolvePlugin::new(project_path.clone())
-                .to_resolved()
-                .await?,
-        )],
         after_resolve_plugins: vec![ResolvedVc::upcast(
             NextSharedRuntimeResolvePlugin::new(project_path.clone())
                 .to_resolved()

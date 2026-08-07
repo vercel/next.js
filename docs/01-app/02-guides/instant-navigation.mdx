@@ -38,6 +38,40 @@ This is also why client-side hooks behave differently. `useSearchParams()` suspe
 
 Runtime prefetching extends the static shell with a link's URL data (`searchParams` and `params`) by invoking the route at prefetch time. Ensuring navigations are instant is the foundation: a route that doesn't navigate instantly without runtime prefetching won't navigate instantly with it either. See [Runtime prefetching](/docs/app/guides/runtime-prefetching) for the patterns.
 
+## Quick start
+
+Getting the most out of Instant Navigation requires enabling [Cache Components](/docs/app/guides/migrating-to-cache-components) and [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), then following the [validation errors](#validate-instant-navigation) that appear:
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+  partialPrefetching: true,
+}
+
+export default nextConfig
+```
+
+To help you automate this process with an agent, there's a Skill for each part, [next-cache-components-adoption](https://www.skills.sh/vercel/next.js/next-cache-components-adoption) and [next-partial-prefetching-adoption](https://www.skills.sh/vercel/next.js/next-partial-prefetching-adoption). If you'd like to enable everything, give your agent this prompt:
+
+```prompt
+Adopt Cache Components and Partial Prefetching in this app so its navigations become instant. There is a Skill for each migration.
+
+1. Before you change anything, explain to me in plain terms what Instant Navigation is and what adopting it will change.
+
+2. Install the Skills you need, then verify your changes against a running dev server with next-dev-loop and agent-browser as you go:
+   - next-cache-components-adoption: https://www.skills.sh/vercel/next.js/next-cache-components-adoption
+   - next-partial-prefetching-adoption: https://www.skills.sh/vercel/next.js/next-partial-prefetching-adoption
+   - next-dev-loop: https://www.skills.sh/vercel/next.js/next-dev-loop
+
+3. Each Skill leaves decisions to me, like how much of the work lands in each pull request. Put those questions to me and wait for my answers instead of deciding on my behalf. Adopt Cache Components first, then Partial Prefetching, following the workflow each Skill lays out. Don't rush to a passing build.
+
+4. When you finish a step, show me a table of the routes you touched and what changed on each, and talk me through what it means for the app. Keep it to the outcome, not the implementation details.
+```
+
+The rest of this guide covers the tools these migrations use, walks a navigation that blocks to instant, inspects what lands in the initial UI, and locks the result in with end-to-end tests.
+
 ## The tools
 
 ### Build the static shell
@@ -490,7 +524,7 @@ Use the [DevTools](#visualize-loading-states-with-the-nextjs-devtools) to see wh
 
 ## AI workflow
 
-An AI coding agent can run this workflow to make a navigation instant:
+At a high level, an agent optimizes a single navigation like this:
 
 - **Observe**: read validation insights and choose the exact navigation and UI that should appear immediately.
 - **Test**: confirm the target UI renders normally, then write an `instant()` test and verify that it fails before changing the route.

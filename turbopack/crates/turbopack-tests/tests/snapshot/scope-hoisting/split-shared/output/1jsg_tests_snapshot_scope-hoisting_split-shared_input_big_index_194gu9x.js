@@ -2,12 +2,12 @@
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/big/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
-// MERGED MODULE: [project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/big/index.js [test] (ecmascript)
-;
 __turbopack_context__.s([
     "default",
     ()=>__TURBOPACK__default__export__1
 ], "[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/big/index.js [test] (ecmascript)");
+// MERGED MODULE: [project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/big/index.js [test] (ecmascript)
+;
 // MERGED MODULE: [project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/big/other.js [test] (ecmascript)
 ;
 const __TURBOPACK__default__export__ = `

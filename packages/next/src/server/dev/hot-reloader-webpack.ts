@@ -15,6 +15,7 @@ import {
 } from './middleware-webpack'
 import { WebpackHotMiddleware } from './hot-middleware'
 import * as inspector from 'inspector'
+import { randomUUID } from 'crypto'
 import { join, relative, isAbsolute, posix, dirname } from 'path'
 import {
   createEntrypoints,
@@ -126,6 +127,9 @@ function diff(a: Set<any>, b: Set<any>) {
 }
 
 const wsServer = new ws.Server({ noServer: true })
+
+// Folded into the HMR refresh hash to make it differ between dev server runs.
+const devServerSessionId = randomUUID()
 
 export async function renderScriptError(
   res: ServerResponse,
@@ -440,8 +444,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     })
   }
 
-  public getServerComponentsHmrRefreshHash(): string | undefined {
-    return this.serverComponentsHmrRefreshHash
+  public getServerComponentsHmrRefreshHash(): string {
+    return `${devServerSessionId}-${this.serverComponentsHmrRefreshHash ?? '0'}`
   }
 
   public onHMR(

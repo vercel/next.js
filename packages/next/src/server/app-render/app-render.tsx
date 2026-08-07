@@ -1,16 +1,15 @@
 import type { ComponentType, ErrorInfo, JSX, ReactNode } from 'react'
+import type { PartialTransportData } from '../../shared/lib/rsc-transport'
 import type { RenderOpts, PreloadCallbacks } from './types'
 import type {
   ActionResult,
   DynamicParamTypesShort,
   DynamicSegmentTuple,
   FlightRouterState,
-  CacheNodeSeedData,
   RSCPayload,
   NavigationFlightResponse,
-  FlightData,
+  ActionFlightResponse,
   InitialRSCPayload,
-  FlightDataPath,
   PrefetchHints,
 } from '../../shared/lib/app-router-types'
 import { PrefetchHint } from '../../shared/lib/app-router-types'
@@ -87,7 +86,10 @@ import {
   createRequestStoreForRender,
 } from '../async-storage/request-store'
 import { isRSCRequestHeader } from '../lib/is-rsc-request'
-import { createWorkStore } from '../async-storage/work-store'
+import {
+  createPrerenderWorkStore,
+  createWorkStore,
+} from '../async-storage/work-store'
 import { formatValidationEvent } from './dev-validation-events'
 import { createSnapshot } from './async-local-storage'
 import {
@@ -127,7 +129,11 @@ import { dynamicParamTypes } from './get-short-dynamic-param-type'
 import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param'
 import { getScriptNonceFromHeader } from './get-script-nonce-from-header'
 import { parseAndValidateFlightRouterState } from './parse-and-validate-flight-router-state'
-import { createFlightRouterStateFromLoaderTree } from './create-flight-router-state-from-loader-tree'
+import {
+  createFullTransportTreeFromLoaderTree,
+  getMissingPrefetchHintPolicy,
+  type MissingPrefetchHintPolicy,
+} from './create-transport-tree-from-loader-tree'
 import { handleAction } from './action-handler'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { warn, error } from '../../build/output/log'
@@ -142,9 +148,9 @@ import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import { makeGetServerInsertedHTML } from './make-get-server-inserted-html'
 import {
   walkTreeWithFlightRouterState,
-  createFullTreeFlightDataForNavigation,
+  createFullTreeForNavigation,
 } from './walk-tree-with-flight-router-state'
-import { createComponentTree, getRootParams } from './create-component-tree'
+import { createFullComponentTree, getRootParams } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
 import {
   getClientReferenceManifest,
@@ -350,9 +356,26 @@ export type AppSharedContext = {
   clientAssetToken: string
 }
 
+type AppRenderCapabilities = {
+  /** Whether this render may postpone dynamic subtrees. */
+  canPostpone: boolean
+  /**
+   * Whether the response may contain postponed holes. This is conservatively
+   * true for prerenders with PPR enabled, even when the response turns out to
+   * be fully static, because a false negative could cause the client to skip
+   * fetching dynamic data. Per-segment prefetch responses replace this with a
+   * more precise value during segment-data collection.
+   */
+  isPossiblyPartialResponse: boolean
+  /** Whether this route supports per-segment prefetching in the client protocol. */
+  supportsPerSegmentPrefetching: boolean
+}
+
 export type AppRenderContext = {
   sharedContext: AppSharedContext
   workStore: WorkStore
+  missingPrefetchHintPolicy: MissingPrefetchHintPolicy
+  renderCapabilities: AppRenderCapabilities
   url: ReturnType<typeof parseRelativeUrl>
   componentMod: AppPageModule
   renderOpts: RenderOpts
@@ -660,14 +683,11 @@ async function generateDynamicRSCPayload(
     runtimePrefetchStream?: ReadableStream<Uint8Array>
   }
 ): Promise<RSCPayload> {
-  // Flight data that is going to be passed to the browser.
-  // Currently a single item array but in the future multiple patches might be combined in a single request.
-
-  // We initialize `flightData` to an empty string because the client router knows how to tolerate
-  // it (treating it as an MPA navigation). The only time this function wouldn't generate flight data
-  // is for server actions, if the server action handler instructs this function to skip it. When the server
-  // action reducer sees a falsy value, it'll simply resolve the action with no data.
-  let flightData: FlightData = ''
+  // Transport data that is going to be passed to the browser. Undefined when
+  // the response renders nothing: server actions, if the server action
+  // handler instructs this function to skip rendering. When the server action
+  // reducer sees an absent tree, it resolves the action with no data.
+  let transportData: PartialTransportData | undefined = undefined
 
   const {
     componentMod: {
@@ -731,33 +751,42 @@ async function generateDynamicRSCPayload(
       })
     )
 
-    flightData = (
-      needsFullTree
-        ? await createFullTreeFlightDataForNavigation({
-            ctx,
-            loaderTree,
-            rscHead,
-            injectedCSS: new Set(),
-            injectedJS: new Set(),
-            injectedFontPreloadTags: new Set(),
-            preloadCallbacks,
-            MetadataOutlet,
-          })
-        : await walkTreeWithFlightRouterState({
-            ctx,
-            loaderTreeToFilter: loaderTree,
-            parentParams: {},
-            flightRouterState,
-            rscHead,
-            injectedCSS: new Set(),
-            injectedJS: new Set(),
-            injectedFontPreloadTags: new Set(),
-            rootLayoutIncluded: false,
-            preloadCallbacks,
-            MetadataOutlet,
-            hintTree: ctx.renderOpts.prefetchHints?.[ctx.pagePath] ?? null,
-          })
-    ).map((path) => path.slice(1)) // remove the '' (root) segment
+    const responseTree = needsFullTree
+      ? await createFullTreeForNavigation({
+          ctx,
+          loaderTree,
+          rscHead,
+          injectedCSS: new Set(),
+          injectedJS: new Set(),
+          injectedFontPreloadTags: new Set(),
+          preloadCallbacks,
+          MetadataOutlet,
+        })
+      : await walkTreeWithFlightRouterState({
+          ctx,
+          loaderTreeToFilter: loaderTree,
+          parentParams: {},
+          flightRouterState,
+          rscHead,
+          injectedCSS: new Set(),
+          injectedJS: new Set(),
+          injectedFontPreloadTags: new Set(),
+          rootLayoutIncluded: false,
+          preloadCallbacks,
+          MetadataOutlet,
+          hintTree: ctx.renderOpts.prefetchHints?.[ctx.pagePath] ?? null,
+        })
+
+    if (responseTree !== null) {
+      transportData = {
+        t: responseTree.tree,
+        h: {
+          r: responseTree.head,
+          p: responseTree.isHeadPartial,
+          v: getMetadataVaryParamsAccumulator(),
+        },
+      }
+    }
   }
 
   // In dev, the Vary header may not reliably reflect whether a route can
@@ -772,30 +801,34 @@ async function generateDynamicRSCPayload(
   // We can rely on this because `ActionResult` will always be a promise, even if
   // the result is falsey.
   if (options?.actionResult) {
-    return maybeAppendBuildIdToRSCPayload(ctx, {
+    const actionResponse: ActionFlightResponse = {
       a: options.actionResult,
-      f: flightData,
       q: getRenderedSearch(query),
       i: !!couldBeIntercepted,
-    })
+    }
+    if (transportData !== undefined) {
+      actionResponse.t = transportData
+    }
+    return maybeAppendBuildIdToRSCPayload(ctx, actionResponse)
   }
 
   // Otherwise, it's a regular RSC response.
   const baseResponse: NavigationFlightResponse = maybeAppendBuildIdToRSCPayload(
     ctx,
     {
-      f: flightData,
       q: getRenderedSearch(query),
       i: !!couldBeIntercepted,
       // Tells the client whether this route supports per-segment prefetching.
       // With Cache Components, all routes support it. Without it, only fully
       // static pages do, because their per-segment prefetch responses are
       // generated during static generation (build or ISR).
-      S: workStore.isStaticGeneration || ctx.renderOpts.cacheComponents,
-      h: getMetadataVaryParamsAccumulator(),
+      S: ctx.renderCapabilities.supportsPerSegmentPrefetching,
       r: getRootParamsVaryParamsAccumulator() ?? undefined,
     }
   )
+  if (transportData !== undefined) {
+    baseResponse.t = transportData
+  }
 
   if (options?.staleTimeIterable !== undefined) {
     baseResponse.s = options.staleTimeIterable
@@ -815,26 +848,52 @@ async function generateDynamicRSCPayload(
     baseResponse.p = options.runtimePrefetchStream
   }
 
-  // Include the per-page dynamic stale time from unstable_dynamicStaleTime, but only
-  // for dynamic renders (not prerenders/static generation). The client treats
-  // its presence as authoritative.
+  // Include the per-page dynamic stale time from unstable_dynamicStaleTime. This
+  // function only generates payloads for dynamic requests, and the client treats
+  // the field's presence as authoritative.
   // TODO: Move this to the prefetch hints file so we don't have to walk the
   // tree on every render.
-  if (!workStore.isStaticGeneration) {
-    const dynamicStaleTime = await getDynamicStaleTime(
-      ctx.componentMod.routeModule.userland.loaderTree
-    )
-    if (dynamicStaleTime !== null) {
-      baseResponse.d = dynamicStaleTime
-    }
+  const dynamicStaleTime = await getDynamicStaleTime(
+    ctx.componentMod.routeModule.userland.loaderTree
+  )
+  if (dynamicStaleTime !== null) {
+    baseResponse.d = dynamicStaleTime
   }
 
   return baseResponse
 }
 
-function createErrorContext(
+function createRequestErrorContext(
   ctx: AppRenderContext,
   renderSource: RequestErrorContext['renderSource']
+): RequestErrorContext {
+  return createErrorContext(
+    ctx,
+    renderSource,
+    getRevalidateReason({
+      isOnDemandRevalidate: ctx.workStore.isOnDemandRevalidate,
+    })
+  )
+}
+
+function createPrerenderErrorContext(
+  ctx: AppRenderContext,
+  renderSource: RequestErrorContext['renderSource']
+): RequestErrorContext {
+  return createErrorContext(
+    ctx,
+    renderSource,
+    getRevalidateReason({
+      isOnDemandRevalidate: ctx.workStore.isOnDemandRevalidate,
+      isStaticGeneration: true,
+    })
+  )
+}
+
+function createErrorContext(
+  ctx: AppRenderContext,
+  renderSource: RequestErrorContext['renderSource'],
+  revalidateReason: RequestErrorContext['revalidateReason']
 ): RequestErrorContext {
   return {
     routerKind: 'App Router',
@@ -842,7 +901,7 @@ function createErrorContext(
     // TODO: is this correct if `isPossibleServerAction` is a false positive?
     routeType: ctx.isPossibleServerAction ? 'action' : 'render',
     renderSource,
-    revalidateReason: getRevalidateReason(ctx.workStore),
+    revalidateReason,
   }
 }
 
@@ -857,7 +916,6 @@ async function generateDynamicFlightRenderResult(
   options?: {
     actionResult: ActionResult
     skipPageRendering: boolean
-    componentTree?: CacheNodeSeedData
     preloadCallbacks?: PreloadCallbacks
     temporaryReferences?: WeakMap<any, string>
     waitUntil?: Promise<unknown>
@@ -875,7 +933,7 @@ async function generateDynamicFlightRenderResult(
     return onInstrumentationRequestError?.(
       err,
       req,
-      createErrorContext(ctx, 'react-server-components-payload'),
+      createRequestErrorContext(ctx, 'react-server-components-payload'),
       silenceLog
     )
   }
@@ -994,7 +1052,7 @@ async function generateStagedDynamicFlightRenderResultNode(
     return onInstrumentationRequestError?.(
       err,
       req,
-      createErrorContext(ctx, 'react-server-components-payload'),
+      createRequestErrorContext(ctx, 'react-server-components-payload'),
       silenceLog
     )
   }
@@ -1329,7 +1387,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     return onInstrumentationRequestError?.(
       err,
       req,
-      createErrorContext(ctx, 'react-server-components-payload'),
+      createRequestErrorContext(ctx, 'react-server-components-payload'),
       silenceLog
     )
   }
@@ -1514,7 +1572,7 @@ async function generateRuntimePrefetchResult(
       err,
       req,
       // TODO(runtime-ppr): should we use a different value?
-      createErrorContext(ctx, 'react-server-components-payload'),
+      createRequestErrorContext(ctx, 'react-server-components-payload'),
       silenceLog
     )
   }
@@ -2053,6 +2111,7 @@ async function getRSCPayload(
   ctx: AppRenderContext,
   options: {
     is404: boolean
+    isPrerendering: boolean
     staleTimeIterable?: AsyncIterable<number>
     staticStageByteLengthPromise?: Promise<number>
     shellByteLengthPromise?: Promise<number | null>
@@ -2061,6 +2120,7 @@ async function getRSCPayload(
 ): Promise<InitialRSCPayload & { P: ReactNode }> {
   const {
     is404,
+    isPrerendering,
     staleTimeIterable,
     staticStageByteLengthPromise,
     shellByteLengthPromise,
@@ -2077,29 +2137,13 @@ async function getRSCPayload(
   }
 
   const {
-    getDynamicParamFromSegment,
     query,
     appUsingSizeAdjustment,
     componentMod: { createMetadataComponents, createElement, Fragment },
     url,
-    workStore,
   } = ctx
 
   const hints = ctx.renderOpts.prefetchHints?.[ctx.pagePath] ?? null
-  const prefetchInliningEnabled = Boolean(
-    ctx.renderOpts.experimental.prefetchInlining
-  )
-  const initialTree = await createFlightRouterStateFromLoaderTree(
-    tree,
-    hints,
-    prefetchInliningEnabled,
-    ctx.renderOpts.cacheComponents,
-    ctx.renderOpts.partialPrefetching,
-    workStore.isStaticGeneration,
-    ctx.renderOpts.isBuildTimePrerendering ?? false,
-    getDynamicParamFromSegment,
-    query
-  )
   const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
   const hasGlobalNotFound = !!tree[2]['global-not-found']
 
@@ -2120,7 +2164,7 @@ async function getRSCPayload(
 
   const preloadCallbacks: PreloadCallbacks = []
 
-  const seedData = await createComponentTree({
+  const initialTree = await createFullComponentTree({
     ctx,
     loaderTree: tree,
     parentParams: {},
@@ -2134,6 +2178,8 @@ async function getRSCPayload(
     preloadCallbacks,
     authInterrupts: ctx.renderOpts.experimental.authInterrupts,
     MetadataOutlet,
+    isPrerendering,
+    hintTree: hints,
   })
 
   // When the `vary` response header is present with `Next-URL`, that means there's a chance
@@ -2178,10 +2224,8 @@ async function getRSCPayload(
   // client Segment Cache after a prefetch to determine if it can skip the
   // second request to fill in the dynamic data.
   //
-  // See similar comment in create-component-tree.tsx for more context.
-  const isPossiblyPartialHead =
-    workStore.isStaticGeneration &&
-    ctx.renderOpts.experimental.isRoutePPREnabled === true
+  // See AppRenderCapabilities.isPossiblyPartialResponse for more context.
+  const isPossiblyPartialHead = ctx.renderCapabilities.isPossiblyPartialResponse
 
   return maybeAppendBuildIdToRSCPayload(ctx, {
     // See the comment above the `Preloads` component (below) for why this is part of the payload
@@ -2191,22 +2235,21 @@ async function getRSCPayload(
     c: prepareInitialCanonicalUrl(url),
     q: getRenderedSearch(query),
     i: !!couldBeIntercepted,
-    f: [
-      [
-        initialTree,
-        seedData,
-        initialHead,
-        isPossiblyPartialHead,
-      ] as FlightDataPath,
-    ],
+    t: {
+      t: initialTree,
+      h: {
+        r: initialHead,
+        p: isPossiblyPartialHead,
+        v: getMetadataVaryParamsAccumulator(),
+      },
+    },
     m: missingSlots,
     G: [GlobalError, globalErrorStyles],
     // Tells the client whether this route supports per-segment prefetching.
     // With Cache Components, all routes support it. Without it, only fully
     // static pages do, because their per-segment prefetch responses are
     // generated during static generation (build or ISR).
-    S: workStore.isStaticGeneration || ctx.renderOpts.cacheComponents,
-    h: getMetadataVaryParamsAccumulator(),
+    S: ctx.renderCapabilities.supportsPerSegmentPrefetching,
     r: getRootParamsVaryParamsAccumulator() ?? undefined,
     s: staleTimeIterable,
     a: shellByteLengthPromise,
@@ -2217,7 +2260,7 @@ async function getRSCPayload(
     // authoritative.
     // TODO: Move this to the prefetch hints file so we don't have to walk
     // the tree on every render.
-    d: !workStore.isStaticGeneration
+    d: !isPrerendering
       ? ((await getDynamicStaleTime(tree)) ?? undefined)
       : undefined,
   } satisfies InitialRSCPayload & { P: ReactNode })
@@ -2247,7 +2290,6 @@ async function getErrorRSCPayload(
     query,
     componentMod: { createMetadataComponents, createElement, Fragment },
     url,
-    workStore,
   } = ctx
 
   let Viewport: ComponentType | null = null
@@ -2291,17 +2333,6 @@ async function getErrorRSCPayload(
   const errorPrefetchInliningEnabled = Boolean(
     ctx.renderOpts.experimental.prefetchInlining
   )
-  const initialTree = await createFlightRouterStateFromLoaderTree(
-    tree,
-    errorHints,
-    errorPrefetchInliningEnabled,
-    ctx.renderOpts.cacheComponents,
-    ctx.renderOpts.partialPrefetching,
-    workStore.isStaticGeneration,
-    ctx.renderOpts.isBuildTimePrerendering ?? false,
-    getDynamicParamFromSegment,
-    query
-  )
 
   let err: Error | undefined = undefined
   if (ssrError) {
@@ -2310,60 +2341,64 @@ async function getErrorRSCPayload(
 
   // For metadata notFound error there's no global not found boundary on top
   // so we create a not found page with AppRouter
-  const seedData: CacheNodeSeedData = [
+  const errorShell = createElement(
+    'html',
+    {
+      id: '__next_error__',
+    },
+    createElement('head', null),
     createElement(
-      'html',
-      {
-        id: '__next_error__',
-      },
-      createElement('head', null),
-      createElement(
-        'body',
-        null,
-        process.env.__NEXT_DEV_SERVER && err
-          ? createElement('template', {
-              'data-next-error-message': err.message,
-              'data-next-error-digest': 'digest' in err ? err.digest : '',
-              'data-next-error-stack': err.stack,
-            })
-          : null
-      )
-    ),
-    {},
-    null,
-    false,
-    null, // varyParams - not tracked for error pages
-  ]
+      'body',
+      null,
+      process.env.__NEXT_DEV_SERVER && err
+        ? createElement('template', {
+            'data-next-error-message': err.message,
+            'data-next-error-digest': 'digest' in err ? err.digest : '',
+            'data-next-error-stack': err.stack,
+          })
+        : null
+    )
+  )
+
+  const initialTree = await createFullTransportTreeFromLoaderTree(
+    tree,
+    errorHints,
+    errorPrefetchInliningEnabled,
+    ctx.missingPrefetchHintPolicy,
+    ctx.renderOpts.partialPrefetching,
+    getDynamicParamFromSegment,
+    query
+  )
+  // Attach the error shell as the root's render output. Vary params are not
+  // tracked for error pages.
+  initialTree.d = { r: errorShell, p: false, v: null }
 
   const { GlobalError, styles: globalErrorStyles } = await getGlobalErrorStyles(
     tree,
     ctx
   )
 
-  const isPossiblyPartialHead =
-    workStore.isStaticGeneration &&
-    ctx.renderOpts.experimental.isRoutePPREnabled === true
+  const isPossiblyPartialHead = ctx.renderCapabilities.isPossiblyPartialResponse
 
   return maybeAppendBuildIdToRSCPayload(ctx, {
     c: prepareInitialCanonicalUrl(url),
     q: getRenderedSearch(query),
     m: undefined,
     i: false,
-    f: [
-      [
-        initialTree,
-        seedData,
-        initialHead,
-        isPossiblyPartialHead,
-      ] as FlightDataPath,
-    ],
+    t: {
+      t: initialTree,
+      h: {
+        r: initialHead,
+        p: isPossiblyPartialHead,
+        v: getMetadataVaryParamsAccumulator(),
+      },
+    },
     G: [GlobalError, globalErrorStyles],
     // Tells the client whether this route supports per-segment prefetching.
     // With Cache Components, all routes support it. Without it, only fully
     // static pages do, because their per-segment prefetch responses are
     // generated during static generation (build or ISR).
-    S: workStore.isStaticGeneration || ctx.renderOpts.cacheComponents,
-    h: getMetadataVaryParamsAccumulator(),
+    S: ctx.renderCapabilities.supportsPerSegmentPrefetching,
     r: getRootParamsVaryParamsAccumulator() ?? undefined,
   } satisfies InitialRSCPayload)
 }
@@ -2491,7 +2526,7 @@ export type BinaryStreamOf<T> = AnyStream
 
 /**
  * Extracted to a separate function to prevent V8 from retaining the entire
- * `renderToHTMLOrFlightImpl` closure scope through globalThis.__next_require__.
+ * `prepareAppPageRender` closure scope through globalThis.__next_require__.
  * V8 shares a single Context object per scope for all closures; by creating
  * these closures in their own function scope, the globalThis references only
  * retain `instrumented` and `cacheComponents`, not request-specific data like
@@ -2563,7 +2598,32 @@ function installGlobalModuleLoadingHandlers(
   }
 }
 
-async function renderToHTMLOrFlightImpl(
+type PreparedAppPageRender = {
+  req: BaseNextRequest
+  ctx: AppRenderContext
+  metadata: AppPageRenderResultMetadata
+  loaderTree: LoaderTree
+}
+
+type GenerateRequestId = (req: BaseNextRequest) => string | Promise<string>
+
+const generateRenderRequestId: GenerateRequestId = () => {
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    return crypto.randomUUID()
+  } else {
+    return (
+      require('next/dist/compiled/nanoid') as typeof import('next/dist/compiled/nanoid')
+    ).nanoid()
+  }
+}
+
+const generatePrerenderRequestId: GenerateRequestId = async (req) => {
+  return Buffer.from(
+    await crypto.subtle.digest('SHA-1', Buffer.from(req.url))
+  ).toString('hex')
+}
+
+async function prepareAppPageRender(
   req: BaseNextRequest,
   res: BaseNextResponse,
   url: ReturnType<typeof parseRelativeUrl>,
@@ -2572,11 +2632,12 @@ async function renderToHTMLOrFlightImpl(
   renderOpts: RenderOpts,
   workStore: WorkStore,
   parsedRequestHeaders: ParsedRequestHeaders,
-  postponedState: PostponedState | null,
-  serverComponentsHmrCache: ServerComponentsHmrCache | undefined,
   sharedContext: AppSharedContext,
   interpolatedParams: Params,
-  fallbackRouteParams: OpaqueFallbackRouteParams | null
+  fallbackRouteParams: OpaqueFallbackRouteParams | null,
+  generateRequestId: GenerateRequestId,
+  missingPrefetchHintPolicy: MissingPrefetchHintPolicy,
+  renderCapabilities: AppRenderCapabilities
 ) {
   const isNotFoundPath = pagePath === '/404'
   if (isNotFoundPath) {
@@ -2592,14 +2653,11 @@ async function renderToHTMLOrFlightImpl(
   const {
     ComponentMod,
     nextFontManifest,
-    serverActions,
     assetPrefix = '',
     enableTainting,
     cacheComponents,
     setIsrStatus,
   } = renderOpts
-
-  const { cachedNavigations } = renderOpts.experimental
 
   // We need to expose the bundled `require` API globally for
   // react-server-dom-webpack. This is a hack until we find a better way.
@@ -2687,23 +2745,13 @@ async function renderToHTMLOrFlightImpl(
   query = { ...query }
   stripInternalQueries(query)
 
-  const { isStaticGeneration } = workStore
-
   let requestId: string
   let htmlRequestId: string
   const requestInsightsIdentity = process.env.__NEXT_REQUEST_INSIGHTS
     ? getRequestInsightsIdentity()
     : undefined
 
-  const {
-    flightRouterState,
-    isPrefetchRequest,
-    isRuntimePrefetchRequest,
-    isAppShellPrefetchRequest,
-    isRSCRequest,
-    isHmrRefresh,
-    nonce,
-  } = parsedRequestHeaders
+  const { flightRouterState, isPrefetchRequest, nonce } = parsedRequestHeaders
 
   if (parsedRequestHeaders.requestId) {
     // If the client has provided a request ID (in development mode), we use it.
@@ -2714,17 +2762,7 @@ async function renderToHTMLOrFlightImpl(
     requestId = requestInsightsIdentity.requestId
   } else {
     // Otherwise we generate a new request ID.
-    if (isStaticGeneration) {
-      requestId = Buffer.from(
-        await crypto.subtle.digest('SHA-1', Buffer.from(req.url))
-      ).toString('hex')
-    } else if (process.env.NEXT_RUNTIME === 'edge') {
-      requestId = crypto.randomUUID()
-    } else {
-      requestId = (
-        require('next/dist/compiled/nanoid') as typeof import('next/dist/compiled/nanoid')
-      ).nanoid()
-    }
+    requestId = await generateRequestId(req)
   }
 
   // If the client has provided an HTML request ID, we use it to associate the
@@ -2765,6 +2803,8 @@ async function renderToHTMLOrFlightImpl(
     url,
     renderOpts,
     workStore,
+    missingPrefetchHintPolicy,
+    renderCapabilities,
     parsedRequestHeaders,
     getDynamicParamFromSegment,
     interpolatedParams,
@@ -2788,307 +2828,431 @@ async function renderToHTMLOrFlightImpl(
 
   getTracer().setRootSpanAttribute('next.route', pagePath)
 
-  if (isStaticGeneration) {
-    // We're either building or revalidating. In either case we need to
-    // prerender our page rather than render it.
-    const prerenderToStreamWithTracing = getTracer().wrap(
-      AppRenderSpan.getBodyResult,
-      {
-        spanName: `prerender route (app) ${pagePath}`,
-        attributes: {
-          'next.route': pagePath,
-        },
+  return {
+    req,
+    ctx,
+    metadata,
+    loaderTree,
+  }
+}
+
+async function prerenderAppPage({
+  req,
+  ctx,
+  metadata,
+  loaderTree,
+}: PreparedAppPageRender) {
+  const { res, pagePath, renderOpts, workStore, url, fallbackRouteParams } = ctx
+
+  // We're either building or revalidating. In either case we need to
+  // prerender our page rather than render it.
+  const prerenderToStreamWithTracing = getTracer().wrap(
+    AppRenderSpan.getBodyResult,
+    {
+      spanName: `prerender route (app) ${pagePath}`,
+      attributes: {
+        'next.route': pagePath,
       },
-      prerenderToStream
-    )
+    },
+    prerenderToStream
+  )
 
-    const response = await prerenderToStreamWithTracing(
-      req,
-      res,
+  const response = await prerenderToStreamWithTracing(
+    req,
+    res,
+    ctx,
+    metadata,
+    loaderTree,
+    fallbackRouteParams
+  )
+
+  // If we're debugging partial prerendering, print all the dynamic API accesses
+  // that occurred during the render.
+  // @TODO move into renderToStream function
+  if (
+    response.dynamicAccess &&
+    accessedDynamicData(response.dynamicAccess) &&
+    renderOpts.isDebugDynamicAccesses
+  ) {
+    warn('The following dynamic usage was detected:')
+    for (const access of formatDynamicAPIAccesses(response.dynamicAccess)) {
+      warn(access)
+    }
+  }
+
+  // If we encountered any unexpected errors during build we fail the
+  // prerendering phase and the build.
+  if (workStore.invalidDynamicUsageError) {
+    logDisallowedDynamicError(workStore, workStore.invalidDynamicUsageError)
+    throw new StaticGenBailoutError()
+  }
+  if (response.digestErrorsMap.size) {
+    const buildFailingError = response.digestErrorsMap.values().next().value
+    if (buildFailingError) throw buildFailingError
+  }
+  // Pick first userland SSR error, which is also not a RSC error.
+  if (response.ssrErrors.length) {
+    const buildFailingError = response.ssrErrors.find((err) =>
+      isUserLandError(err)
+    )
+    if (buildFailingError) throw buildFailingError
+  }
+
+  const options: RenderResultOptions = {
+    metadata,
+    contentType: HTML_CONTENT_TYPE_HEADER,
+  }
+
+  // If we have pending revalidates, wait until they are all resolved.
+  const maybeRevalidatesPromise = executeRevalidates(workStore)
+  if (maybeRevalidatesPromise !== false) {
+    const revalidatesPromise = maybeRevalidatesPromise.finally(() => {
+      if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+        console.log('pending revalidates promise finished for:', url.href)
+      }
+    })
+    if (renderOpts.waitUntil) {
+      renderOpts.waitUntil(revalidatesPromise)
+    } else {
+      options.waitUntil = revalidatesPromise
+    }
+  }
+
+  applyMetadataFromPrerenderResult(response, metadata, workStore)
+
+  if (response.renderResumeDataCache) {
+    metadata.renderResumeDataCache = response.renderResumeDataCache
+  }
+
+  const streamString = await streamToString(response.stream)
+  const result = new RenderResult(streamString, options)
+
+  // Run build-time instant validation if the page has instant configs
+  // TODO(instant-validation-build): This is not a great place to wire this in.
+  if (
+    workStore.cacheComponentsEnabled &&
+    workStore.isBuildTimePrerendering &&
+    renderOpts.runInstantValidation &&
+    (await anySegmentNeedsInstantValidationInBuild(loaderTree))
+  ) {
+    // Throws StaticGenBailoutError if validation failed.
+    await validateInstantConfigsInBuild(
       ctx,
-      metadata,
-      loaderTree,
-      fallbackRouteParams
+      response.renderResumeDataCache ?? null
     )
+  }
 
-    // If we're debugging partial prerendering, print all the dynamic API accesses
-    // that occurred during the render.
-    // @TODO move into renderToStream function
-    if (
-      response.dynamicAccess &&
-      accessedDynamicData(response.dynamicAccess) &&
-      renderOpts.isDebugDynamicAccesses
-    ) {
-      warn('The following dynamic usage was detected:')
-      for (const access of formatDynamicAPIAccesses(response.dynamicAccess)) {
-        warn(access)
-      }
-    }
+  return result
+}
 
-    // If we encountered any unexpected errors during build we fail the
-    // prerendering phase and the build.
-    if (workStore.invalidDynamicUsageError) {
-      logDisallowedDynamicError(workStore, workStore.invalidDynamicUsageError)
-      throw new StaticGenBailoutError()
-    }
-    if (response.digestErrorsMap.size) {
-      const buildFailingError = response.digestErrorsMap.values().next().value
-      if (buildFailingError) throw buildFailingError
-    }
-    // Pick first userland SSR error, which is also not a RSC error.
-    if (response.ssrErrors.length) {
-      const buildFailingError = response.ssrErrors.find((err) =>
-        isUserLandError(err)
-      )
-      if (buildFailingError) throw buildFailingError
-    }
+async function renderAppPage(
+  { req, ctx, metadata, loaderTree }: PreparedAppPageRender,
+  postponedState: PostponedState | null,
+  serverComponentsHmrCache: ServerComponentsHmrCache | undefined
+) {
+  const {
+    res,
+    url,
+    renderOpts,
+    workStore,
+    parsedRequestHeaders,
+    componentMod: ComponentMod,
+    implicitTags,
+  } = ctx
+  const { cacheComponents, setIsrStatus, serverActions } = renderOpts
+  const { cachedNavigations } = renderOpts.experimental
+  const {
+    isHmrRefresh,
+    isRSCRequest,
+    isRuntimePrefetchRequest,
+    isAppShellPrefetchRequest,
+  } = parsedRequestHeaders
+  const isPossibleActionRequest = ctx.isPossibleServerAction
 
-    const options: RenderResultOptions = {
-      metadata,
-      contentType: HTML_CONTENT_TYPE_HEADER,
-    }
+  // We're rendering dynamically
+  const renderResumeDataCache =
+    renderOpts.renderResumeDataCache ??
+    postponedState?.renderResumeDataCache ??
+    null
 
-    // If we have pending revalidates, wait until they are all resolved.
-    const maybeRevalidatesPromise = executeRevalidates(workStore)
-    if (maybeRevalidatesPromise !== false) {
-      const revalidatesPromise = maybeRevalidatesPromise.finally(() => {
-        if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
-          console.log('pending revalidates promise finished for:', url.href)
-        }
-      })
-      if (renderOpts.waitUntil) {
-        renderOpts.waitUntil(revalidatesPromise)
-      } else {
-        options.waitUntil = revalidatesPromise
-      }
-    }
+  const rootParams = getRootParams(loaderTree, ctx.getDynamicParamFromSegment)
+  const fallbackParams = getRequestMeta(req, 'fallbackParams') || null
+  const hmrRefreshHash = getRequestMeta(req, 'hmrRefreshHash')
 
-    applyMetadataFromPrerenderResult(response, metadata, workStore)
+  const createRequestStore = createRequestStoreForRender.bind(
+    null,
+    req,
+    res,
+    url,
+    rootParams,
+    implicitTags,
+    renderOpts.onUpdateCookies,
+    renderOpts.previewProps,
+    isHmrRefresh,
+    serverComponentsHmrCache,
+    renderResumeDataCache,
+    fallbackParams,
+    hmrRefreshHash
+  )
+  const requestStore = createRequestStore()
 
-    if (response.renderResumeDataCache) {
-      metadata.renderResumeDataCache = response.renderResumeDataCache
-    }
+  if (
+    process.env.__NEXT_DEV_SERVER &&
+    setIsrStatus &&
+    !cacheComponents &&
+    // Only pages using the Node runtime can use ISR, so we only need to
+    // update the status for those.
+    // The type check here ensures that `req` is correctly typed, and the
+    // environment variable check provides dead code elimination.
+    process.env.NEXT_RUNTIME !== 'edge' &&
+    isNodeNextRequest(req)
+  ) {
+    req.originalRequest.on('end', () => {
+      const { pathname } = new URL(req.url || '/', 'http://n')
+      const isStatic = !requestStore.usedDynamic && !workStore.forceDynamic
+      setIsrStatus(pathname, isStatic)
+    })
+  }
 
-    const streamString = await streamToString(response.stream)
-    const result = new RenderResult(streamString, options)
-
-    // Run build-time instant validation if the page has instant configs
-    // TODO(instant-validation-build): This is not a great place to wire this in.
-    if (
-      workStore.cacheComponentsEnabled &&
-      workStore.isBuildTimePrerendering &&
-      renderOpts.runInstantValidation &&
-      (await anySegmentNeedsInstantValidationInBuild(loaderTree))
-    ) {
-      // Throws StaticGenBailoutError if validation failed.
-      await validateInstantConfigsInBuild(
+  // MARK: RSC request
+  if (isRSCRequest) {
+    if (isRuntimePrefetchRequest) {
+      // MARK: RSC runtimePrefetch
+      return generateRuntimePrefetchResult(
+        req,
         ctx,
-        response.renderResumeDataCache ?? null
+        requestStore,
+        isAppShellPrefetchRequest
       )
-    }
-
-    return result
-  } else {
-    // We're rendering dynamically
-    const renderResumeDataCache =
-      renderOpts.renderResumeDataCache ??
-      postponedState?.renderResumeDataCache ??
-      null
-
-    const rootParams = getRootParams(loaderTree, ctx.getDynamicParamFromSegment)
-    const fallbackParams = getRequestMeta(req, 'fallbackParams') || null
-    const hmrRefreshHash = getRequestMeta(req, 'hmrRefreshHash')
-
-    const createRequestStore = createRequestStoreForRender.bind(
-      null,
-      req,
-      res,
-      url,
-      rootParams,
-      implicitTags,
-      renderOpts.onUpdateCookies,
-      renderOpts.previewProps,
-      isHmrRefresh,
-      serverComponentsHmrCache,
-      renderResumeDataCache,
-      fallbackParams,
-      hmrRefreshHash
-    )
-    const requestStore = createRequestStore()
-
-    if (
-      process.env.__NEXT_DEV_SERVER &&
-      setIsrStatus &&
-      !cacheComponents &&
-      // Only pages using the Node runtime can use ISR, so we only need to
-      // update the status for those.
-      // The type check here ensures that `req` is correctly typed, and the
-      // environment variable check provides dead code elimination.
-      process.env.NEXT_RUNTIME !== 'edge' &&
-      isNodeNextRequest(req)
-    ) {
-      req.originalRequest.on('end', () => {
-        const { pathname } = new URL(req.url || '/', 'http://n')
-        const isStatic = !requestStore.usedDynamic && !workStore.forceDynamic
-        setIsrStatus(pathname, isStatic)
-      })
-    }
-
-    // MARK: RSC request
-    if (isRSCRequest) {
-      if (isRuntimePrefetchRequest) {
-        // MARK: RSC runtimePrefetch
-        return generateRuntimePrefetchResult(
+    } else {
+      if (
+        process.env.__NEXT_DEV_SERVER &&
+        process.env.NEXT_RUNTIME !== 'edge' &&
+        cacheComponents
+      ) {
+        // MARK: RSC devCacheComponents
+        return generateDynamicFlightRenderResultWithStagesInDev(
           req,
           ctx,
           requestStore,
-          isAppShellPrefetchRequest
+          createRequestStore,
+          fallbackParams
+        )
+      } else if (cacheComponents && cachedNavigations) {
+        // MARK: RSC cacheComponents
+        return generateStagedDynamicFlightRenderResultNode(
+          req,
+          ctx,
+          requestStore
         )
       } else {
-        if (
-          process.env.__NEXT_DEV_SERVER &&
-          process.env.NEXT_RUNTIME !== 'edge' &&
-          cacheComponents
-        ) {
-          // MARK: RSC devCacheComponents
-          return generateDynamicFlightRenderResultWithStagesInDev(
-            req,
-            ctx,
-            requestStore,
-            createRequestStore,
-            fallbackParams
-          )
-        } else if (cacheComponents && cachedNavigations) {
-          // MARK: RSC cacheComponents
-          return generateStagedDynamicFlightRenderResultNode(
-            req,
-            ctx,
-            requestStore
-          )
-        } else {
-          // MARK: RSC dynamic
-          return generateDynamicFlightRenderResult(req, ctx, requestStore)
-        }
+        // MARK: RSC dynamic
+        return generateDynamicFlightRenderResult(req, ctx, requestStore)
       }
     }
+  }
 
-    let didExecuteServerAction = false
-    let formState: null | any = null
-    if (isPossibleActionRequest) {
-      // For action requests, we handle them differently with a special render result.
-      const actionRequestResult = await handleAction({
-        req,
-        res,
-        ComponentMod,
-        generateFlight: generateDynamicFlightRenderResult,
-        workStore,
-        requestStore,
-        serverActions,
-        ctx,
-        metadata,
-      })
-
-      if (actionRequestResult) {
-        if (actionRequestResult.type === 'not-found') {
-          const notFoundLoaderTree = createNotFoundLoaderTree(loaderTree)
-          res.statusCode = 404
-          metadata.statusCode = 404
-          const stream = await renderToStream(
-            requestStore,
-            req,
-            res,
-            ctx,
-            notFoundLoaderTree,
-            formState,
-            postponedState,
-            metadata,
-            undefined, // Prevent restartable-render behavior in dev + Cache Components mode
-            fallbackParams
-          )
-
-          return new RenderResult(stream, {
-            metadata,
-            contentType: HTML_CONTENT_TYPE_HEADER,
-          })
-        } else if (actionRequestResult.type === 'done') {
-          if (actionRequestResult.result) {
-            actionRequestResult.result.assignMetadata(metadata)
-            return actionRequestResult.result
-          } else if (actionRequestResult.formState) {
-            formState = actionRequestResult.formState
-          }
-        }
-      }
-
-      didExecuteServerAction = true
-    }
-
-    const options: RenderResultOptions = {
-      metadata,
-      contentType: HTML_CONTENT_TYPE_HEADER,
-    }
-
-    const stream = await renderToStream(
-      // NOTE: in Cache Components (dev), if the render is restarted, it will use a different requestStore
-      // than the one that we're passing in here.
-      requestStore,
+  let didExecuteServerAction = false
+  let formState: null | any = null
+  if (isPossibleActionRequest) {
+    // For action requests, we handle them differently with a special render result.
+    const actionRequestResult = await handleAction({
       req,
       res,
+      ComponentMod,
+      generateFlight: generateDynamicFlightRenderResult,
+      workStore,
+      requestStore,
+      serverActions,
       ctx,
-      loaderTree,
-      formState,
-      postponedState,
       metadata,
-      // If we're rendering HTML after an action, we don't want restartable-render behavior
-      // because the result should be dynamic, like it is in prod.
-      // Also, the request store might have been mutated by the action (e.g. enabling draftMode)
-      // and we currently we don't copy changes over when creating a new store,
-      // so the restarted render wouldn't be correct.
-      didExecuteServerAction ? undefined : createRequestStore,
-      fallbackParams
-    )
+    })
 
-    // Forward an invalid-dynamic-usage error recorded by `'use cache'` only
-    // when userland caught it (try/catch around the cache call). If userland
-    // didn't catch, the rejection propagated into the React render, and React's
-    // `serverComponentsErrorHandler` already stamped a digest on the error and
-    // emitted it as a Flight error chunk — surfacing it again here would
-    // duplicate the entry in the dev overlay.
-    //
-    // The cacheComponents paths forward this themselves via
-    // `runValidationInDev` and the validation-skipped fallback in
-    // `generateDynamicFlightRenderResultWithStagesInDev`. Here we cover the
-    // non-cacheComponents dev path where neither runs.
-    if (
-      process.env.__NEXT_DEV_SERVER &&
-      !cacheComponents &&
-      workStore.invalidDynamicUsageError &&
-      !(workStore.invalidDynamicUsageError as { digest?: unknown }).digest
-    ) {
-      void logMessagesAndSendErrorsToBrowser(
-        [workStore.invalidDynamicUsageError],
-        ctx
-      )
-    }
+    if (actionRequestResult) {
+      if (actionRequestResult.type === 'not-found') {
+        const notFoundLoaderTree = createNotFoundLoaderTree(loaderTree)
+        res.statusCode = 404
+        metadata.statusCode = 404
+        const stream = await renderToStream(
+          requestStore,
+          req,
+          res,
+          ctx,
+          notFoundLoaderTree,
+          formState,
+          postponedState,
+          metadata,
+          undefined, // Prevent restartable-render behavior in dev + Cache Components mode
+          fallbackParams
+        )
 
-    // If we have pending revalidates, wait until they are all resolved.
-    const maybeRevalidatesPromise = executeRevalidates(workStore)
-    if (maybeRevalidatesPromise !== false) {
-      const revalidatesPromise = maybeRevalidatesPromise.finally(() => {
-        if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
-          console.log('pending revalidates promise finished for:', url.href)
+        return new RenderResult(stream, {
+          metadata,
+          contentType: HTML_CONTENT_TYPE_HEADER,
+        })
+      } else if (actionRequestResult.type === 'done') {
+        if (actionRequestResult.result) {
+          actionRequestResult.result.assignMetadata(metadata)
+          return actionRequestResult.result
+        } else if (actionRequestResult.formState) {
+          formState = actionRequestResult.formState
         }
-      })
-      if (renderOpts.waitUntil) {
-        renderOpts.waitUntil(revalidatesPromise)
-      } else {
-        options.waitUntil = revalidatesPromise
       }
     }
 
-    // Create the new render result for the response.
-    return new RenderResult(stream, options)
+    didExecuteServerAction = true
   }
+
+  const options: RenderResultOptions = {
+    metadata,
+    contentType: HTML_CONTENT_TYPE_HEADER,
+  }
+
+  const stream = await renderToStream(
+    // NOTE: in Cache Components (dev), if the render is restarted, it will use a different requestStore
+    // than the one that we're passing in here.
+    requestStore,
+    req,
+    res,
+    ctx,
+    loaderTree,
+    formState,
+    postponedState,
+    metadata,
+    // If we're rendering HTML after an action, we don't want restartable-render behavior
+    // because the result should be dynamic, like it is in prod.
+    // Also, the request store might have been mutated by the action (e.g. enabling draftMode)
+    // and we currently we don't copy changes over when creating a new store,
+    // so the restarted render wouldn't be correct.
+    didExecuteServerAction ? undefined : createRequestStore,
+    fallbackParams
+  )
+
+  // Forward an invalid-dynamic-usage error recorded by `'use cache'` only
+  // when userland caught it (try/catch around the cache call). If userland
+  // didn't catch, the rejection propagated into the React render, and React's
+  // `serverComponentsErrorHandler` already stamped a digest on the error and
+  // emitted it as a Flight error chunk — surfacing it again here would
+  // duplicate the entry in the dev overlay.
+  //
+  // The cacheComponents paths forward this themselves via
+  // `runValidationInDev` and the validation-skipped fallback in
+  // `generateDynamicFlightRenderResultWithStagesInDev`. Here we cover the
+  // non-cacheComponents dev path where neither runs.
+  if (
+    process.env.__NEXT_DEV_SERVER &&
+    !cacheComponents &&
+    workStore.invalidDynamicUsageError &&
+    !(workStore.invalidDynamicUsageError as { digest?: unknown }).digest
+  ) {
+    void logMessagesAndSendErrorsToBrowser(
+      [workStore.invalidDynamicUsageError],
+      ctx
+    )
+  }
+
+  // If we have pending revalidates, wait until they are all resolved.
+  const maybeRevalidatesPromise = executeRevalidates(workStore)
+  if (maybeRevalidatesPromise !== false) {
+    const revalidatesPromise = maybeRevalidatesPromise.finally(() => {
+      if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+        console.log('pending revalidates promise finished for:', url.href)
+      }
+    })
+    if (renderOpts.waitUntil) {
+      renderOpts.waitUntil(revalidatesPromise)
+    } else {
+      options.waitUntil = revalidatesPromise
+    }
+  }
+
+  // Create the new render result for the response.
+  return new RenderResult(stream, options)
+}
+
+async function renderToHTMLOrFlightImpl(
+  req: BaseNextRequest,
+  res: BaseNextResponse,
+  url: ReturnType<typeof parseRelativeUrl>,
+  pagePath: string,
+  query: NextParsedUrlQuery,
+  renderOpts: RenderOpts,
+  workStore: WorkStore,
+  parsedRequestHeaders: ParsedRequestHeaders,
+  postponedState: PostponedState | null,
+  serverComponentsHmrCache: ServerComponentsHmrCache | undefined,
+  sharedContext: AppSharedContext,
+  interpolatedParams: Params,
+  fallbackRouteParams: OpaqueFallbackRouteParams | null
+) {
+  const prepared = await prepareAppPageRender(
+    req,
+    res,
+    url,
+    pagePath,
+    query,
+    renderOpts,
+    workStore,
+    parsedRequestHeaders,
+    sharedContext,
+    interpolatedParams,
+    fallbackRouteParams,
+    generateRenderRequestId,
+    getMissingPrefetchHintPolicy(
+      renderOpts.isBuildTimePrerendering ?? false,
+      false,
+      renderOpts.cacheComponents
+    ),
+    {
+      canPostpone: false,
+      isPossiblyPartialResponse: false,
+      supportsPerSegmentPrefetching: renderOpts.cacheComponents,
+    }
+  )
+  return renderAppPage(prepared, postponedState, serverComponentsHmrCache)
+}
+
+async function prerenderToHTMLOrFlightImpl(
+  req: BaseNextRequest,
+  res: BaseNextResponse,
+  url: ReturnType<typeof parseRelativeUrl>,
+  pagePath: string,
+  query: NextParsedUrlQuery,
+  renderOpts: RenderOpts,
+  workStore: WorkStore,
+  parsedRequestHeaders: ParsedRequestHeaders,
+  sharedContext: AppSharedContext,
+  interpolatedParams: Params,
+  fallbackRouteParams: OpaqueFallbackRouteParams | null
+) {
+  const isRoutePPREnabled = renderOpts.experimental.isRoutePPREnabled === true
+  const prepared = await prepareAppPageRender(
+    req,
+    res,
+    url,
+    pagePath,
+    query,
+    renderOpts,
+    workStore,
+    parsedRequestHeaders,
+    sharedContext,
+    interpolatedParams,
+    fallbackRouteParams,
+    generatePrerenderRequestId,
+    getMissingPrefetchHintPolicy(
+      renderOpts.isBuildTimePrerendering ?? false,
+      true,
+      renderOpts.cacheComponents
+    ),
+    {
+      // These are distinct rendering and protocol properties even though they
+      // are both determined by route-level PPR support today.
+      canPostpone: isRoutePPREnabled,
+      isPossiblyPartialResponse: isRoutePPREnabled,
+      supportsPerSegmentPrefetching: true,
+    }
+  )
+  return prerenderAppPage(prepared)
 }
 
 export type AppPageRender = (
@@ -3102,16 +3266,19 @@ export type AppPageRender = (
   sharedContext: AppSharedContext
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
 
-export const renderToHTMLOrFlight: AppPageRender = (
-  req,
-  res,
-  pagePath,
-  query,
-  fallbackRouteParams,
-  renderOpts,
-  serverComponentsHmrCache,
-  sharedContext
-) => {
+type AppPagePreparation = {
+  url: ReturnType<typeof parseRelativeUrl>
+  parsedRequestHeaders: ParsedRequestHeaders
+  interpolatedParams: Params
+  postponedState: PostponedState | null
+}
+
+function prepareAppPage(
+  req: BaseNextRequest,
+  pagePath: string,
+  fallbackRouteParams: OpaqueFallbackRouteParams | null,
+  renderOpts: RenderOpts
+): AppPagePreparation {
   if (!req.url) {
     throw new Error('Invalid URL')
   }
@@ -3125,14 +3292,16 @@ export const renderToHTMLOrFlight: AppPageRender = (
     previewModeId: renderOpts.previewProps?.previewModeId,
   })
 
-  const { isPrefetchRequest, previouslyRevalidatedTags, nonce } =
-    parsedRequestHeaders
-
-  let interpolatedParams: Params
-  let postponedState: PostponedState | null = null
+  const interpolatedParams = interpolateParallelRouteParams(
+    renderOpts.ComponentMod.routeModule.userland.loaderTree,
+    renderOpts.params ?? {},
+    pagePath,
+    fallbackRouteParams
+  )
 
   // If provided, the postpone state should be parsed so it can be provided to
   // React.
+  let postponedState: PostponedState | null = null
   if (typeof renderOpts.postponed === 'string') {
     if (fallbackRouteParams) {
       throw new InvariantError(
@@ -3140,24 +3309,10 @@ export const renderToHTMLOrFlight: AppPageRender = (
       )
     }
 
-    interpolatedParams = interpolateParallelRouteParams(
-      renderOpts.ComponentMod.routeModule.userland.loaderTree,
-      renderOpts.params ?? {},
-      pagePath,
-      fallbackRouteParams
-    )
-
     postponedState = parsePostponedState(
       renderOpts.postponed,
       interpolatedParams,
       renderOpts.experimental.maxPostponedStateSizeBytes
-    )
-  } else {
-    interpolatedParams = interpolateParallelRouteParams(
-      renderOpts.ComponentMod.routeModule.userland.loaderTree,
-      renderOpts.params ?? {},
-      pagePath,
-      fallbackRouteParams
     )
   }
 
@@ -3170,6 +3325,28 @@ export const renderToHTMLOrFlight: AppPageRender = (
     )
   }
 
+  return {
+    url,
+    parsedRequestHeaders,
+    interpolatedParams,
+    postponedState,
+  }
+}
+
+export const renderToHTMLOrFlight: AppPageRender = (
+  req,
+  res,
+  pagePath,
+  query,
+  fallbackRouteParams,
+  renderOpts,
+  serverComponentsHmrCache,
+  sharedContext
+) => {
+  const { url, parsedRequestHeaders, interpolatedParams, postponedState } =
+    prepareAppPage(req, pagePath, fallbackRouteParams, renderOpts)
+  const { isPrefetchRequest, previouslyRevalidatedTags, nonce } =
+    parsedRequestHeaders
   const workStore = createWorkStore({
     page: renderOpts.routeModule.definition.page,
     renderOpts,
@@ -3183,9 +3360,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
 
   return workAsyncStorage.run(
     workStore,
-    // The function to run
     renderToHTMLOrFlightImpl,
-    // all of it's args
     req,
     res,
     url,
@@ -3196,6 +3371,52 @@ export const renderToHTMLOrFlight: AppPageRender = (
     parsedRequestHeaders,
     postponedState,
     serverComponentsHmrCache,
+    sharedContext,
+    interpolatedParams,
+    fallbackRouteParams
+  )
+}
+
+export const prerenderToHTMLOrFlight: AppPageRender = (
+  req,
+  res,
+  pagePath,
+  query,
+  fallbackRouteParams,
+  renderOpts,
+  _serverComponentsHmrCache,
+  sharedContext
+) => {
+  const { url, parsedRequestHeaders, interpolatedParams } = prepareAppPage(
+    req,
+    pagePath,
+    fallbackRouteParams,
+    renderOpts
+  )
+  const { isPrefetchRequest, previouslyRevalidatedTags, nonce } =
+    parsedRequestHeaders
+  const workStore = createPrerenderWorkStore({
+    page: renderOpts.routeModule.definition.page,
+    renderOpts,
+    // @TODO move to workUnitStore of type Request
+    isPrefetchRequest,
+    buildId: sharedContext.buildId,
+    deploymentId: sharedContext.deploymentId,
+    previouslyRevalidatedTags,
+    nonce,
+  })
+
+  return workAsyncStorage.run(
+    workStore,
+    prerenderToHTMLOrFlightImpl,
+    req,
+    res,
+    url,
+    pagePath,
+    query,
+    renderOpts,
+    workStore,
+    parsedRequestHeaders,
     sharedContext,
     interpolatedParams,
     fallbackRouteParams
@@ -3412,7 +3633,7 @@ async function renderToStream(
       return onInstrumentationRequestError?.(
         err,
         req,
-        createErrorContext(ctx, 'react-server-components'),
+        createRequestErrorContext(ctx, 'react-server-components'),
         silenceLog
       )
     }
@@ -3431,7 +3652,7 @@ async function renderToStream(
       return onInstrumentationRequestError?.(
         err,
         req,
-        createErrorContext(ctx, 'server-rendering'),
+        createRequestErrorContext(ctx, 'server-rendering'),
         silenceLog
       )
     }
@@ -3471,7 +3692,7 @@ async function renderToStream(
               getRSCPayload,
               tree,
               ctx,
-              { is404: res.statusCode === 404 }
+              { is404: res.statusCode === 404, isPrerendering: false }
             )
 
           if (isBypassingCachesInDev(requestStore, workStore)) {
@@ -3655,6 +3876,7 @@ async function renderToStream(
           ctx,
           {
             is404: res.statusCode === 404,
+            isPrerendering: false,
             staleTimeIterable,
             shellByteLengthPromise: shellByteLengthDeferred.promise,
             staticStageByteLengthPromise: staticStageByteLengthDeferred.promise,
@@ -3724,7 +3946,7 @@ async function renderToStream(
               getRSCPayload,
               tree,
               ctx,
-              { is404: res.statusCode === 404 }
+              { is404: res.statusCode === 404, isPrerendering: false }
             )
 
           const debugChannel = setReactDebugChannel && createNodeDebugChannel()
@@ -3766,7 +3988,7 @@ async function renderToStream(
               getRSCPayload,
               tree,
               ctx,
-              { is404: res.statusCode === 404 }
+              { is404: res.statusCode === 404, isPrerendering: false }
             )
 
           const debugChannel = setReactDebugChannel && createWebDebugChannel()
@@ -6325,7 +6547,6 @@ function buildDevValidationWorkStore(
   })
 
   return {
-    isStaticGeneration: false,
     page: message.page,
     route: message.route,
     forceStatic: message.forceStatic,
@@ -6336,6 +6557,7 @@ function buildDevValidationWorkStore(
     cacheLifeProfiles: message.nextConfigSerializable.cacheLifeProfiles,
     buildId: message.buildId,
     deploymentId: message.deploymentId,
+    requestStartTime: message.request.requestStartTime,
     previouslyRevalidatedTags: [],
     refreshTagsByCacheKind: new Map(),
     runInCleanSnapshot: createSnapshot(),
@@ -7908,9 +8130,9 @@ async function validateInstantConfigInBuildWithSample(
 
   // NOTE: Matching the field order in `createWorkStore` to avoid deopting.
   const workStore: WorkStore = {
-    isStaticGeneration: false,
     page: outerWorkStore.page,
     route: outerWorkStore.route,
+    requestStartTime: outerWorkStore.requestStartTime,
     incrementalCache: outerWorkStore.incrementalCache,
     cacheLifeProfiles: outerWorkStore.cacheLifeProfiles,
     useCacheTimeout: outerWorkStore.useCacheTimeout,
@@ -7955,6 +8177,17 @@ async function validateInstantConfigInBuildWithSample(
       url: sampleUrlWithoutQuery,
       renderOpts: outerCtx.renderOpts,
       workStore,
+      missingPrefetchHintPolicy: getMissingPrefetchHintPolicy(
+        outerCtx.renderOpts.isBuildTimePrerendering ?? false,
+        false,
+        outerCtx.renderOpts.cacheComponents
+      ),
+      renderCapabilities: {
+        canPostpone: false,
+        isPossiblyPartialResponse: false,
+        supportsPerSegmentPrefetching:
+          outerCtx.renderCapabilities.supportsPerSegmentPrefetching,
+      },
       parsedRequestHeaders: outerCtx.parsedRequestHeaders,
       getDynamicParamFromSegment,
       interpolatedParams: sampleParams,
@@ -8047,7 +8280,7 @@ async function validateInstantConfigInBuildWithSample(
           getRSCPayload,
           loaderTree,
           validationCtx,
-          { is404: false }
+          { is404: false, isPrerendering: true }
         ),
       (signal) =>
         function onError(err) {
@@ -8342,7 +8575,7 @@ async function prerenderToStream(
       return onInstrumentationRequestError?.(
         err,
         req,
-        createErrorContext(ctx, 'react-server-components'),
+        createPrerenderErrorContext(ctx, 'react-server-components'),
         silenceLog
       )
     }
@@ -8362,7 +8595,7 @@ async function prerenderToStream(
       return onInstrumentationRequestError?.(
         err,
         req,
-        createErrorContext(ctx, 'server-rendering'),
+        createPrerenderErrorContext(ctx, 'server-rendering'),
         silenceLog
       )
     }
@@ -8497,7 +8730,7 @@ async function prerenderToStream(
         getRSCPayload,
         tree,
         ctx,
-        { is404: res.statusCode === 404 }
+        { is404: res.statusCode === 404, isPrerendering: true }
       )
 
       const initialServerPrerenderStore: PrerenderStore = (prerenderStore = {
@@ -8811,6 +9044,7 @@ async function prerenderToStream(
         ctx,
         {
           is404: res.statusCode === 404,
+          isPrerendering: true,
           shellByteLengthPromise: shellByteLengthDeferred.promise,
         }
       )
@@ -9319,7 +9553,7 @@ async function prerenderToStream(
         getRSCPayload,
         tree,
         ctx,
-        { is404: res.statusCode === 404 }
+        { is404: res.statusCode === 404, isPrerendering: true }
       )
       let reactServerResult: ReactServerPrerenderResult
       reactServerResult = reactServerPrerenderResult =
@@ -9557,7 +9791,7 @@ async function prerenderToStream(
         getRSCPayload,
         tree,
         ctx,
-        { is404: res.statusCode === 404 }
+        { is404: res.statusCode === 404, isPrerendering: true }
       )
 
       let reactServerResult: ReactServerPrerenderResult

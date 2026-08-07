@@ -319,6 +319,8 @@ The per-route `prefetch = 'partial'` exports are now redundant. Remove them in o
 npx @next/codemod@canary remove-partial-prefetch ./app
 ```
 
+> **Good to know**: Pass `./src/app` in a `src/` project. A wrong path reports `0 ok` instead of failing, so check the file count.
+
 The codemod removes only the `'partial'` value and leaves other values such as `prefetch = 'force-disabled'` in place.
 
 ## Auditing routes for URL data
