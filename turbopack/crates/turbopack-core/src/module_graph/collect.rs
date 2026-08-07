@@ -1,7 +1,7 @@
 use anyhow::{Context, Result, bail};
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{
     chunk::ChunkingType,
@@ -20,7 +20,8 @@ pub struct CollectedModules {
     /// are conditional based on the current page being chunked.
     ///
     /// (ChunkGroup::Entry Modules, Collecting Module) -> Vec<(Reference, Collected Module)>
-    pub collected_references: FxHashMap<
+    #[bincode(with = "turbo_bincode::indexmap")]
+    pub collected_references: FxIndexMap<
         (
             Vec<ResolvedVc<Box<dyn Module>>>,
             ResolvedVc<Box<dyn Module>>,
@@ -207,13 +208,13 @@ pub async fn collect_graph(graph: Vc<ModuleGraph>) -> Result<Vc<CollectedModules
     // Now we have all necessary information. List out all collected references for each (Entry
     // Module, Collecting Module) pair they are contained in.
     #[allow(clippy::type_complexity)]
-    let mut collected_references: FxHashMap<
+    let mut collected_references: FxIndexMap<
         (
             Vec<ResolvedVc<Box<dyn Module>>>,
             ResolvedVc<Box<dyn Module>>,
         ),
         Vec<(RefData, ResolvedVc<Box<dyn Module>>)>,
-    > = FxHashMap::default();
+    > = FxIndexMap::default();
 
     for (ref_data, emitted_module) in emitted_references {
         let emitted_membership = module_entry_membership

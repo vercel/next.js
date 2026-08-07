@@ -236,7 +236,7 @@ impl EcmascriptChunkPlaceable for CollectModuleWithChunkGroup {
         let items = collected_modules
             .collected_references
             .iter()
-            .find_map(|((entry_modules, collecting_module), references)| {
+            .filter_map(|((entry_modules, collecting_module), references)| {
                 if *collecting_module == ResolvedVc::upcast(self.module)
                     && entry_modules.iter().any(|m| entries.contains(m))
                 {
@@ -245,7 +245,6 @@ impl EcmascriptChunkPlaceable for CollectModuleWithChunkGroup {
                     None
                 }
             })
-            .into_iter()
             .flatten();
 
         let items = items
