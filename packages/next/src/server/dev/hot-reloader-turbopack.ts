@@ -210,6 +210,9 @@ function createServerHmrApplier(
   return function applyServerHmrUpdate() {
     const apply = pendingApply.then(async () => {
       const update = await project.getServerHmrUpdate()
+      process.stderr.write(
+        `[server-hmr-debug] getServerHmrUpdate -> ${update.type}\n`
+      )
 
       switch (update.type) {
         case 'issues':
@@ -230,19 +233,32 @@ function createServerHmrApplier(
       // until the next request.
       const handlers = globalThis.__turbopack_server_hmr_handlers__
       if (!handlers || handlers.size === 0) {
+        process.stderr.write(
+          `[server-hmr-debug] skipping apply: no handlers registered (${handlers?.size ?? 'undefined'})\n`
+        )
         return
       }
 
       const updatedChunkPaths = collectUpdatedChunkPaths(update.instruction)
       // An empty partial only advances the native version state.
       if (updatedChunkPaths.length === 0) {
+        process.stderr.write(
+          `[server-hmr-debug] skipping apply: no updated chunk paths\n`
+        )
         return
       }
+
+      process.stderr.write(
+        `[server-hmr-debug] applying update for chunks: ${updatedChunkPaths.join(', ')}; hasApplyFn=${typeof __turbopack_server_hmr_apply__ === 'function'}\n`
+      )
 
       if (typeof __turbopack_server_hmr_apply__ === 'function') {
         try {
           __turbopack_server_hmr_apply__(update)
-        } catch {
+        } catch (err) {
+          process.stderr.write(
+            `[server-hmr-debug] __turbopack_server_hmr_apply__ threw: ${err}\n`
+          )
           // A matching runtime tried the apply and threw. Evict require.cache
           // so the next request loads fresh, then skip onApplied. (A no-match
           // update is a no-op and does not throw.)
@@ -250,6 +266,7 @@ function createServerHmrApplier(
           return
         }
 
+        process.stderr.write(`[server-hmr-debug] apply succeeded\n`)
         await onApplied(updatedChunkPaths)
       } else {
         await reEvaluateAllModulesExpensive()
@@ -1997,7 +2014,14 @@ export async function createHotReloaderTurbopack(
               applyServerHmrUpdate &&
               (route.type === 'app-page' || route.type === 'app-route')
             ) {
+              process.stderr.write(
+                `[server-hmr-debug] calling applyServerHmrUpdate for ${routeDef.page} (route.type=${route.type})\n`
+              )
               await applyServerHmrUpdate()
+            } else {
+              process.stderr.write(
+                `[server-hmr-debug] NOT calling applyServerHmrUpdate for ${routeDef.page} (route.type=${route.type}, hasApplier=${!!applyServerHmrUpdate})\n`
+              )
             }
           } finally {
             finishBuilding()
