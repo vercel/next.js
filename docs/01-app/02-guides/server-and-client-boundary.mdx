@@ -94,13 +94,13 @@ Getting the data is no longer a separate step that passes initial props to the c
 
 > **Good to know:** Because a Server Component can read secrets and server-only data directly, be deliberate about what you pass to Client Components, props are serialized and sent to the browser. See [Data Security](/docs/app/guides/data-security#passing-data-from-server-to-client).
 
-A Server Component can start a fetch request during its own render and pass the pending promise down to a Client Component, that reads it with [`use`](https://react.dev/reference/react/use#streaming-data-from-server-to-client), so the request is in flight before the client even runs. Which means that Client Component don't need fetch after mount, in an effect or a data library, although there are cases where the fetch request has to start from the browser. 
+A Server Component can start a fetch during its own render without awaiting it, then pass the pending promise to a Client Component as a prop. The Client Component reads that promise as a resource with [`use`](https://react.dev/reference/react/use#streaming-data-from-server-to-client). It suspends while the promise is pending, the nearest [Suspense](/docs/app/glossary#suspense-boundary) boundary shows its fallback, and it renders once the promise resolves. Because the request is already in flight before the client runs, the Client Component does not need to start its own fetch after mount, in an effect or a data library. Some cases still need the fetch to start from the client, though. 
 
 Because fetching happens during a Server Component's render, the framework can optimize around it. It dedupes identical fetches in a single render, and it can cache a fetch, a function's output, or a component's output, and revalidate each on its own. With enough help from the bundler, it can even see which data feeds a component, which is what [Cache Components](/docs/app/getting-started/caching) builds on to revalidate at the granularity of the data itself, not the whole page. This starts with [fetching data](/docs/app/getting-started/fetching-data).
 
 ## State and interactivity
 
-A Server Component's code never reaches the browser, it can't hold client side state runs no effects, and never re-renders client side.
+A Server Component's code never reaches the browser, so it holds no client-side state, runs no effects, and never re-renders.
 
 A Client Component's code does reach the browser. React hydrates it, and from then on it runs on the client: it can hold state, run effects, respond to events, and re-render when its state or props change.
 
