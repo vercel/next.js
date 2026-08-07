@@ -29,9 +29,10 @@ use turbo_persistence::{
     sst_filter::SstFilter,
     static_sorted_file::{
         BLOCK_TYPE_FIXED_KEY_NO_HASH, BLOCK_TYPE_FIXED_KEY_WITH_HASH, BLOCK_TYPE_KEY_NO_HASH,
-        BLOCK_TYPE_KEY_WITH_HASH, KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_INLINE_MIN,
-        KEY_BLOCK_ENTRY_TYPE_KEY_DELETED, KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN,
-        KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
+        BLOCK_TYPE_KEY_WITH_HASH, FIXED_KEY_BLOCK_MIXED_VALUE_TYPE, KEY_BLOCK_ENTRY_TYPE_BLOB,
+        KEY_BLOCK_ENTRY_TYPE_INLINE_MIN, KEY_BLOCK_ENTRY_TYPE_KEY_DELETED,
+        KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN, KEY_BLOCK_ENTRY_TYPE_MEDIUM,
+        KEY_BLOCK_ENTRY_TYPE_SMALL,
     },
 };
 
@@ -381,9 +382,23 @@ fn parse_key_block_indices(index_block: &[u8]) -> HashSet<u16> {
 }
 
 /// Parsed header of a key block.
+#[derive(Clone, Copy)]
 enum KeyBlockHeader {
-    Variable { entry_count: u32 },
-    Fixed { entry_count: u32, value_type: u8 },
+    Variable {
+        entry_count: u32,
+    },
+    Fixed {
+        entry_count: u32,
+        value_type: u8,
+    },
+    /// Fixed-size layout whose entries share a value size but not a value type, so each carries
+    /// its own type byte between its key and its value.
+    FixedMixedType {
+        entry_count: u32,
+        hash_len: usize,
+        key_size: usize,
+        stride: usize,
+    },
 }
 
 /// Parses the header of a key block from the full decompressed block data.
@@ -397,10 +412,28 @@ fn parse_key_block_header(block: &[u8]) -> Result<KeyBlockHeader> {
         }
         BLOCK_TYPE_FIXED_KEY_WITH_HASH | BLOCK_TYPE_FIXED_KEY_NO_HASH => {
             assert!(block.len() >= 6, "Fixed key block header too small");
-            Ok(KeyBlockHeader::Fixed {
-                entry_count,
-                value_type: block[5],
-            })
+            if block[5] == FIXED_KEY_BLOCK_MIXED_VALUE_TYPE {
+                assert!(block.len() >= 7, "Mixed-type key block header too small");
+                let hash_len = if block_type == BLOCK_TYPE_FIXED_KEY_WITH_HASH {
+                    8
+                } else {
+                    0
+                };
+                let key_size = block[4] as usize;
+                // +1 for the per-entry type byte.
+                let val_size = block[6] as usize + 1;
+                Ok(KeyBlockHeader::FixedMixedType {
+                    entry_count,
+                    hash_len,
+                    key_size,
+                    stride: hash_len + key_size + val_size,
+                })
+            } else {
+                Ok(KeyBlockHeader::Fixed {
+                    entry_count,
+                    value_type: block[5],
+                })
+            }
         }
         _ => bail!("Invalid key block type: {block_type}"),
     }
@@ -408,27 +441,32 @@ fn parse_key_block_header(block: &[u8]) -> Result<KeyBlockHeader> {
 
 /// Iterates over entry type bytes in a key block.
 ///
-/// For variable-size key blocks, reads byte 0 of each 4-byte offset table entry.
-/// For fixed-size key blocks, yields the single `value_type` repeated `entry_count` times.
+/// For variable-size key blocks, reads byte 0 of each 4-byte offset table entry. For fixed-size
+/// key blocks, yields the single `value_type` repeated `entry_count` times, or reads the per-entry
+/// type byte when the block has mixed types.
 fn iter_key_block_entry_types(
     header: KeyBlockHeader,
     block: &[u8],
 ) -> impl Iterator<Item = u8> + '_ {
-    let (entry_count, fixed_type) = match header {
-        KeyBlockHeader::Variable { entry_count } => (entry_count, None),
-        KeyBlockHeader::Fixed {
-            entry_count,
-            value_type,
-        } => (entry_count, Some(value_type)),
+    let entry_count = match header {
+        KeyBlockHeader::Variable { entry_count }
+        | KeyBlockHeader::Fixed { entry_count, .. }
+        | KeyBlockHeader::FixedMixedType { entry_count, .. } => entry_count,
     };
-    (0..entry_count).map(move |i| {
-        if let Some(vt) = fixed_type {
-            vt
-        } else {
-            // Variable block: offset table starts at byte 4 (after 1B type + 3B count),
-            // each entry is 4 bytes, first byte is the entry type.
-            let header_offset = KEY_BLOCK_HEADER_SIZE + i as usize * 4;
-            block[header_offset]
+    (0..entry_count).map(move |i| match header {
+        // Variable block: offset table starts at byte 4 (after 1B type + 3B count),
+        // each entry is 4 bytes, first byte is the entry type.
+        KeyBlockHeader::Variable { .. } => block[KEY_BLOCK_HEADER_SIZE + i as usize * 4],
+        KeyBlockHeader::Fixed { value_type, .. } => value_type,
+        KeyBlockHeader::FixedMixedType {
+            hash_len,
+            key_size,
+            stride,
+            ..
+        } => {
+            // Entry data starts after the 7-byte mixed-type header; the type byte sits between
+            // the entry's key and its value.
+            block[7 + i as usize * stride + hash_len + key_size]
         }
     })
 }
@@ -515,7 +553,7 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
                     raw.was_compressed,
                 );
             }
-            KeyBlockHeader::Fixed { .. } => {
+            KeyBlockHeader::Fixed { .. } | KeyBlockHeader::FixedMixedType { .. } => {
                 stats.fixed_key_blocks.add(
                     raw.compressed_size,
                     raw.actual_size,
