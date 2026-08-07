@@ -5,7 +5,7 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::{
     DbConfig, FamilyConfig, FamilyKind,
-    constants::{MAX_MEDIUM_VALUE_SIZE, MAX_SMALL_VALUE_SIZE},
+    constants::{MAX_INLINE_VALUE_SIZE, MAX_MEDIUM_VALUE_SIZE, MAX_SMALL_VALUE_SIZE},
     db::{CompactConfig, TurboPersistence, read_current_version},
     parallel_scheduler::ParallelScheduler,
     write_batch::WriteBatch,
@@ -2286,7 +2286,7 @@ fn valued_tombstone_deletes_only_its_pair() -> Result<()> {
 
     // Delete just the middle one.
     let batch = db.write_batch()?;
-    batch.delete_value(0, key.clone(), 20u32.to_be_bytes())?;
+    batch.delete_value(0, key.clone(), 20u32.to_be_bytes().to_vec().into())?;
     db.commit_write_batch(batch)?;
 
     let mut results = db
@@ -2328,7 +2328,7 @@ fn valued_tombstone_survives_partial_compaction() -> Result<()> {
     }
 
     let batch = db.write_batch()?;
-    batch.delete_value(0, key.clone(), 42u32.to_be_bytes())?;
+    batch.delete_value(0, key.clone(), 42u32.to_be_bytes().to_vec().into())?;
     db.commit_write_batch(batch)?;
 
     // Compact repeatedly; whatever coverage the selector chooses, 42 must stay deleted.
@@ -2368,7 +2368,7 @@ fn valued_tombstone_persists_across_reopen() -> Result<()> {
         db.commit_write_batch(batch)?;
 
         let batch = db.write_batch()?;
-        batch.delete_value(0, key.clone(), 100u32.to_be_bytes())?;
+        batch.delete_value(0, key.clone(), 100u32.to_be_bytes().to_vec().into())?;
         db.commit_write_batch(batch)?;
         db.shutdown()?;
     }
@@ -2410,7 +2410,7 @@ fn whole_key_tombstone_still_deletes_all_values() -> Result<()> {
     db.commit_write_batch(batch)?;
 
     let batch = db.write_batch()?;
-    batch.delete_value(0, key.clone(), 1u32.to_be_bytes())?;
+    batch.delete_value(0, key.clone(), 1u32.to_be_bytes().to_vec().into())?;
     db.commit_write_batch(batch)?;
 
     let batch = db.write_batch()?;
@@ -2490,7 +2490,11 @@ fn compaction_reclaims_tombstones_when_no_older_sst_has_the_key() -> Result<()> 
     // Delete one of the two values for every key.
     let batch = db.write_batch()?;
     for k in 0..KEYS {
-        batch.delete_value(0, k.to_be_bytes().to_vec(), 1u32.to_be_bytes())?;
+        batch.delete_value(
+            0,
+            k.to_be_bytes().to_vec(),
+            1u32.to_be_bytes().to_vec().into(),
+        )?;
     }
     db.commit_write_batch(batch)?;
 
@@ -2570,7 +2574,11 @@ fn compaction_keeps_tombstone_when_older_sst_has_the_key() -> Result<()> {
 
     let batch = db.write_batch()?;
     for k in 0..KEYS {
-        batch.delete_value(0, k.to_be_bytes().to_vec(), 1u32.to_be_bytes())?;
+        batch.delete_value(
+            0,
+            k.to_be_bytes().to_vec(),
+            1u32.to_be_bytes().to_vec().into(),
+        )?;
     }
     db.commit_write_batch(batch)?;
 
@@ -2599,6 +2607,100 @@ fn compaction_keeps_tombstone_when_older_sst_has_the_key() -> Result<()> {
             );
         }
     }
+
+    db.shutdown()?;
+    Ok(())
+}
+
+/// Tombstones carry the deleted value inline, so every size up to the inline limit round-trips.
+/// The boundary sizes matter: the tag range is packed directly above the inline value range, so an
+/// off-by-one in either bound would decode a tombstone as a value or vice versa.
+#[test]
+fn valued_tombstone_supports_all_inline_value_sizes() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
+        path.to_path_buf(),
+        multi_value_config(),
+        RayonParallelScheduler,
+    )?;
+
+    // One key per value size, each holding a deleted value of that size plus a survivor.
+    for len in 0..=MAX_INLINE_VALUE_SIZE {
+        let key = vec![len as u8];
+        let doomed = vec![0xAAu8; len];
+
+        let batch = db.write_batch()?;
+        batch.put(0, key.clone(), doomed.clone().into())?;
+        batch.put(0, key.clone(), vec![0xBBu8; 3].into())?;
+        db.commit_write_batch(batch)?;
+
+        let batch = db.write_batch()?;
+        batch.delete_value(0, key.clone(), doomed.clone().into())?;
+        db.commit_write_batch(batch)?;
+
+        let results = db.get_multiple(0, &key.as_slice())?;
+        assert_eq!(
+            results.iter().map(|v| v.to_vec()).collect::<Vec<_>>(),
+            vec![vec![0xBBu8; 3]],
+            "{len}-byte value should have been deleted, and only it"
+        );
+    }
+
+    db.shutdown()?;
+    Ok(())
+}
+
+/// Values too large to store inline are rejected rather than silently truncated: the tombstone
+/// carries a copy of the value, so deleting a large value would cost more than it reclaims.
+#[test]
+fn valued_tombstone_rejects_values_larger_than_inline() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
+        path.to_path_buf(),
+        multi_value_config(),
+        RayonParallelScheduler,
+    )?;
+
+    let batch = db.write_batch()?;
+    let too_big = vec![0u8; MAX_INLINE_VALUE_SIZE + 1];
+    let err = batch
+        .delete_value(0, vec![1u8], too_big.into())
+        .expect_err("oversized value should be rejected");
+    assert!(
+        err.to_string().contains("at most"),
+        "unexpected error: {err}"
+    );
+
+    db.shutdown()?;
+    Ok(())
+}
+
+/// Key-value tombstones are meaningless in a SingleValue family, where `delete` already removes
+/// the single value exactly. Rejecting at the API keeps the tombstone off disk, where it would
+/// otherwise only surface as an error at read time.
+#[test]
+fn valued_tombstone_rejects_single_value_families() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
+        path.to_path_buf(),
+        DbConfig::<1>::default(),
+        RayonParallelScheduler,
+    )?;
+
+    let batch = db.write_batch()?;
+    let err = batch
+        .delete_value(0, vec![1u8], 1u32.to_be_bytes().to_vec().into())
+        .expect_err("SingleValue family should be rejected");
+    assert!(
+        err.to_string().contains("MultiValue"),
+        "unexpected error: {err}"
+    );
 
     db.shutdown()?;
     Ok(())

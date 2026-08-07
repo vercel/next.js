@@ -17,9 +17,9 @@ use crate::{
         BLOB_VALUE_REF_SIZE, BLOCK_TYPE_FIXED_KEY_NO_HASH, BLOCK_TYPE_FIXED_KEY_WITH_HASH,
         BLOCK_TYPE_INDEX, BLOCK_TYPE_KEY_NO_HASH, BLOCK_TYPE_KEY_WITH_HASH,
         KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_INLINE_MIN,
-        KEY_BLOCK_ENTRY_TYPE_KEY_DELETED, KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED,
+        KEY_BLOCK_ENTRY_TYPE_KEY_DELETED, KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN,
         KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL, KEY_DELETED_REF_SIZE,
-        KEY_VALUE_DELETED_REF_SIZE, MEDIUM_VALUE_REF_SIZE, SMALL_VALUE_REF_SIZE,
+        MEDIUM_VALUE_REF_SIZE, SMALL_VALUE_REF_SIZE,
     },
 };
 
@@ -253,8 +253,8 @@ pub enum EntryValue<'l> {
     /// Tombstone. The value was removed.
     KeyDeleted,
     /// Key-value tombstone. Only the one carried value was removed; other values for the same key
-    /// survive. MultiValue families only. The value must be exactly
-    /// [`KEY_VALUE_DELETED_REF_SIZE`] bytes.
+    /// survive. MultiValue families only. The value must be at most [`MAX_INLINE_VALUE_SIZE`]
+    /// bytes.
     KeyValueDeleted { value: &'l [u8] },
 }
 
@@ -398,9 +398,11 @@ enum ValueRef {
     Blob { blob_id: u32 },
     /// Tombstone.
     KeyDeleted,
-    /// Key-value tombstone: deletes only the carried value from the key's group.
+    /// Key-value tombstone: deletes only the carried value from the key's group. The value is
+    /// stored inline, exactly like [`ValueRef::Inline`].
     KeyValueDeleted {
-        data: [u8; KEY_VALUE_DELETED_REF_SIZE],
+        data: [u8; MAX_INLINE_VALUE_SIZE],
+        len: u8,
     },
 }
 
@@ -413,7 +415,9 @@ impl ValueRef {
             ValueRef::Inline { len, .. } => KEY_BLOCK_ENTRY_TYPE_INLINE_MIN + *len,
             ValueRef::Blob { .. } => KEY_BLOCK_ENTRY_TYPE_BLOB,
             ValueRef::KeyDeleted => KEY_BLOCK_ENTRY_TYPE_KEY_DELETED,
-            ValueRef::KeyValueDeleted { .. } => KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED,
+            ValueRef::KeyValueDeleted { len, .. } => {
+                KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN + *len
+            }
         })
     }
 
@@ -448,8 +452,8 @@ impl ValueRef {
                 buffer.extend(scratch);
             }
             ValueRef::KeyDeleted => { /* no value bytes */ }
-            ValueRef::KeyValueDeleted { data } => {
-                buffer.extend(data);
+            ValueRef::KeyValueDeleted { data, len } => {
+                buffer.extend(&data[..*len as usize]);
             }
             ValueRef::PendingSmall { .. } => {
                 unreachable!("PendingSmall should have been resolved");
@@ -718,15 +722,14 @@ impl<E: Entry> StreamingSstWriter<E> {
             EntryValue::Large { blob } => ValueRef::Blob { blob_id: blob },
             EntryValue::KeyDeleted => ValueRef::KeyDeleted,
             EntryValue::KeyValueDeleted { value } => {
-                assert_eq!(
-                    value.len(),
-                    KEY_VALUE_DELETED_REF_SIZE,
-                    "key-value tombstone payload must be exactly {KEY_VALUE_DELETED_REF_SIZE} \
-                     bytes"
-                );
-                let mut data = [0u8; KEY_VALUE_DELETED_REF_SIZE];
-                data.copy_from_slice(value);
-                ValueRef::KeyValueDeleted { data }
+                // Enforced by `WriteBatch::delete_value`, which rejects oversized values.
+                debug_assert!(value.len() <= MAX_INLINE_VALUE_SIZE);
+                let mut data = [0u8; MAX_INLINE_VALUE_SIZE];
+                data[..value.len()].copy_from_slice(value);
+                ValueRef::KeyValueDeleted {
+                    data,
+                    len: value.len() as u8,
+                }
             }
         };
 
@@ -1211,7 +1214,10 @@ fn value_type_val_size(ty: EntryType) -> usize {
         KEY_BLOCK_ENTRY_TYPE_MEDIUM => MEDIUM_VALUE_REF_SIZE,
         KEY_BLOCK_ENTRY_TYPE_BLOB => BLOB_VALUE_REF_SIZE,
         KEY_BLOCK_ENTRY_TYPE_KEY_DELETED => KEY_DELETED_REF_SIZE,
-        KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED => KEY_VALUE_DELETED_REF_SIZE,
+        // Must precede the inline arm: both are open-ended and the tombstone range sits above it.
+        ty if ty >= KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN => {
+            (ty - KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN) as usize
+        }
         ty if ty >= KEY_BLOCK_ENTRY_TYPE_INLINE_MIN => {
             (ty - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN) as usize
         }

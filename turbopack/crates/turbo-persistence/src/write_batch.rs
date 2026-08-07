@@ -6,7 +6,7 @@ use std::{
     sync::atomic::{AtomicU32, AtomicU64, Ordering},
 };
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use byteorder::{BE, WriteBytesExt};
 use either::Either;
 use fs_err::File;
@@ -19,13 +19,12 @@ use crate::{
     collector::Collector,
     collector_entry::CollectorEntry,
     compression::{checksum_block, compress_into_buffer},
-    constants::{MAX_MEDIUM_VALUE_SIZE, THREAD_LOCAL_SIZE_SHIFT},
+    constants::{MAX_INLINE_VALUE_SIZE, MAX_MEDIUM_VALUE_SIZE, THREAD_LOCAL_SIZE_SHIFT},
     db::WriteOperationGuard,
     key::StoreKey,
     meta_file::MetaEntryFlags,
     meta_file_builder::MetaFileBuilder,
     parallel_scheduler::ParallelScheduler,
-    static_sorted_file::KEY_VALUE_DELETED_REF_SIZE,
     static_sorted_file_builder::{StaticSortedFileBuilderMeta, write_static_stored_file},
 };
 
@@ -265,20 +264,28 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
     ///
     /// Callers must not insert and delete the same key-value pair in the same batch; the
     /// resolution order between them is undefined (debug builds assert against it).
-    pub fn delete_value(
-        &self,
-        family: u32,
-        key: K,
-        value: [u8; KEY_VALUE_DELETED_REF_SIZE],
-    ) -> Result<()> {
-        debug_assert_eq!(
-            self.family_configs[usize_from_u32(family)].kind,
-            FamilyKind::MultiValue,
-            "delete_value is only valid for MultiValue families"
-        );
+    ///
+    /// Only values of at most [`MAX_INLINE_VALUE_SIZE`] bytes can be deleted this way; larger
+    /// values are an error. The tombstone carries a copy of the value so that reads can match it,
+    /// so deleting a large value would cost more than the value it reclaims.
+    pub fn delete_value(&self, family: u32, key: K, value: ValueBuffer<'_>) -> Result<()> {
+        let family_config = &self.family_configs[usize_from_u32(family)];
+        if family_config.kind != FamilyKind::MultiValue {
+            bail!(
+                "delete_value is only valid for MultiValue families, but family {} is SingleValue",
+                family_config.name
+            );
+        }
+        if value.len() > MAX_INLINE_VALUE_SIZE {
+            bail!(
+                "delete_value only supports values of at most {MAX_INLINE_VALUE_SIZE} bytes, got \
+                 {} bytes",
+                value.len()
+            );
+        }
         let state = self.thread_local_state();
         let collector = self.thread_local_collector_mut(state, family)?;
-        collector.delete_value(key, value);
+        collector.delete_value(key, &value);
         Ok(())
     }
 

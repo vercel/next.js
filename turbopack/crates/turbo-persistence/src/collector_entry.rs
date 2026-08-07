@@ -3,7 +3,6 @@ use std::cmp::Ordering;
 use crate::{
     constants::MAX_INLINE_VALUE_SIZE,
     key::StoreKey,
-    static_sorted_file::KEY_VALUE_DELETED_REF_SIZE,
     static_sorted_file_builder::{Entry, EntryValue},
 };
 
@@ -35,8 +34,10 @@ pub enum CollectorEntryValue {
     },
     KeyDeleted,
     /// Key-value tombstone: deletes only this one value from the key's group. MultiValue only.
+    /// The deleted value is stored inline, so it is capped at [`MAX_INLINE_VALUE_SIZE`].
     KeyValueDeleted {
-        value: [u8; KEY_VALUE_DELETED_REF_SIZE],
+        value: [u8; MAX_INLINE_VALUE_SIZE],
+        len: u8,
     },
 }
 
@@ -152,7 +153,9 @@ impl<K: StoreKey> Entry for CollectorEntry<K> {
             CollectorEntryValue::Medium { value } => EntryValue::Medium { value },
             CollectorEntryValue::Large { blob } => EntryValue::Large { blob: *blob },
             CollectorEntryValue::KeyDeleted => EntryValue::KeyDeleted,
-            CollectorEntryValue::KeyValueDeleted { value } => EntryValue::KeyValueDeleted { value },
+            CollectorEntryValue::KeyValueDeleted { value, len } => EntryValue::KeyValueDeleted {
+                value: &value[..*len as usize],
+            },
         }
     }
 }

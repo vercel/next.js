@@ -48,16 +48,18 @@ pub const KEY_BLOCK_ENTRY_TYPE_BLOB: u8 = 1;
 pub const KEY_BLOCK_ENTRY_TYPE_KEY_DELETED: u8 = 2;
 /// The tag for a medium-sized value.
 pub const KEY_BLOCK_ENTRY_TYPE_MEDIUM: u8 = 3;
-/// The tag for a valued (key-value pair) tombstone: it deletes only the one value it carries,
-/// leaving other values for the same key intact. Only meaningful for
-/// [`FamilyKind::MultiValue`][crate::FamilyKind::MultiValue] families.
-///
-/// The payload is a fixed [`KEY_VALUE_DELETED_REF_SIZE`]-byte value. Keeping it fixed-size rather
-/// than length-prefixed keeps a block of these eligible for the fixed-size key block layout, and
-/// it suffices for the only current user: `TaskCache`, whose values are 4-byte task ids.
-pub const KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED: u8 = 4;
 /// The minimum tag for inline values. The actual size is (tag - INLINE_MIN).
 pub const KEY_BLOCK_ENTRY_TYPE_INLINE_MIN: u8 = 8;
+/// The minimum tag for a key-value tombstone, which deletes only the one value it carries and
+/// leaves other values for the same key intact. Only meaningful for
+/// [`FamilyKind::MultiValue`][crate::FamilyKind::MultiValue] families.
+///
+/// This mirrors the inline value range: the deleted value is stored inline in the key block and
+/// its size is (tag - KEY_VALUE_DELETED_MIN). Only inline-sized values can be deleted this way —
+/// a tombstone for a larger value would have to store a second copy of it, costing more than the
+/// value it reclaims.
+pub const KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN: u8 =
+    KEY_BLOCK_ENTRY_TYPE_INLINE_MIN + MAX_INLINE_VALUE_SIZE as u8 + 1;
 
 /// Encoded size of a small value reference: 2B block index + 2B size + 4B offset.
 pub(crate) const SMALL_VALUE_REF_SIZE: usize = 8;
@@ -67,13 +69,12 @@ pub(crate) const MEDIUM_VALUE_REF_SIZE: usize = 2;
 pub(crate) const BLOB_VALUE_REF_SIZE: usize = 4;
 /// Encoded size of a deleted (tombstone) value reference.
 pub(crate) const KEY_DELETED_REF_SIZE: usize = 0;
-/// Encoded size of a key-value tombstone's payload: the deleted value itself.
-pub(crate) const KEY_VALUE_DELETED_REF_SIZE: usize = 4;
 
-// Static assertion: MAX_INLINE_VALUE_SIZE must fit in the key type encoding.
-// Key types 8-255 encode inline values of size 0-247, so max is 255 - 8 = 247.
+// Static assertion: both the inline range and the key-value tombstone range that follows it must
+// fit in the key type byte. The tombstone range starts after the inline range and is the same
+// width, so the tombstone range's top is the binding constraint.
 const _: () = assert!(
-    MAX_INLINE_VALUE_SIZE <= (u8::MAX - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN) as usize,
+    MAX_INLINE_VALUE_SIZE <= (u8::MAX - KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN) as usize,
     "MAX_INLINE_VALUE_SIZE exceeds what can be encoded in key type byte"
 );
 
@@ -720,7 +721,9 @@ fn handle_key_match_generic<B: SharedBytes>(
             LookupValue::Blob { sequence_number }
         }
         KEY_BLOCK_ENTRY_TYPE_KEY_DELETED => LookupValue::KeyDeleted,
-        KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED => {
+        // Must precede the inline arm: both are open-ended and the tombstone range sits above it.
+        ty if ty >= KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN => {
+            // The deleted value is stored inline, so `val` is already the correct slice.
             // SAFETY: val points into key_block's data
             let value = unsafe { key_block.slice_from_subslice(val) };
             LookupValue::KeyValueDeleted { value }
@@ -1030,7 +1033,10 @@ fn entry_val_size(ty: u8) -> Result<usize> {
         KEY_BLOCK_ENTRY_TYPE_MEDIUM => Ok(MEDIUM_VALUE_REF_SIZE),
         KEY_BLOCK_ENTRY_TYPE_BLOB => Ok(BLOB_VALUE_REF_SIZE),
         KEY_BLOCK_ENTRY_TYPE_KEY_DELETED => Ok(KEY_DELETED_REF_SIZE),
-        KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED => Ok(KEY_VALUE_DELETED_REF_SIZE),
+        // Must precede the inline arm: both are open-ended and the tombstone range sits above it.
+        ty if ty >= KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN => {
+            Ok((ty - KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN) as usize)
+        }
         ty if ty >= KEY_BLOCK_ENTRY_TYPE_INLINE_MIN => {
             Ok((ty - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN) as usize)
         }
