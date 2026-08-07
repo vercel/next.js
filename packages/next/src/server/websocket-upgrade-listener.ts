@@ -1,7 +1,6 @@
 import type { EventEmitter } from 'node:events'
 
 type UpgradeListenerOwnershipState = {
-  ownListenerRegistered: boolean
   externalListenerSeen: boolean
   onNewListener?: (eventName: string | symbol, listener: unknown) => void
 }
@@ -13,26 +12,52 @@ export interface WebSocketUpgradeListenerOwnershipTracker {
 
 export type WebSocketUpgradeOwnership = 'exclusive' | 'coordinated' | 'shared'
 
+function isOwnedUpgradeListener(
+  listener: unknown,
+  ownListener: object,
+  additionalOwnListeners: readonly object[]
+): boolean {
+  return (
+    listener === ownListener ||
+    additionalOwnListeners.includes(listener as object)
+  )
+}
+
 export function classifyWebSocketUpgradeOwnership(
   listeners: unknown[] | undefined,
-  ownListener: object
+  ownListener: object,
+  additionalOwnListeners: readonly object[] = []
 ): WebSocketUpgradeOwnership {
   if (!listeners || listeners.length === 0) return 'shared'
   const ownRegistered = listeners.includes(ownListener)
   if (ownRegistered) {
-    return listeners.length === 1 && listeners[0] === ownListener
+    return listeners.every((listener) =>
+      isOwnedUpgradeListener(listener, ownListener, additionalOwnListeners)
+    )
       ? 'exclusive'
       : 'shared'
   }
-  return listeners.length === 1 ? 'coordinated' : 'shared'
+  let externalListenerCount = 0
+  for (const listener of listeners) {
+    if (
+      !isOwnedUpgradeListener(listener, ownListener, additionalOwnListeners)
+    ) {
+      externalListenerCount++
+    }
+  }
+  return externalListenerCount === 1 ? 'coordinated' : 'shared'
 }
 
 function hasExternalUpgradeListener(
   server: EventEmitter,
-  ownListener: object
+  ownListener: object,
+  additionalOwnListeners: readonly object[]
 ): boolean {
   const listeners = server.listeners('upgrade')
-  return listeners.length !== 1 || listeners[0] !== ownListener
+  return listeners.some(
+    (listener) =>
+      !isOwnedUpgradeListener(listener, ownListener, additionalOwnListeners)
+  )
 }
 
 function markExternalUpgradeListener(
@@ -56,18 +81,23 @@ function markExternalUpgradeListener(
  */
 export function createWebSocketUpgradeListenerOwnershipTracker(
   server: EventEmitter,
-  ownListener: object
+  ownListener: object,
+  additionalOwnListeners: readonly object[] = []
 ): WebSocketUpgradeListenerOwnershipTracker {
   const state: UpgradeListenerOwnershipState = {
-    ownListenerRegistered: false,
-    externalListenerSeen: server.listenerCount('upgrade') !== 0,
+    externalListenerSeen: hasExternalUpgradeListener(
+      server,
+      ownListener,
+      additionalOwnListeners
+    ),
   }
 
   if (!state.externalListenerSeen) {
     state.onNewListener = (eventName, listener) => {
       if (eventName !== 'upgrade') return
-      if (listener === ownListener && !state.ownListenerRegistered) {
-        state.ownListenerRegistered = true
+      if (
+        isOwnedUpgradeListener(listener, ownListener, additionalOwnListeners)
+      ) {
         return
       }
       markExternalUpgradeListener(server, state)
@@ -80,7 +110,7 @@ export function createWebSocketUpgradeListenerOwnershipTracker(
   // upgrade listener in that gap.
   if (
     server.listenerCount('upgrade') !== 0 &&
-    hasExternalUpgradeListener(server, ownListener)
+    hasExternalUpgradeListener(server, ownListener, additionalOwnListeners)
   ) {
     markExternalUpgradeListener(server, state)
   }
@@ -93,7 +123,7 @@ export function createWebSocketUpgradeListenerOwnershipTracker(
       // observer.
       if (
         !state.externalListenerSeen &&
-        hasExternalUpgradeListener(server, ownListener)
+        hasExternalUpgradeListener(server, ownListener, additionalOwnListeners)
       ) {
         markExternalUpgradeListener(server, state)
       }

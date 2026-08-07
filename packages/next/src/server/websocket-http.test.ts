@@ -37,17 +37,24 @@ describe('WebSocket upgrade listener ownership', () => {
     }
   )
 
-  it('classifies exclusive, coordinated, duplicate, and shared dispatch', () => {
+  it('classifies exclusive, coordinated, duplicate-own, and shared dispatch', () => {
     const own = jest.fn()
+    const automatic = jest.fn()
     const outer = jest.fn()
 
     expect(classifyWebSocketUpgradeOwnership([own], own)).toBe('exclusive')
     expect(classifyWebSocketUpgradeOwnership([outer], own)).toBe('coordinated')
-    expect(classifyWebSocketUpgradeOwnership([own, own], own)).toBe('shared')
+    expect(classifyWebSocketUpgradeOwnership([own, own], own)).toBe('exclusive')
     expect(classifyWebSocketUpgradeOwnership([own, outer], own)).toBe('shared')
     expect(classifyWebSocketUpgradeOwnership([outer, jest.fn()], own)).toBe(
       'shared'
     )
+    expect(
+      classifyWebSocketUpgradeOwnership([automatic, outer], own, [automatic])
+    ).toBe('coordinated')
+    expect(
+      classifyWebSocketUpgradeOwnership([automatic, own], own, [automatic])
+    ).toBe('exclusive')
   })
 
   it.each(['on', 'once', 'prependListener', 'prependOnceListener'] as const)(
@@ -89,7 +96,7 @@ describe('WebSocket upgrade listener ownership', () => {
     expect(getOwnership()).toBe('shared')
   })
 
-  it('rejects duplicate and multiple Next listener registrations', () => {
+  it('accepts duplicate copies of one Next listener but rejects distinct listeners', () => {
     const duplicateServer = new EventEmitter()
     const duplicateListener = jest.fn()
     const { getOwnership: getDuplicateOwnership } =
@@ -100,7 +107,7 @@ describe('WebSocket upgrade listener ownership', () => {
     duplicateServer.on('upgrade', duplicateListener)
     expect(getDuplicateOwnership()).toBe('exclusive')
     duplicateServer.on('upgrade', duplicateListener)
-    expect(getDuplicateOwnership()).toBe('shared')
+    expect(getDuplicateOwnership()).toBe('exclusive')
 
     const sharedServer = new EventEmitter()
     const firstOwnListener = jest.fn()
@@ -120,6 +127,25 @@ describe('WebSocket upgrade listener ownership', () => {
 
     expect(getFirstOwnership()).toBe('shared')
     expect(getSecondOwnership()).toBe('shared')
+  })
+
+  it('recognizes distinct automatic and public Next listeners as one owner', () => {
+    const server = new EventEmitter()
+    const automaticListener = jest.fn()
+    const publicListener = jest.fn()
+    const externalListener = jest.fn()
+    const { getOwnership } = createWebSocketUpgradeListenerOwnershipTracker(
+      server,
+      automaticListener,
+      [publicListener]
+    )
+
+    server.on('upgrade', automaticListener)
+    server.on('upgrade', publicListener)
+    expect(getOwnership()).toBe('exclusive')
+
+    server.on('upgrade', externalListener)
+    expect(getOwnership()).toBe('shared')
   })
 
   it('disposes its new-listener observer', () => {
@@ -154,6 +180,23 @@ describe('pending WebSocket upgrade lifecycle', () => {
     tracker.track(lateSocket)
     expect(lateSocket.destroyed).toBe(true)
     await expect(firstClose).resolves.toBeUndefined()
+  })
+
+  it('lets an admitted handler finish during the bounded grace period', async () => {
+    jest.useFakeTimers()
+    const tracker = new PendingWebSocketUpgradeTracker()
+    const socket = new PassThrough()
+    const finish = tracker.track(socket)
+
+    const close = tracker.closePending()
+    jest.advanceTimersByTime(4_999)
+    await Promise.resolve()
+    expect(socket.destroyed).toBe(false)
+
+    finish()
+    await expect(close).resolves.toBeUndefined()
+    expect(socket.destroyed).toBe(false)
+    socket.destroy()
   })
 
   it('gives a committed response bounded grace before forcing close', async () => {

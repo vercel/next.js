@@ -85,6 +85,33 @@ export type UpgradeHandler = (
   head: Buffer
 ) => Promise<void>
 
+function removeUpgradeListenerRegistrations(
+  server: import('http').Server,
+  listener: UpgradeHandler
+): unknown[] {
+  const failures: unknown[] = []
+  let registrationCount = 1
+  try {
+    registrationCount = server
+      .listeners('upgrade')
+      .filter((registered) => registered === listener).length
+  } catch (error) {
+    failures.push(error)
+  }
+
+  // EventEmitter.off() removes one matching registration. Snapshot the count
+  // so a hostile removeListener observer cannot keep this loop alive by
+  // re-registering the handler while teardown is in progress.
+  for (let index = 0; index < registrationCount; index++) {
+    try {
+      server.off('upgrade', listener)
+    } catch (error) {
+      if (!failures.includes(error)) failures.push(error)
+    }
+  }
+  return failures
+}
+
 const SYMBOL_LOAD_CONFIG = Symbol('next.load_config')
 
 type DeprecatedCustomServerMethod =
@@ -470,8 +497,10 @@ class NextCustomServer implements NextWrapperServer {
   private closeGeneration?: CustomServerCloseGeneration
   private pendingUpgrades = new PendingWebSocketUpgradeTracker()
   private webSocketServer?: import('http').Server
+  private readonly webSocketUpgradeServers = new Set<import('http').Server>()
   private webSocketUpgradeOwnership?: WebSocketUpgradeListenerOwnershipTracker
   private webSocketRegistration?: Promise<void>
+  private webSocketAutomaticUpgradeListener?: UpgradeHandler
   private webSocketUpgradeListener?: (
     req: IncomingMessage,
     socket: Duplex,
@@ -651,11 +680,14 @@ class NextCustomServer implements NextWrapperServer {
     customServer = customServer || (_req?.socket as any)?.server
     if (!customServer) return
 
-    const upgradeListener = this.getOrCreateWebSocketUpgradeListener()
+    const publicUpgradeListener = this.getOrCreateWebSocketUpgradeListener()
+    const upgradeListener = this.webSocketAutomaticUpgradeListener!
     const registration = createPromiseWithResolvers<void>()
     this.didWebSocketSetup = true
     this.webSocketServer = customServer
     this.webSocketRegistration = registration.promise
+    const serverWasTracked = this.webSocketUpgradeServers.has(customServer)
+    this.webSocketUpgradeServers.add(customServer)
     let ownership: WebSocketUpgradeListenerOwnershipTracker | undefined
     let ownershipDisposed = false
     const disposeOwnership = () => {
@@ -667,7 +699,8 @@ class NextCustomServer implements NextWrapperServer {
     try {
       ownership = createWebSocketUpgradeListenerOwnershipTracker(
         customServer,
-        upgradeListener
+        upgradeListener,
+        [publicUpgradeListener]
       )
       this.webSocketUpgradeOwnership = ownership
       customServer.on('upgrade', upgradeListener)
@@ -678,9 +711,9 @@ class NextCustomServer implements NextWrapperServer {
         this.isClosing
       ) {
         // EventEmitter emits `newListener` before inserting the listener. A
-        // public observer can transfer ownership to getUpgradeHandler() or
-        // begin close() during that callback, so detach the listener which
-        // `on()` just inserted before publishing registration completion.
+        // public observer can begin close() during that callback, so detach
+        // the listener which `on()` just inserted before publishing
+        // registration completion.
         registered = false
         customServer.off('upgrade', upgradeListener)
       }
@@ -712,6 +745,7 @@ class NextCustomServer implements NextWrapperServer {
         this.webSocketServer = undefined
         this.webSocketUpgradeOwnership = undefined
         this.webSocketRegistration = undefined
+        if (!serverWasTracked) this.webSocketUpgradeServers.delete(customServer)
         disposeOwnership()
       }
     }
@@ -719,7 +753,14 @@ class NextCustomServer implements NextWrapperServer {
 
   private getOrCreateWebSocketUpgradeListener(): UpgradeHandler {
     if (!this.webSocketUpgradeListener) {
-      const upgradeListener: UpgradeHandler = async (req, socket, head) => {
+      const claimedRequests = new WeakSet<IncomingMessage>()
+      const dispatchUpgrade = async (
+        invokedListener: UpgradeHandler,
+        otherOwnedListener: UpgradeHandler,
+        req: IncomingMessage,
+        socket: Duplex,
+        head: Buffer
+      ) => {
         let finishUpgrade: (() => void) | undefined
         try {
           const requestServer = (
@@ -728,23 +769,70 @@ class NextCustomServer implements NextWrapperServer {
             }
           ).server
           const upgradeListeners = requestServer?.listeners('upgrade')
+          const ownsServerRegistration = Boolean(
+            requestServer &&
+              upgradeListeners?.some(
+                (listener) =>
+                  listener === invokedListener ||
+                  listener === otherOwnedListener
+              )
+          )
+          if (requestServer && ownsServerRegistration) {
+            this.webSocketUpgradeServers.add(requestServer)
+          }
           const ownership =
+            invokedListener === this.webSocketAutomaticUpgradeListener &&
             requestServer === this.webSocketServer &&
             this.webSocketUpgradeOwnership
               ? this.webSocketUpgradeOwnership.getOwnership()
               : classifyWebSocketUpgradeOwnership(
                   upgradeListeners,
-                  upgradeListener
+                  invokedListener,
+                  [otherOwnedListener]
                 )
+
+          // Shared dispatch is intentionally left unclaimed so one outer
+          // dispatcher can call the public handler with coordinated ownership.
+          // Every Next-owned path claims synchronously before touching request
+          // metadata, upgrade admission, or the socket.
+          if (ownership !== 'shared') {
+            if (claimedRequests.has(req)) return
+            claimedRequests.add(req)
+          }
+
+          if (this.isClosing) {
+            if (requestServer && ownsServerRegistration) {
+              const removalFailures = [
+                ...removeUpgradeListenerRegistrations(
+                  requestServer,
+                  invokedListener
+                ),
+                ...removeUpgradeListenerRegistrations(
+                  requestServer,
+                  otherOwnedListener
+                ),
+              ]
+              this.webSocketUpgradeServers.delete(requestServer)
+              if (removalFailures.length > 0) {
+                console.error(
+                  'Failed to remove a custom-server WebSocket upgrade listener during shutdown',
+                  removalFailures.length === 1
+                    ? removalFailures[0]
+                    : new AggregateError(removalFailures)
+                )
+              }
+            }
+            // A shared dispatcher belongs to embedding code. Removing this
+            // Next.js listener is safe, but the sibling owner must retain the
+            // socket. Exclusive and coordinated dispatches belong to Next.js.
+            if (ownership !== 'shared' && !socket.destroyed) socket.destroy()
+            return
+          }
+
           // Node invokes sibling upgrade listeners synchronously without
           // awaiting promises. Leave a shared dispatch untouched so another
           // listener can make the ownership decision.
           if (ownership === 'shared') return
-
-          if (this.isClosing) {
-            socket.destroy()
-            return
-          }
 
           addRequestMeta(req, 'webSocketUpgradeOwnership', ownership)
 
@@ -787,7 +875,26 @@ class NextCustomServer implements NextWrapperServer {
           }
         }
       }
-      this.webSocketUpgradeListener = upgradeListener
+      let publicUpgradeListener!: UpgradeHandler
+      let automaticUpgradeListener!: UpgradeHandler
+      publicUpgradeListener = (req, socket, head) =>
+        dispatchUpgrade(
+          publicUpgradeListener,
+          automaticUpgradeListener,
+          req,
+          socket,
+          head
+        )
+      automaticUpgradeListener = (req, socket, head) =>
+        dispatchUpgrade(
+          automaticUpgradeListener,
+          publicUpgradeListener,
+          req,
+          socket,
+          head
+        )
+      this.webSocketUpgradeListener = publicUpgradeListener
+      this.webSocketAutomaticUpgradeListener = automaticUpgradeListener
     }
     return this.webSocketUpgradeListener
   }
@@ -857,37 +964,8 @@ class NextCustomServer implements NextWrapperServer {
     // ordinary HTTP request cannot install a second copy after explicit
     // custom-server wiring.
     this.getInit()
-    const upgradeListener = this.getOrCreateWebSocketUpgradeListener()
-    const webSocketServer = this.webSocketServer
-    if (webSocketServer) {
-      // Clear ownership before off(): removeListener is a public synchronous
-      // reentrancy point and may throw after EventEmitter removed the listener.
-      this.webSocketServer = undefined
-      const ownership = this.webSocketUpgradeOwnership
-      this.webSocketUpgradeOwnership = undefined
-      this.webSocketRegistration = undefined
-      const failures: unknown[] = []
-      try {
-        ownership?.dispose()
-      } catch (error) {
-        failures.push(error)
-      }
-      try {
-        webSocketServer.off('upgrade', upgradeListener)
-      } catch (error) {
-        addDistinctServerCleanupFailures(failures, error)
-      }
-      if (failures.length === 1) throw failures[0]
-      if (failures.length > 1) {
-        throw new AggregateError(
-          failures,
-          'Failed to transfer the custom-server WebSocket upgrade listener',
-          { cause: failures[0] }
-        )
-      }
-    }
     this.didWebSocketSetup = true
-    return upgradeListener
+    return this.getOrCreateWebSocketUpgradeListener()
   }
 
   logError(...args: Parameters<NextWrapperServer['logError']>) {
@@ -954,8 +1032,19 @@ class NextCustomServer implements NextWrapperServer {
     void closePending.catch(() => {})
     const webSocketServer = this.webSocketServer
     const webSocketUpgradeListener = this.webSocketUpgradeListener
+    const webSocketAutomaticUpgradeListener =
+      this.webSocketAutomaticUpgradeListener
     const webSocketUpgradeOwnership = this.webSocketUpgradeOwnership
     const webSocketRegistration = this.webSocketRegistration
+    const webSocketUpgradeServers = new Set(this.webSocketUpgradeServers)
+    if (webSocketServer) webSocketUpgradeServers.add(webSocketServer)
+
+    // Clear owned registration state before invoking public EventEmitter
+    // removal hooks. Re-entrant close() callers observe the promise above.
+    this.webSocketServer = undefined
+    this.webSocketUpgradeOwnership = undefined
+    this.webSocketRegistration = undefined
+    this.webSocketUpgradeServers.clear()
 
     const runClose = async () => {
       const failures: unknown[] = []
@@ -974,22 +1063,26 @@ class NextCustomServer implements NextWrapperServer {
       await settle([
         async () => {
           await webSocketRegistration
-          if (webSocketServer && webSocketUpgradeListener) {
-            if (this.webSocketServer === webSocketServer) {
-              this.webSocketServer = undefined
-              this.webSocketUpgradeOwnership = undefined
-              this.webSocketRegistration = undefined
-            }
+          if (webSocketUpgradeListener || webSocketAutomaticUpgradeListener) {
             const removalFailures: unknown[] = []
             try {
               webSocketUpgradeOwnership?.dispose()
             } catch (error) {
               removalFailures.push(error)
             }
-            try {
-              webSocketServer.off('upgrade', webSocketUpgradeListener)
-            } catch (error) {
-              addDistinctServerCleanupFailures(removalFailures, error)
+            for (const server of webSocketUpgradeServers) {
+              for (const listener of [
+                webSocketAutomaticUpgradeListener,
+                webSocketUpgradeListener,
+              ]) {
+                if (!listener) continue
+                for (const error of removeUpgradeListenerRegistrations(
+                  server,
+                  listener
+                )) {
+                  addDistinctServerCleanupFailures(removalFailures, error)
+                }
+              }
             }
             if (removalFailures.length === 1) throw removalFailures[0]
             if (removalFailures.length > 1) {

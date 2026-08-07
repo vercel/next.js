@@ -187,17 +187,6 @@ export class PendingWebSocketUpgradeTracker {
   }
 
   private async drain(pending: PendingUpgrade[]): Promise<void> {
-    for (const upgrade of pending) {
-      try {
-        if (!isCommittedOrFlushing(upgrade.socket)) {
-          this.destroy(upgrade.socket)
-        }
-      } catch (error) {
-        if (!this.failures.includes(error)) this.failures.push(error)
-        this.destroy(upgrade.socket)
-      }
-    }
-
     if (pending.length > 0) {
       let timeout: NodeJS.Timeout | undefined
       try {

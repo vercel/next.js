@@ -171,7 +171,7 @@ describe('WebSocket Route Handler custom-server shutdown', () => {
     const appClosed = next.cliOutput.indexOf('[custom-server] next app closed')
     expect(routeFinished).toBeGreaterThan(appClosing)
     expect(appClosed).toBeGreaterThan(routeFinished)
-    expect(next.cliOutput).not.toContain('[slow-websocket-upgrade] opened')
+    expect(next.cliOutput).toContain('[slow-websocket-upgrade] opened')
   })
 
   it('removes duplicate registrations of its stable upgrade handler', async () => {
@@ -237,9 +237,6 @@ describe('WebSocket Route Handler manual custom-server ownership', () => {
     }, 10_000)
     expect(next.cliOutput).not.toContain(
       '[manual-upgrade-owner] Next.js route raced'
-    )
-    expect(next.cliOutput).toContain(
-      'Next.js delegated an upgrade event because another custom-server upgrade listener may own the socket.'
     )
     await expect(
       requestUpgrade(next.appPort, '/ws?after-next-close=1')

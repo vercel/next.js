@@ -279,7 +279,7 @@ describe('NextCustomServer WebSocket shutdown evidence', () => {
     expect(server.listeners('upgrade')).toEqual([])
   })
 
-  it('does not retain an auto listener when newListener transfers ownership', () => {
+  it('does not detach an auto listener when its public getter is re-entered', () => {
     const app = createCustomServer({ enabled: true }) as any
     const server = new EventEmitter()
     let explicitUpgrade: unknown
@@ -290,27 +290,48 @@ describe('NextCustomServer WebSocket shutdown evidence', () => {
     app.setupWebSocketHandler(server)
 
     expect(explicitUpgrade).toBeDefined()
-    expect(server.listeners('upgrade')).not.toContain(explicitUpgrade)
-    expect(app.webSocketServer).toBeUndefined()
-    expect(app.webSocketRegistration).toBeUndefined()
+    expect(app.getUpgradeHandler()).toBe(explicitUpgrade)
+    expect(server.listeners('upgrade')).toEqual([
+      app.webSocketAutomaticUpgradeListener,
+    ])
+    expect(app.webSocketAutomaticUpgradeListener).not.toBe(explicitUpgrade)
+    expect(app.webSocketServer).toBe(server)
+    expect(app.webSocketRegistration).toBeDefined()
     expect(app.didWebSocketSetup).toBe(true)
   })
 
-  it('clears auto-listener ownership when removeListener throws', () => {
+  it('keeps the getter non-destructive and reports removal failures on close', async () => {
     const failure = new Error('removeListener failed')
     const app = createCustomServer({ enabled: true }) as any
     const server = new EventEmitter()
     app.setupWebSocketHandler(server)
-    const upgradeListener = app.webSocketUpgradeListener
+    const upgradeListener = app.webSocketAutomaticUpgradeListener
     server.on('removeListener', (event, listener) => {
       if (event === 'upgrade' && listener === upgradeListener) throw failure
     })
 
-    expect(() => app.getUpgradeHandler()).toThrow(failure)
-    expect(server.listeners('upgrade')).not.toContain(upgradeListener)
+    expect(app.getUpgradeHandler()).not.toBe(upgradeListener)
+    expect(server.listeners('upgrade')).toEqual([upgradeListener])
+
+    await expect(app.close()).rejects.toBe(failure)
+    expect(server.listeners('upgrade')).toEqual([])
     expect(app.webSocketServer).toBeUndefined()
     expect(app.webSocketRegistration).toBeUndefined()
-    expect(app.getUpgradeHandler()).toBe(upgradeListener)
+  })
+
+  it('removes every Next-owned upgrade registration on close', async () => {
+    const app = createCustomServer({ enabled: true }) as any
+    const server = new EventEmitter()
+    app.setupWebSocketHandler(server)
+    const upgradeListener = app.getUpgradeHandler()
+    server.on('upgrade', upgradeListener)
+
+    expect(server.listeners('upgrade')).toEqual([
+      app.webSocketAutomaticUpgradeListener,
+      upgradeListener,
+    ])
+    await expect(app.close()).resolves.toBeUndefined()
+    expect(server.listeners('upgrade')).toEqual([])
   })
 
   it('does not retain setup state when a newListener observer throws', () => {
@@ -400,6 +421,62 @@ describe('NextCustomServer WebSocket shutdown evidence', () => {
     await expect(app.close()).resolves.toBeUndefined()
     expect(retryCloseUpgraded).toHaveBeenCalledTimes(1)
     expect(retryCloseServer).toHaveBeenCalledTimes(1)
+  })
+
+  it('handles one request once when its stable listener is registered twice', async () => {
+    const app = createCustomServer({ enabled: true }) as any
+    const pendingUpgrades = new PendingWebSocketUpgradeTracker()
+    app.pendingUpgrades = pendingUpgrades
+    app.prepareGeneration.pendingUpgrades = pendingUpgrades
+    app.init.upgradeHandler = jest.fn()
+    const server = new EventEmitter()
+    app.setupWebSocketHandler(server)
+    const upgradeListener = app.getUpgradeHandler()
+    server.on('upgrade', upgradeListener)
+    const socket = new PassThrough() as PassThrough & {
+      server?: EventEmitter
+    }
+    socket.server = server
+    const request = { headers: {}, method: 'GET', socket }
+
+    server.emit('upgrade', request, socket, Buffer.alloc(0))
+    await new Promise<void>((resolve) => setImmediate(resolve))
+
+    expect(app.init.upgradeHandler).toHaveBeenCalledTimes(1)
+    expect(getRequestMeta(request, 'webSocketUpgradeOwnership')).toBe(
+      'exclusive'
+    )
+    socket.destroy()
+  })
+
+  it('coordinates through one outer dispatcher after automatic setup', async () => {
+    const app = createCustomServer({ enabled: true }) as any
+    const pendingUpgrades = new PendingWebSocketUpgradeTracker()
+    app.pendingUpgrades = pendingUpgrades
+    app.prepareGeneration.pendingUpgrades = pendingUpgrades
+    app.init.upgradeHandler = jest.fn()
+    const server = new EventEmitter()
+    app.setupWebSocketHandler(server)
+    const nextUpgrade = app.getUpgradeHandler()
+    const outerDispatcher = jest.fn((request: any, socket: any, head: Buffer) =>
+      nextUpgrade(request, socket, head)
+    )
+    server.on('upgrade', outerDispatcher)
+    const socket = new PassThrough() as PassThrough & {
+      server?: EventEmitter
+    }
+    socket.server = server
+    const request = { headers: {}, method: 'GET', socket }
+
+    server.emit('upgrade', request, socket, Buffer.alloc(0))
+    await new Promise<void>((resolve) => setImmediate(resolve))
+
+    expect(outerDispatcher).toHaveBeenCalledTimes(1)
+    expect(app.init.upgradeHandler).toHaveBeenCalledTimes(1)
+    expect(getRequestMeta(request, 'webSocketUpgradeOwnership')).toBe(
+      'coordinated'
+    )
+    socket.destroy()
   })
 
   it('fails closed when a one-shot listener disappears before dispatch', async () => {
