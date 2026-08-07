@@ -603,44 +603,46 @@ function getSpanStoreExceptionAttributes(
 }
 
 function getCurrentRequestIdentity(): RequestIdentity {
-  try {
-    const { getRequestInsightsIdentity } =
-      require('./request-insights-identity') as typeof import('./request-insights-identity')
-    const { workAsyncStorage } =
-      require('../../app-render/work-async-storage.external') as typeof import('../../app-render/work-async-storage.external')
-    const { workUnitAsyncStorage } =
-      require('../../app-render/work-unit-async-storage.external') as typeof import('../../app-render/work-unit-async-storage.external')
-    let requestInsights: RequestInsights | undefined
-    if (process.env.__NEXT_DEV_SERVER) {
+  if (process.env.__NEXT_DEV_SERVER) {
+    try {
+      const { getRequestInsightsIdentity } =
+        require('./request-insights-identity') as typeof import('./request-insights-identity')
+      const { workAsyncStorage } =
+        require('../../app-render/work-async-storage.external') as typeof import('../../app-render/work-async-storage.external')
+      const { workUnitAsyncStorage } =
+        require('../../app-render/work-unit-async-storage.external') as typeof import('../../app-render/work-unit-async-storage.external')
       const { getActiveRequestInsights } =
         require('./request-insights-runtime') as typeof import('./request-insights-runtime')
-      requestInsights = getActiveRequestInsights()
-    } else {
-      requestInsights = undefined
-    }
-    const workStore = workAsyncStorage.getStore()
-    const workUnitStore = workUnitAsyncStorage.getStore()
-    const requestInsightsIdentity = getRequestInsightsIdentity()
-    const url =
-      workUnitStore && 'url' in workUnitStore ? workUnitStore.url : undefined
+      const requestInsights: RequestInsights | undefined =
+        getActiveRequestInsights()
+      const workStore = workAsyncStorage.getStore()
+      const workUnitStore = workUnitAsyncStorage.getStore()
+      const requestInsightsIdentity = getRequestInsightsIdentity()
+      const url =
+        workUnitStore && 'url' in workUnitStore ? workUnitStore.url : undefined
 
-    return {
-      requestInsights,
-      requestId: requestInsightsIdentity?.requestId ?? workStore?.requestId,
-      rootRequestId:
-        requestInsightsIdentity?.rootRequestId ?? workStore?.requestId,
-      requestInsightsRetention: requestInsightsIdentity?.retention,
-      requestInsightKind: requestInsightsIdentity?.kind,
-      requestInsightSource: requestInsightsIdentity?.source,
-      requestInsightProxyStatus: requestInsightsIdentity?.proxyStatus,
-      requestInsightRouterActivity: requestInsightsIdentity?.routerActivity,
-      requestInsightServerAction: requestInsightsIdentity?.serverAction,
-      htmlRequestId:
-        requestInsightsIdentity?.htmlRequestId ?? workStore?.htmlRequestId,
-      route: workStore?.route,
-      url: url ? `${url.pathname}${url.search}` : requestInsightsIdentity?.url,
+      return {
+        requestInsights,
+        requestId: requestInsightsIdentity?.requestId ?? workStore?.requestId,
+        rootRequestId:
+          requestInsightsIdentity?.rootRequestId ?? workStore?.requestId,
+        requestInsightsRetention: requestInsightsIdentity?.retention,
+        requestInsightKind: requestInsightsIdentity?.kind,
+        requestInsightSource: requestInsightsIdentity?.source,
+        requestInsightProxyStatus: requestInsightsIdentity?.proxyStatus,
+        requestInsightRouterActivity: requestInsightsIdentity?.routerActivity,
+        requestInsightServerAction: requestInsightsIdentity?.serverAction,
+        htmlRequestId:
+          requestInsightsIdentity?.htmlRequestId ?? workStore?.htmlRequestId,
+        route: workStore?.route,
+        url: url
+          ? `${url.pathname}${url.search}`
+          : requestInsightsIdentity?.url,
+      }
+    } catch {
+      return {}
     }
-  } catch {
+  } else {
     return {}
   }
 }
