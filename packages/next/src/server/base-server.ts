@@ -1090,11 +1090,20 @@ export default abstract class Server<
       req.headers['x-forwarded-proto'] ??= isHttps ? 'https' : 'http'
       req.headers['x-forwarded-for'] ??= originalRequest?.socket?.remoteAddress
 
-      restoreForwardedActionHost(req.headers)
-
       // This should be done before any normalization of the pathname happens as
       // it captures the initial URL.
       this.attachRequestMeta(req, parsedUrl)
+
+      // A Server Action that we forwarded to another worker arrives over an
+      // internal self-fetch, which replaces `host` with the origin we forwarded
+      // to. This runs after `attachRequestMeta`, because the forwarding origin
+      // can come from `initURL`, and before the first consumers of `host`:
+      // domain locale detection below, and later `headers()` inside the action.
+      restoreForwardedActionHost(req, {
+        // Mirrors the condition `attachRequestMeta` uses to build `initURL`
+        // from this server's own hostname and port.
+        hasConfiguredOrigin: Boolean(this.fetchHostname && this.port),
+      })
 
       let finished = await this.handleRSCRequest(req, res, parsedUrl)
       if (finished) return

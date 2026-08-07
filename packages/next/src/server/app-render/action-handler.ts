@@ -50,6 +50,8 @@ import { isCsrfOriginAllowed } from './csrf-protection'
 import { warn } from '../../build/output/log'
 import {
   ACTION_FORWARDED_HEADER,
+  ACTION_FORWARDED_VALUE,
+  getActionForwardingOrigin,
   getForwardedHostValue,
 } from './action-forwarding'
 import { RequestCookies, ResponseCookies } from '../web/spec-extension/cookies'
@@ -229,26 +231,9 @@ async function createForwardedActionResponse(
   // indicate that this action request was forwarded from another worker
   // we use this to skip rendering the flight tree so that we don't update the UI
   // with the response from the forwarded worker
-  forwardedHeaders.set(ACTION_FORWARDED_HEADER, '1')
+  forwardedHeaders.set(ACTION_FORWARDED_HEADER, ACTION_FORWARDED_VALUE)
 
-  // TODO: Remove __NEXT_PRIVATE_ORIGIN
-  let origin: string | undefined = process.env.__NEXT_PRIVATE_ORIGIN
-  if (origin === undefined) {
-    const initUrl = getRequestMeta(req, 'initURL')
-    if (initUrl !== undefined) {
-      try {
-        const parsedUrl = new URL(initUrl)
-        origin = parsedUrl.origin
-      } catch (error) {
-        throw new Error(
-          'Could not determine origin for forwarded Server Actions request. This can happen if port or hostname are not configured for this server.',
-          { cause: error }
-        )
-      }
-    } else {
-      throw new InvariantError('Missing initURL')
-    }
-  }
+  const origin = getActionForwardingOrigin(req)
 
   const fetchUrl = new URL(`${origin}${basePath}${workerPathname}`)
 
@@ -401,25 +386,7 @@ async function createRedirectRenderResult(
     const forwardedHeaders = getForwardedHeaders(req, res)
     forwardedHeaders.set(RSC_HEADER, '1')
 
-    // TODO: Remove __NEXT_PRIVATE_ORIGIN
-    let origin: string | undefined = process.env.__NEXT_PRIVATE_ORIGIN
-    if (origin === undefined) {
-      const initUrl = getRequestMeta(req, 'initURL')
-      if (initUrl !== undefined) {
-        try {
-          const parsedUrl = new URL(initUrl)
-
-          origin = parsedUrl.origin
-        } catch (error) {
-          throw new Error(
-            'Could not determine origin for forwarded Server Actions request. This can happen if port or hostname are not configured for this server.',
-            { cause: error }
-          )
-        }
-      } else {
-        throw new InvariantError('Missing initURL')
-      }
-    }
+    const origin = getActionForwardingOrigin(req)
 
     const fetchUrl = new URL(
       `${origin}${appRelativeRedirectUrl.pathname}${appRelativeRedirectUrl.search}`

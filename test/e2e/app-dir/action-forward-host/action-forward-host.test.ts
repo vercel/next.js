@@ -6,6 +6,9 @@ import http from 'http'
 // internal loopback origin.
 const HOST = 'example.test'
 
+// The host a client would try to smuggle in through `x-forwarded-host`.
+const FORGED_HOST = 'forged.test'
+
 type ObservedHeaders = {
   host: string | null
   xForwardedHost: string | null
@@ -13,16 +16,27 @@ type ObservedHeaders = {
 }
 
 describe('server action forwarding - original host', () => {
-  const { next } = nextTestSetup({
+  // The behaviour under test only exists on a self-hosted server: the action is
+  // forwarded over a private loopback fetch to the server's own origin. The
+  // test needs a local port to connect to, has to send a `Host` that isn't the
+  // one it connected to, and reads the action's output from the running
+  // server's stdout — none of which a deployment gives us.
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
+    skipDeployment: true,
   })
+
+  if (skipped) {
+    return
+  }
 
   // `next.fetch` goes through `undici`, which refuses to set `host` because it
   // is a forbidden header. Use the raw http client so we can send an arbitrary
   // `Host`, the way a reverse proxy in front of `next start` would.
   function postAction(
     pathname: string,
-    actionId: string
+    actionId: string,
+    extraHeaders?: Record<string, string>
   ): Promise<{ status: number }> {
     return new Promise((resolve, reject) => {
       const request = http.request(
@@ -36,6 +50,7 @@ describe('server action forwarding - original host', () => {
             origin: `http://${HOST}`,
             'content-type': 'text/plain;charset=UTF-8',
             'next-action': actionId,
+            ...extraHeaders,
           },
         },
         (response) => {
@@ -64,12 +79,13 @@ describe('server action forwarding - original host', () => {
   }
 
   async function collectObservedHeaders(
-    pathname: string
+    pathname: string,
+    extraHeaders?: Record<string, string>
   ): Promise<ObservedHeaders> {
     const actionId = await getActionId()
     const outputIndex = next.cliOutput.length
 
-    const { status } = await postAction(pathname, actionId)
+    const { status } = await postAction(pathname, actionId, extraHeaders)
     expect(status).toBe(200)
 
     const output = next.cliOutput.slice(outputIndex)
@@ -100,6 +116,21 @@ describe('server action forwarding - original host', () => {
 
     // The forward is an internal self-fetch to the loopback origin, which
     // replaces `Host`. The original host must survive it.
+    expect(observed.host).toBe(HOST)
+  })
+
+  it('ignores a forged forwarding marker', async () => {
+    // `x-action-forwarded` is not an internal header, so a client can send it.
+    // This request arrives on the public host rather than the origin we forward
+    // to, so the marker must not turn `x-forwarded-host` into `host`. `origin`
+    // matches the forged `x-forwarded-host` only to get past the CSRF check.
+    const observed = await collectObservedHeaders('/with-action', {
+      'x-action-forwarded': '1',
+      'x-forwarded-host': FORGED_HOST,
+      origin: `http://${FORGED_HOST}`,
+    })
+
+    expect(observed.xForwardedHost).toBe(FORGED_HOST)
     expect(observed.host).toBe(HOST)
   })
 })
