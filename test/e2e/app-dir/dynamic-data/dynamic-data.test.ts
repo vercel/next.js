@@ -285,10 +285,12 @@ describe('dynamic-data with dynamic = "error"', () => {
 })
 
 describe('dynamic-data inside cache scope', () => {
-  const { next, isNextDev, isNextDeploy, skipped } = nextTestSetup({
-    files: __dirname + '/fixtures/cache-scoped',
-    skipStart: true,
-  })
+  const { next, isNextDev, isNextDeploy, isTurbopack, skipped } = nextTestSetup(
+    {
+      files: __dirname + '/fixtures/cache-scoped',
+      skipStart: true,
+    }
+  )
 
   if (skipped) {
     return
@@ -314,11 +316,11 @@ describe('dynamic-data inside cache scope', () => {
          Learn more: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
            "environmentLabel": "Server",
            "label": "Runtime Error",
-           "source": "app/cookies/page.js (4:40) @ <anonymous>
+           "source": "app/cookies/page.js (4:40) @ ${isTurbopack ? '<anonymous>' : 'eval'}
          > 4 | const cookies = cache(() => nextCookies())
              |                                        ^",
            "stack": [
-             "<anonymous> app/cookies/page.js (4:40)",
+             "${isTurbopack ? '<anonymous>' : 'eval'} app/cookies/page.js (4:40)",
              "Page app/cookies/page.js (15:11)",
            ],
          }
@@ -336,11 +338,11 @@ describe('dynamic-data inside cache scope', () => {
          Learn more: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
            "environmentLabel": "Server",
            "label": "Runtime Error",
-           "source": "app/connection/page.js (4:54) @ <anonymous>
+           "source": "app/connection/page.js (4:54) @ ${isTurbopack ? '<anonymous>' : 'eval'}
          > 4 | const cachedConnection = cache(async () => connection())
              |                                                      ^",
            "stack": [
-             "<anonymous> app/connection/page.js (4:54)",
+             "${isTurbopack ? '<anonymous>' : 'eval'} app/connection/page.js (4:54)",
              "Page app/connection/page.js (7:3)",
            ],
          }
@@ -358,11 +360,11 @@ describe('dynamic-data inside cache scope', () => {
          Learn more: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
            "environmentLabel": "Server",
            "label": "Runtime Error",
-           "source": "app/headers/page.js (4:40) @ <anonymous>
+           "source": "app/headers/page.js (4:40) @ ${isTurbopack ? '<anonymous>' : 'eval'}
          > 4 | const headers = cache(() => nextHeaders())
              |                                        ^",
            "stack": [
-             "<anonymous> app/headers/page.js (4:40)",
+             "${isTurbopack ? '<anonymous>' : 'eval'} app/headers/page.js (4:40)",
              "Page app/headers/page.js (15:21)",
            ],
          }
