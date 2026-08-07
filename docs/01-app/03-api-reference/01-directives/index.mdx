@@ -17,7 +17,7 @@ Directives are string literals that tell the compiler and bundler how to treat t
 
 ## Where to place a directive
 
-`'use client'` came first, and it set the original shape: a directive at the top of a file, before any imports, that applies to the whole module. It only goes there. The whole module is bundled and shipped to the browser, so the boundary is drawn at the file, not partway through it; there is no inline `'use client'`.
+The `'use client'` directive set the original shape: it sits at the top of a file, before any imports, and applies to the entire module. It only goes there. The module is bundled and shipped to the browser, so the boundary is drawn at the file, not partway through it, and there is no inline `'use client'`.
 
 `'use server'` and `'use cache'` can be placed the same way, at the top of a file, where they apply to every export. They can also be placed inline, at the top of a single function, so they apply to just that one function.
 
@@ -36,9 +36,9 @@ export async function getUsers() {
 }
 ```
 
-Each directive marks one side of a boundary, and a module sits on a single side. You define `'use server'` and `'use cache'` functions in server modules, never inside a `'use client'` module. A Client Component can import and call them; it cannot declare them.
+A module sits on one side of the boundary. You define `'use server'` and `'use cache'` functions in server modules, never inside a `'use client'` module. A Client Component can import and call them, but it cannot declare them.
 
-For `'use server'` and `'use cache'`, put the directive where the code that needs it lives. Add it to the function or component that needs it. From there you can move it up to a parent or down into a utility function as your code changes.
+For `'use server'` and `'use cache'`, add the directive to the function or component that needs it. From there you can move it up to a parent or down into a utility function as your code changes.
 
 When you find yourself repeating the same directive across many functions in one module, hoist it to the top of the file. This is a convenience, not a separate feature: a file-level directive applies its rules to every export, so each one has to satisfy them. For `'use server'` and `'use cache'`, that means every export must be `async`.
 
@@ -54,6 +54,6 @@ At the file level the rules reach framework exports too, not just the ones you w
 
 ## Placement decides what you cache
 
-With `'use cache'`, placement also decides how much you store. The directive on a page caches everything the page renders; the same directive on a single data function caches only that function's result. When the expensive part is one small request, cache that function instead of the whole page.
+With `'use cache'`, placement also decides how much you store. The directive on a page caches everything the page renders. The same directive on a single data function caches only that function's result. When the expensive part is one small request, cache that function instead of the whole page.
 
 This matters most with [`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote), where entries are stored on a platform cache handler and larger outputs can cost more.

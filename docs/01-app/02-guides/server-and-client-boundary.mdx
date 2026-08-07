@@ -1,6 +1,6 @@
 ---
 title: The Server and Client Boundary
-description: A mental model for Server and Client Components in the App Router. What runs on the server, what runs in the browser, why "server vs client rendering" is two questions, and why the same React component now comes in two kinds.
+description: A mental model for Server and Client Components in the App Router. What runs on the server, what runs in the browser, and where the boundary between them falls.
 related:
   title: Next Steps
   description: Learn how to apply this model and where the boundary is defined.
@@ -59,7 +59,7 @@ export default function Hello() {
 
 A Client Component rendering on the server is server-side rendering (SSR), not RSC.
 
-SSR turns components into HTML. It predates RSC and applies to Client Components too, and [SSG](/docs/app/glossary#prerendering) and [ISR](/docs/app/glossary#incremental-static-regeneration-isr) are flavors of it. RSC is the other mechanism: it keeps a component's code on the server and emits the RSC Payload instead of shipping it. So a Client Component is server-rendered to HTML, but it is not a Server Component, "rendered on the server" and "is a Server Component" are different claims.
+SSR turns components into HTML. It predates RSC and applies to Client Components too, and [SSG](/docs/app/glossary#prerendering) and [ISR](/docs/app/glossary#incremental-static-regeneration-isr) are flavors of it. RSC is the other mechanism: it keeps a component's code on the server and emits the RSC Payload instead of shipping it. So a Client Component is server-rendered to HTML, but it is not a Server Component. "Rendered on the server" and "is a Server Component" are different claims.
 
 > **Do Server Components help SEO?**
 >
@@ -69,7 +69,7 @@ _When_ a component renders, at build time or per request, statically or dynamica
 
 ## How data enters the tree
 
-Before RSC, the tree did not fetch its own data while rendering. Data was gathered ahead of time, by a loader or `getServerSideProps`, and passed in as props. The tree received data; it did not go get it.
+Before RSC, the tree did not fetch its own data while rendering. Data was gathered ahead of time, by a loader or `getServerSideProps`, and passed in as props. The tree received data, it did not go get it.
 
 ```txt
 data
@@ -121,14 +121,14 @@ You mark a Client Component with the [`'use client'`](/docs/app/api-reference/di
 
 > **Good to know:**
 >
-> Passing a function as a prop from a Server Component to a Client Component throws, an event handler like `onClick` cannot cross. The exception is a [Server Function](/docs/app/guides/server-actions): marked with `'use server'`, it crosses as a reference.
+> Passing a function as a prop from a Server Component to a Client Component throws. An event handler like `onClick` cannot cross. The exception is a [Server Function](/docs/app/guides/server-actions): marked with `'use server'`, it crosses as a reference.
 >
 > A Server Function is not distinguishable from a plain function by its type. The TypeScript plugin uses a naming convention: a Client Component prop typed as a function is allowed when it is called `action` or ends in `Action`, and flagged otherwise.
 
 This is what lets the two compose: a rendered React element is serializable data, so a Server Component's output can cross as `children` and nest inside a Client Component, even though its code could never be imported there.
 
 ```tsx filename="app/page.tsx"
-// Page and Cart are Server Components; Modal is a Client Component
+// Page and Cart are Server Components. Modal is a Client Component
 export default function Page() {
   return (
     <Modal title={<div>Your cart</div>}>
