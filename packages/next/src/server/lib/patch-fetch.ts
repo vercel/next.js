@@ -37,7 +37,7 @@ import {
 import { cloneResponse } from './clone-response'
 import type { IncrementalCache } from './incremental-cache'
 import { RenderStage } from '../app-render/staged-rendering'
-import { encodeCacheTag } from './encode-cache-tag'
+import { encodeHeaderSafe } from './encode-header-safe'
 import type { Span } from './trace/tracer'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
@@ -147,7 +147,7 @@ export function validateTags(tags: any[], description: string) {
       // Encode so a non-ASCII tag can be safely serialized into the
       // `x-next-cache-tags` HTTP header without tripping Node's header
       // validation. Length is checked on the raw input above.
-      validTags.push(encodeCacheTag(tag))
+      validTags.push(encodeHeaderSafe(tag))
     }
 
     if (validTags.length > NEXT_CACHE_TAG_MAX_ITEMS) {
