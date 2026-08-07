@@ -92,7 +92,7 @@ import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev
 import getWebpackBundler from '../../shared/lib/get-webpack-bundler'
 import {
   closeWebSocketRoute,
-  getWebSocketRouteBundlePath,
+  getActiveWebSocketRouteBundlePaths,
   isWebSocketRouteActive,
   reloadWebSocketScope,
 } from '../websocket-connection-registry'
@@ -134,20 +134,6 @@ function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
 }
 
-function getWebSocketBundlePathFromEntrypoint(
-  entryName: string
-): string | undefined {
-  if (
-    entryName !== 'app/route' &&
-    !(entryName.startsWith('app/') && entryName.endsWith('/route'))
-  ) {
-    return undefined
-  }
-
-  const page = getRouteFromEntrypoint(entryName, true)
-  return page ? getWebSocketRouteBundlePath(page) : undefined
-}
-
 function frameFingerprintValue(value: string): string {
   return `${Buffer.byteLength(value)}:${value}`
 }
@@ -160,7 +146,8 @@ type WebpackRuntime = webpack.Chunk['runtime']
 
 function getWebSocketRouteFingerprints(
   compilation: webpack.Compilation,
-  pageExtensionRegex: RegExp
+  pageExtensionRegex: RegExp,
+  bundlePaths: ReadonlySet<string>
 ): Map<string, string> {
   const fingerprints = new Map<string, string>()
   // A named vendor chunk can contain modules which are not reachable from
@@ -247,13 +234,13 @@ function getWebSocketRouteFingerprints(
     return modules
   }
 
-  for (const [entryName, entrypoint] of compilation.entrypoints) {
-    const bundlePath = getWebSocketBundlePathFromEntrypoint(entryName)
-    if (!bundlePath) continue
+  for (const bundlePath of bundlePaths) {
+    const entrypoint = compilation.entrypoints.get(bundlePath)
+    if (!entrypoint) continue
 
-    const entry = compilation.entries.get(entryName)
+    const entry = compilation.entries.get(bundlePath)
     if (!entry) {
-      throw new Error(`Missing Webpack entry data for ${entryName}`)
+      throw new Error(`Missing Webpack entry data for ${bundlePath}`)
     }
 
     const runtime = entrypoint.getEntrypointChunk().runtime
@@ -264,7 +251,7 @@ function getWebSocketRouteFingerprints(
     ]) {
       const module = compilation.moduleGraph.getResolvedModule(dependency)
       if (!module) {
-        throw new Error(`Unresolved Webpack entry dependency for ${entryName}`)
+        throw new Error(`Unresolved Webpack entry dependency for ${bundlePath}`)
       }
       pendingModules.push(module)
     }
@@ -283,7 +270,7 @@ function getWebSocketRouteFingerprints(
 
       const resource = getNormalizedResource(module)
       const isEntryModule =
-        resource?.includes(entryName) && pageExtensionRegex.test(resource)
+        resource?.includes(bundlePath) && pageExtensionRegex.test(resource)
 
       contentFingerprint.add(
         getModuleHash(module, runtime, Boolean(isEntryModule))
@@ -1524,7 +1511,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     const prevServerPageHashes = new Map<string, string>()
     const prevEdgeServerPageHashes = new Map<string, string>()
     const prevCSSImportModuleHashes = new Map<string, string>()
-    let previousWebSocketRouteFingerprints: Map<string, string> | undefined
+    let previousWebSocketServerCompilation: webpack.Compilation | undefined
+    let previousWebSocketRouteFingerprints = new Map<string, string>()
 
     const pageExtensionRegex = new RegExp(
       `\\.(?:${this.config.pageExtensions.join('|')})$`
@@ -1766,23 +1754,50 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           void reloadWebSocketScope(webSocketRegistryScope)
         } else {
           try {
-            const currentFingerprints = getWebSocketRouteFingerprints(
-              serverStats.compilation,
-              pageExtensionRegex
+            const activeBundlePaths = getActiveWebSocketRouteBundlePaths(
+              webSocketRegistryScope
             )
-            if (previousWebSocketRouteFingerprints) {
-              for (const [
-                bundlePath,
-                previousFingerprint,
-              ] of previousWebSocketRouteFingerprints) {
+            if (activeBundlePaths.size !== 0) {
+              const bundlePathsMissingPreviousFingerprint = new Set<string>()
+              for (const bundlePath of activeBundlePaths) {
+                if (!previousWebSocketRouteFingerprints.has(bundlePath)) {
+                  bundlePathsMissingPreviousFingerprint.add(bundlePath)
+                }
+              }
+              const missingPreviousFingerprints =
+                previousWebSocketServerCompilation &&
+                bundlePathsMissingPreviousFingerprint.size !== 0
+                  ? getWebSocketRouteFingerprints(
+                      previousWebSocketServerCompilation,
+                      pageExtensionRegex,
+                      bundlePathsMissingPreviousFingerprint
+                    )
+                  : undefined
+              const currentFingerprints = getWebSocketRouteFingerprints(
+                serverStats.compilation,
+                pageExtensionRegex,
+                activeBundlePaths
+              )
+
+              for (const bundlePath of activeBundlePaths) {
+                const currentFingerprint = currentFingerprints.get(bundlePath)
+                const previousFingerprint =
+                  previousWebSocketRouteFingerprints.get(bundlePath) ??
+                  missingPreviousFingerprints?.get(bundlePath)
                 if (
-                  currentFingerprints.get(bundlePath) !== previousFingerprint
+                  currentFingerprint === undefined ||
+                  previousFingerprint === undefined ||
+                  currentFingerprint !== previousFingerprint
                 ) {
                   void closeWebSocketRoute(webSocketRegistryScope, bundlePath)
                 }
               }
+
+              previousWebSocketRouteFingerprints = currentFingerprints
+            } else {
+              previousWebSocketRouteFingerprints = new Map()
             }
-            previousWebSocketRouteFingerprints = currentFingerprints
+            previousWebSocketServerCompilation = serverStats.compilation
           } catch (error) {
             // An unknown Webpack graph shape must not leave a route executing
             // code from a generation which may have changed.

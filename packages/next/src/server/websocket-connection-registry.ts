@@ -647,6 +647,13 @@ export function isWebSocketRouteActive(
   return Boolean(route && (route.leases !== 0 || route.peers.size !== 0))
 }
 
+export function getActiveWebSocketRouteBundlePaths(
+  scope: object
+): ReadonlySet<string> {
+  const routes = getScopeRegistry(scope, false)?.routes
+  return routes ? new Set(routes.keys()) : new Set()
+}
+
 function takeWebSocketRouteConnections(
   scope: object,
   bundlePath: string
