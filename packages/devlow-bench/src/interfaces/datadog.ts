@@ -58,7 +58,7 @@ export default function createInterface({
   const dataPoints: DistributionPointsSeries[] = []
   const metricMetadata: Record<string, MetricMetadata> = {}
   const iface: Interface = {
-    measurement: async (scenario, props, name, value, unit, relativeTo) => {
+    measurement: async (scenario, props, name, value, unit, _relativeTo) => {
       const ts = Math.round(Date.now() / 1000)
       const metric = toIdentifier(`devlow_bench/${scenario}/${name}`)
       if (UNIT_MAPPING[unit]) {
@@ -80,7 +80,7 @@ export default function createInterface({
         points: [[ts, [value]]],
       })
     },
-    end: async (scenario, props) => {
+    end: async (_scenario, _props) => {
       await api.submitDistributionPoints({
         body: {
           series: dataPoints,

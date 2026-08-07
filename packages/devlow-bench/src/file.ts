@@ -8,7 +8,7 @@ export async function waitForFile(
 ): Promise<void> {
   let currentAction = ''
   let timeoutRef
-  const timeoutPromise = new Promise<void>((resolve, reject) => {
+  const timeoutPromise = new Promise<void>((_resolve, reject) => {
     timeoutRef = setTimeout(() => {
       reject(
         new Error(`Timed out waiting for file ${path} (${currentAction}))`)
