@@ -43,6 +43,17 @@ jobs:
           echo "$(node scripts/run-for-change.mjs --not --type docs --exec echo 'false')" >> $GITHUB_OUTPUT;
           echo 'EOF' >> $GITHUB_OUTPUT
 
+      - name: check for turbopack only change
+        id: turbopack-change
+        run: |
+          set -euo pipefail
+          TURBOPACK_ONLY="$(node scripts/run-for-change.mjs --not --type turbopack --exec echo 'false')"
+          {
+            echo "TURBOPACK_ONLY<<EOF"
+            echo "$TURBOPACK_ONLY"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: check for release
         id: is-release
         run: |
@@ -56,6 +67,12 @@ jobs:
     outputs:
       docs-only: ${{ steps.docs-change.outputs.DOCS_ONLY != 'false' }}
       is-release: ${{ steps.is-release.outputs.IS_RELEASE == 'true' }}
+      # Pull requests only, so canary and release run all Webpack tests.
+      turbopack-only: >-
+        ${{
+          github.event_name == 'pull_request' &&
+          steps.turbopack-change.outputs.TURBOPACK_ONLY != 'false'
+        }}
       rspack: >-
         ${{
           steps.is-release.outputs.IS_RELEASE == 'true' || (
@@ -394,7 +411,6 @@ jobs:
         export NEXT_TEST_MODE=dev
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         export RUST_BACKTRACE=1
 
         node run-tests.js \
@@ -437,7 +453,6 @@ jobs:
         export NEXT_TEST_MODE=start
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         export RUST_BACKTRACE=1
 
         node run-tests.js --timings --require-timings -g ${{ matrix.group }} --type production
@@ -474,7 +489,6 @@ jobs:
         export NEXT_TEST_MODE=dev
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
 
         # rspack flags
         export NEXT_RSPACK=1
@@ -521,7 +535,6 @@ jobs:
         export NEXT_TEST_MODE=start
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
 
         # rspack flags
         export NEXT_RSPACK=1
@@ -684,7 +697,6 @@ jobs:
     with:
       afterBuild: |
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         node scripts/test-new-tests.mjs \
           --flake-detection \
           --mode dev \
@@ -711,7 +723,6 @@ jobs:
     with:
       afterBuild: |
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         node scripts/test-new-tests.mjs \
           --flake-detection \
           --mode start \
@@ -721,12 +732,52 @@ jobs:
       timeout_minutes: 120 # Increase the default timeout as tests are intentionally run multiple times to detect flakes
     secrets: inherit
 
+  # The deploy tests install Next.js from the preview tarballs for this commit.
+  # Those are published by `upload-preview-tarballs`, which runs on
+  # `workflow_run` after `build-and-deploy` finishes, and for non-fork pull
+  # requests `build-and-deploy` itself runs on the `push` event rather than
+  # `pull_request`. The tarballs are therefore produced by a different workflow
+  # and a different event, which `needs` cannot express, so poll for them here
+  # instead. Keeping the wait in this cheap job means the deploy test matrices
+  # do not occupy large runners while the tarballs are still being built.
+  wait-for-preview-tarball:
+    name: Wait for preview tarball
+    needs: ['optimize-ci', 'changes']
+    # `docs-only` and `is-release` mirror the cases where `build-and-deploy`
+    # resolves its deploy target to `skipped` and never publishes a tarball.
+    # test-new-tests-if
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.is-release == 'false' }}
+    # test-new-tests-end-if
+    runs-on: ubuntu-latest
+    # Outer bound only. The script gives up first, so a tarball that never
+    # arrives is reported by it rather than by the runner killing the job.
+    timeout-minutes: 35
+    permissions: {}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            scripts/git-info.mjs
+            scripts/wait-for-preview-tarball.mjs
+          sparse-checkout-cone-mode: false
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Wait for preview tarball
+        env:
+          PREVIEW_BUILDS_BASE_URL: ${{ vars.PREVIEW_BUILDS_BASE_URL }}
+          PREVIEW_BUILDS_READ_TOKEN: ${{ secrets.PREVIEW_BUILDS_READ_TOKEN }}
+        run: |
+          set -euo pipefail
+          node scripts/wait-for-preview-tarball.mjs \
+            --preview-builds-base-url "$PREVIEW_BUILDS_BASE_URL" \
+            --timeout-minutes 30
+
   test-new-tests-deploy:
     name: Test new and changed tests when deployed
-    needs:
-      ['optimize-ci', 'test-prod', 'test-new-tests-dev', 'test-new-tests-start']
+    needs: ['optimize-ci', 'changes', 'wait-for-preview-tarball']
     # test-new-tests-if
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' }}
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
     # test-new-tests-end-if
 
     strategy:
@@ -741,7 +792,6 @@ jobs:
         export NEXT_ENABLE_ADAPTER=1
         export NEXT_E2E_TEST_TIMEOUT=240000
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         export IS_TURBOPACK_TEST=1
         node scripts/test-new-tests.mjs \
           --mode deploy \
@@ -753,15 +803,9 @@ jobs:
 
   test-new-tests-deploy-cache-components:
     name: Test new and changed tests when deployed (cache components)
-    needs:
-      [
-        'optimize-ci',
-        'test-cache-components-prod',
-        'test-new-tests-dev',
-        'test-new-tests-start',
-      ]
+    needs: ['optimize-ci', 'changes', 'wait-for-preview-tarball']
     # test-new-tests-if
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' }}
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
     # test-new-tests-end-if
 
     strategy:
@@ -796,7 +840,7 @@ jobs:
         'build-next',
         'fetch-test-timings',
       ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.turbopack-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -814,7 +858,6 @@ jobs:
         export NEXT_TEST_MODE=dev
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
 
         node run-tests.js \
           --timings \
@@ -836,7 +879,6 @@ jobs:
       afterBuild: |
         export NEXT_TEST_MODE=dev
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_DEV=1
 
@@ -860,7 +902,6 @@ jobs:
       afterBuild: |
         export NEXT_TEST_MODE=start
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_BUILD=1
 
@@ -885,7 +926,6 @@ jobs:
       afterBuild: |
         export NEXT_TEST_MODE=start
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_BUILD=1
 
@@ -909,7 +949,7 @@ jobs:
         'build-next',
         'fetch-test-timings',
       ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.turbopack-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -927,7 +967,6 @@ jobs:
         export NEXT_TEST_MODE=start
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
 
         node run-tests.js --timings --require-timings -g ${{ matrix.group }} --type production
       testTimingsArtifact: 'test-timings'
@@ -947,7 +986,6 @@ jobs:
         # these all run without concurrency because they're heavier
         export TEST_CONCURRENCY=1
         export IS_TURBOPACK_TEST=1
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=false
         TURBOPACK_BUILD=1 NEXT_TEST_MODE=start BROWSER_NAME=firefox node run-tests.js \
           test/production/pages-dir/production/test/index.test.ts \
           test/production/chunk-load-failure/chunk-load-failure.test.ts
@@ -1075,6 +1113,7 @@ jobs:
       - test-turbopack-dev
       - test-new-tests-dev
       - test-new-tests-start
+      - wait-for-preview-tarball
       - test-new-tests-deploy
       - test-new-tests-deploy-cache-components
       - test-turbopack-production

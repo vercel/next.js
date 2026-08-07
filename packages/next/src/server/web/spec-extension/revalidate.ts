@@ -211,6 +211,8 @@ function revalidate(
     store.pendingRevalidatedTags = []
   }
 
+  const revalidatedAt = performance.timeOrigin + performance.now()
+
   for (const tag of tags) {
     const existingIndex = store.pendingRevalidatedTags.findIndex((item) => {
       if (item.tag !== tag) return false
@@ -227,7 +229,13 @@ function revalidate(
       store.pendingRevalidatedTags.push({
         tag,
         profile,
+        revalidatedAt,
       })
+    } else {
+      // Revalidating a tag again invalidates everything produced up to now, so
+      // the latest revalidation is the one that decides which entries are
+      // stale.
+      store.pendingRevalidatedTags[existingIndex].revalidatedAt = revalidatedAt
     }
   }
 

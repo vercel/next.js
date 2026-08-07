@@ -491,25 +491,22 @@ impl AggregatedDataUpdate {
             }
 
             // Update AggregatedSessionDependentCleanContainer
-            let old_single_container_current_session_clean_count;
             let new_single_container_current_session_clean_count;
-            if *current_session_clean_update != 0 {
-                new_single_container_current_session_clean_count = task
-                    .update_and_get_aggregated_current_session_clean_containers(
-                        dirty_container_id,
-                        *current_session_clean_update,
-                    );
-                old_single_container_current_session_clean_count =
+            let old_single_container_current_session_clean_count =
+                if *current_session_clean_update != 0 {
+                    new_single_container_current_session_clean_count = task
+                        .update_and_get_aggregated_current_session_clean_containers(
+                            dirty_container_id,
+                            *current_session_clean_update,
+                        );
+                    new_single_container_current_session_clean_count - *current_session_clean_update
+                } else {
+                    new_single_container_current_session_clean_count = task
+                        .get_aggregated_current_session_clean_containers(&dirty_container_id)
+                        .copied()
+                        .unwrap_or_default();
                     new_single_container_current_session_clean_count
-                        - *current_session_clean_update;
-            } else {
-                new_single_container_current_session_clean_count = task
-                    .get_aggregated_current_session_clean_containers(&dirty_container_id)
-                    .copied()
-                    .unwrap_or_default();
-                old_single_container_current_session_clean_count =
-                    new_single_container_current_session_clean_count;
-            }
+                };
 
             // compute aggregated update
             let was_single_container_clean = old_dirty_single_container_count > 0
@@ -527,40 +524,36 @@ impl AggregatedDataUpdate {
                 let task_id = task.id();
 
                 // Update AggregatedDirtyContainerCount and compute aggregate value
-                let old_dirty_container_count;
                 let new_dirty_container_count;
-                if dirty_container_count_update != 0 {
+                let old_dirty_container_count = if dirty_container_count_update != 0 {
                     new_dirty_container_count = task
                         .update_and_get_aggregated_dirty_container_count(
                             dirty_container_count_update,
                         );
-                    old_dirty_container_count =
-                        new_dirty_container_count - dirty_container_count_update;
+                    new_dirty_container_count - dirty_container_count_update
                 } else {
                     new_dirty_container_count = task
                         .get_aggregated_dirty_container_count()
                         .copied()
                         .unwrap_or_default();
-                    old_dirty_container_count = new_dirty_container_count;
+                    new_dirty_container_count
                 };
 
                 // Update AggregatedSessionDependentCleanContainerCount and compute aggregate value
                 let new_current_session_clean_container_count;
-                let old_current_session_clean_container_count;
-                if current_session_clean_update != 0 {
+                let old_current_session_clean_container_count = if current_session_clean_update != 0
+                {
                     new_current_session_clean_container_count = task
                         .update_and_get_aggregated_current_session_clean_container_count(
                             current_session_clean_update,
                         );
-                    old_current_session_clean_container_count =
-                        new_current_session_clean_container_count - current_session_clean_update;
+                    new_current_session_clean_container_count - current_session_clean_update
                 } else {
                     new_current_session_clean_container_count = task
                         .get_aggregated_current_session_clean_container_count()
                         .copied()
                         .unwrap_or_default();
-                    old_current_session_clean_container_count =
-                        new_current_session_clean_container_count;
+                    new_current_session_clean_container_count
                 };
 
                 let compute_result = ComputeDirtyAndCleanUpdate {

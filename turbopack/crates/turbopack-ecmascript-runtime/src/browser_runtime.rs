@@ -26,7 +26,7 @@ pub async fn get_browser_runtime_code(
     chunk_loading_global: Vc<RcStr>,
     cross_origin: Vc<CrossOrigin>,
     chunk_load_retry: Vc<ChunkLoadRetry>,
-    has_async_modules: bool,
+    include_async_module_runtime: bool,
     chunk_loading: Vc<ChunkLoading>,
     support_component_chunks: bool,
 ) -> Result<Vc<Code>> {
@@ -192,8 +192,7 @@ pub async fn get_browser_runtime_code(
     )?;
 
     code.push_code(&*shared_runtime_utils_code.await?);
-    // Only include the async-module (top-level await) machinery when the app uses it.
-    if has_async_modules {
+    if include_async_module_runtime {
         code.push_code(
             &*embed_static_code(
                 asset_context,

@@ -523,22 +523,26 @@ describe('app-dir action handling', () => {
     })
   })
 
-  it('should support importing the same action module instance in both server and action layers', async () => {
-    const browser = await next.browser('/shared')
+  // Skip in deployment mode: there might be multiple function instances with their own
+  // app/shared/action.js and thus multiple instances of the counter.
+  if (!isNextDeploy) {
+    it('should support importing the same action module instance in both server and action layers', async () => {
+      const browser = await next.browser('/shared')
 
-    const v = await browser.elementByCss('#value').text()
-    expect(v).toBe('Value = 0')
+      const v = await browser.elementByCss('#value').text()
+      expect(v).toBe('Value = 0')
 
-    await browser.elementByCss('#server-inc').click()
-    await retry(async () => {
-      expect(await browser.elementByCss('#value').text()).toBe('Value = 1')
+      await browser.elementByCss('#server-inc').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#value').text()).toBe('Value = 1')
+      })
+
+      await browser.elementByCss('#client-inc').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#value').text()).toBe('Value = 2')
+      })
     })
-
-    await browser.elementByCss('#client-inc').click()
-    await retry(async () => {
-      expect(await browser.elementByCss('#value').text()).toBe('Value = 2')
-    })
-  })
+  }
 
   it('should not block navigation events while a server action is in flight', async () => {
     let browser = await next.browser('/client')
@@ -1185,7 +1189,12 @@ describe('app-dir action handling', () => {
 
         expect(request.url()).toEqual(`${next.url}${initialPagePath}`)
         expect(request.method()).toEqual('POST')
-        expect(response.status()).toEqual(303)
+        expect(response.status()).toEqual(200)
+
+        const headers = await response.allHeaders()
+        expect(headers['x-action-redirect']).toBeDefined()
+        expect(headers.location).toBeUndefined()
+        expect(headers['content-type']).toContain('text/x-component')
       }
     )
 
@@ -1298,7 +1307,12 @@ describe('app-dir action handling', () => {
 
         expect(request.url()).toEqual(`${next.url}${initialPagePath}`)
         expect(request.method()).toEqual('POST')
-        expect(response.status()).toEqual(303)
+        expect(response.status()).toEqual(200)
+
+        const headers = await response.allHeaders()
+        expect(headers['x-action-redirect']).toBeDefined()
+        expect(headers.location).toBeUndefined()
+        expect(headers['content-type']).toContain('text/x-component')
       }
     )
 

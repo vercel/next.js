@@ -3,7 +3,7 @@ import { connection } from 'next/server'
 
 async function Dynamic() {
   await connection()
-  return null
+  return <p id="dynamic-layout">dynamic layout content</p>
 }
 
 export default function Root({ children }: { children: ReactNode }) {

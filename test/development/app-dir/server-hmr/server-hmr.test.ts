@@ -129,6 +129,319 @@ describe('server-hmr', () => {
     )
   })
 
+  describe('new import', () => {
+    itTurbopackDev(
+      'does not re-evaluate unmodified dependencies when adding a new import',
+      async () => {
+        const browser = await next.browser('/new-import')
+
+        await retry(async () => {
+          const text = await browser.elementByCss('#greeting').text()
+          expect(text).toBe('hello world')
+        })
+
+        const initialDepEvalTime = await browser
+          .elementByCss('#dep-eval-time')
+          .text()
+
+        // Add a new import from a file that wasn't previously in the module
+        // graph. Entry chunks (page.js) are CJS; without a VersionedContent
+        // impl they produce `restart` updates from Turbopack, causing clear()
+        // to wipe require.cache and re-evaluate every server module.
+        await next.patchFile('app/new-import/page.tsx', (content) => {
+          return content
+            .replace(
+              'export default function Page() {',
+              "import { newModuleValue } from './new-module'\n\nexport default function Page() {"
+            )
+            .replace(
+              '<p id="new-module-value">not imported yet</p>',
+              '<p id="new-module-value">{newModuleValue}</p>'
+            )
+        })
+
+        await retry(async () => {
+          const text = await browser.elementByCss('#new-module-value').text()
+          expect(text).toBe('from-new-module')
+        })
+
+        // clear() re-evaluates every server module, which would change
+        // depEvalTime. A partial HMR apply only re-evaluates the modified page
+        // module, leaving the unmodified dependency untouched.
+        const newDepEvalTime = await browser
+          .elementByCss('#dep-eval-time')
+          .text()
+        expect(newDepEvalTime).toBe(initialDepEvalTime)
+
+        await next.patchFile('app/new-import/page.tsx', (content) => {
+          return content
+            .replace(
+              "import { newModuleValue } from './new-module'\n\nexport default function Page() {",
+              'export default function Page() {'
+            )
+            .replace(
+              '<p id="new-module-value">{newModuleValue}</p>',
+              '<p id="new-module-value">not imported yet</p>'
+            )
+        })
+
+        await retry(async () => {
+          const text = await browser.elementByCss('#new-module-value').text()
+          expect(text).toBe('not imported yet')
+        })
+      }
+    )
+  })
+
+  describe('dynamic import', () => {
+    // A change to a server-side dynamically-imported module renames its chunk
+    // (content hash) under server/chunks/. That chunk is not part of the entry
+    // chunk's *synchronous* chunk list, so this exercises a different path than
+    // the entry-chunk "new import" case above.
+    //
+    // Two properties are guarded:
+    //   1. The change is hot-reflected: the dynamic chunk is reachable through
+    //      the entry's async-loader references, which are expanded into the
+    //      tracked chunk list, so the module delta rides the merged
+    //      ChunkListUpdate and the module is re-instantiated.
+    //   2. No restart → clear(): the unmodified synchronous dependency keeps its
+    //      evaluation timestamp (detected via dep.ts).
+    itTurbopackDev(
+      'reflects changes to a dynamically-imported module without clear()',
+      async () => {
+        const browser = await next.browser('/dynamic-import')
+
+        await retry(async () => {
+          const text = await browser.elementByCss('#lazy-value').text()
+          expect(text).toBe('lazy-v0')
+        })
+
+        const initialDepEvalTime = await browser
+          .elementByCss('#dep-eval-time')
+          .text()
+
+        await next.patchFile('app/dynamic-import/lazy.ts', (content) =>
+          content.replace('lazy-v0', 'lazy-v1')
+        )
+
+        // The dynamic import value is hot-updated on the server.
+        await retry(async () => {
+          const fresh = await next
+            .fetch('/dynamic-import')
+            .then((r) => r.text())
+          expect(fresh).toContain('lazy-v1')
+        })
+
+        // No clear() fired: the unmodified synchronous dependency keeps its
+        // original evaluation timestamp across the update.
+        await browser.refresh()
+        const newDepEvalTime = await browser
+          .elementByCss('#dep-eval-time')
+          .text()
+        expect(newDepEvalTime).toBe(initialDepEvalTime)
+
+        await next.patchFile('app/dynamic-import/lazy.ts', (content) =>
+          content.replace('lazy-v1', 'lazy-v0')
+        )
+
+        await retry(async () => {
+          const fresh = await next
+            .fetch('/dynamic-import')
+            .then((r) => r.text())
+          expect(fresh).toContain('lazy-v0')
+        })
+      }
+    )
+
+    itTurbopackDev(
+      'reflects a new import added to a dynamically-imported module without clear()',
+      async () => {
+        const browser = await next.browser('/dynamic-import')
+
+        await retry(async () => {
+          const text = await browser.elementByCss('#lazy-value').text()
+          expect(text).toBe('lazy-v0')
+        })
+
+        const initialDepEvalTime = await browser
+          .elementByCss('#dep-eval-time')
+          .text()
+
+        // Add a brand-new module to the dynamically-imported chunk's graph. This
+        // changes the dynamic chunk's availability info / content hash, renaming
+        // it. This is the dynamic-import analogue of the entry-chunk "new import"
+        // case: the new value must be reflected without a restart → clear().
+        await next.patchFile('app/dynamic-import/lazy.ts', (content) =>
+          content.replace(
+            "export const lazyValue = 'lazy-v0'",
+            "import { lazyNewModuleValue } from './lazy-new-module'\n\nexport const lazyValue = lazyNewModuleValue"
+          )
+        )
+
+        await retry(async () => {
+          const fresh = await next
+            .fetch('/dynamic-import')
+            .then((r) => r.text())
+          expect(fresh).toContain('from-lazy-new-module')
+        })
+
+        // No clear() fired: the unmodified synchronous dependency keeps its
+        // original evaluation timestamp across the update.
+        await browser.refresh()
+        const newDepEvalTime = await browser
+          .elementByCss('#dep-eval-time')
+          .text()
+        expect(newDepEvalTime).toBe(initialDepEvalTime)
+
+        await next.patchFile('app/dynamic-import/lazy.ts', (content) =>
+          content.replace(
+            "import { lazyNewModuleValue } from './lazy-new-module'\n\nexport const lazyValue = lazyNewModuleValue",
+            "export const lazyValue = 'lazy-v0'"
+          )
+        )
+
+        await retry(async () => {
+          const fresh = await next
+            .fetch('/dynamic-import')
+            .then((r) => r.text())
+          expect(fresh).toContain('lazy-v0')
+        })
+      }
+    )
+  })
+
+  describe('client component hmr', () => {
+    itTurbopackDev(
+      'does not clear() when adding a new client component import',
+      async () => {
+        const browser = await next.browser('/client-component-hmr')
+
+        await retry(async () => {
+          const text = await browser.elementByCss('#greeting').text()
+          expect(text).toBe('hello world')
+        })
+
+        const initialDepEvalTime = await browser
+          .elementByCss('#dep-eval-time')
+          .text()
+
+        // Add a new client component import. This changes the client-reference
+        // manifest and can cause chunk renames. Without filtering manifest
+        // chunks from HMR subscriptions, this triggers a spurious restart →
+        // clear() that wipes require.cache and re-evaluates all server modules.
+        await next.patchFile('app/client-component-hmr/page.tsx', (content) => {
+          return content
+            .replace(
+              'export default function Page() {',
+              "import { ClientGreeting } from './ClientGreeting'\n\nexport default function Page() {"
+            )
+            .replace(
+              '<p id="client-component">not imported yet</p>',
+              '<ClientGreeting text="from-client" />'
+            )
+        })
+
+        await retry(async () => {
+          const text = await browser.elementByCss('#client-greeting').text()
+          expect(text).toBe('from-client')
+        })
+
+        // clear() would re-evaluate dep.ts and change its timestamp.
+        // A partial HMR apply leaves unmodified server modules untouched.
+        const newDepEvalTime = await browser
+          .elementByCss('#dep-eval-time')
+          .text()
+        expect(newDepEvalTime).toBe(initialDepEvalTime)
+
+        await next.patchFile('app/client-component-hmr/page.tsx', (content) => {
+          return content
+            .replace(
+              "import { ClientGreeting } from './ClientGreeting'\n\nexport default function Page() {",
+              'export default function Page() {'
+            )
+            .replace(
+              '<ClientGreeting text="from-client" />',
+              '<p id="client-component">not imported yet</p>'
+            )
+        })
+
+        await retry(async () => {
+          const text = await browser.elementByCss('#client-component').text()
+          expect(text).toBe('not imported yet')
+        })
+      }
+    )
+
+    itTurbopackDev(
+      'preserves server module state across multiple client component changes',
+      async () => {
+        const browser = await next.browser('/client-component-hmr')
+
+        await retry(async () => {
+          const text = await browser.elementByCss('#greeting').text()
+          expect(text).toBe('hello world')
+        })
+
+        const initialDepEvalTime = await browser
+          .elementByCss('#dep-eval-time')
+          .text()
+
+        await next.patchFile('app/client-component-hmr/page.tsx', (content) => {
+          return content
+            .replace(
+              'export default function Page() {',
+              "import { ClientGreeting } from './ClientGreeting'\n\nexport default function Page() {"
+            )
+            .replace(
+              '<p id="client-component">not imported yet</p>',
+              '<ClientGreeting text="first" />'
+            )
+        })
+
+        await retry(async () => {
+          const text = await browser.elementByCss('#client-greeting').text()
+          expect(text).toBe('first')
+        })
+
+        await next.patchFile('app/client-component-hmr/page.tsx', (content) => {
+          return content.replace(
+            '<ClientGreeting text="first" />',
+            '<ClientGreeting text="second" />'
+          )
+        })
+
+        await retry(async () => {
+          const text = await browser.elementByCss('#client-greeting').text()
+          expect(text).toBe('second')
+        })
+
+        // dep.ts should still have its original timestamp — no clear() fired
+        // across either change.
+        const newDepEvalTime = await browser
+          .elementByCss('#dep-eval-time')
+          .text()
+        expect(newDepEvalTime).toBe(initialDepEvalTime)
+
+        await next.patchFile('app/client-component-hmr/page.tsx', (content) => {
+          return content
+            .replace(
+              "import { ClientGreeting } from './ClientGreeting'\n\nexport default function Page() {",
+              'export default function Page() {'
+            )
+            .replace(
+              '<ClientGreeting text="second" />',
+              '<p id="client-component">not imported yet</p>'
+            )
+        })
+
+        await retry(async () => {
+          const text = await browser.elementByCss('#client-component').text()
+          expect(text).toBe('not imported yet')
+        })
+      }
+    )
+  })
+
   describe('source maps', () => {
     itTurbopackDev(
       "stack frames from eval'd HMR modules point to original source locations",

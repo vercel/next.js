@@ -40,10 +40,7 @@ import {
   type OpaqueFallbackRouteParams,
 } from '../../server/request/fallback-params' with { 'turbopack-transition': 'next-server-utility' }
 import { setManifestsSingleton } from '../../server/app-render/manifests-singleton' with { 'turbopack-transition': 'next-server-utility' }
-import {
-  isHtmlBotRequest,
-  shouldServeStreamingMetadata,
-} from '../../server/lib/streaming-metadata' with { 'turbopack-transition': 'next-server-utility' }
+import { shouldServeStreamingMetadata } from '../../server/lib/streaming-metadata' with { 'turbopack-transition': 'next-server-utility' }
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths' with { 'turbopack-transition': 'next-server-utility' }
 import { getIsPossibleServerAction } from '../../server/lib/server-action-request-meta' with { 'turbopack-transition': 'next-server-utility' }
 import {
@@ -56,10 +53,7 @@ import {
   RSC_CONTENT_TYPE_HEADER,
   NEXT_HMR_REFRESH_HEADER,
 } from '../../client/components/app-router-headers' with { 'turbopack-transition': 'next-server-utility' }
-import {
-  getBotType,
-  isBot,
-} from '../../shared/lib/router/utils/is-bot' with { 'turbopack-transition': 'next-server-utility' }
+import { getBotType } from '../../shared/lib/router/utils/is-bot' with { 'turbopack-transition': 'next-server-utility' }
 import {
   CachedRouteKind,
   IncrementalCacheKind,
@@ -98,6 +92,8 @@ import { InvariantError } from '../../shared/lib/invariant-error' with { 'turbop
 import { scheduleOnNextTick } from '../../lib/scheduler' with { 'turbopack-transition': 'next-server-utility' }
 import { isInterceptionRouteAppPath } from '../../shared/lib/router/utils/interception-routes' with { 'turbopack-transition': 'next-server-utility' }
 import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param' with { 'turbopack-transition': 'next-server-utility' }
+
+type AppPageRenderOperation = 'render' | 'prerender'
 
 /**
  * Builds the cache key for the most complete prerenderable shell we can derive
@@ -287,7 +283,6 @@ export function createAppPageEntrypoint({
 
     const userAgent = req.headers['user-agent'] || ''
     const botType = getBotType(userAgent)
-    const isHtmlBot = isHtmlBotRequest(req)
 
     /**
      * If true, this indicates that the request being made is for an app
@@ -438,8 +433,9 @@ export function createAppPageEntrypoint({
 
     // Whether the testing API is exposed (dev mode or explicit flag)
     const exposeTestingApi =
-      routeModule.isDev === true ||
-      nextConfig.experimental.exposeTestingApiInProductionBuild === true
+      nextConfig.cacheComponents === true &&
+      (routeModule.isDev === true ||
+        nextConfig.experimental.exposeTestingApiInProductionBuild === true)
 
     // Enable the Instant Navigation Testing API. Renders only the prefetched
     // portion of the page, excluding dynamic content. This allows tests to
@@ -462,11 +458,7 @@ export function createAppPageEntrypoint({
     // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
     // prerender manifest and this is an app page.
     const isRoutePPREnabled: boolean =
-      // When the instant navigation testing API is active, enable the PPR
-      // prerender path even without Cache Components. In dev mode without CC,
-      // static pages need this path to produce buffered segment data (the
-      // legacy prerender path hangs in dev mode).
-      (couldSupportPPR || isInstantNavigationTest) &&
+      couldSupportPPR &&
       ((
         prerenderManifest.routes[normalizedSrcPage] ??
         prerenderManifest.dynamicRoutes[normalizedSrcPage]
@@ -488,6 +480,8 @@ export function createAppPageEntrypoint({
       isDebugStaticShell && routeModule.isDev === true
 
     const isDebugFallbackShell = hasDebugFallbackShellQuery && isRoutePPREnabled
+    const isDebugPrerender =
+      isDebugStaticShell || isDebugDynamicAccesses || isDebugFallbackShell
 
     // If we're in minimal mode, then try to get the postponed information from
     // the request metadata. If available, use it for resuming the postponed
@@ -539,21 +533,21 @@ export function createAppPageEntrypoint({
     // being true for a revalidate due to modifying the base-server this.renderOpts
     // when fixing this to correct logic it causes hydration issue since we set
     // serveStreamingMetadata to true during export
-    const serveStreamingMetadata =
-      botType && isRoutePPREnabled
-        ? false
-        : !userAgent
-          ? true
-          : shouldServeStreamingMetadata(userAgent, nextConfig.htmlLimitedBots)
+    const serveStreamingMetadata = !userAgent
+      ? true
+      : shouldServeStreamingMetadata(userAgent, nextConfig.htmlLimitedBots)
+
+    // PPR shells are generated for streaming metadata. Requests that require
+    // blocking metadata must bypass the shell so the prerender and dynamic
+    // render use the same metadata tree.
+    const shouldForceDynamicPPRRender =
+      isRoutePPREnabled && !serveStreamingMetadata
 
     const isSSG = Boolean(
       (prerenderInfo ||
         isPrerendered ||
         prerenderManifest.routes[normalizedSrcPage]) &&
-        // If this is a bot request and PPR is enabled, then we don't want
-        // to serve a static response. This applies to both DOM bots (like Googlebot)
-        // and HTML-limited bots.
-        !(botType && isRoutePPREnabled)
+        !shouldForceDynamicPPRRender
     )
 
     // When a page supports cacheComponents, we can support RDC for Navigations
@@ -585,9 +579,6 @@ export function createAppPageEntrypoint({
         : // Otherwise, we can support dynamic responses if it's a dynamic RSC request.
           isDynamicRSCRequest)
 
-    // When bots request PPR page, perform the full dynamic rendering.
-    // This applies to both DOM bots (like Googlebot) and HTML-limited bots.
-    const shouldWaitOnAllReady = Boolean(botType) && isRoutePPREnabled
     const remainingPrerenderableParams =
       prerenderInfo?.remainingPrerenderableParams ?? []
     // Concrete optional routes like `/optional-catchall` can still match their
@@ -629,7 +620,17 @@ export function createAppPageEntrypoint({
           : prerenderMatch.source
         : null
 
-      if (fallbackPathname && prerenderInfo?.fallbackRouteParams?.length) {
+      if (
+        // Partial fallback shells are only specialized per request when Partial
+        // Prefetching is enabled, mirroring the `partialFallback` flag the
+        // adapter emits for deployments. When it's disabled we fall through to
+        // the normal ISR cache key (`resolvedPathname`) so the shell stays
+        // shared, matching the behavior before the `partialFallbacks` config
+        // flag was removed.
+        nextConfig.partialPrefetching &&
+        fallbackPathname &&
+        prerenderInfo?.fallbackRouteParams?.length
+      ) {
         if (remainingPrerenderableParams.length > 0) {
           const completedShellCacheKey = buildCompletedShellCacheKey(
             fallbackPathname,
@@ -710,7 +711,7 @@ export function createAppPageEntrypoint({
       routerServerContext?.isWrappedByNextServer
     )
     const remainingFallbackRouteParams =
-      remainingPrerenderableParams.length > 0
+      nextConfig.partialPrefetching && remainingPrerenderableParams.length > 0
         ? (prerenderInfo?.fallbackRouteParams?.filter(
             (param) =>
               !remainingPrerenderableParams.some(
@@ -739,12 +740,18 @@ export function createAppPageEntrypoint({
       let parentSpan: Span | undefined
       const invokeRouteModule = async (
         span: Span | undefined,
-        context: AppPageRouteHandlerContext
+        context: AppPageRouteHandlerContext,
+        renderOperation: AppPageRenderOperation
       ) => {
         const nextReq = new NodeNextRequest(req)
         const nextRes = new NodeNextResponse(res)
 
-        return routeModule.render(nextReq, nextRes, context).finally(() => {
+        const result =
+          renderOperation === 'prerender'
+            ? routeModule.prerender(nextReq, nextRes, context)
+            : routeModule.render(nextReq, nextRes, context)
+
+        return result.finally(() => {
           if (!span) return
 
           span.setAttributes({
@@ -818,7 +825,7 @@ export function createAppPageEntrypoint({
         span,
         postponed,
         fallbackRouteParams,
-        forceStaticRender,
+        renderOperation,
         allowEmptyStaticShell,
       }: {
         span?: Span
@@ -835,14 +842,7 @@ export function createAppPageEntrypoint({
          */
         fallbackRouteParams: OpaqueFallbackRouteParams | null
 
-        /**
-         * When true, this indicates that the response generator is being called
-         * in a context where the response must be generated statically.
-         *
-         * CRITICAL: This should only currently be used when revalidating due to a
-         * dynamic RSC request.
-         */
-        forceStaticRender: boolean
+        renderOperation: AppPageRenderOperation
       }): Promise<ResponseCacheEntry> => {
         const context: AppPageRouteHandlerContext = {
           query,
@@ -870,10 +870,10 @@ export function createAppPageEntrypoint({
             page: srcPage,
             postponed,
             allowEmptyStaticShell,
-            shouldWaitOnAllReady,
             serveStreamingMetadata,
             supportsDynamicResponse:
-              typeof postponed === 'string' || supportsDynamicResponse,
+              renderOperation === 'render' &&
+              (typeof postponed === 'string' || supportsDynamicResponse),
             buildManifest,
             nextFontManifest,
             reactLoadableManifest,
@@ -921,8 +921,6 @@ export function createAppPageEntrypoint({
             isDebugFallbackShell
               ? {
                   isBuildTimePrerendering: true,
-                  supportsDynamicResponse: false,
-                  isStaticGeneration: true,
                   isDebugDynamicAccesses: isDebugDynamicAccesses,
                 }
               : {}),
@@ -930,9 +928,14 @@ export function createAppPageEntrypoint({
             partialPrefetching: nextConfig.partialPrefetching,
             // A fallback shell can only be upgraded to a concrete version if at
             // least one of its fallback params is a `generateStaticParams`
-            // candidate (`remainingPrerenderableParams`). This gates whether the
-            // per-segment prefetch responses are flagged `isUpgradeableISRFallback`.
-            isFallbackUpgradeable: remainingPrerenderableParams.length > 0,
+            // candidate (`remainingPrerenderableParams`), and only when Partial
+            // Prefetching is enabled (the upgrade itself is gated on it above).
+            // This gates whether the per-segment prefetch responses are flagged
+            // `isUpgradeableISRFallback`; without an upgrade to wait for, the
+            // client should not retry the prefetch.
+            isFallbackUpgradeable:
+              Boolean(nextConfig.partialPrefetching) &&
+              remainingPrerenderableParams.length > 0,
             validationLevel:
               nextConfig.experimental.instantInsights.validationLevel,
             experimental: {
@@ -986,13 +989,7 @@ export function createAppPageEntrypoint({
           },
         }
 
-        // When we're revalidating in the background, we should not allow dynamic
-        // responses.
-        if (forceStaticRender) {
-          context.renderOpts.supportsDynamicResponse = false
-        }
-
-        const result = await invokeRouteModule(span, context)
+        const result = await invokeRouteModule(span, context, renderOperation)
 
         const { metadata } = result
 
@@ -1105,6 +1102,7 @@ export function createAppPageEntrypoint({
           }
 
           if (
+            nextConfig.partialPrefetching &&
             prerenderInfo?.fallback === null &&
             !hasOmittedConcreteFallbackParam &&
             !hasUnresolvedRootFallbackParams &&
@@ -1120,13 +1118,14 @@ export function createAppPageEntrypoint({
             fallbackMode = FallbackMode.PRERENDER
           }
 
-          // When serving a HTML bot request, we want to serve a blocking render and
-          // not the prerendered page. This ensures that the correct content is served
-          // to the bot in the head.
-          if (fallbackMode === FallbackMode.PRERENDER && isBot(userAgent)) {
-            if (!isRoutePPREnabled || isHtmlBot) {
-              fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
-            }
+          // When serving a request that requires blocking metadata, we want to
+          // use a blocking render instead of the prerendered fallback. Without
+          // PPR, preserve the existing behavior for built-in bots.
+          if (
+            fallbackMode === FallbackMode.PRERENDER &&
+            (isRoutePPREnabled ? !serveStreamingMetadata : Boolean(botType))
+          ) {
+            fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
           }
 
           if (previousIncrementalCacheEntry?.isStale === -1) {
@@ -1262,7 +1261,7 @@ export function createAppPageEntrypoint({
                     // the background path below will complete the shell into a
                     // more specific cache entry for later requests.
                     fallbackRouteParams,
-                    forceStaticRender: true,
+                    renderOperation: 'prerender',
                     allowEmptyStaticShell: isInstantNavigationTest || undefined,
                   }),
                 waitUntil: ctx.waitUntil,
@@ -1277,6 +1276,10 @@ export function createAppPageEntrypoint({
                 if (
                   !isMinimalMode &&
                   isRoutePPREnabled &&
+                  // Upgrading a fallback shell into a more specific ISR entry is
+                  // only done when Partial Prefetching is enabled, mirroring the
+                  // `partialFallback` flag the adapter emits for deployments.
+                  nextConfig.partialPrefetching &&
                   // Match the build-time contract: only fallback shells that can
                   // still be completed with prerenderable params should upgrade.
                   remainingPrerenderableParams.length > 0 &&
@@ -1316,7 +1319,7 @@ export function createAppPageEntrypoint({
                                     remainingFallbackRouteParams
                                   )
                                 : null,
-                            forceStaticRender: true,
+                            renderOperation: 'prerender',
                           })
                         },
                         // We don't have a prior entry for this param-specific shell.
@@ -1562,12 +1565,19 @@ export function createAppPageEntrypoint({
             }
           }
 
+          // Forced static and debug renders are prerenders even when the
+          // surrounding request otherwise supports dynamic rendering.
+          const isRequestSpecificRender =
+            !forceStaticRender &&
+            !isDebugPrerender &&
+            (supportsDynamicResponse || isPossibleServerAction)
+
           // Perform the render.
           return doRender({
             span,
             postponed,
             fallbackRouteParams,
-            forceStaticRender,
+            renderOperation: isRequestSpecificRender ? 'render' : 'prerender',
             allowEmptyStaticShell: isInstantNavigationTest || undefined,
           })
         } catch (err) {
@@ -2110,7 +2120,7 @@ export function createAppPageEntrypoint({
           // This is a resume render, not a fallback render. Fallback params
           // (for cacheComponents routes) are plumbed via request meta above.
           fallbackRouteParams: null,
-          forceStaticRender: false,
+          renderOperation: 'render',
         })
           .then(async (result) => {
             if (!result) {

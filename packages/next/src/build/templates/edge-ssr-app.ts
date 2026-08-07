@@ -130,7 +130,6 @@ async function requestHandler(
       params,
       page: srcPage,
       postponed: undefined,
-      shouldWaitOnAllReady: false,
       serveStreamingMetadata: true,
       supportsDynamicResponse: true,
       buildManifest,
@@ -187,8 +186,9 @@ async function requestHandler(
           nextConfig.experimental.maxPostponedStateSize
         ),
         exposeTestingApi:
-          pageRouteModule.isDev === true ||
-          nextConfig.experimental.exposeTestingApiInProductionBuild === true,
+          nextConfig.cacheComponents === true &&
+          (pageRouteModule.isDev === true ||
+            nextConfig.experimental.exposeTestingApiInProductionBuild === true),
       },
 
       incrementalCache: await pageRouteModule.getIncrementalCache(

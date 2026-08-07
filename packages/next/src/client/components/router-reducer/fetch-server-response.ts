@@ -30,11 +30,8 @@ import {
 } from '../app-router-headers'
 import { callServer } from '../../app-call-server'
 import { findSourceMapURL } from '../../app-find-source-map-url'
-import {
-  normalizeFlightData,
-  prepareFlightRouterStateForRequest,
-  type NormalizedFlightData,
-} from '../../flight-data-helpers'
+import { prepareFlightRouterStateForRequest } from '../../flight-data-helpers'
+import type { PartialTransportData } from '../../../shared/lib/rsc-transport'
 import { setCacheBustingSearchParam } from './set-cache-busting-search-param'
 import { urlToUrlWithoutFlightMarker } from '../../route-params'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
@@ -79,7 +76,7 @@ export type StaticStageData<
 }
 
 type SpaFetchServerResponseResult = {
-  flightData: NormalizedFlightData[]
+  transportData: PartialTransportData | null
   canonicalUrl: URL
   renderedSearch: NormalizedSearch
   couldBeIntercepted: boolean
@@ -279,9 +276,10 @@ export async function fetchServerResponse(
       return doMpaNavigation(res.url)
     }
 
-    const normalizedFlightData = normalizeFlightData(flightResponse.f)
-    if (typeof normalizedFlightData === 'string') {
-      return doMpaNavigation(normalizedFlightData)
+    if (flightResponse.n !== undefined) {
+      // The server responded with an MPA navigation URL instead of a
+      // SPA payload.
+      return doMpaNavigation(flightResponse.n)
     }
 
     const staticStageData =
@@ -290,7 +288,7 @@ export async function fetchServerResponse(
         : null
 
     return {
-      flightData: normalizedFlightData,
+      transportData: flightResponse.t ?? null,
       canonicalUrl: canonicalUrl,
       // TODO: We should be able to read this from the rewrite header, not the
       // Flight response. Theoretically they should always agree, but there are
@@ -545,14 +543,30 @@ export async function decodeStageUntilBoundary<T>(
   byteLength: number,
   headers: RequestHeaders | undefined
 ): Promise<T> {
-  // Buffer the truncated stream into a single chunk before passing it to
-  // Flight. This ensures all model data is available synchronously, which is
-  // required for readVaryParams to synchronously read the thenable status.
-  const { stream } = await createNonTaskyPrefetchResponseStream(
+  const { buffer } = await createNonTaskyPrefetchResponseStream(
     responseBodyClone,
     byteLength
   )
+  return decodeBufferedStage<T>(buffer, headers)
+}
 
+/**
+ * Decodes already-buffered Flight response bytes as a stage payload. The
+ * bytes are delivered to Flight as a single chunk so all rows are processed
+ * synchronously in one call — required for the thenable-status reads that
+ * scope a response's late-resolving metadata (vary params, isPartial, ...)
+ * to this decode.
+ */
+export function decodeBufferedStage<T>(
+  buffer: Uint8Array,
+  headers: RequestHeaders | undefined
+): Promise<T> {
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(buffer)
+      controller.close()
+    },
+  })
   return createFromNextReadableStream<T>(stream, headers, {
     allowPartialStream: true,
   })
