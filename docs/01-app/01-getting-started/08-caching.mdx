@@ -47,7 +47,7 @@ The [`use cache`](/docs/app/api-reference/directives/use-cache) directive caches
 - **Data-level**: Cache a function that fetches or computes data (e.g., `getProducts()`, `getUser(id)`)
 - **UI-level**: Cache an entire component or page (e.g., `async function BlogPosts()`)
 
-A cache directive gives a result a lifetime, information Next.js uses to apply rendering optimizations. See [Prerendering](#prerendering) for how cached results become part of the static shell and may be included in a [prefetch](#runtime-prefetching).
+A cache directive gives a result a lifetime, information Next.js uses to apply rendering optimizations. See [Prerendering](#prerendering) for how cached results become part of the static shell and may be included in a [prefetch](#prefetching).
 
 > **Good to know:** We recommend pairing every cache directive with a [`cacheLife`](/docs/app/api-reference/functions/cacheLife). Without one, the implicit `default` profile applies.
 
@@ -197,7 +197,7 @@ A runtime API access without `<Suspense>` surfaces the same **blocking-route** i
   />
 </FixCardGrid>
 
-Runtime-dependent data can still be given a cache lifetime with [`"use cache: private"`](/docs/app/api-reference/directives/use-cache-private), another variant that ships with Cache Components. It gives a lifetime to a function that reads cookies, headers, or `searchParams` directly, so it can be included in a [prefetch](#runtime-prefetching).
+Runtime-dependent data can still be given a cache lifetime with [`"use cache: private"`](/docs/app/api-reference/directives/use-cache-private), another variant that ships with Cache Components. It gives a lifetime to a function that reads cookies, headers, or `searchParams` directly, so it can be included in a [prefetch](#prefetching).
 
 The following section shows an alternative to `use cache: private`: extracting a runtime value and passing it to a shared cached function.
 
@@ -590,7 +590,7 @@ A cached function's output is serialized into an **RSC payload**, at build time 
 
 - **Prerendered HTML.** The payload is rendered to HTML and stored on disk when self-hosting, or in your platform's durable storage behind a CDN. That HTML is the [static shell](#prerendering) at build time and the concrete page after an [ISR](#incremental-static-regeneration) upgrade, with [`revalidate`](/docs/app/api-reference/functions/cacheLife#revalidate) and [`expire`](/docs/app/api-reference/functions/cacheLife#expire) controlling when it's rebuilt.
 - **Shared store.** By default the result stays in a per-instance, in-memory store that is ephemeral on serverless. [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote) moves it to a durable [cache handler](/docs/app/api-reference/config/next-config-js/cacheHandlers) shared across instances, a network roundtrip that pays off only at a **high hit rate**.
-- **Browser.** The payload is included in the RSC sent for a client navigation or [prefetch](#runtime-prefetching), where the browser keeps it fresh for its [`stale`](/docs/app/api-reference/functions/cacheLife#stale) window. [`use cache: private`](/docs/app/api-reference/directives/use-cache-private) results live only here.
+- **Browser.** The payload is included in the RSC sent for a client navigation or [prefetch](#prefetching), where the browser keeps it fresh for its [`stale`](/docs/app/api-reference/functions/cacheLife#stale) window. [`use cache: private`](/docs/app/api-reference/directives/use-cache-private) results live only here.
 
 > **Good to know:** An [App Shell](/docs/app/glossary#app-shell) that reads `cookies()` or `headers()` is session-specific, cached per session on the client rather than in the shared server cache.
 
