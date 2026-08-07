@@ -40,6 +40,13 @@ pub const BLOCK_TYPE_FIXED_KEY_WITH_HASH: u8 = 3;
 /// The block header for a fixed-size key block without hash.
 pub const BLOCK_TYPE_FIXED_KEY_NO_HASH: u8 = 4;
 
+/// Written in a fixed-size key block header's value type field when entries share a value size but
+/// not a value type. Each entry then carries its own type byte ahead of its value.
+///
+/// Tag 4 is safe as a sentinel because it is not a valid entry type: it was the old key-value
+/// tombstone tag, freed when tombstones moved to their own range above the inline range.
+pub const FIXED_KEY_BLOCK_MIXED_VALUE_TYPE: u8 = 4;
+
 /// The tag for a small-sized value.
 pub const KEY_BLOCK_ENTRY_TYPE_SMALL: u8 = 0;
 /// The tag for the blob value.
@@ -380,19 +387,21 @@ impl StaticSortedFile {
         ensure!(block.len() >= 6, "fixed key block too short");
         let entry_count = be::read_u24(&block[1..]) as usize;
         let key_size = be::read_u8(&block[4..]) as usize;
-        let value_type = be::read_u8(&block[5..]);
-        let val_size = entry_val_size(value_type)?;
+        let header_type = be::read_u8(&block[5..]);
+        let FixedValueLayout {
+            value_type,
+            val_size,
+            header_size,
+        } = fixed_value_layout(&block, header_type)?;
         let stride = hash_len as usize + key_size + val_size;
-        let entries = &block[6..];
+        let entries = &block[header_size..];
         ensure!(
             entries.len() == entry_count * stride,
             "fixed key block for {entry_count} entries must is the wrong size"
         );
 
         self.lookup_block_inner::<K, FIND_ALL>(&block, entry_count, key_hash, key, reader, |i| {
-            Ok(get_fixed_key_entry(
-                entries, i, hash_len, key_size, value_type, stride,
-            ))
+            get_fixed_key_entry(entries, i, hash_len, key_size, value_type, stride)
         })
     }
 
@@ -762,11 +771,12 @@ pub struct StaticSortedFileIter {
 enum CurrentKeyBlockKind {
     /// Variable-size entries with an offset table for random access.
     Variable { offsets: RcBytes, hash_len: u8 },
-    /// Fixed-size entries with uniform key size and value type (no offset table).
+    /// Fixed-size entries with uniform key size and value size (no offset table).
     Fixed {
         hash_len: u8,
         key_size: usize,
-        value_type: u8,
+        /// The type shared by every entry, or `None` if each entry carries its own type byte.
+        value_type: Option<u8>,
         stride: usize,
     },
 }
@@ -880,11 +890,13 @@ impl StaticSortedFileIter {
                     0
                 };
                 let key_size = data[4] as usize;
-                let value_type = data[5];
-                let val_size = entry_val_size(value_type)?;
+                let FixedValueLayout {
+                    value_type,
+                    val_size,
+                    header_size,
+                } = fixed_value_layout(data, data[5])?;
                 let stride = hash_len as usize + key_size + val_size;
-                // Header is 6 bytes for fixed-size blocks
-                let entries_range = 6..block.len();
+                let entries_range = header_size..block.len();
                 let entries = block.slice(entries_range);
                 Ok(CurrentKeyBlock {
                     kind: CurrentKeyBlockKind::Fixed {
@@ -927,7 +939,7 @@ impl StaticSortedFileIter {
                         *key_size,
                         *value_type,
                         *stride,
-                    ),
+                    )?,
                 };
                 let full_hash = if hash.is_empty() {
                     crate::key::hash_key(&key)
@@ -1086,20 +1098,58 @@ fn get_key_entry<'l>(
 ///
 /// All entries have the same key size and value type, so positions are computed
 /// arithmetically with no offset table indirection.
+/// How a fixed-size key block encodes its entry values, decoded from the block header.
+struct FixedValueLayout {
+    /// The type shared by every entry, or `None` if each entry carries its own type byte.
+    value_type: Option<u8>,
+    /// Value bytes per entry, including any per-entry type byte.
+    val_size: usize,
+    /// Total header size, which the entry data follows.
+    header_size: usize,
+}
+
+/// Decodes the value layout from a fixed-size key block header.
+fn fixed_value_layout(block: &[u8], header_type: u8) -> Result<FixedValueLayout> {
+    if header_type == FIXED_KEY_BLOCK_MIXED_VALUE_TYPE {
+        // Mixed-type block: the value size follows the header's type byte, and each entry
+        // carries its own type.
+        ensure!(block.len() >= 7, "mixed-type fixed key block too short");
+        Ok(FixedValueLayout {
+            value_type: None,
+            // +1 for the per-entry type byte, which is part of the stride.
+            val_size: be::read_u8(&block[6..]) as usize + 1,
+            header_size: 7,
+        })
+    } else {
+        Ok(FixedValueLayout {
+            value_type: Some(header_type),
+            val_size: entry_val_size(header_type)?,
+            header_size: 6,
+        })
+    }
+}
+
 fn get_fixed_key_entry<'l>(
     entries: &'l [u8],
     index: usize,
     hash_len: u8,
     key_size: usize,
-    value_type: u8,
+    value_type: Option<u8>,
     stride: usize,
-) -> GetKeyEntryResult<'l> {
+) -> Result<GetKeyEntryResult<'l>> {
     let hash_len_usize = hash_len as usize;
     let start = index * stride;
-    GetKeyEntryResult {
-        hash: &entries[start..start + hash_len_usize],
-        key: &entries[start + hash_len_usize..start + hash_len_usize + key_size],
-        ty: value_type,
-        val: &entries[start + hash_len_usize + key_size..(index + 1) * stride],
-    }
+    let key_start = start + hash_len_usize;
+    let key_end = key_start + key_size;
+    // In a mixed-type block the entry's type byte sits between its key and its value.
+    let (ty, val_start) = match value_type {
+        Some(ty) => (ty, key_end),
+        None => (be::read_u8(&entries[key_end..]), key_end + 1),
+    };
+    Ok(GetKeyEntryResult {
+        hash: &entries[start..key_start],
+        key: &entries[key_start..key_end],
+        ty,
+        val: &entries[val_start..(index + 1) * stride],
+    })
 }
