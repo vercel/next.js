@@ -207,8 +207,10 @@ export async function collectSegmentData(
       // row reads as `false`: a successful render always settles the flag
       // (prerender completion resolves `false`), so a pending row can only
       // appear in an aborted render's buffer, where it means no access was
-      // recorded before the abort.
-      runtimeDataAccessed = readFulfilledValue(pagePayload.u, false)
+      // recorded before the abort. A rejected row reads as `true`,
+      // conservatively — an abort errors rows that were still pending when
+      // it happened.
+      runtimeDataAccessed = readFulfilledValue(pagePayload.u, false, true)
     }
   } catch {}
 

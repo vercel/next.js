@@ -234,8 +234,10 @@ const enum PrefetchTaskExitStatus {
  * before per-link work:
  *
  * - RouteTree: fetch the route's tree structure.
- * - Shell: fetch the route's reusable App Shell (param-free loading state),
- *   if the route can produce one and the feature is enabled. Bounded by
+ * - Shell: fetch each segment's shell-stage variant, keyed to be reusable
+ *   across all params below the root (root params are kept) — the phase's
+ *   target is the conceptual App Shell. Runs if the route can produce a
+ *   shell and the feature is enabled. Bounded by
  *   filesystem-route count, not link count — so all Shell prefetches across
  *   queued tasks complete before any Speculative prefetch runs, because
  *   shell responses are shared across every navigation to the same route.
@@ -895,10 +897,11 @@ function pingRootRouteTree(
 
           // Derive the static walk's parameters once per pass; the walk
           // functions below receive them as arguments and are phase-agnostic.
-          // During the Shell phase the walk targets the App Shell variant of
-          // each segment (keyed at the shell vary paths); otherwise it's the
-          // ordinary per-segment static strategy. This is the only place the
-          // phase is consulted — everything below keys off the strategy.
+          // During the Shell phase the walk requests each segment's
+          // shell-stage variant (keyed at the shell vary paths); otherwise
+          // it's the ordinary per-segment static strategy. This is the only
+          // place the phase is consulted — everything below keys off
+          // the strategy.
           const staticWalkStrategy =
             task.phase === PrefetchPhase.Shell
               ? FetchStrategy.StaticShell
@@ -999,7 +1002,7 @@ function pingRootRouteTree(
             // and fall through to Speculative.
             return PrefetchTaskExitStatus.Done
           }
-          // Prefetch multiple segments using a single dynamic request.
+          // Prefetch multiple segments using a single runtime request.
           // TODO: We can consolidate this branch with previous one by modeling
           // it as if the first segment in the new tree has runtime prefetching
           // enabled. Will do this as a follow-up refactor. Might want to remove
@@ -1090,7 +1093,7 @@ function pingStaticHead(
   fetchStrategy: FetchStrategy.PPR | FetchStrategy.StaticShell
 ): void {
   // The head is subject to the same per-pass runtime-completeness contract
-  // as the route's segments: during an App Shell walk, and during any walk
+  // as the route's segments: during a StaticShell walk, and during any walk
   // of a Partial Prefetching route, the head needs a response at least as
   // complete as a runtime one.
   const headRequiresRuntimeCompleteness = walkRequiresRuntimeCompleteness(
@@ -1160,10 +1163,10 @@ function pingStaticHead(
  *   with a partial-prefetching config, or the global `partialPrefetching`
  *   flag — both surfaced as SubtreeHasPartialPrefetching on the route
  *   root), in both the Shell and Speculative phases.
- * - Every App Shell (StaticShell) walk, because the App Shell must be
- *   reusable across all params by definition. (In practice this is implied
- *   by the first case — the Shell phase only runs for Partial Prefetching
- *   routes.)
+ * - Every StaticShell walk — the Shell phase's walk, whose target (the
+ *   conceptual App Shell) must be reusable across all params by definition.
+ *   (In practice this is implied by the first case — the Shell phase only
+ *   runs for Partial Prefetching routes.)
  *
  * Routes without Partial Prefetching keep the static-only contract: their
  * walks prefetch static data and partial entries are acceptable — the
@@ -1199,8 +1202,9 @@ function walkRequiresRuntimeCompleteness(
 /**
  * The runtime counterpart of a pass's static walk strategy: the strategy the
  * batched runtime request uses if this walk deopts. Each phase has exactly one
- * — the Shell phase escalates to a runtime App Shell, the Speculative phase to
- * a per-link concrete runtime prefetch.
+ * — the Shell phase escalates to a shell-scoped runtime request
+ * (RuntimeShell), the Speculative phase to a per-link concrete
+ * runtime prefetch.
  */
 function getRuntimeStrategyForWalk(
   staticWalkStrategy: FetchStrategy.PPR | FetchStrategy.StaticShell
@@ -1598,7 +1602,7 @@ function diffRouteTreeAgainstCurrent(
         switch (fetchStrategy) {
           case FetchStrategy.LoadingBoundary: {
             // When PPR is disabled, we can't prefetch per segment. We must
-            // fallback to the old prefetch behavior and send a dynamic request.
+            // fallback to the old prefetch behavior and send a runtime request.
             // Only routes that include a loading boundary can be prefetched in
             // this way.
             //
