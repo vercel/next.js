@@ -1,5 +1,6 @@
 {
   "name": "@vercel/devlow-bench",
+  "private": true,
   "version": "16.3.1-canary.6",
   "description": "Benchmarking tool for the developer workflow",
   "repository": {
