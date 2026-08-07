@@ -6,7 +6,7 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use crate::{
     DbConfig, FamilyConfig, FamilyKind,
     constants::{MAX_MEDIUM_VALUE_SIZE, MAX_SMALL_VALUE_SIZE},
-    db::{CompactConfig, TurboPersistence},
+    db::{CompactConfig, CurrentDbVersion, TurboPersistence, read_current_version},
     parallel_scheduler::ParallelScheduler,
     write_batch::WriteBatch,
 };
@@ -2225,6 +2225,127 @@ fn stale_current_next_is_recovered() -> Result<()> {
     assert!(
         !path.join("CURRENT.next").exists(),
         "stale CURRENT.next should be cleaned up on open"
+    );
+
+    Ok(())
+}
+
+/// `CURRENT` round-trips through JSON, recording both the sequence number and a last-used time.
+#[test]
+fn current_file_is_json_with_last_used_time() -> Result<()> {
+    use crate::parallel_scheduler::SerialScheduler;
+
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let before = jiff::Timestamp::now();
+    {
+        let db = TurboPersistence::<SerialScheduler, 1>::open(path.to_path_buf())?;
+        let batch = db.write_batch()?;
+        batch.put(0, vec![1u8], vec![42u8].into())?;
+        db.commit_write_batch(batch)?;
+        db.shutdown()?;
+    }
+    let after = jiff::Timestamp::now();
+
+    // `CURRENT` is a stable on-disk format that external tools parse without going through this
+    // crate, so the JSON shape and these field names are a public contract, not an internal detail.
+    let raw = fs::read_to_string(path.join("CURRENT"))?;
+    assert!(raw.contains("max_sequence_number"), "got: {raw}");
+    assert!(raw.contains("last_used_time"), "got: {raw}");
+
+    let version = read_current_version(path)?.expect("CURRENT should exist");
+    assert!(version.max_sequence_number > 0);
+    assert!(
+        version.last_used_time >= before && version.last_used_time <= after,
+        "last_used_time {} outside [{before}, {after}]",
+        version.last_used_time
+    );
+
+    Ok(())
+}
+
+/// A `CURRENT` that exists but doesn't parse is corruption, and opening must fail loudly rather
+/// than silently treating the database as empty — that would orphan and delete every SST.
+#[test]
+fn corrupt_current_file_fails_to_open() -> Result<()> {
+    use crate::parallel_scheduler::SerialScheduler;
+
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    {
+        let db = TurboPersistence::<SerialScheduler, 1>::open(path.to_path_buf())?;
+        let batch = db.write_batch()?;
+        batch.put(0, vec![1u8], vec![42u8].into())?;
+        db.commit_write_batch(batch)?;
+        db.shutdown()?;
+    }
+
+    // A truncated `CURRENT`, e.g. from an interrupted copy. Four bytes specifically: that used to
+    // be the whole file, and a length-based format guess would read it as a sequence number.
+    fs::write(path.join("CURRENT"), [0u8; 4])?;
+
+    assert!(
+        read_current_version(path).is_err(),
+        "a truncated CURRENT must be reported as corrupt, not parsed"
+    );
+    assert!(
+        TurboPersistence::<SerialScheduler, 1>::open(path.to_path_buf()).is_err(),
+        "opening a database with a corrupt CURRENT must fail"
+    );
+
+    // The data must still be on disk: a failed open must not have deleted anything.
+    let ssts = fs::read_dir(path)?
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "sst"))
+        .count();
+    assert!(ssts > 0, "a failed open must not delete SST files");
+
+    Ok(())
+}
+
+/// Opening a database refreshes its last-used time even when nothing is written, so that a
+/// read-only session still counts as a use for cache-version eviction.
+#[test]
+fn opening_a_database_refreshes_last_used_time() -> Result<()> {
+    use crate::parallel_scheduler::SerialScheduler;
+
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    {
+        let db = TurboPersistence::<SerialScheduler, 1>::open(path.to_path_buf())?;
+        let batch = db.write_batch()?;
+        batch.put(0, vec![1u8], vec![42u8].into())?;
+        db.commit_write_batch(batch)?;
+        db.shutdown()?;
+    }
+
+    // Backdate the recorded timestamp, leaving the sequence number intact.
+    let stale = read_current_version(path)?.unwrap();
+    let backdated = jiff::Timestamp::now() - jiff::SignedDuration::from_hours(72);
+    fs::write(
+        path.join("CURRENT"),
+        serde_json::to_vec(&CurrentDbVersion {
+            max_sequence_number: stale.max_sequence_number,
+            last_used_time: backdated,
+        })?,
+    )?;
+
+    {
+        let db = TurboPersistence::<SerialScheduler, 1>::open(path.to_path_buf())?;
+        db.shutdown()?;
+    }
+
+    let refreshed = read_current_version(path)?.unwrap();
+    assert_eq!(
+        refreshed.max_sequence_number, stale.max_sequence_number,
+        "sequence number must be preserved"
+    );
+    assert!(
+        refreshed.last_used_time > backdated,
+        "last_used_time should be refreshed on open"
     );
 
     Ok(())

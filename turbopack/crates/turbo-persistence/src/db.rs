@@ -20,6 +20,7 @@ use jiff::Timestamp;
 use memmap2::Mmap;
 use nohash_hasher::BuildNoHashHasher;
 use parking_lot::{Mutex, RwLock};
+use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tracing::span::EnteredSpan;
 
@@ -159,19 +160,79 @@ impl WriteOperationGuard<'_> {
     }
 }
 
-/// Durably and atomically updates the `CURRENT` file in the database directory `path` to point at
-/// `seq`.
+/// The contents of the `CURRENT` file: which sequence number is committed, and when the database
+/// was last used.
 ///
-/// The write is made atomic by writing `seq` to a temporary `CURRENT.next` file, flushing it, and
-/// then `rename`ing it over `CURRENT`. A `rename` within a directory is atomic on POSIX and
-/// replaces the destination on Windows, so a concurrent or crashing writer can never observe a
-/// torn `CURRENT` (in-place overwrites, by contrast, can leave a partially-written value on a
-/// crash mid-write). After the rename we fsync the directory so the new `CURRENT` → inode mapping
-/// survives a crash.
+/// Serialized as a small JSON object. `last_used_time` lives in the file rather than being taken
+/// from its mtime because mtimes don't survive the directory being copied or restored (CI cache
+/// restore, `cp -r`, container image builds), which would corrupt version eviction's idea of age.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CurrentDbVersion {
+    /// The highest sequence number that is part of the committed database. Files with a greater
+    /// sequence number are orphans from an interrupted write and get deleted on open.
+    pub max_sequence_number: u32,
+    /// When this database was last opened or committed to.
+    pub last_used_time: Timestamp,
+}
+
+/// Reads the `CURRENT` file in the database directory `path`.
+///
+/// Returns `Ok(None)` if the file doesn't exist, which for a writable database means "not
+/// initialized yet".
+///
+/// A `CURRENT` that exists but doesn't parse is an error rather than something to recover from
+/// here. Version directories are named after the build that wrote them, so a change to this format
+/// comes with a new directory name and this function never sees an older one; anything unparsable
+/// is corruption. Callers that scan directories they didn't write (see the cache-version eviction
+/// in `turbo-tasks-backend`) are the ones that have to tolerate it.
+pub fn read_current_version(path: &Path) -> Result<Option<CurrentDbVersion>> {
+    let current_path = path.join("CURRENT");
+    let content = match fs::read(&current_path) {
+        Ok(content) => content,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(e).context("Failed to read CURRENT file"),
+    };
+
+    serde_json::from_slice::<CurrentDbVersion>(&content)
+        .with_context(|| {
+            format!(
+                "CURRENT file at {} is corrupt ({} bytes)",
+                current_path.display(),
+                content.len()
+            )
+        })
+        .map(Some)
+}
+
+/// Durably and atomically updates the `CURRENT` file in the database directory `path` to point at
+/// `seq`, stamping it as used now.
+///
+/// The write is made atomic by writing to a temporary `CURRENT.next` file, flushing it, and then
+/// `rename`ing it over `CURRENT`. A `rename` within a directory is atomic on POSIX and replaces the
+/// destination on Windows, so a concurrent or crashing writer can never observe a torn `CURRENT`
+/// (in-place overwrites, by contrast, can leave a partially-written value on a crash mid-write).
+/// After the rename we fsync the directory so the new `CURRENT` → inode mapping survives a crash.
 fn commit_current(path: &Path, seq: u32) -> Result<()> {
+    commit_current_version(
+        path,
+        &CurrentDbVersion {
+            max_sequence_number: seq,
+            last_used_time: Timestamp::now(),
+        },
+    )
+}
+
+/// As [`commit_current`], but writes an explicit [`CurrentDbVersion`].
+fn commit_current_version(path: &Path, version: &CurrentDbVersion) -> Result<()> {
+    // Serialize up front and write once: `serde_json::to_writer` into an unbuffered `File` would
+    // issue a syscall per JSON token, and this runs on every commit and every open.
+    let mut contents =
+        serde_json::to_string(version).context("Failed to serialize the CURRENT file")?;
+    contents.push('\n');
+
     let next_path = path.join("CURRENT.next");
     let mut next_file = File::create(&next_path)?;
-    next_file.write_u32::<BE>(seq)?;
+    next_file.write_all(contents.as_bytes())?;
     next_file.sync_data()?;
     drop(next_file);
 
@@ -438,7 +499,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             parallel_scheduler,
             config,
         });
-        db.open_directory(false)?;
+        db.open_directory(true)?;
         Ok(db)
     }
 
@@ -479,18 +540,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// Loads an existing database directory and performs cleanup if necessary.
     fn load_directory(&mut self, entries: ReadDir, read_only: bool) -> Result<bool> {
         let mut meta_files = Vec::new();
-        let mut current_file = match File::open(self.path.join("CURRENT")) {
-            Ok(file) => file,
-            Err(e) => {
-                if !read_only && e.kind() == std::io::ErrorKind::NotFound {
-                    return Ok(false);
-                } else {
-                    return Err(e).context("Failed to open CURRENT file");
-                }
-            }
+        let current = match read_current_version(&self.path)? {
+            Some(version) => version.max_sequence_number,
+            None if !read_only => return Ok(false),
+            None => bail!("Failed to open database: CURRENT file is missing"),
         };
-        let current = current_file.read_u32::<BE>()?;
-        drop(current_file);
 
         let mut deleted_files = HashSet::new();
         for entry in entries {
@@ -599,6 +653,18 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             .store(meta_files.is_empty(), Ordering::Relaxed);
         inner.meta_files = meta_files;
         inner.current_sequence_number = current;
+
+        // Refresh the last-used stamp. This happens even for a read-only open: opening to read is
+        // still a use, and eviction shouldn't treat a database as abandoned just because nothing
+        // wrote to it. Rewriting `CURRENT` is the only mutation a read-only open makes.
+        //
+        // Best-effort. On failure the stamp keeps its old value, so the database looks less
+        // recently used than it is and may be evicted early; that's recoverable, and an open that
+        // can otherwise succeed shouldn't fail over a cache-eviction hint. A failure part-way
+        // through can leave a stale `CURRENT.next` behind, which is harmless: the next
+        // `commit_current` truncates it.
+        let _ = commit_current(&self.path, current);
+
         Ok(true)
     }
 

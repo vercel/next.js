@@ -76,10 +76,10 @@ function findSeedSource(
   const currentWorktree = path.resolve(worktreeInfo.worktreeRoot)
 
   // We are going to find the best candidate worktree
-  // based on the newest mtime of the CURRENT file in the cache directory.
+  // based on the most recently used cache directory.
   // We only look at our version
 
-  let best: { versionDir: string; mtimeMs: number } | undefined
+  let best: { versionDir: string; lastUsedMs: number } | undefined
   for (const root of [
     worktreeInfo.mainRepoRoot,
     ...listLinkedWorktreeRoots(worktreeInfo.mainRepoRoot),
@@ -93,21 +93,33 @@ function findSeedSource(
       'turbopack',
       version
     )
-    const mtimeMs = currentMtimeMs(versionDir)
-    if (mtimeMs === undefined) continue
-    if (!best || mtimeMs > best.mtimeMs) {
-      best = { versionDir, mtimeMs }
+    const lastUsedMs = currentLastUsedMs(versionDir)
+    if (lastUsedMs === undefined) continue
+    if (!best || lastUsedMs > best.lastUsedMs) {
+      best = { versionDir, lastUsedMs }
     }
   }
   return best?.versionDir
 }
 
-function currentMtimeMs(versionDir: string): number | undefined {
+// When the cache in `versionDir` was last used, in epoch milliseconds, or undefined if there is
+// no usable cache there. Read from the `last_used_time` the persistence layer records in CURRENT.
+//
+// No fallback for the pre-JSON CURRENT format: callers only look inside the directory named for
+// the running binary's own cache version, which a binary that old could not have written.
+function currentLastUsedMs(versionDir: string): number | undefined {
+  let lastUsed
   try {
-    return fs.statSync(path.join(versionDir, 'CURRENT')).mtimeMs
+    lastUsed = JSON.parse(
+      fs.readFileSync(path.join(versionDir, 'CURRENT'), 'utf8')
+    ).last_used_time
   } catch {
+    // missing, unreadable, or not valid JSON - treat it as not a seed candidate
     return undefined
   }
+  if (typeof lastUsed !== 'string') return undefined
+  const parsed = Date.parse(lastUsed)
+  return Number.isNaN(parsed) ? undefined : parsed
 }
 
 function dirHasEntries(dir: string): boolean {
