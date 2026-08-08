@@ -402,7 +402,9 @@ export function unstable_cache<T extends Callback>(
   return cachedCb as unknown as T
 }
 
-function getFetchUrlPrefix(
+// Exported for unit tests. `next/cache` re-exports `unstable_cache` by name,
+// so this is not reachable as public API.
+export function getFetchUrlPrefix(
   workStore: WorkStore,
   workUnitStore: WorkUnitStore
 ): string {
@@ -411,10 +413,28 @@ function getFetchUrlPrefix(
       const pathname = workUnitStore.url.pathname
       const searchParams = new URLSearchParams(workUnitStore.url.search)
 
-      const sortedSearch = [...searchParams.keys()]
-        .sort((a, b) => a.localeCompare(b))
-        .map((key) => `${key}=${searchParams.get(key)}`)
-        .join('&')
+      // Re-serialize through URLSearchParams so the result is percent-encoded,
+      // and therefore always ASCII. This string becomes part of `fetchUrl`,
+      // which cache handlers may send as an HTTP header value. Header values
+      // are ByteStrings (<= U+00FF), so interpolating a raw `.get()` value
+      // containing e.g. CJK, Cyrillic or emoji makes the header impossible to
+      // construct. Handlers that build the header inside a try/catch then
+      // report that as a cache miss, silently disabling the cache for every
+      // request carrying such a query value. `patch-fetch` upholds the same
+      // invariant for ordinary fetches by using the already-encoded `url.href`.
+      //
+      // Using getAll() also keeps repeated keys distinct: `.get()` returned
+      // only the first value, so `?a=1&a=2` and `?a=1&a=9` produced the same
+      // prefix.
+      const sortedSearchParams = new URLSearchParams()
+      for (const key of [...new Set(searchParams.keys())].sort((a, b) =>
+        a.localeCompare(b)
+      )) {
+        for (const value of searchParams.getAll(key)) {
+          sortedSearchParams.append(key, value)
+        }
+      }
+      const sortedSearch = sortedSearchParams.toString()
 
       return `${pathname}${sortedSearch.length ? '?' : ''}${sortedSearch}`
     case 'prerender':
