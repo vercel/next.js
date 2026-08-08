@@ -103,8 +103,8 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
     /// Adds a key-value tombstone to the collector: deletes only the single `key` -> `value` pair,
     /// leaving any other values for `key` intact.
     ///
-    /// Only meaningful for [`FamilyKind::MultiValue`] families. Callers must not insert and delete
-    /// the same key-value pair in one batch; the resolution order between them is undefined.
+    /// Only meaningful for [`FamilyKind::MultiValue`] families. Deleting a pair written in the
+    /// same batch is not supported; see [`WriteBatch::delete_value`][crate::WriteBatch].
     ///
     /// `value` must be at most [`MAX_INLINE_VALUE_SIZE`] bytes; callers validate this.
     pub fn delete_value(&mut self, key: K, value: &[u8]) {

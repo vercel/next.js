@@ -246,6 +246,13 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
     }
 
     /// Puts a delete operation into the write batch. This deletes *all* values for `key`.
+    ///
+    /// Combining this with a [`WriteBatch::put`] of the same key in the same batch is **not
+    /// supported**: which one wins is undefined, and callers are expected to resolve the intent
+    /// themselves before writing. A batch is not an ordered log — writes are buffered in
+    /// thread-local collectors that are sealed into SST files whenever they fill up, so two
+    /// operations on one key can land in different files, and the relative order of those files
+    /// within the batch is not guaranteed.
     pub fn delete(&self, family: u32, key: K) -> Result<()> {
         let state = self.thread_local_state();
         let collector = self.thread_local_collector_mut(state, family)?;
@@ -262,8 +269,11 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
     /// and applied lazily by reads and compaction, so deleting N pairs costs N buffered writes
     /// rather than N read-modify-write cycles.
     ///
-    /// Callers must not insert and delete the same key-value pair in the same batch; the
-    /// resolution order between them is undefined (debug builds assert against it).
+    /// Deleting a pair that is written in the same batch — by this or any other operation on the
+    /// key — is **not supported**, for the reason given on [`WriteBatch::delete`]: which one wins
+    /// is undefined, and it is the caller's job to resolve that before writing. Nothing detects
+    /// the conflict, so a batch that does this silently keeps or drops the value depending on how
+    /// collectors happened to fill.
     ///
     /// Only values of at most [`MAX_INLINE_VALUE_SIZE`] bytes can be deleted this way; larger
     /// values are an error. The tombstone carries a copy of the value so that reads can match it,
