@@ -33,12 +33,9 @@ import type {
 import { ScrollBehavior } from '../router-reducer-types'
 import { assignLocation } from '../../../assign-location'
 import { createHrefFromUrl } from '../create-href-from-url'
+import type { PartialTransportData } from '../../../../shared/lib/rsc-transport'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
-import {
-  normalizeFlightData,
-  prepareFlightRouterStateForRequest,
-  type NormalizedFlightData,
-} from '../../../flight-data-helpers'
+import { prepareFlightRouterStateForRequest } from '../../../flight-data-helpers'
 import { getRedirectError } from '../../redirect'
 import type { RedirectType } from '../../redirect-error'
 import { removeBasePath } from '../../../remove-base-path'
@@ -54,10 +51,10 @@ import { getNavigationBuildId } from '../../../navigation-build-id'
 import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../../lib/constants'
 import {
   completeHardNavigation,
-  convertServerPatchToFullTree,
   navigateToKnownRoute,
   navigate,
 } from '../../segment-cache/navigation'
+import { convertServerPatchToFullTree } from '../../segment-cache/decode-server-response'
 import { discoverKnownRoute } from '../../segment-cache/optimistic-routes'
 import type { NormalizedSearch } from '../../segment-cache/cache-key'
 import {
@@ -95,7 +92,11 @@ type FetchServerActionResult = {
   redirectType: RedirectType | undefined
   revalidationKind: ActionRevalidationKind
   actionResult: ActionResult | undefined
-  actionFlightData: NormalizedFlightData[] | string | undefined
+  /**
+   * The transport data from the action response, or a URL string when the
+   * response handling triggered an external (MPA) redirect.
+   */
+  actionFlightData: PartialTransportData | string | undefined
   actionFlightDataRenderedSearch: NormalizedSearch | undefined
   isPrerender: boolean
   couldBeIntercepted: boolean
@@ -279,10 +280,12 @@ async function fetchServerAction(
       // still be processed, and the absence of flight data will cause an
       // MPA navigation via completeHardNavigation().
     } else {
-      const maybeFlightData = normalizeFlightData(response.f)
-      if (maybeFlightData !== '') {
-        actionFlightData = maybeFlightData
+      if (response.t !== undefined) {
+        actionFlightData = response.t
         actionFlightDataRenderedSearch = response.q as NormalizedSearch
+      } else if (response.n !== undefined) {
+        // The server responded with an MPA navigation URL.
+        actionFlightData = response.n
       }
     }
   } else {
@@ -518,7 +521,9 @@ export function serverActionReducer(
           // have the route tree from the server response. If a mismatch occurs
           // during dynamic data fetch, the retry handler will traverse the
           // known route tree to mark the entry as having a dynamic rewrite.
-          null
+          null,
+          // Not an HMR refresh, so there's no request generation to cancel.
+          undefined
         )
       }
 

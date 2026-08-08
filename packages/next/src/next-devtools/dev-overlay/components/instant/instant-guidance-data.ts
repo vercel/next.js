@@ -47,14 +47,14 @@ export const FIX_CARD_GROUPS: Record<
 }
 
 export type FixCard = {
-  /** Stable docs-anchor id for this fix card. */
+  /** Docs anchor for this card. */
   id: string
   title: string
   group: FixCardGroup
-  /** Docs URL the card links to, or `null` for no link. */
+  /** Docs URL, or null for no link. */
   link: string | null
   snippets: Snippet[]
-  /** Whether to render the "Copy AI prompt" button on this card. */
+  /** Show the Copy prompt button on this card. */
   copyable?: boolean
 }
 
@@ -66,11 +66,37 @@ export type SnippetPart = {
 export type Snippet = {
   text: string
   highlight?: boolean
-  // When present, render the line with inline highlighted parts instead of
-  // applying the line-level `highlight` flag. `text` is still kept for any
-  // tooling that reads the full line content.
+  /** Inline highlights within the line; takes precedence over the line-level `highlight` flag. */
   parts?: SnippetPart[]
 }
+
+// ── Blocking-route cards ──────────────────────────
+
+const linkCards: FixCard[] = [
+  {
+    id: 'wrap-in-or-move-into-suspense',
+    title: 'Wrap in or move into Suspense',
+    group: 'stream',
+    link: 'https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense',
+    snippets: [
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <Details params={params} />' },
+      { text: '</Suspense>', highlight: true },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'allow-blocking-route',
+    title: 'Allow blocking route',
+    group: 'block',
+    link: 'https://nextjs.org/docs/messages/instant-shell-url-data#allow-blocking-route',
+    snippets: [
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'export const instant = false', highlight: true },
+    ],
+    copyable: true,
+  },
+]
 
 const runtimeCards: FixCard[] = [
   {
@@ -267,6 +293,9 @@ const metadataRuntimeCards: FixCard[] = [
   },
 ]
 
+// URL data in `generateMetadata()` shares the same fixes as runtime data.
+const metadataLinkCards = metadataRuntimeCards
+
 const metadataDynamicCards: FixCard[] = [
   {
     id: 'cache-the-metadata',
@@ -318,6 +347,9 @@ const viewportRuntimeCards: FixCard[] = [
     copyable: true,
   },
 ]
+
+// URL data in `generateViewport()` shares the same fixes as runtime data.
+const viewportLinkCards = viewportRuntimeCards
 
 const viewportDynamicCards: FixCard[] = [
   {
@@ -577,7 +609,7 @@ export type GuidanceKind =
   | 'unrendered-segment'
   | 'link-prefetch-partial'
 
-export type GuidanceVariant = 'runtime' | 'dynamic'
+export type GuidanceVariant = 'link' | 'runtime' | 'dynamic'
 
 export const DOCS_URLS: Record<GuidanceKind, string> = {
   'blocking-route': 'https://nextjs.org/docs/messages/blocking-route',
@@ -672,6 +704,9 @@ export const EXPLANATIONS: Record<GuidanceKind, string> = {
 export const BLOCKING_ROUTE_NAVIGATION_EXPLANATION =
   'This prevents the navigation from being instant, leading to a slower user experience.'
 
+export const BLOCKING_ROUTE_LINK_EXPLANATION =
+  'This may prevent the navigation from being instant, leading to a slower user experience.'
+
 const syncCardsByCause: Record<string, FixCard[]> = {
   'Math.random()': syncMathCards,
   'Date.now()': syncDateCards,
@@ -721,19 +756,25 @@ export function getCards(
 ): FixCard[] {
   switch (kind) {
     case 'blocking-route':
-      return variant === 'dynamic'
-        ? filterCacheForConnection(dynamicCards, variant, cause)
-        : runtimeCards
+      return variant === 'link'
+        ? linkCards
+        : variant === 'dynamic'
+          ? filterCacheForConnection(dynamicCards, variant, cause)
+          : runtimeCards
     case 'client-hook':
       return clientHookCards
     case 'metadata':
-      return variant === 'runtime'
-        ? metadataRuntimeCards
-        : filterCacheForConnection(metadataDynamicCards, variant, cause)
+      return variant === 'link'
+        ? metadataLinkCards
+        : variant === 'runtime'
+          ? metadataRuntimeCards
+          : filterCacheForConnection(metadataDynamicCards, variant, cause)
     case 'viewport':
-      return variant === 'runtime'
-        ? viewportRuntimeCards
-        : filterCacheForConnection(viewportDynamicCards, variant, cause)
+      return variant === 'link'
+        ? viewportLinkCards
+        : variant === 'runtime'
+          ? viewportRuntimeCards
+          : filterCacheForConnection(viewportDynamicCards, variant, cause)
     case 'sync-io':
       return (cause && syncCardsByCause[cause]) || []
     case 'sync-io-client':

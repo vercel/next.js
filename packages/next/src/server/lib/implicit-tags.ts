@@ -29,11 +29,14 @@ const getDerivedTags = (pathname: string): string[] => {
   // we automatically add the current path segments as tags
   // for revalidatePath handling
   if (pathname.startsWith('/')) {
-    const pathnameParts = pathname.split('/')
+    let end = pathname.indexOf('/', 1)
 
-    for (let i = 1; i < pathnameParts.length + 1; i++) {
-      let curPathname = pathnameParts.slice(0, i).join('/')
+    while (true) {
+      if (end === -1) {
+        end = pathname.length
+      }
 
+      let curPathname = pathname.slice(0, end)
       if (curPathname) {
         // all derived tags other than the page are layout tags
         if (!curPathname.endsWith('/page') && !curPathname.endsWith('/route')) {
@@ -43,6 +46,11 @@ const getDerivedTags = (pathname: string): string[] => {
         }
         derivedTags.push(curPathname)
       }
+
+      if (end === pathname.length) {
+        break
+      }
+      end = pathname.indexOf('/', end + 1)
     }
   }
   return derivedTags

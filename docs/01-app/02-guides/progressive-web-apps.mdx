@@ -156,10 +156,13 @@ function PushNotificationManager() {
   }, [])
 
   async function registerServiceWorker() {
-    const registration = await navigator.serviceWorker.register('/sw.js', {
-      scope: '/',
-      updateViaCache: 'none',
-    })
+    const registration = await navigator.serviceWorker.register(
+      new URL('../lib/service-worker.js', import.meta.url),
+      {
+        scope: '/',
+        updateViaCache: 'none',
+      }
+    )
     const sub = await registration.pushManager.getSubscription()
     setSubscription(sub)
   }
@@ -234,10 +237,13 @@ function PushNotificationManager() {
   }, []);
 
   async function registerServiceWorker() {
-    const registration = await navigator.serviceWorker.register('/sw.js', {
-      scope: '/',
-      updateViaCache: 'none',
-    });
+    const registration = await navigator.serviceWorker.register(
+      new URL('../lib/service-worker.js', import.meta.url),
+      {
+        scope: '/',
+        updateViaCache: 'none',
+      }
+    )
     const sub = await registration.pushManager.getSubscription();
     setSubscription(sub);
   }
@@ -544,9 +550,9 @@ VAPID_PRIVATE_KEY=your_private_key_here
 
 ### 5. Creating a Service Worker
 
-Create a `public/sw.js` file for your service worker:
+Create a `lib/service-worker.js` file for your service worker:
 
-```js filename="public/sw.js"
+```js filename="lib/service-worker.js"
 self.addEventListener('push', function (event) {
   if (event.data) {
     const data = event.data.json()
@@ -665,6 +671,6 @@ Learn more about defining [Content Security Policies](/docs/app/guides/content-s
 
 1. **Exploring PWA Capabilities**: PWAs can leverage various web APIs to provide advanced functionality. Consider exploring features like background sync, periodic background sync, or the File System Access API to enhance your application. For inspiration and up-to-date information on PWA capabilities, you can refer to resources like [What PWA Can Do Today](https://whatpwacando.today/).
 2. **Static Exports:** If your application requires not running a server, and instead using a static export of files, you can update the Next.js configuration to enable this change. Learn more in the [Next.js Static Export documentation](/docs/app/guides/static-exports). However, you will need to move from Server Actions to calling an external API, as well as moving your defined headers to your proxy.
-3. **Offline Support**: To provide offline functionality, one option is [Serwist](https://github.com/serwist/serwist) with Next.js. You can find an example of how to integrate Serwist with Next.js in their [documentation](https://github.com/serwist/serwist/tree/main/examples/next-basic). **Note:** this plugin currently requires webpack configuration.
+3. **Offline Support**: Next.js provides an experimental [`useOffline`](/docs/app/api-reference/functions/use-offline) hook and matching [`experimental.useOffline`](/docs/app/api-reference/config/next-config-js/useOffline) config for connectivity-aware UI and automatic retries of failed navigation and Server Action requests. For full service-worker-based offline caching, one option is [Serwist](https://github.com/serwist/serwist), which provides Next.js integration examples for both [Turbopack](https://github.com/serwist/serwist/tree/main/examples/next-turbo-basic) and [webpack](https://github.com/serwist/serwist/tree/main/examples/next-basic).
 4. **Security Considerations**: Ensure that your service worker is properly secured. This includes using HTTPS, validating the source of push messages, and implementing proper error handling.
 5. **User Experience**: Consider implementing progressive enhancement techniques to ensure your app works well even when certain PWA features are not supported by the user's browser.

@@ -32,10 +32,15 @@ pub enum WellKnownObjectKind {
     NodeBuffer,
     RequireCache,
     ImportMeta,
+    ImportMetaEnv,
     /// An iterator object, used to model generator return values.
     Generator,
     /// The `module.hot` object providing HMR API.
     ModuleHot,
+    /// The browser `navigator` global.
+    Navigator,
+    /// The `navigator.serviceWorker` container (`ServiceWorkerContainer`).
+    NavigatorServiceWorker,
 }
 
 impl WellKnownObjectKind {
@@ -136,7 +141,16 @@ impl WellKnownObjectKind {
                 "The CommonJS require.cache object: https://nodejs.org/api/modules.html#requirecache",
             ),
             Self::ImportMeta => ("import.meta", "The import.meta object"),
+            Self::ImportMetaEnv => ("import.meta.env", "The import.meta.env object"),
             Self::ModuleHot => ("module.hot", "The module.hot HMR API"),
+            Self::Navigator => (
+                "navigator",
+                "The browser navigator global: https://developer.mozilla.org/en-US/docs/Web/API/Navigator",
+            ),
+            Self::NavigatorServiceWorker => (
+                "navigator.serviceWorker",
+                "The ServiceWorkerContainer: https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer",
+            ),
         }
     }
 }
@@ -187,6 +201,8 @@ pub enum WellKnownFunctionKind<'a> {
     SharedWorkerConstructor,
     // The worker_threads Worker class
     NodeWorkerConstructor,
+    /// `navigator.serviceWorker.register(scriptURL, options?)`
+    ServiceWorkerRegister,
     URLConstructor,
     /// `module.hot.accept(deps, callback, errorHandler)` — accept HMR updates for dependencies.
     ModuleHotAccept,
@@ -357,6 +373,10 @@ impl WellKnownFunctionKind<'_> {
             Self::SharedWorkerConstructor => (
                 "SharedWorker".to_string(),
                 "The standard SharedWorker constructor: https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker/SharedWorker",
+            ),
+            Self::ServiceWorkerRegister => (
+                "navigator.serviceWorker.register".to_string(),
+                "The ServiceWorkerContainer.register method: https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/register",
             ),
             Self::URLConstructor => (
                 "URL".to_string(),

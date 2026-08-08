@@ -114,30 +114,60 @@ export async function getDynamicDataPostponedState(
   return `4:null${await stringifyResumeDataCache(createRenderResumeDataCache(resumeDataCache), isCacheComponentsEnabled)}`
 }
 
+function parsePostponedStateParts(
+  state: string,
+  maxPostponedStateSizeBytes: number | undefined
+): {
+  postponedString: string
+  renderResumeDataCache: RenderResumeDataCache
+} {
+  const postponedStringLengthMatch = state.match(/^([0-9]*):/)?.[1]
+  if (!postponedStringLengthMatch) {
+    // Do not include the raw state in the message: it can be large and may
+    // contain sensitive serialized data.
+    throw new Error('Invariant: invalid postponed state: missing length prefix')
+  }
+
+  const postponedStringLength = parseInt(postponedStringLengthMatch)
+  const tailStart =
+    postponedStringLengthMatch.length + postponedStringLength + 1
+
+  return {
+    postponedString: state.slice(
+      postponedStringLengthMatch.length + 1,
+      tailStart
+    ),
+    renderResumeDataCache: createRenderResumeDataCache(
+      state.slice(tailStart),
+      maxPostponedStateSizeBytes
+    ),
+  }
+}
+
+export function parseResumeDataCacheFromPostponedState(
+  state: string,
+  maxPostponedStateSizeBytes: number | undefined
+): RenderResumeDataCache {
+  try {
+    return parsePostponedStateParts(state, maxPostponedStateSizeBytes)
+      .renderResumeDataCache
+  } catch (err) {
+    console.error(
+      'Failed to parse postponed state',
+      describePostponedStateParseFailure(state, err)
+    )
+    return createRenderResumeDataCache(createPrerenderResumeDataCache())
+  }
+}
+
 export function parsePostponedState(
   state: string,
   interpolatedParams: Params,
   maxPostponedStateSizeBytes: number | undefined
 ): PostponedState {
   try {
-    const postponedStringLengthMatch = state.match(/^([0-9]*):/)?.[1]
-    if (!postponedStringLengthMatch) {
-      throw new Error(`Invariant: invalid postponed state ${state}`)
-    }
-
-    const postponedStringLength = parseInt(postponedStringLengthMatch)
-
-    // We add a `:` to the end of the length as the first character of the
-    // postponed string is the length of the replacement entries.
-    const postponedString = state.slice(
-      postponedStringLengthMatch.length + 1,
-      postponedStringLengthMatch.length + postponedStringLength + 1
-    )
-
-    const renderResumeDataCache = createRenderResumeDataCache(
-      state.slice(
-        postponedStringLengthMatch.length + postponedStringLength + 1
-      ),
+    const { postponedString, renderResumeDataCache } = parsePostponedStateParts(
+      state,
       maxPostponedStateSizeBytes
     )
 
@@ -201,11 +231,17 @@ export function parsePostponedState(
         renderResumeDataCache,
       }
     } catch (err) {
-      console.error('Failed to parse postponed state', err)
+      console.error(
+        'Failed to parse postponed state',
+        describePostponedStateParseFailure(state, err)
+      )
       return { type: DynamicState.DATA, renderResumeDataCache }
     }
   } catch (err) {
-    console.error('Failed to parse postponed state', err)
+    console.error(
+      'Failed to parse postponed state',
+      describePostponedStateParseFailure(state, err)
+    )
     return {
       type: DynamicState.DATA,
       renderResumeDataCache: createRenderResumeDataCache(
@@ -213,6 +249,52 @@ export function parsePostponedState(
       ),
     }
   }
+}
+
+/**
+ * Derives content-free diagnostics about a postponed state that failed to
+ * parse, so the error log is actionable without exposing the (potentially
+ * sensitive) serialized contents. Every field is a size, a structural flag, or
+ * an error code, never the state bytes themselves.
+ *
+ * The serialized layout is `<N>:<postponedString><base64-deflate cache>`, so
+ * these fields distinguish the failure shapes:
+ * - `postponedStringComplete: false`: the declared length `N` exceeds what
+ * actually arrived, i.e. the postponed string itself was truncated.
+ * - `errorCode: 'Z_BUF_ERROR'` with an empty or short tail: the
+ * resume-data-cache tail was truncated (ran out of input while inflating).
+ * - `errorCode: 'Z_DATA_ERROR'`: the tail bytes are corrupt, not merely short.
+ * - `hasLengthPrefix: false`: the body had no `<N>:` prefix at all (e.g. empty
+ * or otherwise malformed input).
+ */
+function describePostponedStateParseFailure(
+  state: string,
+  error: unknown
+): Record<string, unknown> {
+  const errnoError = error as NodeJS.ErrnoException | undefined
+  const diagnostics: Record<string, unknown> = {
+    stateLength: state.length,
+    errorName: error instanceof Error ? error.name : typeof error,
+    errorCode: errnoError?.code,
+  }
+
+  const prefixMatch = state.match(/^([0-9]+):/)
+  if (!prefixMatch) {
+    diagnostics.hasLengthPrefix = false
+    return diagnostics
+  }
+
+  const declaredPostponedLength = parseInt(prefixMatch[1], 10)
+  const tailStart = prefixMatch[0].length + declaredPostponedLength
+  const tail = state.slice(tailStart)
+
+  diagnostics.hasLengthPrefix = true
+  diagnostics.declaredPostponedLength = declaredPostponedLength
+  diagnostics.postponedStringComplete = state.length >= tailStart
+  diagnostics.resumeDataCacheTailLength = tail.length
+  diagnostics.resumeDataCacheTailIsNull = tail === 'null'
+
+  return diagnostics
 }
 
 export function getPostponedFromState(state: DynamicHTMLPostponedState) {

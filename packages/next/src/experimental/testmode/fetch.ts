@@ -98,6 +98,14 @@ export async function handleFetch(
   const resp = await originalFetch(`http://localhost:${proxyPort}`, {
     method: 'POST',
     body: JSON.stringify(proxyRequest),
+    // The header lets the ClientRequest interception in `httpget.ts` identify
+    // this request as part of the test proxy protocol. @mswjs/interceptors
+    // intercepts at the TCP level, so this request would otherwise be
+    // intercepted again when it's sent from within an interception listener,
+    // recursing indefinitely.
+    headers: {
+      'next-test-internal': '1',
+    },
     next: {
       // @ts-ignore
       internal: true,

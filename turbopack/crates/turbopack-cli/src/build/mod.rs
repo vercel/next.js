@@ -36,7 +36,7 @@ use turbopack_core::{
     module_graph::{
         GraphEntries, ModuleGraph, SingleModuleGraph,
         binding_usage_info::compute_binding_usage_info,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -245,6 +245,9 @@ async fn build_internal(
                 .await?,
                 runtime_type,
             )
+            // Shared by every build-time JS evaluation, each with its own module graph but all
+            // emitting the same runtime chunk.
+            .shared_runtime_chunk(true)
             .build(),
         ),
         load_env(root_path.clone()),
@@ -316,8 +319,11 @@ async fn build_internal(
     .await?;
 
     let single_graph = SingleModuleGraph::new_with_entries(
-        GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(entries.clone())])
-            .resolved_cell(),
+        GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+            modules: entries.clone(),
+            heuristics: EntryHeuristics::default(),
+        }])
+        .resolved_cell(),
         false,
         true,
     );

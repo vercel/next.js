@@ -19,7 +19,10 @@ use turbo_tasks::{
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
-    issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
+    issue::{
+        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString,
+        code_gen::CodeGenerationIssue,
+    },
     loader::{ResolvedWebpackLoaderItem, WebpackLoaderItem},
     module::{Module, ModuleSideEffects},
     module_graph::binding_usage_info::ModuleExportUsageInfo,
@@ -37,12 +40,13 @@ use turbopack_core::{
 use turbopack_resolve::ecmascript::esm_resolve;
 
 use crate::{
-    EcmascriptModuleAsset, ScopeHoistingContext, TreeShakingMode,
+    EcmascriptModuleAsset, ScopeHoistingContext,
     analyzer::imports::ImportAnnotations,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     export::Liveness,
     magic_identifier,
+    module_fragments::{TURBOPACK_PART_IMPORT_SOURCE, part::module::EcmascriptModulePartAsset},
     references::{
         esm::{
             EsmExport,
@@ -51,7 +55,6 @@ use crate::{
         util::{SpecifiedChunkingType, throw_module_not_found_expr},
     },
     runtime_functions::{TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_IMPORT},
-    tree_shake::{TURBOPACK_PART_IMPORT_SOURCE, part::module::EcmascriptModulePartAsset},
     utils::module_id_to_lit,
 };
 
@@ -59,6 +62,11 @@ use crate::{
 pub enum ReferencedAsset {
     Some(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>),
     External(RcStr, ExternalType),
+    /// The request resolved to a module that can't be placed in an ECMAScript
+    /// chunk (e.g. a stylesheet or a raw module), so it has no bindings to
+    /// import. Importing it for its side effects is fine, reading a binding off
+    /// it is not.
+    NonPlaceable(ResolvedVc<Box<dyn Module>>),
     None,
     Unresolvable,
 }
@@ -316,6 +324,34 @@ impl ReferencedAsset {
                     import_source,
                 })
             }
+            ReferencedAsset::NonPlaceable(module) => {
+                // The module exists but has no ECMAScript bindings, so there is
+                // nothing this identifier could refer to. Report it instead of
+                // silently evaluating to `undefined`.
+                CodeGenerationIssue {
+                    severity: IssueSeverity::Error,
+                    title: StyledString::Text(rcstr!("non-ecmascript placeable asset"))
+                        .resolved_cell(),
+                    message: StyledString::Text(
+                        format!(
+                            "{} has no ECMAScript exports, so {} can't be read from it. It can \
+                             only be imported for its side effects.",
+                            module.ident().to_string().await?,
+                            match &export {
+                                Some(export) => format!("the export {export:?}"),
+                                None => "a namespace".to_string(),
+                            }
+                        )
+                        .into(),
+                    )
+                    .resolved_cell(),
+                    path: module.ident().await?.path.clone(),
+                    source: None,
+                }
+                .resolved_cell()
+                .emit();
+                None
+            }
             ReferencedAsset::None | ReferencedAsset::Unresolvable => None,
         })
     }
@@ -338,6 +374,7 @@ impl ReferencedAsset {
         if result.is_unresolvable() {
             return Ok(ReferencedAsset::Unresolvable);
         }
+        let mut non_placeable = None;
         for (_, result) in result.primary.iter() {
             match result {
                 ModuleResolveResultItem::External {
@@ -351,12 +388,16 @@ impl ReferencedAsset {
                     {
                         return Ok(ReferencedAsset::Some(placeable));
                     }
+                    non_placeable = non_placeable.or(Some(*module));
                 }
                 // TODO ignore should probably be handled differently
                 _ => {}
             }
         }
-        Ok(ReferencedAsset::None)
+        Ok(match non_placeable {
+            Some(module) => ReferencedAsset::NonPlaceable(module),
+            None => ReferencedAsset::None,
+        })
     }
 }
 
@@ -384,7 +425,7 @@ pub struct EsmAssetReference {
     pub export_name: Option<ModulePart>,
     pub import_usage: ImportUsage,
     pub import_externals: bool,
-    pub tree_shaking_mode: Option<TreeShakingMode>,
+    pub module_fragments_enabled: bool,
     pub is_pure_import: bool,
     /// Rarely-present, slightly-large fields (import-annotation overrides and a resolve override),
     /// boxed off the common path so the typical reference stays small. `None` whenever every field
@@ -455,7 +496,7 @@ impl EsmAssetReference {
         export_name: Option<ModulePart>,
         import_usage: ImportUsage,
         import_externals: bool,
-        tree_shaking_mode: Option<TreeShakingMode>,
+        module_fragments_enabled: bool,
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
         is_pure_import: bool,
     ) -> Result<Self> {
@@ -478,7 +519,7 @@ impl EsmAssetReference {
             export_name,
             import_usage,
             import_externals,
-            tree_shaking_mode,
+            module_fragments_enabled,
             is_pure_import,
             extras: EsmReferenceExtras::new(annotations.as_ref(), resolve_override),
         })
@@ -494,7 +535,7 @@ impl EsmAssetReference {
         export_name: Option<ModulePart>,
         import_usage: ImportUsage,
         import_externals: bool,
-        tree_shaking_mode: Option<TreeShakingMode>,
+        module_fragments_enabled: bool,
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
     ) -> Result<Self> {
         Self::new_inner(
@@ -506,7 +547,7 @@ impl EsmAssetReference {
             export_name,
             import_usage,
             import_externals,
-            tree_shaking_mode,
+            module_fragments_enabled,
             resolve_override,
             /* is_pure_import */ false,
         )
@@ -523,7 +564,7 @@ impl EsmAssetReference {
         export_name: Option<ModulePart>,
         import_usage: ImportUsage,
         import_externals: bool,
-        tree_shaking_mode: Option<TreeShakingMode>,
+        module_fragments_enabled: bool,
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
     ) -> Result<Self> {
         Self::new_inner(
@@ -535,7 +576,7 @@ impl EsmAssetReference {
             export_name,
             import_usage,
             import_externals,
-            tree_shaking_mode,
+            module_fragments_enabled,
             resolve_override,
             /* is_pure_import */ true,
         )
@@ -560,7 +601,7 @@ impl EsmAssetReference {
             // logic earlier.
             import_usage: self.import_usage.clone(),
             import_externals: self.import_externals,
-            tree_shaking_mode: self.tree_shaking_mode,
+            module_fragments_enabled: self.module_fragments_enabled,
             is_pure_import: self.is_pure_import,
             extras: self.extras.clone(),
         }
@@ -616,7 +657,7 @@ impl ModuleReference for EsmAssetReference {
 
         let request = Request::parse(self.request.clone().into());
 
-        if let Some(TreeShakingMode::ModuleFragments) = self.tree_shaking_mode {
+        if self.module_fragments_enabled {
             if let Some(ModulePart::Evaluation) = &self.export_name
                 && *self.module.side_effects().await? == ModuleSideEffects::SideEffectFree
             {
@@ -740,7 +781,9 @@ impl EsmAssetReference {
                         stmt,
                     ));
                 }
-                ReferencedAsset::None => {}
+                // A module without ECMAScript bindings (e.g. a stylesheet) may still
+                // be imported for its side effects, which needs no code generation.
+                ReferencedAsset::None | ReferencedAsset::NonPlaceable(_) => {}
                 _ => {
                     let mut result = vec![];
 

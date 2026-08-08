@@ -24,6 +24,8 @@ export type UseCacheProbeRequestSnapshot = {
   rootParams: Params
   isDraftMode: boolean
   isHmrRefresh: boolean
+  hmrRefreshHash: string | undefined
+  requestStartTime: number
 }
 
 /**

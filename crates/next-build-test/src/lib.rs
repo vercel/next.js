@@ -2,7 +2,7 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 
-use std::{str::FromStr, time::Instant};
+use std::{path::Path, str::FromStr, time::Instant};
 
 use anyhow::{Context, Result, bail};
 use futures_util::{StreamExt, TryStreamExt};
@@ -17,6 +17,7 @@ use turbo_tasks::{
     read_strongly_consistent_and_apply_effects, take_effects,
 };
 use turbo_tasks_backend::TurboTasksBackend;
+use turbo_tasks_fs::canonicalize_to_rcstr;
 use turbo_tasks_malloc::TurboMalloc;
 
 pub async fn main_inner(
@@ -31,6 +32,7 @@ pub async fn main_inner(
         .with_context(|| format!("loading file at {}", path.display()))?;
 
     let mut options: ProjectOptions = serde_json::from_reader(&mut file)?;
+    options.root_path = canonicalize_to_rcstr(Path::new(&*options.root_path))?;
 
     if matches!(strategy, Strategy::Development { .. }) {
         options.dev = true;

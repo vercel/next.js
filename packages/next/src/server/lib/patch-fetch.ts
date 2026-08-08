@@ -4,6 +4,11 @@ import type {
 } from '../app-render/work-async-storage.external'
 
 import { AppRenderSpan, NextNodeServerSpan } from './trace/constants'
+import {
+  isRequestInsightsEnabled,
+  recordRequestInsightFetch,
+} from './trace/request-insights'
+import { getRequestInsightsIdentity } from './trace/request-insights-identity'
 import { getTracer, SpanKind } from './trace/tracer'
 import {
   CACHE_ONE_YEAR_SECONDS,
@@ -12,13 +17,15 @@ import {
   NEXT_CACHE_TAG_MAX_LENGTH,
 } from '../../lib/constants'
 import { markCurrentScopeAsDynamic } from '../app-render/dynamic-rendering'
-import { makeHangingPromise } from '../dynamic-rendering-utils'
+import { makeDynamicHangingPromise } from '../dynamic-rendering-utils'
 import type { FetchMetric } from '../base-http'
 import { createDedupeFetch } from './dedupe-fetch'
 import {
   getCacheSignal,
   type RevalidateStore,
   type WorkUnitAsyncStorage,
+  type WorkUnitStore,
+  willConsumerServerCache,
 } from '../app-render/work-unit-async-storage.external'
 import {
   CachedRouteKind,
@@ -31,8 +38,47 @@ import { cloneResponse } from './clone-response'
 import type { IncrementalCache } from './incremental-cache'
 import { RenderStage } from '../app-render/staged-rendering'
 import { encodeCacheTag } from './encode-cache-tag'
+import type { Span } from './trace/tracer'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
+
+/**
+ * Whether fetch cache configuration needs to be processed for the current work
+ * unit before an origin fetch. Static prerender stores use it for dynamic
+ * access tracking. Cache scopes apply it to their own cache policy, regardless
+ * of which outer work unit created them. Development staged renders additionally
+ * coordinate dynamic fetches with the dynamic render stage.
+ */
+function shouldProcessFetchConfigForWorkUnit(
+  workUnitStore: WorkUnitStore | undefined
+): boolean {
+  if (!workUnitStore) {
+    return false
+  }
+
+  switch (workUnitStore.type) {
+    case 'prerender':
+    case 'prerender-client':
+    case 'prerender-ppr':
+    case 'prerender-legacy':
+    case 'cache':
+    case 'private-cache':
+    case 'unstable-cache':
+      return true
+    case 'request':
+      return Boolean(
+        process.env.NODE_ENV === 'development' &&
+          process.env.__NEXT_CACHE_COMPONENTS &&
+          workUnitStore.stagedRendering
+      )
+    case 'prerender-runtime':
+    case 'validation-client':
+    case 'generate-static-params':
+      return false
+    default:
+      return workUnitStore satisfies never
+  }
+}
 
 type Fetcher = typeof fetch
 
@@ -55,7 +101,9 @@ export function validateRevalidate(
   try {
     let normalizedRevalidate: number | undefined = undefined
 
-    if (revalidateVal === false) {
+    if (revalidateVal === false || revalidateVal === Infinity) {
+      // Unlike Infinity, INFINITE_CACHE survives JSON serialization (e.g. in
+      // the fetch cache).
       normalizedRevalidate = INFINITE_CACHE
     } else if (
       typeof revalidateVal === 'number' &&
@@ -123,19 +171,57 @@ export function validateTags(tags: any[], description: string) {
 
 function trackFetchMetric(
   workStore: WorkStore,
+  span: Span | undefined,
   ctx: Omit<FetchMetric, 'end' | 'idx'>
 ) {
+  const metric = {
+    ...ctx,
+    end: performance.timeOrigin + performance.now(),
+    idx: workStore.nextFetchId || 0,
+  }
+
+  span?.setAttributes({
+    'http.status_code': metric.status,
+    'next.fetch.idx': metric.idx,
+    'next.fetch.cache_status': metric.cacheStatus,
+    'next.fetch.cache_reason': metric.cacheReason,
+  })
+
+  if (isRequestInsightsEnabled()) {
+    const requestInsightsIdentity = getRequestInsightsIdentity()
+    const requestInsightsRequestId =
+      requestInsightsIdentity?.requestId ?? workStore.requestId
+
+    if (requestInsightsRequestId) {
+      recordRequestInsightFetch(
+        {
+          requestId: requestInsightsRequestId,
+          kind: requestInsightsIdentity?.kind,
+          htmlRequestId:
+            requestInsightsIdentity?.htmlRequestId ?? workStore.htmlRequestId,
+          route: workStore.route,
+        },
+        {
+          url: metric.url,
+          method: metric.method,
+          statusCode: metric.status,
+          startTime: metric.start,
+          durationMs: metric.end - metric.start,
+          cacheStatus: metric.cacheStatus,
+          cacheReason: metric.cacheReason,
+          index: metric.idx,
+        }
+      )
+    }
+  }
+
   if (!workStore.shouldTrackFetchMetrics) {
     return
   }
 
   workStore.fetchMetrics ??= []
 
-  workStore.fetchMetrics.push({
-    ...ctx,
-    end: performance.timeOrigin + performance.now(),
-    idx: workStore.nextFetchId || 0,
-  })
+  workStore.fetchMetrics.push(metric)
 }
 
 async function createCachedPrerenderResponse(
@@ -313,7 +399,7 @@ export function createPatchedFetcher(
           'net.peer.port': url?.port || undefined,
         },
       },
-      async () => {
+      async (span) => {
         // If this is an internal fetch, we should not do any special treatment.
         if (isInternal) {
           return originFetch(input, init)
@@ -336,6 +422,18 @@ export function createPatchedFetcher(
           input &&
           typeof input === 'object' &&
           typeof (input as Request).method === 'string'
+
+        // With `fetch(new Request(url), init)`, native fetch lets `init`
+        // override the base Request. Merge them into a single effective Request
+        // so cacheability, the cache key, and the upstream request all describe
+        // the same thing.
+        if (isRequestInput && init) {
+          // `next` (revalidate/tags) is Next-specific and dropped by
+          // `new Request`, so keep it on `init` and move the rest onto input.
+          const { next, ...overrides } = init
+          input = new Request(input as Request, overrides)
+          init = next ? { next } : undefined
+        }
 
         const getRequestMeta = (field: string) => {
           // If request input is present but init is not, retrieve from input first.
@@ -563,7 +661,7 @@ export function createPatchedFetcher(
                 cacheSignal = null
               }
 
-              return makeHangingPromise<Response>(
+              return makeDynamicHangingPromise<Response>(
                 workUnitStore.renderSignal,
                 workStore.route,
                 'fetch()'
@@ -698,7 +796,7 @@ export function createPatchedFetcher(
                     cacheSignal.endRead()
                     cacheSignal = null
                   }
-                  return makeHangingPromise<Response>(
+                  return makeDynamicHangingPromise<Response>(
                     workUnitStore.renderSignal,
                     workStore.route,
                     'fetch()'
@@ -783,8 +881,8 @@ export function createPatchedFetcher(
               fetchUrl,
               isRequestInput ? (input as RequestInit) : init
             )
-          } catch (err) {
-            console.error(`Failed to generate cache key for`, input)
+          } catch (cause) {
+            console.error(`Failed to generate cache key for`, input, cause)
           }
         }
 
@@ -845,7 +943,7 @@ export function createPatchedFetcher(
           return originFetch(input, clonedInit)
             .then(async (res) => {
               if (!isStale && fetchStart) {
-                trackFetchMetric(workStore, {
+                trackFetchMetric(workStore, span, {
                   start: fetchStart,
                   url: fetchUrl,
                   cacheReason: cacheReasonOverride || cacheReason,
@@ -1022,9 +1120,9 @@ export function createPatchedFetcher(
             }
 
             if (entry?.value && entry.value.kind === CachedRouteKind.FETCH) {
-              // when stale and is revalidating we wait for fresh data
-              // so the revalidated entry has the updated data
-              if (workStore.isStaticGeneration && entry.isStale) {
+              // If the consumer will persist this result in a server cache,
+              // wait for fresh data so it doesn't persist a stale value.
+              if (willConsumerServerCache(workUnitStore) && entry.isStale) {
                 isForegroundRevalidate = true
               } else {
                 if (entry.isStale) {
@@ -1057,7 +1155,7 @@ export function createPatchedFetcher(
 
           if (cachedFetchData) {
             if (fetchStart) {
-              trackFetchMetric(workStore, {
+              trackFetchMetric(workStore, span, {
                 start: fetchStart,
                 url: fetchUrl,
                 cacheReason,
@@ -1085,15 +1183,9 @@ export function createPatchedFetcher(
         }
 
         if (
-          (workStore.isStaticGeneration ||
-            (process.env.NODE_ENV === 'development' &&
-              process.env.__NEXT_CACHE_COMPONENTS &&
-              workUnitStore &&
-              // eslint-disable-next-line no-restricted-syntax
-              workUnitStore.type === 'request' &&
-              workUnitStore.stagedRendering)) &&
           init &&
-          typeof init === 'object'
+          typeof init === 'object' &&
+          shouldProcessFetchConfigForWorkUnit(workUnitStore)
         ) {
           const { cache } = init
 
@@ -1112,7 +1204,7 @@ export function createPatchedFetcher(
                     cacheSignal.endRead()
                     cacheSignal = null
                   }
-                  return makeHangingPromise<Response>(
+                  return makeDynamicHangingPromise<Response>(
                     workUnitStore.renderSignal,
                     workStore.route,
                     'fetch()'
@@ -1164,7 +1256,7 @@ export function createPatchedFetcher(
                   case 'prerender-client':
                   case 'prerender-runtime':
                   case 'validation-client':
-                    return makeHangingPromise<Response>(
+                    return makeDynamicHangingPromise<Response>(
                       workUnitStore.renderSignal,
                       workStore.route,
                       'fetch()'

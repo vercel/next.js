@@ -15,6 +15,7 @@ import {
 } from './middleware-webpack'
 import { WebpackHotMiddleware } from './hot-middleware'
 import * as inspector from 'inspector'
+import { randomUUID } from 'crypto'
 import { join, relative, isAbsolute, posix, dirname } from 'path'
 import {
   createEntrypoints,
@@ -126,6 +127,9 @@ function diff(a: Set<any>, b: Set<any>) {
 }
 
 const wsServer = new ws.Server({ noServer: true })
+
+// Folded into the HMR refresh hash to make it differ between dev server runs.
+const devServerSessionId = randomUUID()
 
 export async function renderScriptError(
   res: ServerResponse,
@@ -241,6 +245,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private serverError: Error | null = null
   private hmrServerError: Error | null = null
   private serverPrevDocumentHash: string | null
+  private serverComponentsHmrRefreshHash: string | undefined
   private serverChunkNames?: Set<string>
   private prevChunkNames?: Set<any>
   private onDemandEntries?: ReturnType<typeof onDemandEntryHandler>
@@ -431,12 +436,16 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   }
 
   protected async refreshServerComponents(hash: string): Promise<void> {
+    this.serverComponentsHmrRefreshHash = hash
     this.send({
       type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
-      hash,
       // TODO: granular reloading of changes
       // entrypoints: serverComponentChanges,
     })
+  }
+
+  public getServerComponentsHmrRefreshHash(): string {
+    return `${devServerSessionId}-${this.serverComponentsHmrRefreshHash ?? '0'}`
   }
 
   public onHMR(

@@ -131,14 +131,14 @@ impl AssetContent {
     }
 
     #[turbo_tasks::function]
-    pub fn hash(&self, algorithm: HashAlgorithm) -> Vc<RcStr> {
-        match self {
-            AssetContent::File(content) => content.hash(algorithm),
+    pub async fn hash(&self, salt: Vc<RcStr>, algorithm: HashAlgorithm) -> Result<Vc<RcStr>> {
+        Ok(match self {
+            AssetContent::File(content) => content.hash(salt, algorithm),
             AssetContent::Redirect { target, link_type } => Vc::cell(RcStr::from(
                 // no_hash_salt
-                deterministic_hash("", (target, link_type), algorithm),
+                deterministic_hash(&salt.await?, (target, link_type), algorithm),
             )),
-        }
+        })
     }
 
     /// Compared to [AssetContent::hash], this hashes only the bytes of the file content and

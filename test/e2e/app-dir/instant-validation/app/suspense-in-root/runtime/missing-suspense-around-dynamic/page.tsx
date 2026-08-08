@@ -2,7 +2,7 @@ import { cookies } from 'next/headers'
 import { connection } from 'next/server'
 
 export const instant = { level: 'experimental-error' }
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 export default async function Page() {
   await cookies()

@@ -10,7 +10,7 @@ import {
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
-  makeHangingPromise,
+  makeDynamicHangingPromise,
   makeDevtoolsIOAwarePromise,
 } from '../dynamic-rendering-utils'
 import { isRequestApiAllowedInCurrentPhase } from './utils'
@@ -83,7 +83,7 @@ export function connection(): Promise<void> {
         case 'prerender-runtime':
           // We return a promise that never resolves to allow the prerender to
           // stall at this point.
-          return makeHangingPromise(
+          return makeDynamicHangingPromise(
             workUnitStore.renderSignal,
             workStore.route,
             '`connection()`'
