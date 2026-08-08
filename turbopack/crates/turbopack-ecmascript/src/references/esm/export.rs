@@ -70,41 +70,41 @@ pub enum EsmExport {
     Error,
 }
 
-#[turbo_tasks::function]
+/// Returns true if the export is missing from the module.
 pub async fn is_export_missing(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-    export_name: RcStr,
-) -> Result<Vc<bool>> {
+    export_name: &str,
+) -> Result<bool> {
     if export_name == "__turbopack_module_id__" {
-        return Ok(Vc::cell(false));
+        return Ok(false);
     }
 
     let exports = module.get_exports().await?;
     let exports = match &*exports {
-        EcmascriptExports::None => return Ok(Vc::cell(true)),
-        EcmascriptExports::Unknown => return Ok(Vc::cell(false)),
-        EcmascriptExports::Value => return Ok(Vc::cell(false)),
-        EcmascriptExports::CommonJs => return Ok(Vc::cell(false)),
-        EcmascriptExports::EmptyCommonJs => return Ok(Vc::cell(export_name != "default")),
-        EcmascriptExports::DynamicNamespace => return Ok(Vc::cell(false)),
+        EcmascriptExports::None => return Ok(true),
+        EcmascriptExports::Unknown => return Ok(false),
+        EcmascriptExports::Value => return Ok(false),
+        EcmascriptExports::CommonJs => return Ok(false),
+        EcmascriptExports::EmptyCommonJs => return Ok(export_name != "default"),
+        EcmascriptExports::DynamicNamespace => return Ok(false),
         EcmascriptExports::EsmExports(exports) => *exports,
     };
 
     let exports = exports.await?;
-    if exports.exports.contains_key(&export_name) {
-        return Ok(Vc::cell(false));
+    if exports.exports.contains_key(export_name) {
+        return Ok(false);
     }
     if export_name == "default" {
-        return Ok(Vc::cell(true));
+        return Ok(true);
     }
 
     if exports.star_exports.is_empty() {
-        return Ok(Vc::cell(true));
+        return Ok(true);
     }
 
     let all_export_names = get_all_export_names(*module).await?;
-    if all_export_names.esm_exports.contains_key(&export_name) {
-        return Ok(Vc::cell(false));
+    if all_export_names.esm_exports.contains_key(export_name) {
+        return Ok(false);
     }
 
     for &dynamic_module in &all_export_names.dynamic_exporting_modules {
@@ -114,7 +114,7 @@ pub async fn is_export_missing(
             | EcmascriptExports::CommonJs
             | EcmascriptExports::DynamicNamespace
             | EcmascriptExports::Unknown => {
-                return Ok(Vc::cell(false));
+                return Ok(false);
             }
             EcmascriptExports::None
             | EcmascriptExports::EmptyCommonJs
@@ -122,7 +122,7 @@ pub async fn is_export_missing(
         }
     }
 
-    Ok(Vc::cell(true))
+    Ok(true)
 }
 
 #[turbo_tasks::function]
