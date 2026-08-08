@@ -2305,10 +2305,10 @@ fn corrupt_current_file_fails_to_open() -> Result<()> {
     Ok(())
 }
 
-/// Opening a database refreshes its last-used time even when nothing is written, so that a
-/// read-only session still counts as a use for cache-version eviction.
+/// The last-used time is stamped by commits, not by opens: an open that writes nothing leaves
+/// `CURRENT` untouched, so it costs no fsync.
 #[test]
-fn opening_a_database_refreshes_last_used_time() -> Result<()> {
+fn opening_without_writing_leaves_last_used_time_alone() -> Result<()> {
     use crate::parallel_scheduler::SerialScheduler;
 
     let tempdir = tempfile::tempdir()?;
@@ -2338,14 +2338,27 @@ fn opening_a_database_refreshes_last_used_time() -> Result<()> {
         db.shutdown()?;
     }
 
-    let refreshed = read_current_version(path)?.unwrap();
+    let after_open = read_current_version(path)?.unwrap();
     assert_eq!(
-        refreshed.max_sequence_number, stale.max_sequence_number,
+        after_open.max_sequence_number, stale.max_sequence_number,
         "sequence number must be preserved"
     );
+    assert_eq!(
+        after_open.last_used_time, backdated,
+        "an open with no writes must not rewrite CURRENT"
+    );
+
+    // A commit does stamp it.
+    {
+        let db = TurboPersistence::<SerialScheduler, 1>::open(path.to_path_buf())?;
+        let batch = db.write_batch()?;
+        batch.put(0, vec![2u8], vec![43u8].into())?;
+        db.commit_write_batch(batch)?;
+        db.shutdown()?;
+    }
     assert!(
-        refreshed.last_used_time > backdated,
-        "last_used_time should be refreshed on open"
+        read_current_version(path)?.unwrap().last_used_time > backdated,
+        "committing must refresh last_used_time"
     );
 
     Ok(())

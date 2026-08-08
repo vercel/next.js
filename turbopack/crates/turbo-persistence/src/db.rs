@@ -2,7 +2,7 @@ use std::{
     borrow::Cow,
     collections::HashSet,
     fmt::Display,
-    io::{BufWriter, Write},
+    io::{BufWriter, ErrorKind, Write},
     mem::take,
     ops::RangeInclusive,
     path::{Path, PathBuf},
@@ -162,16 +162,13 @@ impl WriteOperationGuard<'_> {
 
 /// The contents of the `CURRENT` file: which sequence number is committed, and when the database
 /// was last used.
-///
-/// Serialized as a small JSON object. `last_used_time` lives in the file rather than being taken
-/// from its mtime because mtimes don't survive the directory being copied or restored (CI cache
-/// restore, `cp -r`, container image builds).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CurrentDbVersion {
     /// The highest sequence number that is part of the committed database. Files with a greater
     /// sequence number are orphans from an interrupted write and get deleted on open.
     pub max_sequence_number: u32,
-    /// When this database was last opened or committed to.
+    /// When this database was last written. Opens that commit nothing don't update it, so this
+    /// tracks last write rather than last use.
     pub last_used_time: Timestamp,
 }
 
@@ -179,15 +176,11 @@ pub struct CurrentDbVersion {
 ///
 /// Returns `Ok(None)` if the file doesn't exist, which for a writable database means "not
 /// initialized yet".
-///
-/// A `CURRENT` that exists but doesn't parse is an error, not an older format to fall back on:
-/// version directories are named after the build that wrote them, so a format change comes with a
-/// new directory name and this function never sees an older one.
 pub fn read_current_version(path: &Path) -> Result<Option<CurrentDbVersion>> {
     let current_path = path.join("CURRENT");
     let content = match fs::read(&current_path) {
         Ok(content) => content,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) if e.kind() == ErrorKind::NotFound => return Ok(None),
         Err(e) => return Err(e).context("Failed to read CURRENT file"),
     };
 
@@ -211,42 +204,19 @@ pub fn read_current_version(path: &Path) -> Result<Option<CurrentDbVersion>> {
 /// (in-place overwrites, by contrast, can leave a partially-written value on a crash mid-write).
 /// After the rename we fsync the directory so the new `CURRENT` → inode mapping survives a crash.
 fn commit_current(path: &Path, seq: u32) -> Result<()> {
-    commit_current_version(
-        path,
-        &CurrentDbVersion {
-            max_sequence_number: seq,
-            last_used_time: Timestamp::now(),
-        },
-    )
-}
-
-/// As [`commit_current`], but writes an explicit [`CurrentDbVersion`].
-fn commit_current_version(path: &Path, version: &CurrentDbVersion) -> Result<()> {
-    // Serialize up front and write once: `serde_json::to_writer` into an unbuffered `File` would
-    // issue a syscall per JSON token, and this runs on every commit and every open.
+    let version: &CurrentDbVersion = &CurrentDbVersion {
+        max_sequence_number: seq,
+        last_used_time: Timestamp::now(),
+    };
     let mut contents =
         serde_json::to_string(version).context("Failed to serialize the CURRENT file")?;
     contents.push('\n');
-
     let next_path = path.join("CURRENT.next");
     let mut next_file = File::create(&next_path)?;
     next_file.write_all(contents.as_bytes())?;
     next_file.sync_data()?;
     drop(next_file);
-
     fs::rename(&next_path, path.join("CURRENT"))?;
-
-    // Fsync the directory. This is the single durability barrier for a commit: by the time we get
-    // here every file created earlier in the commit (SST/meta/blob and any `.del` file) already
-    // exists, so this one fsync flushes *all* of their directory entries together with the CURRENT
-    // rename. Because the file *contents* were already `sync_data`'d before this call and the
-    // rename is the last directory mutation, a crash can never leave a durable CURRENT pointing at
-    // files whose directory entries were lost. Callers therefore do not need a separate directory
-    // fsync before invoking this.
-    //
-    // Skipped on Windows: `sync_data` on a directory handle fails with ERROR_ACCESS_DENIED (the
-    // handle `File::open` returns for a directory has no write access).Apparently metadata changes
-    // are always atomic on windows so this is simply unneeded.
     #[cfg(not(windows))]
     File::open(path)
         .and_then(|dir| dir.sync_data())
@@ -497,7 +467,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             parallel_scheduler,
             config,
         });
-        db.open_directory(true)?;
+        db.open_directory(false)?;
         Ok(db)
     }
 
@@ -518,7 +488,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 Ok(())
             }
             Err(e) => {
-                if !read_only && e.kind() == std::io::ErrorKind::NotFound {
+                if !read_only && e.kind() == ErrorKind::NotFound {
                     self.create_and_init_directory()
                         .context("Creating and initializing persistence directory failed")?;
                     Ok(())
@@ -651,15 +621,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             .store(meta_files.is_empty(), Ordering::Relaxed);
         inner.meta_files = meta_files;
         inner.current_sequence_number = current;
-
-        // Refresh the last-used stamp. This happens even for a read-only open — opening to read is
-        // still a use — and is the only mutation such an open makes.
-        //
-        // Best-effort: on failure the stamp keeps its old value, so the database looks less
-        // recently used than it is and may be evicted early. An open that can otherwise succeed
-        // shouldn't fail over a cache-eviction hint. A failure part-way through can leave a stale
-        // `CURRENT.next` behind, which the next `commit_current` truncates.
-        let _ = commit_current(&self.path, current);
 
         Ok(true)
     }
