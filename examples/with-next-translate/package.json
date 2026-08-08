@@ -6,12 +6,12 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "latest",
-    "next-translate": "2.5.3",
-    "react": "18.2.0",
-    "react-dom": "18.2.0"
+    "next": "^16.1.6",
+    "next-translate": "^3.0.0",
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
   },
   "devDependencies": {
-    "next-translate-plugin": "2.5.3"
+    "next-translate-plugin": "^3.0.0"
   }
 }
