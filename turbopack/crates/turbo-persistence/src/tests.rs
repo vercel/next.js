@@ -2307,7 +2307,6 @@ fn valued_tombstone_deletes_only_its_pair() -> Result<()> {
 fn valued_tombstone_survives_partial_compaction() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
-    let key = vec![7u8];
 
     let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
         path.to_path_buf(),
@@ -2315,34 +2314,62 @@ fn valued_tombstone_survives_partial_compaction() -> Result<()> {
         RayonParallelScheduler,
     )?;
 
-    // Oldest SST holds the value that the tombstone must keep suppressing.
+    // Enough distinct keys that each SST spans a real slice of the hash space. The compaction
+    // selector estimates duplication by scaling sizes against that spread, so a couple of keys
+    // sharing one hash makes the estimate degenerate and no merge is ever chosen — which would
+    // leave this test passing without compacting anything.
+    const KEYS: u32 = 2000;
+
+    // Oldest layer holds the values that the tombstones must keep suppressing.
     let batch = db.write_batch()?;
-    batch.put(0, key.clone(), 42u32.to_be_bytes().to_vec().into())?;
+    for k in 0..KEYS {
+        batch.put(
+            0,
+            k.to_be_bytes().to_vec(),
+            42u32.to_be_bytes().to_vec().into(),
+        )?;
+    }
     db.commit_write_batch(batch)?;
 
-    // A few unrelated SSTs so compaction has something to merge partially.
+    // Newer layers so compaction has overlapping candidates to merge partially.
     for v in [1u32, 2, 3] {
         let batch = db.write_batch()?;
-        batch.put(0, vec![8u8], v.to_be_bytes().to_vec().into())?;
+        for k in 0..KEYS {
+            batch.put(0, k.to_be_bytes().to_vec(), v.to_be_bytes().to_vec().into())?;
+        }
         db.commit_write_batch(batch)?;
     }
 
     let batch = db.write_batch()?;
-    batch.delete_value(0, key.clone(), 42u32.to_be_bytes().to_vec().into())?;
+    for k in 0..KEYS {
+        batch.delete_value(
+            0,
+            k.to_be_bytes().to_vec(),
+            42u32.to_be_bytes().to_vec().into(),
+        )?;
+    }
     db.commit_write_batch(batch)?;
 
     // Compact repeatedly; whatever coverage the selector chooses, 42 must stay deleted.
-    for _ in 0..3 {
+    for round in 0..3 {
         db.compact(&CompactConfig {
+            min_merge_count: 2,
             optimal_merge_count: 2,
             min_merge_duplication_bytes: 1,
             optimal_merge_duplication_bytes: 1,
             ..Default::default()
         })?;
-        assert!(
-            db.get_multiple(0, &key.as_slice())?.is_empty(),
-            "42 was resurrected by compaction"
-        );
+        for k in [0u32, KEYS / 2, KEYS - 1] {
+            let results = db
+                .get_multiple(0, &k.to_be_bytes().to_vec().as_slice())?
+                .iter()
+                .map(|v| u32::from_be_bytes((**v).try_into().unwrap()))
+                .collect::<Vec<_>>();
+            assert!(
+                !results.contains(&42),
+                "42 was resurrected for key {k} in round {round}: {results:?}"
+            );
+        }
     }
 
     db.shutdown()?;
@@ -2604,6 +2631,86 @@ fn compaction_keeps_tombstone_when_older_sst_has_the_key() -> Result<()> {
                 results,
                 vec![2],
                 "value 1 resurrected for key {k} in round {round}"
+            );
+        }
+    }
+
+    db.shutdown()?;
+    Ok(())
+}
+
+/// A compaction job's SSTs need not be contiguous: the selector picks members by hash-range
+/// overlap and skips already-claimed candidates, so an SST can sit "between" two job members
+/// without belonging to the job. A tombstone must still be kept for it.
+///
+/// This is the case a sequence-number threshold gets wrong — it would treat the skipped SST as
+/// part of the job and drop a tombstone that is still load-bearing.
+#[test]
+fn compaction_keeps_tombstone_when_skipped_sst_has_the_key() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
+        path.to_path_buf(),
+        multi_value_config(),
+        RayonParallelScheduler,
+    )?;
+
+    const KEYS: u32 = 2000;
+
+    // Every SST spans a wide, overlapping slice of the hash space. That is what lets the selector
+    // form jobs that skip over an intervening file: with narrow or identical ranges it only ever
+    // picks contiguous runs, and the bug this guards against stays hidden.
+    let key_for = |round: u32, i: u32| {
+        let mut k = vec![0u8; 8];
+        k[..4].copy_from_slice(&i.to_be_bytes());
+        k[4..].copy_from_slice(&round.to_be_bytes());
+        k
+    };
+
+    // Oldest layer: the values that must stay suppressed once deleted.
+    let batch = db.write_batch()?;
+    for i in 0..KEYS {
+        batch.put(0, key_for(0, i), 1u32.to_be_bytes().to_vec().into())?;
+    }
+    db.commit_write_batch(batch)?;
+
+    // Several more layers touching the same keys, so the selector has many overlapping candidates.
+    for round in 1..7u32 {
+        let batch = db.write_batch()?;
+        for i in 0..KEYS {
+            batch.put(0, key_for(0, i), (round + 1).to_be_bytes().to_vec().into())?;
+            batch.put(0, key_for(round, i), 9u32.to_be_bytes().to_vec().into())?;
+        }
+        db.commit_write_batch(batch)?;
+    }
+
+    // Delete the oldest value for every key in the first layer.
+    let batch = db.write_batch()?;
+    for i in 0..KEYS {
+        batch.delete_value(0, key_for(0, i), 1u32.to_be_bytes().to_vec().into())?;
+    }
+    db.commit_write_batch(batch)?;
+
+    for round in 0..6 {
+        db.compact(&CompactConfig {
+            min_merge_count: 2,
+            max_merge_count: 3,
+            optimal_merge_count: 2,
+            min_merge_duplication_bytes: 1,
+            optimal_merge_duplication_bytes: 1,
+            ..Default::default()
+        })?;
+
+        for i in [0u32, KEYS / 2, KEYS - 1] {
+            let results = db
+                .get_multiple(0, &key_for(0, i).as_slice())?
+                .iter()
+                .map(|v| u32::from_be_bytes((**v).try_into().unwrap()))
+                .collect::<Vec<_>>();
+            assert!(
+                !results.contains(&1),
+                "deleted value resurrected for key {i} in round {round}: {results:?}"
             );
         }
     }

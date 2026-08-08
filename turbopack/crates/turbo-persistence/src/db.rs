@@ -20,6 +20,7 @@ use jiff::Timestamp;
 use memmap2::Mmap;
 use nohash_hasher::BuildNoHashHasher;
 use parking_lot::{Mutex, RwLock};
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tracing::span::EnteredSpan;
@@ -1524,30 +1525,34 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         .parallel_scheduler
                         .parallel_map_collect_owned::<_, _, Result<Vec<_>>>(merge_jobs, |indices| {
                             let _span = span.clone().entered();
-                            // Filters of every SST older than this job. "Older than the job" is
-                            // the safe cut: `MergeIter` yields newest-first and the loop below
-                            // already drops the older values a tombstone shadows, so only SSTs
-                            // the job cannot see can still resurrect a value. Sequence numbers
-                            // come from a monotonic counter, so `seq` orders by recency.
-                            let oldest_seq_in_job = indices
+                            // Filters of every SST this job does not merge.
+                            //
+                            // Membership must be tested by index, not by a sequence number
+                            // threshold: `get_merge_segments` picks members by hash-range overlap
+                            // and skips already-claimed candidates, so a job's indices can have
+                            // gaps. A threshold would treat a skipped SST as part of the job and
+                            // miss it here. Sequence numbers are no help either — a moved SST
+                            // keeps its original number while merged output takes a fresh one, and
+                            // readers walk meta files and entries by position, not by `seq`.
+                            let in_job = indices.iter().copied().collect::<FxHashSet<_>>();
+                            let outside_filters = ssts_with_ranges
                                 .iter()
-                                .map(|&i| ssts_with_ranges[i].seq)
-                                .min()
-                                .unwrap_or(0);
-                            let older_filters = ssts_with_ranges
-                                .iter()
-                                .filter(|sst| sst.seq < oldest_seq_in_job)
-                                .map(|sst| {
+                                .enumerate()
+                                .filter(|(i, _)| !in_job.contains(i))
+                                .map(|(_, sst)| {
                                     let entry = meta_files[sst.meta_index].entry(sst.index_in_meta);
                                     (entry.min_hash(), entry.max_hash(), entry.amqf())
                                 })
                                 .collect::<Vec<_>>();
                             // A tombstone is dead once no SST outside this job could still hold a
-                            // matching key. The AMQF's error is one-sided — `false` means
-                            // *definitely absent* — so a false positive only retains a tombstone
-                            // for another round, and the resurrection direction is unreachable.
+                            // matching key: within the job, `MergeIter` yields newest-first and the
+                            // loop below already drops the older values the tombstone shadows.
+                            //
+                            // The AMQF's error is one-sided — `false` means *definitely absent* —
+                            // so a false positive only retains a tombstone for another round, and
+                            // the resurrection direction is unreachable.
                             let tombstone_is_dead = |hash: u64| {
-                                !older_filters.iter().any(|(min, max, amqf)| {
+                                !outside_filters.iter().any(|(min, max, amqf)| {
                                     hash >= *min && hash <= *max && amqf.contains_fingerprint(hash)
                                 })
                             };
