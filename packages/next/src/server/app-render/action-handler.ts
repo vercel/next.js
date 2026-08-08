@@ -758,8 +758,7 @@ export async function handleAction({
   // A fetch action without a router state tree cannot produce a Flight patch
   // for the currently rendered page. This occurs when the client dispatches an
   // action directly to a different route, so only execute the action without
-  // rendering the destination route's page tree. Omitting this untrusted header
-  // does not affect action lookup, CSRF checks, or user authorization.
+  // rendering the destination route's page tree.
   const isActionOnlyRequest =
     isFetchAction && req.headers[NEXT_ROUTER_STATE_TREE_HEADER] === undefined
   // A fetch action targeting a fallback route has no concrete params with

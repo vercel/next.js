@@ -4,7 +4,7 @@ import { dispatchAppRouterAction } from './components/use-action-queue'
 import { getServerActionDispatchContext } from './server-action-dispatch'
 
 export async function callServer(actionId: string, actionArgs: any[]) {
-  const actionDispatchContext = await getServerActionDispatchContext(actionId)
+  const actionDispatchContext = getServerActionDispatchContext(actionId)
 
   return new Promise((resolve, reject) => {
     startTransition(() => {

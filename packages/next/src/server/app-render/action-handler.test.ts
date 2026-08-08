@@ -41,12 +41,12 @@ describe('server module map', () => {
     })
   })
 
-  it('lists opaque routing keys for the actions owned by a route', async () => {
-    const routingKeys = await getServerActionRoutingKeysForPage('/test/page')
+  it('lists opaque routing keys for the actions owned by a route', () => {
+    const routingKeys = getServerActionRoutingKeysForPage('/test/page')
 
-    expect(routingKeys).toEqual([await createServerActionRoutingKey(actionId)])
+    expect(routingKeys).toEqual([createServerActionRoutingKey(actionId)])
     expect(
-      await getServerActionRoutingKeysForPage('/test/without-actions')
+      getServerActionRoutingKeysForPage('/test/without-actions')
     ).toBeUndefined()
   })
 

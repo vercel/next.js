@@ -823,7 +823,7 @@ async function generateDynamicRSCPayload(
       // static pages do, because their per-segment prefetch responses are
       // generated during static generation (build or ISR).
       S: ctx.renderCapabilities.supportsPerSegmentPrefetching,
-      A: await getServerActionRoutingKeysForPage(ctx.workStore.page),
+      A: getServerActionRoutingKeysForPage(ctx.workStore.page),
       r: getRootParamsVaryParamsAccumulator() ?? undefined,
     }
   )
@@ -2251,7 +2251,7 @@ async function getRSCPayload(
     // static pages do, because their per-segment prefetch responses are
     // generated during static generation (build or ISR).
     S: ctx.renderCapabilities.supportsPerSegmentPrefetching,
-    A: await getServerActionRoutingKeysForPage(ctx.workStore.page),
+    A: getServerActionRoutingKeysForPage(ctx.workStore.page),
     r: getRootParamsVaryParamsAccumulator() ?? undefined,
     s: staleTimeIterable,
     a: shellByteLengthPromise,

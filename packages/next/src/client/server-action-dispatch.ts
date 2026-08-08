@@ -11,7 +11,6 @@ const dispatchContextByRoutingKey = new Map<
   string,
   ServerActionDispatchContext
 >()
-const routingKeyByActionId = new Map<string, Promise<string>>()
 
 function normalizeDispatchUrl(url: string | URL): string {
   const parsed = new URL(url, window.location.origin)
@@ -35,21 +34,8 @@ export function registerServerActionDispatchContext(
   }
 }
 
-export async function getServerActionDispatchContext(
+export function getServerActionDispatchContext(
   actionId: string
-): Promise<ServerActionDispatchContext> {
-  let routingKey = routingKeyByActionId.get(actionId)
-  if (routingKey === undefined) {
-    routingKey = createServerActionRoutingKey(actionId)
-    routingKeyByActionId.set(actionId, routingKey)
-  }
-
-  const dispatchContext = dispatchContextByRoutingKey.get(await routingKey)
-  if (dispatchContext === undefined) {
-    throw new Error(
-      'Invariant: Missing Server Action dispatch context. This indicates that the action routing metadata was not registered for this action.'
-    )
-  }
-
-  return dispatchContext
+): ServerActionDispatchContext | undefined {
+  return dispatchContextByRoutingKey.get(createServerActionRoutingKey(actionId))
 }

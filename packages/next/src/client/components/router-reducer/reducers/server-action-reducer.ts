@@ -114,11 +114,14 @@ async function fetchServerAction(
 ): Promise<FetchServerActionResult> {
   const { actionId, actionArgs, actionDispatchContext } = action
   const currentRequestUrl = new URL(state.canonicalUrl, window.location.origin)
-  const actionRequestUrl = new URL(
-    actionDispatchContext.url,
-    window.location.origin
-  )
-  const actionNextUrl = actionDispatchContext.nextUrl
+  const actionRequestUrl =
+    actionDispatchContext === undefined
+      ? currentRequestUrl
+      : new URL(actionDispatchContext.url, window.location.origin)
+  const actionNextUrl =
+    actionDispatchContext === undefined
+      ? nextUrl
+      : actionDispatchContext.nextUrl
   const isCrossRouteDispatch =
     actionRequestUrl.pathname !== currentRequestUrl.pathname ||
     actionRequestUrl.search !== currentRequestUrl.search ||

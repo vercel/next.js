@@ -54,11 +54,11 @@ export interface ServerActionAction {
   actionId: string
   actionArgs: any[]
   /**
-   * The route that owns this action. New clients require this context so gaps
-   * in the direct dispatch protocol fail loudly. Legacy clients can still rely
-   * on server forwarding during rollout.
+   * The route that owns this action, if it was advertised in a Flight payload.
+   * Missing context falls back to the current route so version-skewed action
+   * IDs retain the existing unrecognized-action behavior.
    */
-  actionDispatchContext: ServerActionDispatchContext
+  actionDispatchContext: ServerActionDispatchContext | undefined
   resolve: (value: any) => void
   reject: (reason?: any) => void
   didRevalidate?: boolean

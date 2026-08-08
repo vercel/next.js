@@ -74,10 +74,7 @@ interface ManifestsSingleton {
   readonly proxiedClientReferenceManifest: DeepReadonly<ClientReferenceManifest>
   serverActionsManifest: DeepReadonly<ActionManifest>
   serverModuleMap: ServerModuleMap
-  serverActionRoutingKeysPerPage: Map<
-    string,
-    Promise<readonly string[] | undefined>
-  >
+  serverActionRoutingKeysPerPage: Map<string, readonly string[] | undefined>
 }
 
 type GlobalThisWithManifests = typeof globalThis & {
@@ -342,7 +339,7 @@ export function selectWorkerForForwarding(
 
 export function getServerActionRoutingKeysForPage(
   pageName: string
-): Promise<readonly string[] | undefined> {
+): readonly string[] | undefined {
   const singleton = getManifestsSingleton()
   const runtime = process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
   const workerPageName = normalizeWorkerPageName(pageName)
@@ -350,7 +347,7 @@ export function getServerActionRoutingKeysForPage(
   const cachedRoutingKeys =
     singleton.serverActionRoutingKeysPerPage.get(cacheKey)
 
-  if (cachedRoutingKeys !== undefined) {
+  if (singleton.serverActionRoutingKeysPerPage.has(cacheKey)) {
     return cachedRoutingKeys
   }
 
@@ -364,8 +361,8 @@ export function getServerActionRoutingKeysForPage(
 
   const routingKeys =
     actionIds.length === 0
-      ? Promise.resolve(undefined)
-      : Promise.all(actionIds.map(createServerActionRoutingKey))
+      ? undefined
+      : actionIds.map(createServerActionRoutingKey)
   singleton.serverActionRoutingKeysPerPage.set(cacheKey, routingKeys)
   return routingKeys
 }
