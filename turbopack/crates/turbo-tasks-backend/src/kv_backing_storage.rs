@@ -237,7 +237,7 @@ impl TurboBackingStorage {
 
         {
             let span = tracing::trace_span!("update task data");
-            let per_shard =
+            let mut snapshot_meta =
                 parallel::map_collect_owned::<_, _, Result<Vec<_>>>(snapshots, |shard: I| {
                     let _span = span.clone().entered();
                     let mut max_new_task_id = 0;
@@ -245,15 +245,47 @@ impl TurboBackingStorage {
                     let mut meta_items = 0;
                     let mut task_cache_items = 0;
                     for item in shard {
-                        let (task_id, meta, data, task_type_hash) = match item {
+                        match item {
                             SnapshotItem::Put {
                                 task_id,
                                 meta,
                                 data,
                                 task_type_hash,
-                            } => (task_id, meta, data, task_type_hash),
-                            SnapshotItem::Delete(deletion) => {
-                                let key = IntKey::new(*deletion.task_id);
+                            } => {
+                                let key = IntKey::new(*task_id);
+                                let key = key.as_ref();
+                                if let Some(meta) = meta {
+                                    batch.put(
+                                        KeySpace::TaskMeta,
+                                        WriteBuffer::Borrowed(key),
+                                        WriteBuffer::SmallVec(meta),
+                                    )?;
+                                    meta_items += 1;
+                                }
+                                if let Some(data) = data {
+                                    batch.put(
+                                        KeySpace::TaskData,
+                                        WriteBuffer::Borrowed(key),
+                                        WriteBuffer::SmallVec(data),
+                                    )?;
+                                    data_items += 1;
+                                }
+                                // Register the task type only for new tasks.
+                                if let Some(task_type_hash) = task_type_hash {
+                                    batch.put(
+                                        KeySpace::TaskCache,
+                                        WriteBuffer::Borrowed(&task_type_hash),
+                                        WriteBuffer::Borrowed(key),
+                                    )?;
+                                    task_cache_items += 1;
+                                    max_new_task_id = max_new_task_id.max(*task_id);
+                                }
+                            }
+                            SnapshotItem::Delete {
+                                task_id,
+                                task_type_hash,
+                            } => {
+                                let key = IntKey::new(*task_id);
                                 let key = key.as_ref();
                                 // TaskMeta/TaskData are SingleValue, so a key-granular delete is
                                 // exact.
@@ -264,39 +296,10 @@ impl TurboBackingStorage {
                                 // one. Delete just this id from the bucket.
                                 batch.delete_value(
                                     KeySpace::TaskCache,
-                                    WriteBuffer::Borrowed(&deletion.task_type_hash[..]),
+                                    WriteBuffer::Borrowed(&task_type_hash[..]),
                                     WriteBuffer::Borrowed(key),
                                 )?;
-                                continue;
                             }
-                        };
-                        let key = IntKey::new(*task_id);
-                        let key = key.as_ref();
-                        if let Some(meta) = meta {
-                            batch.put(
-                                KeySpace::TaskMeta,
-                                WriteBuffer::Borrowed(key),
-                                WriteBuffer::SmallVec(meta),
-                            )?;
-                            meta_items += 1;
-                        }
-                        if let Some(data) = data {
-                            batch.put(
-                                KeySpace::TaskData,
-                                WriteBuffer::Borrowed(key),
-                                WriteBuffer::SmallVec(data),
-                            )?;
-                            data_items += 1;
-                        }
-                        // Write task cache entry inline if this is a new task
-                        if let Some(task_type_hash) = task_type_hash {
-                            batch.put(
-                                KeySpace::TaskCache,
-                                WriteBuffer::Borrowed(&task_type_hash),
-                                WriteBuffer::Borrowed(key),
-                            )?;
-                            task_cache_items += 1;
-                            max_new_task_id = max_new_task_id.max(*task_id);
                         }
                     }
                     Ok(SnapshotMeta {
@@ -309,8 +312,7 @@ impl TurboBackingStorage {
                         bytes_deleted: 0,
                         max_next_task_id: max_new_task_id,
                     })
-                })?;
-            let mut snapshot_meta = per_shard
+                })?
                 .into_iter()
                 .reduce(|t1, t2| t1.merge(t2))
                 .unwrap_or_default();
@@ -487,10 +489,7 @@ mod tests {
     use turbo_tasks::TaskId;
 
     use super::*;
-    use crate::{
-        backing_storage::TaskDeletion,
-        database::{turbo::TurboKeyValueDatabase, write_batch::WriteBuffer},
-    };
+    use crate::database::{turbo::TurboKeyValueDatabase, write_batch::WriteBuffer};
 
     /// Helper to write to the database using the concurrent batch API.
     fn write_task_cache_entry(
@@ -764,7 +763,7 @@ mod tests {
         Ok(())
     }
 
-    /// End-to-end coverage of collision handling in `save_snapshot`: a `TaskDeletion` must remove
+    /// End-to-end coverage of collision handling in `save_snapshot`: a `Delete` item must remove
     /// only the deleted id from its `TaskCache` bucket, leaving a colliding entry that exists
     /// *only on disk* intact.
     ///
@@ -790,10 +789,10 @@ mod tests {
         // Snapshot with no task data, just the one deletion (carried inline as a delete item).
         storage.save_snapshot(
             Vec::new(),
-            vec![vec![SnapshotItem::Delete(TaskDeletion {
+            vec![vec![SnapshotItem::Delete {
                 task_id: deleted_id,
                 task_type_hash: collision_hash.to_le_bytes(),
-            })]],
+            }]],
         )?;
 
         // The deleted id is gone; the disk-only collision is untouched.

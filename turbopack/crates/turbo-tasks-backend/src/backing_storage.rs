@@ -23,13 +23,30 @@ pub enum SnapshotItem {
         /// Task type for new tasks that need to be added to the task cache
         task_type_hash: Option<TaskTypeHash>,
     },
-    /// Tombstone a GC-collected task (see [`TaskDeletion`]).
+    /// Tombstone a GC-collected task, applied in the same commit as the surrounding puts.
+    ///
+    /// This is identity-only — no copy of the `TaskMeta`/`TaskData` buffers or the full
+    /// `CachedTaskType` behind the hash — because that is all the deletion needs:
+    ///
+    /// - `TaskMeta` and `TaskData` are `SingleValue`, so a key-granular delete is exact.
+    /// - `TaskCache` is `MultiValue` and keyed by the type hash, so deleting the key would also
+    ///   drop any task type that xxh3-collides with this one. The task id is the value in that
+    ///   bucket, so `delete_value` names exactly the one mapping to remove.
+    ///
+    /// Every part of this is a buffered write; nothing is read back at commit time. Compaction
+    /// drops the tombstoned entry the next time it rewrites the key group, and reads filter it out
+    /// until then.
     ///
     /// Not yet constructed: this PR lands the persistence-side delete mechanism (the
     /// `save_snapshot` handling below + its tests). The GC pass that emits `Delete` for
     /// soft-deleted tasks lands in a later PR in the stack.
     #[allow(dead_code)]
-    Delete(TaskDeletion),
+    Delete {
+        task_id: TaskId,
+        /// The deleted task's `TaskCache` key. Always present: only persistent tasks are
+        /// collected, and those always have a task type.
+        task_type_hash: TaskTypeHash,
+    },
 }
 
 impl SnapshotItem {
@@ -38,32 +55,9 @@ impl SnapshotItem {
     #[cfg(test)]
     pub fn task_id(&self) -> TaskId {
         match self {
-            SnapshotItem::Put { task_id, .. } => *task_id,
-            SnapshotItem::Delete(TaskDeletion { task_id, .. }) => *task_id,
+            SnapshotItem::Put { task_id, .. } | SnapshotItem::Delete { task_id, .. } => *task_id,
         }
     }
-}
-
-/// A GC-collected task to tombstone from persistent storage, applied in the same commit as the
-/// snapshot. See `save_snapshot` for how the tombstone is applied.
-///
-/// This is identity-only: the task's id and the hash of its type, with no copy of the
-/// `TaskMeta`/`TaskData` buffers or the full `CachedTaskType` behind the hash. That is all the
-/// deletion needs:
-///
-/// - `TaskMeta` and `TaskData` are `SingleValue`, so a key-granular delete is exact.
-/// - `TaskCache` is `MultiValue` and keyed by the type hash, so deleting the key would also drop
-///   any task type that xxh3-collides with this one. The task id is the value in that bucket, so
-///   `delete_value` names exactly the one mapping to remove.
-///
-/// Every part of this is a buffered write; nothing is read back at commit time. Compaction drops
-/// the tombstoned entry the next time it rewrites the key group, and reads filter it out until
-/// then.
-pub struct TaskDeletion {
-    pub task_id: TaskId,
-    /// The deleted task's `TaskCache` key. Always present: only persistent tasks are collected,
-    /// and those always have a task type.
-    pub task_type_hash: TaskTypeHash,
 }
 
 /// Computes a deterministic 64-bit hash of a CachedTaskType for use as a TaskCache key.
