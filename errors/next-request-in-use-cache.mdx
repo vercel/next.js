@@ -4,11 +4,15 @@ title: Cannot access request data in `"use cache"`
 
 ## Why This Error Occurred
 
-A cached function tried to access the incoming request. APIs such as `cookies()`, `headers()`, `searchParams`, and `connection()` depend on the request and cannot be called inside `"use cache"`. Draft mode can be read inside a cached function, but it cannot be enabled or disabled there.
+A cached function tried to access the incoming request. APIs such as `cookies()`, `headers()`, `searchParams`, and `connection()` depend on the request and cannot be called inside `"use cache"`. This error can also occur when unresolved request data is passed into a cached function during prerendering. Draft mode can be read inside a cached function, but it cannot be enabled or disabled there.
+
+A cached function can also stall if it awaits a promise stored outside the function, such as one kept in a module-scoped `Map` for deduplication.
 
 ## Possible Ways to Fix It
 
-Read request data outside the cached function and pass the values you need as arguments. Call `connection()` and enable or disable draft mode outside the cached function as well.
+Read and resolve request data outside the cached function, then pass only the values you need as arguments. Call `connection()` and enable or disable draft mode outside the cached function as well.
+
+If a surrounding module-scoped cache or deduplication layer stores promises, remove it and rely on `"use cache"` to dedupe calls with the same arguments.
 
 Before:
 

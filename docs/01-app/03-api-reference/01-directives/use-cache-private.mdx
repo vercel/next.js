@@ -164,7 +164,7 @@ The following request-specific APIs can be used inside `'use cache: private'` fu
 | `searchParams` | No                     | Yes                               |
 | `connection()` | No                     | No                                |
 
-> **Note:** The [`connection()`](https://nextjs.org/docs/app/api-reference/functions/connection) API is prohibited in both `use cache` and `'use cache: private'` as it provides connection-specific information that cannot be safely cached.
+> **Note:** The [`connection()`](https://nextjs.org/docs/app/api-reference/functions/connection) API is prohibited in both `use cache` and `'use cache: private'`. It waits for a real navigation request, while a private cached function can run during prefetching before one exists.
 
 ## Version History
 

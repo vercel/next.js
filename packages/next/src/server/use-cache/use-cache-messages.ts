@@ -1,7 +1,7 @@
 /**
- * Centralised error factories for `"use cache"` / `"use cache: private"`
- * misuse. Wording goal: name the constraint and the fix in one sentence,
- * then link to the docs page that explains why.
+ * Centralized error factories for `"use cache"` / `"use cache: private"`
+ * misuse. State the scope and constraint, explain non-obvious boundaries,
+ * give the immediate fix, then link to the relevant docs.
  */
 
 const NEXT_REQUEST_IN_USE_CACHE =
@@ -57,19 +57,19 @@ export function createSearchParamsInUseCacheError(route: string): Error {
 
 export function createConnectionInPublicUseCacheError(route: string): Error {
   return new Error(
-    `Route "${route}": \`connection()\` can't be called inside \`"use cache"\`. Call it outside the cached function.\nLearn more: ${NEXT_REQUEST_IN_USE_CACHE}`
+    `Route "${route}": \`connection()\` can't be called inside \`"use cache"\` because the cached function can run before a request exists. Call it outside the cached function.\nLearn more: ${NEXT_REQUEST_IN_USE_CACHE}`
   )
 }
 
 export function createConnectionInPrivateUseCacheError(route: string): Error {
   return new Error(
-    `Route "${route}": \`connection()\` can't be called inside \`"use cache: private"\`. Call it outside the cached function.\nLearn more: ${USE_CACHE_PRIVATE_API_DOCS}`
+    `Route "${route}": \`connection()\` can't be called inside \`"use cache: private"\` because the cached function can run during prefetching, before a navigation request exists. Call it outside the cached function.\nLearn more: ${USE_CACHE_PRIVATE_API_DOCS}`
   )
 }
 
 export function createConnectionInUnstableCacheError(route: string): Error {
   return new Error(
-    `Route "${route}": \`connection()\` can't be called inside \`unstable_cache()\`. Call it outside the cached function.\nLearn more: ${UNSTABLE_CACHE_API_DOCS}`
+    `Route "${route}": \`connection()\` can't be called inside \`unstable_cache()\` because the cached function can run before a request exists. Call it outside the cached function.\nLearn more: ${UNSTABLE_CACHE_API_DOCS}`
   )
 }
 
@@ -169,18 +169,18 @@ export function createNestedCacheShortExpireError(
 
 export function createUseCachePrivateInsidePublicUseCacheError(): Error {
   return new Error(
-    `\`"use cache: private"\` can't be nested inside \`"use cache"\`. It can only be nested inside another \`"use cache: private"\`.\nLearn more: ${USE_CACHE_PRIVATE_COMPOSITION}`
+    `\`"use cache: private"\` can't be nested inside \`"use cache"\` because a shared cached function can't depend on private request data. Nest it only inside another \`"use cache: private"\`.\nLearn more: ${USE_CACHE_PRIVATE_COMPOSITION}`
   )
 }
 
 export function createUseCachePrivateInsideUnstableCacheError(): Error {
   return new Error(
-    `\`"use cache: private"\` can't be used inside \`unstable_cache()\`.\nLearn more: ${USE_CACHE_PRIVATE_COMPOSITION}`
+    `\`"use cache: private"\` can't be used inside \`unstable_cache()\` because it can't depend on private request data. Call the private cached function outside \`unstable_cache()\`.\nLearn more: ${USE_CACHE_PRIVATE_COMPOSITION}`
   )
 }
 
 export function createUseCachePrivateOutsideRequestContextError(): Error {
   return new Error(
-    `\`"use cache: private"\` needs an active request. It can't be used during \`generateStaticParams\` or other build-time contexts.\nLearn more: ${USE_CACHE_PRIVATE_COMPOSITION}`
+    `\`"use cache: private"\` needs an active request, so it can't be used during \`generateStaticParams\` or other build-time contexts. Move it to a request-time component or function.\nLearn more: ${USE_CACHE_PRIVATE_COMPOSITION}`
   )
 }

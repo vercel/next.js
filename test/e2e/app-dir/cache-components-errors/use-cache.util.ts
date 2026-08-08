@@ -361,7 +361,7 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E1472",
-             "description": "Route "/use-cache-connection": \`connection()\` can't be called inside \`"use cache"\`. Call it outside the cached function.
+             "description": "Route "/use-cache-connection": \`connection()\` can't be called inside \`"use cache"\` because the cached function can run before a request exists. Call it outside the cached function.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
              "environmentLabel": "Server",
              "label": "Console Error",
@@ -391,7 +391,7 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-connection": \`connection()\` can't be called inside \`"use cache"\`. Call it outside the cached function.
+                 "Error: Route "/use-cache-connection": \`connection()\` can't be called inside \`"use cache"\` because the cached function can run before a request exists. Call it outside the cached function.
                  Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at ConnectionCallingComponent (app/use-cache-connection/page.tsx:21:21)
                      at Page (app/use-cache-connection/page.tsx:10:7)
@@ -410,7 +410,7 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
                 `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-connection": \`connection()\` can't be called inside \`"use cache"\`. Call it outside the cached function.
+                 "Error: Route "/use-cache-connection": \`connection()\` can't be called inside \`"use cache"\` because the cached function can run before a request exists. Call it outside the cached function.
                  Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at a (app/use-cache-connection/page.tsx:21:11)
                    19 |   // here to ensure that this error is shown even when it's caught in userland.
@@ -430,7 +430,7 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/use-cache-connection": \`connection()\` can't be called inside \`"use cache"\`. Call it outside the cached function.
+               "Error: Route "/use-cache-connection": \`connection()\` can't be called inside \`"use cache"\` because the cached function can run before a request exists. Call it outside the cached function.
                Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                    at ConnectionCallingComponent (webpack:///app/use-cache-connection/page.tsx:21:21)
                    at Page (webpack:///app/use-cache-connection/page.tsx:10:7)
@@ -449,7 +449,7 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/use-cache-connection": \`connection()\` can't be called inside \`"use cache"\`. Call it outside the cached function.
+               "Error: Route "/use-cache-connection": \`connection()\` can't be called inside \`"use cache"\` because the cached function can run before a request exists. Call it outside the cached function.
                Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                    at a (<next-dist-dir>)
                    at b (<next-dist-dir>)
@@ -1864,7 +1864,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             await expect(browser).toDisplayCollapsedRedbox(`
              {
                "code": "E1472",
-               "description": "Route "/use-cache-connection-third-party": \`connection()\` can't be called inside \`"use cache"\`. Call it outside the cached function.
+               "description": "Route "/use-cache-connection-third-party": \`connection()\` can't be called inside \`"use cache"\` because the cached function can run before a request exists. Call it outside the cached function.
              Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -1893,7 +1893,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             if (isTurbopack) {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-connection-third-party": \`connection()\` can't be called inside \`"use cache"\`. Call it outside the cached function.
+                   "Error: Route "/use-cache-connection-third-party": \`connection()\` can't be called inside \`"use cache"\` because the cached function can run before a request exists. Call it outside the cached function.
                    Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                        at Page (app/use-cache-connection-third-party/page.tsx:10:7)
                       8 |         which triggers an error.
@@ -1911,7 +1911,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                   `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-connection-third-party": \`connection()\` can't be called inside \`"use cache"\`. Call it outside the cached function.
+                   "Error: Route "/use-cache-connection-third-party": \`connection()\` can't be called inside \`"use cache"\` because the cached function can run before a request exists. Call it outside the cached function.
                    Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                        at ignore-listed frames
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -1924,7 +1924,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             } else {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-connection-third-party": \`connection()\` can't be called inside \`"use cache"\`. Call it outside the cached function.
+                 "Error: Route "/use-cache-connection-third-party": \`connection()\` can't be called inside \`"use cache"\` because the cached function can run before a request exists. Call it outside the cached function.
                  Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at Page (webpack:///app/use-cache-connection-third-party/page.tsx:10:7)
                     8 |         which triggers an error.
@@ -1942,7 +1942,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-connection-third-party": \`connection()\` can't be called inside \`"use cache"\`. Call it outside the cached function.
+                 "Error: Route "/use-cache-connection-third-party": \`connection()\` can't be called inside \`"use cache"\` because the cached function can run before a request exists. Call it outside the cached function.
                  Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at a (<next-dist-dir>)
                      at b (<next-dist-dir>)

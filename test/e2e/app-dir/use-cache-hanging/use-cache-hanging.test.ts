@@ -3,7 +3,7 @@ import { retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 const expectedTimeoutErrorMessage =
-  'Filling a `"use cache"` entry took too long. The most common cause is reading request data (`params`, `searchParams`, `cookies()`, `headers()`) inside the cached function. Read it outside and pass what you need as an argument.\nLearn more: https://nextjs.org/docs/messages/next-request-in-use-cache'
+  'A `"use cache"` function took too long during prerendering. The most common cause is passing unresolved request-specific arguments, such as `params` or `searchParams`, into the cached function. Resolve the data before calling the function and pass only the values you need.\nLearn more: https://nextjs.org/docs/messages/next-request-in-use-cache'
 
 describe('use-cache-hanging', () => {
   const { next, isNextDev, skipped, isTurbopack } = nextTestSetup({
@@ -25,7 +25,7 @@ describe('use-cache-hanging', () => {
         await expect(browser).toDisplayCollapsedRedbox(`
          {
            "code": "E1460",
-           "description": "Filling a \`"use cache"\` entry took too long. The most common cause is reading request data (\`params\`, \`searchParams\`, \`cookies()\`, \`headers()\`) inside the cached function. Read it outside and pass what you need as an argument.
+           "description": "A \`"use cache"\` function took too long during prerendering. The most common cause is passing unresolved request-specific arguments, such as \`params\` or \`searchParams\`, into the cached function. Resolve the data before calling the function and pass only the values you need.
          Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
            "environmentLabel": "Server",
            "label": "Console Error",
@@ -55,7 +55,7 @@ describe('use-cache-hanging', () => {
         await expect(browser).toDisplayCollapsedRedbox(`
          {
            "code": "E1460",
-           "description": "Filling a \`"use cache"\` entry took too long. The most common cause is reading request data (\`params\`, \`searchParams\`, \`cookies()\`, \`headers()\`) inside the cached function. Read it outside and pass what you need as an argument.
+           "description": "A \`"use cache"\` function took too long during prerendering. The most common cause is passing unresolved request-specific arguments, such as \`params\` or \`searchParams\`, into the cached function. Resolve the data before calling the function and pass only the values you need.
          Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
            "environmentLabel": "Server",
            "label": "Console Error",
@@ -94,7 +94,7 @@ describe('use-cache-hanging', () => {
         await expect(browser).toDisplayCollapsedRedbox(`
          {
            "code": "E1460",
-           "description": "Filling a \`"use cache"\` entry took too long. The most common cause is reading request data (\`params\`, \`searchParams\`, \`cookies()\`, \`headers()\`) inside the cached function. Read it outside and pass what you need as an argument.
+           "description": "A \`"use cache"\` function took too long during prerendering. The most common cause is passing unresolved request-specific arguments, such as \`params\` or \`searchParams\`, into the cached function. Resolve the data before calling the function and pass only the values you need.
          Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
            "environmentLabel": "Server",
            "label": "Console Error",
@@ -128,7 +128,7 @@ describe('use-cache-hanging', () => {
         await expect(browser).toDisplayCollapsedRedbox(`
          {
            "code": "E1460",
-           "description": "Filling a \`"use cache"\` entry took too long. The most common cause is reading request data (\`params\`, \`searchParams\`, \`cookies()\`, \`headers()\`) inside the cached function. Read it outside and pass what you need as an argument.
+           "description": "A \`"use cache"\` function took too long during prerendering. The most common cause is passing unresolved request-specific arguments, such as \`params\` or \`searchParams\`, into the cached function. Resolve the data before calling the function and pass only the values you need.
          Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
            "environmentLabel": "Server",
            "label": "Console Error",
