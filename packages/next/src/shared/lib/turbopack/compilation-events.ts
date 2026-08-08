@@ -1,6 +1,6 @@
 import type { Project } from '../../../build/swc/types'
 import * as Log from '../../../build/output/log'
-import { flushAllTraces, type Span } from '../../../trace'
+import type { Span } from '../../../trace'
 import { traceMemoryUsage } from '../../../lib/memory/trace'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
@@ -49,11 +49,6 @@ export function backgroundLogCompilationEvents(
             Object.fromEntries(data.attributes ?? [])
           )
           traceMemoryUsage(data.name, parentSpan)
-          // We flush after each event to make sure it makes it to disk.  These events are rare and
-          // tend to happen at the very end of a build so to make sure they are logged we need to
-          // flush.
-          // NOTE: in a `next build` environment where we are reporting events to the parent thread, this is a no-op.
-          flushAllTraces()
         } catch {}
         continue // don't log these events, they just go to the trace file
       }
