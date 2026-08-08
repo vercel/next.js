@@ -59,13 +59,13 @@ class RotatingWriteStream {
    */
   write(encodedEvent: string): void {
     const capacity = this.buffer.length - TERMINATOR.length
-    if (this.tryWrite(encodedEvent, capacity)) {
+    if (this.tryWriteToBuffer(encodedEvent, capacity)) {
       return
     }
 
     // Didn't fit. Start a fresh batch and try again.
     this.flush()
-    if (this.tryWrite(encodedEvent, capacity)) {
+    if (this.tryWriteToBuffer(encodedEvent, capacity)) {
       return
     }
 
@@ -77,7 +77,7 @@ class RotatingWriteStream {
    * Append `[event` or `,event` to the buffer, returning false without
    * modifying it if the whole thing does not fit.
    */
-  private tryWrite(encodedEvent: string, capacity: number): boolean {
+  private tryWriteToBuffer(encodedEvent: string, capacity: number): boolean {
     // `[` opens a new batch, `,` separates events within one.
     const prefix = this.buffered === 0 ? '[' : ','
     const written = this.buffer.write(
@@ -108,18 +108,18 @@ class RotatingWriteStream {
   }
 
   private writeToFile(data: Buffer): void {
-    if (this.size + data.length > this.sizeLimit) {
-      this.rotate()
-    }
-    const fd = this.fd
     let offset = 0
     try {
+      if (this.size + data.length > this.sizeLimit) {
+        this.rotate()
+      }
       // writeSync can write fewer than all the bytes
       while (offset < data.length) {
-        offset += fs.writeSync(fd, data, offset)
+        offset += fs.writeSync(this.fd, data, offset)
       }
     } catch (err) {
       // Tracing is diagnostic, so a failed write should not fail the build.
+      // N.B. This is incredibly rare and a torn write means the data may be corrupted on disk.
       console.log(err)
     }
     this.size += offset
@@ -145,13 +145,18 @@ export function createJsonReporter(options: {
     }
 
     if (!writeStream) {
-      fs.mkdirSync(distDir, { recursive: true })
-      const file = path.join(distDir, options.filename)
-      const limit =
-        typeof options.sizeLimit === 'function'
-          ? options.sizeLimit(phase)
-          : options.sizeLimit
-      writeStream = new RotatingWriteStream(file, limit)
+      try {
+        fs.mkdirSync(distDir, { recursive: true })
+        const file = path.join(distDir, options.filename)
+        const limit =
+          typeof options.sizeLimit === 'function'
+            ? options.sizeLimit(phase)
+            : options.sizeLimit
+        writeStream = new RotatingWriteStream(file, limit)
+      } catch (e) {
+        console.error(e)
+        return
+      }
     }
 
     writeStream.write(JSON.stringify({ ...event, traceId }))
