@@ -58,6 +58,19 @@ impl CollectorEntryValue {
         matches!(self, CollectorEntryValue::Medium { .. })
     }
 
+    /// The value bytes, or `None` for variants that carry no value data of their own (blob
+    /// references and key tombstones).
+    pub fn as_bytes(&self) -> Option<&[u8]> {
+        match self {
+            CollectorEntryValue::Tiny { value, len } => Some(&value[..*len as usize]),
+            CollectorEntryValue::Small { value } | CollectorEntryValue::Medium { value } => {
+                Some(value)
+            }
+            CollectorEntryValue::KeyValueDeleted { value, len } => Some(&value[..*len as usize]),
+            CollectorEntryValue::Large { .. } | CollectorEntryValue::KeyDeleted => None,
+        }
+    }
+
     /// Returns the value size if it will be packed into a small value block, or 0 otherwise.
     pub fn small_value_size(&self) -> usize {
         match self {
