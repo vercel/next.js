@@ -583,10 +583,22 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                                     "we wrote a blob but did not read it"
                                 );
                             }
+                            // Key tombstones sort last within a key group, so a same-batch
+                            // `put(K, v); delete(K)` reads back as [v, KeyDeleted].
                             CollectorEntryValue::KeyDeleted => assert!(
-                                values.first() == Some(&LookupValue::KeyDeleted),
-                                "we wrote a deleted tombstone but it was not first in results"
+                                values.last() == Some(&LookupValue::KeyDeleted),
+                                "we wrote a key tombstone but it was not last in results"
                             ),
+                            CollectorEntryValue::KeyValueDeleted { value, len } => {
+                                let expected = &value[..*len as usize];
+                                assert!(
+                                    values.iter().any(|lv| matches!(
+                                        lv,
+                                        LookupValue::KeyValueDeleted { value } if &**value == expected
+                                    )),
+                                    "we wrote a key-value tombstone but did not read it back"
+                                )
+                            }
                             v => {
                                 assert!(
                                     values.into_iter().any(|lv| {
