@@ -28,7 +28,7 @@ import {
   NEXT_HTML_REQUEST_ID_HEADER,
   NEXT_REQUEST_ID_HEADER,
 } from '../app-router-headers'
-import { callServer } from '../../app-call-server'
+import { callServer, createScopedCallServer } from '../../app-call-server'
 import { findSourceMapURL } from '../../app-find-source-map-url'
 import { prepareFlightRouterStateForRequest } from '../../flight-data-helpers'
 import type { PartialTransportData } from '../../../shared/lib/rsc-transport'
@@ -43,6 +43,12 @@ import {
   createNonTaskyPrefetchResponseStream,
 } from '../segment-cache/cache'
 import { UnknownDynamicStaleTime } from '../segment-cache/bfcache'
+import {
+  createServerActionDispatchScope,
+  setServerActionDispatchScopeContext,
+  setServerActionDispatchScopeRoutingKeys,
+  type ServerActionDispatchScope,
+} from '../../server-action-dispatch'
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
@@ -117,6 +123,12 @@ export type RequestHeaders = {
   'Next-Test-Fetch-Priority'?: RequestInit['priority']
   [NEXT_HTML_REQUEST_ID_HEADER]?: string // dev-only
   [NEXT_REQUEST_ID_HEADER]?: string // dev-only
+}
+
+export type FlightDecoderActionDispatchContext = {
+  url: string | URL
+  nextUrl: string | null
+  actionRoutingKeys?: readonly string[] | null
 }
 
 function doMpaNavigation(url: string): FetchServerResponseResult {
@@ -270,7 +282,11 @@ export async function fetchServerResponse(
 
     const staticStageData =
       cacheData !== null
-        ? await resolveStaticStageData(cacheData, flightResponse, headers)
+        ? await resolveStaticStageData(cacheData, flightResponse, headers, {
+            url: canonicalUrl,
+            nextUrl,
+            actionRoutingKeys: flightResponse.A,
+          })
         : null
 
     return {
@@ -447,7 +463,8 @@ export async function resolveStaticStageData<
 >(
   cacheData: FetchResponseCacheData,
   flightResponse: T,
-  headers: RequestHeaders | undefined
+  headers: RequestHeaders | undefined,
+  actionDispatchContext?: FlightDecoderActionDispatchContext
 ): Promise<StaticStageData<T> | null> {
   const { isResponsePartial, staticBodyClone } = cacheData
 
@@ -466,7 +483,8 @@ export async function resolveStaticStageData<
       const response = await decodeStageUntilBoundary<T>(
         staticBodyClone,
         staticStageByteLength,
-        headers
+        headers,
+        actionDispatchContext
       )
 
       return { response, isResponsePartial: true }
@@ -497,7 +515,8 @@ export async function resolveShellStageData<
 >(
   cacheData: FetchResponseCacheData,
   flightResponse: T,
-  headers: RequestHeaders | undefined
+  headers: RequestHeaders | undefined,
+  actionDispatchContext?: FlightDecoderActionDispatchContext
 ): Promise<T | null> {
   const { shellBodyClone } = cacheData
 
@@ -517,7 +536,12 @@ export async function resolveShellStageData<
     return null
   }
 
-  return decodeStageUntilBoundary<T>(shellBodyClone, shellByteLength, headers)
+  return decodeStageUntilBoundary<T>(
+    shellBodyClone,
+    shellByteLength,
+    headers,
+    actionDispatchContext
+  )
 }
 
 /**
@@ -528,13 +552,14 @@ export async function resolveShellStageData<
 export async function decodeStageUntilBoundary<T>(
   responseBodyClone: ReadableStream<Uint8Array>,
   byteLength: number,
-  headers: RequestHeaders | undefined
+  headers: RequestHeaders | undefined,
+  actionDispatchContext?: FlightDecoderActionDispatchContext
 ): Promise<T> {
   const { buffer } = await createNonTaskyPrefetchResponseStream(
     responseBodyClone,
     byteLength
   )
-  return decodeBufferedStage<T>(buffer, headers)
+  return decodeBufferedStage<T>(buffer, headers, actionDispatchContext)
 }
 
 /**
@@ -546,7 +571,8 @@ export async function decodeStageUntilBoundary<T>(
  */
 export function decodeBufferedStage<T>(
   buffer: Uint8Array,
-  headers: RequestHeaders | undefined
+  headers: RequestHeaders | undefined,
+  actionDispatchContext?: FlightDecoderActionDispatchContext
 ): Promise<T> {
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
@@ -556,6 +582,7 @@ export function decodeBufferedStage<T>(
   })
   return createFromNextReadableStream<T>(stream, headers, {
     allowPartialStream: true,
+    actionDispatchContext,
   })
 }
 
@@ -571,7 +598,8 @@ export function decodeBufferedStage<T>(
 function createHaltingFlightResponse<T>(
   fetchPromise: Promise<Response>,
   headers: RequestHeaders,
-  signal: AbortSignal
+  signal: AbortSignal,
+  actionDispatchScope: ServerActionDispatchScope
 ): Promise<T> & { _debugInfo?: Array<any> } {
   let closed = false
   let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
@@ -652,9 +680,12 @@ function createHaltingFlightResponse<T>(
   })
 
   // React attaches `_debugInfo` to the returned promise at runtime.
-  return createFromNextReadableStream<T>(wrapper, headers, {
-    allowPartialStream: true,
-  }) as Promise<T> & { _debugInfo?: Array<any> }
+  return createFromReadableStreamWithScope<T>(
+    wrapper,
+    headers,
+    true,
+    actionDispatchScope
+  ) as Promise<T> & { _debugInfo?: Array<any> }
 }
 
 // Selects the Flight decode strategy: a halting wrapper for cancellable HMR
@@ -664,16 +695,22 @@ function createHaltingFlightResponse<T>(
 function decodeFlightResponse<T>(
   fetchPromise: Promise<Response>,
   headers: RequestHeaders,
-  signal: AbortSignal | undefined
+  signal: AbortSignal | undefined,
+  actionDispatchScope: ServerActionDispatchScope
 ): Promise<T> & { _debugInfo?: Array<any> } {
   if (
     process.env.__NEXT_DEV_SERVER &&
     process.env.__NEXT_SERVER_COMPONENTS_HMR_CANCELLATION &&
     signal
   ) {
-    return createHaltingFlightResponse<T>(fetchPromise, headers, signal)
+    return createHaltingFlightResponse<T>(
+      fetchPromise,
+      headers,
+      signal,
+      actionDispatchScope
+    )
   }
-  return createFromNextFetch<T>(fetchPromise, headers)
+  return createFromNextFetch<T>(fetchPromise, headers, actionDispatchScope)
 }
 
 export async function createFetch<T>(
@@ -723,6 +760,10 @@ export async function createFetch<T>(
   await setCacheBustingSearchParam(fetchUrl, headers)
   let processed = fetch(fetchUrl, fetchOptions).then(processFetch)
   let fetchPromise = processed.then(({ response }) => response)
+  let actionDispatchScope = createServerActionDispatchScope(
+    url,
+    headers[NEXT_URL] ?? null
+  )
 
   // Immediately pass the fetch promise to the Flight client so that the debug
   // info includes the latency from the client to the server. The internal timer
@@ -733,7 +774,12 @@ export async function createFetch<T>(
   // been written into the cache by the time the navigation happens, the router
   // will go straight to a dynamic request.
   let flightResponsePromise = shouldImmediatelyDecode
-    ? decodeFlightResponse<T>(fetchPromise, headers, signal)
+    ? decodeFlightResponse<T>(
+        fetchPromise,
+        headers,
+        signal,
+        actionDispatchScope
+      )
     : null
   let browserResponse = await fetchPromise
 
@@ -793,8 +839,17 @@ export async function createFetch<T>(
       await setCacheBustingSearchParam(fetchUrl, headers)
       processed = fetch(fetchUrl, fetchOptions).then(processFetch)
       fetchPromise = processed.then(({ response }) => response)
+      actionDispatchScope = createServerActionDispatchScope(
+        responseUrl,
+        headers[NEXT_URL] ?? null
+      )
       flightResponsePromise = shouldImmediatelyDecode
-        ? decodeFlightResponse<T>(fetchPromise, headers, signal)
+        ? decodeFlightResponse<T>(
+            fetchPromise,
+            headers,
+            signal,
+            actionDispatchScope
+          )
         : null
       browserResponse = await fetchPromise
       // We just performed a manual redirect, so this is now true.
@@ -806,6 +861,14 @@ export async function createFetch<T>(
   // from leaking outside of this function.
   const responseUrl = new URL(browserResponse.url, fetchUrl)
   responseUrl.searchParams.delete(NEXT_RSC_UNION_QUERY)
+  setServerActionDispatchScopeContext(
+    actionDispatchScope,
+    responseUrl,
+    headers[NEXT_URL] ?? null
+  )
+  if (flightResponsePromise !== null) {
+    trackActionRoutingKeys(flightResponsePromise, actionDispatchScope)
+  }
 
   const rscResponse: RSCResponse<T> = {
     url: responseUrl.href,
@@ -838,23 +901,82 @@ export async function createFetch<T>(
 export function createFromNextReadableStream<T>(
   flightStream: ReadableStream<Uint8Array>,
   requestHeaders: RequestHeaders | undefined,
-  options?: { allowPartialStream?: boolean }
+  options?: {
+    allowPartialStream?: boolean
+    actionDispatchContext?: FlightDecoderActionDispatchContext
+  }
+): Promise<T> {
+  const actionDispatchContext = options?.actionDispatchContext
+  if (actionDispatchContext === undefined) {
+    return createFromReadableStreamWithScope(
+      flightStream,
+      requestHeaders,
+      options?.allowPartialStream
+    )
+  }
+
+  const actionDispatchScope = createServerActionDispatchScope(
+    actionDispatchContext.url,
+    actionDispatchContext.nextUrl,
+    actionDispatchContext.actionRoutingKeys
+  )
+  const response = createFromReadableStreamWithScope<T>(
+    flightStream,
+    requestHeaders,
+    options?.allowPartialStream,
+    actionDispatchScope
+  )
+  if (actionDispatchContext.actionRoutingKeys === undefined) {
+    trackActionRoutingKeys(response, actionDispatchScope)
+  }
+  return response
+}
+
+function createFromReadableStreamWithScope<T>(
+  flightStream: ReadableStream<Uint8Array>,
+  requestHeaders: RequestHeaders | undefined,
+  allowPartialStream?: boolean,
+  actionDispatchScope?: ServerActionDispatchScope
 ): Promise<T> {
   return createFromReadableStream(flightStream, {
-    callServer,
+    callServer:
+      actionDispatchScope === undefined
+        ? callServer
+        : createScopedCallServer(actionDispatchScope),
     findSourceMapURL,
     debugChannel: createDebugChannel && createDebugChannel(requestHeaders),
-    unstable_allowPartialStream: options?.allowPartialStream,
+    unstable_allowPartialStream: allowPartialStream,
   })
 }
 
 function createFromNextFetch<T>(
   promiseForResponse: Promise<Response>,
-  requestHeaders: RequestHeaders
+  requestHeaders: RequestHeaders,
+  actionDispatchScope: ServerActionDispatchScope
 ): Promise<T> & { _debugInfo?: Array<any> } {
   return createFromFetch(promiseForResponse, {
-    callServer,
+    callServer: createScopedCallServer(actionDispatchScope),
     findSourceMapURL,
     debugChannel: createDebugChannel && createDebugChannel(requestHeaders),
   })
+}
+
+function trackActionRoutingKeys<T>(
+  response: Promise<T>,
+  scope: ServerActionDispatchScope
+): void {
+  void response.then(
+    (value) => {
+      let routingKeys: readonly string[] | undefined
+      if (value !== null && typeof value === 'object') {
+        const payload = value as {
+          A?: readonly string[]
+          actionRoutingKeys?: readonly string[]
+        }
+        routingKeys = payload.A ?? payload.actionRoutingKeys
+      }
+      setServerActionDispatchScopeRoutingKeys(scope, routingKeys)
+    },
+    () => {}
+  )
 }

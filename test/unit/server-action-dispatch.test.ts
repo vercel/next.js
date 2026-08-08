@@ -30,4 +30,17 @@ describe('Server Action dispatch', () => {
       getServerActionDispatchContext('unregistered-action')
     ).toBeUndefined()
   })
+
+  it('uses routing metadata from the response that created the reference', () => {
+    const actionId = '00' + 'b'.repeat(40)
+    const routingKey = createServerActionRoutingKey(actionId)
+    const context = { url: '/source?value=1', nextUrl: null }
+
+    expect(
+      getServerActionDispatchContext(actionId, {
+        context,
+        routingKeys: [routingKey],
+      })
+    ).toBe(context)
+  })
 })

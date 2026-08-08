@@ -609,7 +609,12 @@ async function navigateToUnknownRoute(
         now,
         runtimePrefetchStream,
         currentFlightRouterState,
-        renderedSearch
+        renderedSearch,
+        {
+          url: canonicalUrl,
+          nextUrl,
+          actionRoutingKeys,
+        }
       )
         .then((processed) => {
           if (processed !== null) {

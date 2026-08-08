@@ -13,7 +13,7 @@ import {
   onCaughtError,
   onUncaughtError,
 } from './react-client-callbacks/error-boundary-callbacks'
-import { callServer } from './app-call-server'
+import { createScopedCallServer } from './app-call-server'
 import { findSourceMapURL } from './app-find-source-map-url'
 import {
   type AppRouterActionQueue,
@@ -29,6 +29,10 @@ import { getDeploymentId } from '../shared/lib/deployment-id'
 import { setNavigationBuildId } from './navigation-build-id'
 import type { ClientInstrumentationModules } from './router-transition-types'
 import { initializeRouterTransitionModules } from './components/router-transition'
+import {
+  createServerActionDispatchScope,
+  setServerActionDispatchScopeRoutingKeys,
+} from './server-action-dispatch'
 
 /// <reference types="react-dom/experimental" />
 
@@ -225,13 +229,18 @@ if (
 }
 
 let initialServerResponse: Promise<InitialRSCPayload>
+const initialActionDispatchScope = createServerActionDispatchScope(
+  window.location.href,
+  null
+)
+const initialCallServer = createScopedCallServer(initialActionDispatchScope)
 if (instantTestStaticFetch) {
   // Instant Navigation Testing API: hydrate from the static RSC payload
   // fetch kicked off by an injected <script> tag, instead of the inline
   // Flight data (which is not present in the static shell).
   initialServerResponse = Promise.resolve(
     createFromFetch<InitialRSCPayload>(instantTestStaticFetch, {
-      callServer,
+      callServer: initialCallServer,
       findSourceMapURL,
       debugChannel,
       // The static fetch response is a partial stream (static-only Flight
@@ -255,7 +264,7 @@ if (instantTestStaticFetch) {
     window.__NEXT_CLIENT_RESUME
   initialServerResponse = Promise.resolve(
     createFromFetch<InitialRSCPayload>(clientResumeFetch, {
-      callServer,
+      callServer: initialCallServer,
       findSourceMapURL,
       debugChannel,
     })
@@ -269,7 +278,7 @@ if (instantTestStaticFetch) {
   initialServerResponse = createFromReadableStream<InitialRSCPayload>(
     readable,
     {
-      callServer,
+      callServer: initialCallServer,
       findSourceMapURL,
       debugChannel,
       startTime: 0,
@@ -358,6 +367,10 @@ export async function hydrate(
     webSocket = createWebSocket(assetPrefix, staticIndicatorState)
   }
   const initialRSCPayload = await initialServerResponse
+  setServerActionDispatchScopeRoutingKeys(
+    initialActionDispatchScope,
+    initialRSCPayload.A
+  )
 
   // Initialize the offline module to register browser event listeners
   // (offline/online) before any components hydrate.

@@ -129,6 +129,76 @@ describe('app-dir action handling', () => {
     expect(actionRequestHeaders?.['next-router-state-tree']).toBeDefined()
   })
 
+  it('should invoke an action against the current search params', async () => {
+    const browser = await next.browser('/server')
+    let actionRequestUrl: string | undefined
+
+    browser.on('request', (request) => {
+      const headers = request.headers()
+      if (request.method() === 'POST' && headers['next-action'] !== undefined) {
+        actionRequestUrl = request.url()
+      }
+    })
+
+    await browser.eval(() => {
+      window.history.pushState(null, '', '/server?invocation=1')
+    })
+    await retry(async () => {
+      expect(await browser.elementById('search-params').text()).toBe(
+        'invocation=1'
+      )
+    })
+
+    await browser.elementById('inc').click()
+    await retry(async () => {
+      expect(await browser.elementById('count').text()).toBe('1')
+    })
+
+    if (actionRequestUrl === undefined) {
+      throw new Error('Failed to capture Server Action request')
+    }
+    expect(new URL(actionRequestUrl).search).toBe('?invocation=1')
+  })
+
+  it('should preserve the URL of an action in a retained parallel route', async () => {
+    const browser = await next.browser('/parallel-action/one')
+    const actionRequestPaths: string[] = []
+
+    browser.on('request', (request) => {
+      const headers = request.headers()
+      if (request.method() === 'POST' && headers['next-action'] !== undefined) {
+        actionRequestPaths.push(new URL(request.url()).pathname)
+      }
+    })
+
+    await browser.elementByCss("[href='/parallel-action/two']").click()
+    await retry(async () => {
+      expect(new URL(await browser.url()).pathname).toBe('/parallel-action/two')
+      expect(await browser.hasElementByCssSelector('#retained-action')).toBe(
+        true
+      )
+    })
+
+    await browser.elementById('retained-action').click()
+    await retry(async () => {
+      expect(await browser.elementById('retained-action-result').text()).toBe(
+        'action invoked'
+      )
+    })
+
+    await browser.elementById('current-action').click()
+    await retry(async () => {
+      expect(await browser.elementById('current-action-result').text()).toBe(
+        'action invoked'
+      )
+    })
+
+    expect(actionRequestPaths).toEqual([
+      '/parallel-action/one',
+      '/parallel-action/two',
+    ])
+  })
+
   it('should report errors with bad inputs correctly', async () => {
     const browser = await next.browser('/error-handling', {
       pushErrorAsConsoleLog: true,

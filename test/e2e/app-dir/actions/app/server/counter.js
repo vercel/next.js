@@ -1,13 +1,16 @@
 'use client'
 
 import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 
 export default function Counter({ inc, dec, double, slowInc }) {
   const [count, setCount] = useState(0)
+  const searchParams = useSearchParams()
 
   return (
     <div>
       <h1 id="count">{count}</h1>
+      <p id="search-params">{searchParams.toString()}</p>
       <button
         id="inc"
         onClick={async () => {

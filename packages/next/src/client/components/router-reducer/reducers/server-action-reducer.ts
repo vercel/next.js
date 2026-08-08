@@ -2,7 +2,7 @@ import type {
   ActionFlightResponse,
   ActionResult,
 } from '../../../../shared/lib/app-router-types'
-import { callServer } from '../../../app-call-server'
+import { createScopedCallServer } from '../../../app-call-server'
 import { findSourceMapURL } from '../../../app-find-source-map-url'
 import {
   ACTION_HEADER,
@@ -73,7 +73,11 @@ import {
   invalidateBfCache,
   UnknownDynamicStaleTime,
 } from '../../segment-cache/bfcache'
-import { registerServerActionDispatchContext } from '../../../server-action-dispatch'
+import {
+  createServerActionDispatchScope,
+  registerServerActionDispatchContext,
+  setServerActionDispatchScopeRoutingKeys,
+} from '../../../server-action-dispatch'
 
 const createFromFetch =
   createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
@@ -114,14 +118,24 @@ async function fetchServerAction(
 ): Promise<FetchServerActionResult> {
   const { actionId, actionArgs, actionDispatchContext } = action
   const currentRequestUrl = new URL(state.canonicalUrl, window.location.origin)
-  const actionRequestUrl =
-    actionDispatchContext === undefined
-      ? currentRequestUrl
-      : new URL(actionDispatchContext.url, window.location.origin)
-  const actionNextUrl =
-    actionDispatchContext === undefined
-      ? nextUrl
-      : actionDispatchContext.nextUrl
+  let actionRequestUrl = currentRequestUrl
+  let actionNextUrl = nextUrl
+  if (actionDispatchContext !== undefined) {
+    const registeredActionRequestUrl = new URL(
+      actionDispatchContext.url,
+      window.location.origin
+    )
+    // Search params do not affect which route worker handles the request. If
+    // they changed after this action was registered, preserve the URL at the
+    // time of invocation instead of dispatching against the stale search.
+    if (
+      registeredActionRequestUrl.pathname !== currentRequestUrl.pathname ||
+      actionDispatchContext.nextUrl !== nextUrl
+    ) {
+      actionRequestUrl = registeredActionRequestUrl
+      actionNextUrl = actionDispatchContext.nextUrl
+    }
+  }
   const isCrossRouteDispatch =
     actionRequestUrl.pathname !== currentRequestUrl.pathname ||
     actionRequestUrl.search !== currentRequestUrl.search ||
@@ -273,15 +287,23 @@ async function fetchServerAction(
     const responsePromise = redirectLocation
       ? processFetch(res).then(({ response: r }) => r)
       : Promise.resolve(res)
+    const responseActionDispatchScope = createServerActionDispatchScope(
+      redirectLocation ?? actionRequestUrl,
+      redirectLocation === undefined ? actionNextUrl : nextUrl
+    )
 
     const response: ActionFlightResponse = await createFromFetch(
       responsePromise,
       {
-        callServer,
+        callServer: createScopedCallServer(responseActionDispatchScope),
         findSourceMapURL,
         temporaryReferences,
         debugChannel: createDebugChannel && createDebugChannel(headers),
       }
+    )
+    setServerActionDispatchScopeRoutingKeys(
+      responseActionDispatchScope,
+      response.A
     )
 
     // An internal redirect can send an RSC response, but does not have a useful `actionResult`.

@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import Counter from './counter'
 import Form from './form'
 import ClientForm from './client-form'
@@ -14,19 +15,21 @@ export default function Page() {
 
   return (
     <>
-      <Counter
-        inc={inc}
-        dec={dec}
-        slowInc={slowInc}
-        double={async (x) => {
-          'use server'
-          if (data === '你好') {
-            return x * two.value
-          }
-          // Wrong answer
-          return 42
-        }}
-      />
+      <Suspense>
+        <Counter
+          inc={inc}
+          dec={dec}
+          slowInc={slowInc}
+          double={async (x) => {
+            'use server'
+            if (data === '你好') {
+              return x * two.value
+            }
+            // Wrong answer
+            return 42
+          }}
+        />
+      </Suspense>
       <Form />
       <ClientForm />
       <form>
