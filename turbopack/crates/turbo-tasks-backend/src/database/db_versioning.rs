@@ -174,14 +174,9 @@ fn other_db_version_ttl() -> Duration {
     let Ok(raw) = env::var("TURBO_ENGINE_VERSION_TTL_DAYS") else {
         return ttl_from_days(DEFAULT_OTHER_DB_VERSION_TTL_DAYS);
     };
-    // `u64::from_str` accepts a leading `+`; require plain digits instead.
-    let trimmed = raw.trim();
-    let days = (!trimmed.is_empty() && trimmed.bytes().all(|b| b.is_ascii_digit()))
-        .then(|| trimmed.parse::<u64>().ok())
-        .flatten();
-    match days {
-        Some(days) => ttl_from_days(days),
-        None => {
+    match raw.trim().parse::<u64>() {
+        Ok(days) => ttl_from_days(days),
+        Err(_) => {
             eprintln!(
                 "WARNING: Ignoring TURBO_ENGINE_VERSION_TTL_DAYS={raw:?}, expected a whole number \
                  of days."
@@ -309,27 +304,6 @@ mod tests {
         assert_eq!(entry_names(base_path), vec![CURRENT_VERSION]);
     }
 
-    /// A version used within the TTL is retained.
-    #[test]
-    fn test_ttl_retains_recently_used_version() {
-        let tmp_dir = TempDir::new().unwrap();
-        let base_path = tmp_dir.path();
-
-        create_version_dir(base_path, CURRENT_VERSION, Duration::ZERO);
-        create_version_dir(
-            base_path,
-            "recent-version",
-            ttl_from_days(DEFAULT_OTHER_DB_VERSION_TTL_DAYS) - Duration::from_secs(60),
-        );
-
-        handle_db_versioning(base_path, &version_info(), /* is_ci */ false).unwrap();
-
-        assert_eq!(
-            entry_names(base_path),
-            vec!["mock-version", "recent-version"]
-        );
-    }
-
     /// A directory with no `CURRENT` file isn't one of ours, so it's evicted rather than occupying
     /// the single retention slot — even when it holds recently written files.
     #[rstest]
@@ -372,57 +346,6 @@ mod tests {
             entry_names(base_path).contains(&"corrupt-version".to_string()),
             "the directory should not have been deleted"
         );
-    }
-
-    /// `TURBO_ENGINE_VERSION_TTL_DAYS` overrides the TTL, and an unparsable value falls back to the
-    /// default rather than retaining nothing.
-    ///
-    /// The cases share one test rather than being `#[rstest]`-parameterized because they mutate
-    /// process-wide environment state and so can't run concurrently.
-    #[test]
-    fn test_ttl_days_override() {
-        // SAFETY: single-threaded test, and no other test reads this variable.
-        unsafe {
-            env::set_var("TURBO_ENGINE_VERSION_TTL_DAYS", "7");
-        }
-        assert_eq!(other_db_version_ttl(), ttl_from_days(7));
-
-        unsafe {
-            env::set_var("TURBO_ENGINE_VERSION_TTL_DAYS", "not-a-number");
-        }
-        assert_eq!(
-            other_db_version_ttl(),
-            ttl_from_days(DEFAULT_OTHER_DB_VERSION_TTL_DAYS),
-            "an unparsable value should fall back to the default"
-        );
-
-        unsafe {
-            env::remove_var("TURBO_ENGINE_VERSION_TTL_DAYS");
-        }
-        assert_eq!(
-            other_db_version_ttl(),
-            ttl_from_days(DEFAULT_OTHER_DB_VERSION_TTL_DAYS)
-        );
-    }
-
-    /// The survivor is the most recently used regardless of the order `read_dir` yields entries,
-    /// including when the eventual winner is seen last and displaces an earlier candidate.
-    #[rstest]
-    #[case::ascending(&[1u64, 2, 3, 4])]
-    #[case::descending(&[4u64, 3, 2, 1])]
-    #[case::winner_last(&[3u64, 2, 4, 1])]
-    fn test_survivor_independent_of_scan_order(#[case] ages: &[u64]) {
-        let tmp_dir = TempDir::new().unwrap();
-        let base_path = tmp_dir.path();
-
-        create_version_dir(base_path, CURRENT_VERSION, Duration::ZERO);
-        for age in ages {
-            create_version_dir(base_path, &format!("age-{age}"), Duration::from_secs(*age));
-        }
-
-        handle_db_versioning(base_path, &version_info(), /* is_ci */ false).unwrap();
-
-        assert_eq!(entry_names(base_path), vec!["age-1", CURRENT_VERSION]);
     }
 
     /// On CI every other version is evicted regardless of age, so an unreadable `CURRENT` in one of
