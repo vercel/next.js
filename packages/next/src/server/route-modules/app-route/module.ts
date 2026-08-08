@@ -637,10 +637,13 @@ export class AppRouteRouteModule extends RouteModule<
         trackPendingModules(cacheSignal)
         await cacheSignal.cacheReady()
 
-        if (prospectiveRenderIsDynamic) {
+        // The handler may catch the prerender interruption and resolve
+        // normally, but dynamic tracking still records the request access.
+        const dynamicReason = getFirstDynamicReason(dynamicTracking)
+
+        if (prospectiveRenderIsDynamic || dynamicReason) {
           // the route handler called an API which is always dynamic
           // there is no need to try again
-          const dynamicReason = getFirstDynamicReason(dynamicTracking)
           if (dynamicReason) {
             throw new DynamicServerError(
               `Route ${workStore.route} couldn't be rendered statically because it used \`${dynamicReason}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
