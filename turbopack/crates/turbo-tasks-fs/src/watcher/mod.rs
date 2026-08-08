@@ -118,7 +118,7 @@ impl Default for DiskWatcherConfig {
             batch_delay: Duration::from_millis(10),
             extended_batch_delay_matcher: None,
             extended_batch_delay_duration: Duration::from_millis(200),
-            settling_event_initial_delay: Duration::from_secs(5),
+            settling_event_initial_delay: Duration::from_millis(500),
             settling_event_max_delay: Duration::from_secs(60),
         }
     }
@@ -483,6 +483,10 @@ mod non_recursive_helpers {
 
 impl DiskWatcher {
     pub fn new(config: DiskWatcherConfig) -> Self {
+        assert!(
+            config.extended_batch_delay_duration >= config.batch_delay,
+            "extended_batch_delay_duration must be at least batch_delay"
+        );
         Self {
             state: State::new_stopped(config.resolve_recursive_mode()),
             config,

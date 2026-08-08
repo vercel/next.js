@@ -118,7 +118,7 @@ impl PendingBatch {
         let _guard = fs.tokio_handle().enter();
         if let Some(turbo_tasks) = fs.turbo_tasks() {
             turbo_tasks.send_compilation_event(Arc::new(FilesystemSettlingEvent {
-                elapsed_secs: (now - self.started).as_secs(),
+                elapsed_secs: (now - self.started).as_secs_f64(),
             }));
         }
         self.event_interval = self.event_interval.saturating_mul(2).min(max_event_delay);
@@ -136,7 +136,7 @@ impl PendingBatch {
 #[derive(Debug, Clone, Serialize)]
 pub struct FilesystemSettlingEvent {
     /// How long the current batch has been held open, in seconds.
-    pub elapsed_secs: u64,
+    pub elapsed_secs: f64,
 }
 
 impl CompilationEvent for FilesystemSettlingEvent {
@@ -151,7 +151,7 @@ impl CompilationEvent for FilesystemSettlingEvent {
     fn message(&self) -> String {
         format!(
             "Turbopack has seen frequent file updates and is waiting for the filesystem to settle \
-             ({}s elapsed).",
+             ({:.1}s elapsed so far).",
             self.elapsed_secs
         )
     }
