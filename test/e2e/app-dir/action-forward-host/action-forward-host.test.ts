@@ -15,6 +15,10 @@ type ObservedHeaders = {
   actionForwarded: string | null
 }
 
+type ObservedRedirectHeaders = ObservedHeaders & {
+  actionRedirectForwarded: string | null
+}
+
 describe('server action forwarding - original host', () => {
   // The behaviour under test only exists on a self-hosted server: the action is
   // forwarded over a private loopback fetch to the server's own origin. The
@@ -37,7 +41,11 @@ describe('server action forwarding - original host', () => {
     pathname: string,
     actionId: string,
     extraHeaders?: Record<string, string>
-  ): Promise<{ status: number; body: string }> {
+  ): Promise<{
+    status: number
+    headers: http.IncomingHttpHeaders
+    body: string
+  }> {
     return new Promise((resolve, reject) => {
       const request = http.request(
         {
@@ -54,13 +62,14 @@ describe('server action forwarding - original host', () => {
           },
         },
         (response) => {
-          let body = ''
-          response.setEncoding('utf8')
-          response.on('data', (chunk) => {
-            body += chunk
-          })
+          const chunks: Buffer[] = []
+          response.on('data', (chunk) => chunks.push(Buffer.from(chunk)))
           response.on('end', () =>
-            resolve({ status: response.statusCode!, body })
+            resolve({
+              status: response.statusCode!,
+              headers: response.headers,
+              body: Buffer.concat(chunks).toString(),
+            })
           )
           response.on('error', reject)
         }
@@ -73,8 +82,8 @@ describe('server action forwarding - original host', () => {
 
   // Read the action id out of the rendered form rather than the build manifest,
   // so this works the same in dev and in start.
-  async function getActionId(): Promise<string> {
-    const html = await next.render('/with-action')
+  async function getActionId(pathname = '/with-action'): Promise<string> {
+    const html = await next.render(pathname)
     const match = html.match(/\$ACTION_ID_([0-9a-f]{42})/)
 
     if (!match) {
@@ -99,6 +108,33 @@ describe('server action forwarding - original host', () => {
 
     if (!match) {
       throw new Error(`The action did not run. Server output was:\n${output}`)
+    }
+
+    return JSON.parse(match[1])
+  }
+
+  async function collectRedirectObservedHeaders(
+    pathname: string
+  ): Promise<ObservedRedirectHeaders> {
+    const actionId = await getActionId('/redirect-action')
+    const outputIndex = next.cliOutput.length
+
+    const response = await postAction(pathname, actionId)
+    const { status } = response
+    expect(status).toBe(200)
+    expect(response.headers['content-type']).toStartWith('text/x-component')
+    expect(response.headers['x-action-redirect']).toStartWith(
+      '/redirect-target;'
+    )
+    expect(response.body).toContain(HOST)
+
+    const output = next.cliOutput.slice(outputIndex)
+    const match = output.match(/\[redirectTarget\](\{.*\})/)
+
+    if (!match) {
+      throw new Error(
+        `The redirect target did not render. Output was:\n${output}`
+      )
     }
 
     return JSON.parse(match[1])
@@ -159,5 +195,36 @@ describe('server action forwarding - original host', () => {
     expect(output).toContain('Failed to forward Server Action response')
     expect(output).toContain('status 500')
     expect(output).toContain('text/plain')
+  })
+
+  it('preserves the request host while streaming an action redirect', async () => {
+    const observed = await collectRedirectObservedHeaders('/redirect-action')
+
+    expect(observed.actionForwarded).toBeNull()
+    expect(observed.actionRedirectForwarded).toBe('1')
+    expect(observed.xForwardedHost).toBe(HOST)
+    expect(observed.host).toBe(HOST)
+  })
+
+  it('preserves the request host when a forwarded action streams a redirect', async () => {
+    const observed = await collectRedirectObservedHeaders(
+      '/without-redirect-action'
+    )
+
+    expect(observed.actionForwarded).toBe('1')
+    expect(observed.actionRedirectForwarded).toBe('1')
+    expect(observed.xForwardedHost).toBe(HOST)
+    expect(observed.host).toBe(HOST)
+  })
+
+  it('ignores a forged redirect marker outside a redirected RSC request', async () => {
+    const observed = await collectObservedHeaders('/with-action', {
+      'x-action-redirect-forwarded': '1',
+      'x-forwarded-host': FORGED_HOST,
+      origin: `http://${FORGED_HOST}`,
+    })
+
+    expect(observed.xForwardedHost).toBe(FORGED_HOST)
+    expect(observed.host).toBe(HOST)
   })
 })

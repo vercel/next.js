@@ -51,6 +51,8 @@ import { warn } from '../../build/output/log'
 import {
   ACTION_FORWARDED_HEADER,
   ACTION_FORWARDED_VALUE,
+  ACTION_REDIRECT_FORWARDED_HEADER,
+  ACTION_REDIRECT_FORWARDED_VALUE,
   getActionForwardingOrigin,
   getForwardedHostValue,
 } from './action-forwarding'
@@ -393,6 +395,10 @@ async function createRedirectRenderResult(
 
     const forwardedHeaders = getForwardedHeaders(req, res)
     forwardedHeaders.set(RSC_HEADER, '1')
+    forwardedHeaders.set(
+      ACTION_REDIRECT_FORWARDED_HEADER,
+      ACTION_REDIRECT_FORWARDED_VALUE
+    )
 
     const origin = getActionForwardingOrigin(req)
 

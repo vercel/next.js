@@ -3,6 +3,8 @@ import type { BaseNextRequest } from '../base-http'
 import { getRequestMeta } from '../request-meta'
 import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { RSC_HEADER } from '../../client/components/app-router-headers'
+import { isRSCRequestHeader } from '../lib/is-rsc-request'
 
 /**
  * Set by `createForwardedActionResponse` on a Server Action request that it has
@@ -18,6 +20,14 @@ export const ACTION_FORWARDED_HEADER = 'x-action-forwarded'
  * can send it too. Matching the value exactly keeps the checks below narrow.
  */
 export const ACTION_FORWARDED_VALUE = '1'
+
+/**
+ * Set by `createRedirectRenderResult` on the internal RSC request used to
+ * stream an app-relative Server Action redirect.
+ */
+export const ACTION_REDIRECT_FORWARDED_HEADER = 'x-action-redirect-forwarded'
+
+export const ACTION_REDIRECT_FORWARDED_VALUE = '1'
 
 /**
  * Reads the first value of `x-forwarded-host`, which can arrive either as a
@@ -37,7 +47,7 @@ export function getForwardedHostValue(
  * The origin Next.js fetches when it forwards a request to itself: action
  * forwarding (`createForwardedActionResponse`) and app-relative redirect
  * streaming (`createRedirectRenderResult`) both go here, and
- * `restoreForwardedActionHost` uses it to recognize a request that arrived over
+ * `restoreActionForwardingHost` uses it to recognize a request that arrived over
  * such a forward. The send and receive sides have to agree, so they share this.
  *
  * Throws when no origin can be determined, which is a hard error on the send
@@ -66,23 +76,21 @@ export function getActionForwardingOrigin(req: BaseNextRequest): string {
 }
 
 /**
- * A Server Action POST that lands on a route which doesn't bundle the action is
- * forwarded to a worker that does, by fetching our own forwarding origin (see
- * `createForwardedActionResponse`). `host` is a forbidden `fetch` header, so it
- * can't be carried over, and the subrequest arrives claiming to be for that
+ * The internal self-fetches used to forward a Server Action to another worker
+ * and to stream an app-relative action redirect both derive `host` from the
+ * forwarding origin. The subrequest therefore arrives claiming to be for that
  * internal origin instead of the host the user actually requested.
  *
  * `x-forwarded-host` does survive the forward, so restore `host` from it.
- * Otherwise `headers().get('host')` inside a forwarded action reports
- * `localhost:PORT`, which silently breaks host-based multi-tenancy for exactly
- * those actions that happen to get forwarded.
+ * Otherwise `headers().get('host')` inside a forwarded action or its streamed
+ * redirect target reports `localhost:PORT`, which silently breaks host-based
+ * multi-tenancy.
  *
- * `x-action-forwarded` is not an authenticated marker, so it is treated as a
- * hint rather than as proof: the rewrite additionally requires the request to
- * be a fetch action (the only shape that is ever forwarded) that arrived at the
- * origin we would have forwarded to.
+ * Neither internal marker is authenticated, so they are treated as hints rather
+ * than proof: the rewrite additionally requires the request shape produced by
+ * its send path and arrival at the origin we would have forwarded to.
  */
-export function restoreForwardedActionHost(
+export function restoreActionForwardingHost(
   req: BaseNextRequest,
   {
     hasConfiguredOrigin,
@@ -95,15 +103,19 @@ export function restoreForwardedActionHost(
     hasConfiguredOrigin: boolean
   }
 ): void {
-  // Not a truthiness check: the header is forgeable, so only the exact value we
-  // send counts. A repeated header arrives here comma-joined, which also fails.
-  if (req.headers[ACTION_FORWARDED_HEADER] !== ACTION_FORWARDED_VALUE) {
-    return
-  }
+  const isForwardedAction =
+    req.headers[ACTION_FORWARDED_HEADER] === ACTION_FORWARDED_VALUE &&
+    getServerActionRequestMetadata(req).isFetchAction
 
-  // `handleAction` only forwards when it has an action id on a POST, so no
-  // other request shape can have reached us through the forwarding path.
-  if (!getServerActionRequestMetadata(req).isFetchAction) {
+  const isForwardedActionRedirect =
+    req.headers[ACTION_REDIRECT_FORWARDED_HEADER] ===
+      ACTION_REDIRECT_FORWARDED_VALUE &&
+    req.method === 'GET' &&
+    isRSCRequestHeader(req.headers[RSC_HEADER])
+
+  // The markers are forgeable, so only the exact values and request shapes the
+  // two send paths produce count. Repeated markers are comma-joined and fail.
+  if (!isForwardedAction && !isForwardedActionRedirect) {
     return
   }
 

@@ -130,7 +130,7 @@ import { matchNextDataPathname } from './lib/match-next-data-pathname'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { RSCPathnameNormalizer } from './normalizers/request/rsc'
 import { stripFlightHeaders } from './app-render/strip-flight-headers'
-import { restoreForwardedActionHost } from './app-render/action-forwarding'
+import { restoreActionForwardingHost } from './app-render/action-forwarding'
 import {
   isAppPageRouteModule,
   isAppRouteRouteModule,
@@ -1094,12 +1094,12 @@ export default abstract class Server<
       // it captures the initial URL.
       this.attachRequestMeta(req, parsedUrl)
 
-      // A Server Action that we forwarded to another worker arrives over an
-      // internal self-fetch, which replaces `host` with the origin we forwarded
-      // to. This runs after `attachRequestMeta`, because the forwarding origin
-      // can come from `initURL`, and before the first consumers of `host`:
-      // domain locale detection below, and later `headers()` inside the action.
-      restoreForwardedActionHost(req, {
+      // Internal self-fetches used to forward a Server Action or stream its
+      // app-relative redirect replace `host` with the forwarding origin. This
+      // runs after `attachRequestMeta`, because that origin can come from
+      // `initURL`, and before the first consumers of `host`: domain locale
+      // detection below, and later userland `headers()`.
+      restoreActionForwardingHost(req, {
         // Mirrors the condition `attachRequestMeta` uses to build `initURL`
         // from this server's own hostname and port.
         hasConfiguredOrigin: Boolean(this.fetchHostname && this.port),

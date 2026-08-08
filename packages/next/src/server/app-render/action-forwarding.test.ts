@@ -4,7 +4,7 @@ import { NEXT_REQUEST_META } from '../request-meta'
 import {
   getActionForwardingOrigin,
   getForwardedHostValue,
-  restoreForwardedActionHost,
+  restoreActionForwardingHost,
 } from './action-forwarding'
 
 const ACTION_ID = '00' + 'a'.repeat(40)
@@ -46,6 +46,23 @@ function createForwardedRequest(
       ...headers,
     },
     initURL,
+  })
+}
+
+function createRedirectRequest(
+  headers?: IncomingHttpHeaders,
+  method = 'GET'
+): BaseNextRequest {
+  return createRequest({
+    method,
+    headers: {
+      host: INTERNAL_HOST,
+      'x-forwarded-host': PUBLIC_HOST,
+      'x-action-redirect-forwarded': '1',
+      rsc: '1',
+      'next-action': undefined,
+      ...headers,
+    },
   })
 }
 
@@ -124,7 +141,7 @@ describe('getActionForwardingOrigin', () => {
   })
 })
 
-describe('restoreForwardedActionHost', () => {
+describe('restoreActionForwardingHost', () => {
   const originalPrivateOrigin = process.env.__NEXT_PRIVATE_ORIGIN
 
   beforeEach(() => {
@@ -136,12 +153,43 @@ describe('restoreForwardedActionHost', () => {
   })
 
   function restore(req: BaseNextRequest, hasConfiguredOrigin = true) {
-    restoreForwardedActionHost(req, { hasConfiguredOrigin })
+    restoreActionForwardingHost(req, { hasConfiguredOrigin })
     return req.headers['host']
   }
 
   it('restores the original host on a forwarded action', () => {
     expect(restore(createForwardedRequest())).toBe(PUBLIC_HOST)
+  })
+
+  it('restores the original host on a streamed action redirect', () => {
+    expect(restore(createRedirectRequest())).toBe(PUBLIC_HOST)
+  })
+
+  it.each([undefined, '', 'true', '0', '1, 1', 'yes'])(
+    'ignores the redirect marker value %p',
+    (markerValue) => {
+      expect(
+        restore(
+          createRedirectRequest({
+            'x-action-redirect-forwarded': markerValue,
+          })
+        )
+      ).toBe(INTERNAL_HOST)
+    }
+  )
+
+  it('ignores a redirect marker without the internal RSC request shape', () => {
+    expect(restore(createRedirectRequest({ rsc: undefined }))).toBe(
+      INTERNAL_HOST
+    )
+
+    expect(restore(createRedirectRequest({}, 'POST'))).toBe(INTERNAL_HOST)
+  })
+
+  it('ignores a redirect request that did not arrive at the internal origin', () => {
+    expect(restore(createRedirectRequest({ host: 'attacker.example' }))).toBe(
+      'attacker.example'
+    )
   })
 
   it('restores the first value of an x-forwarded-host list', () => {
