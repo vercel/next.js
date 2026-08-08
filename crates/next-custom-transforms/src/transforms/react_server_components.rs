@@ -910,7 +910,21 @@ impl ReactServerComponentValidator {
             r"[\\/](page|layout|route|icon\d?|apple-icon\d?|opengraph-image\d?|twitter-image\d?|sitemap|robots|manifest)\.{ext_pattern}$",
         ))
         .unwrap();
-        let is_app_entry = re.is_match(&self.filepath);
+        let is_in_app_dir = self
+            .app_dir
+            .as_ref()
+            .and_then(|app_dir| app_dir.to_str())
+            .map_or(false, |app_dir| self.filepath.starts_with(app_dir));
+
+        let is_app_entry = if is_in_app_dir {
+            re.is_match(&self.filepath)
+        } else if self.app_dir.is_none() {
+            let app_core_re =
+                Regex::new(&format!(r"[\\/](page|layout|route)\.{ext_pattern}$")).unwrap();
+            app_core_re.is_match(&self.filepath)
+        } else {
+            false
+        };
 
         if is_app_entry {
             let mut possibly_invalid_exports: FxIndexMap<Atom, (InvalidExportKind, Span)> =
