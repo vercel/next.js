@@ -160,16 +160,15 @@ impl WriteOperationGuard<'_> {
     }
 }
 
-/// The contents of the `CURRENT` file: which sequence number is committed, and when the database
-/// was last used.
+/// The contents of the `CURRENT` file: which sequence number is committed, and when that commit
+/// happened.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CurrentDbVersion {
     /// The highest sequence number that is part of the committed database. Files with a greater
     /// sequence number are orphans from an interrupted write and get deleted on open.
     pub max_sequence_number: u32,
-    /// When this database was last written. Opens that commit nothing don't update it, so this
-    /// tracks last write rather than last use.
-    pub last_used_time: Timestamp,
+    /// When this database was last committed to.
+    pub commit_time: Timestamp,
 }
 
 /// Reads the `CURRENT` file in the database directory `path`.
@@ -206,7 +205,7 @@ pub fn read_current_version(path: &Path) -> Result<Option<CurrentDbVersion>> {
 fn commit_current(path: &Path, seq: u32) -> Result<()> {
     let version: &CurrentDbVersion = &CurrentDbVersion {
         max_sequence_number: seq,
-        last_used_time: Timestamp::now(),
+        commit_time: Timestamp::now(),
     };
     let mut contents =
         serde_json::to_string(version).context("Failed to serialize the CURRENT file")?;

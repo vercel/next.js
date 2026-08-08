@@ -12,7 +12,7 @@ It supports having multiple key families, which are stored in separate files, bu
 
 ## On disk format
 
-There is a single `CURRENT` file, a small JSON object holding the latest committed sequence number (`max_sequence_number`) and when the database was last committed to (`last_used_time`). The last-used time is stored in the file rather than taken from its mtime so that it survives the directory being copied or restored. External tools read this file, so its field names are a stable contract.
+There is a single `CURRENT` file, a small JSON object holding the latest committed sequence number (`max_sequence_number`) and when that commit happened (`commit_time`). The commit time is stored in the file rather than taken from its mtime so that it survives the directory being copied or restored. External tools read this file, so its field names are a stable contract.
 
 All other files have a sequence number as file name, e. g. `0000123.sst`. All files are immutable once their sequence number is <= the committed sequence number. But they might be deleted when they are superseded by other committed files.
 

@@ -76,10 +76,10 @@ function findSeedSource(
   const currentWorktree = path.resolve(worktreeInfo.worktreeRoot)
 
   // We are going to find the best candidate worktree
-  // based on the most recently used cache directory.
+  // based on the most recently written cache directory.
   // We only look at our version
 
-  let best: { versionDir: string; lastUsedMs: number } | undefined
+  let best: { versionDir: string; commitTimeMs: number } | undefined
   for (const root of [
     worktreeInfo.mainRepoRoot,
     ...listLinkedWorktreeRoots(worktreeInfo.mainRepoRoot),
@@ -93,32 +93,33 @@ function findSeedSource(
       'turbopack',
       version
     )
-    const lastUsedMs = currentLastUsedMs(versionDir)
-    if (lastUsedMs === undefined) continue
-    if (!best || lastUsedMs > best.lastUsedMs) {
-      best = { versionDir, lastUsedMs }
+    const commitTimeMs = currentCommitTimeMs(versionDir)
+    if (commitTimeMs === undefined) continue
+    if (!best || commitTimeMs > best.commitTimeMs) {
+      best = { versionDir, commitTimeMs }
     }
   }
   return best?.versionDir
 }
 
-// When the cache in `versionDir` was last used, in epoch milliseconds, or undefined if there is
-// no usable cache there. Read from the `last_used_time` the persistence layer records in CURRENT.
+// When the cache in `versionDir` was last committed to, in epoch milliseconds, or undefined if
+// there is no usable cache there. Read from the `commit_time` the persistence layer records in
+// CURRENT.
 //
 // No fallback for the pre-JSON CURRENT format: callers only look inside the directory named for
 // the running binary's own cache version, which no binary that old could have written.
-function currentLastUsedMs(versionDir: string): number | undefined {
-  let lastUsed
+function currentCommitTimeMs(versionDir: string): number | undefined {
+  let commitTime
   try {
-    lastUsed = JSON.parse(
+    commitTime = JSON.parse(
       fs.readFileSync(path.join(versionDir, 'CURRENT'), 'utf8')
-    ).last_used_time
+    ).commit_time
   } catch {
     // missing, unreadable, or not valid JSON - treat it as not a seed candidate
     return undefined
   }
-  if (typeof lastUsed !== 'string') return undefined
-  const parsed = Date.parse(lastUsed)
+  if (typeof commitTime !== 'string') return undefined
+  const parsed = Date.parse(commitTime)
   return Number.isNaN(parsed) ? undefined : parsed
 }
 

@@ -2230,9 +2230,9 @@ fn stale_current_next_is_recovered() -> Result<()> {
     Ok(())
 }
 
-/// `CURRENT` round-trips through JSON, recording both the sequence number and a last-used time.
+/// `CURRENT` round-trips through JSON, recording both the sequence number and the commit time.
 #[test]
-fn current_file_is_json_with_last_used_time() -> Result<()> {
+fn current_file_is_json_with_commit_time() -> Result<()> {
     use crate::parallel_scheduler::SerialScheduler;
 
     let tempdir = tempfile::tempdir()?;
@@ -2252,14 +2252,14 @@ fn current_file_is_json_with_last_used_time() -> Result<()> {
     // public contract.
     let raw = fs::read_to_string(path.join("CURRENT"))?;
     assert!(raw.contains("max_sequence_number"), "got: {raw}");
-    assert!(raw.contains("last_used_time"), "got: {raw}");
+    assert!(raw.contains("commit_time"), "got: {raw}");
 
     let version = read_current_version(path)?.expect("CURRENT should exist");
     assert!(version.max_sequence_number > 0);
     assert!(
-        version.last_used_time >= before && version.last_used_time <= after,
-        "last_used_time {} outside [{before}, {after}]",
-        version.last_used_time
+        version.commit_time >= before && version.commit_time <= after,
+        "commit_time {} outside [{before}, {after}]",
+        version.commit_time
     );
 
     Ok(())
@@ -2305,10 +2305,10 @@ fn corrupt_current_file_fails_to_open() -> Result<()> {
     Ok(())
 }
 
-/// The last-used time is stamped by commits, not by opens: an open that writes nothing leaves
+/// The commit time is stamped by commits, not by opens: an open that writes nothing leaves
 /// `CURRENT` untouched, so it costs no fsync.
 #[test]
-fn opening_without_writing_leaves_last_used_time_alone() -> Result<()> {
+fn opening_without_writing_leaves_commit_time_alone() -> Result<()> {
     use crate::parallel_scheduler::SerialScheduler;
 
     let tempdir = tempfile::tempdir()?;
@@ -2329,7 +2329,7 @@ fn opening_without_writing_leaves_last_used_time_alone() -> Result<()> {
         path.join("CURRENT"),
         serde_json::to_vec(&CurrentDbVersion {
             max_sequence_number: stale.max_sequence_number,
-            last_used_time: backdated,
+            commit_time: backdated,
         })?,
     )?;
 
@@ -2344,7 +2344,7 @@ fn opening_without_writing_leaves_last_used_time_alone() -> Result<()> {
         "sequence number must be preserved"
     );
     assert_eq!(
-        after_open.last_used_time, backdated,
+        after_open.commit_time, backdated,
         "an open with no writes must not rewrite CURRENT"
     );
 
@@ -2357,8 +2357,8 @@ fn opening_without_writing_leaves_last_used_time_alone() -> Result<()> {
         db.shutdown()?;
     }
     assert!(
-        read_current_version(path)?.unwrap().last_used_time > backdated,
-        "committing must refresh last_used_time"
+        read_current_version(path)?.unwrap().commit_time > backdated,
+        "committing must refresh commit_time"
     );
 
     Ok(())

@@ -141,7 +141,7 @@ pub fn handle_db_versioning(
                     continue;
                 };
 
-                let age = time_since_last_used(&entry)?;
+                let age = time_since_last_commit(&entry)?;
                 if age > ttl {
                     evict(entry);
                     continue;
@@ -195,8 +195,9 @@ fn ttl_from_days(days: u64) -> Duration {
     Duration::from_secs(days.saturating_mul(24 * 60 * 60))
 }
 
-/// How long ago the version directory `entry` was last used, read from the `last_used_time` its
-/// `CURRENT` file records.
+/// How long ago the version directory `entry` was last committed to, read from the `commit_time`
+/// its `CURRENT` file records. A cache that's in use gets written to, so this stands in for how
+/// recently the version was used.
 ///
 /// A directory with no `CURRENT` isn't a database we finished writing — access to the cache root is
 /// serialized, so it can't be one that's mid-initialization — and gets [`Duration::MAX`] so it's
@@ -205,12 +206,12 @@ fn ttl_from_days(days: u64) -> Duration {
 ///
 /// A stamp in the future (clock skew) reads as age zero, so a version is never evicted for looking
 /// too new.
-fn time_since_last_used(entry: &DirEntry) -> Result<Duration> {
+fn time_since_last_commit(entry: &DirEntry) -> Result<Duration> {
     let Some(version) = read_current_version(&entry.path())? else {
         return Ok(Duration::MAX);
     };
     Ok(Timestamp::now()
-        .duration_since(version.last_used_time)
+        .duration_since(version.commit_time)
         .try_into()
         .unwrap_or_default())
 }
@@ -235,16 +236,16 @@ mod tests {
     }
 
     /// Creates a version directory that looks like a real database (i.e. has a `CURRENT` file),
-    /// last used `used_ago` in the past.
-    fn create_version_dir(base_path: &Path, name: &str, used_ago: Duration) {
+    /// last committed to `committed_ago` in the past.
+    fn create_version_dir(base_path: &Path, name: &str, committed_ago: Duration) {
         let path = base_path.join(name);
         fs::create_dir(&path).unwrap();
-        let last_used_time = Timestamp::now() - jiff::SignedDuration::try_from(used_ago).unwrap();
+        let commit_time = Timestamp::now() - jiff::SignedDuration::try_from(committed_ago).unwrap();
         fs::write(
             path.join("CURRENT"),
             serde_json::to_vec(&CurrentDbVersion {
                 max_sequence_number: 0,
-                last_used_time,
+                commit_time,
             })
             .unwrap(),
         )
