@@ -2248,8 +2248,8 @@ fn current_file_is_json_with_last_used_time() -> Result<()> {
     }
     let after = jiff::Timestamp::now();
 
-    // `CURRENT` is a stable on-disk format that external tools parse without going through this
-    // crate, so the JSON shape and these field names are a public contract, not an internal detail.
+    // External tools parse `CURRENT` without going through this crate, so these field names are a
+    // public contract.
     let raw = fs::read_to_string(path.join("CURRENT"))?;
     assert!(raw.contains("max_sequence_number"), "got: {raw}");
     assert!(raw.contains("last_used_time"), "got: {raw}");
@@ -2282,8 +2282,8 @@ fn corrupt_current_file_fails_to_open() -> Result<()> {
         db.shutdown()?;
     }
 
-    // A truncated `CURRENT`, e.g. from an interrupted copy. Four bytes specifically: that used to
-    // be the whole file, and a length-based format guess would read it as a sequence number.
+    // A truncated `CURRENT`, e.g. from an interrupted copy. Four bytes specifically, so that a
+    // length-based format guess would misread it as a raw sequence number.
     fs::write(path.join("CURRENT"), [0u8; 4])?;
 
     assert!(

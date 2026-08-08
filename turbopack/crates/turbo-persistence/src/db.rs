@@ -165,7 +165,7 @@ impl WriteOperationGuard<'_> {
 ///
 /// Serialized as a small JSON object. `last_used_time` lives in the file rather than being taken
 /// from its mtime because mtimes don't survive the directory being copied or restored (CI cache
-/// restore, `cp -r`, container image builds), which would corrupt version eviction's idea of age.
+/// restore, `cp -r`, container image builds).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CurrentDbVersion {
     /// The highest sequence number that is part of the committed database. Files with a greater
@@ -180,11 +180,9 @@ pub struct CurrentDbVersion {
 /// Returns `Ok(None)` if the file doesn't exist, which for a writable database means "not
 /// initialized yet".
 ///
-/// A `CURRENT` that exists but doesn't parse is an error rather than something to recover from
-/// here. Version directories are named after the build that wrote them, so a change to this format
-/// comes with a new directory name and this function never sees an older one; anything unparsable
-/// is corruption. Callers that scan directories they didn't write (see the cache-version eviction
-/// in `turbo-tasks-backend`) are the ones that have to tolerate it.
+/// A `CURRENT` that exists but doesn't parse is an error, not an older format to fall back on:
+/// version directories are named after the build that wrote them, so a format change comes with a
+/// new directory name and this function never sees an older one.
 pub fn read_current_version(path: &Path) -> Result<Option<CurrentDbVersion>> {
     let current_path = path.join("CURRENT");
     let content = match fs::read(&current_path) {
@@ -654,15 +652,13 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         inner.meta_files = meta_files;
         inner.current_sequence_number = current;
 
-        // Refresh the last-used stamp. This happens even for a read-only open: opening to read is
-        // still a use, and eviction shouldn't treat a database as abandoned just because nothing
-        // wrote to it. Rewriting `CURRENT` is the only mutation a read-only open makes.
+        // Refresh the last-used stamp. This happens even for a read-only open — opening to read is
+        // still a use — and is the only mutation such an open makes.
         //
-        // Best-effort. On failure the stamp keeps its old value, so the database looks less
-        // recently used than it is and may be evicted early; that's recoverable, and an open that
-        // can otherwise succeed shouldn't fail over a cache-eviction hint. A failure part-way
-        // through can leave a stale `CURRENT.next` behind, which is harmless: the next
-        // `commit_current` truncates it.
+        // Best-effort: on failure the stamp keeps its old value, so the database looks less
+        // recently used than it is and may be evicted early. An open that can otherwise succeed
+        // shouldn't fail over a cache-eviction hint. A failure part-way through can leave a stale
+        // `CURRENT.next` behind, which the next `commit_current` truncates.
         let _ = commit_current(&self.path, current);
 
         Ok(true)

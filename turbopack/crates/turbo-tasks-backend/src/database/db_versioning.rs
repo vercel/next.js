@@ -34,10 +34,10 @@ const DELETION_PREFIX: &str = "__stale_";
 /// Given a base path, creates a version directory for the given `version_info`. Automatically
 /// cleans up old/stale databases.
 ///
-/// Exactly one database whose version isn't the current one is retained — the most recently used,
-/// and only if it was used within [`DEFAULT_OTHER_DB_VERSION_TTL_DAYS`] — so that switching back to
-/// a branch you recently left still finds its cache intact. On CI none are retained. The current
-/// version is always retained.
+/// The current version is always retained. Alongside it, exactly one database whose version isn't
+/// the current one is kept — the most recently used, and only if it was used within
+/// [`DEFAULT_OTHER_DB_VERSION_TTL_DAYS`] — so that switching back to a branch you recently left
+/// still finds its cache intact. On CI none are retained.
 ///
 /// **Environment Variables**
 /// - `TURBO_ENGINE_VERSION`: Forces use of a specific database version.
@@ -105,9 +105,7 @@ pub fn handle_db_versioning(
             };
 
             // Of the other versions we keep only the most recently used one, and only if it's
-            // within the TTL. Anything past the TTL is evicted as soon as we see it; the best
-            // candidate so far is held back until something more recent displaces it, and whatever
-            // is still held at the end is the one we keep.
+            // within the TTL.
             let mut newest: Option<(Duration, DirEntry)> = None;
             for entry in read_dir {
                 let Ok(entry) = entry else { continue };
@@ -136,8 +134,8 @@ pub fn handle_db_versioning(
                     continue;
                 }
 
-                // With no TTL nothing is retained, so don't spend a read working out an age that
-                // can't change the outcome.
+                // With no TTL nothing is retained, so don't read an age that can't change the
+                // outcome — which also means a corrupt `CURRENT` can't fail the run.
                 let Some(ttl) = ttl else {
                     evict(entry);
                     continue;
@@ -150,7 +148,6 @@ pub fn handle_db_versioning(
                 }
                 match &newest {
                     Some((newest_age, _)) if *newest_age <= age => evict(entry),
-                    // This entry is more recent, so drop the one we were holding
                     _ => {
                         if let Some((_, previous)) = newest.replace((age, entry)) {
                             evict(previous);
@@ -159,9 +156,6 @@ pub fn handle_db_versioning(
                 }
             }
         }
-
-        // The selected version is stamped as used by the persistence layer when it opens the
-        // database, so there's nothing to record here.
     } else {
         path = base_path.join("temp");
         if path.exists() {
@@ -174,15 +168,13 @@ pub fn handle_db_versioning(
     Ok(path)
 }
 
-/// How long to retain a database whose version isn't the current one, honoring the
-/// `TURBO_ENGINE_VERSION_TTL_DAYS` override. Falls back to [`DEFAULT_OTHER_DB_VERSION_TTL_DAYS`] if
-/// the variable is unset or unparsable.
+/// How long to retain a database whose version isn't the current one. Falls back to
+/// [`DEFAULT_OTHER_DB_VERSION_TTL_DAYS`] if `TURBO_ENGINE_VERSION_TTL_DAYS` is unset or unparsable.
 fn other_db_version_ttl() -> Duration {
     let Ok(raw) = env::var("TURBO_ENGINE_VERSION_TTL_DAYS") else {
         return ttl_from_days(DEFAULT_OTHER_DB_VERSION_TTL_DAYS);
     };
-    // `u64::from_str` accepts a leading `+`; require plain digits so the accepted syntax is
-    // exactly what the name promises.
+    // `u64::from_str` accepts a leading `+`; require plain digits instead.
     let trimmed = raw.trim();
     let days = (!trimmed.is_empty() && trimmed.bytes().all(|b| b.is_ascii_digit()))
         .then(|| trimmed.parse::<u64>().ok())
@@ -206,14 +198,13 @@ fn ttl_from_days(days: u64) -> Duration {
 /// How long ago the version directory `entry` was last used, read from the `last_used_time` its
 /// `CURRENT` file records.
 ///
-/// A directory with no `CURRENT` at all isn't a database we finished writing — access to the cache
-/// root is serialized, so this can't be one that's mid-initialization — and gets [`Duration::MAX`]
-/// so it's evicted ahead of any real cache. A `CURRENT` that exists but can't be read is a
-/// different matter: that's an unexpected IO or corruption problem, and the error propagates rather
-/// than being turned into a deletion.
+/// A directory with no `CURRENT` isn't a database we finished writing — access to the cache root is
+/// serialized, so it can't be one that's mid-initialization — and gets [`Duration::MAX`] so it's
+/// evicted ahead of any real cache. A `CURRENT` that exists but can't be read is corruption or IO
+/// failure: the error propagates rather than turning into a deletion.
 ///
-/// A stamp in the future (backwards clock jump, or a copy from a machine with a fast clock) reads
-/// as age zero, so a version is never evicted for looking too new.
+/// A stamp in the future (clock skew) reads as age zero, so a version is never evicted for looking
+/// too new.
 fn time_since_last_used(entry: &DirEntry) -> Result<Duration> {
     let Some(version) = read_current_version(&entry.path())? else {
         return Ok(Duration::MAX);
@@ -274,7 +265,10 @@ mod tests {
     #[rstest]
     #[case::not_ci(false, &["mock-version", "other-dir-0"])]
     #[case::ci(true, &["mock-version"])]
-    fn test_max_versions(#[case] is_ci: bool, #[case] expected: &[&str]) {
+    fn test_only_most_recently_used_other_version_is_retained(
+        #[case] is_ci: bool,
+        #[case] expected: &[&str],
+    ) {
         let tmp_dir = TempDir::new().unwrap();
         let base_path = tmp_dir.path();
 
@@ -295,8 +289,8 @@ mod tests {
         assert_eq!(entry_names(base_path), expected);
     }
 
-    /// A version that hasn't been used within the TTL is evicted even though it's within the count
-    /// limit.
+    /// A version that hasn't been used within the TTL is evicted, even with the retention slot
+    /// free.
     #[test]
     fn test_ttl_evicts_unused_version() {
         let tmp_dir = TempDir::new().unwrap();
@@ -379,12 +373,11 @@ mod tests {
         );
     }
 
-    /// An unparsable `TURBO_ENGINE_VERSION_TTL_DAYS` falls back to the default rather than
-    /// retaining nothing.
+    /// `TURBO_ENGINE_VERSION_TTL_DAYS` overrides the TTL, and an unparsable value falls back to the
+    /// default rather than retaining nothing.
     ///
-    /// Not `#[rstest]`-parameterized over several inputs: this mutates process-wide environment
-    /// state, so the cases can't run concurrently with each other or with any other test that
-    /// reads the same variable.
+    /// The cases share one test rather than being `#[rstest]`-parameterized because they mutate
+    /// process-wide environment state and so can't run concurrently.
     #[test]
     fn test_ttl_days_override() {
         // SAFETY: single-threaded test, and no other test reads this variable.
@@ -428,7 +421,6 @@ mod tests {
 
         handle_db_versioning(base_path, &version_info(), /* is_ci */ false).unwrap();
 
-        // age-1 is the most recently used, so it's the one that survives.
         assert_eq!(entry_names(base_path), vec!["age-1", CURRENT_VERSION]);
     }
 
