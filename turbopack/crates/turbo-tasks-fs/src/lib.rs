@@ -53,11 +53,14 @@ pub(crate) use crate::{
 pub use crate::{
     content::{
         File, FileContent, FileJsonContent, FileLine, FileLinesContent, FileMeta, LinkContent,
-        LinkType, Permissions, PersistedFileContent,
+        LinkTarget, Permissions, PersistedFileContent,
     },
     disk::{DiskFileSystem, canonicalize_to_rcstr, validate_path_length},
     null_fs::NullFileSystem,
-    path::{FileSystemPath, FileSystemPathOption, RealPathResult, RealPathResultError, rebase},
+    path::{
+        FileSystemPath, FileSystemPathOption, RealPathResult, RealPathResultError, rebase,
+        resolve_link_target,
+    },
     read_glob::ReadGlobResult,
     virtual_fs::VirtualFileSystem,
     watcher::{DiskWatcherConfig, DiskWatcherRecursiveMode},
@@ -75,9 +78,8 @@ pub trait FileSystem: ValueToString {
     fn read(self: Vc<Self>, fs_path: FileSystemPath) -> Vc<FileContent>;
     /// Reads the target of a symbolic link (or of a junction point on Windows).
     ///
-    /// The base of the returned [`LinkContent::Link`] `target` depends on the link's
-    /// [`LinkType`]: root-relative and normalized for [`LinkType::ABSOLUTE`] links, or the raw
-    /// link-relative on-disk value otherwise.
+    /// The returned [`LinkTarget`] is root-relative and normalized for [`LinkTarget::Absolute`]
+    /// links, or the raw link-relative on-disk value for [`LinkTarget::Relative`] links.
     ///
     /// Returns [`LinkContent::Invalid`] if the target points outside of the filesystem root, and
     /// [`LinkContent::NotFound`] if `fs_path` doesn't exist or isn't a link.
@@ -87,9 +89,9 @@ pub trait FileSystem: ValueToString {
     fn raw_read_dir(self: Vc<Self>, fs_path: FileSystemPath) -> Vc<RawDirectoryContent>;
     #[turbo_tasks::function]
     fn write(self: Vc<Self>, fs_path: FileSystemPath, content: Vc<FileContent>) -> Vc<()>;
-    /// See [`FileSystemPath::write_symbolic_link_dir`].
+    /// See [`FileSystemPath::write_dir_link`].
     #[turbo_tasks::function]
-    fn write_link(self: Vc<Self>, fs_path: FileSystemPath, target: Vc<LinkContent>) -> Vc<()>;
+    fn write_link_dir(self: Vc<Self>, fs_path: FileSystemPath, target: Vc<LinkContent>) -> Vc<()>;
     #[turbo_tasks::function]
     fn metadata(self: Vc<Self>, fs_path: FileSystemPath) -> Vc<FileMeta>;
 }

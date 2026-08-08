@@ -14,7 +14,8 @@ use turbo_tasks::{
     NonLocalValue, TaskInput, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
-    FileSystemPath, LinkContent, LinkType, RawDirectoryContent, RawDirectoryEntry,
+    FileSystemEntryType, FileSystemPath, LinkContent, RawDirectoryContent, RawDirectoryEntry,
+    resolve_link_target,
 };
 use turbo_unix_path::normalize_path;
 
@@ -1606,12 +1607,17 @@ pub async fn read_matches(
                         )),
                         RawDirectoryEntry::Symlink => {
                             let fs_path = parent_fs_path.join(last_segment)?;
-                            let LinkContent::Link { link_type, .. } = &*fs_path.read_link().await?
-                            else {
+                            let LinkContent::Link(target) = &*fs_path.read_link().await? else {
                                 continue;
                             };
                             let path = concat(&prefix, str).into();
-                            if link_type.contains(LinkType::DIRECTORY) {
+                            if matches!(
+                                *resolve_link_target(&fs_path, target)
+                                    .await?
+                                    .get_type()
+                                    .await?,
+                                FileSystemEntryType::Directory
+                            ) {
                                 results.push((index, PatternMatch::Directory(path, fs_path)));
                             } else {
                                 results.push((index, PatternMatch::File(path, fs_path)))
@@ -1795,10 +1801,15 @@ pub async fn read_matches(
                                 }
                                 if let Some(pos) = pat.match_position(&prefix) {
                                     let fs_path = lookup_dir.join(key)?;
-                                    if let LinkContent::Link { link_type, .. } =
-                                        &*fs_path.read_link().await?
+                                    if let LinkContent::Link(target) = &*fs_path.read_link().await?
                                     {
-                                        if link_type.contains(LinkType::DIRECTORY) {
+                                        if matches!(
+                                            *resolve_link_target(&fs_path, target)
+                                                .await?
+                                                .get_type()
+                                                .await?,
+                                            FileSystemEntryType::Directory
+                                        ) {
                                             results.push((
                                                 pos,
                                                 PatternMatch::Directory(
@@ -1817,9 +1828,14 @@ pub async fn read_matches(
                                 prefix.push('/');
                                 if let Some(pos) = pat.match_position(&prefix) {
                                     let fs_path = lookup_dir.join(key)?;
-                                    if let LinkContent::Link { link_type, .. } =
-                                        &*fs_path.read_link().await?
-                                        && link_type.contains(LinkType::DIRECTORY)
+                                    if let LinkContent::Link(target) = &*fs_path.read_link().await?
+                                        && matches!(
+                                            *resolve_link_target(&fs_path, target)
+                                                .await?
+                                                .get_type()
+                                                .await?,
+                                            FileSystemEntryType::Directory
+                                        )
                                     {
                                         results.push((
                                             pos,
@@ -1829,9 +1845,14 @@ pub async fn read_matches(
                                 }
                                 if let Some(pos) = pat.could_match_position(&prefix) {
                                     let fs_path = lookup_dir.join(key)?;
-                                    if let LinkContent::Link { link_type, .. } =
-                                        &*fs_path.read_link().await?
-                                        && link_type.contains(LinkType::DIRECTORY)
+                                    if let LinkContent::Link(target) = &*fs_path.read_link().await?
+                                        && matches!(
+                                            *resolve_link_target(&fs_path, target)
+                                                .await?
+                                                .get_type()
+                                                .await?,
+                                            FileSystemEntryType::Directory
+                                        )
                                     {
                                         results.push((
                                             pos,

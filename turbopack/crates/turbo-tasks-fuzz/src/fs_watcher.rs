@@ -20,7 +20,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{
-    DiskFileSystem, File, FileContent, FileSystem, FileSystemPath, LinkContent, LinkType,
+    DiskFileSystem, File, FileContent, FileSystem, FileSystemPath, LinkContent, LinkTarget,
 };
 
 // `read_or_write_all_paths_operation` always writes the sentinel values to files/symlinks. We can
@@ -64,26 +64,12 @@ pub struct FsWatcher {
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
 enum SymlinkMode {
-    /// Test file symlinks
-    #[cfg_attr(windows, doc = "(requires developer mode or admin)")]
-    File,
     /// Test directory symlinks
     #[cfg_attr(windows, doc = "(requires developer mode or admin)")]
     Directory,
     /// Test junction points (Windows-only)
     #[cfg(windows)]
     Junction,
-}
-
-impl SymlinkMode {
-    fn to_link_type(self) -> LinkType {
-        match self {
-            SymlinkMode::File => LinkType::empty(),
-            SymlinkMode::Directory => LinkType::DIRECTORY,
-            #[cfg(windows)]
-            SymlinkMode::Junction => LinkType::DIRECTORY,
-        }
-    }
 }
 
 #[derive(Default, NonLocalValue, TraceRawVcs)]
@@ -123,7 +109,7 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
         create_directory_tree(&mut FxHashSet::default(), &fs_root, args.depth, args.width)?;
 
         let mut symlink_targets = if let Some(mode) = args.symlinks {
-            create_initial_symlinks(&fs_root, mode, args.symlink_count, args.depth)?
+            create_initial_symlinks(&fs_root, mode, args.symlink_count)?
         } else {
             Vec::new()
         };
@@ -139,16 +125,12 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
         };
         let track_writes = args.track_writes;
         let symlink_mode = args.symlinks;
-        let symlink_is_directory =
-            symlink_mode.map(|m| m.to_link_type().contains(LinkType::DIRECTORY));
-
         let effects_op = extract_effects_operation(read_or_write_all_paths_operation(
             invalidations.clone(),
             project_root.clone(),
             args.depth,
             args.width,
             symlink_count,
-            symlink_is_directory,
             track_writes,
         ));
         if track_writes {
@@ -234,7 +216,6 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
                 args.depth,
                 args.width,
                 symlink_count,
-                symlink_is_directory,
                 track_writes,
             ));
             let symlink_info = if args.symlinks.is_some() {
@@ -344,19 +325,13 @@ async fn write_link(
     invalidations: TransientInstance<PathInvalidations>,
     path: FileSystemPath,
     target: RcStr,
-    is_directory: bool,
 ) -> anyhow::Result<()> {
     let path_str = path.path.clone();
     invalidations.0.lock().unwrap().insert(path_str);
-    let link_type = if is_directory {
-        LinkType::DIRECTORY
-    } else {
-        LinkType::empty()
-    };
-    let link_content = LinkContent::Link { target, link_type };
+    let link_content = LinkContent::Link(LinkTarget::Relative(target));
     let _ = path
         .fs()
-        .write_link(path.clone(), link_content.cell())
+        .write_link_dir(path.clone(), link_content.cell())
         .await?;
     Ok(())
 }
@@ -368,7 +343,6 @@ async fn read_or_write_all_paths_operation(
     depth: usize,
     width: usize,
     symlink_count: u32,
-    symlink_is_directory: Option<bool>,
     write: bool,
 ) -> anyhow::Result<()> {
     async fn process_paths_inner(
@@ -411,7 +385,6 @@ async fn read_or_write_all_paths_operation(
                     invalidations.clone(),
                     symlink_path,
                     RcStr::from(SYMLINK_SENTINEL_TARGET),
-                    symlink_is_directory.unwrap_or(false),
                 )
                 .await?;
             } else {
@@ -538,21 +511,12 @@ fn create_initial_symlinks(
     fs_root: &Path,
     symlink_mode: SymlinkMode,
     symlink_count: u32,
-    depth: usize,
 ) -> anyhow::Result<Vec<PathBuf>> {
     // Use a dedicated "symlinks" directory to avoid conflicts
     let symlinks_dir = fs_root.join("_symlinks");
     std::fs::create_dir_all(&symlinks_dir)?;
 
     let initial_target_relative = match symlink_mode {
-        SymlinkMode::File => {
-            // Point to a file at depth: 0/0/0/.../0
-            let mut path = PathBuf::new();
-            for _ in 0..depth {
-                path.push("0");
-            }
-            path
-        }
         SymlinkMode::Directory => PathBuf::from("0"),
         #[cfg(windows)]
         SymlinkMode::Junction => PathBuf::from("0"),
@@ -579,9 +543,6 @@ fn create_symlink(link_path: &Path, target: &Path, mode: SymlinkMode) -> anyhow:
     #[cfg(windows)]
     {
         match mode {
-            SymlinkMode::File => {
-                std::os::windows::fs::symlink_file(target, link_path)?;
-            }
             SymlinkMode::Directory => {
                 std::os::windows::fs::symlink_dir(target, link_path)?;
             }
@@ -604,7 +565,7 @@ fn remove_symlink(link_path: &Path, mode: SymlinkMode) -> anyhow::Result<()> {
     #[cfg(windows)]
     {
         match mode {
-            SymlinkMode::File | SymlinkMode::Directory => {
+            SymlinkMode::Directory => {
                 std::fs::remove_file(link_path)?;
             }
             SymlinkMode::Junction => {
@@ -639,7 +600,6 @@ fn pick_random_directory(max_depth: usize, width: usize) -> RandomDirectory {
 
 fn pick_random_link_target(depth: usize, width: usize, mode: SymlinkMode) -> PathBuf {
     match mode {
-        SymlinkMode::File => pick_random_file(depth, width),
         SymlinkMode::Directory => pick_random_directory(depth, width).path,
         #[cfg(windows)]
         SymlinkMode::Junction => pick_random_directory(depth, width).path,

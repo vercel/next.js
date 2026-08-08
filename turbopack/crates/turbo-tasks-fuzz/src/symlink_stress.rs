@@ -13,7 +13,7 @@ use turbo_tasks::{
     read_strongly_consistent_and_apply_effects, take_effects,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
-use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, LinkContent, LinkType};
+use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, LinkContent, LinkTarget};
 
 #[derive(Args)]
 pub struct SymlinkStress {
@@ -215,13 +215,10 @@ async fn write_symlink(
     target: RcStr,
 ) -> anyhow::Result<()> {
     let symlink_path = symlinks_dir.join(&symlink_idx.to_string())?;
-    let link_content = LinkContent::Link {
-        target,
-        link_type: LinkType::DIRECTORY,
-    };
+    let link_content = LinkContent::Link(LinkTarget::Relative(target));
     symlink_path
         .fs()
-        .write_link(symlink_path.clone(), link_content.cell())
+        .write_link_dir(symlink_path.clone(), link_content.cell())
         .await?;
     Ok(())
 }

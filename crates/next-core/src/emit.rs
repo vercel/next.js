@@ -288,19 +288,19 @@ async fn assets_diff(
         (
             AssetContent::Redirect {
                 target: target1,
-                link_type: link_type1,
+                is_directory: is_directory1,
             },
             AssetContent::Redirect {
                 target: target2,
-                link_type: link_type2,
+                is_directory: is_directory2,
             },
         ) => {
-            if target1 == target2 && link_type1 == link_type2 {
+            if target1 == target2 && is_directory1 == is_directory2 {
                 None
             } else {
                 Some(format!(
                     "assets at the same path are both redirects but point to different targets: \
-                     {target1} vs {target2}"
+                     {target1:?} vs {target2:?}"
                 ))
             }
         }

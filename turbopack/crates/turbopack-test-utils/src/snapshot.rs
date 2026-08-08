@@ -169,8 +169,11 @@ async fn get_contents(file: Vc<AssetContent>) -> Result<Option<String>> {
                 }
             }
         },
-        AssetContent::Redirect { target, link_type } => Some(format!(
-            "Redirect {{ target: {target}, link_type: {link_type:?} }}"
+        AssetContent::Redirect {
+            target,
+            is_directory,
+        } => Some(format!(
+            "Redirect {{ target: {target:?}, is_directory: {is_directory} }}"
         )),
     })
 }

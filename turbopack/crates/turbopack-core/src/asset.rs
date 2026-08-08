@@ -1,8 +1,8 @@
-use anyhow::Result;
+use anyhow::{Result, bail};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{
-    FileContent, FileJsonContent, FileLinesContent, FileSystemPath, LinkContent, LinkType,
+    FileContent, FileJsonContent, FileLinesContent, FileSystemPath, LinkContent, LinkTarget,
 };
 use turbo_tasks_hash::{HashAlgorithm, deterministic_hash};
 
@@ -54,8 +54,13 @@ pub enum AssetContent {
     File(ResolvedVc<FileContent>),
     // for the relative link, the target is raw value read from the link
     // for the absolute link, the target is stripped of the root path while reading
+    // `is_directory` preserves the target type read from disk so file links cannot be silently
+    // recreated as directory links.
     // See [LinkContent::Link] for more details.
-    Redirect { target: RcStr, link_type: LinkType },
+    Redirect {
+        target: LinkTarget,
+        is_directory: bool,
+    },
 }
 
 #[turbo_tasks::value_impl]
@@ -115,16 +120,23 @@ impl AssetContent {
             AssetContent::File(file) => {
                 path.write(**file).as_side_effect().await?;
             }
-            AssetContent::Redirect { target, link_type } => {
-                path.write_symbolic_link_dir(
-                    LinkContent::Link {
-                        target: target.clone(),
-                        link_type: *link_type,
-                    }
-                    .cell(),
-                )
-                .as_side_effect()
-                .await?;
+            AssetContent::Redirect {
+                target,
+                is_directory,
+            } => {
+                // This is slightly narrower than necessary: a junction can point to another
+                // junction. In practice, we never write nested links, so requiring a directory
+                // here is sufficient.
+                if !is_directory {
+                    bail!(
+                        "cannot create file link to {target:?}: only directory links are \
+                         supported, because Windows junction points have no file equivalent and \
+                         file symlinks require elevated privileges"
+                    );
+                }
+                path.write_dir_link(LinkContent::Link(target.clone()).cell())
+                    .as_side_effect()
+                    .await?;
             }
         }
         Ok(())
@@ -134,9 +146,12 @@ impl AssetContent {
     pub async fn hash(&self, salt: Vc<RcStr>, algorithm: HashAlgorithm) -> Result<Vc<RcStr>> {
         Ok(match self {
             AssetContent::File(content) => content.hash(salt, algorithm),
-            AssetContent::Redirect { target, link_type } => Vc::cell(RcStr::from(
+            AssetContent::Redirect {
+                target,
+                is_directory,
+            } => Vc::cell(RcStr::from(
                 // no_hash_salt
-                deterministic_hash(&salt.await?, (target, link_type), algorithm),
+                deterministic_hash(&salt.await?, (target, is_directory), algorithm),
             )),
         })
     }

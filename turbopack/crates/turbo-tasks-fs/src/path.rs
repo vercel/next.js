@@ -15,7 +15,7 @@ use turbo_unix_path::{get_parent_path, get_relative_path_to, join_path, normaliz
 
 use crate::{
     DirectoryContent, DirectoryEntry, FileContent, FileJsonContent, FileMeta, FileSystem,
-    FileSystemEntryType, LinkContent, LinkType, RawDirectoryContent, RawDirectoryEntry,
+    FileSystemEntryType, LinkContent, LinkTarget, RawDirectoryContent, RawDirectoryEntry,
     ReadGlobResult,
     glob::Glob,
     read_glob::{read_glob, track_glob},
@@ -417,18 +417,14 @@ impl FileSystemPath {
     /// privileges][windows-privileges] if "developer mode" is not enabled, so we can't safely use
     /// them. Using junction points [matches the behavior of pnpm][pnpm-windows].
     ///
-    /// This only supports directories because Windows junction points are incompatible with files.
-    /// To ensure compatibility, this will return an error if the target is a file, even on
-    /// platforms with full symlink support.
-    ///
     /// **We intentionally do not provide an API for symlinking a file**, as we cannot support that
     /// on all Windows configurations.
     ///
     /// [windows-symlink]: https://blogs.windows.com/windowsdeveloper/2016/12/02/symlinks-windows-10/
     /// [windows-privileges]: https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/security-policy-settings/create-symbolic-links
     /// [pnpm-windows]: https://pnpm.io/faq#does-it-work-on-windows
-    pub fn write_symbolic_link_dir(&self, target: Vc<LinkContent>) -> Vc<()> {
-        self.fs().write_link(self.clone(), target)
+    pub fn write_dir_link(&self, target: Vc<LinkContent>) -> Vc<()> {
+        self.fs().write_link_dir(self.clone(), target)
     }
 
     pub fn metadata(&self) -> Vc<FileMeta> {
@@ -620,12 +616,11 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
             .rsplit_once('/')
             .map_or(current_path.path.as_str(), |(_, name)| name);
         symlinks.extend(parent_result.symlinks);
-        let parent_path = match parent_result.path_result {
+        match parent_result.path_result {
             Ok(path) => {
                 if path != parent {
                     current_path = path.join(basename)?;
                 }
-                path
             }
             Err(parent_error) => {
                 error = parent_error;
@@ -647,14 +642,9 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
         }
 
         match &*current_path.read_link().await? {
-            LinkContent::Link { target, link_type } => {
+            LinkContent::Link(target) => {
                 symlinks.insert(current_path.clone());
-                current_path = if link_type.contains(LinkType::ABSOLUTE) {
-                    current_path.root().owned().await?
-                } else {
-                    parent_path
-                }
-                .join(target)?;
+                current_path = resolve_link_target(&current_path, target).await?;
             }
             LinkContent::NotFound => {
                 error = RealPathResultError::NotFound;
@@ -679,6 +669,18 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
         symlinks: symlinks.into_iter().collect(),
     }
     .cell())
+}
+
+/// Resolves a link target using the storage convention described by [`LinkContent::Link`].
+pub async fn resolve_link_target(
+    link_path: &FileSystemPath,
+    target: &LinkTarget,
+) -> Result<FileSystemPath> {
+    let (base, target) = match target {
+        LinkTarget::Absolute(target) => (link_path.root().owned().await?, target),
+        LinkTarget::Relative(target) => (link_path.parent(), target),
+    };
+    base.join(target)
 }
 
 #[cfg(test)]

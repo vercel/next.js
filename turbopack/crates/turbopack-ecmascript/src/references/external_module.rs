@@ -4,7 +4,9 @@ use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToStringRef, Vc, trace::TraceRawVcs};
-use turbo_tasks_fs::{FileSystem, FileSystemPath, LinkType, VirtualFileSystem, rope::RopeBuilder};
+use turbo_tasks_fs::{
+    FileSystem, FileSystemPath, LinkTarget, VirtualFileSystem, rope::RopeBuilder,
+};
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -509,8 +511,8 @@ impl Asset for ExternalsSymlinkAsset {
         .into();
 
         Ok(AssetContent::Redirect {
-            target,
-            link_type: LinkType::DIRECTORY,
+            target: LinkTarget::Relative(target),
+            is_directory: true,
         }
         .cell())
     }

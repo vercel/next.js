@@ -33,9 +33,8 @@ use turbo_tasks_hash::{hash_xxh3_hash64, hash_xxh3_hash128};
 use turbo_unix_path::{normalize_path, sys_to_unix, unix_to_sys};
 
 use crate::{
-    AnyhowWrapper, File, FileComparison, FileContent, FileMeta, FileSystem, FileSystemEntryType,
-    FileSystemPath, LinkContent, LinkType, PersistedFileContent, RawDirectoryContent,
-    RawDirectoryEntry,
+    AnyhowWrapper, File, FileComparison, FileContent, FileMeta, FileSystem, FileSystemPath,
+    LinkContent, LinkTarget, PersistedFileContent, RawDirectoryContent, RawDirectoryEntry,
     invalidation::Write,
     invalidator_map::InvalidatorMap,
     mutex_map::MutexMap,
@@ -938,29 +937,18 @@ impl FileSystem for DiskFileSystem {
             return Ok(LinkContent::Invalid.cell());
         };
 
-        let mut link_type = LinkType::default();
-        // TODO(bgw): Reading the type here is silly, the callers could do it.
-        // The reason `LinkContent` contains the type information is just for the `write_link`
-        // codepath, which needs to know if it can create a Windows junction point or not.
-        let file_type = target_fs_path.get_type().await?;
-        if matches!(&*file_type, FileSystemEntryType::Directory) {
-            link_type |= LinkType::DIRECTORY;
-        }
-
-        let target;
-        if target_sys_path.is_absolute() {
+        let target = if target_sys_path.is_absolute() {
             // absolute path, rewrite from the sys root to the DiskFileSystem root
-            target = target_fs_path.path;
-            link_type |= LinkType::ABSOLUTE;
+            LinkTarget::Absolute(target_fs_path.path)
         } else {
             // link-relative, the raw value read from the link, converted to a unix-style format
             let target_str = target_sys_path.to_str().with_context(|| {
                 format!("symlink target {target_sys_path:?} is not valid unicode")
             })?;
-            target = RcStr::from(sys_to_unix(target_str));
+            LinkTarget::Relative(RcStr::from(sys_to_unix(target_str)))
         };
 
-        Ok(LinkContent::Link { target, link_type }.cell())
+        Ok(LinkContent::Link(target).cell())
     }
 
     #[turbo_tasks::function(fs)]
@@ -1182,7 +1170,7 @@ impl FileSystem for DiskFileSystem {
     }
 
     #[turbo_tasks::function(fs)]
-    async fn write_link(
+    async fn write_link_dir(
         self: ResolvedVc<Self>,
         fs_path: FileSystemPath,
         target: ResolvedVc<LinkContent>,
@@ -1274,35 +1262,46 @@ impl FileSystem for DiskFileSystem {
                 let _lock = self.inner.lock_path(full_path.clone()).await;
 
                 enum OsSpecificLinkContent {
-                    Link {
-                        #[cfg(windows)]
-                        is_directory: bool,
-                        target: PathBuf,
-                    },
+                    Link { target: PathBuf },
                     NotFound,
                     Invalid,
                 }
 
                 let os_specific_link_content = match &**content {
-                    LinkContent::Link { target, link_type } => {
-                        let is_directory = link_type.contains(LinkType::DIRECTORY);
-                        let target_path = if link_type.contains(LinkType::ABSOLUTE) {
-                            self.inner.root_path().join(unix_to_sys(target).as_ref())
-                        } else {
-                            let relative_target = PathBuf::from(unix_to_sys(target).as_ref());
-                            if cfg!(windows) && is_directory {
-                                // Windows junction points must always be stored as absolute
-                                full_path
-                                    .parent()
-                                    .unwrap_or(&full_path)
-                                    .join(relative_target)
-                            } else {
-                                relative_target
+                    LinkContent::Link(target) => {
+                        let target_path = match target {
+                            LinkTarget::Absolute(target) => {
+                                self.inner.root_path().join(unix_to_sys(target).as_ref())
+                            }
+                            LinkTarget::Relative(target) => {
+                                let relative_target = PathBuf::from(unix_to_sys(target).as_ref());
+                                if cfg!(windows) {
+                                    // Windows junction points must always be stored as absolute.
+                                    full_path
+                                        .parent()
+                                        .unwrap_or(&full_path)
+                                        .join(relative_target)
+                                } else {
+                                    relative_target
+                                }
                             }
                         };
+                        #[cfg(all(debug_assertions, unix))]
+                        {
+                            let absolute_target = if target_path.is_absolute() {
+                                target_path.clone()
+                            } else {
+                                full_path.parent().unwrap_or(&full_path).join(&target_path)
+                            };
+                            debug_assert!(
+                                !matches!(
+                                    std::fs::metadata(&absolute_target),
+                                    Ok(metadata) if !metadata.is_dir()
+                                ),
+                                "directory link target is not a directory: {absolute_target:?}"
+                            );
+                        }
                         OsSpecificLinkContent::Link {
-                            #[cfg(windows)]
-                            is_directory,
                             target: target_path,
                         }
                     }
@@ -1331,12 +1330,7 @@ impl FileSystem for DiskFileSystem {
                 }
 
                 match os_specific_link_content {
-                    OsSpecificLinkContent::Link {
-                        target,
-                        #[cfg(windows)]
-                        is_directory,
-                        ..
-                    } => {
+                    OsSpecificLinkContent::Link { target } => {
                         #[derive(thiserror::Error, Debug)]
                         #[error("{msg}: {source}")]
                         struct SymlinkCreationError {
@@ -1374,11 +1368,8 @@ impl FileSystem for DiskFileSystem {
                             #[cfg(not(windows))]
                             let io_result = std::os::unix::fs::symlink(&target, &**full_path);
                             #[cfg(windows)]
-                            let io_result = if is_directory {
-                                std::os::windows::fs::junction_point(&target, &**full_path)
-                            } else {
-                                std::os::windows::fs::symlink_file(&target, &**full_path)
-                            };
+                            let io_result =
+                                std::os::windows::fs::junction_point(&target, &**full_path);
                             io_result.map_err(|err| {
                                 match err.kind() {
                                     ErrorKind::NotFound => {
@@ -1409,20 +1400,10 @@ impl FileSystem for DiskFileSystem {
                                 "failed to create symlink at {full_path:?} pointing to {target:?}"
                             );
                             #[cfg(windows)]
-                            let message = if is_directory {
-                                format!(
-                                    "failed to create junction point at {full_path:?} pointing to \
-                                     {target:?}"
-                                )
-                            } else {
-                                format!(
-                                    "failed to create symlink at {full_path:?} pointing to \
-                                     {target:?}\n\
-                                    (Note: creating file symlinks on Windows require developer \
-                                     mode or admin permissions: \
-                                     https://learn.microsoft.com/en-us/windows/advanced-settings/developer-mode)",
-                                )
-                            };
+                            let message = format!(
+                                "failed to create junction point at {full_path:?} pointing to \
+                                 {target:?}"
+                            );
                             message
                         };
                         retry_blocking_custom(try_create_link, can_retry_link)
@@ -1657,7 +1638,7 @@ mod tests {
 
         use super::extract_effects_operation;
         use crate::{
-            DiskFileSystem, FileSystem, FileSystemPath, LinkContent, LinkType,
+            DiskFileSystem, FileSystem, FileSystemPath, LinkContent, LinkTarget,
             canonicalize_to_rcstr,
         };
 
@@ -1667,28 +1648,10 @@ mod tests {
             path: FileSystemPath,
             target: RcStr,
         ) -> anyhow::Result<()> {
-            let write_file = |f| {
-                fs.write_link(
-                    f,
-                    LinkContent::Link {
-                        target: format!("{target}/data.txt").into(),
-                        link_type: LinkType::empty(),
-                    }
-                    .cell(),
-                )
-            };
-            // Write it twice (same content)
-            write_file(path.join("symlink-file")?).await?;
-            write_file(path.join("symlink-file")?).await?;
-
             let write_dir = |f| {
-                fs.write_link(
+                fs.write_link_dir(
                     f,
-                    LinkContent::Link {
-                        target: target.clone(),
-                        link_type: LinkType::DIRECTORY,
-                    }
-                    .cell(),
+                    LinkContent::Link(LinkTarget::Relative(target.clone())).cell(),
                 )
             };
             // Write it twice (same content)
@@ -1737,7 +1700,6 @@ mod tests {
                 )
                 .await?;
 
-                assert_eq!(read_to_string(path.join("symlink-file")).unwrap(), "foo");
                 assert_eq!(
                     read_to_string(path.join("symlink-dir/data.txt")).unwrap(),
                     "foo"
@@ -1754,7 +1716,6 @@ mod tests {
                 )
                 .await?;
 
-                assert_eq!(read_to_string(path.join("symlink-file")).unwrap(), "bar");
                 assert_eq!(
                     read_to_string(path.join("symlink-dir/data.txt")).unwrap(),
                     "bar"
@@ -1767,7 +1728,7 @@ mod tests {
         }
 
         /// A relative symlink's `target` must be the raw link-relative value stored on disk
-        /// (consumers like `realpath_with_links` and `write_link` resolve it against the
+        /// (consumers like `realpath_with_links` and `write_link_dir` resolve it against the
         /// directory *containing* the link). It must not be normalized or made root-relative.
         #[turbo_tasks::function(operation, root)]
         async fn assert_read_relative_symlink_operation(
@@ -1778,20 +1739,14 @@ mod tests {
             let sibling = fs.read_link(root_path.join("sub/link-sibling")?).await?;
             assert_eq!(
                 *sibling,
-                LinkContent::Link {
-                    target: rcstr!("foo.txt"),
-                    link_type: LinkType::empty(),
-                }
+                LinkContent::Link(LinkTarget::Relative(rcstr!("foo.txt")))
             );
 
             // sub/link-parent -> ../root.txt  (resolves to root.txt)
             let parent = fs.read_link(root_path.join("sub/link-parent")?).await?;
             assert_eq!(
                 *parent,
-                LinkContent::Link {
-                    target: rcstr!("../root.txt"),
-                    link_type: LinkType::empty(),
-                }
+                LinkContent::Link(LinkTarget::Relative(rcstr!("../root.txt")))
             );
 
             Ok(())
@@ -1895,10 +1850,7 @@ mod tests {
                 let via_alias = fs.read_link(root_path.join("link-via-alias")?).await?;
                 assert_eq!(
                     *via_alias,
-                    LinkContent::Link {
-                        target: rcstr!("foo.txt"),
-                        link_type: LinkType::ABSOLUTE,
-                    }
+                    LinkContent::Link(LinkTarget::Absolute(rcstr!("foo.txt")))
                 );
 
                 // link-outside -> <scratch>/outside.txt  (outside of the fs root)
@@ -1956,13 +1908,9 @@ mod tests {
                     let target = RcStr::from(format!("../_targets/{target_idx}"));
                     let symlink_path = symlinks_dir.join(&symlink_idx.to_string()).unwrap();
                     async move {
-                        fs.write_link(
+                        fs.write_link_dir(
                             symlink_path,
-                            LinkContent::Link {
-                                target,
-                                link_type: LinkType::DIRECTORY,
-                            }
-                            .cell(),
+                            LinkContent::Link(LinkTarget::Relative(target)).cell(),
                         )
                         .await
                     }

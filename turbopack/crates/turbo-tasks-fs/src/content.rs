@@ -10,7 +10,6 @@ use std::{
 
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
-use bitflags::bitflags;
 use jsonc_parser::{ParseOptions, parse_to_serde_value};
 use mime::Mime;
 use serde_json::Value;
@@ -163,43 +162,36 @@ pub(crate) enum FileComparison {
     NotEqual,
 }
 
-bitflags! {
-  #[derive(
-    Default,
-    TraceRawVcs,
-    NonLocalValue,
-    DeterministicHash,
-    Encode,
-    Decode,
-  )]
-  pub struct LinkType: u8 {
-      const DIRECTORY = 0b00000001;
-      const ABSOLUTE = 0b00000010;
-  }
+#[derive(
+    Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, NonLocalValue, DeterministicHash, Encode, Decode,
+)]
+pub enum LinkTarget {
+    /// A normalized target relative to the filesystem root.
+    Absolute(RcStr),
+    /// The raw link-relative value read from disk.
+    Relative(RcStr),
 }
 
 /// The contents of a symbolic link. On Windows, this may be a junction point.
 ///
 /// When reading, we treat symbolic links and junction points on Windows as equivalent. When
-/// creating a new link, we always create junction points, because symlink creation may fail if
-/// Windows "developer mode" is not enabled and we're running in an unprivileged environment.
+/// creating a new link, we always create directory links (i.e. junction points on Windows), because
+/// symlink creation may fail if Windows "developer mode" is not enabled and we're running in an
+/// unprivileged environment.
 #[turbo_tasks::value(shared)]
 #[derive(Debug, DeterministicHash)]
 pub enum LinkContent {
-    /// A valid symbolic link pointing to `target`, a unix-style path.
+    /// A valid symbolic link target, stored as a unix-style path.
     ///
-    /// If [`LinkType::ABSOLUTE`] is set, `target` is normalized and relative to the *filesystem
-    /// root* (so that absolute system paths never end up in the persistent cache). Otherwise,
-    /// `target` is the raw value read from the link — unnormalized, may contain `..` — and is
-    /// relative to the *directory containing the link*.
+    /// [`LinkTarget::Absolute`] targets are normalized and relative to the *filesystem root* (so
+    /// that absolute system paths never end up in the persistent cache).
+    /// [`LinkTarget::Relative`] targets are raw values read from the link — unnormalized, may
+    /// contain `..` — and are relative to the *directory containing the link*.
     ///
-    /// A relative `target` must stay raw so that [`FileSystem::write_link`] round-trips it
+    /// A relative `target` must stay raw so that [`FileSystem::write_link_dir`] round-trips it
     /// exactly: the value is written verbatim and compared against [`std::fs::read_link`] to
     /// skip unchanged links.
-    Link {
-        target: RcStr,
-        link_type: LinkType,
-    },
+    Link(LinkTarget),
     // Invalid means the link is invalid it points out of the filesystem root
     Invalid,
     // The target was not found

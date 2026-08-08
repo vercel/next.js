@@ -1,7 +1,9 @@
 use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::Vc;
-use turbo_tasks_fs::{FileContent, FileSystemEntryType, FileSystemPath, LinkContent};
+use turbo_tasks_fs::{
+    FileContent, FileSystemEntryType, FileSystemPath, LinkContent, resolve_link_target,
+};
 
 use crate::{
     asset::{Asset, AssetContent},
@@ -66,11 +68,20 @@ impl Asset for FileSource {
         let file_type = &*self.path.get_type().await?;
         match file_type {
             FileSystemEntryType::Symlink => match &*self.path.read_link().await? {
-                LinkContent::Link { target, link_type } => Ok(AssetContent::Redirect {
-                    target: target.clone(),
-                    link_type: *link_type,
+                LinkContent::Link(target) => {
+                    let is_directory = matches!(
+                        *resolve_link_target(&self.path, target)
+                            .await?
+                            .get_type()
+                            .await?,
+                        FileSystemEntryType::Directory
+                    );
+                    Ok(AssetContent::Redirect {
+                        target: target.clone(),
+                        is_directory,
+                    }
+                    .cell())
                 }
-                .cell()),
                 _ => bail!("Invalid symlink"),
             },
             FileSystemEntryType::File => {
