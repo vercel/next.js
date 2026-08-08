@@ -60,6 +60,7 @@ impl CollectorEntryValue {
 
     /// The value bytes, or `None` for variants that carry no value data of their own (blob
     /// references and key tombstones).
+    #[cfg(feature = "verify_sst_content")]
     pub fn as_bytes(&self) -> Option<&[u8]> {
         match self {
             CollectorEntryValue::Tiny { value, len } => Some(&value[..*len as usize]),
