@@ -34,6 +34,7 @@ use crate::{
     magic_identifier::MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM,
     module_fragments::part::module::EcmascriptModulePartAsset,
     references::esm::base::ReferencedAsset,
+    rename::module::EcmascriptModuleRenameModule,
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
     utils::module_id_to_lit,
 };
@@ -246,6 +247,36 @@ pub async fn follow_reexports(
             ty: FoundExportType::NotFound,
         }));
     }
+}
+
+pub async fn apply_reexport_tree_shaking(
+    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    part: ModulePart,
+) -> Result<Vc<Box<dyn Module>>> {
+    if let ModulePart::Export(export) = &part {
+        let FollowExportsResult {
+            module: final_module,
+            export_name: new_export,
+            ..
+        } = &*follow_reexports(module, export.clone(), true).await?;
+        let module = if let Some(new_export) = new_export {
+            if *new_export == *export {
+                Vc::upcast(**final_module)
+            } else {
+                Vc::upcast(EcmascriptModuleRenameModule::new(
+                    **final_module,
+                    ModulePart::renamed_export(new_export.clone(), export.clone()),
+                ))
+            }
+        } else {
+            Vc::upcast(EcmascriptModuleRenameModule::new(
+                **final_module,
+                ModulePart::renamed_namespace(export.clone()),
+            ))
+        };
+        return Ok(module);
+    }
+    Ok(Vc::upcast(module))
 }
 
 async fn handle_declared_export(
