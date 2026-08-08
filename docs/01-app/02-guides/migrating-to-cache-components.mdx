@@ -828,7 +828,46 @@ async function getProducts() {
 }
 ```
 
-> **Good to know:** Reading uncached or runtime data in a `GET` handler bails out of prerendering by **throwing**. A `try/catch` you already have around other operations will catch that bail-out. If the `catch` block logs the error, it adds noise to the build output. Set `experimental.hideLogsAfterAbort: true` to hide logs emitted after a bail-out.
+Reading uncached or runtime data in a `GET` handler interrupts prerendering by **throwing**. A broad `try/catch` around other operations will also catch this framework-controlled exception. If the `catch` block handles application errors, call [`unstable_rethrow`](/docs/app/api-reference/functions/unstable_rethrow) first so Next.js can stop prerendering before your error handling runs:
+
+```ts filename="app/api/products/route.ts" switcher highlight={11}
+import { unstable_rethrow } from 'next/navigation'
+import type { NextRequest } from 'next/server'
+
+export async function GET(request: NextRequest) {
+  try {
+    const id = request.nextUrl.searchParams.get('id')
+    const product = await getProduct(id)
+
+    return Response.json(product)
+  } catch (error) {
+    unstable_rethrow(error)
+
+    console.error(error)
+    return Response.json({ error: 'Failed to load product' }, { status: 500 })
+  }
+}
+```
+
+```js filename="app/api/products/route.js" switcher highlight={10}
+import { unstable_rethrow } from 'next/navigation'
+
+export async function GET(request) {
+  try {
+    const id = request.nextUrl.searchParams.get('id')
+    const product = await getProduct(id)
+
+    return Response.json(product)
+  } catch (error) {
+    unstable_rethrow(error)
+
+    console.error(error)
+    return Response.json({ error: 'Failed to load product' }, { status: 500 })
+  }
+}
+```
+
+`unstable_rethrow` preserves Next.js control flow. The `experimental.hideLogsAfterAbort: true` option only hides logs emitted after a prerender has already been aborted; it does not replace rethrowing framework-controlled exceptions.
 
 ## `generateMetadata` and `generateViewport`
 
