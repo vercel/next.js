@@ -1,4 +1,4 @@
-import { mkdtemp, readFile } from 'fs/promises'
+import { mkdtemp, readFile, rm } from 'fs/promises'
 import { reporter } from '.'
 import { setGlobal } from '../shared'
 import { join } from 'path'
@@ -20,13 +20,22 @@ const WEBPACK_INVALIDATED_EVENT = {
 }
 
 describe('Trace Reporter', () => {
+  const tmpDirs: string[] = []
+
+  afterAll(async () => {
+    await Promise.all(
+      tmpDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true }))
+    )
+  })
+
   describe('JSON reporter', () => {
     it('should write the trace events to JSON file', async () => {
       const tmpDir = await mkdtemp(join(tmpdir(), 'json-reporter'))
+      tmpDirs.push(tmpDir)
       setGlobal('distDir', tmpDir)
       setGlobal('phase', 'anything')
       reporter.report(TRACE_EVENT)
-      await reporter.flushAll()
+      reporter.flushAll()
       const traceFilename = join(tmpDir, 'trace')
       const traces = JSON.parse(await readFile(traceFilename, 'utf-8'))
       expect(traces.length).toEqual(1)
