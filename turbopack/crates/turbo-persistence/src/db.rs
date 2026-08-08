@@ -20,7 +20,6 @@ use jiff::Timestamp;
 use memmap2::Mmap;
 use nohash_hasher::BuildNoHashHasher;
 use parking_lot::{Mutex, RwLock};
-use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tracing::span::EnteredSpan;
@@ -1525,34 +1524,37 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         .parallel_scheduler
                         .parallel_map_collect_owned::<_, _, Result<Vec<_>>>(merge_jobs, |indices| {
                             let _span = span.clone().entered();
-                            // Filters of every SST this job does not merge.
+                            // Filters of every SST older than this job.
                             //
-                            // Membership must be tested by index, not by a sequence number
-                            // threshold: `get_merge_segments` picks members by hash-range overlap
-                            // and skips already-claimed candidates, so a job's indices can have
-                            // gaps. A threshold would treat a skipped SST as part of the job and
-                            // miss it here. Sequence numbers are no help either — a moved SST
-                            // keeps its original number while merged output takes a fresh one, and
-                            // readers walk meta files and entries by position, not by `seq`.
-                            let in_job = indices.iter().copied().collect::<FxHashSet<_>>();
-                            let outside_filters = ssts_with_ranges
+                            // A tombstone only suppresses values older than itself, and within the
+                            // job `MergeIter` yields newest-first so the loop below already drops
+                            // those. What remains is everything older than the job's oldest member.
+                            //
+                            // This must be an index, not a sequence number. `ssts_with_ranges` is
+                            // built by walking meta files and their entries in order, which is the
+                            // order readers traverse in reverse, so a higher index is newer. `seq`
+                            // does not track that: a moved SST keeps its original number while
+                            // merged output takes a fresh one, so a real compaction produces
+                            // index-ordered sequences like [19, 20, 18, 17].
+                            //
+                            // Indices below the job's oldest member stay older than its output:
+                            // `get_merge_segments` returns segments in ascending index order and
+                            // they are re-added to the new meta file in that order, so relative
+                            // order is preserved. SSTs the job skips over sit above its oldest
+                            // member, and so cannot resurrect a value it deletes.
+                            let oldest_index_in_job = indices.iter().copied().min().unwrap_or(0);
+                            let older_filters = ssts_with_ranges[..oldest_index_in_job]
                                 .iter()
-                                .enumerate()
-                                .filter(|(i, _)| !in_job.contains(i))
-                                .map(|(_, sst)| {
+                                .map(|sst| {
                                     let entry = meta_files[sst.meta_index].entry(sst.index_in_meta);
                                     (entry.min_hash(), entry.max_hash(), entry.amqf())
                                 })
                                 .collect::<Vec<_>>();
-                            // A tombstone is dead once no SST outside this job could still hold a
-                            // matching key: within the job, `MergeIter` yields newest-first and the
-                            // loop below already drops the older values the tombstone shadows.
-                            //
                             // The AMQF's error is one-sided — `false` means *definitely absent* —
                             // so a false positive only retains a tombstone for another round, and
                             // the resurrection direction is unreachable.
                             let tombstone_is_dead = |hash: u64| {
-                                !outside_filters.iter().any(|(min, max, amqf)| {
+                                !older_filters.iter().any(|(min, max, amqf)| {
                                     hash >= *min && hash <= *max && amqf.contains_fingerprint(hash)
                                 })
                             };

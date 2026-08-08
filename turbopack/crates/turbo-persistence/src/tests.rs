@@ -2692,6 +2692,18 @@ fn compaction_keeps_tombstone_when_skipped_sst_has_the_key() -> Result<()> {
     }
     db.commit_write_batch(batch)?;
 
+    // More layers *after* the tombstone, so it sits in the middle of the stack rather than at the
+    // newest end. A job containing the tombstone's SST can then skip over older SSTs that still
+    // hold value 1 — those are only caught by probing every older SST the job does not merge, not
+    // just the ones below the job's oldest member.
+    for round in 7..12u32 {
+        let batch = db.write_batch()?;
+        for i in 0..KEYS {
+            batch.put(0, key_for(round, i), 9u32.to_be_bytes().to_vec().into())?;
+        }
+        db.commit_write_batch(batch)?;
+    }
+
     for round in 0..6 {
         db.compact(&CompactConfig {
             min_merge_count: 2,
