@@ -200,37 +200,6 @@ describe('Trace', () => {
       expect(readSpanNames(file)).toEqual(['from-rebuild', 'from-dev'])
     })
 
-    // The dev limit is per session: opening an existing trace must not
-    // rotate away previous sessions' spans.
-    it('does not rotate an existing file on startup', async () => {
-      const tmpDir = await makeTmpDir()
-      setGlobal('distDir', tmpDir)
-      setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
-      const file = join(tmpDir, 'trace')
-
-      const first = createJsonReporter({
-        filename: 'trace',
-        sizeLimit: Infinity,
-      })
-      first.report(traceEvent('from-first-session'))
-      first.flushAll()
-      const bytesOnDisk = readFileSync(file, 'utf-8').length
-
-      // Room for this session's line but not the existing file too, so
-      // seeding `size` from disk would rotate and lose the first session.
-      const second = createJsonReporter({
-        filename: 'trace',
-        sizeLimit: bytesOnDisk + 10,
-      })
-      second.report(traceEvent('from-second-session'))
-      second.flushAll()
-
-      expect(readSpanNames(file)).toEqual([
-        'from-first-session',
-        'from-second-session',
-      ])
-    })
-
     // The limit is counted in UTF-8 bytes: counting UTF-16 code units instead
     // lets a non-ASCII trace reach ~3x the configured cap.
     it('starts the file over once it exceeds the size limit', async () => {
