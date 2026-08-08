@@ -1,7 +1,7 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 963:
+/***/ 910:
 /***/ ((__unused_webpack_module, exports) => {
 
 /* -*- Mode: js; js-indent-level: 2; -*- */
@@ -103,12 +103,12 @@ class ArraySet {
     return this._array.slice();
   }
 }
-exports.I = ArraySet;
+exports.C = ArraySet;
 
 
 /***/ }),
 
-/***/ 344:
+/***/ 503:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 /* -*- Mode: js; js-indent-level: 2; -*- */
@@ -148,7 +148,7 @@ exports.I = ArraySet;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-const base64 = __nccwpck_require__(209);
+const base64 = __nccwpck_require__(235);
 
 // A single base 64 digit can contain 6 bits of data. For the base 64 variable
 // length quantities we use in the source map spec, the first bit is the sign,
@@ -226,7 +226,7 @@ exports.encode = function base64VLQ_encode(aValue) {
 
 /***/ }),
 
-/***/ 209:
+/***/ 235:
 /***/ ((__unused_webpack_module, exports) => {
 
 /* -*- Mode: js; js-indent-level: 2; -*- */
@@ -251,7 +251,7 @@ exports.encode = function(number) {
 
 /***/ }),
 
-/***/ 700:
+/***/ 830:
 /***/ ((__unused_webpack_module, exports) => {
 
 /* -*- Mode: js; js-indent-level: 2; -*- */
@@ -365,7 +365,7 @@ exports.search = function search(aNeedle, aHaystack, aCompare, aBias) {
 
 /***/ }),
 
-/***/ 371:
+/***/ 653:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 /* -*- Mode: js; js-indent-level: 2; -*- */
@@ -375,7 +375,7 @@ exports.search = function search(aNeedle, aHaystack, aCompare, aBias) {
  * http://opensource.org/licenses/BSD-3-Clause
  */
 
-const util = __nccwpck_require__(354);
+const util = __nccwpck_require__(4);
 
 /**
  * Determine whether mappingB is after mappingA with respect to generated
@@ -447,12 +447,12 @@ class MappingList {
   }
 }
 
-exports.H = MappingList;
+exports.P = MappingList;
 
 
 /***/ }),
 
-/***/ 799:
+/***/ 417:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
@@ -461,8 +461,8 @@ exports.H = MappingList;
 // Note: This file is replaced with "read-wasm-browser.js" when this module is
 // bundled with a packager that takes package.json#browser fields into account.
 
-const fs = __nccwpck_require__(147);
-const path = __nccwpck_require__(17);
+const fs = __nccwpck_require__(896);
+const path = __nccwpck_require__(928);
 
 module.exports = function readWasm() {
   return new Promise((resolve, reject) => {
@@ -485,7 +485,7 @@ module.exports.initialize = _ => {
 
 /***/ }),
 
-/***/ 886:
+/***/ 283:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 var __webpack_unused_export__;
@@ -496,12 +496,12 @@ var __webpack_unused_export__;
  * http://opensource.org/licenses/BSD-3-Clause
  */
 
-const util = __nccwpck_require__(354);
-const binarySearch = __nccwpck_require__(700);
-const ArraySet = (__nccwpck_require__(963)/* .ArraySet */ .I);
-const base64VLQ = __nccwpck_require__(344); // eslint-disable-line no-unused-vars
-const readWasm = __nccwpck_require__(799);
-const wasm = __nccwpck_require__(776);
+const util = __nccwpck_require__(4);
+const binarySearch = __nccwpck_require__(830);
+const ArraySet = (__nccwpck_require__(910)/* .ArraySet */ .C);
+const base64VLQ = __nccwpck_require__(503); // eslint-disable-line no-unused-vars
+const readWasm = __nccwpck_require__(417);
+const wasm = __nccwpck_require__(432);
 
 const INTERNAL = Symbol("smcInternal");
 
@@ -1509,7 +1509,7 @@ function _factoryBSM(aSourceMap, aSourceMapURL) {
 
 /***/ }),
 
-/***/ 87:
+/***/ 974:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 /* -*- Mode: js; js-indent-level: 2; -*- */
@@ -1519,10 +1519,10 @@ function _factoryBSM(aSourceMap, aSourceMapURL) {
  * http://opensource.org/licenses/BSD-3-Clause
  */
 
-const base64VLQ = __nccwpck_require__(344);
-const util = __nccwpck_require__(354);
-const ArraySet = (__nccwpck_require__(963)/* .ArraySet */ .I);
-const MappingList = (__nccwpck_require__(371)/* .MappingList */ .H);
+const base64VLQ = __nccwpck_require__(503);
+const util = __nccwpck_require__(4);
+const ArraySet = (__nccwpck_require__(910)/* .ArraySet */ .C);
+const MappingList = (__nccwpck_require__(653)/* .MappingList */ .P);
 
 /**
  * An instance of the SourceMapGenerator represents a source map which is
@@ -1929,7 +1929,7 @@ exports.SourceMapGenerator = SourceMapGenerator;
 
 /***/ }),
 
-/***/ 589:
+/***/ 714:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 /* -*- Mode: js; js-indent-level: 2; -*- */
@@ -1939,8 +1939,8 @@ exports.SourceMapGenerator = SourceMapGenerator;
  * http://opensource.org/licenses/BSD-3-Clause
  */
 
-const SourceMapGenerator = (__nccwpck_require__(87).SourceMapGenerator);
-const util = __nccwpck_require__(354);
+const SourceMapGenerator = (__nccwpck_require__(974).SourceMapGenerator);
+const util = __nccwpck_require__(4);
 
 // Matches a Windows-style `\r\n` newline or a `\n` newline used by all other
 // operating systems these days (capturing the result).
@@ -2340,7 +2340,7 @@ exports.SourceNode = SourceNode;
 
 /***/ }),
 
-/***/ 869:
+/***/ 555:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
@@ -2356,12 +2356,12 @@ exports.SourceNode = SourceNode;
 // substitute lib/url-browser.js instead.
 
 // Use the URL global for Node 10, and the 'url' module for Node 8.
-module.exports = typeof URL === "function" ? URL : (__nccwpck_require__(310).URL);
+module.exports = typeof URL === "function" ? URL : (__nccwpck_require__(16).URL);
 
 
 /***/ }),
 
-/***/ 354:
+/***/ 4:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 /* -*- Mode: js; js-indent-level: 2; -*- */
@@ -2371,7 +2371,7 @@ module.exports = typeof URL === "function" ? URL : (__nccwpck_require__(310).URL
  * http://opensource.org/licenses/BSD-3-Clause
  */
 
-const URL = __nccwpck_require__(869);
+const URL = __nccwpck_require__(555);
 
 /**
  * This is a helper function for getting values from parameter/options
@@ -2806,10 +2806,10 @@ exports.computeSourceURL = computeSourceURL;
 
 /***/ }),
 
-/***/ 776:
+/***/ 432:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-const readWasm = __nccwpck_require__(799);
+const readWasm = __nccwpck_require__(417);
 
 /**
  * Provide the JIT with a nice shape / hidden class.
@@ -2920,7 +2920,7 @@ module.exports = function wasm() {
 
 /***/ }),
 
-/***/ 147:
+/***/ 896:
 /***/ ((module) => {
 
 "use strict";
@@ -2928,7 +2928,7 @@ module.exports = require("fs");
 
 /***/ }),
 
-/***/ 17:
+/***/ 928:
 /***/ ((module) => {
 
 "use strict";
@@ -2936,7 +2936,7 @@ module.exports = require("path");
 
 /***/ }),
 
-/***/ 310:
+/***/ 16:
 /***/ ((module) => {
 
 "use strict";
@@ -2983,7 +2983,7 @@ module.exports = require("url");
 /******/ 	
 /************************************************************************/
 var __webpack_exports__ = {};
-// This entry need to be wrapped in an IIFE because it need to be isolated against other modules in the chunk.
+// This entry need to be wrapped in an IIFE because it uses a non-standard name for the exports (exports).
 (() => {
 var exports = __webpack_exports__;
 /*
@@ -2991,9 +2991,9 @@ var exports = __webpack_exports__;
  * Licensed under the New BSD license. See LICENSE.txt or:
  * http://opensource.org/licenses/BSD-3-Clause
  */
-exports.SourceMapGenerator = __nccwpck_require__(87).SourceMapGenerator;
-exports.SourceMapConsumer = __nccwpck_require__(886).SourceMapConsumer;
-exports.SourceNode = __nccwpck_require__(589).SourceNode;
+exports.SourceMapGenerator = __nccwpck_require__(974).SourceMapGenerator;
+exports.SourceMapConsumer = __nccwpck_require__(283).SourceMapConsumer;
+exports.SourceNode = __nccwpck_require__(714).SourceNode;
 
 })();
 

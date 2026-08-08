@@ -5,6 +5,7 @@ import {
   isPositionInsideNode,
   getTs,
   removeStringQuotes,
+  getTypeChecker,
 } from '../utils'
 import { NEXT_TS_ERRORS, ALLOWED_EXPORTS } from '../constant'
 import type tsModule from 'typescript/lib/tsserverlibrary'
@@ -60,12 +61,12 @@ const API_DOCS: Record<
   },
   preferredRegion: {
     description:
-      'Specify the perferred region that this layout or page should be deployed to. If the region option is not specified, it inherits the option from the nearest parent layout. The root defaults to `"auto"`.\n\nYou can also specify a region, such as "iad1", or an array of regions, such as `["iad1", "sfo1"]`.',
+      '@deprecated\\n\\nThe `preferredRegion` route segment config is deprecated. Remove this export.',
     options: {
       '"auto"':
-        'Next.js will first deploy to the `"home"` region. Then if it doesn\'t detect any waterfall requests after a few requests, it can upgrade that route, to be deployed globally. If it detects any waterfall requests after that, it can eventually downgrade back to `"home`".',
-      '"global"': 'Prefer deploying globally.',
-      '"home"': 'Prefer deploying to the Home region.',
+        '@deprecated\\n\\nNext.js will first deploy to the `"home"` region. Then if it doesn\'t detect any waterfall requests after a few requests, it can upgrade that route, to be deployed globally. If it detects any waterfall requests after that, it can eventually downgrade back to `"home`".',
+      '"global"': '@deprecated\\n\\nPrefer deploying globally.',
+      '"home"': '@deprecated\\n\\nPrefer deploying to the Home region.',
     },
     link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#preferredregion',
     isValid: (value: string) => {
@@ -123,7 +124,7 @@ const API_DOCS: Record<
       'The `runtime` option controls the preferred runtime to render this route.',
     options: {
       '"nodejs"': 'Prefer the Node.js runtime.',
-      '"edge"': 'Prefer the Edge runtime.',
+      '"edge"': `@deprecated\n\nThe Edge Runtime is deprecated. Use \`"nodejs"\` instead.`,
       '"experimental-edge"': `@deprecated\n\nThis option is no longer experimental. Use \`edge\` instead.`,
     } satisfies DocsOptionsObject<
       FullAppSegmentConfig['runtime'] | 'experimental-edge'
@@ -145,15 +146,43 @@ const API_DOCS: Record<
       '`maxDuration` allows you to set max default execution time for your function. If it is not specified, the default value is dependent on your deployment platform and plan.',
     link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#maxduration',
   },
-  unstable_prefetch: {
-    description: `Specifies the default prefetching behavior for this segment. This configuration is currently under development and will change.`,
-    link: '(docs coming soon)',
-    type: 'object',
+  instant: {
+    description: `Enables instant navigation validation for this segment.`,
+    link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant',
+    type: 'true | object | false',
     // TODO: ideally, we'd validate the config object somehow, but this is difficult to do
     // with the way this plugin is currently structured.
     // For now, since we don't provide an `options` here, we won't do any validation in
     // `getSemanticDiagnosticsForExportVariableStatement` below, and only provide hover a tooltip + autocomplete.
-    insertText: 'unstable_prefetch = { mode: "static" };',
+    insertText: 'instant = true;',
+  },
+  prefetch: {
+    description: `Controls prefetching behavior for this segment. Some options are experimental and may change.`,
+    link: '(docs coming soon)',
+    type: `"auto" | "partial" | "unstable_eager" | "force-disabled"`,
+    options: {
+      auto: 'Default. Framework decides based on instant validation and segment configuration. You do not need to set this explicitly.',
+      partial:
+        'Enables Partial Prefetching for this segment. When a static prefetch is insufficient, Next.js may prefetch the segment with a runtime server request so it can access session data, such as cookies.',
+      unstable_eager:
+        'Like "partial", but adds an implied prop of prefetch={true} to ' +
+        'every Link. This option only exists to aid migration of apps that ' +
+        'adopted Partial Prefetching in canary before the behavior changed to ' +
+        'only fetch the shell by default.',
+      'force-disabled': 'Never prefetch this segment.',
+    },
+    insertText: `prefetch = 'partial';`,
+  },
+  unstable_dynamicStaleTime: {
+    description: `Controls how long the client-side router cache retains dynamic page data (in seconds). Pages only — not allowed in layouts. Cannot be combined with \`instant\`.`,
+    link: '(docs coming soon)',
+    type: 'number',
+    isValid: (value: string) => {
+      return Number(value.replace(/_/g, '')) >= 0
+    },
+    getHint: (value: any) => {
+      return `Set the dynamic stale time to \`${value}\` seconds.`
+    },
   },
 }
 
@@ -291,7 +320,11 @@ const config = {
   },
 
   // Show docs when hovering on the exported configs.
-  getQuickInfoAtPosition(fileName: string, position: number) {
+  getQuickInfoAtPosition(
+    fileName: string,
+    position: number,
+    prior?: tsModule.QuickInfo
+  ) {
     const ts = getTs()
 
     let overridden: tsModule.QuickInfo | undefined
@@ -308,9 +341,49 @@ const config = {
           API_DOCS[entryConfig].link,
       }
 
-      if (value && isPositionInsideNode(position, value)) {
-        // Hovers the value of the config
-        const isString = ts.isStringLiteral(value)
+      // When the value is a flexible type (like a function), also compute its
+      // inferred type so we can surface it alongside the docs. This is useful
+      // even when the value is considered invalid by the config validation,
+      // as long as it's not a direct literal export.
+      let displayParts: tsModule.SymbolDisplayPart[] = []
+      const typeChecker = getTypeChecker()
+      const isString = !!value && ts.isStringLiteral(value)
+      const isFunctionValue =
+        !!value &&
+        !isString &&
+        (ts.isArrowFunction(value) ||
+          ts.isFunctionExpression(value) ||
+          ts.isFunctionDeclaration(value))
+
+      if (typeChecker && value && isFunctionValue) {
+        try {
+          // If we're hovering the config identifier, ask for the type at the
+          // identifier; otherwise, ask at the value node. This makes sure
+          // highlighting `generateMetadata` itself also shows the inferred type.
+          const typeTarget = isPositionInsideNode(position, name) ? name : value
+          const type = typeChecker.getTypeAtLocation(typeTarget)
+          if (type) {
+            const typeString = typeChecker.typeToString(type, typeTarget)
+            if (typeString) {
+              displayParts = [
+                {
+                  text: typeString,
+                  kind: 'typeName',
+                },
+              ]
+            }
+          }
+        } catch {
+          // If type checking fails, continue without type info.
+        }
+      }
+
+      // For non-function values (like literals), hovering the value should show
+      // option-specific docs. For function-valued configs (e.g. `generateMetadata`),
+      // we let TypeScript handle hover anywhere in the initializer except for the
+      // export identifier itself.
+      if (value && !isFunctionValue && isPositionInsideNode(position, value)) {
+        // Hovering the value of the config
         const text = removeStringQuotes(value.getText())
         const key = isString ? `"${text}"` : text
 
@@ -319,27 +392,33 @@ const config = {
           : !!API_DOCS[entryConfig].options?.[key]
 
         if (isValid) {
-          overridden = {
-            kind: ts.ScriptElementKind.enumElement,
-            kindModifiers: ts.ScriptElementKindModifier.none,
-            textSpan: {
-              start: value.getStart(),
-              length: value.getWidth(),
+          const documentation: tsModule.SymbolDisplayPart[] = [
+            ...(prior?.documentation || []),
+            {
+              kind: 'text',
+              text:
+                API_DOCS[entryConfig].options?.[key] ||
+                API_DOCS[entryConfig].getHint?.(key) ||
+                '',
             },
-            displayParts: [],
-            documentation: [
-              {
-                kind: 'text',
-                text:
-                  API_DOCS[entryConfig].options?.[key] ||
-                  API_DOCS[entryConfig].getHint?.(key) ||
-                  '',
-              },
-              docsLink,
-            ],
-          }
+            docsLink,
+          ]
+
+          overridden = prior
+            ? { ...prior, documentation }
+            : {
+                kind: ts.ScriptElementKind.enumElement,
+                kindModifiers: ts.ScriptElementKindModifier.none,
+                textSpan: {
+                  start: value.getStart(),
+                  length: value.getWidth(),
+                },
+                displayParts: [],
+                documentation,
+              }
         } else {
-          // Wrong value, display the docs link
+          // Wrong value: still show the docs link, and when available, the
+          // inferred type for non-literal (i.e. non-direct) exports.
           overridden = {
             kind: ts.ScriptElementKind.enumElement,
             kindModifiers: ts.ScriptElementKindModifier.none,
@@ -347,28 +426,45 @@ const config = {
               start: value.getStart(),
               length: value.getWidth(),
             },
-            displayParts: [],
+            displayParts,
             documentation: [docsLink],
           }
         }
       } else {
-        // Hovers the name of the config
-        overridden = {
-          kind: ts.ScriptElementKind.enumElement,
-          kindModifiers: ts.ScriptElementKindModifier.none,
-          textSpan: {
-            start: name.getStart(),
-            length: name.getWidth(),
-          },
-          displayParts: [],
-          documentation: [
-            {
-              kind: 'text',
-              text: getAPIDescription(entryConfig),
-            },
-            docsLink,
-          ],
+        // For function-valued configs, if we're hovering anywhere within the
+        // initializer (including `async`, parameters, or the body) but not on
+        // the export identifier itself, don't override TypeScript's default
+        // hover. We only want to override when hovering the config identifier
+        // (e.g. `generateMetadata`), not arbitrary tokens within the function.
+        if (
+          isFunctionValue &&
+          isPositionInsideNode(position, value) && // hover is somewhere within the function initializer
+          !isPositionInsideNode(position, name) // ...but not on the export identifier itself
+        ) {
+          return
         }
+        // Hovers the name of the config
+        const documentation: tsModule.SymbolDisplayPart[] = [
+          ...(prior?.documentation || []),
+          {
+            kind: 'text',
+            text: getAPIDescription(entryConfig),
+          },
+          docsLink,
+        ]
+
+        overridden = prior
+          ? { ...prior, documentation }
+          : {
+              kind: ts.ScriptElementKind.enumElement,
+              kindModifiers: ts.ScriptElementKindModifier.none,
+              textSpan: {
+                start: name.getStart(),
+                length: name.getWidth(),
+              },
+              displayParts,
+              documentation,
+            }
       }
     })
     return overridden

@@ -5,6 +5,10 @@ const ignoredLines = [
   'Generating static pages',
   'Inlining static env',
   'Finalizing page optimization',
+  // The config evaluation timing line (e.g. "✓ Running next.config.js took
+  // 15ms") is non-deterministic boot/build noise that is irrelevant to these
+  // runtime-error snapshots.
+  'Running next.config',
 ]
 
 /**
@@ -21,22 +25,28 @@ export function convertModuleFunctionSequenceExpression(
   return output.replace(/\(0 , \w+\.(\w+)\)\(\.\.\.\)/, '<module-function>()')
 }
 
-export function getPrerenderOutput(
+export function getDeterministicOutput(
   cliOutput: string,
-  { isMinified }: { isMinified: boolean }
+  {
+    isMinified,
+    startingLineMatch,
+  }: { isMinified: boolean; startingLineMatch?: string }
 ): string {
   const lines: string[] = []
-  let foundPrerenderingLine = false
+
+  // If no starting line match is provided, we start from the beginning.
+  let foundStartingLine = !startingLineMatch
   let a = 0
   let n = 0
 
-  const replaceNextDistStackFrame = () =>
-    `at ${abc[a++ % abc.length]} (<next-dist-dir>)`
+  const replaceNextDistStackFrame = (_m: string, name: string) =>
+    `at ${isMinified ? abc[a++ % abc.length] : name} (<next-dist-dir>)`
 
   const isLikelyLibraryInternalStackFrame = (line: string) => {
     return line.startsWith('    at InnerLayoutRouter (')
   }
-  const replaceAnonymousStackFrame = (_m, name) => {
+
+  const replaceAnonymousStackFrame = (_m: string, name: string) => {
     const deterministicName = hostElementsUsedInFixtures.includes(name)
       ? name
       : abc[a++ % abc.length]
@@ -73,8 +83,8 @@ export function getPrerenderOutput(
         isErrorWithStackTraceStartingInLibraryInternals = false
       }
     }
-    if (line.includes('Collecting page data')) {
-      foundPrerenderingLine = true
+    if (startingLineMatch && line.includes(startingLineMatch)) {
+      foundStartingLine = true
       continue
     }
 
@@ -87,7 +97,7 @@ export function getPrerenderOutput(
     }
 
     if (
-      foundPrerenderingLine &&
+      foundStartingLine &&
       !ignoredLines.some((ignoredLine) => line.includes(ignoredLine))
     ) {
       if (isMinified) {
@@ -103,18 +113,28 @@ export function getPrerenderOutput(
       }
 
       line = line
-        .replace(/at .+? \(.next[^)]+\)/, replaceNextDistStackFrame)
+        .replace(/at (.+?) \(.next[^)]+\)/, replaceNextDistStackFrame)
         .replace(
           // Single-letter lower-case names are likely minified.
           /at [a-z] \((?!(<next-dist-dir>|<anonymous>))/,
           replaceMinifiedName
         )
         .replace(/at \d+ \(/, replaceNumericModuleId)
-        .replace(/digest: '\d+'/, "digest: '<error-digest>'")
+        .replace(/digest: '\d+(@E\d+)?'/, "digest: '<error-digest>'")
 
       lines.push(convertModuleFunctionSequenceExpression(line))
     }
   }
 
   return lines.join('\n').trim()
+}
+
+export function getPrerenderOutput(
+  cliOutput: string,
+  { isMinified }: { isMinified: boolean }
+): string {
+  return getDeterministicOutput(cliOutput, {
+    isMinified,
+    startingLineMatch: 'Collecting page data',
+  })
 }

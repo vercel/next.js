@@ -1,6 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
-
-const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
+import { isReact18, nextTestSetup } from 'e2e-utils'
 
 describe('custom server', () => {
   const { next } = nextTestSetup({
@@ -117,6 +115,6 @@ function createCacheSetLogRegExp(id: string) {
   // Expect a requestId, that's provided through ALS, to be present in the log
   // message for the cache handler set call.
   return new RegExp(
-    `set cache \\["[A-Za-z0-9_-]{21}","(?:[0-9a-f]{2})+",\\[{"id":"${id}"},"\\$undefined"\\]\\] requestId: \\d+`
+    `set cache \\["[A-Za-z0-9_-]+","(?:[0-9a-f]{2})+",\\[{"id":"${id}"}]\\] requestId: \\d+`
   )
 }

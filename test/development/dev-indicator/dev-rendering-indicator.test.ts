@@ -12,10 +12,10 @@ const installCheckVisible = (browser) => {
       const status = badge ? badge.getAttribute('data-status') : null
 
       // Check if we're showing any status (rendering, compiling, etc.)
-      window.showedBuilder = window.showedBuilder || (
+      window.showedIndicator = window.showedIndicator || (
         statusElement !== null || (status && status !== 'none')
       )
-      if (window.showedBuilder) clearInterval(window.checkInterval)
+      if (window.showedIndicator) clearInterval(window.checkInterval)
     }, 5)
   })()`)
 }
@@ -25,7 +25,7 @@ describe('Dev Rendering Indicator', () => {
     files: __dirname,
   })
 
-  it('Shows build indicator when page is built from modifying', async () => {
+  it('Shows rendering indicator when navigating between pages', async () => {
     // Ensure both pages are built first so that we don't confuse it with build indicator
     await Promise.all([
       next.fetch('/app/rendering/a'),
@@ -33,14 +33,16 @@ describe('Dev Rendering Indicator', () => {
     ])
     const browser = await next.browser('/app/rendering/a')
     await installCheckVisible(browser)
-    await browser.eval('window.showedBuilder = false')
+    await browser.eval('window.showedIndicator = false')
 
     await browser.elementByCss('[href="/app/rendering/b"]').click()
     await retry(async () => {
       await browser.elementByCss('[href="/app/rendering/a"]')
     })
 
-    const showedRenderingIndicator = await browser.eval('window.showedBuilder')
+    const showedRenderingIndicator = await browser.eval(
+      'window.showedIndicator'
+    )
     expect({ showedRenderingIndicator }).toEqual({
       showedRenderingIndicator: true,
     })

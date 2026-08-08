@@ -9,6 +9,7 @@ type StaticPrerenderedRoute = {
   readonly fallbackRouteParams: undefined
   readonly fallbackMode: FallbackMode | undefined
   readonly fallbackRootParams: undefined
+  remainingPrerenderableParams?: undefined
 
   /**
    * When enabled, the route will be rendered with diagnostics enabled which
@@ -27,12 +28,6 @@ export type FallbackRouteParam = {
    * The type of the param.
    */
   readonly paramType: DynamicParamTypes
-
-  /**
-   * Whether this is a parallel route param or descends from a parallel route
-   * param.
-   */
-  readonly isParallelRouteParam: boolean
 }
 
 type FallbackPrerenderedRoute = {
@@ -41,12 +36,14 @@ type FallbackPrerenderedRoute = {
   readonly encodedPathname: string
 
   /**
-   * The fallback route params for the route. This includes both the parallel
-   * route params and the non-parallel route params.
+   * The fallback route params for the route. This includes all route parameters
+   * that are unknown at build time, from both the main children route and any
+   * parallel routes.
    */
   readonly fallbackRouteParams: readonly FallbackRouteParam[]
   readonly fallbackMode: FallbackMode | undefined
   readonly fallbackRootParams: readonly string[]
+  remainingPrerenderableParams?: readonly FallbackRouteParam[]
 
   /**
    * When enabled, the route will be rendered with diagnostics enabled which

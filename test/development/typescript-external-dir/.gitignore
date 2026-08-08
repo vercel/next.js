@@ -1,0 +1,7 @@
+# Re-allow tsconfig.json fixtures excluded by the broader
+# `development/**/tsconfig.json` rule in `test/.gitignore`. These two
+# files contain non-default settings (e.g. `paths`) that the test
+# relies on; without them, Next.js auto-generates a minimal
+# `tsconfig.json` on CI and the test fails.
+!project/tsconfig.json
+!shared/tsconfig.json

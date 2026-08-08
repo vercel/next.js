@@ -2,35 +2,40 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 
-use std::thread::available_parallelism;
-
-use anyhow::{Result, bail};
+use anyhow::Result;
 use rustc_hash::FxHashMap;
-use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, Vc};
-use turbo_tasks_env::ProcessEnv;
-use turbo_tasks_fs::{File, FileSystemPath, to_sys_path};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    changed::content_changed,
-    chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets},
-    module::Module,
-    module_graph::{ModuleGraph, chunk_group_info::ChunkGroupEntry},
     output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
     source_map::GenerateSourceMap,
     virtual_output::VirtualOutputAsset,
 };
 
-use self::pool::NodeJsPool;
-
+mod backend;
 pub mod debug;
 pub mod embed_js;
 pub mod evaluate;
 pub mod execution_context;
-mod heap_queue;
-mod pool;
+mod format;
+mod pool_stats;
+#[cfg(feature = "process_pool")]
+pub mod process_pool;
 pub mod source_map;
 pub mod transforms;
+#[cfg(feature = "worker_pool")]
+pub mod worker_pool;
+
+pub use backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend};
+#[cfg(feature = "process_pool")]
+pub fn child_process_backend() -> Vc<Box<dyn NodeBackend>> {
+    Vc::upcast(process_pool::ChildProcessesBackend.cell())
+}
+#[cfg(feature = "worker_pool")]
+pub fn worker_threads_backend() -> Vc<Box<dyn NodeBackend>> {
+    Vc::upcast(worker_pool::WorkerThreadsBackend.cell())
+}
 
 #[turbo_tasks::function]
 async fn emit(
@@ -41,7 +46,7 @@ async fn emit(
         let _ = asset
             .content()
             .write(asset.path().owned().await?)
-            .resolve()
+            .to_resolved()
             .await?;
     }
     Ok(())
@@ -107,98 +112,8 @@ fn emit_package_json(dir: FileSystemPath) -> Result<Vc<()>> {
     Ok(emit(
         Vc::upcast(VirtualOutputAsset::new(
             dir.join("package.json")?,
-            AssetContent::file(File::from("{\"type\": \"commonjs\"}").into()),
+            AssetContent::file(FileContent::Content(File::from("{\"type\": \"commonjs\"}")).cell()),
         )),
         dir,
     ))
-}
-
-/// Creates a node.js renderer pool for an entrypoint.
-#[turbo_tasks::function(operation)]
-pub async fn get_renderer_pool_operation(
-    cwd: FileSystemPath,
-    env: ResolvedVc<Box<dyn ProcessEnv>>,
-    intermediate_asset: ResolvedVc<Box<dyn OutputAsset>>,
-    intermediate_output_path: FileSystemPath,
-    output_root: FileSystemPath,
-    project_dir: FileSystemPath,
-    debug: bool,
-) -> Result<Vc<NodeJsPool>> {
-    emit_package_json(intermediate_output_path.clone())?.await?;
-
-    emit(*intermediate_asset, output_root.clone())
-        .as_side_effect()
-        .await?;
-    let assets_for_source_mapping =
-        internal_assets_for_source_mapping(*intermediate_asset, output_root.clone());
-
-    let entrypoint = intermediate_asset.path().owned().await?;
-
-    let Some(cwd) = to_sys_path(cwd.clone()).await? else {
-        bail!(
-            "can only render from a disk filesystem, but `cwd = {}`",
-            cwd.value_to_string().await?
-        );
-    };
-    let Some(entrypoint) = to_sys_path(entrypoint.clone()).await? else {
-        bail!(
-            "can only render from a disk filesystem, but `entrypoint = {}`",
-            entrypoint.value_to_string().await?
-        );
-    };
-    // Invalidate pool when code content changes
-    content_changed(*ResolvedVc::upcast(intermediate_asset)).await?;
-
-    Ok(NodeJsPool::new(
-        cwd,
-        entrypoint,
-        env.read_all()
-            .await?
-            .iter()
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect(),
-        assets_for_source_mapping.to_resolved().await?,
-        output_root,
-        project_dir,
-        available_parallelism().map_or(1, |v| v.get()),
-        debug,
-    )
-    .cell())
-}
-
-/// Converts a module graph into node.js executable assets
-#[turbo_tasks::function]
-pub async fn get_intermediate_asset(
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    main_entry: ResolvedVc<Box<dyn EvaluatableAsset>>,
-    other_entries: Vc<EvaluatableAssets>,
-) -> Result<Vc<Box<dyn OutputAsset>>> {
-    Ok(chunking_context.root_entry_chunk_group_asset(
-        chunking_context
-            .chunk_path(None, main_entry.ident(), None, rcstr!(".js"))
-            .owned()
-            .await?,
-        other_entries.with_entry(*main_entry),
-        ModuleGraph::from_modules(
-            Vc::cell(vec![ChunkGroupEntry::Entry(
-                other_entries
-                    .await?
-                    .into_iter()
-                    .copied()
-                    .chain(std::iter::once(main_entry))
-                    .map(ResolvedVc::upcast)
-                    .collect(),
-            )]),
-            false,
-        ),
-        OutputAssets::empty(),
-        OutputAssets::empty(),
-    ))
-}
-
-#[derive(Clone, Debug)]
-#[turbo_tasks::value(shared)]
-pub struct ResponseHeaders {
-    pub status: u16,
-    pub headers: Vec<(RcStr, RcStr)>,
 }

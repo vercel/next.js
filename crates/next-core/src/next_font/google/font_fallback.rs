@@ -1,27 +1,29 @@
+use std::sync::LazyLock;
+
 use anyhow::{Context, Result};
-use once_cell::sync::Lazy;
+use bincode::{Decode, Encode};
 use regex::Regex;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, NonLocalValue, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{IssueExt, IssueSeverity, StyledString};
 
-use super::options::NextFontGoogleOptions;
 use crate::{
     next_font::{
         font_fallback::{
             AutomaticFontFallback, DEFAULT_SANS_SERIF_FONT, DEFAULT_SERIF_FONT, FontAdjustment,
             FontFallback,
         },
+        google::options::NextFontGoogleOptions,
         issue::NextFontIssue,
         util::{FontFamilyType, get_scoped_font_family},
     },
-    util::load_next_js_templateon,
+    util::load_next_js_json_file,
 };
 
 /// An entry in the Google fonts metrics map
-#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue)]
+#[derive(Deserialize, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct FontMetricsMapEntry {
     category: RcStr,
@@ -32,11 +34,13 @@ pub(super) struct FontMetricsMapEntry {
     x_width_avg: u64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 #[turbo_tasks::value]
-pub(super) struct FontMetricsMap(pub FxIndexMap<RcStr, FontMetricsMapEntry>);
+pub(super) struct FontMetricsMap(
+    #[bincode(with = "turbo_bincode::indexmap")] pub FxIndexMap<RcStr, FontMetricsMapEntry>,
+);
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+#[derive(Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue)]
 struct Fallback {
     pub font_family: RcStr,
     pub adjustment: Option<FontAdjustment>,
@@ -45,7 +49,7 @@ struct Fallback {
 // This JSON file is large, so we cache it in turbotasks
 #[turbo_tasks::function]
 async fn load_font_metrics(project_root: FileSystemPath) -> Result<Vc<FontMetricsMap>> {
-    let data: FontMetricsMap = load_next_js_templateon(
+    let data: FontMetricsMap = load_next_js_json_file(
         project_root,
         rcstr!("dist/server/capsize-font-metrics.json"),
     )
@@ -86,7 +90,7 @@ pub(super) async fn get_font_fallback(
                         title: StyledString::Text(
                             format!(
                                 "Failed to find font override values for font `{}`",
-                                &options.font_family,
+                                options.font_family,
                             )
                             .into(),
                         )
@@ -106,7 +110,8 @@ pub(super) async fn get_font_fallback(
     })
 }
 
-static FALLBACK_FONT_NAME: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?:^\w|[A-Z]|\b\w)").unwrap());
+static FALLBACK_FONT_NAME: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?:^\w|[A-Z]|\b\w)").unwrap());
 
 // From https://github.com/vercel/next.js/blob/1628260b88ce3052ac307a1607b6e8470188ab83/packages/next/src/server/font-utils.ts#L101
 fn format_fallback_font_name(font_family: &str) -> RcStr {

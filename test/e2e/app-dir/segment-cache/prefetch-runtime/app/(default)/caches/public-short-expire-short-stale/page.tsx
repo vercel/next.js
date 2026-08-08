@@ -2,20 +2,19 @@ import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind } from '../../../shared'
 import { cacheLife } from 'next/cache'
 
-export const unstable_prefetch = {
-  mode: 'runtime',
-  samples: [{ cookies: [] }],
-}
+export const instant = true
+export const prefetch = 'partial'
 
 export default async function Page() {
   return (
     <main>
       <DebugRenderKind />
       <p id="intro">
-        This page uses a short-lived public cache (expire &lt; DYNAMIC_EXPIRE,
-        5min), which should not be included in a static prefetch, and should
-        also not be included in a runtime prefetch, because it has a short
-        enough stale time (&lt; RUNTIME_PREFETCH_DYNAMIC_STALE, 30s)
+        This page uses a short-lived public cache (expire &lt;
+        MIN_PRERENDERABLE_EXPIRE, 5min), which should not be included in a
+        static prefetch, and should also not be included in a runtime prefetch,
+        because it has a short enough stale time (&lt; MIN_PREFETCHABLE_STALE,
+        30s)
       </p>
       <Suspense fallback={<div style={{ color: 'grey' }}>Loading...</div>}>
         <ShortLivedCache />
@@ -27,9 +26,9 @@ export default async function Page() {
 async function ShortLivedCache() {
   'use cache'
   cacheLife({
-    stale: 20, // < RUNTIME_PREFETCH_DYNAMIC_STALE
+    stale: 20, // < MIN_PREFETCHABLE_STALE
     revalidate: 2 * 60,
-    expire: 3 * 60, // < DYNAMIC_EXPIRE
+    expire: 3 * 60, // < MIN_PRERENDERABLE_EXPIRE
   })
   await cachedDelay([__filename])
 

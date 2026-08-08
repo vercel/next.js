@@ -9,19 +9,11 @@ pub enum ValueBuffer<'l> {
 }
 
 impl ValueBuffer<'_> {
-    pub fn into_vec(self) -> Vec<u8> {
+    pub fn into_boxed_slice(self) -> Box<[u8]> {
         match self {
-            ValueBuffer::Borrowed(b) => b.to_vec(),
-            ValueBuffer::Vec(v) => v,
-            ValueBuffer::SmallVec(sv) => sv.into_vec(),
-        }
-    }
-
-    pub fn into_small_vec(self) -> SmallVec<[u8; 16]> {
-        match self {
-            ValueBuffer::Borrowed(b) => SmallVec::from_slice(b),
-            ValueBuffer::Vec(v) => SmallVec::from_vec(v),
-            ValueBuffer::SmallVec(sv) => sv,
+            ValueBuffer::Borrowed(b) => b.into(),
+            ValueBuffer::Vec(v) => v.into_boxed_slice(),
+            ValueBuffer::SmallVec(sv) => sv.into_boxed_slice(),
         }
     }
 }
@@ -35,6 +27,12 @@ impl<'l> From<&'l [u8]> for ValueBuffer<'l> {
 impl From<Vec<u8>> for ValueBuffer<'_> {
     fn from(v: Vec<u8>) -> Self {
         ValueBuffer::Vec(v)
+    }
+}
+
+impl From<Box<[u8]>> for ValueBuffer<'_> {
+    fn from(v: Box<[u8]>) -> Self {
+        ValueBuffer::Vec(v.into_vec())
     }
 }
 

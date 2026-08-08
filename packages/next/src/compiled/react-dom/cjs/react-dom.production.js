@@ -43,13 +43,20 @@ var Internals = {
     p: 0,
     findDOMNode: null
   },
-  REACT_PORTAL_TYPE = Symbol.for("react.portal");
+  REACT_PORTAL_TYPE = Symbol.for("react.portal"),
+  REACT_RECOVERABLE_TYPE = Symbol.for("react.recoverable"),
+  REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key");
 function createPortal$1(children, containerInfo, implementation) {
   var key =
     3 < arguments.length && void 0 !== arguments[3] ? arguments[3] : null;
   return {
     $$typeof: REACT_PORTAL_TYPE,
-    key: null == key ? null : "" + key,
+    key:
+      null == key
+        ? null
+        : key === REACT_OPTIMISTIC_KEY
+          ? REACT_OPTIMISTIC_KEY
+          : "" + key,
     children: children,
     containerInfo: containerInfo,
     implementation: implementation
@@ -64,6 +71,13 @@ function getCrossOriginStringAs(as, input) {
 }
 exports.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
   Internals;
+exports.browser = function () {
+  var recoverable = Error(formatProdErrorMessage(603));
+  Object.defineProperty(recoverable, "$$typeof", {
+    value: REACT_RECOVERABLE_TYPE
+  });
+  return recoverable;
+};
 exports.createPortal = function (children, container) {
   var key =
     2 < arguments.length && void 0 !== arguments[2] ? arguments[2] : null;
@@ -144,7 +158,11 @@ exports.preinitModule = function (href, options) {
           crossOrigin: crossOrigin,
           integrity:
             "string" === typeof options.integrity ? options.integrity : void 0,
-          nonce: "string" === typeof options.nonce ? options.nonce : void 0
+          nonce: "string" === typeof options.nonce ? options.nonce : void 0,
+          fetchPriority:
+            "string" === typeof options.fetchPriority
+              ? options.fetchPriority
+              : void 0
         });
       }
     } else null == options && Internals.d.M(href);
@@ -191,7 +209,12 @@ exports.preloadModule = function (href, options) {
             : void 0,
         crossOrigin: crossOrigin,
         integrity:
-          "string" === typeof options.integrity ? options.integrity : void 0
+          "string" === typeof options.integrity ? options.integrity : void 0,
+        nonce: "string" === typeof options.nonce ? options.nonce : void 0,
+        fetchPriority:
+          "string" === typeof options.fetchPriority
+            ? options.fetchPriority
+            : void 0
       });
     } else Internals.d.m(href);
 };
@@ -207,4 +230,4 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.3.0-canary-fb2177c1-20251114";
+exports.version = "19.3.0-canary-11eddecd-20260805";

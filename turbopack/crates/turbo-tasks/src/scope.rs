@@ -6,23 +6,25 @@ use std::{
     marker::PhantomData,
     panic::{self, AssertUnwindSafe, catch_unwind},
     sync::{
-        Arc,
+        Arc, LazyLock,
         atomic::{AtomicUsize, Ordering},
     },
-    thread::{self, Thread, available_parallelism},
+    thread::{self, Thread},
     time::{Duration, Instant},
 };
 
-use once_cell::sync::Lazy;
 use parking_lot::{Condvar, Mutex};
 use tokio::{runtime::Handle, task::block_in_place};
 use tracing::{Span, info_span};
 
-use crate::{TurboTasksApi, manager::try_turbo_tasks, turbo_tasks_scope};
+use crate::{
+    TurboTasksApi, manager::try_turbo_tasks, parallel::available_parallelism, turbo_tasks_scope,
+};
 
 /// Number of worker tasks to spawn that process jobs. It's 1 less than the number of cpus as we
 /// also use the current task as worker.
-static WORKER_TASKS: Lazy<usize> = Lazy::new(|| available_parallelism().map_or(0, |n| n.get() - 1));
+static WORKER_TASKS: LazyLock<usize> =
+    LazyLock::new(|| available_parallelism().map_or(0, |n| n.get() - 1));
 
 enum WorkQueueJob {
     Job(usize, Box<dyn FnOnce() + Send + 'static>),
@@ -155,10 +157,10 @@ pub struct Scope<'scope, 'env: 'scope, R: Send + 'env> {
     handle: Handle,
     turbo_tasks: Option<Arc<dyn TurboTasksApi>>,
     span: Span,
-    /// Invariance over 'env, to make sure 'env cannot shrink,
-    /// which is necessary for soundness.
+    /// Invariance over 'env, to make sure 'env cannot shrink, which is necessary for soundness.
     ///
-    /// see https://doc.rust-lang.org/src/std/thread/scoped.rs.html#12-29
+    /// See the comment in the stdlib implementation:
+    /// <https://github.com/rust-lang/rust/blob/3b1b0ef4d8/library/std/src/thread/scoped.rs#L12-L33>
     env: PhantomData<&'env mut &'env ()>,
 }
 
@@ -209,13 +211,16 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
             *result_cell.lock() = Some(result);
         });
         let f: *mut (dyn FnOnce() + Send + 'scope) = Box::into_raw(f);
+
         // SAFETY: Scope ensures (e. g. in Drop) that spawned tasks is awaited before the
         // lifetime `'env` ends.
-        #[allow(
-            clippy::unnecessary_cast,
-            reason = "Clippy thinks this is unnecessary, but it actually changes the lifetime"
-        )]
-        let f = f as *mut (dyn FnOnce() + Send + 'static);
+        let f = unsafe {
+            std::mem::transmute::<
+                *mut (dyn FnOnce() + Send + 'scope),
+                *mut (dyn FnOnce() + Send + 'static),
+            >(f)
+        };
+
         // SAFETY: We just called `Box::into_raw`.
         let f = unsafe { Box::from_raw(f) };
 

@@ -1,9 +1,7 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import httpProxy from 'http-proxy'
 import { join } from 'path'
 import http from 'http'
-import webdriver from 'next-webdriver'
 import assert from 'assert'
 import { check, renderViaHTTP, waitFor } from 'next-test-utils'
 
@@ -13,20 +11,20 @@ describe('manual-client-base-path', () => {
     return
   }
 
-  let next: NextInstance
   let server: http.Server
   let appPort: string
   const basePath = '/docs-proxy'
   const responses = new Set()
 
+  const { next } = nextTestSetup({
+    files: {
+      pages: new FileRef(join(__dirname, 'app/pages')),
+      'next.config.js': new FileRef(join(__dirname, 'app/next.config.js')),
+    },
+    dependencies: {},
+  })
+
   beforeAll(async () => {
-    next = await createNext({
-      files: {
-        pages: new FileRef(join(__dirname, 'app/pages')),
-        'next.config.js': new FileRef(join(__dirname, 'app/next.config.js')),
-      },
-      dependencies: {},
-    })
     const getProxyTarget = (req) => {
       const destination = new URL(next.url)
       const reqUrl = new URL(req.url, 'http://localhost')
@@ -89,7 +87,6 @@ describe('manual-client-base-path', () => {
     appPort = server.address().port
   })
   afterAll(async () => {
-    await next.destroy()
     try {
       server.close()
       responses.forEach((res: any) => res.end?.() || res.close?.())
@@ -112,7 +109,7 @@ describe('manual-client-base-path', () => {
     // eslint-disable-next-line
     it(`should not update with basePath on mount ${asPath}`, async () => {
       const fullAsPath = (asPath as string) + '?update=1'
-      const browser = await webdriver(appPort, fullAsPath)
+      const browser = await next.browser(fullAsPath, { baseUrl: appPort })
       await browser.eval('window.beforeNav = 1')
 
       expect(await browser.eval('window.location.pathname')).toBe(asPath)
@@ -140,7 +137,7 @@ describe('manual-client-base-path', () => {
   }
 
   it('should navigate correctly from index', async () => {
-    const browser = await webdriver(appPort, '/')
+    const browser = await next.browser('/', { baseUrl: appPort })
     await browser.eval('window.beforeNav = 1')
 
     await browser.elementByCss('#to-another').click()
@@ -187,7 +184,7 @@ describe('manual-client-base-path', () => {
   })
 
   it('should navigate correctly from another', async () => {
-    const browser = await webdriver(appPort, '/another')
+    const browser = await next.browser('/another', { baseUrl: appPort })
     await browser.eval('window.beforeNav = 1')
 
     await browser.elementByCss('#to-index').click()

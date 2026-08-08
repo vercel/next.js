@@ -458,7 +458,7 @@ module.exports = {
 The following Image Optimization cloud providers are included:
 
 - Default: Works automatically with `next dev`, `next start`, or a custom server
-- [Vercel](https://vercel.com): Works automatically when you deploy on Vercel, no configuration necessary. [Learn more](https://vercel.com/docs/concepts/image-optimization?utm_source=next-site&utm_medium=docs&utm_campaign=next-website)
+- [Vercel](https://vercel.com): Works automatically when you deploy on Vercel, no configuration necessary. [Learn more](https://vercel.com/docs/image-optimization?utm_source=next-site&utm_medium=docs&utm_campaign=next-website)
 - [Imgix](https://www.imgix.com): `loader: 'imgix'`
 - [Cloudinary](https://cloudinary.com): `loader: 'cloudinary'`
 - [Akamai](https://www.akamai.com): `loader: 'akamai'`
@@ -466,7 +466,7 @@ The following Image Optimization cloud providers are included:
 
 If you need a different provider, you can use the [`loader`](#loader) prop with `next/legacy/image`.
 
-> Images can not be optimized at build time using [`output: 'export'`](/docs/pages/guides/static-exports), only on-demand. To use `next/legacy/image` with `output: 'export'`, you will need to use a different loader than the default. [Read more in the discussion.](https://github.com/vercel/next.js/discussions/19065)
+> Images cannot be optimized at build time using [`output: 'export'`](/docs/pages/guides/static-exports), only on-demand. To use `next/legacy/image` with `output: 'export'`, you will need to use a different loader than the default. [Read more in the discussion.](https://github.com/vercel/next.js/discussions/19065)
 
 ## Advanced
 
@@ -528,10 +528,21 @@ module.exports = {
 }
 ```
 
+You can also enable both AVIF and WebP formats together. AVIF will be preferred for browsers that support it, with WebP as a fallback:
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    formats: ['image/avif', 'image/webp'],
+  },
+}
+```
+
 > **Good to know**:
 >
 > - We still recommend using WebP for most use cases.
 > - AVIF generally takes 50% longer to encode but it compresses 20% smaller compared to WebP. This means that the first time an image is requested, it will typically be slower and then subsequent requests that are cached will be faster.
+> - When using multiple formats, Next.js will cache each format separately. This means increased storage requirements compared to using a single format, as both AVIF and WebP versions of images will be stored for different browser support.
 > - If you self-host with a Proxy/CDN in front of Next.js, you must configure the Proxy to forward the `Accept` header.
 
 ## Caching Behavior

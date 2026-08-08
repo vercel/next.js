@@ -4,6 +4,7 @@ import { ResponseCookies } from '../cookies'
 import { ReflectAdapter } from './reflect'
 import { workAsyncStorage } from '../../../app-render/work-async-storage.external'
 import type { RequestStore } from '../../../app-render/work-unit-async-storage.external'
+import { ActionDidRevalidateStaticAndDynamic } from '../../../../shared/lib/action-revalidation-kind'
 
 /**
  * @internal
@@ -44,6 +45,18 @@ export class RequestCookiesAdapter {
           default:
             return ReflectAdapter.get(target, prop, receiver)
         }
+      },
+    })
+  }
+
+  /**
+   * @param cookies
+   * @returns A fresh object identity backed by the original value
+   */
+  public static fresh(cookies: ReadonlyRequestCookies): ReadonlyRequestCookies {
+    return new Proxy(cookies, {
+      get(target, prop, receiver) {
+        return ReflectAdapter.get(target, prop, receiver)
       },
     })
   }
@@ -116,7 +129,7 @@ export class MutableRequestCookiesAdapter {
       // TODO-APP: change method of getting workStore
       const workStore = workAsyncStorage.getStore()
       if (workStore) {
-        workStore.pathWasRevalidated = true
+        workStore.pathWasRevalidated = ActionDidRevalidateStaticAndDynamic
       }
 
       const allCookies = responseCookies.getAll()

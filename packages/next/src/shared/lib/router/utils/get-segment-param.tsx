@@ -2,8 +2,8 @@ import { INTERCEPTION_ROUTE_MARKERS } from './interception-routes'
 import type { DynamicParamTypes } from '../../app-router-types'
 
 export type SegmentParam = {
-  param: string
-  type: DynamicParamTypes
+  paramName: string
+  paramType: DynamicParamTypes
 }
 
 /**
@@ -24,26 +24,26 @@ export function getSegmentParam(segment: string): SegmentParam | null {
     return {
       // TODO-APP: Optional catchall does not currently work with parallel routes,
       // so for now aren't handling a potential interception marker.
-      type: 'optional-catchall',
-      param: segment.slice(5, -2),
+      paramType: 'optional-catchall',
+      paramName: segment.slice(5, -2),
     }
   }
 
   if (segment.startsWith('[...') && segment.endsWith(']')) {
     return {
-      type: interceptionMarker
+      paramType: interceptionMarker
         ? `catchall-intercepted-${interceptionMarker}`
         : 'catchall',
-      param: segment.slice(4, -1),
+      paramName: segment.slice(4, -1),
     }
   }
 
   if (segment.startsWith('[') && segment.endsWith(']')) {
     return {
-      type: interceptionMarker
+      paramType: interceptionMarker
         ? `dynamic-intercepted-${interceptionMarker}`
         : 'dynamic',
-      param: segment.slice(1, -1),
+      paramName: segment.slice(1, -1),
     }
   }
 

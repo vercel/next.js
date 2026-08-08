@@ -1,7 +1,7 @@
 use hyper::{HeaderMap, Uri};
 use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
 
-use super::Body;
+use crate::source::Body;
 
 /// A request to a content source.
 #[derive(Debug, Clone, NonLocalValue, TraceRawVcs)]

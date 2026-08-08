@@ -6,7 +6,8 @@ import { parsePath } from '../shared/lib/router/utils/parse-path'
  * in `next.config.js`.
  */
 export const normalizePathTrailingSlash = (path: string) => {
-  if (!path.startsWith('/') || process.env.__NEXT_MANUAL_TRAILING_SLASH) {
+  // 47 is the char code for '/'
+  if (path.charCodeAt(0) !== 47 || process.env.__NEXT_MANUAL_TRAILING_SLASH) {
     return path
   }
 

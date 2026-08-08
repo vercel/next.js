@@ -5,6 +5,7 @@ import type { Telemetry } from '../../telemetry/storage'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { UrlObject } from 'url'
 import type { RouteDefinition } from '../route-definitions/route-definition'
+import type { AnyStream } from '../app-render/stream-ops'
 
 import { type webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
 import {
@@ -14,10 +15,10 @@ import {
 } from './middleware-webpack'
 import { WebpackHotMiddleware } from './hot-middleware'
 import * as inspector from 'inspector'
+import { randomUUID } from 'crypto'
 import { join, relative, isAbsolute, posix, dirname } from 'path'
 import {
   createEntrypoints,
-  createPagesMapping,
   finalizeEntrypoint,
   getClientEntry,
   getEdgeServerEntry,
@@ -25,6 +26,7 @@ import {
   runDependingOnPageType,
   getInstrumentationEntry,
 } from '../../build/entries'
+import { createPagesMapping } from '../../build/route-discovery'
 import { getStaticInfoIncludingLayouts } from '../../build/get-static-info-including-layouts'
 import { watchCompilers } from '../../build/output'
 import * as Log from '../../build/output/log'
@@ -88,10 +90,7 @@ import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev
 import getWebpackBundler from '../../shared/lib/get-webpack-bundler'
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
 import { checkFileSystemCacheInvalidationAndCleanup } from '../../build/webpack/cache-invalidation'
-import {
-  receiveBrowserLogsWebpack,
-  handleClientFileLogs,
-} from './browser-logs/receive-logs'
+import { receiveBrowserLogsWebpack } from './browser-logs/receive-logs'
 import {
   devToolsConfigMiddleware,
   getDevToolsConfig,
@@ -115,6 +114,11 @@ import { recordMcpTelemetry } from '../mcp/mcp-telemetry-tracker'
 import { getFileLogger } from './browser-logs/file-logger'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
 import type { Lockfile } from '../../build/lockfile'
+import {
+  sendSerializedErrorsToClient,
+  sendSerializedErrorsToClientForHtmlRequest,
+  setErrorsRscStreamForHtmlRequest,
+} from './serialized-errors'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 
@@ -123,6 +127,9 @@ function diff(a: Set<any>, b: Set<any>) {
 }
 
 const wsServer = new ws.Server({ noServer: true })
+
+// Folded into the HMR refresh hash to make it differ between dev server runs.
+const devServerSessionId = randomUUID()
 
 export async function renderScriptError(
   res: ServerResponse,
@@ -221,33 +228,34 @@ function erroredPages(compilation: webpack.Compilation) {
 export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private hasAppRouterEntrypoints: boolean
   private hasPagesRouterEntrypoints: boolean
-  private dir: string
-  private buildId: string
+  protected dir: string
+  protected buildId: string
   private encryptionKey: string
-  private middlewares: ((
+  protected middlewares: ((
     req: IncomingMessage,
     res: ServerResponse,
     next: () => void
   ) => Promise<void>)[]
-  private pagesDir?: string
-  private distDir: string
+  protected pagesDir?: string
+  protected distDir: string
   private webpackHotMiddleware?: WebpackHotMiddleware
-  private config: NextConfigComplete
+  protected config: NextConfigComplete
   private clientStats: webpack.Stats | null
   private clientError: Error | null = null
   private serverError: Error | null = null
   private hmrServerError: Error | null = null
   private serverPrevDocumentHash: string | null
+  private serverComponentsHmrRefreshHash: string | undefined
   private serverChunkNames?: Set<string>
   private prevChunkNames?: Set<any>
   private onDemandEntries?: ReturnType<typeof onDemandEntryHandler>
-  private previewProps: __ApiPreviewProps
+  protected previewProps: __ApiPreviewProps
   private watcher: any
   private rewrites: CustomRoutes['rewrites']
   private fallbackWatcher: any
-  private hotReloaderSpan: Span
+  protected hotReloaderSpan: Span
   private pagesMapping: { [key: string]: string } = {}
-  private appDir?: string
+  protected appDir?: string
   private telemetry: Telemetry
   private resetFetch: () => void
   private lockfile: Lockfile | undefined
@@ -428,12 +436,16 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   }
 
   protected async refreshServerComponents(hash: string): Promise<void> {
+    this.serverComponentsHmrRefreshHash = hash
     this.send({
       type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
-      hash,
       // TODO: granular reloading of changes
       // entrypoints: serverComponentChanges,
     })
+  }
+
+  public getServerComponentsHmrRefreshHash(): string {
+    return `${devServerSessionId}-${this.serverComponentsHmrRefreshHash ?? '0'}`
   }
 
   public onHMR(
@@ -598,24 +610,20 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               break
             }
             case 'browser-logs': {
-              if (this.config.experimental.browserDebugInfoInTerminal) {
-                await receiveBrowserLogsWebpack({
-                  entries: payload.entries,
-                  router: payload.router,
-                  sourceType: payload.sourceType,
-                  clientStats: () => this.clientStats,
-                  serverStats: () => this.serverStats,
-                  edgeServerStats: () => this.edgeServerStats,
-                  rootDirectory: this.dir,
-                  distDir: this.distDir,
-                  config: this.config.experimental.browserDebugInfoInTerminal,
-                })
-              }
-              break
-            }
-            case 'client-file-logs': {
-              // Always log to file regardless of terminal flag
-              await handleClientFileLogs(payload.logs)
+              await receiveBrowserLogsWebpack({
+                entries: payload.entries,
+                router: payload.router,
+                sourceType: payload.sourceType,
+                clientStats: () => this.clientStats,
+                serverStats: () => this.serverStats,
+                edgeServerStats: () => this.edgeServerStats,
+                rootDirectory: this.dir,
+                distDir: this.distDir,
+                config:
+                  (this.config.logging &&
+                    this.config.logging.browserToTerminal) ||
+                  false,
+              })
               break
             }
             case 'ping': {
@@ -646,6 +654,12 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           htmlRequestId,
           this.sendToClient.bind(this, client)
         )
+
+        sendSerializedErrorsToClientForHtmlRequest(
+          htmlRequestId,
+          this.sendToClient.bind(this, client)
+        )
+
         if (enableCacheComponents) {
           const status = this.cacheStatusesByRequestId.get(htmlRequestId)
           if (status) {
@@ -1016,6 +1030,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                       name: bundlePath,
                       page,
                       appPaths: entryData.appPaths,
+                      allNormalizedAppPaths: null, // Not available in dev mode
                       pagePath: posix.join(
                         APP_DIR_ALIAS,
                         relative(
@@ -1145,6 +1160,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     name: bundlePath,
                     page,
                     appPaths: entryData.appPaths,
+                    allNormalizedAppPaths: null, // Not available in dev mode
                     pagePath,
                     appDir: this.appDir!,
                     pageExtensions: this.config.pageExtensions,
@@ -1231,6 +1247,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.multiCompiler = getWebpackBundler()(
       this.activeWebpackConfigs
     ) as unknown as webpack.MultiCompiler
+
+    await this.afterCompile(this.multiCompiler)
 
     // Copy over the filesystem so that it is shared between all compilers.
     const inputFileSystem = this.multiCompiler.compilers[0].inputFileSystem
@@ -1632,7 +1650,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       }),
     })
 
-    this.middlewares = [
+    this.middlewares.push(
       getOverlayMiddleware({
         rootDirectory: this.dir,
         isSrcDir: this.isSrcDir,
@@ -1681,11 +1699,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               getActiveConnectionCount: () =>
                 this.webpackHotMiddleware?.getClientCount() ?? 0,
               getDevServerUrl: () => process.env.__NEXT_PRIVATE_ORIGIN,
+              // compile_route is Turbopack-only; intentionally omitted here.
             }),
           ]
-        : []),
-    ]
-
+        : [])
+    )
     setStackFrameResolver(async (request) => {
       return getOriginalStackFrames({
         isServer: request.isServer,
@@ -1699,6 +1717,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       })
     })
   }
+
+  protected async afterCompile(_multiCompiler: webpack.MultiCompiler) {}
 
   public invalidate(
     { reloadAfterInvalidation }: { reloadAfterInvalidation: boolean } = {
@@ -1801,6 +1821,25 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     }
   }
 
+  public sendErrorsToBrowser(
+    errorsRscStream: AnyStream,
+    htmlRequestId: string
+  ): void {
+    const client = this.webpackHotMiddleware?.getClient(htmlRequestId)
+
+    if (client) {
+      // If the client is connected, we can send the errors immediately.
+      sendSerializedErrorsToClient(
+        errorsRscStream,
+        this.sendToClient.bind(this, client)
+      )
+    } else {
+      // Otherwise, store the errors stream so that we can send it when the
+      // client connects.
+      setErrorsRscStreamForHtmlRequest(htmlRequestId, errorsRscStream)
+    }
+  }
+
   public async ensurePage({
     page,
     clientOnly,
@@ -1815,6 +1854,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     isApp?: boolean
     definition?: RouteDefinition
     url?: string
+    // subscribeToChanges is accepted for interface compatibility but is a
+    // no-op for webpack: webpack's on-demand entry handler does not wire HMR
+    // subscriptions per entry the way Turbopack does.
+    subscribeToChanges?: boolean
   }): Promise<void> {
     return this.hotReloaderSpan
       .traceChild('ensure-page', {

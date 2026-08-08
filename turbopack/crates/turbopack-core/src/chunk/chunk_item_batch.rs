@@ -1,17 +1,16 @@
 use std::{future::Future, hash::Hash, ops::Deref};
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use either::Either;
 use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt,
-    Vc, trace::TraceRawVcs,
+    FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc, trace::TraceRawVcs,
 };
 
 use crate::{
-    chunk::{ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkableModule, ChunkingContext},
+    chunk::{ChunkItemWithAsyncModuleInfo, ChunkType, ChunkableModule, ChunkingContext},
     module_graph::{
         ModuleGraph,
         async_module_info::AsyncModulesInfo,
@@ -20,14 +19,19 @@ use crate::{
     },
 };
 
+/// Converts a [`ChunkableModule`] into a [`ChunkItemWithAsyncModuleInfo`] by resolving its chunk
+/// item and, if the module is async, looking up its referenced async modules from the graph.
+///
+/// Uses keyed access on `async_module_info` so only the queried module's entry is read,
+/// enabling per-key invalidation via `cell = "keyed"` on [`AsyncModulesInfo`].
 pub async fn attach_async_info_to_chunkable_module(
     module: ResolvedVc<Box<dyn ChunkableModule>>,
-    async_module_info: &ReadRef<AsyncModulesInfo>,
+    async_module_info: Vc<AsyncModulesInfo>,
     module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<ChunkItemWithAsyncModuleInfo> {
     let general_module = ResolvedVc::upcast(module);
-    let async_info = if async_module_info.contains(&general_module) {
+    let async_info = if async_module_info.is_async(general_module).await? {
         Some(
             module_graph
                 .referenced_async_modules(*general_module)
@@ -41,16 +45,22 @@ pub async fn attach_async_info_to_chunkable_module(
         .as_chunk_item(module_graph, chunking_context)
         .to_resolved()
         .await?;
+    let chunk_type = chunk_item
+        .into_trait_ref()
+        .await?
+        .ty()
+        .to_resolved()
+        .await?;
     Ok(ChunkItemWithAsyncModuleInfo {
         chunk_item,
+        chunk_type,
         module: Some(module),
         async_info,
     })
 }
 
-#[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, NonLocalValue, TaskInput,
-)]
+#[turbo_tasks::task_input]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub enum ChunkItemOrBatchWithAsyncModuleInfo {
     ChunkItem(ChunkItemWithAsyncModuleInfo),
     Batch(ResolvedVc<ChunkItemBatchWithAsyncModuleInfo>),
@@ -61,10 +71,13 @@ type ChunkItemOrBatchWithAsyncModuleInfoByChunkType = Either<
     ReadRef<ChunkItemBatchWithAsyncModuleInfoByChunkType>,
 >;
 
+#[turbo_tasks::value(transparent)]
+pub struct ChunkItemOrBatchWithAsyncModuleInfos(Vec<ChunkItemOrBatchWithAsyncModuleInfo>);
+
 impl ChunkItemOrBatchWithAsyncModuleInfo {
     pub async fn from_chunkable_module_or_batch(
         chunkable_module_or_batch: ChunkableModuleOrBatch,
-        async_module_info: &ReadRef<AsyncModulesInfo>,
+        async_module_info: Vc<AsyncModulesInfo>,
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Option<Self>> {
@@ -95,17 +108,16 @@ impl ChunkItemOrBatchWithAsyncModuleInfo {
         &self,
     ) -> Result<ChunkItemOrBatchWithAsyncModuleInfoByChunkType> {
         Ok(match self {
-            Self::ChunkItem(item) => Either::Left(smallvec![(
-                item.chunk_item.ty().to_resolved().await?,
-                Self::ChunkItem(item.clone())
-            )]),
+            Self::ChunkItem(item) => {
+                Either::Left(smallvec![(item.chunk_type, Self::ChunkItem(*item))])
+            }
             Self::Batch(batch) => Either::Right(batch.split_by_chunk_type().await?),
         })
     }
 }
 
 #[turbo_tasks::value]
-#[derive(Debug, Clone, Hash, TaskInput)]
+#[derive(Debug, Clone, Hash)]
 pub struct ChunkItemBatchWithAsyncModuleInfo {
     pub chunk_items: Vec<ChunkItemWithAsyncModuleInfo>,
     pub chunk_groups: Option<RoaringBitmapWrapper>,
@@ -128,7 +140,7 @@ impl ChunkItemBatchWithAsyncModuleInfo {
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Self>> {
-        let async_module_info = module_graph.async_module_info().await?;
+        let async_module_info = module_graph.async_module_info();
         let batch = batch.await?;
         let chunk_items = batch
             .modules
@@ -136,7 +148,7 @@ impl ChunkItemBatchWithAsyncModuleInfo {
             .map(|module| {
                 attach_async_info_to_chunkable_module(
                     *module,
-                    &async_module_info,
+                    async_module_info,
                     module_graph,
                     chunking_context,
                 )
@@ -159,17 +171,15 @@ impl ChunkItemBatchWithAsyncModuleInfo {
         let Some((_, first)) = iter.next() else {
             return Ok(Vc::cell(SmallVec::new()));
         };
-        let chunk_type = first.chunk_item.ty().to_resolved().await?;
-        while let Some((i, item)) = iter.next() {
-            let ty = item.chunk_item.ty().to_resolved().await?;
+        let chunk_type = first.chunk_type;
+        for (i, item) in iter.by_ref() {
+            let ty = item.chunk_type;
             if ty != chunk_type {
                 let mut map = FxIndexMap::default();
                 map.insert(chunk_type, this.chunk_items[..i].to_vec());
-                map.insert(ty, vec![item.clone()]);
+                map.insert(ty, vec![*item]);
                 for (_, item) in iter {
-                    map.entry(item.chunk_item.ty().to_resolved().await?)
-                        .or_default()
-                        .push(item.clone());
+                    map.entry(item.chunk_type).or_default().push(*item);
                 }
                 return Ok(Vc::cell(
                     map.into_iter()
@@ -222,6 +232,9 @@ type ChunkItemBatchGroupByChunkTypeT = SmallVec<
 #[turbo_tasks::value(transparent)]
 pub struct ChunkItemBatchGroupByChunkType(ChunkItemBatchGroupByChunkTypeT);
 
+#[turbo_tasks::value(transparent)]
+pub struct ChunkItemBatchGroups(Vec<ResolvedVc<ChunkItemBatchGroup>>);
+
 #[turbo_tasks::value]
 pub struct ChunkItemBatchGroup {
     pub items: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
@@ -236,7 +249,7 @@ impl ChunkItemBatchGroup {
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Self>> {
-        let async_module_info = module_graph.async_module_info().await?;
+        let async_module_info = module_graph.async_module_info();
         let batch_group = batch_group.await?;
         let items = batch_group
             .items
@@ -244,7 +257,7 @@ impl ChunkItemBatchGroup {
             .map(|&batch| {
                 ChunkItemOrBatchWithAsyncModuleInfo::from_chunkable_module_or_batch(
                     batch,
-                    &async_module_info,
+                    async_module_info,
                     module_graph,
                     chunking_context,
                 )
@@ -280,13 +293,11 @@ impl ChunkItemBatchGroup {
                         ChunkItemBatchGroup {
                             items,
                             chunk_groups: this.chunk_groups.clone(),
-                        },
+                        }
+                        .resolved_cell(),
                     )
                 })
-                .map(async |(ty, batch_group)| Ok((ty, batch_group.resolved_cell())))
-                .try_join()
-                .await?
-                .into()
+                .collect()
         };
         Ok(Vc::cell(result))
     }

@@ -1,33 +1,30 @@
-use std::io::Write;
+use std::{borrow::Cow, io::Write};
 
 use anyhow::Result;
 use byteorder::{BE, WriteBytesExt};
-use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
+use either::Either;
+use next_core::app_structure::FileSystemPathVec;
+use rustc_hash::{FxHashMap, FxHashSet};
+use serde::Serialize;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc,
-    trace::TraceRawVcs,
+    FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, ValueToStringRef, Vc,
 };
 use turbo_tasks_fs::{
     File, FileContent, FileSystemPath,
     rope::{Rope, RopeBuilder},
 };
-use turbopack_analyze::split_chunk::split_output_asset_into_parts;
+use turbopack_analyze::split_chunk::{split_output_asset_into_parts, split_traced_file_into_parts};
 use turbopack_core::{
     SOURCE_URL_PROTOCOL,
     asset::{Asset, AssetContent},
-    chunk::ChunkingType,
+    chunk::{ChunkingType, TracedMode},
     module::Module,
+    module_graph::{GraphTraversalAction, ModuleGraph},
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
     reference::all_assets_from_entries,
 };
 
-use crate::route::{Endpoint, ModuleGraphs};
-
-#[derive(
-    Default, Clone, Debug, Deserialize, Eq, NonLocalValue, PartialEq, Serialize, TraceRawVcs,
-)]
 pub struct EdgesData {
     pub offsets: Vec<u32>,
     pub data: Vec<u32>,
@@ -72,8 +69,8 @@ pub struct AnalyzeSource {
 
 #[derive(Serialize)]
 pub struct AnalyzeModule {
+    pub ident: RcStr,
     pub path: RcStr,
-    pub depth: u32,
 }
 
 #[derive(Serialize)]
@@ -81,6 +78,7 @@ pub struct AnalyzeChunkPart {
     pub source_index: u32,
     pub output_file_index: u32,
     pub size: u32,
+    pub compressed_size: u32,
 }
 
 #[derive(Serialize)]
@@ -117,9 +115,13 @@ struct ModulesDataHeader {
     /// Edges from modules to modules
     pub async_module_dependents: EdgesDataReference,
     /// Edges from modules to modules
+    pub traced_module_dependents: EdgesDataReference,
+    /// Edges from modules to modules
     pub module_dependencies: EdgesDataReference,
     /// Edges from modules to modules
     pub async_module_dependencies: EdgesDataReference,
+    /// Edges from modules to modules
+    pub traced_module_dependencies: EdgesDataReference,
 }
 
 struct AnalyzeOutputFileBuilder {
@@ -137,8 +139,10 @@ struct AnalyzeModuleBuilder {
     module: AnalyzeModule,
     dependencies: FxIndexSet<u32>,
     async_dependencies: FxIndexSet<u32>,
+    traced_dependencies: FxIndexSet<u32>,
     dependents: FxIndexSet<u32>,
     async_dependents: FxIndexSet<u32>,
+    traced_dependents: FxIndexSet<u32>,
 }
 
 struct AnalyzeDataBuilder {
@@ -283,22 +287,29 @@ impl ModulesDataBuilder {
         }
     }
 
-    fn ensure_module(&mut self, path: &str) -> (&mut AnalyzeModuleBuilder, u32) {
-        if let Some(&index) = self.module_index_map.get(path) {
+    fn get_module(&mut self, ident: &str) -> (&mut AnalyzeModuleBuilder, u32) {
+        if let Some(&index) = self.module_index_map.get(ident) {
+            return (&mut self.modules[index as usize], index);
+        }
+        panic!("Module with ident `{}` not found", ident);
+    }
+
+    fn ensure_module(&mut self, ident: &str, path: &str) -> (&mut AnalyzeModuleBuilder, u32) {
+        if let Some(&index) = self.module_index_map.get(ident) {
             return (&mut self.modules[index as usize], index);
         }
         let index = self.modules.len() as u32;
+        let ident = RcStr::from(ident);
         let path = RcStr::from(path);
-        self.module_index_map.insert(path.clone(), index);
+        self.module_index_map.insert(ident.clone(), index);
         self.modules.push(AnalyzeModuleBuilder {
-            module: AnalyzeModule {
-                path,
-                depth: u32::MAX,
-            },
+            module: AnalyzeModule { ident, path },
             dependencies: FxIndexSet::default(),
             async_dependencies: FxIndexSet::default(),
+            traced_dependencies: FxIndexSet::default(),
             dependents: FxIndexSet::default(),
             async_dependents: FxIndexSet::default(),
+            traced_dependents: FxIndexSet::default(),
         });
         (&mut self.modules[index as usize], index)
     }
@@ -314,6 +325,11 @@ impl ModulesDataBuilder {
             .iter()
             .map(|s| s.async_dependencies.iter().copied().collect())
             .collect();
+        let traced_module_dependencies_vecs: Vec<Vec<u32>> = self
+            .modules
+            .iter()
+            .map(|s| s.traced_dependencies.iter().copied().collect())
+            .collect();
         let module_dependents_vecs: Vec<Vec<u32>> = self
             .modules
             .iter()
@@ -324,11 +340,18 @@ impl ModulesDataBuilder {
             .iter()
             .map(|s| s.async_dependents.iter().copied().collect())
             .collect();
+        let traced_module_dependents_vecs: Vec<Vec<u32>> = self
+            .modules
+            .iter()
+            .map(|s| s.traced_dependents.iter().copied().collect())
+            .collect();
 
         let module_dependencies = EdgesData::from_iterator(&module_dependencies_vecs);
         let async_module_dependencies = EdgesData::from_iterator(&async_module_dependencies_vecs);
+        let traced_module_dependencies = EdgesData::from_iterator(&traced_module_dependencies_vecs);
         let module_dependents = EdgesData::from_iterator(&module_dependents_vecs);
         let async_module_dependents = EdgesData::from_iterator(&async_module_dependents_vecs);
+        let traced_module_dependents = EdgesData::from_iterator(&traced_module_dependents_vecs);
 
         let mut binary_section = EdgesDataSectionBuilder::new();
 
@@ -336,8 +359,10 @@ impl ModulesDataBuilder {
             modules: self.modules.into_iter().map(|s| s.module).collect(),
             module_dependents: binary_section.add_edges(&module_dependents),
             async_module_dependents: binary_section.add_edges(&async_module_dependents),
+            traced_module_dependents: binary_section.add_edges(&traced_module_dependents),
             module_dependencies: binary_section.add_edges(&module_dependencies),
             async_module_dependencies: binary_section.add_edges(&async_module_dependencies),
+            traced_module_dependencies: binary_section.add_edges(&traced_module_dependencies),
         };
 
         let header_json = serde_json::to_vec(&header).unwrap();
@@ -351,8 +376,36 @@ impl ModulesDataBuilder {
     }
 }
 
+/// Merges two sets of output assets into one. Used to combine per-route output
+/// assets with shared assets (e.g. `_app`, `_document`) at report generation time.
 #[turbo_tasks::function]
-pub async fn analyze_output_assets(output_assets: Vc<OutputAssets>) -> Result<Vc<FileContent>> {
+pub async fn combine_output_assets(
+    primary: Vc<OutputAssets>,
+    extra: Vc<OutputAssets>,
+) -> Result<Vc<OutputAssets>> {
+    let mut combined: Vec<ResolvedVc<Box<dyn OutputAsset>>> =
+        primary.await?.iter().copied().collect();
+    combined.extend(extra.await?.iter().copied());
+    Ok(Vc::cell(combined))
+}
+
+/// Merges two sets of traced modules into one. Used to combine per-route traced
+/// modules with shared modules (e.g. `_app`, `_document`) at report generation time.
+#[turbo_tasks::function]
+pub async fn combine_traced_files(
+    primary: Vc<FileSystemPathVec>,
+    extra: Vc<FileSystemPathVec>,
+) -> Result<Vc<FileSystemPathVec>> {
+    let mut combined: Vec<FileSystemPath> = primary.await?.iter().cloned().collect();
+    combined.extend(extra.await?.iter().cloned());
+    Ok(Vc::cell(combined))
+}
+
+#[turbo_tasks::function]
+pub async fn analyze_output_assets(
+    output_assets: Vc<OutputAssets>,
+    traced_files: Vc<FileSystemPathVec>,
+) -> Result<Vc<FileContent>> {
     let output_assets = all_assets_from_entries(output_assets);
 
     let mut builder = AnalyzeDataBuilder::new();
@@ -361,23 +414,57 @@ pub async fn analyze_output_assets(output_assets: Vc<OutputAssets>) -> Result<Vc
 
     // Process the output assets and extract chunk parts.
     // Also creates sources for the chunk parts.
-    for &asset in output_assets.await? {
-        let filename = asset.path().to_string().owned().await?;
-        if filename.ends_with(".map") || filename.ends_with(".nft.json") {
+    for asset in output_assets
+        .await?
+        .iter()
+        .copied()
+        .map(Either::Left)
+        .chain(traced_files.await?.iter().cloned().map(Either::Right))
+    {
+        let file_system_path = match &asset {
+            Either::Left(asset) => Either::Left(asset.path().await?),
+            Either::Right(path) => Either::Right(path),
+        };
+        let path = match &file_system_path {
+            Either::Left(path) => &path.path,
+            Either::Right(path) => &path.path,
+        };
+        if path.ends_with(".map") || path.ends_with(".nft.json") {
             // Skip source maps.
             continue;
         }
 
-        let output_file_index = builder.add_output_file(AnalyzeOutputFile { filename });
-        let chunk_parts = split_output_asset_into_parts(*asset).await?;
-        for chunk_part in chunk_parts {
-            let source_index = builder
-                .ensure_source(chunk_part.source.trim_start_matches(&prefix))
-                .1;
+        let filename = match &file_system_path {
+            Either::Left(path) => path.to_string_ref().await?,
+            Either::Right(path) => path.to_string_ref().await?,
+        };
+
+        let output_file_index = builder.add_output_file(AnalyzeOutputFile {
+            filename: filename.clone(),
+        });
+        let chunk_parts = match asset {
+            Either::Left(asset) => split_output_asset_into_parts(*asset).await?,
+            Either::Right(path) => split_traced_file_into_parts(path).await?,
+        };
+        for chunk_part in &chunk_parts {
+            let decoded_source = urlencoding::decode(&chunk_part.source)?;
+            let source = if let Some(stripped) = decoded_source.strip_prefix(&prefix) {
+                Cow::Borrowed(stripped)
+            } else if decoded_source.starts_with("[project]/") {
+                decoded_source
+            } else {
+                Cow::Owned(format!(
+                    "[project]/{}",
+                    decoded_source.trim_start_matches("../")
+                ))
+            };
+            let source_index = builder.ensure_source(&source).1;
+            let size = chunk_part.real_size + chunk_part.unaccounted_size;
             let chunk_part_index = builder.add_chunk_part(AnalyzeChunkPart {
                 source_index,
                 output_file_index,
-                size: chunk_part.real_size + chunk_part.unaccounted_size,
+                size,
+                compressed_size: chunk_part.get_compressed_size().await?.unwrap_or(size),
             });
             builder.add_chunk_part_to_output_file(output_file_index, chunk_part_index);
             builder.add_chunk_part_to_source(source_index, chunk_part_index);
@@ -410,14 +497,40 @@ pub async fn analyze_output_assets(output_assets: Vc<OutputAssets>) -> Result<Vc
 }
 
 #[turbo_tasks::function]
-pub async fn analyze_module_graphs(module_graphs: Vc<ModuleGraphs>) -> Result<Vc<FileContent>> {
+pub async fn analyze_module_graphs(module_graph: Vc<ModuleGraph>) -> Result<Vc<FileContent>> {
     let mut builder = ModulesDataBuilder::new();
 
+    let mut all_modules = FxIndexSet::default();
     let mut all_edges = FxIndexSet::default();
     let mut all_async_edges = FxIndexSet::default();
-    for &module_graph in module_graphs.await? {
-        let module_graph = module_graph.read_graphs().await?;
-        module_graph.traverse_all_edges_unordered(|(parent_node, reference), node| {
+    let mut all_traced_edges = FxIndexSet::default();
+    let mut traced_modules = FxHashSet::default();
+
+    let module_graph = module_graph.await?;
+    module_graph.traverse_edges_dfs(
+        module_graph.all_entry_modules(),
+        &mut (),
+        |parent, node, _| {
+            all_modules.insert(node);
+            let Some((parent_node, reference)) = parent else {
+                return Ok(GraphTraversalAction::Continue);
+            };
+
+            // ChunkingType::Traced{TracedMode::Entry}     => target is always traced
+            // ChunkingType::Traced{TracedMode::Transitive}=> target only traced if parent is traced
+            // ChunkingType::*                             => target only traced if parent is traced
+            if matches!(
+                reference.chunking_type,
+                ChunkingType::Traced {
+                    mode: TracedMode::Entry
+                }
+            ) || traced_modules.contains(&parent_node)
+            {
+                traced_modules.insert(node);
+                all_traced_edges.insert((parent_node, node));
+                return Ok(GraphTraversalAction::Continue);
+            };
+
             match reference.chunking_type {
                 ChunkingType::Async => {
                     all_async_edges.insert((parent_node, node));
@@ -426,18 +539,35 @@ pub async fn analyze_module_graphs(module_graphs: Vc<ModuleGraphs>) -> Result<Vc
                     all_edges.insert((parent_node, node));
                 }
             }
-            Ok(())
-        })?;
-    }
+            Ok(GraphTraversalAction::Continue)
+        },
+        |_, _, _| Ok(()),
+        true,
+    )?;
 
     type ModulePair = (ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>);
     async fn mapper((from, to): ModulePair) -> Result<Option<(RcStr, RcStr)>> {
         if from == to {
             return Ok(None);
         }
-        let from_path = from.ident().path().to_string().owned().await?;
-        let to_path = to.ident().path().to_string().owned().await?;
-        Ok(Some((from_path, to_path)))
+        let from_ident = from.ident().to_string().owned().await?;
+        let to_ident = to.ident().to_string().owned().await?;
+        Ok(Some((from_ident, to_ident)))
+    }
+
+    let all_modules = all_modules
+        .iter()
+        .copied()
+        .map(async |module| {
+            let ident = module.ident().to_string().owned().await?;
+            let path = module.ident().await?.path.to_string_ref().await?;
+            Ok((ident, path))
+        })
+        .try_join()
+        .await?;
+
+    for (ident, path) in &all_modules {
+        builder.ensure_module(ident, path);
     }
 
     let all_edges = all_edges
@@ -452,9 +582,15 @@ pub async fn analyze_module_graphs(module_graphs: Vc<ModuleGraphs>) -> Result<Vc
         .map(mapper)
         .try_flat_join()
         .await?;
-    for (from_path, to_path) in all_edges {
-        let from_index = builder.ensure_module(&from_path).1;
-        let to_index = builder.ensure_module(&to_path).1;
+    let all_traced_edges = all_traced_edges
+        .iter()
+        .copied()
+        .map(mapper)
+        .try_flat_join()
+        .await?;
+    for (from_ident, to_ident) in all_edges {
+        let from_index = builder.get_module(&from_ident).1;
+        let to_index = builder.get_module(&to_ident).1;
         if from_index == to_index {
             continue;
         }
@@ -465,9 +601,9 @@ pub async fn analyze_module_graphs(module_graphs: Vc<ModuleGraphs>) -> Result<Vc
             .dependents
             .insert(from_index);
     }
-    for (from_path, to_path) in all_async_edges {
-        let from_index = builder.ensure_module(&from_path).1;
-        let to_index = builder.ensure_module(&to_path).1;
+    for (from_ident, to_ident) in all_async_edges {
+        let from_index = builder.get_module(&from_ident).1;
+        let to_index = builder.get_module(&to_ident).1;
         if from_index == to_index {
             continue;
         }
@@ -478,81 +614,43 @@ pub async fn analyze_module_graphs(module_graphs: Vc<ModuleGraphs>) -> Result<Vc
             .async_dependents
             .insert(from_index);
     }
-
-    // Compute depth using BFS from modules without incoming edges
-    let mut queue = std::collections::VecDeque::new();
-
-    // Find modules without incoming edges and set their depth to 0
-    for (index, module) in builder.modules.iter_mut().enumerate() {
-        if module.dependents.is_empty() && module.async_dependents.is_empty() {
-            module.module.depth = 0;
-            queue.push_back(index as u32);
+    for (from_ident, to_ident) in all_traced_edges {
+        let from_index = builder.get_module(&from_ident).1;
+        let to_index = builder.get_module(&to_ident).1;
+        if from_index == to_index {
+            continue;
         }
-    }
-
-    // Process queue and propagate depth
-    while let Some(current_index) = queue.pop_front() {
-        let current_depth = builder.modules[current_index as usize].module.depth;
-
-        // Collect dependencies to avoid borrow conflicts
-        let dependencies: Vec<u32> = builder.modules[current_index as usize]
-            .dependencies
-            .iter()
-            .copied()
-            .collect();
-
-        // Update dependencies
-        let new_depth = current_depth + 1;
-        for &dep_index in &dependencies {
-            let dep_module = &mut builder.modules[dep_index as usize];
-            if new_depth < dep_module.module.depth {
-                dep_module.module.depth = new_depth;
-                queue.push_back(dep_index);
-            }
-        }
-
-        // Collect async dependencies to avoid borrow conflicts
-        let async_dependencies: Vec<u32> = builder.modules[current_index as usize]
-            .async_dependencies
-            .iter()
-            .copied()
-            .collect();
-
-        // Update async dependencies
-        let new_depth = current_depth + 1000;
-        for &dep_index in &async_dependencies {
-            let dep_module = &mut builder.modules[dep_index as usize];
-            if new_depth < dep_module.module.depth {
-                dep_module.module.depth = new_depth;
-                queue.push_back(dep_index);
-            }
-        }
+        builder.modules[from_index as usize]
+            .traced_dependencies
+            .insert(to_index);
+        builder.modules[to_index as usize]
+            .traced_dependents
+            .insert(from_index);
     }
 
     let rope = builder.build();
     Ok(FileContent::Content(File::from(rope)).cell())
 }
 
-#[turbo_tasks::function]
-pub async fn analyze_endpoint(endpoint: Vc<Box<dyn Endpoint>>) -> Result<Vc<FileContent>> {
-    Ok(analyze_output_assets(
-        *endpoint.output().await?.output_assets,
-    ))
-}
-
 #[turbo_tasks::value]
 pub struct AnalyzeDataOutputAsset {
     pub path: FileSystemPath,
     pub output_assets: ResolvedVc<OutputAssets>,
+    pub traced_files: ResolvedVc<FileSystemPathVec>,
 }
 
 #[turbo_tasks::value_impl]
 impl AnalyzeDataOutputAsset {
     #[turbo_tasks::function]
-    pub async fn new(path: FileSystemPath, output_assets: Vc<OutputAssets>) -> Result<Vc<Self>> {
+    pub async fn new(
+        path: FileSystemPath,
+        output_assets: ResolvedVc<OutputAssets>,
+        traced_files: ResolvedVc<FileSystemPathVec>,
+    ) -> Result<Vc<Self>> {
         Ok(Self {
             path,
-            output_assets: output_assets.to_resolved().await?,
+            output_assets,
+            traced_files,
         }
         .cell())
     }
@@ -562,7 +660,7 @@ impl AnalyzeDataOutputAsset {
 impl Asset for AnalyzeDataOutputAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
-        let file_content = analyze_output_assets(*self.output_assets);
+        let file_content = analyze_output_assets(*self.output_assets, *self.traced_files);
         AssetContent::file(file_content)
     }
 }
@@ -581,18 +679,17 @@ impl OutputAsset for AnalyzeDataOutputAsset {
 #[turbo_tasks::value]
 pub struct ModulesDataOutputAsset {
     pub path: FileSystemPath,
-    pub module_graphs: ResolvedVc<ModuleGraphs>,
+    pub module_graph: ResolvedVc<ModuleGraph>,
 }
 
 #[turbo_tasks::value_impl]
 impl ModulesDataOutputAsset {
     #[turbo_tasks::function]
-    pub async fn new(path: FileSystemPath, module_graphs: Vc<ModuleGraphs>) -> Result<Vc<Self>> {
-        Ok(Self {
-            path,
-            module_graphs: module_graphs.to_resolved().await?,
-        }
-        .cell())
+    pub async fn new(
+        path: FileSystemPath,
+        module_graph: ResolvedVc<ModuleGraph>,
+    ) -> Result<Vc<Self>> {
+        Ok(Self { path, module_graph }.cell())
     }
 }
 
@@ -600,7 +697,7 @@ impl ModulesDataOutputAsset {
 impl Asset for ModulesDataOutputAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
-        let file_content = analyze_module_graphs(*self.module_graphs);
+        let file_content = analyze_module_graphs(*self.module_graph);
         AssetContent::file(file_content)
     }
 }

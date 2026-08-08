@@ -44,11 +44,7 @@
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-13 -> 14 conditional = ???*0*
-- *0* arguments[1]
-  ⚠️  function calls are not analyzed yet
-
-13 -> 16 conditional = (???*0* | (???*1* === "binary"))
+13 -> 15 conditional = (???*0* | (???*1* === "binary"))
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 - *1* ???*2*["encoding"]
@@ -56,7 +52,7 @@
 - *2* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-16 -> 18 member call = module<charenc, {}>["bin"]["stringToBytes"](
+15 -> 17 member call = module<charenc, {}>["bin"]["stringToBytes"](
     (
       | ???*0*
       | module<charenc, {}>["bin"]["stringToBytes"](???*1*)
@@ -88,7 +84,7 @@
 - *8* message
   ⚠️  circular variable reference
 
-16 -> 20 member call = module<charenc, {}>["utf8"]["stringToBytes"](
+15 -> 19 member call = module<charenc, {}>["utf8"]["stringToBytes"](
     (
       | ???*0*
       | module<charenc, {}>["bin"]["stringToBytes"](???*1*)
@@ -120,7 +116,7 @@
 - *8* message
   ⚠️  circular variable reference
 
-13 -> 21 call = module<is-buffer, {}>(
+13 -> 20 call = module<is-buffer, {}>(
     (
       | ???*0*
       | module<charenc, {}>["bin"]["stringToBytes"](???*1*)
@@ -152,7 +148,7 @@
 - *8* message
   ⚠️  circular variable reference
 
-13 -> 22 conditional = module<is-buffer, {}>((???*0* | ???*1* | ???*3*))
+13 -> 21 conditional = module<is-buffer, {}>((???*0* | ???*1* | ???*3*))
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *1* module<charenc, {}>["bin"]["stringToBytes"](???*2*)
@@ -172,9 +168,9 @@
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-22 -> 26 free var = FreeVar(Array)
+21 -> 25 free var = FreeVar(Array)
 
-22 -> 27 member call = ???*0*["call"](
+21 -> 26 member call = ???*0*["call"](
     (
       | ???*3*
       | module<charenc, {}>["bin"]["stringToBytes"](???*4*)
@@ -216,9 +212,9 @@
 - *11* message
   ⚠️  circular variable reference
 
-22 -> 29 free var = FreeVar(Array)
+21 -> 28 free var = FreeVar(Array)
 
-22 -> 30 member call = ???*0*["isArray"](
+21 -> 29 member call = ???*0*["isArray"](
     (
       | ???*1*
       | module<charenc, {}>["bin"]["stringToBytes"](???*2*)
@@ -253,7 +249,7 @@
 - *9* message
   ⚠️  circular variable reference
 
-22 -> 31 conditional = !(???*0*)
+21 -> 30 conditional = !(???*0*)
 - *0* ???*1*["isArray"](message)
   ⚠️  unknown callee object
   ⚠️  This value might have side effects
@@ -261,7 +257,7 @@
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-31 -> 33 member call = (
+30 -> 32 member call = (
   | ???*0*
   | module<charenc, {}>["bin"]["stringToBytes"](???*1*)
   | module<charenc, {}>["utf8"]["stringToBytes"](???*2*)
@@ -291,7 +287,7 @@
 - *8* message
   ⚠️  circular variable reference
 
-0 -> 35 member call = module<crypt, {}>["bytesToWords"](
+0 -> 34 member call = module<crypt, {}>["bytesToWords"](
     (
       | ???*0*
       | module<charenc, {}>["bin"]["stringToBytes"](???*1*)
@@ -323,14 +319,14 @@
 - *8* message
   ⚠️  circular variable reference
 
-0 -> 51 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 50 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 0)],
     7,
-    ???*14*
+    -680876936
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -364,17 +360,15 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 53 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 52 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 1)],
     12,
-    ???*14*
+    -389564586
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -408,10 +402,8 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 55 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 54 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -453,14 +445,14 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 57 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 56 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 3)],
     22,
-    ???*14*
+    -1044525330
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -494,17 +486,15 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 59 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 58 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 4)],
     7,
-    ???*14*
+    -176418897
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -538,10 +528,8 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 61 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 60 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -583,14 +571,14 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 63 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 62 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 6)],
     17,
-    ???*14*
+    -1473231341
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -624,17 +612,15 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 65 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 64 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 7)],
     22,
-    ???*14*
+    -45705983
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -668,10 +654,8 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 67 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 66 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -713,14 +697,14 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 69 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 68 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 9)],
     12,
-    ???*14*
+    -1958414417
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -754,17 +738,15 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 71 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 70 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 10)],
     17,
-    ???*14*
+    -42063
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -798,17 +780,15 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 73 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 72 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 11)],
     22,
-    ???*14*
+    -1990404162
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -842,10 +822,8 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 75 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 74 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -887,14 +865,14 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 77 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 76 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 13)],
     12,
-    ???*14*
+    -40341101
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -928,17 +906,15 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 79 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 78 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 14)],
     17,
-    ???*14*
+    -1502002290
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -972,10 +948,8 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 81 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 80 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1017,14 +991,14 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 83 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 82 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 1)],
     5,
-    ???*14*
+    -165796510
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1058,17 +1032,15 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 85 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 84 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 6)],
     9,
-    ???*14*
+    -1069501632
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1102,10 +1074,8 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 87 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 86 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1147,14 +1117,14 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 89 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 88 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 0)],
     20,
-    ???*14*
+    -373897302
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1188,17 +1158,15 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 91 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 90 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 5)],
     5,
-    ???*14*
+    -701558691
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1232,10 +1200,8 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 93 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 92 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1277,14 +1243,14 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 95 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 94 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 15)],
     14,
-    ???*14*
+    -660478335
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1318,17 +1284,15 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 97 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 96 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 4)],
     20,
-    ???*14*
+    -405537848
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1362,10 +1326,8 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 99 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 98 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1407,14 +1369,14 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 101 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 100 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 14)],
     9,
-    ???*14*
+    -1019803690
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1448,17 +1410,15 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 103 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 102 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 3)],
     14,
-    ???*14*
+    -187363961
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1492,10 +1452,8 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 105 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 104 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1537,14 +1495,14 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 107 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 106 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 13)],
     5,
-    ???*14*
+    -1444681467
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1578,17 +1536,15 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 109 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 108 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 2)],
     9,
-    ???*14*
+    -51403784
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1622,10 +1578,8 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 111 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 110 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1667,14 +1621,14 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 113 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 112 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 12)],
     20,
-    ???*14*
+    -1926607734
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1708,17 +1662,15 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 115 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 114 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 5)],
     4,
-    ???*14*
+    -378558
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1752,17 +1704,15 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 117 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 116 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 8)],
     11,
-    ???*14*
+    -2022574463
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1796,10 +1746,8 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 119 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 118 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1841,14 +1789,14 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 121 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 120 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 14)],
     23,
-    ???*14*
+    -35309556
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1882,17 +1830,15 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 123 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 122 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 1)],
     4,
-    ???*14*
+    -1530992060
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1926,10 +1872,8 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 125 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 124 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1971,14 +1915,14 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 127 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 126 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 7)],
     16,
-    ???*14*
+    -155497632
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2012,17 +1956,15 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 129 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 128 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 10)],
     23,
-    ???*14*
+    -1094730640
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2056,10 +1998,8 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 131 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 130 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2101,14 +2041,14 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 133 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 132 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 0)],
     11,
-    ???*14*
+    -358537222
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2142,17 +2082,15 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 135 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 134 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 3)],
     16,
-    ???*14*
+    -722521979
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2186,10 +2124,8 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 137 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 136 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2231,14 +2167,14 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 139 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 138 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 9)],
     4,
-    ???*14*
+    -640364487
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2272,17 +2208,15 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 141 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 140 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 12)],
     11,
-    ???*14*
+    -421815835
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2316,10 +2250,8 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 143 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 142 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2361,14 +2293,14 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 145 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 144 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 2)],
     23,
-    ???*14*
+    -995338651
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2402,17 +2334,15 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 147 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 146 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 0)],
     6,
-    ???*14*
+    -198630844
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2446,10 +2376,8 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 149 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 148 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2491,14 +2419,14 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 151 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 150 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 14)],
     15,
-    ???*14*
+    -1416354905
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2532,17 +2460,15 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 153 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 152 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 5)],
     21,
-    ???*14*
+    -57434055
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2576,10 +2502,8 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 155 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 154 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2621,14 +2545,14 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 157 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 156 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 3)],
     10,
-    ???*14*
+    -1894986606
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2662,17 +2586,15 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 159 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 158 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 10)],
     15,
-    ???*14*
+    -1051523
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2706,17 +2628,15 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 161 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 160 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 1)],
     21,
-    ???*14*
+    -2054922799
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2750,10 +2670,8 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 163 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 162 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2795,14 +2713,14 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 165 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 164 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 15)],
     10,
-    ???*14*
+    -30611744
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2836,17 +2754,15 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 167 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 166 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 6)],
     15,
-    ???*14*
+    -1560198380
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2880,10 +2796,8 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 169 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 168 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2925,14 +2839,14 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 171 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 170 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 4)],
     6,
-    ???*14*
+    -145523070
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2966,17 +2880,15 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 173 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 172 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 11)],
     10,
-    ???*14*
+    -1120210379
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -3010,10 +2922,8 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 175 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 174 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -3055,14 +2965,14 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 177 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 176 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 9)],
     21,
-    ???*14*
+    -343485551
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -3096,10 +3006,8 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
-0 -> 179 member call = module<crypt, {}>["endian"]([???*0*, ???*1*, ???*2*, ???*3*])
+0 -> 178 member call = module<crypt, {}>["endian"]([???*0*, ???*1*, ???*2*, ???*3*])
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 - *1* max number of linking steps reached
@@ -3109,58 +3017,54 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 
-0 -> 180 unreachable = ???*0*
+0 -> 179 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 182 unreachable = ???*0*
+0 -> 181 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 184 unreachable = ???*0*
+0 -> 183 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 186 unreachable = ???*0*
+0 -> 185 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 188 unreachable = ???*0*
+0 -> 187 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 192 free var = FreeVar(module)
+0 -> 191 free var = FreeVar(module)
 
-0 -> 193 conditional = ((???*0* === undefined) | (???*1* === null))
+0 -> 192 conditional = ((???*0* === undefined) | (???*1* === null))
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *1* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-193 -> 194 free var = FreeVar(Error)
+192 -> 193 free var = FreeVar(Error)
 
-193 -> 195 call = new ???*0*(`Illegal argument ${???*1*}`)
+192 -> 194 call = new ???*0*(`Illegal argument ${???*1*}`)
 - *0* FreeVar(Error)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 - *1* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-0 -> 197 call = (...) => crypt["endian"]([a, b, c, d])(???*0*, ???*1*)
+0 -> 196 call = (...) => crypt["endian"]([a, b, c, d])(???*0*, ???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *1* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-0 -> 198 member call = module<crypt, {}>["wordsToBytes"](???*0*)
+0 -> 197 member call = module<crypt, {}>["wordsToBytes"](???*0*)
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-0 -> 199 conditional = ???*0*
-- *0* arguments[1]
-  ⚠️  function calls are not analyzed yet
-
-0 -> 201 conditional = (???*0* | ???*1*)
+0 -> 199 conditional = (???*0* | ???*1*)
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 - *1* ???*2*["asBytes"]
@@ -3168,11 +3072,7 @@
 - *2* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-201 -> 202 conditional = ???*0*
-- *0* arguments[1]
-  ⚠️  function calls are not analyzed yet
-
-201 -> 204 conditional = (???*0* | ???*1*)
+199 -> 201 conditional = (???*0* | ???*1*)
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 - *1* ???*2*["asString"]
@@ -3180,14 +3080,14 @@
 - *2* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-204 -> 206 member call = module<charenc, {}>["bin"]["bytesToString"](???*0*)
+201 -> 203 member call = module<charenc, {}>["bin"]["bytesToString"](???*0*)
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-204 -> 208 member call = module<crypt, {}>["bytesToHex"](???*0*)
+201 -> 205 member call = module<crypt, {}>["bytesToHex"](???*0*)
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-0 -> 209 unreachable = ???*0*
+0 -> 206 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects

@@ -13,6 +13,17 @@ export function createBinaryHmrMessageData(
   message: BinaryHmrMessageSentToBrowser
 ): Uint8Array {
   switch (message.type) {
+    case HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER: {
+      const { serializedErrors } = message
+      const totalLength = 1 + serializedErrors.length
+      const data = new Uint8Array(totalLength)
+      const view = new DataView(data.buffer)
+
+      view.setUint8(0, HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER)
+      data.set(serializedErrors, 1)
+
+      return data
+    }
     case HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK: {
       const { requestId, chunk } = message
       const requestIdBytes = textEncoder.encode(requestId)
@@ -41,7 +52,7 @@ export function createBinaryHmrMessageData(
     }
     default: {
       throw new InvariantError(
-        `Invalid binary HMR message of type ${message.type}`
+        `Invalid binary HMR message of type ${(message as any).type}`
       )
     }
   }

@@ -1,6 +1,4 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
-import webdriver from 'next-webdriver'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 import stripAnsi from 'strip-ansi'
 import { retry } from 'next-test-utils'
@@ -39,34 +37,30 @@ function setupLogCapture() {
   return { logs, restore, clearLogs }
 }
 
+const isCacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
+
 describe(`Terminal Logging (${bundlerName})`, () => {
   describe('Pages Router', () => {
-    let next: NextInstance
     let logs: string[] = []
     let logCapture: ReturnType<typeof setupLogCapture>
     let browser = null
 
-    beforeAll(async () => {
+    beforeAll(() => {
       logCapture = setupLogCapture()
       logs = logCapture.logs
-
-      next = await createNext({
-        files: {
-          pages: new FileRef(join(__dirname, 'fixtures/pages')),
-          'next.config.js': `
-            module.exports = {
-              experimental: {
-                browserDebugInfoInTerminal: true
-              }
-            }
-          `,
-        },
-      })
     })
 
-    afterAll(async () => {
+    const { next } = nextTestSetup({
+      files: {
+        pages: new FileRef(join(__dirname, 'fixtures/pages')),
+        'next.config.js': new FileRef(
+          join(__dirname, 'fixtures/next.config.js')
+        ),
+      },
+    })
+
+    afterAll(() => {
       logCapture.restore()
-      await next.destroy()
     })
 
     beforeEach(() => {
@@ -81,7 +75,7 @@ describe(`Terminal Logging (${bundlerName})`, () => {
     })
 
     it('should forward client component logs', async () => {
-      browser = await webdriver(next.url, '/pages-client-log')
+      browser = await next.browser('/pages-client-log')
       await browser.waitForElementByCss('#log-button')
       await browser.elementByCss('#log-button').click()
 
@@ -94,7 +88,7 @@ describe(`Terminal Logging (${bundlerName})`, () => {
     })
 
     it('should handle circular references safely', async () => {
-      browser = await webdriver(next.url, '/circular-refs')
+      browser = await next.browser('/circular-refs')
       await browser.waitForElementByCss('#circular-button')
       await browser.elementByCss('#circular-button').click()
 
@@ -106,7 +100,7 @@ describe(`Terminal Logging (${bundlerName})`, () => {
     })
 
     it('should respect default depth limit', async () => {
-      browser = await webdriver(next.url, '/deep-objects')
+      browser = await next.browser('/deep-objects')
       await browser.waitForElementByCss('#deep-button')
       await browser.elementByCss('#deep-button').click()
 
@@ -120,7 +114,7 @@ describe(`Terminal Logging (${bundlerName})`, () => {
     })
 
     it('should show source-mapped errors in pages router', async () => {
-      browser = await webdriver(next.url, '/pages-client-error')
+      browser = await next.browser('/pages-client-error')
       await browser.waitForElementByCss('#error-button')
 
       logCapture.clearLogs()
@@ -138,7 +132,7 @@ describe(`Terminal Logging (${bundlerName})`, () => {
     it('should show source-mapped errors for server errors from pages router ', async () => {
       const outputIndex = logs.length
 
-      browser = await webdriver(next.url, '/pages-server-error')
+      browser = await next.browser('/pages-server-error')
 
       await retry(() => {
         const newLogs = logs.slice(outputIndex).join('\n')
@@ -151,31 +145,25 @@ describe(`Terminal Logging (${bundlerName})`, () => {
   })
 
   describe('App Router - Server Components', () => {
-    let next: NextInstance
     let logs: string[] = []
     let logCapture: ReturnType<typeof setupLogCapture>
 
-    beforeAll(async () => {
+    beforeAll(() => {
       logCapture = setupLogCapture()
       logs = logCapture.logs
-
-      next = await createNext({
-        files: {
-          app: new FileRef(join(__dirname, 'fixtures/app')),
-          'next.config.js': `
-            module.exports = {
-              experimental: {
-                browserDebugInfoInTerminal: true
-              }
-            }
-          `,
-        },
-      })
     })
 
-    afterAll(async () => {
+    const { next } = nextTestSetup({
+      files: {
+        app: new FileRef(join(__dirname, 'fixtures/app')),
+        'next.config.js': new FileRef(
+          join(__dirname, 'fixtures/next.config.js')
+        ),
+      },
+    })
+
+    afterAll(() => {
       logCapture.restore()
-      await next.destroy()
     })
 
     beforeEach(() => {
@@ -200,7 +188,7 @@ describe(`Terminal Logging (${bundlerName})`, () => {
     it('should show source-mapped errors for server components', async () => {
       const outputIndex = logs.length
 
-      const browser = await webdriver(next.url, '/server-error')
+      const browser = await next.browser('/server-error')
 
       await retry(() => {
         const newLogs = logs.slice(outputIndex).join('\n')
@@ -212,34 +200,83 @@ describe(`Terminal Logging (${bundlerName})`, () => {
 
       await browser.close()
     })
+
+    // Cache Components validation errors are logged on the server during the
+    // dev render and are also sent to the browser to show in the dev overlay.
+    // The browser then logs them to its own console, which the
+    // browser-to-terminal log forwarding would otherwise replay back to the
+    // CLI, duplicating the error. Only applies with Cache Components enabled.
+    if (isCacheComponentsEnabled) {
+      it('logs the validation error on the server without re-logging the forwarded browser copy', async () => {
+        const outputIndex = logs.length
+
+        const browser = await next.browser('/cache-components-error', {
+          // `disableBrowserLog` stops the test harness from echoing the browser
+          // console to the terminal, so the captured output reflects only the
+          // dev server's own logging.
+          disableBrowserLog: true,
+        })
+
+        // Wait until the browser has logged the validation error to its own
+        // console. This is the same console.error that schedules the log
+        // forwarding, so once it appears any forwarded copy has been queued.
+        await retry(async () => {
+          const browserLogs = await browser.log()
+          expect(browserLogs).toContainEqual(
+            expect.objectContaining({
+              source: 'error',
+              message: expect.stringContaining(
+                'Route "/cache-components-error": Next.js encountered the unstable value'
+              ),
+            })
+          )
+        })
+
+        // Emit a marker afterwards. The forwarding queue preserves order, so
+        // once the marker reaches the terminal we know a forwarded copy of the
+        // error would already be there too.
+        await browser.eval(`console.log('forward-flush-marker')`)
+        await retry(() => {
+          expect(logs.slice(outputIndex).join('')).toContain(
+            '[browser] forward-flush-marker'
+          )
+        })
+
+        const output = logs.slice(outputIndex).join('')
+
+        // The validation error is logged directly by the dev server. It is also
+        // sent to the browser, which logs it to its own console, but the
+        // browser-to-terminal log forwarding skips it since it already
+        // originated on the server. It should therefore appear exactly once.
+        const validationError =
+          'Route "/cache-components-error": Next.js encountered the unstable value'
+        expect(output).toIncludeRepeated(validationError, 1)
+
+        await browser.close()
+      })
+    }
   })
 
   describe('App Router - Client Components', () => {
-    let next: NextInstance
     let logs: string[] = []
     let logCapture: ReturnType<typeof setupLogCapture>
 
-    beforeAll(async () => {
+    beforeAll(() => {
       logCapture = setupLogCapture()
       logs = logCapture.logs
-
-      next = await createNext({
-        files: {
-          app: new FileRef(join(__dirname, 'fixtures/app')),
-          'next.config.js': `
-            module.exports = {
-              experimental: {
-                browserDebugInfoInTerminal: true
-              }
-            }
-          `,
-        },
-      })
     })
 
-    afterAll(async () => {
+    const { next } = nextTestSetup({
+      files: {
+        app: new FileRef(join(__dirname, 'fixtures/app')),
+        'next.config.js': new FileRef(
+          join(__dirname, 'fixtures/next.config.js')
+        ),
+      },
+    })
+
+    afterAll(() => {
       logCapture.restore()
-      await next.destroy()
     })
 
     beforeEach(() => {
@@ -247,7 +284,7 @@ describe(`Terminal Logging (${bundlerName})`, () => {
     })
 
     it('should forward client component logs in app router', async () => {
-      const browser = await webdriver(next.url, '/client-log')
+      const browser = await next.browser('/client-log')
       await browser.waitForElementByCss('#log-button')
       await browser.elementByCss('#log-button').click()
 
@@ -262,7 +299,7 @@ describe(`Terminal Logging (${bundlerName})`, () => {
     })
 
     it('should show source-mapped errors for client components', async () => {
-      const browser = await webdriver(next.url, '/client-error')
+      const browser = await next.browser('/client-error')
       await browser.waitForElementByCss('#error-button')
 
       logCapture.clearLogs()
@@ -280,32 +317,123 @@ describe(`Terminal Logging (${bundlerName})`, () => {
     })
   })
 
-  describe('App Router - Edge Runtime', () => {
-    let next: NextInstance
+  describe('App Router - Hydration Errors', () => {
     let logs: string[] = []
     let logCapture: ReturnType<typeof setupLogCapture>
 
-    beforeAll(async () => {
+    beforeAll(() => {
       logCapture = setupLogCapture()
       logs = logCapture.logs
-
-      next = await createNext({
-        files: {
-          app: new FileRef(join(__dirname, 'fixtures/app')),
-          'next.config.js': `
-            module.exports = {
-              experimental: {
-                browserDebugInfoInTerminal: true
-              }
-            }
-          `,
-        },
-      })
     })
 
-    afterAll(async () => {
+    const { next } = nextTestSetup({
+      files: {
+        app: new FileRef(join(__dirname, 'fixtures/app')),
+        'next.config.js': new FileRef(
+          join(__dirname, 'fixtures/next.config.js')
+        ),
+      },
+    })
+
+    afterAll(() => {
       logCapture.restore()
-      await next.destroy()
+    })
+
+    beforeEach(() => {
+      logCapture.clearLogs()
+    })
+
+    it('should show hydration errors with owner stack trace', async () => {
+      const browser = await next.browser('/hydration-error')
+
+      let hydrationErrorLog = ''
+      await retry(() => {
+        const logOutput = logs.join('\n')
+        // Find the hydration error log entry
+        // Stop at: another [browser] log, status indicators (○ ⨯),
+        // or timestamp-prefixed logs (e.g. "[12:34:56.789Z] Browser Log: ...")
+        const hydrationMatch = logOutput.match(
+          /\[browser\].*Hydration[\s\S]*?(?=\n\[browser\]|\n *○|\n *⨯|\n *\[\d|$)/
+        )
+        expect(hydrationMatch).not.toBeNull()
+        hydrationErrorLog = hydrationMatch![0]
+        // Verify the Page component is in the forwarded stack trace with source location
+        expect(hydrationErrorLog).toMatch(/Page/)
+        expect(hydrationErrorLog).toMatch(/app\/hydration-error\/page/)
+      })
+
+      // Assert the entire hydration error message including owner stack trace
+      expect(hydrationErrorLog).toMatchInlineSnapshot(`
+       "[browser] Uncaught Error: Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:
+
+       - A server/client branch \`if (typeof window !== 'undefined')\`.
+       - Variable input such as \`Date.now()\` or \`Math.random()\` which changes each time it's called.
+       - Date formatting in a user's locale which doesn't match the server.
+       - External changing data without sending a snapshot of it along with the HTML.
+       - Invalid HTML tag nesting.
+
+       It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+       https://react.dev/link/hydration-mismatch
+
+         ...
+           <ScrollAndMaybeFocusHandler cacheNode={{rsc:{...}, ...}}>
+             <InnerScrollAndMaybeFocusHandler focusAndScrollRef={{scrollRef:null, ...}} cacheNode={{rsc:{...}, ...}}>
+               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+                 <LoadingBoundary name="hydration-..." loading={null}>
+                   <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
+                     <RedirectBoundary>
+                       <RedirectErrorBoundary router={{...}}>
+                         <InnerLayoutRouter url="/hydration..." tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} ...>
+                           <SegmentViewNode type="page" pagePath="hydration-...">
+                             <SegmentTrieNode>
+                             <ClientPageRoot Component={function Page} serverProvidedParams={{...}}>
+                               <Page params={Promise} searchParams={Promise}>
+                                 <div>
+                                   <p>
+       +                             client
+       -                             server
+                           ...
+                         ...
+               ...
+
+           at <unknown> (https://react.dev/link/hydration-mismatch)
+           at p (<anonymous>)
+           at Page (app/hydration-error/page.js:7:7)
+          5 |   return (
+          6 |     <div>
+       >  7 |       <p>{isClient ? 'client' : 'server'}</p>
+            |       ^
+          8 |     </div>
+          9 |   )
+         10 | }
+       "
+      `)
+
+      await browser.close()
+    })
+  })
+
+  describe('App Router - Edge Runtime', () => {
+    let logs: string[] = []
+    let logCapture: ReturnType<typeof setupLogCapture>
+
+    beforeAll(() => {
+      logCapture = setupLogCapture()
+      logs = logCapture.logs
+    })
+
+    const { next } = nextTestSetup({
+      files: {
+        app: new FileRef(join(__dirname, 'fixtures/app')),
+        'next.config.js': new FileRef(
+          join(__dirname, 'fixtures/next.config.js')
+        ),
+      },
+    })
+
+    afterAll(() => {
+      logCapture.restore()
     })
 
     beforeEach(() => {
@@ -313,7 +441,7 @@ describe(`Terminal Logging (${bundlerName})`, () => {
     })
 
     it('should handle edge runtime errors with source mapping', async () => {
-      const browser = await webdriver(next.url, '/edge-deep-stack')
+      const browser = await next.browser('/edge-deep-stack')
 
       await retry(() => {
         const logOutput = logs.join('\n')
@@ -324,64 +452,6 @@ describe(`Terminal Logging (${bundlerName})`, () => {
       })
 
       await browser.close()
-    })
-  })
-
-  describe('Configuration Options', () => {
-    describe('showSourceLocation disabled', () => {
-      let next: NextInstance
-      let logs: string[] = []
-      let logCapture: ReturnType<typeof setupLogCapture>
-      let browser = null
-
-      beforeAll(async () => {
-        logCapture = setupLogCapture()
-        logs = logCapture.logs
-
-        next = await createNext({
-          files: {
-            pages: new FileRef(join(__dirname, 'fixtures/pages')),
-            'next.config.js': `
-              module.exports = {
-                experimental: {
-                  browserDebugInfoInTerminal: {
-                    showSourceLocation: false
-                  }
-                }
-              }
-            `,
-          },
-        })
-      })
-
-      afterAll(async () => {
-        logCapture.restore()
-        await next.destroy()
-      })
-
-      beforeEach(() => {
-        logCapture.clearLogs()
-      })
-
-      afterEach(async () => {
-        if (browser) {
-          await browser.close()
-          browser = null
-        }
-      })
-
-      it('should omit source location when disabled', async () => {
-        browser = await webdriver(next.url, '/basic-logs')
-
-        await browser.waitForElementByCss('#log-button')
-        await browser.elementByCss('#log-button').click()
-
-        await retry(() => {
-          const logOutput = logs.join('')
-          expect(logOutput).toContain('[browser] Hello from browser')
-          expect(logOutput).not.toMatch(/\([^)]+basic-logs\.[jt]sx?:\d+:\d+\)/)
-        })
-      })
     })
   })
 })

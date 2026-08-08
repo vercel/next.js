@@ -1,6 +1,5 @@
 {
   "npmClient": "pnpm",
-  "useWorkspaces": true,
   "packages": [
     "packages/*"
   ],
@@ -16,5 +15,5 @@
       "registry": "https://registry.npmjs.org/"
     }
   },
-  "version": "16.0.2-canary.23"
+  "version": "16.3.1-canary.8"
 }

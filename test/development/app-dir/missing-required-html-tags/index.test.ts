@@ -10,6 +10,13 @@ import {
 describe('app-dir - missing required html tags', () => {
   const { next } = nextTestSetup({ files: __dirname })
 
+  if (process.env.__NEXT_CACHE_COMPONENTS === 'true') {
+    // TODO(restart-on-cache-miss): reenable once the bug is fixed in:
+    // https://github.com/vercel/next.js/pull/85818
+    it.skip('currently broken in Cache Components', () => {})
+    return
+  }
+
   it('should display correct error count in dev indicator', async () => {
     const browser = await next.browser('/')
     await waitForRedbox(browser)
@@ -25,6 +32,7 @@ describe('app-dir - missing required html tags', () => {
     await waitForRedbox(browser)
     await expect(browser).toDisplayRedbox(`
      {
+       "code": "E394",
        "description": "Missing <html> and <body> tags in the root layout.
      Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
        "environmentLabel": null,
@@ -50,6 +58,7 @@ describe('app-dir - missing required html tags', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
+       "code": "E394",
        "description": "Missing <html> and <body> tags in the root layout.
      Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
        "environmentLabel": null,
@@ -70,15 +79,16 @@ describe('app-dir - missing required html tags', () => {
 
     await retry(() =>
       expect(browser).toDisplayRedbox(`
-     {
-       "description": "Missing <html> tags in the root layout.
-     Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
-       "environmentLabel": null,
-       "label": "Runtime Error",
-       "source": null,
-       "stack": [],
-     }
-    `)
+       {
+         "code": "E394",
+         "description": "Missing <html> tags in the root layout.
+       Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": null,
+         "stack": [],
+       }
+      `)
     )
 
     reloaded = false

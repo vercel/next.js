@@ -1,13 +1,10 @@
 use std::{fmt, sync::Arc};
 
-use anyhow::{Result, anyhow};
+use anyhow::{Result, bail};
 
 use crate::{
-    MagicAny, OutputContent, RawVc, TaskPersistence, TraitMethod, TurboTasksBackendApi,
-    ValueTypeId,
-    backend::{Backend, TypedCellContent},
-    event::Event,
-    macro_helpers::NativeFunction,
+    DynTaskInputs, HeapDynTaskInputsStorage, OutputContent, RawVc, TaskPersistence, TraitMethod,
+    TurboTasks, ValueTypeId, backend::Backend, event::Event, macro_helpers::NativeFunction,
     registry,
 };
 
@@ -21,7 +18,7 @@ pub struct LocalTaskSpec {
     /// The self value, will always be present for `ResolveTrait` tasks and is optional otherwise
     pub(crate) this: Option<RawVc>,
     /// Function arguments
-    pub(crate) arg: Box<dyn MagicAny>,
+    pub(crate) arg: Box<dyn DynTaskInputs>,
     pub(crate) task_type: LocalTaskType,
 }
 
@@ -40,7 +37,7 @@ pub enum LocalTaskType {
 impl fmt::Display for LocalTaskType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            LocalTaskType::ResolveNative { native_fn } => write!(f, "*{}", native_fn.name),
+            LocalTaskType::ResolveNative { native_fn } => write!(f, "*{}", native_fn.ty.name),
             LocalTaskType::ResolveTrait { trait_method } => write!(
                 f,
                 "*{}::{}",
@@ -56,30 +53,34 @@ impl LocalTaskType {
     pub(crate) async fn run_resolve_native<B: Backend + 'static>(
         native_fn: &'static NativeFunction,
         mut this: Option<RawVc>,
-        arg: &dyn MagicAny,
+        arg: &dyn DynTaskInputs,
         persistence: TaskPersistence,
-        turbo_tasks: Arc<dyn TurboTasksBackendApi<B>>,
+        turbo_tasks: Arc<TurboTasks<B>>,
     ) -> Result<RawVc> {
         if let Some(this) = this.as_mut() {
             *this = this.resolve().await?;
         }
         let arg = native_fn.arg_meta.resolve(arg).await?;
-        Ok(turbo_tasks.native_call(native_fn, this, arg, persistence))
+        let mut arg = HeapDynTaskInputsStorage::new(arg);
+        Ok(turbo_tasks.native_call(native_fn, this, &mut arg, persistence))
     }
     /// Implementation of the LocalTaskType::ResolveTrait task.
     pub(crate) async fn run_resolve_trait<B: Backend + 'static>(
         trait_method: &'static TraitMethod,
         this: RawVc,
-        arg: &dyn MagicAny,
+        arg: &dyn DynTaskInputs,
         persistence: TaskPersistence,
-        turbo_tasks: Arc<dyn TurboTasksBackendApi<B>>,
+        turbo_tasks: Arc<TurboTasks<B>>,
     ) -> Result<RawVc> {
         let this = this.resolve().await?;
-        let TypedCellContent(this_ty, _) = this.into_read().await?;
+        let Some((_, cell_id)) = this.as_task_cell() else {
+            bail!("Trait method receiver must be a cell");
+        };
 
-        let native_fn = Self::resolve_trait_method_from_value(trait_method, this_ty)?;
+        let native_fn = Self::resolve_trait_method_from_value(trait_method, cell_id.type_id())?;
         let arg = native_fn.arg_meta.filter_and_resolve(arg).await?;
-        Ok(turbo_tasks.native_call(native_fn, Some(this), arg, persistence))
+        let mut arg = HeapDynTaskInputsStorage::new(arg);
+        Ok(turbo_tasks.native_call(native_fn, Some(this), &mut arg, persistence))
     }
 
     fn resolve_trait_method_from_value(
@@ -88,11 +89,11 @@ impl LocalTaskType {
     ) -> Result<&'static NativeFunction> {
         match registry::get_value_type(value_type).get_trait_method(trait_method) {
             Some(native_fn) => Ok(native_fn),
-            None => Err(anyhow!(
+            None => bail!(
                 "{} doesn't implement the trait for {:?}, the compiler should have flagged this",
                 registry::get_value_type(value_type),
                 trait_method
-            )),
+            ),
         }
     }
 }

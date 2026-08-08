@@ -9,7 +9,9 @@ use crate::{
     RawDirectoryEntry,
 };
 
-#[turbo_tasks::value(serialization = "none", cell = "new", eq = "manual")]
+#[derive(ValueToString)]
+#[value_to_string(self.name)]
+#[turbo_tasks::value(serialization = "skip", cell = "new", eq = "manual")]
 pub struct EmbeddedFileSystem {
     name: RcStr,
     #[turbo_tasks(trace_ignore)]
@@ -31,7 +33,7 @@ impl FileSystem for EmbeddedFileSystem {
             None => return Ok(FileContent::NotFound.cell()),
         };
 
-        Ok(File::from(file.contents()).into())
+        Ok(FileContent::Content(File::from(file.contents())).cell())
     }
 
     #[turbo_tasks::function]
@@ -86,13 +88,5 @@ impl FileSystem for EmbeddedFileSystem {
         }
 
         Ok(FileMeta::default().cell())
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for EmbeddedFileSystem {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(self.name.clone())
     }
 }

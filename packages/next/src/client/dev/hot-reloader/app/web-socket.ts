@@ -48,7 +48,7 @@ export function createWebSocket(
     }
 
     const newWebSocket = new window.WebSocket(
-      `${getSocketUrl(assetPrefix)}/_next/webpack-hmr?id=${self.__next_r}`
+      `${getSocketUrl(assetPrefix)}/_next/hmr?id=${self.__next_r}`
     )
 
     newWebSocket.binaryType = 'arraybuffer'
@@ -121,7 +121,7 @@ export function createWebSocket(
       newWebSocket.close()
       reconnections++
 
-      // After 25 reconnects we'll want to reload the page as it indicates the dev server is no longer running.
+      // After WEB_SOCKET_MAX_RECONNECTIONS reconnects we'll want to reload the page as it indicates the dev server is no longer running.
       if (reconnections > WEB_SOCKET_MAX_RECONNECTIONS) {
         reloading = true
         window.location.reload()
@@ -141,6 +141,28 @@ export function createWebSocket(
     webSocket = newWebSocket
     return newWebSocket
   }
+
+  function handleVisibilityChange() {
+    if (
+      document.visibilityState === 'visible' &&
+      webSocket.readyState !== WebSocket.OPEN
+    ) {
+      reconnections = 0
+      clearTimeout(timer)
+      init()
+    }
+  }
+
+  function handleOnlineEvent() {
+    if (webSocket.readyState !== WebSocket.OPEN) {
+      reconnections = 0
+      clearTimeout(timer)
+      init()
+    }
+  }
+
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+  window.addEventListener('online', handleOnlineEvent)
 
   return init()
 }
@@ -223,6 +245,14 @@ function parseBinaryMessage(data: ArrayBuffer): HmrMessageSentToBrowser {
   const messageType = view.getUint8(0)
 
   switch (messageType) {
+    case HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER: {
+      const serializedErrors = new Uint8Array(data, 1)
+
+      return {
+        type: HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER,
+        serializedErrors,
+      }
+    }
     case HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK: {
       assertByteLength(data, 2)
       const requestIdLength = view.getUint8(1)

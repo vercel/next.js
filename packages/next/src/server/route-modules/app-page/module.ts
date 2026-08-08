@@ -1,14 +1,17 @@
 import type { AppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
 import type RenderResult from '../../render-result'
 import type { RenderOpts } from '../../app-render/types'
-import type { NextParsedUrlQuery } from '../../request-meta'
+import { addRequestMeta, type NextParsedUrlQuery } from '../../request-meta'
 import type { LoaderTree } from '../../lib/app-dir-module'
 import type { PrerenderManifest } from '../../../build'
 
 import {
+  prerenderToHTMLOrFlight,
   renderToHTMLOrFlight,
+  runValidationInDevFromSnapshot,
   type AppSharedContext,
 } from '../../app-render/app-render'
+import type { DevValidationWorkerMessage } from '../../app-render/dev-validation-worker-globals'
 import {
   RouteModule,
   type RouteModuleOptions,
@@ -28,6 +31,14 @@ import {
   RSC_HEADER,
 } from '../../../client/components/app-router-headers'
 import { isInterceptionRouteAppPath } from '../../../shared/lib/router/utils/interception-routes'
+import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
+import { SegmentPrefixRSCPathnameNormalizer } from '../../normalizers/request/segment-prefix-rsc'
+import type { UrlWithParsedQuery } from 'url'
+import type { IncomingMessage } from 'http'
+import {
+  applyAppPageRscRequestMetaFromHeaders,
+  normalizeAppPageRequestUrl,
+} from './normalize-request-url'
 
 let vendoredReactRSC
 let vendoredReactSSR
@@ -100,6 +111,50 @@ export class AppPageRouteModule extends RouteModule<
     return matcher.match(pathname)
   }
 
+  private normalizers = {
+    rsc: new RSCPathnameNormalizer(),
+    segmentPrefetchRSC: new SegmentPrefixRSCPathnameNormalizer(),
+  }
+
+  public normalizeUrl(
+    req: IncomingMessage | BaseNextRequest,
+    parsedUrl: UrlWithParsedQuery
+  ) {
+    if (this.normalizers.segmentPrefetchRSC.match(parsedUrl.pathname || '/')) {
+      const result = this.normalizers.segmentPrefetchRSC.extract(
+        parsedUrl.pathname || '/'
+      )
+      if (!result) return false
+
+      const { originalPathname, segmentPath } = result
+      parsedUrl.pathname = originalPathname
+
+      // Mark the request as a router prefetch request.
+      req.headers[RSC_HEADER] = '1'
+      req.headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
+      req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] = segmentPath
+
+      addRequestMeta(req, 'isRSCRequest', true)
+      addRequestMeta(req, 'isPrefetchRSCRequest', true)
+      addRequestMeta(req, 'segmentPrefetchRSCRequest', segmentPath)
+    } else if (this.normalizers.rsc.match(parsedUrl.pathname || '/')) {
+      parsedUrl.pathname = this.normalizers.rsc.normalize(
+        parsedUrl.pathname || '/',
+        true
+      )
+
+      // Mark the request as a RSC request.
+      req.headers[RSC_HEADER] = '1'
+    } else {
+      super.normalizeUrl(req, parsedUrl)
+    }
+
+    // Minimal adapters can bypass base-server request normalization and invoke
+    // route modules directly, so derive RSC/prefetch metadata from headers.
+    applyAppPageRscRequestMetaFromHeaders(req)
+    normalizeAppPageRequestUrl(req, parsedUrl.pathname || '/')
+  }
+
   public render(
     req: BaseNextRequest,
     res: BaseNextResponse,
@@ -115,6 +170,41 @@ export class AppPageRouteModule extends RouteModule<
       context.serverComponentsHmrCache,
       context.sharedContext
     )
+  }
+
+  public prerender(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    context: AppPageRouteHandlerContext
+  ): Promise<RenderResult> {
+    return prerenderToHTMLOrFlight(
+      req,
+      res,
+      context.page,
+      context.query,
+      context.fallbackRouteParams,
+      context.renderOpts,
+      context.serverComponentsHmrCache,
+      context.sharedContext
+    )
+  }
+
+  /**
+   * Worker entry point for dev Cache Components dev validation. The dev
+   * validation worker reloads this route's module and calls this so the whole
+   * validation runs inside the app-page bundle's React instance (the same one
+   * the user's client components resolve through `componentMod`), rebuilding
+   * the render context from the transported `message`. `componentMod` is the
+   * reloaded module the worker holds; it's passed in because the route module
+   * has no back-reference to it. Returns the validation errors for the worker
+   * to serialize and the main thread to deliver to the dev overlay.
+   */
+  public runValidationInDev(
+    componentMod: AppPageModule,
+    message: DevValidationWorkerMessage,
+    abortSignal: AbortSignal
+  ): Promise<Array<unknown> | undefined> {
+    return runValidationInDevFromSnapshot(message, componentMod, abortSignal)
   }
 
   private pathCouldBeIntercepted(
@@ -155,6 +245,6 @@ const vendored = {
   contexts: vendoredContexts,
 }
 
-export { renderToHTMLOrFlight, vendored }
+export { prerenderToHTMLOrFlight, renderToHTMLOrFlight, vendored }
 
 export default AppPageRouteModule

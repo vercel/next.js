@@ -25,7 +25,7 @@ The `run` command supports 4 flags:
 
 - `strategy` can be one of sequential, concurrent, or parallel. defines how
   work is structured
-- `factor` defined how many pages should be built at once. defaults to num_cpus
+- `factor` defines how many pages should be built at once. defaults to num_cpus
 - `limit` defines the highest number of pages to build. the pages are
   shuffled deterministically. defaults to 1 page
 - `pages` a comma separated list of routes to run. queues that precise set in

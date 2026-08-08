@@ -3,23 +3,25 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::{Result, bail};
-use rand::{Rng, SeedableRng, rngs::StdRng};
+use rand::{RngExt, SeedableRng, rngs::StdRng};
 use turbo_tasks::{ResolvedVc, State, Vc};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn random_change() {
+async fn test_random_change() {
     run_once(&REGISTRATION, || async {
-        let state = make_state_operation().resolve_strongly_consistent().await?;
+        let state_op = make_state_operation();
+        let state_vc = state_op.resolve().strongly_consistent().await?;
+        let state = state_op.read_strongly_consistent().await?;
 
         let mut rng = StdRng::from_seed(Default::default());
-        let func_op = func_operation(state);
-        let func2_op = func2_operation(state);
+        let func_op = func_operation(state_vc);
+        let func2_op = func2_operation(state_vc);
         for _i in 0..10 {
             let value = rng.random_range(0..100);
-            state.await?.state.set(value);
+            state.state.set(value);
 
             let result = func_op.read_strongly_consistent().await?;
             assert_eq!(result.value, value);
@@ -46,7 +48,7 @@ struct ValueContainer {
     state: State<i32>,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn make_state_operation() -> Vc<ValueContainer> {
     ValueContainer {
         state: State::new(0),
@@ -54,7 +56,7 @@ fn make_state_operation() -> Vc<ValueContainer> {
     .cell()
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn func2_operation(input: ResolvedVc<ValueContainer>) -> Result<Vc<Value>> {
     let state = input.await?;
     let value = state.state.get();
@@ -62,7 +64,7 @@ async fn func2_operation(input: ResolvedVc<ValueContainer>) -> Result<Vc<Value>>
     Ok(func(*input, -*value))
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn func_operation(input: ResolvedVc<ValueContainer>) -> Vc<Value> {
     func(*input, 0)
 }
