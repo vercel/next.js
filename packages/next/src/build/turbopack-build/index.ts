@@ -1,12 +1,12 @@
 import { NextBuildContext } from '../build-context'
 import type { Telemetry } from '../../telemetry/storage'
+import { turbopackBuild as turbopackBuildImpl } from './impl'
 
 export function turbopackBuild(
   telemetry: Telemetry
-): ReturnType<typeof import('./impl').turbopackBuild> {
+): ReturnType<typeof turbopackBuildImpl> {
   const nextBuildSpan = NextBuildContext.nextBuildSpan!
-  return nextBuildSpan.traceChild('run-turbopack').traceAsyncFn(async () => {
-    const build = (require('./impl') as typeof import('./impl')).turbopackBuild
-    return await build(telemetry)
-  })
+  return nextBuildSpan
+    .traceChild('run-turbopack')
+    .traceAsyncFn(() => turbopackBuildImpl(telemetry))
 }

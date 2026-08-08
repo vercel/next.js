@@ -78,6 +78,5 @@ export function backgroundLogCompilationEvents(
     }
   })()
   // Prevent unhandled rejection if the subscription errors after the project shuts down.
-  promise.catch(() => {})
-  return promise
+  return promise.catch(() => {})
 }
