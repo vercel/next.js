@@ -10,9 +10,8 @@ pub type TaskTypeHash = [u8; 8];
 
 /// A single item yielded by the snapshot iterator during persistence: either a put (persist a
 /// modified task's meta/data + optionally register a new task's type) or a delete (tombstone a
-/// GC-collected task's on-disk copy). Both ride the one streaming iterator `save_snapshot`
-/// consumes, so GC tombstones are applied in the same commit and batch as the puts without a
-/// side-channel that would have to be fully materialized before the put loop.
+/// GC-collected task's on-disk copy). Both ride the one iterator `save_snapshot` consumes, so
+/// tombstones are applied in the same commit and batch as the puts.
 pub enum SnapshotItem {
     Put {
         task_id: TaskId,
@@ -23,23 +22,8 @@ pub enum SnapshotItem {
         /// Task type for new tasks that need to be added to the task cache
         task_type_hash: Option<TaskTypeHash>,
     },
-    /// Tombstone a GC-collected task, applied in the same commit as the surrounding puts.
-    ///
-    /// This is identity-only — no copy of the `TaskMeta`/`TaskData` buffers or the full
-    /// `CachedTaskType` behind the hash — because that is all the deletion needs:
-    ///
-    /// - `TaskMeta` and `TaskData` are `SingleValue`, so a key-granular delete is exact.
-    /// - `TaskCache` is `MultiValue` and keyed by the type hash, so deleting the key would also
-    ///   drop any task type that xxh3-collides with this one. The task id is the value in that
-    ///   bucket, so `delete_value` names exactly the one mapping to remove.
-    ///
-    /// Every part of this is a buffered write; nothing is read back at commit time. Compaction
-    /// drops the tombstoned entry the next time it rewrites the key group, and reads filter it out
-    /// until then.
-    ///
-    /// Not yet constructed: this PR lands the persistence-side delete mechanism (the
-    /// `save_snapshot` handling below + its tests). The GC pass that emits `Delete` for
-    /// soft-deleted tasks lands in a later PR in the stack.
+    // Constructed by the GC pass that emits `Delete` for soft-deleted tasks, which lands in a
+    // later PR in the stack.
     #[allow(dead_code)]
     Delete {
         task_id: TaskId,
