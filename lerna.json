@@ -1,10 +1,10 @@
 {
   "npmClient": "pnpm",
   "packages": [
-    "packages/*"
+  "packages/*"
   ],
-  "command": {
-    "version": {
+  "command":{
+    "version":{
       "exact": true
     },
     "publish": {
