@@ -811,10 +811,14 @@ mod tests {
         assert_eq!(processed.load(Ordering::SeqCst), 20);
     }
 
-    /// On a multi-thread runtime, work spawned from inside `run` must be picked up and processed,
-    /// including by the helper worker tasks.
+    /// A single `run` call that enqueues a large batch of leaves: every one must be picked up and
+    /// processed, including by the helper worker tasks.
+    ///
+    /// The leaves matter. Because none of them spawns in turn, the queue drains monotonically to
+    /// empty, so accounting that counts an item only after pushing it lets `remaining_tasks` reach
+    /// zero early and strands the rest. A cascade would hide that by refilling the queue.
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-    async fn test_unbounded_multi_thread() {
+    async fn test_unbounded_wide_burst_of_leaves() {
         const CHILDREN: usize = 1000;
         let processed = Arc::new(AtomicUsize::new(0));
         let processed_clone = processed.clone();
@@ -836,8 +840,9 @@ mod tests {
         assert_eq!(processed.load(Ordering::SeqCst), 1 + CHILDREN);
     }
 
-    /// Jobs spawn a *tree* of children. Every node must be processed exactly once — the visited
-    /// flags catch both missing and duplicate visits.
+    /// Jobs spawn a *tree* of children, so work is produced at every depth rather than all at once.
+    /// Every node must be processed exactly once — the visited flags catch duplicate visits, the
+    /// count catches dropped ones.
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn test_unbounded_tree() {
         // Binary tree of depth 10 => 2^11 - 1 = 2047 nodes, ids 1..=2047 (heap numbering).
@@ -893,6 +898,45 @@ mod tests {
             ControlFlow::Continue(())
         });
         assert_eq!(processed.load(Ordering::SeqCst), 0);
+    }
+
+    /// A slow seeding iterator must not let the scope finish early. Helpers start draining as soon
+    /// as the first item lands, so between two yields of the iterator the queue can be empty and
+    /// every dispatched item already done — `remaining_tasks` would hit zero and close the queue
+    /// with seeds still to come, silently dropping them.
+    ///
+    /// The sleep between yields makes that window near-certain rather than a rare interleaving.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn test_unbounded_slow_seeding_iterator_completes() {
+        const SEEDS: usize = 16;
+        let processed = Arc::new(AtomicUsize::new(0));
+        let processed_clone = processed.clone();
+        tokio::task::spawn_blocking(move || {
+            // Each `next()` blocks briefly, so helpers drain the queue to empty before the next
+            // seed arrives.
+            let slow_seeds = std::iter::from_fn({
+                let mut next = 0;
+                move || {
+                    if next == SEEDS {
+                        return None;
+                    }
+                    thread::sleep(Duration::from_millis(2));
+                    next += 1;
+                    Some(next - 1)
+                }
+            });
+            scope_unbounded(slow_seeds, move |_spawner, _item| {
+                processed_clone.fetch_add(1, Ordering::SeqCst);
+                ControlFlow::Continue(())
+            });
+        })
+        .await
+        .unwrap();
+        assert_eq!(
+            processed.load(Ordering::SeqCst),
+            SEEDS,
+            "seeds produced after the queue briefly drained must still be processed"
+        );
     }
 
     /// `ControlFlow::Break` abandons the queued-but-unstarted items: the scope must terminate
@@ -966,26 +1010,28 @@ mod tests {
     async fn test_unbounded_spawn_after_abort_is_dropped() {
         let processed = Arc::new(AtomicUsize::new(0));
         let processed_clone = processed.clone();
+        const SEEDS: usize = 64;
         tokio::task::spawn_blocking(move || {
-            scope_unbounded(0..64usize, move |spawner, item| {
-                let n = processed_clone.fetch_add(1, Ordering::SeqCst);
-                if n == 0 {
-                    return ControlFlow::Break(());
-                }
-                // Post-abort spawns: these must be dropped rather than counted-but-unqueued.
+            scope_unbounded(0..SEEDS, move |spawner, item| {
+                processed_clone.fetch_add(1, Ordering::SeqCst);
+                // Every item aborts, and every item spawns *first*. The aborting item's own spawns
+                // race the latch, and every item that follows pushes into an already-closed queue;
+                // all of them must be dropped rather than counted-but-unqueued. Because no item
+                // ever returns `Continue`, nothing spawned here is legitimately runnable, so any
+                // spawned id that does run shows up in the count below.
                 for i in 0..1000 {
-                    spawner.spawn(10_000 + item * 1000 + i);
+                    spawner.spawn(SEEDS + item * 1000 + i);
                 }
-                ControlFlow::Continue(())
+                ControlFlow::Break(())
             });
         })
         .await
         .unwrap();
-        // Nothing spawned after the abort may run, so the count stays bounded by the seeds rather
-        // than exploding by the 1000-per-item fan-out.
+        // Only seeds may run: every spawned id is >= SEEDS, so processing even one would push the
+        // count past the seed total.
         let count = processed.load(Ordering::SeqCst);
         assert!(
-            count <= 64,
+            count <= SEEDS,
             "post-abort spawns must be dropped, but {count} items ran"
         );
     }
