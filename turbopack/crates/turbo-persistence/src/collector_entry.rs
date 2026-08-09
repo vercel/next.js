@@ -63,11 +63,11 @@ impl CollectorEntryValue {
     #[cfg(feature = "verify_sst_content")]
     pub fn as_bytes(&self) -> Option<&[u8]> {
         match self {
-            CollectorEntryValue::Tiny { value, len } => Some(&value[..*len as usize]),
+            CollectorEntryValue::KeyValueDeleted { value, len }
+            | CollectorEntryValue::Tiny { value, len } => Some(&value[..*len as usize]),
             CollectorEntryValue::Small { value } | CollectorEntryValue::Medium { value } => {
                 Some(value)
             }
-            CollectorEntryValue::KeyValueDeleted { value, len } => Some(&value[..*len as usize]),
             CollectorEntryValue::Large { .. } | CollectorEntryValue::KeyDeleted => None,
         }
     }
