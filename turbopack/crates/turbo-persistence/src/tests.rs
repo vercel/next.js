@@ -6,7 +6,7 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use crate::{
     DbConfig, FamilyConfig, FamilyKind,
     constants::{MAX_MEDIUM_VALUE_SIZE, MAX_SMALL_VALUE_SIZE},
-    db::{CompactConfig, CurrentDbVersion, TurboPersistence, read_current_version},
+    db::{CompactConfig, TurboPersistence, read_current_version},
     parallel_scheduler::ParallelScheduler,
     write_batch::WriteBatch,
 };
