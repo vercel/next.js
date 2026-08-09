@@ -191,16 +191,11 @@ fn ttl_from_days(days: u64) -> Duration {
 }
 
 /// How long ago the version directory `entry` was last committed to, read from the `commit_time`
-/// its `CURRENT` file records. A cache that's in use gets written to, so this stands in for how
-/// recently the version was used.
+/// its `CURRENT` file records
 ///
 /// A directory with no `CURRENT` isn't a database we finished writing — access to the cache root is
 /// serialized, so it can't be one that's mid-initialization — and gets [`Duration::MAX`] so it's
-/// evicted ahead of any real cache. A `CURRENT` that exists but can't be read is corruption or IO
-/// failure: the error propagates rather than turning into a deletion.
-///
-/// A stamp in the future (clock skew) reads as age zero, so a version is never evicted for looking
-/// too new.
+/// evicted ahead of any real cache
 fn time_since_last_commit(entry: &DirEntry) -> Result<Duration> {
     let Some(version) = read_current_version(&entry.path())? else {
         return Ok(Duration::MAX);

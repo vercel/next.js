@@ -164,8 +164,7 @@ impl WriteOperationGuard<'_> {
 /// happened.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CurrentDbVersion {
-    /// The highest sequence number that is part of the committed database. Files with a greater
-    /// sequence number are orphans from an interrupted write and get deleted on open.
+    /// The highest sequence number that is part of the committed database.
     pub max_sequence_number: u32,
     /// When this database was last committed to.
     pub commit_time: Timestamp,
@@ -216,6 +215,17 @@ fn commit_current(path: &Path, seq: u32) -> Result<()> {
     next_file.sync_data()?;
     drop(next_file);
     fs::rename(&next_path, path.join("CURRENT"))?;
+    // Fsync the directory. This is the single durability barrier for a commit: by the time we get
+    // here every file created earlier in the commit (SST/meta/blob and any `.del` file) already
+    // exists, so this one fsync flushes *all* of their directory entries together with the CURRENT
+    // rename. Because the file *contents* were already `sync_data`'d before this call and the
+    // rename is the last directory mutation, a crash can never leave a durable CURRENT pointing at
+    // files whose directory entries were lost. Callers therefore do not need a separate directory
+    // fsync before invoking this.
+    //
+    // Skipped on Windows: `sync_data` on a directory handle fails with ERROR_ACCESS_DENIED (the
+    // handle `File::open` returns for a directory has no write access).Apparently metadata changes
+    // are always atomic on windows so this is simply unneeded.
     #[cfg(not(windows))]
     File::open(path)
         .and_then(|dir| dir.sync_data())
@@ -620,7 +630,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             .store(meta_files.is_empty(), Ordering::Relaxed);
         inner.meta_files = meta_files;
         inner.current_sequence_number = current;
-
         Ok(true)
     }
 

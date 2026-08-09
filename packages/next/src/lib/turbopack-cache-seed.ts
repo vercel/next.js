@@ -105,9 +105,6 @@ function findSeedSource(
 // When the cache in `versionDir` was last committed to, in epoch milliseconds, or undefined if
 // there is no usable cache there. Read from the `commit_time` the persistence layer records in
 // CURRENT.
-//
-// No fallback for the pre-JSON CURRENT format: callers only look inside the directory named for
-// the running binary's own cache version, which no binary that old could have written.
 function currentCommitTimeMs(versionDir: string): number | undefined {
   let commitTime
   try {

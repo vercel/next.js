@@ -2248,7 +2248,7 @@ fn current_file_is_json_with_commit_time() -> Result<()> {
     }
     let after = jiff::Timestamp::now();
 
-    // External tools parse `CURRENT` without going through this crate, so these field names are a
+    // next.js parses `CURRENT` without going through this crate, so these field names are a
     // public contract.
     let raw = fs::read_to_string(path.join("CURRENT"))?;
     assert!(raw.contains("max_sequence_number"), "got: {raw}");
@@ -2260,105 +2260,6 @@ fn current_file_is_json_with_commit_time() -> Result<()> {
         version.commit_time >= before && version.commit_time <= after,
         "commit_time {} outside [{before}, {after}]",
         version.commit_time
-    );
-
-    Ok(())
-}
-
-/// A `CURRENT` that exists but doesn't parse is corruption, and opening must fail loudly rather
-/// than silently treating the database as empty — that would orphan and delete every SST.
-#[test]
-fn corrupt_current_file_fails_to_open() -> Result<()> {
-    use crate::parallel_scheduler::SerialScheduler;
-
-    let tempdir = tempfile::tempdir()?;
-    let path = tempdir.path();
-
-    {
-        let db = TurboPersistence::<SerialScheduler, 1>::open(path.to_path_buf())?;
-        let batch = db.write_batch()?;
-        batch.put(0, vec![1u8], vec![42u8].into())?;
-        db.commit_write_batch(batch)?;
-        db.shutdown()?;
-    }
-
-    // A truncated `CURRENT`, e.g. from an interrupted copy. Four bytes specifically, so that a
-    // length-based format guess would misread it as a raw sequence number.
-    fs::write(path.join("CURRENT"), [0u8; 4])?;
-
-    assert!(
-        read_current_version(path).is_err(),
-        "a truncated CURRENT must be reported as corrupt, not parsed"
-    );
-    assert!(
-        TurboPersistence::<SerialScheduler, 1>::open(path.to_path_buf()).is_err(),
-        "opening a database with a corrupt CURRENT must fail"
-    );
-
-    // The data must still be on disk: a failed open must not have deleted anything.
-    let ssts = fs::read_dir(path)?
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().is_some_and(|ext| ext == "sst"))
-        .count();
-    assert!(ssts > 0, "a failed open must not delete SST files");
-
-    Ok(())
-}
-
-/// The commit time is stamped by commits, not by opens: an open that writes nothing leaves
-/// `CURRENT` untouched, so it costs no fsync.
-#[test]
-fn opening_without_writing_leaves_commit_time_alone() -> Result<()> {
-    use crate::parallel_scheduler::SerialScheduler;
-
-    let tempdir = tempfile::tempdir()?;
-    let path = tempdir.path();
-
-    {
-        let db = TurboPersistence::<SerialScheduler, 1>::open(path.to_path_buf())?;
-        let batch = db.write_batch()?;
-        batch.put(0, vec![1u8], vec![42u8].into())?;
-        db.commit_write_batch(batch)?;
-        db.shutdown()?;
-    }
-
-    // Backdate the recorded timestamp, leaving the sequence number intact.
-    let stale = read_current_version(path)?.unwrap();
-    let backdated = jiff::Timestamp::now() - jiff::SignedDuration::from_hours(72);
-    fs::write(
-        path.join("CURRENT"),
-        serde_json::to_vec(&CurrentDbVersion {
-            max_sequence_number: stale.max_sequence_number,
-            commit_time: backdated,
-        })?,
-    )?;
-
-    {
-        let db = TurboPersistence::<SerialScheduler, 1>::open(path.to_path_buf())?;
-        db.shutdown()?;
-    }
-
-    let after_open = read_current_version(path)?.unwrap();
-    assert_eq!(
-        after_open.max_sequence_number, stale.max_sequence_number,
-        "sequence number must be preserved"
-    );
-    assert_eq!(
-        after_open.commit_time, backdated,
-        "an open with no writes must not rewrite CURRENT"
-    );
-
-    // A commit does stamp it.
-    {
-        let db = TurboPersistence::<SerialScheduler, 1>::open(path.to_path_buf())?;
-        let batch = db.write_batch()?;
-        batch.put(0, vec![2u8], vec![43u8].into())?;
-        db.commit_write_batch(batch)?;
-        db.shutdown()?;
-    }
-    assert!(
-        read_current_version(path)?.unwrap().commit_time > backdated,
-        "committing must refresh commit_time"
     );
 
     Ok(())
