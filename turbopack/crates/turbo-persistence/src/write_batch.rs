@@ -249,10 +249,7 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
     ///
     /// Combining this with a [`WriteBatch::put`] of the same key in the same batch is **not
     /// supported**: which one wins is undefined, and callers are expected to resolve the intent
-    /// themselves before writing. A batch is not an ordered log — writes are buffered in
-    /// thread-local collectors that are sealed into SST files whenever they fill up, so two
-    /// operations on one key can land in different files, and the relative order of those files
-    /// within the batch is not guaranteed.
+    /// themselves before writing.
     pub fn delete(&self, family: u32, key: K) -> Result<()> {
         let state = self.thread_local_state();
         let collector = self.thread_local_collector_mut(state, family)?;
@@ -265,19 +262,12 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
     /// Only valid for [`FamilyKind::MultiValue`] families: in a `SingleValue` family a key has one
     /// value and [`WriteBatch::delete`] already removes it exactly.
     ///
-    /// Does not read the existing values for `key` first — the tombstone is written optimistically
-    /// and applied lazily by reads and compaction, so deleting N pairs costs N buffered writes
-    /// rather than N read-modify-write cycles.
-    ///
     /// Deleting a pair that is written in the same batch — by this or any other operation on the
     /// key — is **not supported**, for the reason given on [`WriteBatch::delete`]: which one wins
-    /// is undefined, and it is the caller's job to resolve that before writing. Nothing detects
-    /// the conflict, so a batch that does this silently keeps or drops the value depending on how
-    /// collectors happened to fill.
+    /// is undefined, and it is the caller's job to resolve that before writing.
     ///
-    /// Only values of at most [`MAX_INLINE_VALUE_SIZE`] bytes can be deleted this way; larger
-    /// values are an error. The tombstone carries a copy of the value so that reads can match it,
-    /// so deleting a large value would cost more than the value it reclaims.
+    /// Only values of at most [`MAX_INLINE_VALUE_SIZE`] bytes can be deleted this way.  This is a
+    /// simplifying limitation that could be relaxed if needed.
     pub fn delete_value(&self, family: u32, key: K, value: ValueBuffer<'_>) -> Result<()> {
         let family_config = &self.family_configs[usize_from_u32(family)];
         if family_config.kind != FamilyKind::MultiValue {

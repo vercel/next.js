@@ -1524,40 +1524,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         .parallel_scheduler
                         .parallel_map_collect_owned::<_, _, Result<Vec<_>>>(merge_jobs, |indices| {
                             let _span = span.clone().entered();
-                            // Filters of every SST older than this job.
-                            //
-                            // A tombstone only suppresses values older than itself, and within the
-                            // job `MergeIter` yields newest-first so the loop below already drops
-                            // those. What remains is everything older than the job's oldest member.
-                            //
-                            // This must be an index, not a sequence number. `ssts_with_ranges` is
-                            // built by walking meta files and their entries in order, which is the
-                            // order readers traverse in reverse, so a higher index is newer. `seq`
-                            // does not track that: a moved SST keeps its original number while
-                            // merged output takes a fresh one, so a real compaction produces
-                            // index-ordered sequences like [19, 20, 18, 17].
-                            //
-                            // Indices below the job's oldest member stay older than its output:
-                            // `get_merge_segments` returns segments in ascending index order and
-                            // they are re-added to the new meta file in that order, so relative
-                            // order is preserved. SSTs the job skips over sit above its oldest
-                            // member, and so cannot resurrect a value it deletes.
-                            let oldest_index_in_job = indices.iter().copied().min().unwrap_or(0);
-                            let older_filters = ssts_with_ranges[..oldest_index_in_job]
-                                .iter()
-                                .map(|sst| {
-                                    let entry = meta_files[sst.meta_index].entry(sst.index_in_meta);
-                                    (entry.min_hash(), entry.max_hash(), entry.amqf())
-                                })
-                                .collect::<Vec<_>>();
-                            // The AMQF's error is one-sided — `false` means *definitely absent* —
-                            // so a false positive only retains a tombstone for another round, and
-                            // the resurrection direction is unreachable.
-                            let tombstone_is_dead = |hash: u64| {
-                                !older_filters.iter().any(|(min, max, amqf)| {
-                                    hash >= *min && hash <= *max && amqf.contains_fingerprint(hash)
-                                })
-                            };
+
                             if indices.len() == 1 {
                                 // If we only have one file, we can just move it
                                 let index = indices[0];
@@ -1580,7 +1547,39 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     meta,
                                 });
                             }
+                            let tombstone_is_dead = {
+                                // Filters of every SST older than this job.
+                                //
+                                // A tombstone only suppresses values older than itself, and within
+                                // the job `MergeIter` yields
+                                // newest-first so the loop below already drops
+                                // those. What remains is everything older than the job's oldest
+                                // member.
+                                let oldest_index_in_job = indices
+                                    .iter()
+                                    .copied()
+                                    .min()
+                                    .expect("merge jobs are not empty");
+                                let older_filters = ssts_with_ranges[..oldest_index_in_job]
+                                    .iter()
+                                    .map(|sst| {
+                                        let entry =
+                                            meta_files[sst.meta_index].entry(sst.index_in_meta);
+                                        (entry.min_hash(), entry.max_hash(), entry.amqf())
+                                    })
+                                    .collect::<Vec<_>>();
 
+                                // A tombstone is dead if no older SST contains a matching key
+                                // This can have false negatives due to the filters but no false
+                                // positives.
+                                move |hash: u64| {
+                                    !older_filters.iter().any(|(min, max, amqf)| {
+                                        hash >= *min
+                                            && hash <= *max
+                                            && amqf.contains_fingerprint(hash)
+                                    })
+                                }
+                            };
                             // Open SST files independently for compaction.
                             // Uses MADV_SEQUENTIAL for better OS page management
                             // and avoids caching mmaps on MetaEntry's OnceLock.
@@ -1733,7 +1732,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         continue;
                                     }
                                 } else if !deleted_values_for_this_key.is_empty()
+                                    // Deleted values cannot match blobs, just normal payloads.
                                     && let IterValue::Slice { value } = &entry.value
+                                    // O(N) but in practice there is never more than 1 element.
                                     && deleted_values_for_this_key.iter().any(|d| **d == **value)
                                 {
                                     // Deleted by a key-value tombstone seen earlier in this group.
@@ -1763,10 +1764,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                             skip_remaining_for_this_key = true;
                                         }
                                     }
-                                    // Same liveness rule as a key-value tombstone. Dropping it
-                                    // here is safe because it already set
-                                    // `skip_remaining_for_this_key` above, so the rest of the
-                                    // group stays shadowed within this job.
+                                    // If this is a tombstone, see if we need to retain it or not.
                                     if matches!(entry.value, IterValue::KeyDeleted)
                                         && tombstone_is_dead(entry.hash)
                                     {
