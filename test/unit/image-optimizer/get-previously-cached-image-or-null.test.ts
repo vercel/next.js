@@ -17,6 +17,7 @@ const getImageUpstream = async (filepath, contentType = 'image/jpeg') => {
     contentType,
     cacheControl: 'max-age=31536000',
     etag: getImageEtag(buffer),
+    statusCode: 200,
   }
   return result
 }

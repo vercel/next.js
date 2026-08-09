@@ -1,6 +1,7 @@
 /* eslint-env jest */
 import {
   fetchInternalImage,
+  imageOptimizer,
   ImageError,
 } from 'next/dist/server/image-optimizer'
 import type { IncomingMessage, ServerResponse } from 'http'
@@ -148,5 +149,67 @@ describe('fetchInternalImage', () => {
       expect(result.buffer).toBeInstanceOf(Buffer)
       expect(result.buffer.length).toBe(maximumResponseBody)
     })
+  })
+
+  it('should include the response status when the image type is invalid', async () => {
+    const mockReq = {} as IncomingMessage
+    const mockRes = {} as ServerResponse
+    const handleRequest = jest.fn(
+      async (_req: IncomingMessage, res: ServerResponse) => {
+        res.statusCode = 307
+        res.write('Redirecting')
+        res.end()
+      }
+    )
+
+    const upstreamImage = await fetchInternalImage(
+      '/redirected-image.png',
+      mockReq,
+      mockRes,
+      50_000_000,
+      handleRequest
+    )
+
+    expect(upstreamImage).toMatchObject({
+      contentType: undefined,
+      statusCode: 307,
+    })
+
+    const consoleError = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => {})
+
+    try {
+      const error = await imageOptimizer(
+        upstreamImage,
+        {
+          href: '/redirected-image.png',
+          width: 640,
+          quality: 75,
+          mimeType: 'image/webp',
+        },
+        {
+          experimental: {},
+          images: {
+            dangerouslyAllowSVG: false,
+            minimumCacheTTL: 60,
+          },
+        } as Parameters<typeof imageOptimizer>[2],
+        {}
+      ).catch((e) => e)
+
+      expect(error).toBeInstanceOf(ImageError)
+      expect(consoleError).toHaveBeenCalledWith(
+        expect.any(String),
+        "The requested resource isn't a valid image for",
+        '/redirected-image.png',
+        'received',
+        null,
+        'with status',
+        307
+      )
+    } finally {
+      consoleError.mockRestore()
+    }
   })
 })

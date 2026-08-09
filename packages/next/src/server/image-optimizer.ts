@@ -143,6 +143,7 @@ interface ImageUpstream {
   contentType: string | null | undefined
   cacheControl: string | null | undefined
   etag: string
+  statusCode: number
 }
 
 function getSupportedMimeType(options: string[], accept = ''): string {
@@ -961,7 +962,7 @@ export async function fetchExternalImage(
   const contentType = res.headers.get('Content-Type')
   const cacheControl = res.headers.get('Cache-Control')
   const etag = extractEtag(res.headers.get('ETag'), buffer)
-  return { buffer, contentType, cacheControl, etag }
+  return { buffer, contentType, cacheControl, etag, statusCode: res.status }
 }
 
 export async function fetchInternalImage(
@@ -1010,7 +1011,13 @@ export async function fetchInternalImage(
     const cacheControl = mocked.res.getHeader('Cache-Control')
     const etag = extractEtag(mocked.res.getHeader('ETag'), buffer)
 
-    return { buffer, contentType, cacheControl, etag }
+    return {
+      buffer,
+      contentType,
+      cacheControl,
+      etag,
+      statusCode: mocked.res.statusCode,
+    }
   } catch (err) {
     if (err instanceof ImageError) {
       throw err
@@ -1089,7 +1096,9 @@ export async function imageOptimizer(
         "The requested resource isn't a valid image for",
         href,
         'received',
-        upstreamType
+        upstreamType,
+        'with status',
+        imageUpstream.statusCode
       )
     }
     throw new ImageError(400, "The requested resource isn't a valid image.")
