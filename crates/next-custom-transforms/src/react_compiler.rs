@@ -128,7 +128,7 @@ impl Visit for Finder {
 mod tests {
     use swc_core::{
         common::FileName,
-        ecma::parser::{EsSyntax, parse_file_as_program},
+        ecma::parser::{EsSyntax, TsSyntax, parse_file_as_program},
     };
     use testing::run_test2;
 
@@ -143,6 +143,32 @@ mod tests {
                 &fm,
                 swc_core::ecma::parser::Syntax::Es(EsSyntax {
                     jsx: true,
+                    ..Default::default()
+                }),
+                Default::default(),
+                Default::default(),
+                &mut vec![],
+            )
+            .unwrap();
+
+            assert_eq!(is_required(&program), required);
+
+            Ok(())
+        })
+        .unwrap();
+    }
+
+    /// Assert that a `.ts` file (TypeScript, no JSX) requires or does not require React Compiler.
+    /// Uses `tsx: false` to correctly parse bare generics like `<T>` as type parameters.
+    fn assert_required_ts(code: &str, required: bool) {
+        run_test2(false, |cm, _| {
+            let fm =
+                cm.new_source_file(FileName::Custom("test.ts".into()).into(), code.to_string());
+
+            let program = parse_file_as_program(
+                &fm,
+                swc_core::ecma::parser::Syntax::Typescript(TsSyntax {
+                    tsx: false,
                     ..Default::default()
                 }),
                 Default::default(),
@@ -276,6 +302,66 @@ mod tests {
             };
             ",
             false,
+        );
+    }
+
+    // Tests for .ts files with bare generic arrow functions (issue #91795).
+    // When tsx: true is used for .ts files, `<T>` is parsed as a JSX open tag and fails.
+    // With tsx: false (correct for .ts), `<T>` is correctly parsed as a type parameter.
+
+    #[test]
+    fn ts_generic_arrow_function_with_hook() {
+        // A generic arrow function in a .ts file that uses a hook — should be required.
+        // Previously, tsx: true caused a parse error here and the file was silently skipped.
+        assert_required_ts(
+            "
+            const useData = <T>(value: T) => {
+                const [state, setState] = useState(value);
+                return state;
+            };
+            ",
+            true,
+        );
+    }
+
+    #[test]
+    fn ts_generic_arrow_function_component_with_hook() {
+        // A generic component in a .ts file that uses a hook — should be required.
+        assert_required_ts(
+            "
+            const Component = <T extends object>(props: T) => {
+                const value = useMemo(() => props, [props]);
+                return value;
+            };
+            ",
+            true,
+        );
+    }
+
+    #[test]
+    fn ts_generic_arrow_function_no_hook() {
+        // A generic arrow function in a .ts file with no hooks/JSX — should not be required.
+        assert_required_ts(
+            "
+            const identity = <T>(value: T): T => {
+                return value;
+            };
+            ",
+            false,
+        );
+    }
+
+    #[test]
+    fn ts_generic_function_with_hook() {
+        // A generic named function starting with capital letter using a hook — should be required.
+        assert_required_ts(
+            "
+            function Fetch<T>(url: string) {
+                const [data, setData] = useState<T | null>(null);
+                return data;
+            }
+            ",
+            true,
         );
     }
 }
