@@ -688,8 +688,13 @@ impl ImportMetaGlobAsset {
 impl Module for ImportMetaGlobAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let origin_path = self.origin.into_trait_ref().await?.origin_path();
+        let origin = self.origin.into_trait_ref().await?;
+        let origin_path = origin.origin_path();
+        // The layer is part of the ident so that this virtual module is distinct
+        // per layer (the same file can be processed in multiple layers), and so
+        // that import traces can collapse it into the importing module.
         Ok(AssetIdent::from_path(origin_path)
+            .with_layer(origin.asset_context().into_trait_ref().await?.layer())
             .with_modifier(modifier(
                 &self.patterns,
                 self.eager,

@@ -188,12 +188,6 @@ export interface RenderOptsPartial {
   postponed?: string
 
   /**
-   * Should wait for react stream allReady to resolve all suspense boundaries,
-   * in order to perform a full page render.
-   */
-  shouldWaitOnAllReady?: boolean
-
-  /**
    * A prefilled resume data cache. This was either generated for this page
    * during dev warmup, or when a page with defined params was previously
    * prerendered, and now its matching optional fallback shell is prerendered.
@@ -219,8 +213,6 @@ export interface RenderOptsPartial {
    * Loaded at server startup from the build output.
    */
   prefetchHints?: Record<string, PrefetchHints>
-
-  isStaticGeneration?: boolean
 
   /**
    * When true, the page is prerendered as a fallback shell, while allowing any

@@ -56,12 +56,19 @@ impl EndpointTraceResult {
     }
 }
 
+/// Traces the files an endpoint needs at runtime.
+///
+/// `traced_entries` are modules that have to be traced even though nothing in `entry_modules`
+/// references them, i.e. [`Project::additional_traced_modules`] - or
+/// [`Project::pages_traced_modules`] for pages endpoints, which additionally need the modules the
+/// require hook resolves at runtime.
 #[turbo_tasks::function]
 pub async fn trace_endpoint(
     project: ResolvedVc<Project>,
     page_name: Option<RcStr>,
     module_graph: ResolvedVc<ModuleGraph>,
     entry_modules: Vc<Modules>,
+    traced_entries: Vc<Modules>,
 ) -> Result<Vc<EndpointTraceResult>> {
     let span = tracing::info_span!("trace endpoint", path = debug(&page_name));
     async {
@@ -72,8 +79,6 @@ pub async fn trace_endpoint(
         let output_file_tracing_includes = next_config
             .output_file_tracing_includes(project_path.clone())
             .await?;
-
-        let traced_entries = project.additional_traced_modules();
 
         // Collect referenced assets and externals from module graph
         let all_modules = traced_modules_for_entries(

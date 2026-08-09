@@ -96,6 +96,7 @@ export const METRICS = {
   gcMs: { unit: 'ms', better: 'lower' },
   p50: { unit: 'ms', better: 'lower' },
   rss: { unit: 'MB', better: 'lower' },
+  heapMb: { unit: 'MB', better: 'lower' },
   rssHw: { unit: 'MB peak', better: 'lower' },
 }
 

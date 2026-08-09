@@ -4,10 +4,8 @@ import type {
   RefreshAction,
 } from '../router-reducer-types'
 import { ScrollBehavior } from '../router-reducer-types'
-import {
-  convertServerPatchToFullTree,
-  navigateToKnownRoute,
-} from '../../segment-cache/navigation'
+import { navigateToKnownRoute } from '../../segment-cache/navigation'
+import { convertServerPatchToFullTree } from '../../segment-cache/decode-server-response'
 import { invalidateSegmentCacheEntries } from '../../segment-cache/cache'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
 import { FreshnessPolicy, getCurrentNavigationLock } from '../ppr-navigations'

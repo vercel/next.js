@@ -91,6 +91,17 @@ export function makeDynamicHangingPromise<T>(
   )
 }
 
+export function makeUntrackedHangingPromise<T>(
+  signal: AbortSignal,
+  route: string,
+  expression: string
+): Promise<T> {
+  return makeHangingPromiseWithError(
+    signal,
+    new HangingPromiseRejectionError(route, expression)
+  )
+}
+
 /**
  * Constructs a promise that never resolves, standing in for *runtime* data:
  * data that hangs during a static prerender but is available during a runtime

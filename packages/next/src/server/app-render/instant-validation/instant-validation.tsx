@@ -1,12 +1,15 @@
 import type {
-  CacheNodeSeedData,
-  FlightRouterState,
   HeadData,
   InitialRSCPayload,
   Segment,
 } from '../../../shared/lib/app-router-types'
 import type { VaryParamsIterable } from '../../../shared/lib/segment-cache/vary-params-decoding'
 import { InvariantError } from '../../../shared/lib/invariant-error'
+import {
+  transportSegmentToSegment,
+  type FullTransportNode,
+  type TransportSegmentData,
+} from '../../../shared/lib/rsc-transport'
 import { RenderStage } from '../staged-rendering'
 import { getServerModuleMap } from '../manifests-singleton'
 import { runInSequentialTasks } from '../app-render-render-utils'
@@ -108,62 +111,34 @@ export type RouteTree = {
 
 function traverseRootSeedDataSegments(
   initialRSCPayload: InitialRSCPayload,
-  processSegment: (
-    segmentPath: SegmentPath,
-    seedData: CacheNodeSeedData
-  ) => void
+  processSegment: (segmentPath: SegmentPath, data: TransportSegmentData) => void
 ) {
-  const { flightRouterState, seedData } =
-    getRootDataFromPayload(initialRSCPayload)
-
-  const [rootSegment] = flightRouterState
-  const rootPath = stringifySegment(rootSegment)
-  return traverseCacheNodeSegments(
-    rootPath,
-    flightRouterState,
-    seedData,
-    processSegment
-  )
+  const rootNode = initialRSCPayload.t.t
+  const rootPath = stringifySegment(transportSegmentToSegment(rootNode.s))
+  return traverseTransportNodeSegments(rootPath, rootNode, processSegment)
 }
 
-function traverseCacheNodeSegments(
+function traverseTransportNodeSegments(
   path: SegmentPath,
-  route: FlightRouterState,
-  seedData: CacheNodeSeedData,
-  processSegment: (
-    segmentPath: SegmentPath,
-    seedData: CacheNodeSeedData
-  ) => void
+  node: FullTransportNode,
+  processSegment: (segmentPath: SegmentPath, data: TransportSegmentData) => void
 ): void {
-  processSegment(path, seedData)
+  processSegment(path, node.d)
 
-  const [_segment, childRoutes] = route
-  const [_node, parallelRoutesData, _loading, _isPartial] = seedData
-
-  for (const parallelRouteKey in childRoutes) {
-    const childSeedData = parallelRoutesData[parallelRouteKey]
-    if (!childSeedData) {
-      throw new InvariantError(
-        `Got unexpected empty seed data during instant validation`
-      )
-    }
-
-    const childRoute = childRoutes[parallelRouteKey]
+  const children = node.c
+  if (children === undefined) {
+    return
+  }
+  for (const [parallelRouteKey, childNode] of children) {
     // NOTE: if this is a __PAGE__ segment, it might have search params appended.
     // Whoever reads from the cache needs to append them as well.
-    const [childSegment] = childRoute
     const childPath = createChildSegmentPath(
       path,
       parallelRouteKey,
-      childSegment
+      transportSegmentToSegment(childNode.s)
     )
 
-    traverseCacheNodeSegments(
-      childPath,
-      childRoute,
-      childSeedData,
-      processSegment
-    )
+    traverseTransportNodeSegments(childPath, childNode, processSegment)
   }
 }
 
@@ -354,7 +329,7 @@ async function collectSegmentDataForStage(
   // We have to preserve the stage information for each of them,
   // so that we can later render each segment in any stage we need.
 
-  const { head } = getRootDataFromPayload(payload)
+  const head = payload.t.h.r
 
   const segments = new Map<SegmentPath, SegmentData>()
   traverseRootSeedDataSegments(payload, (segmentPath, seedData) => {
@@ -664,22 +639,6 @@ export async function createCombinedPayloadStream(
   }
 }
 
-function getRootDataFromPayload(initialRSCPayload: InitialRSCPayload) {
-  // FlightDataPath is an unsound type, hence the additional checks.
-  const flightDataPaths = initialRSCPayload.f
-  if (flightDataPaths.length !== 1 && flightDataPaths[0].length !== 3) {
-    throw new InvariantError(
-      'InitialRSCPayload does not match the expected shape during instant validation.'
-    )
-  }
-  const flightRouterState: FlightRouterState = flightDataPaths[0][0]
-  const seedData: CacheNodeSeedData = flightDataPaths[0][1]
-  // TODO: handle head
-  const head: HeadData = flightDataPaths[0][2]
-
-  return { flightRouterState, seedData, head }
-}
-
 async function createValidationHead(
   cache: SegmentCache,
   releaseSignal: AbortSignal,
@@ -761,34 +720,64 @@ function deserializeFromChunks<T>(
 // Validation segment cache
 //===============================================================
 
-/** An object version of `CacheNodeSeedData`, without slots. */
+/** An object version of `TransportSegmentData`, deserialized from the cache. */
 type SegmentData = {
   node: React.ReactNode | null
   isPartial: boolean
   varyParams: VaryParamsIterable | null
 }
 
-function createSegmentData(seedData: CacheNodeSeedData): SegmentData {
-  const [node, _parallelRoutesData, _unused, isPartial, varyParams] = seedData
+function createSegmentData(data: TransportSegmentData): SegmentData {
   return {
-    node,
-    isPartial,
-    varyParams,
+    node: data.r,
+    isPartial: data.p,
+    varyParams: data.v,
   }
 }
-type CacheNodeSeedDataSlots = CacheNodeSeedData[1]
-
-function getCacheNodeSeedDataFromSegment(
+/**
+ * Builds a node of the rebuilt transport tree: structure (identity and
+ * hints) comes from the original payload's node, render output from the
+ * validation segment cache.
+ */
+function createTransportNodeFromSegment(
+  original: FullTransportNode,
   data: SegmentData,
-  slots: CacheNodeSeedDataSlots
-): CacheNodeSeedData {
-  return [
-    data.node,
-    slots,
-    /* unused (previously `loading`) */ null,
-    data.isPartial,
-    data.varyParams,
-  ]
+  children: Map<string, FullTransportNode> | null
+): FullTransportNode {
+  const node: FullTransportNode = {
+    s: original.s,
+    d: {
+      r: data.node,
+      p: data.isPartial,
+      v: data.varyParams,
+    },
+  }
+  if (original.h !== undefined) {
+    node.h = original.h
+  }
+  if (children !== null) {
+    node.c = children
+  }
+  return node
+}
+
+/**
+ * The rebuild walks the loader tree and the original payload's transport
+ * tree in parallel; the two mirror each other because the payload was
+ * rendered from the same loader tree.
+ */
+function getOriginalChildNode(
+  original: FullTransportNode,
+  parallelRouteKey: string
+): FullTransportNode {
+  const childNode = original.c?.get(parallelRouteKey)
+  if (childNode === undefined) {
+    throw new InvariantError(
+      `The payload's transport tree is missing a slot that exists in the ` +
+        `loader tree: ${parallelRouteKey}`
+    )
+  }
+  return childNode
 }
 
 function createSegmentCache(): SegmentCache {
@@ -855,7 +844,7 @@ type SegmentCacheItemStageEntry = {
 }
 
 type TreeResult = {
-  seedData: CacheNodeSeedData
+  node: FullTransportNode
   requiresInstantUI: boolean
   createInstantStack: (() => Error) | null
   /** First module file path encountered (DFS) inside this subtree,
@@ -1042,36 +1031,27 @@ export async function createCombinedPayloadAtDepth(
 
   /**
    * When a segment has multiple parallel routes (a fork), wrap each
-   * slot's seed data with a slot marker component. The marker's index
+   * slot's render output with a slot marker component. The marker's index
    * in the component stack maps to `slotStacks` for per-slot error
    * attribution. Slot markers start at index 1 (index 0 is root).
    */
   function wrapSlotsWithMarkers(
-    slots: CacheNodeSeedDataSlots,
+    slots: Map<string, FullTransportNode> | null,
     results: Map<string, TreeResult>
   ): void {
-    const keys = Object.keys(slots)
-    if (keys.length <= 1) return
+    if (slots === null || slots.size <= 1) return
 
-    for (const key of keys) {
-      const slotSeedData = slots[key]
-      if (slotSeedData === null) continue
+    for (const [key, slotNode] of slots) {
       const result = results.get(key)
       const markerIndex = slotStacks.length
       slotStacks.push(result?.createInstantStack ?? null)
       const markerName = `${INSTANT_SLOT_MARKER_PREFIX}${markerIndex - 1}${INSTANT_SLOT_MARKER_SUFFIX}`
-      const [node, parallelRoutesData, unused, isPartial, varyParams] =
-        slotSeedData
-      slots[key] = [
+      slotNode.d.r = (
         // eslint-disable-next-line @next/internal/no-ambiguous-jsx -- bundled in the server layer
         <SlotMarker name={markerName} key="sm">
-          {node}
-        </SlotMarker>,
-        parallelRoutesData,
-        unused,
-        isPartial,
-        varyParams,
-      ]
+          {slotNode.d.r}
+        </SlotMarker>
+      )
     }
   }
 
@@ -1084,8 +1064,9 @@ export async function createCombinedPayloadAtDepth(
     return query ? addSearchParamsIfPageSegment(segment, query) : segment
   }
 
-  async function buildSharedTreeSeedData(
+  async function buildSharedTransportTree(
     loaderTree: LoaderTree,
+    originalNode: FullTransportNode,
     parentPath: SegmentPath | null,
     key: string | null,
     urlDepthConsumed: number,
@@ -1153,7 +1134,7 @@ export async function createCombinedPayloadAtDepth(
         ),
       }
 
-      const slots: CacheNodeSeedDataSlots = {}
+      let slots: Map<string, FullTransportNode> | null = null
       const slotResults = new Map<string, TreeResult>()
       let requiresInstantUI = false
       let createInstantStack: (() => Error) | null = null
@@ -1166,14 +1147,18 @@ export async function createCombinedPayloadAtDepth(
       let firstModFilePath: string | null = null
 
       for (const parallelRouteKey in parallelRoutes) {
-        const result = await buildNewTreeSeedData(
+        const result = await buildNewTransportTree(
           parallelRoutes[parallelRouteKey],
+          getOriginalChildNode(originalNode, parallelRouteKey),
           path,
           parallelRouteKey,
           0 /* segmentDepth */
         )
         slotResults.set(parallelRouteKey, result)
-        slots[parallelRouteKey] = result.seedData
+        if (slots === null) {
+          slots = new Map()
+        }
+        slots.set(parallelRouteKey, result.node)
         if (result.firstModFilePath !== null) {
           slotModFilePaths.push(result.firstModFilePath)
           if (firstModFilePath === null) {
@@ -1203,7 +1188,11 @@ export async function createCombinedPayloadAtDepth(
       wrapSlotsWithMarkers(slots, slotResults)
 
       return {
-        seedData: getCacheNodeSeedDataFromSegment(finalSegmentData, slots),
+        node: createTransportNodeFromSegment(
+          originalNode,
+          finalSegmentData,
+          slots
+        ),
         requiresInstantUI,
         createInstantStack,
         firstModFilePath,
@@ -1212,22 +1201,26 @@ export async function createCombinedPayloadAtDepth(
     }
 
     // Not at the boundary yet — keep walking as shared.
-    const slots: CacheNodeSeedDataSlots = {}
+    let slots: Map<string, FullTransportNode> | null = null
     const slotResults = new Map<string, TreeResult>()
     let requiresInstantUI = false
     let createInstantStack: (() => Error) | null = null
     let bestConfigDepth = -1
     let firstModFilePath: string | null = null
     for (const parallelRouteKey in parallelRoutes) {
-      const result = await buildSharedTreeSeedData(
+      const result = await buildSharedTransportTree(
         parallelRoutes[parallelRouteKey],
+        getOriginalChildNode(originalNode, parallelRouteKey),
         path,
         parallelRouteKey,
         nextUrlDepth,
         currentGroupDepth
       )
       slotResults.set(parallelRouteKey, result)
-      slots[parallelRouteKey] = result.seedData
+      if (slots === null) {
+        slots = new Map()
+      }
+      slots.set(parallelRouteKey, result.node)
       if (firstModFilePath === null) {
         firstModFilePath = result.firstModFilePath
       }
@@ -1247,7 +1240,7 @@ export async function createCombinedPayloadAtDepth(
     wrapSlotsWithMarkers(slots, slotResults)
 
     return {
-      seedData: getCacheNodeSeedDataFromSegment(segmentData, slots),
+      node: createTransportNodeFromSegment(originalNode, segmentData, slots),
       requiresInstantUI,
       createInstantStack,
       firstModFilePath,
@@ -1255,8 +1248,9 @@ export async function createCombinedPayloadAtDepth(
     }
   }
 
-  async function buildNewTreeSeedData(
+  async function buildNewTransportTree(
     lt: LoaderTree,
+    originalNode: FullTransportNode,
     parentPath: SegmentPath | null,
     key: string | null,
     segmentDepth: number
@@ -1360,7 +1354,7 @@ export async function createCombinedPayloadAtDepth(
     )
 
     // Build children first, then determine requiresInstantUI.
-    const slots: CacheNodeSeedDataSlots = {}
+    let slots: Map<string, FullTransportNode> | null = null
     const slotResults = new Map<string, TreeResult>()
     let childrenRequireInstantUI = false
     let childCreateInstantStack: (() => Error) | null = null
@@ -1370,14 +1364,18 @@ export async function createCombinedPayloadAtDepth(
       const childSegmentDepth = segmentConsumesURLDepth(segment)
         ? segmentDepth + 1
         : segmentDepth
-      const result = await buildNewTreeSeedData(
+      const result = await buildNewTransportTree(
         parallelRoutes[parallelRouteKey],
+        getOriginalChildNode(originalNode, parallelRouteKey),
         path,
         parallelRouteKey,
         childSegmentDepth
       )
       slotResults.set(parallelRouteKey, result)
-      slots[parallelRouteKey] = result.seedData
+      if (slots === null) {
+        slots = new Map()
+      }
+      slots.set(parallelRouteKey, result.node)
       if (childFirstModFilePath === null) {
         childFirstModFilePath = result.firstModFilePath
       }
@@ -1422,7 +1420,7 @@ export async function createCombinedPayloadAtDepth(
     const firstModFilePath = localModFilePath ?? childFirstModFilePath
 
     return {
-      seedData: getCacheNodeSeedDataFromSegment(segmentData, slots),
+      node: createTransportNodeFromSegment(originalNode, segmentData, slots),
       requiresInstantUI,
       createInstantStack,
       firstModFilePath,
@@ -1430,14 +1428,18 @@ export async function createCombinedPayloadAtDepth(
     }
   }
 
-  const { seedData, requiresInstantUI, createInstantStack } =
-    await buildSharedTreeSeedData(
-      initialLoaderTree,
-      null /* parentPath */,
-      null /* key */,
-      0 /* urlDepthConsumed */,
-      0 /* groupDepthConsumed */
-    )
+  const {
+    node: rebuiltTree,
+    requiresInstantUI,
+    createInstantStack,
+  } = await buildSharedTransportTree(
+    initialLoaderTree,
+    initialRSCPayload.t.t,
+    null /* parentPath */,
+    null /* key */,
+    0 /* urlDepthConsumed */,
+    0 /* groupDepthConsumed */
+  )
 
   if (!requiresInstantUI) {
     return null
@@ -1446,8 +1448,6 @@ export async function createCombinedPayloadAtDepth(
   // Set the root config at index 0. This is the fallback for errors
   // that occur above any fork (no slot marker in the component stack).
   slotStacks[0] = createInstantStack
-
-  const { flightRouterState } = getRootDataFromPayload(initialRSCPayload)
 
   let headStage: PrefetchedSegmentStage
   switch (prefetchKind) {
@@ -1493,7 +1493,14 @@ export async function createCombinedPayloadAtDepth(
 
   const payload: InitialRSCPayload = {
     ...initialRSCPayload,
-    f: [[flightRouterState, seedData, head]],
+    t: {
+      t: rebuiltTree,
+      h: {
+        r: head,
+        p: initialRSCPayload.t.h.p,
+        v: initialRSCPayload.t.h.v,
+      },
+    },
   }
 
   return {

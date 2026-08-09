@@ -8,8 +8,11 @@ on:
   workflow_dispatch:
     inputs:
       nextVersion:
-        description: canary or custom tarball URL
-        default: canary
+        description: >-
+          Version of `next` to test against. Anything installable by npm:
+          a dist-tag (canary), an exact version (16.2.4), or a custom https
+          tarball URL. Leave empty to use the `next` version from
+          packages/next/package.json.
         type: string
       vercelCliVersion:
         description: Version of Vercel CLI to use
@@ -42,7 +45,9 @@ env:
   VERCEL_TURBOPACK_TEST_TEAM: vtest314-next-turbo-e2e-tests
   VERCEL_TURBOPACK_TEST_TOKEN: ${{ secrets.VERCEL_TURBOPACK_TEST_TOKEN }}
 
-run-name: test-e2e-deploy ${{ inputs.nextVersion || (github.event_name == 'release' && github.event.release.tag_name) || 'canary' }}
+# run-name cannot read job outputs, so for release events it shows the tag name,
+# assuming the release tag matches the `next` version checked into packages/next/package.json
+run-name: test-e2e-deploy ${{ inputs.nextVersion || (github.event_name == 'release' && github.event.release.tag_name) || 'repo version' }}
 
 jobs:
   setup:
@@ -79,8 +84,22 @@ jobs:
             echo EOF
           } >> "$GITHUB_OUTPUT"
       - id: version
-        name: Extract `next` version
-        run: echo 'value=${{ fromJson(steps.nextPackageInfo.outputs.value).version }}' >> "$GITHUB_OUTPUT"
+        name: Resolve `next` version
+        env:
+          INPUT_NEXT_VERSION: ${{ inputs.nextVersion }}
+        run: |
+          set -euo pipefail
+          if [ -n "$INPUT_NEXT_VERSION" ]; then
+            echo "value=$INPUT_NEXT_VERSION" >> "$GITHUB_OUTPUT"
+          else
+            echo 'value=${{ fromJson(steps.nextPackageInfo.outputs.value).version }}' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Log resolved `next` version
+        env:
+          RESOLVED_NEXT_VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          echo "Resolved next version: $RESOLVED_NEXT_VERSION"
 
       - name: Install dependencies
         run: pnpm install
@@ -126,7 +145,7 @@ jobs:
         IS_WEBPACK_TEST=1 \
         NEXT_ENABLE_ADAPTER=0 \
         NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
-        NEXT_TEST_VERSION="${{ github.event.inputs.nextVersion || needs.setup.outputs.next-version || 'canary' }}" \
+        NEXT_TEST_VERSION="${{ needs.setup.outputs.next-version }}" \
         VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
         NEXT_TEST_DEPLOY_SCRIPT_PATH="${{ github.event.inputs.deployScriptPath || '' }}" \
         NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH="${{ github.event.inputs.deployLogsScriptPath || '' }}" \
@@ -173,7 +192,7 @@ jobs:
         NEXT_ENABLE_ADAPTER=0 \
         NEXT_TEST_CONTINUE_ON_ERROR="${{ github.event.inputs.continueOnError || false }}" \
         NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
-        NEXT_TEST_VERSION="${{ github.event.inputs.nextVersion || needs.setup.outputs.next-version || 'canary' }}" \
+        NEXT_TEST_VERSION="${{ needs.setup.outputs.next-version }}" \
         VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
         NEXT_TEST_DEPLOY_SCRIPT_PATH="${{ github.event.inputs.deployScriptPath || '' }}" \
         NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH="${{ github.event.inputs.deployLogsScriptPath || '' }}" \
@@ -220,7 +239,7 @@ jobs:
         IS_TURBOPACK_TEST=1 \
         NEXT_ENABLE_ADAPTER=1 \
         NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
-        NEXT_TEST_VERSION="${{ github.event.inputs.nextVersion || needs.setup.outputs.next-version || 'canary' }}" \
+        NEXT_TEST_VERSION="${{ needs.setup.outputs.next-version }}" \
         VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
         NEXT_TEST_PREVIEW_BUILDS_BASE_URL="${{ vars.PREVIEW_BUILDS_BASE_URL }}" \
         node run-tests.js --timings --require-timings -g ${{ matrix.group }} -c 2 --type e2e
@@ -266,16 +285,13 @@ jobs:
 
   upload-adapter-test-results:
     name: Upload adapter test results
-    needs: [test-deploy-adapter]
+    needs: [setup, test-deploy-adapter]
     if: >-
       ${{
         always() &&
         github.event.inputs.deployScriptPath == '' &&
         github.repository_owner == 'vercel' &&
-        !startsWith(
-          github.event.inputs.nextVersion || github.event.release.tag_name || 'canary',
-          'http'
-        )
+        !startsWith(needs.setup.outputs.next-version, 'http')
       }}
     runs-on: ubuntu-latest
     steps:

@@ -1460,5 +1460,12 @@
   "1459": "[Server HMR] unreachable: unknown HMR instruction type %s",
   "1460": "[Server HMR] unreachable: unexpected update instruction type %s",
   "1461": "Expected segment cache to have data for stage '%s'",
-  "1462": "Unexpected chunk emitted in Before stage"
+  "1462": "Unexpected chunk emitted in Before stage",
+  "1463": "\\`experimental.turbopackGenerateComponentChunks\\` has been moved to \\`experimental.turbopackChunking.generateComponentChunks\\`. Please update your next.config.js file accordingly.",
+  "1464": "\\`experimental.turbopackChunkingHeuristics\\` has been renamed to \\`experimental.turbopackChunking\\`. Please update your next.config.js file accordingly.",
+  "1465": "\\`experimental.useCache\\` cannot be disabled when \\`cacheComponents\\` is enabled, because Cache Components relies on the \\`\"use cache\"\\` directive. Please remove it from %s.",
+  "1466": "TypeScript %s does not provide the compiler API required by Next.js. Set %s to true in your Next.js config to use the TypeScript CLI, or install TypeScript 6 instead.",
+  "1467": "TypeScript %s does not provide the compiler API required by Next.js. Set %s back to true in your Next.js config to use the TypeScript CLI, or install TypeScript 6 instead.",
+  "1468": "Missing workUnitStore in createComponentTree",
+  "1469": "The payload's transport tree is missing a slot that exists in the loader tree: %s"
 }

@@ -5,7 +5,7 @@ import {
   ResponseAbortedName,
   createAbortController,
 } from './web/spec-extension/adapters/next-request'
-import { DetachedPromise } from '../lib/detached-promise'
+import { createPromiseWithResolvers } from '../shared/lib/promise-with-resolvers'
 import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { getClientComponentLoaderMetrics } from './client-component-renderer-logger'
@@ -25,7 +25,7 @@ function createWriterFromResponse(
 
   // Create a promise that will resolve once the response has drained. See
   // https://nodejs.org/api/stream.html#stream_event_drain
-  let drained = new DetachedPromise<void>()
+  let drained = createPromiseWithResolvers<void>()
   function onDrain() {
     drained.resolve()
   }
@@ -40,7 +40,7 @@ function createWriterFromResponse(
 
   // Create a promise that will resolve once the response has finished. See
   // https://nodejs.org/api/http.html#event-finish_1
-  const finished = new DetachedPromise<void>()
+  const finished = createPromiseWithResolvers<void>()
   res.once('finish', () => {
     finished.resolve()
   })
@@ -94,7 +94,7 @@ function createWriterFromResponse(
           await drained.promise
 
           // Reset the drained promise so that we can wait for the next drain event.
-          drained = new DetachedPromise<void>()
+          drained = createPromiseWithResolvers<void>()
         }
       } catch (err) {
         res.end()
@@ -157,7 +157,7 @@ export async function pipeNodeReadableToNodeResponse(
 
     let started = false
 
-    const finished = new DetachedPromise<void>()
+    const finished = createPromiseWithResolvers<void>()
 
     res.once('close', () => {
       readable.destroy()

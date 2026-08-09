@@ -4,11 +4,6 @@ import stripAnsi from 'strip-ansi'
 import { retry } from 'next-test-utils'
 
 const bundlerName = process.env.IS_TURBOPACK_TEST ? 'Turbopack' : 'Webpack'
-const enableNewScrollHandler =
-  process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER !== 'false'
-const innerScrollAndMaybeFocusHandlerName = enableNewScrollHandler
-  ? 'InnerScrollHandlerNew'
-  : 'InnerScrollAndFocusHandlerOld'
 
 function setupLogCapture() {
   const logs: string[] = []
@@ -382,26 +377,25 @@ describe(`Terminal Logging (${bundlerName})`, () => {
        https://react.dev/link/hydration-mismatch
 
          ...
-           <RenderFromTemplateContext>
-             <ScrollAndMaybeFocusHandler cacheNode={{rsc:{...}, ...}}>
-               <${innerScrollAndMaybeFocusHandlerName} focusAndScrollRef={{scrollRef:null, ...}} cacheNode={{rsc:{...}, ...}}>
-                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary name="hydration-..." loading={null}>
-                     <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                       <RedirectBoundary>
-                         <RedirectErrorBoundary router={{...}}>
-                           <InnerLayoutRouter url="/hydration..." tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} ...>
-                             <SegmentViewNode type="page" pagePath="hydration-...">
-                               <SegmentTrieNode>
-                               <ClientPageRoot Component={function Page} serverProvidedParams={{...}}>
-                                 <Page params={Promise} searchParams={Promise}>
-                                   <div>
-                                     <p>
-       +                               client
-       -                               server
-                             ...
+           <ScrollAndMaybeFocusHandler cacheNode={{rsc:{...}, ...}}>
+             <InnerScrollAndMaybeFocusHandler focusAndScrollRef={{scrollRef:null, ...}} cacheNode={{rsc:{...}, ...}}>
+               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+                 <LoadingBoundary name="hydration-..." loading={null}>
+                   <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
+                     <RedirectBoundary>
+                       <RedirectErrorBoundary router={{...}}>
+                         <InnerLayoutRouter url="/hydration..." tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} ...>
+                           <SegmentViewNode type="page" pagePath="hydration-...">
+                             <SegmentTrieNode>
+                             <ClientPageRoot Component={function Page} serverProvidedParams={{...}}>
+                               <Page params={Promise} searchParams={Promise}>
+                                 <div>
+                                   <p>
+       +                             client
+       -                             server
                            ...
-                 ...
+                         ...
+               ...
 
            at <unknown> (https://react.dev/link/hydration-mismatch)
            at p (<anonymous>)

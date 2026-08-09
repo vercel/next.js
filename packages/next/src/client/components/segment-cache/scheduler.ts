@@ -594,7 +594,7 @@ function processQueueInMicrotask() {
           // Finished prefetching the route tree. The two-phase (Shell then
           // Speculative) flow only applies to routes that have opted into
           // Partial Prefetching — either globally via the `partialPrefetching`
-          // config or per segment (`instant`, `prefetch: 'partial'`, or
+          // config or per segment (`prefetch: 'partial'` or
           // `'unstable_eager'`), all surfaced as the
           // `SubtreeHasPartialPrefetching` hint on the route tree. Every other
           // route skips the Shell phase and goes straight to Speculative.
@@ -839,18 +839,19 @@ function pingRootRouteTree(
       // `cacheComponents`, where every route is PPR.
       let fetchStrategy: FetchStrategy
       if (tree.prefetchHints & PrefetchHint.SubtreeHasPartialPrefetching) {
-        // If `instant` is defined anywhere on the target route, ignore the
-        // fetch strategy and switch to unified strategy used by Cache
-        // Components (called `PPR` for now, will likely be renamed).
+        // If Partial Prefetching is enabled anywhere on the target route,
+        // ignore the fetch strategy and switch to unified strategy used by
+        // Cache Components (called `PPR` for now, will likely be renamed).
         //
         // In practice, this just means that a "full" prefetch (<Link
         // prefetch={true}>) has no effect. You're meant to use Runtime
         // Prefetching instead — that's the new pattern that replaces
         // prefetch={true}.
         //
-        // The reason we check for `instant` rather than the `cacheComponents`
-        // flag is to support incremental adoption. `prefetch={true}` will
-        // continue to work until you opt into `instant`.
+        // The reason we check for the Partial Prefetching opt-in rather than
+        // the `cacheComponents` flag is to support incremental adoption.
+        // `prefetch={true}` will continue to work until you opt into
+        // Partial Prefetching.
         fetchStrategy = FetchStrategy.PPR
       } else if (task.fetchStrategy === FetchStrategy.PPR) {
         fetchStrategy = route.supportsPerSegmentPrefetching
@@ -1235,7 +1236,7 @@ function pingSharedPartOfCacheComponentsTree(
   task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
   oldTree: FlightRouterState,
-  newTree: RouteTree,
+  newTree: RouteTree<null>,
   parentBundle: SegmentBundle | null,
   // The per-pass static walk strategy; see pingRootRouteTree where
   // it's derived.
@@ -1351,7 +1352,7 @@ function pingNewPartOfCacheComponentsTree(
   now: number,
   task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
-  tree: RouteTree,
+  tree: RouteTree<null>,
   parentBundle: SegmentBundle | null,
   // The per-pass static walk strategy; see pingRootRouteTree where
   // it's derived.
@@ -1502,7 +1503,7 @@ function diffRouteTreeAgainstCurrent(
   task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
   oldTree: FlightRouterState,
-  newTree: RouteTree,
+  newTree: RouteTree<null>,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry>,
   fetchStrategy:
     | FetchStrategy.Full
@@ -1651,7 +1652,7 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
   now: number,
   task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
-  tree: RouteTree,
+  tree: RouteTree<null>,
   refetchMarkerContext: 'refetch' | 'inside-shared-layout' | null,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry>
 ): FlightRouterState {
@@ -1806,7 +1807,7 @@ function pingRouteTreeAndIncludeDynamicData(
   now: number,
   task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
-  tree: RouteTree,
+  tree: RouteTree<null>,
   isInsideRefetchingParent: boolean,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry>,
   fetchStrategy:
@@ -1981,7 +1982,7 @@ function pingRuntimePrefetches(
   now: number,
   task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
-  tree: RouteTree,
+  tree: RouteTree<null>,
   spawnedRuntimePrefetches: Set<SegmentRequestKey>,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry>,
   fetchStrategy: FetchStrategy.PPRRuntime | FetchStrategy.RuntimeShell
@@ -2050,7 +2051,7 @@ function pingSegmentBundle(
   task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
   routeKey: RouteCacheKey,
-  tree: RouteTree,
+  tree: RouteTree<null>,
   segments: SegmentBundle,
   // Per-pass static walk strategy; see pingRootRouteTree where it's derived.
   fetchStrategy: FetchStrategy.PPR | FetchStrategy.StaticShell,
@@ -2301,7 +2302,7 @@ function accumulateSegmentBundle(
   now: number,
   task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
-  tree: RouteTree,
+  tree: RouteTree<null>,
   parentBundle: SegmentBundle | null,
   // Per-pass static walk strategy; see pingRootRouteTree where it's derived.
   // PPR for the normal static bundling walk; StaticShell during the Shell
@@ -2394,7 +2395,7 @@ function finishStaticBundleOnRuntimeBailout(
   now: number,
   task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
-  tree: RouteTree,
+  tree: RouteTree<null>,
   parentBundle: SegmentBundle,
   // The same static walk strategy the parent bundle was accumulated with.
   // Any needs-runtime signal from finishing the bundle is dropped: the
@@ -2436,7 +2437,7 @@ function finishStaticBundleOnRuntimeBailout(
 function pingFullSegmentRevalidation(
   now: number,
   task: PrefetchTask,
-  tree: RouteTree,
+  tree: RouteTree<null>,
   fetchStrategy:
     | FetchStrategy.Full
     | FetchStrategy.PPRRuntime

@@ -24,6 +24,8 @@ import {
   getCacheSignal,
   type RevalidateStore,
   type WorkUnitAsyncStorage,
+  type WorkUnitStore,
+  willConsumerServerCache,
 } from '../app-render/work-unit-async-storage.external'
 import {
   CachedRouteKind,
@@ -39,6 +41,44 @@ import { encodeCacheTag } from './encode-cache-tag'
 import type { Span } from './trace/tracer'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
+
+/**
+ * Whether fetch cache configuration needs to be processed for the current work
+ * unit before an origin fetch. Static prerender stores use it for dynamic
+ * access tracking. Cache scopes apply it to their own cache policy, regardless
+ * of which outer work unit created them. Development staged renders additionally
+ * coordinate dynamic fetches with the dynamic render stage.
+ */
+function shouldProcessFetchConfigForWorkUnit(
+  workUnitStore: WorkUnitStore | undefined
+): boolean {
+  if (!workUnitStore) {
+    return false
+  }
+
+  switch (workUnitStore.type) {
+    case 'prerender':
+    case 'prerender-client':
+    case 'prerender-ppr':
+    case 'prerender-legacy':
+    case 'cache':
+    case 'private-cache':
+    case 'unstable-cache':
+      return true
+    case 'request':
+      return Boolean(
+        process.env.NODE_ENV === 'development' &&
+          process.env.__NEXT_CACHE_COMPONENTS &&
+          workUnitStore.stagedRendering
+      )
+    case 'prerender-runtime':
+    case 'validation-client':
+    case 'generate-static-params':
+      return false
+    default:
+      return workUnitStore satisfies never
+  }
+}
 
 type Fetcher = typeof fetch
 
@@ -1080,9 +1120,9 @@ export function createPatchedFetcher(
             }
 
             if (entry?.value && entry.value.kind === CachedRouteKind.FETCH) {
-              // when stale and is revalidating we wait for fresh data
-              // so the revalidated entry has the updated data
-              if (workStore.isStaticGeneration && entry.isStale) {
+              // If the consumer will persist this result in a server cache,
+              // wait for fresh data so it doesn't persist a stale value.
+              if (willConsumerServerCache(workUnitStore) && entry.isStale) {
                 isForegroundRevalidate = true
               } else {
                 if (entry.isStale) {
@@ -1143,15 +1183,9 @@ export function createPatchedFetcher(
         }
 
         if (
-          (workStore.isStaticGeneration ||
-            (process.env.NODE_ENV === 'development' &&
-              process.env.__NEXT_CACHE_COMPONENTS &&
-              workUnitStore &&
-              // eslint-disable-next-line no-restricted-syntax
-              workUnitStore.type === 'request' &&
-              workUnitStore.stagedRendering)) &&
           init &&
-          typeof init === 'object'
+          typeof init === 'object' &&
+          shouldProcessFetchConfigForWorkUnit(workUnitStore)
         ) {
           const { cache } = init
 
