@@ -43,6 +43,7 @@ export function Draggable({
     threshold: 5,
     onDragStart,
     onDragEnd,
+    onDragCancel,
     onAnimationEnd,
     dragHandleSelector,
   })
@@ -62,6 +63,18 @@ export function Draggable({
     }
     const nearestCorner = getNearestCorner(projectedPosition)
     animate(nearestCorner)
+  }
+
+  function onDragCancel(translation: Point) {
+    const distance = Math.sqrt(
+      translation.x * translation.x + translation.y * translation.y
+    )
+    if (distance === 0) {
+      ref.current?.style.removeProperty('translate')
+      return
+    }
+
+    animate({ corner: currentCorner, translation: { x: 0, y: 0 } })
   }
 
   function onAnimationEnd({ corner }: Corner) {
@@ -143,7 +156,16 @@ export function Draggable({
   }
 
   return (
-    <div {...props} {...drag} ref={ref}>
+    <div
+      {...props}
+      {...drag}
+      ref={ref}
+      style={{
+        ...props.style,
+        // prevent touch gestures from being treated as viewport panning, which would cancel drag
+        touchAction: 'none',
+      }}
+    >
       {children}
     </div>
   )
@@ -154,6 +176,7 @@ interface UseDragOptions {
   onDragStart?: () => void
   onDrag?: (translation: Point) => void
   onDragEnd?: (translation: Point, velocity: Point) => void
+  onDragCancel?: (translation: Point) => void
   onAnimationEnd?: (corner: Corner) => void
   threshold: number // Minimum movement before drag starts
   dragHandleSelector?: string
@@ -181,8 +204,11 @@ function useDrag(options: UseDragOptions) {
   const velocities = useRef<Velocity[]>([])
 
   const cancel = useCallback(() => {
-    if (machine.current.state === 'drag') {
-      ref.current?.releasePointerCapture(machine.current.pointerId)
+    if (
+      machine.current.state === 'drag' &&
+      ref.current?.hasPointerCapture(machine.current.pointerId)
+    ) {
+      ref.current.releasePointerCapture(machine.current.pointerId)
     }
 
     machine.current =
@@ -278,6 +304,7 @@ function useDrag(options: UseDragOptions) {
     machine.current = { state: 'press' }
     window.addEventListener('pointermove', onPointerMove)
     window.addEventListener('pointerup', onPointerUp)
+    window.addEventListener('pointercancel', onPointerCancel)
 
     if (cleanup.current !== null) {
       cleanup.current()
@@ -286,6 +313,7 @@ function useDrag(options: UseDragOptions) {
     cleanup.current = () => {
       window.removeEventListener('pointermove', onPointerMove)
       window.removeEventListener('pointerup', onPointerUp)
+      window.removeEventListener('pointercancel', onPointerCancel)
     }
 
     ref.current?.addEventListener('click', onClick)
@@ -345,6 +373,15 @@ function useDrag(options: UseDragOptions) {
 
     // TODO: This is the onDragEnd when the pointerdown event was fired not the onDragEnd when the pointerup event was fired
     options.onDragEnd?.(translation.current, velocity)
+  }
+
+  function onPointerCancel() {
+    const wasDragging = machine.current.state === 'drag'
+    cancel()
+
+    if (wasDragging) {
+      options.onDragCancel?.(translation.current)
+    }
   }
 
   if (options.disabled) {
