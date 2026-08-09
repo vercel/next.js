@@ -5,7 +5,7 @@ description: API reference for the dynamicParams route segment config option.
 
 The `dynamicParams` option allows you to control what happens when a dynamic segment is visited that was not generated with [generateStaticParams](/docs/app/api-reference/functions/generate-static-params).
 
-```tsx filename="layout.tsx | page.tsx" switcher
+```tsx filename="layout.tsx | page.tsx | route.ts" switcher
 export const dynamicParams = true // true | false
 ```
 
@@ -19,4 +19,5 @@ export const dynamicParams = true // true | false
 > **Good to know**:
 >
 > - This option replaces the `fallback: true | false | blocking` option of `getStaticPaths` in the `pages` directory.
-> - `dynamicParams` is not available when [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled.
+> - With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), `false` treats the complete parameter combinations returned by `generateStaticParams` as the allowed paths for that deployment. Other combinations return a 404 before the Page component or Route Handler runs, and no fallback shell is sent.
+> - [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) is not called again during revalidation. To add a path to a closed dynamic route, create a new deployment that returns the path from `generateStaticParams`.

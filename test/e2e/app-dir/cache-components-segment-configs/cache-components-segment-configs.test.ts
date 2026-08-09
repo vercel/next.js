@@ -45,10 +45,6 @@ describe('cache-components-segment-configs', () => {
         '"revalidate" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
       )
     } else {
-      expect(next.cliOutput).toContain('./app/dynamic-params/[slug]/page.tsx')
-      expect(next.cliOutput).toContain(
-        '"dynamicParams" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
-      )
       expect(next.cliOutput).toContain('./app/dynamic/nested/page.tsx')
       expect(next.cliOutput).toContain('./app/dynamic/page.tsx')
       expect(next.cliOutput).toContain(
@@ -77,6 +73,9 @@ describe('cache-components-segment-configs', () => {
         expect(next.cliOutput).toContain('./app/runtime/page.tsx')
 
         expect(next.cliOutput).toContain('./app/metadata/icon.tsx')
+        expect(next.cliOutput).toContain(
+          '"dynamicParams" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
+        )
         expect(next.cliOutput).toContain('./app/metadata/apple-icon.tsx')
         expect(next.cliOutput).toContain('./app/metadata/opengraph-image.tsx')
         expect(next.cliOutput).toContain('./app/metadata/twitter-image.tsx')

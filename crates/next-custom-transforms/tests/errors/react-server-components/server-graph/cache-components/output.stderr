@@ -11,13 +11,6 @@
    :              ^^^^^^^
  3 | export const dynamicParams = false
    `----
-  x Route segment config "dynamicParams" is not compatible with `nextConfig.cacheComponents`. Please remove it.
-   ,-[input.js:3:1]
- 2 | export const dynamic = 'force-dynamic'
- 3 | export const dynamicParams = false
-   :              ^^^^^^^^^^^^^
- 4 | export const fetchCache = 'force-no-store'
-   `----
   x Route segment config "fetchCache" is not compatible with `nextConfig.cacheComponents`. Please remove it.
    ,-[input.js:4:1]
  3 | export const dynamicParams = false

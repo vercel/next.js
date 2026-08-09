@@ -591,15 +591,33 @@ export async function generateStaticParams() {
 }
 ```
 
-Paths you don't return are still served. Next.js prerenders a static shell for the unknown params and streams the rest at request time. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) for the full prerender-a-subset workflow.
+By default, paths you don't return are still served. Next.js prerenders a static shell for the unknown params and streams the rest at request time. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) for the full prerender-a-subset workflow.
 
-### `dynamicParams` is not supported
+### Use `dynamicParams = false` to reject unknown params
 
-**Delete the export.** With Cache Components enabled, exporting `dynamicParams` fails the build with this error message:
+Keep `dynamicParams = false` if the values returned by `generateStaticParams` are the complete set of paths that should exist for this deployment:
 
-> Route segment config "dynamicParams" is not compatible with `nextConfig.cacheComponents`.
+```tsx filename="app/blog/[slug]/page.tsx" switcher
+export const dynamicParams = false
 
-Params not returned by `generateStaticParams` are rendered on request. If you used `dynamicParams: false` to reject them, call [`notFound()`](/docs/app/api-reference/functions/not-found) in the page when the param doesn't resolve to real data.
+export async function generateStaticParams() {
+  const posts = await fetch('https://.../posts').then((res) => res.json())
+  return posts.map((post) => ({ slug: post.slug }))
+}
+```
+
+```jsx filename="app/blog/[slug]/page.js" switcher
+export const dynamicParams = false
+
+export async function generateStaticParams() {
+  const posts = await fetch('https://.../posts').then((res) => res.json())
+  return posts.map((post) => ({ slug: post.slug }))
+}
+```
+
+Next.js records the complete generated parameter combinations at build time. A request for any other combination returns a hard 404 before the Page component or Route Handler runs and before a fallback shell is sent. Revalidating a generated path can update its content, but does not add new parameter combinations. Add new paths by returning them from `generateStaticParams` in a new deployment.
+
+If unknown params should render on demand, omit `dynamicParams` or set it to `true` and follow the `<Suspense>` guidance below.
 
 ### Await `params` inside `<Suspense>`
 

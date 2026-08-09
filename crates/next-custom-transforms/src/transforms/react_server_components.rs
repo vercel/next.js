@@ -910,7 +910,13 @@ impl ReactServerComponentValidator {
             r"[\\/](page|layout|route|icon\d?|apple-icon\d?|opengraph-image\d?|twitter-image\d?|sitemap|robots|manifest)\.{ext_pattern}$",
         ))
         .unwrap();
-        let is_app_entry = re.is_match(&self.filepath);
+        let entry_match = re.captures(&self.filepath);
+        let is_app_entry = entry_match.is_some();
+        let is_metadata_entry = entry_match
+            .as_ref()
+            .and_then(|captures| captures.get(1))
+            .map(|entry| !matches!(entry.as_str(), "page" | "layout" | "route"))
+            .unwrap_or(false);
 
         if is_app_entry {
             let mut possibly_invalid_exports: FxIndexMap<Atom, (InvalidExportKind, Span)> =
@@ -949,8 +955,20 @@ impl ReactServerComponentValidator {
                             );
                         }
                     }
-                    "dynamicParams" | "dynamic" | "fetchCache" | "revalidate"
-                    | "experimental_ppr"
+                    // Metadata route loaders filter this export, so keep
+                    // rejecting it there instead of silently ignoring it.
+                    "dynamicParams" if self.cache_components_enabled && is_metadata_entry => {
+                        possibly_invalid_exports.insert(
+                            export_name.clone(),
+                            (
+                                InvalidExportKind::RouteSegmentConfig(
+                                    NextConfigProperty::CacheComponents,
+                                ),
+                                *span,
+                            ),
+                        );
+                    }
+                    "dynamic" | "fetchCache" | "revalidate" | "experimental_ppr"
                         if self.cache_components_enabled =>
                     {
                         possibly_invalid_exports.insert(
