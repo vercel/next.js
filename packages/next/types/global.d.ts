@@ -130,19 +130,22 @@ interface ImportMeta {
    *
    * // Eager — values are module objects
    * const modules = import.meta.glob('./dir/*.js', { eager: true })
+   *
+   * // The module type can be provided, as in Vite
+   * const modules = import.meta.glob<{ name: string }>('./dir/*.js')
    */
-  glob(
+  glob<M = unknown>(
     pattern: string | string[],
     options: ImportMetaGlobOptions & { eager: true }
-  ): Record<string, unknown>
-  glob(
+  ): Record<string, M>
+  glob<M = unknown>(
     pattern: string | string[],
     options?: ImportMetaGlobOptions & { eager?: false | undefined }
-  ): Record<string, () => Promise<unknown>>
-  glob(
+  ): Record<string, () => Promise<M>>
+  glob<M = unknown>(
     pattern: string | string[],
     options?: ImportMetaGlobOptions
-  ): Record<string, unknown> | Record<string, () => Promise<unknown>>
+  ): Record<string, M> | Record<string, () => Promise<M>>
 }
 
 interface Window {
