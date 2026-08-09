@@ -16,14 +16,16 @@ const MAX_UTF8_CHAR_BYTES = 4
 /**
  * An append-only newline-delimited JSON file.
  *
- * There is deliberately no close: `writeSync` hands the bytes to the OS before
- * it returns, so once flushed they survive `process.exit()` and crashes that
- * run no shutdown path. Only the unflushed tail is at risk, which is why
- * `flush()` is called wherever traces need to be on disk.
+ * Closing is not part of the normal lifetime: `writeSync` hands the bytes to
+ * the OS before it returns, so once flushed they survive `process.exit()` and
+ * crashes that run no shutdown path. Only the unflushed tail is at risk, which
+ * is why `flush()` is called wherever traces need to be on disk. `close()`
+ * exists for callers that must then act on the file itself.
  */
 class RotatingWriteStream {
   readonly file: string
-  private fd: number
+  // Undefined until the first write; see `open()`.
+  private fd: number | undefined
   private readonly buffer = Buffer.allocUnsafe(BUFFER_SIZE)
   // Bytes of event data in `buffer`, excluding the terminator written at
   // flush time. 0 means nothing is pending.
@@ -37,53 +39,36 @@ class RotatingWriteStream {
     // TODO: opening a file in append mode like we do in dev should seed the
     // size from the current file size.
     this.size = 0
-
-    // In dev, append so traces accumulate across sessions. In production,
-    // truncate so each build starts with a fresh trace file.
-    this.fd = fs.openSync(
-      file,
-      traceGlobals.get('phase') === PHASE_DEVELOPMENT_SERVER ? 'a' : 'w'
-    )
-  }
-  // Recreate the file
-  private rotate() {
-    this.reopen('w')
-    this.size = 0
-  }
-
-  private reopen(flags: 'a' | 'w') {
-    try {
-      fs.closeSync(this.fd)
-    } catch {
-      // Already closed, or never valid. Either way we want a new descriptor.
-    }
-    // Opening in 'w' mode truncates the file, 'a' keeps what is already there.
-    this.fd = fs.openSync(this.file, flags)
   }
 
   /**
-   * The dev server deletes its dist dir after the first spans are recorded
-   * (see `clean()` in the webpack hot reloader), which unlinks the file out
-   * from under our descriptor. Writes to an unlinked inode still succeed, so
-   * nothing fails -- the trace just never appears on disk. Detect that and
-   * reopen at the original path, recreating the directory if needed.
+   * Open on first write rather than up front. The dev server records spans
+   * before it cleans its dist dir, and a descriptor opened that early would be
+   * unlinked by the clean -- writes to the orphaned inode still succeed, so
+   * the trace would silently never appear on disk.
    */
-  private reopenIfUnlinked(): void {
-    let stillLinked: boolean
-    try {
-      stillLinked = fs.fstatSync(this.fd).nlink > 0
-    } catch {
-      // Can't tell; assume the descriptor is still good and let the write try.
-      return
+  private open(): number {
+    if (this.fd === undefined) {
+      fs.mkdirSync(path.dirname(this.file), { recursive: true })
+      // In dev, append so traces accumulate across sessions. In production,
+      // truncate so each build starts with a fresh trace file.
+      this.fd = fs.openSync(
+        this.file,
+        traceGlobals.get('phase') === PHASE_DEVELOPMENT_SERVER ? 'a' : 'w'
+      )
     }
-    if (stillLinked) {
-      return
-    }
-    fs.mkdirSync(path.dirname(this.file), { recursive: true })
-    // Append: a rotation or an earlier session may have written content that
-    // should not be clobbered.
-    this.reopen('a')
+    return this.fd
   }
+
+  // Recreate the file
+  private rotate() {
+    this.closeFd()
+    fs.mkdirSync(path.dirname(this.file), { recursive: true })
+    // Opening in 'w' mode truncates the file, discarding what rotated out.
+    this.fd = fs.openSync(this.file, 'w')
+    this.size = 0
+  }
+
   /**
    * Append one already-encoded event. Events are written as a single JSON
    * array per flush, which is the format readers expect (see
@@ -142,13 +127,13 @@ class RotatingWriteStream {
   private writeToFile(data: Buffer): void {
     let offset = 0
     try {
-      this.reopenIfUnlinked()
       if (this.size + data.length > this.sizeLimit) {
         this.rotate()
       }
+      const fd = this.open()
       // writeSync can write fewer than all the bytes
       while (offset < data.length) {
-        offset += fs.writeSync(this.fd, data, offset)
+        offset += fs.writeSync(fd, data, offset)
       }
     } catch (err) {
       // Tracing is diagnostic, so a failed write should not fail the build.
@@ -159,6 +144,22 @@ class RotatingWriteStream {
   }
 
   /**
+   * Release the descriptor without flushing. Callers that want the buffered
+   * tail on disk flush first; `rotate` deliberately does not.
+   */
+  private closeFd(): void {
+    if (this.fd === undefined) {
+      return
+    }
+    try {
+      fs.closeSync(this.fd)
+    } catch {
+      // Nothing useful to do if the descriptor is already gone.
+    }
+    this.fd = undefined
+  }
+
+  /**
    * Flush and release the descriptor. Only needed when something else has to
    * act on the file (Windows cannot remove a file that is still open), which
    * in practice means tests -- the normal lifetime of the process is the
@@ -166,11 +167,7 @@ class RotatingWriteStream {
    */
   close(): void {
     this.flush()
-    try {
-      fs.closeSync(this.fd)
-    } catch {
-      // Nothing useful to do if the descriptor is already gone.
-    }
+    this.closeFd()
   }
 }
 
@@ -201,17 +198,13 @@ export function createJsonReporter(options: {
     }
 
     if (!writeStream) {
-      try {
-        fs.mkdirSync(distDir, { recursive: true })
-        const limit =
-          typeof options.sizeLimit === 'function'
-            ? options.sizeLimit(phase)
-            : options.sizeLimit
-        writeStream = new RotatingWriteStream(file, limit)
-      } catch (e) {
-        console.error(e)
-        return
-      }
+      // Constructing the stream touches no filesystem state -- the directory
+      // and file are created lazily on the first write.
+      const limit =
+        typeof options.sizeLimit === 'function'
+          ? options.sizeLimit(phase)
+          : options.sizeLimit
+      writeStream = new RotatingWriteStream(file, limit)
     }
 
     writeStream.write(JSON.stringify({ ...event, traceId }))

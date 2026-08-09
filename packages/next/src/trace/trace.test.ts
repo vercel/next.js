@@ -153,31 +153,27 @@ describe('Trace', () => {
       expect(readSpanNames(file)).toEqual(['first', 'second'])
     })
 
-    // The dev server records spans before it cleans its dist dir, which
-    // unlinks the trace file. Writes to the orphaned inode still succeed, so
-    // without recovery the trace silently never appears on disk.
-    it('recreates the file if it is deleted after the first write', async () => {
+    // The dev server records spans before it cleans its dist dir. Holding a
+    // descriptor across that clean would leave it pointing at an unlinked
+    // inode -- writes still succeed, so the trace silently never appears on
+    // disk. Staying closed until there is something to write avoids it.
+    it('does not touch the filesystem until the first flush', async () => {
       const tmpDir = await makeTmpDir()
-      setGlobal('distDir', tmpDir)
+      const distDir = join(tmpDir, 'dist')
+      setGlobal('distDir', distDir)
       setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
       const reporter = createJsonReporter({
         filename: 'trace',
         sizeLimit: Infinity,
       })
-      const file = join(tmpDir, 'trace')
 
-      reporter.report(traceEvent('before-clean'))
+      reporter.report(traceEvent('buffered'))
+      // Buffered only: neither the dist dir nor the file exists yet, so a
+      // clean at this point has nothing to unlink.
+      expect(fs.existsSync(distDir)).toBe(false)
+
       reporter.flushAll()
-      expect(fs.existsSync(file)).toBe(true)
-
-      // Simulate the dev server wiping its dist dir out from under us.
-      fs.rmSync(tmpDir, { recursive: true, force: true })
-
-      reporter.report(traceEvent('after-clean'))
-      reporter.flushAll()
-
-      expect(fs.existsSync(file)).toBe(true)
-      expect(readSpanNames(file)).toEqual(['after-clean'])
+      expect(readSpanNames(join(distDir, 'trace'))).toEqual(['buffered'])
     })
 
     it('flushes on its own once the buffer fills', async () => {
