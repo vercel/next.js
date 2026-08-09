@@ -1,6 +1,19 @@
 {
   "name": "nextjs-project",
   "version": "0.0.0",
+  "description": "Fork workspace for contributing to the Next.js monorepo.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Rezakarimzadeh98/next.js"
+  },
+  "keywords": [
+    "nextjs",
+    "react",
+    "monorepo",
+    "frontend",
+    "open-source"
+  ],
   "private": true,
   "workspaces": [
     "packages/*"
