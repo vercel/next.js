@@ -17,7 +17,7 @@ use turbopack_core::{
 };
 
 use crate::{
-    nft::{EndpointTraceResult, tracing_exclude_glob},
+    nft::{EndpointTraceResult, hash_traced_include, tracing_exclude_glob},
     project::Project,
 };
 
@@ -234,20 +234,17 @@ impl Asset for NftJsonAsset {
                     .includes
                     .iter()
                     .map(async |file_path| {
+                        // Entries without content (e.g. a path that disappeared) are reported as
+                        // an issue and skipped instead of failing the whole build.
+                        let Some(hash) = hash_traced_include(file_path, hash_salt).await? else {
+                            return Ok(None);
+                        };
                         let relative_path = ident_folder_in_project_fs
                             .get_relative_path_to(file_path)
                             .unwrap();
-                        Ok((
-                            relative_path,
-                            Either::Left(
-                                file_path
-                                    .read()
-                                    .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
-                                    .await?,
-                            ),
-                        ))
+                        Ok(Some((relative_path, Either::Left(hash))))
                     })
-                    .try_join()
+                    .try_flat_join()
                     .await?,
             );
 
