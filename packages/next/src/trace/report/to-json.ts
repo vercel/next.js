@@ -47,10 +47,42 @@ class RotatingWriteStream {
   }
   // Recreate the file
   private rotate() {
-    fs.closeSync(this.fd)
-    // Opening in 'w' mode truncates the file
-    this.fd = fs.openSync(this.file, 'w')
+    this.reopen('w')
     this.size = 0
+  }
+
+  private reopen(flags: 'a' | 'w') {
+    try {
+      fs.closeSync(this.fd)
+    } catch {
+      // Already closed, or never valid. Either way we want a new descriptor.
+    }
+    // Opening in 'w' mode truncates the file, 'a' keeps what is already there.
+    this.fd = fs.openSync(this.file, flags)
+  }
+
+  /**
+   * The dev server deletes its dist dir after the first spans are recorded
+   * (see `clean()` in the webpack hot reloader), which unlinks the file out
+   * from under our descriptor. Writes to an unlinked inode still succeed, so
+   * nothing fails -- the trace just never appears on disk. Detect that and
+   * reopen at the original path, recreating the directory if needed.
+   */
+  private reopenIfUnlinked(): void {
+    let stillLinked: boolean
+    try {
+      stillLinked = fs.fstatSync(this.fd).nlink > 0
+    } catch {
+      // Can't tell; assume the descriptor is still good and let the write try.
+      return
+    }
+    if (stillLinked) {
+      return
+    }
+    fs.mkdirSync(path.dirname(this.file), { recursive: true })
+    // Append: a rotation or an earlier session may have written content that
+    // should not be clobbered.
+    this.reopen('a')
   }
   /**
    * Append one already-encoded event. Events are written as a single JSON
@@ -110,6 +142,7 @@ class RotatingWriteStream {
   private writeToFile(data: Buffer): void {
     let offset = 0
     try {
+      this.reopenIfUnlinked()
       if (this.size + data.length > this.sizeLimit) {
         this.rotate()
       }
@@ -123,6 +156,21 @@ class RotatingWriteStream {
       console.log(err)
     }
     this.size += offset
+  }
+
+  /**
+   * Flush and release the descriptor. Only needed when something else has to
+   * act on the file (Windows cannot remove a file that is still open), which
+   * in practice means tests -- the normal lifetime of the process is the
+   * lifetime of the trace.
+   */
+  close(): void {
+    this.flush()
+    try {
+      fs.closeSync(this.fd)
+    } catch {
+      // Nothing useful to do if the descriptor is already gone.
+    }
   }
 }
 
@@ -144,10 +192,17 @@ export function createJsonReporter(options: {
       return
     }
 
+    const file = path.join(distDir, options.filename)
+    // `distDir` can change within a process (most visibly between tests), so
+    // a stream opened against a previous one must not keep receiving events.
+    if (writeStream && writeStream.file !== file) {
+      writeStream.close()
+      writeStream = undefined
+    }
+
     if (!writeStream) {
       try {
         fs.mkdirSync(distDir, { recursive: true })
-        const file = path.join(distDir, options.filename)
         const limit =
           typeof options.sizeLimit === 'function'
             ? options.sizeLimit(phase)
@@ -164,6 +219,10 @@ export function createJsonReporter(options: {
 
   return {
     flushAll: () => writeStream?.flush(),
+    close: () => {
+      writeStream?.close()
+      writeStream = undefined
+    },
     report,
   }
 }

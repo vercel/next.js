@@ -15,6 +15,10 @@ class MultiReporter implements Reporter {
     this.reporters.forEach((reporter) => reporter.flushAll())
   }
 
+  close() {
+    this.reporters.forEach((reporter) => reporter.close?.())
+  }
+
   report(event: TraceEvent) {
     this.reporters.forEach((reporter) => reporter.report(event))
   }

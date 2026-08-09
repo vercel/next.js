@@ -163,6 +163,12 @@ export const trace = (
 
 export const flushAllTraces = () => reporter.flushAll()
 
+/**
+ * Flush and release the trace file handle. Intended for tests that need to
+ * delete the directory holding the trace afterwards.
+ */
+export const closeAllTraces = () => reporter.close()
+
 // This code supports workers by serializing the state of tracers when the
 // worker is initialized, and serializing the trace events from the worker back
 // to the main process to record when the worker is complete.

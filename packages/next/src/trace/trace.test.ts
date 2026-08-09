@@ -11,6 +11,7 @@ import type { TraceEvent } from './types'
 import { setGlobal } from './shared'
 import {
   clearTraceEvents,
+  closeAllTraces,
   exportTraceState,
   flushAllTraces,
   getTraceEvents,
@@ -63,6 +64,9 @@ describe('Trace', () => {
   })
 
   afterAll(async () => {
+    // Windows refuses to remove a directory containing an open file, so the
+    // trace file handle has to go first.
+    closeAllTraces()
     await Promise.all(
       tmpDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true }))
     )
@@ -147,6 +151,33 @@ describe('Trace', () => {
       reporter.flushAll()
       reporter.flushAll()
       expect(readSpanNames(file)).toEqual(['first', 'second'])
+    })
+
+    // The dev server records spans before it cleans its dist dir, which
+    // unlinks the trace file. Writes to the orphaned inode still succeed, so
+    // without recovery the trace silently never appears on disk.
+    it('recreates the file if it is deleted after the first write', async () => {
+      const tmpDir = await makeTmpDir()
+      setGlobal('distDir', tmpDir)
+      setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
+      const reporter = createJsonReporter({
+        filename: 'trace',
+        sizeLimit: Infinity,
+      })
+      const file = join(tmpDir, 'trace')
+
+      reporter.report(traceEvent('before-clean'))
+      reporter.flushAll()
+      expect(fs.existsSync(file)).toBe(true)
+
+      // Simulate the dev server wiping its dist dir out from under us.
+      fs.rmSync(tmpDir, { recursive: true, force: true })
+
+      reporter.report(traceEvent('after-clean'))
+      reporter.flushAll()
+
+      expect(fs.existsSync(file)).toBe(true)
+      expect(readSpanNames(file)).toEqual(['after-clean'])
     })
 
     it('flushes on its own once the buffer fills', async () => {

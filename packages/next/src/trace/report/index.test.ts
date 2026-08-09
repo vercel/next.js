@@ -23,6 +23,9 @@ describe('Trace Reporter', () => {
   const tmpDirs: string[] = []
 
   afterAll(async () => {
+    // Windows refuses to remove a directory containing an open file, so the
+    // trace file handle has to go first.
+    reporter.close()
     await Promise.all(
       tmpDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true }))
     )
