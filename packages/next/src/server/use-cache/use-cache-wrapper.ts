@@ -2644,13 +2644,13 @@ export async function cache(
                 // resolves in the dynamic stage. Otherwise, a dynamic request
                 // generally recovers a static shell, so the entry can resolve
                 // in the static link data stage. If we need to recover a
-                // session shell instead, as indicated by `needsSessionShell`,
+                // session shell instead, as indicated by `needsAppShell`,
                 // the entry must resolve after the session data stage that
                 // the shell includes.
                 let stage: AdvanceableRenderStage
                 if (!isPrefetchable) {
                   stage = RenderStage.Dynamic
-                } else if (workUnitStore.needsSessionShell) {
+                } else if (workUnitStore.needsAppShell) {
                   stage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
                 } else {
                   stage = RENDER_STAGES_BY_DATA_KIND.staticLinkData
@@ -3257,13 +3257,13 @@ export async function cache(
                 // resolves in the dynamic stage. Otherwise, a dynamic request
                 // generally recovers a static shell, so the entry can resolve
                 // in the static link data stage. If we need to recover a
-                // session shell instead, as indicated by `needsSessionShell`,
+                // session shell instead, as indicated by `needsAppShell`,
                 // the entry must resolve after the session data stage that
                 // the shell includes.
                 let stage: AdvanceableRenderStage
                 if (entry.stale < MIN_PREFETCHABLE_STALE) {
                   stage = RenderStage.Dynamic
-                } else if (workUnitStore.needsSessionShell) {
+                } else if (workUnitStore.needsAppShell) {
                   stage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
                 } else {
                   stage = RENDER_STAGES_BY_DATA_KIND.staticLinkData
