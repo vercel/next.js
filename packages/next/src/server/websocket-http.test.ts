@@ -19,6 +19,23 @@ import {
   writeRawHttpResponse,
 } from './websocket-http'
 
+function failNextListenerRemoval(
+  socket: PassThrough,
+  targetEvent: string,
+  failure: Error
+): void {
+  const off = socket.off
+  let pending = true
+  socket.off = function (event, listener) {
+    off.call(this, event, listener)
+    if (pending && event === targetEvent) {
+      pending = false
+      throw failure
+    }
+    return this
+  }
+}
+
 describe('internal upgrade header filtering', () => {
   it('matches header names case-insensitively across parsed and raw forms', () => {
     const parsed = {
@@ -399,9 +416,7 @@ describe('raw WebSocket upgrade responses', () => {
       get: () => socket.needsDrain,
     })
     socket.resume()
-    socket.on('removeListener', (event) => {
-      if (event === 'drain') throw failure
-    })
+    failNextListenerRemoval(socket, 'drain', failure)
 
     const response = writeRawHttpResponse(
       { method: 'GET', httpVersion: '1.1' } as IncomingMessage,
@@ -424,9 +439,7 @@ describe('raw WebSocket upgrade responses', () => {
     const consoleError = jest.spyOn(console, 'error').mockImplementation()
 
     ownWebSocketUpgradeSocketErrors(request, socket)
-    socket.on('removeListener', (event) => {
-      if (event === 'close') throw failure
-    })
+    failNextListenerRemoval(socket, 'close', failure)
     socket.destroy()
 
     await new Promise<void>((resolve) => setImmediate(resolve))
@@ -443,9 +456,7 @@ describe('raw WebSocket upgrade responses', () => {
     const socket = new PassThrough()
     const failure = new Error('final close listener cleanup failed')
     const consoleError = jest.spyOn(console, 'error').mockImplementation()
-    socket.on('removeListener', (event) => {
-      if (event === 'close') throw failure
-    })
+    failNextListenerRemoval(socket, 'close', failure)
 
     await expect(
       writeRawHttpResponse(
@@ -471,9 +482,7 @@ describe('raw WebSocket upgrade responses', () => {
     socket.resume()
     const failure = new Error('body close listener cleanup failed')
     const consoleError = jest.spyOn(console, 'error').mockImplementation()
-    socket.on('removeListener', (event) => {
-      if (event === 'close') throw failure
-    })
+    failNextListenerRemoval(socket, 'close', failure)
 
     const response = writeRawHttpResponse(
       { method: 'GET', httpVersion: '1.1' } as IncomingMessage,

@@ -808,8 +808,16 @@ declare module 'next/dist/compiled/write-file-atomic' {
 }
 
 declare module 'next/dist/compiled/ws' {
-  import WebSocket = require('ws')
-  export = WebSocket
+  import type WebSocketBase from 'ws'
+  import type { Server as WebSocketServer } from 'ws'
+
+  class VendoredWebSocket extends WebSocketBase {}
+  namespace VendoredWebSocket {
+    const Server: typeof WebSocketServer
+    const WebSocket: typeof WebSocketBase
+    interface WebSocket extends WebSocketBase {}
+  }
+  export = VendoredWebSocket
 }
 declare module 'next/dist/compiled/@vercel/routing-utils' {
   import m from '@vercel/routing-utils/dist/superstatic'

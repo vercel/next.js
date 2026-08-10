@@ -2,7 +2,11 @@ import { randomUUID } from 'node:crypto'
 import type { IncomingMessage } from 'node:http'
 import type { Duplex } from 'node:stream'
 import { types } from 'node:util'
-import type WebSocket = require('ws')
+import type {
+  Server as WebSocketServer,
+  ServerOptions as WebSocketServerOptions,
+  WebSocket as VendoredWebSocket,
+} from 'ws'
 
 import type { NextRequest } from './web/spec-extension/request'
 import type { WebSocketUpgradeMetadata } from './web/spec-extension/websocket-upgrade-response'
@@ -17,11 +21,9 @@ import {
   writeRawHttpError,
 } from './websocket-http'
 
-type WebSocketServerConstructor =
-  (typeof import('next/dist/compiled/ws'))['Server']
-type VendoredWebSocket = WebSocket
+type WebSocketServerConstructor = typeof WebSocketServer
 
-interface VendoredWebSocketServerOptions extends WebSocket.ServerOptions {
+interface VendoredWebSocketServerOptions extends WebSocketServerOptions {
   closeTimeout: number
   maxBufferedChunks: number
   maxFragments: number
