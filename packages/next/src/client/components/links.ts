@@ -39,11 +39,21 @@ export type FormInstance = LinkOrFormInstanceShared & {
 }
 
 type PrefetchableLinkInstance = LinkOrFormInstanceShared & {
+  // In dev, the Owner Stack captured at the time this Link was rendered, for
+  // configurations where a warning might later fire.
+  // `undefined` means we opted out of capturing the stack.
+  // If you issue a warning, handle the `undefined` case separately
+  // so it's clear in the logs when a warning is missing its source location.
+  // A warning with an undefined ownerStack is considered a bug though so make
+  // sure reaching the log site is a subset of codepaths that lead to capturing
+  // the stack
+  ownerStack: string | null | undefined
   prefetchHref: string
   setOptimisticLinkStatus: (status: { pending: boolean }) => void
 }
 
 type NonPrefetchableLinkInstance = LinkOrFormInstanceShared & {
+  ownerStack: string | null | undefined
   prefetchHref: null
   setOptimisticLinkStatus: (status: { pending: boolean }) => void
 }
@@ -133,6 +143,8 @@ function observeVisibility(element: Element, instance: PrefetchableInstance) {
 function coercePrefetchableUrl(href: string): URL | null {
   if (typeof window !== 'undefined') {
     const { createPrefetchURL } =
+      // TODO(browser-variant): migrate to a .ts/.browser.ts split so the browser bundle drops the server branch; see scripts/generate-browser-variant-aliases.mjs
+      // ast-grep-ignore: no-typeof-window-require
       require('./app-router-utils') as typeof import('./app-router-utils')
 
     try {
@@ -161,7 +173,8 @@ export function mountLinkInstance(
   router: AppRouterInstance,
   fetchStrategy: PrefetchTaskFetchStrategy,
   prefetchEnabled: boolean,
-  setOptimisticLinkStatus: (status: { pending: boolean }) => void
+  setOptimisticLinkStatus: (status: { pending: boolean }) => void,
+  ownerStack: string | null | undefined
 ): LinkInstance {
   if (prefetchEnabled) {
     const prefetchURL = coercePrefetchableUrl(href)
@@ -173,6 +186,7 @@ export function mountLinkInstance(
         prefetchTask: null,
         prefetchHref: prefetchURL.href,
         setOptimisticLinkStatus,
+        ownerStack,
       }
       // We only observe the link's visibility if it's prefetchable. For
       // example, this excludes links to external URLs.
@@ -189,6 +203,7 @@ export function mountLinkInstance(
     prefetchTask: null,
     prefetchHref: null,
     setOptimisticLinkStatus,
+    ownerStack,
   }
   return instance
 }
@@ -234,7 +249,16 @@ export function unmountPrefetchableInstance(element: Element) {
 }
 
 function handleIntersect(entries: Array<IntersectionObserverEntry>) {
-  for (const entry of entries) {
+  // Process the entries in reverse order. The prefetch scheduler assigns the
+  // highest priority to the most recently scheduled task, so whichever link we
+  // schedule *last* wins. When multiple links enter the viewport at once (e.g.
+  // on initial load), the observer reports them in document order, so iterating
+  // in reverse means the link nearest the top of the document is scheduled last
+  // and therefore prioritized. The topmost link isn't guaranteed to be the most
+  // important, but as a default heuristic it's more reasonable than prioritizing
+  // whichever link happens to be lowest in the document.
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const entry = entries[i]
     // Some extremely old browsers or polyfills don't reliably support
     // isIntersecting so we check intersectionRatio instead. (Do we care? Not
     // really. But whatever this is fine.)
@@ -308,6 +332,8 @@ function rescheduleLinkPrefetch(
     }
 
     const { getCurrentAppRouterState } =
+      // TODO(browser-variant): migrate to a .ts/.browser.ts split so the browser bundle drops the server branch; see scripts/generate-browser-variant-aliases.mjs
+      // ast-grep-ignore: no-typeof-window-require
       require('./app-router-instance') as typeof import('./app-router-instance')
 
     const appRouterState = getCurrentAppRouterState()
@@ -322,7 +348,8 @@ function rescheduleLinkPrefetch(
           treeAtTimeOfPrefetch,
           instance.fetchStrategy,
           priority,
-          null
+          null,
+          null // navigationLockPrefetch
         )
       } else {
         // We already have an old task object that we can reschedule. This is
@@ -367,7 +394,8 @@ export function pingVisibleLinks(
       tree,
       instance.fetchStrategy,
       PrefetchPriority.Default,
-      null
+      null,
+      null // navigationLockPrefetch
     )
   }
 }

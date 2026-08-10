@@ -2,29 +2,33 @@ use anyhow::{Result, bail};
 use indoc::formatdoc;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks_fs::FileSystem;
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkData, ChunkGroupType, ChunkableModule, ChunkingContext,
-        ChunkingContextExt, ChunkingType, ChunkingTypeOption, ChunksData, EvaluatableAsset,
-        EvaluatableAssets, availability_info::AvailabilityInfo,
+        ChunkingContextExt, ChunkingType, ChunksData, EvaluatableAsset, ModuleChunkItemIdExt,
+        ModuleId, availability_info::AvailabilityInfo,
     },
     context::AssetContext,
+    file_source::FileSource,
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
-    reference::{ModuleReference, ModuleReferences},
-    resolve::ModuleResolveResult,
+    reference::{ModuleReference, ModuleReferences, SingleChunkableModuleReference},
+    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+    resolve::{ExportUsage, ModuleResolveResult},
 };
 
 use super::worker_type::WorkerType;
 use crate::{
     chunk::{
-        EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
-        data::EcmascriptChunkData, ecmascript_chunk_item,
+        EcmascriptChunkItemContent, EcmascriptChunkItemOptions, EcmascriptChunkPlaceable,
+        EcmascriptExports, data::EcmascriptChunkData, ecmascript_chunk_item,
     },
-    runtime_functions::{TURBOPACK_CREATE_WORKER, TURBOPACK_EXPORT_VALUE},
-    utils::StringifyJs,
+    embed_js::embed_fs,
+    runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_REQUIRE},
+    utils::{StringifyJs, StringifyModuleId},
 };
 
 /// The WorkerLoaderModule is a module that creates a separate root chunk group for the given module
@@ -60,15 +64,22 @@ impl WorkerLoaderModule {
     ) -> Result<Vc<OutputAssetsWithReferenced>> {
         let this = self.await?;
         Ok(match this.worker_type {
-            WorkerType::WebWorker | WorkerType::SharedWebWorker => chunking_context
-                .evaluated_chunk_group_assets(
-                    this.inner
-                        .ident()
-                        .with_modifier(this.worker_type.chunk_modifier_str()),
+            WorkerType::WebWorker | WorkerType::SharedWebWorker => {
+                let ident = this
+                    .inner
+                    .ident()
+                    .owned()
+                    .await?
+                    .with_modifier(this.worker_type.chunk_modifier_str())
+                    .into_vc();
+                chunking_context.evaluated_chunk_group_assets(
+                    ident,
                     ChunkGroup::Isolated(ResolvedVc::upcast(this.inner)),
                     module_graph,
+                    OutputAssets::empty(),
                     AvailabilityInfo::root(),
-                ),
+                )
+            }
             // WorkerThreads are treated as an entry point, webworkers probably should too but
             // currently it would lead to a cascade that we need to address.
             WorkerType::NodeWorkerThread => {
@@ -91,7 +102,7 @@ impl WorkerLoaderModule {
                 let entry_result = chunking_context
                     .root_entry_chunk_group(
                         worker_path,
-                        EvaluatableAssets::one(*evaluatable),
+                        ChunkGroup::Isolated(ResolvedVc::upcast(evaluatable)),
                         module_graph,
                         OutputAssets::empty(),
                         OutputAssets::empty(),
@@ -123,6 +134,26 @@ impl WorkerLoaderModule {
         ))
     }
 
+    /// `createWorker` is stored in a module; for each worker we need to
+    /// load, we require this module and then use it.
+    #[turbo_tasks::function]
+    async fn create_worker_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
+        let this = self.await?;
+        let helper = match this.worker_type {
+            WorkerType::WebWorker | WorkerType::SharedWebWorker => {
+                rcstr!("worker/browser/createWorker.ts")
+            }
+            WorkerType::NodeWorkerThread => rcstr!("worker/node/createWorker.ts"),
+        };
+        Ok(this
+            .asset_context
+            .process(
+                Vc::upcast(FileSource::new(embed_fs().root().await?.join(&helper)?)),
+                ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Import),
+            )
+            .module())
+    }
+
     /// Returns output assets including the worker entrypoint for web workers.
     #[turbo_tasks::function]
     async fn chunk_group_with_type(
@@ -146,10 +177,14 @@ impl WorkerLoaderModule {
 #[turbo_tasks::value_impl]
 impl Module for WorkerLoaderModule {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.inner
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .inner
             .ident()
+            .owned()
+            .await?
             .with_modifier(self.worker_type.modifier_str())
+            .into_vc())
     }
 
     #[turbo_tasks::function]
@@ -160,11 +195,22 @@ impl Module for WorkerLoaderModule {
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         let this = self.await?;
-        Ok(Vc::cell(vec![ResolvedVc::upcast(
-            WorkerModuleReference::new(*ResolvedVc::upcast(this.inner), this.worker_type)
+        Ok(Vc::cell(vec![
+            ResolvedVc::upcast(
+                WorkerModuleReference::new(*ResolvedVc::upcast(this.inner), this.worker_type)
+                    .to_resolved()
+                    .await?,
+            ),
+            ResolvedVc::upcast(
+                SingleChunkableModuleReference::new(
+                    self.create_worker_module(),
+                    rcstr!("createWorker"),
+                    ExportUsage::named(rcstr!("default")),
+                )
                 .to_resolved()
                 .await?,
-        )]))
+            ),
+        ]))
     }
 
     #[turbo_tasks::function]
@@ -201,26 +247,40 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
         estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let this = self.await?;
+        let options = EcmascriptChunkItemOptions {
+            supports_arrow_functions: *chunking_context
+                .environment()
+                .runtime_versions()
+                .supports_arrow_functions()
+                .await?,
+            ..Default::default()
+        };
 
         if estimated {
             // In estimation mode we cannot call into chunking context APIs
             // otherwise we will induce a turbo tasks cycle. But we only need an
             // approximate solution. We'll use the same estimate for both web
             // and Node.js workers.
+            let fake_id = ModuleId::String(rcstr!("a_fake_module"));
             return Ok(EcmascriptChunkItemContent {
                 inner_code: formatdoc! {
                     r#"
-                        {TURBOPACK_EXPORT_VALUE}(function(Ctor, opts) {{
-                            return {TURBOPACK_CREATE_WORKER}(Ctor, __dirname + "/" + {worker_path:#}, opts);
-                        }});
+                        {TURBOPACK_EXPORT_VALUE}({TURBOPACK_REQUIRE}({workers_module})["default"](__dirname + "/" + {worker_path:#}));
                     "#,
                     worker_path = StringifyJs(&"a_fake_path_for_size_estimation"),
+                    workers_module = StringifyModuleId(&fake_id),
                 }
                 .into(),
+                options,
                 ..Default::default()
             }
             .cell());
         }
+
+        let create_worker_id = self
+            .create_worker_module()
+            .chunk_item_id(chunking_context)
+            .await?;
 
         let code = match this.worker_type {
             WorkerType::WebWorker | WorkerType::SharedWebWorker => {
@@ -246,12 +306,11 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
 
                 formatdoc! {
                     r#"
-                        {TURBOPACK_EXPORT_VALUE}(function(Ctor, opts) {{
-                            return {TURBOPACK_CREATE_WORKER}(Ctor, {entrypoint}, {chunks}, opts);
-                        }});
+                        {TURBOPACK_EXPORT_VALUE}({TURBOPACK_REQUIRE}({workers_module})["default"]({entrypoint}, {chunks}));
                     "#,
                     entrypoint = StringifyJs(&entrypoint_path),
                     chunks = StringifyJs(&chunks_data),
+                    workers_module = StringifyModuleId(&create_worker_id),
                 }
             }
             WorkerType::NodeWorkerThread => {
@@ -279,17 +338,17 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
                 // directory
                 formatdoc! {
                     r#"
-                        {TURBOPACK_EXPORT_VALUE}(function(Ctor, opts) {{
-                            return {TURBOPACK_CREATE_WORKER}(Ctor, __dirname + "/" + {worker_path:#}, opts);
-                        }});
+                        {TURBOPACK_EXPORT_VALUE}({TURBOPACK_REQUIRE}({workers_module})["default"](__dirname + "/" + {worker_path:#}));
                     "#,
                     worker_path = StringifyJs(entry_path.file_name()),
+                    workers_module = StringifyModuleId(&create_worker_id),
                 }
             }
         };
 
         Ok(EcmascriptChunkItemContent {
             inner_code: code.into(),
+            options,
             ..Default::default()
         }
         .cell())
@@ -331,14 +390,13 @@ impl ModuleReference for WorkerModuleReference {
         *ModuleResolveResult::module(self.module)
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Isolated {
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Isolated {
             _ty: match self.worker_type {
                 WorkerType::SharedWebWorker | WorkerType::WebWorker => ChunkGroupType::Evaluated,
                 WorkerType::NodeWorkerThread => ChunkGroupType::Entry,
             },
             merge_tag: None,
-        }))
+        })
     }
 }

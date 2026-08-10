@@ -58,6 +58,7 @@ describe('middleware - development errors', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
+           "code": "E394",
            "description": "boom",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -72,6 +73,7 @@ describe('middleware - development errors', () => {
       } else if (isRspack) {
         await expect(browser).toDisplayRedbox(`
          {
+           "code": "E394",
            "description": "boom",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -86,6 +88,7 @@ describe('middleware - development errors', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
+           "code": "E394",
            "description": "boom",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -133,17 +136,17 @@ describe('middleware - development errors', () => {
       })
       expect(stripAnsi(next.cliOutput)).toContain(
         isTurbopack
-          ? '⨯ unhandledRejection:  Error: async boom!' +
+          ? '⨯ unhandledRejection: Error: async boom!' +
               '\n    at throwError (middleware.js:4:15)' +
               // TODO(veil): Sourcemap to original name i.e. "default"
               '\n    at __TURBOPACK__default__export__ (middleware.js:7:9)' +
               "\n  2 |       import { NextResponse } from 'next/server'"
           : isRspack
-            ? '\n⨯ unhandledRejection:  Error: async boom!' +
+            ? '\n⨯ unhandledRejection: Error: async boom!' +
               '\n    at throwError (middleware.js:4:15)' +
               '\n    at __rspack_default_export (middleware.js:7:9)' +
               "\n  2 |       import { NextResponse } from 'next/server'"
-            : '\n⨯ unhandledRejection:  Error: async boom!' +
+            : '\n⨯ unhandledRejection: Error: async boom!' +
               '\n    at throwError (middleware.js:4:15)' +
               '\n    at default (middleware.js:7:9)' +
               "\n  2 |       import { NextResponse } from 'next/server'"
@@ -224,6 +227,7 @@ describe('middleware - development errors', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
+           "code": "E394",
            "description": "test is not defined",
            "environmentLabel": null,
            "label": "Runtime ReferenceError",
@@ -240,6 +244,7 @@ describe('middleware - development errors', () => {
       } else if (isRspack) {
         await expect(browser).toDisplayRedbox(`
          {
+           "code": "E394",
            "description": "test is not defined",
            "environmentLabel": null,
            "label": "Runtime ReferenceError",
@@ -255,6 +260,7 @@ describe('middleware - development errors', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
+           "code": "E394",
            "description": "test is not defined",
            "environmentLabel": null,
            "label": "Runtime ReferenceError",
@@ -328,6 +334,7 @@ describe('middleware - development errors', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
+           "code": "E394",
            "description": "booooom!",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -342,6 +349,7 @@ describe('middleware - development errors', () => {
       } else if (isRspack) {
         await expect(browser).toDisplayRedbox(`
          {
+           "code": "E394",
            "description": "booooom!",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -365,6 +373,7 @@ describe('middleware - development errors', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
+           "code": "E394",
            "description": "booooom!",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -492,11 +501,11 @@ describe('middleware - development errors', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Parsing ecmascript source code failed",
+           "description": "Expected '{', got '}'",
            "environmentLabel": null,
            "label": "Build Error",
            "source": "./middleware.js (1:28)
-         Parsing ecmascript source code failed
+         Error: Expected '{', got '}'
          > 1 | export default function () }
              |                            ^",
            "stack": [],
@@ -577,11 +586,11 @@ describe('middleware - development errors', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Parsing ecmascript source code failed",
+           "description": "Expected '{', got '}'",
            "environmentLabel": null,
            "label": "Build Error",
            "source": "./middleware.js (1:28)
-         Parsing ecmascript source code failed
+         Error: Expected '{', got '}'
          > 1 | export default function () }
              |                            ^",
            "stack": [],

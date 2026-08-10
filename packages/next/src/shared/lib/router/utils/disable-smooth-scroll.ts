@@ -1,5 +1,3 @@
-import { warnOnce } from '../../utils/warn-once'
-
 /**
  * Run function with `scroll-behavior: auto` applied to `<html/>`.
  * This css change will be reverted after the function finishes.
@@ -24,6 +22,8 @@ export function disableSmoothScrollDuringRouteTransition(
       process.env.NODE_ENV === 'development' &&
       getComputedStyle(htmlElement).scrollBehavior === 'smooth'
     ) {
+      const { warnOnce } =
+        require('../../utils/warn-once') as typeof import('../../utils/warn-once')
       warnOnce(
         'Detected `scroll-behavior: smooth` on the `<html>` element. To disable smooth scrolling during route transitions, ' +
           'add `data-scroll-behavior="smooth"` to your <html> element. ' +

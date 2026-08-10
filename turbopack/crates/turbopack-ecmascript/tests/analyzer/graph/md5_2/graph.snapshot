@@ -431,11 +431,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -680876936.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -505,11 +507,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -176418897.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -731,11 +735,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -165796510.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -805,11 +811,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -701558691.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -955,11 +963,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -1444681467.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -1029,11 +1039,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -378558.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -1103,11 +1115,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -1530992060.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -1253,11 +1267,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -640364487.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -1327,11 +1343,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -198630844.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -1553,11 +1571,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -145523070.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Unknown {
@@ -1618,13 +1638,15 @@
     (
         "b#4",
         Alternatives {
-            total_nodes: 210,
+            total_nodes: 211,
             values: [
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -271733879.0,
+                        ),
+                    ),
+                ),
                 Call(
                     13,
                     Variable(
@@ -1692,11 +1714,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -1044525330.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -1766,11 +1790,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -45705983.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -1840,11 +1866,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -1990404162.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -1990,11 +2018,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -373897302.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -2064,11 +2094,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -405537848.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -2214,11 +2246,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -1926607734.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -2288,11 +2322,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -35309556.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -2362,11 +2398,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -1094730640.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -2512,11 +2550,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -995338651.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -2586,11 +2626,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -57434055.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -2660,11 +2702,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -2054922799.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -2810,13 +2854,20 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -343485551.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
+                Unknown {
+                    original_value: None,
+                    reason: "unsupported expression",
+                    has_side_effects: true,
+                },
             ],
             logical_property: None,
         },
@@ -2898,13 +2949,15 @@
     (
         "c#4",
         Alternatives {
-            total_nodes: 210,
+            total_nodes: 211,
             values: [
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -1732584194.0,
+                        ),
+                    ),
+                ),
                 Call(
                     13,
                     Variable(
@@ -3048,11 +3101,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -1473231341.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -3122,11 +3177,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -42063.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -3196,11 +3253,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -1502002290.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -3346,11 +3405,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -660478335.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -3420,11 +3481,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -187363961.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -3646,11 +3709,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -155497632.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -3720,11 +3785,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -722521979.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -3870,11 +3937,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -1416354905.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -3944,11 +4013,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -1051523.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -4018,11 +4089,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -1560198380.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -4101,6 +4174,11 @@
                         ),
                     ],
                 ),
+                Unknown {
+                    original_value: None,
+                    reason: "unsupported expression",
+                    has_side_effects: true,
+                },
             ],
             logical_property: None,
         },
@@ -4248,11 +4326,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -389564586.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -4398,11 +4478,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -1958414417.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -4472,11 +4554,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -40341101.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -4546,11 +4630,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -1069501632.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -4696,11 +4782,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -1019803690.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -4770,11 +4858,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -51403784.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -4844,11 +4934,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -2022574463.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -4994,11 +5086,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -358537222.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -5068,11 +5162,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -421815835.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -5218,11 +5314,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -1894986606.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -5292,11 +5390,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -30611744.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -5366,11 +5466,13 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    -1120210379.0,
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Unknown {

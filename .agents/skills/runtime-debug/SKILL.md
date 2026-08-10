@@ -7,6 +7,8 @@ description: >
   traces, or runtime bundle selection (module.compiled.js). Covers CI env
   mirroring, full stack traces via __NEXT_SHOW_IGNORE_LISTED, route trace
   inspection, and webpack stats diffing.
+metadata:
+  internal: true
 ---
 
 # Runtime Debug

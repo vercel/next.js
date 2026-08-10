@@ -3,7 +3,7 @@
 import './app-webpack'
 import { appBootstrap } from './app-bootstrap'
 
-const instrumentationHooks =
+const instrumentationModules =
   // eslint-disable-next-line @next/internal/typechecked-require -- not a module
   require('../lib/require-instrumentation-client')
 
@@ -14,5 +14,5 @@ appBootstrap((assetPrefix) => {
   require('next/dist/client/components/app-router')
   // eslint-disable-next-line @next/internal/typechecked-require -- Why not relative imports?
   require('next/dist/client/components/layout-router')
-  hydrate(instrumentationHooks, assetPrefix)
+  hydrate(instrumentationModules, assetPrefix)
 })

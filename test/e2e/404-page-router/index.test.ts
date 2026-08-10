@@ -1,6 +1,6 @@
 import path from 'path'
 import fs from 'fs-extra'
-import { createNext, FileRef, type NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { check, retry } from 'next-test-utils'
 
 const pathnames = {
@@ -35,16 +35,14 @@ module.exports = {
 `
 
 describe('404-page-router', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    const files = {
+  const { next } = nextTestSetup({
+    files: {
       pages: new FileRef(path.join(__dirname, 'app/pages')),
       components: new FileRef(path.join(__dirname, 'app/components')),
-    }
-    next = await createNext({ files, skipStart: true, patchFileDelay: 500 })
+    },
+    skipStart: true,
+    patchFileDelay: 500,
   })
-  afterAll(() => next.destroy())
 
   describe.each(table)(
     '404-page-router with basePath of $basePath and i18n of $i18n and middleware $middleware',

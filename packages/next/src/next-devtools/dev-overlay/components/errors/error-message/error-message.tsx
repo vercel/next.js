@@ -19,19 +19,26 @@ export function ErrorMessage({ errorMessage, errorType }: ErrorMessageProps) {
     }
   }, [errorMessage])
 
-  // The "Blocking Route" error message is specifically formatted to look nice
-  // in the overlay (rather than just passed through from the console), so we
-  // intentionally don't truncate it and rely on the scroll overflow instead.
-  const shouldTruncate = isTooTall && errorType !== 'Blocking Route'
+  if (!errorMessage) {
+    return null
+  }
+
+  // Instant errors are formatted specifically for the overlay rather than
+  // passed through from the console, so we don't truncate them — they rely
+  // on scroll overflow instead.
+  const shouldTruncate =
+    isTooTall && errorType !== 'Instant' && errorType !== 'Blocking Route'
 
   return (
-    <div className="nextjs__container_errors_wrapper">
-      <div
-        ref={messageRef}
-        id="nextjs__container_errors_desc"
-        className={`nextjs__container_errors_desc ${shouldTruncate && !isExpanded ? 'truncated' : ''}`}
-      >
-        {errorMessage}
+    <>
+      <div className="nextjs__container_errors_wrapper">
+        <div
+          ref={messageRef}
+          id="nextjs__container_errors_desc"
+          className={`nextjs__container_errors_desc ${shouldTruncate && !isExpanded ? 'truncated' : ''} ${errorType === 'Instant' || errorType === 'Blocking Route' ? 'nextjs__container_errors_desc_instant' : ''}`}
+        >
+          {errorMessage}
+        </div>
       </div>
       {shouldTruncate && !isExpanded && (
         <>
@@ -46,18 +53,16 @@ export function ErrorMessage({ errorMessage, errorType }: ErrorMessageProps) {
           </button>
         </>
       )}
-    </div>
+    </>
   )
 }
 
 export const styles = `
   .nextjs__container_errors_wrapper {
-    position: relative;
   }
 
   .nextjs__container_errors_desc {
     margin: 0;
-    margin-left: 4px;
     color: var(--color-red-900);
     font-weight: 500;
     font-size: var(--size-16);
@@ -67,9 +72,24 @@ export const styles = `
     white-space: pre-wrap;
   }
 
+  .nextjs__container_errors_desc.nextjs__container_errors_desc_instant {
+    color: var(--color-gray-1000);
+  }
+
   .nextjs__container_errors_desc.truncated {
     max-height: 200px;
     overflow: hidden;
+  }
+
+  .nextjs__container_errors_desc code {
+    font-family: var(--font-stack-monospace);
+    font-weight: 500;
+    line-height: var(--size-20);
+    color: var(--color-gray-1000);
+    padding: 2px 6px;
+    background: var(--color-background-200);
+    border: 1px solid var(--color-gray-200);
+    border-radius: var(--rounded-md-2);
   }
 
   .nextjs__container_errors_gradient_overlay {
@@ -92,13 +112,14 @@ export const styles = `
     transform: translateX(-50%);
     display: flex;
     align-items: center;
-    padding: 6px 8px;
+    padding: 6px 12px;
     background: var(--color-background-100);
-    border: 1px solid var(--color-gray-alpha-400);
-    border-radius: 999px;
+    border: none;
+    border-radius: var(--rounded-full);
     box-shadow:
       0px 2px 2px var(--color-gray-alpha-100),
-      0px 8px 8px -8px var(--color-gray-alpha-100);
+      0px 8px 8px -8px var(--color-gray-alpha-100),
+      0px 0px 0px 1px var(--color-gray-alpha-400);
     font-size: var(--size-13);
     cursor: pointer;
     color: var(--color-gray-900);

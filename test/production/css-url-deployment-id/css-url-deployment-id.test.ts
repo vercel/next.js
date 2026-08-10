@@ -1,12 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('css-url-deployment-id', () => {
-  const deploymentId = 'test-deployment-id'
-
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     dependencies: { sass: '1.54.0' },
+    env: {
+      NEXT_DEPLOYMENT_ID: 'test-deployment-id',
+    },
+    disableAutoSkewProtection: true,
   })
 
   it('should include dpl query in CSS url() references for images and fonts', async () => {
@@ -28,7 +29,7 @@ describe('css-url-deployment-id', () => {
     // Fetch all CSS files and collect their contents
     let allCssContent = ''
     for (const cssUrl of cssUrls) {
-      const res = await next.fetch(cssUrl.split('?')[0])
+      const res = await next.fetch(cssUrl)
       const cssText = await res.text()
       allCssContent += cssText + '\n'
     }
@@ -46,7 +47,7 @@ describe('css-url-deployment-id', () => {
     }
 
     // Extract all url() references from the CSS
-    const urlMatches = allCssContent.match(/url\([^)]+\)/g) || []
+    const urlMatches: string[] = allCssContent.match(/url\([^)]+\)/g) || []
 
     // Filter to only asset URLs (images and fonts), excluding data URIs
     const assetUrls = urlMatches.filter(
@@ -57,7 +58,7 @@ describe('css-url-deployment-id', () => {
     expect(assetUrls.length).toBeGreaterThanOrEqual(1)
 
     for (const assetUrl of assetUrls) {
-      expect(assetUrl).toContain('dpl=' + deploymentId)
+      expect(assetUrl).toContain('dpl=' + next.assetToken)
     }
   })
 
@@ -77,7 +78,7 @@ describe('css-url-deployment-id', () => {
 
     let allCssContent = ''
     for (const cssUrl of cssUrls) {
-      const res = await next.fetch(cssUrl.split('?')[0])
+      const res = await next.fetch(cssUrl)
       const cssText = await res.text()
       allCssContent += cssText + '\n'
     }
@@ -94,19 +95,21 @@ describe('css-url-deployment-id', () => {
     }
 
     // Find image references from CSS modules (page.module.css)
-    const imageUrls = allCssContent.match(/url\([^)]+\.png[^)]*\)/g) || []
+    const imageUrls: string[] =
+      allCssContent.match(/url\([^)]+\.png[^)]*\)/g) || []
     expect(imageUrls.length).toBeGreaterThanOrEqual(1)
 
     for (const imageUrl of imageUrls) {
-      expect(imageUrl).toContain('dpl=' + deploymentId)
+      expect(imageUrl).toContain('dpl=' + next.assetToken)
     }
 
     // Find font references from CSS modules
-    const fontUrls = allCssContent.match(/url\([^)]+\.woff2[^)]*\)/g) || []
+    const fontUrls: string[] =
+      allCssContent.match(/url\([^)]+\.woff2[^)]*\)/g) || []
     expect(fontUrls.length).toBeGreaterThanOrEqual(1)
 
     for (const fontUrl of fontUrls) {
-      expect(fontUrl).toContain('dpl=' + deploymentId)
+      expect(fontUrl).toContain('dpl=' + next.assetToken)
     }
   })
 })

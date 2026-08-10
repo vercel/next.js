@@ -1,8 +1,7 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { getBrowserBodyText, retry } from 'next-test-utils'
 import fs from 'fs-extra'
 import path from 'path'
-import { type Playwright } from 'next-webdriver'
 
 const READ_ONLY_PERMISSIONS = 0o444
 const READ_WRITE_PERMISSIONS = 0o644

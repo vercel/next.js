@@ -5,6 +5,8 @@ describe('twoslash', () => {
     files: __dirname,
     dependencies: {
       twoslash: '0.3.4',
+      'twoslash-protocol': '0.3.4',
+      typescript: '5.9.2',
     },
   })
 

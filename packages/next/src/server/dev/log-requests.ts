@@ -125,8 +125,11 @@ function logIncomingRequests(
     if (middlewareTime) {
       frameworkTime -= middlewareTime
     }
+    if (devGenerateStaticParamsDuration) {
+      frameworkTime -= devGenerateStaticParamsDuration
+    }
     // Insert as the first item to be rendered in the list
-    times.unshift(['compile', frameworkTime])
+    times.unshift(['next.js', frameworkTime])
 
     // Insert after compile, before render based on the execution order.
     if (devGenerateStaticParamsDuration) {
@@ -134,7 +137,10 @@ function logIncomingRequests(
       times.push(['generate-params', devGenerateStaticParamsDuration])
     }
 
-    times.push(['render', requestEndTime - devRequestTimingInternalsEnd])
+    times.push([
+      'application-code',
+      requestEndTime - devRequestTimingInternalsEnd,
+    ])
   }
 
   return writeLine(

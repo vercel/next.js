@@ -1,6 +1,7 @@
+use std::sync::LazyLock;
+
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
-use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
@@ -89,7 +90,7 @@ pub(super) async fn get_font_fallback(
                         title: StyledString::Text(
                             format!(
                                 "Failed to find font override values for font `{}`",
-                                &options.font_family,
+                                options.font_family,
                             )
                             .into(),
                         )
@@ -109,7 +110,8 @@ pub(super) async fn get_font_fallback(
     })
 }
 
-static FALLBACK_FONT_NAME: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?:^\w|[A-Z]|\b\w)").unwrap());
+static FALLBACK_FONT_NAME: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?:^\w|[A-Z]|\b\w)").unwrap());
 
 // From https://github.com/vercel/next.js/blob/1628260b88ce3052ac307a1607b6e8470188ab83/packages/next/src/server/font-utils.ts#L101
 fn format_fallback_font_name(font_family: &str) -> RcStr {

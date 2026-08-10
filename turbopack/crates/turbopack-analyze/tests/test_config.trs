@@ -10,9 +10,10 @@
       turbo_tasks_backend::BackendOptions {
         num_workers: Some(2),
         small_preallocation: true,
+        storage_mode: Some(turbo_tasks_backend::StorageMode::ReadWriteOnShutdown),
         ..Default::default()
       },
-      turbo_tasks_backend::default_backing_storage(
+      turbo_tasks_backend::turbo_backing_storage(
         path.as_path(),
         &turbo_tasks_backend::GitVersionInfo {
           describe: "test-unversioned",
@@ -20,6 +21,7 @@
         },
         false,
         true,
+        false,
       ).unwrap().0
     )
   )

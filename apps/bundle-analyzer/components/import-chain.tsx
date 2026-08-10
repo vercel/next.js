@@ -11,6 +11,7 @@ import {
   Server,
   Globe,
   MessageCircleQuestion,
+  Package,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type {
@@ -52,6 +53,7 @@ interface DependentInfo {
   sourceIndex: number | undefined
   ident: string
   isAsync: boolean
+  isTraced: boolean
   depth: number
 }
 
@@ -219,6 +221,7 @@ export function ImportChain({
           .map((index: number) => ({
             index,
             async: false,
+            traced: false,
             depth: depthMap.get(index) ?? Infinity,
           })),
         ...modulesData
@@ -226,6 +229,15 @@ export function ImportChain({
           .map((index: number) => ({
             index,
             async: true,
+            traced: false,
+            depth: depthMap.get(index) ?? Infinity,
+          })),
+        ...modulesData
+          .tracedModuleDependents(currentModuleIndex)
+          .map((index: number) => ({
+            index,
+            async: false,
+            traced: true,
             depth: depthMap.get(index) ?? Infinity,
           })),
       ]
@@ -243,7 +255,7 @@ export function ImportChain({
 
       // Build info for each dependent
       const dependentsInfo: DependentInfo[] = validDependents.map(
-        ({ index: moduleIndex, async: isAsync, depth }) => {
+        ({ index: moduleIndex, async: isAsync, traced: isTraced, depth }) => {
           const sourceIndex = getSourceIndexFromModuleIndex(moduleIndex)
           let ident = modulesData.module(moduleIndex)?.ident || ''
           return {
@@ -251,6 +263,7 @@ export function ImportChain({
             sourceIndex,
             ident,
             isAsync,
+            isTraced,
             depth,
           }
         }
@@ -376,6 +389,11 @@ export function ImportChain({
                     (async)
                   </span>
                 )}
+                {currentItemInfo?.isTraced && (
+                  <span className="text-xs text-muted-foreground italic">
+                    (traced)
+                  </span>
+                )}
                 {index > 0 ? (
                   <ArrowUp className="w-4 h-4 text-muted-foreground" />
                 ) : undefined}
@@ -406,19 +424,7 @@ export function ImportChain({
               {currentItemInfo?.isAsync && <div className="h-8" />}
               <div className="flex items-center gap-2">
                 <div className="flex flex-col gap-1 items-center">
-                  {!level.layer ? (
-                    <div title="Unknown">
-                      <MessageCircleQuestion className="w-3 h-3 text-gray-500" />
-                    </div>
-                  ) : /app/.test(level.layer || '') ? (
-                    <div title="App Router">
-                      <Box className="w-3 h-3 text-green-500" />
-                    </div>
-                  ) : (
-                    <div title="Pages Router">
-                      <File className="w-3 h-3 text-purple-500" />
-                    </div>
-                  )}
+                  <LayerIcon layer={level.layer} />
                 </div>
 
                 <div className="flex-1 border border-border rounded px-2 py-1 bg-background">
@@ -535,4 +541,32 @@ export function ImportChain({
       </div>
     </div>
   )
+}
+
+function LayerIcon({ layer }: { layer: string | undefined }) {
+  if (!layer || layer === 'external') {
+    return (
+      <div title="Unknown">
+        <MessageCircleQuestion className="w-3 h-3 text-gray-500" />
+      </div>
+    )
+  } else if (layer.includes('app')) {
+    return (
+      <div title={`App Router (${layer})`}>
+        <Box className="w-3 h-3 text-green-500" />
+      </div>
+    )
+  } else if (layer === 'externals-tracing') {
+    return (
+      <div title="External Asset">
+        <Package className="w-3 h-3" />
+      </div>
+    )
+  } else {
+    return (
+      <div title={`Pages Router (${layer})`}>
+        <File className="w-3 h-3 text-purple-500" />
+      </div>
+    )
+  }
 }

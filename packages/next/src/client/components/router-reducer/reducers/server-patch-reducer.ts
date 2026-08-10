@@ -4,13 +4,14 @@ import {
   type ServerPatchAction,
   type ReducerState,
   type ReadonlyReducerState,
+  ScrollBehavior,
 } from '../router-reducer-types'
 import {
   completeHardNavigation,
   navigateToKnownRoute,
 } from '../../segment-cache/navigation'
 import { refreshReducer } from './refresh-reducer'
-import { FreshnessPolicy } from '../ppr-navigations'
+import { getCurrentNavigationLock } from '../ppr-navigations'
 
 export function serverPatchReducer(
   state: ReadonlyReducerState,
@@ -23,8 +24,7 @@ export function serverPatchReducer(
   const retryMpa = action.mpa
   const retryUrl = new URL(action.url, location.origin)
   const retrySeed = action.seed
-  // A retry should not create a new history entry.
-  const navigateType = 'replace'
+  const navigateType = action.navigateType
   if (retryMpa || retrySeed === null) {
     // If the server did not send back data during the mismatch, fall back to
     // an MPA navigation.
@@ -40,9 +40,15 @@ export function serverPatchReducer(
   }
   // There have been no new navigations since the mismatched one. Refresh,
   // using the tree we just received from the server.
+  //
+  // The freshness policy comes from the action: a genuine tree mismatch
+  // re-fetches the dynamic data (`RefreshAll`), whereas a redirect that only
+  // changed the canonical URL reuses the data already in the tree
+  // (`HistoryTraversal`), since the data we received is correct.
   const retryCanonicalUrl = createHrefFromUrl(retryUrl)
   const retryNextUrl = action.nextUrl
-  const shouldScroll = true
+  const scrollBehavior = ScrollBehavior.Default
+  const navigationLock = getCurrentNavigationLock()
   const now = Date.now()
   return navigateToKnownRoute(
     now,
@@ -54,14 +60,17 @@ export function serverPatchReducer(
     currentRenderedSearch,
     state.cache,
     state.tree,
-    FreshnessPolicy.RefreshAll,
+    action.freshnessPolicy,
     retryNextUrl,
-    shouldScroll,
+    scrollBehavior,
     navigateType,
+    navigationLock,
     null,
     // Server patch (retry) navigations don't use route prediction. This is
     // typically a retry after a previous mismatch, so the route was already
     // marked as having a dynamic rewrite when the mismatch was detected.
-    null
+    null,
+    // Not an HMR refresh, so there's no request generation to cancel.
+    undefined
   )
 }

@@ -2,32 +2,26 @@
 
 use std::{
     any::Any,
-    collections::VecDeque,
     marker::PhantomData,
+    num::NonZeroUsize,
     panic::{self, AssertUnwindSafe, catch_unwind},
     sync::{
         Arc,
         atomic::{AtomicUsize, Ordering},
+        mpmc::{self, Receiver, Sender},
     },
-    thread::{self, Thread, available_parallelism},
+    thread::{self, Thread},
     time::{Duration, Instant},
 };
 
-use once_cell::sync::Lazy;
-use parking_lot::{Condvar, Mutex};
+use parking_lot::Mutex;
 use tokio::{runtime::Handle, task::block_in_place};
 use tracing::{Span, info_span};
 
 use crate::{TurboTasksApi, manager::try_turbo_tasks, turbo_tasks_scope};
 
-/// Number of worker tasks to spawn that process jobs. It's 1 less than the number of cpus as we
-/// also use the current task as worker.
-static WORKER_TASKS: Lazy<usize> = Lazy::new(|| available_parallelism().map_or(0, |n| n.get() - 1));
-
-enum WorkQueueJob {
-    Job(usize, Box<dyn FnOnce() + Send + 'static>),
-    End,
-}
+/// A job placed on the work queue: its result-slot index and the closure to run.
+type WorkQueueJob = (usize, Box<dyn FnOnce() + Send + 'static>);
 
 struct ScopeInner {
     main_thread: Thread,
@@ -35,10 +29,9 @@ struct ScopeInner {
     /// The first panic that occurred in the tasks, by task index.
     /// The usize value is the index of the task.
     panic: Mutex<Option<(Box<dyn Any + Send + 'static>, usize)>>,
-    /// The work queue for spawned jobs that have not yet been picked up by a worker task.
-    work_queue: Mutex<VecDeque<WorkQueueJob>>,
-    /// A condition variable to notify worker tasks of new work or end of work.
-    work_queue_condition_var: Condvar,
+    /// Receiving end of the work queue, shared by every drainer. Dropping the `Scope`'s sender is
+    /// what signals that no more jobs are coming.
+    work_queue: Receiver<WorkQueueJob>,
 }
 
 impl ScopeInner {
@@ -93,54 +86,14 @@ impl ScopeInner {
         }
     }
 
-    fn worker(&self, first_job_index: usize, first_job: Box<dyn FnOnce() + Send + 'static>) {
-        let mut current_job_index = first_job_index;
-        let mut current_job = first_job;
-        loop {
-            let result = catch_unwind(AssertUnwindSafe(current_job));
-            let panic = result.err().map(|e| (e, current_job_index));
+    /// Pulls jobs from the shared work queue and runs them until the queue is closed and drained,
+    /// recording any panic. Both the opportunistic helper worker tasks and the calling thread (via
+    /// `Scope::drop`) run this.
+    fn run_jobs(&self) {
+        while let Ok((index, job)) = self.work_queue.recv() {
+            let result = catch_unwind(AssertUnwindSafe(job));
+            let panic = result.err().map(|e| (e, index));
             self.on_task_finished(panic);
-            let Some((index, job)) = self.pick_job_from_work_queue() else {
-                return;
-            };
-            current_job_index = index;
-            current_job = job;
-        }
-    }
-
-    fn pick_job_from_work_queue(&self) -> Option<(usize, Box<dyn FnOnce() + Send + 'static>)> {
-        let mut work_queue = self.work_queue.lock();
-        let job = loop {
-            if let Some(job) = work_queue.pop_front() {
-                break job;
-            } else {
-                self.work_queue_condition_var.wait(&mut work_queue);
-            };
-        };
-        match job {
-            WorkQueueJob::Job(index, job) => {
-                drop(work_queue);
-                Some((index, job))
-            }
-            WorkQueueJob::End => {
-                work_queue.push_front(WorkQueueJob::End);
-                drop(work_queue);
-                self.work_queue_condition_var.notify_all();
-                None
-            }
-        }
-    }
-
-    fn end_and_help_complete(&self) {
-        let job;
-        {
-            let mut work_queue = self.work_queue.lock();
-            job = work_queue.pop_front();
-            work_queue.push_back(WorkQueueJob::End);
-        }
-        self.work_queue_condition_var.notify_all();
-        if let Some(WorkQueueJob::Job(index, job)) = job {
-            self.worker(index, job);
         }
     }
 }
@@ -152,13 +105,18 @@ pub struct Scope<'scope, 'env: 'scope, R: Send + 'env> {
     results: &'scope [Mutex<Option<R>>],
     index: AtomicUsize,
     inner: Arc<ScopeInner>,
+    /// Sending end of the work queue. The only sender; `Drop` takes it to close the queue.
+    work_queue: Option<Sender<WorkQueueJob>>,
     handle: Handle,
+    /// Max number of threads to use, threads are only spawned when needed. The calling thread
+    /// counts towards this budget, so we spawn at most `worker_tasks - 1` helpers.
+    worker_tasks: NonZeroUsize,
     turbo_tasks: Option<Arc<dyn TurboTasksApi>>,
     span: Span,
-    /// Invariance over 'env, to make sure 'env cannot shrink,
-    /// which is necessary for soundness.
+    /// Invariance over 'env, to make sure 'env cannot shrink, which is necessary for soundness.
     ///
-    /// see https://doc.rust-lang.org/src/std/thread/scoped.rs.html#12-29
+    /// See the comment in the stdlib implementation:
+    /// <https://github.com/rust-lang/rust/blob/3b1b0ef4d8/library/std/src/thread/scoped.rs#L12-L33>
     env: PhantomData<&'env mut &'env ()>,
 }
 
@@ -169,6 +127,11 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
     ///
     /// The caller must ensure `Scope` is dropped and not forgotten.
     unsafe fn new(results: &'scope [Mutex<Option<R>>]) -> Self {
+        let handle = Handle::current();
+        // Never use more threads than there are jobs, or than the runtime has workers.
+        let worker_tasks = NonZeroUsize::new(handle.metrics().num_workers().min(results.len()))
+            .unwrap_or(NonZeroUsize::MIN);
+        let (sender, receiver) = mpmc::channel();
         Self {
             results,
             index: AtomicUsize::new(0),
@@ -176,10 +139,11 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
                 main_thread: thread::current(),
                 remaining_tasks: AtomicUsize::new(0),
                 panic: Mutex::new(None),
-                work_queue: Mutex::new(VecDeque::new()),
-                work_queue_condition_var: Condvar::new(),
+                work_queue: receiver,
             }),
-            handle: Handle::current(),
+            work_queue: Some(sender),
+            handle,
+            worker_tasks,
             turbo_tasks: try_turbo_tasks(),
             span: Span::current(),
             env: PhantomData,
@@ -222,40 +186,54 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
         // SAFETY: We just called `Box::into_raw`.
         let f = unsafe { Box::from_raw(f) };
 
-        let span = self.span.clone();
-
         self.inner.remaining_tasks.fetch_add(1, Ordering::Relaxed);
 
-        // The first job always goes to the work_queue to be worked on by the main thread.
-        // After that we spawn a new worker for every job until we reach WORKER_TASKS.
-        // After that we queue up jobs in the work_queue again.
-        if (1..=*WORKER_TASKS).contains(&index) {
+        // Add to the shared work queue, all threads read from this. Neither failure is reachable,
+        // but a job silently dropped here would leave `remaining_tasks` above zero and hang the
+        // scope, so panic instead.
+        self.work_queue
+            .as_ref()
+            .expect("sender is only taken in Drop")
+            .send((index, f))
+            .expect("receiver is owned by inner and outlives the scope");
+
+        // Spawn a tokio worker for each job until we hit the max `worker_tasks`.
+        if index < self.worker_tasks.get() - 1 {
             let inner = self.inner.clone();
-            // Spawn a worker task that will process that tasks and potentially more.
+            let span = self.span.clone();
             self.handle.spawn(async move {
                 let _span = span.entered();
-                inner.worker(index, f);
+                inner.run_jobs();
             });
-        } else {
-            // Queue the task to be processed by a worker task.
-            self.inner
-                .work_queue
-                .lock()
-                .push_back(WorkQueueJob::Job(index, f));
-            self.inner.work_queue_condition_var.notify_one();
         }
     }
 }
 
 impl<'scope, 'env: 'scope, R: Send + 'env> Drop for Scope<'scope, 'env, R> {
     fn drop(&mut self) {
-        self.inner.end_and_help_complete();
+        // Close the queue by dropping the only sender. This must happen before draining below:
+        // `run_jobs` blocks in `recv` until the queue is closed, so a live sender here would hang
+        // the scope.
+        drop(
+            self.work_queue
+                .take()
+                .expect("sender is taken exactly once, here in Drop"),
+        );
+        // Drain inline so completion never depends on a helper being scheduled.
+        self.inner.run_jobs();
         self.inner.wait_and_rethrow_panic();
     }
 }
 
 /// Helper method to spawn tasks in parallel, ensuring that all tasks are awaited and errors are
 /// handled. Also ensures turbo tasks and tracing context are maintained across the tasks.
+///
+/// Jobs are added to a shared work queue and processed by the calling thread plus up to
+/// `runtime worker threads - 1` opportunistic helpers. The helpers are a pure optimization — the
+/// calling thread drains the whole queue by itself if none ever runs — so this does not deadlock on
+/// a thread-limited runtime or when the worker threads are otherwise occupied. Jobs must be
+/// independent (they must not block waiting on each other), since the degree of real concurrency is
+/// bounded by the runtime's worker threads.
 ///
 /// Be aware that although this function avoids starving other independently spawned tasks, any
 /// other code running concurrently in the same task will be suspended during the call to
@@ -291,6 +269,112 @@ mod tests {
     use std::panic::{AssertUnwindSafe, catch_unwind};
 
     use super::*;
+
+    /// A scope must make progress even when every runtime worker thread is busy, since the calling
+    /// thread can always drain the shared queue itself.
+    ///
+    /// Every worker thread is pinned by a task blocking synchronously until a release deadline, so
+    /// no helper can be scheduled; we assert the scope still finishes well before that deadline.
+    /// The deadline also guarantees the test fails cleanly instead of hanging.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_scope_worker_threads_occupied() {
+        const WORKER_THREADS: usize = 2;
+        const JOBS: usize = 64;
+        const RELEASE_AFTER: Duration = Duration::from_secs(4);
+
+        // Pin every runtime worker thread with a task that blocks synchronously (holding its core,
+        // no block_in_place hand-off) until the release deadline.
+        let ready = Arc::new(AtomicUsize::new(0));
+        let mut occupiers = Vec::with_capacity(WORKER_THREADS);
+        for _ in 0..WORKER_THREADS {
+            let ready = ready.clone();
+            occupiers.push(tokio::spawn(async move {
+                ready.fetch_add(1, Ordering::SeqCst);
+                thread::sleep(RELEASE_AFTER);
+            }));
+        }
+        // Wait until both occupiers are actually running (and thus holding both cores).
+        while ready.load(Ordering::SeqCst) < WORKER_THREADS {
+            tokio::task::yield_now().await;
+        }
+
+        let started = Instant::now();
+        let results = tokio::task::spawn_blocking(move || {
+            scope_and_block(JOBS, |scope| {
+                for i in 0..JOBS {
+                    scope.spawn(move || i);
+                }
+            })
+            .collect::<Vec<_>>()
+        })
+        .await
+        .unwrap();
+        let elapsed = started.elapsed();
+
+        assert_eq!(results.len(), JOBS);
+        results.iter().enumerate().for_each(|(i, &result)| {
+            assert_eq!(result, i);
+        });
+        assert!(
+            elapsed < RELEASE_AFTER / 2,
+            "scope_and_block took {elapsed:?}; it should not depend on an occupied worker thread \
+             freeing up"
+        );
+
+        for occupier in occupiers {
+            occupier.await.unwrap();
+        }
+    }
+
+    /// On a `current_thread` runtime no helpers can be spawned and `block_in_place` is not allowed,
+    /// so the calling thread must drain the queue inline rather than panicking or hanging.
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_scope_current_thread_runtime() {
+        let results = tokio::task::spawn_blocking(|| {
+            scope_and_block(16, |scope| {
+                for i in 0..16 {
+                    scope.spawn(move || i);
+                }
+            })
+            .collect::<Vec<_>>()
+        })
+        .await
+        .unwrap();
+        assert_eq!(results.len(), 16);
+        results.iter().enumerate().for_each(|(i, &result)| {
+            assert_eq!(result, i);
+        });
+    }
+
+    /// Helpers must actually add parallelism when threads are available: jobs that each block
+    /// briefly should complete in far less than their serial sum.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn test_scope_runs_in_parallel() {
+        const JOBS: usize = 16;
+        const PER_JOB: Duration = Duration::from_millis(50);
+        let started = Instant::now();
+        let results = tokio::task::spawn_blocking(|| {
+            scope_and_block(JOBS, |scope| {
+                for i in 0..JOBS {
+                    scope.spawn(move || {
+                        thread::sleep(PER_JOB);
+                        i
+                    });
+                }
+            })
+            .collect::<Vec<_>>()
+        })
+        .await
+        .unwrap();
+        let elapsed = started.elapsed();
+        assert_eq!(results.len(), JOBS);
+        // Half the serial time is a loose bound on purpose: 4 threads should beat it comfortably,
+        // so a slow machine won't make this flaky.
+        assert!(
+            elapsed < (JOBS as u32 * PER_JOB) / 2,
+            "scope_and_block took {elapsed:?}; expected parallel speedup across worker threads"
+        );
+    }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_scope() {

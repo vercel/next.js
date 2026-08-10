@@ -1,15 +1,34 @@
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 
+function getTreeView(cliOutput: string): string {
+  let foundStart = false
+  const lines: string[] = []
+
+  for (const line of cliOutput.split('\n')) {
+    foundStart ||= line.startsWith('Route ')
+
+    if (foundStart) {
+      lines.push(line)
+    }
+
+    if (line.startsWith('└')) {
+      foundStart = false
+    }
+  }
+
+  return lines.join('\n').trim()
+}
+
 describe('debug-build-paths', () => {
   describe('default fixture', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: path.join(__dirname, 'fixtures/default'),
-      skipDeployment: true,
       skipStart: true,
+      env: {
+        __NEXT_PRIVATE_DETERMINISTIC_BUILD_OUTPUT: '1',
+      },
     })
-
-    if (skipped) return
 
     describe('explicit path formats', () => {
       it('should build single page with pages/ prefix', async () => {
@@ -20,12 +39,11 @@ describe('debug-build-paths', () => {
         expect(buildResult.cliOutput).toBeDefined()
 
         // Should only build the specified page
-        expect(buildResult.cliOutput).toContain('Route (pages)')
-        expect(buildResult.cliOutput).toContain('○ /foo')
-        // Should not build other pages
-        expect(buildResult.cliOutput).not.toContain('○ /bar')
-        // Should not build app routes
-        expect(buildResult.cliOutput).not.toContain('Route (app)')
+        expect(getTreeView(buildResult.cliOutput)).toMatchInlineSnapshot(`
+         "Route (pages)
+         ┌ ○ /404
+         └ ○ /foo"
+        `)
       })
 
       it('should build multiple pages routes', async () => {
@@ -36,11 +54,12 @@ describe('debug-build-paths', () => {
         expect(buildResult.cliOutput).toBeDefined()
 
         // Should build both specified pages
-        expect(buildResult.cliOutput).toContain('Route (pages)')
-        expect(buildResult.cliOutput).toContain('○ /foo')
-        expect(buildResult.cliOutput).toContain('○ /bar')
-        // Should not build app routes
-        expect(buildResult.cliOutput).not.toContain('Route (app)')
+        expect(getTreeView(buildResult.cliOutput)).toMatchInlineSnapshot(`
+         "Route (pages)
+         ┌ ○ /404
+         ├ ○ /bar
+         └ ○ /foo"
+        `)
       })
 
       it('should build dynamic route with literal [slug] path', async () => {
@@ -53,36 +72,31 @@ describe('debug-build-paths', () => {
         expect(buildResult.cliOutput).toBeDefined()
 
         // Should build only the blog/[slug] route
-        expect(buildResult.cliOutput).toContain('Route (app)')
-        expect(buildResult.cliOutput).toContain('/blog/[slug]')
-        // Should not build other app routes
-        expect(buildResult.cliOutput).not.toMatch(/○ \/\n/)
-        expect(buildResult.cliOutput).not.toContain('○ /about')
-        expect(buildResult.cliOutput).not.toContain('○ /dashboard')
-        // Should not build pages routes
-        expect(buildResult.cliOutput).not.toContain('Route (pages)')
+        expect(getTreeView(buildResult.cliOutput)).toMatchInlineSnapshot(`
+         "Route (app)
+         ┌ ○ /_not-found
+         └ ƒ /blog/[slug]"
+        `)
       })
     })
 
     describe('glob pattern matching', () => {
       it('should match app and pages routes with glob patterns', async () => {
         const buildResult = await next.build({
-          args: ['--debug-build-paths', 'pages/*.tsx,app/page.tsx'],
+          args: ['--debug-build-paths', 'pages/**/*.tsx,app/page.tsx'],
         })
         expect(buildResult.exitCode).toBe(0)
         expect(buildResult.cliOutput).toBeDefined()
 
-        // Should build pages matching the glob
-        expect(buildResult.cliOutput).toContain('Route (pages)')
-        expect(buildResult.cliOutput).toContain('○ /foo')
-        expect(buildResult.cliOutput).toContain('○ /bar')
-
-        // Should build the specified app route
-        expect(buildResult.cliOutput).toContain('Route (app)')
-        expect(buildResult.cliOutput).toContain('○ /')
-        // Should not build other app routes
-        expect(buildResult.cliOutput).not.toContain('○ /about')
-        expect(buildResult.cliOutput).not.toContain('○ /dashboard')
+        expect(getTreeView(buildResult.cliOutput)).toMatchInlineSnapshot(`
+         "Route (app)
+         ┌ ○ /
+         └ ○ /_not-found
+         Route (pages)
+         ┌ ○ /bar
+         ├ ○ /foo
+         └ ○ /with-index"
+        `)
       })
 
       it('should match nested routes with app/blog/**/page.tsx pattern', async () => {
@@ -93,14 +107,12 @@ describe('debug-build-paths', () => {
         expect(buildResult.cliOutput).toBeDefined()
 
         // Should build the blog route
-        expect(buildResult.cliOutput).toContain('Route (app)')
-        expect(buildResult.cliOutput).toContain('/blog/[slug]')
-        // Should not build other app routes (check for exact route, not substring)
-        expect(buildResult.cliOutput).not.toMatch(/○ \/\n/)
-        expect(buildResult.cliOutput).not.toContain('○ /about')
-        expect(buildResult.cliOutput).not.toContain('○ /dashboard')
-        // Should not build pages routes
-        expect(buildResult.cliOutput).not.toContain('Route (pages)')
+        expect(getTreeView(buildResult.cliOutput)).toMatchInlineSnapshot(`
+         "Route (app)
+         ┌ ○ /_not-found
+         ├ ƒ /blog/[slug]
+         └ ƒ /blog/[slug]/comments"
+        `)
       })
 
       it('should match dynamic routes with glob before brackets like app/**/[slug]/page.tsx', async () => {
@@ -111,14 +123,11 @@ describe('debug-build-paths', () => {
         expect(buildResult.cliOutput).toBeDefined()
 
         // Should build the blog/[slug] route
-        expect(buildResult.cliOutput).toContain('Route (app)')
-        expect(buildResult.cliOutput).toContain('/blog/[slug]')
-        // Should not build other app routes
-        expect(buildResult.cliOutput).not.toMatch(/○ \/\n/)
-        expect(buildResult.cliOutput).not.toContain('○ /about')
-        expect(buildResult.cliOutput).not.toContain('○ /dashboard')
-        // Should not build pages routes
-        expect(buildResult.cliOutput).not.toContain('Route (pages)')
+        expect(getTreeView(buildResult.cliOutput)).toMatchInlineSnapshot(`
+         "Route (app)
+         ┌ ○ /_not-found
+         └ ƒ /blog/[slug]"
+        `)
       })
 
       it('should match hybrid pattern with literal [slug] and glob **', async () => {
@@ -132,15 +141,12 @@ describe('debug-build-paths', () => {
         expect(buildResult.cliOutput).toBeDefined()
 
         // Should build both blog/[slug] and blog/[slug]/comments routes
-        expect(buildResult.cliOutput).toContain('Route (app)')
-        expect(buildResult.cliOutput).toContain('/blog/[slug]')
-        expect(buildResult.cliOutput).toContain('/blog/[slug]/comments')
-        // Should not build other app routes
-        expect(buildResult.cliOutput).not.toMatch(/○ \/\n/)
-        expect(buildResult.cliOutput).not.toContain('○ /about')
-        expect(buildResult.cliOutput).not.toContain('○ /dashboard')
-        // Should not build pages routes
-        expect(buildResult.cliOutput).not.toContain('Route (pages)')
+        expect(getTreeView(buildResult.cliOutput)).toMatchInlineSnapshot(`
+         "Route (app)
+         ┌ ○ /_not-found
+         ├ ƒ /blog/[slug]
+         └ ƒ /blog/[slug]/comments"
+        `)
       })
 
       it('should match multiple app routes with explicit patterns', async () => {
@@ -154,15 +160,15 @@ describe('debug-build-paths', () => {
         expect(buildResult.cliOutput).toBeDefined()
 
         // Should build specified app routes
-        expect(buildResult.cliOutput).toContain('Route (app)')
-        expect(buildResult.cliOutput).toContain('○ /')
-        expect(buildResult.cliOutput).toContain('○ /about')
-        expect(buildResult.cliOutput).toContain('○ /dashboard')
-        expect(buildResult.cliOutput).toContain('/blog/[slug]')
-        // Should not build routes not specified
-        expect(buildResult.cliOutput).not.toContain('/with-type-error')
-        // Should not build pages routes
-        expect(buildResult.cliOutput).not.toContain('Route (pages)')
+        expect(getTreeView(buildResult.cliOutput)).toMatchInlineSnapshot(`
+         "Route (app)
+         ┌ ○ /
+         ├ ○ /_not-found
+         ├ ○ /about
+         ├ ƒ /blog/[slug]
+         ├ ƒ /blog/[slug]/comments
+         └ ○ /dashboard"
+        `)
       })
 
       it('should exclude paths matching negation patterns', async () => {
@@ -191,9 +197,11 @@ describe('debug-build-paths', () => {
         })
         expect(buildResult.exitCode).toBe(0)
 
-        expect(buildResult.cliOutput).toContain('Route (app)')
-        expect(buildResult.cliOutput).toContain('/blog/[slug]')
-        expect(buildResult.cliOutput).not.toContain('/blog/[slug]/comments')
+        expect(getTreeView(buildResult.cliOutput)).toMatchInlineSnapshot(`
+         "Route (app)
+         ┌ ○ /_not-found
+         └ ƒ /blog/[slug]"
+        `)
       })
 
       it('should support multiple negation patterns', async () => {
@@ -231,12 +239,13 @@ describe('debug-build-paths', () => {
           args: ['--debug-build-paths', 'app/(group)/**/page.tsx'],
         })
         expect(buildResult.exitCode).toBe(0)
-        expect(buildResult.cliOutput).toContain('Route (app)')
+
         // Route groups are stripped from the path, so /nested instead of /(group)/nested
-        expect(buildResult.cliOutput).toContain('/nested')
-        // Should not build other routes
-        expect(buildResult.cliOutput).not.toContain('○ /about')
-        expect(buildResult.cliOutput).not.toContain('○ /dashboard')
+        expect(getTreeView(buildResult.cliOutput)).toMatchInlineSnapshot(`
+         "Route (app)
+         ┌ ○ /_not-found
+         └ ○ /nested"
+        `)
       })
 
       it('should build routes with parallel routes', async () => {
@@ -244,12 +253,12 @@ describe('debug-build-paths', () => {
           args: ['--debug-build-paths', 'app/parallel-test/**/page.tsx'],
         })
         expect(buildResult.exitCode).toBe(0)
-        expect(buildResult.cliOutput).toContain('Route (app)')
         // Parallel route segments (@sidebar) are stripped from the path
-        expect(buildResult.cliOutput).toContain('/parallel-test')
-        // Should not build other routes
-        expect(buildResult.cliOutput).not.toContain('○ /about')
-        expect(buildResult.cliOutput).not.toContain('○ /dashboard')
+        expect(getTreeView(buildResult.cliOutput)).toMatchInlineSnapshot(`
+         "Route (app)
+         ┌ ○ /_not-found
+         └ ○ /parallel-test"
+        `)
       })
     })
 
@@ -261,10 +270,11 @@ describe('debug-build-paths', () => {
         })
         // Build should succeed because the file with type error is not checked
         expect(buildResult.exitCode).toBe(0)
-        expect(buildResult.cliOutput).toContain('Route (pages)')
-        expect(buildResult.cliOutput).toContain('○ /foo')
-        // Should not include app routes
-        expect(buildResult.cliOutput).not.toContain('Route (app)')
+        expect(getTreeView(buildResult.cliOutput)).toMatchInlineSnapshot(`
+         "Route (pages)
+         ┌ ○ /404
+         └ ○ /foo"
+        `)
       })
 
       it('should fail typechecking when route with type error is included', async () => {
@@ -280,14 +290,72 @@ describe('debug-build-paths', () => {
     })
   })
 
-  describe('with-compile-error fixture', () => {
-    const { next, skipped } = nextTestSetup({
-      files: path.join(__dirname, 'fixtures/with-compile-error'),
-      skipDeployment: true,
+  describe('src-dir fixture', () => {
+    const { next } = nextTestSetup({
+      files: path.join(__dirname, 'fixtures/src-dir'),
       skipStart: true,
+      env: {
+        __NEXT_PRIVATE_DETERMINISTIC_BUILD_OUTPUT: '1',
+      },
     })
 
-    if (skipped) return
+    it('should resolve app patterns with explicit src/ prefix', async () => {
+      const buildResult = await next.build({
+        args: ['--debug-build-paths', 'src/app/blog/[slug]/page.tsx'],
+      })
+      expect(buildResult.exitCode).toBe(0)
+      expect(getTreeView(buildResult.cliOutput)).toMatchInlineSnapshot(`
+       "Route (app)
+       ┌ ○ /_not-found
+       └ ƒ /blog/[slug]"
+      `)
+    })
+
+    it('should resolve app patterns without src/ prefix when project uses src/app', async () => {
+      const buildResult = await next.build({
+        args: ['--debug-build-paths', 'app/blog/[slug]/page.tsx'],
+      })
+      expect(buildResult.exitCode).toBe(0)
+      expect(getTreeView(buildResult.cliOutput)).toMatchInlineSnapshot(`
+       "Route (app)
+       ┌ ○ /_not-found
+       └ ƒ /blog/[slug]"
+      `)
+    })
+
+    it('should resolve pages patterns without src/ prefix when project uses src/pages', async () => {
+      const buildResult = await next.build({
+        args: ['--debug-build-paths', 'pages/foo.tsx'],
+      })
+      expect(buildResult.exitCode).toBe(0)
+      expect(getTreeView(buildResult.cliOutput)).toMatchInlineSnapshot(`
+       "Route (pages)
+       ┌ ○ /404
+       └ ○ /foo"
+      `)
+    })
+
+    it('should resolve glob patterns without src/ prefix when project uses src/app', async () => {
+      const buildResult = await next.build({
+        args: ['--debug-build-paths', 'app/(group)/**/page.tsx'],
+      })
+      expect(buildResult.exitCode).toBe(0)
+      expect(getTreeView(buildResult.cliOutput)).toMatchInlineSnapshot(`
+       "Route (app)
+       ┌ ○ /_not-found
+       └ ○ /nested"
+      `)
+    })
+  })
+
+  describe('with-compile-error fixture', () => {
+    const { next } = nextTestSetup({
+      files: path.join(__dirname, 'fixtures/with-compile-error'),
+      skipStart: true,
+      env: {
+        __NEXT_PRIVATE_DETERMINISTIC_BUILD_OUTPUT: '1',
+      },
+    })
 
     it('should skip compilation of excluded routes with compile errors', async () => {
       // Build only the valid page, excluding the broken page
@@ -295,11 +363,11 @@ describe('debug-build-paths', () => {
         args: ['--debug-build-paths', 'app/valid/page.tsx'],
       })
       // Build should succeed because the broken page is not compiled
-      expect(buildResult.exitCode).toBe(0)
-      expect(buildResult.cliOutput).toContain('Route (app)')
-      expect(buildResult.cliOutput).toContain('○ /valid')
-      // Should not include the broken route
-      expect(buildResult.cliOutput).not.toContain('/broken')
+      expect(getTreeView(buildResult.cliOutput)).toMatchInlineSnapshot(`
+       "Route (app)
+       ┌ ○ /_not-found
+       └ ○ /valid"
+      `)
     })
 
     it('should fail compilation when route with compile error is included', async () => {

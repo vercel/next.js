@@ -1,31 +1,25 @@
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 
 // Tests Babel, not needed for Turbopack
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'swc warnings by default',
   () => {
-    let next: NextInstance
-
-    beforeAll(async () => {
-      next = await createNext({
-        files: {
-          'pages/index.js': `
+    const { next } = nextTestSetup({
+      files: {
+        'pages/index.js': `
           export default function Page() { 
             return <p>hello world</p>
           } 
         `,
-          '.babelrc': `
+        '.babelrc': `
           {
             "presets": ["next/babel"]
           }
         `,
-        },
-        dependencies: {},
-      })
+      },
+      dependencies: {},
     })
-    afterAll(() => next.destroy())
 
     it('should have warning', async () => {
       await renderViaHTTP(next.url, '/')
@@ -40,31 +34,26 @@ import { renderViaHTTP } from 'next-test-utils'
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'can force swc',
   () => {
-    let next: NextInstance
-
-    beforeAll(async () => {
-      next = await createNext({
-        nextConfig: {
-          experimental: {
-            forceSwcTransforms: true,
-          },
+    const { next } = nextTestSetup({
+      nextConfig: {
+        experimental: {
+          forceSwcTransforms: true,
         },
-        files: {
-          'pages/index.js': `
+      },
+      files: {
+        'pages/index.js': `
           export default function Page() { 
             return <p>hello world</p>
           } 
         `,
-          '.babelrc': `
+        '.babelrc': `
           {
             "presets": ["next/babel"]
           }
         `,
-        },
-        dependencies: {},
-      })
+      },
+      dependencies: {},
     })
-    afterAll(() => next.destroy())
 
     it('should not have warning', async () => {
       await renderViaHTTP(next.url, '/')

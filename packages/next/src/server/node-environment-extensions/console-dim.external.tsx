@@ -1,3 +1,4 @@
+import * as inspector from 'node:inspector'
 import { dim } from '../../lib/picocolors'
 import {
   consoleAsyncStorage,
@@ -142,6 +143,16 @@ function convertToDimmedArgs(
   methodName: InterceptableConsoleMethod,
   args: any[]
 ): any[] {
+  // When the Node.js inspector is open (e.g. --inspect), skip dimming entirely.
+  // Dimming wraps arguments in a format string which defeats inspector
+  // affordances such as collapsible objects and clickable/linkified stack
+  // traces. Ideally we would only skip dimming when a debugger frontend is
+  // actually attached, but Node.js does not expose a synchronous API for that.
+  // Detecting would require async polling of the /json/list HTTP endpoint.
+  if (inspector.url() !== undefined) {
+    return args
+  }
+
   switch (methodName) {
     case 'dir':
     case 'dirxml':
@@ -228,6 +239,7 @@ function patchConsoleMethod(methodName: InterceptableConsoleMethod): void {
         // to create a cache scope for arbitrary computation and can move over to cacheSignal exclusively.
         // fallthrough
         case 'prerender-client':
+        case 'validation-client': {
           // This is a react-dom/server render and won't have a cacheSignal until React adds this for the client world.
           const renderSignal = workUnitStore.renderSignal
           if (renderSignal.aborted) {
@@ -242,6 +254,7 @@ function patchConsoleMethod(methodName: InterceptableConsoleMethod): void {
               args
             )
           }
+        }
         // intentional fallthrough
         case 'prerender-legacy':
         case 'prerender-ppr':
@@ -249,6 +262,7 @@ function patchConsoleMethod(methodName: InterceptableConsoleMethod): void {
         case 'unstable-cache':
         case 'private-cache':
         case 'request':
+        case 'generate-static-params':
         case undefined:
           if (consoleStore?.dim === true) {
             return applyWithDimming.call(

@@ -91,6 +91,9 @@ describe('eslint-config-next', () => {
          "@next/next/no-img-element": [
            1,
          ],
+         "@next/next/no-location-assign-relative-destination": [
+           1,
+         ],
          "@next/next/no-page-custom-font": [
            1,
          ],

@@ -9,6 +9,7 @@ import { NextDeployInstance } from '../next-modes/next-deploy'
 import { shouldUseTurbopack } from '../next-test-utils'
 
 export type { NextInstance }
+export type { Playwright } from '../browsers/playwright'
 
 const individualTestTimeout = 60 * 1000
 
@@ -126,7 +127,9 @@ if (!e2eGlobal.__NEXT_E2E_TEST_CONFIG_PATCHED__) {
       global.test = wrapJestTestFn(global.test) as jest.It
     }
 
-    jest.retryTimes(1)
+    if (process.env.NEXT_TEST_CI && !process.env.NEXT_FLAKE_DETECTION) {
+      jest.retryTimes(1)
+    }
   }
 
   e2eGlobal.__NEXT_E2E_TEST_CONFIG_PATCHED__ = true
@@ -156,7 +159,23 @@ export const isNextDeploy = testMode === 'deploy'
  */
 export const isNextStart = !isNextDev && !isNextDeploy
 
+if (!process.env.NEXT_TEST_WASM && process.env.NEXT_TEST_WASM_AFTER_JEST) {
+  process.env.NEXT_TEST_WASM = process.env.NEXT_TEST_WASM_AFTER_JEST
+}
+
 export const isRspack = !!process.env.NEXT_RSPACK
+const isNextTestWasm = !!process.env.NEXT_TEST_WASM
+export const itTurbopack =
+  !isNextTestWasm && shouldUseTurbopack() ? it : it.skip
+
+/**
+ * Whether the test is running against React 18 (based on
+ * `process.env.NEXT_TEST_REACT_VERSION`). When the env var is unset or empty,
+ * the test install uses the default React peer dependency version which is
+ * currently React 19, so this is `false`.
+ */
+export const isReact18 =
+  parseInt(process.env.NEXT_TEST_REACT_VERSION || '', 10) === 18
 
 if (!testMode) {
   throw new Error(
@@ -218,9 +237,12 @@ const setupTracing = () => {
 /**
  * Sets up and manages a Next.js instance in the configured
  * test mode. The next instance will be isolated from the monorepo
- * to prevent relying on modules that shouldn't be
+ * to prevent relying on modules that shouldn't be.
+ *
+ * Internal helper used by `nextTestSetup`. Tests should call
+ * `nextTestSetup` directly instead of `createNext`.
  */
-export async function createNext(
+async function createNext(
   opts: NextInstanceOpts & { skipStart?: boolean; patchFileDelay?: number }
 ): Promise<NextInstance> {
   try {
@@ -230,7 +252,7 @@ export async function createNext(
 
     setupTracing()
     return await trace('createNext').traceAsyncFn(async (rootSpan) => {
-      const useTurbo = !!process.env.NEXT_TEST_WASM
+      const useTurbo = isNextTestWasm
         ? false
         : (opts?.turbo ?? shouldUseTurbopack())
 
@@ -247,7 +269,6 @@ export async function createNext(
         rootSpan.traceChild('init next deploy instance').traceFn(() => {
           nextInstance = new NextDeployInstance({
             ...opts,
-            turbo: false,
           })
         })
       } else {
@@ -255,7 +276,6 @@ export async function createNext(
         rootSpan.traceChild('init next start instance').traceFn(() => {
           nextInstance = new NextStartInstance({
             ...opts,
-            turbo: false,
           })
         })
       }
@@ -363,9 +383,7 @@ export function nextTestSetup(
       return isNextStart
     },
     get isTurbopack() {
-      return Boolean(
-        !process.env.NEXT_TEST_WASM && (options.turbo ?? shouldUseTurbopack())
-      )
+      return Boolean(!isNextTestWasm && (options.turbo ?? shouldUseTurbopack()))
     },
     get isRspack() {
       return isRspack

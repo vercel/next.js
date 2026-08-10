@@ -93,22 +93,22 @@ fn expand_next_js_template_inner<'a>(
 
     // Update the relative imports to be absolute. This will update any relative imports to be
     // relative to the root of the `next` package.
-    static IMPORT_PATH_RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new("(?:from '(\\..*)'|import '(\\..*)')").unwrap());
+    static IMPORT_PATH_RE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"(?:from '(\.[^']*)'|import '(\.[^']*)'|require\('(\.[^']*)'\))").unwrap()
+    });
 
     let mut count = 0;
     let mut content = replace_all(&IMPORT_PATH_RE, content, |caps| {
-        let from_request = caps.get(1).map_or("", |c| c.as_str());
+        let capture = caps
+            .get(1)
+            .or_else(|| caps.get(2))
+            .or_else(|| caps.get(3))
+            .map(|c| c.as_str());
         count += 1;
-        let is_from_request = !from_request.is_empty();
 
         let imported_path = join_path(
             &template_parent_path,
-            if is_from_request {
-                from_request
-            } else {
-                caps.get(2).context("import path must exist")?.as_str()
-            },
+            capture.context("import path must exist")?,
         )
         .context("path should not leave the fs")?;
 
@@ -126,10 +126,12 @@ fn expand_next_js_template_inner<'a>(
             .strip_prefix("./")
             .context("should be able to strip the prefix")?;
 
-        Ok(if is_from_request {
+        Ok(if caps.get(1).is_some() {
             format!("from {}", serde_json::to_string(relative).unwrap())
-        } else {
+        } else if caps.get(2).is_some() {
             format!("import {}", serde_json::to_string(relative).unwrap())
+        } else {
+            format!("require({})", serde_json::to_string(relative).unwrap())
         })
     })
     .context("replacing imports failed")?;
@@ -174,16 +176,39 @@ fn expand_next_js_template_inner<'a>(
         )
     }
 
-    // Replace the injections.
+    // Replace the raw injections.
     let mut missing_injections = Vec::new();
     for (key, injection) in injections {
+        let mut used = false;
+        let full_raw = format!("// INJECT_RAW:{key}");
+
+        if content.contains(&full_raw) {
+            content = content.replace(&full_raw, injection);
+            used = true;
+        }
+
         let full = format!("// INJECT:{key}");
 
         if content.contains(&full) {
             content = content.replace(&full, &format!("const {key} = {injection}"));
-        } else {
+            used = true;
+        }
+
+        if !used {
             missing_injections.push(key);
         }
+    }
+
+    // Check to see if there's any remaining raw injections.
+    static INJECT_RAW_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new("// INJECT_RAW:[A-Za-z0-9_]+").unwrap());
+    let mut matches = INJECT_RAW_RE.find_iter(&content).peekable();
+
+    if matches.peek().is_some() {
+        bail!(
+            "Invariant: Expected to inject all injections, found {}",
+            matches.map(|m| m.as_str()).collect::<Vec<_>>().join(", "),
+        )
     }
 
     // Check to see if there's any remaining injections.
@@ -276,6 +301,7 @@ mod tests {
             import * as userlandPage from 'VAR_USERLAND'
             // OPTIONAL_IMPORT:* as userland500Page
             // OPTIONAL_IMPORT:incrementalCacheHandler
+            // INJECT_RAW:extraImports
 
             // INJECT:nextConfig
             const srcPage = 'VAR_PAGE'
@@ -286,6 +312,7 @@ mod tests {
             import * as userlandPage from "INNER_PAGE_ENTRY"
             import * as userland500Page from "INNER_ERROR_500"
             const incrementalCacheHandler = null
+            import handlerX from "INNER_HANDLER"
 
             const nextConfig = {}
             const srcPage = "./some/path.js"
@@ -299,7 +326,10 @@ mod tests {
                 ("VAR_USERLAND", "INNER_PAGE_ENTRY"),
                 ("VAR_PAGE", "./some/path.js"),
             ],
-            [("nextConfig", "{}")],
+            [
+                ("nextConfig", "{}"),
+                ("extraImports", r#"import handlerX from "INNER_HANDLER""#),
+            ],
             [
                 ("incrementalCacheHandler", None),
                 ("userland500Page", Some("INNER_ERROR_500")),

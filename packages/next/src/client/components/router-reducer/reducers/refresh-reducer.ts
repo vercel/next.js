@@ -3,14 +3,16 @@ import type {
   ReducerState,
   RefreshAction,
 } from '../router-reducer-types'
-import {
-  convertServerPatchToFullTree,
-  navigateToKnownRoute,
-} from '../../segment-cache/navigation'
+import { ScrollBehavior } from '../router-reducer-types'
+import { navigateToKnownRoute } from '../../segment-cache/navigation'
+import { convertServerPatchToFullTree } from '../../segment-cache/decode-server-response'
 import { invalidateSegmentCacheEntries } from '../../segment-cache/cache'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
-import { FreshnessPolicy } from '../ppr-navigations'
-import { invalidateBfCache } from '../../segment-cache/bfcache'
+import { FreshnessPolicy, getCurrentNavigationLock } from '../ppr-navigations'
+import {
+  invalidateBfCache,
+  UnknownDynamicStaleTime,
+} from '../../segment-cache/bfcache'
 
 export function refreshReducer(
   state: ReadonlyReducerState,
@@ -25,18 +27,20 @@ export function refreshReducer(
   // preserve prefetched data when refreshing after an MPA navigation. This is
   // only used for testing and is not exposed in production builds by default.
   const bypassCacheInvalidation =
-    process.env.__NEXT_EXPOSE_TESTING_API && action.devBypassCacheInvalidation
+    process.env.__NEXT_EXPOSE_TESTING_API && action.bypassCacheInvalidation
   if (!bypassCacheInvalidation) {
     const currentNextUrl = state.nextUrl
     const currentRouterState = state.tree
     invalidateSegmentCacheEntries(currentNextUrl, currentRouterState)
   }
-  return refreshDynamicData(state, FreshnessPolicy.RefreshAll)
+  // A full refresh has no HMR generation to cancel.
+  return refreshDynamicData(state, FreshnessPolicy.RefreshAll, undefined)
 }
 
 export function refreshDynamicData(
   state: ReadonlyReducerState,
-  freshnessPolicy: FreshnessPolicy.RefreshAll | FreshnessPolicy.HMRRefresh
+  freshnessPolicy: FreshnessPolicy.RefreshAll | FreshnessPolicy.HMRRefresh,
+  signal: AbortSignal | undefined
 ): ReducerState {
   // During a refresh, invalidate the BFCache, which may contain dynamic data.
   invalidateBfCache()
@@ -56,20 +60,29 @@ export function refreshDynamicData(
   const currentUrl = new URL(currentCanonicalUrl, location.origin)
   const currentRenderedSearch = state.renderedSearch
   const currentFlightRouterState = state.tree
-  const shouldScroll = false
+  const scrollBehavior = ScrollBehavior.NoScroll
+  const navigationLock = getCurrentNavigationLock()
 
   // Create a NavigationSeed from the current FlightRouterState.
   // TODO: Eventually we will store this type directly on the state object
   // instead of reconstructing it on demand. Part of a larger series of
   // refactors to unify the various tree types that the client deals with.
+  const now = Date.now()
+  // TODO: Store the dynamic stale time on the top-level state so it's known
+  // during restores and refreshes.
   const refreshSeed = convertServerPatchToFullTree(
+    now,
     currentFlightRouterState,
     null,
-    currentRenderedSearch
+    currentRenderedSearch,
+    UnknownDynamicStaleTime
   )
 
-  const now = Date.now()
-  const navigateType = 'replace'
+  // If the previous navigation hasn't pushed its history entry yet (React
+  // hasn't committed its state), this refresh may commit in its place, so it
+  // takes over the push. If the navigation does commit first, HistoryUpdater
+  // sees that the URL already matches and replaces instead.
+  const navigateType = state.pushRef.pendingPush ? 'push' : 'replace'
   return navigateToKnownRoute(
     now,
     state,
@@ -82,13 +95,15 @@ export function refreshDynamicData(
     currentFlightRouterState,
     freshnessPolicy,
     nextUrlForRefresh,
-    shouldScroll,
+    scrollBehavior,
     navigateType,
+    navigationLock,
     null,
     // Refresh navigations don't use route prediction, so there's no route
     // cache entry to mark as having a dynamic rewrite on mismatch. If a
     // mismatch occurs, the retry handler will traverse the known route tree
     // to find and mark the entry.
-    null
+    null,
+    signal
   )
 }

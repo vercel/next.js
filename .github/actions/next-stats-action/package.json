@@ -1,4 +1,5 @@
 {
+  "name": "next-stats-action",
   "private": true,
   "main": "src/index.js",
   "dependencies": {
@@ -21,5 +22,5 @@
   "engines": {
     "node": ">=20.9.0"
   },
-  "packageManager": "pnpm@9.6.0"
+  "packageManager": "pnpm@10.33.0"
 }

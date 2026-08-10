@@ -229,7 +229,7 @@ In addition, a number of built-in conditions are supported:
 - `development`: Matches when using `next dev`.
 - `production`: Matches when using `next build`.
 - `node`: Matches code that will run on the default Node.js runtime.
-- `edge-light`: Matches code that will run on the [Edge runtime](/docs/app/api-reference/edge).
+- `edge-light`: Matches code that will run on the [Edge runtime](/docs/app/api-reference/edge) (deprecated).
 
 Rules can be an object or an array of objects. An array is often useful for modeling disjoint conditions:
 
@@ -293,9 +293,12 @@ Available module types:
 | `typescript` | Process as TypeScript                                    |
 | `css`        | Process as CSS                                           |
 | `css-module` | Process as CSS module                                    |
+| `json`       | Parse as JSON and export it                              |
 | `wasm`       | Process as WebAssembly                                   |
-| `raw`        | Return raw contents as string                            |
-| `bytes`      | Inline contents as bytes                                 |
+| `node`       | Process as a native Node.js addon                        |
+| `raw`        | Export the contents as a string (an alias of `text`)     |
+| `text`       | Export the contents as a string                          |
+| `bytes`      | Export the contents as a `Uint8Array`                    |
 
 ### Inline loader configuration with import attributes
 

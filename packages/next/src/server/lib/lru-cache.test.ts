@@ -9,7 +9,7 @@ describe('LRUCache', () => {
     })
 
     it('should set and get values', () => {
-      cache.set('key1', 'value1')
+      expect(cache.set('key1', 'value1')).toBe(true)
       expect(cache.get('key1')).toBe('value1')
     })
 
@@ -105,14 +105,49 @@ describe('LRUCache', () => {
       expect(cache.currentSize).toBe(8) // 5 + 2 + 1
     })
 
-    it('should handle items larger than max size', () => {
+    it('should pass the cache key to custom size calculation', () => {
+      const cache = new LRUCache<string>(
+        10,
+        (value, key) => value.length + key.length
+      )
+
+      cache.set('long-key', 'ab') // size 10
+      cache.set('b', 'c') // total size 12, should evict long-key
+
+      expect(cache.has('long-key')).toBe(false)
+      expect(cache.has('b')).toBe(true)
+      expect(cache.currentSize).toBe(2)
+    })
+
+    it('should prevent adding item larger than max size when lru is empty', () => {
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
       const cache = new LRUCache<string>(5, (value) => value.length)
 
-      cache.set('key1', 'toolarge') // size 8 > maxSize 5
+      expect(cache.set('key1', 'toolarge')).toBe(false) // size 8 > maxSize 5
 
       expect(cache.has('key1')).toBe(false)
       expect(cache.size).toBe(0)
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Single item size exceeds maxSize'
+      )
+
+      consoleSpy.mockRestore()
+    })
+
+    it('should prevent adding item larger than max size when lru is not empty', () => {
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
+      const cache = new LRUCache<string>(5, (value) => value.length)
+
+      expect(cache.set('key1', 'ab')).toBe(true) // size 2
+      expect(cache.set('key2', 'cd')).toBe(true) // size 2, total = 4
+
+      expect(cache.set('key3', 'toolarge')).toBe(false) // size 8 > maxSize 5, should be rejected
+
+      expect(cache.has('key1')).toBe(true)
+      expect(cache.has('key2')).toBe(true)
+      expect(cache.has('key3')).toBe(false)
+      expect(cache.size).toBe(2)
+      expect(cache.currentSize).toBe(4)
       expect(consoleSpy).toHaveBeenCalledWith(
         'Single item size exceeds maxSize'
       )
@@ -184,7 +219,7 @@ describe('LRUCache', () => {
   describe('Edge Cases', () => {
     it('should handle zero max size', () => {
       const cache = new LRUCache<string>(0)
-      cache.set('key1', 'value1')
+      expect(cache.set('key1', 'value1')).toBe(false)
       expect(cache.has('key1')).toBe(false)
       expect(cache.size).toBe(0)
     })

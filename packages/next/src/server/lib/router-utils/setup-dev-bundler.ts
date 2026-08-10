@@ -26,7 +26,7 @@ import {
 } from '../../../telemetry/events'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { sortByPageExts } from '../../../build/sort-by-page-exts'
-import { verifyTypeScriptSetup } from '../../../lib/verify-typescript-setup'
+import { verifyAndRunTypeScript } from '../../../lib/verify-typescript-setup'
 import { verifyPartytownSetup } from '../../../lib/verify-partytown-setup'
 import { getNamedRouteRegex } from '../../../shared/lib/router/utils/route-regex'
 import { buildDataRoute } from './build-data-route'
@@ -65,7 +65,7 @@ import {
   isStaticMetadataFile,
 } from '../../../lib/metadata/is-metadata-route'
 import {
-  fillMetadataSegment,
+  fillStaticMetadataSegment,
   normalizeMetadataPageToRoute,
 } from '../../../lib/metadata/get-metadata-route'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
@@ -87,15 +87,18 @@ import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
   writeValidatorFile,
-  writeRouteTypesEntryFile,
 } from './route-types-utils'
 import { writeCacheLifeTypes } from './cache-life-type-utils'
+import { writeRootParamsTypes } from './root-params-type-utils'
 import {
   addSlotIfNew,
   type RouteInfo,
   type SlotInfo,
 } from '../../../build/file-classifier'
-import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
+import {
+  normalizeAppPath,
+  compareAppPaths,
+} from '../../../shared/lib/router/utils/app-paths'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
 import { Lockfile, type DevServerInfo } from '../../../build/lockfile'
 import { deobfuscateText } from '../../../shared/lib/magic-identifier'
@@ -115,7 +118,7 @@ export type SetupOpts = {
   port: number
   onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
   resetFetch: () => void
-  experimentalServerFastRefresh?: boolean
+  serverFastRefresh?: boolean
 }
 
 export interface DevRoutesManifest {
@@ -150,18 +153,19 @@ export type ServerFields = {
 }
 
 async function verifyTypeScript(opts: SetupOpts) {
-  const verifyResult = await verifyTypeScriptSetup({
+  const verifyResult = await verifyAndRunTypeScript({
     dir: opts.dir,
     distDir: opts.nextConfig.distDir,
-    distDirRoot: opts.nextConfig.distDirRoot,
     strictRouteTypes: Boolean(opts.nextConfig.experimental.strictRouteTypes),
-    typeCheckPreflight: false,
+    shouldRunTypeCheck: false,
     tsconfigPath: opts.nextConfig.typescript.tsconfigPath,
+    typedRoutes: Boolean(opts.nextConfig.typedRoutes),
     disableStaticImages: opts.nextConfig.images.disableStaticImages,
     hasAppDir: !!opts.appDir,
     hasPagesDir: !!opts.pagesDir,
     appDir: opts.appDir,
     pagesDir: opts.pagesDir,
+    useTypeScriptCli: Boolean(opts.nextConfig.experimental.useTypeScriptCli),
   })
 
   if (verifyResult.version) {
@@ -197,11 +201,12 @@ async function startWatcher(
 
     // Create server info to store in the lockfile itself
     // This allows other processes to discover the running server
-    const appUrl = `http://localhost:${opts.port}`
+    const appUrl =
+      process.env.__NEXT_PRIVATE_ORIGIN ?? `http://localhost:${opts.port}`
     const serverInfo: DevServerInfo = {
       pid: process.pid,
       port: opts.port,
-      hostname: 'localhost',
+      hostname: new URL(appUrl).hostname,
       appUrl,
       startedAt: Date.now(),
     }
@@ -239,7 +244,7 @@ async function startWatcher(
           distDir,
           resetFetch,
           lockfile,
-          opts.experimentalServerFastRefresh
+          opts.serverFastRefresh
         )
       })()
     : await (async () => {
@@ -287,22 +292,11 @@ async function startWatcher(
       appRouteHandlers: new Set(),
       pageApiRoutes: new Set(),
       filePathToRoute: new Map(),
+      rootParams: new Map(),
     },
-    path.join(distTypesDir, 'route-types.d.ts'),
+    path.join(distTypesDir, 'routes.d.ts'),
     opts.nextConfig
   )
-
-  // Write the entry file at {distDirRoot}/types/routes.d.ts for initial state
-  const initialEntryFilePath = path.join(
-    opts.dir,
-    opts.nextConfig.distDirRoot,
-    'types',
-    'routes.d.ts'
-  )
-  await writeRouteTypesEntryFile(initialEntryFilePath, distTypesDir, {
-    strictRouteTypes: Boolean(nextConfig.experimental.strictRouteTypes),
-    typedRoutes: Boolean(nextConfig.typedRoutes),
-  })
 
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
   const routesManifest: DevRoutesManifest = {
@@ -357,6 +351,7 @@ async function startWatcher(
 
   let resolved = false
   let prevSortedRoutes: string[] = []
+  let hasComputedSortedRoutes = false
 
   await new Promise<void>(async (resolve, reject) => {
     if (pagesDir) {
@@ -422,14 +417,15 @@ async function startWatcher(
     let enabledTypeScript = await verifyTypeScript(opts)
     let previousClientRouterFilters: any
     let previousConflictingPagePaths: Set<string> = new Set()
+    let hadInitialScan = false
 
-    // Actual type files go to route-types.d.ts (not routes.d.ts)
-    // routes.d.ts is reserved for the entry file
-    const routeTypesFilePath = path.join(distDir, 'types', 'route-types.d.ts')
+    const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
     const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
 
     let initialWatchTime = performance.now() + performance.timeOrigin
     wp.on('aggregated', async () => {
+      const isInitialScan = !hadInitialScan
+      hadInitialScan = true
       let writeEnvDefinitions = false
       let typescriptStatusFromLastAggregation = enabledTypeScript
       let middlewareMatchers: ProxyMatcher[] | undefined
@@ -447,7 +443,8 @@ async function startWatcher(
       const layoutRoutes: RouteInfo[] = []
       const slots: SlotInfo[] = []
 
-      let envChange = false
+      let envFileChange = false
+      let clientRouterFiltersChange = false
       let tsconfigChange = false
       let conflictingPageChange = 0
       let hasRootAppNotFound = false
@@ -495,7 +492,10 @@ async function startWatcher(
             )
           }
           Log.warnOnce(
-            `The "${MIDDLEWARE_FILENAME}" file convention is deprecated. Please use "${PROXY_FILENAME}" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
+            `The "${MIDDLEWARE_FILENAME}" file convention is deprecated. Please use "${PROXY_FILENAME}" instead.\n\n` +
+              `  To migrate automatically, run:\n` +
+              `  npx @next/codemod@canary middleware-to-proxy .\n\n` +
+              `  Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
           )
         }
 
@@ -517,7 +517,7 @@ async function startWatcher(
 
         if (envFiles.includes(fileName)) {
           if (fileChanged) {
-            envChange = true
+            envFileChange = true
           }
           continue
         }
@@ -699,11 +699,9 @@ async function startWatcher(
             if (appDir && isStaticMetadataFile(fileName.replace(appDir, ''))) {
               const segment = path.posix.dirname(pageName)
               const lastSegment = path.posix.basename(pageName)
-              const normalizedPath = fillMetadataSegment(
+              const normalizedPath = fillStaticMetadataSegment(
                 segment,
-                {},
-                lastSegment,
-                true
+                lastSegment
               )
               staticMetadataFiles.set(normalizedPath, fileName)
             } else {
@@ -800,15 +798,19 @@ async function startWatcher(
           JSON.stringify(previousClientRouterFilters) !==
             JSON.stringify(clientRouterFilters)
         ) {
-          envChange = true
+          clientRouterFiltersChange = true
           previousClientRouterFilters = clientRouterFilters
         }
       }
 
-      if (envChange || tsconfigChange) {
-        if (envChange) {
-          writeEnvDefinitions = true
+      // Also set on the initial scan, so that typed env definitions exist
+      // from startup.
+      if (envFileChange || isInitialScan) {
+        writeEnvDefinitions = true
+      }
 
+      if (envFileChange || clientRouterFiltersChange || tsconfigChange) {
+        if (envFileChange) {
           await propagateServerField(opts, 'loadEnvConfig', [
             { dev: true, forceReload: true },
           ])
@@ -911,7 +913,7 @@ async function startWatcher(
               })
             }
 
-            if (envChange) {
+            if (envFileChange || clientRouterFiltersChange) {
               config.plugins?.forEach((plugin: any) => {
                 // we look for the DefinePlugin definitions so we can
                 // update them on the active compilers
@@ -949,7 +951,10 @@ async function startWatcher(
           })
         }
         await hotReloader.invalidate({
-          reloadAfterInvalidation: envChange,
+          // A router-filter change only requires the updated define to be
+          // compiled into the bundles; unlike env, it can't affect rendered
+          // output or cached data.
+          reloadAfterInvalidation: envFileChange,
         })
       }
 
@@ -966,7 +971,7 @@ async function startWatcher(
 
       // Make sure to sort parallel routes to make the result deterministic.
       serverFields.appPathRoutes = Object.fromEntries(
-        Object.entries(appPaths).map(([k, v]) => [k, v.sort()])
+        Object.entries(appPaths).map(([k, v]) => [k, v.sort(compareAppPaths)])
       )
       await propagateServerField(
         opts,
@@ -1096,9 +1101,13 @@ async function startWatcher(
           // otherwise it sends the event too early.
           await propagateServerField(opts, 'reloadMatchers', undefined)
 
-          if (
-            !prevSortedRoutes?.every((val, idx) => val === sortedRoutes[idx])
-          ) {
+          const sortedRoutesChanged =
+            prevSortedRoutes.length !== sortedRoutes.length ||
+            prevSortedRoutes.some((route, idx) => route !== sortedRoutes[idx])
+
+          // The first aggregation has nothing to compare against, so every
+          // route would look added to a client that is already connected.
+          if (hasComputedSortedRoutes && sortedRoutesChanged) {
             const addedRoutes = sortedRoutes.filter(
               (route) => !prevSortedRoutes.includes(route)
             )
@@ -1132,6 +1141,7 @@ async function startWatcher(
           }
         }
         prevSortedRoutes = sortedRoutes
+        hasComputedSortedRoutes = true
 
         if (enabledTypeScript) {
           // Using === false to make the check clearer.
@@ -1204,18 +1214,10 @@ async function startWatcher(
           const cacheLifeFilePath = path.join(distTypesDir, 'cache-life.d.ts')
           writeCacheLifeTypes(opts.nextConfig.cacheLife, cacheLifeFilePath)
 
-          // Write the entry file at {distDirRoot}/types/routes.d.ts
-          // This ensures next-env.d.ts has a consistent import path
-          const entryFilePath = path.join(
-            opts.dir,
-            opts.nextConfig.distDirRoot,
-            'types',
-            'routes.d.ts'
+          await writeRootParamsTypes(
+            routeTypesManifest,
+            path.join(distTypesDir, 'root-params.d.ts')
           )
-          await writeRouteTypesEntryFile(entryFilePath, distTypesDir, {
-            strictRouteTypes: Boolean(nextConfig.experimental.strictRouteTypes),
-            typedRoutes: Boolean(nextConfig.typedRoutes),
-          })
         }
 
         if (!resolved) {
@@ -1321,6 +1323,12 @@ export async function setupDevBundler(opts: SetupOpts) {
     .relative(opts.dir, opts.pagesDir || opts.appDir || '')
     .startsWith('src')
   await installBindings(opts.nextConfig.experimental?.useWasmBinary)
+
+  // Set up code frame renderer for error formatting
+  const { installCodeFrameSupport } =
+    require('../install-code-frame') as typeof import('../install-code-frame')
+  installCodeFrameSupport()
+
   const result = await startWatcher({
     ...opts,
     isSrcDir,

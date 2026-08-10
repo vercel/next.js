@@ -6,7 +6,7 @@ use std::{
     str::FromStr,
 };
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result, bail};
 use indoc::{formatdoc, indoc};
 use serde_json::json;
 use tempfile::TempDir;
@@ -48,9 +48,8 @@ pub enum EffectMode {
     None,
     /// As a direct `useEffect` hook in the component's body.
     Hook,
-    /// Rendering an <Effect /> client-side component that has the `useEffect`
-    /// hook instead. Good for testing React Server Components, as they can't
-    /// use `useEffect` hooks directly.
+    /// Rendering an `<Effect />` client-side component that has the `useEffect` hook instead. Good
+    /// for testing React Server Components, as they can't use `useEffect` hooks directly.
     Component,
 }
 
@@ -62,7 +61,7 @@ impl FromStr for EffectMode {
             "none" => Ok(EffectMode::None),
             "hook" => Ok(EffectMode::Hook),
             "component" => Ok(EffectMode::Component),
-            _ => Err(anyhow!("unknown effect mode: {}", s)),
+            _ => bail!("unknown effect mode: {}", s),
         }
     }
 }

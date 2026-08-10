@@ -17,8 +17,20 @@
  * where network responses haven't reached the client yet.
  */
 
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { createRouterAct } from 'router-act'
+
+/**
+ * Reads the rendered route history from the page and returns an array of
+ * {url, params} objects representing every route state the app rendered.
+ */
+async function getRenderedRouteHistory(
+  browser: Playwright
+): Promise<Array<{ url: string; params: Record<string, unknown> }>> {
+  const el = await browser.elementById('rendered-route-history')
+  const attr = await el.getAttribute('data-history')
+  return JSON.parse(attr).map((h: string) => JSON.parse(h))
+}
 
 describe('optimistic-routing', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -333,14 +345,26 @@ describe('optimistic-routing', () => {
     // Wait for navigation to complete
     await browser.elementById('actual-page')
 
-    // Step 2: Navigate back to home using browser back button
-    await browser.back()
-    await browser.elementById('params-history')
+    // Step 2: Navigate forward to /hub. We use a hub page rather than
+    // browser.back() so that the previously-revealed /rewritten/first
+    // accordion can't be re-mounted from BFCache and trigger an
+    // uncontrolled prefetch outside any `act` scope. See
+    // .claude/skills/router-act/SKILL.md.
+    await act(async () => {
+      const revealHub = await browser.elementByCss(
+        'input[data-link-accordion="/hub"]'
+      )
+      await revealHub.click()
+      const linkHub = await browser.elementByCss('a[href="/hub"]')
+      await linkHub.click()
+    })
+    await browser.elementById('hub-content')
 
-    // Step 3: Navigate to /rewritten/second.
-    // This link has prefetch={false}. Even though we've "learned" the route
-    // from step 1, the route should be marked as having a dynamic rewrite,
-    // so we should NOT use the cached pattern.
+    // Step 3: From /hub, reveal /rewritten/second. This link has
+    // prefetch={false}. Even though /rewritten/first was visited in
+    // step 1, that response was marked as a dynamic rewrite, so the
+    // router must not reuse it as a prediction for /rewritten/second —
+    // meaning no prefetch should fire on reveal.
     await act(async () => {
       const revealSecond = await browser.elementByCss(
         'input[data-link-accordion="/rewritten/second"]'
@@ -356,25 +380,16 @@ describe('optimistic-routing', () => {
     // Wait for navigation to complete
     await browser.elementById('actual-page')
 
-    // Verify using params history that no wrong params were rendered.
-    // The history accumulator captures every params change during render.
-    // If route prediction incorrectly used a pattern, we'd see "first"
-    // briefly flash before "second".
-    const historyEl = await browser.elementById('params-history')
-    const historyAttr = await historyEl.getAttribute('data-history')
-    const history: string[] = JSON.parse(historyAttr)
-
-    // The history should only contain params from actual navigations,
-    // not any intermediate wrong values from incorrect prediction.
-    // Expected: [{}, {slug: "first"}, {}, {slug: "second"}]
-    // The {} entries are from the home page.
-    const slugHistory = history
-      .map((h) => JSON.parse(h))
-      .filter((p) => p.slug !== undefined)
-      .map((p) => p.slug)
-
-    // We should see exactly [first, second] - no duplicates or wrong values
-    expect(slugHistory).toEqual(['first', 'second'])
+    // Verify using rendered route history that no wrong params were rendered.
+    // If the router had reused step 1's response as a prediction, we'd see
+    // "first" briefly flash before "second".
+    expect(await getRenderedRouteHistory(browser)).toEqual([
+      { url: '/', params: {} },
+      { url: '/rewritten/first', params: { slug: 'first' } },
+      { url: '/hub', params: {} },
+      // Should go directly to "second" with no intermediate wrong params
+      { url: '/rewritten/second', params: { slug: 'second' } },
+    ])
   })
 
   it('rewrite detection (search params): does not use cached pattern when search params cause different rewrite', async () => {
@@ -403,14 +418,23 @@ describe('optimistic-routing', () => {
     const contentAlpha = await browser.elementById('rewrite-content')
     expect(await contentAlpha.getAttribute('data-content')).toBe('alpha')
 
-    // Step 2: Go back to home
-    await browser.back()
-    await browser.elementById('params-history')
+    // Step 2: Navigate forward to /hub instead of using browser.back() to
+    // avoid BFCache restoring previously-opened accordions and triggering
+    // uncontrolled prefetches. See .claude/skills/router-act/SKILL.md.
+    await act(async () => {
+      const revealHub = await browser.elementByCss(
+        'input[data-link-accordion="/hub"]'
+      )
+      await revealHub.click()
+      const linkHub = await browser.elementByCss('a[href="/hub"]')
+      await linkHub.click()
+    })
+    await browser.elementById('hub-content')
 
-    // Step 3: Navigate to /search-rewrite?v=beta.
-    // This link has prefetch={false} - if the route was incorrectly cached as
-    // predictable, we'd see "alpha" instead of "beta" because the static page
-    // would be served from cache.
+    // Step 3: From /hub, reveal /search-rewrite?v=beta.
+    // This link has prefetch={false} - if the router had reused step 1's
+    // response as a prediction, we'd see "alpha" instead of "beta" because
+    // the static page would be served from cache.
     await act(async () => {
       const revealBeta = await browser.elementByCss(
         'input[data-link-accordion="/search-rewrite?v=beta"]'
@@ -425,9 +449,79 @@ describe('optimistic-routing', () => {
       await linkBeta.click()
     })
 
-    // Verify we see "beta", not "alpha"
-    // If this shows "alpha", the route was incorrectly using a cached pattern.
+    // Verify we see "beta", not "alpha".
+    // If this shows "alpha", the router incorrectly reused step 1's
+    // response as a prediction for /search-rewrite?v=beta.
     const contentBeta = await browser.elementById('rewrite-content')
     expect(await contentBeta.getAttribute('data-content')).toBe('beta')
+  })
+
+  it('static route with catch-all sibling: does not match sub-route against catch-all', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/', {
+      beforePageLoad(page) {
+        act = createRouterAct(page)
+      },
+    })
+
+    // Step 1: Prefetch /dashboard/anything/here to learn the catch-all pattern
+    // at the "dashboard" trie level.
+    const revealCatchAll = await browser.elementByCss(
+      'input[data-link-accordion="/dashboard/anything/here"]'
+    )
+    await act(
+      async () => {
+        await revealCatchAll.click()
+      },
+      {
+        includes: 'Loading',
+      }
+    )
+
+    // Step 2: Prefetch /dashboard/settings to populate the static child
+    // "settings" in the trie at the "dashboard" level. At this point the
+    // trie knows about the settings page but not its children (like profile).
+    const revealSettings = await browser.elementByCss(
+      'input[data-link-accordion="/dashboard/settings"]'
+    )
+    await act(
+      async () => {
+        await revealSettings.click()
+      },
+      {
+        includes: 'Loading',
+      }
+    )
+
+    // Step 3: Navigate to /dashboard/settings/profile (prefetch={false}).
+    // The static child "settings" matches at the dashboard level, but its
+    // subtree doesn't yet know about "profile". The matcher should treat the
+    // static match as authoritative and bail out to server resolution rather
+    // than falling through to the catch-all sibling.
+    await act(async () => {
+      const revealProfile = await browser.elementByCss(
+        'input[data-link-accordion="/dashboard/settings/profile"]'
+      )
+      await revealProfile.click()
+    }, 'no-requests')
+
+    const linkProfile = await browser.elementByCss(
+      'a[href="/dashboard/settings/profile"]'
+    )
+    await act(async () => {
+      await linkProfile.click()
+    })
+
+    // Verify the profile page renders correctly after server resolution.
+    const profileTitle = await browser.elementById('profile-title')
+    expect(await profileTitle.text()).toBe('Profile Settings')
+
+    // Verify the route history doesn't contain any catch-all param entries.
+    // If the matcher incorrectly fell through to the catch-all, we'd see
+    // an entry with catchall=["settings","profile"].
+    expect(await getRenderedRouteHistory(browser)).toEqual([
+      { url: '/', params: {} },
+      { url: '/dashboard/settings/profile', params: {} },
+    ])
   })
 })

@@ -22,8 +22,8 @@ use turbo_tasks::{
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
     chunk::{
-        AsyncModuleInfo, ChunkableModule, ChunkingContext, ChunkingType, ChunkingTypeOption,
-        MinifyType, ModuleChunkItemIdExt,
+        AsyncModuleInfo, ChunkableModule, ChunkingContext, ChunkingType, MinifyType,
+        ModuleChunkItemIdExt,
     },
     ident::AssetIdent,
     issue::IssueSource,
@@ -186,7 +186,7 @@ impl RequireContextMap {
         issue_source: Option<IssueSource>,
         error_mode: ResolveErrorMode,
     ) -> Result<Vc<Self>> {
-        let origin_path = origin.origin_path().await?.parent();
+        let origin_path = origin.into_trait_ref().await?.origin_path().parent();
 
         let list = &*FlatDirList::read(dir, recursive, filter).await?;
 
@@ -228,7 +228,6 @@ impl RequireContextMap {
 /// wrapped in `__turbopack_module_context__`;
 #[turbo_tasks::value]
 #[derive(Hash, Debug, ValueToString)]
-#[value_to_string("require.context {}/{}", self.dir, {if self.include_subdirs { "**" } else { "*" }})]
 pub struct RequireContextAssetReference {
     pub inner: ResolvedVc<RequireContextAsset>,
     pub dir: RcStr,
@@ -236,6 +235,17 @@ pub struct RequireContextAssetReference {
 
     pub issue_source: Option<IssueSource>,
     pub error_mode: ResolveErrorMode,
+}
+
+impl std::fmt::Display for RequireContextAssetReference {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "require.context {}/{}",
+            self.dir,
+            if self.include_subdirs { "**" } else { "*" },
+        )
+    }
 }
 
 impl RequireContextAssetReference {
@@ -250,7 +260,12 @@ impl RequireContextAssetReference {
     ) -> Result<Self> {
         let map = RequireContextMap::generate(
             *origin,
-            origin.origin_path().await?.parent().join(&dir)?,
+            origin
+                .into_trait_ref()
+                .await?
+                .origin_path()
+                .parent()
+                .join(&dir)?,
             include_subdirs,
             filter,
             issue_source,
@@ -285,12 +300,15 @@ impl ModuleReference for RequireContextAssetReference {
         *ModuleResolveResult::module(ResolvedVc::upcast(self.inner))
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Parallel {
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Parallel {
             inherit_async: false,
             hoisted: false,
-        }))
+        })
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        self.issue_source
     }
 }
 
@@ -363,12 +381,11 @@ impl ModuleReference for ResolvedModuleReference {
         *self.0
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Parallel {
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Parallel {
             inherit_async: false,
             hoisted: false,
-        }))
+        })
     }
 }
 
@@ -395,10 +412,14 @@ fn modifier(dir: &RcStr, include_subdirs: bool) -> RcStr {
 #[turbo_tasks::value_impl]
 impl Module for RequireContextAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.source
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .source
             .ident()
+            .owned()
+            .await?
             .with_modifier(modifier(&self.dir, self.include_subdirs))
+            .into_vc())
     }
 
     #[turbo_tasks::function]
@@ -467,6 +488,7 @@ impl EcmascriptChunkPlaceable for RequireContextAsset {
                 chunking_context,
                 *entry.result,
                 ResolveType::ChunkItem,
+                None,
             )
             .await?;
 

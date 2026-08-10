@@ -11,6 +11,8 @@ import type { AppPageModule } from '../server/route-modules/app-page/module'
 import type { PagesModule } from '../server/route-modules/pages/module.compiled'
 
 import '../server/node-environment'
+import { installBindings } from '../build/swc/install-bindings'
+import { installCodeFrameSupport } from '../server/lib/install-code-frame'
 
 process.env.NEXT_IS_EXPORT_WORKER = 'true'
 
@@ -86,6 +88,7 @@ async function exportPageImpl(
     outDir: commonOutDir,
     buildId,
     deploymentId,
+    clientAssetToken,
     renderResumeDataCache,
   } = input
 
@@ -113,6 +116,13 @@ async function exportPageImpl(
     // Configure the rendering of the page to allow that an empty static shell
     // is generated while rendering using PPR and Cache Components.
     _allowEmptyStaticShell: allowEmptyStaticShell = false,
+
+    // When true, attempt to run build-time instant validation for this export path.
+    _runInstantValidation: runInstantValidation = false,
+
+    // When true, a fallback shell for this path could later be upgraded to a
+    // concrete version (it has a `generateStaticParams` candidate param).
+    _isFallbackUpgradeable: isFallbackUpgradeable = false,
 
     // Pull the original query out.
     query: originalQuery = {},
@@ -247,8 +257,10 @@ async function exportPageImpl(
       htmlFilepath,
       fileWriter,
       commonRenderOpts.cacheComponents,
+      commonRenderOpts.staticPageGenerationTimeout,
       commonRenderOpts.experimental,
-      buildId
+      buildId,
+      deploymentId
     )
   }
 
@@ -266,6 +278,8 @@ async function exportPageImpl(
     // If it's dynamic, then it can be handled when request hits the route.
     serveStreamingMetadata: true,
     allowEmptyStaticShell,
+    runInstantValidation,
+    isFallbackUpgradeable,
     experimental: {
       ...commonRenderOpts.experimental,
       isRoutePPREnabled,
@@ -275,7 +289,11 @@ async function exportPageImpl(
 
   // Handle App Pages
   if (isAppDir) {
-    const sharedContext: AppSharedContext = { buildId, deploymentId }
+    const sharedContext: AppSharedContext = {
+      buildId,
+      deploymentId,
+      clientAssetToken,
+    }
 
     return exportAppPage(
       req,
@@ -296,6 +314,7 @@ async function exportPageImpl(
     const sharedContext: PagesSharedContext = {
       buildId,
       deploymentId,
+      clientAssetToken,
       customServer: undefined,
     }
 
@@ -330,6 +349,11 @@ async function exportPageImpl(
 export async function exportPages(
   input: ExportPagesInput
 ): Promise<ExportPagesResult> {
+  // Load native bindings in the worker process so that code frame rendering
+  // (which uses the native codeFrameColumns function) works during prerendering.
+  await installBindings()
+  installCodeFrameSupport()
+
   const {
     exportPaths,
     dir,
@@ -343,13 +367,7 @@ export async function exportPages(
     nextConfig,
     options,
     renderResumeDataCachesByPage = {},
-    deploymentId,
   } = input
-
-  // Set the global asset suffix for Turbopack compiled code to use during prerendering
-  ;(globalThis as any).NEXT_CLIENT_ASSET_SUFFIX = deploymentId
-    ? `?dpl=${deploymentId}`
-    : ''
 
   installGlobalBehaviors(nextConfig)
 
@@ -424,6 +442,7 @@ export async function exportPages(
             sriEnabled: Boolean(nextConfig.experimental.sri?.algorithm),
             buildId: input.buildId,
             deploymentId: input.deploymentId,
+            clientAssetToken: input.clientAssetToken,
             renderResumeDataCache,
           }),
           hasDebuggerAttached
