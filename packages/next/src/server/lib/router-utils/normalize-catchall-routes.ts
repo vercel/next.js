@@ -102,7 +102,11 @@ function pruneUnrenderableCatchAllRoutes(
   ])
   const levelsByParent = new Map<
     string,
-    { parentSegments: string[]; namedSlots: Set<string> }
+    {
+      parentSegments: string[]
+      namedSlots: Set<string>
+      hasChildrenSlot: boolean
+    }
   >()
 
   for (const appPath of allAppPaths) {
@@ -116,10 +120,22 @@ function pruneUnrenderableCatchAllRoutes(
       const parentKey = JSON.stringify(parentSegments)
       let level = levelsByParent.get(parentKey)
       if (!level) {
-        level = { parentSegments, namedSlots: new Set() }
+        level = {
+          parentSegments,
+          namedSlots: new Set(),
+          hasChildrenSlot: false,
+        }
         levelsByParent.set(parentKey, level)
       }
       level.namedSlots.add(segment)
+    }
+  }
+
+  for (const appPath of allAppPaths) {
+    for (const level of levelsByParent.values()) {
+      if (isPathInSlot(appPath, level.parentSegments, 'children')) {
+        level.hasChildrenSlot = true
+      }
     }
   }
 
@@ -130,11 +146,18 @@ function pruneUnrenderableCatchAllRoutes(
       catchAllAppPaths.some((catchAllAppPath) => {
         const catchAllSegments = splitAppPath(catchAllAppPath).slice(0, -1)
 
-        for (const { parentSegments, namedSlots } of levelsByParent.values()) {
+        for (const {
+          parentSegments,
+          namedSlots,
+          hasChildrenSlot,
+        } of levelsByParent.values()) {
           if (!hasPathPrefix(catchAllSegments, parentSegments)) continue
 
           const catchAllSlot = getSlotAtParent(catchAllSegments, parentSegments)
-          const siblingSlots = ['children', ...namedSlots]
+          const siblingSlots = [
+            ...(hasChildrenSlot ? ['children'] : []),
+            ...namedSlots,
+          ]
 
           for (const siblingSlot of siblingSlots) {
             if (siblingSlot === catchAllSlot) continue

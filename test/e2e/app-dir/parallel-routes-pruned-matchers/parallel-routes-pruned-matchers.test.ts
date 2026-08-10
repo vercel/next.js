@@ -6,7 +6,6 @@ describe('parallel-routes-pruned-matchers', () => {
   })
 
   it.each([
-    ['/named-catchall/foo', 'named-catchall-layout'],
     ['/named-catchall/anything', 'named-catchall-layout'],
     ['/children-catchall/foo', 'children-catchall-layout'],
     ['/children-catchall/bar', 'children-catchall-layout'],
@@ -27,6 +26,34 @@ describe('parallel-routes-pruned-matchers', () => {
       expect($(`#${layoutId}`).length).toBe(0)
     }
   )
+
+  it('keeps a named-only matcher when every declared slot matches', async () => {
+    const $ = await next.render$('/named-catchall/foo')
+
+    expect($('#named-catchall-page').text()).toBe('named catch-all')
+    expect($('#named-specific-page').text()).toBe('named specific page')
+  })
+
+  it('keeps a broad matcher composed entirely from named slots', async () => {
+    const $ = await next.render$('/named-only-catchalls/anything')
+
+    expect($('#named-only-left-catchall').text()).toBe('left catch-all')
+    expect($('#named-only-right-catchall').text()).toBe('right catch-all')
+  })
+
+  it('keeps a named catch-all when children has an explicit default', async () => {
+    const $ = await next.render$('/children-default/anything')
+
+    expect($('#children-default').text()).toBe('children default')
+    expect($('#children-default-slot-catchall').text()).toBe('slot catch-all')
+  })
+
+  it('keeps a catch-all matcher when every slot has catch-all coverage', async () => {
+    const $ = await next.render$('/complete-catchalls/anything')
+
+    expect($('#complete-children-catchall').text()).toBe('children catch-all')
+    expect($('#complete-slot-catchall').text()).toBe('slot catch-all')
+  })
 
   it('keeps a catch-all matcher when the sibling slot has a default', async () => {
     const $ = await next.render$('/valid/foo')
@@ -94,7 +121,7 @@ describe('parallel-routes-pruned-matchers', () => {
       expect(
         appPaths.filter(
           (path) =>
-            path.startsWith('/named-catchall/') ||
+            path.includes('/named-catchall/@catchall/[...slug]/') ||
             path.startsWith('/children-catchall/') ||
             path.includes('/optional-children-catchall/[[...slug]]/') ||
             path.includes('/split-matcher/[...parts]/') ||
@@ -102,6 +129,28 @@ describe('parallel-routes-pruned-matchers', () => {
             path.includes('/grouped/[...slug]/')
         )
       ).toEqual([])
+      expect(appPaths).toContain('/named-catchall/@specific/foo/page')
+      expect(
+        appPaths.some(
+          (path) =>
+            path.includes('/named-only-catchalls/') &&
+            path.includes('/[...slug]/page')
+        )
+      ).toBe(true)
+      expect(
+        appPaths.some(
+          (path) =>
+            path.includes('/children-default/') &&
+            path.includes('/[...slug]/page')
+        )
+      ).toBe(true)
+      expect(
+        appPaths.filter(
+          (path) =>
+            path.includes('/complete-catchalls/') &&
+            path.includes('/[...slug]/page')
+        )
+      ).toHaveLength(2)
       expect(appPaths).toContain('/valid/[...slug]/page')
       expect(appPaths).toContain('/optional-children-catchall/specific/page')
       expect(appPaths).toContain('/split-matcher/foo/page')

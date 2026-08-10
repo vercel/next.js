@@ -221,15 +221,28 @@ describe('normalizeCatchallRoutes', () => {
   })
 
   describe('strictRouteMatching pruning', () => {
-    it('prunes a named-slot catch-all when children is missing', () => {
+    it('does not require an implicit children slot with no routes', () => {
       const appPaths = {
         '/[...slug]': ['/@catchall/[...slug]/page'],
-        '/specific': ['/@specific/specific/page'],
+        '/foo': ['/@specific/foo/page'],
       }
 
       normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
 
-      expect(appPaths).toEqual({})
+      expect(appPaths).toEqual({
+        '/foo': ['/@specific/foo/page', '/@catchall/[...slug]/page'],
+      })
+    })
+
+    it('keeps a named-only matcher when every declared slot matches', () => {
+      const appPaths = {
+        '/[...slug]': ['/@left/[...slug]/page', '/@right/[...slug]/page'],
+      }
+      const expected = structuredClone(appPaths)
+
+      normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
+
+      expect(appPaths).toEqual(expected)
     })
 
     it('prunes only the incomplete catch-all matcher', () => {
