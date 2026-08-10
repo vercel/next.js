@@ -239,7 +239,7 @@ describe('WebSocket Route Handler manual custom-server ownership', () => {
       '[manual-upgrade-owner] Next.js route raced'
     )
     expect(next.cliOutput).toContain(
-      'Next.js delegated a WebSocket upgrade because another custom-server upgrade listener may own the socket.'
+      'Next.js delegated an upgrade event because another custom-server upgrade listener may own the socket.'
     )
     await expect(
       requestUpgrade(next.appPort, '/ws?after-next-close=1')
