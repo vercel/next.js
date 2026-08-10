@@ -12,7 +12,10 @@ const webSocketHeaders = {
   'sec-websocket-version': '13',
 }
 
-describe('WebSocket Route Handlers', () => {
+const describeWithoutCacheComponents =
+  process.env.__NEXT_CACHE_COMPONENTS === 'true' ? describe.skip : describe
+
+describeWithoutCacheComponents('WebSocket Route Handlers', () => {
   const { next } = nextTestSetup({ files: __dirname })
 
   function requestUpgrade(
@@ -418,27 +421,30 @@ describe('WebSocket Route Handlers disabled', () => {
   })
 })
 
-describe('WebSocket Route Handler static contracts', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
-    files: path.join(__dirname, 'fixtures/force-static'),
-    skipStart: true,
-    skipDeployment: true,
-  })
+describeWithoutCacheComponents(
+  'WebSocket Route Handler static contracts',
+  () => {
+    const { next, isNextDev, skipped } = nextTestSetup({
+      files: path.join(__dirname, 'fixtures/force-static'),
+      skipStart: true,
+      skipDeployment: true,
+    })
 
-  if (skipped || isNextDev) {
-    it.skip('is a production build contract', () => {})
-    return
+    if (skipped || isNextDev) {
+      it.skip('is a production build contract', () => {})
+      return
+    }
+
+    it('rejects NextResponse.upgrade() from a force-static route', async () => {
+      const { exitCode } = await next.build()
+
+      expect(exitCode).toBe(1)
+      expect(next.cliOutput).toContain(
+        'NextResponse.upgrade() cannot be used in a route configured with dynamic = "force-static".'
+      )
+    })
   }
-
-  it('rejects NextResponse.upgrade() from a force-static route', async () => {
-    const { exitCode } = await next.build()
-
-    expect(exitCode).toBe(1)
-    expect(next.cliOutput).toContain(
-      'NextResponse.upgrade() cannot be used in a route configured with dynamic = "force-static".'
-    )
-  })
-})
+)
 
 describe('WebSocket Route Handler Cache Components contract', () => {
   const { next, isNextDev, skipped } = nextTestSetup({

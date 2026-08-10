@@ -1,7 +1,6 @@
-import { NextResponse } from 'next/server'
+import { connection, NextResponse } from 'next/server'
 
-export const dynamic = 'force-dynamic'
-
-export function GET() {
+export async function GET() {
+  await connection()
   return NextResponse.upgrade({})
 }
