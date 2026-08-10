@@ -11,11 +11,12 @@ use turbo_tasks::{
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType},
     issue::IssueSource,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     reference::ModuleReference,
     reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{
-        BindingUsage, ExportUsage, ModuleResolveResult, ResolveErrorMode,
+        BindingUsage, ExportUsage, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
+        ResolveErrorMode,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
     },
@@ -24,10 +25,11 @@ use turbopack_resolve::ecmascript::esm_resolve;
 
 use crate::{
     analyzer::imports::ImportAnnotations,
+    chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
     references::{
-        AstPath,
+        AstPath, apply_reexport_tree_shaking,
         pattern_mapping::{PatternMapping, ResolveType},
     },
 };
@@ -46,6 +48,7 @@ pub struct EsmAsyncAssetReference {
     /// callback destructuring, or webpackExports/turbopackExports comments.
     pub export_usage: ExportUsage,
     pub resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+    pub follow_reexports: bool,
 }
 
 impl EsmAsyncAssetReference {
@@ -59,6 +62,7 @@ impl EsmAsyncAssetReference {
         import_externals: bool,
         export_usage: ExportUsage,
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+        follow_reexports: bool,
     ) -> Result<Self> {
         // Apply any annotation-driven transition eagerly so the stored origin is final and the
         // `annotations` don't need to be retained on the reference.
@@ -79,6 +83,7 @@ impl EsmAsyncAssetReference {
             import_externals,
             export_usage,
             resolve_override,
+            follow_reexports,
         })
     }
 }
@@ -91,14 +96,56 @@ impl ModuleReference for EsmAsyncAssetReference {
             return Ok(*ModuleResolveResult::module(*resolved));
         }
 
-        esm_resolve(
+        let result = esm_resolve(
             *self.origin,
             *self.request,
             EcmaScriptModulesReferenceSubType::DynamicImport,
             self.error_mode,
             Some(self.issue_source),
         )
-        .await
+        .await?;
+
+        // `const { x } = await import(...)`: follow the potential re-export to its origin.
+        // only follow the re-export if there's a single member to avoid splitting and introducing
+        // new dynamic entrypoints
+        if self.follow_reexports
+            && let ExportUsage::PartialNamespaceObject(names) = &self.export_usage
+            && let [name] = &names[..]
+        {
+            let result_ref = result.await?;
+            let mut primary = Vec::with_capacity(result_ref.primary.len());
+            for (key, item) in result_ref.primary.iter() {
+                let new_item = 'rewrite: {
+                    let ModuleResolveResultItem::Module(module) = item else {
+                        break 'rewrite item.clone();
+                    };
+                    let Some(module) =
+                        ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(*module)
+                    else {
+                        break 'rewrite item.clone();
+                    };
+                    // Modules with side effects must be imported as a whole because we
+                    // don't create an async seperate evaluation module.
+                    if *module.side_effects().await? == ModuleSideEffects::SideEffectful {
+                        break 'rewrite item.clone();
+                    }
+                    let followed =
+                        apply_reexport_tree_shaking(*module, ModulePart::export(name.clone()))
+                            .await?
+                            .to_resolved()
+                            .await?;
+                    ModuleResolveResultItem::Module(followed)
+                };
+                primary.push((key.clone(), new_item));
+            }
+            return Ok(ModuleResolveResult {
+                primary: primary.into_boxed_slice(),
+                affecting_sources: result_ref.affecting_sources.clone(),
+            }
+            .cell());
+        }
+
+        Ok(result)
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {

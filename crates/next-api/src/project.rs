@@ -45,7 +45,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
+    DiskFileSystem, DiskWatcherConfig, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
     canonicalize_to_rcstr, invalidation,
 };
 use turbo_unix_path::join_path;
@@ -631,9 +631,7 @@ impl ProjectContainer {
                 .read_strongly_consistent()
                 .await?;
             if watch.enable {
-                project_fs
-                    .start_watching_with_invalidation_reason(watch.poll_interval)
-                    .await?;
+                project_fs.start_watching().await?;
             } else {
                 project_fs.invalidate_with_reason(|path| invalidation::Initialize {
                     // this path is just used for display purposes
@@ -776,9 +774,7 @@ impl ProjectContainer {
             if !ReadRef::ptr_eq(&prev_project_fs, &project_fs) {
                 if watch.enable {
                     // TODO stop watching: prev_project_fs.stop_watching()?;
-                    project_fs
-                        .start_watching_with_invalidation_reason(watch.poll_interval)
-                        .await?;
+                    project_fs.start_watching().await?;
                 } else {
                     project_fs.invalidate_with_reason(|path| invalidation::Initialize {
                         // this path is just used for display purposes
@@ -1087,10 +1083,16 @@ impl Project {
             .unwrap()
             .into();
 
-        Ok(DiskFileSystem::new_with_denied_paths(
+        Ok(DiskFileSystem::new_with_options(
             PROJECT_FILESYSTEM_NAME,
             *self.root_path,
             vec![denied_path, denied_profiles_path],
+            DiskWatcherConfig {
+                recursive_mode: None,
+                poll_interval: self.watch.poll_interval,
+                // the dev server reports these to the user
+                report_invalidation_reason: true,
+            },
         ))
     }
 
@@ -1624,7 +1626,7 @@ impl Project {
             module_id_strategy: self.module_ids(),
             export_usage: self.export_usage(),
             unused_references: self.unused_references(),
-            minify: self.next_config().turbo_minify(self.next_mode()),
+            minify: self.next_config().turbo_client_minify(self.next_mode()),
             source_maps: self.next_config().client_source_maps(self.next_mode()),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
@@ -1663,7 +1665,7 @@ impl Project {
                 output_root: self.node_root().owned().await?,
                 output_root_to_root_path: self.node_root_to_root_path().owned().await?,
                 environment: self.client_compile_time_info().environment(),
-                minify: self.next_config().turbo_minify(self.next_mode()),
+                minify: self.next_config().turbo_client_minify(self.next_mode()),
                 source_maps: self.next_config().client_source_maps(self.next_mode()),
                 no_mangling: self.no_mangling(),
                 hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
@@ -1713,7 +1715,7 @@ impl Project {
             module_id_strategy: self.module_ids(),
             export_usage: self.export_usage(),
             unused_references: self.unused_references(),
-            minify: self.next_config().turbo_minify(self.next_mode()),
+            minify: self.next_config().turbo_server_minify(self.next_mode()),
             source_maps: self.next_config().server_source_maps(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
@@ -1755,7 +1757,7 @@ impl Project {
             module_id_strategy: self.module_ids(),
             export_usage: self.export_usage(),
             unused_references: self.unused_references(),
-            turbo_minify: self.next_config().turbo_minify(self.next_mode()),
+            turbo_minify: self.next_config().turbo_edge_minify(self.next_mode()),
             turbo_source_maps: self.next_config().server_source_maps(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),

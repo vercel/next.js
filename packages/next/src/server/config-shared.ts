@@ -38,36 +38,55 @@ export type PrefetchInliningConfig =
   | { maxSize: number; maxBundleSize: number }
 
 export type NextConfigComplete = Required<
-  Omit<NextConfig, 'configFile' | 'cacheLife'>
-> & {
-  images: Required<ImageConfigComplete>
-  typescript: TypeScriptConfig
-  configFile: string | undefined
-  configFileName: string
-  // Normalized by config.ts: the `default` profile is backfilled to be complete
-  // (see `ResolvedCacheLifeProfiles`), unlike the optional/partial user input.
-  // Omitted from the base so this is a clean replacement, not an intersection.
-  cacheLife: ResolvedCacheLifeProfiles
-  // override NextConfigComplete.experimental.htmlLimitedBots to string
-  // because it's not defined in NextConfigComplete.experimental
-  htmlLimitedBots: string | undefined
-  experimental: ExperimentalConfig & {
-    // Normalized by config.ts: true and partial objects become resolved objects
-    prefetchInlining?: PrefetchInliningConfig
-    // Normalized by config.ts: defaulted to 90% of staticPageGenerationTimeout
-    useCacheTimeout: number
-    // Normalized by config.ts `finalizeConfig`: defaulted to `'warning'`
-    instantInsights: { validationLevel: ValidationLevel }
-    // Normalized by finalized config with a default and the expected type
-    turbopackMemoryEvictionMode: MemoryEvictionMode
+  Omit<
+    NextConfig,
+    | 'configFile'
+    | 'cacheLife'
+    | 'expireTime'
+    | 'output'
+    | 'modularizeImports'
+    | 'allowedDevOrigins'
+    | 'adapterPath'
+  >
+> &
+  // Don't apply `Required<>` for these properties. They really can be undefined in the finalized config.
+  Pick<
+    NextConfig,
+    | 'cacheLife'
+    | 'expireTime'
+    | 'output'
+    | 'modularizeImports'
+    | 'allowedDevOrigins'
+    | 'adapterPath'
+  > & {
+    images: Required<ImageConfigComplete>
+    typescript: TypeScriptConfig
+    configFile: string | undefined
+    configFileName: string
+    // Normalized by config.ts: the `default` profile is backfilled to be complete
+    // (see `ResolvedCacheLifeProfiles`), unlike the optional/partial user input.
+    // Omitted from the base so this is a clean replacement, not an intersection.
+    cacheLife: ResolvedCacheLifeProfiles
+    // override NextConfigComplete.experimental.htmlLimitedBots to string
+    // because it's not defined in NextConfigComplete.experimental
+    htmlLimitedBots: string | undefined
+    experimental: ExperimentalConfig & {
+      // Normalized by config.ts: true and partial objects become resolved objects
+      prefetchInlining?: PrefetchInliningConfig
+      // Normalized by config.ts: defaulted to 90% of staticPageGenerationTimeout
+      useCacheTimeout: number
+      // Normalized by config.ts `finalizeConfig`: defaulted to `'warning'`
+      instantInsights: { validationLevel: ValidationLevel }
+      // Normalized by finalized config with a default and the expected type
+      turbopackMemoryEvictionMode: MemoryEvictionMode
+    }
+    // The root directory of the distDir. In development mode, this is the parent directory of `distDir`
+    // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
+    // traverse into the output directory.
+    distDirRoot: string
+    // The repository root, regardless of overwritten outputFileTracingRoot or turbopack.root.
+    repoRoot: string
   }
-  // The root directory of the distDir. In development mode, this is the parent directory of `distDir`
-  // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
-  // traverse into the output directory.
-  distDirRoot: string
-  // The repository root, regardless of overwritten outputFileTracingRoot or turbopack.root.
-  repoRoot: string
-}
 
 export type I18NDomains = readonly DomainLocale[]
 
@@ -750,8 +769,18 @@ export interface ExperimentalConfig {
 
   /**
    * Enable minification. Defaults to true in build mode and false in dev mode.
+   *
+   * Pass an object to configure each environment separately, e.g.
+   * `{ server: false, client: true }`. The `server` option takes precedence
+   * over `experimental.serverMinification`.
+   *
+   * We don't recommend disabling minification in production. Disabling it
+   * increases server function size, slows down cold starts, and leads to
+   * degraded performance.
    */
-  turbopackMinify?: boolean
+  turbopackMinify?:
+    | boolean
+    | { server?: boolean; client?: boolean; edge?: boolean }
 
   /**
    * Enable support for `with {type: "bytes"}` for ESM imports.
@@ -766,7 +795,7 @@ export interface ExperimentalConfig {
   /**
    * Share the browser runtime across routes in a single `runtime.js` asset and inline the
    * per-route chunk-group bootstrap into the HTML, dropping the per-route runtime. Defaults to
-   * false. Only applies to production builds; has no effect in development mode.
+   * true. Only applies to production builds; has no effect in development mode.
    */
   turbopackSharedRuntime?: boolean
 
@@ -933,7 +962,7 @@ export interface ExperimentalConfig {
   /**
    * Enable tree shaking of unused exports from analyzable CommonJS modules in Turbopack.
    *
-   * Defaults to `false`
+   * Defaults to `true`
    */
   turbopackCjsTreeShaking?: boolean
 
@@ -1134,6 +1163,9 @@ export interface ExperimentalConfig {
 
   /**
    * enables the minification of server code.
+   *
+   * Under Turbopack this is overridden by `experimental.turbopackMinify` when
+   * that option specifies a `server` value.
    */
   serverMinification?: boolean
 
@@ -2294,14 +2326,14 @@ export interface NextConfigRuntime {
   agentRules: NextConfigComplete['agentRules']
   htmlLimitedBots: NextConfigComplete['htmlLimitedBots']
   assetPrefix: NextConfigComplete['assetPrefix']
-  output: NextConfigComplete['output']
+  output?: NextConfigComplete['output']
   crossOrigin: NextConfigComplete['crossOrigin']
   trailingSlash: NextConfigComplete['trailingSlash']
   images: NextConfigComplete['images']
   reactMaxHeadersLength: NextConfigComplete['reactMaxHeadersLength']
   cacheLife: NextConfigComplete['cacheLife']
   basePath: NextConfigComplete['basePath']
-  expireTime: NextConfigComplete['expireTime']
+  expireTime?: NextConfigComplete['expireTime']
   generateEtags: NextConfigComplete['generateEtags']
   poweredByHeader: NextConfigComplete['poweredByHeader']
   cacheHandler: NextConfigComplete['cacheHandler']
