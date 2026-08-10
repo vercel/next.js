@@ -59,7 +59,7 @@ export async function getServerSideProps(context) {
 
   const { collection } = connection;
 
-  // Check connection with a KV GET operation for a key that doesnt exist
+  // Check connection with a KV GET operation for a key that doesn't exist
   let isConnected = false;
   try {
     await collection.get("testingConnectionKey");

@@ -5,6 +5,13 @@ use std::{
     marker::PhantomData,
 };
 
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+    impl_borrow_decode,
+};
 use hashbrown::hash_map::HashMap;
 use rustc_hash::FxHasher;
 use serde::{
@@ -13,13 +20,12 @@ use serde::{
     ser::SerializeMap,
 };
 use shrink_to_fit::ShrinkToFit;
-use smallvec::SmallVec;
 
-use crate::{MAX_LIST_SIZE, MIN_HASH_SIZE};
+use crate::{MAX_USEFUL_LINEAR_SCAN, MIN_HASH_SIZE, TinyVec, tiny_vec};
 
 #[derive(Clone)]
 pub enum AutoMap<K, V, H = BuildHasherDefault<FxHasher>, const I: usize = 0> {
-    List(SmallVec<[(K, V); I]>),
+    List(TinyVec<(K, V), I, MAX_USEFUL_LINEAR_SCAN>),
     Map(Box<HashMap<K, V, H>>),
 }
 
@@ -38,13 +44,13 @@ impl<K: Debug, V: Debug, H, const I: usize> Debug for AutoMap<K, V, H, I> {
 impl<K, V> AutoMap<K, V, BuildHasherDefault<FxHasher>, 0> {
     /// see [HashMap::new](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.new)
     pub const fn new() -> Self {
-        AutoMap::List(SmallVec::new_const())
+        AutoMap::List(TinyVec::new())
     }
 
     /// see [HashMap::with_capacity](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.with_capacity)
     pub fn with_capacity(capacity: usize) -> Self {
-        if capacity < MAX_LIST_SIZE {
-            AutoMap::List(SmallVec::with_capacity(capacity))
+        if capacity < MAX_USEFUL_LINEAR_SCAN {
+            AutoMap::List(TinyVec::with_capacity(capacity))
         } else {
             AutoMap::Map(Box::new(HashMap::with_capacity_and_hasher(
                 capacity,
@@ -54,16 +60,16 @@ impl<K, V> AutoMap<K, V, BuildHasherDefault<FxHasher>, 0> {
     }
 }
 
-impl<K, V, H: BuildHasher, const I: usize> AutoMap<K, V, H, I> {
+impl<K, V, H, const I: usize> AutoMap<K, V, H, I> {
     /// see [HashMap::with_hasher](https://doc.rust-lang.org/std/collections/hash_map/struct.HashMap.html#method.with_hasher)
     pub const fn with_hasher() -> Self {
-        AutoMap::List(SmallVec::new_const())
+        AutoMap::List(TinyVec::new())
     }
 
     /// see [HashMap::with_capacity_and_hasher](https://doc.rust-lang.org/std/collections/hash_map/struct.HashMap.html#method.with_capacity_and_hasher)
     pub fn with_capacity_and_hasher(capacity: usize, hasher: H) -> Self {
-        if capacity <= MAX_LIST_SIZE {
-            AutoMap::List(SmallVec::with_capacity(capacity))
+        if capacity <= MAX_USEFUL_LINEAR_SCAN {
+            AutoMap::List(TinyVec::with_capacity(capacity))
         } else {
             AutoMap::Map(Box::new(HashMap::with_capacity_and_hasher(
                 capacity, hasher,
@@ -83,8 +89,9 @@ impl<K, V, H: BuildHasher, const I: usize> AutoMap<K, V, H, I> {
 impl<K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> AutoMap<K, V, H, I> {
     fn convert_to_map(&mut self) -> &mut HashMap<K, V, H> {
         if let AutoMap::List(list) = self {
-            let mut map = HashMap::with_capacity_and_hasher(MAX_LIST_SIZE * 2, Default::default());
-            map.extend(list.drain(..));
+            let mut map =
+                HashMap::with_capacity_and_hasher(MAX_USEFUL_LINEAR_SCAN * 2, Default::default());
+            map.extend(list.drain());
             *self = AutoMap::Map(Box::new(map));
         }
         if let AutoMap::Map(map) = self {
@@ -94,9 +101,9 @@ impl<K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> AutoMap<K, V, H,
         }
     }
 
-    fn convert_to_list(&mut self) -> &mut SmallVec<[(K, V); I]> {
+    fn convert_to_list(&mut self) -> &mut TinyVec<(K, V), I, MAX_USEFUL_LINEAR_SCAN> {
         if let AutoMap::Map(map) = self {
-            let mut list = SmallVec::with_capacity(MAX_LIST_SIZE);
+            let mut list = TinyVec::with_capacity(MAX_USEFUL_LINEAR_SCAN);
             list.extend(map.drain());
             *self = AutoMap::List(list);
         }
@@ -116,7 +123,7 @@ impl<K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> AutoMap<K, V, H,
                         return Some(std::mem::replace(v, value));
                     }
                 }
-                if list.len() >= MAX_LIST_SIZE {
+                if list.len() >= MAX_USEFUL_LINEAR_SCAN {
                     let map = self.convert_to_map();
                     map.insert(key, value);
                 } else {
@@ -149,7 +156,7 @@ impl<K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> AutoMap<K, V, H,
         match self {
             AutoMap::List(list) => {
                 let (lower, _) = iter.size_hint();
-                if list.len() + lower > MAX_LIST_SIZE {
+                if list.len() + lower > MAX_USEFUL_LINEAR_SCAN {
                     let map = self.convert_to_map();
                     map.extend(iter);
                     // The hint is not enforced
@@ -249,8 +256,8 @@ impl<K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> AutoMap<K, V, H,
         match self {
             AutoMap::List(list) => list.shrink_to_fit(),
             AutoMap::Map(map) => {
-                if map.len() <= MAX_LIST_SIZE {
-                    let mut list = SmallVec::with_capacity(map.len());
+                if map.len() <= MAX_USEFUL_LINEAR_SCAN {
+                    let mut list = TinyVec::with_capacity(map.len());
                     list.extend(map.drain());
                     *self = AutoMap::List(list);
                 } else {
@@ -263,16 +270,19 @@ impl<K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> AutoMap<K, V, H,
     pub fn shrink_amortized(&mut self) {
         match self {
             AutoMap::List(list) => {
+                // `TinyVec::shrink_to_fit` returns spilled storage to inline
+                // (or a tighter heap buffer) when the occupancy warrants it.
                 if list.capacity() > list.len() * 3 {
                     list.shrink_to_fit();
                 }
             }
             AutoMap::Map(map) => {
                 if map.len() <= MIN_HASH_SIZE {
-                    let mut list = SmallVec::with_capacity(map.len());
+                    let mut list = TinyVec::with_capacity(map.len());
                     list.extend(map.drain());
                     *self = AutoMap::List(list);
                 } else if map.capacity() > map.len() * 3 {
+                    // HashMaps will always have a capacity that is a power of two
                     map.shrink_to_fit();
                 }
             }
@@ -450,7 +460,7 @@ impl<'a, K, V> Iterator for IterMut<'a, K, V> {
 }
 
 pub enum IntoIter<K, V, const I: usize> {
-    List(smallvec::IntoIter<[(K, V); I]>),
+    List(tiny_vec::IntoIter<(K, V), I, MAX_USEFUL_LINEAR_SCAN>),
     Map(hashbrown::hash_map::IntoIter<K, V>),
 }
 
@@ -519,7 +529,7 @@ impl<'a, K, V> Iterator for ValuesMut<'a, K, V> {
 }
 
 pub enum IntoValues<K, V, const I: usize> {
-    List(smallvec::IntoIter<[(K, V); I]>),
+    List(tiny_vec::IntoIter<(K, V), I, MAX_USEFUL_LINEAR_SCAN>),
     Map(hashbrown::hash_map::IntoValues<K, V>),
 }
 
@@ -578,7 +588,7 @@ impl<'a, K: Eq + Hash, V: Default, H: BuildHasher + Default + 'a, const I: usize
 
 pub enum OccupiedEntry<'a, K, V, H, const I: usize> {
     List {
-        list: &'a mut SmallVec<[(K, V); I]>,
+        list: &'a mut TinyVec<(K, V), I, MAX_USEFUL_LINEAR_SCAN>,
         index: usize,
     },
     Map {
@@ -632,7 +642,7 @@ impl<K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> OccupiedEntry<'_
 pub enum VacantEntry<'a, K, V, H, const I: usize> {
     List {
         this: *mut AutoMap<K, V, H, I>,
-        list: &'a mut SmallVec<[(K, V); I]>,
+        list: &'a mut TinyVec<(K, V), I, MAX_USEFUL_LINEAR_SCAN>,
         key: K,
     },
     Map(hashbrown::hash_map::VacantEntry<'a, K, V, H>),
@@ -645,7 +655,7 @@ impl<'a, K: Eq + Hash, V, H: BuildHasher + Default + 'a, const I: usize>
     pub fn insert(self, value: V) -> &'a mut V {
         match self {
             VacantEntry::List { this, list, key } => {
-                if list.len() >= MAX_LIST_SIZE {
+                if list.len() >= MAX_USEFUL_LINEAR_SCAN {
                     let this = unsafe { &mut *this };
                     this.convert_to_map().entry(key).or_insert(value)
                 } else {
@@ -665,7 +675,7 @@ pub enum RawEntry<'a, K, V, H, const I: usize> {
 
 pub enum OccupiedRawEntry<'a, K, V, H, const I: usize> {
     List {
-        list: &'a mut SmallVec<[(K, V); I]>,
+        list: &'a mut TinyVec<(K, V), I, MAX_USEFUL_LINEAR_SCAN>,
         index: usize,
     },
     Map {
@@ -705,7 +715,7 @@ impl<K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> OccupiedRawEntry
 pub enum VacantRawEntry<'a, K, V, H, const I: usize> {
     List {
         this: *mut AutoMap<K, V, H, I>,
-        list: &'a mut SmallVec<[(K, V); I]>,
+        list: &'a mut TinyVec<(K, V), I, MAX_USEFUL_LINEAR_SCAN>,
     },
     Map(hashbrown::hash_map::RawVacantEntryMut<'a, K, V, H>),
 }
@@ -717,7 +727,7 @@ impl<'a, K: Eq + Hash, V, H: BuildHasher + Default + 'a, const I: usize>
     pub fn insert(self, key: K, value: V) -> &'a mut V {
         match self {
             VacantRawEntry::List { this, list } => {
-                if list.len() >= MAX_LIST_SIZE {
+                if list.len() >= MAX_USEFUL_LINEAR_SCAN {
                     let this = unsafe { &mut *this };
                     this.convert_to_map().entry(key).or_insert(value)
                 } else {
@@ -783,23 +793,17 @@ where
             where
                 M: MapAccess<'de>,
             {
-                if let Some(size) = m.size_hint() {
-                    if size < MAX_LIST_SIZE {
-                        let mut list = SmallVec::with_capacity(size);
-                        while let Some((k, v)) = m.next_entry()? {
-                            list.push((k, v));
-                        }
-                        return Ok(AutoMap::List(list));
-                    } else {
-                        let mut map =
-                            Box::new(HashMap::with_capacity_and_hasher(size, H::default()));
-                        while let Some((k, v)) = m.next_entry()? {
-                            map.insert(k, v);
-                        }
-                        return Ok(AutoMap::Map(map));
-                    }
-                }
-                let mut map = AutoMap::with_hasher();
+                // `size_hint` is only advisory, so use it to reserve map capacity when large, when
+                // small just grow like normal
+                let size = m.size_hint().unwrap_or(0);
+                let mut map = if size < MAX_USEFUL_LINEAR_SCAN {
+                    AutoMap::with_hasher()
+                } else {
+                    AutoMap::Map(Box::new(HashMap::with_capacity_and_hasher(
+                        size,
+                        H::default(),
+                    )))
+                };
                 while let Some((k, v)) = m.next_entry()? {
                     map.insert(k, v);
                 }
@@ -812,6 +816,56 @@ where
         })
     }
 }
+
+impl<K, V, H, const I: usize> Encode for AutoMap<K, V, H, I>
+where
+    K: Encode,
+    V: Encode,
+{
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        // Encode the length first
+        self.len().encode(encoder)?;
+        // Then encode each key-value tuple
+        for entry in self.iter() {
+            entry.encode(encoder)?;
+        }
+        Ok(())
+    }
+}
+
+impl<Context, K, V, H, const I: usize> Decode<Context> for AutoMap<K, V, H, I>
+where
+    K: Decode<Context> + Eq + Hash,
+    V: Decode<Context>,
+    H: BuildHasher + Default,
+{
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        let len = usize::decode(decoder)?;
+        if len <= MAX_USEFUL_LINEAR_SCAN {
+            let mut list = TinyVec::with_capacity(len);
+            for _ in 0..len {
+                let entry = <(K, V)>::decode(decoder)?;
+                list.push(entry);
+            }
+            Ok(AutoMap::List(list))
+        } else {
+            let mut map = HashMap::with_capacity_and_hasher(len, H::default());
+            for _ in 0..len {
+                let (key, value) = <(K, V)>::decode(decoder)?;
+                map.insert(key, value);
+            }
+            Ok(AutoMap::Map(Box::new(map)))
+        }
+    }
+}
+
+impl_borrow_decode!(
+    AutoMap<K, V, H, I>,
+    K: Decode<__Context> + Eq + Hash,
+    V: Decode<__Context>,
+    H: BuildHasher + Default,
+    const I: usize,
+);
 
 impl<K: Eq + Hash, V: Eq, H: BuildHasher, const I: usize> PartialEq for AutoMap<K, V, H, I> {
     fn eq(&self, other: &Self) -> bool {
@@ -878,7 +932,7 @@ where
     fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
         let iter = iter.into_iter();
         let (lower, _) = iter.size_hint();
-        if lower > MAX_LIST_SIZE {
+        if lower > MAX_USEFUL_LINEAR_SCAN {
             let map = iter.collect::<HashMap<K, V, H>>();
             // The hint is not enforced
             if map.len() < MIN_HASH_SIZE {
@@ -899,7 +953,7 @@ where
     F: for<'a, 'b> FnMut(&'a K, &'b mut V) -> bool,
 {
     List {
-        list: &'l mut SmallVec<[(K, V); I]>,
+        list: &'l mut TinyVec<(K, V), I, MAX_USEFUL_LINEAR_SCAN>,
         index: usize,
         f: F,
     },
@@ -957,29 +1011,29 @@ mod tests {
     #[test]
     fn test_auto_map() {
         let mut map = AutoMap::new();
-        for i in 0..MAX_LIST_SIZE * 2 {
+        for i in 0..MAX_USEFUL_LINEAR_SCAN * 2 {
             map.insert(i, i);
         }
-        for i in 0..MAX_LIST_SIZE * 2 {
+        for i in 0..MAX_USEFUL_LINEAR_SCAN * 2 {
             assert_eq!(map.get(&i), Some(&i));
         }
-        assert_eq!(map.get(&(MAX_LIST_SIZE * 2)), None);
-        for i in 0..MAX_LIST_SIZE * 2 {
-            assert_eq!(map.remove(&(MAX_LIST_SIZE * 2)), None);
+        assert_eq!(map.get(&(MAX_USEFUL_LINEAR_SCAN * 2)), None);
+        for i in 0..MAX_USEFUL_LINEAR_SCAN * 2 {
+            assert_eq!(map.remove(&(MAX_USEFUL_LINEAR_SCAN * 2)), None);
             assert_eq!(map.remove(&i), Some(i));
         }
-        assert_eq!(map.remove(&(MAX_LIST_SIZE * 2)), None);
+        assert_eq!(map.remove(&(MAX_USEFUL_LINEAR_SCAN * 2)), None);
     }
 
     #[test]
     fn test_extract_if_map() {
         let mut map = AutoMap::new();
-        for i in 0..MAX_LIST_SIZE * 2 {
+        for i in 0..MAX_USEFUL_LINEAR_SCAN * 2 {
             map.insert(i, i);
         }
         let iter = map.extract_if(|_, v| *v % 2 == 0);
-        assert_eq!(iter.count(), MAX_LIST_SIZE);
-        assert_eq!(map.len(), MAX_LIST_SIZE);
+        assert_eq!(iter.count(), MAX_USEFUL_LINEAR_SCAN);
+        assert_eq!(map.len(), MAX_USEFUL_LINEAR_SCAN);
     }
 
     #[test]

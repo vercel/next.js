@@ -1,7 +1,6 @@
-use std::{env, path::PathBuf};
+use std::{env, path::PathBuf, sync::LazyLock};
 
-use anyhow::{Context, Result, bail};
-use once_cell::sync::Lazy;
+use anyhow::{Result, bail};
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use similar::TextDiff;
@@ -19,9 +18,9 @@ use turbopack_core::{
 
 // Updates the existing snapshot outputs with the actual outputs of this run.
 // e.g. `UPDATE=1 cargo test -p turbopack-tests -- test_my_pattern`
-pub static UPDATE: Lazy<bool> = Lazy::new(|| env::var("UPDATE").unwrap_or_default() == "1");
+pub static UPDATE: LazyLock<bool> = LazyLock::new(|| env::var("UPDATE").unwrap_or_default() == "1");
 
-static ANSI_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\x1b\[\d+m").unwrap());
+static ANSI_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\x1b\[\d+m").unwrap());
 
 pub async fn snapshot_issues<I: IntoIterator<Item = ReadRef<PlainIssue>>>(
     captured_issues: I,
@@ -73,7 +72,7 @@ pub async fn snapshot_issues<I: IntoIterator<Item = ReadRef<PlainIssue>>>(
             .replace("\\\\", "/")
             .into();
 
-        let asset = AssetContent::file(File::from(content).into());
+        let asset = AssetContent::file(FileContent::Content(File::from(content)).cell());
 
         diff(path, asset).await?;
     }
@@ -121,13 +120,13 @@ pub async fn diff(path: FileSystemPath, actual: Vc<AssetContent>) -> Result<()> 
     let path_str = &path.path;
     let expected = AssetContent::file(path.read());
 
-    let actual = get_contents(actual, path.clone()).await?;
-    let expected = get_contents(expected, path.clone()).await?;
+    let actual = get_contents(actual).await?;
+    let expected = get_contents(expected).await?;
 
     if actual != expected {
         if let Some(actual) = actual {
             if *UPDATE {
-                let content = File::from(RcStr::from(actual)).into();
+                let content = FileContent::Content(File::from(RcStr::from(actual))).cell();
                 path.write(content).await?;
                 println!("updated contents of {path_str}");
             } else {
@@ -154,34 +153,26 @@ pub async fn diff(path: FileSystemPath, actual: Vc<AssetContent>) -> Result<()> 
     Ok(())
 }
 
-async fn get_contents(file: Vc<AssetContent>, path: FileSystemPath) -> Result<Option<String>> {
-    Ok(
-        match &*file.await.context(format!(
-            "Unable to read AssetContent of {}",
-            path.value_to_string().await?
-        ))? {
-            AssetContent::File(file) => match &*file.await.context(format!(
-                "Unable to read FileContent of {}",
-                path.value_to_string().await?
-            ))? {
-                FileContent::NotFound => None,
-                FileContent::Content(expected) => {
-                    let rope = expected.content();
-                    let str = rope.to_str();
-                    match str {
-                        Ok(str) => Some(str.trim().to_string()),
-                        Err(_) => {
-                            let hash = hash_xxh3_hash64(rope);
-                            Some(format!("Binary content {hash:016x}"))
-                        }
+async fn get_contents(file: Vc<AssetContent>) -> Result<Option<String>> {
+    Ok(match &*file.await? {
+        AssetContent::File(file) => match &*file.await? {
+            FileContent::NotFound => None,
+            FileContent::Content(expected) => {
+                let rope = expected.content();
+                let str = rope.to_str();
+                match str {
+                    Ok(str) => Some(str.trim().to_string()),
+                    Err(_) => {
+                        let hash = hash_xxh3_hash64(rope);
+                        Some(format!("Binary content {hash:016x}"))
                     }
                 }
-            },
-            AssetContent::Redirect { target, link_type } => Some(format!(
-                "Redirect {{ target: {target}, link_type: {link_type:?} }}"
-            )),
+            }
         },
-    )
+        AssetContent::Redirect { target, link_type } => Some(format!(
+            "Redirect {{ target: {target}, link_type: {link_type:?} }}"
+        )),
+    })
 }
 
 async fn remove_file(path: FileSystemPath) -> Result<()> {

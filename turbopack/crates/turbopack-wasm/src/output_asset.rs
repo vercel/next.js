@@ -5,7 +5,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::ChunkingContext,
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssetsReference},
     source::Source,
 };
 
@@ -34,11 +34,20 @@ impl WebAssemblyAsset {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for WebAssemblyAsset {}
+
+#[turbo_tasks::value_impl]
 impl OutputAsset for WebAssemblyAsset {
     #[turbo_tasks::function]
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
-        let ident = this.source.ident().with_modifier(rcstr!("wasm"));
+        let ident = this
+            .source
+            .ident()
+            .owned()
+            .await?
+            .with_modifier(rcstr!("wasm"))
+            .into_vc();
         Ok(this
             .chunking_context
             .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".wasm")))

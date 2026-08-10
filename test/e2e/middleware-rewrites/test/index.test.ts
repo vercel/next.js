@@ -2,24 +2,22 @@
 
 import { join } from 'path'
 import cheerio from 'cheerio'
-import webdriver from 'next-webdriver'
-import { NextInstance } from 'e2e-utils'
 import { check, fetchViaHTTP, retry } from 'next-test-utils'
-import { createNext, FileRef } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import escapeStringRegexp from 'escape-string-regexp'
 
-describe('Middleware Rewrite', () => {
-  let next: NextInstance
+const isTurbopackTest = Boolean(process.env.IS_TURBOPACK_TEST)
+const isAdapterTest = process.env.NEXT_ENABLE_ADAPTER === '1'
 
-  afterAll(() => next.destroy())
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        pages: new FileRef(join(__dirname, '../app/pages')),
-        'next.config.js': new FileRef(join(__dirname, '../app/next.config.js')),
-        'middleware.js': new FileRef(join(__dirname, '../app/middleware.js')),
-      },
-    })
+describe('Middleware Rewrite', () => {
+  const { next, isNextDeploy } = nextTestSetup({
+    files: {
+      pages: new FileRef(join(__dirname, '../app/pages')),
+      'next.config.js': new FileRef(join(__dirname, '../app/next.config.js')),
+      'middleware.js': new FileRef(join(__dirname, '../app/middleware.js')),
+    },
+    // FIXME: Fails to deploy
+    skipDeployment: isAdapterTest && isTurbopackTest,
   })
 
   function tests() {
@@ -72,8 +70,56 @@ describe('Middleware Rewrite', () => {
       expect(await res.text()).toEqual(body)
     })
 
+    it('should handle middleware rewrite with body and headers correctly', async () => {
+      const body = JSON.stringify({ hello: 'world' })
+      const res = await next.fetch(
+        '/middleware-external-rewrite-body-headers-return-body',
+        {
+          redirect: 'manual',
+          method: 'POST',
+          body,
+        }
+      )
+
+      expect(res.status).toBe(200)
+      expect(await res.text()).toEqual(body)
+
+      const resWithHeaders = await next.fetch(
+        '/middleware-external-rewrite-body-headers-return-headers',
+        {
+          redirect: 'manual',
+          method: 'POST',
+          body,
+        }
+      )
+
+      expect(resWithHeaders.status).toBe(200)
+      const json = await resWithHeaders.json()
+      expect(json.headers['x-hello-from-middleware1']).toBe('hello')
+    })
+
+    // Regression test for https://github.com/vercel/next.js/issues/94647.
+    it('should preserve rewrite query and dynamic params in Pages API routes', async () => {
+      const res = await next.fetch('/foo/bar?key=value')
+
+      expect(res.status).toBe(200)
+      expect(await res.json()).toEqual({
+        // Deployed proxies include query values added while resolving rewrites
+        // in the URL passed to the function. Locally they are only in req.query.
+        url: isNextDeploy
+          ? '/foo/bar?key=value&added=1&extra=2'
+          : '/foo/bar?key=value',
+        query: {
+          key: 'value',
+          added: '1',
+          extra: '2',
+          slug: ['bar'],
+        },
+      })
+    })
+
     it('should handle static dynamic rewrite from middleware correctly', async () => {
-      const browser = await webdriver(next.url, '/rewrite-to-static')
+      const browser = await next.browser('/rewrite-to-static')
 
       await check(() => browser.eval('next.router.query.slug'), 'post-1')
       expect(await browser.elementByCss('#page').text()).toBe(
@@ -91,8 +137,7 @@ describe('Middleware Rewrite', () => {
     })
 
     it('should handle static rewrite from next.config.js correctly', async () => {
-      const browser = await webdriver(
-        next.url,
+      const browser = await next.browser(
         '/config-rewrite-to-dynamic-static/post-2'
       )
 
@@ -109,7 +154,7 @@ describe('Middleware Rewrite', () => {
     })
 
     it('should not have un-necessary data request on rewrite', async () => {
-      const browser = await webdriver(next.url, '/to-blog/first', {
+      const browser = await next.browser('/to-blog/first', {
         waitHydration: false,
       })
       let requests = []
@@ -130,7 +175,7 @@ describe('Middleware Rewrite', () => {
     })
 
     it('should not mix component cache when navigating between dynamic routes', async () => {
-      const browser = await webdriver(next.url, '/param-1')
+      const browser = await next.browser('/param-1')
 
       expect(await browser.eval('next.router.pathname')).toBe('/[param]')
       expect(await browser.eval('next.router.query.param')).toBe('param-1')
@@ -157,7 +202,7 @@ describe('Middleware Rewrite', () => {
       if ((global as any).isNextDeploy) {
         return
       }
-      let browser = await webdriver(next.url, '/')
+      let browser = await next.browser('/')
       await browser.eval(`next.router.push("/afterfiles-rewrite-ssg")`)
 
       await check(
@@ -169,7 +214,7 @@ describe('Middleware Rewrite', () => {
         /"slug":"first"/
       )
 
-      browser = await webdriver(next.url, '/afterfiles-rewrite-ssg')
+      browser = await next.browser('/afterfiles-rewrite-ssg')
       await check(
         () => browser.eval('next.router.isReady ? "yup": "nope"'),
         'yup'
@@ -181,7 +226,7 @@ describe('Middleware Rewrite', () => {
     })
 
     it('should hard navigate on 404 for data request', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
       await browser.eval('window.beforeNav = 1')
       await browser.eval(`next.router.push("/to/some/404/path")`)
       await check(
@@ -201,7 +246,7 @@ describe('Middleware Rewrite', () => {
     })
 
     it('should rewrite correctly when navigating via history', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
       await browser.elementByCss('#override-with-internal-rewrite').click()
       await check(() => {
         return browser.eval('document.documentElement.innerHTML')
@@ -217,7 +262,7 @@ describe('Middleware Rewrite', () => {
     })
 
     it('should rewrite correctly when navigating via history after query update', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
       await browser.elementByCss('#override-with-internal-rewrite').click()
       await check(() => {
         return browser.eval('document.documentElement.innerHTML')
@@ -276,7 +321,7 @@ describe('Middleware Rewrite', () => {
       expect(res.status).toBe(200)
       expect(await res.text()).toContain('Welcome Page A')
 
-      const browser = await webdriver(next.url, ``)
+      const browser = await next.browser(``)
       await browser.elementByCss('#override-with-internal-rewrite').click()
       await check(
         () => browser.eval('document.documentElement.innerHTML'),
@@ -310,7 +355,7 @@ describe('Middleware Rewrite', () => {
       expect(res.status).toBe(200)
       expect(await res.text()).toContain('Example Domain')
 
-      const browser = await webdriver(next.url, ``)
+      const browser = await next.browser(``)
       await browser.elementByCss('#override-with-external-rewrite').click()
       await check(
         () => browser.eval('document.documentElement.innerHTML'),
@@ -324,8 +369,7 @@ describe('Middleware Rewrite', () => {
     })
 
     it(`should rewrite to the external url for incoming data request externally rewritten`, async () => {
-      const browser = await webdriver(
-        next.url,
+      const browser = await next.browser(
         `/_next/data/${next.buildId}/es/about.json?override=external`,
         undefined
       )
@@ -342,7 +386,7 @@ describe('Middleware Rewrite', () => {
       expect(await res2.text()).toContain('Loading...')
 
       const randomSlug2 = `another-${Date.now()}`
-      const browser = await webdriver(next.url, `/to-blog/${randomSlug2}`)
+      const browser = await next.browser(`/to-blog/${randomSlug2}`)
 
       await check(async () => {
         const props = JSON.parse(await browser.elementByCss('#props').text())
@@ -353,7 +397,7 @@ describe('Middleware Rewrite', () => {
     })
 
     it('should allow to opt-out prefetch caching', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
       await browser.addCookie({ name: 'about-bypass', value: '1' })
       await browser.refresh()
       await browser.eval('window.__SAME_PAGE = true')
@@ -367,7 +411,7 @@ describe('Middleware Rewrite', () => {
 
     if (!(global as any).isNextDev) {
       it('should opt out of prefetch caching for dynamic routes', async () => {
-        const browser = await webdriver(next.url, '/')
+        const browser = await next.browser('/')
         await browser.eval('window.__SAME_PAGE = true')
         await browser.waitForIdleNetwork()
         let hasResolvedPrefetch = false
@@ -397,7 +441,7 @@ describe('Middleware Rewrite', () => {
       })
 
       it('should not prefetch non-SSG routes', async () => {
-        const browser = await webdriver(next.url, '/')
+        const browser = await next.browser('/')
 
         await check(async () => {
           const hrefs = await browser.eval(
@@ -441,7 +485,7 @@ describe('Middleware Rewrite', () => {
       const $ = cheerio.load(html)
       expect($('.title').text()).toBe('About Page')
 
-      const browser = await webdriver(next.url, `/`)
+      const browser = await next.browser(`/`)
       await browser.elementByCss('#rewrite-me-to-about').click()
       await check(
         () => browser.eval(`window.location.pathname`),
@@ -452,7 +496,7 @@ describe('Middleware Rewrite', () => {
     })
 
     it(`should allow to switch locales`, async () => {
-      const browser = await webdriver(next.url, '/i18n')
+      const browser = await next.browser('/i18n')
       await browser.waitForElementByCss('.en')
       await browser.elementByCss('#link-ja').click()
       await browser.waitForElementByCss('.ja')
@@ -474,7 +518,7 @@ describe('Middleware Rewrite', () => {
       expect(res.status).toBe(200)
       expect(await res.text()).toContain('Welcome Page A')
 
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
       await browser.elementByCss('#rewrite-to-beforefiles-rewrite').click()
       await check(
         () => browser.eval('document.documentElement.innerHTML'),
@@ -490,7 +534,7 @@ describe('Middleware Rewrite', () => {
       expect(res.status).toBe(200)
       expect(await res.text()).toContain('Welcome Page B')
 
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
       await browser.elementByCss('#rewrite-to-afterfiles-rewrite').click()
       await check(
         () => browser.eval('document.documentElement.innerHTML'),
@@ -502,8 +546,7 @@ describe('Middleware Rewrite', () => {
     })
 
     it('should have correct query info for dynamic route after query hydration', async () => {
-      const browser = await webdriver(
-        next.url,
+      const browser = await next.browser(
         '/fallback-true-blog/first?hello=world'
       )
 
@@ -526,7 +569,7 @@ describe('Middleware Rewrite', () => {
     })
 
     it('should handle shallow navigation correctly (non-dynamic page)', async () => {
-      const browser = await webdriver(next.url, '/about')
+      const browser = await next.browser('/about')
       const requests = []
 
       browser.on('request', (req) => {
@@ -563,7 +606,7 @@ describe('Middleware Rewrite', () => {
     })
 
     it('should handle shallow navigation correctly (dynamic page)', async () => {
-      const browser = await webdriver(next.url, '/fallback-true-blog/first')
+      const browser = await next.browser('/fallback-true-blog/first')
 
       await check(async () => {
         await browser.elementByCss('#to-query-shallow').click()
@@ -599,7 +642,7 @@ describe('Middleware Rewrite', () => {
     })
 
     it('should resolve dynamic route after rewrite correctly', async () => {
-      const browser = await webdriver(next.url, '/fallback-true-blog/first', {
+      const browser = await next.browser('/fallback-true-blog/first', {
         waitHydration: false,
       })
       let requests = []
@@ -702,7 +745,7 @@ describe('Middleware Rewrite', () => {
       expect(res.headers.raw()['set-cookie']).toHaveLength(1)
       const bucket = getCookieFromResponse(res, 'bucket')
       const expectedText = bucket === 'a' ? 'Welcome Page A' : 'Welcome Page B'
-      const browser = await webdriver(next.url, `${locale}/rewrite-to-ab-test`)
+      const browser = await next.browser(`${locale}/rewrite-to-ab-test`)
       try {
         expect(await browser.eval(`window.location.pathname`)).toBe(
           `${locale}/rewrite-to-ab-test`
@@ -733,7 +776,7 @@ describe('Middleware Rewrite', () => {
       const res = await fetchViaHTTP(next.url, `${locale}/rewrite-me-to-about`)
       const html = await res.text()
       const $ = cheerio.load(html)
-      const browser = await webdriver(next.url, `${locale}/rewrite-me-to-about`)
+      const browser = await next.browser(`${locale}/rewrite-me-to-about`)
       try {
         expect(await browser.eval(`window.location.pathname`)).toBe(
           `${locale}/rewrite-me-to-about`
@@ -750,7 +793,7 @@ describe('Middleware Rewrite', () => {
       const html = await res.text()
       const $ = cheerio.load(html)
       expect($('#props').text()).toBe('not:param')
-      const browser = await webdriver(next.url, path)
+      const browser = await next.browser(path)
       try {
         expect(await browser.eval(`window.location.pathname`)).toBe(path)
       } finally {
@@ -764,7 +807,7 @@ describe('Middleware Rewrite', () => {
       const html = await res.text()
       const $ = cheerio.load(html)
       expect($('#props').text()).toBe('with:colon')
-      const browser = await webdriver(next.url, path)
+      const browser = await next.browser(path)
       try {
         expect(await browser.eval(`window.location.pathname`)).toBe(path)
       } finally {
@@ -778,7 +821,7 @@ describe('Middleware Rewrite', () => {
       const html = await res.text()
       const $ = cheerio.load(html)
       expect($('#props').text()).toBe('no-colon-here')
-      const browser = await webdriver(next.url, path)
+      const browser = await next.browser(path)
       try {
         expect(await browser.eval(`window.location.pathname`)).toBe(path)
       } finally {
@@ -793,7 +836,7 @@ describe('Middleware Rewrite', () => {
       const $ = cheerio.load(html)
       expect($('#props').text()).toBe('no-colon-here')
       expect($('#qp').text()).toBe('arg')
-      const browser = await webdriver(next.url, path)
+      const browser = await next.browser(path)
       try {
         expect(
           await browser.eval(
@@ -812,7 +855,7 @@ describe('Middleware Rewrite', () => {
       const $ = cheerio.load(html)
       expect($('#props').text()).toBe('with:colon')
       expect($('#qp').text()).toBe('arg')
-      const browser = await webdriver(next.url, path)
+      const browser = await next.browser(path)
       try {
         expect(
           await browser.eval(
@@ -842,13 +885,13 @@ describe('Middleware Rewrite', () => {
     it(`${label}should rewrite to Vercel`, async () => {
       const res = await fetchViaHTTP(next.url, `${locale}/rewrite-me-to-vercel`)
       const html = await res.text()
-      // const browser = await webdriver(next.url, '/rewrite-me-to-vercel')
+      // const browser = await next.browser('/rewrite-me-to-vercel')
       // TODO: running this to chech the window.location.pathname hangs for some reason;
       expect(html).toContain('Example Domain')
     })
 
     it(`${label}should rewrite without hard navigation`, async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
       await browser.eval('window.__SAME_PAGE = true')
       await browser.elementByCss('#link-with-rewritten-url').click()
       await browser.waitForElementByCss('.refreshed')
@@ -858,7 +901,7 @@ describe('Middleware Rewrite', () => {
     })
 
     it(`${label}should not call middleware with shallow push`, async () => {
-      const browser = await webdriver(next.url, '')
+      const browser = await next.browser('')
       await browser.elementByCss('#link-to-shallow-push').click()
       await browser.waitForCondition(
         'new URL(window.location.href).searchParams.get("path") === "rewrite-me-without-hard-navigation"'
@@ -869,7 +912,7 @@ describe('Middleware Rewrite', () => {
     })
 
     it(`${label}should correctly rewriting to a different dynamic path`, async () => {
-      const browser = await webdriver(next.url, '/dynamic-replace')
+      const browser = await next.browser('/dynamic-replace')
       const element = await browser.elementByCss('.title')
       expect(await element.text()).toEqual('Parts page')
       const logs = await browser.log()

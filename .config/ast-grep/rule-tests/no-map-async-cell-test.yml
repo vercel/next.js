@@ -1,0 +1,70 @@
+id: no-map-async-cell
+valid:
+  - |
+    items.into_iter()
+        .map(|item| item.process())
+        .collect()
+  - |
+    items.into_iter()
+        .map(|item| {
+            SomeStruct { field: item }.cell()
+        })
+        .collect()
+  - |
+    call_once(|| async {
+        X{}.cell()
+    })
+invalid:
+  - |
+    items.into_iter()
+        .map(|item| async move {
+            Ok(item.process().await?.cell())
+        })
+        .try_join()
+        .await
+  - |
+    items.into_iter()
+        .map(|item| async {
+            Ok(item.process().await?.cell())
+        })
+        .try_join()
+        .await
+  - |
+    items.into_iter()
+        .map(async |item| {
+            Ok(item.process().await?.cell())
+        })
+        .try_join()
+        .await
+  - |
+    items.into_iter()
+        .map(async |item| Ok(item.process().await?.cell()))
+        .try_join()
+        .await
+  - |
+    paths.map(async |(path, asset)| {
+        Ok(AssetBinding {
+            name: wasm_edge_var_name(Vc::upcast(*asset)).owned().await?,
+        }.cell())
+    })
+    .try_join()
+    .await
+  - |
+    modules
+        .map(async |module| {
+            let result = module.compute().await?;
+            result.into_value().cell()
+        })
+  - |
+    map.into_iter()
+        .map(|(ty, items)| {
+            (
+                ty,
+                ChunkItemBatchGroup {
+                    items,
+                    chunk_groups: this.chunk_groups.clone(),
+                },
+            )
+        })
+        .map(async |(ty, batch_group)| Ok((ty, batch_group.resolved_cell())))
+        .try_join()

@@ -1,22 +1,24 @@
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{Chunk, ChunkingContext},
     introspect::{Introspectable, IntrospectableChildren},
-    output::{OutputAsset, OutputAssets},
-    source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMapAsset},
+    output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
+    source_map::{GenerateSourceMap, SourceMapAsset},
     version::VersionedContent,
 };
 use turbopack_ecmascript::chunk::EcmascriptChunk;
 
-use super::content::EcmascriptBuildNodeChunkContent;
+use super::content::EcmascriptNodeChunkContent;
 use crate::NodeJsChunkingContext;
 
 /// Production Ecmascript chunk targeting Node.js.
 #[turbo_tasks::value(shared)]
+#[derive(ValueToString)]
+#[value_to_string("Ecmascript Build Node Chunk")]
 pub(crate) struct EcmascriptBuildNodeChunk {
     chunking_context: ResolvedVc<NodeJsChunkingContext>,
     chunk: ResolvedVc<EcmascriptChunk>,
@@ -42,17 +44,14 @@ impl EcmascriptBuildNodeChunk {
         let this = self.await?;
         Ok(SourceMapAsset::new(
             Vc::upcast(*this.chunking_context),
-            this.chunk.ident().with_modifier(modifier()),
+            this.chunk
+                .ident()
+                .owned()
+                .await?
+                .with_modifier(modifier())
+                .into_vc(),
             Vc::upcast(self),
         ))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for EcmascriptBuildNodeChunk {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("Ecmascript Build Node Chunk"))
     }
 }
 
@@ -63,9 +62,9 @@ fn modifier() -> RcStr {
 #[turbo_tasks::value_impl]
 impl EcmascriptBuildNodeChunk {
     #[turbo_tasks::function]
-    async fn own_content(self: Vc<Self>) -> Result<Vc<EcmascriptBuildNodeChunkContent>> {
+    async fn own_content(self: Vc<Self>) -> Result<Vc<EcmascriptNodeChunkContent>> {
         let this = self.await?;
-        Ok(EcmascriptBuildNodeChunkContent::new(
+        Ok(EcmascriptNodeChunkContent::new(
             *this.chunking_context,
             self,
             this.chunk.chunk_content(),
@@ -75,36 +74,49 @@ impl EcmascriptBuildNodeChunk {
 }
 
 #[turbo_tasks::value_impl]
-impl OutputAsset for EcmascriptBuildNodeChunk {
+impl OutputAssetsReference for EcmascriptBuildNodeChunk {
     #[turbo_tasks::function]
-    async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        let this = self.await?;
-        let ident = this.chunk.ident().with_modifier(modifier());
-        Ok(this
-            .chunking_context
-            .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".js")))
-    }
-
-    #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
         let this = self.await?;
         let chunk_references = this.chunk.references().await?;
         let include_source_map = *this
             .chunking_context
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?;
-        let mut references =
-            Vec::with_capacity(chunk_references.len() + if include_source_map { 1 } else { 0 });
+        let ref_assets = chunk_references.assets.await?;
+        let mut assets =
+            Vec::with_capacity(ref_assets.len() + if include_source_map { 1 } else { 0 });
 
-        for reference in &*chunk_references {
-            references.push(*reference);
-        }
+        assets.extend(ref_assets.iter().copied());
 
         if include_source_map {
-            references.push(ResolvedVc::upcast(self.source_map().to_resolved().await?));
+            assets.push(ResolvedVc::upcast(self.source_map().to_resolved().await?));
         }
 
-        Ok(Vc::cell(references))
+        Ok(OutputAssetsWithReferenced {
+            assets: ResolvedVc::cell(assets),
+            referenced_assets: chunk_references.referenced_assets,
+            references: chunk_references.references,
+        }
+        .cell())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAsset for EcmascriptBuildNodeChunk {
+    #[turbo_tasks::function]
+    async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        let this = self.await?;
+        let ident = this
+            .chunk
+            .ident()
+            .owned()
+            .await?
+            .with_modifier(modifier())
+            .into_vc();
+        Ok(this
+            .chunking_context
+            .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".js")))
     }
 }
 
@@ -124,7 +136,7 @@ impl Asset for EcmascriptBuildNodeChunk {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBuildNodeChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap> {
+    fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
         self.own_content().generate_source_map()
     }
 }

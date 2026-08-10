@@ -1,21 +1,22 @@
 use std::{
     any::Any,
     fmt::Debug,
-    future::IntoFuture,
     hash::{Hash, Hasher},
     marker::PhantomData,
-    mem::transmute,
     ops::Deref,
+    slice,
 };
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
+#[cfg(debug_assertions)]
+use crate::debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString};
 use crate::{
     RawVc, Upcast, UpcastStrict, VcRead, VcTransparentRead, VcValueTrait, VcValueType,
-    debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
     trace::{TraceRawVcs, TraceRawVcsContext},
-    vc::Vc,
+    vc::{Vc, into_future},
 };
 
 /// A "subtype" (via [`Deref`]) of [`Vc`] that represents a specific [`Vc::cell`]/`.cell()` or
@@ -48,6 +49,12 @@ use crate::{
 /// 3. Given a [`Vc`], use [`.to_resolved().await?`][Vc::to_resolved].
 ///
 ///
+/// ## Reading a `ResolvedVc`
+///
+/// Even though a `Vc` may be resolved as a `ResolvedVc`, we must still use `.await?` to read it's
+/// value, as the value could be invalidated or cache-evicted.
+///
+///
 /// ## Equality & Hashing
 ///
 /// Equality between two `ResolvedVc`s means that both have an identical in-memory representation
@@ -64,8 +71,9 @@ use crate::{
 /// [`NonLocalValue`]: crate::NonLocalValue
 /// [rewritten external signature]: https://turbopack-rust-docs.vercel.sh/turbo-engine/tasks.html#external-signature-rewriting
 /// [`ReadRef`]: crate::ReadRef
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Encode, Decode)]
 #[serde(transparent, bound = "")]
+#[bincode(bounds = "T: ?Sized")]
 #[repr(transparent)]
 pub struct ResolvedVc<T>
 where
@@ -133,35 +141,19 @@ where
     }
 }
 
-impl<T, Inner, Repr> Default for ResolvedVc<T>
+impl<T, Inner> Default for ResolvedVc<T>
 where
-    T: VcValueType<Read = VcTransparentRead<T, Inner, Repr>>,
+    T: VcValueType<Read = VcTransparentRead<T, Inner>>,
     Inner: Any + Send + Sync + Default,
-    Repr: VcValueType,
 {
     fn default() -> Self {
         Self::cell(Default::default())
     }
 }
 
-macro_rules! into_future {
-    ($ty:ty) => {
-        impl<T> IntoFuture for $ty
-        where
-            T: VcValueType,
-        {
-            type Output = <Vc<T> as IntoFuture>::Output;
-            type IntoFuture = <Vc<T> as IntoFuture>::IntoFuture;
-            fn into_future(self) -> Self::IntoFuture {
-                (*self).into_future()
-            }
-        }
-    };
-}
-
-into_future!(ResolvedVc<T>);
-into_future!(&ResolvedVc<T>);
-into_future!(&mut ResolvedVc<T>);
+into_future!(ResolvedVc<T>, |this| (*this).into_future());
+into_future!(&ResolvedVc<T>, |this| (*this).into_future());
+into_future!(&mut ResolvedVc<T>, |this| (*this).into_future());
 
 impl<T> ResolvedVc<T>
 where
@@ -176,11 +168,10 @@ where
     }
 }
 
-impl<T, Inner, Repr> ResolvedVc<T>
+impl<T, Inner> ResolvedVc<T>
 where
-    T: VcValueType<Read = VcTransparentRead<T, Inner, Repr>>,
+    T: VcValueType<Read = VcTransparentRead<T, Inner>>,
     Inner: Any + Send + Sync,
-    Repr: VcValueType,
 {
     pub fn cell(inner: Inner) -> Self {
         Self {
@@ -221,18 +212,35 @@ where
         }
     }
 
+    /// Upcasts the given `Vec<ResolvedVc<T>>` to a `Vec<ResolvedVc<K>>`.
+    ///
+    /// See also: [`Vc::upcast`].
+    #[inline(always)]
+    pub fn upcast_vec<K>(vec: Vec<Self>) -> Vec<ResolvedVc<K>>
+    where
+        T: UpcastStrict<K>,
+        K: VcValueTrait + ?Sized,
+    {
+        debug_assert!(size_of::<ResolvedVc<T>>() == size_of::<ResolvedVc<K>>());
+        debug_assert!(size_of::<Vec<ResolvedVc<T>>>() == size_of::<Vec<ResolvedVc<K>>>());
+        let (ptr, len, capacity) = vec.into_raw_parts();
+        // Safety: The memory layout of `ResolvedVc<T>` and `ResolvedVc<K>` is the same.
+        unsafe { Vec::from_raw_parts(ptr as *mut ResolvedVc<K>, len, capacity) }
+    }
+
     /// Cheaply converts a Vec of resolved Vcs to a Vec of Vcs.
     pub fn deref_vec(vec: Vec<ResolvedVc<T>>) -> Vec<Vc<T>> {
         debug_assert!(size_of::<ResolvedVc<T>>() == size_of::<Vc<T>>());
+        let (ptr, len, capacity) = vec.into_raw_parts();
         // Safety: The memory layout of `ResolvedVc<T>` and `Vc<T>` is the same.
-        unsafe { transmute::<Vec<ResolvedVc<T>>, Vec<Vc<T>>>(vec) }
+        unsafe { Vec::from_raw_parts(ptr as *mut Vc<T>, len, capacity) }
     }
 
     /// Cheaply converts a slice of resolved Vcs to a slice of Vcs.
-    pub fn deref_slice(slice: &[ResolvedVc<T>]) -> &[Vc<T>] {
+    pub fn deref_slice(s: &[ResolvedVc<T>]) -> &[Vc<T>] {
         debug_assert!(size_of::<ResolvedVc<T>>() == size_of::<Vc<T>>());
         // Safety: The memory layout of `ResolvedVc<T>` and `Vc<T>` is the same.
-        unsafe { transmute::<&[ResolvedVc<T>], &[Vc<T>]>(slice) }
+        unsafe { slice::from_raw_parts(s.as_ptr() as *const Vc<T>, s.len()) }
     }
 }
 
@@ -244,8 +252,6 @@ where
     ///
     /// **Note:** if the trait `T` is required to implement `K`, use [`ResolvedVc::upcast`] instead.
     /// That method provides stronger guarantees, removing the need for a [`Option`] return type.
-    ///
-    /// See also: [`Vc::try_resolve_sidecast`].
     pub fn try_sidecast<K>(this: Self) -> Option<ResolvedVc<K>>
     where
         K: VcValueTrait + ?Sized,
@@ -257,7 +263,9 @@ where
             <K as VcValueTrait>::get_trait_type_id() != <T as VcValueTrait>::get_trait_type_id(),
             "Attempted to cast a type {} to itself, which is pointless. Use the value directly \
              instead.",
-            crate::registry::get_trait(<T as VcValueTrait>::get_trait_type_id()).global_name
+            crate::registry::get_trait(<T as VcValueTrait>::get_trait_type_id())
+                .ty
+                .global_name
         );
         // `RawVc::TaskCell` already contains all the type information needed to check this
         // sidecast, so we don't need to read the underlying cell!
@@ -276,8 +284,6 @@ where
     /// is of the form `Box<dyn L>`, and `L` is a value trait.
     ///
     /// Returns `None` if the underlying value type is not a `K`.
-    ///
-    /// See also: [`Vc::try_resolve_downcast`].
     pub fn try_downcast<K>(this: Self) -> Option<ResolvedVc<K>>
     where
         K: UpcastStrict<T> + VcValueTrait + ?Sized,
@@ -289,8 +295,6 @@ where
     /// Attempts to downcast the given `Vc<Box<dyn T>>` to a `Vc<K>`, where `K` is a value type.
     ///
     /// Returns `None` if the underlying value type is not a `K`.
-    ///
-    /// See also: [`Vc::try_resolve_downcast_type`].
     pub fn try_downcast_type<K>(this: Self) -> Option<ResolvedVc<K>>
     where
         K: UpcastStrict<T> + VcValueType,
@@ -331,6 +335,7 @@ where
     }
 }
 
+#[cfg(debug_assertions)]
 impl<T> ValueDebugFormat for ResolvedVc<T>
 where
     T: UpcastStrict<Box<dyn ValueDebug>> + Send + Sync + ?Sized,
@@ -347,7 +352,7 @@ where
     type Error = anyhow::Error;
 
     fn try_from(raw: RawVc) -> Result<Self> {
-        if !matches!(raw, RawVc::TaskCell(..)) {
+        if raw.as_task_cell().is_none() {
             anyhow::bail!("Given RawVc {raw:?} is not a TaskCell");
         }
         Ok(Self {

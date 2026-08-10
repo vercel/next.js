@@ -3,7 +3,7 @@ use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
     asset::{Asset, AssetContent},
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
 };
 
 /// An [OutputAsset] that is created from some passed source code and can have a list of references
@@ -26,19 +26,13 @@ impl VirtualOutputAsset {
         }
         .cell()
     }
+}
 
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for VirtualOutputAsset {
     #[turbo_tasks::function]
-    pub fn new_with_references(
-        path: FileSystemPath,
-        content: ResolvedVc<AssetContent>,
-        references: ResolvedVc<OutputAssets>,
-    ) -> Vc<Self> {
-        VirtualOutputAsset {
-            path,
-            content,
-            references,
-        }
-        .cell()
+    fn references(&self) -> Vc<OutputAssetsWithReferenced> {
+        OutputAssetsWithReferenced::from_assets(*self.references)
     }
 }
 
@@ -47,11 +41,6 @@ impl OutputAsset for VirtualOutputAsset {
     #[turbo_tasks::function]
     fn path(&self) -> Vc<FileSystemPath> {
         self.path.clone().cell()
-    }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> Vc<OutputAssets> {
-        *self.references
     }
 }
 

@@ -17,9 +17,6 @@ import {
   getLayoutOrPageModule,
   type LoaderTree,
 } from '../../../server/lib/app-dir-module'
-import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
-import type { FallbackRouteParam } from '../../static-paths/types'
-import { createFallbackRouteParam } from '../../static-paths/utils'
 import type { DynamicParamTypes } from '../../../shared/lib/app-router-types'
 
 type GenerateStaticParams = (options: { params?: Params }) => Promise<Params[]>
@@ -48,6 +45,15 @@ function attach(segment: AppSegment, userland: unknown, route: string) {
     segment.generateStaticParams =
       userland.generateStaticParams as GenerateStaticParams
 
+    // Compiler-injected factory whose error stack is anchored at the user's
+    // `generateStaticParams` declaration. Used to throw a meaningful error when
+    // an empty result is detected under Cache Components.
+    const createEmptyParamsError = (userland as Record<string, unknown>)
+      .__next_create_empty_gsp_error
+    if (typeof createEmptyParamsError === 'function') {
+      segment.createEmptyParamsError = createEmptyParamsError as () => Error
+    }
+
     // Validate that `generateStaticParams` makes sense in this context.
     if (segment.config?.runtime === 'edge') {
       throw new Error(
@@ -63,14 +69,8 @@ export type AppSegment = {
   paramType: DynamicParamTypes | undefined
   filePath: string | undefined
   config: AppSegmentConfig | undefined
-  isDynamicSegment: boolean
   generateStaticParams: GenerateStaticParams | undefined
-
-  /**
-   * Whether this segment is a parallel route segment or descends from a
-   * parallel route segment.
-   */
-  isParallelRouteSegment: boolean | undefined
+  createEmptyParamsError?: () => Error
 }
 
 /**
@@ -82,35 +82,28 @@ export type AppSegment = {
 async function collectAppPageSegments(routeModule: AppPageRouteModule) {
   // We keep track of unique segments, since with parallel routes, it's possible
   // to see the same segment multiple times.
-  const uniqueSegments = new Map<string, AppSegment>()
+  const segments: AppSegment[] = []
 
-  // Queue will store tuples of [loaderTree, currentSegments, isParallelRouteSegment]
-  type QueueItem = [
-    loaderTree: LoaderTree,
-    currentSegments: AppSegment[],
-    isParallelRouteSegment: boolean,
-  ]
-  const queue: QueueItem[] = [[routeModule.userland.loaderTree, [], false]]
+  // Queue will store loader trees.
+  const queue: LoaderTree[] = [routeModule.userland.loaderTree]
 
   while (queue.length > 0) {
-    const [loaderTree, currentSegments, isParallelRouteSegment] = queue.shift()!
+    const loaderTree = queue.shift()!
     const [name, parallelRoutes] = loaderTree
 
     // Process current node
     const { mod: userland, filePath } = await getLayoutOrPageModule(loaderTree)
     const isClientComponent = userland && isClientReference(userland)
 
-    const { param: paramName, type: paramType } = getSegmentParam(name) ?? {}
+    const param = getSegmentParam(name)
 
     const segment: AppSegment = {
       name,
-      paramName,
-      paramType,
+      paramName: param?.paramName,
+      paramType: param?.paramType,
       filePath,
       config: undefined,
-      isDynamicSegment: !!paramName,
       generateStaticParams: undefined,
-      isParallelRouteSegment,
     }
 
     // Only server components can have app segment configurations
@@ -118,43 +111,28 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
       attach(segment, userland, routeModule.definition.pathname)
     }
 
-    // Create a unique key for the segment
-    const segmentKey = getSegmentKey(segment)
-    if (!uniqueSegments.has(segmentKey)) {
-      uniqueSegments.set(segmentKey, segment)
-    }
-
-    const updatedSegments = [...currentSegments, segment]
-
-    // If this is a page segment, we've reached a leaf node
-    if (name === PAGE_SEGMENT_KEY) {
-      // Add all segments in the current path, preferring non-parallel segments
-      updatedSegments.forEach((seg) => {
-        const key = getSegmentKey(seg)
-        if (!uniqueSegments.has(key)) {
-          uniqueSegments.set(key, seg)
-        }
-      })
+    // If this segment doesn't already exist, then add it to the segments array.
+    // The list of segments is short so we just use a list traversal to check
+    // for duplicates and spare us needing to maintain the string key.
+    if (
+      segments.every(
+        (s) =>
+          s.name !== segment.name ||
+          s.paramName !== segment.paramName ||
+          s.paramType !== segment.paramType ||
+          s.filePath !== segment.filePath
+      )
+    ) {
+      segments.push(segment)
     }
 
     // Add all parallel routes to the queue
-    for (const parallelRouteKey in parallelRoutes) {
-      const parallelRoute = parallelRoutes[parallelRouteKey]
-      queue.push([
-        parallelRoute,
-        updatedSegments,
-        // A parallel route segment is one that descends from a segment that is
-        // not children or descends from a parallel route segment.
-        isParallelRouteSegment || parallelRouteKey !== 'children',
-      ])
+    for (const parallelRoute of Object.values(parallelRoutes)) {
+      queue.push(parallelRoute)
     }
   }
 
-  return Array.from(uniqueSegments.values())
-}
-
-function getSegmentKey(segment: AppSegment) {
-  return `${segment.name}-${segment.filePath ?? ''}-${segment.paramName ?? ''}-${segment.isParallelRouteSegment ? 'pr' : 'np'}`
+  return segments
 }
 
 /**
@@ -163,9 +141,13 @@ function getSegmentKey(segment: AppSegment) {
  * @param routeModule the app route module
  * @returns the segments for the app route module
  */
-function collectAppRouteSegments(
+async function collectAppRouteSegments(
   routeModule: AppRouteRouteModule
-): AppSegment[] {
+): Promise<AppSegment[]> {
+  // The route file may be an async module (top-level await), so the userland
+  // module must be resolved before its exports can be inspected.
+  await routeModule.ensureUserland()
+
   // Get the pathname parts, slice off the first element (which is empty).
   const parts = routeModule.definition.pathname.split('/').slice(1)
   if (parts.length === 0) {
@@ -174,17 +156,15 @@ function collectAppRouteSegments(
 
   // Generate all the segments.
   const segments: AppSegment[] = parts.map((name) => {
-    const { param: paramName, type: paramType } = getSegmentParam(name) ?? {}
+    const param = getSegmentParam(name)
 
     return {
       name,
-      paramName,
-      paramType,
+      paramName: param?.paramName,
+      paramType: param?.paramType,
       filePath: undefined,
-      isDynamicSegment: !!paramName,
       config: undefined,
       generateStaticParams: undefined,
-      isParallelRouteSegment: undefined,
     } satisfies AppSegment
   })
 
@@ -220,56 +200,4 @@ export function collectSegments(
   throw new InvariantError(
     'Expected a route module to be one of app route or page'
   )
-}
-
-/**
- * Collects the fallback route params for a given app page route module. This is
- * a variant of the `collectSegments` function that only collects the fallback
- * route params without importing anything.
- *
- * @param routeModule the app page route module
- * @returns the fallback route params for the app page route module
- */
-export function collectFallbackRouteParams(
-  routeModule: AppPageRouteModule
-): readonly FallbackRouteParam[] {
-  const uniqueSegments = new Map<string, FallbackRouteParam>()
-
-  // Queue will store tuples of [loaderTree, isParallelRouteSegment]
-  type QueueItem = [loaderTree: LoaderTree, isParallelRouteSegment: boolean]
-  const queue: QueueItem[] = [[routeModule.userland.loaderTree, false]]
-
-  while (queue.length > 0) {
-    const [loaderTree, isParallelRouteSegment] = queue.shift()!
-    const [name, parallelRoutes] = loaderTree
-
-    // Handle this segment (if it's a dynamic segment param).
-    const segmentParam = getSegmentParam(name)
-    if (segmentParam) {
-      const key = `${name}-${segmentParam.param}-${isParallelRouteSegment ? 'pr' : 'np'}`
-      if (!uniqueSegments.has(key)) {
-        uniqueSegments.set(
-          key,
-          createFallbackRouteParam(
-            segmentParam.param,
-            segmentParam.type,
-            isParallelRouteSegment
-          )
-        )
-      }
-    }
-
-    // Add all of this segment's parallel routes to the queue.
-    for (const parallelRouteKey in parallelRoutes) {
-      const parallelRoute = parallelRoutes[parallelRouteKey]
-      queue.push([
-        parallelRoute,
-        // A parallel route segment is one that descends from a segment that is
-        // not children or descends from a parallel route segment.
-        isParallelRouteSegment || parallelRouteKey !== 'children',
-      ])
-    }
-  }
-
-  return Array.from(uniqueSegments.values())
 }

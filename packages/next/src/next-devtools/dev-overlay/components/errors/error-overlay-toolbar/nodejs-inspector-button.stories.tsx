@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { NodejsInspectorButton } from './nodejs-inspector-button'
-import { withShadowPortal } from '../../../storybook/with-shadow-portal'
+import { withShadowPortal } from '../../../../../../.storybook/decorators/with-shadow-portal'
 
 const meta: Meta<typeof NodejsInspectorButton> = {
   component: NodejsInspectorButton,
@@ -15,12 +15,13 @@ type Story = StoryObj<typeof NodejsInspectorButton>
 
 export const WithDevtoolsUrl: Story = {
   args: {
-    devtoolsFrontendUrl: 'chrome-devtools://devtools/bundled/inspector.html',
+    defaultDevtoolsFrontendUrl:
+      'chrome-devtools://devtools/bundled/inspector.html',
   },
 }
 
 export const WithoutDevtoolsUrl: Story = {
   args: {
-    devtoolsFrontendUrl: undefined,
+    defaultDevtoolsFrontendUrl: undefined,
   },
 }

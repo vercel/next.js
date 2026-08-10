@@ -3,7 +3,7 @@ use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
     asset::{Asset, AssetContent},
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
     version::VersionedContent,
 };
 
@@ -28,15 +28,18 @@ impl ProxiedAsset {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for ProxiedAsset {
+    #[turbo_tasks::function]
+    fn references(&self) -> Vc<OutputAssetsWithReferenced> {
+        self.asset.references()
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl OutputAsset for ProxiedAsset {
     #[turbo_tasks::function]
     fn path(&self) -> Vc<FileSystemPath> {
         self.path.clone().cell()
-    }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> Vc<OutputAssets> {
-        self.asset.references()
     }
 }
 

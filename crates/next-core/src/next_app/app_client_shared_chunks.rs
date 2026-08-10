@@ -18,16 +18,11 @@ pub async fn get_app_client_shared_chunk_group(
     client_chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<ChunkGroupResult>> {
     if app_client_runtime_entries.await?.is_empty() {
-        return Ok(ChunkGroupResult {
-            assets: OutputAssets::empty().to_resolved().await?,
-            referenced_assets: OutputAssets::empty().to_resolved().await?,
-            availability_info: AvailabilityInfo::Root,
-        }
-        .cell());
+        return Ok(ChunkGroupResult::empty());
     }
 
     let span = tracing::trace_span!("app client shared");
-    let app_client_shared_chunk_grou = async {
+    let app_client_shared_chunk_group = async {
         client_chunking_context
             .evaluated_chunk_group(
                 ident,
@@ -39,13 +34,18 @@ pub async fn get_app_client_shared_chunk_group(
                         .collect(),
                 ),
                 module_graph,
-                AvailabilityInfo::Root,
+                // The shared chunk group must stay shared across pages; page-specific HMR
+                // chunks (e.g. client references) are routed through a separate page-specific
+                // evaluated chunk group instead.
+                OutputAssets::empty(),
+                AvailabilityInfo::root(),
             )
-            .resolve()
+            .to_resolved()
             .await
+            .map(|r| *r)
     }
     .instrument(span)
     .await?;
 
-    Ok(app_client_shared_chunk_grou)
+    Ok(app_client_shared_chunk_group)
 }

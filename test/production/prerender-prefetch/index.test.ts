@@ -1,5 +1,4 @@
-import { NextInstance } from 'e2e-utils'
-import { createNext, FileRef } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
   check,
   fetchViaHTTP,
@@ -8,17 +7,17 @@ import {
   waitFor,
 } from 'next-test-utils'
 import { join } from 'path'
-import webdriver from 'next-webdriver'
 import assert from 'assert'
 
 describe('Prerender prefetch', () => {
-  let next: NextInstance
-
-  const runTests = ({
-    optimisticClientCache,
-  }: {
-    optimisticClientCache?: boolean
-  }) => {
+  const runTests = (
+    next: ReturnType<typeof nextTestSetup>['next'],
+    {
+      optimisticClientCache,
+    }: {
+      optimisticClientCache?: boolean
+    }
+  ) => {
     it('should not revalidate during prefetching', async () => {
       const cliOutputStart = next.cliOutput.length
 
@@ -59,7 +58,7 @@ describe('Prerender prefetch', () => {
         )
       const initialDataRes = await getData()
       const initialData = await initialDataRes.json()
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
 
       await browser.elementByCss('#to-blog-first').click()
 
@@ -71,7 +70,7 @@ describe('Prerender prefetch', () => {
     })
 
     it('should update cache using prefetch with unstable_skipClientCache', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
       const timeRes = await fetchViaHTTP(
         next.url,
         `/_next/data/${next.buildId}/blog/first.json`,
@@ -134,7 +133,7 @@ describe('Prerender prefetch', () => {
     })
 
     it('should update cache using router.push with unstable_skipClientCache', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
       const timeRes = await fetchViaHTTP(
         next.url,
         `/_next/data/${next.buildId}/blog/first.json`,
@@ -197,7 +196,7 @@ describe('Prerender prefetch', () => {
 
     if (optimisticClientCache) {
       it('should attempt cache update on link hover/touch start', async () => {
-        const browser = await webdriver(next.url, '/')
+        const browser = await next.browser('/')
         const timeRes = await fetchViaHTTP(
           next.url,
           `/_next/data/${next.buildId}/blog/first.json`,
@@ -240,7 +239,7 @@ describe('Prerender prefetch', () => {
       })
     } else {
       it('should not attempt client cache update on link hover/touch start', async () => {
-        const browser = await webdriver(next.url, '/')
+        const browser = await next.browser('/')
         let requests = []
 
         browser.on('request', (req) => {
@@ -272,7 +271,7 @@ describe('Prerender prefetch', () => {
     }
 
     it('should handle failed data fetch and empty cache correctly', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
       await browser.elementByCss('#to-blog-first').click()
 
       // ensure we use the same port when restarting
@@ -294,49 +293,47 @@ describe('Prerender prefetch', () => {
   }
 
   describe('with optimisticClientCache enabled', () => {
-    beforeAll(async () => {
-      next = await createNext({
-        files: {
-          pages: new FileRef(join(__dirname, 'app/pages')),
-        },
-        dependencies: {},
-        env: {
-          // Simulate that a CDN has consumed the SWR cache-control header,
-          // otherwise the browser will cache responses and which messes with
-          // the expectations in this test.
-          // See https://github.com/vercel/next.js/pull/70674 for context.
-          NEXT_PRIVATE_CDN_CONSUMED_SWR_CACHE_CONTROL: '1',
-        },
-      })
+    const { next } = nextTestSetup({
+      files: {
+        pages: new FileRef(join(__dirname, 'app/pages')),
+      },
+      dependencies: {},
+      env: {
+        // Simulate that a CDN has consumed the SWR cache-control header,
+        // otherwise the browser will cache responses and which messes with
+        // the expectations in this test.
+        // See https://github.com/vercel/next.js/pull/70674 for context.
+        NEXT_PRIVATE_CDN_CONSUMED_SWR_CACHE_CONTROL: '1',
+      },
+      // relies on changing build id
+      disableAutoSkewProtection: true,
     })
-    afterAll(() => next.destroy())
 
-    runTests({ optimisticClientCache: true })
+    runTests(next, { optimisticClientCache: true })
   })
 
   describe('with optimisticClientCache disabled', () => {
-    beforeAll(async () => {
-      next = await createNext({
-        files: {
-          pages: new FileRef(join(__dirname, 'app/pages')),
+    const { next } = nextTestSetup({
+      files: {
+        pages: new FileRef(join(__dirname, 'app/pages')),
+      },
+      nextConfig: {
+        experimental: {
+          optimisticClientCache: false,
         },
-        nextConfig: {
-          experimental: {
-            optimisticClientCache: false,
-          },
-        },
-        dependencies: {},
-        env: {
-          // Simulate that a CDN has consumed the SWR cache-control header,
-          // otherwise the browser will cache responses and which messes with
-          // the expectations in this test.
-          // See https://github.com/vercel/next.js/pull/70674 for context.
-          NEXT_PRIVATE_CDN_CONSUMED_SWR_CACHE_CONTROL: '1',
-        },
-      })
+      },
+      dependencies: {},
+      env: {
+        // Simulate that a CDN has consumed the SWR cache-control header,
+        // otherwise the browser will cache responses and which messes with
+        // the expectations in this test.
+        // See https://github.com/vercel/next.js/pull/70674 for context.
+        NEXT_PRIVATE_CDN_CONSUMED_SWR_CACHE_CONTROL: '1',
+      },
+      // relies on changing build id
+      disableAutoSkewProtection: true,
     })
-    afterAll(() => next.destroy())
 
-    runTests({ optimisticClientCache: false })
+    runTests(next, { optimisticClientCache: false })
   })
 })

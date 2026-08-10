@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 
 import { IndirectionOne, IndirectionTwo } from './indirection'
+import { cookies } from 'next/headers'
 
 export default async function Page() {
   return (
@@ -56,8 +57,15 @@ const fetchRandomCached = async (entropy: string) => {
 }
 
 const fetchRandom = async (entropy: string) => {
+  // Hide uncached I/O behind a runtime API call, to ensure we still get the
+  // correct owner stack for the error.
+  await cookies()
   const response = await fetch(
     'https://next-data-api-endpoint.vercel.app/api/random?b=' + entropy
+  )
+  // The error should point at the fetch above, and not at the following fetch.
+  await fetch(
+    'https://next-data-api-endpoint.vercel.app/api/random?b=' + entropy + 'x'
   )
   return response.text()
 }

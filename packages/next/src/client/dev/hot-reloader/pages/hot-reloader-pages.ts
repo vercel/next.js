@@ -346,6 +346,10 @@ function processMessage(message: HmrMessageSentToBrowser) {
       }
       return
     }
+    case HMR_MESSAGE_SENT_TO_BROWSER.STATIC_PARAMS_CHANGED: {
+      // Only relevant to the App Router; ignored in the Pages Router client.
+      return
+    }
     case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ERROR: {
       const { errorJSON } = message
       if (errorJSON) {
@@ -393,7 +397,9 @@ function processMessage(message: HmrMessageSentToBrowser) {
       dispatcher.onDevToolsConfig(message.data)
       break
     case HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR:
+    case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE:
     case HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK:
+    case HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER:
       // Only relevant for app router.
       break
     case HMR_MESSAGE_SENT_TO_BROWSER.MIDDLEWARE_CHANGES:

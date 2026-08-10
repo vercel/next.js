@@ -1,20 +1,20 @@
 use std::{fmt::Display, str::FromStr};
 
-use anyhow::{Context, Result};
-use serde::{Deserialize, Serialize};
+use anyhow::{Context, Result, bail};
+use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::{Vc, trace::TraceRawVcs};
+use turbo_tasks_fs::json::parse_json_with_source_context;
 
-use super::request::{
-    AdjustFontFallback, NextFontLocalRequest, NextFontLocalRequestArguments, SrcDescriptor,
-    SrcRequest,
+use crate::next_font::local::request::{
+    AdjustFontFallback, NextFontLocalDeclaration, NextFontLocalRequest,
+    NextFontLocalRequestArguments, SrcDescriptor, SrcRequest,
 };
-use crate::next_font::local::request::NextFontLocalDeclaration;
 
 /// A normalized, Vc-friendly struct derived from validating and transforming
 /// [[NextFontLocalRequest]]
-#[turbo_tasks::value]
-#[derive(Clone, Debug, PartialOrd, Ord, Hash, TaskInput)]
+#[turbo_tasks::value(task_input)]
+#[derive(Clone, Debug, PartialOrd, Ord, Hash)]
 pub(super) struct NextFontLocalOptions {
     pub fonts: FontDescriptors,
     pub default_weight: Option<FontWeight>,
@@ -49,24 +49,29 @@ impl NextFontLocalOptions {
     pub fn new(options: NextFontLocalOptions) -> Vc<NextFontLocalOptions> {
         Self::cell(options)
     }
+
+    #[turbo_tasks::function]
+    pub fn from_query_map(query: RcStr) -> Result<Vc<NextFontLocalOptions>> {
+        let query_map = qstring::QString::from(query.as_str());
+
+        if query_map.len() != 1 {
+            bail!("next/font/local queries have exactly one entry");
+        }
+
+        let Some((json, _)) = query_map.into_iter().next() else {
+            bail!("Expected one entry");
+        };
+
+        Ok(NextFontLocalOptions::new(options_from_request(
+            &parse_json_with_source_context(&json)?,
+        )?))
+    }
 }
 
 /// Describes an individual font file's path, weight, style, etc. Derived from
 /// the `src` field or top-level object provided by the user
-#[derive(
-    Clone,
-    Debug,
-    Deserialize,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    Serialize,
-    TraceRawVcs,
-    NonLocalValue,
-    TaskInput,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, TraceRawVcs, Encode, Decode)]
 pub(super) struct FontDescriptor {
     pub weight: Option<FontWeight>,
     pub style: Option<RcStr>,
@@ -95,20 +100,8 @@ impl FontDescriptor {
     }
 }
 
-#[derive(
-    Clone,
-    Debug,
-    Deserialize,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    Serialize,
-    TraceRawVcs,
-    NonLocalValue,
-    TaskInput,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, TraceRawVcs, Encode, Decode)]
 pub(super) enum FontDescriptors {
     /// `One` is a special case when the user did not provide a `src` field and
     /// instead included font path, weight etc in the top-level object: in
@@ -118,20 +111,8 @@ pub(super) enum FontDescriptors {
     Many(Vec<FontDescriptor>),
 }
 
-#[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Deserialize,
-    Serialize,
-    Hash,
-    TraceRawVcs,
-    NonLocalValue,
-    TaskInput,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, TraceRawVcs, Encode, Decode)]
 pub(super) enum FontWeight {
     Variable(RcStr, RcStr),
     Fixed(RcStr),
@@ -141,7 +122,7 @@ pub struct ParseFontWeightErr;
 impl FromStr for FontWeight {
     type Err = ParseFontWeightErr;
 
-    fn from_str(weight_str: &str) -> std::result::Result<Self, Self::Err> {
+    fn from_str(weight_str: &str) -> Result<Self, Self::Err> {
         if let Some((start, end)) = weight_str.split_once(' ') {
             Ok(FontWeight::Variable(start.into(), end.into()))
         } else {

@@ -1,5 +1,6 @@
-use serde::{Deserialize, Serialize};
-use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
+use bincode::{Decode, Encode};
+use serde::Serialize;
+use turbo_tasks::trace::TraceRawVcs;
 use turbo_tasks_hash::DeterministicHash;
 
 /// LINE FEED (LF), one of the basic JS line terminators.
@@ -7,6 +8,7 @@ const U8_LF: u8 = 0x0A;
 /// CARRIAGE RETURN (CR), one of the basic JS line terminators.
 const U8_CR: u8 = 0x0D;
 
+#[turbo_tasks::task_input]
 #[derive(
     Default,
     Debug,
@@ -17,12 +19,11 @@ const U8_CR: u8 = 0x0D;
     Hash,
     PartialOrd,
     Ord,
-    TaskInput,
     TraceRawVcs,
     Serialize,
-    Deserialize,
     DeterministicHash,
-    NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub struct SourcePos {
     /// The line, 0-indexed.
@@ -50,7 +51,7 @@ impl SourcePos {
     /// Line terminators are the classic "\n", "\r", "\r\n" (which counts as
     /// a single terminator), and JSON LINE/PARAGRAPH SEPARATORs.
     ///
-    /// See https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#sec-line-terminators
+    /// See <https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#sec-line-terminators>
     pub fn update(&mut self, code: &[u8]) {
         // JS source text is interpreted as UCS-2, which is basically UTF-16 with less
         // restrictions. We cannot iterate UTF-8 bytes here, 2-byte UTF-8 octets

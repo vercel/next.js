@@ -15,6 +15,7 @@ type EventTypeCheckCompleted = {
   inputFilesCount?: number
   totalFilesCount?: number
   incremental?: boolean
+  typeCheckMode: 'typescript-api' | 'typescript-cli'
 }
 
 export function eventTypeCheckCompleted(event: EventTypeCheckCompleted): {
@@ -48,6 +49,27 @@ export function eventLintCheckCompleted(event: EventLintCheckCompleted): {
 } {
   return {
     eventName: EVENT_LINT_CHECK_COMPLETED,
+    payload: event,
+  }
+}
+
+const EVENT_ANALYZE_COMPLETED = 'NEXT_ANALYZE_COMPLETED'
+type AnalyzeEventCompleted =
+  | {
+      durationInSeconds: number
+      success: true
+      totalPageCount: number
+    }
+  | {
+      success: false
+    }
+
+export function eventAnalyzeCompleted(event: AnalyzeEventCompleted): {
+  eventName: string
+  payload: AnalyzeEventCompleted
+} {
+  return {
+    eventName: EVENT_ANALYZE_COMPLETED,
     payload: event,
   }
 }
@@ -175,7 +197,6 @@ export type EventBuildFeatureUsage = {
     | 'experimental/cacheComponents'
     | 'experimental/optimizeCss'
     | 'experimental/ppr'
-    | 'experimental/isolatedDevBuild'
     | 'swcLoader'
     | 'swcRelay'
     | 'swcStyledComponents'
@@ -210,6 +231,26 @@ export function eventBuildFeatureUsage(
   }))
 }
 
+/**
+ * Converts aggregated Turbopack feature-usage diagnostics (emitted by the
+ * Rust side from `FeatureUsageTelemetry` and aggregated per-feature by
+ * `get_diagnostics`) into `EVENT_BUILD_FEATURE_USAGE` telemetry events.
+ */
+export function eventBuildFeatureUsageFromTurbopack(
+  diagnostics: ReadonlyArray<{
+    featureName: string
+    invocationCount: number
+  }>
+): Array<{ eventName: string; payload: EventBuildFeatureUsage }> {
+  return diagnostics.map(({ featureName, invocationCount }) => ({
+    eventName: EVENT_BUILD_FEATURE_USAGE,
+    payload: {
+      featureName: featureName as EventBuildFeatureUsage['featureName'],
+      invocationCount,
+    },
+  }))
+}
+
 export const EVENT_NAME_PACKAGE_USED_IN_GET_SERVER_SIDE_PROPS =
   'NEXT_PACKAGE_USED_IN_GET_SERVER_SIDE_PROPS'
 
@@ -238,7 +279,10 @@ export type McpToolName =
   | 'mcp/get_page_metadata'
   | 'mcp/get_project_metadata'
   | 'mcp/get_routes'
+  | 'mcp/get_request_insights'
   | 'mcp/get_server_action_by_id'
+  | 'mcp/get_compilation_issues'
+  | 'mcp/compile_route'
 
 export type EventMcpToolUsage = {
   toolName: McpToolName

@@ -12,7 +12,7 @@ use turbopack_core::{
     context::AssetContext,
     ident::AssetIdent,
     module::Module,
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     proxied_asset::ProxiedAsset,
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
@@ -45,7 +45,7 @@ pub async fn create_page_loader_entry_module(
 
     let virtual_source = Vc::upcast(VirtualSource::new(
         page_loader_path,
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     ));
 
     let module = client_context
@@ -149,7 +149,18 @@ impl PageLoaderAsset {
             "static/chunks/pages{}",
             get_asset_path_from_pathname(&self.pathname, ".js")
         ))?)
-        .with_modifier(rcstr!("page loader asset")))
+        .with_modifier(rcstr!("page loader asset"))
+        .into_vc())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for PageLoaderAsset {
+    #[turbo_tasks::function]
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
+        Ok(OutputAssetsWithReferenced::from_assets(
+            *self.await?.page_chunks,
+        ))
     }
 }
 
@@ -164,17 +175,12 @@ impl OutputAsset for PageLoaderAsset {
             // `static/chunks/pages/page2.js`, so that the dev runtime can request it at a known
             // path.
             // https://github.com/vercel/next.js/blob/84873e00874e096e6c4951dcf070e8219ed414e5/packages/next/src/client/route-loader.ts#L256-L271
-            Ok(ident.path())
+            Ok(ident.await?.path.clone().cell())
         } else {
             Ok(this
                 .chunking_context
                 .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".js")))
         }
-    }
-
-    #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        Ok(*self.await?.page_chunks)
     }
 }
 
@@ -197,6 +203,8 @@ impl Asset for PageLoaderAsset {
             StringifyJs(&chunks_data)
         );
 
-        Ok(AssetContent::file(File::from(content).into()))
+        Ok(AssetContent::file(
+            FileContent::Content(File::from(content)).cell(),
+        ))
     }
 }

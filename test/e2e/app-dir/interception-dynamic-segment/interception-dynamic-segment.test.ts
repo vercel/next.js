@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { createRouterAct } from 'router-act'
 
@@ -6,6 +6,43 @@ describe('interception-dynamic-segment', () => {
   const { next, isNextStart, isNextDev } = nextTestSetup({
     files: __dirname,
   })
+
+  /**
+   * Returns true if the given href should already be opened. This allows us to
+   * condition on whether to expect any additional network requests.
+   */
+  async function isAccordionClosed(
+    browser: Playwright,
+    href: string
+  ): Promise<boolean> {
+    const selector = `[data-testid="link-accordion"][data-href="${href}"]`
+
+    // Check if the button is already open
+    return await browser.hasElementByCss(`${selector} button`)
+  }
+
+  /**
+   * Helper to navigate via the LinkAccordion component.
+   * Scrolls to the accordion, opens it, and clicks the link.
+   */
+  async function navigate(browser: Playwright, href: string) {
+    const selector = `[data-testid="link-accordion"][data-href="${href}"]`
+
+    // Find and scroll to accordion
+    const accordion = await browser.elementByCss(selector)
+    await accordion.scrollIntoViewIfNeeded()
+
+    // Click the "Open" button, it may already be open, so we don't need to
+    // click it again.
+    if (await isAccordionClosed(browser, href)) {
+      const button = await browser.elementByCss(`${selector} button`)
+      await button.click()
+    }
+
+    // Click the actual link
+    const link = await browser.elementByCss(`${selector} a`)
+    await link.click()
+  }
 
   /**
    * Create a browser with router act that will FAIL if any 404s occur during navigation.
@@ -27,7 +64,7 @@ describe('interception-dynamic-segment', () => {
   it('should work when interception route is paired with a dynamic segment', async () => {
     const browser = await next.browser('/')
 
-    await browser.elementByCss('[href="/foo/1"]').click()
+    await navigate(browser, '/foo/1')
     await browser.waitForIdleNetwork()
 
     await retry(async () => {
@@ -52,7 +89,7 @@ describe('interception-dynamic-segment', () => {
     const browser = await next.browser('/')
 
     // Navigate with interception
-    await browser.elementByCss('[href="/foo/1"]').click()
+    await navigate(browser, '/foo/1')
     await browser.waitForIdleNetwork()
 
     await retry(async () => {
@@ -82,7 +119,7 @@ describe('interception-dynamic-segment', () => {
     const browser = await next.browser('/')
 
     for (let i = 0; i < 2; i++) {
-      await browser.elementByCss('[href="/foo/1"]').click()
+      await navigate(browser, '/foo/1')
       await browser.waitForIdleNetwork()
 
       await retry(async () => {
@@ -108,6 +145,16 @@ describe('interception-dynamic-segment', () => {
       expect(res.status).toBe(200)
       expect(res.headers.get('x-nextjs-cache')).toBe('HIT')
     })
+
+    it('should prerender a dynamic intercepted route', async () => {
+      if (process.env.__NEXT_CACHE_COMPONENTS === 'true') {
+        expect(next.cliOutput).toContain('/(.)[username]/[id]')
+        expect(next.cliOutput).toContain('/(.)john/[id]')
+      }
+
+      expect(next.cliOutput).toContain('/(.)john/1')
+      expect(next.cliOutput).not.toContain('/john/1')
+    })
   }
 
   if (!isNextDev) {
@@ -126,7 +173,7 @@ describe('interception-dynamic-segment', () => {
         const { act, browser } = await createBrowserWithRouterAct('/')
 
         await act(async () => {
-          await browser.elementByCss('[href="/foo/1"]').click()
+          await navigate(browser, '/foo/1')
         })
 
         await retry(async () => {
@@ -145,7 +192,7 @@ describe('interception-dynamic-segment', () => {
         const { act, browser } = await createBrowserWithRouterAct('/')
 
         await act(async () => {
-          await browser.elementByCss('[href="/simple-page"]').click()
+          await navigate(browser, '/simple-page')
         })
 
         await retry(async () => {
@@ -165,7 +212,7 @@ describe('interception-dynamic-segment', () => {
         const { act, browser } = await createBrowserWithRouterAct('/')
 
         await act(async () => {
-          await browser.elementByCss('[href="/has-page"]').click()
+          await navigate(browser, '/has-page')
         })
 
         await retry(async () => {
@@ -185,9 +232,7 @@ describe('interception-dynamic-segment', () => {
         const { act, browser } = await createBrowserWithRouterAct('/')
 
         await act(async () => {
-          await browser
-            .elementByCss('[href="/no-parallel-routes/deeper"]')
-            .click()
+          await navigate(browser, '/no-parallel-routes/deeper')
         })
 
         await retry(async () => {
@@ -207,7 +252,7 @@ describe('interception-dynamic-segment', () => {
         const { act, browser } = await createBrowserWithRouterAct('/')
 
         await act(async () => {
-          await browser.elementByCss('[href="/has-both"]').click()
+          await navigate(browser, '/has-both')
         })
 
         await retry(async () => {
@@ -235,7 +280,7 @@ describe('interception-dynamic-segment', () => {
         const { act, browser } = await createBrowserWithRouterAct('/')
 
         await act(async () => {
-          await browser.elementByCss('[href="/test-nested"]').click()
+          await navigate(browser, '/test-nested')
         })
 
         await retry(async () => {
@@ -260,7 +305,7 @@ describe('interception-dynamic-segment', () => {
 
         // Navigate directly to the deeper page from home
         await act(async () => {
-          await browser.elementByCss('[href="/test-nested/deeper"]').click()
+          await navigate(browser, '/test-nested/deeper')
         })
 
         await retry(async () => {
@@ -290,7 +335,7 @@ describe('interception-dynamic-segment', () => {
         const { act, browser } = await createBrowserWithRouterAct('/')
 
         await act(async () => {
-          await browser.elementByCss('[href="/explicit-layout/deeper"]').click()
+          await navigate(browser, '/explicit-layout/deeper')
         })
 
         await retry(async () => {
@@ -310,12 +355,18 @@ describe('interception-dynamic-segment', () => {
         const { act, browser } = await createBrowserWithRouterAct('/')
 
         for (let i = 0; i < 3; i++) {
+          const isAccordionOpen = i > 0
+
+          await expect(
+            isAccordionClosed(browser, '/test-nested')
+          ).resolves.toBe(!isAccordionOpen)
+
           // Forward navigation: triggers RSC request (validates no 404)
           await act(
             async () => {
-              await browser.elementByCss('[href="/test-nested"]').click()
+              await navigate(browser, '/test-nested')
             },
-            i > 0 ? 'no-requests' : undefined
+            !isAccordionOpen ? undefined : 'no-requests'
           )
 
           await retry(async () => {
@@ -343,7 +394,7 @@ describe('interception-dynamic-segment', () => {
 
         // First interception
         await act(async () => {
-          await browser.elementByCss('[href="/test-nested"]').click()
+          await navigate(browser, '/test-nested')
         })
 
         await retry(async () => {
@@ -353,8 +404,8 @@ describe('interception-dynamic-segment', () => {
 
         // Second interception
         await act(async () => {
-          await browser.elementByCss('[href="/has-both"]').click()
-        }, 'no-requests')
+          await navigate(browser, '/has-both')
+        })
 
         await retry(async () => {
           const modalContent = await browser.elementByCss('#modal').text()

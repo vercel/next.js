@@ -8,10 +8,7 @@ export default async function Page() {
       <h2>thrown errors</h2>
       <ul>
         <li>
-          <DebugLinkAccordion
-            href="/errors/error-after-cookies"
-            prefetch={true}
-          />
+          <DebugLinkAccordion href="/errors/error-after-cookies" prefetch />
         </li>
       </ul>
 
@@ -20,37 +17,37 @@ export default async function Page() {
         <li>
           <DebugLinkAccordion
             href="/errors/sync-io-after-runtime-api/cookies"
-            prefetch={true}
+            prefetch
           />
         </li>
         <li>
           <DebugLinkAccordion
             href="/errors/sync-io-after-runtime-api/headers"
-            prefetch={true}
+            prefetch
           />
         </li>
         <li>
           <DebugLinkAccordion
             href="/errors/sync-io-after-runtime-api/dynamic-params/123"
-            prefetch={true}
+            prefetch
           />
         </li>
         <li>
           <DebugLinkAccordion
             href="/errors/sync-io-after-runtime-api/search-params?foo=bar"
-            prefetch={true}
+            prefetch
           />
         </li>
         <li>
           <DebugLinkAccordion
             href="/errors/sync-io-after-runtime-api/private-cache"
-            prefetch={true}
+            prefetch
           />
         </li>
         <li>
           <DebugLinkAccordion
             href="/errors/sync-io-after-runtime-api/quickly-expiring-public-cache"
-            prefetch={true}
+            prefetch
           />
         </li>
       </ul>

@@ -5,18 +5,19 @@ use std::{
 };
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use patricia_tree::PatriciaMap;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue,
-    debug::{ValueDebugFormat, ValueDebugFormatString, internal::PassthroughDebug},
+    debug::ValueDebugFormat,
     trace::{TraceRawVcs, TraceRawVcsContext},
 };
 
-use super::pattern::Pattern;
+use crate::resolve::pattern::Pattern;
 
-/// A map of [`AliasPattern`]s to the [`Template`]s they resolve to.
+/// A map of [`AliasPattern`]s as keys implemented using [`PatriciaMap`].
 ///
 /// If a pattern has a wildcard character (*) within it, it will capture any
 /// number of characters, including path separators. The result of the capture
@@ -24,9 +25,14 @@ use super::pattern::Pattern;
 ///
 /// If the pattern does not have a wildcard character, it will only match the
 /// exact string, and return the template as-is.
-#[derive(Clone, Serialize, Deserialize)]
-#[serde(transparent)]
+#[derive(Clone, Encode, Decode)]
+#[bincode(
+    encode_bounds = "T: Serialize",
+    decode_bounds = "T: DeserializeOwned",
+    borrow_decode_bounds = "T: Deserialize<'__de>"
+)]
 pub struct AliasMap<T> {
+    #[bincode(with_serde)]
     map: PatriciaMap<BTreeMap<AliasKey, T>>,
 }
 
@@ -66,11 +72,13 @@ where
 
 unsafe impl<T: NonLocalValue> NonLocalValue for AliasMap<T> {}
 
+#[cfg(debug_assertions)]
 impl<T> ValueDebugFormat for AliasMap<T>
 where
     T: ValueDebugFormat,
 {
-    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
+    fn value_debug_format(&self, depth: usize) -> turbo_tasks::debug::ValueDebugFormatString<'_> {
+        use turbo_tasks::debug::{ValueDebugFormatString, internal::PassthroughDebug};
         if depth == 0 {
             return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
         }
@@ -109,6 +117,9 @@ where
         }))
     }
 }
+
+#[cfg(not(debug_assertions))]
+impl<T> ValueDebugFormat for AliasMap<T> {}
 
 impl<T> Debug for AliasMap<T>
 where
@@ -572,7 +583,10 @@ where
     }
 }
 
-/// An alias pattern.
+/// An alias pattern commonly used for import paths. This should support [the functionality used in
+/// Typescript's tsconfig file][tsconfig].
+///
+/// [tsconfig]: https://www.typescriptlang.org/tsconfig/#paths
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub enum AliasPattern {
     /// Will match an exact string.
@@ -688,7 +702,7 @@ pub trait AliasTemplate {
 
 #[cfg(test)]
 mod test {
-    use std::assert_matches::assert_matches;
+    use core::assert_matches;
 
     use anyhow::Result;
     use turbo_rcstr::rcstr;

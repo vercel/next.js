@@ -7,9 +7,11 @@ import { createRequestResponseMocks } from './mock-request'
 import {
   HMR_MESSAGE_SENT_TO_BROWSER,
   type HmrMessageSentToBrowser,
+  type NextJsHotReloaderInterface,
 } from '../dev/hot-reloader-types'
-import type { ReactDebugChannelForBrowser } from '../dev/debug-channel'
-import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
+import { DevBundlerServiceSpan } from './trace/constants'
+import { subscribeRequestInsights } from './trace/request-insights'
+import { getTracer } from './trace/tracer'
 
 /**
  * The DevBundlerService provides an interface to perform tasks with the
@@ -17,10 +19,15 @@ import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-in
  */
 export class DevBundlerService {
   public appIsrManifestInner: InstanceType<typeof LRUCache<boolean>>
+  public setCacheStatus: NextJsHotReloaderInterface['setCacheStatus']
+  public setReactDebugChannel: NextJsHotReloaderInterface['setReactDebugChannel']
+  public sendErrorsToBrowser: NextJsHotReloaderInterface['sendErrorsToBrowser']
+  private unsubscribeRequestInsights?: () => void
 
   constructor(
     private readonly bundler: DevBundler,
-    private readonly handler: WorkerRequestHandler
+    private readonly handler: WorkerRequestHandler,
+    requestInsightsEnabled: boolean
   ) {
     this.appIsrManifestInner = new LRUCache(
       8_000,
@@ -29,13 +36,42 @@ export class DevBundlerService {
         return 16
       }
     )
+
+    const { hotReloader } = bundler
+
+    this.setCacheStatus = hotReloader.setCacheStatus.bind(hotReloader)
+    this.setReactDebugChannel =
+      hotReloader.setReactDebugChannel.bind(hotReloader)
+    this.sendErrorsToBrowser = hotReloader.sendErrorsToBrowser.bind(hotReloader)
+
+    if (requestInsightsEnabled) {
+      this.unsubscribeRequestInsights = subscribeRequestInsights((insight) => {
+        hotReloader.send({
+          type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE,
+          insight,
+        })
+      })
+    }
+  }
+
+  public close: NextJsHotReloaderInterface['close'] = () => {
+    this.unsubscribeRequestInsights?.()
+    this.bundler.hotReloader.close()
   }
 
   public ensurePage: typeof this.bundler.hotReloader.ensurePage = async (
     definition
   ) => {
     // TODO: remove after ensure is pulled out of server
-    return await this.bundler.hotReloader.ensurePage(definition)
+    return await getTracer().trace(
+      DevBundlerServiceSpan.ensurePage,
+      { spanName: 'compile route' },
+      () => this.bundler.hotReloader.ensurePage(definition)
+    )
+  }
+
+  public getServerComponentsHmrRefreshHash(): string | undefined {
+    return this.bundler.hotReloader.getServerComponentsHmrRefreshHash()
   }
 
   public logErrorWithOriginalStack =
@@ -63,16 +99,16 @@ export class DevBundlerService {
 
   public async revalidate({
     urlPath,
-    revalidateHeaders,
+    headers,
     opts: revalidateOpts,
   }: {
     urlPath: string
-    revalidateHeaders: IncomingMessage['headers']
+    headers: IncomingMessage['headers']
     opts: any
   }) {
     const mocked = createRequestResponseMocks({
       url: urlPath,
-      headers: revalidateHeaders,
+      headers,
     })
 
     await this.handler(mocked.req, mocked.res)
@@ -99,13 +135,6 @@ export class DevBundlerService {
     return serializableManifest
   }
 
-  public setCacheStatus(
-    status: ServerCacheStatus,
-    htmlRequestId: string
-  ): void {
-    this.bundler.hotReloader.setCacheStatus(status, htmlRequestId)
-  }
-
   public setIsrStatus(key: string, value: boolean | undefined) {
     if (value === undefined) {
       this.appIsrManifestInner.remove(key)
@@ -125,23 +154,7 @@ export class DevBundlerService {
     })
   }
 
-  public setReactDebugChannel(
-    debugChannel: ReactDebugChannelForBrowser,
-    htmlRequestId: string,
-    requestId: string
-  ): void {
-    this.bundler.hotReloader.setReactDebugChannel(
-      debugChannel,
-      htmlRequestId,
-      requestId
-    )
-  }
-
-  public close() {
-    this.bundler.hotReloader.close()
-  }
-
-  public triggerHMR(message: HmrMessageSentToBrowser) {
+  public sendHmrMessage(message: HmrMessageSentToBrowser) {
     this.bundler.hotReloader.send(message)
   }
 }

@@ -31,7 +31,8 @@ function getIteratorFn(maybeIterable) {
     maybeIterable["@@iterator"];
   return "function" === typeof maybeIterable ? maybeIterable : null;
 }
-var ReactNoopUpdateQueue = {
+var REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key"),
+  ReactNoopUpdateQueue = {
     isMounted: function () {
       return !1;
     },
@@ -110,7 +111,9 @@ function escape(key) {
 var userProvidedKeyEscapeRegex = /\/+/g;
 function getElementKey(element, index) {
   return "object" === typeof element && null !== element && null != element.key
-    ? escape("" + element.key)
+    ? element.key === REACT_OPTIMISTIC_KEY
+      ? index.toString(36)
+      : escape("" + element.key)
     : index.toString(36);
 }
 function resolveThenable(thenable) {
@@ -265,19 +268,27 @@ function mapChildren(children, func, context) {
 }
 function lazyInitializer(payload) {
   if (-1 === payload._status) {
-    var ctor = payload._result;
-    ctor = ctor();
-    ctor.then(
+    var ctor = payload._result,
+      thenable = ctor();
+    thenable.then(
       function (moduleObject) {
         if (0 === payload._status || -1 === payload._status)
-          (payload._status = 1), (payload._result = moduleObject);
+          (payload._status = 1),
+            (payload._result = moduleObject),
+            void 0 === thenable.status &&
+              ((thenable.status = "fulfilled"),
+              (thenable.value = moduleObject));
       },
       function (error) {
         if (0 === payload._status || -1 === payload._status)
-          (payload._status = 2), (payload._result = error);
+          (payload._status = 2),
+            (payload._result = error),
+            void 0 === thenable.status &&
+              ((thenable.status = "rejected"), (thenable.reason = error));
       }
     );
-    -1 === payload._status && ((payload._status = 0), (payload._result = ctor));
+    -1 === payload._status &&
+      ((payload._status = 0), (payload._result = thenable));
   }
   if (1 === payload._status) return payload._result.default;
   throw payload._result;
@@ -415,7 +426,12 @@ exports.cloneElement = function (element, config, children) {
   var props = assign({}, element.props),
     key = element.key;
   if (null != config)
-    for (propName in (void 0 !== config.key && (key = "" + config.key), config))
+    for (propName in (void 0 !== config.key &&
+      (key =
+        config.key === REACT_OPTIMISTIC_KEY
+          ? REACT_OPTIMISTIC_KEY
+          : "" + config.key),
+    config))
       !hasOwnProperty.call(config, propName) ||
         "key" === propName ||
         "__self" === propName ||
@@ -452,7 +468,12 @@ exports.createElement = function (type, config, children) {
     props = {},
     key = null;
   if (null != config)
-    for (propName in (void 0 !== config.key && (key = "" + config.key), config))
+    for (propName in (void 0 !== config.key &&
+      (key =
+        config.key === REACT_OPTIMISTIC_KEY
+          ? REACT_OPTIMISTIC_KEY
+          : "" + config.key),
+    config))
       hasOwnProperty.call(config, propName) &&
         "key" !== propName &&
         "__self" !== propName &&
@@ -495,6 +516,7 @@ exports.memo = function (type, compare) {
     compare: void 0 === compare ? null : compare
   };
 };
+exports.optimisticKey = REACT_OPTIMISTIC_KEY;
 exports.startTransition = startTransition;
 exports.unstable_Activity = REACT_ACTIVITY_TYPE;
 exports.unstable_SuspenseList = REACT_SUSPENSE_LIST_TYPE;
@@ -591,4 +613,4 @@ exports.useSyncExternalStore = function (
 exports.useTransition = function () {
   return ReactSharedInternals.H.useTransition();
 };
-exports.version = "19.3.0-experimental-52684925-20251110";
+exports.version = "19.3.0-experimental-11eddecd-20260805";

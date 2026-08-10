@@ -16,10 +16,27 @@ function getReactCompiler() {
 const getReactCompilerPlugins = (
   maybeOptions: boolean | ReactCompilerOptions | undefined,
   isServer: boolean,
-  isDev: boolean
+  isDev: boolean,
+  cwd: string
 ): undefined | JSONValue[] => {
   if (!maybeOptions || isServer) {
     return undefined
+  }
+
+  // Set the React Compiler target based on the installed React version.
+  // Handle only the supported versions.
+  // https://react.dev/reference/react-compiler/target
+  let target: '18' | undefined
+  try {
+    const reactPkgPath = require.resolve('react/package.json', {
+      paths: [cwd],
+    })
+    const majorVersion: string = require(reactPkgPath).version.split('.')[0]
+    if (majorVersion === '18') {
+      target = majorVersion
+    }
+  } catch {
+    // react/package.json not resolvable — skip target detection
   }
 
   const environment: Pick<EnvironmentConfig, 'enableNameAnonymousFunctions'> = {
@@ -29,6 +46,7 @@ const getReactCompilerPlugins = (
     typeof maybeOptions === 'boolean' ? {} : maybeOptions
   const compilerOptions: JSONValue = {
     ...options,
+    ...(target ? { target } : {}),
     environment,
   }
   return [[getReactCompiler(), compilerOptions]]
@@ -64,7 +82,8 @@ const getBabelLoader = (
       reactCompilerPlugins: getReactCompilerPlugins(
         reactCompilerOptions,
         isServer,
-        dev
+        dev,
+        cwd
       ),
       reactCompilerExclude,
     }
@@ -93,7 +112,8 @@ const getReactCompilerLoader = (
   const reactCompilerPlugins = getReactCompilerPlugins(
     reactCompilerOptions,
     isServer,
-    isDev
+    isDev,
+    cwd
   )
   if (!reactCompilerPlugins) {
     return undefined

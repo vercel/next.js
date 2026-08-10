@@ -1,12 +1,14 @@
 use anyhow::Result;
 use tracing::Instrument;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
+use turbo_tasks::{
+    FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToStringRef, Vc,
+};
 use turbopack_core::{
     chunk::{ChunkGroupResult, ChunkingContext, availability_info::AvailabilityInfo},
     module::Module,
     module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
-    output::{OutputAssets, OutputAssetsWithReferenced},
+    output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
 };
 
 use crate::{
@@ -22,10 +24,15 @@ use crate::{
 
 #[turbo_tasks::value]
 pub struct ClientReferencesChunks {
-    pub client_component_client_chunks: FxIndexMap<ClientReferenceType, ChunkGroupResult>,
-    pub client_component_ssr_chunks: FxIndexMap<ClientReferenceType, ChunkGroupResult>,
+    #[bincode(with = "turbo_bincode::indexmap")]
+    pub client_component_client_chunks:
+        FxIndexMap<ClientReferenceType, ResolvedVc<ChunkGroupResult>>,
+    #[bincode(with = "turbo_bincode::indexmap")]
+    pub client_component_ssr_chunks:
+        FxIndexMap<ClientReferenceType, ResolvedVc<OutputAssetsWithReferenced>>,
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub layout_segment_client_chunks:
-        FxIndexMap<ResolvedVc<NextServerComponentModule>, OutputAssetsWithReferenced>,
+        FxIndexMap<ResolvedVc<NextServerComponentModule>, ResolvedVc<OutputAssetsWithReferenced>>,
 }
 
 /// Computes all client references chunks.
@@ -156,12 +163,15 @@ pub async fn get_app_client_references_chunks(
 
             let chunk_group_info = module_graph.chunk_group_info();
 
-            let mut current_client_availability_info = client_availability_info;
-            let mut current_client_chunks = OutputAssets::empty().to_resolved().await?;
-            let mut current_client_referenced_assets = OutputAssets::empty().to_resolved().await?;
-            let mut current_ssr_availability_info = AvailabilityInfo::Root;
-            let mut current_ssr_chunks = OutputAssets::empty().to_resolved().await?;
-            let mut current_ssr_referenced_assets = OutputAssets::empty().to_resolved().await?;
+            let mut current_client_chunk_group = ChunkGroupResult {
+                assets: ResolvedVc::cell(vec![]),
+                referenced_assets: ResolvedVc::cell(vec![]),
+                references: ResolvedVc::cell(vec![]),
+                availability_info: client_availability_info,
+                chunk_group_bootstrap_params: None,
+            }
+            .resolved_cell();
+            let mut current_ssr_chunk_group = ChunkGroupResult::empty_resolved();
 
             let mut layout_segment_client_chunks = FxIndexMap::default();
             let mut client_component_ssr_chunks = FxIndexMap::default();
@@ -171,16 +181,14 @@ pub async fn get_app_client_references_chunks(
                 client_references_by_server_component.into_iter()
             {
                 let parent_chunk_group = *chunk_group_info
-                    .get_index_of(ChunkGroup::Shared(ResolvedVc::upcast(
-                        server_component.await?.module,
-                    )))
+                    .get_index_of(ChunkGroup::Shared(ResolvedVc::upcast(server_component)))
                     .await?;
 
-                let base_ident = server_component.ident();
+                let base_ident = server_component.ident().owned().await?;
 
                 let server_path = server_component.server_path().owned().await?;
                 let is_layout = server_path.file_stem() == Some("layout");
-                let server_component_path = server_path.value_to_string().await?;
+                let server_component_path = server_path.to_string_ref().await?;
 
                 let ssr_modules = client_reference_types
                     .iter()
@@ -202,25 +210,31 @@ pub async fn get_app_client_references_chunks(
                     .try_flat_join()
                     .await?;
 
-                let ssr_chunk_group = if !ssr_modules.is_empty() {
-                    ssr_chunking_context.map(|ssr_chunking_context| {
-                        let _span = tracing::info_span!(
-                            "server side rendering",
-                            layout_segment = display(&server_component_path),
-                        )
-                        .entered();
+                let ssr_chunk_group = if !ssr_modules.is_empty()
+                    && let Some(ssr_chunking_context) = ssr_chunking_context
+                {
+                    let availability_info = current_ssr_chunk_group.await?.availability_info;
+                    let _span = tracing::info_span!(
+                        "server side rendering",
+                        layout_segment = display(&server_component_path),
+                    )
+                    .entered();
 
+                    Some(
                         ssr_chunking_context.chunk_group(
-                            base_ident.with_modifier(rcstr!("ssr modules")),
+                            base_ident
+                                .clone()
+                                .with_modifier(rcstr!("ssr modules"))
+                                .into_vc(),
                             ChunkGroup::IsolatedMerged {
                                 parent: parent_chunk_group,
                                 merge_tag: ecmascript_client_reference_merge_tag_ssr(),
                                 entries: ssr_modules,
                             },
                             module_graph,
-                            current_ssr_availability_info,
-                        )
-                    })
+                            availability_info,
+                        ),
+                    )
                 } else {
                     None
                 };
@@ -242,6 +256,7 @@ pub async fn get_app_client_references_chunks(
                     .try_join()
                     .await?;
                 let client_chunk_group = if !client_modules.is_empty() {
+                    let availability_info = current_client_chunk_group.await?.availability_info;
                     let _span = tracing::info_span!(
                         "client side rendering",
                         layout_segment = display(&server_component_path),
@@ -249,95 +264,64 @@ pub async fn get_app_client_references_chunks(
                     .entered();
 
                     Some(client_chunking_context.chunk_group(
-                        base_ident.with_modifier(rcstr!("client modules")),
+                        base_ident.with_modifier(rcstr!("client modules")).into_vc(),
                         ChunkGroup::IsolatedMerged {
                             parent: parent_chunk_group,
                             merge_tag: ecmascript_client_reference_merge_tag(),
                             entries: client_modules,
                         },
                         module_graph,
-                        current_client_availability_info,
+                        availability_info,
                     ))
                 } else {
                     None
                 };
 
                 if let Some(client_chunk_group) = client_chunk_group {
-                    let ChunkGroupResult {
-                        assets,
-                        referenced_assets,
-                        availability_info,
-                    } = *client_chunk_group.await?;
-
-                    let client_chunks = current_client_chunks
-                        .concatenate(*assets)
-                        .to_resolved()
-                        .await?;
-                    let client_referenced_assets = current_client_referenced_assets
-                        .concatenate(*referenced_assets)
+                    let client_chunk_group = current_client_chunk_group
+                        .concatenate(client_chunk_group)
                         .to_resolved()
                         .await?;
 
                     if is_layout {
-                        current_client_availability_info = availability_info;
-                        current_client_chunks = client_chunks;
-                        current_client_referenced_assets = client_referenced_assets;
+                        current_client_chunk_group = client_chunk_group;
                     }
 
-                    layout_segment_client_chunks.insert(
-                        server_component,
-                        OutputAssetsWithReferenced {
-                            assets: client_chunks,
-                            referenced_assets: client_referenced_assets,
-                        },
-                    );
+                    let assets = client_chunk_group
+                        .output_assets_with_referenced()
+                        .to_resolved()
+                        .await?;
+                    layout_segment_client_chunks.insert(server_component, assets);
 
                     for &client_reference_ty in client_reference_types.iter() {
                         if let ClientReferenceType::EcmascriptClientReference(_) =
                             client_reference_ty
                         {
-                            client_component_client_chunks.insert(
-                                client_reference_ty,
-                                ChunkGroupResult {
-                                    assets: client_chunks,
-                                    referenced_assets: client_referenced_assets,
-                                    availability_info,
-                                },
-                            );
+                            client_component_client_chunks
+                                .insert(client_reference_ty, client_chunk_group);
                         }
                     }
                 }
 
                 if let Some(ssr_chunk_group) = ssr_chunk_group {
-                    let ssr_chunk_group = ssr_chunk_group.await?;
-
-                    let ssr_chunks = current_ssr_chunks
-                        .concatenate(*ssr_chunk_group.assets)
-                        .to_resolved()
-                        .await?;
-                    let ssr_referenced_assets = current_ssr_referenced_assets
-                        .concatenate(*ssr_chunk_group.referenced_assets)
+                    let ssr_chunk_group = current_ssr_chunk_group
+                        .concatenate(ssr_chunk_group)
                         .to_resolved()
                         .await?;
 
                     if is_layout {
-                        current_ssr_availability_info = ssr_chunk_group.availability_info;
-                        current_ssr_chunks = ssr_chunks;
-                        current_ssr_referenced_assets = ssr_referenced_assets;
+                        current_ssr_chunk_group = ssr_chunk_group;
                     }
 
+                    let assets = ssr_chunk_group
+                        .output_assets_with_referenced()
+                        .to_resolved()
+                        .await?;
                     for &client_reference_ty in client_reference_types.iter() {
                         if let ClientReferenceType::EcmascriptClientReference(_) =
                             client_reference_ty
                         {
-                            client_component_ssr_chunks.insert(
-                                client_reference_ty,
-                                ChunkGroupResult {
-                                    assets: ssr_chunks,
-                                    referenced_assets: ssr_referenced_assets,
-                                    availability_info: ssr_chunk_group.availability_info,
-                                },
-                            );
+                            client_component_ssr_chunks.insert(client_reference_ty, assets);
                         }
                     }
                 }
@@ -353,4 +337,38 @@ pub async fn get_app_client_references_chunks(
     }
     .instrument(tracing::info_span!("process client references"))
     .await
+}
+
+/// Flattens all client-side output assets from `client_references_chunks` so the
+/// page's HMR chunk list can subscribe to updates for chunks built outside the
+/// entry's own module graph (each `chunk_group(IsolatedMerged)` call for a
+/// client component group generates chunks separately).
+#[turbo_tasks::function]
+pub async fn get_client_references_chunks_for_hmr(
+    client_references_chunks: Vc<ClientReferencesChunks>,
+) -> Result<Vc<OutputAssets>> {
+    let client_references_chunks_ref = client_references_chunks.await?;
+    let mut extras: FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>> = client_references_chunks_ref
+        .layout_segment_client_chunks
+        .values()
+        .map(|&assets| async move {
+            let primary = assets.primary_assets().await?;
+            Ok(primary.iter().copied().collect::<Vec<_>>())
+        })
+        .try_flat_join()
+        .await?
+        .into_iter()
+        .collect();
+    for &chunk_group in client_references_chunks_ref
+        .client_component_client_chunks
+        .values()
+    {
+        // Use all_assets() (not primary_assets()) to also follow async loader references
+        // transitively. This ensures that dynamic imports within 'use client' pages are
+        // covered by the page's HMR subscription, not just the page module itself.
+        extras.extend(chunk_group.all_assets().await?.iter().copied());
+    }
+    // client_component_ssr_chunks are intentionally excluded: they run on the server
+    // (Node.js/Edge), not in the browser, so they don't belong in the client HMR chunk list.
+    Ok(Vc::cell(extras.into_iter().collect()))
 }
