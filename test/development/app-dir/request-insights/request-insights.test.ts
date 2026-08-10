@@ -22,6 +22,7 @@ type RequestInsight = {
   proxyStatus?: 'matched' | 'bypassed'
   htmlRequestId: string
   route: string
+  url?: string
   startTime: number
   status: 'ok'
   spans: Array<{
