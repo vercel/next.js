@@ -76,7 +76,22 @@ export interface RequestStore extends CommonWorkUnitStore {
 
   stagedRendering?: StagedRenderingController | null
   asyncApiPromises?: AsyncApiPromises
-  needsSessionShell?: boolean // DEV-only
+
+  /**
+   * DEV-only.
+   * Certain APIs have different behavior in static and runtime prerenders.
+   * - if `false`, they will follow static semantics
+   * - if `true`, they will follow runtime semantics
+   * */
+  needsAppShell?: boolean // DEV-only
+  /**
+   * DEV-only, mutable.
+   * Whether any APIs that resolve in different stages in static and
+   * runtime prerenders (i.e. whose behavior varies on `needsAppShell`)
+   * were used during this render.
+   * */
+  hasIncompatibleShellContent?: boolean
+
   cacheSignal?: CacheSignal | null
   fallbackParams?: OpaqueFallbackRouteParams | null
   varyParamsAccumulator?: ResponseVaryParamsAccumulator | null
