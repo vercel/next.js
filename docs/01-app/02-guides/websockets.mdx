@@ -282,6 +282,8 @@ Choose a deployment that supports persistent Node.js sockets:
 | [`adapterPath`](/docs/app/api-reference/config/next-config-js/adapterPath)                           | Not supported. Next.js rejects the configuration while `webSocketRouteHandlers` is enabled.                                 |
 | Edge Runtime, [static exports](/docs/app/guides/static-exports), request-scoped serverless platforms | Not supported. WebSockets need a runtime that keeps the raw socket and process alive after the initial request finishes.    |
 
+If one custom Node.js server hosts multiple Next.js apps or another WebSocket protocol, install one outer `upgrade` listener. Select exactly one owner from the request host, pathname, or protocol before calling that app's `getUpgradeHandler()` result. Do not call multiple Next.js upgrade handlers for the same request.
+
 Configure the reverse proxy or load balancer to forward HTTP/1.1 upgrade requests, keep connections open for your expected session lengths, and allow enough time for graceful process termination.
 
 During graceful shutdown, Next.js closes accepted WebSocket Route Handler connections with close code `1001`; peers that finish their handshake while shutdown is in progress are closed with the same code. Custom servers own their HTTP server's lifecycle: see the [custom server guide](/docs/app/guides/custom-server#websocket-route-handlers-experimental) for the required registration and shutdown order.
