@@ -19,6 +19,12 @@ type ObservedRedirectHeaders = ObservedHeaders & {
   actionRedirectForwarded: string | null
 }
 
+type RawResponse = {
+  status: number
+  headers: http.IncomingHttpHeaders
+  body: string
+}
+
 describe('server action forwarding - original host', () => {
   // The behaviour under test only exists on a self-hosted server: the action is
   // forwarded over a private loopback fetch to the server's own origin. The
@@ -37,29 +43,25 @@ describe('server action forwarding - original host', () => {
   // `next.fetch` goes through `undici`, which refuses to set `host` because it
   // is a forbidden header. Use the raw http client so we can send an arbitrary
   // `Host`, the way a reverse proxy in front of `next start` would.
-  function postAction(
-    pathname: string,
-    actionId: string,
-    extraHeaders?: Record<string, string>
-  ): Promise<{
-    status: number
-    headers: http.IncomingHttpHeaders
-    body: string
-  }> {
+  function request({
+    pathname,
+    method,
+    headers,
+    body,
+  }: {
+    pathname: string
+    method: 'GET' | 'POST'
+    headers: Record<string, string>
+    body?: string
+  }): Promise<RawResponse> {
     return new Promise((resolve, reject) => {
       const request = http.request(
         {
           hostname: '127.0.0.1',
           port: next.appPort,
           path: pathname,
-          method: 'POST',
-          headers: {
-            host: HOST,
-            origin: `http://${HOST}`,
-            'content-type': 'text/plain;charset=UTF-8',
-            'next-action': actionId,
-            ...extraHeaders,
-          },
+          method,
+          headers,
         },
         (response) => {
           const chunks: Buffer[] = []
@@ -76,7 +78,26 @@ describe('server action forwarding - original host', () => {
       )
 
       request.on('error', reject)
-      request.end('[]')
+      request.end(body)
+    })
+  }
+
+  function postAction(
+    pathname: string,
+    actionId: string,
+    extraHeaders?: Record<string, string>
+  ): Promise<RawResponse> {
+    return request({
+      pathname,
+      method: 'POST',
+      headers: {
+        host: HOST,
+        origin: `http://${HOST}`,
+        'content-type': 'text/plain;charset=UTF-8',
+        'next-action': actionId,
+        ...extraHeaders,
+      },
+      body: '[]',
     })
   }
 
@@ -128,6 +149,12 @@ describe('server action forwarding - original host', () => {
     )
     expect(response.body).toContain(HOST)
 
+    return readRedirectObservedHeaders(outputIndex)
+  }
+
+  function readRedirectObservedHeaders(
+    outputIndex: number
+  ): ObservedRedirectHeaders {
     const output = next.cliOutput.slice(outputIndex)
     const match = output.match(/\[redirectTarget\](\{.*\})/)
 
@@ -224,6 +251,27 @@ describe('server action forwarding - original host', () => {
       origin: `http://${FORGED_HOST}`,
     })
 
+    expect(observed.xForwardedHost).toBe(FORGED_HOST)
+    expect(observed.host).toBe(HOST)
+  })
+
+  it('ignores a forged redirect marker on an external RSC request', async () => {
+    const outputIndex = next.cliOutput.length
+    const response = await request({
+      pathname: '/redirect-target?_rsc',
+      method: 'GET',
+      headers: {
+        host: HOST,
+        rsc: '1',
+        'x-action-redirect-forwarded': '1',
+        'x-forwarded-host': FORGED_HOST,
+      },
+    })
+
+    expect(response.status).toBe(200)
+
+    const observed = readRedirectObservedHeaders(outputIndex)
+    expect(observed.actionRedirectForwarded).toBe('1')
     expect(observed.xForwardedHost).toBe(FORGED_HOST)
     expect(observed.host).toBe(HOST)
   })
