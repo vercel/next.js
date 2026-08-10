@@ -10,6 +10,16 @@ import {
 type RequestInsight = {
   requestId: string
   kind?: 'request' | 'instant-insights'
+  source:
+    | 'page'
+    | 'app-route'
+    | 'pages-api'
+    | 'image'
+    | 'asset'
+    | 'proxy'
+    | 'instant-insights'
+    | 'unknown'
+  proxyStatus?: 'matched' | 'bypassed'
   htmlRequestId: string
   route: string
   startTime: number
@@ -37,6 +47,7 @@ describe('request insights', () => {
   function createRequest(index: number, fetchCount = 0): RequestInsight {
     return {
       requestId: `request-${index}`,
+      source: 'page',
       htmlRequestId: `page-${index}`,
       route: `/route-${index}`,
       startTime: index,
@@ -167,6 +178,61 @@ describe('request insights', () => {
           'AppRender.getBodyResult',
         ])
       )
+    })
+  })
+
+  it('classifies static files as assets in the serialized snapshot', async () => {
+    const response = await next.fetch('/request-insights-asset.svg')
+    expect(response.status).toBe(200)
+    await response.text()
+
+    await retry(async () => {
+      const snapshot = (await next
+        .fetch('/_next/development/request-insights')
+        .then((insightsResponse) => insightsResponse.json())) as {
+        requests: RequestInsight[]
+      }
+      const request = snapshot.requests.find(
+        (candidate) =>
+          candidate.url === '/request-insights-asset.svg' &&
+          candidate.kind !== 'instant-insights'
+      )
+
+      expect(request).toEqual(expect.objectContaining({ source: 'asset' }))
+    })
+  })
+
+  it('does not classify an asset URL rewritten by proxy as an asset', async () => {
+    const existingRequestIds = new Set(
+      (
+        (await next
+          .fetch('/_next/development/request-insights')
+          .then((insightsResponse) => insightsResponse.json())) as {
+          requests: RequestInsight[]
+        }
+      ).requests.map((request) => request.requestId)
+    )
+
+    const response = await next.fetch(
+      '/request-insights-asset.svg?rewrite-to-page=1'
+    )
+    expect(response.status).toBe(200)
+    expect(await response.text()).toContain('behind proxy')
+
+    await retry(async () => {
+      const snapshot = (await next
+        .fetch('/_next/development/request-insights')
+        .then((insightsResponse) => insightsResponse.json())) as {
+        requests: RequestInsight[]
+      }
+      const request = snapshot.requests.find(
+        (candidate) =>
+          candidate.route === '/behind-proxy' &&
+          !existingRequestIds.has(candidate.requestId) &&
+          candidate.kind !== 'instant-insights'
+      )
+
+      expect(request).toEqual(expect.objectContaining({ source: 'page' }))
     })
   })
 
@@ -473,6 +539,106 @@ describe('request insights', () => {
         { label: 'Internal activity', checked: 'true' },
         { label: 'Verbose traces', checked: 'true' },
       ])
+    })
+  })
+
+  it('classifies an App Route before its handler completes', async () => {
+    const waitKey = `active-${Date.now()}`
+    const requestPath = `/api/app-stream-lifecycle?wait=${waitKey}`
+    const responsePromise = next.fetch(requestPath)
+
+    try {
+      await retry(async () => {
+        const snapshot = (await next
+          .fetch('/_next/development/request-insights')
+          .then((response) => response.json())) as {
+          requests: RequestInsight[]
+        }
+        const matchingRequests = snapshot.requests.filter(
+          (request) => request.url === requestPath
+        )
+
+        expect(matchingRequests).toHaveLength(1)
+        expect(matchingRequests[0]).toEqual(
+          expect.objectContaining({
+            source: 'app-route',
+            proxyStatus: 'matched',
+          })
+        )
+      })
+    } finally {
+      const release = await next.fetch(
+        `/api/app-stream-lifecycle?release=${waitKey}`,
+        { method: 'POST' }
+      )
+      expect(release.status).toBe(204)
+    }
+
+    const response = await responsePromise
+    expect(response.status).toBe(202)
+    expect(await response.text()).toContain('finished')
+
+    await retry(async () => {
+      const snapshot = (await next
+        .fetch('/_next/development/request-insights')
+        .then((insightsResponse) => insightsResponse.json())) as {
+        requests: RequestInsight[]
+      }
+      const matchingRequests = snapshot.requests.filter(
+        (request) =>
+          request.url === requestPath && request.kind !== 'instant-insights'
+      )
+
+      expect(matchingRequests).toHaveLength(1)
+      expect(
+        matchingRequests[0].spans.map(
+          (span) => span.attributes?.['next.span_type']
+        )
+      ).toEqual(
+        expect.arrayContaining([
+          'Middleware.execute',
+          'BaseServer.handleRequest',
+          'AppRouteRouteHandlers.runHandler',
+        ])
+      )
+    })
+  })
+
+  it('classifies a Page after proxy completes', async () => {
+    const requestPath = `/api/proxied-page?run=${Date.now()}`
+    const response = await next.fetch(requestPath)
+    expect(response.status).toBe(200)
+    expect(await response.text()).toContain('proxied page')
+
+    await retry(async () => {
+      const snapshot = (await next
+        .fetch('/_next/development/request-insights')
+        .then((insightsResponse) => insightsResponse.json())) as {
+        requests: RequestInsight[]
+      }
+      const matchingRequests = snapshot.requests.filter(
+        (request) =>
+          request.url === requestPath && request.kind !== 'instant-insights'
+      )
+
+      expect(matchingRequests).toHaveLength(1)
+      expect(matchingRequests[0]).toEqual(
+        expect.objectContaining({
+          source: 'page',
+          proxyStatus: 'matched',
+        })
+      )
+      expect(
+        matchingRequests[0].spans.map(
+          (span) => span.attributes?.['next.span_type']
+        )
+      ).toEqual(
+        expect.arrayContaining([
+          'Middleware.execute',
+          'BaseServer.handleRequest',
+          'AppRender.getBodyResult',
+        ])
+      )
     })
   })
 
