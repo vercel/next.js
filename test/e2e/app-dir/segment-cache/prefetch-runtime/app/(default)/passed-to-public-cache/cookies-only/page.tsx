@@ -2,10 +2,10 @@ import { cookies } from 'next/headers'
 import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind } from '../../../shared'
 
-export const unstable_prefetch = {
-  mode: 'runtime',
-  samples: [{ cookies: [{ name: 'testCookie', value: 'testValue' }] }],
+export const instant = {
+  unstable_samples: [{ cookies: [{ name: 'testCookie', value: 'testValue' }] }],
 }
+export const prefetch = 'partial'
 
 export default async function Page() {
   return (

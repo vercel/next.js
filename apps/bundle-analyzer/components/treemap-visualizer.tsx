@@ -947,6 +947,7 @@ export function TreemapVisualizer({
         size: node.size,
         server: node.server,
         client: node.client,
+        traced: node.traced,
       }
 
       if (node.type === 'directory') {

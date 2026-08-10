@@ -7,4 +7,6 @@ inputs:
     required: false
 runs:
   using: 'docker'
-  image: 'Dockerfile'
+  # this dockerfile must be located in the parent directory, otherwise
+  # `pnpm deploy` can't read the pnpm-lock.yaml
+  image: '../../next-stats-action.Dockerfile'

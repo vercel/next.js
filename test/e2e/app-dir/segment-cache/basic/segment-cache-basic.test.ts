@@ -11,6 +11,29 @@ describe('segment cache (basic tests)', () => {
     return
   }
 
+  it('preserves per-segment prefetching after a dynamic navigation', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/same-page-nav', {
+      beforePageLoad(page) {
+        act = createRouterAct(page)
+      },
+    })
+
+    const navigationButton = await browser.elementByCss(
+      'button[data-router-push="/partially-static/target-page"]'
+    )
+    await act(async () => navigationButton.click(), {
+      includes: 'Dynamic page',
+    })
+
+    // The target does not read search params, so this should reuse the cached
+    // segments instead of issuing a loading-boundary prefetch.
+    const prefetchButton = await browser.elementByCss(
+      'button[data-router-prefetch="/partially-static/target-page?query=1"]'
+    )
+    await act(async () => prefetchButton.click(), 'no-requests')
+  })
+
   it('navigate before any data has loaded into the prefetch cache', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/', {
@@ -413,42 +436,38 @@ describe('segment cache (basic tests)', () => {
     expect(content).toContain('Cache Life Seconds Page')
   })
 
-  // TODO: Requires a fix in React.
-  it.failing(
-    'can handle circular references in client component props',
-    async () => {
-      let act: ReturnType<typeof createRouterAct>
-      const browser = await next.browser('/', {
-        beforePageLoad(page) {
-          act = createRouterAct(page)
-        },
-      })
+  it('can handle circular references in client component props', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/', {
+      beforePageLoad(page) {
+        act = createRouterAct(page)
+      },
+    })
 
-      // Reveal the link to trigger a prefetch.
-      const link = await act(
-        async () => {
-          await browser
-            .elementByCss('input[data-link-accordion="/cycle"]')
-            .click()
-          return browser.elementByCss('a[href="/cycle"]')
-        },
-        { includes: 'testProp' }
-      )
+    // Reveal the link to trigger a prefetch.
+    const link = await act(
+      async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/cycle"]')
+          .click()
+        return browser.elementByCss('a[href="/cycle"]')
+      },
+      { includes: 'testProp' }
+    )
 
-      await act(
-        async () => {
-          await link.click()
+    await act(
+      async () => {
+        await link.click()
 
-          // The page should render immediately because it was prefetched, and it
-          // should show the resolved cycle text.
-          expect(await browser.elementById('cycle-check').text()).toBe(
-            'Cycle resolved'
-          )
-        },
-        // No additional requests were required, because everything was
-        // prefetched.
-        'no-requests'
-      )
-    }
-  )
+        // The page should render immediately because it was prefetched, and it
+        // should show the resolved cycle text.
+        expect(await browser.elementById('cycle-check').text()).toBe(
+          'Cycle resolved'
+        )
+      },
+      // No additional requests were required, because everything was
+      // prefetched.
+      'no-requests'
+    )
+  })
 })

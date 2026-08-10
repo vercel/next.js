@@ -10,7 +10,7 @@ contextPrototype.c = moduleCache
 // @ts-ignore
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getOrInstantiateRuntimeModule(
-  chunkPath: ChunkPath,
+  chunkPath: ChunkPath | undefined,
   moduleId: ModuleId
 ): Module {
   const module = moduleCache[moduleId]
@@ -84,8 +84,17 @@ function instantiateModule(
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function registerChunk(registration: ChunkRegistration) {
-  const chunkPath = getPathFromScript(registration[0])
+function registerChunk(registration: ChunkRegistration | RuntimeParams) {
+  // An inlined entry-only registration is a bare params object (no source chunk).
+  if (!Array.isArray(registration)) {
+    return BACKEND.registerChunk(undefined, registration)
+  }
+  const chunk = getChunkFromRegistration(registration[0]) as
+    | ChunkScript
+    | ChunkPath
+  if (SUPPORT_COMPONENT_CHUNKS) {
+    markChunkComponentsAvailable(chunk)
+  }
   let runtimeParams: RuntimeParams | undefined
   // When bootstrapping we are passed a single runtimeParams object so we can distinguish purely based on length
   if (registration.length === 2) {
@@ -99,5 +108,5 @@ function registerChunk(registration: ChunkRegistration) {
     )
   }
 
-  return BACKEND.registerChunk(chunkPath, runtimeParams)
+  return BACKEND.registerChunk(chunk, runtimeParams)
 }

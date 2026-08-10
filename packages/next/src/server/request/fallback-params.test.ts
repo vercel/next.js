@@ -1,6 +1,8 @@
 import {
+  buildDynamicSegmentPlaceholder,
   createOpaqueFallbackRouteParams,
   getFallbackRouteParams,
+  getPlaceholderFallbackRouteParams,
 } from './fallback-params'
 import type { FallbackRouteParam } from '../../build/static-paths/types'
 import type AppPageRouteModule from '../route-modules/app-page/module'
@@ -11,6 +13,7 @@ type TestLoaderTree = [
   segment: string,
   parallelRoutes: { [key: string]: TestLoaderTree },
   modules: Record<string, unknown>,
+  staticSiblings: readonly string[] | null,
 ]
 
 function createLoaderTree(
@@ -19,7 +22,7 @@ function createLoaderTree(
   children?: TestLoaderTree
 ): TestLoaderTree {
   const routes = children ? { ...parallelRoutes, children } : parallelRoutes
-  return [segment, routes, {}]
+  return [segment, routes, {}, null]
 }
 
 /**
@@ -68,6 +71,54 @@ describe('createOpaqueFallbackRouteParams', () => {
       expect(name).toBe('slug')
       expect(value).toMatch(/^%%drp:slug:[a-f0-9]+%%$/)
     })
+  })
+})
+
+describe('placeholder fallback route params', () => {
+  it('builds route placeholders by dynamic param type', () => {
+    expect(
+      buildDynamicSegmentPlaceholder({
+        paramName: 'slug',
+        paramType: 'dynamic',
+      })
+    ).toBe('[slug]')
+    expect(
+      buildDynamicSegmentPlaceholder({
+        paramName: 'slug',
+        paramType: 'catchall',
+      })
+    ).toBe('[...slug]')
+    expect(
+      buildDynamicSegmentPlaceholder({
+        paramName: 'slug',
+        paramType: 'optional-catchall',
+      })
+    ).toBe('[[...slug]]')
+  })
+
+  it('returns only fallback params that are still placeholders', () => {
+    const fallbackParams: readonly FallbackRouteParam[] = [
+      { paramName: 'team', paramType: 'dynamic' },
+      { paramName: 'project', paramType: 'dynamic' },
+      { paramName: 'slug', paramType: 'catchall' },
+      { paramName: 'optional', paramType: 'optional-catchall' },
+    ]
+
+    const result = getPlaceholderFallbackRouteParams(
+      {
+        team: '[team]',
+        project: 'dashboard',
+        slug: ['[...slug]'],
+        optional: '[[...optional]]',
+      },
+      fallbackParams
+    )
+
+    expect(result).toEqual([
+      { paramName: 'team', paramType: 'dynamic' },
+      { paramName: 'slug', paramType: 'catchall' },
+      { paramName: 'optional', paramType: 'optional-catchall' },
+    ])
   })
 })
 
@@ -186,6 +237,24 @@ describe('getFallbackRouteParams', () => {
 
       expect(result).not.toBeNull()
       // Only projectSlug should be a fallback param, vercel is static
+      expect(result!.has('projectSlug')).toBe(true)
+      expect(result!.has('teamSlug')).toBe(false)
+    })
+
+    it('should treat encoded placeholders as dynamic segments', () => {
+      // Tree: /[teamSlug]/[projectSlug] but page is /vercel/%5BprojectSlug%5D
+      const loaderTree = createLoaderTree(
+        '',
+        {},
+        createLoaderTree('[teamSlug]', {}, createLoaderTree('[projectSlug]'))
+      )
+      const routeModule = createMockRouteModule(loaderTree)
+      const result = getFallbackRouteParams(
+        '/vercel/%5BprojectSlug%5D',
+        routeModule
+      )
+
+      expect(result).not.toBeNull()
       expect(result!.has('projectSlug')).toBe(true)
       expect(result!.has('teamSlug')).toBe(false)
     })

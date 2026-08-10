@@ -1,12 +1,11 @@
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::TaskInput;
 use turbopack_ecmascript_runtime::RuntimeType;
 
 use crate::next_shared::webpack_rules::WebpackLoaderBuiltinCondition;
 
 /// The mode in which Next.js is running.
-#[turbo_tasks::value(shared)]
-#[derive(Debug, Copy, Clone, TaskInput, Ord, PartialOrd, Hash)]
+#[turbo_tasks::value(shared, task_input)]
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Hash)]
 pub enum NextMode {
     /// `next dev --turbopack`
     Development,

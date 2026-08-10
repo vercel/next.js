@@ -7,8 +7,6 @@ import imageSizeOf from 'next/dist/compiled/image-size'
 import { detector } from 'next/dist/compiled/image-detector/detector.js'
 import isAnimated from 'next/dist/compiled/is-animated'
 import { join } from 'path'
-import nodeUrl, { type UrlWithParsedQuery } from 'url'
-
 import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
 import type { ImageConfigComplete } from '../shared/lib/image-config'
 import { hasLocalMatch } from '../shared/lib/match-local-pattern'
@@ -30,7 +28,8 @@ import { getContentType, getExtension } from './serve-static'
 import * as Log from '../build/output/log'
 import isError from '../lib/is-error'
 import { isPrivateIp } from './is-private-ip'
-import { parseUrl } from '../lib/url'
+import { getOrInitDiskLRU } from './lib/disk-lru-cache.external'
+import { parseUrl, parseReqUrl } from '../lib/url'
 import type { CacheControl } from './lib/cache-control'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { lookup } from 'dns/promises'
@@ -59,15 +58,56 @@ const BYPASS_TYPES = [SVG, ICO, ICNS, BMP, JXL, HEIC]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const BLUR_QUALITY = 70 // should match `next-image-loader`
 
-let _sharp: typeof import('sharp')
+let _sharp: typeof import('sharp').default
 
-export function getSharp(concurrency: number | null | undefined) {
+async function initCacheEntries(
+  cacheDir: string
+): Promise<Array<{ key: string; size: number; expireAt: number }>> {
+  const cacheKeys = await promises.readdir(cacheDir).catch(() => [])
+  const entries: Array<{ key: string; size: number; expireAt: number }> = []
+
+  for (const cacheKey of cacheKeys) {
+    try {
+      const { expireAt, buffer } = await readFromCacheDir(cacheDir, cacheKey)
+      entries.push({
+        key: cacheKey,
+        size: buffer.byteLength,
+        expireAt,
+      })
+    } catch {
+      // Skip entries that can't be read from disk
+    }
+  }
+
+  // Sort oldest-first so we can replay them chronologically into LRU
+  return entries.sort((a, b) => a.expireAt - b.expireAt)
+}
+
+export function getSharp(
+  concurrency: number | null | undefined,
+  operationCache: boolean | null | undefined
+) {
   if (_sharp) {
     return _sharp
   }
   try {
-    _sharp = require('sharp') as typeof import('sharp')
-    if (_sharp && _sharp.concurrency() > 1) {
+    _sharp = require('sharp') as typeof import('sharp').default
+    _sharp.block({ operation: ['VipsForeignLoad'] })
+    _sharp.unblock({
+      operation: [
+        'VipsForeignLoadHeif', // avif
+        'VipsForeignLoadJpeg',
+        'VipsForeignLoadNsgif',
+        'VipsForeignLoadPng',
+        'VipsForeignLoadSvg',
+        'VipsForeignLoadTiff',
+        'VipsForeignLoadWebp',
+      ],
+    })
+    if (typeof operationCache === 'boolean') {
+      _sharp.cache(operationCache)
+    }
+    if (_sharp.concurrency() > 1) {
       // Reducing concurrency should reduce the memory usage too.
       // We more aggressively reduce in dev but also reduce in prod.
       // https://sharp.pixelplumbing.com/api-utility#concurrency
@@ -139,7 +179,8 @@ export function getImageEtag(image: Buffer) {
 }
 
 async function writeToCacheDir(
-  dir: string,
+  cacheDir: string,
+  cacheKey: string,
   extension: string,
   maxAge: number,
   expireAt: number,
@@ -147,6 +188,7 @@ async function writeToCacheDir(
   etag: string,
   upstreamEtag: string
 ) {
+  const dir = join(/* turbopackIgnore: true */ cacheDir, cacheKey)
   const filename = join(
     /* turbopackIgnore: true */
     dir,
@@ -159,15 +201,44 @@ async function writeToCacheDir(
   await promises.writeFile(filename, buffer)
 }
 
+async function readFromCacheDir(cacheDir: string, cacheKey: string) {
+  const dir = join(/* turbopackIgnore: true */ cacheDir, cacheKey)
+  const files = await promises.readdir(dir)
+  const file = files[0]
+  if (!file) {
+    throw new Error(
+      `Invariant: cache entry "${cacheKey}" not found in dir "${cacheDir}"`
+    )
+  }
+  const [maxAgeSt, expireAtSt, etag, upstreamEtag, extension] = file.split(
+    '.',
+    5
+  )
+  const filePath = join(/* turbopackIgnore: true */ dir, file)
+  const buffer = await promises.readFile(/* turbopackIgnore: true */ filePath)
+  const expireAt = Number(expireAtSt)
+  const maxAge = Number(maxAgeSt)
+  return { maxAge, expireAt, etag, upstreamEtag, buffer, extension }
+}
+
+async function deleteFromCacheDir(cacheDir: string, cacheKey: string) {
+  return promises
+    .rm(join(/* turbopackIgnore: true */ cacheDir, cacheKey), {
+      recursive: true,
+      force: true,
+    })
+    .catch((err) => {
+      Log.error(`Failed to delete cache key ${cacheKey}`, err)
+    })
+}
+
 /**
  * Inspects the first few bytes of a buffer to determine if
  * it matches the "magic number" of known file signatures.
  * https://en.wikipedia.org/wiki/List_of_file_signatures
  */
 export async function detectContentType(
-  buffer: Buffer,
-  skipMetadata: boolean | null | undefined,
-  concurrency?: number | null | undefined
+  buffer: Buffer
 ): Promise<string | null> {
   if (buffer.byteLength === 0) {
     return null
@@ -245,28 +316,13 @@ export async function detectContentType(
     return JP2
   }
 
-  let format:
-    | import('sharp').Metadata['format']
-    | ReturnType<typeof detector>
-    | undefined
-  format = detector(buffer)
-
-  if (!format && !skipMetadata) {
-    const sharp = getSharp(concurrency)
-    const meta = await sharp(buffer)
-      .metadata()
-      .catch((_) => null)
-    format = meta?.format
-  }
+  const format = detector(buffer.subarray(0, 1024))
 
   switch (format) {
-    case 'avif':
-      return AVIF
     case 'webp':
       return WEBP
     case 'png':
       return PNG
-    case 'jpeg':
     case 'jpg':
       return JPEG
     case 'gif':
@@ -279,28 +335,14 @@ export async function detectContentType(
     case 'jp2':
       return JP2
     case 'tiff':
-    case 'tif':
       return TIFF
-    case 'pdf':
-      return PDF
     case 'bmp':
       return BMP
     case 'ico':
       return ICO
     case 'icns':
       return ICNS
-    case 'dcraw':
-    case 'dz':
-    case 'exr':
-    case 'fits':
     case 'heif':
-    case 'input':
-    case 'magick':
-    case 'openslide':
-    case 'ppm':
-    case 'rad':
-    case 'raw':
-    case 'v':
     case 'cur':
     case 'dds':
     case 'j2c':
@@ -309,8 +351,10 @@ export async function detectContentType(
     case 'psd':
     case 'tga':
     case undefined:
+      return null // unsupported formats
     default:
-      return null
+      format satisfies never // exhaustive check
+      return null // impossible to reach
   }
 }
 
@@ -318,10 +362,12 @@ export class ImageOptimizerCache {
   private cacheDir: string
   private nextConfig: NextConfigRuntime
   private cacheHandler?: CacheHandler
+  private cacheDiskLRU?: ReturnType<typeof getOrInitDiskLRU>
+  private isDiskCacheEnabled?: boolean
 
   static validateParams(
     req: IncomingMessage,
-    query: UrlWithParsedQuery['query'],
+    query: NextUrlWithParsedQuery['query'],
     nextConfig: NextConfigRuntime,
     isDev: boolean
   ): ImageParamsResult | { errorMessage: string } {
@@ -465,9 +511,11 @@ export class ImageOptimizerCache {
 
     const mimeType = getSupportedMimeType(formats || [], req.headers['accept'])
 
-    const isStatic = url.startsWith(
-      `${nextConfig.basePath || ''}/_next/static/media`
-    )
+    const isStatic =
+      url.startsWith(`${nextConfig.basePath || ''}/_next/static/media`) ||
+      url.startsWith(
+        `${nextConfig.basePath || ''}/_next/static/immutable/media`
+      )
 
     return {
       href,
@@ -507,6 +555,21 @@ export class ImageOptimizerCache {
     this.cacheDir = join(/* turbopackIgnore: true */ distDir, 'cache', 'images')
     this.nextConfig = nextConfig
     this.cacheHandler = cacheHandler
+
+    // Eagerly start LRU initialization for filesystem cache
+    if (
+      !cacheHandler &&
+      nextConfig.images.maximumDiskCacheSize !== 0 &&
+      nextConfig.experimental.isrFlushToDisk
+    ) {
+      this.isDiskCacheEnabled = true
+      this.cacheDiskLRU = getOrInitDiskLRU(
+        this.cacheDir,
+        nextConfig.images.maximumDiskCacheSize,
+        initCacheEntries,
+        deleteFromCacheDir
+      )
+    }
   }
 
   async get(cacheKey: string): Promise<IncrementalResponseCacheEntry | null> {
@@ -549,38 +612,34 @@ export class ImageOptimizerCache {
       return null
     }
 
+    // If the filesystem cache is disabled, return early
+    if (!this.isDiskCacheEnabled) {
+      return null
+    }
+
     // Fall back to filesystem cache
     try {
-      const cacheDir = join(/* turbopackIgnore: true */ this.cacheDir, cacheKey)
-      const files = await promises.readdir(cacheDir)
       const now = Date.now()
+      const { maxAge, expireAt, etag, upstreamEtag, buffer, extension } =
+        await readFromCacheDir(this.cacheDir, cacheKey)
 
-      for (const file of files) {
-        const [maxAgeSt, expireAtSt, etag, upstreamEtag, extension] =
-          file.split('.', 5)
-        const buffer = await promises.readFile(
-          /* turbopackIgnore: true */ join(
-            /* turbopackIgnore: true */ cacheDir,
-            file
-          )
-        )
-        const expireAt = Number(expireAtSt)
-        const maxAge = Number(maxAgeSt)
+      // Promote entry in LRU (mark as recently used)
+      const lru = await this.cacheDiskLRU
+      lru?.get(cacheKey)
 
-        return {
-          value: {
-            kind: CachedRouteKind.IMAGE,
-            etag,
-            buffer,
-            extension,
-            upstreamEtag,
-          },
-          revalidateAfter:
-            Math.max(maxAge, this.nextConfig.images.minimumCacheTTL) * 1000 +
-            Date.now(),
-          cacheControl: { revalidate: maxAge, expire: undefined },
-          isStale: now > expireAt,
-        }
+      return {
+        value: {
+          kind: CachedRouteKind.IMAGE,
+          etag,
+          buffer,
+          extension,
+          upstreamEtag,
+        },
+        revalidateAfter:
+          Math.max(maxAge, this.nextConfig.images.minimumCacheTTL) * 1000 +
+          Date.now(),
+        cacheControl: { revalidate: maxAge, expire: undefined },
+        isStale: now > expireAt,
       }
     } catch (_) {
       // failed to read from cache dir, treat as cache miss
@@ -630,18 +689,28 @@ export class ImageOptimizerCache {
       return
     }
 
-    // Fall back to filesystem cache
-    if (!this.nextConfig.experimental.isrFlushToDisk) {
+    // If the filesystem cache is disabled, return early
+    if (!this.isDiskCacheEnabled) {
       return
     }
 
+    // Fall back to filesystem cache
     const expireAt =
       Math.max(revalidate, this.nextConfig.images.minimumCacheTTL) * 1000 +
       Date.now()
 
     try {
+      const lru = await this.cacheDiskLRU
+      const success = lru?.set(cacheKey, value.buffer.byteLength)
+      if (success === false) {
+        throw new Error(
+          `image of size ${value.buffer.byteLength} could not be tracked by lru cache`
+        )
+      }
+
       await writeToCacheDir(
-        join(/* turbopackIgnore: true */ this.cacheDir, cacheKey),
+        this.cacheDir,
+        cacheKey,
         value.extension,
         revalidate,
         expireAt,
@@ -725,6 +794,7 @@ export async function optimizeImage({
   width,
   height,
   concurrency,
+  operationCache,
   limitInputPixels,
   sequentialRead,
   timeoutInSeconds,
@@ -735,11 +805,12 @@ export async function optimizeImage({
   width: number
   height?: number
   concurrency?: number | null
+  operationCache?: boolean | null | undefined
   limitInputPixels?: number
   sequentialRead?: boolean | null
   timeoutInSeconds?: number
 }): Promise<Buffer> {
-  const sharp = getSharp(concurrency)
+  const sharp = getSharp(concurrency, operationCache)
   const transformer = sharp(buffer, {
     limitInputPixels,
     sequentialRead: sequentialRead ?? undefined,
@@ -759,7 +830,10 @@ export async function optimizeImage({
 
   if (contentType === AVIF) {
     transformer.avif({
-      quality: Math.max(quality - 20, 1),
+      // Scale the quality to try and match webp. This ratio was derived
+      // from sharp's default 80 (webp) and 50 (avif), and then verified
+      // using dssim and ssimulacra2 visual quality tests.
+      quality: Math.max(Math.round(quality * (50 / 80)), 1),
       effort: 3,
     })
   } else if (contentType === WEBP) {
@@ -801,8 +875,9 @@ export async function fetchExternalImage(
       Log.error(
         'upstream image',
         href,
-        'resolved to private ip',
-        JSON.stringify(privateIps)
+        'hostname resolved to private IP',
+        JSON.stringify(privateIps),
+        'If this is expected and you understand SSRF risk, use images.dangerouslyAllowLocalIP = true to continue.'
       )
       throw new ImageError(400, '"url" parameter is not allowed')
     }
@@ -893,6 +968,7 @@ export async function fetchInternalImage(
   href: string,
   _req: IncomingMessage,
   _res: ServerResponse,
+  maximumResponseBody: number,
   handleRequest: (
     newReq: IncomingMessage,
     newRes: ServerResponse,
@@ -900,19 +976,31 @@ export async function fetchInternalImage(
   ) => Promise<void>
 ): Promise<ImageUpstream> {
   try {
+    // Coerce HEAD to GET to avoid issues with the image optimizer
+    const method = !_req.method || _req.method === 'HEAD' ? 'GET' : _req.method
+
     const mocked = createRequestResponseMocks({
       url: href,
-      method: _req.method || 'GET',
+      method,
       socket: _req.socket,
+      maximumResponseBody,
     })
 
-    await handleRequest(mocked.req, mocked.res, nodeUrl.parse(href, true))
+    await handleRequest(mocked.req, mocked.res, parseReqUrl(href))
     await mocked.res.hasStreamed
 
     if (!mocked.res.statusCode) {
       Log.error('image response failed for', href, mocked.res.statusCode)
       throw new ImageError(
         mocked.res.statusCode,
+        '"url" parameter is valid but internal response is invalid'
+      )
+    }
+
+    if (mocked.res.buffers.length === 0) {
+      Log.error('internal image response is empty for', href)
+      throw new ImageError(
+        400,
         '"url" parameter is valid but internal response is invalid'
       )
     }
@@ -924,6 +1012,23 @@ export async function fetchInternalImage(
 
     return { buffer, contentType, cacheControl, etag }
   } catch (err) {
+    if (err instanceof ImageError) {
+      throw err
+    }
+
+    if (
+      err &&
+      typeof err === 'object' &&
+      'code' in err &&
+      err.code === 'ERR_MAX_BODY_SIZE_EXCEEDED'
+    ) {
+      Log.error('internal image response exceeded maximum size for', href)
+      throw new ImageError(
+        413,
+        '"url" parameter is valid but internal response is invalid'
+      )
+    }
+
     Log.error('upstream image response failed for', href, err)
     throw new ImageError(
       500,
@@ -942,9 +1047,9 @@ export async function imageOptimizer(
     experimental: Pick<
       NextConfigComplete['experimental'],
       | 'imgOptConcurrency'
+      | 'imgOptOperationCache'
       | 'imgOptMaxInputPixels'
       | 'imgOptSequentialRead'
-      | 'imgOptSkipMetadata'
       | 'imgOptTimeoutInSeconds'
     >
     images: Pick<
@@ -972,11 +1077,7 @@ export async function imageOptimizer(
     getMaxAge(imageUpstream.cacheControl)
   )
 
-  const upstreamType = await detectContentType(
-    upstreamBuffer,
-    nextConfig.experimental.imgOptSkipMetadata,
-    nextConfig.experimental.imgOptConcurrency
-  )
+  const upstreamType = await detectContentType(upstreamBuffer)
 
   if (
     !upstreamType ||
@@ -1065,6 +1166,7 @@ export async function imageOptimizer(
       quality,
       width,
       concurrency: nextConfig.experimental.imgOptConcurrency,
+      operationCache: nextConfig.experimental.imgOptOperationCache,
       limitInputPixels: nextConfig.experimental.imgOptMaxInputPixels,
       sequentialRead: nextConfig.experimental.imgOptSequentialRead,
       timeoutInSeconds: nextConfig.experimental.imgOptTimeoutInSeconds,
@@ -1193,7 +1295,12 @@ export function sendResponse(
   )
   if (!result.finished) {
     res.setHeader('Content-Length', Buffer.byteLength(buffer))
-    res.end(buffer)
+    // A response body must not be sent for HEAD requests
+    if (req.method === 'HEAD') {
+      res.end()
+    } else {
+      res.end(buffer)
+    }
   }
 }
 

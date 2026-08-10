@@ -6,7 +6,6 @@ import globOriginal from 'next/dist/compiled/glob'
 import { Sema } from 'next/dist/compiled/async-sema'
 import type { NextConfigComplete } from '../server/config-shared'
 import { getNextConfigEnv, getStaticEnv } from './static-env'
-import { evaluateDeploymentId } from '../server/evaluate-deployment-id'
 
 const glob = promisify(globOriginal)
 
@@ -18,11 +17,7 @@ export async function inlineStaticEnv({
   config: NextConfigComplete
 }) {
   const nextConfigEnv = getNextConfigEnv(config)
-  // User-configured deploymentId takes precedence over NEXT_DEPLOYMENT_ID
-  const deploymentId = evaluateDeploymentId(
-    config.deploymentId || process.env.NEXT_DEPLOYMENT_ID
-  )
-  const staticEnv = getStaticEnv(config, deploymentId)
+  const staticEnv = getStaticEnv(config, config.deploymentId)
 
   const serverDir = path.join(distDir, 'server')
   const serverChunks = await glob('**/*.{js,json,js.map}', {

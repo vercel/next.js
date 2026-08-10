@@ -9,19 +9,12 @@ import { PHASE_ANALYZE } from '../../shared/lib/constants'
 import { turbopackAnalyze, type AnalyzeContext } from '../turbopack-analyze'
 import { durationToString } from '../duration-to-string'
 import { cp, writeFile, mkdir } from 'node:fs/promises'
-import {
-  collectAppFiles,
-  collectPagesFiles,
-  createPagesMapping,
-} from '../entries'
-import { createValidFileMatcher } from '../../server/lib/find-page-file'
+import { discoverRoutes } from '../route-discovery'
 import { findPagesDir } from '../../lib/find-pages-dir'
-import { PAGE_TYPES } from '../../lib/page-types'
 import loadCustomRoutes from '../../lib/load-custom-routes'
 import { generateRoutesManifest } from '../generate-routes-manifest'
 import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
-import { resolveAndSetDeploymentId } from '../generate-deployment-id'
 import http from 'node:http'
 
 // @ts-expect-error types are in @types/serve-handler
@@ -30,6 +23,7 @@ import { Telemetry } from '../../telemetry/storage'
 import { eventAnalyzeCompleted } from '../../telemetry/events'
 import { traceGlobals } from '../../trace/shared'
 import type { RoutesManifest } from '..'
+import { Bundler } from '../../lib/bundler'
 
 export type AnalyzeOptions = {
   dir: string
@@ -49,14 +43,16 @@ export default async function analyze({
   port = 4000,
 }: AnalyzeOptions): Promise<void> {
   try {
+    // analyze is Turbopack-only. Mirror what parseBundlerArgs does for build/dev
+    // so every process.env.TURBOPACK consumer in this run agrees with the bundler choice.
+    process.env.TURBOPACK ??= '1'
     const config: NextConfigComplete = await loadConfig(PHASE_ANALYZE, dir, {
       silent: false,
       reactProductionProfiling,
+      bundler: Bundler.Turbopack,
     })
 
-    // Generate deploymentId - can be a string or function
-    // Call the function once and cache the result to ensure consistency throughout the analyze process
-    config.deploymentId = resolveAndSetDeploymentId(config.deploymentId)
+    process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''
 
     const distDir = path.join(dir, '.next')
     const telemetry = new Telemetry({ distDir })
@@ -134,7 +130,6 @@ async function collectRoutesForAnalyze(
   appDirOnly: boolean
 ): Promise<string[]> {
   const { pagesDir, appDir } = findPagesDir(dir)
-  const validFileMatcher = createValidFileMatcher(config.pageExtensions, appDir)
 
   let appType: RoutesManifest['appType']
   if (pagesDir && appDir) {
@@ -147,44 +142,28 @@ async function collectRoutesForAnalyze(
     throw new Error('No pages or app directory found.')
   }
 
-  const { appPaths } = appDir
-    ? await collectAppFiles(appDir, validFileMatcher)
-    : { appPaths: [] }
-  const pagesPaths = pagesDir
-    ? await collectPagesFiles(pagesDir, validFileMatcher)
-    : null
-
-  const appMapping = await createPagesMapping({
-    pagePaths: appPaths,
-    isDev: false,
-    pagesType: PAGE_TYPES.APP,
-    pageExtensions: config.pageExtensions,
-    pagesDir,
+  const discovery = await discoverRoutes({
     appDir,
+    pagesDir,
+    pageExtensions: config.pageExtensions,
+    isDev: false,
+    baseDir: dir,
+    isSrcDir: path.relative(dir, pagesDir || appDir || '').startsWith('src'),
     appDirOnly,
   })
 
-  const pagesMapping = pagesPaths
-    ? await createPagesMapping({
-        pagePaths: pagesPaths,
-        isDev: false,
-        pagesType: PAGE_TYPES.PAGES,
-        pageExtensions: config.pageExtensions,
-        pagesDir,
-        appDir,
-        appDirOnly,
-      })
-    : null
-
   const pageKeys = {
-    pages: pagesMapping ? Object.keys(pagesMapping) : [],
-    app: appMapping
-      ? Object.keys(appMapping).map((key) => normalizeAppPath(key))
-      : undefined,
+    pages: Object.keys(discovery.mappedPages || {}),
+    app: discovery.mappedAppPages
+      ? Object.keys(discovery.mappedAppPages).map((key) =>
+          normalizeAppPath(key)
+        )
+      : [],
   }
 
   // Load custom routes
-  const { redirects, headers, rewrites } = await loadCustomRoutes(config)
+  const { redirects, headers, onMatchHeaders, rewrites } =
+    await loadCustomRoutes(config)
 
   // Compute restricted redirect paths
   const restrictedRedirectPaths = ['/_next'].map((pathPrefix) =>
@@ -200,6 +179,7 @@ async function collectRoutesForAnalyze(
     config,
     redirects,
     headers,
+    onMatchHeaders,
     rewrites,
     restrictedRedirectPaths,
     isAppPPREnabled,

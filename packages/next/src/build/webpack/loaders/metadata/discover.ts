@@ -36,9 +36,7 @@ async function enumMetadataFiles(
   )
   for (const name of possibleFileNames) {
     const resolved = await metadataResolver(dir, name, extensions)
-    if (resolved) {
-      collectedFiles.push(resolved)
-    }
+    collectedFiles.push(...resolved)
   }
 
   return collectedFiles
@@ -116,9 +114,9 @@ export async function createStaticMetadataFromRoute(
           // WEBPACK_RESOURCE_QUERIES.metadata query here only for filtering out applying to image loader
         )}!${filepath}?${WEBPACK_RESOURCE_QUERIES.metadata}`
 
-        const imageModule = `(async (props) => (await import(/* webpackMode: "eager" */ ${JSON.stringify(
+        const imageModule = `(async (props) => (await instrumentModuleGetter(() => import(/* webpackMode: "eager" */ ${JSON.stringify(
           imageModuleImportSource
-        )})).default(props))`
+        )}))()).default(props))`
         hasStaticMetadataFiles = true
         if (type === 'favicon') {
           staticImagesMetadata.icon.unshift(imageModule)

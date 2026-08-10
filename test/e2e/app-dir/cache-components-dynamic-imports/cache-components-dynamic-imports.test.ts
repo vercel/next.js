@@ -169,7 +169,8 @@ describe('async imports in cacheComponents - external packages', () => {
   // This is currently expected to fail because we can only track `import()` in bundled code,
   // and packages marked as external aren't bundled.
   it('does not instrument import() in external packages', async () => {
-    const expectedError = 'https://nextjs.org/docs/messages/blocking-route'
+    const expectedError =
+      'https://nextjs.org/docs/messages/blocking-prerender-dynamic'
     if (isNextStart) {
       // in prod, we fail during the build
       await expect(() => next.start()).rejects.toThrow()

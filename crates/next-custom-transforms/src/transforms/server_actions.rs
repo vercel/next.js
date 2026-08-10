@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    collections::{hash_map, BTreeMap},
+    collections::{BTreeMap, hash_map},
     convert::{TryFrom, TryInto},
     mem::{replace, take},
     path::{Path, PathBuf},
@@ -16,23 +16,23 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 use sha1::{Digest, Sha1};
 use swc_core::{
-    atoms::{atom, Atom, Wtf8Atom},
+    atoms::{Atom, Wtf8Atom, atom},
     common::{
+        BytePos, DUMMY_SP, FileName, Mark, SourceMap, Span, SyntaxContext,
         comments::{Comment, CommentKind, Comments, SingleThreadedComments},
         errors::HANDLER,
-        source_map::{SourceMapGenConfig, PURE_SP},
+        source_map::{PURE_SP, SourceMapGenConfig},
         util::take::Take,
-        BytePos, FileName, Mark, SourceMap, Span, SyntaxContext, DUMMY_SP,
     },
     ecma::{
         ast::*,
-        codegen::{self, text_writer::JsWriter, Emitter},
-        utils::{private_ident, quote_ident, ExprFactory},
-        visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitMutWith},
+        codegen::{self, Emitter, text_writer::JsWriter},
+        utils::{ExprFactory, private_ident, quote_ident},
+        visit::{VisitMut, VisitMutWith, noop_visit_mut_type, visit_mut_pass},
     },
     quote,
 };
-use turbo_rcstr::{rcstr, RcStr};
+use turbo_rcstr::{RcStr, rcstr};
 
 use crate::FxIndexMap;
 
@@ -76,6 +76,12 @@ struct ServerReferenceExport {
     export_name: ModuleExportName,
     reference_id: Atom,
     needs_cache_runtime_wrapper: bool,
+}
+
+/// Export info for serialization
+#[derive(Clone, Debug, serde::Serialize)]
+struct ServerReferenceExportInfo {
+    name: Atom,
 }
 
 #[derive(Clone, Debug)]
@@ -149,7 +155,7 @@ pub fn server_actions<C: Comments>(
     cm: Arc<SourceMap>,
     use_cache_telemetry_tracker: Rc<RefCell<FxHashMap<String, usize>>>,
     mode: ServerActionsMode,
-) -> impl Pass {
+) -> impl Pass + use<C> {
     visit_mut_pass(ServerActions {
         config,
         mode,
@@ -199,21 +205,19 @@ pub fn server_actions<C: Comments>(
 /// Serializes the Server References into a magic comment prefixed by
 /// `__next_internal_action_entry_do_not_use__`.
 fn generate_server_references_comment(
-    export_names_ordered_by_reference_id: &BTreeMap<&Atom, &ModuleExportName>,
+    export_infos_ordered_by_reference_id: &BTreeMap<&Atom, ServerReferenceExportInfo>,
     entry_path_query: Option<(&str, &str)>,
 ) -> String {
-    // Convert ModuleExportName to string for serialization
-    let export_map: BTreeMap<_, _> = export_names_ordered_by_reference_id
-        .iter()
-        .map(|(ref_id, export_name)| (*ref_id, export_name.atom()))
-        .collect();
-
     format!(
         " __next_internal_action_entry_do_not_use__ {} ",
         if let Some(entry_path_query) = entry_path_query {
-            serde_json::to_string(&(&export_map, entry_path_query.0, entry_path_query.1))
+            serde_json::to_string(&(
+                &export_infos_ordered_by_reference_id,
+                entry_path_query.0,
+                entry_path_query.1,
+            ))
         } else {
-            serde_json::to_string(&export_map)
+            serde_json::to_string(&export_infos_ordered_by_reference_id)
         }
         .unwrap()
     )
@@ -477,12 +481,15 @@ impl<C: Comments> ServerActions<C> {
     ) -> Box<Expr> {
         let mut new_params: Vec<Param> = vec![];
 
+        let closure_bound_ident =
+            Ident::new(atom!("$$ACTION_CLOSURE_BOUND"), DUMMY_SP, self.private_ctxt);
+
         if !ids_from_closure.is_empty() {
             // First param is the encrypted closure variables.
             new_params.push(Param {
                 span: DUMMY_SP,
                 decorators: vec![],
-                pat: Pat::Ident(IdentName::new(atom!("$$ACTION_CLOSURE_BOUND"), DUMMY_SP).into()),
+                pat: Pat::Ident(closure_bound_ident.clone().into()),
             });
         }
 
@@ -506,11 +513,11 @@ impl<C: Comments> ServerActions<C> {
 
         // If this is an exported arrow, remove it from export_name_by_local_id so the
         // post-pass doesn't register it again (it's already registered above).
-        if self.current_export_name.is_some() {
-            if let Some(arrow_ident) = &self.arrow_or_fn_expr_ident {
-                self.export_name_by_local_id
-                    .swap_remove(&arrow_ident.to_id());
-            }
+        if self.current_export_name.is_some()
+            && let Some(arrow_ident) = &self.arrow_or_fn_expr_ident
+        {
+            self.export_name_by_local_id
+                .swap_remove(&arrow_ident.to_id());
         }
 
         if let BlockStmtOrExpr::BlockStmt(block) = &mut *arrow.body {
@@ -538,10 +545,7 @@ impl<C: Comments> ServerActions<C> {
                         arg: Box::new(Expr::Call(CallExpr {
                             span: DUMMY_SP,
                             callee: quote_ident!("decryptActionBoundArgs").as_callee(),
-                            args: vec![
-                                action_id.clone().as_arg(),
-                                quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
-                            ],
+                            args: vec![action_id.clone().as_arg(), closure_bound_ident.as_arg()],
                             ..Default::default()
                         })),
                     }))),
@@ -642,12 +646,15 @@ impl<C: Comments> ServerActions<C> {
     ) -> Box<Expr> {
         let mut new_params: Vec<Param> = vec![];
 
+        let closure_bound_ident =
+            Ident::new(atom!("$$ACTION_CLOSURE_BOUND"), DUMMY_SP, self.private_ctxt);
+
         if !ids_from_closure.is_empty() {
             // First param is the encrypted closure variables.
             new_params.push(Param {
                 span: DUMMY_SP,
                 decorators: vec![],
-                pat: Pat::Ident(IdentName::new(atom!("$$ACTION_CLOSURE_BOUND"), DUMMY_SP).into()),
+                pat: Pat::Ident(closure_bound_ident.clone().into()),
             });
         }
 
@@ -673,10 +680,10 @@ impl<C: Comments> ServerActions<C> {
 
         // If this is an exported function, remove it from export_name_by_local_id so the
         // post-pass doesn't register it again (it's already registered above).
-        if self.current_export_name.is_some() {
-            if let Some(ref fn_name) = fn_name {
-                self.export_name_by_local_id.swap_remove(&fn_name.to_id());
-            }
+        if self.current_export_name.is_some()
+            && let Some(ref fn_name) = fn_name
+        {
+            self.export_name_by_local_id.swap_remove(&fn_name.to_id());
         }
 
         function.body.visit_mut_with(&mut ClosureReplacer {
@@ -701,10 +708,7 @@ impl<C: Comments> ServerActions<C> {
                         arg: Box::new(Expr::Call(CallExpr {
                             span: DUMMY_SP,
                             callee: quote_ident!("decryptActionBoundArgs").as_callee(),
-                            args: vec![
-                                action_id.clone().as_arg(),
-                                quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
-                            ],
+                            args: vec![action_id.clone().as_arg(), closure_bound_ident.as_arg()],
                             ..Default::default()
                         })),
                     }))),
@@ -817,11 +821,11 @@ impl<C: Comments> ServerActions<C> {
 
         // If this is an exported arrow, remove it from export_name_by_local_id so the
         // post-pass doesn't register it again (it's already registered above).
-        if self.current_export_name.is_some() {
-            if let Some(arrow_ident) = &self.arrow_or_fn_expr_ident {
-                self.export_name_by_local_id
-                    .swap_remove(&arrow_ident.to_id());
-            }
+        if self.current_export_name.is_some()
+            && let Some(arrow_ident) = &self.arrow_or_fn_expr_ident
+        {
+            self.export_name_by_local_id
+                .swap_remove(&arrow_ident.to_id());
         }
 
         if let BlockStmtOrExpr::BlockStmt(block) = &mut *arrow.body {
@@ -922,10 +926,10 @@ impl<C: Comments> ServerActions<C> {
 
         // If this is an exported function, remove it from export_name_by_local_id so the
         // post-pass doesn't register it again (it's already registered above).
-        if self.current_export_name.is_some() {
-            if let Some(ref fn_name) = fn_name {
-                self.export_name_by_local_id.swap_remove(&fn_name.to_id());
-            }
+        if self.current_export_name.is_some()
+            && let Some(ref fn_name) = fn_name
+        {
+            self.export_name_by_local_id.swap_remove(&fn_name.to_id());
         }
 
         function.body.visit_mut_with(&mut ClosureReplacer {
@@ -1243,10 +1247,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             if !self.validate_async_function(f.is_async, f.span, fn_name.as_ref(), &directive) {
                 // If this is an exported function that failed validation, remove it from
                 // export_name_by_local_id so the post-pass doesn't register it.
-                if self.current_export_name.is_some() {
-                    if let Some(fn_name) = fn_name {
-                        self.export_name_by_local_id.swap_remove(&fn_name.to_id());
-                    }
+                if self.current_export_name.is_some()
+                    && let Some(fn_name) = fn_name
+                {
+                    self.export_name_by_local_id.swap_remove(&fn_name.to_id());
                 }
 
                 return;
@@ -1262,39 +1266,38 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             // client layers).
             if matches!(self.file_directive, Some(Directive::UseServer))
                 && matches!(directive, Directive::UseServer)
+                && let Some(export_name) = self.current_export_name.clone()
             {
-                if let Some(export_name) = self.current_export_name.clone() {
-                    let params = f.params.clone();
-                    let span = f.span;
+                let params = f.params.clone();
+                let span = f.span;
 
-                    self.register_server_action_export(
-                        &export_name,
-                        fn_name.as_ref(),
-                        Some(&params),
-                        span,
-                        &mut || {
-                            Box::new(Expr::Fn(FnExpr {
-                                ident: fn_name.clone(),
-                                function: Box::new(f.take()),
-                            }))
-                        },
-                    );
+                self.register_server_action_export(
+                    &export_name,
+                    fn_name.as_ref(),
+                    Some(&params),
+                    span,
+                    &mut || {
+                        Box::new(Expr::Fn(FnExpr {
+                            ident: fn_name.clone(),
+                            function: Box::new(f.take()),
+                        }))
+                    },
+                );
 
-                    return;
-                }
+                return;
             }
 
             // For the client layer, register cache exports without hoisting.
             if !self.config.is_react_server_layer {
-                if matches!(directive, Directive::UseCache { .. }) {
-                    if let Some(export_name) = self.current_export_name.clone() {
-                        self.register_cache_export_on_client(
-                            &export_name,
-                            fn_name.as_ref(),
-                            Some(&f.params),
-                            f.span,
-                        );
-                    }
+                if matches!(directive, Directive::UseCache { .. })
+                    && let Some(export_name) = self.current_export_name.clone()
+                {
+                    self.register_cache_export_on_client(
+                        &export_name,
+                        fn_name.as_ref(),
+                        Some(&f.params),
+                        f.span,
+                    );
                 }
 
                 return;
@@ -1395,10 +1398,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     fn visit_mut_fn_decl(&mut self, f: &mut FnDecl) {
         let old_this_status = replace(&mut self.this_status, ThisStatus::Allowed);
         let old_current_export_name = self.current_export_name.take();
-        if self.in_module_level {
-            if let Some(export_name) = self.export_name_by_local_id.get(&f.ident.to_id()) {
-                self.current_export_name = Some(export_name.clone());
-            }
+        if self.in_module_level
+            && let Some(export_name) = self.export_name_by_local_id.get(&f.ident.to_id())
+        {
+            self.current_export_name = Some(export_name.clone());
         }
         let old_fn_decl_ident = self.fn_decl_ident.replace(f.ident.clone());
         f.visit_mut_children_with(self);
@@ -1456,11 +1459,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             if !self.validate_async_function(a.is_async, a.span, arrow_ident.as_ref(), &directive) {
                 // If this is an exported arrow function that failed validation, remove it from
                 // export_name_by_local_id so the post-pass doesn't register it.
-                if self.current_export_name.is_some() {
-                    if let Some(arrow_ident) = arrow_ident {
-                        self.export_name_by_local_id
-                            .swap_remove(&arrow_ident.to_id());
-                    }
+                if self.current_export_name.is_some()
+                    && let Some(arrow_ident) = arrow_ident
+                {
+                    self.export_name_by_local_id
+                        .swap_remove(&arrow_ident.to_id());
                 }
 
                 return;
@@ -1476,37 +1479,35 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             // client layers).
             if matches!(self.file_directive, Some(Directive::UseServer))
                 && matches!(directive, Directive::UseServer)
+                && let Some(export_name) = self.current_export_name.clone()
             {
-                if let Some(export_name) = self.current_export_name.clone() {
-                    let params: Vec<Param> =
-                        a.params.iter().map(|p| Param::from(p.clone())).collect();
+                let params: Vec<Param> = a.params.iter().map(|p| Param::from(p.clone())).collect();
 
-                    self.register_server_action_export(
-                        &export_name,
-                        arrow_ident.as_ref(),
-                        Some(&params),
-                        a.span,
-                        &mut || Box::new(Expr::Arrow(a.take())),
-                    );
+                self.register_server_action_export(
+                    &export_name,
+                    arrow_ident.as_ref(),
+                    Some(&params),
+                    a.span,
+                    &mut || Box::new(Expr::Arrow(a.take())),
+                );
 
-                    return;
-                }
+                return;
             }
 
             // For the client layer, register cache exports without hoisting.
             if !self.config.is_react_server_layer {
-                if matches!(directive, Directive::UseCache { .. }) {
-                    if let Some(export_name) = self.current_export_name.clone() {
-                        let params: Vec<Param> =
-                            a.params.iter().map(|p| Param::from(p.clone())).collect();
+                if matches!(directive, Directive::UseCache { .. })
+                    && let Some(export_name) = self.current_export_name.clone()
+                {
+                    let params: Vec<Param> =
+                        a.params.iter().map(|p| Param::from(p.clone())).collect();
 
-                        self.register_cache_export_on_client(
-                            &export_name,
-                            arrow_ident.as_ref(),
-                            Some(&params),
-                            a.span,
-                        );
-                    }
+                    self.register_cache_export_on_client(
+                        &export_name,
+                        arrow_ident.as_ref(),
+                        Some(&params),
+                        a.span,
+                    );
                 }
 
                 return;
@@ -1600,14 +1601,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             _ => {}
         }
 
-        if !self.in_module_level && self.should_track_names {
-            if let PropOrSpread::Prop(box Prop::Shorthand(i)) = n {
-                self.names.push(Name::from(&*i));
-                self.should_track_names = false;
-                n.visit_mut_children_with(self);
-                self.should_track_names = true;
-                return;
-            }
+        if !self.in_module_level
+            && self.should_track_names
+            && let PropOrSpread::Prop(box Prop::Shorthand(i)) = n
+        {
+            self.names.push(Name::from(&*i));
+            self.should_track_names = false;
+            n.visit_mut_children_with(self);
+            self.should_track_names = true;
+            return;
         }
 
         n.visit_mut_children_with(self);
@@ -1684,17 +1686,17 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_call_expr(&mut self, n: &mut CallExpr) {
-        if let Callee::Expr(box Expr::Ident(Ident { sym, .. })) = &mut n.callee {
-            if sym == "jsxDEV" || sym == "_jsxDEV" {
-                // Do not visit the 6th arg in a generated jsxDEV call, which is a `this`
-                // expression, to avoid emitting an error for using `this` if it's
-                // inside of a server function. https://github.com/facebook/react/blob/9106107/packages/react/src/jsx/ReactJSXElement.js#L429
-                if n.args.len() > 4 {
-                    for arg in &mut n.args[0..4] {
-                        arg.visit_mut_with(self);
-                    }
-                    return;
+        if let Callee::Expr(box Expr::Ident(Ident { sym, .. })) = &mut n.callee
+            && (sym == "jsxDEV" || sym == "_jsxDEV")
+        {
+            // Do not visit the 6th arg in a generated jsxDEV call, which is a `this`
+            // expression, to avoid emitting an error for using `this` if it's
+            // inside of a server function. https://github.com/facebook/react/blob/9106107/packages/react/src/jsx/ReactJSXElement.js#L429
+            if n.args.len() > 4 {
+                for arg in &mut n.args[0..4] {
+                    arg.visit_mut_with(self);
                 }
+                return;
             }
         }
 
@@ -1710,22 +1712,23 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_expr(&mut self, n: &mut Expr) {
-        if !self.in_module_level && self.should_track_names {
-            if let Ok(mut name) = Name::try_from(&*n) {
-                if self.in_callee {
-                    // This is a callee i.e. `foo.bar()`,
-                    // we need to track the actual value instead of the method name.
-                    if !name.1.is_empty() {
-                        name.1.pop();
-                    }
+        if !self.in_module_level
+            && self.should_track_names
+            && let Ok(mut name) = Name::try_from(&*n)
+        {
+            if self.in_callee {
+                // This is a callee i.e. `foo.bar()`,
+                // we need to track the actual value instead of the method name.
+                if !name.1.is_empty() {
+                    name.1.pop();
                 }
-
-                self.names.push(name);
-                self.should_track_names = false;
-                n.visit_mut_children_with(self);
-                self.should_track_names = true;
-                return;
             }
+
+            self.names.push(name);
+            self.should_track_names = false;
+            n.visit_mut_children_with(self);
+            self.should_track_names = true;
+            return;
         }
 
         self.rewrite_expr_to_proxy_expr = None;
@@ -1762,13 +1765,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     }
                     ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultDecl(export_default_decl)) => {
                         // export default function foo() {}
-                        if let DefaultDecl::Fn(f) = &export_default_decl.decl {
-                            if let Some(ident) = &f.ident {
-                                self.export_name_by_local_id.insert(
-                                    ident.to_id(),
-                                    ModuleExportName::Ident(atom!("default").into()),
-                                );
-                            }
+                        if let DefaultDecl::Fn(f) = &export_default_decl.decl
+                            && let Some(ident) = &f.ident
+                        {
+                            self.export_name_by_local_id.insert(
+                                ident.to_id(),
+                                ModuleExportName::Ident(atom!("default").into()),
+                            );
                         }
                     }
                     ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export_decl)) => {
@@ -1815,47 +1818,46 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             _ => {}
                         }
                     }
-                    ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named_export)) => {
-                        if named_export.src.is_none() {
-                            for spec in &named_export.specifiers {
-                                match spec {
-                                    ExportSpecifier::Named(ExportNamedSpecifier {
-                                        orig: ModuleExportName::Ident(orig),
-                                        exported: Some(exported),
-                                        is_type_only: false,
-                                        ..
-                                    }) => {
-                                        // export { foo as bar } or export { foo as "📙" }
-                                        self.export_name_by_local_id
-                                            .insert(orig.to_id(), exported.clone());
-                                    }
-                                    ExportSpecifier::Named(ExportNamedSpecifier {
-                                        orig: ModuleExportName::Ident(orig),
-                                        exported: None,
-                                        is_type_only: false,
-                                        ..
-                                    }) => {
-                                        // export { foo }
-                                        self.export_name_by_local_id.insert(
-                                            orig.to_id(),
-                                            ModuleExportName::Ident(orig.clone()),
-                                        );
-                                    }
-                                    _ => {}
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named_export))
+                        if named_export.src.is_none() && !named_export.type_only =>
+                    {
+                        for spec in &named_export.specifiers {
+                            match spec {
+                                ExportSpecifier::Named(ExportNamedSpecifier {
+                                    orig: ModuleExportName::Ident(orig),
+                                    exported: Some(exported),
+                                    is_type_only: false,
+                                    ..
+                                }) => {
+                                    // export { foo as bar } or export { foo as "📙" }
+                                    self.export_name_by_local_id
+                                        .insert(orig.to_id(), exported.clone());
                                 }
+                                ExportSpecifier::Named(ExportNamedSpecifier {
+                                    orig: ModuleExportName::Ident(orig),
+                                    exported: None,
+                                    is_type_only: false,
+                                    ..
+                                }) => {
+                                    // export { foo }
+                                    self.export_name_by_local_id.insert(
+                                        orig.to_id(),
+                                        ModuleExportName::Ident(orig.clone()),
+                                    );
+                                }
+                                _ => {}
                             }
                         }
                     }
                     ModuleItem::Stmt(Stmt::Decl(Decl::Var(var_decl))) => {
                         // Track which declarations need cache runtime wrappers if exported.
                         for decl in &var_decl.decls {
-                            if let Pat::Ident(ident_pat) = &decl.name {
-                                if let Some(init) = &decl.init {
-                                    if may_need_cache_runtime_wrapper(init) {
-                                        self.local_ids_that_need_cache_runtime_wrapper_if_exported
-                                            .insert(ident_pat.id.to_id());
-                                    }
-                                }
+                            if let Pat::Ident(ident_pat) = &decl.name
+                                && let Some(init) = &decl.init
+                                && may_need_cache_runtime_wrapper(init)
+                            {
+                                self.local_ids_that_need_cache_runtime_wrapper_if_exported
+                                    .insert(ident_pat.id.to_id());
                             }
                         }
                     }
@@ -1906,17 +1908,17 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 let mut has_export_needing_wrapper = false;
 
                                 for decl in &var.decls {
-                                    if let Pat::Ident(_) = &decl.name {
-                                        if let Some(init) = &decl.init {
-                                            // Disallow exporting literals. Admittedly, this is
-                                            // pretty arbitrary. We don't disallow exporting object
-                                            // and array literals, as that would be too restrictive,
-                                            // especially for page and layout files with
-                                            // 'use cache', that may want to export metadata or
-                                            // viewport objects.
-                                            if let Expr::Lit(_) = &**init {
-                                                disallowed_export_span = *span;
-                                            }
+                                    if let Pat::Ident(_) = &decl.name
+                                        && let Some(init) = &decl.init
+                                    {
+                                        // Disallow exporting literals. Admittedly, this is
+                                        // pretty arbitrary. We don't disallow exporting object
+                                        // and array literals, as that would be too restrictive,
+                                        // especially for page and layout files with
+                                        // 'use cache', that may want to export metadata or
+                                        // viewport objects.
+                                        if let Expr::Lit(_) = &**init {
+                                            disallowed_export_span = *span;
                                         }
                                     }
 
@@ -1953,14 +1955,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             }
                         }
                     }
-                    ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named)) => {
-                        if !named.type_only {
-                            if let Some(src) = &named.src {
-                                // export { x } from './module'
-                                if in_cache_file {
-                                    // Transform re-exports into imports so we can wrap them with
-                                    // cache runtime wrappers.
-                                    let import_specs: Vec<ImportSpecifier> = named
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named)) if !named.type_only => {
+                        if let Some(src) = &named.src {
+                            // export { x } from './module'
+                            if in_cache_file {
+                                // Transform re-exports into imports so we can wrap them with
+                                // cache runtime wrappers.
+                                let import_specs: Vec<ImportSpecifier> = named
                                         .specifiers
                                         .iter()
                                         .filter_map(|spec| {
@@ -2000,68 +2001,65 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                         })
                                         .collect();
 
-                                    if !import_specs.is_empty() {
-                                        // Add import statement.
-                                        self.extra_items.push(ModuleItem::ModuleDecl(
-                                            ModuleDecl::Import(ImportDecl {
-                                                span: named.span,
-                                                specifiers: import_specs,
-                                                src: src.clone(),
-                                                type_only: false,
-                                                with: named.with.clone(),
-                                                phase: Default::default(),
-                                            }),
-                                        ));
-                                    }
+                                if !import_specs.is_empty() {
+                                    // Add import statement.
+                                    self.extra_items.push(ModuleItem::ModuleDecl(
+                                        ModuleDecl::Import(ImportDecl {
+                                            span: named.span,
+                                            specifiers: import_specs,
+                                            src: src.clone(),
+                                            type_only: false,
+                                            with: named.with.clone(),
+                                            phase: Default::default(),
+                                        }),
+                                    ));
+                                }
 
-                                    // Remove value specifiers from the export statement, keeping
-                                    // only type-only specifiers.
-                                    named.specifiers.retain(|spec| {
-                                        matches!(
-                                            spec,
-                                            ExportSpecifier::Named(ExportNamedSpecifier {
-                                                is_type_only: true,
-                                                ..
-                                            })
-                                        )
-                                    });
+                                // Remove value specifiers from the export statement, keeping
+                                // only type-only specifiers.
+                                named.specifiers.retain(|spec| {
+                                    matches!(
+                                        spec,
+                                        ExportSpecifier::Named(ExportNamedSpecifier {
+                                            is_type_only: true,
+                                            ..
+                                        })
+                                    )
+                                });
 
-                                    // If all specifiers were value specifiers (converted to
-                                    // imports), remove the entire statement.
-                                    if named.specifiers.is_empty() {
-                                        should_remove_statement = true;
-                                    }
-                                } else if named.specifiers.iter().any(|s| match s {
-                                    ExportSpecifier::Namespace(_) | ExportSpecifier::Default(_) => {
+                                // If all specifiers were value specifiers (converted to
+                                // imports), remove the entire statement.
+                                if named.specifiers.is_empty() {
+                                    should_remove_statement = true;
+                                }
+                            } else if named.specifiers.iter().any(|s| match s {
+                                ExportSpecifier::Namespace(_) | ExportSpecifier::Default(_) => true,
+                                ExportSpecifier::Named(s) => !s.is_type_only,
+                            }) {
+                                disallowed_export_span = named.span;
+                            }
+                        } else {
+                            // For cache files, remove specifiers that need cache runtime
+                            // wrappers. Keep type-only specifiers and value specifiers that
+                            // don't need wrappers (like function declarations).
+                            if in_cache_file {
+                                named.specifiers.retain(|spec| {
+                                    if let ExportSpecifier::Named(ExportNamedSpecifier {
+                                        orig: ModuleExportName::Ident(ident),
+                                        is_type_only: false,
+                                        ..
+                                    }) = spec
+                                    {
+                                        !self
+                                            .local_ids_that_need_cache_runtime_wrapper_if_exported
+                                            .contains(&ident.to_id())
+                                    } else {
                                         true
                                     }
-                                    ExportSpecifier::Named(s) => !s.is_type_only,
-                                }) {
-                                    disallowed_export_span = named.span;
-                                }
-                            } else {
-                                // For cache files, remove specifiers that need cache runtime
-                                // wrappers. Keep type-only specifiers and value specifiers that
-                                // don't need wrappers (like function declarations).
-                                if in_cache_file {
-                                    named.specifiers.retain(|spec| {
-                                        if let ExportSpecifier::Named(ExportNamedSpecifier {
-                                            orig: ModuleExportName::Ident(ident),
-                                            is_type_only: false,
-                                            ..
-                                        }) = spec
-                                        {
-                                            !self
-                                                .local_ids_that_need_cache_runtime_wrapper_if_exported
-                                                .contains(&ident.to_id())
-                                        } else {
-                                            true
-                                        }
-                                    });
+                                });
 
-                                    if named.specifiers.is_empty() {
-                                        should_remove_statement = true;
-                                    }
+                                if named.specifiers.is_empty() {
+                                    should_remove_statement = true;
                                 }
                             }
                         }
@@ -2108,10 +2106,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         span,
                         type_only,
                         ..
-                    })) => {
-                        if !*type_only {
-                            disallowed_export_span = *span;
-                        }
+                    })) if !*type_only => {
+                        disallowed_export_span = *span;
                     }
                     _ => {}
                 }
@@ -2252,6 +2248,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 export_name,
                 reference_id: ref_id,
                 needs_cache_runtime_wrapper,
+                ..
             } in &server_reference_exports
             {
                 if !self.config.is_react_server_layer {
@@ -2323,7 +2320,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             decls: vec![VarDeclarator {
                                 span: DUMMY_SP,
                                 name: Pat::Ident(
-                                    IdentName::new(var_name.clone(), name_span).into(),
+                                    Ident::new(var_name.clone(), name_span, self.private_ctxt)
+                                        .into(),
                                 ),
                                 init: Some(Box::new(Expr::Call(CallExpr {
                                     span: PURE_SP,
@@ -2684,12 +2682,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         if self.has_action || self.has_cache {
-            // Flip the map and convert it to a BTreeMap for deterministic
-            // ordering in the server references comment.
-            let export_names_ordered_by_reference_id = self
+            // Build a map of reference_id -> export info
+            let export_infos_ordered_by_reference_id = self
                 .reference_ids_by_export_name
                 .iter()
-                .map(|(export_name, reference_id)| (reference_id, export_name))
+                .map(|(export_name, reference_id)| {
+                    let name_atom = export_name.atom().into_owned();
+                    (reference_id, ServerReferenceExportInfo { name: name_atom })
+                })
                 .collect::<BTreeMap<_, _>>();
 
             if self.config.is_react_server_layer {
@@ -2700,10 +2700,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         span: DUMMY_SP,
                         kind: CommentKind::Block,
                         text: generate_server_references_comment(
-                            &export_names_ordered_by_reference_id,
+                            &export_infos_ordered_by_reference_id,
                             match self.mode {
                                 ServerActionsMode::Webpack => None,
-                                ServerActionsMode::Turbopack => Some(("", "")),
+                                ServerActionsMode::Turbopack => Some((
+                                    &self.file_name,
+                                    self.file_query.as_ref().map_or("", |v| v),
+                                )),
                             },
                         )
                         .into(),
@@ -2718,7 +2721,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 span: DUMMY_SP,
                                 kind: CommentKind::Block,
                                 text: generate_server_references_comment(
-                                    &export_names_ordered_by_reference_id,
+                                    &export_infos_ordered_by_reference_id,
                                     None,
                                 )
                                 .into(),
@@ -2756,6 +2759,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             // re-exports since the actual source maps are in the data URLs.
                             let stripped_export_name = strip_export_name_span(&export_name);
 
+                            let name_atom = export_name.atom().into_owned();
+                            let export_info = ServerReferenceExportInfo { name: name_atom };
+
                             new.push(ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
                                 NamedExport {
                                     specifiers: vec![ExportSpecifier::Named(
@@ -2775,7 +2781,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                                 span: DUMMY_SP,
                                                 kind: CommentKind::Block,
                                                 text: generate_server_references_comment(
-                                                    &std::iter::once((&ref_id, &export_name))
+                                                    &std::iter::once((&ref_id, export_info))
                                                         .collect(),
                                                     Some((
                                                         &self.file_name,
@@ -2844,10 +2850,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         if let (Pat::Ident(ident), Some(box Expr::Arrow(_) | box Expr::Fn(_))) =
             (&var_declarator.name, &var_declarator.init)
         {
-            if self.in_module_level {
-                if let Some(export_name) = self.export_name_by_local_id.get(&ident.to_id()) {
-                    self.current_export_name = Some(export_name.clone());
-                }
+            if self.in_module_level
+                && let Some(export_name) = self.export_name_by_local_id.get(&ident.to_id())
+            {
+                self.current_export_name = Some(export_name.clone());
             }
 
             self.arrow_or_fn_expr_ident = Some(ident.id.clone());
@@ -2864,8 +2870,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         if let (
             AssignTarget::Simple(SimpleAssignTarget::Ident(ident)),
-            box Expr::Arrow(_) | box Expr::Fn(_),
-        ) = (&assign_expr.left, &assign_expr.right)
+            Expr::Arrow(_) | Expr::Fn(_),
+        ) = (&assign_expr.left, &*assign_expr.right)
         {
             self.arrow_or_fn_expr_ident = Some(ident.id.clone());
         }
@@ -2895,14 +2901,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_ident(&mut self, n: &mut Ident) {
-        if n.sym == *"arguments" {
-            if let ThisStatus::Forbidden { directive } = &self.this_status {
-                emit_error(ServerActionsErrorKind::ForbiddenExpression {
-                    span: n.span,
-                    expr: "arguments".into(),
-                    directive: directive.clone(),
-                });
-            }
+        if n.sym == *"arguments"
+            && let ThisStatus::Forbidden { directive } = &self.this_status
+        {
+            emit_error(ServerActionsErrorKind::ForbiddenExpression {
+                span: n.span,
+                expr: "arguments".into(),
+                directive: directive.clone(),
+            });
         }
     }
 
@@ -3936,7 +3942,7 @@ fn emit_error(error_kind: ServerActionsErrorKind) {
                 r#"
                     To use "{directive}", please enable the feature flag `cacheComponents` in your Next.js config.
 
-                    Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
+                    Read more: https://nextjs.org/docs/app/api-reference/directives/use-cache#usage
                 "#
             },
         ),

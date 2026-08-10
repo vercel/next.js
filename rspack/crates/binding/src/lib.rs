@@ -1,6 +1,7 @@
 #![feature(impl_trait_in_bindings)]
 
 mod config_shared;
+mod force_complete_runtime_plugin;
 mod handle_externals;
 mod next_externals_plugin;
 
@@ -13,6 +14,7 @@ use rustc_hash::FxHashMap;
 
 use crate::{
     config_shared::{EsmExternalsConfig, ExperimentalConfig, NextConfigComplete},
+    force_complete_runtime_plugin::ForceCompleteRuntimePlugin,
     next_externals_plugin::{NextExternalsPlugin, NextExternalsPluginOptions},
 };
 
@@ -107,3 +109,10 @@ register_plugin!("NextExternalsPlugin", |env: Env, object: Unknown<'_>| {
         unsafe { FromNapiValue::from_napi_value(env.raw(), object.raw())? };
     Ok(Box::new(NextExternalsPlugin::new(napi_options.into())) as BoxPlugin)
 });
+
+register_plugin!(
+    "ForceCompleteRuntimePlugin",
+    |_env: Env, _object: Unknown<'_>| {
+        Ok(Box::new(ForceCompleteRuntimePlugin::new()) as BoxPlugin)
+    }
+);

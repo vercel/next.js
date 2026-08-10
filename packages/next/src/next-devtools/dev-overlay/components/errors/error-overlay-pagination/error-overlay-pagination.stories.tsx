@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { ErrorOverlayPagination } from './error-overlay-pagination'
-import { withShadowPortal } from '../../../storybook/with-shadow-portal'
+import { withShadowPortal } from '../../../../../../.storybook/decorators/with-shadow-portal'
 import { useState } from 'react'
 import type { ReadyRuntimeError } from '../../../utils/get-error-by-type'
 

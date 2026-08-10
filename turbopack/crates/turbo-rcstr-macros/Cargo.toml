@@ -1,0 +1,26 @@
+[package]
+name = "turbo-rcstr-macros"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+proc-macro = true
+bench = false
+
+[features]
+# Mirror the threshold-affecting features of `turbo-rcstr`. The consuming
+# crate routes them via `turbo-rcstr/atom_size_*` -> `turbo-rcstr-macros/atom_size_*`
+# so the proc macro can compute the correct `MAX_INLINE_LEN` at expansion time
+# instead of leaving an ambiguous range that needs a runtime const branch.
+atom_size_64 = []
+atom_size_128 = []
+
+[lints]
+workspace = true
+
+[dependencies]
+# Intentionally minimal: the only dependency is the standard `proc_macro`
+# API. Dropping `syn` and `quote` removes ~hundreds of milliseconds of
+# per-invocation overhead and a large slice of the proc-macro crate's
+# build time. See the crate-level docs for the reasoning.

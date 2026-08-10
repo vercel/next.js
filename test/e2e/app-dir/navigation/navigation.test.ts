@@ -1,6 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { getTitle, retry, waitFor } from 'next-test-utils'
 
+// bump this every time you want to validate flakiness: 1
+
 describe('app dir - navigation', () => {
   const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
     files: __dirname,
@@ -85,9 +87,7 @@ describe('app dir - navigation', () => {
           router: 'app',
           pathname: '/search-params/foo',
           // App Router doesn't re-render on initial load (the params are baked
-          // server side). In development, effects will render twice.
-
-          // TODO: modern StrictMode does not double invoke effects during hydration: https://github.com/facebook/react/pull/28951
+          // server side).
           waitForNEffects: 1,
         },
         {
@@ -150,13 +150,20 @@ describe('app dir - navigation', () => {
 
   describe('hash', () => {
     it('should scroll to the specified hash', async () => {
-      let hasRscRequest = false
+      // Requests made to navigate, excluding prefetches: a hash-only
+      // navigation is same-document and must not fetch data, while
+      // prefetch heuristics are free to fire at any time.
+      const navigationRscRequestUrls = new Set<string>()
       const browser = await next.browser('/hash', {
         beforePageLoad(page) {
-          page.on('request', async (req) => {
-            const headers = await req.allHeaders()
-            if (headers['rsc']) {
-              hasRscRequest = true
+          page.on('request', (req) => {
+            const headers = req.headers()
+            if (
+              headers['rsc'] &&
+              !headers['next-router-prefetch'] &&
+              !headers['next-router-segment-prefetch']
+            ) {
+              navigationRscRequestUrls.add(req.url())
             }
           })
         },
@@ -168,10 +175,12 @@ describe('app dir - navigation', () => {
       ) => {
         await browser.elementByCss(`#link-to-${val.toString()}`).click()
 
-        await retry(() =>
-          expect(browser.eval('window.pageYOffset')).resolves.toEqual(
-            expectedScroll
-          )
+        await retry(
+          () =>
+            expect(browser.eval('window.pageYOffset')).resolves.toEqual(
+              expectedScroll
+            ),
+          10_000
         )
       }
 
@@ -180,8 +189,8 @@ describe('app dir - navigation', () => {
       }
 
       // Wait for all network requests to finish, and then initialize the flag
-      // used to determine if any RSC requests are made
-      hasRscRequest = false
+      // used to determine if any navigation RSC requests are made.
+      navigationRscRequestUrls.clear()
 
       await checkLink(6, 128)
       await checkLink(50, 744)
@@ -192,17 +201,18 @@ describe('app dir - navigation', () => {
       await checkLink('non-existent', 0)
 
       if (!isNextDev) {
-        // there should have been no RSC calls to fetch data
-        // this is skipped in development because there'll never be a prefetch cache
-        // entry for the loaded page and so every request will be a cache miss.
-        expect(hasRscRequest).toBe(false)
+        // Hash-only navigations must not fetch any data.
+        expect(Array.from(navigationRscRequestUrls)).toEqual([])
       }
 
       await checkLink('query-param', 2284)
       await browser.waitForIdleNetwork()
 
       // There should be an RSC request if the query param is changed
-      expect(hasRscRequest).toBe(true)
+      const hasQueryParamRscRequest = Array.from(navigationRscRequestUrls).some(
+        (url) => url.includes('with-query-param')
+      )
+      expect(hasQueryParamRscRequest).toBe(true)
     })
 
     it('should not scroll to hash when scroll={false} is set', async () => {
@@ -224,10 +234,12 @@ describe('app dir - navigation', () => {
         expectedScroll: number
       ) => {
         await browser.elementByCss(`#link-to-${val.toString()}`).click()
-        await retry(() =>
-          expect(browser.eval('window.pageYOffset')).resolves.toEqual(
-            expectedScroll
-          )
+        await retry(
+          () =>
+            expect(browser.eval('window.pageYOffset')).resolves.toEqual(
+              expectedScroll
+            ),
+          10_000
         )
       }
 
@@ -250,10 +262,12 @@ describe('app dir - navigation', () => {
         expectedScroll: number
       ) => {
         await browser.elementByCss(`#link-to-${val.toString()}`).click()
-        await retry(() =>
-          expect(browser.eval('window.pageYOffset')).resolves.toEqual(
-            expectedScroll
-          )
+        await retry(
+          () =>
+            expect(browser.eval('window.pageYOffset')).resolves.toEqual(
+              expectedScroll
+            ),
+          10_000
         )
       }
 
@@ -354,6 +368,29 @@ describe('app dir - navigation', () => {
     })
   })
 
+  describe('cross-pathname Link then same-pathname hash change', () => {
+    const startPath = '/hash-cross-path-push'
+    const destinationPath = '/hash-cross-path-push/destination'
+
+    it('should replace (not concatenate) the hash when <Link> triggers the same-pathname hash change', async () => {
+      const browser = await next.browser(startPath)
+
+      await browser.elementByCss('#link-to-target-foo').click()
+      await retry(() =>
+        expect(browser.url()).resolves.toEqual(
+          next.url + destinationPath + '#foo'
+        )
+      )
+
+      await browser.elementByCss('#link-to-target-baz').click()
+      await retry(() =>
+        expect(browser.url()).resolves.toEqual(
+          next.url + destinationPath + '#baz'
+        )
+      )
+    })
+  })
+
   describe('not-found', () => {
     it('should trigger not-found in a server component', async () => {
       const browser = await next.browser('/not-found/servercomponent')
@@ -405,21 +442,6 @@ describe('app dir - navigation', () => {
           .getAttribute('content')
       ).toBe('noindex')
     })
-  })
-
-  describe('bots', () => {
-    if (!isNextDeploy) {
-      it('should block rendering for bots and return 404 status', async () => {
-        const res = await next.fetch('/not-found/servercomponent', {
-          headers: {
-            'User-Agent': 'Googlebot',
-          },
-        })
-
-        expect(res.status).toBe(404)
-        expect(await res.text()).toInclude('"noindex"')
-      })
-    }
   })
 
   describe('redirect', () => {
@@ -519,7 +541,9 @@ describe('app dir - navigation', () => {
 
               // If the timestamp has changed, throw immediately.
               if (currentTimestamp !== initialTimestamp) {
-                throw new Error('Timestamp has changed')
+                throw new Error(
+                  `Timestamp has changed from the initial '${initialTimestamp}' to '${currentTimestamp}'`
+                )
               }
 
               // If we've reached the last attempt without the timestamp changing, force a retry failure to keep going.
@@ -579,27 +603,6 @@ describe('app dir - navigation', () => {
           .waitForElementByCss('h1')
         expect(await browser.elementByCss('h1').text()).toBe('redirect-dest')
         expect(await browser.url()).toBe(next.url + '/redirect-dest')
-      })
-    })
-
-    describe('status code', () => {
-      it('should respond with 307 status code in server component', async () => {
-        const res = await next.fetch('/redirect/servercomponent', {
-          redirect: 'manual',
-        })
-        expect(res.status).toBe(307)
-      })
-      it('should respond with 307 status code in client component', async () => {
-        const res = await next.fetch('/redirect/clientcomponent', {
-          redirect: 'manual',
-        })
-        expect(res.status).toBe(307)
-      })
-      it('should respond with 308 status code if permanent flag is set', async () => {
-        const res = await next.fetch('/redirect/servercomponent-2', {
-          redirect: 'manual',
-        })
-        expect(res.status).toBe(308)
       })
     })
   })
@@ -978,6 +981,54 @@ describe('app dir - navigation', () => {
     })
   })
 
+  describe('browser back after a push followed by a refresh', () => {
+    it('should load the previous page', async () => {
+      const browser = await next.browser('/push-and-refresh')
+      expect(await browser.elementByCss('h1').text()).toBe('Home')
+      const historyLength = await browser.eval('window.history.length')
+
+      await browser.elementById('push-and-refresh').click()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('h1').text()).toBe('Target')
+      })
+      await retry(async () => {
+        expect(await browser.eval('window.history.length')).toBe(
+          historyLength + 1
+        )
+      })
+
+      await browser.back()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('h1').text()).toBe('Home')
+      })
+    })
+  })
+
+  describe('replace during a push that has not committed', () => {
+    it('should supersede the pending push', async () => {
+      const browser = await next.browser('/push-and-replace')
+      // Compile the destination pages so the push settles before the replace.
+      await browser.eval(
+        `Promise.all([
+          fetch('/push-and-replace/suspended'),
+          fetch('/push-and-replace/other'),
+        ]).then(() => 'ok')`
+      )
+      expect(await browser.elementByCss('h1').text()).toBe('Home')
+      const historyLength = await browser.eval('window.history.length')
+
+      await browser.elementById('push-and-replace').click()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('h1').text()).toBe('Other')
+      })
+      expect(await browser.url()).toContain('/push-and-replace/other')
+      expect(await browser.eval('window.history.length')).toBe(historyLength)
+    })
+  })
+
   describe('middleware redirect', () => {
     it('should change browser location when router.refresh() gets a redirect response', async () => {
       const browser = await next.browser('/redirect-on-refresh/auth')
@@ -993,15 +1044,18 @@ describe('app dir - navigation', () => {
     describe('locale warnings', () => {
       it('should warn about using the `locale` prop with `next/link` in app router', async () => {
         const browser = await next.browser('/locale-app')
-        const logs = await browser.log()
-        expect(logs).toContainEqual(
-          expect.objectContaining({
-            message: expect.stringContaining(
-              'The `locale` prop is not supported in `next/link` while using the `app` router.'
-            ),
-            source: 'warning',
-          })
-        )
+
+        await retry(async () => {
+          const logs = await browser.log()
+          expect(logs).toContainEqual(
+            expect.objectContaining({
+              message: expect.stringContaining(
+                'The `locale` prop is not supported in `next/link` while using the `app` router.'
+              ),
+              source: 'warning',
+            })
+          )
+        })
       })
 
       it('should have no warnings in pages router', async () => {

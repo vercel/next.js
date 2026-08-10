@@ -22,7 +22,7 @@ describe('CPU Profiling - next start', () => {
   })
 
   it('should create CPU profile files on exit', async () => {
-    const profileDir = join(next.testDir, '.next', 'cpu-profiles')
+    const profileDir = join(next.testDir, '.next-profiles')
 
     // Make a request to ensure the server is running
     const res = await next.fetch('/')

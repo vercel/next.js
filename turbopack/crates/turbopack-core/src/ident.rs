@@ -1,32 +1,20 @@
-use std::fmt::Write;
+use std::{fmt::Write, sync::LazyLock};
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use once_cell::sync::Lazy;
 use regex::Regex;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    NonLocalValue, ReadRef, ResolvedVc, TaskInput, ValueToString, Vc, trace::TraceRawVcs,
+    ReadRef, ResolvedVc, ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::FileSystemPath;
-use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher, encode_hex, hash_xxh3_hash64};
+use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher, encode_base38, hash_xxh3_hash64};
 
 use crate::resolve::ModulePart;
 
 /// A layer identifies a distinct part of the module graph.
-#[derive(
-    Clone,
-    TaskInput,
-    Hash,
-    Debug,
-    DeterministicHash,
-    Eq,
-    PartialEq,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Hash, Debug, DeterministicHash, Eq, PartialEq, TraceRawVcs, Encode, Decode)]
 pub struct Layer {
     name: RcStr,
     user_friendly_name: Option<RcStr>,
@@ -59,8 +47,8 @@ impl Layer {
     }
 }
 
-#[turbo_tasks::value]
-#[derive(Clone, Debug, Hash, TaskInput)]
+#[turbo_tasks::value(task_input)]
+#[derive(Clone, Debug, Hash)]
 pub struct AssetIdent {
     /// The primary path of the asset
     pub path: FileSystemPath,
@@ -83,24 +71,77 @@ pub struct AssetIdent {
 }
 
 impl AssetIdent {
-    pub fn new(ident: AssetIdent) -> Vc<Self> {
-        AssetIdent::new_inner(ReadRef::new_owned(ident))
+    /// Creates an [AssetIdent] from a [FileSystemPath].
+    ///
+    /// Returns an owned value; call [`AssetIdent::into_vc`] at the end of the builder chain to
+    /// turn it into a [`Vc<AssetIdent>`].
+    pub fn from_path(path: FileSystemPath) -> Self {
+        AssetIdent {
+            path,
+            query: RcStr::default(),
+            fragment: RcStr::default(),
+            assets: Vec::new(),
+            modifiers: Vec::new(),
+            parts: Vec::new(),
+            layer: None,
+            content_type: None,
+        }
     }
 
-    pub fn add_modifier(&mut self, modifier: RcStr) {
+    /// Finalizes the builder by turning the owned [`AssetIdent`] into a cached [`Vc<AssetIdent>`].
+    pub fn into_vc(self) -> Vc<Self> {
+        // This optimizes cache misses in cold builds by only storing one copy of the AssetIdent.
+        AssetIdent::new_inner(ReadRef::new_owned(self))
+    }
+
+    pub fn with_query(mut self, query: RcStr) -> Self {
+        self.query = query;
+        self
+    }
+
+    pub fn with_fragment(mut self, fragment: RcStr) -> Self {
+        self.fragment = fragment;
+        self
+    }
+
+    pub fn with_modifier(mut self, modifier: RcStr) -> Self {
         debug_assert!(!modifier.is_empty(), "modifiers cannot be empty.");
         self.modifiers.push(modifier);
+        self
     }
 
-    pub fn add_asset(&mut self, key: RcStr, asset: ResolvedVc<AssetIdent>) {
+    pub fn with_part(mut self, part: ModulePart) -> Self {
+        self.parts.push(part);
+        self
+    }
+
+    pub fn with_path(mut self, path: FileSystemPath) -> Self {
+        self.path = path;
+        self
+    }
+
+    pub fn with_layer(mut self, layer: Layer) -> Self {
+        self.layer = Some(layer);
+        self
+    }
+
+    pub fn with_content_type(mut self, content_type: RcStr) -> Self {
+        self.content_type = Some(content_type);
+        self
+    }
+
+    pub fn with_asset(mut self, key: RcStr, asset: ResolvedVc<AssetIdent>) -> Self {
         self.assets.push((key, asset));
+        self
     }
 
-    pub async fn rename_as_ref(&mut self, pattern: &str) -> Result<()> {
-        let root = self.path.root().await?;
-        let path = self.path.clone();
-        self.path = root.join(&pattern.replace('*', &path.path))?;
-        Ok(())
+    pub fn rename_as(mut self, pattern: &str) -> Self {
+        self.path = FileSystemPath::new_normalized_unchecked(
+            self.path.fs,
+            pattern.replace('*', &self.path.path).into(),
+        );
+        self.content_type = None;
+        self
     }
 }
 
@@ -117,89 +158,6 @@ impl AssetIdent {
             "query should be empty or start with a `?`"
         );
         ReadRef::cell(ident)
-    }
-
-    /// Creates an [AssetIdent] from a [FileSystemPath]
-    #[turbo_tasks::function]
-    pub fn from_path(path: FileSystemPath) -> Vc<Self> {
-        Self::new(AssetIdent {
-            path,
-            query: RcStr::default(),
-            fragment: RcStr::default(),
-            assets: Vec::new(),
-            modifiers: Vec::new(),
-            parts: Vec::new(),
-            layer: None,
-            content_type: None,
-        })
-    }
-
-    #[turbo_tasks::function]
-    pub fn with_query(&self, query: RcStr) -> Vc<Self> {
-        let mut this = self.clone();
-        this.query = query;
-        Self::new(this)
-    }
-
-    #[turbo_tasks::function]
-    pub fn with_fragment(&self, fragment: RcStr) -> Vc<Self> {
-        let mut this = self.clone();
-        this.fragment = fragment;
-        Self::new(this)
-    }
-
-    #[turbo_tasks::function]
-    pub fn with_modifier(&self, modifier: RcStr) -> Vc<Self> {
-        let mut this = self.clone();
-        this.add_modifier(modifier);
-        Self::new(this)
-    }
-
-    #[turbo_tasks::function]
-    pub fn with_part(&self, part: ModulePart) -> Vc<Self> {
-        let mut this = self.clone();
-        this.parts.push(part);
-        Self::new(this)
-    }
-
-    #[turbo_tasks::function]
-    pub fn with_path(&self, path: FileSystemPath) -> Vc<Self> {
-        let mut this = self.clone();
-        this.path = path;
-        Self::new(this)
-    }
-
-    #[turbo_tasks::function]
-    pub fn with_layer(&self, layer: Layer) -> Vc<Self> {
-        let mut this = self.clone();
-        this.layer = Some(layer);
-        Self::new(this)
-    }
-
-    #[turbo_tasks::function]
-    pub fn with_content_type(&self, content_type: RcStr) -> Vc<Self> {
-        let mut this = self.clone();
-        this.content_type = Some(content_type);
-        Self::new(this)
-    }
-
-    #[turbo_tasks::function]
-    pub fn with_asset(&self, key: RcStr, asset: ResolvedVc<AssetIdent>) -> Vc<Self> {
-        let mut this = self.clone();
-        this.add_asset(key, asset);
-        Self::new(this)
-    }
-
-    #[turbo_tasks::function]
-    pub async fn rename_as(&self, pattern: RcStr) -> Result<Vc<Self>> {
-        let mut this = self.clone();
-        this.rename_as_ref(&pattern).await?;
-        Ok(Self::new(this))
-    }
-
-    #[turbo_tasks::function]
-    pub fn path(&self) -> Vc<FileSystemPath> {
-        self.path.clone().cell()
     }
 
     /// Computes a unique output asset name for the given asset identifier.
@@ -225,7 +183,7 @@ impl AssetIdent {
         let mut name = if let Some(inner) = context_path.get_path_to(path) {
             escape_file_path(inner)
         } else {
-            escape_file_path(&self.path.value_to_string().await?)
+            escape_file_path(&self.path.to_string_ref().await?)
         };
         let removed_extension = name.ends_with(&*expected_extension);
         if removed_extension {
@@ -334,8 +292,9 @@ impl AssetIdent {
         }
 
         if has_hash {
-            let hash = encode_hex(hasher.finish());
-            let truncated_hash = &hash[..8];
+            let hash = encode_base38(hasher.finish());
+            // 7 base38 chars ≈ 36 bits of collision resistance
+            let truncated_hash = &hash[..7];
             write!(name, "_{truncated_hash}")?;
         }
 
@@ -356,8 +315,9 @@ impl AssetIdent {
             }
         }
         if i > 0 {
-            let hash = encode_hex(hash_xxh3_hash64(&name.as_bytes()[..i]));
-            let truncated_hash = &hash[..5];
+            let hash = encode_base38(hash_xxh3_hash64(&name.as_bytes()[..i]));
+            // 4 base38 chars ≈ 21 bits — just a short disambiguator prefix
+            let truncated_hash = &hash[..4];
             name = format!("{}_{}", truncated_hash, &name[i..]);
         }
         // We need to make sure that `.json` and `.json.js` doesn't end up with the same
@@ -375,12 +335,11 @@ impl AssetIdent {
 impl ValueToString for AssetIdent {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<RcStr>> {
-        let mut s = self.path.value_to_string().owned().await?.into_owned();
-
-        // The query string is either empty or non-empty starting with `?` so we can just concat
-        s.push_str(&self.query);
-        // ditto for fragment
-        s.push_str(&self.fragment);
+        // The query string/fragment is either empty or non-empty starting with
+        // `?` so we can just concat
+        let mut s = turbofmt!("{}{}{}", self.path, self.query, self.fragment)
+            .await?
+            .into_owned();
 
         if !self.assets.is_empty() {
             s.push_str(" {");
@@ -434,7 +393,7 @@ impl ValueToString for AssetIdent {
 }
 
 fn escape_file_path(s: &str) -> String {
-    static SEPARATOR_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"[/#?:]").unwrap());
+    static SEPARATOR_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[/#?:]").unwrap());
     SEPARATOR_REGEX.replace_all(s, "_").to_string()
 }
 
@@ -444,7 +403,8 @@ fn clean_additional_extensions(s: &str) -> String {
 
 #[cfg(test)]
 pub mod tests {
-    use turbo_rcstr::rcstr;
+    use turbo_rcstr::{RcStr, rcstr};
+    use turbo_tasks::Vc;
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
     use turbo_tasks_fs::{FileSystem, VirtualFileSystem};
 
@@ -457,13 +417,19 @@ pub mod tests {
             noop_backing_storage(),
         ));
         tt.run_once(async move {
-            let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
-            let root = fs.root().owned().await?;
+            #[turbo_tasks::function(operation, root)]
+            async fn output_name_operation() -> anyhow::Result<Vc<RcStr>> {
+                let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
+                let root = fs.root().owned().await?;
 
-            let asset_ident = AssetIdent::from_path(root.join("a:b?c#d.js")?);
-            let output_name = asset_ident
-                .output_name(root.clone(), Some(rcstr!("prefix")), rcstr!(".js"))
-                .await?;
+                let asset_ident = AssetIdent::from_path(root.join("a:b?c#d.js")?).into_vc();
+                let output_name = asset_ident
+                    .output_name(root, Some(rcstr!("prefix")), rcstr!(".js"))
+                    .await?;
+                Ok(Vc::cell((*output_name).clone()))
+            }
+
+            let output_name = output_name_operation().read_strongly_consistent().await?;
             assert_eq!(&*output_name, "prefix-a_b_c_d.js");
 
             Ok(())

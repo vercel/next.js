@@ -3,7 +3,7 @@ use quote::quote;
 use syn::parse_macro_input;
 
 use crate::{
-    global_name::global_name,
+    global_name::global_name_for_type,
     ident::get_type_ident,
     primitive_input::{BincodeWrappers, PrimitiveInput},
     value_macro::value_type_and_register,
@@ -23,34 +23,44 @@ pub fn primitive(input: TokenStream) -> TokenStream {
     };
 
     let value_debug_impl = quote! {
+        #[cfg(debug_assertions)]
         #[turbo_tasks::value_impl]
         impl turbo_tasks::debug::ValueDebug for #ty {
-            #[turbo_tasks::function]
-            async fn dbg(&self) -> anyhow::Result<turbo_tasks::Vc<turbo_tasks::debug::ValueDebugString>> {
-                use turbo_tasks::debug::ValueDebugFormat;
-                self.value_debug_format(usize::MAX).try_to_value_debug_string().await
-            }
-
-            #[turbo_tasks::function]
-            async fn dbg_depth(&self, depth: usize) -> anyhow::Result<turbo_tasks::Vc<turbo_tasks::debug::ValueDebugString>> {
-                use turbo_tasks::debug::ValueDebugFormat;
-                self.value_debug_format(depth).try_to_value_debug_string().await
+            fn dbg_depth<'a>(
+                &'a self,
+                depth: usize,
+            ) -> ::std::pin::Pin<
+                ::std::boxed::Box<
+                    dyn ::std::future::Future<
+                            Output = ::anyhow::Result<::std::string::String>,
+                        > + ::std::marker::Send
+                        + 'a,
+                >,
+            > {
+                ::std::boxed::Box::pin(async move {
+                    use turbo_tasks::debug::ValueDebugFormat;
+                    self.value_debug_format(depth).try_to_string().await
+                })
             }
         }
+
     };
 
-    let name = global_name(quote!(stringify!(#ty)));
+    let name = global_name_for_type(&ty);
     let new_value_type = if let Some(bincode_wrappers) = bincode_wrappers {
         let BincodeWrappers {
             encode_ty,
             decode_ty,
         } = bincode_wrappers;
         quote! {
-            turbo_tasks::ValueType::new_with_bincode_wrappers::<#ty, #encode_ty, #decode_ty>(#name)
+            turbo_tasks::ValueType::new_with_bincode_wrappers::<#ty, #encode_ty, #decode_ty>(
+                #name,
+                turbo_tasks::Evictability::Always,
+            )
         }
     } else {
         quote! {
-            turbo_tasks::ValueType::new_with_bincode::<#ty>(#name)
+            turbo_tasks::ValueType::persistable::<#ty>(#name, turbo_tasks::Evictability::Always)
         }
     };
 
@@ -59,7 +69,7 @@ pub fn primitive(input: TokenStream) -> TokenStream {
         quote! { #ty },
         None,
         quote! {
-            turbo_tasks::VcTransparentRead<#ty, #ty, #ty>
+            turbo_tasks::VcTransparentRead<#ty, #ty>
         },
         quote! {
             turbo_tasks::VcCellCompareMode<#ty>

@@ -1,10 +1,8 @@
-import type { CacheNode } from '../../../shared/lib/app-router-types'
-import type {
-  FlightRouterState,
-  FlightSegmentPath,
-} from '../../../shared/lib/app-router-types'
-import type { NavigationSeed } from '../segment-cache/navigation'
+import type { CacheNode, ScrollRef } from '../../../shared/lib/app-router-types'
+import type { FlightRouterState } from '../../../shared/lib/app-router-types'
+import type { NavigationSeed } from '../segment-cache/decode-server-response'
 import type { FetchServerResponseResult } from './fetch-server-response'
+import type { FreshnessPolicy } from './ppr-navigations'
 
 export const ACTION_REFRESH = 'refresh'
 export const ACTION_NAVIGATE = 'navigate'
@@ -23,25 +21,6 @@ export type RouterChangeByServerResponse = ({
   serverResponse: FetchServerResponseResult
 }) => void
 
-export interface Mutable {
-  mpaNavigation?: boolean
-  patchedTree?: FlightRouterState
-  renderedSearch?: string
-  canonicalUrl?: string
-  scrollableSegments?: FlightSegmentPath[]
-  pendingPush?: boolean
-  cache?: CacheNode
-  hashFragment?: string
-  shouldScroll?: boolean
-  preserveCustomHistoryState?: boolean
-  onlyHashChange?: boolean
-  collectedDebugInfo?: Array<unknown>
-}
-
-export interface ServerActionMutable extends Mutable {
-  inFlightServerAction?: Promise<any> | null
-}
-
 /**
  * Refresh triggers a refresh of the full page data.
  * - fetches the Flight data and fills rsc at the root of the cache.
@@ -49,10 +28,17 @@ export interface ServerActionMutable extends Mutable {
  */
 export interface RefreshAction {
   type: typeof ACTION_REFRESH
+  /**
+   * Bypass invalidating the segment cache. Used by the Instant Navigation
+   * Testing API to preserve prefetched data when refreshing after an MPA
+   * navigation. Not exposed in production builds by default.
+   */
+  bypassCacheInvalidation?: boolean
 }
 
 export interface HmrRefreshAction {
   type: typeof ACTION_HMR_REFRESH
+  signal?: AbortSignal
 }
 
 export type ServerActionDispatcher = (
@@ -107,7 +93,7 @@ export interface NavigateAction {
   isExternalUrl: boolean
   locationSearch: Location['search']
   navigateType: 'push' | 'replace'
-  shouldScroll: boolean
+  scrollBehavior: ScrollBehavior
 }
 
 /**
@@ -140,6 +126,14 @@ export interface ServerPatchAction {
   nextUrl: string | null
   seed: NavigationSeed | null
   mpa: boolean
+  navigateType: 'push' | 'replace'
+  /**
+   * Freshness policy for the retry navigation. `RefreshAll` re-fetches the
+   * tree's dynamic data (genuine tree mismatch). `HistoryTraversal` reuses the
+   * data already in the tree (when only the URL needs correcting after a
+   * redirect).
+   */
+  freshnessPolicy: FreshnessPolicy.RefreshAll | FreshnessPolicy.HistoryTraversal
 }
 
 /**
@@ -152,13 +146,6 @@ export enum PrefetchKind {
   AUTO = 'auto',
   FULL = 'full',
 }
-
-/**
- * Prefetch adds the provided FlightData to the prefetch cache
- * - Creates the router state tree based on the patch in FlightData
- * - Adds the FlightData to the prefetch cache
- * - In ACTION_NAVIGATE the prefetch cache is checked and the router state tree and FlightData are applied.
- */
 
 export interface PushRef {
   /**
@@ -175,19 +162,37 @@ export interface PushRef {
   preserveCustomHistoryState: boolean
 }
 
-export type FocusAndScrollRef = {
+/**
+ * Controls the scroll behavior for a navigation.
+ */
+export const enum ScrollBehavior {
+  /** Use per-node ScrollRef to decide whether to scroll. */
+  Default = 0,
+  /** Suppress scroll entirely (e.g. scroll={false} on Link or router.push). */
+  NoScroll = 1,
+}
+
+export type ScrollHandlerRef = {
   /**
-   * If focus and scroll should be set in the layout-router's useEffect()
+   * The scroll ref from the most recent navigation. Set to whatever was
+   * accumulated during tree construction (or null if nothing was
+   * accumulated). On the next navigation, if new scroll targets are
+   * created, the previous scrollRef is invalidated by setting
+   * `current = false`.
    */
-  apply: boolean
+  scrollRef: ScrollRef | null
+  /**
+   * When true, the scroll handler uses the navigation-level `scrollRef`
+   * for every segment regardless of per-node state. Used for hash-only
+   * navigations where every segment should be treated as a scroll
+   * target. When false, the handler checks `cacheNode.scrollRef`
+   * instead (per-node), so only segments that actually navigated scroll.
+   */
+  forceScroll: boolean
   /**
    * The hash fragment that should be scrolled to.
    */
   hashFragment: string | null
-  /**
-   * The paths of the segments that should be focused.
-   */
-  segmentPaths: FlightSegmentPath[]
   /**
    * If only the URLs hash fragment changed
    */
@@ -214,9 +219,9 @@ export type AppRouterState = {
    */
   pushRef: PushRef
   /**
-   * Decides if the update should apply scroll and focus management.
+   * Decides if the update should apply scroll management.
    */
-  focusAndScrollRef: FocusAndScrollRef
+  scrollRef: ScrollHandlerRef
   /**
    * The canonical url that is pushed/replaced.
    * - This is the url you see in the browser.

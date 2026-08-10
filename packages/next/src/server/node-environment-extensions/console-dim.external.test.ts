@@ -357,4 +357,61 @@ describe('console-exit patches', () => {
       ])
     })
   })
+
+  describe('inspector-aware dimming', () => {
+    it('should skip dimming when inspector is open', async () => {
+      async function testForWorker() {
+        const nodeInspector = require('node:inspector')
+        nodeInspector.open(0)
+
+        const {
+          consoleAsyncStorage,
+        } = require('next/dist/server/app-render/console-async-storage.external')
+
+        const capturedCalls: Array<{ args: any[] }> = []
+        console.error = function (...args) {
+          capturedCalls.push({ args })
+        }
+
+        require('next/dist/server/node-environment-extensions/console-dim.external')
+
+        consoleAsyncStorage.run({ dim: true }, () => {
+          console.error('prefix', { key: 'value' }, 42)
+        })
+
+        nodeInspector.close()
+
+        const call = capturedCalls[0]
+
+        reportResult({
+          type: 'serialized',
+          key: 'argCount',
+          data: JSON.stringify(call.args.length),
+        })
+        reportResult({
+          type: 'serialized',
+          key: 'firstArg',
+          data: JSON.stringify(call.args[0]),
+        })
+        reportResult({
+          type: 'serialized',
+          key: 'secondArg',
+          data: JSON.stringify(call.args[1]),
+        })
+        reportResult({
+          type: 'serialized',
+          key: 'thirdArg',
+          data: JSON.stringify(call.args[2]),
+        })
+      }
+
+      const { data, exitCode } = await runWorkerCode(testForWorker)
+
+      expect(exitCode).toBe(0)
+      expect(data.argCount).toBe(3)
+      expect(data.firstArg).toBe('prefix')
+      expect(data.secondArg).toEqual({ key: 'value' })
+      expect(data.thirdArg).toBe(42)
+    })
+  })
 })

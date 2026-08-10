@@ -51,6 +51,13 @@ impl<S: Subscriber> Layer<S> for FilterLayer {
     }
 
     fn max_level_hint(&self) -> Option<LevelFilter> {
-        self.config.values().copied().min()
+        Some(
+            self.config
+                .values()
+                .copied()
+                .max()
+                .unwrap_or(LevelFilter::OFF)
+                .max(self.global_level),
+        )
     }
 }

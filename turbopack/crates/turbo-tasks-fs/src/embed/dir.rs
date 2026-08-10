@@ -1,3 +1,5 @@
+use std::path::Path;
+
 pub use ::include_dir::{
     include_dir, {self},
 };
@@ -5,15 +7,19 @@ use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::Vc;
 
-use crate::{DiskFileSystem, FileSystem, embed::EmbeddedFileSystem};
+use crate::{DiskFileSystem, FileSystem, canonicalize_to_rcstr, embed::EmbeddedFileSystem};
 
 #[turbo_tasks::function]
 pub async fn directory_from_relative_path(
     name: RcStr,
     path: RcStr,
 ) -> Result<Vc<Box<dyn FileSystem>>> {
-    let disk_fs = DiskFileSystem::new(name, path);
-    disk_fs.await?.start_watching(None).await?;
+    // note: canonicalizing inside of a turbo-tasks function causes an untracked read of the root
+    // directory path (e.g. if it's a symlink), but it's okay because this codepath is only used in
+    // development and the root directory is unlikely to move.
+    let root = canonicalize_to_rcstr(Path::new(&*path))?;
+    let disk_fs = DiskFileSystem::new(name, Vc::cell(root));
+    disk_fs.await?.start_watching().await?;
 
     Ok(Vc::upcast(disk_fs))
 }
@@ -25,17 +31,17 @@ pub fn directory_from_include_dir(
     Vc::upcast(EmbeddedFileSystem::new(name, dir))
 }
 
-/// Returns an embedded [Vc<Box<dyn FileSystem>>] for the given path.
+/// Returns an embedded [`Vc<Box<dyn FileSystem>>`][FileSystem] for the given path.
 ///
-/// This will embed a directory's content into the binary and
-/// create an [Vc<EmbeddedFileSystem>].
+/// This will embed a directory's content into the binary and create an
+/// [`Vc<EmbeddedFileSystem>`][EmbeddedFileSystem].
 ///
-/// If you enable the `dynamic_embed_contents` feature, calling
-/// the macro will return a [Vc<DiskFileSystem>].
+/// If you enable the `dynamic_embed_contents` feature, calling the macro will return a
+/// [`Vc<DiskFileSystem>`][DiskFileSystem].
 ///
-/// This enables dynamic linking (and hot reloading) of embedded files/dirs.
-/// A binary built with `dynamic_embed_contents` enabled is **is not portable**,
-/// only the directory path will be embedded into the binary.
+/// This enables dynamic linking (and hot reloading) of embedded files/dirs. A binary built with
+/// `dynamic_embed_contents` enabled is **is not portable**, only the directory path will be
+/// embedded into the binary.
 #[macro_export]
 macro_rules! embed_directory {
     ($name:tt, $path:tt) => {{        // make sure the path contains `$CARGO_MANIFEST_DIR`

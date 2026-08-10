@@ -1,31 +1,53 @@
 import type {
-  Mutable,
   ReadonlyReducerState,
   ReducerState,
+  RefreshAction,
 } from '../router-reducer-types'
-import { handleNavigationResult } from './navigate-reducer'
+import { ScrollBehavior } from '../router-reducer-types'
+import { navigateToKnownRoute } from '../../segment-cache/navigation'
+import { convertServerPatchToFullTree } from '../../segment-cache/decode-server-response'
 import {
-  convertServerPatchToFullTree,
-  navigateToKnownRoute,
-} from '../../segment-cache/navigation'
-import { revalidateEntireCache } from '../../segment-cache/cache'
+  invalidateSegmentCacheEntries,
+  segmentCacheMap,
+} from '../../segment-cache/cache'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
-import { FreshnessPolicy } from '../ppr-navigations'
+import { FreshnessPolicy, getCurrentNavigationLock } from '../ppr-navigations'
+import {
+  invalidateBfCache,
+  UnknownDynamicStaleTime,
+} from '../../segment-cache/bfcache'
 
-export function refreshReducer(state: ReadonlyReducerState): ReducerState {
-  // TODO: Currently, all refreshes purge the prefetch cache. In the future,
-  // only client-side refreshes will have this behavior; the server-side
-  // `refresh` should send new data without purging the prefetch cache.
-  const currentNextUrl = state.nextUrl
-  const currentRouterState = state.tree
-  revalidateEntireCache(currentNextUrl, currentRouterState)
-  return refreshDynamicData(state, FreshnessPolicy.RefreshAll)
+export function refreshReducer(
+  state: ReadonlyReducerState,
+  action: RefreshAction
+): ReducerState {
+  // During a refresh, we invalidate the segment cache but not the route cache.
+  // The route cache contains the tree structure (which segments exist at a
+  // given URL) which doesn't change during a refresh. The segment cache
+  // contains the actual RSC data which needs to be re-fetched.
+  //
+  // The Instant Navigation Testing API can bypass cache invalidation to
+  // preserve prefetched data when refreshing after an MPA navigation. This is
+  // only used for testing and is not exposed in production builds by default.
+  const bypassCacheInvalidation =
+    process.env.__NEXT_EXPOSE_TESTING_API && action.bypassCacheInvalidation
+  if (!bypassCacheInvalidation) {
+    const currentNextUrl = state.nextUrl
+    const currentRouterState = state.tree
+    invalidateSegmentCacheEntries(currentNextUrl, currentRouterState)
+  }
+  // A full refresh has no HMR generation to cancel.
+  return refreshDynamicData(state, FreshnessPolicy.RefreshAll, undefined)
 }
 
 export function refreshDynamicData(
   state: ReadonlyReducerState,
-  freshnessPolicy: FreshnessPolicy.RefreshAll | FreshnessPolicy.HMRRefresh
+  freshnessPolicy: FreshnessPolicy.RefreshAll | FreshnessPolicy.HMRRefresh,
+  signal: AbortSignal | undefined
 ): ReducerState {
+  // During a refresh, invalidate the BFCache, which may contain dynamic data.
+  invalidateBfCache()
+
   const currentNextUrl = state.nextUrl
 
   // We always send the last next-url, not the current when performing a dynamic
@@ -41,21 +63,32 @@ export function refreshDynamicData(
   const currentUrl = new URL(currentCanonicalUrl, location.origin)
   const currentRenderedSearch = state.renderedSearch
   const currentFlightRouterState = state.tree
-  const shouldScroll = true
+  const scrollBehavior = ScrollBehavior.NoScroll
+  const navigationLock = getCurrentNavigationLock()
 
   // Create a NavigationSeed from the current FlightRouterState.
   // TODO: Eventually we will store this type directly on the state object
   // instead of reconstructing it on demand. Part of a larger series of
   // refactors to unify the various tree types that the client deals with.
+  const now = Date.now()
+  // TODO: Store the dynamic stale time on the top-level state so it's known
+  // during restores and refreshes.
   const refreshSeed = convertServerPatchToFullTree(
+    now,
     currentFlightRouterState,
     null,
-    currentRenderedSearch
+    currentRenderedSearch,
+    UnknownDynamicStaleTime
   )
 
-  const now = Date.now()
-  const result = navigateToKnownRoute(
+  // If the previous navigation hasn't pushed its history entry yet (React
+  // hasn't committed its state), this refresh may commit in its place, so it
+  // takes over the push. If the navigation does commit first, HistoryUpdater
+  // sees that the URL already matches and replaces instead.
+  const navigateType = state.pushRef.pendingPush ? 'push' : 'replace'
+  return navigateToKnownRoute(
     now,
+    state,
     currentUrl,
     currentCanonicalUrl,
     refreshSeed,
@@ -65,11 +98,17 @@ export function refreshDynamicData(
     currentFlightRouterState,
     freshnessPolicy,
     nextUrlForRefresh,
-    shouldScroll
+    scrollBehavior,
+    navigateType,
+    navigationLock,
+    // A refresh is bound to the shared map.
+    segmentCacheMap,
+    null,
+    // Refresh navigations don't use route prediction, so there's no route
+    // cache entry to mark as having a dynamic rewrite on mismatch. If a
+    // mismatch occurs, the retry handler will traverse the known route tree
+    // to find and mark the entry.
+    null,
+    signal
   )
-
-  const mutable: Mutable = {}
-  mutable.preserveCustomHistoryState = false
-
-  return handleNavigationResult(currentUrl, state, mutable, false, result)
 }

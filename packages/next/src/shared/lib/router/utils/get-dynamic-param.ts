@@ -5,7 +5,7 @@ import type { Params } from '../../../../server/request/params'
 import type { DynamicParamTypesShort } from '../../app-router-types'
 import { InvariantError } from '../../invariant-error'
 import { parseLoaderTree } from './parse-loader-tree'
-import { parseAppRoute, parseAppRouteSegment } from '../routes/app'
+import { parseNormalizedAppRoute, parseAppRouteSegment } from '../routes/app'
 import { resolveParamValue } from './resolve-param-value'
 
 /**
@@ -53,7 +53,7 @@ export function interpolateParallelRouteParams(
   ]
 
   // Parse the route from the provided page path.
-  const route = parseAppRoute(pagePath, true)
+  const route = parseNormalizedAppRoute(pagePath)
 
   while (stack.length > 0) {
     const { tree, depth } = stack.pop()!
@@ -121,7 +121,8 @@ export function getDynamicParam(
   interpolatedParams: Params,
   segmentKey: string,
   dynamicParamType: DynamicParamTypesShort,
-  fallbackRouteParams: OpaqueFallbackRouteParams | null
+  fallbackRouteParams: OpaqueFallbackRouteParams | null,
+  staticSiblings: readonly string[] | null
 ): DynamicParam {
   let value: string | string[] | undefined = getParamValue(
     interpolatedParams,
@@ -137,7 +138,7 @@ export function getDynamicParam(
         param: segmentKey,
         value: null,
         type: dynamicParamType,
-        treeSegment: [segmentKey, '', dynamicParamType],
+        treeSegment: [segmentKey, '', dynamicParamType, staticSiblings],
       }
     }
 
@@ -146,16 +147,18 @@ export function getDynamicParam(
     )
   }
 
+  const paramCacheKey = Array.isArray(value) ? value.join('/') : value
+
   return {
     param: segmentKey,
     // The value that is passed to user code.
     value,
     // The value that is rendered in the router tree.
-    treeSegment: [
-      segmentKey,
-      Array.isArray(value) ? value.join('/') : value,
-      dynamicParamType,
-    ],
+    // TODO: If the number of static siblings exceeds some threshold (e.g.,
+    // dozens or hundreds), consider sending a Bloom filter instead of the full
+    // array to reduce payload size. The client would then use the Bloom filter
+    // to check membership with a small false positive rate.
+    treeSegment: [segmentKey, paramCacheKey, dynamicParamType, staticSiblings],
     type: dynamicParamType,
   }
 }
