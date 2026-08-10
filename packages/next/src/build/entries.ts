@@ -100,6 +100,7 @@ export interface CreateEntrypointsParams {
   rootPaths?: MappedPages
   appDir?: string
   appPaths?: MappedPages
+  appDefaultPaths?: MappedPages
   pageExtensions: PageExtensions
   hasInstrumentationHook?: boolean
   /**
@@ -393,6 +394,7 @@ export async function createEntrypoints(
     rootPaths,
     appDir,
     appPaths,
+    appDefaultPaths,
     pageExtensions,
     deferredEntriesFilter,
   } = params
@@ -419,7 +421,10 @@ export async function createEntrypoints(
     }
 
     // TODO: find a better place to do this
-    normalizeCatchAllRoutes(appPathsPerRoute)
+    normalizeCatchAllRoutes(appPathsPerRoute, {
+      strictRouteMatching: config.experimental.strictRouteMatching,
+      defaultAppPaths: Object.keys(appDefaultPaths ?? {}),
+    })
 
     // Make sure to sort parallel routes to make the result deterministic.
     appPathsPerRoute = Object.fromEntries(
@@ -433,6 +438,14 @@ export async function createEntrypoints(
   const getEntryHandler =
     (mappings: MappedPages, pagesType: PAGE_TYPES): ((page: string) => void) =>
     async (page) => {
+      if (
+        pagesType === PAGE_TYPES.APP &&
+        config.experimental.strictRouteMatching &&
+        !(normalizeAppPath(page) in appPathsPerRoute)
+      ) {
+        return
+      }
+
       // Apply deferred entries filter if specified
       if (deferredEntriesFilter) {
         const isDeferred = isDeferredEntry(page, deferredEntries)

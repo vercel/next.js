@@ -1412,6 +1412,12 @@ export interface ExperimentalConfig {
   explicitParallelRouteChildren?: boolean
 
   /**
+   * Omits App Router matchers that cannot construct a complete parallel route
+   * tree for their URL.
+   */
+  strictRouteMatching?: boolean
+
+  /**
    * @experimental Use the Rust port of the React compiler (Turbopack only).
    * Requires `reactCompiler` to be enabled.
    */
@@ -2350,6 +2356,7 @@ export const defaultConfig = Object.freeze({
     slowModuleDetection: undefined,
     globalNotFound: false,
     explicitParallelRouteChildren: true,
+    strictRouteMatching: false,
     browserDebugInfoInTerminal: 'warn',
     lockDistDir: true,
     disableResumeDataCacheCompression: false,

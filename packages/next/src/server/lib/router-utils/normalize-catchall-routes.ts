@@ -5,6 +5,11 @@ type AppPathNormalizer = {
   normalize(pathname: string): string
 }
 
+export type NormalizeCatchAllRoutesOptions = {
+  strictRouteMatching?: boolean
+  defaultAppPaths?: Iterable<string>
+}
+
 const defaultNormalizer: AppPathNormalizer = {
   normalize(pathname: string): string {
     return normalizeAppPath(pathname).replace(/%5F/g, '_')
@@ -20,7 +25,11 @@ const defaultNormalizer: AppPathNormalizer = {
  */
 export function normalizeCatchAllRoutes(
   appPaths: Record<string, string[]>,
-  normalizer: AppPathNormalizer = defaultNormalizer
+  normalizer: AppPathNormalizer = defaultNormalizer,
+  {
+    strictRouteMatching = false,
+    defaultAppPaths = [],
+  }: NormalizeCatchAllRoutesOptions = {}
 ) {
   const catchAllRoutes = [
     ...new Set(
@@ -69,6 +78,122 @@ export function normalizeCatchAllRoutes(
       }
     }
   }
+
+  if (strictRouteMatching) {
+    pruneUnrenderableCatchAllRoutes(appPaths, defaultAppPaths)
+  }
+}
+
+/**
+ * Removes catch-all-derived routes that can never render because another slot
+ * at the same level has neither a matching page nor an explicit default.
+ *
+ * The built-in default for such a slot always calls `notFound()`. Keeping the
+ * route in the matcher set therefore makes it shadow the ordinary not-found
+ * path without ever being able to render successfully.
+ */
+function pruneUnrenderableCatchAllRoutes(
+  appPaths: Record<string, string[]>,
+  defaultAppPaths: Iterable<string>
+) {
+  const allAppPaths = new Set([
+    ...Object.values(appPaths).flat(),
+    ...defaultAppPaths,
+  ])
+  const levelsByParent = new Map<
+    string,
+    { parentSegments: string[]; namedSlots: Set<string> }
+  >()
+
+  for (const appPath of allAppPaths) {
+    const segments = splitAppPath(appPath)
+
+    for (let i = 0; i < segments.length - 1; i++) {
+      const segment = segments[i]
+      if (!isMatchableSlot(segment)) continue
+
+      const parentSegments = segments.slice(0, i)
+      const parentKey = JSON.stringify(parentSegments)
+      let level = levelsByParent.get(parentKey)
+      if (!level) {
+        level = { parentSegments, namedSlots: new Set() }
+        levelsByParent.set(parentKey, level)
+      }
+      level.namedSlots.add(segment)
+    }
+  }
+
+  for (const [route, matchedAppPaths] of Object.entries(appPaths)) {
+    const catchAllAppPaths = matchedAppPaths.filter(isCatchAll)
+
+    if (
+      catchAllAppPaths.some((catchAllAppPath) => {
+        const catchAllSegments = splitAppPath(catchAllAppPath).slice(0, -1)
+
+        for (const { parentSegments, namedSlots } of levelsByParent.values()) {
+          if (!hasPathPrefix(catchAllSegments, parentSegments)) continue
+
+          const catchAllSlot = getSlotAtParent(catchAllSegments, parentSegments)
+          const siblingSlots = ['children', ...namedSlots]
+
+          for (const siblingSlot of siblingSlots) {
+            if (siblingSlot === catchAllSlot) continue
+
+            const hasMatchedPage = matchedAppPaths.some((appPath) =>
+              isPathInSlot(appPath, parentSegments, siblingSlot)
+            )
+            const hasDefault = allAppPaths.has(
+              getDefaultAppPath(parentSegments, siblingSlot)
+            )
+            const usesNullChildrenFallback =
+              siblingSlot === 'children' &&
+              isInterceptionRouteAppPath(catchAllAppPath)
+
+            if (!hasMatchedPage && !hasDefault && !usesNullChildrenFallback) {
+              return true
+            }
+          }
+        }
+
+        return false
+      })
+    ) {
+      delete appPaths[route]
+    }
+  }
+}
+
+function splitAppPath(appPath: string): string[] {
+  return appPath.split('/').filter(Boolean)
+}
+
+function hasPathPrefix(path: string[], prefix: string[]): boolean {
+  return prefix.every((segment, index) => path[index] === segment)
+}
+
+function getSlotAtParent(path: string[], parent: string[]): string {
+  const segment = path[parent.length]
+  return segment?.startsWith('@') && segment !== '@children'
+    ? segment
+    : 'children'
+}
+
+function isPathInSlot(
+  appPath: string,
+  parent: string[],
+  slot: string
+): boolean {
+  const segments = splitAppPath(appPath)
+  return (
+    hasPathPrefix(segments, parent) &&
+    getSlotAtParent(segments, parent) === slot
+  )
+}
+
+function getDefaultAppPath(parent: string[], slot: string): string {
+  const segments =
+    slot === 'children' ? [...parent, 'default'] : [...parent, slot, 'default']
+  return `/${segments.join('/')}`
 }
 
 function hasMatchedSlots(path1: string, path2: string): boolean {

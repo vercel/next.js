@@ -1433,6 +1433,8 @@ pub struct ExperimentalConfig {
     global_not_found: Option<bool>,
     /// Only include children in a parallel route layout when ordinary route content declares it.
     explicit_parallel_route_children: Option<bool>,
+    /// Omit route matchers whose loader trees contain an unmatched parallel route.
+    strict_route_matching: Option<bool>,
     /// Experimental Rust React compiler (Turbopack only); requires `reactCompiler`.
     turbopack_rust_react_compiler: Option<bool>,
     /// Defaults to false in development mode, true in production mode.
@@ -2026,6 +2028,11 @@ impl NextConfig {
                 .explicit_parallel_route_children
                 .unwrap_or(true),
         )
+    }
+
+    #[turbo_tasks::function]
+    pub fn strict_route_matching(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.strict_route_matching.unwrap_or_default())
     }
 
     #[turbo_tasks::function]

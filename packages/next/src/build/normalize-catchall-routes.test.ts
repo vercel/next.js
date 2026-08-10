@@ -219,4 +219,152 @@ describe('normalizeCatchallRoutes', () => {
     // ensure values are correct after normalizing
     expect(appPaths).toMatchObject(initialAppPaths)
   })
+
+  describe('strictRouteMatching pruning', () => {
+    it('prunes a named-slot catch-all when children is missing', () => {
+      const appPaths = {
+        '/[...slug]': ['/@catchall/[...slug]/page'],
+        '/specific': ['/@specific/specific/page'],
+      }
+
+      normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
+
+      expect(appPaths).toEqual({})
+    })
+
+    it('prunes only the incomplete catch-all matcher', () => {
+      const appPaths = {
+        '/foo': ['/foo/page'],
+        '/bar': ['/bar/page'],
+        '/[...parts]': ['/@slot/[...parts]/page'],
+      }
+
+      normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
+
+      expect(appPaths).toEqual({
+        '/foo': ['/foo/page', '/@slot/[...parts]/page'],
+        '/bar': ['/bar/page', '/@slot/[...parts]/page'],
+      })
+    })
+
+    it('prunes a children catch-all when a named slot is missing', () => {
+      const appPaths = {
+        '/[...slug]': ['/[...slug]/page'],
+        '/foo': ['/@first/foo/page'],
+        '/bar': ['/@second/bar/page'],
+      }
+
+      normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
+
+      expect(appPaths).toEqual({})
+    })
+
+    it('prunes an optional children catch-all when a named slot is missing', () => {
+      const appPaths = {
+        '/[[...slug]]': ['/[[...slug]]/page'],
+        '/specific': ['/specific/page', '/@slot/specific/page'],
+      }
+
+      normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
+
+      expect(appPaths).toEqual({
+        '/specific': ['/specific/page', '/@slot/specific/page'],
+      })
+    })
+
+    it('prunes a catch-all with an incomplete nested parallel route', () => {
+      const appPaths = {
+        '/nested/[...slug]': [
+          '/nested/[...slug]/page',
+          '/nested/@outer/[...slug]/page',
+        ],
+        '/nested/specific': [
+          '/nested/specific/page',
+          '/nested/@outer/specific/page',
+          '/nested/@outer/@inner/specific/page',
+        ],
+      }
+
+      normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
+
+      expect(appPaths).toEqual({
+        '/nested/specific': [
+          '/nested/specific/page',
+          '/nested/@outer/specific/page',
+          '/nested/@outer/@inner/specific/page',
+        ],
+      })
+    })
+
+    it('prunes an incomplete catch-all through a route group', () => {
+      const appPaths = {
+        '/grouped/[...slug]': ['/(pruning-group)/grouped/[...slug]/page'],
+        '/grouped/specific': [
+          '/(pruning-group)/grouped/specific/page',
+          '/(pruning-group)/grouped/@slot/specific/page',
+        ],
+      }
+
+      normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
+
+      expect(appPaths).toEqual({
+        '/grouped/specific': [
+          '/(pruning-group)/grouped/specific/page',
+          '/(pruning-group)/grouped/@slot/specific/page',
+        ],
+      })
+    })
+
+    it('keeps a catch-all matcher when every slot has catch-all coverage', () => {
+      const appPaths = {
+        '/[...slug]': ['/[...slug]/page', '/@slot/[...slug]/page'],
+        '/specific': ['/specific/page', '/@slot/specific/page'],
+      }
+      const expected = structuredClone(appPaths)
+
+      normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
+
+      expect(appPaths).toEqual(expected)
+    })
+
+    it('keeps catch-all routes when missing siblings have defaults', () => {
+      const appPaths = {
+        '/[...slug]': ['/[...slug]/page'],
+        '/specific': ['/@slot/specific/page'],
+      }
+
+      normalizeCatchAllRoutes(appPaths, {
+        strictRouteMatching: true,
+        defaultAppPaths: ['/default', '/@slot/default'],
+      })
+
+      expect(appPaths).toEqual({
+        '/[...slug]': ['/[...slug]/page'],
+        '/specific': ['/@slot/specific/page', '/[...slug]/page'],
+      })
+    })
+
+    it('does not prune routes without a catch-all match', () => {
+      const appPaths = {
+        '/foo': ['/@first/foo/page'],
+        '/bar': ['/@second/bar/page'],
+      }
+      const expected = structuredClone(appPaths)
+
+      normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
+
+      expect(appPaths).toEqual(expected)
+    })
+
+    it('keeps an interception catch-all that uses the null children fallback', () => {
+      const appPaths = {
+        '/photo/[...slug]': ['/@modal/(.)photo/[...slug]/page'],
+      }
+      const expected = structuredClone(appPaths)
+
+      normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
+
+      expect(appPaths).toEqual(expected)
+    })
+  })
 })
