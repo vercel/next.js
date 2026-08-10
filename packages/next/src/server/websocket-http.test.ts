@@ -21,11 +21,24 @@ import {
 import {
   classifyWebSocketUpgradeOwnership,
   createWebSocketUpgradeListenerOwnershipTracker,
+  hasMatchingNextOwnedWebSocketHMRListener,
+  isNextHMRUpgradeRequest,
   markNextOwnedWebSocketUpgradeListener,
 } from './websocket-upgrade-listener'
 import { PendingWebSocketUpgradeTracker } from './websocket-lifecycle'
 
 describe('WebSocket upgrade listener ownership', () => {
+  it.each([
+    ['/_next/hmr', true],
+    ['/guest/_next/hmr?session=1', true],
+    ['/socket', false],
+    ['/socket?next=/_next/hmr', false],
+    ['/_next/hmr-other', false],
+    [undefined, false],
+  ] as const)('classifies HMR upgrade paths %#', (url, expected) => {
+    expect(isNextHMRUpgradeRequest(url)).toBe(expected)
+  })
+
   it.each([
     [undefined, 'shared'],
     [[], 'shared'],
@@ -38,15 +51,24 @@ describe('WebSocket upgrade listener ownership', () => {
     }
   )
 
-  it('classifies exclusive, coordinated, duplicate-own, and shared dispatch', () => {
+  it('classifies exclusive, coordinated, sibling, duplicate-own, and shared dispatch', () => {
     const own = jest.fn()
     const automatic = jest.fn()
     const outer = jest.fn()
+    const sibling = markNextOwnedWebSocketUpgradeListener(jest.fn())
 
     expect(classifyWebSocketUpgradeOwnership([own], own)).toBe('exclusive')
     expect(classifyWebSocketUpgradeOwnership([outer], own)).toBe('coordinated')
     expect(classifyWebSocketUpgradeOwnership([own, own], own)).toBe('exclusive')
     expect(classifyWebSocketUpgradeOwnership([own, outer], own)).toBe('shared')
+    expect(classifyWebSocketUpgradeOwnership([own, sibling], own)).toBe(
+      'sibling'
+    )
+    expect(
+      classifyWebSocketUpgradeOwnership([automatic, sibling, outer], own, [
+        automatic,
+      ])
+    ).toBe('coordinated')
     expect(classifyWebSocketUpgradeOwnership([outer, jest.fn()], own)).toBe(
       'shared'
     )
@@ -56,6 +78,32 @@ describe('WebSocket upgrade listener ownership', () => {
     expect(
       classifyWebSocketUpgradeOwnership([automatic, own], own, [automatic])
     ).toBe('exclusive')
+  })
+
+  it('matches only development HMR paths owned by registered listeners', () => {
+    const host = markNextOwnedWebSocketUpgradeListener(
+      jest.fn(),
+      () => true,
+      (url) => Boolean(url?.startsWith('/_next/hmr'))
+    )
+    const guest = markNextOwnedWebSocketUpgradeListener(
+      jest.fn(),
+      () => true,
+      (url) => Boolean(url?.startsWith('/guest/_next/hmr'))
+    )
+
+    expect(
+      hasMatchingNextOwnedWebSocketHMRListener(
+        [host, guest],
+        '/guest/_next/hmr?session=1'
+      )
+    ).toBe(true)
+    expect(
+      hasMatchingNextOwnedWebSocketHMRListener(
+        [host, guest],
+        '/bogus/_next/hmr'
+      )
+    ).toBe(false)
   })
 
   it.each(['on', 'once', 'prependListener', 'prependOnceListener'] as const)(
@@ -130,7 +178,7 @@ describe('WebSocket upgrade listener ownership', () => {
     expect(getSecondOwnership()).toBe('shared')
   })
 
-  it('coordinates listeners owned by distinct Next.js instances', () => {
+  it('distinguishes listeners owned by sibling Next.js instances', () => {
     const server = new EventEmitter()
     const firstListener = markNextOwnedWebSocketUpgradeListener(jest.fn())
     const secondListener = markNextOwnedWebSocketUpgradeListener(jest.fn())
@@ -141,8 +189,8 @@ describe('WebSocket upgrade listener ownership', () => {
       createWebSocketUpgradeListenerOwnershipTracker(server, secondListener)
     server.on('upgrade', secondListener)
 
-    expect(getFirstOwnership()).toBe('coordinated')
-    expect(getSecondOwnership()).toBe('coordinated')
+    expect(getFirstOwnership()).toBe('sibling')
+    expect(getSecondOwnership()).toBe('sibling')
   })
 
   it('recognizes distinct automatic and public Next listeners as one owner', () => {

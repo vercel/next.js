@@ -32,7 +32,11 @@ import {
   routerServerGlobal,
 } from './lib/router-utils/router-server-context'
 import { PendingWebSocketUpgradeTracker } from './websocket-lifecycle'
-import { isRawHttpResponseCommitted } from './websocket-http'
+import {
+  isRawHttpResponseCommitted,
+  isWebSocketUpgradeRequest,
+  writeRawHttpError,
+} from './websocket-http'
 import { addDistinctServerCleanupFailures } from './lib/server-cleanup'
 import { RESTART_EXIT_CODE } from './lib/utils'
 import { addRequestMeta } from './request-meta'
@@ -40,9 +44,16 @@ import { createPromiseWithResolvers } from '../shared/lib/promise-with-resolvers
 import {
   classifyWebSocketUpgradeOwnership,
   createWebSocketUpgradeListenerOwnershipTracker,
+  hasEnabledNextOwnedWebSocketUpgradeListener,
+  hasMatchingNextOwnedWebSocketHMRListener,
+  isNextHMRUpgradeRequest,
   markNextOwnedWebSocketUpgradeListener,
   type WebSocketUpgradeListenerOwnershipTracker,
 } from './websocket-upgrade-listener'
+
+const rejectedSiblingUpgradeRequests = new WeakSet<IncomingMessage>()
+const SIBLING_UPGRADE_MESSAGE =
+  'Multiple Next.js apps on one HTTP server require a single outer upgrade dispatcher for WebSocket Route Handlers. Select the app and call app.getUpgradeHandler().'
 
 let ServerImpl: typeof NextNodeServer
 
@@ -791,6 +802,9 @@ class NextCustomServer implements NextWrapperServer {
                   invokedListener,
                   [otherOwnedListener]
                 )
+          const isSiblingHMRRequest =
+            ownership === 'sibling' &&
+            hasMatchingNextOwnedWebSocketHMRListener(upgradeListeners, req.url)
 
           // Shared dispatch is intentionally left unclaimed so one outer
           // dispatcher can call the public handler with coordinated ownership.
@@ -823,28 +837,58 @@ class NextCustomServer implements NextWrapperServer {
                 )
               }
             }
-            // A shared dispatcher belongs to embedding code. Removing this
-            // Next.js listener is safe, but the sibling owner must retain the
-            // socket. Exclusive and coordinated dispatches belong to Next.js.
-            if (ownership !== 'shared' && !socket.destroyed) socket.destroy()
+            // Shared dispatchers may own this socket. A sibling HMR request may
+            // belong to another Next.js app, while sibling non-HMR protocols
+            // retain their legacy shutdown behavior.
+            if (
+              ownership !== 'shared' &&
+              !isSiblingHMRRequest &&
+              !socket.destroyed
+            ) {
+              socket.destroy()
+            }
             return
           }
 
           // Node invokes sibling upgrade listeners synchronously without
           // awaiting promises. Leave a shared dispatch untouched so another
           // listener can make the ownership decision.
-          if (ownership === 'shared') return
+          if (ownership === 'shared') {
+            if (this.getInit().webSocketRouteHandlersEnabled) {
+              log.warnOnce(
+                'Next.js delegated an upgrade event because another custom-server upgrade listener may own the socket. Use app.getUpgradeHandler() from one outer dispatcher to coordinate WebSocket Route Handlers with another protocol.'
+              )
+            }
+            return
+          }
+
+          if (
+            ownership === 'sibling' &&
+            !isSiblingHMRRequest &&
+            hasEnabledNextOwnedWebSocketUpgradeListener(upgradeListeners) &&
+            isWebSocketUpgradeRequest(req)
+          ) {
+            if (rejectedSiblingUpgradeRequests.has(req)) {
+              return
+            }
+            rejectedSiblingUpgradeRequests.add(req)
+            log.warnOnce(SIBLING_UPGRADE_MESSAGE)
+            await writeRawHttpError(req, socket, 501, SIBLING_UPGRADE_MESSAGE)
+            return
+          }
 
           addRequestMeta(req, 'webSocketUpgradeOwnership', ownership)
 
-          finishUpgrade = this.pendingUpgrades.track(socket)
+          if (!isSiblingHMRRequest) {
+            finishUpgrade = this.pendingUpgrades.track(socket)
+          }
           if (
             this.isClosing ||
             socket.destroyed ||
             socket.readableEnded ||
             socket.writableEnded
           ) {
-            if (!socket.destroyed) socket.destroy()
+            if (!isSiblingHMRRequest && !socket.destroyed) socket.destroy()
             return
           }
           await this.upgradeHandler(req, socket, head)
@@ -878,6 +922,13 @@ class NextCustomServer implements NextWrapperServer {
       }
       let publicUpgradeListener!: UpgradeHandler
       let automaticUpgradeListener!: UpgradeHandler
+      const isWebSocketRouteHandlersEnabled = () =>
+        Boolean(this.init?.webSocketRouteHandlersEnabled)
+      const isHMRRequest = (url: string | undefined) =>
+        Boolean(
+          this.init?.webSocketHmrPath &&
+            isNextHMRUpgradeRequest(url, this.init.webSocketHmrPath)
+        )
       publicUpgradeListener = markNextOwnedWebSocketUpgradeListener(
         (req, socket, head) =>
           dispatchUpgrade(
@@ -886,7 +937,9 @@ class NextCustomServer implements NextWrapperServer {
             req,
             socket,
             head
-          )
+          ),
+        isWebSocketRouteHandlersEnabled,
+        isHMRRequest
       )
       automaticUpgradeListener = markNextOwnedWebSocketUpgradeListener(
         (req, socket, head) =>
@@ -896,7 +949,9 @@ class NextCustomServer implements NextWrapperServer {
             req,
             socket,
             head
-          )
+          ),
+        isWebSocketRouteHandlersEnabled,
+        isHMRRequest
       )
       this.webSocketUpgradeListener = publicUpgradeListener
       this.webSocketAutomaticUpgradeListener = automaticUpgradeListener

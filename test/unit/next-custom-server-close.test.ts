@@ -8,7 +8,7 @@ const { getRequestMeta } = jest.requireActual(
   getRequestMeta(
     request: object,
     key: 'webSocketUpgradeOwnership'
-  ): 'exclusive' | 'coordinated' | 'shared' | undefined
+  ): 'exclusive' | 'coordinated' | 'sibling' | 'shared' | undefined
 }
 
 const mockFlushAllTraces = jest.fn<Promise<void>, []>()
@@ -35,12 +35,16 @@ type Stage = () => void | Promise<void>
 
 function createCustomServer({
   enabled,
+  dev = false,
+  webSocketHmrPath,
   closeUpgraded = () => {},
   closePending = () => {},
   closeServer = () => {},
   cleanup = () => {},
 }: {
   enabled: boolean
+  dev?: boolean
+  webSocketHmrPath?: string
   closeUpgraded?: Stage
   closePending?: Stage
   closeServer?: Stage
@@ -48,7 +52,7 @@ function createCustomServer({
 }) {
   const app = next({
     customServer: true,
-    dev: false,
+    dev,
     dir: process.cwd(),
   }) as any
 
@@ -56,6 +60,7 @@ function createCustomServer({
     closeUpgraded,
     server: { close: closeServer },
     webSocketRouteHandlersEnabled: enabled,
+    webSocketHmrPath,
   }
   app.pendingUpgrades = {
     closePending() {
@@ -449,8 +454,126 @@ describe('NextCustomServer WebSocket shutdown evidence', () => {
     socket.destroy()
   })
 
-  it('dispatches sibling Next.js listeners on one custom server', async () => {
-    const firstApp = createCustomServer({ enabled: true }) as any
+  it('dispatches one HMR request to sibling Next.js listeners', async () => {
+    const firstApp = createCustomServer({
+      enabled: true,
+      dev: true,
+      webSocketHmrPath: '/_next/hmr',
+    }) as any
+    const secondApp = createCustomServer({
+      enabled: true,
+      dev: true,
+      webSocketHmrPath: '/guest/_next/hmr',
+    }) as any
+    for (const app of [firstApp, secondApp]) {
+      const pendingUpgrades = new PendingWebSocketUpgradeTracker()
+      app.pendingUpgrades = pendingUpgrades
+      app.prepareGeneration.pendingUpgrades = pendingUpgrades
+      app.init.upgradeHandler = jest.fn()
+    }
+    const server = new EventEmitter()
+    firstApp.setupWebSocketHandler(server)
+    secondApp.setupWebSocketHandler(server)
+    const socket = new PassThrough() as PassThrough & {
+      server?: EventEmitter
+    }
+    socket.server = server
+    const request = {
+      headers: { upgrade: 'websocket' },
+      method: 'GET',
+      socket,
+      url: '/guest/_next/hmr',
+    }
+
+    server.emit('upgrade', request, socket, Buffer.alloc(0))
+    await new Promise<void>((resolve) => setImmediate(resolve))
+
+    expect(firstApp.init.upgradeHandler).toHaveBeenCalledTimes(1)
+    expect(secondApp.init.upgradeHandler).toHaveBeenCalledTimes(1)
+    expect(getRequestMeta(request, 'webSocketUpgradeOwnership')).toBe('sibling')
+
+    const unmatchedSocket = new PassThrough() as PassThrough & {
+      server?: EventEmitter
+    }
+    unmatchedSocket.server = server
+    const unmatchedResponse: Buffer[] = []
+    unmatchedSocket.on('data', (chunk) =>
+      unmatchedResponse.push(Buffer.from(chunk))
+    )
+    const unmatchedClosed = new Promise<void>((resolve) =>
+      unmatchedSocket.once('close', resolve)
+    )
+    server.emit(
+      'upgrade',
+      {
+        headers: { upgrade: 'websocket' },
+        method: 'GET',
+        socket: unmatchedSocket,
+        url: '/bogus/_next/hmr',
+      },
+      unmatchedSocket,
+      Buffer.alloc(0)
+    )
+    await unmatchedClosed
+    expect(Buffer.concat(unmatchedResponse).toString()).toContain(
+      'HTTP/1.1 501'
+    )
+    expect(firstApp.init.upgradeHandler).toHaveBeenCalledTimes(1)
+    expect(secondApp.init.upgradeHandler).toHaveBeenCalledTimes(1)
+    socket.destroy()
+    await Promise.all([firstApp.close(), secondApp.close()])
+  })
+
+  it.each([
+    [true, false, '/socket'],
+    [false, true, '/socket'],
+    [true, true, '/_next/hmr'],
+  ])(
+    'rejects an ambiguous mixed-flag sibling WebSocket route exactly once %#',
+    async (firstEnabled, secondEnabled, url) => {
+      const firstApp = createCustomServer({ enabled: firstEnabled }) as any
+      const secondApp = createCustomServer({ enabled: secondEnabled }) as any
+      for (const app of [firstApp, secondApp]) {
+        app.init.upgradeHandler = jest.fn()
+      }
+      const server = new EventEmitter()
+      firstApp.setupWebSocketHandler(server)
+      secondApp.setupWebSocketHandler(server)
+      const socket = new PassThrough() as PassThrough & {
+        server?: EventEmitter
+      }
+      socket.server = server
+      const response: Buffer[] = []
+      socket.on('data', (chunk) => response.push(Buffer.from(chunk)))
+      const request = {
+        headers: { upgrade: 'websocket' },
+        method: 'GET',
+        socket,
+        url,
+      }
+      const closed = new Promise<void>((resolve) =>
+        socket.once('close', resolve)
+      )
+
+      server.emit('upgrade', request, socket, Buffer.alloc(0))
+      await closed
+
+      expect(firstApp.init.upgradeHandler).not.toHaveBeenCalled()
+      expect(secondApp.init.upgradeHandler).not.toHaveBeenCalled()
+      expect(
+        Buffer.concat(response)
+          .toString()
+          .match(/HTTP\/1\.1 501/g)
+      ).toHaveLength(1)
+      expect(Buffer.concat(response).toString()).toContain(
+        'single outer upgrade dispatcher'
+      )
+      await Promise.all([firstApp.close(), secondApp.close()])
+    }
+  )
+
+  it('preserves non-WebSocket sibling upgrade protocols', async () => {
+    const firstApp = createCustomServer({ enabled: false }) as any
     const secondApp = createCustomServer({ enabled: true }) as any
     for (const app of [firstApp, secondApp]) {
       const pendingUpgrades = new PendingWebSocketUpgradeTracker()
@@ -465,16 +588,51 @@ describe('NextCustomServer WebSocket shutdown evidence', () => {
       server?: EventEmitter
     }
     socket.server = server
-    const request = { headers: {}, method: 'GET', socket }
+    const request = {
+      headers: { upgrade: 'h2c' },
+      method: 'GET',
+      socket,
+      url: '/legacy-protocol',
+    }
 
     server.emit('upgrade', request, socket, Buffer.alloc(0))
     await new Promise<void>((resolve) => setImmediate(resolve))
 
     expect(firstApp.init.upgradeHandler).toHaveBeenCalledTimes(1)
     expect(secondApp.init.upgradeHandler).toHaveBeenCalledTimes(1)
-    expect(getRequestMeta(request, 'webSocketUpgradeOwnership')).toBe(
-      'coordinated'
-    )
+    socket.destroy()
+    await Promise.all([firstApp.close(), secondApp.close()])
+  })
+
+  it('preserves sibling legacy upgrades when the experiment is disabled', async () => {
+    const firstApp = createCustomServer({ enabled: false }) as any
+    const secondApp = createCustomServer({ enabled: false }) as any
+    for (const app of [firstApp, secondApp]) {
+      const pendingUpgrades = new PendingWebSocketUpgradeTracker()
+      app.pendingUpgrades = pendingUpgrades
+      app.prepareGeneration.pendingUpgrades = pendingUpgrades
+      app.init.upgradeHandler = jest.fn()
+    }
+    const server = new EventEmitter()
+    firstApp.setupWebSocketHandler(server)
+    secondApp.setupWebSocketHandler(server)
+    const socket = new PassThrough() as PassThrough & {
+      server?: EventEmitter
+    }
+    socket.server = server
+    const request = {
+      headers: { upgrade: 'websocket' },
+      method: 'GET',
+      socket,
+      url: '/legacy-socket',
+    }
+
+    server.emit('upgrade', request, socket, Buffer.alloc(0))
+    await new Promise<void>((resolve) => setImmediate(resolve))
+
+    expect(firstApp.init.upgradeHandler).toHaveBeenCalledTimes(1)
+    expect(secondApp.init.upgradeHandler).toHaveBeenCalledTimes(1)
+    expect(getRequestMeta(request, 'webSocketUpgradeOwnership')).toBe('sibling')
     socket.destroy()
     await Promise.all([firstApp.close(), secondApp.close()])
   })
@@ -523,7 +681,12 @@ describe('NextCustomServer WebSocket shutdown evidence', () => {
       method: 'GET',
       socket,
     }
-    let ownership: 'exclusive' | 'coordinated' | 'shared' | undefined
+    let ownership:
+      | 'exclusive'
+      | 'coordinated'
+      | 'sibling'
+      | 'shared'
+      | undefined
     app.init.upgradeHandler = jest.fn(async () => {
       ownership = getRequestMeta(request as any, 'webSocketUpgradeOwnership')
     })

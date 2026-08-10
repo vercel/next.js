@@ -93,6 +93,7 @@ import {
   tryAcquireWebSocketScopeLease,
   type WebSocketScopeLease,
 } from '../websocket-connection-registry'
+import { isNextHMRUpgradeRequest } from '../websocket-upgrade-listener'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -997,24 +998,37 @@ export async function initialize(opts: {
     development?.bundler?.ensureMiddleware
   )
 
-  const upgradeHandler: WorkerUpgradeHandler = async (req, socket, head) => {
-    let isHMRRequest = false
-    if (opts.dev && development && req.url) {
-      const { basePath, assetPrefix } = config
-      let hmrPrefix = basePath
-      if (assetPrefix) {
-        hmrPrefix = normalizedAssetPrefix(assetPrefix)
-        if (URL.canParse(hmrPrefix)) {
-          hmrPrefix = new URL(hmrPrefix).pathname.replace(/\/$/, '')
-        }
+  let webSocketHmrPath: string | undefined
+  if (opts.dev && development) {
+    const { basePath, assetPrefix } = config
+    let hmrPrefix = basePath
+    if (assetPrefix) {
+      hmrPrefix = normalizedAssetPrefix(assetPrefix)
+      if (URL.canParse(hmrPrefix)) {
+        hmrPrefix = new URL(hmrPrefix).pathname.replace(/\/$/, '')
       }
-      isHMRRequest = req.url.startsWith(
-        ensureLeadingSlash(`${hmrPrefix}/_next/hmr`)
-      )
     }
+    webSocketHmrPath = ensureLeadingSlash(`${hmrPrefix}/_next/hmr`)
+  }
+
+  const upgradeHandler: WorkerUpgradeHandler = async (req, socket, head) => {
+    const isHMRRequest = Boolean(
+      webSocketHmrPath && isNextHMRUpgradeRequest(req.url, webSocketHmrPath)
+    )
 
     const webSocketUpgradeOwnership =
       getRequestMeta(req, 'webSocketUpgradeOwnership') ?? 'shared'
+
+    // Multiple automatic Next.js listeners share one Node upgrade event. Only
+    // the app whose base path matches may evaluate the request or apply its
+    // origin policy; the other apps leave the HMR socket untouched.
+    if (
+      webSocketUpgradeOwnership === 'sibling' &&
+      !isHMRRequest &&
+      isNextHMRUpgradeRequest(req.url)
+    ) {
+      return
+    }
     let isWebSocketRequest = Boolean(
       config.experimental.webSocketRouteHandlers &&
         !isHMRRequest &&
@@ -1048,28 +1062,11 @@ export async function initialize(opts: {
       }
     }
 
-    let releaseUpgradeErrorOwnership: (() => unknown[]) | undefined
-    const releaseCoordinatedUpgrade = () => {
-      const failures = releaseUpgradeErrorOwnership?.() ?? []
-      releaseUpgradeErrorOwnership = undefined
-      for (const failure of failures) {
-        try {
-          console.error(
-            'Failed to release a delegated WebSocket upgrade socket error owner',
-            failure
-          )
-        } catch {}
-      }
-    }
-
     try {
       if (isWebSocketRequest) {
         addRequestMeta(req, 'webSocketRegistryScope', webSocketRegistryScope)
       }
-      releaseUpgradeErrorOwnership = ownWebSocketUpgradeSocketErrors(
-        req,
-        socket
-      )
+      ownWebSocketUpgradeSocketErrors(req, socket)
 
       if (config.experimental.webSocketRouteHandlers && !isHMRRequest) {
         const preflight = await preflightWebSocketUpgrade(req, socket)
@@ -1252,10 +1249,6 @@ export async function initialize(opts: {
       }
 
       if (matchedOutput) {
-        if (webSocketUpgradeOwnership === 'coordinated') {
-          releaseCoordinatedUpgrade()
-          return
-        }
         await writeRawHttpError(req, socket, 404, 'Not Found')
         return
       }
@@ -1272,16 +1265,9 @@ export async function initialize(opts: {
         return
       }
 
-      if (webSocketUpgradeOwnership === 'coordinated') {
-        // Internal-header filtering intentionally remains applied before
-        // delegation: a fallback protocol must not regain headers which the
-        // server entry point treats as forgeable Next.js control metadata.
-        releaseCoordinatedUpgrade()
-        return
-      }
-
-      // Shared-server requests returned before route resolution, while an
-      // exclusive dispatcher owns both matched and unmatched sockets.
+      // Shared-server requests returned before route resolution. Direct and
+      // outer-dispatched handlers own both matched and unmatched sockets once
+      // they have been selected.
       await writeRawHttpError(req, socket, 404, 'Not Found')
     } catch (err) {
       if (!isWebSocketClientDisconnectError(err)) {
@@ -1332,5 +1318,6 @@ export async function initialize(opts: {
     webSocketRouteHandlersEnabled: Boolean(
       config.experimental.webSocketRouteHandlers
     ),
+    webSocketHmrPath,
   }
 }

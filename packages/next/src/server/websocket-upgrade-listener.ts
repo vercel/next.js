@@ -10,16 +10,73 @@ export interface WebSocketUpgradeListenerOwnershipTracker {
   dispose(): void
 }
 
-export type WebSocketUpgradeOwnership = 'exclusive' | 'coordinated' | 'shared'
+export type WebSocketUpgradeOwnership =
+  | 'exclusive'
+  | 'coordinated'
+  | 'sibling'
+  | 'shared'
 
-const nextOwnedUpgradeListeners = new WeakSet<object>()
+type NextOwnedUpgradeListener = {
+  isWebSocketRouteHandlersEnabled: () => boolean
+  isHMRRequest: (url: string | undefined) => boolean
+}
 
-/** Marks a listener so sibling Next.js custom-server instances can coordinate. */
+const nextOwnedUpgradeListeners = new WeakMap<
+  object,
+  NextOwnedUpgradeListener
+>()
+
+/** Marks a listener so sibling Next.js custom-server instances can be detected. */
 export function markNextOwnedWebSocketUpgradeListener<T extends object>(
-  listener: T
+  listener: T,
+  isWebSocketRouteHandlersEnabled: () => boolean = () => false,
+  isHMRRequest: (url: string | undefined) => boolean = () => false
 ): T {
-  nextOwnedUpgradeListeners.add(listener)
+  nextOwnedUpgradeListeners.set(listener, {
+    isWebSocketRouteHandlersEnabled,
+    isHMRRequest,
+  })
   return listener
+}
+
+export function hasEnabledNextOwnedWebSocketUpgradeListener(
+  listeners: readonly unknown[] | undefined
+): boolean {
+  return Boolean(
+    listeners?.some(
+      (listener) =>
+        (typeof listener === 'object' || typeof listener === 'function') &&
+        listener !== null &&
+        nextOwnedUpgradeListeners
+          .get(listener as object)
+          ?.isWebSocketRouteHandlersEnabled()
+    )
+  )
+}
+
+export function hasMatchingNextOwnedWebSocketHMRListener(
+  listeners: readonly unknown[] | undefined,
+  url: string | undefined
+): boolean {
+  return Boolean(
+    listeners?.some(
+      (listener) =>
+        (typeof listener === 'object' || typeof listener === 'function') &&
+        listener !== null &&
+        nextOwnedUpgradeListeners.get(listener as object)?.isHMRRequest(url)
+    )
+  )
+}
+
+export function isNextHMRUpgradeRequest(
+  url: string | undefined,
+  hmrPath?: string
+): boolean {
+  const pathname = url?.split(/[?#]/, 1)[0] ?? ''
+  if (hmrPath) {
+    return pathname === hmrPath || pathname.startsWith(`${hmrPath}/`)
+  }
+  return /(?:^|\/)_next\/hmr(?:\/|$)/.test(pathname)
 }
 
 function isNextOwnedUpgradeListener(listener: unknown): boolean {
@@ -61,13 +118,14 @@ export function classifyWebSocketUpgradeOwnership(
         isOwnedUpgradeListener(listener, ownListener, additionalOwnListeners) ||
         isNextOwnedUpgradeListener(listener)
     )
-      ? 'coordinated'
+      ? 'sibling'
       : 'shared'
   }
   let externalListenerCount = 0
   for (const listener of listeners) {
     if (
-      !isOwnedUpgradeListener(listener, ownListener, additionalOwnListeners)
+      !isOwnedUpgradeListener(listener, ownListener, additionalOwnListeners) &&
+      !isNextOwnedUpgradeListener(listener)
     ) {
       externalListenerCount++
     }
