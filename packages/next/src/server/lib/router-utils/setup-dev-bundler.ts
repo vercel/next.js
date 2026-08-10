@@ -21,8 +21,6 @@ import { cyan } from '../../../lib/picocolors'
 import { buildCustomRoute } from './filesystem'
 import * as Log from '../../../build/output/log'
 import { setGlobal } from '../../../trace/shared'
-import { DevRoutePreparationSpan } from '../trace/constants'
-import { getTracer } from '../trace/tracer'
 import type { Telemetry } from '../../../telemetry/storage'
 import type { IncomingMessage, ServerResponse } from 'http'
 import { createValidFileMatcher } from '../find-page-file'
@@ -353,25 +351,16 @@ async function startWatcher(
   }
 
   opts.fsChecker.ensureCallback(async function ensure(item) {
-    if (item.type === 'appFile' || item.type === 'pageFile') {
-      const definition = item.route
-      // Static-info lookup needs the concrete grouped or parallel app path to
-      // discover segment configuration such as `runtime = 'edge'`.
-      await getTracer().trace(
-        DevRoutePreparationSpan.ensureRoute,
-        {
-          spanName: 'prepare route',
-        },
-        () =>
-          hotReloader.ensurePage({
-            clientOnly: false,
-            page: definition?.page ?? item.itemPath,
-            isApp: item.type === 'appFile',
-            definition,
-            url: item.requestPath,
-          })
-      )
-    }
+    const definition = item.route
+    // Static-info lookup needs the concrete grouped or parallel app path to
+    // discover segment configuration such as `runtime = 'edge'`.
+    await hotReloader.ensurePage({
+      clientOnly: false,
+      page: definition.page,
+      isApp: item.type === 'appFile',
+      definition,
+      url: item.requestPath,
+    })
   })
 
   let resolved = false
