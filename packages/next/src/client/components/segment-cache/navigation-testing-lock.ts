@@ -31,6 +31,7 @@ import {
   type PendingSegmentCacheEntry,
   type SegmentCacheEntry,
 } from './cache'
+import { createCacheMap, type CacheMap } from './cache-map'
 import type { FetchStrategy } from './types'
 
 type InstantNavCookieState = 'empty' | 'pending' | 'mpa' | 'spa'
@@ -135,12 +136,15 @@ export type NavigationLockState = {
   // force-resolved so no navigation hangs waiting on a prefetch that the scope
   // ended before it could finish.
   activePrefetches: Set<NavigationLockPrefetch>
-  // Every segment entry that was (re)fetched within this lock scope. Navigation
-  // reads are restricted to these, so each instant() navigation observes only
-  // data fetched under the lock — a "clean read" — and never matches a stale
-  // entry left in the cache by an earlier navigation or prefetch. See
-  // `readSegmentCacheEntryForNavigation`.
-  ownedEntries: Set<SegmentCacheEntry>
+  // The scope's private segment cache. Prefetch tasks scheduled while the
+  // lock is held are bound to this map instead of the shared one, and a
+  // locked navigation inherits the map of the task that drives it (see
+  // `segmentCacheMap` in cache.ts). It starts empty, so each instant()
+  // navigation observes only data fetched under the lock — a "clean read" —
+  // and never matches a stale entry left in the shared cache by an earlier
+  // navigation, prefetch, or scope. Discarded when the lock is released; its
+  // entries are reclaimed by the LRU under memory pressure.
+  segmentCacheMap: CacheMap<SegmentCacheEntry>
   // The withheld-data gate for the current locked navigation. A locked
   // navigation's dynamic write waits on this rather than on the scope-wide
   // `released`. Each navigation captures the promise when it begins (via
@@ -193,18 +197,11 @@ export function beginNavigationLockPrefetch(): NavigationLockPrefetch | null {
 }
 
 /**
- * Records a freshly-created segment entry as owned by the current lock scope, so
- * navigation reads will match it — and only entries created within the scope
- * (see `NavigationLockState.ownedEntries`). Called from
- * `createDetachedSegmentCacheEntry`, the single factory every creation path
- * funnels through, so re-keyed entries created during response processing (e.g.
- * a runtime prefetch resolving a concrete param) are owned too. No-op when no
- * lock is held.
+ * Returns the current lock scope's private segment cache map, or null when no
+ * lock is held. See `NavigationLockState.segmentCacheMap`.
  */
-export function recordNavigationLockOwnedEntry(entry: SegmentCacheEntry): void {
-  if (lockState !== null) {
-    lockState.ownedEntries.add(entry)
-  }
+export function getNavigationLockSegmentCacheMap(): CacheMap<SegmentCacheEntry> | null {
+  return lockState !== null ? lockState.segmentCacheMap : null
 }
 
 /**
@@ -274,7 +271,7 @@ function acquireLock(): void {
     resolveReleased: resolveReleased!,
     fetch: window.fetch,
     activePrefetches: new Set(),
-    ownedEntries: new Set(),
+    segmentCacheMap: createCacheMap(),
     currentNavigation,
     resolveCurrentNavigation: resolveCurrentNavigation!,
   }
@@ -561,10 +558,6 @@ export function isNavigationLocked(): boolean {
     }
   }
   return false
-}
-
-export function getCurrentNavigationLock(): NavigationLockState | null {
-  return lockState
 }
 
 /**

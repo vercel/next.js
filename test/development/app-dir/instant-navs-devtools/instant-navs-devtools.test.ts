@@ -724,11 +724,20 @@ describe('instant-nav-panel', () => {
 
       // 2. Close the Nav Inspector and navigate home
       await closePanelViaHeader(browser)
+      await waitForPanelRouterTransition()
+      await waitForInstantModeCookieAbsent(browser)
       await clickLink(browser, '/')
       await browser.waitForElementByCss('[data-testid="home-title"]')
+      await waitForAppHydration(browser)
 
-      // 3. Enable the inspector and click the link again
-      await openInstantNavPanel(browser)
+      // 3. Enable the inspector and click the link again. This used to hang
+      // in a pending state while firing an infinite loop of prefetch
+      // requests: the previous capture's runtime-prefetch entries survive in
+      // the segment cache at concrete vary paths, shadowing the entries the
+      // new capture's prefetch creates at the more generic shell vary paths,
+      // so every scheduler pass discarded and refetched forever.
+      await reopenInstantNavPanelFromMenu(browser)
+      await expectIdlePanel(browser)
       await clickStartCapturing(browser)
       await clickLink(
         browser,
@@ -736,7 +745,6 @@ describe('instant-nav-panel', () => {
         'link-to-target-prefetch'
       )
       await expectSpaPanel(browser)
-      // 🔴 The app gets stuck in a compiling/pending state, and starts firing requests in a loop
     })
 
     it('should restart capture and return to awaiting navigation after resuming from SPA state', async () => {

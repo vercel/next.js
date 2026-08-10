@@ -14,11 +14,9 @@
 
 import type { FlightRouterState } from '../../../shared/lib/app-router-types'
 import type { PendingSegmentCacheEntry, SegmentCacheEntry } from './cache'
+import type { CacheMap } from './cache-map'
 import type { FetchStrategy } from './types'
-import type {
-  NavigationLockPrefetch,
-  NavigationLockState,
-} from './navigation-testing-lock'
+import type { NavigationLockPrefetch } from './navigation-testing-lock'
 
 export type {
   NavigationLockPrefetch,
@@ -33,9 +31,9 @@ export function beginNavigationLockPrefetch(): NavigationLockPrefetch | null {
   return null
 }
 
-export function recordNavigationLockOwnedEntry(
-  _entry: SegmentCacheEntry
-): void {}
+export function getNavigationLockSegmentCacheMap(): CacheMap<SegmentCacheEntry> | null {
+  return null
+}
 
 export function trackNavigationLockPrefetchEntry(
   _prefetch: NavigationLockPrefetch,
@@ -55,10 +53,6 @@ export function updateCapturedSPAToTree(
 
 export function isNavigationLocked(): boolean {
   return false
-}
-
-export function getCurrentNavigationLock(): NavigationLockState | null {
-  return null
 }
 
 export function beginLockedNavigation(): Promise<void> | null {

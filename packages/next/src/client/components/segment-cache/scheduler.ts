@@ -39,9 +39,11 @@ import {
   PrefetchPriority,
 } from './types'
 import {
+  segmentCacheMap,
   getCurrentRouteCacheVersion,
   getCurrentSegmentCacheVersion,
 } from './cache'
+import type { CacheMap } from './cache-map'
 import type { NavigationLockPrefetch } from './navigation-testing-lock'
 import {
   addSearchParamsIfPageSegment,
@@ -80,6 +82,18 @@ export type PrefetchTask = {
    */
   routeCacheVersion: number
   segmentCacheVersion: number
+
+  /**
+   * The segment cache map this task operates in, captured when the task was
+   * scheduled. Every segment read the task performs and every write its
+   * responses perform target this map. Almost always the shared map; a task
+   * scheduled while the Instant Navigation Testing lock is held gets the
+   * lock scope's private map instead. Binding the map to the task means
+   * tasks queued before a lock scope never leak entries into (or read out
+   * of) the scope's map, and a scope task's late responses never leak into
+   * the shared map. See `segmentCacheMap` in cache.ts.
+   */
+  segmentCacheMap: CacheMap<SegmentCacheEntry>
 
   /**
    * Whether to prefetch dynamic data, in addition to static data. This is
@@ -309,12 +323,28 @@ export function schedulePrefetchTask(
   onInvalidate: null | (() => void),
   navigationLockPrefetch: NavigationLockPrefetch | null
 ): PrefetchTask {
+  // Bind the task to the segment cache map that is active right now: the
+  // shared map, unless the Instant Navigation Testing lock is held, in which
+  // case the task gets the lock scope's private map. This is the single
+  // place work is bound to a map based on lock state — everything downstream
+  // receives the map explicitly. See `segmentCacheMap` in cache.ts.
+  let taskSegmentCacheMap = segmentCacheMap
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    const { getNavigationLockSegmentCacheMap } =
+      require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
+    const lockMap = getNavigationLockSegmentCacheMap()
+    if (lockMap !== null) {
+      taskSegmentCacheMap = lockMap
+    }
+  }
+
   // Spawn a new prefetch task
   const task: PrefetchTask = {
     key,
     treeAtTimeOfPrefetch,
     routeCacheVersion: getCurrentRouteCacheVersion(),
     segmentCacheVersion: getCurrentSegmentCacheVersion(),
+    segmentCacheMap: taskSegmentCacheMap,
     priority,
     phase: PrefetchPhase.RouteTree,
     hasBackgroundWork: false,
@@ -738,7 +768,11 @@ function pingRoute(
         if (background(task)) {
           routeWithoutSearch.status = EntryStatus.Pending
           spawnPrefetchSubtask(
-            fetchRouteOnCacheMiss(routeWithoutSearch, keyWithoutSearch)
+            fetchRouteOnCacheMiss(
+              routeWithoutSearch,
+              keyWithoutSearch,
+              task.segmentCacheMap
+            )
           )
         }
         break
@@ -790,7 +824,9 @@ function pingRootRouteTree(
       // behavior if PPR is disabled for a route (via the incremental opt-in).
       //
       // Those cases will be handled here.
-      spawnPrefetchSubtask(fetchRouteOnCacheMiss(route, task.key))
+      spawnPrefetchSubtask(
+        fetchRouteOnCacheMiss(route, task.key, task.segmentCacheMap)
+      )
 
       // If the request takes longer than a minute, a subsequent request should
       // retry instead of waiting for this one. When the response is received,
@@ -1082,6 +1118,7 @@ function pingStaticHead(
     tree: route.metadata,
     entry: readOrCreateSegmentCacheEntry(
       now,
+      task.segmentCacheMap,
       fetchStrategy,
       route.metadata,
       task._navigationLockPrefetch ?? null
@@ -1672,6 +1709,7 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
 
   const segment = readOrCreateSegmentCacheEntry(
     now,
+    task.segmentCacheMap,
     task.fetchStrategy,
     tree,
     task._navigationLockPrefetch ?? null
@@ -1825,6 +1863,7 @@ function pingRouteTreeAndIncludeDynamicData(
   // entire subtree.
   const segment = readOrCreateSegmentCacheEntry(
     now,
+    task.segmentCacheMap,
     // Note that `fetchStrategy` might be different from `task.fetchStrategy`,
     // and we have to use the former here.
     // We can have a task with `FetchStrategy.PPR` where some of its segments are configured to
@@ -1880,7 +1919,11 @@ function pingRouteTreeAndIncludeDynamicData(
         // entry from a previous navigation, prefer that over making a new
         // request.
         if (fetchStrategy === FetchStrategy.Full) {
-          const fulfilled = attemptToUpgradeSegmentFromBFCache(now, tree)
+          const fulfilled = attemptToUpgradeSegmentFromBFCache(
+            now,
+            task.segmentCacheMap,
+            tree
+          )
           if (fulfilled !== null) {
             break
           }
@@ -2104,6 +2147,7 @@ function pingSegmentBundle(
         ) {
           const revalidatingEntry = readOrCreateRevalidatingSegmentEntry(
             now,
+            task.segmentCacheMap,
             fetchStrategy,
             nodeTree
           )
@@ -2146,6 +2190,7 @@ function pingSegmentBundle(
         ) {
           const revalidatingEntry = readOrCreateRevalidatingSegmentEntry(
             now,
+            task.segmentCacheMap,
             fetchStrategy,
             nodeTree
           )
@@ -2235,6 +2280,7 @@ function pingSegmentBundle(
         ) {
           const revalidatingEntry = readOrCreateRevalidatingSegmentEntry(
             now,
+            task.segmentCacheMap,
             fetchStrategy,
             nodeTree
           )
@@ -2329,6 +2375,7 @@ function accumulateSegmentBundle(
 
   const segment = readOrCreateSegmentCacheEntry(
     now,
+    task.segmentCacheMap,
     fetchStrategy,
     tree,
     task._navigationLockPrefetch ?? null
@@ -2364,6 +2411,7 @@ function accumulateSegmentBundle(
       tree: route.metadata,
       entry: readOrCreateSegmentCacheEntry(
         now,
+        task.segmentCacheMap,
         fetchStrategy,
         route.metadata,
         task._navigationLockPrefetch ?? null
@@ -2445,6 +2493,7 @@ function pingFullSegmentRevalidation(
 ): PendingSegmentCacheEntry | null {
   const revalidatingSegment = readOrCreateRevalidatingSegmentEntry(
     now,
+    task.segmentCacheMap,
     fetchStrategy,
     tree
   )
@@ -2475,6 +2524,7 @@ function pingFullSegmentRevalidation(
       // Reset it and start a new revalidation.
       const emptySegment = overwriteRevalidatingSegmentCacheEntry(
         now,
+        task.segmentCacheMap,
         fetchStrategy,
         tree
       )
