@@ -115,7 +115,7 @@ function forEachFragmentHostElement(
       callback(target)
     },
     unobserve() {},
-  } as IntersectionObserver
+  } as unknown as IntersectionObserver
   instance.observeUsing(observer)
   instance.unobserveUsing(observer)
 }
