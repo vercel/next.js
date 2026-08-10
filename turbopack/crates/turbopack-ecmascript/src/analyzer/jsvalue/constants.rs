@@ -5,6 +5,7 @@ use std::{
     sync::Arc,
 };
 
+use bincode::{Decode, Encode};
 use num_bigint::BigInt;
 use num_traits::Zero;
 use swc_core::{
@@ -12,6 +13,7 @@ use swc_core::{
     ecma::{ast::Lit, atoms::Atom},
 };
 use turbo_rcstr::RcStr;
+use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
 
 use crate::{
     analyzer::{Bump, JsValue, imports::ImportAnnotations},
@@ -42,7 +44,7 @@ impl<'a> ObjectPart<'a> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub struct ConstantNumber(pub f64);
 
 impl ConstantNumber {
@@ -64,9 +66,13 @@ impl From<f64> for ConstantNumber {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum ConstantString {
-    Atom(Atom),
+    Atom(
+        #[bincode(with_serde)]
+        #[turbo_tasks(trace_ignore)]
+        Atom,
+    ),
     RcStr(RcStr),
 }
 
@@ -141,7 +147,7 @@ impl From<RcStr> for ConstantString {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Hash)]
+#[derive(Debug, Clone, PartialEq, Default, Hash, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum ConstantValue {
     #[default]
     Undefined,
@@ -150,8 +156,56 @@ pub enum ConstantValue {
     True,
     False,
     Null,
-    BigInt(Box<BigInt>),
-    Regex(Box<(Atom, Atom)>),
+    BigInt(
+        #[bincode(with_serde)]
+        #[turbo_tasks(trace_ignore)]
+        Box<BigInt>,
+    ),
+    Regex(
+        #[bincode(with_serde)]
+        #[turbo_tasks(trace_ignore)]
+        Box<(Atom, Atom)>,
+    ),
+}
+
+/// Use this instead of ConstantValue when you need proper Hash and Eq (e.g. storing in a cell).
+#[turbo_tasks::value(shared, eq = "manual")]
+#[derive(Debug, Clone, Default)]
+pub struct ConstantValueBitEquality(ConstantValue);
+
+impl PartialEq for ConstantValueBitEquality {
+    fn eq(&self, other: &Self) -> bool {
+        match (&self.0, &other.0) {
+            (ConstantValue::Undefined, ConstantValue::Undefined)
+            | (ConstantValue::Null, ConstantValue::Null)
+            | (ConstantValue::True, ConstantValue::True)
+            | (ConstantValue::False, ConstantValue::False) => true,
+            (ConstantValue::Num(l), ConstantValue::Num(r)) => {
+                l.0.to_le_bytes() == r.0.to_le_bytes()
+            }
+            (ConstantValue::BigInt(l), ConstantValue::BigInt(r)) => l == r,
+            (ConstantValue::Str(l), ConstantValue::Str(r)) => l == r,
+            (ConstantValue::Regex(l), ConstantValue::Regex(r)) => l == r,
+            _ => false,
+        }
+    }
+}
+impl Eq for ConstantValueBitEquality {}
+
+impl Hash for ConstantValueBitEquality {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        std::mem::discriminant(&self.0).hash(state);
+        match &self.0 {
+            ConstantValue::Undefined => {}
+            ConstantValue::Null => {}
+            ConstantValue::True => {}
+            ConstantValue::False => {}
+            ConstantValue::Num(n) => n.0.to_le_bytes().hash(state),
+            ConstantValue::BigInt(n) => n.hash(state),
+            ConstantValue::Str(s) => s.hash(state),
+            ConstantValue::Regex(r) => r.hash(state),
+        }
+    }
 }
 
 impl ConstantValue {
