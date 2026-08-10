@@ -9,7 +9,7 @@ related:
     - app/guides/authentication
     - app/getting-started/caching
     - app/getting-started/fetching-data
-    - app/guides/runtime-prefetching
+    - app/guides/optimizing-prefetching
     - app/api-reference/directives/use-cache-private
     - app/api-reference/functions/cacheTag
     - app/api-reference/config/next-config-js/cacheComponents
@@ -296,7 +296,7 @@ Cached reads already have a lifetime, so this mostly happens on its own. A `use 
 Two things keep it that way:
 
 - If you tune the lifetime with [`cacheLife`](/docs/app/api-reference/functions/cacheLife), keep `stale` at 30 seconds or more. Below that, the scope drops out of prefetching. See [`cacheLife` client cache behavior](/docs/app/api-reference/functions/cacheLife#client-cache-behavior).
-- A route that _also_ depends on the URL (a `params` or `searchParams` value) needs [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) on the links pointing at it. That opts into [runtime prefetching](/docs/app/guides/runtime-prefetching), which resolves the per-link data ahead of the click.
+- A route that _also_ depends on the URL (a `params` or `searchParams` value) needs [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) on the links pointing at it. That opts into [per-link prefetching](/docs/app/guides/optimizing-prefetching), which resolves the per-link data ahead of the click.
 
 ```tsx filename="app/page.tsx"
 <Link href={`/notes/${note.id}`} prefetch={true}>
@@ -304,7 +304,7 @@ Two things keep it that way:
 </Link>
 ```
 
-The destination needs [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) for this, so enable the [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) flag or set `prefetch = 'partial'` on the segment. Add the prop where the wait is worth it: a runtime prefetch costs one server invocation per link, so a sidebar of `/chat/[id]` links pays that cost per item.
+The destination needs [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) for this, so enable the [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) flag or set `prefetch = 'partial'` on the segment. Add the prop where the wait is worth it: that prefetch costs one server invocation per link, so a sidebar of `/chat/[id]` links pays that cost per item.
 
 ## Common pitfalls
 
