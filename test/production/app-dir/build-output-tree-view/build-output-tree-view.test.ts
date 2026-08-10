@@ -69,6 +69,32 @@ describe('build-output-tree-view', () => {
     })
   })
 
+  describe('with a non-200 prerendered app route', () => {
+    const { next } = nextTestSetup({
+      files: path.join(__dirname, 'fixtures/prerender-status'),
+      skipStart: true,
+      env: {
+        __NEXT_PRIVATE_DETERMINISTIC_BUILD_OUTPUT: '1',
+      },
+    })
+
+    beforeAll(() => next.build())
+
+    it('should show the prerendered status for user routes only', () => {
+      const treeView = getTreeView(next.cliOutput)
+
+      expect(treeView).toContain('◐ /error-shell [status: 404]')
+      expect(treeView).toContain('○ /healthy')
+      expect(treeView).not.toContain('/healthy [status:')
+      expect(treeView).toContain('○ /generated/b [status: 404]')
+      expect(treeView).toContain('○ /generated/c [status: 404]')
+      expect(treeView).toContain('○ /generated/d [status: 404]')
+      expect(treeView).toContain('[+4 more paths] [status: 404 × 2]')
+      expect(treeView).not.toContain('/generated/[slug] [status:')
+      expect(treeView).not.toContain('/_not-found [status:')
+    })
+  })
+
   describe('with generated app routes that mix static and partial outputs', () => {
     const { next } = nextTestSetup({
       files: path.join(__dirname, '../../../e2e/app-dir/cache-components'),

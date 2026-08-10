@@ -236,6 +236,9 @@ export async function exportAppPage(
             segmentPaths: meta.segmentPaths,
             prefetchHints: meta.prefetchHints,
           },
+      // Keep the status available to build diagnostics even when deployment
+      // metadata is filtered in environments without Next.js support.
+      prerenderStatus: status,
       hasEmptyStaticShell: Boolean(postponed) && html === '',
       hasPostponed: Boolean(postponed),
       hasPendingUi: hasPendingUi ?? false,

@@ -220,6 +220,8 @@ export interface PageInfo {
   hasEmptyStaticShell?: boolean
   hasPostponed?: boolean
   isDynamicAppRoute?: boolean
+  /** The HTTP status produced when this route was prerendered. */
+  prerenderStatus?: number
 }
 
 export type PageInfos = Map<string, PageInfo>
@@ -264,6 +266,96 @@ function getTreeViewSymbol(
   }
 
   return 'ƒ'
+}
+
+function getNon200PrerenderStatus(
+  pageInfo: PageInfo | undefined
+): number | undefined {
+  const status = pageInfo?.prerenderStatus
+  return status !== undefined && status !== 200 ? status : undefined
+}
+
+function getPrerenderStatusAnnotation(pageInfo: PageInfo | undefined): string {
+  const status = getNon200PrerenderStatus(pageInfo)
+  return status !== undefined ? ` [status: ${status}]` : ''
+}
+
+type TreeViewRoute = {
+  route: string
+  duration: number
+  avgDuration?: number
+  hiddenStatusAnnotation?: string
+}
+
+function getHiddenStatusAnnotation(
+  routes: TreeViewRoute[],
+  pageInfos: Map<string, PageInfo>
+): string | undefined {
+  const statusCounts = new Map<number, number>()
+
+  for (const route of routes) {
+    const status = getNon200PrerenderStatus(pageInfos.get(route.route))
+    if (status !== undefined) {
+      statusCounts.set(status, (statusCounts.get(status) ?? 0) + 1)
+    }
+  }
+
+  if (statusCounts.size === 0) {
+    return undefined
+  }
+
+  const summary = Array.from(statusCounts, ([status, count]) =>
+    count === 1 ? `${status}` : `${status} × ${count}`
+  ).join(', ')
+  return ` [status: ${summary}]`
+}
+
+function selectTreeViewRoutePreview(
+  routes: TreeViewRoute[],
+  previewSize: number,
+  pageInfos: Map<string, PageInfo>
+): { preview: TreeViewRoute[]; remaining: TreeViewRoute[] } {
+  const preview = routes.slice(0, previewSize)
+  const hiddenNon200Routes = routes
+    .slice(previewSize)
+    .filter(
+      (route) =>
+        getNon200PrerenderStatus(pageInfos.get(route.route)) !== undefined
+    )
+
+  if (hiddenNon200Routes.length === 0) {
+    return { preview, remaining: routes.slice(previewSize) }
+  }
+
+  // Preserve the normal preview size while replacing healthy samples with
+  // non-200 routes. Any remaining non-200 statuses are shown on the summary.
+  const selectedRoutes = new Set(preview)
+
+  for (const hiddenRoute of hiddenNon200Routes) {
+    let routeToReplace: TreeViewRoute | undefined
+
+    for (let i = preview.length - 1; i >= 0; i--) {
+      const candidate = preview[i]
+      if (
+        selectedRoutes.has(candidate) &&
+        getNon200PrerenderStatus(pageInfos.get(candidate.route)) === undefined
+      ) {
+        routeToReplace = candidate
+        break
+      }
+    }
+
+    if (!routeToReplace) {
+      break
+    }
+    selectedRoutes.delete(routeToReplace)
+    selectedRoutes.add(hiddenRoute)
+  }
+
+  return {
+    preview: routes.filter((route) => selectedRoutes.has(route)),
+    remaining: routes.filter((route) => !selectedRoutes.has(route)),
+  }
 }
 
 export interface RoutesUsingEdgeRuntime {
@@ -391,6 +483,9 @@ export async function printTreeView(
       const hasChildRoutes = Boolean(pageInfo?.ssgPageRoutes?.length)
 
       const displayPath = getTreeViewDisplayPath(item)
+      const prerenderStatusAnnotation = hasChildRoutes
+        ? ''
+        : getPrerenderStatusAnnotation(pageInfo)
 
       if (hasGSPAndRevalidateZero.has(item)) {
         usedSymbols.add('ƒ')
@@ -416,7 +511,7 @@ export async function printTreeView(
       }
 
       messages.push([
-        `${border} ${hasChildRoutes ? ' ' : symbol} ${displayPath}${
+        `${border} ${hasChildRoutes ? ' ' : symbol} ${displayPath}${prerenderStatusAnnotation}${
           totalDuration > MIN_DURATION
             ? ` (${getPrettyDuration(totalDuration)})`
             : ''
@@ -433,9 +528,7 @@ export async function printTreeView(
         const totalRoutes = pageInfo.ssgPageRoutes.length
         const contSymbol = i === arr.length - 1 ? ' ' : '│'
 
-        // HERE
-
-        let routes: { route: string; duration: number; avgDuration?: number }[]
+        let routes: TreeViewRoute[]
         if (pageInfo.ssgPageDurations?.some((d) => d > MIN_DURATION)) {
           const previewPages = totalRoutes === 8 ? 8 : Math.min(totalRoutes, 7)
           const routesWithDuration = pageInfo.ssgPageRoutes
@@ -448,8 +541,13 @@ export async function printTreeView(
               // keep too small durations in original order at the end
               a <= MIN_DURATION && b <= MIN_DURATION ? 0 : b - a
             )
-          routes = routesWithDuration.slice(0, previewPages)
-          const remainingRoutes = routesWithDuration.slice(previewPages)
+          const preview = selectTreeViewRoutePreview(
+            routesWithDuration,
+            previewPages,
+            pageInfos
+          )
+          routes = preview.preview
+          const remainingRoutes = preview.remaining
           if (remainingRoutes.length) {
             const remaining = remainingRoutes.length
             const avgDuration = Math.round(
@@ -462,33 +560,51 @@ export async function printTreeView(
               route: `[+${remaining} more paths]`,
               duration: 0,
               avgDuration,
+              hiddenStatusAnnotation: getHiddenStatusAnnotation(
+                remainingRoutes,
+                pageInfos
+              ),
             })
           }
         } else {
           const previewPages = totalRoutes === 4 ? 4 : Math.min(totalRoutes, 3)
-          routes = pageInfo.ssgPageRoutes
-            .slice(0, previewPages)
-            .map((route) => ({ route, duration: 0 }))
-          if (totalRoutes > previewPages) {
-            const remaining = totalRoutes - previewPages
-            routes.push({ route: `[+${remaining} more paths]`, duration: 0 })
+          const preview = selectTreeViewRoutePreview(
+            pageInfo.ssgPageRoutes.map((route) => ({ route, duration: 0 })),
+            previewPages,
+            pageInfos
+          )
+          routes = preview.preview
+          if (preview.remaining.length) {
+            const remaining = preview.remaining.length
+            routes.push({
+              route: `[+${remaining} more paths]`,
+              duration: 0,
+              hiddenStatusAnnotation: getHiddenStatusAnnotation(
+                preview.remaining,
+                pageInfos
+              ),
+            })
           }
         }
 
         routes.forEach(
-          ({ route, duration, avgDuration }, index, { length }) => {
+          (
+            { route, duration, avgDuration, hiddenStatusAnnotation },
+            index,
+            { length }
+          ) => {
             const innerSymbol = index === length - 1 ? '└' : '├'
             // Generated child paths can have more precise metadata than the
             // parent route pattern, so prefer the child entry when present.
-            const routePageInfo = pageInfos.get(route) ?? pageInfo
+            const childPageInfo = pageInfos.get(route)
+            const routePageInfo = childPageInfo ?? pageInfo
             const routeSymbol = getTreeViewSymbol(route, routePageInfo)
             usedSymbols.add(routeSymbol)
 
-            const initialCacheControl =
-              pageInfos.get(route)?.initialCacheControl
+            const initialCacheControl = childPageInfo?.initialCacheControl
 
             messages.push([
-              `${contSymbol} ${innerSymbol} ${routeSymbol} ${route}${
+              `${contSymbol} ${innerSymbol} ${routeSymbol} ${route}${getPrerenderStatusAnnotation(childPageInfo)}${hiddenStatusAnnotation ?? ''}${
                 duration > MIN_DURATION
                   ? ` (${getPrettyDuration(duration)})`
                   : ''

@@ -3441,6 +3441,11 @@ export default async function build(
                 route.pathname,
                 appConfig.revalidate
               )
+              const prerenderStatus =
+                cacheControl.revalidate !== 0 &&
+                route.pathname !== UNDERSCORE_NOT_FOUND_ROUTE
+                  ? (routeResult?.prerenderStatus ?? metadata.status)
+                  : undefined
 
               // Generated concrete paths (for example `/blog/post-1`) inherit
               // the route-level classification from the dynamic page
@@ -3457,6 +3462,7 @@ export default async function build(
                 hasPostponed,
                 hasEmptyStaticShell,
                 initialCacheControl: cacheControl,
+                prerenderStatus,
               })
 
               // update the page (eg /blog/[slug]) to also have the postpone metadata
@@ -3608,6 +3614,11 @@ export default async function build(
                 const metadata = routeResult?.metadata
 
                 const cacheControl = getCacheControl(route.pathname)
+                const prerenderStatus =
+                  cacheControl.revalidate !== 0 &&
+                  route.pathname !== UNDERSCORE_NOT_FOUND_ROUTE
+                    ? (routeResult?.prerenderStatus ?? metadata?.status)
+                    : undefined
 
                 let dataRoute: string | null = null
                 if (!isAppRouteHandler) {
@@ -3706,6 +3717,7 @@ export default async function build(
                     // if PPR is turned on and the route contains a dynamic segment,
                     // we assume it'll be partially prerendered
                     hasPostponed: isRoutePPREnabled,
+                    prerenderStatus,
                   })
                 } else {
                   // Concrete generated paths inherit the parent route's base
@@ -3723,6 +3735,7 @@ export default async function build(
                     // if PPR is turned on and the route contains a dynamic segment,
                     // we assume it'll be partially prerendered
                     hasPostponed: isRoutePPREnabled,
+                    prerenderStatus,
                   })
                 }
 
