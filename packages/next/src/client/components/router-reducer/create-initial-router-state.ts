@@ -9,6 +9,7 @@ import { createInitialCacheNodeForHydration } from './ppr-navigations'
 import {
   resolveStaleAt,
   processRuntimePrefetchStream,
+  segmentCacheMap,
   writeDynamicRenderResponseIntoCache,
   writePrerenderResponseIntoCache,
 } from '../segment-cache/cache'
@@ -155,7 +156,8 @@ export function createInitialRouterState({
               staleAt,
               initialTree,
               initialRenderedSearch,
-              true // isResponsePartial
+              true, // isResponsePartial
+              segmentCacheMap // hydration writes are bound to the shared map
             )
           })
           .catch(() => {
@@ -181,7 +183,8 @@ export function createInitialRouterState({
               staleAt,
               initialTree,
               initialRenderedSearch,
-              false // isResponsePartial
+              false, // isResponsePartial
+              segmentCacheMap // hydration writes are bound to the shared map
             )
           })
           .catch(() => {
@@ -219,7 +222,8 @@ export function createInitialRouterState({
               processed.rootVaryParamsIterable,
               processed.staleAt,
               processed.navigationSeed,
-              null
+              null,
+              segmentCacheMap // hydration writes are bound to the shared map
             )
           }
         })

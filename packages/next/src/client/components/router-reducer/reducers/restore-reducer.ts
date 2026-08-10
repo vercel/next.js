@@ -17,6 +17,7 @@ import {
   completeTraverseNavigation,
 } from '../../segment-cache/navigation'
 import { convertServerPatchToFullTree } from '../../segment-cache/decode-server-response'
+import { segmentCacheMap } from '../../segment-cache/cache'
 import { UnknownDynamicStaleTime } from '../../segment-cache/bfcache'
 
 export function restoreReducer(
@@ -72,6 +73,8 @@ export function restoreReducer(
     restoreSeed.dynamicStaleAt,
     false,
     accumulation,
+    // A history-traversal restore is bound to the shared map.
+    segmentCacheMap,
     // A history-traversal restore never restricts to the shell.
     false
   )
@@ -96,6 +99,8 @@ export function restoreReducer(
     // dynamic requests ungated (null lock) so they render from cache or fetch
     // normally rather than being withheld behind the lock.
     null,
+    // A history-traversal restore is bound to the shared map.
+    segmentCacheMap,
     // Not an HMR refresh, so there's no request generation to cancel.
     undefined
   )
