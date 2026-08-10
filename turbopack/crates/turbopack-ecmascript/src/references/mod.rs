@@ -473,6 +473,7 @@ struct AnalysisState<'a> {
     first_webpack_exports_info: bool,
     module_fragments_enabled: bool,
     cjs_tree_shaking: bool,
+    cross_module_constants: bool,
     import_externals: bool,
     ignore_dynamic_requests: bool,
     url_rewrite_behavior: Option<UrlRewriteBehavior>,
@@ -517,6 +518,7 @@ impl<'a> AnalysisState<'a> {
                     self.allow_project_root_tracing,
                     &self.constants_cache,
                     self.import_references,
+                    self.cross_module_constants,
                 )
             },
             &self.fun_args_values,
@@ -861,6 +863,7 @@ async fn analyze_ecmascript_module_internal(
             first_webpack_exports_info: true,
             module_fragments_enabled: options.module_fragments_enabled,
             cjs_tree_shaking: options.cjs_tree_shaking,
+            cross_module_constants: options.cross_module_constants,
             import_externals: options.import_externals,
             ignore_dynamic_requests: options.ignore_dynamic_requests,
             url_rewrite_behavior: options.url_rewrite_behavior,
@@ -1316,15 +1319,16 @@ async fn analyze_ecmascript_module_internal(
                         continue;
                     };
 
-                    if (eval_context
-                        .imports
-                        .get_annotations(esm_reference_index)
-                        .and_then(|a| a.turbopack_constants())
-                        .unwrap_or_else(|| {
-                            export
-                                .as_ref()
-                                .is_some_and(|v| is_import_name_eligible_for_exports(v))
-                        }))
+                    if options.cross_module_constants
+                        && (eval_context
+                            .imports
+                            .get_annotations(esm_reference_index)
+                            .and_then(|a| a.turbopack_constants())
+                            .unwrap_or_else(|| {
+                                export
+                                    .as_ref()
+                                    .is_some_and(|v| is_import_name_eligible_for_exports(v))
+                            }))
                         && let JsValue::Constant(c) = analysis_state
                             .link_value(
                                 eval_context.imports.get_import_for_idx(
@@ -3723,6 +3727,7 @@ async fn value_visitor<'a>(
     allow_project_root_tracing: bool,
     constants_cache: &Mutex<FxHashMap<ModuleValue, Option<JsValue<'a>>>>,
     import_references: &[ResolvedVc<EsmAssetReference>],
+    cross_module_constants: bool,
 ) -> Result<(JsValue<'a>, Modified)> {
     let (mut v, modified) = value_visitor_inner(
         arena,
@@ -3736,6 +3741,7 @@ async fn value_visitor<'a>(
         allow_project_root_tracing,
         constants_cache,
         import_references,
+        cross_module_constants,
     )
     .await?;
     v.normalize_shallow(arena.get_or_default());
@@ -3754,6 +3760,7 @@ async fn value_visitor_inner<'a>(
     allow_project_root_tracing: bool,
     constants_cache: &Mutex<FxHashMap<ModuleValue, Option<JsValue<'a>>>>,
     import_references: &[ResolvedVc<EsmAssetReference>],
+    cross_module_constants: bool,
 ) -> Result<(JsValue<'a>, Modified)> {
     if let JsValue::In(_, left, right) = &v
         && let Some(left) = left.as_str()
@@ -3924,11 +3931,12 @@ async fn value_visitor_inner<'a>(
                 && let Some(external) = module_value_to_well_known_object(mv)
             {
                 external
-            } else if (mv
-                .annotations
-                .as_ref()
-                .and_then(|a| a.turbopack_constants())
-                .unwrap_or(mv.analyze_for_constants))
+            } else if cross_module_constants
+                && (mv
+                    .annotations
+                    .as_ref()
+                    .and_then(|a| a.turbopack_constants())
+                    .unwrap_or(mv.analyze_for_constants))
                 && let cache = {
                     // Without this inline block, constants_cache.lock() is held across the await
                     // point below.

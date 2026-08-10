@@ -973,6 +973,14 @@ export interface ExperimentalConfig {
   turbopackCjsScopeHoisting?: boolean
 
   /**
+   * Enable cross-module constant inlining in Turbopack. Constants exported from other
+   * modules are inlined at their use sites, which enables dead code elimination.
+   *
+   * Defaults to `false`
+   */
+  turbopackCrossModuleConstants?: boolean
+
+  /**
    * Set this to `false` to disable the automatic configuration of the babel loader when a Babel
    * configuration file is present. This option is enabled by default.
    *
