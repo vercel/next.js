@@ -1807,7 +1807,9 @@ impl TurboTasksBackend {
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) -> String {
         let mut ctx = self.execute_context(turbo_tasks);
-        let task = ctx.get_or_create_task(task_id, TaskDataCategory::Data);
+        // Diagnostic path: the caller may name any id, including one that no longer exists, so this
+        // must not assert existence. A nonexistent task falls through to the "unknown" case below.
+        let task = ctx.open_or_create_task_storage(task_id, TaskDataCategory::Data);
         if let Some(value) = task.get_persistent_task_type() {
             value.to_string()
         } else if let Some(value) = task.get_transient_task_type() {
@@ -2481,7 +2483,6 @@ impl TurboTasksBackend {
             )
             .entered();
             let mut make_stale = true;
-            // A recorded output dependent must exist.
             let dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
             let transient_task_type = dependent.get_transient_task_type();
             if transient_task_type.is_some_and(|tt| matches!(&**tt, TransientTask::Once(_))) {
