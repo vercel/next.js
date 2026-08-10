@@ -2,12 +2,17 @@
 #![feature(arbitrary_self_types)]
 
 mod helpers;
-use std::{path::PathBuf, sync::LazyLock};
+use std::{
+    io::ErrorKind,
+    path::{Path, PathBuf},
+    sync::LazyLock,
+};
 
 use anyhow::Result;
 use regex::Regex;
 use rstest::*;
 use rustc_hash::FxHashSet;
+use serde::Deserialize;
 use similar::TextDiff;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexSet, ResolvedVc, TurboTasks, Vc};
@@ -30,7 +35,7 @@ use turbopack_core::{
     module::Module,
     reference::referenced_modules_and_affecting_sources,
     reference_type::ReferenceType,
-    resolve::options::ConditionValue,
+    resolve::options::{ConditionValue, ImportMap, ImportMapping},
 };
 use turbopack_ecmascript::AnalyzeMode;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
@@ -67,14 +72,16 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::asset_package_json("asset-package-json")]
 #[case::asset_symlink("asset-symlink")]
 #[case::basic_analysis_require("basic-analysis-require")]
-// The `browser-remappings*` cases carry a `test-opts.json` that this harness ignores: everything is
-// traced with the `node` condition. The enabled ones match the reference output anyway.
+// The `browser-remappings*` cases are traced with the conditions from their `test-opts.json`, but
+// nft's reference output lists every candidate resolution (`main` next to the `exports` / `browser`
+// target, and even a `browser` mapping disabled with `false`), while Turbopack only traces the file
+// it actually resolves to.
 // #[case::browser_remappings("browser-remappings")]
 // #[case::browser_remappings_disabled("browser-remappings-disabled")]
-#[case::browser_remappings_false("browser-remappings-false")]
+// #[case::browser_remappings_false("browser-remappings-false")]
 // #[case::browser_remappings_malformed("browser-remappings-malformed")]
 // #[case::browser_remappings_malformed2("browser-remappings-malformed2")]
-#[case::browser_remappings_string("browser-remappings-string")]
+// #[case::browser_remappings_string("browser-remappings-string")]
 // #[case::browser_remappings_undefined("browser-remappings-undefined")]
 // #[case::browserify("browserify")]
 // #[case::browserify_minify("browserify-minify")]
@@ -93,8 +100,8 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::dot_dot("dot-dot")]
 #[case::esm_dynamic_import("esm-dynamic-import")]
 #[case::esm_export_wildcard("esm-export-wildcard")]
-// #[case::esm_paths("esm-paths")]
-// #[case::esm_paths_trailer("esm-paths-trailer")]
+#[case::esm_paths("esm-paths")]
+#[case::esm_paths_trailer("esm-paths-trailer")]
 // #[case::exports("exports")]
 // #[case::exports_fallback("exports-fallback")]
 #[case::exports_nomodule("exports-nomodule")]
@@ -135,8 +142,7 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 // Turbopack always includes the module-sync version, regardless of the current Node version
 // #[case::module_sync_condition_es_node20("module-sync-condition-es-node20")]
 #[case::mongoose("mongoose")]
-// The `multi-input` case traces four entry points at once, which this harness doesn't support.
-// #[case::multi_input("multi-input")]
+#[case::multi_input("multi-input")]
 #[case::node_modules_filter("node-modules-filter")]
 // #[case::non_analyzable_requires("non-analyzable-requires")]
 #[case::null_destructure("null-destructure")]
@@ -206,23 +212,56 @@ fn unit_test(#[case] input: &str) -> Result<()> {
     node_file_trace(input)
 }
 
+/// A case can be traced from more than one entry point, mirroring the `inputFileNames` list in
+/// `tests/node-file-trace/unit.test.js`. The traces of all entries are unioned.
 #[turbo_tasks::function(operation, root)]
-async fn node_file_trace_operation(package_root: RcStr, input: RcStr) -> Result<Vc<Vec<RcStr>>> {
+async fn node_file_trace_operation(
+    package_root: RcStr,
+    inputs: Vec<RcStr>,
+    conditions: Vec<RcStr>,
+) -> Result<Vc<Vec<RcStr>>> {
     let workspace_fs: Vc<Box<dyn FileSystem>> = Vc::upcast(DiskFileSystem::new(
         rcstr!("workspace"),
         Vc::cell(package_root.clone()),
     ));
     let input_dir = workspace_fs.root().owned().await?;
-    let input = input_dir.join(&input)?;
+    let inputs = inputs
+        .iter()
+        .map(|input| input_dir.join(input))
+        .collect::<Result<Vec<_>>>()?;
+    let Some(first_input) = inputs.first() else {
+        anyhow::bail!("at least one entry point is required");
+    };
 
-    let source = FileSource::new(input.clone());
+    // All entry points of a case live in the same directory, which is the cwd nft is run with.
+    let cwd = first_input.parent();
     let environment = Environment::new(ExecutionEnvironment::NodeJsLambda(
         NodeJsEnvironment {
-            cwd: ResolvedVc::cell(Some(input.parent())),
+            cwd: ResolvedVc::cell(Some(cwd)),
             ..Default::default()
         }
         .resolved_cell(),
     ));
+
+    // Mirrors the `paths` option that `tests/node-file-trace/unit.test.js` passes for the
+    // `esm-paths` and `esm-paths-trailer` cases.
+    let mut import_map = ImportMap::empty();
+    import_map.insert_exact_alias(
+        rcstr!("dep"),
+        ImportMapping::PrimaryAlternative(
+            rcstr!("./test/unit/esm-paths/esm-dep.js"),
+            Some(input_dir.clone()),
+        )
+        .resolved_cell(),
+    );
+    import_map.insert_wildcard_alias(
+        rcstr!("dep/"),
+        ImportMapping::PrimaryAlternative(
+            rcstr!("./test/unit/esm-paths-trailer/*"),
+            Some(input_dir.clone()),
+        )
+        .resolved_cell(),
+    );
     let module_asset_context = ModuleAssetContext::new_without_replace_externals(
         Default::default(),
         // TODO These test cases should move into the `node-file-trace` crate and use the same
@@ -259,7 +298,10 @@ async fn node_file_trace_operation(package_root: RcStr, input: RcStr) -> Result<
         ResolveOptionsContext {
             enable_node_native_modules: true,
             enable_node_modules: Some(input_dir.clone()),
-            custom_conditions: vec![rcstr!("node")],
+            // nft applies the `browser` field remapping when tracing with the `browser` condition.
+            browser: conditions.iter().any(|condition| condition == "browser"),
+            custom_conditions: conditions,
+            import_map: Some(import_map.resolved_cell()),
             module_sync: ConditionValue::Unknown,
             ..Default::default()
         }
@@ -267,13 +309,16 @@ async fn node_file_trace_operation(package_root: RcStr, input: RcStr) -> Result<
         Layer::new(rcstr!("test")),
     );
 
-    let module = module_asset_context
-        .process(Vc::upcast(source), ReferenceType::Undefined)
-        .module();
+    let mut paths = Vec::new();
+    for input in inputs {
+        let module = module_asset_context
+            .process(Vc::upcast(FileSource::new(input)), ReferenceType::Undefined)
+            .module();
 
-    // We treat the entry as an external
-    let mut paths = to_list(module).await?;
-    paths.push(module.ident().await?.path.path.clone());
+        // We treat the entry as an external
+        paths.extend(to_list(module).await?);
+        paths.push(module.ident().await?.path.path.clone());
+    }
 
     Ok(Vc::cell(paths))
 }
@@ -308,6 +353,27 @@ static TRAILING_COMMA: LazyLock<Regex> = LazyLock::new(|| Regex::new(r",[\s\n]*\
 static LINE_COMMENTS_COMMA: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?m)^\s*//.*$").unwrap());
 
+/// The per-case options that `tests/node-file-trace/unit.test.js` reads from a case's
+/// `test-opts.json`, as far as this harness supports them.
+///
+/// nft's `depth` (limit the traced dependency depth) and `mixedModules` options have no equivalent
+/// here, so cases relying on them stay disabled.
+#[derive(Debug, Default, Deserialize)]
+struct TestOptions {
+    /// The export conditions to resolve with. nft defaults to `["node"]`.
+    conditions: Option<Vec<RcStr>>,
+}
+
+impl TestOptions {
+    fn read(case_dir: &Path) -> Result<Self> {
+        match std::fs::read_to_string(case_dir.join("test-opts.json")) {
+            Ok(contents) => Ok(serde_json::from_str(&contents)?),
+            Err(err) if err.kind() == ErrorKind::NotFound => Ok(Self::default()),
+            Err(err) => Err(err.into()),
+        }
+    }
+}
+
 fn node_file_trace(input_path: &str) -> Result<()> {
     let r = &mut {
         let mut builder = tokio::runtime::Builder::new_multi_thread();
@@ -318,24 +384,35 @@ fn node_file_trace(input_path: &str) -> Result<()> {
 
     let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let package_root = package_root.join("tests/node-file-trace");
-    let entry_name = match input_path {
-        "jsx-input" => "input.jsx",
-        "tsx-input" => "input.tsx",
-        "ts-input-esm" => "input.ts",
+    let case_dir = package_root.join(format!("test/unit/{input_path}"));
+    let entry_names: &[&str] = match input_path {
+        "jsx-input" => &["input.jsx"],
+        "tsx-input" => &["input.tsx"],
+        "ts-input-esm" => &["input.ts"],
         "module-create-require-no-mixed"
         | "module-create-require-named-require"
         | "module-create-require-named-import"
         | "module-create-require-ignore-other"
-        | "module-create-require-destructure" => "input.mjs",
-        _ => "input.js",
+        | "module-create-require-destructure" => &["input.mjs"],
+        "multi-input" => &["input.js", "input-2.js", "input-3.js", "input-4.js"],
+        _ => &["input.js"],
     };
-    let input: RcStr = format!("test/unit/{input_path}/{entry_name}").into();
-    let reference = package_root.join(format!("test/unit/{input_path}/output.js"));
+    let inputs = entry_names
+        .iter()
+        .map(|entry_name| format!("test/unit/{input_path}/{entry_name}").into())
+        .collect::<Vec<RcStr>>();
+    let conditions = TestOptions::read(&case_dir)?
+        .conditions
+        .unwrap_or_else(|| vec![rcstr!("node")]);
+    let reference = case_dir.join("output.js");
 
     r.block_on(async move {
         let future = async move {
-            let op =
-                node_file_trace_operation(package_root.to_string_lossy().into(), input.clone());
+            let op = node_file_trace_operation(
+                package_root.to_string_lossy().into(),
+                inputs.clone(),
+                conditions.clone(),
+            );
             let list = op
                 .read_strongly_consistent()
                 .await?
