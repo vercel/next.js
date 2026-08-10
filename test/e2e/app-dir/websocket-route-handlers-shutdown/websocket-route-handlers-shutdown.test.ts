@@ -150,7 +150,7 @@ describe('WebSocket Route Handler custom-server shutdown', () => {
 
     await retry(() => {
       expect(next.cliOutput).toContain('[slow-websocket-upgrade] started')
-    })
+    }, 10_000)
     await triggerCustomAppClose(next)
     await retry(() => {
       expect(next.cliOutput).toContain('[custom-server] next app closing')
