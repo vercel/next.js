@@ -3312,11 +3312,16 @@ where
                         exports,
                         namespace.as_rcstr(),
                         match data {
-                            Some(JsValue::Constant(JsConstantValue::Str(data))) => {
-                                Some(data.as_rcstr())
-                            }
+                            Some(value) => match CompileTimeDefineValue::try_from(value) {
+                                Ok(v) => Some(v),
+                                Err(e) => {
+                                    bail!(
+                                        "The data for __turbopack_emit__ is not a compile-time \
+                                         constant: {value:?}: {e}"
+                                    );
+                                }
+                            },
                             None => None,
-                            _ => bail!("TODO support non-string data"),
                         },
                         emit_to_all_entries,
                     ),

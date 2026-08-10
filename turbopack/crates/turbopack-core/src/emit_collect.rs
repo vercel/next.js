@@ -3,6 +3,7 @@ use turbo_tasks::{ValueToString, Vc};
 
 use crate::{
     chunk::{ChunkItem, ChunkingContext},
+    compile_time_info::CompileTimeDefineValue,
     module::{Module, Modules},
     module_graph::ModuleGraph,
     reference::ModuleReference,
@@ -26,7 +27,6 @@ pub trait CollectingModule: Module {
 
 #[turbo_tasks::value_trait]
 pub trait EmittedModuleReference: ModuleReference + ValueToString {
-    // TODO Vc<JsValue>
     #[turbo_tasks::function]
-    fn data(self: Vc<Self>) -> Vc<Option<RcStr>>;
+    fn data(self: Vc<Self>) -> Vc<CompileTimeDefineValue>;
 }

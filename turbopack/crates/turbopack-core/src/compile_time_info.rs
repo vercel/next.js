@@ -105,7 +105,8 @@ macro_rules! free_var_references {
 
 // TODO: replace with just a `serde_json::Value`
 // https://linear.app/vercel/issue/WEB-1641/compiletimedefinevalue-should-just-use-serde-jsonvalue
-#[derive(Debug, Clone, TraceRawVcs, NonLocalValue, Encode, Decode, PartialEq, Eq, Hash)]
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Clone, Hash)]
 pub enum CompileTimeDefineValue {
     Null,
     Bool(bool),
@@ -125,6 +126,39 @@ pub enum CompileTimeDefineValue {
     Undefined,
     Evaluate(RcStr),
     Regex(RcStr, RcStr),
+}
+
+impl CompileTimeDefineValue {
+    pub fn as_ecmascript(&self) -> String {
+        match self {
+            CompileTimeDefineValue::Null => "null".to_string(),
+            CompileTimeDefineValue::Bool(false) => "false".to_string(),
+            CompileTimeDefineValue::Bool(true) => "true".to_string(),
+            CompileTimeDefineValue::Number(v) => serde_json::to_string(v).unwrap(),
+            CompileTimeDefineValue::String(v) => serde_json::to_string(v).unwrap(),
+            CompileTimeDefineValue::BigInt(b) => format!("{}n", b),
+            CompileTimeDefineValue::Array(a) => {
+                let elements: Vec<_> = a.iter().map(|v| v.as_ecmascript()).collect();
+                format!("[{}]", elements.join(", "))
+            }
+            CompileTimeDefineValue::Object(o) => {
+                let properties: Vec<_> = o
+                    .iter()
+                    .map(|(k, v)| {
+                        format!(
+                            "{}: {}",
+                            serde_json::to_string(k).unwrap(),
+                            v.as_ecmascript()
+                        )
+                    })
+                    .collect();
+                format!("{{{}}}", properties.join(", "))
+            }
+            CompileTimeDefineValue::Undefined => "undefined".to_string(),
+            CompileTimeDefineValue::Evaluate(e) => e.to_string(),
+            CompileTimeDefineValue::Regex(r, f) => format!("/{}/{}", r, f),
+        }
+    }
 }
 
 impl From<bool> for CompileTimeDefineValue {
@@ -532,8 +566,8 @@ mod test {
     use turbo_tasks::FxIndexMap;
 
     use crate::compile_time_info::{
-        DefinableNameSegment, DefinableNameSegmentRef, DefinableNameSegmentRefs, FreeVarReference,
-        FreeVarReferences,
+        CompileTimeDefineValue, DefinableNameSegment, DefinableNameSegmentRef,
+        DefinableNameSegmentRefs, FreeVarReference, FreeVarReferences,
     };
 
     fn hash_value<T: Hash>(value: &T) -> u64 {
@@ -789,6 +823,67 @@ mod test {
         assert!(
             !set.contains("nonexistent"),
             "FxHashSet<RcStr> lookup with &str should return false for nonexistent keys"
+        );
+    }
+
+    #[test]
+    fn compile_time_define_value_as_ecmascript() {
+        use serde_json::Number;
+        assert_eq!(CompileTimeDefineValue::Null.as_ecmascript(), "null");
+        assert_eq!(CompileTimeDefineValue::Bool(false).as_ecmascript(), "false");
+        assert_eq!(CompileTimeDefineValue::Bool(true).as_ecmascript(), "true");
+        assert_eq!(
+            CompileTimeDefineValue::Number(Number::from(42)).as_ecmascript(),
+            "42"
+        );
+        assert_eq!(
+            CompileTimeDefineValue::String(rcstr!(r#"a"b"#)).as_ecmascript(),
+            r#""a\"b""#
+        );
+        assert_eq!(
+            CompileTimeDefineValue::String(rcstr!(r#"a'b"#)).as_ecmascript(),
+            r#""a'b""#
+        );
+        assert_eq!(
+            CompileTimeDefineValue::BigInt(Box::new(42.into())).as_ecmascript(),
+            "42n"
+        );
+        assert_eq!(
+            CompileTimeDefineValue::Undefined.as_ecmascript(),
+            "undefined"
+        );
+        assert_eq!(
+            CompileTimeDefineValue::Evaluate(rcstr!("someExpression")).as_ecmascript(),
+            "someExpression"
+        );
+        assert_eq!(
+            CompileTimeDefineValue::Regex(rcstr!("pattern"), rcstr!("flags")).as_ecmascript(),
+            "/pattern/flags"
+        );
+
+        assert_eq!(
+            CompileTimeDefineValue::Array(vec![
+                CompileTimeDefineValue::Bool(true),
+                CompileTimeDefineValue::Number(Number::from(42)),
+                CompileTimeDefineValue::String(rcstr!(r#"a"b"#)),
+            ])
+            .as_ecmascript(),
+            r#"[true, 42, "a\"b"]"#
+        );
+        assert_eq!(
+            CompileTimeDefineValue::Object(vec![
+                (rcstr!("foo"), CompileTimeDefineValue::Bool(true)),
+                (
+                    rcstr!("bar"),
+                    CompileTimeDefineValue::Number(Number::from(42))
+                ),
+                (
+                    rcstr!(r#"a"b"#),
+                    CompileTimeDefineValue::String(rcstr!(r#"c"d"#),)
+                ),
+            ])
+            .as_ecmascript(),
+            r#"{"foo": true, "bar": 42, "a\"b": "c\"d"}"#
         );
     }
 }

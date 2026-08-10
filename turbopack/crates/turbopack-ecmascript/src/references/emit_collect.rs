@@ -10,6 +10,7 @@ use turbo_tasks::{
 };
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType},
+    compile_time_info::CompileTimeDefineValue,
     emit_collect::EmittedModuleReference,
     issue::IssueSource,
     module::Module,
@@ -47,7 +48,7 @@ pub struct EmitReference {
     error_mode: ResolveErrorMode,
     export_usage: ExportUsage,
     namespace: RcStr,
-    data: Option<RcStr>,
+    data: Option<CompileTimeDefineValue>,
     emit_to_all_entries: bool,
 }
 
@@ -60,7 +61,7 @@ impl EmitReference {
         error_mode: ResolveErrorMode,
         export_usage: ExportUsage,
         namespace: RcStr,
-        data: Option<RcStr>,
+        data: Option<CompileTimeDefineValue>,
         emit_to_all_entries: bool,
     ) -> Self {
         EmitReference {
@@ -132,8 +133,11 @@ impl ModuleReference for EmitReference {
 #[turbo_tasks::value_impl]
 impl EmittedModuleReference for EmitReference {
     #[turbo_tasks::function]
-    fn data(&self) -> Vc<Option<RcStr>> {
-        Vc::cell(self.data.clone())
+    fn data(&self) -> Vc<CompileTimeDefineValue> {
+        self.data
+            .clone()
+            .unwrap_or(CompileTimeDefineValue::Undefined)
+            .cell()
     }
 }
 
