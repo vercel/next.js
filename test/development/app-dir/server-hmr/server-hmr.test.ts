@@ -751,6 +751,9 @@ describe('server-hmr', () => {
 
   describe('WebSocket route HMR', () => {
     const itDev = isNextDev ? it : it.skip
+    // Edge runtime is not supported with Cache Components.
+    const itDevWithoutCacheComponents =
+      process.env.__NEXT_CACHE_COMPONENTS === 'true' ? it.skip : itDev
     const sockets = new Set<WebSocket>()
 
     function connect(pathname: string) {
@@ -919,22 +922,29 @@ describe('server-hmr', () => {
       }
     )
 
-    itDev('closes a Node route that moves to the Edge runtime', async () => {
-      const alpha = await connectWithMessage('/ws-hmr/alpha', 'alpha-v0')
-      const beta = await connectWithMessage('/ws-hmr/beta', 'beta-v0')
-      const waitForAlphaClose = observeRestartClose(alpha.socket)
+    itDevWithoutCacheComponents(
+      'closes a Node route that moves to the Edge runtime',
+      async () => {
+        const alpha = await connectWithMessage('/ws-hmr/alpha', 'alpha-v0')
+        const beta = await connectWithMessage('/ws-hmr/beta', 'beta-v0')
+        const waitForAlphaClose = observeRestartClose(alpha.socket)
 
-      await next.patchFile(
-        'app/ws-hmr/alpha/route.ts',
-        (content) => content.replace("runtime = 'nodejs'", "runtime = 'edge'"),
-        async () => {
-          await waitForAlphaClose()
-          await expectEcho(beta.socket, 'still-open', 'beta-v0:still-open')
-        }
-      )
+        await next.patchFile(
+          'app/ws-hmr/alpha/route.ts',
+          (content) =>
+            content.replace(
+              "const version = 'alpha-v0'",
+              "export const runtime = 'edge'\n\nconst version = 'alpha-v0'"
+            ),
+          async () => {
+            await waitForAlphaClose()
+            await expectEcho(beta.socket, 'still-open', 'beta-v0:still-open')
+          }
+        )
 
-      await connectWithMessage('/ws-hmr/alpha', 'alpha-v0')
-    })
+        await connectWithMessage('/ws-hmr/alpha', 'alpha-v0')
+      }
+    )
   })
 })
 

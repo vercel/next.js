@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server'
 
-export const runtime = 'nodejs'
-
 const version = 'alpha-v0'
 
 export function GET() {
