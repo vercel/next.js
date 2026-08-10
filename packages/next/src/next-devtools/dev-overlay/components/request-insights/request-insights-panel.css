@@ -28,6 +28,7 @@
 .request-insights-list {
   border-right: 1px solid var(--color-gray-400);
   overflow: auto;
+  overscroll-behavior: contain;
   min-width: 0;
 }
 
@@ -420,6 +421,7 @@
   min-width: 0;
   min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .request-insights-summary {
