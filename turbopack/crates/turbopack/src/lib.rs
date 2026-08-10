@@ -52,9 +52,11 @@ use turbopack_ecmascript::{
     chunk::EcmascriptChunkPlaceable,
     module_fragments::part::module::EcmascriptModulePartAsset,
     references::{
-        apply_reexport_tree_shaking,
+        FollowExportsResult,
         external_module::{CachedExternalModule, CachedExternalTracingMode, CachedExternalType},
+        follow_reexports,
     },
+    rename::module::EcmascriptModuleRenameModule,
     side_effect_optimization::{
         facade::module::EcmascriptModuleFacadeModule, locals::module::EcmascriptModuleLocalsModule,
     },
@@ -300,6 +302,36 @@ async fn apply_module_type(
     }
 
     Ok(ProcessResult::Module(module).cell())
+}
+
+async fn apply_reexport_tree_shaking(
+    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    part: ModulePart,
+) -> Result<Vc<Box<dyn Module>>> {
+    if let ModulePart::Export(export) = &part {
+        let FollowExportsResult {
+            module: final_module,
+            export_name: new_export,
+            ..
+        } = &*follow_reexports(module, export.clone(), true).await?;
+        let module = if let Some(new_export) = new_export {
+            if *new_export == *export {
+                Vc::upcast(**final_module)
+            } else {
+                Vc::upcast(EcmascriptModuleRenameModule::new(
+                    **final_module,
+                    ModulePart::renamed_export(new_export.clone(), export.clone()),
+                ))
+            }
+        } else {
+            Vc::upcast(EcmascriptModuleRenameModule::new(
+                **final_module,
+                ModulePart::renamed_namespace(export.clone()),
+            ))
+        };
+        return Ok(module);
+    }
+    Ok(Vc::upcast(module))
 }
 
 #[turbo_tasks::value]

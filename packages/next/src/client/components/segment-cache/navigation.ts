@@ -663,7 +663,7 @@ export function completeHardNavigation(
     // we should trigger the hard navigation and blocking any subsequent
     // router updates without updating React.
     renderedSearch: state.renderedSearch,
-    focusAndScrollRef: state.focusAndScrollRef,
+    scrollRef: state.scrollRef,
     cache: state.cache,
     tree: state.tree,
     nextUrl: state.nextUrl,
@@ -742,7 +742,7 @@ export function completeSoftNavigation(
     if (scrollRef !== null) {
       scrollRef.current = false
     }
-    activeScrollRef = oldState.focusAndScrollRef.scrollRef
+    activeScrollRef = oldState.scrollRef.scrollRef
     forceScroll = false
   } else if (onlyHashChange) {
     // Hash-only navigations should scroll regardless of per-node state.
@@ -750,7 +750,7 @@ export function completeSoftNavigation(
     //
     // Invalidate any scroll ref from a prior navigation that hasn't
     // been consumed yet.
-    const oldScrollRef = oldState.focusAndScrollRef.scrollRef
+    const oldScrollRef = oldState.scrollRef.scrollRef
     if (oldScrollRef !== null) {
       oldScrollRef.current = false
     }
@@ -771,7 +771,7 @@ export function completeSoftNavigation(
     // If this navigation created new scroll targets, invalidate any
     // pending scroll from a previous navigation.
     if (scrollRef !== null) {
-      const oldScrollRef = oldState.focusAndScrollRef.scrollRef
+      const oldScrollRef = oldState.scrollRef.scrollRef
       if (oldScrollRef !== null) {
         oldScrollRef.current = false
       }
@@ -787,7 +787,7 @@ export function completeSoftNavigation(
       mpaNavigation: false,
       preserveCustomHistoryState: false,
     },
-    focusAndScrollRef: {
+    scrollRef: {
       scrollRef: activeScrollRef,
       forceScroll,
       onlyHashChange,
@@ -797,10 +797,10 @@ export function completeSoftNavigation(
         // Empty hash should trigger default behavior of scrolling layout into
         // view. #top is handled in layout-router.
         //
-        // Refer to `ScrollAndFocusHandler` for details on how this is used.
+        // Refer to `ScrollHandler` for details on how this is used.
         scrollBehavior !== ScrollBehavior.NoScroll && url.hash !== ''
           ? decodeURIComponent(url.hash.slice(1))
-          : oldState.focusAndScrollRef.hashFragment,
+          : oldState.scrollRef.hashFragment,
     },
     cache,
     tree,
@@ -829,7 +829,7 @@ export function completeTraverseNavigation(
       // Ensures that the custom history state that was set is preserved when applying this update.
       preserveCustomHistoryState: true,
     },
-    focusAndScrollRef: state.focusAndScrollRef,
+    scrollRef: state.scrollRef,
     cache,
     // Restore provided tree
     tree,
