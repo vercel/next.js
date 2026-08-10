@@ -6,9 +6,12 @@ use std::{
 const PROGRESS_INTERVAL: Duration = Duration::from_secs(1);
 
 use clap::Args;
-use rand::{Rng, SeedableRng};
+use rand::{RngExt, SeedableRng};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc, apply_effects};
+use turbo_tasks::{
+    Effects, OperationVc, ResolvedVc, TryJoinIterExt, Vc,
+    read_strongly_consistent_and_apply_effects, take_effects,
+};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, LinkContent, LinkType};
 
@@ -28,6 +31,12 @@ pub struct SymlinkStress {
     /// How long to run the stress test for.
     #[arg(long, default_value_t = 5)]
     duration_secs: u64,
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn extract_effects_operation(op: OperationVc<()>) -> anyhow::Result<Vc<Effects>> {
+    let _ = op.resolve().strongly_consistent().await?;
+    Ok(take_effects(op).await?.cell())
 }
 
 pub async fn run(args: SymlinkStress) -> anyhow::Result<()> {
@@ -60,10 +69,12 @@ pub async fn run(args: SymlinkStress) -> anyhow::Result<()> {
 
     tt.run_once(async move {
         let project_fs = disk_file_system_operation(RcStr::from(fs_root.to_str().unwrap()))
-            .resolve_strongly_consistent()
+            .resolve()
+            .strongly_consistent()
             .await?;
         let project_root = disk_file_system_root_operation(project_fs)
-            .resolve_strongly_consistent()
+            .resolve()
+            .strongly_consistent()
             .await?
             .owned()
             .await?;
@@ -74,10 +85,15 @@ pub async fn run(args: SymlinkStress) -> anyhow::Result<()> {
 
         println!("creating {symlink_count} initial symlinks...");
 
-        let initial_op =
-            create_initial_symlinks_operation(symlinks_path.clone(), symlink_count, initial_target);
-        initial_op.read_strongly_consistent().await?;
-        apply_effects(initial_op).await?;
+        read_strongly_consistent_and_apply_effects(
+            extract_effects_operation(create_initial_symlinks_operation(
+                symlinks_path.clone(),
+                symlink_count,
+                initial_target,
+            )),
+            |e| e,
+        )
+        .await?;
 
         println!(
             "starting stress test with parallelism={} for {}s...",
@@ -107,9 +123,14 @@ pub async fn run(args: SymlinkStress) -> anyhow::Result<()> {
                 .collect();
 
             // Execute writes in parallel via turbo-tasks
-            let write_op = write_symlinks_batch_operation(symlinks_path.clone(), updates);
-            write_op.read_strongly_consistent().await?;
-            apply_effects(write_op).await?;
+            read_strongly_consistent_and_apply_effects(
+                extract_effects_operation(write_symlinks_batch_operation(
+                    symlinks_path.clone(),
+                    updates,
+                )),
+                |e| e,
+            )
+            .await?;
 
             total_writes += parallelism as u64;
 
@@ -150,7 +171,7 @@ pub async fn run(args: SymlinkStress) -> anyhow::Result<()> {
 
 #[turbo_tasks::function(operation)]
 fn disk_file_system_operation(fs_root: RcStr) -> Vc<DiskFileSystem> {
-    DiskFileSystem::new(rcstr!("project"), fs_root)
+    DiskFileSystem::new(rcstr!("project"), Vc::cell(fs_root))
 }
 
 #[turbo_tasks::function(operation)]

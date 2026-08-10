@@ -1,23 +1,37 @@
-import { isNextDeploy, isNextStart, nextTestSetup } from 'e2e-utils'
+import { FileRef, isNextDeploy, isNextStart, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import { join } from 'path'
 import { Page } from 'playwright'
 
 describe('app dir - workers', () => {
   const { next, isTurbopack } = nextTestSetup({
-    files: __dirname,
+    files: {
+      app: new FileRef(join(__dirname, 'app')),
+      public: new FileRef(join(__dirname, 'public')),
+      'next.config.js': new FileRef(join(__dirname, 'next.config.js')),
+      'public/wasms/resvg.wasm': new FileRef(
+        require.resolve('next/dist/compiled/@vercel/og/resvg.wasm')
+      ),
+    },
+    dependencies: {
+      '@resvg/resvg-wasm': '2.4.0',
+    },
     env: {
       NEXT_DEPLOYMENT_ID: isNextStart ? 'test-deployment-id' : undefined,
     },
+    disableAutoSkewProtection: true,
   })
 
   function beforePageLoad(page: Page) {
-    // TODO fix deployment id for webpack
+    // TODO Webpack doesn't pass the ?dpl query param for the worker chunk request.
     if (isTurbopack && (isNextDeploy || isNextStart)) {
       page.on('request', (request) => {
         const url = request.url()
         if (url.includes('/_next/')) {
           let parsed = new URL(url, next.url)
-          expect(parsed.searchParams.get('dpl')).toBe(next.deploymentId)
+          expect(parsed.searchParams.get('dpl') ?? undefined).toBe(
+            next.assetToken
+          )
         }
       })
     }
@@ -112,6 +126,24 @@ describe('app dir - workers', () => {
         'result:42'
       )
     )
+  })
+
+  it('should support rendering an SVG with a WASM package in a worker', async () => {
+    const browser = await next.browser('/resvg', {
+      beforePageLoad,
+    })
+    expect(await browser.elementByCss('#worker-state').text()).toBe('default')
+
+    await browser.elementByCss('button').click()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('#worker-state').text()).toBe('success')
+      expect(await browser.elementByCss('#png-type').text()).toBe('image/png')
+      expect(await browser.elementByCss('#png-dimensions').text()).toBe('16x8')
+      expect(
+        Number(await browser.elementByCss('#png-size').text())
+      ).toBeGreaterThan(0)
+    })
   })
 
   it('should support shared workers', async () => {

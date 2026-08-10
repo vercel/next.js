@@ -1,5 +1,4 @@
 import { nextTestSetup } from 'e2e-utils'
-import webdriver from 'next-webdriver'
 import { check } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
@@ -19,7 +18,7 @@ describe('fetch failures have good stack traces in edge runtime', () => {
     'when awaiting `fetch` using an unknown domain, stack traces are preserved',
     async () => {
       const outputIndex = next.cliOutput.length
-      const browser = await webdriver(next.url, '/api/unknown-domain')
+      const browser = await next.browser('/api/unknown-domain')
 
       if (isNextStart) {
         // eslint-disable-next-line jest/no-standalone-expect
@@ -67,7 +66,7 @@ describe('fetch failures have good stack traces in edge runtime', () => {
 
   // TODO: It need to have source maps picked up by node.js
   it.skip('when returning `fetch` using an unknown domain, stack traces are preserved', async () => {
-    await webdriver(next.url, '/api/unknown-domain-no-await')
+    await next.browser('/api/unknown-domain-no-await')
 
     await check(
       () => stripAnsi(next.cliOutput),

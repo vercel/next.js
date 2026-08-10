@@ -50,14 +50,15 @@ describe('lockfile', () => {
     // The kill command varies by platform: `kill <pid>` on Unix, `taskkill /PID <pid> /F` on Windows
     const killPattern =
       process.platform === 'win32'
-        ? 'Run taskkill /PID \\d+ /F to stop it\\.'
-        : 'Run kill \\d+ to stop it\\.'
+        ? 'or run taskkill /PID \\d+ /F to stop it and start a new one\\.'
+        : 'or run kill \\d+ to stop it and start a new one\\.'
     const errorPattern = new RegExp(
       'Another next dev server is already running\\.\\s*' +
         '- Local:\\s+http://[^\\s]+\\s+' +
         '- PID:\\s+\\d+\\s+' +
         '- Dir:\\s+[^\\s]+\\s+' +
         '- Log:\\s+\\.next/dev/logs/next-development\\.log\\s+' +
+        'You can access the existing server at http://[^\\s]+,\\s+' +
         killPattern
     )
     expect(output).toMatch(errorPattern)

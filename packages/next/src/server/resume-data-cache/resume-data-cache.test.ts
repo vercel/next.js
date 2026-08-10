@@ -25,6 +25,8 @@ function createMockedCache() {
       },
       hasExplicitRevalidate: true,
       hasExplicitExpire: true,
+      readRootParamNames: undefined,
+      dynamicNestedCacheError: undefined,
     })
   )
 
@@ -42,6 +44,8 @@ function createMockedCache() {
       },
       hasExplicitRevalidate: true,
       hasExplicitExpire: true,
+      readRootParamNames: undefined,
+      dynamicNestedCacheError: undefined,
     })
   )
 
@@ -59,6 +63,8 @@ function createMockedCache() {
       },
       hasExplicitRevalidate: true,
       hasExplicitExpire: true,
+      readRootParamNames: undefined,
+      dynamicNestedCacheError: undefined,
     })
   )
 
@@ -137,9 +143,12 @@ describe('stringifyResumeDataCache', () => {
 
 describe('parseResumeDataCache', () => {
   it('parses an empty cache', () => {
-    expect(createRenderResumeDataCache('null', undefined)).toEqual(
-      createPrerenderResumeDataCache()
-    )
+    const parsed = createRenderResumeDataCache('null', undefined)
+    expect(parsed.cache).toEqual(new Map())
+    expect(parsed.fetch).toEqual(new Map())
+    expect(parsed.encryptedBoundArgs).toEqual(new Map())
+    expect(parsed.decryptedBoundArgs).toEqual(new Map())
+    expect(parsed.dynamicCacheKeys).toBeUndefined()
   })
 
   it('parses a filled cache', async () => {

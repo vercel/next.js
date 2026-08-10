@@ -2,11 +2,11 @@ use std::{
     borrow::Cow,
     fmt::Write,
     path::{MAIN_SEPARATOR, Path},
+    sync::LazyLock,
 };
 
 use anyhow::Result;
 use const_format::concatcp;
-use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Deserialize;
 use turbo_tasks::{ReadRef, Vc};
@@ -15,13 +15,13 @@ use turbo_tasks_fs::{
 };
 use turbopack_cli_utils::source_context::format_source_context_lines;
 use turbopack_core::{
-    PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
+    PROJECT_FILESYSTEM_NAME_STR, SOURCE_URL_PROTOCOL_STR,
     source_map::{GenerateSourceMap, SourceMap},
 };
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
 pub use crate::source_map::trace::{StackFrame, TraceResult, trace_source_map};
-use crate::{AssetsForSourceMapping, pool::FormattingMode};
+use crate::{AssetsForSourceMapping, format::FormattingMode};
 
 pub mod trace;
 
@@ -34,8 +34,8 @@ pub async fn apply_source_mapping(
     project_dir: FileSystemPath,
     formatting_mode: FormattingMode,
 ) -> Result<Cow<'_, str>> {
-    static STACK_TRACE_LINE: Lazy<Regex> =
-        Lazy::new(|| Regex::new("\n    at (?:(.+) \\()?(.+):(\\d+):(\\d+)\\)?").unwrap());
+    static STACK_TRACE_LINE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new("\n    at (?:(.+) \\()?(.+):(\\d+):(\\d+)\\)?").unwrap());
 
     let mut it = STACK_TRACE_LINE.captures_iter(text).peekable();
     if it.peek().is_none() {
@@ -236,9 +236,9 @@ async fn resolve_source_mapping(
         TraceResult::Found(frame) => {
             let lib_code = frame.file.contains("/node_modules/");
             if let Some(project_path) = frame.file.strip_prefix(concatcp!(
-                SOURCE_URL_PROTOCOL,
+                SOURCE_URL_PROTOCOL_STR,
                 "///[",
-                PROJECT_FILESYSTEM_NAME,
+                PROJECT_FILESYSTEM_NAME_STR,
                 "]/"
             )) {
                 let fs_path = project_dir.join(project_path)?;
@@ -275,6 +275,19 @@ pub struct StructuredError {
 }
 
 impl StructuredError {
+    /// Construct a [`StructuredError`] from a free-form message with no stack
+    /// frames or cause. Used when synthesizing an error from contexts that do
+    /// not have a real JavaScript stack trace, such as a Node.js subprocess
+    /// crash before any response was received.
+    pub fn from_message(name: String, message: String) -> Self {
+        Self {
+            name,
+            message,
+            stack: Vec::new(),
+            cause: None,
+        }
+    }
+
     pub async fn print(
         &self,
         assets_for_source_mapping: Vc<AssetsForSourceMapping>,

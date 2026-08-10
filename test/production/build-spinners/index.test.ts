@@ -2,7 +2,7 @@ import path from 'path'
 import fs from 'fs-extra'
 import stripAnsi from 'strip-ansi'
 import resolveFrom from 'resolve-from'
-import { NextInstance, createNext } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 
 type File = {
   filename: string
@@ -45,25 +45,19 @@ const pagesFiles: File[] = [
   },
 ]
 
-let next: NextInstance
-
 describe('build-spinners', () => {
-  beforeAll(async () => {
-    next = await createNext({
-      skipStart: true,
-      files: {},
-      dependencies: {
-        'node-pty': '0.10.1',
+  const { next } = nextTestSetup({
+    skipStart: true,
+    files: {},
+    dependencies: {
+      'node-pty': '0.10.1',
+    },
+    packageJson: {
+      pnpm: {
+        onlyBuiltDependencies: ['node-pty'],
       },
-      packageJson: {
-        pnpm: {
-          onlyBuiltDependencies: ['node-pty'],
-        },
-      },
-    })
+    },
   })
-
-  afterAll(() => next.destroy())
 
   beforeEach(async () => {
     await fs.remove(path.join(next.testDir, 'pages'))

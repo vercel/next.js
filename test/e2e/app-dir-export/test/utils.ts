@@ -15,7 +15,6 @@ import {
   fetchViaHTTP,
 } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
-import webdriver from 'next-webdriver'
 
 const glob = promisify(globOrig)
 
@@ -30,9 +29,15 @@ export const expectedWhenTrailingSlashTrue = [
   // Turbopack and plain next.js have different hash output for the file name
   // Turbopack will output favicon in the _next/static/media folder
   ...(process.env.IS_TURBOPACK_TEST
-    ? [expect.stringMatching(/_next\/static\/media\/favicon\.[0-9a-f]+\.ico/)]
+    ? [
+        expect.stringMatching(
+          /_next\/static\/(immutable\/)?media\/favicon\.[0-9a-z_-]+\.ico/
+        ),
+      ]
     : []),
-  expect.stringMatching(/_next\/static\/media\/test\.[0-9a-f]+\.png/),
+  expect.stringMatching(
+    /_next\/static\/(immutable\/)?media\/test\.[0-9a-z_-]+\.png/
+  ),
   expect.stringMatching(/_next\/static\/[A-Za-z0-9_-]+\/_buildManifest.js/),
   ...(process.env.IS_TURBOPACK_TEST
     ? [
@@ -109,9 +114,15 @@ const expectedWhenTrailingSlashFalse = [
   '__next._tree.txt',
   // Turbopack will output favicon in the _next/static/media folder
   ...(process.env.IS_TURBOPACK_TEST
-    ? [expect.stringMatching(/_next\/static\/media\/favicon\.[0-9a-f]+\.ico/)]
+    ? [
+        expect.stringMatching(
+          /_next\/static\/(immutable\/)?media\/favicon\.[0-9a-z_-]+\.ico/
+        ),
+      ]
     : []),
-  expect.stringMatching(/_next\/static\/media\/test\.[0-9a-f]+\.png/),
+  expect.stringMatching(
+    /_next\/static\/(immutable\/)?media\/test\.[0-9a-z_-]+\.png/
+  ),
   expect.stringMatching(/_next\/static\/[A-Za-z0-9_-]+\/_buildManifest.js/),
   ...(process.env.IS_TURBOPACK_TEST
     ? [
@@ -186,7 +197,10 @@ export async function getFiles(cwd) {
       (f) =>
         !f.startsWith('_next/static/chunks/') &&
         !f.startsWith('_next/static/development/') &&
-        !f.startsWith('_next/static/webpack/')
+        !f.startsWith('_next/static/webpack/') &&
+        !f.startsWith('_next/static/immutable/chunks/') &&
+        !f.startsWith('_next/static/immutable/development/') &&
+        !f.startsWith('_next/static/immutable/webpack/')
     )
     .sort()
   return files
@@ -203,13 +217,21 @@ export function runTests({
   dynamicPage?: string
   dynamicParams?: string
   dynamicApiRoute?: string
-  generateStaticParamsOpt?: 'set noop' | 'set client'
+  generateStaticParamsOpt?:
+    | 'set noop'
+    | 'set client'
+    | 'set empty'
+    | 'set invalid entry'
+    | 'set mixed params'
+    | 'set non-array'
+    | 'set wrong param'
   expectedErrMsg?: string | RegExp
 }) {
   let { next, skipped, isNextDev } = nextTestSetup({
     files: join(__dirname, '..'),
     skipDeployment: true,
     skipStart: true,
+    disableAutoSkewProtection: true,
   })
   if (skipped) {
     return
@@ -261,6 +283,41 @@ export function runTests({
         'app/another/[slug]/page.js',
         (content) => '"use client"\n' + content
       )
+    } else if (generateStaticParamsOpt === 'set non-array') {
+      await next.patchFile('app/another/[slug]/page.js', (content) =>
+        content.replace(
+          `return [{ slug: 'first' }, { slug: 'second' }]`,
+          `return { slug: 'first' }`
+        )
+      )
+    } else if (generateStaticParamsOpt === 'set invalid entry') {
+      await next.patchFile('app/another/[slug]/page.js', (content) =>
+        content.replace(
+          `return [{ slug: 'first' }, { slug: 'second' }]`,
+          `return [null]`
+        )
+      )
+    } else if (generateStaticParamsOpt === 'set empty') {
+      await next.patchFile('app/another/[slug]/page.js', (content) =>
+        content.replace(
+          `return [{ slug: 'first' }, { slug: 'second' }]`,
+          'return []'
+        )
+      )
+    } else if (generateStaticParamsOpt === 'set wrong param') {
+      await next.patchFile('app/another/[slug]/page.js', (content) =>
+        content.replace(
+          `return [{ slug: 'first' }, { slug: 'second' }]`,
+          `return [{ id: 'first' }]`
+        )
+      )
+    } else if (generateStaticParamsOpt === 'set mixed params') {
+      await next.patchFile('app/another/[slug]/page.js', (content) =>
+        content.replace(
+          `return [{ slug: 'first' }, { slug: 'second' }]`,
+          `return [{ slug: 'first' }, { id: 'second' }]`
+        )
+      )
     }
   })
 
@@ -283,12 +340,13 @@ export function runTests({
       await stopOrKill()
     }
   })
+  const openBrowser = (url: string) => next.browser(url, { baseUrl: port })
 
   it('should work', async () => {
     if (expectedErrMsg) {
       if (isNextDev) {
         const url = dynamicPage ? '/another/first' : '/api/json'
-        const browser = await webdriver(port, url)
+        const browser = await openBrowser(url)
         await waitForRedbox(browser)
         const header = await getRedboxHeader(browser)
         const source = await getRedboxSource(browser)
@@ -303,7 +361,7 @@ export function runTests({
       expect(next.cliOutput).toMatch(expectedErrMsg)
     } else {
       const a = (n: number) => `li:nth-child(${n}) a`
-      const browser = await webdriver(port, '/')
+      const browser = await openBrowser('/')
       await retry(async () =>
         expect(await browser.elementByCss('h1').text()).toContain('Home')
       )

@@ -1,25 +1,17 @@
 use std::{
     collections::BTreeMap,
-    path::PathBuf,
-    sync::{LockResult, Mutex, MutexGuard},
+    path::{Path, PathBuf},
+    sync::{Arc, LockResult, Mutex, MutexGuard},
 };
 
 use concurrent_queue::ConcurrentQueue;
-use rustc_hash::FxHashMap;
-use turbo_tasks::{Invalidator, ReadRef};
+use rustc_hash::FxHashSet;
+use turbo_tasks::Invalidator;
 
-use crate::{FileContent, LinkContent};
-
-#[derive(PartialEq, Eq)]
-pub enum WriteContent {
-    File(ReadRef<FileContent>),
-    Link(ReadRef<LinkContent>),
-}
-
-pub type LockedInvalidatorMap = BTreeMap<PathBuf, FxHashMap<Invalidator, Option<WriteContent>>>;
+pub type LockedInvalidatorMap = BTreeMap<Box<Path>, FxHashSet<Invalidator>>;
 
 pub struct InvalidatorMap {
-    queue: ConcurrentQueue<(PathBuf, Invalidator, Option<WriteContent>)>,
+    queue: ConcurrentQueue<(Arc<PathBuf>, Invalidator)>,
     map: Mutex<LockedInvalidatorMap>,
 }
 
@@ -39,27 +31,28 @@ impl InvalidatorMap {
 
     pub fn lock(&self) -> LockResult<MutexGuard<'_, LockedInvalidatorMap>> {
         let mut guard = self.map.lock()?;
-        while let Ok((key, value, write_content)) = self.queue.pop() {
-            guard.entry(key).or_default().insert(value, write_content);
+        while let Ok((key, value)) = self.queue.pop() {
+            if let Some(invalidators) = guard.get_mut(key.as_path()) {
+                invalidators.insert(value);
+            } else {
+                let key = match Arc::try_unwrap(key) {
+                    Ok(key) => key.into_boxed_path(),
+                    Err(key) => Box::from(key.as_path()),
+                };
+                guard.insert(key, FxHashSet::from_iter([value]));
+            }
         }
         Ok(guard)
     }
 
-    pub fn insert(
-        &self,
-        key: PathBuf,
-        invalidator: Invalidator,
-        write_content: Option<WriteContent>,
-    ) {
-        self.queue
-            .push((key, invalidator, write_content))
-            .unwrap_or_else(|err| {
-                let (key, ..) = err.into_inner();
-                // PushError<T> is not Debug
-                panic!(
-                    "failed to push {key:?} queue push should never fail, queue is unbounded and \
-                     never closed"
-                )
-            });
+    pub fn insert(&self, key: Arc<PathBuf>, invalidator: Invalidator) {
+        self.queue.push((key, invalidator)).unwrap_or_else(|err| {
+            let (key, ..) = err.into_inner();
+            // PushError<T> is not Debug
+            panic!(
+                "failed to push {key:?} queue push should never fail, queue is unbounded and \
+                 never closed"
+            )
+        });
     }
 }

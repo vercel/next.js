@@ -1,10 +1,11 @@
 import type { ServerResponse } from 'node:http'
+import type { Readable } from 'node:stream'
 
 import {
   ResponseAbortedName,
   createAbortController,
 } from './web/spec-extension/adapters/next-request'
-import { DetachedPromise } from '../lib/detached-promise'
+import { createPromiseWithResolvers } from '../shared/lib/promise-with-resolvers'
 import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { getClientComponentLoaderMetrics } from './client-component-renderer-logger'
@@ -12,6 +13,9 @@ import { getClientComponentLoaderMetrics } from './client-component-renderer-log
 export function isAbortError(e: any): e is Error & { name: 'AbortError' } {
   return e?.name === 'AbortError' || e?.name === ResponseAbortedName
 }
+
+const HAS_CLIENT_COMPONENT_METRICS_ENABLED =
+  'performance' in globalThis && process.env.NEXT_OTEL_PERFORMANCE_PREFIX
 
 function createWriterFromResponse(
   res: ServerResponse,
@@ -21,7 +25,7 @@ function createWriterFromResponse(
 
   // Create a promise that will resolve once the response has drained. See
   // https://nodejs.org/api/stream.html#stream_event_drain
-  let drained = new DetachedPromise<void>()
+  let drained = createPromiseWithResolvers<void>()
   function onDrain() {
     drained.resolve()
   }
@@ -36,7 +40,7 @@ function createWriterFromResponse(
 
   // Create a promise that will resolve once the response has finished. See
   // https://nodejs.org/api/http.html#event-finish_1
-  const finished = new DetachedPromise<void>()
+  const finished = createPromiseWithResolvers<void>()
   res.once('finish', () => {
     finished.resolve()
   })
@@ -50,10 +54,7 @@ function createWriterFromResponse(
       if (!started) {
         started = true
 
-        if (
-          'performance' in globalThis &&
-          process.env.NEXT_OTEL_PERFORMANCE_PREFIX
-        ) {
+        if (HAS_CLIENT_COMPONENT_METRICS_ENABLED) {
           const metrics = getClientComponentLoaderMetrics()
           if (metrics) {
             performance.measure(
@@ -93,7 +94,7 @@ function createWriterFromResponse(
           await drained.promise
 
           // Reset the drained promise so that we can wait for the next drain event.
-          drained = new DetachedPromise<void>()
+          drained = createPromiseWithResolvers<void>()
         }
       } catch (err) {
         res.end()
@@ -139,6 +140,100 @@ export async function pipeToNodeResponse(
     await readable.pipeTo(writer, { signal: controller.signal })
   } catch (err: any) {
     // If this isn't related to an abort error, re-throw it.
+    if (isAbortError(err)) return
+
+    throw new Error('failed to pipe response', { cause: err })
+  }
+}
+
+export async function pipeNodeReadableToNodeResponse(
+  readable: Readable,
+  res: ServerResponse,
+  waitUntilForEnd?: Promise<unknown>
+) {
+  try {
+    const { errored, destroyed } = res
+    if (errored || destroyed) return
+
+    let started = false
+
+    const finished = createPromiseWithResolvers<void>()
+
+    res.once('close', () => {
+      readable.destroy()
+      finished.resolve()
+    })
+
+    readable.on('data', (chunk: Buffer) => {
+      if (!started) {
+        started = true
+
+        if (
+          'performance' in globalThis &&
+          process.env.NEXT_OTEL_PERFORMANCE_PREFIX
+        ) {
+          const metrics = getClientComponentLoaderMetrics()
+          if (metrics) {
+            performance.measure(
+              `${process.env.NEXT_OTEL_PERFORMANCE_PREFIX}:next-client-component-loading`,
+              {
+                start: metrics.clientComponentLoadStart,
+                end:
+                  metrics.clientComponentLoadStart +
+                  metrics.clientComponentLoadTimes,
+              }
+            )
+          }
+        }
+
+        res.flushHeaders()
+        getTracer().trace(
+          NextNodeServerSpan.startResponse,
+          {
+            spanName: 'start response',
+          },
+          () => undefined
+        )
+      }
+
+      const ok = res.write(chunk)
+
+      if ('flush' in res && typeof res.flush === 'function') {
+        res.flush()
+      }
+
+      if (!ok) {
+        readable.pause()
+        res.once('drain', () => {
+          readable.resume()
+        })
+      }
+    })
+
+    readable.on('end', async () => {
+      if (waitUntilForEnd) {
+        await waitUntilForEnd
+      }
+
+      if (!res.writableFinished) {
+        res.end()
+      }
+
+      finished.resolve()
+    })
+
+    readable.on('error', (err) => {
+      if (isAbortError(err)) {
+        finished.resolve()
+        return
+      }
+
+      res.destroy(err)
+      finished.resolve()
+    })
+
+    await finished.promise
+  } catch (err: any) {
     if (isAbortError(err)) return
 
     throw new Error('failed to pipe response', { cause: err })

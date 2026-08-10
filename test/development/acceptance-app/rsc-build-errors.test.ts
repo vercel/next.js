@@ -1,14 +1,8 @@
-import { FileRef, nextTestSetup } from 'e2e-utils'
-import path from 'path'
 import { createSandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
+import { runRscBuildErrorsTests } from './rsc-build-errors.util'
 
-describe('Error overlay - RSC build errors', () => {
-  const { next, isTurbopack } = nextTestSetup({
-    files: new FileRef(path.join(__dirname, 'fixtures', 'rsc-build-errors')),
-    skipStart: true,
-  })
-
+runRscBuildErrorsTests(({ next }) => {
   it('should throw an error when getServerSideProps is used', async () => {
     await using sandbox = await createSandbox(
       next,
@@ -154,234 +148,6 @@ describe('Error overlay - RSC build errors', () => {
     )
   })
 
-  it('should allow to use and handle rsc poisoning client-only', async () => {
-    await using sandbox = await createSandbox(
-      next,
-      undefined,
-      '/server-with-errors/client-only-in-server'
-    )
-    const { session } = sandbox
-    const file =
-      'app/server-with-errors/client-only-in-server/client-only-lib.js'
-    const content = await next.readFile(file)
-    const uncomment = content.replace(
-      "// import 'client-only'",
-      "import 'client-only'"
-    )
-    await next.patchFile(file, uncomment)
-
-    await session.waitForRedbox()
-    if (isTurbopack) {
-      // TODO: fix the issue ordering.
-      // turbopack emits the resolve issue first instead of the transform issue.
-      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-       "./app/server-with-errors/client-only-in-server/client-only-lib.js (1:1)
-       Ecmascript file had an error
-       > 1 | import 'client-only'
-           | ^^^^^^^^^^^^^^^^^^^^
-         2 |
-         3 | export default function ClientOnlyLib() {
-         4 |   return 'client-only-lib'
-
-       You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
-       Learn more: https://nextjs.org/docs/app/building-your-application/rendering
-
-       Import trace:
-         Server Component:
-           ./app/server-with-errors/client-only-in-server/client-only-lib.js
-           ./app/server-with-errors/client-only-in-server/page.js"
-      `)
-    } else {
-      expect(await session.getRedboxSource()).toInclude(
-        `You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
-      )
-    }
-  })
-
-  const invalidReactServerApis = [
-    'Component',
-    'createContext',
-    'createFactory',
-    'PureComponent',
-    'useDeferredValue',
-    'useEffect',
-    'useEffectEvent',
-    'useImperativeHandle',
-    'useInsertionEffect',
-    'useLayoutEffect',
-    'useReducer',
-    'useRef',
-    'useState',
-    'useSyncExternalStore',
-    'useTransition',
-    'useOptimistic',
-    'useActionState',
-  ]
-  for (const api of invalidReactServerApis) {
-    it(`should error when ${api} from react is used in server component`, async () => {
-      await using sandbox = await createSandbox(
-        next,
-        undefined,
-        `/server-with-errors/react-apis/${api.toLowerCase()}`
-      )
-      const { session } = sandbox
-      await session.waitForRedbox()
-      expect(await session.getRedboxSource()).toInclude(
-        // `Component` has a custom error message
-        api === 'Component'
-          ? `You’re importing a class component. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
-          : `You're importing a component that needs \`${api}\`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
-      )
-    })
-  }
-
-  const invalidReactDomServerApis = [
-    'flushSync',
-    'unstable_batchedUpdates',
-    'useFormStatus',
-    'useFormState',
-  ]
-  for (const api of invalidReactDomServerApis) {
-    it(`should error when ${api} from react-dom is used in server component`, async () => {
-      await using sandbox = await createSandbox(
-        next,
-        undefined,
-        `/server-with-errors/react-dom-apis/${api.toLowerCase()}`
-      )
-      const { session } = sandbox
-      await session.waitForRedbox()
-      expect(await session.getRedboxSource()).toInclude(
-        `You're importing a component that needs \`${api}\`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
-      )
-    })
-  }
-
-  it('should allow to use and handle rsc poisoning server-only', async () => {
-    await using sandbox = await createSandbox(
-      next,
-      undefined,
-      '/client-with-errors/server-only-in-client'
-    )
-    const { session } = sandbox
-    const file =
-      'app/client-with-errors/server-only-in-client/server-only-lib.js'
-    const content = await next.readFile(file)
-    const uncomment = content.replace(
-      "// import 'server-only'",
-      "import 'server-only'"
-    )
-
-    await session.patch(file, uncomment)
-
-    await session.waitForRedbox()
-    expect(await session.getRedboxSource()).toInclude(
-      `You're importing a component that needs "server-only". That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
-    )
-  })
-
-  describe("importing 'next/cache' APIs in a client component", () => {
-    test.each(['revalidatePath', 'revalidateTag', 'cacheLife', 'cacheTag'])(
-      '%s is not allowed',
-      async (api) => {
-        await using sandbox = await createSandbox(
-          next,
-          undefined,
-          `/server-with-errors/next-cache-in-client/${api.toLowerCase()}`
-        )
-        const { session } = sandbox
-        await session.waitForRedbox()
-        expect(await session.getRedboxSource()).toInclude(
-          `You're importing a component that needs "${api}". That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
-        )
-      }
-    )
-
-    test.each([
-      'unstable_cache', // useless in client, but doesn't technically error
-      'unstable_noStore', // no-op in client, but allowed for legacy reasons
-    ])('%s is allowed', async (api) => {
-      await using sandbox = await createSandbox(
-        next,
-        undefined,
-        `/server-with-errors/next-cache-in-client/${api.toLowerCase()}`
-      )
-      const { session } = sandbox
-      await session.waitForNoRedbox()
-    })
-  })
-
-  describe('next/root-params', () => {
-    const isCacheComponentsEnabled =
-      process.env.__NEXT_CACHE_COMPONENTS === 'true'
-    it("importing 'next/root-params' when experimental.rootParams is not enabled", async () => {
-      await using sandbox = await createSandbox(
-        next,
-        undefined,
-        `/server-with-errors/next-root-params/without-flag`
-      )
-      const { session } = sandbox
-      await session.waitForRedbox()
-      if (!isCacheComponentsEnabled) {
-        expect(await session.getRedboxSource()).toInclude(
-          `'next/root-params' can only be imported when \`experimental.rootParams\` is enabled.`
-        )
-      } else {
-        // in cacheComponents we auto-enable 'next/root-params', so we should get an error about using a non-existent getter instead.
-        expect(await session.getRedboxSource()).toInclude(
-          isTurbopack
-            ? `Export whatever doesn't exist in target module`
-            : `Attempted import error: 'whatever' is not exported from 'next/root-params' (imported as 'whatever').`
-        )
-      }
-    })
-
-    it("importing 'next/root-params' in a client component", async () => {
-      await using sandbox = await createSandbox(
-        next,
-        // if cacheComponents is not enabled, the import is guarded behind an experimental flag
-        isCacheComponentsEnabled
-          ? new Map()
-          : new Map([
-              [
-                'next.config.js',
-                outdent`
-                  module.exports = { experimental: { rootParams: true } }
-                `,
-              ],
-            ]),
-        `/server-with-errors/next-root-params/in-client`
-      )
-      const { session } = sandbox
-      await session.waitForRedbox()
-      expect(await session.getRedboxSource()).toInclude(
-        `You're importing a component that needs "next/root-params". That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
-      )
-    })
-
-    it("importing 'next/root-params' in a client component in a way that bypasses import analysis", async () => {
-      await using sandbox = await createSandbox(
-        next,
-        // if cacheComponents is not enabled, the import is guarded behind an experimental flag
-        isCacheComponentsEnabled
-          ? new Map()
-          : new Map([
-              [
-                'next.config.js',
-                outdent`
-                  module.exports = { experimental: { rootParams: true } }
-                `,
-              ],
-            ]),
-        `/server-with-errors/next-root-params/in-client-await-import`
-      )
-      const { session } = sandbox
-      await session.waitForRedbox()
-      expect(await session.getRedboxSource()).toInclude(
-        `'next/root-params' cannot be imported from a Client Component module. It should only be used from a Server Component.`
-      )
-    })
-  })
-
   it('should error for invalid undefined module retuning from next dynamic', async () => {
     await using sandbox = await createSandbox(
       next,
@@ -423,12 +189,12 @@ describe('Error overlay - RSC build errors', () => {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
        "./app/server-with-errors/error-file/error.js (1:1)
-       Ecmascript file had an error
+       Error: app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.
+           Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
        > 1 | export default function Error() {}
            | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-       app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.
-       Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client"
+       Ecmascript file had an error"
       `)
     } else {
       await expect(session.getRedboxSource()).resolves.toMatch(

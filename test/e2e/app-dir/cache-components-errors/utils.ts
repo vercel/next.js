@@ -5,6 +5,10 @@ const ignoredLines = [
   'Generating static pages',
   'Inlining static env',
   'Finalizing page optimization',
+  // The config evaluation timing line (e.g. "✓ Running next.config.js took
+  // 15ms") is non-deterministic boot/build noise that is irrelevant to these
+  // runtime-error snapshots.
+  'Running next.config',
 ]
 
 /**

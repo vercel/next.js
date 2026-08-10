@@ -11,7 +11,7 @@ use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
-    chunk::{ChunkingContext, ChunkingType, ChunkingTypeOption},
+    chunk::{ChunkingContext, ChunkingType},
     issue::IssueSource,
     output::OutputAsset,
     reference::ModuleReference,
@@ -58,7 +58,7 @@ impl UrlAssetReference {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<ReferencedAsset>> {
-        if let Some(module) = *self.resolve_reference().first_module().await?
+        if let Some(module) = self.resolve_reference().await?.first_module().await?
             && let Some(embeddable) = ResolvedVc::try_downcast::<Box<dyn CssEmbed>>(module)
         {
             return Ok(ReferencedAsset::Some(
@@ -86,12 +86,15 @@ impl ModuleReference for UrlAssetReference {
         )
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Parallel {
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Parallel {
             inherit_async: false,
             hoisted: false,
-        }))
+        })
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.issue_source)
     }
 }
 

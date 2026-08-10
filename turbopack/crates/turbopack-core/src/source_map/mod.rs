@@ -1,4 +1,9 @@
-use std::{borrow::Cow, io::Write, ops::Deref, sync::Arc};
+use std::{
+    borrow::Cow,
+    io::Write,
+    ops::Deref,
+    sync::{Arc, LazyLock},
+};
 
 use anyhow::Result;
 use bincode::{
@@ -9,12 +14,11 @@ use bincode::{
 };
 use bytes_str::BytesStr;
 use either::Either;
-use once_cell::sync::Lazy;
 use ref_cast::RefCast;
 use regex::Regex;
 use swc_sourcemap::{DecodedMap, SourceMap as RegularMap, SourceMapBuilder, SourceMapIndex};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToStringRef, Vc};
 use turbo_tasks_fs::{
     File, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
     rope::{Rope, RopeBuilder},
@@ -27,6 +31,7 @@ use crate::{
 };
 
 pub(crate) mod source_map_asset;
+pub mod structured;
 pub mod utils;
 
 pub use source_map_asset::SourceMapAsset;
@@ -48,16 +53,8 @@ pub trait GenerateSourceMap {
     }
 }
 
-/// Implements the source map specification as either a decoded or sectioned sourcemap.
-///
-/// - A "decoded" map represents a source map as if it was came out of a JSON
-/// decode.
-/// - A "sectioned" source map is a tree of many [SourceMap]
-/// covering regions of an output file.
-///
-/// The distinction between the source map spec's [sourcemap::Index] and our
-/// [SourceMap::Sectioned] is whether the sections are represented with Vcs
-/// pointers.
+/// Implements the source map specification as a [decoded][`DecodedMap`] sourcemap. A "decoded" map
+/// represents a source map as if it was came out of a JSON decode.
 #[turbo_tasks::value(shared, cell = "new", eq = "manual")]
 #[derive(Debug)]
 pub struct SourceMap {
@@ -236,12 +233,10 @@ impl TryInto<swc_sourcemap::RawToken> for Token {
 }
 
 impl SourceMap {
-    /// Creates a new SourceMap::Decoded Vc out of a [RegularMap] instance.
     fn new_regular(map: RegularMap) -> Self {
         Self::new_decoded(DecodedMap::Regular(map))
     }
 
-    /// Creates a new SourceMap::Decoded Vc out of a [DecodedMap] instance.
     fn new_decoded(map: DecodedMap) -> Self {
         SourceMap {
             map: Arc::new(CrateMapWrapper(map)),
@@ -276,8 +271,8 @@ impl SourceMap {
     }
 }
 
-static EMPTY_SOURCE_MAP_ROPE: Lazy<Rope> =
-    Lazy::new(|| Rope::from(r#"{"version":3,"sources":[],"names":[],"mappings":"A"}"#));
+static EMPTY_SOURCE_MAP_ROPE: LazyLock<Rope> =
+    LazyLock::new(|| Rope::from(r#"{"version":3,"sources":[],"names":[],"mappings":"A"}"#));
 
 impl SourceMap {
     /// A source map that contains no actual source location information (no
@@ -390,7 +385,7 @@ impl SourceMap {
         ) -> Result<(BytesStr, BytesStr)> {
             Ok(
                 if let Some(path) = origin.parent().try_join(&source_request) {
-                    let path_str = path.value_to_string().await?;
+                    let path_str = path.to_string_ref().await?;
                     let source = format!("{SOURCE_URL_PROTOCOL}///{path_str}");
                     let source_content = if let Some(source_content) = source_content {
                         source_content
@@ -402,9 +397,9 @@ impl SourceMap {
                     };
                     (source.into(), source_content)
                 } else {
-                    let origin_str = origin.value_to_string().await?;
-                    static INVALID_REGEX: Lazy<Regex> =
-                        Lazy::new(|| Regex::new(r#"(?:^|/)(?:\.\.?(?:/|$))+"#).unwrap());
+                    let origin_str = origin.to_string_ref().await?;
+                    static INVALID_REGEX: LazyLock<Regex> =
+                        LazyLock::new(|| Regex::new(r#"(?:^|/)(?:\.\.?(?:/|$))+"#).unwrap());
                     let source = INVALID_REGEX
                         .replace_all(&source_request, |s: &regex::Captures<'_>| {
                             s[0].replace('.', "_")
@@ -437,7 +432,7 @@ impl SourceMap {
                 .collect::<Vec<_>>();
             let mut new_sources = Vec::with_capacity(count);
             let mut new_source_contents = Vec::with_capacity(count);
-            for (source, source_content) in sources.into_iter().zip(source_contents.into_iter()) {
+            for (source, source_content) in sources.into_iter().zip(source_contents) {
                 let (source, source_content) =
                     resolve_source(source, source_content, origin.clone()).await?;
                 new_sources.push(source);

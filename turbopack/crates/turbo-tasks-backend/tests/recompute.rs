@@ -3,7 +3,9 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, State, Vc};
+use turbo_tasks::{
+    ResolvedVc, State, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
+};
 use turbo_tasks_testing::{Registration, register, run, run_once};
 
 static REGISTRATION: Registration = register!();
@@ -11,6 +13,7 @@ static REGISTRATION: Registration = register!();
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn recompute() {
     run_once(&REGISTRATION, || async {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
         let input = ChangingInput {
             state: State::new(1),
         }
@@ -61,6 +64,7 @@ async fn recompute() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn immutable_analysis() {
     run_once(&REGISTRATION, || async {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
         let input = ChangingInput {
             state: State::new(1),
         }
@@ -99,7 +103,7 @@ struct VcHolder {
 
 #[turbo_tasks::value_impl]
 impl VcHolder {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     fn compute(&self) -> Vc<Output> {
         compute(*self.vc, *self.vc)
     }
@@ -112,7 +116,7 @@ struct Output {
     random_value: u32,
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(root)]
 async fn compute(input: Vc<ChangingInput>, input2: Vc<ChangingInput>) -> Result<Vc<Output>> {
     let state_value = *input.await?.state.get();
     let state_value2 = if state_value < 5 {
@@ -146,7 +150,8 @@ async fn compute2(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn recompute_dependency() {
     run(&REGISTRATION, || async {
-        let input = get_dependency_input().resolve().await?;
+        unmark_top_level_task_may_leak_eventually_consistent_state();
+        let input = *get_dependency_input().to_resolved().await?;
         // Reset state to 1 at the start of each iteration (important for multi-run tests)
         input.await?.state.set(1);
 
@@ -222,7 +227,7 @@ async fn inner_compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
 }
 
 /// Outer task - depends on inner_compute
-#[turbo_tasks::function]
+#[turbo_tasks::function(root)]
 async fn outer_compute(input: Vc<ChangingInput>) -> Result<Vc<DependencyOutput>> {
     println!("outer_compute()");
     let inner_result = *inner_compute(input).await?;

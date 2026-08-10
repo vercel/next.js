@@ -68,16 +68,27 @@ impl ManifestLoaderModule {
     }
 
     #[turbo_tasks::function]
-    pub fn asset_ident_for(module: Vc<Box<dyn ChunkableModule>>) -> Vc<AssetIdent> {
-        module.ident().with_modifier(modifier())
+    pub async fn asset_ident_for(module: Vc<Box<dyn ChunkableModule>>) -> Result<Vc<AssetIdent>> {
+        Ok(module
+            .ident()
+            .owned()
+            .await?
+            .with_modifier(modifier())
+            .into_vc())
     }
 }
 
 #[turbo_tasks::value_impl]
 impl Module for ManifestLoaderModule {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.manifest.module_ident().with_modifier(modifier())
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .manifest
+            .module_ident()
+            .owned()
+            .await?
+            .with_modifier(modifier())
+            .into_vc())
     }
 
     #[turbo_tasks::function]
@@ -206,7 +217,13 @@ impl EcmascriptChunkPlaceable for ManifestLoaderModule {
 #[turbo_tasks::value_impl]
 impl ManifestLoaderModule {
     #[turbo_tasks::function]
-    pub fn content_ident(&self) -> Vc<AssetIdent> {
-        self.manifest.content_ident().with_modifier(modifier())
+    pub async fn content_ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .manifest
+            .content_ident()
+            .owned()
+            .await?
+            .with_modifier(modifier())
+            .into_vc())
     }
 }

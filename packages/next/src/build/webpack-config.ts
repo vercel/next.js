@@ -32,6 +32,7 @@ import {
 import type { CompilerNameValues } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import type { NextConfigComplete } from '../server/config-shared'
+import { resolveCssChunkingMode } from '../server/config-shared'
 import { finalizeEntrypoint } from './entries'
 import * as Log from './output/log'
 import { buildConfiguration } from './webpack/config'
@@ -65,7 +66,7 @@ import loadJsConfig, {
 } from './load-jsconfig'
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plugin'
-import { getSupportedBrowsers } from './utils'
+import { getSupportedBrowsers } from './get-supported-browsers'
 import { MemoryWithGcCachePlugin } from './webpack/plugins/memory-with-gc-cache-plugin'
 import { getBabelConfigFile } from './get-babel-config-file'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
@@ -293,24 +294,35 @@ export function hasExternalOtelApiPackage(): boolean {
 
 const UNSAFE_CACHE_REGEX = /[\\/]pages[\\/][^\\/]+(?:$|\?|#)/
 
-const NEGATIVE_UNSAFE_CACHE_REGEX = new RegExp(
-  `^(?!.*${UNSAFE_CACHE_REGEX.source}).*$`
-)
-
-export function getCacheDirectories(
-  configs: webpack.Configuration[]
-): Set<string> {
-  return new Set(
-    configs
-      .map((cfg) => {
-        if (typeof cfg.cache === 'object' && cfg.cache.type === 'filesystem') {
-          return cfg.cache.cacheDirectory
-        }
-        return null
-      })
-      .filter((dir) => dir != null)
-  )
-}
+export const getCacheDirectories = process.env.NEXT_RSPACK
+  ? (configs: webpack.Configuration[]) => {
+      return new Set(
+        configs
+          .map((cfg) => {
+            const cache = cfg.cache as any
+            if (typeof cache === 'object' && cache.type === 'persistent') {
+              return cache.storage.directory
+            }
+            return null
+          })
+          .filter((dir): dir is string => dir != null)
+      )
+    }
+  : (configs: webpack.Configuration[]) => {
+      return new Set(
+        configs
+          .map((cfg) => {
+            if (
+              typeof cfg.cache === 'object' &&
+              cfg.cache.type === 'filesystem'
+            ) {
+              return cfg.cache.cacheDirectory
+            }
+            return null
+          })
+          .filter((dir) => dir != null)
+      )
+    }
 
 export default async function getBaseWebpackConfig(
   dir: string,
@@ -379,6 +391,10 @@ export default async function getBaseWebpackConfig(
   const isNodeServer = compilerType === COMPILER_NAMES.server
 
   const isRspack = Boolean(process.env.NEXT_RSPACK)
+  const CompleteRuntimePlugin = isRspack
+    ? // @ts-ignore @next/rspack-core extends Rspack's core export with Next-only native plugins.
+      bundler.ForceCompleteRuntimePlugin
+    : ForceCompleteRuntimePlugin
 
   const FlightClientEntryPlugin =
     isRspack && process.env.BUILTIN_FLIGHT_CLIENT_ENTRY_PLUGIN
@@ -806,6 +822,12 @@ export default async function getBaseWebpackConfig(
           },
         }
       : {}) as any),
+  }
+
+  // Resolve server-relative imports (e.g. `/styles/foo`) from the app
+  // directory. Webpack defaults this to `context`; Rspack needs it explicit.
+  if (isRspack) {
+    resolveConfig!.roots = [dir]
   }
 
   // Packages which will be split into the 'framework' chunk.
@@ -1321,8 +1343,10 @@ export default async function getBaseWebpackConfig(
         : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
             dev ? '' : '-[contenthash]'
           }.js`,
-      library: isClient || isEdgeServer ? '_N_E' : undefined,
-      libraryTarget: isClient || isEdgeServer ? 'assign' : 'commonjs2',
+      library:
+        isClient || isEdgeServer
+          ? { name: '_N_E', type: 'assign' }
+          : { type: 'commonjs2' },
       hotUpdateChunkFilename: 'static/webpack/[id].[fullhash].hot-update.js',
       hotUpdateMainFilename:
         'static/webpack/[fullhash].[runtime].hot-update.json',
@@ -1345,6 +1369,9 @@ export default async function getBaseWebpackConfig(
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
       hashFunction: 'xxhash64',
       hashDigestLength: 16,
+      // Webpack requires hashSalt to be a non-empty string; omit it entirely
+      // when no salt is configured.
+      ...(config.outputHashSalt ? { hashSalt: config.outputHashSalt } : {}),
     },
     performance: false,
     resolve: resolveConfig,
@@ -1354,6 +1381,7 @@ export default async function getBaseWebpackConfig(
         'error-loader',
         'next-swc-loader',
         'next-client-pages-loader',
+        'next-instrumentation-client-loader',
         'next-image-loader',
         'next-metadata-image-loader',
         'next-style-loader',
@@ -1570,11 +1598,6 @@ export default async function getBaseWebpackConfig(
           : []),
 
         ...getNextRootParamsRules({
-          isRootParamsEnabled:
-            config.experimental.rootParams ??
-            // `cacheComponents` implies `experimental.rootParams`.
-            config.cacheComponents ??
-            false,
           isClient,
           appDir,
           pageExtensions,
@@ -1796,6 +1819,7 @@ export default async function getBaseWebpackConfig(
                   compilerType,
                   basePath: config.basePath,
                   assetPrefix: config.assetPrefix,
+                  outputHashSalt: config.outputHashSalt,
                 },
               },
             ]
@@ -1926,6 +1950,19 @@ export default async function getBaseWebpackConfig(
           test: /[\\/]next[\\/]dist[\\/](esm[\\/])?build[\\/]webpack[\\/]loaders[\\/]next-flight-loader[\\/]action-client-wrapper\.js/,
           sideEffects: false,
         },
+        // The placeholder file aliased from `private-next-instrumentation-client`.
+        // The loader replaces its contents with a synthetic module containing
+        // each `instrumentationClientInject` entry, followed by the user's
+        // `instrumentation-client.{pageExt}` module.
+        {
+          test: /[\\/]next[\\/]dist[\\/](esm[\\/])?build[\\/]webpack[\\/]loaders[\\/]instrumentation-client-stub\.js$/,
+          use: {
+            loader: 'next-instrumentation-client-loader',
+            options: {
+              modules: config.instrumentationClientInject,
+            },
+          },
+        },
         {
           // This loader rule should be before other rules, as it can output code
           // that still contains `"use client"` or `"use server"` statements that
@@ -1972,9 +2009,7 @@ export default async function getBaseWebpackConfig(
     plugins: [
       // In prod Webpack will already have a runtime for all reachable chunks.
       // During dev, it will update the runtime as chunks come in which may be too late for Flight.
-      //
-      // TODO: Rspack currently does not support the hooks and chunk methods required by ForceCompleteRuntimePlugin.
-      dev && !isRspack && new ForceCompleteRuntimePlugin(),
+      dev && new CompleteRuntimePlugin(),
       // Handle deferred entries - must be added early to intercept entry processing
       !isRspack &&
         config.experimental.deferredEntries?.length &&
@@ -2127,8 +2162,6 @@ export default async function getBaseWebpackConfig(
       isClient &&
         new BuildManifestPlugin({
           buildId,
-          dev,
-          deploymentId: config.deploymentId,
           rewrites,
           isDevFallback,
           appDirEnabled: hasAppDir,
@@ -2184,17 +2217,21 @@ export default async function getBaseWebpackConfig(
         new NextFontManifestPlugin({
           appDir,
         }),
+      // CSS chunking plugin. Graph mode is Turbopack-only and is rejected at config-validation
+      // time for webpack, so we only need to wire up `'loose'` (default) and `'strict'` here.
       !dev &&
         isClient &&
-        config.experimental.cssChunking &&
-        (isRspack
-          ? new (getRspackCore().experiments.CssChunkingPlugin)({
-              strict: config.experimental.cssChunking === 'strict',
-              nextjs: true,
-            })
-          : new CssChunkingPlugin(
-              config.experimental.cssChunking === 'strict'
-            )),
+        (() => {
+          const mode = resolveCssChunkingMode(config.experimental.cssChunking)
+          if (mode !== 'loose' && mode !== 'strict') return false
+          const strict = mode === 'strict'
+          return isRspack
+            ? new (getRspackCore().experiments.CssChunkingPlugin)({
+                strict,
+                nextjs: true,
+              })
+            : new CssChunkingPlugin(strict)
+        })(),
       telemetryPlugin,
       !dev &&
         isNodeServer &&
@@ -2433,16 +2470,16 @@ export default async function getBaseWebpackConfig(
       buildDependencies.push(jsConfigPath)
     }
 
-    // @ts-ignore
-    webpack5Config.experiments.cache = {
+    const rspackCacheKey = `${compilerType}${isDevFallback ? '-fallback' : ''}`
+    webpack5Config.cache = {
       type: 'persistent',
       buildDependencies,
       storage: {
         type: 'filesystem',
-        directory: cache.cacheDirectory,
+        directory: path.join(distDir, 'cache', 'rspack', rspackCacheKey),
       },
-      version: `${__dirname}|${process.env.__NEXT_VERSION}|${configVars}`,
-    }
+      version: `${__dirname}|${process.env.__NEXT_VERSION}|${configVars}|${rspackCacheKey}`,
+    } as any
   }
 
   if (process.env.NEXT_WEBPACK_LOGGING) {
@@ -2529,29 +2566,20 @@ export default async function getBaseWebpackConfig(
     deploymentId: config.deploymentId,
   })
 
-  // @ts-ignore Cache exists
-  webpackConfig.cache.name = `${webpackConfig.name}-${webpackConfig.mode}${
-    isDevFallback ? '-fallback' : ''
-  }`
+  if (!isRspack) {
+    // @ts-ignore Cache exists
+    webpackConfig.cache.name = `${webpackConfig.name}-${webpackConfig.mode}${
+      isDevFallback ? '-fallback' : ''
+    }`
+  }
 
-  if (dev) {
+  if (dev && !isRspack) {
     if (webpackConfig.module) {
-      if (isRspack) {
-        ;(webpackConfig.module.unsafeCache as any) = NEGATIVE_UNSAFE_CACHE_REGEX
-      } else {
-        webpackConfig.module.unsafeCache = (module: any) =>
-          !UNSAFE_CACHE_REGEX.test(module.resource)
-      }
+      webpackConfig.module.unsafeCache = (module: any) =>
+        !UNSAFE_CACHE_REGEX.test(module.resource)
     } else {
-      if (isRspack) {
-        ;(webpackConfig.module as any) = {
-          unsafeCache: NEGATIVE_UNSAFE_CACHE_REGEX,
-        }
-      } else {
-        webpackConfig.module = {
-          unsafeCache: (module: any) =>
-            !UNSAFE_CACHE_REGEX.test(module.resource),
-        }
+      webpackConfig.module = {
+        unsafeCache: (module: any) => !UNSAFE_CACHE_REGEX.test(module.resource),
       }
     }
   }
@@ -2617,6 +2645,24 @@ export default async function getBaseWebpackConfig(
       )
     }
   }
+
+  if (isRspack && 'CI' in process.env) {
+    // Rspack enables stats colors by default in CI, which can leak ANSI reset
+    // codes into error messages. Keep explicit user stats.colors unchanged.
+    const { stats } = webpackConfig
+
+    if (stats === undefined) {
+      webpackConfig.stats = { colors: false }
+    } else if (
+      stats &&
+      typeof stats === 'object' &&
+      !Array.isArray(stats) &&
+      stats.colors === undefined
+    ) {
+      stats.colors = false
+    }
+  }
+
   const rules = webpackConfig.module?.rules || []
 
   const customSvgRule = rules.find(
@@ -2857,12 +2903,10 @@ export default async function getBaseWebpackConfig(
 }
 
 function getNextRootParamsRules({
-  isRootParamsEnabled,
   isClient,
   appDir,
   pageExtensions,
 }: {
-  isRootParamsEnabled: boolean
   isClient: boolean
   appDir: string | undefined
   pageExtensions: string[]
@@ -2878,15 +2922,6 @@ function getNextRootParamsRules({
         message,
       } satisfies InvalidImportLoaderOpts,
     } satisfies webpack.RuleSetRule
-  }
-
-  // Hard-error if the flag is not enabled, regardless of if we're on the server or on the client.
-  if (!isRootParamsEnabled) {
-    return [
-      createInvalidImportRule(
-        "'next/root-params' can only be imported when `experimental.rootParams` is enabled."
-      ),
-    ]
   }
 
   // If there's no app-dir (and thus no layouts), there's no sensible way to use 'next/root-params',

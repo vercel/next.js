@@ -82,7 +82,7 @@ function mergeErrors(base, current, other) {
   /** @type {Set<string>} */
   const existingMessages = new Set(Object.values(result))
 
-  let nextKey = Object.keys(result).length + 1
+  let nextKey = getMaxNumericKey(result) + 1
 
   for (const message of getNewMessages(base, other)) {
     if (existingMessages.has(message)) {
@@ -95,6 +95,23 @@ function mergeErrors(base, current, other) {
   }
 
   return result
+}
+
+/**
+ * Returns the largest numeric key in the map, or 0 if there are no numeric
+ * keys. Existing entries may have gaps (e.g. when error codes were retired),
+ * so we can't rely on `Object.keys(result).length` to derive the next id.
+ * @param {ErrorsMap} map
+ */
+function getMaxNumericKey(map) {
+  let max = 0
+  for (const key of Object.keys(map)) {
+    const n = Number(key)
+    if (Number.isInteger(n) && n > max) {
+      max = n
+    }
+  }
+  return max
 }
 
 function getNewMessages(

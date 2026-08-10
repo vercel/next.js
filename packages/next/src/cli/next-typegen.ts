@@ -11,6 +11,7 @@ import { getProjectDir } from '../lib/get-project-dir'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { verifyAndRunTypeScript } from '../lib/verify-typescript-setup'
 import { discoverRoutes } from '../build/route-discovery'
+import { parseBundlerArgs } from '../lib/bundler'
 
 import {
   createRouteTypesManifest,
@@ -18,16 +19,17 @@ import {
   writeValidatorFile,
 } from '../server/lib/router-utils/route-types-utils'
 import { writeCacheLifeTypes } from '../server/lib/router-utils/cache-life-type-utils'
+import { writeRootParamsTypes } from '../server/lib/router-utils/root-params-type-utils'
 import { installBindings } from '../build/swc/install-bindings'
 
 export type NextTypegenOptions = {
   dir?: string
+  webpack?: boolean
 }
 
-const nextTypegen = async (
-  _options: NextTypegenOptions,
-  directory?: string
-) => {
+const nextTypegen = async (options: NextTypegenOptions, directory?: string) => {
+  parseBundlerArgs(options)
+
   const baseDir = getProjectDir(directory)
 
   // Check if the provided directory exists
@@ -54,6 +56,7 @@ const nextTypegen = async (
     hasPagesDir: !!pagesDir,
     appDir: appDir || undefined,
     pagesDir: pagesDir || undefined,
+    useTypeScriptCli: Boolean(nextConfig.experimental.useTypeScriptCli),
   })
 
   console.log('Generating route types...')
@@ -111,6 +114,11 @@ const nextTypegen = async (
   // Generate cache-life types if cacheLife config exists
   const cacheLifeFilePath = join(distDir, 'types', 'cache-life.d.ts')
   writeCacheLifeTypes(nextConfig.cacheLife, cacheLifeFilePath)
+
+  await writeRootParamsTypes(
+    routeTypesManifest,
+    join(distDir, 'types', 'root-params.d.ts')
+  )
 
   console.log('✓ Types generated successfully')
 }

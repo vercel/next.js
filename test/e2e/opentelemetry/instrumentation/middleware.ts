@@ -1,9 +1,7 @@
 import type { NextRequest, NextFetchEvent } from 'next/server'
 import { NextResponse } from 'next/server'
 
-export const config: {
-  matcher: string[]
-} = {
+export const config = {
   matcher: ['/behind-middleware', '/behind-middleware/:path*'],
 }
 

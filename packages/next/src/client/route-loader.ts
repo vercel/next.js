@@ -4,7 +4,7 @@ import type { RequiredServerFilesManifest } from '../build'
 import getAssetPathFromRoute from '../shared/lib/router/utils/get-asset-path-from-route'
 import { __unsafeCreateTrustedScriptURL } from './trusted-types'
 import { requestIdleCallback } from './request-idle-callback'
-import { getDeploymentIdQueryOrEmptyString } from '../shared/lib/deployment-id'
+import { getAssetTokenQuery } from '../shared/lib/deployment-id'
 import { encodeURIPath } from '../shared/lib/encode-uri-path'
 import { resolvePromiseWithTimeout } from './lib/promise'
 
@@ -12,6 +12,8 @@ declare global {
   interface Window {
     __BUILD_MANIFEST?: Record<string, string[]>
     __BUILD_MANIFEST_CB?: Function
+    __TURBOPACK_PAGE_BOOTSTRAP?: Record<string, unknown>
+    __TURBOPACK_CHUNK_LOADING_GLOBAL?: string
     __SERVER_FILES_MANIFEST?: RequiredServerFilesManifest
     __MIDDLEWARE_MATCHERS?: ProxyMatcher[]
     __MIDDLEWARE_MATCHERS_CB?: Function
@@ -114,10 +116,6 @@ function hasPrefetch(link?: HTMLLinkElement): boolean {
 
 const canPrefetch: boolean = hasPrefetch()
 
-const getAssetQueryString = () => {
-  return getDeploymentIdQueryOrEmptyString()
-}
-
 function prefetchViaDom(
   href: string,
   as: string,
@@ -218,7 +216,7 @@ function getFilesForRoute(
       assetPrefix +
       '/_next/static/chunks/pages' +
       encodeURIPath(getAssetPathFromRoute(route, '.js')) +
-      getAssetQueryString()
+      getAssetTokenQuery()
     return Promise.resolve({
       scripts: [__unsafeCreateTrustedScriptURL(scriptUrl)],
       // Styles are handled by `style-loader` in development:
@@ -235,10 +233,10 @@ function getFilesForRoute(
     return {
       scripts: allFiles
         .filter((v) => v.endsWith('.js'))
-        .map((v) => __unsafeCreateTrustedScriptURL(v) + getAssetQueryString()),
+        .map((v) => __unsafeCreateTrustedScriptURL(v) + getAssetTokenQuery()),
       css: allFiles
         .filter((v) => v.endsWith('.css'))
-        .map((v) => v + getAssetQueryString()),
+        .map((v) => v + getAssetTokenQuery()),
     }
   })
 }
@@ -250,6 +248,22 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
   const styleSheets: Map<string, Promise<RouteStyleSheet>> = new Map()
   const routes: Map<string, Future<RouteLoaderEntry> | RouteLoaderEntry> =
     new Map()
+  const bootstrappedRoutes: Set<string> = new Set()
+
+  // Bootstrap a client-loaded route (navigation/prefetch) so its entry registers via
+  // `window.__NEXT_P`. The initial page is bootstrapped in the document.
+  function bootstrapRoute(route: string): void {
+    // Gated for DCE
+    if (!process.env.__NEXT_TURBOPACK_SHARED_RUNTIME) return
+    if (process.env.NODE_ENV === 'development') return
+    if (bootstrappedRoutes.has(route)) return
+    const params = self.__TURBOPACK_PAGE_BOOTSTRAP?.[route]
+    const global = self.__TURBOPACK_CHUNK_LOADING_GLOBAL
+    if (params == null) return
+    // `global` is always defined alongside the params map (see manifest-loader).
+    bootstrappedRoutes.add(route)
+    ;(self as any)[global!].push(params)
+  }
 
   function maybeExecuteScript(
     src: TrustedScriptURL | string
@@ -349,7 +363,10 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
               return Promise.all([
                 entrypoints.has(route)
                   ? []
-                  : Promise.all(scripts.map(maybeExecuteScript)),
+                  : Promise.all(scripts.map(maybeExecuteScript)).then((r) => {
+                      bootstrapRoute(route)
+                      return r
+                    }),
                 Promise.all(css.map(fetchStyleSheet)),
               ] as const)
             })

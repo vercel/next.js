@@ -1,0 +1,27 @@
+.before {
+  color: red;
+}
+
+.invalid {
+  color
+}
+
+.after {
+  color: green;
+}
+
+::highlight(highlight-test) {
+  color: white;
+}
+
+.carousel {
+  scroll-marker-group: after;
+}
+
+.carousel > *::scroll-marker {
+  content: "";
+}
+
+.carousel > *::scroll-marker:target-current {
+  background: oklch(0.5 0 0 / 0.6);
+}

@@ -13,7 +13,6 @@ import {
   workUnitAsyncStorage,
   type PrerenderStoreModern,
   type RequestStore,
-  isInEarlyRenderStage,
 } from '../app-render/work-unit-async-storage.external'
 import {
   postponeWithTracking,
@@ -22,14 +21,14 @@ import {
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
-  delayUntilRuntimeStage,
   makeDevtoolsIOAwarePromise,
-  makeHangingPromise,
+  makeRuntimeHangingPromise,
+  RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
-import { isRequestAPICallableInsideAfter } from './utils'
+import { isRequestApiAllowedInCurrentPhase } from './utils'
+import { applyOwnerStack } from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { RenderStage } from '../app-render/staged-rendering'
 
 export function cookies(): Promise<ReadonlyRequestCookies> {
   const callingExpression = 'cookies'
@@ -37,14 +36,9 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
   const workUnitStore = workUnitAsyncStorage.getStore()
 
   if (workStore) {
-    if (
-      workUnitStore &&
-      workUnitStore.phase === 'after' &&
-      !isRequestAPICallableInsideAfter()
-    ) {
+    if (workUnitStore && !isRequestApiAllowedInCurrentPhase(workUnitStore)) {
       throw new Error(
-        // TODO(after): clarify that this only applies to pages?
-        `Route ${workStore.route} used \`cookies()\` inside \`after()\`. This is not supported. If you need this data inside an \`after()\` callback, use \`cookies()\` outside of the callback. See more info here: https://nextjs.org/docs/canary/app/api-reference/functions/after`
+        `Route ${workStore.route} used \`cookies()\` inside \`after()\` while rendering. This is not supported. If you need this data inside an \`after()\` callback, use \`cookies()\` outside of the callback. See more info here: https://nextjs.org/docs/app/api-reference/functions/after`
       )
     }
 
@@ -68,11 +62,16 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
             `Route ${workStore.route} used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
           )
           Error.captureStackTrace(error, cookies)
+          applyOwnerStack(error)
           workStore.invalidDynamicUsageError ??= error
           throw error
         case 'unstable-cache':
           throw new Error(
             `Route ${workStore.route} used \`cookies()\` inside a function cached with \`unstable_cache()\`. Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+          )
+        case 'generate-static-params':
+          throw new Error(
+            `Route ${workStore.route} used \`cookies()\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
           )
         case 'prerender':
           return makeHangingCookies(workStore, workUnitStore)
@@ -98,11 +97,18 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
             workStore,
             workUnitStore
           )
-        case 'prerender-runtime':
-          return delayUntilRuntimeStage(
-            workUnitStore,
-            makeUntrackedCookies(workUnitStore.cookies)
-          )
+        case 'prerender-runtime': {
+          const { stagedRendering } = workUnitStore
+          if (stagedRendering) {
+            return stagedRendering.delayUntilStage(
+              RENDER_STAGES_BY_DATA_KIND.sessionData,
+              'cookies',
+              workUnitStore.cookies
+            )
+          } else {
+            return makeUntrackedCookies(workUnitStore.cookies)
+          }
+        }
         case 'private-cache':
           // Private caches are delayed until the runtime stage in use-cache-wrapper,
           // so we don't need an additional delay here.
@@ -131,15 +137,10 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
               workStore?.route
             )
           } else if (workUnitStore.asyncApiPromises) {
-            const early = isInEarlyRenderStage(workUnitStore)
             if (underlyingCookies === workUnitStore.mutableCookies) {
-              return early
-                ? workUnitStore.asyncApiPromises.earlyMutableCookies
-                : workUnitStore.asyncApiPromises.mutableCookies
+              return workUnitStore.asyncApiPromises.mutableCookies
             } else {
-              return early
-                ? workUnitStore.asyncApiPromises.earlyCookies
-                : workUnitStore.asyncApiPromises.cookies
+              return workUnitStore.asyncApiPromises.cookies
             }
           } else {
             return makeUntrackedCookies(underlyingCookies)
@@ -173,10 +174,11 @@ function makeHangingCookies(
     return cachedPromise
   }
 
-  const promise = makeHangingPromise<ReadonlyRequestCookies>(
+  const promise = makeRuntimeHangingPromise<ReadonlyRequestCookies>(
     prerenderStore.renderSignal,
     workStore.route,
-    '`cookies()`'
+    '`cookies()`',
+    prerenderStore
   )
   CachedCookies.set(prerenderStore, promise)
 
@@ -203,16 +205,11 @@ function makeUntrackedCookiesWithDevWarnings(
   route?: string
 ): Promise<ReadonlyRequestCookies> {
   if (requestStore.asyncApiPromises) {
-    const early = isInEarlyRenderStage(requestStore)
     let promise: Promise<ReadonlyRequestCookies>
     if (underlyingCookies === requestStore.mutableCookies) {
-      promise = early
-        ? requestStore.asyncApiPromises.earlyMutableCookies
-        : requestStore.asyncApiPromises.mutableCookies
+      promise = requestStore.asyncApiPromises.mutableCookies
     } else if (underlyingCookies === requestStore.cookies) {
-      promise = early
-        ? requestStore.asyncApiPromises.earlyCookies
-        : requestStore.asyncApiPromises.cookies
+      promise = requestStore.asyncApiPromises.cookies
     } else {
       throw new InvariantError(
         'Received an underlying cookies object that does not match either `cookies` or `mutableCookies`'
@@ -229,7 +226,7 @@ function makeUntrackedCookiesWithDevWarnings(
   const promise = makeDevtoolsIOAwarePromise(
     underlyingCookies,
     requestStore,
-    RenderStage.Runtime
+    RENDER_STAGES_BY_DATA_KIND.sessionData
   )
 
   const proxiedPromise = instrumentCookiesPromiseWithDevWarnings(promise, route)

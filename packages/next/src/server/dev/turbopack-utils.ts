@@ -15,6 +15,7 @@ import {
   HMR_MESSAGE_SENT_TO_BROWSER,
 } from './hot-reloader-types'
 import * as Log from '../../build/output/log'
+import { warnAboutEdgeRuntime } from '../../build/warn-about-edge-runtime'
 import type { PropagateToWorkersField } from '../lib/router-utils/types'
 import type { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loader'
 import type { AppRoute, Entrypoints, PageRoute } from '../../build/swc/types'
@@ -86,11 +87,7 @@ export function processTopLevelIssues(
   }
 }
 
-const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
-
-export function msToNs(ms: number): bigint {
-  return BigInt(Math.floor(ms)) * MILLISECONDS_IN_NANOSECOND
-}
+export { msToNs } from '../../shared/lib/turbopack/compilation-events'
 
 export type ChangeSubscriptions = Map<
   EntryKey,
@@ -138,9 +135,21 @@ export type ClientState = {
 export type ClientStateMap = WeakMap<ws, ClientState>
 
 // hooks only used by the dev server.
+// subscribeToChanges is optional: omit it to skip wiring HMR subscriptions
+// for one-shot compilations (e.g. the compile_route MCP tool) where there
+// is no client to receive updates and no unsubscribe path.
 type HandleRouteTypeHooks = {
   handleWrittenEndpoint: HandleWrittenEndpoint
   subscribeToChanges: StartChangeSubscription
+  handleServerComponentChanges?: () => void
+  // When Turbopack server fast refresh is enabled, the aggregate server-HMR
+  // subscription (setupServerHmr `onApplied` in hot-reloader-turbopack.ts)
+  // owns the browser refresh signal for app-page RSC changes and only fires
+  // after the server module cache is refreshed. In that mode the per-page
+  // `rscHmrEndpoint` subscription must NOT also send SERVER_COMPONENT_CHANGES,
+  // or every edit triggers two RSC refetches (the first immediately
+  // superseded).
+  serverFastRefresh?: boolean
 }
 
 export async function handleRouteType({
@@ -171,10 +180,10 @@ export async function handleRouteType({
 
   readyIds?: ReadyIds // dev
 
+  // hooks.subscribeToChanges may be omitted to skip HMR subscriptions for
+  // one-shot compilations (e.g. the compile_route MCP tool).
   hooks?: HandleRouteTypeHooks // dev
 }) {
-  const shouldCreateWebpackStats = process.env.TURBOPACK_STATS != null
-
   switch (route.type) {
     case 'page': {
       const clientKey = getEntryKey('pages', 'client', page)
@@ -233,16 +242,13 @@ export async function handleRouteType({
         await manifestLoader.loadBuildManifest(page)
         await manifestLoader.loadPagesManifest(page)
         if (type === 'edge') {
+          warnAboutEdgeRuntime()
           await manifestLoader.loadMiddlewareManifest(page, 'pages')
         } else {
           manifestLoader.deleteMiddlewareManifest(serverKey)
         }
         await manifestLoader.loadFontManifest('/_app', 'pages')
         await manifestLoader.loadFontManifest(page, 'pages')
-
-        if (shouldCreateWebpackStats) {
-          await manifestLoader.loadWebpackStats(page, 'pages')
-        }
 
         manifestLoader.writeManifests({
           devRewrites,
@@ -263,7 +269,7 @@ export async function handleRouteType({
           // otherwise we don't known when to unsubscribe and this leaking
           hooks?.subscribeToChanges(
             serverKey,
-            false,
+            /** includeIssues=*/ false,
             route.dataEndpoint,
             () => {
               // Report the next compilation again
@@ -282,7 +288,7 @@ export async function handleRouteType({
           )
           hooks?.subscribeToChanges(
             clientKey,
-            false,
+            /** includeIssues=*/ false,
             route.htmlEndpoint,
             () => {
               return {
@@ -299,7 +305,7 @@ export async function handleRouteType({
           if (entrypoints.global.document) {
             hooks?.subscribeToChanges(
               getEntryKey('pages', 'server', '_document'),
-              false,
+              /** includeIssues=*/ false,
               entrypoints.global.document,
               () => {
                 return {
@@ -330,6 +336,7 @@ export async function handleRouteType({
 
       await manifestLoader.loadPagesManifest(page)
       if (type === 'edge') {
+        warnAboutEdgeRuntime()
         await manifestLoader.loadMiddlewareManifest(page, 'pages')
       } else {
         manifestLoader.deleteMiddlewareManifest(key)
@@ -356,9 +363,9 @@ export async function handleRouteType({
         // otherwise we don't known when to unsubscribe and this leaking
         hooks?.subscribeToChanges(
           key,
-          true,
-          route.rscEndpoint,
-          (change, hash) => {
+          /** includeIssues=*/ true,
+          route.rscHmrEndpoint,
+          (change) => {
             if (change.issues.some((issue) => issue.severity === 'error')) {
               // Ignore any updates that has errors
               // There will be another update without errors eventually
@@ -366,10 +373,22 @@ export async function handleRouteType({
             }
             // Report the next compilation again
             readyIds?.delete(pathname)
-            return {
-              type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
-              hash,
+            // When server fast refresh is enabled, the aggregate server-HMR
+            // subscription sends SERVER_COMPONENT_CHANGES after applying the
+            // update in-process. Sending here too would double the refresh.
+            //
+            // But the aggregate subscription only fires when there is a live
+            // server-HMR handler registered (i.e. the page has rendered at
+            // least once). When recovering from a build error the page never
+            // rendered, so no handler exists, the aggregate stays silent, and
+            // this per-page send is the only thing that clears the redbox.
+            // Only suppress when a handler is actually live to own the refresh.
+            const hasLiveServerHmrHandler =
+              (globalThis.__turbopack_server_hmr_handlers__?.size ?? 0) > 0
+            if (hooks?.serverFastRefresh && hasLiveServerHmrHandler) {
+              return
             }
+            hooks?.handleServerComponentChanges?.()
           },
           (e) => {
             return {
@@ -383,6 +402,7 @@ export async function handleRouteType({
       const type = writtenEndpoint.type
 
       if (type === 'edge') {
+        warnAboutEdgeRuntime()
         manifestLoader.loadMiddlewareManifest(page, 'app')
       } else {
         manifestLoader.deleteMiddlewareManifest(key)
@@ -392,10 +412,6 @@ export async function handleRouteType({
       manifestLoader.loadAppPathsManifest(page)
       manifestLoader.loadActionManifest(page)
       manifestLoader.loadFontManifest(page, 'app')
-
-      if (shouldCreateWebpackStats) {
-        manifestLoader.loadWebpackStats(page, 'app')
-      }
 
       manifestLoader.writeManifests({
         devRewrites,
@@ -413,11 +429,40 @@ export async function handleRouteType({
       const writtenEndpoint = await route.endpoint.writeToDisk()
       hooks?.handleWrittenEndpoint(key, writtenEndpoint, false)
 
+      if (dev) {
+        // Advance the hot-reloader's HMR refresh hash whenever this route
+        // handler is recompiled, so its `"use cache"` entries are invalidated
+        // after an edit. Subscribing runs `subscribeToClientChanges`, which
+        // bumps the `hmrHash` counter on each change; that counter is returned
+        // by `getServerComponentsHmrRefreshHash` and folded into cache keys by
+        // `getHmrRefreshHash`. Unlike app pages there is no RSC for a connected
+        // browser to refetch, so `createMessage` returns nothing; the
+        // subscription exists only to advance the hash.
+        hooks?.subscribeToChanges(
+          key,
+          /** includeIssues= */ true,
+          route.endpoint,
+          () => undefined,
+          (error) => {
+            // This subscription only advances the refresh hash, so there is
+            // nothing to send the browser when it fails. `subscribeToChanges`
+            // drops the subscription on error and re-creates it the next time
+            // this route is ensured, so just log it.
+            console.error(
+              new Error(`Error in the "${page}" app-route HMR subscription`, {
+                cause: error,
+              })
+            )
+          }
+        )
+      }
+
       const type = writtenEndpoint.type
 
       manifestLoader.loadAppPathsManifest(page)
 
       if (type === 'edge') {
+        warnAboutEdgeRuntime()
         manifestLoader.loadMiddlewareManifest(page, 'app')
       } else {
         manifestLoader.deleteMiddlewareManifest(key)
@@ -743,7 +788,7 @@ export async function handleEntrypoints({
     if (dev) {
       dev?.hooks.subscribeToChanges(
         key,
-        false,
+        /** includeIssues=*/ false,
         endpoint,
         async () => {
           const finishBuilding = dev.hooks.startBuilding(
@@ -880,7 +925,7 @@ export async function handlePagesErrorRoute({
     hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
     hooks.subscribeToChanges(
       key,
-      false,
+      /** includeIssues=*/ false,
       entrypoints.global.app,
       () => {
         // There's a special case for this in `../client/page-bootstrap.ts`.
@@ -909,7 +954,7 @@ export async function handlePagesErrorRoute({
     hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
     hooks.subscribeToChanges(
       key,
-      false,
+      /** includeIssues=*/ false,
       entrypoints.global.document,
       () => {
         return {
@@ -935,7 +980,7 @@ export async function handlePagesErrorRoute({
     hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
     hooks.subscribeToChanges(
       key,
-      false,
+      /** includeIssues=*/ false,
       entrypoints.global.error,
       () => {
         // There's a special case for this in `../client/page-bootstrap.ts`.

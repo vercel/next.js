@@ -19,7 +19,7 @@ describe('ReactRefreshLogBox _app _document', () => {
     const { browser, session } = sandbox
     await expect(browser).toDisplayRedbox(`
      {
-       "code": "E394",
+       "code": "E464",
        "description": "The default export is not a React Component in page: "/_app"",
        "environmentLabel": null,
        "label": "Runtime Error",
@@ -49,7 +49,7 @@ describe('ReactRefreshLogBox _app _document', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "code": "E394",
+       "code": "E511",
        "description": "The default export is not a React Component in page: "/_document"",
        "environmentLabel": null,
        "label": "Runtime Error",
@@ -108,11 +108,11 @@ describe('ReactRefreshLogBox _app _document', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing ecmascript source code failed",
+         "description": "Expression expected",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./pages/_app.js (2:10)
-       Parsing ecmascript source code failed
+       Error: Expression expected
        > 2 |   return <<Component {...pageProps} />;
            |          ^^",
          "stack": [],
@@ -227,11 +227,11 @@ describe('ReactRefreshLogBox _app _document', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing ecmascript source code failed",
+         "description": "Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./pages/_document.js (3:36)
-       Parsing ecmascript source code failed
+       Error: Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key
        > 3 | class MyDocument extends Document {{
            |                                    ^",
          "stack": [],

@@ -87,6 +87,20 @@ enum AppRenderSpan {
   renderToReadableStream = 'AppRender.renderToReadableStream',
   getBodyResult = 'AppRender.getBodyResult',
   fetch = 'AppRender.fetch',
+  waitShellReady = 'AppRender.waitShellReady',
+  renderToNodeFizzStream = 'AppRender.renderToNodeFizzStream',
+  instantInsights = 'AppRender.instantInsights',
+  instantInsightsPrepareValidation = 'AppRender.instantInsights.prepareValidation',
+  instantInsightsRunValidation = 'AppRender.instantInsights.runValidation',
+}
+
+enum DevRouteMatcherManagerSpan {
+  ensureRoute = 'DevRouteMatcherManager.ensureRoute',
+  reloadMatchers = 'DevRouteMatcherManager.reloadMatchers',
+}
+
+enum DevBundlerServiceSpan {
+  ensurePage = 'DevBundlerService.ensurePage',
 }
 
 enum RouterSpan {
@@ -119,6 +133,8 @@ type SpanTypes =
   | `${RenderSpan}`
   | `${RouterSpan}`
   | `${AppRenderSpan}`
+  | `${DevRouteMatcherManagerSpan}`
+  | `${DevBundlerServiceSpan}`
   | `${NodeSpan}`
   | `${AppRouteRouteHandlersSpan}`
   | `${ResolveMetadataSpan}`
@@ -161,6 +177,8 @@ export {
   RenderSpan,
   RouterSpan,
   AppRenderSpan,
+  DevRouteMatcherManagerSpan,
+  DevBundlerServiceSpan,
   NodeSpan,
   AppRouteRouteHandlersSpan,
   ResolveMetadataSpan,

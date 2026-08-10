@@ -10,12 +10,13 @@ use std::{
 };
 
 use clap::{Args, ValueEnum};
-use rand::{Rng, RngCore, SeedableRng};
+use rand::{Rng, RngExt, SeedableRng};
 use rustc_hash::FxHashSet;
 use tokio::time::sleep;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TransientInstance, Vc, apply_effects, trace::TraceRawVcs,
+    Effects, NonLocalValue, OperationVc, ResolvedVc, TransientInstance, Vc,
+    read_strongly_consistent_and_apply_effects, take_effects, trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{
@@ -88,6 +89,12 @@ impl SymlinkMode {
 #[derive(Default, NonLocalValue, TraceRawVcs)]
 struct PathInvalidations(#[turbo_tasks(trace_ignore)] Arc<Mutex<FxHashSet<RcStr>>>);
 
+#[turbo_tasks::function(operation, root)]
+async fn extract_effects_operation(op: OperationVc<()>) -> anyhow::Result<Vc<Effects>> {
+    let _ = op.resolve().strongly_consistent().await?;
+    Ok(take_effects(op).await?.cell())
+}
+
 pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
     std::fs::create_dir(&args.fs_root)?;
     let fs_root = args.fs_root.canonicalize()?;
@@ -103,10 +110,12 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
     tt.run_once(async move {
         let invalidations = TransientInstance::new(PathInvalidations::default());
         let project_fs = disk_file_system_operation(RcStr::from(fs_root.to_str().unwrap()))
-            .resolve_strongly_consistent()
+            .resolve()
+            .strongly_consistent()
             .await?;
         let project_root = disk_file_system_root_operation(project_fs)
-            .resolve_strongly_consistent()
+            .resolve()
+            .strongly_consistent()
             .await?
             .owned()
             .await?;
@@ -120,7 +129,7 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
         };
 
         if !args.start_watching_late {
-            project_fs.await?.start_watching(None).await?;
+            project_fs.await?.start_watching().await?;
         }
 
         let symlink_count = if args.symlinks.is_some() {
@@ -133,7 +142,7 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
         let symlink_is_directory =
             symlink_mode.map(|m| m.to_link_type().contains(LinkType::DIRECTORY));
 
-        let initial_op = read_or_write_all_paths_operation(
+        let effects_op = extract_effects_operation(read_or_write_all_paths_operation(
             invalidations.clone(),
             project_root.clone(),
             args.depth,
@@ -141,10 +150,9 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
             symlink_count,
             symlink_is_directory,
             track_writes,
-        );
-        initial_op.read_strongly_consistent().await?;
+        ));
         if track_writes {
-            apply_effects(initial_op).await?;
+            read_strongly_consistent_and_apply_effects(effects_op, |e| e).await?;
             let (total, mismatched) = verify_written_files(
                 &fs_root,
                 args.depth,
@@ -159,13 +167,15 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
                 }
             }
         } else {
+            // Still drive the computation (and propagate errors) without applying effects.
+            effects_op.read_strongly_consistent().await?;
             let invalidations = invalidations.0.lock().unwrap();
             println!("read all {} files", invalidations.len());
         }
         invalidations.0.lock().unwrap().clear();
 
         if args.start_watching_late {
-            project_fs.await?.start_watching(None).await?;
+            project_fs.await?.start_watching().await?;
         }
 
         let mut rand_buf = [0; 16];
@@ -218,7 +228,7 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
             // there's no way to know when we've received all the pending events from the operating
             // system, so just sleep and pray
             sleep(Duration::from_millis(args.notify_timeout_ms)).await;
-            let read_or_write_op = read_or_write_all_paths_operation(
+            let effects_op = extract_effects_operation(read_or_write_all_paths_operation(
                 invalidations.clone(),
                 project_root.clone(),
                 args.depth,
@@ -226,15 +236,14 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
                 symlink_count,
                 symlink_is_directory,
                 track_writes,
-            );
-            read_or_write_op.read_strongly_consistent().await?;
+            ));
             let symlink_info = if args.symlinks.is_some() {
                 " and symlinks"
             } else {
                 ""
             };
             if track_writes {
-                apply_effects(read_or_write_op).await?;
+                read_strongly_consistent_and_apply_effects(effects_op, |e| e).await?;
                 let (total, mismatched) = verify_written_files(
                     &fs_root,
                     args.depth,
@@ -257,6 +266,8 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
                     }
                 }
             } else {
+                // Still drive the computation (and propagate errors) without applying effects.
+                effects_op.read_strongly_consistent().await?;
                 let mut invalidations = invalidations.0.lock().unwrap();
                 println!(
                     "modified {} files{}. found {} invalidations",
@@ -284,12 +295,12 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
     .await
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn disk_file_system_operation(fs_root: RcStr) -> Vc<DiskFileSystem> {
-    DiskFileSystem::new(rcstr!("project"), fs_root)
+    DiskFileSystem::new(rcstr!("project"), Vc::cell(fs_root))
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn disk_file_system_root_operation(fs: ResolvedVc<DiskFileSystem>) -> Vc<FileSystemPath> {
     fs.root()
 }
@@ -350,7 +361,7 @@ async fn write_link(
     Ok(())
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn read_or_write_all_paths_operation(
     invalidations: TransientInstance<PathInvalidations>,
     root: FileSystemPath,

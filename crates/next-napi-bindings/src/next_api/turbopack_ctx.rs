@@ -5,15 +5,13 @@ use std::{
     fs::OpenOptions,
     io::{self, BufRead, Write},
     path::PathBuf,
-    sync::{Arc, Mutex},
+    sync::{Arc, LazyLock, Mutex},
     time::Instant,
 };
 
 use anyhow::Result;
-use either::Either;
-use napi::{JsFunction, bindgen_prelude::Promise, threadsafe_function::ThreadsafeFunction};
+use napi::{Env, JsFunction, bindgen_prelude::Promise, threadsafe_function::ThreadsafeFunction};
 use napi_derive::napi;
-use once_cell::sync::Lazy;
 use owo_colors::OwoColorize;
 use serde::Serialize;
 use terminal_hyperlink::Hyperlink;
@@ -23,13 +21,11 @@ use turbo_tasks::{
     message_queue::{CompilationEvent, Severity},
 };
 use turbo_tasks_backend::{
-    BackendOptions, DefaultBackingStorage, GitVersionInfo, NoopBackingStorage, StartupCacheState,
-    TurboTasksBackend, db_invalidation::invalidation_reasons, default_backing_storage,
-    noop_backing_storage,
+    BackendOptions, EvictionMode, GitVersionInfo, StartupCacheState, TurboTasksBackend,
+    db_invalidation::invalidation_reasons, noop_backing_storage, turbo_backing_storage,
 };
 
-pub type NextTurboTasks =
-    Arc<TurboTasks<TurboTasksBackend<Either<DefaultBackingStorage, NoopBackingStorage>>>>;
+pub type NextTurboTasks = Arc<TurboTasks<TurboTasksBackend>>;
 
 /// A value often wrapped in [`napi::bindgen_prelude::External`] that retains the [TurboTasks]
 /// instance used by Next.js, and [various napi helpers that are passed to us from
@@ -39,7 +35,7 @@ pub type NextTurboTasks =
 /// It should not be passed to a [`turbo_tasks::function`]. For serializable information about the
 /// project, use the [`next_api::project::Project`] type instead.
 ///
-/// This type is a wrapper around an [`Arc`] and is therefore cheaply clonable. It is [`Send`] and
+/// This type is a wrapper around an [`Arc`] and is therefore cheaply cloneable. It is [`Send`] and
 /// [`Sync`].
 #[derive(Clone)]
 pub struct NextTurbopackContext {
@@ -179,60 +175,122 @@ pub struct TurbopackInternalErrorOpts {
 }
 
 impl NapiNextTurbopackCallbacks {
-    pub fn from_js(obj: NapiNextTurbopackCallbacksJsObject) -> napi::Result<Self> {
-        Ok(NapiNextTurbopackCallbacks {
-            throw_turbopack_internal_error: obj
-                .throw_turbopack_internal_error
+    pub fn from_js(env: &Env, obj: NapiNextTurbopackCallbacksJsObject) -> napi::Result<Self> {
+        let mut throw_turbopack_internal_error: ThreadsafeFunction<TurbopackInternalErrorOpts> =
+            obj.throw_turbopack_internal_error
                 .create_threadsafe_function(0, |ctx| {
                     // Avoid unpacking the struct into positional arguments, we really want to make
                     // sure we don't incorrectly order arguments and accidentally log a potentially
                     // PII-containing message in anonymized telemetry.
                     Ok(vec![ctx.value])
-                })?,
-            on_before_deferred_entries: obj
-                .on_before_deferred_entries
-                .map(|callback| {
-                    callback.create_threadsafe_function(0, |_| Ok::<Vec<()>, _>(vec![]))
-                })
-                .transpose()?,
+                })?;
+        // Unref so this ThreadsafeFunction doesn't keep the Node.js event loop alive
+        // after shutdown.
+        let _ = throw_turbopack_internal_error.unref(env);
+
+        let on_before_deferred_entries = obj
+            .on_before_deferred_entries
+            .map(|callback| {
+                let mut f = callback.create_threadsafe_function(0, |_| Ok::<Vec<()>, _>(vec![]))?;
+                let _ = f.unref(env);
+                Ok::<_, napi::Error>(f)
+            })
+            .transpose()?;
+
+        Ok(NapiNextTurbopackCallbacks {
+            throw_turbopack_internal_error,
+            on_before_deferred_entries,
         })
+    }
+}
+
+/// Returns the cache version `describe` string for the given Next.js version, of the form
+/// `v<next_version>-<git_short_sha>` (e.g. `v16.0.1-canary.13-94e9fa6`).
+pub fn cache_describe(next_version: &str) -> String {
+    format!("v{next_version}-{}", env!("VERGEN_GIT_SHA"))
+}
+
+#[napi]
+pub fn turbopack_cache_version(next_version: String) -> String {
+    cache_describe(&next_version)
+}
+
+/// Returns version info derived from the supplied Next.js version and compile-time git metadata.
+///
+/// The `dirty` flag is only set when not running in CI (`CI` env var unset at build time) and the
+/// working tree was dirty at build time.
+pub fn git_version_info(describe: &str) -> GitVersionInfo<'_> {
+    GitVersionInfo {
+        describe,
+        dirty: option_env!("CI").is_none_or(|value| value.is_empty())
+            && env!("VERGEN_GIT_DIRTY") == "true",
+    }
+}
+
+/// Turbopack's memory eviction strategy for the persistent cache, mirroring the
+/// `experimental.turbopackMemoryEviction` config option.
+///
+/// This is a napi-facing mirror of [`EvictionMode`] (the backend crate can't
+/// depend on napi). Keep the variants in sync; the `From` impl below is
+/// exhaustive, so adding a variant to one enum forces updating the other.
+#[napi(string_enum = "lowercase")]
+#[derive(Debug, PartialEq, Eq)]
+pub enum MemoryEvictionMode {
+    /// Never evict.
+    Off,
+    /// Evict after a snapshot only once enough memory has been allocated since
+    /// the last eviction to justify the cost of restoring evicted tasks.
+    Auto,
+    /// After every snapshot, evict all evictable tasks from memory, reloading
+    /// them from disk on demand.
+    Full,
+}
+
+impl From<MemoryEvictionMode> for EvictionMode {
+    fn from(mode: MemoryEvictionMode) -> Self {
+        match mode {
+            MemoryEvictionMode::Off => EvictionMode::Off,
+            MemoryEvictionMode::Auto => EvictionMode::Auto,
+            MemoryEvictionMode::Full => EvictionMode::Full,
+        }
     }
 }
 
 pub fn create_turbo_tasks(
     output_path: PathBuf,
+    next_version: &str,
     persistent_caching: bool,
-    _memory_limit: usize,
     dependency_tracking: bool,
     is_ci: bool,
     is_short_session: bool,
+    skip_compaction: bool,
+    turbopack_memory_eviction: MemoryEvictionMode,
 ) -> Result<NextTurboTasks> {
     Ok(if persistent_caching {
-        let version_info = GitVersionInfo {
-            describe: env!("VERGEN_GIT_DESCRIBE"),
-            dirty: option_env!("CI").is_none_or(|value| value.is_empty())
-                && env!("VERGEN_GIT_DIRTY") == "true",
-        };
-        let (backing_storage, cache_state) = default_backing_storage(
-            &output_path.join("cache/turbopack"),
+        let describe = cache_describe(next_version);
+        let version_info = git_version_info(&describe);
+        let (backing_storage, cache_state) = turbo_backing_storage(
+            &output_path.join("cache").join("turbopack"),
             &version_info,
             is_ci,
             is_short_session,
+            skip_compaction,
         )?;
         let tt = TurboTasks::new(TurboTasksBackend::new(
             BackendOptions {
                 storage_mode: Some(if std::env::var("TURBO_ENGINE_READ_ONLY").is_ok() {
                     turbo_tasks_backend::StorageMode::ReadOnly
-                } else if is_ci {
+                } else if is_ci || is_short_session {
                     turbo_tasks_backend::StorageMode::ReadWriteOnShutdown
                 } else {
                     turbo_tasks_backend::StorageMode::ReadWrite
                 }),
                 dependency_tracking,
                 num_workers: Some(tokio::runtime::Handle::current().metrics().num_workers()),
+                eviction_mode: EvictionMode::from(turbopack_memory_eviction),
                 ..Default::default()
             },
-            Either::Left(backing_storage),
+            backing_storage,
         ));
         if let StartupCacheState::Invalidated { reason_code } = cache_state {
             tt.send_compilation_event(Arc::new(StartupCacheInvalidationEvent { reason_code }));
@@ -245,7 +303,7 @@ pub fn create_turbo_tasks(
                 dependency_tracking,
                 ..Default::default()
             },
-            Either::Right(noop_backing_storage()),
+            noop_backing_storage(),
         ))
     })
 }
@@ -285,7 +343,7 @@ impl CompilationEvent for StartupCacheInvalidationEvent {
 
 static LOG_THROTTLE: Mutex<Option<Instant>> = Mutex::new(None);
 static LOG_DIVIDER: &str = "---------------------------";
-static PANIC_LOG: Lazy<PathBuf> = Lazy::new(|| {
+static PANIC_LOG: LazyLock<PathBuf> = LazyLock::new(|| {
     let mut path = env::temp_dir();
     path.push(format!("next-panic-{:x}.log", rand::random::<u128>()));
     path
@@ -367,7 +425,7 @@ pub fn log_internal_error_and_inform(internal_error: &anyhow::Error) {
         .unwrap_or_else(|_| panic!("Failed to open {}", PANIC_LOG.to_string_lossy()));
 
     let internal_error_str: String = PrettyPrintError(internal_error).to_string();
-    writeln!(log_file, "{}\n{}", LOG_DIVIDER, &internal_error_str).unwrap();
+    writeln!(log_file, "{}\n{}", LOG_DIVIDER, internal_error_str).unwrap();
 
     let title = format!(
         "Turbopack Error: {}",
@@ -375,13 +433,16 @@ pub fn log_internal_error_and_inform(internal_error: &anyhow::Error) {
     );
     let version_str = format!(
         "Turbopack version: `{}`\nNext.js version: `{}`",
-        env!("VERGEN_GIT_DESCRIBE"),
+        env!("VERGEN_GIT_SHA"),
         env!("NEXTJS_VERSION")
     );
     let bug_report_url = format!(
         "https://bugs.nextjs.org/search?category=turbopack-error-report&title={}&body={}&labels=Turbopack,Turbopack%20Panic%20Backtrace",
-        &urlencoding::encode(&title),
-        &urlencoding::encode(&format!("{}\n\nError message:\n```\n{}\n```", &version_str, &internal_error_str))
+        urlencoding::encode(&title),
+        urlencoding::encode(&format!(
+            "{}\n\nError message:\n```\n{}\n```",
+            version_str, internal_error_str
+        ))
     );
     let bug_report_message = if supports_hyperlinks::supports_hyperlinks() {
         "clicking here.".hyperlink(&bug_report_url)
@@ -394,6 +455,6 @@ pub fn log_internal_error_and_inform(internal_error: &anyhow::Error) {
          {}.\n\nTo help make Turbopack better, report this error by {}\n-----\n",
         "FATAL".red().bold(),
         PANIC_LOG.to_string_lossy(),
-        &bug_report_message
+        bug_report_message
     );
 }

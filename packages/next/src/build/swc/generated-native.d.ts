@@ -18,6 +18,7 @@ export function lightningCssTransform(args: object): Promise<unknown>
 export function lightningCssTransformStyleAttribute(
   args: object
 ): Promise<unknown>
+export function lightningcssFeatureNamesToMaskNapi(names: Array<string>): number
 
 // GENERATED-TYPES-BELOW
 // DO NOT MANUALLY EDIT THESE TYPES
@@ -34,6 +35,95 @@ export declare class ExternalObject<T> {
     [K: symbol]: T
   }
 }
+export declare function registerWorkerScheduler(
+  creator: (arg: NapiWorkerCreation) => any,
+  terminator: (arg: NapiWorkerTermination) => any
+): void
+export declare function workerCreated(workerId: number): void
+export interface NapiWorkerCreation {
+  options: NapiWorkerOptions
+}
+export interface NapiWorkerOptions {
+  filename: RcStr
+  cwd: RcStr
+}
+export interface NapiWorkerTermination {
+  options: NapiWorkerOptions
+  workerId: number
+}
+export interface NapiTaskMessage {
+  taskId: number
+  data: Buffer
+}
+export declare function recvTaskMessageInWorker(
+  workerId: number
+): Promise<NapiTaskMessage>
+export declare function sendTaskMessage(message: NapiTaskMessage): void
+export interface NapiLocation {
+  line: number
+  column?: number
+}
+export interface NapiCodeFrameLocation {
+  start: NapiLocation
+  end?: NapiLocation
+}
+export const enum NapiCodeFrameColorMode {
+  Error = 0,
+  Warning = 1,
+  Info = 2,
+}
+export interface NapiCodeFrameOptions {
+  /** Number of lines to show above the error (default: 2) */
+  linesAbove?: number
+  /** Number of lines to show below the error (default: 3) */
+  linesBelow?: number
+  /** Maximum width of the output in columns (default: 240) */
+  maxWidth?: number
+  /** Whether to use ANSI colors (default: false) */
+  color?: NapiCodeFrameColorMode | boolean
+  /**
+   * Whether to highlight code syntax (default: follows color)
+   *
+   * This might be useful if syntax highlighting is very expensive or known to be useless for
+   * this file.  The current syntax rules are optimized for javascript but should work well with
+   * other C-like languages.
+   */
+  highlightCode?: boolean
+  /** Optional message to display with the code frame */
+  message?: string
+  /** Language hint for keyword highlighting: "javascript" (default) or "css" */
+  language?: string
+}
+/**
+ * Renders a code frame showing the location of an error in source code
+ *
+ * This is a Rust implementation that replaces Babel's code-frame for better:
+ * - Performance on large files
+ * - Handling of long lines
+ * - Memory efficiency
+ *
+ * # Arguments
+ * * `source` - The source code to render
+ * * `location` - The location to highlight (line and column numbers are 1-indexed)
+ * * `options` - Optional configuration
+ *
+ * # Returns
+ * The formatted code frame string, or `undefined` if the location is out of
+ * range (e.g., empty source or line number past end of file).
+ */
+export declare function codeFrameColumns(
+  source: string,
+  location: NapiCodeFrameLocation,
+  options?: NapiCodeFrameOptions | undefined | null
+): string | null
+/**
+ * Convert an array of dash-case feature name strings to a lightningcss
+ * `Features` bitmask (u32). Called from the webpack lightningcss-loader to
+ * avoid duplicating the name-to-bit mapping in JavaScript.
+ */
+export declare function lightningcssFeatureNamesToMaskNapi(
+  names: Array<string>
+): number
 export declare function lockfileTryAcquireSync(
   path: string,
   content?: string | undefined | null
@@ -68,8 +158,8 @@ export declare function minify(
 export declare function minifySync(input: Buffer, opts: Buffer): TransformOutput
 export interface NapiEndpointConfig {}
 export interface NapiAssetPath {
-  path: string
-  contentHash: string
+  path: RcStr
+  contentHash: RcStr
 }
 export interface NapiWrittenEndpoint {
   type: string
@@ -169,6 +259,10 @@ export interface NapiProjectOptions {
   /** App-router page routes that should be built after non-deferred routes. */
   deferredEntries?: Array<RcStr>
   isPersistentCachingEnabled: boolean
+  /** The version of Next.js that is running. */
+  nextVersion: RcStr
+  /** Whether server-side HMR is enabled (disabled with --no-server-fast-refresh). */
+  serverHmr?: boolean
 }
 /** [NapiProjectOptions] with all fields optional. */
 export interface NapiPartialProjectOptions {
@@ -220,14 +314,16 @@ export interface NapiDefineEnv {
   nodejs: Array<NapiOptionEnvVar>
 }
 export interface NapiTurboEngineOptions {
-  /** An upper bound of memory that turbopack will attempt to stay under. */
-  memoryLimit?: number
   /** Track dependencies between tasks. If false, any change during build will error. */
   dependencyTracking?: boolean
   /** Whether the project is running in a CI environment. */
   isCi?: boolean
   /** Whether the project is running in a short session. */
   isShortSession?: boolean
+  /** Whether to skip database compaction during shutdown. */
+  skipCompaction?: boolean
+  /** Turbopack memory eviction mode for the persistent cache. */
+  turbopackMemoryEviction: MemoryEvictionMode
 }
 export declare function projectNew(
   options: NapiProjectOptions,
@@ -268,11 +364,11 @@ export interface AppPageNapiRoute {
   /** The relative path from project_path to the route file */
   originalName?: RcStr
   htmlEndpoint?: ExternalObject<ExternalEndpoint>
-  rscEndpoint?: ExternalObject<ExternalEndpoint>
+  rscHmrEndpoint?: ExternalObject<ExternalEndpoint>
 }
 export interface NapiRoute {
   /** The router path */
-  pathname: string
+  pathname: RcStr
   /** The relative path from project_path to the route file */
   originalName?: RcStr
   /** The type of route, eg a Page or App */
@@ -280,7 +376,7 @@ export interface NapiRoute {
   pages?: Array<AppPageNapiRoute>
   endpoint?: ExternalObject<ExternalEndpoint>
   htmlEndpoint?: ExternalObject<ExternalEndpoint>
-  rscEndpoint?: ExternalObject<ExternalEndpoint>
+  rscHmrEndpoint?: ExternalObject<ExternalEndpoint>
   dataEndpoint?: ExternalObject<ExternalEndpoint>
 }
 export interface NapiMiddleware {
@@ -312,6 +408,11 @@ export declare function projectEntrypoints(project: {
 }): Promise<TurbopackResult>
 export declare function projectEntrypointsSubscribe(
   project: { __napiType: 'Project' },
+  func: (...args: any[]) => any
+): { __napiType: 'RootTask' }
+export declare function projectAllHmrEvents(
+  project: { __napiType: 'Project' },
+  target: string,
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
 export declare function projectHmrEvents(
@@ -382,7 +483,7 @@ export declare function projectGetSourceForAsset(
 ): Promise<string | null>
 export declare function projectGetSourceMap(
   project: { __napiType: 'Project' },
-  filePath: RcStr
+  sourceMapUrl: RcStr
 ): Promise<string | null>
 export declare function projectGetSourceMapSync(
   project: { __napiType: 'Project' },
@@ -392,6 +493,29 @@ export declare function projectWriteAnalyzeData(
   project: { __napiType: 'Project' },
   appDirOnly: boolean
 ): Promise<TurbopackResult>
+/**
+ * Returns the build-feature-usage telemetry summary for this project — the set of
+ * `(featureName, invocationCount)` pairs reported to the Next.js telemetry service.
+ *
+ * Intended to be called once at the end of a build, after `writeAllEntrypointsToDisk`. The
+ * summary is computed by walking the whole-app module graph and is cached by turbo-tasks, so the
+ * call is cheap when the graph is already materialized.
+ */
+export declare function projectFeatureUsage(project: {
+  __napiType: 'Project'
+}): Promise<Array<NapiUsedFeature>>
+export declare function projectGetAllCompilationIssues(project: {
+  __napiType: 'Project'
+}): Promise<TurbopackResult>
+/**
+ * Opens the Turbopack persistent cache database at the given path and performs a full compaction.
+ *
+ * The `path` should point to the `<distDir>/cache/turbopack` directory.
+ */
+export declare function turbopackDatabaseCompact(
+  path: string,
+  nextVersion: string
+): Promise<void>
 /**
  * A version of [`NapiNextTurbopackCallbacks`] that can accepted as an argument to a napi function.
  *
@@ -419,19 +543,54 @@ export interface TurbopackInternalErrorOpts {
   message: string
   anonymizedLocation?: string
 }
+export declare function turbopackCacheVersion(nextVersion: string): string
+/**
+ * Turbopack's memory eviction strategy for the persistent cache, mirroring the
+ * `experimental.turbopackMemoryEviction` config option.
+ *
+ * This is a napi-facing mirror of [`EvictionMode`] (the backend crate can't
+ * depend on napi). Keep the variants in sync; the `From` impl below is
+ * exhaustive, so adding a variant to one enum forces updating the other.
+ */
+export const enum MemoryEvictionMode {
+  /** Never evict. */
+  Off = 'off',
+  /**
+   * Evict after a snapshot only once enough memory has been allocated since
+   * the last eviction to justify the cost of restoring evicted tasks.
+   */
+  Auto = 'auto',
+  /**
+   * After every snapshot, evict all evictable tasks from memory, reloading
+   * them from disk on demand.
+   */
+  Full = 'full',
+}
 export declare function rootTaskDispose(rootTask: {
   __napiType: 'RootTask'
 }): void
 export interface NapiIssue {
   severity: string
   stage: string
-  filePath: string
+  filePath: RcStr
   title: any
   description?: any
   detail?: any
   source?: NapiIssueSource
-  documentationLink: string
+  additionalSources: Array<NapiAdditionalIssueSource>
+  documentationLink: RcStr
   importTraces: any
+  /**
+   * Pre-rendered code frame for the issue's source location, if available.
+   * Rendered in Rust to avoid transferring full source file content to JS.
+   */
+  codeFrame?: string
+}
+export interface NapiAdditionalIssueSource {
+  description: RcStr
+  source: NapiIssueSource
+  /** Pre-rendered code frame for this additional source location, if available. */
+  codeFrame?: string
 }
 export interface NapiIssueSource {
   source: NapiSource
@@ -442,17 +601,17 @@ export interface NapiIssueSourceRange {
   end: NapiSourcePos
 }
 export interface NapiSource {
-  ident: string
-  content?: string
+  ident: RcStr
+  filePath: RcStr
 }
 export interface NapiSourcePos {
   line: number
   column: number
 }
-export interface NapiDiagnostic {
-  category: string
-  name: string
-  payload: Record<string, string>
+export interface NapiUsedFeature {
+  featureName: RcStr
+  /** How many times it was used, typically this means how often it was imported. */
+  invocationCount: number
 }
 export declare function expandNextJsTemplate(
   content: Buffer,
@@ -495,10 +654,90 @@ export declare function transformSync(
   isModule: boolean,
   options: Buffer
 ): object
-export declare function startTurbopackTraceServer(
+/** Options for `query_trace_spans`. */
+export interface TraceQueryOptions {
+  /**
+   * Optional parent span ID (as returned by a previous query).
+   * Omit or set to `null`/`undefined` for root-level spans.
+   */
+  parent?: string
+  /** When `true` (default), aggregate child spans with the same name. */
+  aggregated?: boolean
+  /**
+   * Sort mode: `"value"` for duration descending, `"name"` for alphabetical.
+   * Omit for execution order (no sorting).
+   */
+  sort?: string
+  /** Optional substring search query applied to span name/category. */
+  search?: string
+  /** 1-based page number. Default `1`. */
+  page?: number
+}
+/** Information about a single span or aggregated span group. */
+export interface TraceSpanInfo {
+  /** Span ID. Pass this as `parent` in a follow-up call to get children. */
+  id: string
+  /** Display name of the span. */
+  name: string
+  /** Raw CPU total time in internal ticks (100 ticks = 1 µs). */
+  cpuDuration: number
+  /** Concurrency-corrected total time in internal ticks (100 ticks = 1 µs). */
+  correctedDuration: number
+  /** Start time relative to parent start, in internal ticks. */
+  startRelativeToParent: number
+  /** End time relative to parent start, in internal ticks. */
+  endRelativeToParent: number
+  /** Key-value attributes attached to the span. */
+  args: Array<Array<string>>
+  /** True if this entry represents an aggregated group of spans. */
+  isAggregated: boolean
+  /** Number of spans in this aggregated group (only set when `is_aggregated`). */
+  count?: number
+  /** Sum of CPU duration across all spans in the group. */
+  totalCpuDuration?: number
+  /** Average CPU duration across spans in the group. */
+  avgCpuDuration?: number
+  /** Sum of corrected duration across all spans in the group. */
+  totalCorrectedDuration?: number
+  /** Average corrected duration across spans in the group. */
+  avgCorrectedDuration?: number
+  /** Raw span ID for aggregated groups (the index of the first span). */
+  firstSpanId?: string
+  /**
+   * TurboMalloc memory-usage samples recorded while this span
+   * (or its example span, for aggregated groups) was live.
+   *
+   * Each entry is `[ts_offset_from_span_start_in_ticks, bytes, pressure]`,
+   * where `pressure` is the memory-pressure byte (0 = no pressure, higher
+   * = more pressure). `100 ticks = 1 µs`. The offset is always `>= 0` and
+   * `<= span_duration`. Capped and downsampled by the store.
+   */
+  memorySamples: Array<Array<number>>
+}
+/** The result of a `query_trace_spans` call. */
+export interface TraceQueryResult {
+  spans: Array<TraceSpanInfo>
+  /** Current page (1-based). */
+  page: number
+  /** Total number of pages available. */
+  totalPages: number
+  /** Total number of matching spans across all pages. */
+  totalCount: number
+}
+/**
+ * Starts the turbopack trace server on a background thread and returns a
+ * handle immediately (non-blocking). The WebSocket server will be available
+ * at `ws://127.0.0.1:<port>` (default port 5747).
+ */
+export declare function startTurbopackTraceServerHandle(
   path: string,
   port?: number | undefined | null
-): void
+): TraceServerHandle
+/** Query spans from the trace store held by a `TraceServerHandle`. */
+export declare function queryTraceSpans(
+  handle: TraceServerHandle,
+  options: TraceQueryOptions
+): TraceQueryResult
 export interface NextBuildContext {
   /** The root directory of the workspace. */
   root?: string
@@ -547,3 +786,9 @@ export declare function initCustomTraceSubscriber(
 export declare function teardownTraceSubscriber(
   guardExternal: ExternalObject<RefCell>
 ): void
+/**
+ * An opaque handle to a running trace server instance.
+ * Holds a reference to the shared store so that `query_trace_spans` can
+ * query it without blocking Node.js with the WebSocket server loop.
+ */
+export declare class TraceServerHandle {}

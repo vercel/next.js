@@ -33,7 +33,7 @@ describe.each([
           .elementByCss('.red-text')
           .getComputedCss('background-image')
         expect(background).toMatch(
-          /url\(".*\/_next\/static\/media\/dark\..*\.svg(?:\?.*)?"\), url\(".*\/_next\/static\/media\/dark2\..*\.svg(?:\?.*)?"\)/
+          /url\(".*\/_next\/static\/(immutable\/)?media\/dark\..*\.svg(?:\?.*)?"\), url\(".*\/_next\/static\/(immutable\/)?media\/dark2\..*\.svg(?:\?.*)?"\)/
         )
 
         const urls = getUrlFromBackgroundImage(background)

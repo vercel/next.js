@@ -13,7 +13,12 @@ import type {
   ServerCacheStatus,
 } from '../../next-devtools/dev-overlay/cache-indicator'
 import type { DevToolsConfig } from '../../next-devtools/dev-overlay/shared'
+import type {
+  RequestInsight,
+  RequestInsightsSnapshot,
+} from '../../next-devtools/shared/request-insights'
 import type { ReactDebugChannelForBrowser } from './debug-channel'
+import type { AnyStream } from '../app-render/stream-ops'
 
 export const enum HMR_MESSAGE_SENT_TO_BROWSER {
   // JSON messages:
@@ -21,6 +26,7 @@ export const enum HMR_MESSAGE_SENT_TO_BROWSER {
   REMOVED_PAGE = 'removedPage',
   RELOAD_PAGE = 'reloadPage',
   SERVER_COMPONENT_CHANGES = 'serverComponentChanges',
+  STATIC_PARAMS_CHANGED = 'staticParamsChanged',
   MIDDLEWARE_CHANGES = 'middlewareChanges',
   CLIENT_CHANGES = 'clientChanges',
   SERVER_ONLY_CHANGES = 'serverOnlyChanges',
@@ -37,6 +43,7 @@ export const enum HMR_MESSAGE_SENT_TO_BROWSER {
   DEVTOOLS_CONFIG = 'devtoolsConfig',
   REQUEST_CURRENT_ERROR_STATE = 'requestCurrentErrorState',
   REQUEST_PAGE_METADATA = 'requestPageMetadata',
+  REQUEST_INSIGHTS_UPDATE = 'requestInsightsUpdate',
 
   // Binary messages:
   REACT_DEBUG_CHUNK = 0,
@@ -82,6 +89,7 @@ export interface SyncMessage {
   debug?: DebugInfo
   devIndicator: DevIndicatorServerState
   devToolsConfig?: DevToolsConfig
+  requestInsights?: RequestInsightsSnapshot
 }
 
 export interface BuiltMessage {
@@ -109,7 +117,14 @@ export interface ReloadPageMessage {
 
 export interface ServerComponentChangesMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES
-  hash: string
+}
+
+/**
+ * Sent in dev when a route's set of statically-known params changed, e.g.
+ * because `generateStaticParams` was added, removed, or edited.
+ */
+export interface StaticParamsChangedMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.STATIC_PARAMS_CHANGED
 }
 
 export interface MiddlewareChangesMessage {
@@ -178,6 +193,11 @@ export interface CacheIndicatorMessage {
   state: CacheIndicatorState
 }
 
+export interface RequestInsightsUpdateMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE
+  insight: RequestInsight
+}
+
 export type HmrMessageSentToBrowser =
   | TurbopackMessage
   | TurbopackConnectedMessage
@@ -188,6 +208,7 @@ export type HmrMessageSentToBrowser =
   | RemovedPageMessage
   | ReloadPageMessage
   | ServerComponentChangesMessage
+  | StaticParamsChangedMessage
   | ClientChangesMessage
   | MiddlewareChangesMessage
   | ServerOnlyChangesMessage
@@ -200,6 +221,7 @@ export type HmrMessageSentToBrowser =
   | RequestCurrentErrorStateMessage
   | RequestPageMetadataMessage
   | CacheIndicatorMessage
+  | RequestInsightsUpdateMessage
 
 export type BinaryHmrMessageSentToBrowser = Extract<
   HmrMessageSentToBrowser,
@@ -236,16 +258,23 @@ export interface NextJsHotReloaderInterface {
    * and App Router clients that don't have Cache Components enabled.
    */
   sendToLegacyClients(action: HmrMessageSentToBrowser): void
+  /**
+   * Identifies the current generation of the compiled server components. It is
+   * included in `"use cache"` cache keys so that cached entries are revalidated
+   * after an edit, for every client, regardless of whether it runs the HMR
+   * client. It is present from the first request on, so that entries created
+   * before the first edit are keyed by it too, and it differs between dev
+   * server runs, so that a cache handler that persists entries doesn't serve
+   * them for code that changed while the server was down.
+   */
+  getServerComponentsHmrRefreshHash(): string
   setCacheStatus(status: ServerCacheStatus, htmlRequestId: string): void
   setReactDebugChannel(
     debugChannel: ReactDebugChannelForBrowser,
     htmlRequestId: string,
     requestId: string
   ): void
-  sendErrorsToBrowser(
-    errorsRscStream: ReadableStream<Uint8Array>,
-    htmlRequestId: string
-  ): void
+  sendErrorsToBrowser(errorsRscStream: AnyStream, htmlRequestId: string): void
   getCompilationErrors(page: string): Promise<any[]>
   onHMR(
     req: IncomingMessage,
@@ -256,6 +285,13 @@ export interface NextJsHotReloaderInterface {
       context: { isLegacyClient: boolean }
     ) => void
   ): void
+  /**
+   * Rebuilds so that a changed configuration reaches the bundles. Pass
+   * `reloadAfterInvalidation` only when the change can also affect what a
+   * render produces: it makes connected clients refetch server components, and
+   * advances `getServerComponentsHmrRefreshHash`, discarding `"use cache"`
+   * entries.
+   */
   invalidate({
     reloadAfterInvalidation,
   }: {
@@ -269,13 +305,23 @@ export interface NextJsHotReloaderInterface {
     definition,
     isApp,
     url,
+    subscribeToChanges,
   }: {
     page: string
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
     isApp?: boolean
-    definition: RouteDefinition | undefined
+    definition?: RouteDefinition
     url?: string
+    /**
+     * Whether to wire HMR change subscriptions for the compiled entry.
+     * Defaults to true (the dev server uses these to push updates to
+     * connected browsers). Pass false for one-shot compilations (e.g.
+     * the `compile_route` MCP tool) where there is no client to receive
+     * HMR updates — without this, repeated calls leak subscriptions that
+     * keep firing on every file change for the life of the dev server.
+     */
+    subscribeToChanges?: boolean
   }): Promise<void>
   close(): void
 }

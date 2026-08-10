@@ -23,6 +23,7 @@ import { Telemetry } from '../../telemetry/storage'
 import { eventAnalyzeCompleted } from '../../telemetry/events'
 import { traceGlobals } from '../../trace/shared'
 import type { RoutesManifest } from '..'
+import { Bundler } from '../../lib/bundler'
 
 export type AnalyzeOptions = {
   dir: string
@@ -42,9 +43,13 @@ export default async function analyze({
   port = 4000,
 }: AnalyzeOptions): Promise<void> {
   try {
+    // analyze is Turbopack-only. Mirror what parseBundlerArgs does for build/dev
+    // so every process.env.TURBOPACK consumer in this run agrees with the bundler choice.
+    process.env.TURBOPACK ??= '1'
     const config: NextConfigComplete = await loadConfig(PHASE_ANALYZE, dir, {
       silent: false,
       reactProductionProfiling,
+      bundler: Bundler.Turbopack,
     })
 
     process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''

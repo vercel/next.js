@@ -2,6 +2,8 @@ import { useMemo } from 'react'
 import React from 'react'
 import { CodeFrame } from '../../components/code-frame/code-frame'
 import { ErrorOverlayCallStack } from '../../components/errors/error-overlay-call-stack/error-overlay-call-stack'
+import { ErrorAggregateErrors } from './error-aggregate-errors'
+import { HotlinkedText } from '../../components/hot-linked-text'
 import type { ReadyErrorCause } from '../../utils/get-error-by-type'
 
 type ErrorCauseProps = {
@@ -31,7 +33,9 @@ export function ErrorCause({ cause, dialogResizerRef }: ErrorCauseProps) {
         </span>
       </div>
       {trimmedMessage ? (
-        <p className="error-cause-message">{trimmedMessage}</p>
+        <p className="error-cause-message">
+          <HotlinkedText text={trimmedMessage} />
+        </p>
       ) : null}
 
       {firstFrame && (
@@ -50,6 +54,13 @@ export function ErrorCause({ cause, dialogResizerRef }: ErrorCauseProps) {
 
       {cause.cause && (
         <ErrorCause cause={cause.cause} dialogResizerRef={dialogResizerRef} />
+      )}
+
+      {'aggregateErrors' in cause && cause.aggregateErrors !== null && (
+        <ErrorAggregateErrors
+          errors={cause.aggregateErrors}
+          dialogResizerRef={dialogResizerRef}
+        />
       )}
     </div>
   )
@@ -81,8 +92,7 @@ export const styles = `
   }
 
   .error-cause-message {
-    margin: 0;
-    margin-left: 4px;
+    margin: 0 0 16px 4px;
     color: var(--color-red-900);
     font-weight: 500;
     font-size: var(--size-16);

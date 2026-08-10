@@ -13,5 +13,12 @@ bincode = { workspace = true }
 hashbrown = { workspace = true, features = ["serde"]}
 rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-smallvec = { workspace = true }
 shrink-to-fit = { workspace = true, features = ["hashbrown"] }
+
+[dev-dependencies]
+criterion = { workspace = true }
+turbo-tasks-malloc = { workspace = true }
+
+[[bench]]
+name = "tiny_vec"
+harness = false

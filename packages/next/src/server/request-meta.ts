@@ -1,5 +1,6 @@
-import type { IncomingMessage } from 'http'
+import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
+import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest } from './base-http'
 import type { CloneableBody } from './body-streams'
 import type { RouteMatch } from './route-matches/route-match'
@@ -11,6 +12,7 @@ import type {
 import type { PagesDevOverlayBridgeType } from '../next-devtools/userspace/pages/pages-dev-overlay-setup'
 import type { OpaqueFallbackRouteParams } from './request/fallback-params'
 import type { IncrementalCache } from './lib/incremental-cache'
+import type { RevalidateFn } from './lib/router-utils/router-server-context'
 import type { NextRequest } from './web/exports'
 
 // FIXME: (wyattjoh) this is a temporary solution to allow us to pass data between bundled modules
@@ -113,6 +115,14 @@ export interface RequestMeta {
   serverComponentsHmrCache?: ServerComponentsHmrCache
 
   /**
+   * The hash of the most recent server component change (dev only), set by the
+   * router-server from the hot-reloader. Included in `"use cache"` cache keys
+   * so that cached entries are revalidated after an edit, for every client,
+   * regardless of whether it runs the HMR client.
+   */
+  hmrRefreshHash?: string
+
+  /**
    * Equals the segment path that was used for the prefetch RSC request.
    */
   segmentPrefetchRSCRequest?: string
@@ -145,10 +155,13 @@ export interface RequestMeta {
   isNextDataReq?: true
 
   /**
-   * Postponed state to use for resumption. If present it's assumed that the
-   * request is for a page that has postponed (there are no guarantees that the
-   * page actually has postponed though as it would incur an additional cache
-   * lookup).
+   * Postponed state to use for resumption. When absent, the request is not a
+   * resume request. A non-empty string contains the state to resume, while an
+   * empty string represents a resume request without postponed state and
+   * signals that the renderer should perform a full dynamic render.
+   *
+   * There are no guarantees that the page actually postponed, as verifying
+   * that would incur an additional cache lookup.
    */
   postponed?: string
 
@@ -219,6 +232,14 @@ export interface RequestMeta {
   renderFallbackShell?: boolean
 
   /**
+   * Route param keys that were explicitly resolved from partial nxtP*
+   * query params during background revalidation. Used by app-page.ts to
+   * determine which fallback params should remain deferred vs resolved
+   * in intermediate PPR shells.
+   */
+  resolvedRouteParamKeys?: Set<string>
+
+  /**
    * Whether the request is for the custom error page.
    */
   customErrorRender?: true
@@ -254,6 +275,27 @@ export interface RequestMeta {
    * The dist directory the server is currently using
    */
   distDir?: string
+
+  /**
+    Optional hostname used by route handlers when constructing absolute URLs.
+    hostname: '127.0.0.1',
+   */
+  hostname?: string
+
+  /**
+   Optional internal revalidate function to avoid revalidating over the network
+   */
+  revalidate?: RevalidateFn
+
+  /**
+   Optional function to render the 404 page for pages router `notFound: true`
+   */
+  render404?: (
+    req: IncomingMessage,
+    res: ServerResponse,
+    parsedUrl?: UrlWithParsedQuery,
+    setHeaders?: boolean
+  ) => Promise<void>
 
   /**
    * The query after resolving routes

@@ -1,5 +1,4 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
 import path from 'path'
 import fs from 'fs-extra'
@@ -8,7 +7,7 @@ function extractJSON(response) {
   return JSON.parse(response.headers.get('data') ?? '{}')
 }
 
-function baseNextConfig(): Parameters<typeof createNext>[0] {
+function baseNextConfig(): Parameters<typeof nextTestSetup>[0] {
   return {
     files: {
       'src/add.wasm': new FileRef(path.join(__dirname, './add.wasm')),
@@ -37,34 +36,30 @@ function baseNextConfig(): Parameters<typeof createNext>[0] {
 }
 
 describe('edge api endpoints can use wasm files', () => {
-  let next: NextInstance
+  const { next } = nextTestSetup({
+    files: {
+      'pages/api/add.js': `
+        import { increment } from '../../src/add.js'
+        export default async (request) => {
+          const input = Number(request.nextUrl.searchParams.get('input')) || 1;
+          const value = await increment(input);
+          return new Response(null, { headers: { data: JSON.stringify({ input, value }) } });
+        }
+        export const config = { runtime: 'edge' };
+      `,
+      'src/add.wasm': new FileRef(path.join(__dirname, './add.wasm')),
+      'src/add.js': `
+        import wasm from './add.wasm?module'
+        const instance$ = WebAssembly.instantiate(wasm);
 
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'pages/api/add.js': `
-          import { increment } from '../../src/add.js'
-          export default async (request) => {
-            const input = Number(request.nextUrl.searchParams.get('input')) || 1;
-            const value = await increment(input);
-            return new Response(null, { headers: { data: JSON.stringify({ input, value }) } });
-          }
-          export const config = { runtime: 'edge' };
-        `,
-        'src/add.wasm': new FileRef(path.join(__dirname, './add.wasm')),
-        'src/add.js': `
-          import wasm from './add.wasm?module'
-          const instance$ = WebAssembly.instantiate(wasm);
-
-          export async function increment(a) {
-            const { exports } = await instance$;
-            return exports.add_one(a);
-          }
-        `,
-      },
-    })
+        export async function increment(a) {
+          const { exports } = await instance$;
+          return exports.add_one(a);
+        }
+      `,
+    },
   })
-  afterAll(() => next.destroy())
+
   it('uses the wasm file', async () => {
     const response = await fetchViaHTTP(next.url, '/api/add', { input: 10 })
     expect(extractJSON(response)).toEqual({
@@ -75,13 +70,7 @@ describe('edge api endpoints can use wasm files', () => {
 })
 
 describe('middleware can use wasm files', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    const config = baseNextConfig()
-    next = await createNext(config)
-  })
-  afterAll(() => next.destroy())
+  const { next } = nextTestSetup(baseNextConfig())
 
   it('uses the wasm file', async () => {
     const response = await fetchViaHTTP(next.url, '/')
@@ -134,25 +123,20 @@ describe('middleware can use wasm files', () => {
 })
 
 describe('middleware can use wasm files with the experimental modes on', () => {
-  let next: NextInstance
+  const config = baseNextConfig()
+  ;(config.files as Record<string, string>)['next.config.js'] = `
+    module.exports = {
+      webpack(config) {
+        config.output.webassemblyModuleFilename = 'static/wasm/[modulehash].wasm'
 
-  beforeAll(async () => {
-    const config = baseNextConfig()
-    config.files['next.config.js'] = `
-      module.exports = {
-        webpack(config) {
-          config.output.webassemblyModuleFilename = 'static/wasm/[modulehash].wasm'
+        // Since Webpack 5 doesn't enable WebAssembly by default, we should do it manually
+        config.experiments = { ...config.experiments, asyncWebAssembly: true }
 
-          // Since Webpack 5 doesn't enable WebAssembly by default, we should do it manually
-          config.experiments = { ...config.experiments, asyncWebAssembly: true }
-
-          return config
-        },
-      }
-    `
-    next = await createNext(config)
-  })
-  afterAll(() => next.destroy())
+        return config
+      },
+    }
+  `
+  const { next } = nextTestSetup(config)
 
   it('uses the wasm file', async () => {
     const response = await fetchViaHTTP(next.url, '/')

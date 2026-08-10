@@ -119,12 +119,15 @@ export class Worker {
       delete nodeOptions['max_old_space_size']
     }
 
+    const { nodeOptions: formattedNodeOptions, execArgv } =
+      formatNodeOptions(nodeOptions)
+
     const createWorker = () => {
       const workerEnv: NodeJS.ProcessEnv = {
         ...process.env,
         ...((farmOptions.forkOptions?.env || {}) as any),
         IS_NEXT_WORKER: 'true',
-        NODE_OPTIONS: formatNodeOptions(nodeOptions),
+        NODE_OPTIONS: formattedNodeOptions,
       }
 
       if (workerEnv.FORCE_COLOR === undefined) {
@@ -148,6 +151,7 @@ export class Worker {
         ...farmOptions,
         forkOptions: {
           ...farmOptions.forkOptions,
+          execArgv: [...execArgv, ...(farmOptions.forkOptions?.execArgv || [])],
           env: workerEnv,
         },
         maxRetries: 0,
