@@ -145,8 +145,13 @@ export function unstable_cache<T extends Callback>(
       // U+00FF: the search parameters are decoded, and a JavaScript identifier
       // may hold one. The character class leaves the separating spaces and the
       // URL punctuation untouched, so the shape above is preserved.
+      //
+      // `toWellFormed` replaces lone surrogates, which `cb.name` can hold and
+      // which `encodeURIComponent` rejects. The name identifies the call for
+      // debug metrics, so a replacement character is an acceptable trade for
+      // not failing the render.
       const fetchUrl = encodeHeaderSafe(
-        `unstable_cache ${fetchUrlPrefix} ${cb.name ? ` ${cb.name}` : cacheKey}`
+        `unstable_cache ${fetchUrlPrefix} ${cb.name ? ` ${cb.name}` : cacheKey}`.toWellFormed()
       )
       const fetchIdx =
         (workStore ? workStore.nextFetchId : noStoreFetchIdx) ?? 1

@@ -20,6 +20,7 @@ describe('non-ASCII cache item name', () => {
 
   const urlPath = `/${encodeURIComponent('odzież')}?q=${encodeURIComponent('模型')}`
   const namedCallbackPath = '/named-callback'
+  const loneSurrogatePath = '/lone-surrogate'
 
   async function readValues() {
     const $ = await next.render$(urlPath)
@@ -77,6 +78,15 @@ describe('non-ASCII cache item name', () => {
   } else {
     it('encodes a non-ASCII query parameter in the item name', async () => {
       await expectEveryValueRepresentable(urlPath)
+    })
+
+    it('encodes a lone surrogate in the callback name', async () => {
+      // `encodeURIComponent` rejects a lone surrogate, which fails the render
+      // instead of the cache read. The response is still a 200 that carries an
+      // error, so the assertion has to be on the rendered output.
+      const $ = await next.render$(loneSurrogatePath)
+
+      expect($('#cached').text()).toMatch(/^0\.\d+$/)
     })
 
     // A production build renames the callback, which leaves nothing
