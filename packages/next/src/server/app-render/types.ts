@@ -145,7 +145,6 @@ export interface RenderOptsPartial {
   logServerFunctions?: boolean
   params?: ParsedUrlQuery
   isPrefetch?: boolean
-  htmlLimitedBots: string | undefined
   experimental: {
     /**
      * When true, it indicates that the current page supports partial

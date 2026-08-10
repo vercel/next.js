@@ -71,7 +71,7 @@ use turbopack_test_utils::snapshot::{UPDATE, diff, expected, matches_expected, s
 use crate::util::REPO_ROOT;
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct SnapshotOptions {
     #[serde(default = "default_browserslist")]
     browserslist: String,
