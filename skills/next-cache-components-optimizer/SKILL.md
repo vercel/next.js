@@ -106,8 +106,8 @@ hear those words.
   transcript of the loop.
 - **Only surface a question for a genuine fork:** a fix that would change
   behavior, a security-sensitive read, or a route that's dynamic by design (a
-  runtime-prefetch candidate, not a shell to grow). A clean instant fix is not a
-  fork — keep going. With no one to ask (an unattended run), don't block: take
+  per-link-prefetch candidate, not a shell to grow). A clean instant fix is not
+  a fork — keep going. With no one to ask (an unattended run), don't block: take
   the safe default and note the assumption — for a cache-freshness choice,
   defer the read behind `<Suspense>` (always fresh, still instant) rather than
   guess a `cacheLife`.
@@ -369,10 +369,10 @@ this gate is as machine-checkable as the others. Detail:
 
 **When URL data can't be pushed down** (for example, the whole page depends on
 `params`, `searchParams`, or the full URL), there may be no meaningful static
-shell to grow. Don't force one. Runtime prefetching can make the soft
+shell to grow. Don't force one. Per-link prefetching can make the soft
 navigation instant, but it is outside this optimizer loop: it requires Partial
 Prefetching, a `<Link prefetch={true}>`, and cached URL-dependent content. See
-[Runtime Prefetching](https://nextjs.org/docs/app/guides/runtime-prefetching)
+[Optimizing prefetching](https://nextjs.org/docs/app/guides/optimizing-prefetching)
 and pattern 10 in `reference/patterns.md` for the requirements, cost trade-offs,
 manual prefetch caveat, and `instant()` test gotchas.
 
@@ -473,5 +473,5 @@ during an incremental rollout and keep checking any other target routes.
   That skill moves the app onto the better prefetching model: shared App Shell
   prefetches by default, fewer duplicated full-prefetch requests for visible
   links, a link audit for existing `<Link prefetch={true}>` usage, and optional
-  per-link runtime prefetching only where URL-specific content is worth the
+  per-link prefetching only where URL-specific content is worth the
   extra server work.
