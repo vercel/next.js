@@ -3,7 +3,7 @@ import WebSocket from 'ws'
 import { isNextDev, nextTestSetup, type NextInstance } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
-function connect(port: number): Promise<WebSocket> {
+function connect(port: number | string): Promise<WebSocket> {
   return new Promise((resolve, reject) => {
     const socket = new WebSocket(`ws://localhost:${port}/ws`)
     const onError = (error: Error) => reject(error)
@@ -35,7 +35,7 @@ function waitForOpen(socket: WebSocket) {
   })
 }
 
-function requestUpgrade(port: number, path: string): Promise<number> {
+function requestUpgrade(port: number | string, path: string): Promise<number> {
   return new Promise((resolve, reject) => {
     const request = http.request({
       host: 'localhost',

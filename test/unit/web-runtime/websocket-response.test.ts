@@ -1,9 +1,22 @@
 import { NextResponse } from 'next/server'
-import { createWebSocketUpgradeFallbackResponse } from 'next/dist/server/web/spec-extension/websocket-upgrade-fallback'
-import {
-  getWebSocketUpgradeMetadata,
-  type WebSocketHooks,
-} from 'next/dist/server/web/spec-extension/response'
+import type { WebSocketHooks } from 'next/dist/server/web/spec-extension/response'
+
+const { createWebSocketUpgradeFallbackResponse } =
+  require('next/dist/server/web/spec-extension/websocket-upgrade-fallback') as {
+    createWebSocketUpgradeFallbackResponse(
+      response: Response,
+      inheritedHeaders?: Headers
+    ): Response
+  }
+const { getWebSocketUpgradeMetadata } =
+  require('next/dist/server/web/spec-extension/response') as {
+    getWebSocketUpgradeMetadata(response: Response):
+      | {
+          readonly hooks: Readonly<WebSocketHooks>
+          readonly protocol?: string
+        }
+      | undefined
+  }
 
 describe('NextResponse.upgrade', () => {
   const previousRuntime = process.env.NEXT_RUNTIME
@@ -116,7 +129,7 @@ describe('NextResponse.upgrade', () => {
     response.headers.set('x-route', 'original')
     response.cookies.set('session', 'one')
 
-    const clone = response.clone()
+    const clone = response.clone() as typeof response
     clone.headers.set('x-route', 'clone')
     clone.cookies.set('session', 'two')
 
