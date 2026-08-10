@@ -16,7 +16,7 @@ import {
   ActionDidRevalidateStaticAndDynamic as ActionDidRevalidate,
 } from '../../../shared/lib/action-revalidation-kind'
 import { removeTrailingSlash } from '../../../shared/lib/router/utils/remove-trailing-slash'
-import { encodeCacheTag } from '../../lib/encode-cache-tag'
+import { encodeHeaderSafe } from '../../lib/encode-header-safe'
 import { validateAndNormalizeCacheLifeProfile } from '../../use-cache/cache-life-profile'
 
 type CacheLifeConfig = {
@@ -40,7 +40,7 @@ export function revalidateTag(tag: string, profile: string | CacheLifeConfig) {
   } else if (typeof profile === 'object') {
     profile = validateAndNormalizeCacheLifeProfile(profile, { kind: 'inline' })
   }
-  return revalidate([encodeCacheTag(tag)], `revalidateTag ${tag}`, profile)
+  return revalidate([encodeHeaderSafe(tag)], `revalidateTag ${tag}`, profile)
 }
 
 /**
@@ -62,7 +62,7 @@ export function updateTag(tag: string) {
     )
   }
   // updateTag uses immediate expiration (no profile) without deprecation warning
-  return revalidate([encodeCacheTag(tag)], `updateTag ${tag}`, undefined)
+  return revalidate([encodeHeaderSafe(tag)], `updateTag ${tag}`, undefined)
 }
 
 /**
@@ -105,7 +105,7 @@ export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
     return
   }
 
-  let normalizedPath = `${NEXT_CACHE_IMPLICIT_TAG_ID}${encodeCacheTag(removeTrailingSlash(originalPath))}`
+  let normalizedPath = `${NEXT_CACHE_IMPLICIT_TAG_ID}${encodeHeaderSafe(removeTrailingSlash(originalPath))}`
 
   if (type) {
     normalizedPath += `${normalizedPath.endsWith('/') ? '' : '/'}${type}`
