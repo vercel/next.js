@@ -25,6 +25,8 @@ import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
 import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
 import {
   EntryStatus,
+  segmentCacheMap,
+  type SegmentCacheEntry,
   readRouteCacheEntry,
   deprecated_requestOptimisticRouteCacheEntry,
   convertRootFlightRouterStateToRouteTree,
@@ -37,6 +39,7 @@ import {
 } from './cache'
 import { discoverKnownRoute } from './optimistic-routes'
 import { createCacheKey, type NormalizedSearch } from './cache-key'
+import type { CacheMap } from './cache-map'
 import { schedulePrefetchTask } from './scheduler'
 import { PrefetchPriority, FetchStrategy } from './types'
 import { getLinkForCurrentNavigation } from '../links'
@@ -112,7 +115,9 @@ export function navigate(
     freshnessPolicy,
     scrollBehavior,
     navigateType,
-    navigationLock
+    navigationLock,
+    // An unlocked navigation is bound to the shared map.
+    segmentCacheMap
   )
 }
 
@@ -127,7 +132,10 @@ function navigateImpl(
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
-  navigationLock: NavigationLock | null
+  navigationLock: NavigationLock | null,
+  // The segment cache map this navigation is bound to: a locked navigation's
+  // driving-task map, or the shared map. See `segmentCacheMap` in cache.ts.
+  map: CacheMap<SegmentCacheEntry>
 ): AppRouterState | Promise<AppRouterState> {
   const now = Date.now()
   const href = url.href
@@ -149,7 +157,8 @@ function navigateImpl(
       scrollBehavior,
       navigateType,
       route,
-      navigationLock
+      navigationLock,
+      map
     )
   }
 
@@ -186,7 +195,8 @@ function navigateImpl(
           scrollBehavior,
           navigateType,
           optimisticRoute,
-          navigationLock
+          navigationLock,
+          map
         )
       }
     }
@@ -209,7 +219,8 @@ function navigateImpl(
     freshnessPolicy,
     scrollBehavior,
     navigateType,
-    navigationLock
+    navigationLock,
+    map
   ).catch(() => {
     // If the navigation fails, return the current state
     return state
@@ -231,6 +242,9 @@ export function navigateToKnownRoute(
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
   navigationLock: NavigationLock | null,
+  // The segment cache map this navigation is bound to: a locked navigation's
+  // driving-task map, or the shared map. See `segmentCacheMap` in cache.ts.
+  map: CacheMap<SegmentCacheEntry>,
   debugInfo: Array<unknown> | null,
   // The route cache entry used for this navigation, if it came from route
   // prediction. Passed through so it can be marked as having a dynamic rewrite
@@ -345,6 +359,7 @@ export function navigateToKnownRoute(
     navigationSeed.dynamicStaleAt,
     isSamePageNavigation,
     accumulation,
+    map,
     restrictToShell
   )
   if (task !== null) {
@@ -358,6 +373,7 @@ export function navigateToKnownRoute(
         routeCacheEntry,
         navigateType,
         navigationLock,
+        map,
         signal
       )
     }
@@ -392,7 +408,8 @@ function navigateUsingPrefetchedRouteTree(
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
   route: FulfilledRouteCacheEntry,
-  navigationLock: NavigationLock | null
+  navigationLock: NavigationLock | null,
+  map: CacheMap<SegmentCacheEntry>
 ): AppRouterState {
   const routeTree = route.tree
   const canonicalUrl = route.canonicalUrl + url.hash
@@ -420,6 +437,7 @@ function navigateUsingPrefetchedRouteTree(
     scrollBehavior,
     navigateType,
     navigationLock,
+    map,
     null,
     route,
     // Not an HMR refresh, so there's no request generation to cancel.
@@ -451,7 +469,8 @@ async function navigateToUnknownRoute(
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
-  navigationLock: NavigationLock | null
+  navigationLock: NavigationLock | null,
+  map: CacheMap<SegmentCacheEntry>
 ): Promise<AppRouterState> {
   // Runs when a navigation happens but there's no cached prefetch we can use.
   // Don't bother to wait for a prefetch response; go straight to a full
@@ -567,7 +586,8 @@ async function navigateToUnknownRoute(
             staleAt,
             currentFlightRouterState,
             renderedSearch,
-            isResponsePartial
+            isResponsePartial,
+            map
           )
         })
         .catch(() => {
@@ -595,7 +615,8 @@ async function navigateToUnknownRoute(
               processed.rootVaryParamsIterable,
               processed.staleAt,
               processed.navigationSeed,
-              null
+              null,
+              map
             )
           }
         })
@@ -636,6 +657,7 @@ async function navigateToUnknownRoute(
     scrollBehavior,
     navigateType,
     navigationLock,
+    map,
     debugInfo,
     // Unknown route navigations don't use route prediction - the route tree
     // came directly from the server. If a mismatch occurs during dynamic data
@@ -1085,13 +1107,13 @@ async function ensurePrefetchThenNavigate(
 
   // Create this navigation's "wait for prefetch to fulfill" state and schedule
   // the prefetch as a locked-navigation prefetch. The prefetch's promise
-  // resolves once it has spawned every request and all of them have fulfilled,
-  // so the navigation below reads present data rather than a still-in-flight
-  // entry.
+  // resolves when the task completes — after every segment response the task
+  // cares about has settled — so the navigation below reads present data
+  // rather than a still-in-flight entry.
   const { beginNavigationLockPrefetch } =
     require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
   const navigationLockPrefetch = beginNavigationLockPrefetch()
-  schedulePrefetchTask(
+  const prefetchTask = schedulePrefetchTask(
     cacheKey,
     currentFlightRouterState,
     fetchStrategy,
@@ -1104,7 +1126,10 @@ async function ensurePrefetchThenNavigate(
   }
 
   // Prefetch is complete. Proceed with the normal navigation flow, which
-  // will now find the route in the cache.
+  // will now find the route in the cache. The navigation inherits the map of
+  // the prefetch task that drives it: the task was scheduled inside the lock
+  // scope, so this is the scope's private map, and the navigation reads only
+  // data fetched under the lock.
   const result = await navigateImpl(
     state,
     url,
@@ -1116,7 +1141,8 @@ async function ensurePrefetchThenNavigate(
     freshnessPolicy,
     scrollBehavior,
     navigateType,
-    navigationLock
+    navigationLock,
+    prefetchTask.segmentCacheMap
   )
 
   // Only transition to captured-SPA once the navigation is known to be an SPA.
