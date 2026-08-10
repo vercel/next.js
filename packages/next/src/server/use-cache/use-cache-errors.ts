@@ -40,8 +40,10 @@ export class NestedDynamicUseCacheError extends Error {
 const REACT_FUNCTION_SERIALIZATION_ERROR =
   'Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.'
 
-const USE_CACHE_FUNCTION_SERIALIZATION_HINT =
-  'This error occurred while serializing a value for `"use cache"`. `"use cache"` is a serialization boundary, so functions (including React components) cannot be passed in or returned. Return JSX (for example `<Component />`) or serializable data instead of the function itself. If you meant a Server Action, mark the function with `"use server"`. Read more: https://nextjs.org/docs/messages/use-cache-function'
+const USE_CACHE_FUNCTION_DOCS_URL =
+  'https://nextjs.org/docs/app/api-reference/directives/use-cache'
+
+const USE_CACHE_FUNCTION_SERIALIZATION_HINT = `Inside \`"use cache"\`, return JSX or data — not a function or component. See ${USE_CACHE_FUNCTION_DOCS_URL}`
 
 export function annotateUseCacheFunctionSerializationError(
   error: unknown
@@ -55,7 +57,7 @@ export function annotateUseCacheFunctionSerializationError(
   }
 
   // Avoid appending the hint more than once if the error is reported again.
-  if (error.message.includes(USE_CACHE_FUNCTION_SERIALIZATION_HINT)) {
+  if (error.message.includes(USE_CACHE_FUNCTION_DOCS_URL)) {
     return
   }
 

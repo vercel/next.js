@@ -11,7 +11,7 @@ describe('formatServerError', () => {
 
     expect(err.message).toContain('"use cache"')
     expect(err.message).toContain(
-      'https://nextjs.org/docs/messages/use-cache-function'
+      'https://nextjs.org/docs/app/api-reference/directives/use-cache'
     )
     expect(err.message).toContain('[function fn]')
     expect(err.stack?.match(/\[function fn\]/g)).toHaveLength(1)

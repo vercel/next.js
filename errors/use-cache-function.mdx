@@ -6,7 +6,11 @@ title: Functions cannot be passed into or returned from `"use cache"`
 
 A function (including a React component) was passed into or returned from a `"use cache"` function.
 
-`"use cache"` is a serialization boundary. Cached arguments and return values must be serializable so they can be stored and reused later. Plain functions are not serializable, so React rejects them. The underlying error often mentions Client Components, which is confusing in this context — the failure is the cache boundary, not a Client Component prop.
+`"use cache"` is a serialization boundary. Cached arguments and return values must be serializable so they can be stored and reused later. Plain functions are not serializable, so React rejects them.
+
+The overlay may still mention Client Components — that is React's generic serialization message. In this case the failure is the `"use cache"` boundary, not a Client Component prop.
+
+React may also show a short value preview under the message, such as `[function fn]` or `{}`. That preview is not part of the Next.js hint; it is React describing the non-serializable value.
 
 Common cases:
 

@@ -73,17 +73,17 @@ export function getStackWithoutErrorMessage(error: Error): string {
 const REACT_FUNCTION_SERIALIZATION_ERROR =
   'Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.'
 
-const USE_CACHE_FUNCTION_SERIALIZATION_HINT =
-  'If this error occurred inside `"use cache"`, that directive is a serialization boundary — functions (including React components) cannot be passed in or returned. Return JSX (for example `<Component />`) or serializable data instead. Read more: https://nextjs.org/docs/messages/use-cache-function'
+const USE_CACHE_FUNCTION_DOCS_URL =
+  'https://nextjs.org/docs/app/api-reference/directives/use-cache'
+
+const USE_CACHE_FUNCTION_SERIALIZATION_HINT = `If this is from \`"use cache"\`, return JSX or data instead of a function. See ${USE_CACHE_FUNCTION_DOCS_URL}`
 
 export function formatServerError(error: Error): void {
   if (typeof error?.message !== 'string') return
 
   if (
     error.message.includes(REACT_FUNCTION_SERIALIZATION_ERROR) &&
-    !error.message.includes(
-      'https://nextjs.org/docs/messages/use-cache-function'
-    )
+    !error.message.includes(USE_CACHE_FUNCTION_DOCS_URL)
   ) {
     setErrorMessage(
       error,

@@ -11,7 +11,7 @@ const reactFunctionError =
   'Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.'
 
 const useCacheFunctionDocs =
-  'https://nextjs.org/docs/messages/use-cache-function'
+  'https://nextjs.org/docs/app/api-reference/directives/use-cache'
 
 describe('use-cache-close-over-function', () => {
   const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
@@ -107,9 +107,7 @@ describe('use-cache-close-over-function', () => {
       expect(errorDescription).toContain('"use cache"')
       expect(errorDescription).toContain(useCacheFunctionDocs)
       // Stronger wording when the failure is definitely inside the cache fill.
-      expect(errorDescription).toContain(
-        'This error occurred while serializing a value for `"use cache"`'
-      )
+      expect(errorDescription).toContain('Inside `"use cache"`')
     })
   } else {
     it('should fail the build with an error', async () => {

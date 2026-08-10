@@ -16,8 +16,9 @@ describe('annotateUseCacheFunctionSerializationError', () => {
     expect(error.message).toContain(REACT_MESSAGE)
     expect(error.message).toContain('"use cache"')
     expect(error.message).toContain(
-      'https://nextjs.org/docs/messages/use-cache-function'
+      'https://nextjs.org/docs/app/api-reference/directives/use-cache'
     )
+    expect(error.message).toContain('return JSX or data')
     expect(error.message).toContain('[function PostContent]')
 
     // React's annotation must appear once in the stack, not duplicated by a
