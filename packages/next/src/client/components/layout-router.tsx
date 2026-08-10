@@ -120,6 +120,25 @@ function isFragmentHostDescendant(
 }
 
 /**
+ * `elementFromPoint` returns the innermost element, which may be a static
+ * child inside a fixed/sticky ancestor. Walk ancestors that still belong to
+ * the Fragment before deciding the hit is scroll-relevant.
+ */
+function isFixedOrStickyWithinFragment(
+  instance: FragmentInstance,
+  element: Element
+): boolean {
+  let current: Element | null = element
+  while (current != null && isFragmentHostDescendant(instance, current)) {
+    if (isFixedOrStickyElement(current)) {
+      return true
+    }
+    current = current.parentElement
+  }
+  return false
+}
+
+/**
  * Client rects that should participate in scroll-target selection.
  *
  * If a Fragment's in-fragment host geometry is only from fixed/sticky
@@ -168,7 +187,7 @@ function getScrollRelevantClientRects(
       continue
     }
 
-    if (isFixedOrStickyElement(el)) {
+    if (isFixedOrStickyWithinFragment(instance, el)) {
       sawFixedOrStickyHost = true
     } else {
       sawScrollRelevantHost = true

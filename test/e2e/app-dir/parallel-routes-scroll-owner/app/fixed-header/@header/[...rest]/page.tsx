@@ -10,7 +10,8 @@ export default function HeaderRest() {
         zIndex: 20,
       }}
     >
-      Fixed header
+      {/* Nested static child: elementFromPoint hits this, not the fixed header. */}
+      <span>Fixed header</span>
     </header>
   )
 }
