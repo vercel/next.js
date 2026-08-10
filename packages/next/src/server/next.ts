@@ -40,6 +40,7 @@ import { createPromiseWithResolvers } from '../shared/lib/promise-with-resolvers
 import {
   classifyWebSocketUpgradeOwnership,
   createWebSocketUpgradeListenerOwnershipTracker,
+  markNextOwnedWebSocketUpgradeListener,
   type WebSocketUpgradeListenerOwnershipTracker,
 } from './websocket-upgrade-listener'
 
@@ -877,22 +878,26 @@ class NextCustomServer implements NextWrapperServer {
       }
       let publicUpgradeListener!: UpgradeHandler
       let automaticUpgradeListener!: UpgradeHandler
-      publicUpgradeListener = (req, socket, head) =>
-        dispatchUpgrade(
-          publicUpgradeListener,
-          automaticUpgradeListener,
-          req,
-          socket,
-          head
-        )
-      automaticUpgradeListener = (req, socket, head) =>
-        dispatchUpgrade(
-          automaticUpgradeListener,
-          publicUpgradeListener,
-          req,
-          socket,
-          head
-        )
+      publicUpgradeListener = markNextOwnedWebSocketUpgradeListener(
+        (req, socket, head) =>
+          dispatchUpgrade(
+            publicUpgradeListener,
+            automaticUpgradeListener,
+            req,
+            socket,
+            head
+          )
+      )
+      automaticUpgradeListener = markNextOwnedWebSocketUpgradeListener(
+        (req, socket, head) =>
+          dispatchUpgrade(
+            automaticUpgradeListener,
+            publicUpgradeListener,
+            req,
+            socket,
+            head
+          )
+      )
       this.webSocketUpgradeListener = publicUpgradeListener
       this.webSocketAutomaticUpgradeListener = automaticUpgradeListener
     }

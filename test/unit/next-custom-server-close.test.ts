@@ -449,6 +449,36 @@ describe('NextCustomServer WebSocket shutdown evidence', () => {
     socket.destroy()
   })
 
+  it('dispatches sibling Next.js listeners on one custom server', async () => {
+    const firstApp = createCustomServer({ enabled: true }) as any
+    const secondApp = createCustomServer({ enabled: true }) as any
+    for (const app of [firstApp, secondApp]) {
+      const pendingUpgrades = new PendingWebSocketUpgradeTracker()
+      app.pendingUpgrades = pendingUpgrades
+      app.prepareGeneration.pendingUpgrades = pendingUpgrades
+      app.init.upgradeHandler = jest.fn()
+    }
+    const server = new EventEmitter()
+    firstApp.setupWebSocketHandler(server)
+    secondApp.setupWebSocketHandler(server)
+    const socket = new PassThrough() as PassThrough & {
+      server?: EventEmitter
+    }
+    socket.server = server
+    const request = { headers: {}, method: 'GET', socket }
+
+    server.emit('upgrade', request, socket, Buffer.alloc(0))
+    await new Promise<void>((resolve) => setImmediate(resolve))
+
+    expect(firstApp.init.upgradeHandler).toHaveBeenCalledTimes(1)
+    expect(secondApp.init.upgradeHandler).toHaveBeenCalledTimes(1)
+    expect(getRequestMeta(request, 'webSocketUpgradeOwnership')).toBe(
+      'coordinated'
+    )
+    socket.destroy()
+    await Promise.all([firstApp.close(), secondApp.close()])
+  })
+
   it('coordinates through one outer dispatcher after automatic setup', async () => {
     const app = createCustomServer({ enabled: true }) as any
     const pendingUpgrades = new PendingWebSocketUpgradeTracker()

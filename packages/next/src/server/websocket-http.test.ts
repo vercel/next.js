@@ -21,6 +21,7 @@ import {
 import {
   classifyWebSocketUpgradeOwnership,
   createWebSocketUpgradeListenerOwnershipTracker,
+  markNextOwnedWebSocketUpgradeListener,
 } from './websocket-upgrade-listener'
 import { PendingWebSocketUpgradeTracker } from './websocket-lifecycle'
 
@@ -127,6 +128,21 @@ describe('WebSocket upgrade listener ownership', () => {
 
     expect(getFirstOwnership()).toBe('shared')
     expect(getSecondOwnership()).toBe('shared')
+  })
+
+  it('coordinates listeners owned by distinct Next.js instances', () => {
+    const server = new EventEmitter()
+    const firstListener = markNextOwnedWebSocketUpgradeListener(jest.fn())
+    const secondListener = markNextOwnedWebSocketUpgradeListener(jest.fn())
+    const { getOwnership: getFirstOwnership } =
+      createWebSocketUpgradeListenerOwnershipTracker(server, firstListener)
+    server.on('upgrade', firstListener)
+    const { getOwnership: getSecondOwnership } =
+      createWebSocketUpgradeListenerOwnershipTracker(server, secondListener)
+    server.on('upgrade', secondListener)
+
+    expect(getFirstOwnership()).toBe('coordinated')
+    expect(getSecondOwnership()).toBe('coordinated')
   })
 
   it('recognizes distinct automatic and public Next listeners as one owner', () => {

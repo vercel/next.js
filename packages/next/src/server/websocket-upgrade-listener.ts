@@ -6,11 +6,29 @@ type UpgradeListenerOwnershipState = {
 }
 
 export interface WebSocketUpgradeListenerOwnershipTracker {
-  getOwnership(): Extract<WebSocketUpgradeOwnership, 'exclusive' | 'shared'>
+  getOwnership(): WebSocketUpgradeOwnership
   dispose(): void
 }
 
 export type WebSocketUpgradeOwnership = 'exclusive' | 'coordinated' | 'shared'
+
+const nextOwnedUpgradeListeners = new WeakSet<object>()
+
+/** Marks a listener so sibling Next.js custom-server instances can coordinate. */
+export function markNextOwnedWebSocketUpgradeListener<T extends object>(
+  listener: T
+): T {
+  nextOwnedUpgradeListeners.add(listener)
+  return listener
+}
+
+function isNextOwnedUpgradeListener(listener: unknown): boolean {
+  return (
+    (typeof listener === 'object' || typeof listener === 'function') &&
+    listener !== null &&
+    nextOwnedUpgradeListeners.has(listener as object)
+  )
+}
 
 function isOwnedUpgradeListener(
   listener: unknown,
@@ -31,10 +49,19 @@ export function classifyWebSocketUpgradeOwnership(
   if (!listeners || listeners.length === 0) return 'shared'
   const ownRegistered = listeners.includes(ownListener)
   if (ownRegistered) {
-    return listeners.every((listener) =>
-      isOwnedUpgradeListener(listener, ownListener, additionalOwnListeners)
+    if (
+      listeners.every((listener) =>
+        isOwnedUpgradeListener(listener, ownListener, additionalOwnListeners)
+      )
+    ) {
+      return 'exclusive'
+    }
+    return listeners.every(
+      (listener) =>
+        isOwnedUpgradeListener(listener, ownListener, additionalOwnListeners) ||
+        isNextOwnedUpgradeListener(listener)
     )
-      ? 'exclusive'
+      ? 'coordinated'
       : 'shared'
   }
   let externalListenerCount = 0
@@ -56,7 +83,8 @@ function hasExternalUpgradeListener(
   const listeners = server.listeners('upgrade')
   return listeners.some(
     (listener) =>
-      !isOwnedUpgradeListener(listener, ownListener, additionalOwnListeners)
+      !isOwnedUpgradeListener(listener, ownListener, additionalOwnListeners) &&
+      !isNextOwnedUpgradeListener(listener)
   )
 }
 
@@ -96,7 +124,8 @@ export function createWebSocketUpgradeListenerOwnershipTracker(
     state.onNewListener = (eventName, listener) => {
       if (eventName !== 'upgrade') return
       if (
-        isOwnedUpgradeListener(listener, ownListener, additionalOwnListeners)
+        isOwnedUpgradeListener(listener, ownListener, additionalOwnListeners) ||
+        isNextOwnedUpgradeListener(listener)
       ) {
         return
       }
@@ -127,7 +156,13 @@ export function createWebSocketUpgradeListenerOwnershipTracker(
       ) {
         markExternalUpgradeListener(server, state)
       }
-      return state.externalListenerSeen ? 'shared' : 'exclusive'
+      return state.externalListenerSeen
+        ? 'shared'
+        : classifyWebSocketUpgradeOwnership(
+            server.listeners('upgrade'),
+            ownListener,
+            additionalOwnListeners
+          )
     },
     dispose() {
       if (disposed) return
