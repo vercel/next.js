@@ -1,6 +1,6 @@
 ---
 title: Optimizing prefetching
-description: Tune what a prefetch carries under Cache Components. Resolve per-link URL data with the prefetch prop, or include session data in the App Shell.
+description: Resolve per-link URL data with the prefetch prop, or include session data in the App Shell.
 nav_title: Optimizing prefetching
 related:
   title: Learn more
@@ -17,11 +17,9 @@ related:
 
 Prefetching downloads a route's JavaScript, CSS, and RSC payload before the user navigates to it, so the router can render the next route without waiting for a round trip. The [Prefetching guide](/docs/app/guides/prefetching) covers what the App Router prefetches by default.
 
-With [Cache Components](/docs/app/getting-started/caching) and [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), that default is one reusable [**App Shell**](/docs/app/glossary#app-shell) per route. The shell contains the route's static output, and for a route that reads [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers) (session data), it also carries UI gated behind that session data. Any number of links to the same route share that one shell, fetched once as a [`<Link>`](/docs/app/api-reference/components/link) enters the viewport and reused for the rest.
+With [Cache Components](/docs/app/getting-started/caching) and [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), a [`<Link>`](/docs/app/api-reference/components/link) prefetches one reusable [**App Shell**](/docs/app/glossary#app-shell) per route by default. The App Shell includes the route's static output. For routes that read [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers), it also includes session-specific UI. Links to the same route reuse that App Shell.
 
-The App Shell is the floor. This guide is the follow-up to [Prefetching](/docs/app/guides/prefetching): once every route has one, you can tune what each prefetch carries on top of it.
-
-The shell cannot carry data that varies per link: [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) and [`params`](/docs/app/api-reference/file-conventions/page#params-optional), the route's [URL data](/docs/app/glossary#url-data). Resolving that URL data at prefetch time makes it ready before the click rather than streaming in after.
+The shared App Shell does not include URL data that varies by destination, such as [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) and [`params`](/docs/app/api-reference/file-conventions/page#params-optional). Set `prefetch={true}` on a link to resolve cached content that depends on its [URL data](/docs/app/glossary#url-data) before navigation instead of streaming that content after navigation.
 
 This guide assumes [Cache Components](/docs/app/getting-started/caching) with [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) enabled:
 
@@ -40,7 +38,7 @@ It also assumes your route is already structured for instant navigation. If it i
 
 ## Resolve URL data at prefetch time
 
-Per-link URL data is opted into with `<Link prefetch={true}>`. Any destination with [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching) enabled supports it, either globally via `partialPrefetching` or per segment with [`prefetch = 'partial'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch#partial).
+Set `<Link prefetch={true}>` to resolve URL data for that link before navigation. The destination must use [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), enabled globally with `partialPrefetching` or per segment with [`prefetch = 'partial'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch#partial).
 
 A user on `/` sees links to `/search?q=react` and `/search?q=next`, each opting in with `prefetch={true}`:
 
@@ -94,17 +92,15 @@ async function search(q: string) {
 
 Without `prefetch={true}`, the App Shell renders `<h1>` and shows the `<Results>` fallback. The query resolves after the click and streams the results in.
 
-With `prefetch={true}` on the link, the router prefetches a prerender that resolves `<Results>` before the click. The `q` value comes from the link's URL, known at prefetch time, and the cached `search(q)` fills in from there. On the click, the results render immediately, with no fallback.
+With `prefetch={true}` on the link, the router prefetches a prerender that resolves `<Results>` before the click. The `q` value comes from the link's URL, known at prefetch time, and the cached `search(q)` provides the result. On the click, the results render immediately, with no fallback.
 
 The prerender advances through anything static or cached, then stops at uncached reads and falls back to the surrounding `<Suspense>` boundary. That boundary is already in place from [structuring the route for instant navigation](/docs/app/guides/instant-navigation).
 
-More of the page is rendered before the user clicks, with fewer loading states.
-
-Generating it costs **a server invocation per prefetchable link**, so it is opt-in per link. On pages where all the content is statically renderable, Next.js serves the prefetch from the static cache instead. A page that accesses non-static data is generated per prefetch.
+Generating the per-link prefetch costs **a server invocation per prefetchable link**, so it is opt-in per link. On pages where all the content is statically renderable, Next.js serves the prefetch from the static cache instead. A page that accesses non-static data is generated per prefetch.
 
 > **Good to know:** A cold cache (first visit, or after expiration) means the server still has to compute the cached result. Users may see a loading spinner on that first navigation. Subsequent navigations are instant as long as the cache is warm.
 
-Like `searchParams`, `params` needs a `<Suspense>` boundary, even when the values are predefined by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params). A statically known param still belongs to one URL. Prefetching with `prefetch={true}` resolves the values `generateStaticParams` does not cover.
+Like `searchParams`, `params` needs a `<Suspense>` boundary, even when the values are predefined by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params). A statically known param still belongs to one URL. A per-link prefetch with `prefetch={true}` resolves the values `generateStaticParams` does not cover.
 
 ## Include session data in the shell
 
@@ -204,7 +200,7 @@ Skip it when the prefetch can't produce a better UI than the App Shell. Each vis
 - The dependent content has to be fresh on every request. The prerender stops at the same `<Suspense>` fallback, so the user sees the same UI either way.
 - The route is rarely navigated to. You pay per visible link, regardless of click-through.
 
-A per-link prefetch is best-effort. It only helps the navigations where it completes before the click. On a slow connection, on a feed of many links, or on a direct visit, it may not be ready when the user navigates, and the navigation falls back to the App Shell. That shell is the reliable baseline, and the per-link prefetch only layers on top when it arrives in time.
+A per-link prefetch is best-effort. It only helps the navigations where it completes before the click. On a slow connection, on a feed of many links, or on a direct visit, it may not be ready when the user navigates, and the navigation falls back to the App Shell.
 
 When many links to a route are visible at once, such as a grid of cards, each `<Link prefetch={true}>` prefetches that link's content as it enters the viewport, so the grid makes one such server request per card. Prefetch on intent instead. A [hover-triggered prefetch](/docs/app/guides/prefetching#hover-triggered-prefetch) fetches only the links the user is likely to click. The default `<Link>` (without `prefetch={true}`) prefetches only the App Shell, so it doesn't carry this cost.
 
@@ -213,7 +209,7 @@ When many links to a route are visible at once, such as a grid of cards, each `<
 | Scope   | One per route                               | One per visible `<Link prefetch={true}>` |
 | Content | Route's rendered output minus per-link data | Same, plus per-link URL data resolved    |
 | Cost    | Bounded by route count                      | Bounded by visible-link count            |
-| Role    | Every route's instant floor                 | Upgrade: more rendered before click      |
+| Role    | Default prefetch                            | More rendered before click               |
 
 ## Next steps
 

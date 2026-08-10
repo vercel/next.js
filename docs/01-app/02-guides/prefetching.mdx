@@ -88,7 +88,7 @@ With [Partial Prefetching](/docs/app/glossary#partial-prefetching) enabled via t
 - **The rest streams in.** Uncached data streams in after navigation, behind the shell's `<Suspense>` boundaries. A link can also resolve its URL data (`searchParams`, `params`) at prefetch time with [`prefetch={true}`](/docs/app/guides/optimizing-prefetching).
 - **Invalidations refresh prefetches.** Data invalidations (`revalidateTag`, `revalidatePath`) silently refresh associated prefetches.
 
-See [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) for the behavior change and the recommended adoption path, and [Optimizing prefetching](/docs/app/guides/optimizing-prefetching) for tuning what each prefetch carries on top of the App Shell.
+See [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) for the behavior change and the recommended adoption path. See [Optimizing prefetching](/docs/app/guides/optimizing-prefetching) to resolve cached URL-specific content before navigation with `prefetch={true}`.
 
 ## Controlling prefetching
 

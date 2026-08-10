@@ -36,7 +36,7 @@ This is also why client-side hooks behave differently. `useSearchParams()` suspe
 
 </details>
 
-Per-link prefetching extends the static shell with a link's URL data (`searchParams` and `params`) by invoking the route at prefetch time. Ensuring navigations are instant is the foundation: a route that doesn't navigate instantly without it won't navigate instantly with it either. See [Optimizing prefetching](/docs/app/guides/optimizing-prefetching) for the patterns.
+With `prefetch={true}`, per-link prefetching resolves a link's URL data (`searchParams` and `params`) before navigation. First make the route instant with its App Shell. Per-link prefetching cannot fix a route that blocks without it. See [Optimizing prefetching](/docs/app/guides/optimizing-prefetching) for the patterns.
 
 ## Quick start
 
@@ -82,13 +82,13 @@ With Cache Components, **caching directives** (`"use cache"` and its variants) a
 
 **`<Suspense>`** declares fallback UI for parts of the tree that read uncached data or runtime APIs like `cookies()` and `headers()`; the content streams into the fallback when it resolves.
 
-> **Good to know:** A fallback may access `cookies()`, `headers()`, or the full URL. At build time, the fallback itself suspends, and a `<Suspense>` boundary further up the tree is needed. With [per-link prefetching](/docs/app/guides/optimizing-prefetching), the information is available and such a fallback becomes part of the instant UI. Cached values like timestamps or data fetches can sit directly inside the fallback.
+> **Good to know:** A fallback may access `cookies()`, `headers()`, or the full URL. At build time, the fallback itself suspends, and a `<Suspense>` boundary further up the tree is needed. For a link with `prefetch={true}`, [per-link prefetching](/docs/app/guides/optimizing-prefetching) makes URL data available before navigation, so the fallback can become part of the prefetched UI. Cached values like timestamps or data fetches can sit directly inside the fallback.
 
-Next.js can also generate an [**App Shell**](/docs/app/glossary#app-shell) per route: a fallback that renders instantly during client navigations when nothing else is ready. [Per-link prefetching](/docs/app/guides/optimizing-prefetching) builds on it, resolving a link's URL data on top.
+Next.js can also generate an [**App Shell**](/docs/app/glossary#app-shell) per route, which renders during client navigations while remaining content streams. Partial Prefetching uses the App Shell as the default `<Link>` prefetch. A link with `prefetch={true}` can also resolve cached content that depends on that link's URL data.
 
-### Tune what `<Link>` prefetches
+### Prefetch URL data for a link
 
-Under [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), each visible `<Link>` prefetches the destination's App Shell by default. The shell is shared across every link to the same route, so rendering a `<Link>` is effectively free.
+Under [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), each visible `<Link>` prefetches the destination's App Shell by default. Links to the same route share one App Shell instead of triggering a separate App Shell request for each link.
 
 To prefetch the page content alongside the shell for a specific link, set [`prefetch={true}`](/docs/app/api-reference/components/link#prefetch):
 
@@ -579,6 +579,6 @@ For opted-out segments, the navigation blocks on the server. If the content depe
 
 - [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) for the recommended `<Link>` defaults and the migration path off `unstable_eager`
 - [`instant` API reference](/docs/app/api-reference/file-conventions/route-segment-config/instant) for the full configuration
-- [Optimizing prefetching](/docs/app/guides/optimizing-prefetching) when parts of your route depend on URL data (`searchParams` or `params`) and you want it in the shell
+- [Optimizing prefetching](/docs/app/guides/optimizing-prefetching) when parts of your route depend on URL data (`searchParams` or `params`) and should resolve before navigation
 - [Caching](/docs/app/getting-started/caching) for background on `use cache`, Suspense, and Partial Prerendering
 - [Revalidating](/docs/app/getting-started/revalidating) for how to expire cached data with `cacheLife` and `updateTag`

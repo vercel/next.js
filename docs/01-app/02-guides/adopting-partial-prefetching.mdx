@@ -14,7 +14,7 @@ related:
 
 [Partial Prefetching](/docs/app/glossary#partial-prefetching) changes what a `<Link>` downloads for a Cache Components route. With Partial Prefetching enabled, a `<Link>` prefetches the route's [App Shell](/docs/app/glossary#app-shell): its static content and the cached content that doesn't depend on the URL. Next.js builds one App Shell per route and reuses it for every link to that route, rather than prefetching each link separately as it did before.
 
-To prefetch more than the App Shell, a link can opt into [per-link prefetching](/docs/app/guides/optimizing-prefetching) with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch). The prefetch then also resolves the per-link runtime data (`params`, `searchParams`, and the full URL) and the cached content behind it.
+To prefetch more than the App Shell, a link can opt into [per-link prefetching](/docs/app/guides/optimizing-prefetching) with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch). The prefetch then also resolves URL-specific content that depends on `params`, `searchParams`, or the full URL.
 
 Along the way, Next.js surfaces [instant navigation](/docs/app/guides/instant-navigation) insights in development, naming the link or route to change.
 
@@ -65,11 +65,11 @@ After enabling the flag, every `<Link>` prefetches its destination's App Shell, 
 
 ## What changes for `<Link>`
 
-| `<Link>` prop                       | Before (Cache Components default)                              | After Partial Prefetching                                                                                                          |
-| ----------------------------------- | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `<Link href="/x">`                  | Prefetched the cached page render.                             | Loads the shared App Shell for `/x`.                                                                                               |
-| `<Link href="/x" prefetch>`         | Prefetched the cached page render **and** any dynamic content. | Loads the App Shell, plus per-link runtime data through [prefetching](/docs/app/guides/optimizing-prefetching) when `/x` reads it. |
-| `<Link href="/x" prefetch={false}>` | Disabled prefetching for this link.                            | Unchanged. Still disabled.                                                                                                         |
+| `<Link>` prop                       | Before (Cache Components default)                              | After Partial Prefetching                                                                                                                  |
+| ----------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `<Link href="/x">`                  | Prefetched the cached page render.                             | Loads the shared App Shell for `/x`.                                                                                                       |
+| `<Link href="/x" prefetch>`         | Prefetched the cached page render **and** any dynamic content. | Loads the App Shell, plus URL-specific content through [per-link prefetching](/docs/app/guides/optimizing-prefetching) when `/x` reads it. |
+| `<Link href="/x" prefetch={false}>` | Disabled prefetching for this link.                            | Unchanged. Still disabled.                                                                                                                 |
 
 The App Shell is shared across every link to a given route, regardless of dynamic params, so rendering many `<Link>`s to the same destination doesn't multiply the work.
 

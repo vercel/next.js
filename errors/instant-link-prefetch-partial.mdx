@@ -61,7 +61,7 @@ Routes that opt into Partial Prefetching skip the dynamic data at prefetch time,
 
 ## Opt into Partial Prefetching
 
-Choose this fix when the target route has an [App Shell](/docs/app/glossary#app-shell) with dynamic content below it. Opting into Partial Prefetching tells Next.js to prefetch only the App Shell and defer the dynamic data to navigation. Opt in per-route or app-wide, and from there layer on further prefetch optimizations.
+Choose this fix when the target route has an [App Shell](/docs/app/glossary#app-shell) with dynamic content below it. Opting into Partial Prefetching tells Next.js to prefetch only the App Shell and defer the dynamic data to navigation. After opting in per route or app-wide, decide whether selected links should also prefetch URL-specific content.
 
 ### Patterns
 
@@ -92,7 +92,7 @@ module.exports = {
 `'partial'` prefetches only the App Shell, which is the route's static and cached content. Uncached dynamic data is no longer prefetched. To keep prefetching content that came down with `prefetch={true}`, work through two steps.
 
 1. Cache it with [`use cache`](/docs/app/api-reference/directives/use-cache). If the content doesn't depend on the URL, it gets included in the App Shell and that's enough.
-2. If it depends on per-link runtime data (`params`, `searchParams`), it can't be included in the shared App Shell. With Partial Prefetching enabled, `prefetch={true}` opts the link into [per-link prefetching](/docs/app/guides/optimizing-prefetching), so the cached content is prefetched behind the runtime read.
+2. If it depends on URL data (`params`, `searchParams`), it can't be included in the shared App Shell. With Partial Prefetching enabled, `prefetch={true}` opts the link into [per-link prefetching](/docs/app/guides/optimizing-prefetching), so the cached content can resolve before navigation.
 
 ```jsx filename="app/dashboard/page.js"
 import { Suspense } from 'react'

@@ -533,15 +533,15 @@ Read the [Instant navigation guide](/docs/app/guides/instant-navigation) for exa
 
 ### Prefetching
 
-With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching) enabled, the router prefetches each route's [App Shell](/docs/app/glossary#app-shell) by default, which already includes static content and the session data derived from `cookies()` and `headers()`. Prefetching extends further to **URL data**: the `searchParams` and dynamic `params` that vary per destination link.
+With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching) enabled, the router prefetches each route's [App Shell](/docs/app/glossary#app-shell) by default. The App Shell includes static content and session data derived from `cookies()` and `headers()`. To also prefetch cached content that depends on a link's **URL data**, such as `searchParams` or dynamic `params`, set `prefetch={true}` on that link.
 
 With [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) pointing at a [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching) route, Next.js renders that route's component tree again at prefetch time, this time with the destination URL resolved. The same rules apply, but more of the tree resolves now that its `searchParams` and `params` are in scope:
 
-- [`use cache`](#usage) called with values extracted from runtime APIs (passed as arguments) joins the runtime prerender
-- [`use cache: private`](/docs/app/api-reference/directives/use-cache-private) executes on the server, reads runtime data directly, and caches the result in the browser, joining the runtime prerender
-- [`<Suspense>`](#streaming-uncached-data) fallbacks stay in the runtime prerender while uncached content streams at request time
+- [`use cache`](#usage) called with values extracted from runtime APIs (passed as arguments) joins the per-link prefetch
+- [`use cache: private`](/docs/app/api-reference/directives/use-cache-private) executes on the server, reads runtime data directly, and caches the result in the browser as part of the per-link prefetch
+- [`<Suspense>`](#streaming-uncached-data) fallbacks stay in the prefetched UI while uncached content streams at request time
 
-This generates a **runtime prerender** that extends past the static shell with content the destination URL unlocks. Because it happens during the prefetch, the navigation has nothing to wait on. The cost is a server invocation per prefetchable link.
+This per-link prefetch includes cached content that resolves after the destination URL is known. It costs a server invocation per prefetchable link.
 
 For example, take a search page that reads `searchParams` from the URL:
 
