@@ -25,7 +25,7 @@ use turbopack_core::{
     target::CompileTarget,
 };
 use turbopack_ecmascript::{
-    AnalyzeMode,
+    AnalyzeMode, SpecifiedModuleType,
     analyzer::{
         Bump, ThreadLocal,
         graph::{EvalContext, VarGraph, create_graph},
@@ -84,6 +84,8 @@ pub fn benchmark(c: &mut Criterion) {
                     &eval_context,
                     AnalyzeMode::CodeGenerationAndTracing,
                     true,
+                    SpecifiedModuleType::Automatic,
+                    true,
                 ));
 
                 let input = BenchInput {
@@ -119,6 +121,8 @@ fn bench_create_graph(b: &mut Bencher, input: &BenchInput) {
             &input.program,
             &input.eval_context,
             AnalyzeMode::CodeGenerationAndTracing,
+            true,
+            SpecifiedModuleType::Automatic,
             true,
         ));
     });

@@ -96,9 +96,24 @@ interface ImportMetaGlobOptions {
   query?: string | Record<string, string | boolean>
   /** Override the base path used for resolving patterns and keying results. */
   base?: string
+  /** Whether glob matching is case-sensitive. Default: `true`. */
+  caseSensitive?: boolean
+}
+
+interface ImportMetaEnv {
+  readonly DEV: boolean
+  readonly PROD: boolean
+  readonly MODE: string
+  readonly BASE_URL: string
+  readonly SSR: boolean
 }
 
 interface ImportMeta {
+  /**
+   * Built-in environment metadata when using Turbopack.
+   */
+  readonly env: ImportMetaEnv
+
   /**
    * The HMR API for ESM modules when using Turbopack.
    * Equivalent to `module.hot` in CommonJS modules.

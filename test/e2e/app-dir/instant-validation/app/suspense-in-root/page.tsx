@@ -39,34 +39,26 @@ export default async function Page() {
           <DebugLinks href="/suspense-in-root/runtime/invalid-blocking-inside-runtime" />
         </li>
         <li>
-          <DebugLinks href="/suspense-in-root/runtime/invalid-sync-io" />
-        </li>
-        <li>
           <DebugLinks href="/suspense-in-root/runtime/valid-blocking-inside-runtime" />
-        </li>
-        <li>
-          <DebugLinks href="/suspense-in-root/runtime/valid-sync-io-in-static-parent" />
-        </li>
-        <li>
-          <DebugLinks href="/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent" />
-        </li>
-        <li>
-          <DebugLinks href="/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input" />
-        </li>
-        <li>
-          <DebugLinks href="/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata" />
         </li>
         <li>
           <DebugLinks href="/suspense-in-root/runtime/static-layout-above-runtime-config/inner" />
         </li>
+      </ul>
+
+      <h2>Sync IO</h2>
+      <ul>
         <li>
-          <DebugLinks href="/suspense-in-root/runtime/valid-sync-io-in-generate-metadata-static-page" />
+          <DebugLinks href="/suspense-in-root/sync-io/sync-io-after-cookies" />
         </li>
         <li>
-          <DebugLinks href="/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata" />
+          <DebugLinks href="/suspense-in-root/sync-io/sync-io-after-cookies-in-generate-metadata" />
         </li>
         <li>
-          <DebugLinks href="/suspense-in-root/runtime/valid-sync-io-in-layout-generate-metadata-static-page" />
+          <DebugLinks href="/suspense-in-root/sync-io/sync-io-after-cache-with-cookie-input" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/sync-io/sync-io-after-io" />
         </li>
       </ul>
 
@@ -306,6 +298,19 @@ export default async function Page() {
       <ul>
         <li>
           <DebugLinks href="/suspense-in-root/non-app-shell/valid-unguarded-static-params/123" />
+        </li>
+      </ul>
+
+      <h2>Blocking await attribution</h2>
+      <ul>
+        <li>
+          <DebugLinks href="/suspense-in-root/blocking-attribution/dynamic-then-dynamic" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/blocking-attribution/runtime-then-runtime" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/blocking-attribution/session-then-dynamic" />
         </li>
       </ul>
     </main>

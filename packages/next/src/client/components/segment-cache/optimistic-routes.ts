@@ -45,7 +45,11 @@
 
 import type { DynamicParamTypesShort } from '../../../shared/lib/app-router-types'
 import { PrefetchHint } from '../../../shared/lib/app-router-types'
-import type { RouteTree, FulfilledRouteCacheEntry } from './cache'
+import type {
+  RouteTree,
+  RSCSegmentData,
+  FulfilledRouteCacheEntry,
+} from './cache'
 import {
   EntryStatus,
   writeRouteIntoCache,
@@ -57,6 +61,7 @@ import {
 import { isValueExpired } from './cache-map'
 import { doesStaticSegmentAppearInURL } from '../../route-params'
 import type { NormalizedPathname, NormalizedSearch } from './cache-key'
+import { splitPathnameIntoParts } from './cache-key'
 import {
   appendLayoutVaryPath,
   finalizeLayoutVaryPath,
@@ -136,10 +141,13 @@ type KnownRoutePart =
 
 /**
  * Param values extracted during URL matching. Used to reify the template.
- * - string for regular dynamic [param]
- * - string[] for catch-all [...param] and optional catch-all [[...param]]
+ * Values are always strings: catch-all [...param] and optional catch-all
+ * [[...param]] values are joined with '/' at the time they're resolved, which
+ * matches how the rest of the system models catch-all cache keys (an empty
+ * optional catch-all is the empty string). Keeping a single value type keeps
+ * reads of this map monomorphic.
  */
-type ResolvedParams = Map<string, string | string[]>
+type ResolvedParams = Map<string, string>
 
 /**
  * Read the pattern from a KnownRoutePart, evicting it if expired.
@@ -202,7 +210,7 @@ export function discoverKnownRoute(
   search: NormalizedSearch,
   nextUrl: string | null,
   pendingEntry: PendingRouteCacheEntry | null,
-  routeTree: RouteTree,
+  routeTree: RouteTree<RSCSegmentData | null>,
   metadataVaryPath: PageVaryPath,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
@@ -211,7 +219,7 @@ export function discoverKnownRoute(
 ): FulfilledRouteCacheEntry {
   const tree = routeTree
 
-  const pathnameParts = pathname.split('/').filter((p) => p !== '')
+  const pathnameParts = splitPathnameIntoParts(pathname)
 
   if (pendingEntry !== null) {
     // Fulfill the pending entry first
@@ -283,7 +291,7 @@ function handleMismatchDueToRewrite(
   pathname: string,
   search: NormalizedSearch,
   nextUrl: string | null,
-  fullTree: RouteTree,
+  fullTree: RouteTree<RSCSegmentData | null>,
   metadataVaryPath: PageVaryPath,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
@@ -344,7 +352,7 @@ function discoverDynamicChild(
  */
 function discoverKnownRoutePart(
   parentKnownRoutePart: KnownRoutePart,
-  routeTree: RouteTree,
+  routeTree: RouteTree<RSCSegmentData | null>,
   pathnameParts: readonly string[],
   partIndex: number,
   existingEntry: FulfilledRouteCacheEntry | null,
@@ -353,7 +361,7 @@ function discoverKnownRoutePart(
   pathname: string,
   search: NormalizedSearch,
   nextUrl: string | null,
-  fullTree: RouteTree,
+  fullTree: RouteTree<RSCSegmentData | null>,
   metadataVaryPath: PageVaryPath,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
@@ -491,8 +499,7 @@ function discoverKnownRoutePart(
   const slots = routeTree.slots
   let resultFromChildren: FulfilledRouteCacheEntry | null = null
   if (slots !== null) {
-    for (const parallelRouteKey in slots) {
-      const childRouteTree = slots[parallelRouteKey]
+    for (const childRouteTree of slots.values()) {
       // Skip branches with refreshState set - these were reused from a
       // different route (e.g., a "default" parallel slot) and don't represent
       // the actual route structure for this URL.
@@ -609,7 +616,7 @@ export function matchKnownRoute(
   pathname: string,
   search: NormalizedSearch
 ): FulfilledRouteCacheEntry | null {
-  const pathnameParts = pathname.split('/').filter((p) => p !== '')
+  const pathnameParts = splitPathnameIntoParts(pathname)
   const resolvedParams: ResolvedParams = new Map()
   const match = matchKnownRoutePart(
     now,
@@ -791,7 +798,10 @@ function matchKnownRoutePart(
           !dynamicPattern.hasDynamicRewrite &&
           urlPart !== null
         ) {
-          resolvedParams.set(paramName, pathnameParts.slice(partIndex))
+          resolvedParams.set(
+            paramName,
+            pathnameParts.slice(partIndex).join('/')
+          )
           return { part: dynamicPart, pattern: dynamicPattern }
         }
         break
@@ -799,14 +809,17 @@ function matchKnownRoutePart(
         // Optional catch-all [[...param]]: consumes 0+ URL parts
         if (dynamicPattern !== null && !dynamicPattern.hasDynamicRewrite) {
           if (urlPart !== null) {
-            resolvedParams.set(paramName, pathnameParts.slice(partIndex))
+            resolvedParams.set(
+              paramName,
+              pathnameParts.slice(partIndex).join('/')
+            )
             return { part: dynamicPart, pattern: dynamicPattern }
           }
           // urlPart is null - can match with zero parts, but a direct pattern
           // (e.g., page.tsx alongside [[...param]]) takes precedence.
           const directPattern = readPattern(now, part)
           if (directPattern === null || directPattern.hasDynamicRewrite) {
-            resolvedParams.set(paramName, [])
+            resolvedParams.set(paramName, '')
             return { part: dynamicPart, pattern: dynamicPattern }
           }
         }
@@ -877,12 +890,12 @@ type ReifyAccumulator = {
  * produces a tree where segment [slug] has cacheKey "hello".
  */
 function reifyRouteTree(
-  pattern: RouteTree,
+  pattern: RouteTree<null>,
   resolvedParams: ResolvedParams,
   search: NormalizedSearch,
   parentPartialVaryPath: PartialSegmentVaryPath | null,
   acc: ReifyAccumulator
-): RouteTree {
+): RouteTree<null> {
   const originalSegment = pattern.segment
 
   // This segment's param (if any) is a root param iff the segment is at or
@@ -900,9 +913,9 @@ function reifyRouteTree(
     const staticSiblings = originalSegment[3]
     const newValue = resolvedParams.get(paramName)
     if (newValue !== undefined) {
-      const newCacheKey = Array.isArray(newValue)
-        ? newValue.join('/')
-        : newValue
+      // Catch-all values are already joined into a single string when they're
+      // resolved in matchKnownRoutePart, so the value can be used directly.
+      const newCacheKey = newValue
       newSegment = [paramName, newCacheKey, paramType, staticSiblings]
       partialVaryPath = appendLayoutVaryPath(
         parentPartialVaryPath,
@@ -921,16 +934,20 @@ function reifyRouteTree(
   }
 
   // Recurse into children with the (possibly updated) partial vary path
-  let newSlots: Record<string, RouteTree> | null = null
-  if (pattern.slots !== null) {
-    newSlots = {}
-    for (const key in pattern.slots) {
-      newSlots[key] = reifyRouteTree(
-        pattern.slots[key],
-        resolvedParams,
-        search,
-        partialVaryPath,
-        acc
+  let newSlots: Map<string, RouteTree<null>> | null = null
+  const patternSlots = pattern.slots
+  if (patternSlots !== null) {
+    newSlots = new Map()
+    for (const [key, childPattern] of patternSlots) {
+      newSlots.set(
+        key,
+        reifyRouteTree(
+          childPattern,
+          resolvedParams,
+          search,
+          partialVaryPath,
+          acc
+        )
       )
     }
   }
@@ -955,11 +972,13 @@ function reifyRouteTree(
       segment: newSegment,
       shellVaryPath: getShellSegmentVaryPath(newVaryPath),
       refreshState: pattern.refreshState,
-      slots: newSlots,
-
-      prefetchHints: pattern.prefetchHints,
-      isPage: true,
+      // Route cache patterns never carry seed data (see
+      // stripDataFromRouteTree), so neither do trees reified from them.
+      data: null,
       varyPath: newVaryPath,
+      isPage: true,
+      slots: newSlots,
+      prefetchHints: pattern.prefetchHints,
     }
   } else {
     // Layout segment: finalize without search params
@@ -972,11 +991,11 @@ function reifyRouteTree(
       segment: newSegment,
       shellVaryPath: getShellSegmentVaryPath(newVaryPath),
       refreshState: pattern.refreshState,
-      slots: newSlots,
-
-      prefetchHints: pattern.prefetchHints,
-      isPage: false,
+      data: null,
       varyPath: newVaryPath,
+      isPage: false,
+      slots: newSlots,
+      prefetchHints: pattern.prefetchHints,
     }
   }
 }

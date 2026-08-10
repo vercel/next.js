@@ -5,11 +5,10 @@
 
 mod util;
 
-use std::{env, path::PathBuf};
+use std::{env, fs::canonicalize, path::PathBuf};
 
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
-use dunce::canonicalize;
 use serde::Deserialize;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_rcstr::{RcStr, rcstr};
@@ -27,7 +26,10 @@ use turbo_tasks_fs::{
 use turbo_unix_path::sys_to_unix;
 use turbopack::{
     ModuleAssetContext,
-    module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
+    module_options::{
+        EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions,
+        side_effect_free_packages_glob,
+    },
 };
 use turbopack_core::{
     chunk::{ChunkingConfig, MangleType, MinifyType},
@@ -49,7 +51,7 @@ use turbopack_core::{
     },
 };
 use turbopack_css::chunk::CssChunkType;
-use turbopack_ecmascript::{TreeShakingMode, chunk::EcmascriptChunkType};
+use turbopack_ecmascript::chunk::EcmascriptChunkType;
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_node::{
     child_process_backend,
@@ -264,8 +266,10 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
 )]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct TestOptions {
-    #[serde(default = "default_tree_shaking_mode")]
-    tree_shaking_mode: Option<TreeShakingMode>,
+    #[serde(default = "default_true")]
+    follow_reexports: bool,
+    #[serde(default)]
+    module_fragments_enabled: bool,
     #[serde(default = "default_true")]
     remove_unused_imports: bool,
     #[serde(default = "default_true")]
@@ -273,13 +277,15 @@ struct TestOptions {
     #[serde(default = "default_true")]
     scope_hoisting: bool,
     #[serde(default)]
+    cjs_tree_shaking: bool,
+    #[serde(default)]
     minify: bool,
     #[serde(default)]
     production_chunking: bool,
-}
-
-fn default_tree_shaking_mode() -> Option<TreeShakingMode> {
-    Some(TreeShakingMode::ReexportsOnly)
+    /// Packages that are assumed to be side effect free, unless they declare otherwise in their
+    /// package.json.
+    #[serde(default)]
+    side_effect_free_packages: Vec<RcStr>,
 }
 
 fn default_true() -> bool {
@@ -289,12 +295,15 @@ fn default_true() -> bool {
 impl Default for TestOptions {
     fn default() -> Self {
         Self {
-            tree_shaking_mode: default_tree_shaking_mode(),
+            follow_reexports: default_true(),
+            module_fragments_enabled: false,
             remove_unused_exports: default_true(),
             remove_unused_imports: default_true(),
             scope_hoisting: default_true(),
+            cjs_tree_shaking: false,
             minify: false,
             production_chunking: false,
+            side_effect_free_packages: Vec::new(),
         }
     }
 }
@@ -422,6 +431,16 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             .resolved_cell(),
     );
 
+    let side_effect_free_packages = if options.side_effect_free_packages.is_empty() {
+        None
+    } else {
+        Some(
+            side_effect_free_packages_glob(Vc::cell(options.side_effect_free_packages.clone()))
+                .to_resolved()
+                .await?,
+        )
+    };
+
     let mut fallback_import_map = ImportMap::empty();
     fallback_import_map.insert_exact_alias(
         rcstr!("fallback"),
@@ -445,14 +464,19 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 import_externals: true,
                 enable_exports_info_inlining: true,
                 infer_module_side_effects: true,
+                cjs_tree_shaking: options.cjs_tree_shaking,
                 ..Default::default()
             },
             environment: Some(env),
-            tree_shaking_mode: options.tree_shaking_mode,
+            follow_reexports: options.follow_reexports,
+            module_fragments_enabled: options.module_fragments_enabled,
+            side_effect_free_packages,
             rules: vec![(
                 ContextCondition::InNodeModules,
                 ModuleOptionsContext {
-                    tree_shaking_mode: options.tree_shaking_mode,
+                    follow_reexports: options.follow_reexports,
+                    module_fragments_enabled: options.module_fragments_enabled,
+                    side_effect_free_packages,
                     ..Default::default()
                 }
                 .resolved_cell(),

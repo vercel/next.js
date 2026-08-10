@@ -26,8 +26,9 @@ pub async fn get_browser_runtime_code(
     chunk_loading_global: Vc<RcStr>,
     cross_origin: Vc<CrossOrigin>,
     chunk_load_retry: Vc<ChunkLoadRetry>,
-    has_async_modules: bool,
+    include_async_module_runtime: bool,
     chunk_loading: Vc<ChunkLoading>,
+    support_component_chunks: bool,
 ) -> Result<Vc<Code>> {
     let asset_context = *asset_context;
     let environment = asset_context.compile_time_info().environment();
@@ -114,11 +115,13 @@ pub async fn get_browser_runtime_code(
             var CHUNK_BASE_PATH = {};
             var RELATIVE_ROOT_PATH = {};
             var RUNTIME_PUBLIC_PATH = {};
+            const SUPPORT_COMPONENT_CHUNKS = {};
         "#,
         StringifyJs(&chunk_loading_global),
         StringifyJs(chunk_base_path),
         StringifyJs(relative_root_path.as_str()),
         StringifyJs(chunk_base_path),
+        support_component_chunks,
     )?;
 
     match &*asset_suffix {
@@ -189,8 +192,7 @@ pub async fn get_browser_runtime_code(
     )?;
 
     code.push_code(&*shared_runtime_utils_code.await?);
-    // Only include the async-module (top-level await) machinery when the app uses it.
-    if has_async_modules {
+    if include_async_module_runtime {
         code.push_code(
             &*embed_static_code(
                 asset_context,
@@ -232,8 +234,9 @@ pub async fn get_browser_runtime_code(
         );
     }
 
-    // Registering chunks and chunk lists depends on the BACKEND variable, which is set by the
-    // specific runtime code, hence it must be appended after it.
+    // Registering chunks/chunk lists depends on the BACKEND variable set by the specific
+    // runtime code, so it must be appended after it. `registerChunk` handles both queued forms:
+    // chunk-registration arrays and inlined entry-only params objects.
     writedoc!(
         code,
         r#"

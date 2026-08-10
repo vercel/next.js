@@ -17,6 +17,7 @@ import {
 } from '../../../shared/lib/action-revalidation-kind'
 import { removeTrailingSlash } from '../../../shared/lib/router/utils/remove-trailing-slash'
 import { encodeCacheTag } from '../../lib/encode-cache-tag'
+import { validateAndNormalizeCacheLifeProfile } from '../../use-cache/cache-life-profile'
 
 type CacheLifeConfig = {
   expire?: number
@@ -36,6 +37,8 @@ export function revalidateTag(tag: string, profile: string | CacheLifeConfig) {
     console.warn(
       '"revalidateTag" without the second argument is now deprecated, add second argument of "max" or use "updateTag". See more info here: https://nextjs.org/docs/messages/revalidate-tag-single-arg'
     )
+  } else if (typeof profile === 'object') {
+    profile = validateAndNormalizeCacheLifeProfile(profile, { kind: 'inline' })
   }
   return revalidate([encodeCacheTag(tag)], `revalidateTag ${tag}`, profile)
 }
@@ -208,6 +211,8 @@ function revalidate(
     store.pendingRevalidatedTags = []
   }
 
+  const revalidatedAt = performance.timeOrigin + performance.now()
+
   for (const tag of tags) {
     const existingIndex = store.pendingRevalidatedTags.findIndex((item) => {
       if (item.tag !== tag) return false
@@ -224,7 +229,13 @@ function revalidate(
       store.pendingRevalidatedTags.push({
         tag,
         profile,
+        revalidatedAt,
       })
+    } else {
+      // Revalidating a tag again invalidates everything produced up to now, so
+      // the latest revalidation is the one that decides which entries are
+      // stale.
+      store.pendingRevalidatedTags[existingIndex].revalidatedAt = revalidatedAt
     }
   }
 
@@ -236,7 +247,7 @@ function revalidate(
       ? profile
       : profile &&
           typeof profile === 'string' &&
-          store?.cacheLifeProfiles?.[profile]
+          store?.cacheLifeProfiles[profile]
         ? store.cacheLifeProfiles[profile]
         : undefined
 

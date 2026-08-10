@@ -56,16 +56,18 @@ jobs:
       #
       # We skip if either Graphite's optimizer says to skip, or the PR is a mid-stack PR in a
       # GitHub native stack. The bypass label overrides both.
-      skip: |-
-        ${{ env.HAS_BYPASS_LABEL == 'false' && (
-          steps.check-skip.outputs.skip == 'true' || env.IS_MID_STACK_NATIVE == 'true'
-        ) }}
+      skip: ${{ env.HAS_BYPASS_LABEL == 'false' && steps.check-skip.outputs.skip == 'true' }}
+      # Note: IS_MID_STACK_NATIVE is disabled for now because it doesn't
+      # understand if we're not on the bottom of the stack, but all the PRs
+      # below us are merged.
+      # <https://vercel.slack.com/archives/C04KC8A53T7/p1783018076576349>
+      #  || env.IS_MID_STACK_NATIVE == 'true'
     steps:
       - name: Optimize CI
         id: check-skip
         # Graphite's action is designed to fail open, but still sometimes fails if GH's infra flakes
         continue-on-error: true
-        uses: withgraphite/graphite-ci-action@ee395f3a78254c006d11339669c6cabddf196f72 # main
+        uses: withgraphite/graphite-ci-action@402a89bc8aa6db18ae1f9c61953d001d5f9d828f # main
         with:
           graphite_token: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN }}
       - name: Debug Output

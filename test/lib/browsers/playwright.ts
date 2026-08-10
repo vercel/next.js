@@ -1,9 +1,6 @@
 import fs from 'fs-extra'
 import { debugPrint } from 'next-test-utils'
 import {
-  chromium,
-  webkit,
-  firefox,
   Browser,
   BrowserContext,
   Page,
@@ -15,6 +12,7 @@ import {
   BrowserContextOptions,
 } from 'playwright'
 import path from 'path'
+import { getBrowserLaunch } from './launch'
 
 type EventType = 'request' | 'response'
 
@@ -170,7 +168,6 @@ export class Playwright<TCurrent = undefined> {
     locale: string,
     javaScriptEnabled: boolean,
     ignoreHTTPSErrors: boolean,
-    headless: boolean,
     userAgent: string | undefined,
     permissions: Permissions
   ) {
@@ -211,7 +208,7 @@ export class Playwright<TCurrent = undefined> {
       return
     }
 
-    browser = await this.launchBrowser(browserName, { headless })
+    browser = await this.launchBrowser(browserName)
     context = await browser.newContext({
       locale,
       javaScriptEnabled,
@@ -228,35 +225,25 @@ export class Playwright<TCurrent = undefined> {
     await page?.close()
   }
 
-  async launchBrowser(
-    browserName: string,
-    launchOptions: { headless: boolean }
-  ) {
-    if (browserName === 'safari') {
-      return await webkit.launch(launchOptions)
-    } else if (browserName === 'firefox') {
-      return await firefox.launch({
-        ...launchOptions,
-        firefoxUserPrefs: {
-          // The "fission.webContentIsolationStrategy" pref must be
-          // set to 1 on Firefox due to the bug where a new history
-          // state is pushed on a page reload.
-          // See https://github.com/microsoft/playwright/issues/22640
-          // See https://bugzilla.mozilla.org/show_bug.cgi?id=1832341
-          'fission.webContentIsolationStrategy': 1,
-        },
-      })
-    } else {
-      let launchArgs: string[] = []
-      if (!launchOptions.headless) {
-        launchArgs.push('--auto-open-devtools-for-tabs')
-      }
-      return await chromium.launch({
-        ...launchOptions,
-        args: launchArgs,
-        ignoreDefaultArgs: ['--disable-back-forward-cache'],
-      })
+  async launchBrowser(browserName: string) {
+    // Headless mode is controlled exclusively by the HEADLESS env var. It
+    // can't be a per-test option because the browser is shared: either
+    // launched once per process, or via the shared browser server below.
+    const headless = !!process.env.HEADLESS
+    const { browserType, launchOptions } = getBrowserLaunch(browserName, {
+      headless,
+    })
+
+    // `run-tests.js` launches a browser server that's shared across all test
+    // suites. Connect to it if it's available, otherwise (e.g. when running a
+    // test directly via the jest CLI) launch a browser owned by this process.
+    // The shared server is always headless (`run-tests.js` sets HEADLESS=true
+    // for all test suites), so only connect when we're headless too.
+    const wsEndpoint = process.env.NEXT_TEST_BROWSER_WS_ENDPOINT
+    if (wsEndpoint && headless) {
+      return await browserType.connect(wsEndpoint)
     }
+    return await browserType.launch(launchOptions)
   }
 
   async get(url: string): Promise<void> {

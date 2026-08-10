@@ -14,7 +14,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbopack_core::{
-    chunk::{Chunk, ChunkItem, ChunkItems, ChunkingContext, ModuleIds},
+    chunk::{Chunk, ChunkItem, ChunkItems, ChunkingContext, Chunks, ModuleIds},
     ident::AssetIdent,
     introspect::{
         Introspectable, IntrospectableChildren, module::IntrospectableModule,
@@ -48,6 +48,7 @@ pub use self::{
 pub struct EcmascriptChunk {
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub content: ResolvedVc<EcmascriptChunkContent>,
+    pub component_chunks: Vec<ResolvedVc<Box<dyn Chunk>>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -56,12 +57,19 @@ impl EcmascriptChunk {
     pub fn new(
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         content: ResolvedVc<EcmascriptChunkContent>,
+        component_chunks: Vec<ResolvedVc<Box<dyn Chunk>>>,
     ) -> Vc<Self> {
         EcmascriptChunk {
             chunking_context,
             content,
+            component_chunks,
         }
         .cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn component_chunks(&self) -> Vc<Chunks> {
+        Vc::cell(self.component_chunks.clone())
     }
 
     #[turbo_tasks::function]

@@ -537,6 +537,47 @@ describe('app-dir - server source maps', () => {
     }
   })
 
+  it('thrown errors from "use cache" have a sourcemapped stack with a codeframe', async () => {
+    if (isNextDev) {
+      const outputIndex = next.cliOutput.length
+      await next.render('/rsc-error-throw-cached')
+
+      await retry(() => {
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          'Error: rsc-error-throw-cached'
+        )
+      })
+      const cliOutput = normalizeCliOutput(next.cliOutput.slice(outputIndex))
+      expect(cliOutput).toContain(
+        'Error: rsc-error-throw-cached' +
+          '\n    at throwsInCache (app/rsc-error-throw-cached/page.js:5:9)' +
+          '\n  3 | async function throwsInCache() {' +
+          "\n  4 |   'use cache'" +
+          "\n> 5 |   throw new Error('rsc-error-throw-cached')" +
+          '\n    |         ^' +
+          '\n  6 | }' +
+          '\n  7 |' +
+          '\n  8 | export default async function Page() {'
+      )
+      // The logged error is the one revived by the consuming Flight client,
+      // not the original from the cache environment.
+      expect(cliOutput).toContain("environmentName: 'Cache'")
+    } else {
+      const outputIndex = next.cliOutput.length
+      await next.render('/rsc-error-throw-cached')
+
+      await retry(() => {
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          'Error: rsc-error-throw-cached'
+        )
+      })
+      // React only creates fake stack frames in development.
+      expect(
+        normalizeCliOutput(next.cliOutput.slice(outputIndex))
+      ).not.toContain('about://React/')
+    }
+  })
+
   it('logged errors preserve their name', async () => {
     let cliOutput = next.cliOutput
     if (isNextDev) {

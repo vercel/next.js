@@ -16,10 +16,6 @@ describe('Invalid Image Import (dev)', () => {
     const description = await getRedboxDescription(browser)
     if (isTurbopack) {
       expect(description).toContain('Processing image failed')
-    } else if (process.env.NEXT_RSPACK) {
-      expect(description).toContain(
-        'Image import "../public/invalid.svg" is not a valid image file. The image may be corrupted or an unsupported format.'
-      )
     } else {
       expect(description).toContain(
         'Image import "../public/invalid.svg" is not a valid image file. The image may be corrupted or an unsupported format.'
@@ -33,11 +29,6 @@ describe('Invalid Image Import (dev)', () => {
       )
       expect(source).toContain(
         'Source code does not contain a <svg> root element'
-      )
-    } else if (process.env.NEXT_RSPACK) {
-      expect(source).toContain('./pages/index.js')
-      expect(source).toContain(
-        'Image import "../public/invalid.svg" is not a valid image file. The image may be corrupted or an unsupported format.'
       )
     } else {
       expect(source).toContain('./pages/index.js')

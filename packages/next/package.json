@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "16.3.0-canary.75",
+  "version": "16.3.1-canary.10",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -100,11 +100,11 @@
     ]
   },
   "dependencies": {
-    "@next/env": "16.3.0-canary.75",
-    "@swc/helpers": "0.5.15",
+    "@next/env": "16.3.1-canary.10",
+    "@swc/helpers": "0.5.23",
     "baseline-browser-mapping": "^2.9.19",
     "caniuse-lite": "^1.0.30001579",
-    "postcss": "8.5.10",
+    "postcss": "8.5.23",
     "styled-jsx": "5.1.6"
   },
   "peerDependencies": {
@@ -130,7 +130,7 @@
     }
   },
   "optionalDependencies": {
-    "sharp": "^0.34.5"
+    "sharp": "^0.35.3"
   },
   "devDependencies": {
     "@babel/core": "7.26.10",
@@ -162,13 +162,13 @@
     "@jest/transform": "29.5.0",
     "@jest/types": "29.5.0",
     "@modelcontextprotocol/sdk": "1.18.1",
-    "@mswjs/interceptors": "0.23.0",
+    "@mswjs/interceptors": "0.42.0",
     "@napi-rs/triples": "1.2.0",
-    "@next/font": "16.3.0-canary.75",
-    "@next/polyfill-module": "16.3.0-canary.75",
-    "@next/polyfill-nomodule": "16.3.0-canary.75",
-    "@next/react-refresh-utils": "16.3.0-canary.75",
-    "@next/swc": "16.3.0-canary.75",
+    "@next/font": "16.3.1-canary.10",
+    "@next/polyfill-module": "16.3.1-canary.10",
+    "@next/polyfill-nomodule": "16.3.1-canary.10",
+    "@next/react-refresh-utils": "16.3.1-canary.10",
+    "@next/swc": "16.3.1-canary.10",
     "@opentelemetry/api": "1.6.0",
     "@playwright/test": "1.61.0",
     "@rspack/core": "1.6.7",
@@ -219,6 +219,7 @@
     "@types/webpack-sources1": "npm:@types/webpack-sources@0.1.5",
     "@types/ws": "8.2.0",
     "@vercel/blob": "2.3.2",
+    "@vercel/detect-agent": "1.2.3",
     "@vercel/ncc": "0.38.4",
     "@vercel/nft": "1.10.2",
     "@vercel/routing-utils": "5.2.0",
@@ -266,10 +267,10 @@
     "fresh": "0.5.2",
     "glob": "7.1.7",
     "gzip-size": "5.1.1",
-    "http-proxy": "1.18.1",
     "http-proxy-agent": "5.0.0",
     "https-browserify": "1.0.0",
     "https-proxy-agent": "5.0.1",
+    "httpxy": "0.5.5",
     "icss-utils": "5.1.0",
     "ignore-loader": "0.1.2",
     "image-size": "1.2.1",

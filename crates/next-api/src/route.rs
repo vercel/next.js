@@ -21,7 +21,7 @@ use crate::{operation::OptionEndpoint, paths::AssetPath, project::Project};
 pub struct AppPageRoute {
     pub original_name: RcStr,
     pub html_endpoint: ResolvedVc<Box<dyn Endpoint>>,
-    pub rsc_endpoint: ResolvedVc<Box<dyn Endpoint>>,
+    pub rsc_hmr_endpoint: ResolvedVc<Box<dyn Endpoint>>,
 }
 
 #[turbo_tasks::value(shared)]

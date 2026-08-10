@@ -14,6 +14,7 @@ import {
   postponeWithTracking,
   annotateDynamicAccess,
 } from '../app-render/dynamic-rendering'
+import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
 
 import {
   workUnitAsyncStorage,
@@ -29,8 +30,9 @@ import {
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
   makeDevtoolsIOAwarePromise,
-  makeHangingPromise,
+  makeRuntimeHangingPromise,
   makePromiseFromTrigger,
+  trackRuntimeDataAccessed,
   RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
@@ -43,7 +45,6 @@ import {
   throwWithStaticGenerationBailoutErrorWithDynamicError,
   throwForSearchParamsAccessInUseCache,
 } from './utils'
-import { RenderStage } from '../app-render/staged-rendering'
 
 export type SearchParams = { [key: string]: string | string[] | undefined }
 
@@ -87,13 +88,10 @@ export function createSearchParamsFromClient(
         return makeUntrackedSearchParams(underlyingSearchParams)
       }
       case 'request':
-        // Client searchParams are not runtime prefetchable
-        const isRuntimePrefetchable = false
         return createRenderSearchParams(
           underlyingSearchParams,
           workStore,
-          workUnitStore,
-          isRuntimePrefetchable
+          workUnitStore
         )
       default:
         workUnitStore satisfies never
@@ -104,21 +102,18 @@ export function createSearchParamsFromClient(
 
 // generateMetadata always runs in RSC context so it is equivalent to a Server Page Component
 export function createServerSearchParamsForMetadata(
-  underlyingSearchParams: SearchParams,
-  isRuntimePrefetchable: boolean
+  underlyingSearchParams: SearchParams
 ): Promise<SearchParams> {
   const metadataVaryParamsAccumulator = getMetadataVaryParamsAccumulator()
   return createServerSearchParamsForServerPage(
     underlyingSearchParams,
-    metadataVaryParamsAccumulator,
-    isRuntimePrefetchable
+    metadataVaryParamsAccumulator
   )
 }
 
 export function createServerSearchParamsForServerPage(
   underlyingSearchParams: SearchParams,
-  varyParamsAccumulator: VaryParamsAccumulator | null,
-  isRuntimePrefetchable: boolean
+  varyParamsAccumulator: VaryParamsAccumulator | null
 ): Promise<SearchParams> {
   const workStore = workAsyncStorage.getStore()
   if (!workStore) {
@@ -149,16 +144,15 @@ export function createServerSearchParamsForServerPage(
       case 'prerender-runtime':
         return createRuntimePrerenderSearchParams(
           underlyingSearchParams,
+          workStore,
           workUnitStore,
-          varyParamsAccumulator,
-          isRuntimePrefetchable
+          varyParamsAccumulator
         )
       case 'request':
         return createRenderSearchParams(
           underlyingSearchParams,
           workStore,
-          workUnitStore,
-          isRuntimePrefetchable
+          workUnitStore
         )
       default:
         workUnitStore satisfies never
@@ -185,10 +179,11 @@ export function createPrerenderSearchParamsForClientPage(): Promise<SearchParams
       case 'prerender-client':
         // We're prerendering in a mode that aborts (cacheComponents) and should stall
         // the promise to ensure the RSC side is considered dynamic
-        return makeHangingPromise(
+        return makeRuntimeHangingPromise(
           workUnitStore.renderSignal,
           workStore.route,
-          '`searchParams`'
+          '`searchParams`',
+          workUnitStore
         )
       case 'validation-client':
         throw new InvariantError(
@@ -246,32 +241,43 @@ function createStaticPrerenderSearchParams(
 
 function createRuntimePrerenderSearchParams(
   underlyingSearchParams: SearchParams,
+  workStore: WorkStore,
   workUnitStore: PrerenderStoreModernRuntime,
-  varyParamsAccumulator: VaryParamsAccumulator | null,
-  isRuntimePrefetchable: boolean
+  varyParamsAccumulator: VaryParamsAccumulator | null
 ): Promise<SearchParams> {
-  const underlyingSearchParamsWithVarying =
+  const userspaceSearchParams =
     varyParamsAccumulator !== null
       ? createVaryingSearchParams(varyParamsAccumulator, underlyingSearchParams)
       : underlyingSearchParams
 
-  const result = makeUntrackedSearchParams(underlyingSearchParamsWithVarying)
+  const result = makeUntrackedSearchParams(userspaceSearchParams)
   const { stagedRendering } = workUnitStore
   if (!stagedRendering) {
+    // If there's no staging, we're in a prospective runtime prerender.
+    if (workUnitStore.isSessionShell) {
+      // If we're warming up for a session shell, search params should hang,
+      // because they'll be a hanging input in the final prerender.
+      return makeHangingSearchParams(workStore, workUnitStore)
+    }
     return result
   }
-  const searchParamsStages = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
-  const stage = isRuntimePrefetchable
-    ? searchParamsStages.early
-    : searchParamsStages.late
-  return stagedRendering.waitForStage(stage).then(() => result)
+  // Unlike `createRuntimePrerenderParams`, which uses `delayUntilStage`, we
+  // resolve with `waitForStage(...).then(...)` here. Switching search params to
+  // `delayUntilStage` drops the source code frame from the instant-validation
+  // "URL data outside of Suspense" error when a page awaits `searchParams` at
+  // the top level (params, read via a nested component, is unaffected). See the
+  // `missing suspense around search params` cases in the instant-validation
+  // `suspense-boundaries` tests. The underlying reason in React's async I/O
+  // await tracking isn't understood yet. TODO: align search params with params
+  // on `delayUntilStage` once resolved.
+  const searchParamsStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+  return stagedRendering.waitForStage(searchParamsStage).then(() => result)
 }
 
 function createRenderSearchParams(
   underlyingSearchParams: SearchParams,
   workStore: WorkStore,
-  requestStore: RequestStore,
-  isRuntimePrefetchable: boolean
+  requestStore: RequestStore
 ): Promise<SearchParams> {
   const { asyncApiPromises, validationSamples } = requestStore
 
@@ -288,7 +294,6 @@ function createRenderSearchParams(
     return createStagedRenderSearchParams(
       workStore,
       asyncApiPromises,
-      isRuntimePrefetchable,
       underlyingSearchParams,
       userspaceSearchParams
     )
@@ -319,13 +324,10 @@ function createRenderSearchParams(
 function createStagedRenderSearchParams(
   workStore: WorkStore,
   asyncApiPromises: NonNullable<RequestStore['asyncApiPromises']>,
-  isRuntimePrefetchable: boolean,
   underlyingSearchParams: SearchParams,
   userspaceSearchParams: SearchParams
 ): Promise<SearchParams> {
-  const trigger = isRuntimePrefetchable
-    ? asyncApiPromises.earlySharedSearchParamsParent
-    : asyncApiPromises.sharedSearchParamsParent
+  const trigger = asyncApiPromises.sharedSearchParamsParent
 
   if (process.env.NODE_ENV === 'development') {
     // We wrap each instance of searchParams in a `new Promise()`.
@@ -375,22 +377,34 @@ const CachedSearchParamsForUseCache = new WeakMap<
 
 function makeHangingSearchParams(
   workStore: WorkStore,
-  prerenderStore: PrerenderStoreModern
+  prerenderStore: PrerenderStoreModern | PrerenderStoreModernRuntime
 ): Promise<SearchParams> {
   const cachedSearchParams = CachedSearchParams.get(prerenderStore)
   if (cachedSearchParams) {
     return cachedSearchParams
   }
 
-  const promise = makeHangingPromise<SearchParams>(
+  const promise = makeRuntimeHangingPromise<SearchParams>(
     prerenderStore.renderSignal,
     workStore.route,
-    '`searchParams`'
+    '`searchParams`',
+    // This promise is created for every page whether or not it reads search
+    // params, so recording the access at creation would mark every render.
+    // The access is tracked in the proxy traps below instead.
+    null
   )
 
-  const proxiedPromise = new Proxy(promise, {
+  const trackSearchParamsAccessed = () => {
+    // Record against the store that's active at access time: the promise is
+    // created while the RSC payload is constructed, but typically accessed
+    // later, during the render, under a different store.
+    const workUnitStore = workUnitAsyncStorage.getStore()
+    trackRuntimeDataAccessed(workUnitStore ?? prerenderStore)
+  }
+
+  const proxyHandler: ProxyHandler<Promise<SearchParams>> = {
     get(target, prop, receiver) {
-      if (Object.hasOwn(promise, prop)) {
+      if (Object.hasOwn(target, prop)) {
         // The promise has this property directly. we must return it.
         // We know it isn't a dynamic access because it can only be something
         // that was previously written to the promise and thus not an underlying searchParam value
@@ -398,15 +412,38 @@ function makeHangingSearchParams(
       }
 
       switch (prop) {
-        case 'then': {
-          const expression =
-            '`await searchParams`, `searchParams.then`, or similar'
-          annotateDynamicAccess(expression, prerenderStore)
-          return ReflectAdapter.get(target, prop, receiver)
+        case 'then':
+        case 'catch':
+        case 'finally': {
+          const originalMethod = ReflectAdapter.get(target, prop, receiver)
+          return {
+            [prop]: (...args: unknown[]) => {
+              const expression =
+                '`await searchParams`, `searchParams.then`, or similar'
+              trackSearchParamsAccessed()
+              annotateDynamicAccess(expression, prerenderStore)
+              // Mirror `makeHangingParams`: when this never-resolving promise
+              // is awaited while a `use cache` key is being encoded
+              // (dynamicAccessAsyncStorage is set), abort so the surrounding
+              // cache bails out to a dynamic hole instead of hanging on it.
+              // Without this, a private cache that reads `searchParams` would
+              // stall the App Shell cache-warming render. Re-wrapping the
+              // result propagates the same behavior to promises derived via
+              // `.then`/`.catch`/`.finally` that are then passed into a cache.
+              const dynamicAccessStore = dynamicAccessAsyncStorage.getStore()
+              if (dynamicAccessStore) {
+                dynamicAccessStore.abortController.abort(
+                  new Error('Accessed `searchParams` during prerendering.')
+                )
+              }
+              return new Proxy(originalMethod.apply(target, args), proxyHandler)
+            },
+          }[prop]
         }
         case 'status': {
           const expression =
             '`use(searchParams)`, `searchParams.status`, or similar'
+          trackSearchParamsAccessed()
           annotateDynamicAccess(expression, prerenderStore)
           return ReflectAdapter.get(target, prop, receiver)
         }
@@ -416,7 +453,9 @@ function makeHangingSearchParams(
         }
       }
     },
-  })
+  }
+
+  const proxiedPromise = new Proxy(promise, proxyHandler)
 
   CachedSearchParams.set(prerenderStore, proxiedPromise)
   return proxiedPromise
@@ -567,7 +606,7 @@ function makeUntrackedSearchParamsWithDevWarningsImpl(
   const promise = makeDevtoolsIOAwarePromise(
     proxiedUnderlying,
     requestStore,
-    RenderStage.Runtime
+    RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
   )
 
   promise.then(

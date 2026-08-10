@@ -43,6 +43,17 @@ jobs:
           echo "$(node scripts/run-for-change.mjs --not --type docs --exec echo 'false')" >> $GITHUB_OUTPUT;
           echo 'EOF' >> $GITHUB_OUTPUT
 
+      - name: check for turbopack only change
+        id: turbopack-change
+        run: |
+          set -euo pipefail
+          TURBOPACK_ONLY="$(node scripts/run-for-change.mjs --not --type turbopack --exec echo 'false')"
+          {
+            echo "TURBOPACK_ONLY<<EOF"
+            echo "$TURBOPACK_ONLY"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: check for release
         id: is-release
         run: |
@@ -56,6 +67,12 @@ jobs:
     outputs:
       docs-only: ${{ steps.docs-change.outputs.DOCS_ONLY != 'false' }}
       is-release: ${{ steps.is-release.outputs.IS_RELEASE == 'true' }}
+      # Pull requests only, so canary and release run all Webpack tests.
+      turbopack-only: >-
+        ${{
+          github.event_name == 'pull_request' &&
+          steps.turbopack-change.outputs.TURBOPACK_ONLY != 'false'
+        }}
       rspack: >-
         ${{
           steps.is-release.outputs.IS_RELEASE == 'true' || (
@@ -116,18 +133,6 @@ jobs:
     with:
       skipInstallBuild: 'yes'
       stepName: 'build-native'
-      uploadNativeArtifact: true
-    secrets: inherit
-
-  build-native-x64:
-    name: build-native-x64
-    uses: ./.github/workflows/build_reusable.yml
-    needs: ['changes']
-    if: ${{ needs.changes.outputs.docs-only == 'false' }}
-    with:
-      skipInstallBuild: 'yes'
-      stepName: 'build-native-x64'
-      runs_on_labels: '["ubuntu-latest-16-core-oss"]'
       uploadNativeArtifact: true
     secrets: inherit
 
@@ -230,6 +235,11 @@ jobs:
         pnpm lint-no-typescript
         pnpm check-examples
         pnpm validate-externals-doc
+        # Regenerate the browser-variant lists and fail if they changed, i.e. a
+        # `*.browser.{ts,tsx}` sibling was added/removed without running
+        # `pnpm generate-browser-variant-aliases` and committing the result.
+        pnpm generate-browser-variant-aliases
+        git diff --exit-code
       stepName: 'lint'
     secrets: inherit
 
@@ -722,12 +732,52 @@ jobs:
       timeout_minutes: 120 # Increase the default timeout as tests are intentionally run multiple times to detect flakes
     secrets: inherit
 
+  # The deploy tests install Next.js from the preview tarballs for this commit.
+  # Those are published by `upload-preview-tarballs`, which runs on
+  # `workflow_run` after `build-and-deploy` finishes, and for non-fork pull
+  # requests `build-and-deploy` itself runs on the `push` event rather than
+  # `pull_request`. The tarballs are therefore produced by a different workflow
+  # and a different event, which `needs` cannot express, so poll for them here
+  # instead. Keeping the wait in this cheap job means the deploy test matrices
+  # do not occupy large runners while the tarballs are still being built.
+  wait-for-preview-tarball:
+    name: Wait for preview tarball
+    needs: ['optimize-ci', 'changes']
+    # `docs-only` and `is-release` mirror the cases where `build-and-deploy`
+    # resolves its deploy target to `skipped` and never publishes a tarball.
+    # test-new-tests-if
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.is-release == 'false' }}
+    # test-new-tests-end-if
+    runs-on: ubuntu-latest
+    # Outer bound only. The script gives up first, so a tarball that never
+    # arrives is reported by it rather than by the runner killing the job.
+    timeout-minutes: 35
+    permissions: {}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            scripts/git-info.mjs
+            scripts/wait-for-preview-tarball.mjs
+          sparse-checkout-cone-mode: false
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Wait for preview tarball
+        env:
+          PREVIEW_BUILDS_BASE_URL: ${{ vars.PREVIEW_BUILDS_BASE_URL }}
+          PREVIEW_BUILDS_READ_TOKEN: ${{ secrets.PREVIEW_BUILDS_READ_TOKEN }}
+        run: |
+          set -euo pipefail
+          node scripts/wait-for-preview-tarball.mjs \
+            --preview-builds-base-url "$PREVIEW_BUILDS_BASE_URL" \
+            --timeout-minutes 30
+
   test-new-tests-deploy:
     name: Test new and changed tests when deployed
-    needs:
-      ['optimize-ci', 'test-prod', 'test-new-tests-dev', 'test-new-tests-start']
+    needs: ['optimize-ci', 'changes', 'wait-for-preview-tarball']
     # test-new-tests-if
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' }}
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
     # test-new-tests-end-if
 
     strategy:
@@ -742,6 +792,7 @@ jobs:
         export NEXT_ENABLE_ADAPTER=1
         export NEXT_E2E_TEST_TIMEOUT=240000
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export IS_TURBOPACK_TEST=1
         node scripts/test-new-tests.mjs \
           --mode deploy \
           --group ${{ matrix.group }} \
@@ -752,15 +803,9 @@ jobs:
 
   test-new-tests-deploy-cache-components:
     name: Test new and changed tests when deployed (cache components)
-    needs:
-      [
-        'optimize-ci',
-        'test-cache-components-prod',
-        'test-new-tests-dev',
-        'test-new-tests-start',
-      ]
+    needs: ['optimize-ci', 'changes', 'wait-for-preview-tarball']
     # test-new-tests-if
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' }}
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
     # test-new-tests-end-if
 
     strategy:
@@ -773,10 +818,10 @@ jobs:
       afterBuild: |
         export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
         export NEXT_ENABLE_ADAPTER=1
         export NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json,test/cache-components-tests-manifest.json"
         export NEXT_E2E_TEST_TIMEOUT=240000
+        export IS_TURBOPACK_TEST=1
         node scripts/test-new-tests.mjs \
           --mode deploy \
           --group ${{ matrix.group }} \
@@ -791,11 +836,11 @@ jobs:
       [
         'optimize-ci',
         'changes',
-        'build-native-x64',
+        'build-native',
         'build-next',
         'fetch-test-timings',
       ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.turbopack-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -821,7 +866,7 @@ jobs:
           --type development
       testTimingsArtifact: 'test-timings'
       stepName: 'test-dev-react-${{ matrix.react }}-${{ matrix.group }}'
-      runs_on_labels: '["ubuntu-latest-16-core-oss"]'
+      runs_on_labels: '["ubuntu-latest-16-core-arm-oss"]'
     secrets: inherit
 
   test-dev-windows:
@@ -900,11 +945,11 @@ jobs:
       [
         'optimize-ci',
         'changes',
-        'build-native-x64',
+        'build-native',
         'build-next',
         'fetch-test-timings',
       ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.turbopack-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -926,7 +971,7 @@ jobs:
         node run-tests.js --timings --require-timings -g ${{ matrix.group }} --type production
       testTimingsArtifact: 'test-timings'
       stepName: 'test-prod-react-${{ matrix.react }}-${{ matrix.group }}'
-      runs_on_labels: '["ubuntu-latest-16-core-oss"]'
+      runs_on_labels: '["ubuntu-latest-16-core-arm-oss"]'
     secrets: inherit
 
   test-firefox-safari:
@@ -985,7 +1030,7 @@ jobs:
       afterBuild: |
         export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
+        export __NEXT_EXPERIMENTAL_SERVER_COMPONENTS_HMR_CANCELLATION=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export NEXT_TEST_MODE=dev
         export IS_TURBOPACK_TEST=1
@@ -1021,7 +1066,7 @@ jobs:
       afterBuild: |
         export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
+        export __NEXT_EXPERIMENTAL_SERVER_COMPONENTS_HMR_CANCELLATION=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export NEXT_TEST_MODE=start
         export IS_TURBOPACK_TEST=1
@@ -1048,7 +1093,6 @@ jobs:
       - optimize-ci
       - changes
       - build-native
-      - build-native-x64
       - build-next
       - fetch-test-timings
       - lint
@@ -1069,6 +1113,7 @@ jobs:
       - test-turbopack-dev
       - test-new-tests-dev
       - test-new-tests-start
+      - wait-for-preview-tarball
       - test-new-tests-deploy
       - test-new-tests-deploy-cache-components
       - test-turbopack-production

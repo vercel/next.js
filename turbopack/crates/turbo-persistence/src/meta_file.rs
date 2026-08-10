@@ -1,7 +1,6 @@
 use std::{
     cmp::Ordering,
     fmt::Display,
-    fs::File,
     path::{Path, PathBuf},
     sync::OnceLock,
 };
@@ -9,6 +8,7 @@ use std::{
 use anyhow::{Context, Result, bail};
 use bitfield::bitfield;
 use byteorder::{BE, ReadBytesExt};
+use fs_err::File;
 use memmap2::{Mmap, MmapOptions};
 use smallvec::SmallVec;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, big_endian as be};
@@ -267,8 +267,8 @@ impl MetaFile {
     }
 
     fn open_internal(db_path: PathBuf, sequence_number: u32, path: &Path) -> Result<Self> {
-        let file = File::open(path).context("Failed to open meta file")?;
-        let mmap = unsafe { MmapOptions::new().map(&file) }.context("Failed to mmap")?;
+        let file = File::open(path)?;
+        let mmap = unsafe { MmapOptions::new().map(file.file()) }.context("Failed to mmap")?;
         #[cfg(unix)]
         mmap.advise(memmap2::Advice::Random)
             .context("Failed to advise mmap")?;

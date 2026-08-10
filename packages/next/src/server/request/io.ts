@@ -1,7 +1,7 @@
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import {
-  makeHangingPromise,
+  makeDynamicHangingPromise,
   makeDevtoolsIOAwarePromise,
 } from '../dynamic-rendering-utils'
 import { RenderStage } from '../app-render/staged-rendering'
@@ -62,7 +62,7 @@ export function io(): Promise<void> {
         // When prerendering with Cache Components we consider `io()` to be
         // actual IO if not in a cache scope and we can avoid actually executing
         // anything after it by making it return a hanging promise.
-        return makeHangingPromise(
+        return makeDynamicHangingPromise(
           workUnitStore.renderSignal,
           workStore.route,
           '`io()`'

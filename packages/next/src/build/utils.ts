@@ -731,9 +731,7 @@ export async function isPageStatic({
   cacheMaxMemorySize: number
   cacheHandler?: string
   cacheHandlers?: Record<string, string | undefined>
-  cacheLifeProfiles?: {
-    [profile: string]: import('../server/use-cache/cache-life').CacheLife
-  }
+  cacheLifeProfiles: import('../server/config-shared').ResolvedCacheLifeProfiles
   nextConfigOutput: 'standalone' | 'export' | undefined
   pprConfig: ExperimentalPPRConfig | undefined
   buildId: string

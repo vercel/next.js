@@ -4,6 +4,9 @@ import fs from 'fs'
 import { NextAdapter } from 'next'
 
 function normalizeNFT(base: string, files: string[]): string[] {
+  const actualArch = `${process.platform}-${process.arch}`
+  const placeholderArch = '<PLATFORM>-<ARCH>'
+
   const result = [
     ...new Set(
       files
@@ -33,15 +36,10 @@ function normalizeNFT(base: string, files: string[]): string[] {
         })
         .map((file: string) => {
           // Normalize sharp, different architectures have different files
-          if (file.includes('/node_modules/@img/sharp-libvips-')) {
-            return '/node_modules/@img/sharp-libvips-*'
-          }
-          if (
-            file.match(
-              /\/node_modules\/@img\/sharp-\w+-\w+\/lib\/sharp-\w+-\w+.node$/
-            )
-          ) {
-            return '/node_modules/@img/sharp-*/sharp-*.node'
+          if (file.includes('/node_modules/@img/sharp')) {
+            file = file
+              .replaceAll(actualArch, placeholderArch)
+              .replace(/-\d+\.\d+\.\d+\.node$/, '-<VERSION>.node')
           }
 
           // Strip double node_modules to simplify output
@@ -134,8 +132,9 @@ async function readNormalizedNFT(next, name) {
         expect(traceGrouped).toMatchInlineSnapshot(`
          [
            "/node_modules/@img/colour/*",
-           "/node_modules/@img/sharp-*/sharp-*.node",
-           "/node_modules/@img/*",
+           "/node_modules/@img/sharp-<PLATFORM>-<ARCH>/*",
+           "/node_modules/@img/sharp-<PLATFORM>-<ARCH>/lib/sharp-<PLATFORM>-<ARCH>-<VERSION>.node",
+           "/node_modules/@img/sharp-libvips-<PLATFORM>-<ARCH>/*",
            "/node_modules/@next/env/*",
            "/node_modules/@swc/helpers/*",
            "/node_modules/client-only/*",
@@ -179,6 +178,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/compiled/@mswjs/interceptors/ClientRequest/index.js",
            "/node_modules/next/dist/compiled/@napi-rs/triples/index.js",
            "/node_modules/next/dist/compiled/@opentelemetry/api/index.js",
+           "/node_modules/next/dist/compiled/@vercel/detect-agent/index.js",
            "/node_modules/next/dist/compiled/async-retry/index.js",
            "/node_modules/next/dist/compiled/async-sema/index.js",
            "/node_modules/next/dist/compiled/busboy/index.js",
@@ -195,7 +195,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/compiled/edge-runtime/index.js",
            "/node_modules/next/dist/compiled/find-up/index.js",
            "/node_modules/next/dist/compiled/fresh/index.js",
-           "/node_modules/next/dist/compiled/http-proxy/index.js",
+           "/node_modules/next/dist/compiled/httpxy/index.js",
            "/node_modules/next/dist/compiled/image-detector/detector.js",
            "/node_modules/next/dist/compiled/image-size/index.js",
            "/node_modules/next/dist/compiled/ipaddr.js/ipaddr.js",
@@ -245,7 +245,6 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/lib/constants.js",
            "/node_modules/next/dist/lib/create-client-router-filter.js",
            "/node_modules/next/dist/lib/default-transpiled-packages.json",
-           "/node_modules/next/dist/lib/detached-promise.js",
            "/node_modules/next/dist/lib/detect-typo.js",
            "/node_modules/next/dist/lib/download-swc.js",
            "/node_modules/next/dist/lib/error-telemetry-utils.js",
@@ -266,6 +265,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/lib/get-network-host.js",
            "/node_modules/next/dist/lib/get-package-version.js",
            "/node_modules/next/dist/lib/get-project-dir.js",
+           "/node_modules/next/dist/lib/git-worktree.js",
            "/node_modules/next/dist/lib/has-necessary-dependencies.js",
            "/node_modules/next/dist/lib/helpers/get-cache-directory.js",
            "/node_modules/next/dist/lib/helpers/get-npx-command.js",
@@ -344,12 +344,16 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/lib/setup-exception-listeners.js",
            "/node_modules/next/dist/lib/static-env.js",
            "/node_modules/next/dist/lib/try-to-parse-path.js",
+           "/node_modules/next/dist/lib/turbopack-cache-seed.js",
            "/node_modules/next/dist/lib/turbopack-warning.js",
            "/node_modules/next/dist/lib/typescript/diagnosticFormatter.js",
            "/node_modules/next/dist/lib/typescript/getTypeScriptConfiguration.js",
            "/node_modules/next/dist/lib/typescript/getTypeScriptIntent.js",
+           "/node_modules/next/dist/lib/typescript/loadTsConfig.js",
            "/node_modules/next/dist/lib/typescript/missingDependencyError.js",
            "/node_modules/next/dist/lib/typescript/runTypeCheck.js",
+           "/node_modules/next/dist/lib/typescript/runTypeCheckCli.js",
+           "/node_modules/next/dist/lib/typescript/runTypeScriptCli.js",
            "/node_modules/next/dist/lib/typescript/type-paths.js",
            "/node_modules/next/dist/lib/typescript/writeAppTypeDeclarations.js",
            "/node_modules/next/dist/lib/typescript/writeConfigurationDefaults.js",
@@ -362,9 +366,9 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/lib/worker.js",
            "/node_modules/next/dist/server/*",
            "/node_modules/next/dist/shared/*",
+           "/node_modules/next/dist/telemetry/agent-name.js",
            "/node_modules/next/dist/telemetry/anonymous-meta.js",
            "/node_modules/next/dist/telemetry/detached-flush.js",
-           "/node_modules/next/dist/telemetry/detect-agent.js",
            "/node_modules/next/dist/telemetry/events/build.js",
            "/node_modules/next/dist/telemetry/events/index.js",
            "/node_modules/next/dist/telemetry/events/plugins.js",
@@ -454,7 +458,6 @@ async function readNormalizedNFT(next, name) {
         expect(trace).toMatchInlineSnapshot(`
          [
            "/node_modules/client-only/index.js",
-           "/node_modules/next/dist/client/components/app-router-headers.js",
            "/node_modules/next/dist/compiled/@opentelemetry/api/index.js",
            "/node_modules/next/dist/compiled/next-server/server.runtime.prod.js",
            "/node_modules/next/dist/compiled/source-map/source-map.js",
@@ -473,7 +476,6 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/server/app-render/async-local-storage.js",
            "/node_modules/next/dist/server/app-render/console-async-storage-instance.js",
            "/node_modules/next/dist/server/app-render/console-async-storage.external.js",
-           "/node_modules/next/dist/server/app-render/staged-rendering.js",
            "/node_modules/next/dist/server/app-render/work-async-storage-instance.js",
            "/node_modules/next/dist/server/app-render/work-async-storage.external.js",
            "/node_modules/next/dist/server/app-render/work-unit-async-storage-instance.js",
@@ -516,7 +518,6 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/shared/lib/is-plain-object.js",
            "/node_modules/next/dist/shared/lib/is-thenable.js",
            "/node_modules/next/dist/shared/lib/no-fallback-error.external.js",
-           "/node_modules/next/dist/shared/lib/promise-with-resolvers.js",
            "/node_modules/next/dist/shared/lib/server-reference-info.js",
            "/node_modules/react/cjs/react.production.js",
            "/node_modules/react/index.js",
@@ -626,7 +627,6 @@ async function readNormalizedNFT(next, name) {
            "./.next/server/server-reference-manifest.json",
            "/node_modules/@swc/helpers/cjs/_interop_require_default.cjs",
            "/node_modules/next/dist/build/adapter/setup-node-env.external.js",
-           "/node_modules/next/dist/client/components/app-router-headers.js",
            "/node_modules/next/dist/client/components/hooks-server-context.js",
            "/node_modules/next/dist/client/components/static-generation-bailout.js",
            "/node_modules/next/dist/client/lib/console.js",
@@ -705,6 +705,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/server/route-modules/app-page/vendored/contexts/router-context.js",
            "/node_modules/next/dist/server/route-modules/app-page/vendored/contexts/server-inserted-html.js",
            "/node_modules/next/dist/server/runtime-reacts.external.js",
+           "/node_modules/next/dist/server/web/spec-extension/adapters/reflect.js",
            "/node_modules/next/dist/shared/lib/deep-freeze.js",
            "/node_modules/next/dist/shared/lib/instant-messages.js",
            "/node_modules/next/dist/shared/lib/invariant-error.js",

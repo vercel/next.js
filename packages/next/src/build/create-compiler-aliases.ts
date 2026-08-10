@@ -16,10 +16,8 @@ import {
 import type { NextConfigComplete } from '../server/config-shared'
 import { defaultOverrides } from '../server/require-hook'
 import { hasExternalOtelApiPackage } from './webpack-config'
-import {
-  NEXT_PROJECT_ROOT,
-  NEXT_PROJECT_ROOT_DIST_CLIENT,
-} from './next-dir-paths'
+import { NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_DIST } from './next-dir-paths'
+import { browserVariantModules } from './browser-variant-modules'
 import { shouldUseReactServerCondition } from './utils'
 
 interface CompilerAliases {
@@ -63,6 +61,9 @@ export function createWebpackAliases({
   const pageExtensions = config.pageExtensions
   const customAppAliases: CompilerAliases = {}
   const customDocumentAliases: CompilerAliases = {}
+  const isInstantNavigationTestingEnabled =
+    config.cacheComponents === true &&
+    (dev || config.experimental.exposeTestingApiInProductionBuild === true)
 
   // tell webpack where to look for _app and _document
   // using aliases to allow falling back to the default
@@ -170,15 +171,34 @@ export function createWebpackAliases({
           // disable typechecker, webpack5 allows aliases to be set to false to create a no-op module
           'private-next-empty-module': false as any,
 
-          // In the browser bundle, swap the default `unstable-rethrow` (which holds the
-          // full server logic) for its `.browser` sibling. The server checks can never
-          // occur in the browser, and bundling the default would drag server-only modules
-          // into the client bundle. Server/edge compilers are not aliased and keep the
-          // default. The trailing `$` is an exact match so it cannot catch `.browser.js`.
-          [path.join(
-            NEXT_PROJECT_ROOT_DIST_CLIENT,
-            'components/unstable-rethrow.js'
-          ) + '$']: 'next/dist/client/components/unstable-rethrow.browser',
+          // In the browser bundle, swap every module that has a `.browser` sibling
+          // (see browser-variant-modules.ts, generated from the filesystem) for that
+          // sibling. The default module holds the full server logic; bundling it would
+          // drag server-only modules into the client bundle. Server/edge compilers are
+          // not aliased and keep the default. The trailing `$` is an exact match so it
+          // cannot catch the `.browser.js` file itself.
+          ...Object.fromEntries(
+            browserVariantModules.map((moduleId) => [
+              path.join(NEXT_PROJECT_ROOT_DIST, `${moduleId}.js`) + '$',
+              `next/dist/${moduleId}.browser`,
+            ])
+          ),
+
+          // When the Instant Navigation Testing API is unavailable (Cache
+          // Components is disabled, or this is a production build without
+          // `experimental.exposeTestingApiInProductionBuild`), swap the
+          // navigation lock implementation for an inert shim so the testing
+          // machinery does not ship in the browser bundle. Same resolved-path
+          // matching as the browser-variant swap above.
+          ...(!isInstantNavigationTestingEnabled
+            ? {
+                [path.join(
+                  NEXT_PROJECT_ROOT_DIST,
+                  'client/components/segment-cache/navigation-testing-lock.js'
+                ) + '$']:
+                  'next/dist/client/components/segment-cache/navigation-testing-lock.disabled',
+              }
+            : {}),
         }
       : {}),
 

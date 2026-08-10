@@ -313,7 +313,7 @@ impl TurboBackingStorage {
                 let _span = tracing::trace_span!("commit").entered();
                 // Byte totals are the physical on-disk bytes (post-compression, including .sst /
                 // .blob / .meta files) produced and removed by the commit.
-                let stats = batch.commit().context("Unable to commit operations")?;
+                let stats = batch.commit().context("Unable to commit snapshot")?;
                 snapshot_meta.bytes_written = stats.bytes_written;
                 snapshot_meta.bytes_deleted = stats.bytes_deleted;
             }

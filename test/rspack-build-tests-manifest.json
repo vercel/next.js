@@ -8217,7 +8217,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/use-cache-dev/use-cache-dev.test.ts": {
+  "test/development/app-dir/use-cache-dev/use-cache-dev.test.ts": {
     "passed": [
       "use-cache-dev should ignore an existing HMR refresh hash cookie with \"next start\""
     ],
@@ -22006,9 +22006,9 @@
       "NEXT_HASH_SALT should produce chunk files",
       "NEXT_HASH_SALT should produce css files",
       "NEXT_HASH_SALT should produce image files",
-      "experimental.outputHashSalt combined salt differs from config-only salt",
-      "experimental.outputHashSalt combined salt differs from env-var-only salt",
-      "experimental.outputHashSalt config salt changes filenames compared to no salt"
+      "outputHashSalt combined salt differs from config-only salt",
+      "outputHashSalt combined salt differs from env-var-only salt",
+      "outputHashSalt config salt changes filenames compared to no salt"
     ],
     "failed": [],
     "pending": [],

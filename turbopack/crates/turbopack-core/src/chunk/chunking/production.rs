@@ -11,7 +11,7 @@ use crate::{
     chunk::{
         ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo,
         ChunkingConfig,
-        chunking::{ChunkItemOrBatchWithInfo, SplitContext, make_chunk},
+        chunking::{ChunkItemOrBatchWithInfo, ComponentChunkItems, SplitContext, make_chunk},
     },
     module_graph::{
         ModuleGraph,
@@ -131,6 +131,8 @@ pub async fn make_production_chunks(
             first_page_load_priority,
             priority_boost_percent,
             request_cost,
+            generate_component_chunks,
+            min_component_chunk_size,
             ..
         } = chunking_config;
 
@@ -140,6 +142,7 @@ pub async fn make_production_chunks(
                 make_chunk(
                     group.chunk_items,
                     group.batch_group.into_iter().collect(),
+                    Vec::new(),
                     &mut String::new(),
                     &mut split_context,
                 )
@@ -162,6 +165,11 @@ pub async fn make_production_chunks(
                             .sum::<usize>();
                         ChunkCandidate {
                             size,
+                            components: vec![ChunkComponent {
+                                size,
+                                chunk_items: chunk_items.clone(),
+                                batch_groups: batch_group.into_iter().collect(),
+                            }],
                             chunk_items,
                             batch_groups: batch_group.into_iter().collect(),
                             chunk_groups: key.map(Cow::Borrowed),
@@ -199,6 +207,7 @@ pub async fn make_production_chunks(
                                 chunk_items,
                                 batch_groups,
                                 chunk_groups,
+                                components,
                             } = heap.pop().unwrap();
                             chunks_to_merge_size += size;
                             chunks_to_merge.push(MergeCandidate {
@@ -206,6 +215,7 @@ pub async fn make_production_chunks(
                                 chunk_items,
                                 batch_groups,
                                 chunk_groups,
+                                components,
                             });
                             continue;
                         }
@@ -227,21 +237,22 @@ pub async fn make_production_chunks(
 
                 // Chunking-heuristics-derived constants for the maths below.
                 //
-                // The cost of a single request in transferred bytes, capped at 1MB.
+                // The cost of a single request in transferred bytes.
                 // Defaults to 200,000 bytes (200 KB).
                 let c_req = request_cost
                     .unwrap_or(DEFAULT_ESTIMATED_REQUEST_COST_BYTES)
-                    .min(1_000_000) as i64;
+                    .min(i64::MAX as u64) as i64;
 
                 // Default `P(N = 1)`: the probability that we request exactly 1 chunk group.
-                // An integer percentage (0..=100). `firstPageLoadPriority` maps directly to
-                // it; the default is 67 (~2/3).
-                let default_p1 = first_page_load_priority.map_or(67, |percent| percent as i64);
+                // `firstPageLoadPriority` (a config percentage) maps to it; the default is 0.67
+                // (~2/3).
+                let default_p1 =
+                    first_page_load_priority.map_or(0.67, |percent| percent as f64 / 100.0);
 
-                // `priorityBoost` as an integer percentage to multiply `P(N = 1)` by for priority
-                // routes; the default is 150 (a 1.5x boost).
-                let priority_boost_percent =
-                    priority_boost_percent.map_or(150, |percent| percent as i64);
+                // `priorityBoost` multiplier applied to `P(N = 1)` for priority routes; the default
+                // is 1.5 (a 1.5x boost).
+                let priority_boost =
+                    priority_boost_percent.map_or(1.5, |percent| percent as f64 / 100.0);
 
                 let mut iterations = 0;
                 while chunks_to_merge.len() > 1 {
@@ -476,27 +487,36 @@ pub async fn make_production_chunks(
                             }
 
                             let p1 = if is_priority_route {
-                                ((default_p1 * priority_boost_percent) / 100).min(100)
+                                (default_p1 * priority_boost).min(1.0)
                             } else {
                                 default_p1
                             };
+                            let p2 = 1.0 - p1;
 
-                            let p2 = 100 - p1;
+                            let c_req = c_req as f64;
+                            let o = o_groups as f64;
+                            let groups = groups as f64;
+                            let rem_g = rem_g as f64;
 
-                            // pre_dw = PROB_SCALE * d * (rem_g * groups) / o_groups
-                            let pre_dw = p1 * rem_g * c_req
-                                + p2 * ((o_groups - 1) * c_req
-                                    - 2 * (a_rem * a_size + b_rem * b_size));
+                            let d1 = o / groups * c_req;
+                            let d2 = o
+                                * ((o - 1.0) * c_req
+                                    - 2.0
+                                        * (a_rem as f64 * a_size as f64
+                                            + b_rem as f64 * b_size as f64))
+                                / (groups * rem_g);
+
+                            let value = p1 * d1 + p2 * d2;
                             // It need to have some runtime benefit of merging the chunks
-                            if pre_dw < 0 {
+                            if value < 0.0 {
                                 continue;
                             }
-                            let value = pre_dw * o_groups / (rem_g * groups);
 
                             if let Some((best_i1, best_i2, best_overlap, best_value)) =
                                 best_combination.as_mut()
                             {
-                                if (overlap.cmp(best_overlap)).then_with(|| value.cmp(best_value))
+                                if (overlap.cmp(best_overlap))
+                                    .then_with(|| value.total_cmp(best_value))
                                     == std::cmp::Ordering::Greater
                                 {
                                     *best_i1 = i;
@@ -522,7 +542,9 @@ pub async fn make_production_chunks(
                             chunk_items,
                             mut batch_groups,
                             chunk_groups,
+                            components: other_components,
                         } = other;
+                        candidate.components.extend(other_components);
                         candidate.size += size;
                         candidate.chunk_items.extend(chunk_items);
                         if batch_groups.len() + candidate.batch_groups.len() > 16 {
@@ -559,6 +581,7 @@ pub async fn make_production_chunks(
                                 chunk_items: unused.chunk_items,
                                 batch_groups: unused.batch_groups,
                                 chunk_groups: unused.chunk_groups,
+                                components: unused.components,
                             });
                         } else {
                             chunks_to_merge.push(unused);
@@ -574,11 +597,13 @@ pub async fn make_production_chunks(
                 let mut remained_size = 0;
                 let mut remained_chunk_items = Vec::new();
                 let mut remained_batch_groups = FxIndexSet::default();
+                let mut remained_components = Vec::new();
                 for MergeCandidate {
                     size,
                     chunk_items,
                     batch_groups,
                     chunk_groups,
+                    components,
                 } in chunks_to_merge.into_iter()
                 {
                     if size > merge_threshold {
@@ -587,11 +612,13 @@ pub async fn make_production_chunks(
                             chunk_items,
                             batch_groups,
                             chunk_groups,
+                            components,
                         });
                     } else {
                         remained_size += size;
                         remained_chunk_items.extend(chunk_items);
                         remained_batch_groups.extend(batch_groups);
+                        remained_components.extend(components);
                     }
                 }
 
@@ -603,6 +630,7 @@ pub async fn make_production_chunks(
                         chunk_items: remained_chunk_items,
                         batch_groups: remained_batch_groups.into_iter().collect(),
                         chunk_groups: None,
+                        components: remained_components,
                     });
                 }
             }
@@ -614,13 +642,22 @@ pub async fn make_production_chunks(
                 chunk_items,
                 batch_groups,
                 size,
+                components,
                 ..
             } in heap.into_iter()
             {
                 total_size += size;
+                // Merged chunks also emit their constituent components as referenced "module
+                // chunks" for cache-aware loading; a plain chunk passes no
+                // components.
+                let components = generate_component_chunks
+                    .then(|| split_into_component_chunks(components, min_component_chunk_size))
+                    .flatten()
+                    .unwrap_or_default();
                 make_chunk(
                     chunk_items,
                     batch_groups.into_vec(),
+                    components,
                     &mut String::new(),
                     &mut split_context,
                 )
@@ -635,11 +672,22 @@ pub async fn make_production_chunks(
     .await
 }
 
+/// One original (pre-merge) atomic chunk group. A [`ChunkCandidate`]/[`MergeCandidate`] tracks the
+/// components it was merged from so the emitted merged chunk can also expose them as individual
+/// "module chunks" for cache-aware loading at runtime.
+struct ChunkComponent<'l> {
+    size: usize,
+    chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
+    batch_groups: SmallVec<[ResolvedVc<ChunkItemBatchGroup>; 1]>,
+}
+
 struct ChunkCandidate<'l> {
     size: usize,
     chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
     batch_groups: SmallVec<[ResolvedVc<ChunkItemBatchGroup>; 1]>,
     chunk_groups: Option<Cow<'l, RoaringBitmapWrapper>>,
+    /// Original groups this candidate covers; one per chunk, > 1 once merged.
+    components: Vec<ChunkComponent<'l>>,
 }
 
 impl Ord for ChunkCandidate<'_> {
@@ -667,6 +715,8 @@ struct MergeCandidate<'l> {
     chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
     batch_groups: SmallVec<[ResolvedVc<ChunkItemBatchGroup>; 1]>,
     chunk_groups: Option<Cow<'l, RoaringBitmapWrapper>>,
+    /// Original groups this candidate covers; one per chunk, > 1 once merged.
+    components: Vec<ChunkComponent<'l>>,
 }
 
 impl MergeCandidate<'_> {
@@ -696,6 +746,45 @@ impl Eq for MergeCandidate<'_> {}
 impl PartialEq for MergeCandidate<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.size == other.size
+    }
+}
+
+fn split_into_component_chunks<'l>(
+    components: Vec<ChunkComponent<'l>>,
+    min_component_chunk_size: usize,
+) -> Option<Vec<ComponentChunkItems<'l>>> {
+    // A single original part can't benefit from splitting.
+    if components.len() <= 1 {
+        return None;
+    }
+    let mut component_chunks: Vec<ComponentChunkItems<'l>> = Vec::new();
+    let mut remainder_items: Vec<&'l ChunkItemOrBatchWithInfo> = Vec::new();
+    let mut remainder_batch_groups = FxIndexSet::default();
+    for part in components {
+        if part.size >= min_component_chunk_size {
+            component_chunks.push((part.chunk_items, part.batch_groups.into_vec()));
+        } else {
+            // we create a "remainder" chunk with smaller component chunks so that
+            // an entire chunk can be loaded by loading all of its component chunks
+            remainder_items.extend(part.chunk_items);
+            remainder_batch_groups.extend(part.batch_groups);
+        }
+    }
+
+    // TODO (@sampoder): handle the case where there are many the component chunks
+    // that are only slightly smaller than the min_component_chunk_size. this may
+    // mean that there is no benefit to component chunking.
+    if !remainder_items.is_empty() {
+        component_chunks.push((
+            remainder_items,
+            remainder_batch_groups.into_iter().collect(),
+        ));
+    }
+    // A split is only worthwhile if it yields more than one component chunk.
+    if component_chunks.len() <= 1 {
+        None
+    } else {
+        Some(component_chunks)
     }
 }
 

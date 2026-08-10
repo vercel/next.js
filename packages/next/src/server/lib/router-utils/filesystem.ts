@@ -55,7 +55,6 @@ export type FsOutput = {
     | 'publicFolder'
     | 'nextStaticFolder'
     | 'legacyStaticFolder'
-    | 'serviceWorker'
     | 'devVirtualFsItem'
 
   itemPath: string
@@ -107,6 +106,27 @@ export const buildCustomRoute = <T>(
   }
 }
 
+// Measured retained cost of a cache entry beyond its strings (LRUNode,
+// Map slot, string header): ~120 bytes. Counting it keeps the entry count
+// bounded even when keys are short, so the budget approximates retained
+// bytes.
+const FS_LRU_ENTRY_OVERHEAD = 128
+const FS_LRU_MAX_SIZE = 8 * 1024 * 1024
+
+// The pathname passed to getItem is usually a V8 slice of the full request
+// URL, and a sliced string retains its parent — including the query string —
+// for as long as the cache holds the key. Store a flat copy instead.
+// The JSON round-trip returns an equal string for every input (unlike a
+// Buffer round-trip, which replaces lone surrogates), so distinct keys can
+// never collide on the stored copy.
+function flatKeyCopy(key: string): string {
+  return JSON.parse(JSON.stringify(key))
+}
+
+// Cached result for paths that resolve to nothing. Not null, so that a
+// cached miss can't be conflated with an uncached key (undefined).
+const notFound = Symbol('not-found')
+
 export async function setupFsCheck(opts: {
   dir: string
   dev: boolean
@@ -114,12 +134,17 @@ export async function setupFsCheck(opts: {
   config: NextConfigRuntime
 }) {
   const getItemsLru = !opts.dev
-    ? new LRUCache<FsOutput | null>(1024 * 1024, function length(value) {
-        if (!value) {
-          // Null entries (negative cache) still need a non-zero size for LRU eviction
-          return 1
+    ? new LRUCache<FsOutput | typeof notFound>(FS_LRU_MAX_SIZE, function length(
+        value,
+        key
+      ) {
+        const size = FS_LRU_ENTRY_OVERHEAD + key.length
+        if (value === notFound) {
+          // Negative cache entries only retain their key.
+          return size
         }
         return (
+          size +
           (value.fsPath || '').length +
           value.itemPath.length +
           value.type.length
@@ -132,7 +157,6 @@ export async function setupFsCheck(opts: {
   const publicFolderItems = new Set<string>()
   const nextStaticFolderItems = new Set<string>()
   const legacyStaticFolderItems = new Set<string>()
-  const serviceWorkerItems = new Set<string>()
 
   const appFiles = new Set<string>()
   const pageFiles = new Set<string>()
@@ -155,7 +179,6 @@ export async function setupFsCheck(opts: {
   const publicFolderPath = path.join(opts.dir, 'public')
   const nextStaticFolderPath = path.join(distDir, 'static')
   const legacyStaticFolderPath = path.join(opts.dir, 'static')
-  const serviceWorkerFolderPath = path.join(distDir, 'service-worker')
   let customRoutes: UnwrapPromise<ReturnType<typeof loadCustomRoutes>> = {
     redirects: [],
     rewrites: {
@@ -217,16 +240,6 @@ export async function setupFsCheck(opts: {
       }
     } catch (err) {
       if (opts.config.output !== 'standalone') throw err
-    }
-
-    try {
-      for (const file of await recursiveReadDir(serviceWorkerFolderPath)) {
-        serviceWorkerItems.add(encodeURIPath(normalizePathSep(file)))
-      }
-    } catch (err: any) {
-      if (err.code !== 'ENOENT') {
-        throw err
-      }
     }
 
     const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
@@ -438,7 +451,6 @@ export async function setupFsCheck(opts: {
   debug('customRoutes', customRoutes)
   debug('publicFolderItems', publicFolderItems)
   debug('nextStaticFolderItems', nextStaticFolderItems)
-  debug('serviceWorkerItems', serviceWorkerItems)
   debug('pageFiles', pageFiles)
   debug('appFiles', appFiles)
 
@@ -483,8 +495,8 @@ export async function setupFsCheck(opts: {
       const itemKey = originalItemPath
       const lruResult = getItemsLru?.get(itemKey)
 
-      if (lruResult) {
-        return lruResult
+      if (lruResult !== undefined) {
+        return lruResult === notFound ? null : lruResult
       }
 
       const { basePath } = opts.config
@@ -540,7 +552,6 @@ export async function setupFsCheck(opts: {
 
       const itemsToCheck: Array<[Set<string>, FsOutput['type']]> = [
         [this.devVirtualFsItems, 'devVirtualFsItem'],
-        [serviceWorkerItems, 'serviceWorker'],
         [nextStaticFolderItems, 'nextStaticFolder'],
         [legacyStaticFolderItems, 'legacyStaticFolder'],
         [publicFolderItems, 'publicFolder'],
@@ -664,10 +675,6 @@ export async function setupFsCheck(opts: {
               itemsRoot = publicFolderPath
               break
             }
-            case 'serviceWorker': {
-              itemsRoot = serviceWorkerFolderPath
-              break
-            }
             case 'appFile':
             case 'pageFile':
             case 'nextImage':
@@ -691,7 +698,6 @@ export async function setupFsCheck(opts: {
                 'nextStaticFolder',
                 'publicFolder',
                 'legacyStaticFolder',
-                'serviceWorker',
               ] as (typeof type)[]
             ).includes(type)
 
@@ -743,15 +749,17 @@ export async function setupFsCheck(opts: {
             fsPath,
             locale,
             itemsRoot,
-            itemPath: curItemPath,
+            // itemPath is usually a slice of the request URL too; keep a
+            // flat copy so the cached value doesn't retain the full URL.
+            itemPath: flatKeyCopy(curItemPath),
           }
 
-          getItemsLru?.set(itemKey, itemResult)
+          getItemsLru?.set(flatKeyCopy(itemKey), itemResult)
           return itemResult
         }
       }
 
-      getItemsLru?.set(itemKey, null)
+      getItemsLru?.set(flatKeyCopy(itemKey), notFound)
       return null
     },
     getDynamicRoutes() {

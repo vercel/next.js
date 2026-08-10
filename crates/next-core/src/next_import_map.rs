@@ -31,17 +31,24 @@ use turbopack_node::execution_context::ExecutionContext;
 
 use crate::{
     app_structure::CollectedRootParams,
+    browser_variant_modules::BROWSER_VARIANT_MODULES,
     embed_js::{VIRTUAL_PACKAGE_NAME, next_js_fs},
     mode::NextMode,
     next_client::context::ClientContextType,
     next_config::{NextConfig, OptionFileSystemPath},
     next_edge::unsupported::NextEdgeUnsupportedModuleReplacer,
-    next_font::google::{
-        GOOGLE_FONTS_INTERNAL_PREFIX, NextFontGoogleCssModuleReplacer,
-        NextFontGoogleFontFileReplacer, NextFontGoogleReplacer,
+    next_font::{
+        google::{
+            GOOGLE_FONTS_INTERNAL_PREFIX, NextFontGoogleCssModuleReplacer,
+            NextFontGoogleFontFileReplacer, NextFontGoogleReplacer,
+        },
+        local::{
+            NextFontLocalCssModuleReplacer, NextFontLocalFontFileReplacer, NextFontLocalReplacer,
+        },
     },
     next_root_params::insert_next_root_params_mapping,
     next_server::context::ServerContextType,
+    next_shared::ContextType,
     util::NextRuntime,
 };
 
@@ -63,6 +70,7 @@ pub async fn get_next_client_import_map(
         execution_context,
         next_config,
         next_mode,
+        ContextType::Client(ty.clone()),
         false,
     )
     .await?;
@@ -285,6 +293,7 @@ pub async fn get_next_server_import_map(
         execution_context,
         next_config,
         next_mode,
+        ContextType::Server(ty.clone()),
         false,
     )
     .await?;
@@ -430,6 +439,7 @@ pub async fn get_next_edge_import_map(
         execution_context,
         next_config,
         next_mode,
+        ContextType::Server(ty.clone()),
         true,
     )
     .await?;
@@ -567,28 +577,58 @@ pub async fn get_next_client_resolved_map(
     context_path: FileSystemPath,
     root: FileSystemPath,
     _mode: NextMode,
+    expose_testing_api: bool,
 ) -> Result<Vc<ResolvedMap>> {
-    // In the browser bundle, swap the default `unstable-rethrow` (which holds the full
-    // server logic) for its `.browser` sibling. The server-only checks can never occur in
-    // the browser, and bundling the default would drag server-only modules into the client
-    // bundle. This is the Turbopack analog of the webpack alias in `create-compiler-aliases.ts`
-    // and is client-only because `get_next_client_resolved_map` is used only by the client
-    // context. Matching is on the resolved file path, so it intercepts the relative import
-    // regardless of which module pulls it in. Anchored at the filesystem root so it matches
-    // wherever `next` resolves from (node_modules, pnpm store, or monorepo `packages/next`).
-    let glob_mappings = vec![(
-        root.root().owned().await?,
-        Glob::new(
-            rcstr!("**/next/dist/client/components/unstable-rethrow.js"),
-            GlobOptions::default(),
-        )
-        .to_resolved()
-        .await?,
-        request_to_import_mapping(
-            context_path,
-            rcstr!("next/dist/client/components/unstable-rethrow.browser"),
-        ),
-    )];
+    // In the browser bundle, swap every module that has a `.browser` sibling (see
+    // BROWSER_VARIANT_MODULES, generated from the filesystem) for that sibling. The default
+    // module holds the full server logic, and bundling it would drag server-only modules
+    // into the client bundle. This is the Turbopack analog of the webpack alias in
+    // `create-compiler-aliases.ts` and is client-only because `get_next_client_resolved_map`
+    // is used only by the client context. Matching is on the resolved file path, so it
+    // intercepts the relative import regardless of which module pulls it in. Anchored at the
+    // filesystem root so it matches wherever `next` resolves from (node_modules, pnpm store,
+    // or monorepo `packages/next`).
+    let fs_root = root.root().owned().await?;
+    let mut glob_mappings = Vec::with_capacity(BROWSER_VARIANT_MODULES.len() + 1);
+    for module in BROWSER_VARIANT_MODULES {
+        glob_mappings.push((
+            fs_root.clone(),
+            Glob::new(
+                format!("**/next/dist/{module}.js").into(),
+                GlobOptions::default(),
+            )
+            .to_resolved()
+            .await?,
+            request_to_import_mapping(
+                context_path.clone(),
+                format!("next/dist/{module}.browser").into(),
+            ),
+        ));
+    }
+
+    // When the Instant Navigation Testing API is disabled (production build
+    // without `experimental.exposeTestingApiInProductionBuild`), swap the
+    // navigation lock implementation for an inert shim so the testing
+    // machinery does not ship in the browser bundle. This mirrors the webpack
+    // alias in `create-compiler-aliases.ts`.
+    if !expose_testing_api {
+        glob_mappings.push((
+            fs_root,
+            Glob::new(
+                rcstr!("**/next/dist/client/components/segment-cache/navigation-testing-lock.js"),
+                GlobOptions::default(),
+            )
+            .to_resolved()
+            .await?,
+            request_to_import_mapping(
+                context_path.clone(),
+                rcstr!(
+                    "next/dist/client/components/segment-cache/navigation-testing-lock.disabled"
+                ),
+            ),
+        ));
+    }
+
     Ok(ResolvedMap {
         by_glob: glob_mappings,
     }
@@ -1030,6 +1070,7 @@ async fn insert_next_shared_aliases(
     execution_context: Vc<ExecutionContext>,
     next_config: Vc<NextConfig>,
     next_mode: Vc<NextMode>,
+    ty: ContextType,
     is_runtime_edge: bool,
 ) -> Result<()> {
     let package_root = next_js_fs().root().owned().await?;
@@ -1051,10 +1092,43 @@ async fn insert_next_shared_aliases(
         package_root,
     );
 
-    // NOTE: `@next/font/local` has moved to a BeforeResolve Plugin, so it does not
-    // have ImportMapping replacers here.
-    //
-    // TODO: Add BeforeResolve plugins for `@next/font/google`
+    match ty {
+        ContextType::Client(_)
+        | ContextType::Server(
+            ServerContextType::Pages { .. }
+            | ServerContextType::AppSSR { .. }
+            | ServerContextType::AppRSC { .. },
+        ) => {
+            import_map.insert_alias(
+                AliasPattern::exact(rcstr!("next/font/local/target.css")),
+                ImportMapping::Dynamic(ResolvedVc::upcast(
+                    NextFontLocalReplacer::new(project_path.clone())
+                        .to_resolved()
+                        .await?,
+                ))
+                .resolved_cell(),
+            );
+
+            import_map.insert_alias(
+                AliasPattern::exact(rcstr!(
+                    "@vercel/turbopack-next/internal/font/local/cssmodule.module.css"
+                )),
+                ImportMapping::Dynamic(ResolvedVc::upcast(
+                    NextFontLocalCssModuleReplacer::new().to_resolved().await?,
+                ))
+                .resolved_cell(),
+            );
+
+            import_map.insert_alias(
+                AliasPattern::exact(rcstr!("@vercel/turbopack-next/internal/font/local/font")),
+                ImportMapping::Dynamic(ResolvedVc::upcast(
+                    NextFontLocalFontFileReplacer::new().to_resolved().await?,
+                ))
+                .resolved_cell(),
+            );
+        }
+        _ => {}
+    }
 
     let next_font_google_replacer_mapping = ImportMapping::Dynamic(ResolvedVc::upcast(
         NextFontGoogleReplacer::new(project_path.clone())
@@ -1075,7 +1149,7 @@ async fn insert_next_shared_aliases(
         next_font_google_replacer_mapping,
     );
 
-    let fetch_client = next_config.fetch_client();
+    let fetch_client = next_config.fetch_client(next_mode);
     import_map.insert_alias(
         AliasPattern::exact(rcstr!(
             "@vercel/turbopack-next/internal/font/google/cssmodule.module.css"

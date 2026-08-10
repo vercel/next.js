@@ -4,15 +4,15 @@ import { createHrefFromUrl } from './create-href-from-url'
 import { extractPathFromFlightRouterState } from './compute-changed-path'
 
 import type { AppRouterState } from './router-reducer-types'
-import { getFlightDataPartsFromPath } from '../../flight-data-helpers'
+import { transportNodeToFlightRouterState } from '../../../shared/lib/rsc-transport'
 import { createInitialCacheNodeForHydration } from './ppr-navigations'
 import {
-  convertRootFlightRouterStateToRouteTree,
-  getStaleAt,
+  resolveStaleAt,
   processRuntimePrefetchStream,
   writeDynamicRenderResponseIntoCache,
   writePrerenderResponseIntoCache,
 } from '../segment-cache/cache'
+import { decodeTransportTreeIntoRouteTree } from '../segment-cache/decode-server-response'
 import { FetchStrategy } from '../segment-cache/types'
 import {
   UnknownDynamicStaleTime,
@@ -37,13 +37,12 @@ export function createInitialRouterState({
 }: InitialRouterStateParameters): AppRouterState {
   const {
     c: initialCanonicalUrlParts,
-    f: initialFlightData,
+    t: initialTransportData,
     q: initialRenderedSearch,
     i: initialCouldBeIntercepted,
     S: initialSupportsPerSegmentPrefetching,
     s: initialStaleTime,
     l: initialStaticStageByteLength,
-    h: initialHeadVaryParams,
     r: initialRootVaryParams,
     p: initialRuntimePrefetchStream,
     d: initialDynamicStaleTimeSeconds,
@@ -54,14 +53,12 @@ export function createInitialRouterState({
   // as a URL that should be crawled.
   const initialCanonicalUrl = initialCanonicalUrlParts.join('/')
 
-  const normalizedFlightData = getFlightDataPartsFromPath(initialFlightData[0])
-  const {
-    tree: initialTree,
-    seedData: initialSeedData,
-    head: initialHead,
-  } = normalizedFlightData
-  // For the SSR render, seed data should always be available (we only send back a `null` response
-  // in the case of a `loading` segment, pre-PPR.)
+  const initialHead = initialTransportData.h.r
+
+  // The initial router state tree, derived from the transport tree. Page
+  // segments keep their search params, which travel inside the segment
+  // string.
+  const initialTree = transportNodeToFlightRouterState(initialTransportData.t)
 
   const canonicalUrl =
     // location.href is read as the initial value for canonicalUrl in the browser
@@ -71,20 +68,26 @@ export function createInitialRouterState({
         createHrefFromUrl(location)
       : initialCanonicalUrl
 
-  // Convert the initial FlightRouterState into the RouteTree type.
+  // Decode the initial transport tree into the RouteTree type, with the
+  // payload's render output embedded on each node. (discoverKnownRoute below
+  // stores this tree in the route cache, which strips the data on write —
+  // see stripDataFromRouteTree.)
   // NOTE: The metadataVaryPath isn't used for anything currently because the
   // head is embedded into the CacheNode tree, but eventually we'll lift it out
   // and store it on the top-level state object.
   //
-  // For statically-generated-at-build-time HTML pages, the FlightRouterState
-  // baked into the initial RSC payload won't have the correct segment inlining
-  // hints because those are computed after the pre-render. The server marks
-  // these trees with InliningHintsStale, which causes the route cache entry
-  // to be immediately expired. The next prefetch will re-fetch the tree with
+  // For statically-generated-at-build-time HTML pages, the tree baked into
+  // the initial RSC payload won't have the correct segment inlining hints
+  // because those are computed after the pre-render. The server marks these
+  // trees with InliningHintsStale, which causes the route cache entry to be
+  // immediately expired. The next prefetch will re-fetch the tree with
   // correct hints from the /_tree response.
   const acc = { metadataVaryPath: null }
-  const initialRouteTree = convertRootFlightRouterStateToRouteTree(
-    initialTree,
+  const initialRouteTree = decodeTransportTreeIntoRouteTree(
+    initialTransportData.t,
+    // There's no base tree to overlay onto; the initial payload is a full
+    // render from the root.
+    null,
     initialRenderedSearch as NormalizedSearch,
     acc
   )
@@ -92,7 +95,6 @@ export function createInitialRouterState({
   const initialTask = createInitialCacheNodeForHydration(
     navigatedAt,
     initialRouteTree,
-    initialSeedData,
     initialHead,
     computeDynamicStaleAt(
       navigatedAt,
@@ -124,7 +126,7 @@ export function createInitialRouterState({
 
     // Write the initial seed data into the segment cache so subsequent
     // navigations to the initial page can serve cached segments instantly.
-    if (initialSeedData !== null && initialStaleTime !== undefined) {
+    if (initialStaleTime !== undefined) {
       if (
         initialStaticStageByteLength !== undefined &&
         initialFlightStreamForCache != null
@@ -142,14 +144,13 @@ export function createInitialRouterState({
                 undefined
               )
             const now = Date.now()
-            const staleAt = await getStaleAt(now, staticStageResponse.s)
+            const staleAt = await resolveStaleAt(now, staticStageResponse.s)
 
             writePrerenderResponseIntoCache(
               now,
               FetchStrategy.PPR,
-              staticStageResponse.f,
+              staticStageResponse.t,
               undefined, // no build ID mismatch check for initial HTML
-              staticStageResponse.h,
               staticStageResponse.r ?? null,
               staleAt,
               initialTree,
@@ -169,14 +170,13 @@ export function createInitialRouterState({
         // hydration and write it into the cache directly.
         const now = Date.now()
 
-        getStaleAt(now, initialStaleTime)
+        resolveStaleAt(now, initialStaleTime)
           .then((staleAt) => {
             writePrerenderResponseIntoCache(
               now,
               FetchStrategy.PPR,
-              initialFlightData,
+              initialTransportData,
               undefined, // buildId — not applicable for initial HTML
-              initialHeadVaryParams,
               initialRootVaryParams ?? null,
               staleAt,
               initialTree,
@@ -213,7 +213,6 @@ export function createInitialRouterState({
             writeDynamicRenderResponseIntoCache(
               Date.now(),
               FetchStrategy.PPRRuntime,
-              processed.flightDatas,
               processed.buildId,
               processed.isResponsePartial,
               processed.headVaryParams,
@@ -256,7 +255,7 @@ export function createInitialRouterState({
       // to avoid it being overwritten on navigation back/forward with MPA Navigation.
       preserveCustomHistoryState: true,
     },
-    focusAndScrollRef: {
+    scrollRef: {
       scrollRef: null,
       forceScroll: false,
       onlyHashChange: false,
