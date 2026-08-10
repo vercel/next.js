@@ -2,9 +2,15 @@ import {
   createTurbopackSubscription,
   mapTurbopackSubscription,
 } from 'next/dist/build/swc/turbopack-subscription'
-import { clearServerHmrChunkCaches } from 'next/dist/server/dev/hot-reloader-turbopack'
+import {
+  clearServerHmrChunkCaches,
+  getServerHmrRuntimeRoot,
+} from 'next/dist/server/dev/hot-reloader-turbopack'
 import { backgroundLogCompilationEvents } from 'next/dist/shared/lib/turbopack/compilation-events'
 import type { Project } from 'next/dist/build/swc/types'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from 'fs'
+import { tmpdir } from 'os'
+import { join, resolve } from 'path'
 
 interface Deferred<T> {
   promise: Promise<T>
@@ -425,5 +431,31 @@ describe('server HMR chunk-cache isolation', () => {
 
     expect(clearProjectA).toHaveBeenCalledTimes(1)
     expect(clearProjectB).not.toHaveBeenCalled()
+  })
+})
+
+describe('server HMR runtime identity', () => {
+  it('matches the canonical runtime root for a symlinked dist directory', () => {
+    const temporaryDirectory = mkdtempSync(join(tmpdir(), 'next-server-hmr-'))
+    const actualDistDir = join(temporaryDirectory, 'actual')
+    const linkedDistDir = join(temporaryDirectory, 'linked')
+
+    try {
+      mkdirSync(actualDistDir)
+      symlinkSync(
+        actualDistDir,
+        linkedDistDir,
+        process.platform === 'win32' ? 'junction' : 'dir'
+      )
+
+      expect(getServerHmrRuntimeRoot(linkedDistDir)).toBe(
+        realpathSync(actualDistDir)
+      )
+      expect(getServerHmrRuntimeRoot(join(temporaryDirectory, 'missing'))).toBe(
+        resolve(temporaryDirectory, 'missing')
+      )
+    } finally {
+      rmSync(temporaryDirectory, { force: true, recursive: true })
+    }
   })
 })

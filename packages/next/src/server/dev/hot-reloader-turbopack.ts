@@ -269,9 +269,11 @@ function collectUpdatedChunkPaths(
 function setupServerHmr(
   project: Project,
   {
+    runtimeRoot,
     reEvaluateAllModulesExpensive,
     onApplied,
   }: {
+    runtimeRoot: string
     reEvaluateAllModulesExpensive: () => void | Promise<void>
     onApplied: (update: {
       chunkPaths: string[]
@@ -329,7 +331,7 @@ function setupServerHmr(
             }
             if (typeof __turbopack_server_hmr_apply__ === 'function') {
               try {
-                __turbopack_server_hmr_apply__(payload)
+                __turbopack_server_hmr_apply__(runtimeRoot, payload)
                 // The validation worker keeps its own copy of the module
                 // graph, and applies the same update to it.
                 mirrorModuleStateToDevValidationWorker({
@@ -2278,6 +2280,7 @@ export async function createHotReloaderTurbopack(
   let serverHmr: ReturnType<typeof setupServerHmr> | undefined
   if (serverFastRefresh) {
     serverHmr = setupServerHmr(project, {
+      runtimeRoot,
       reEvaluateAllModulesExpensive: async () => {
         // Evict every server-HMR-managed chunk from `require.cache`.
         // Trailing `sep` so e.g. `server/chunks-other/...` doesn't match.
