@@ -797,7 +797,7 @@ async function writeStandaloneDirectory(
   nextBuildSpan: Span,
   distDir: string,
   pageKeys: { pages: string[]; app: string[] | undefined },
-  denormalizedAppPages: string[] | undefined,
+  appPageKeys: string[] | undefined,
   outputFileTracingRoot: string,
   requiredServerFiles: RequiredServerFilesManifest,
   middlewareManifest: MiddlewareManifest,
@@ -815,7 +815,7 @@ async function writeStandaloneDirectory(
         requiredServerFiles.appDir,
         distDir,
         pageKeys.pages,
-        denormalizedAppPages,
+        appPageKeys,
         outputFileTracingRoot,
         requiredServerFiles.config,
         middlewareManifest,
@@ -1494,10 +1494,14 @@ export default async function build(
 
       const conflictingAppPagePaths: [pagePath: string, appPath: string][] = []
       const appPageKeys = new Set<string>()
-      let denormalizedAppPages: string[] | undefined
+
+      // Discovery produces the entries we ask the compiler to build. Keep this
+      // input separate from the entries the compiler actually emits.
+      let discoveredAppPageKeys: string[] | undefined
+      let emittedAppPageKeys: string[] | undefined
       if (discovery.mappedAppPages) {
-        denormalizedAppPages = Object.keys(discovery.mappedAppPages)
-        for (const appKey of denormalizedAppPages) {
+        discoveredAppPageKeys = Object.keys(discovery.mappedAppPages)
+        for (const appKey of discoveredAppPageKeys) {
           const normalizedAppPageKey = normalizeAppPath(appKey)
           const pagePath = NextBuildContext.mappedPages[normalizedAppPageKey]
           if (pagePath) {
@@ -2176,6 +2180,14 @@ export default async function build(
       if (appDir) {
         const appPathsManifest = await readManifest<Record<string, string>>(
           path.join(distDir, SERVER_DIRECTORY, APP_PATHS_MANIFEST)
+        )
+
+        // The app paths manifest contains only entries the compiler emitted.
+        // Post-build consumers use this filtered list so they do not look for
+        // output files belonging to candidates that were not emitted.
+        const emittedAppPageKeySet = new Set(Object.keys(appPathsManifest))
+        emittedAppPageKeys = discoveredAppPageKeys?.filter((appPageKey) =>
+          emittedAppPageKeySet.has(appPageKey)
         )
 
         for (const key in appPathsManifest) {
@@ -4454,7 +4466,7 @@ export default async function build(
               hasInstrumentationHook,
               adapterPath,
               pageKeys: pageKeys.pages,
-              appPageKeys: denormalizedAppPages,
+              appPageKeys: emittedAppPageKeys,
               routesManifest,
               prerenderManifest,
               middlewareManifest,
@@ -4474,7 +4486,7 @@ export default async function build(
               nextBuildSpan,
               distDir,
               pageKeys,
-              denormalizedAppPages,
+              emittedAppPageKeys,
               outputFileTracingRoot,
               requiredServerFilesManifest,
               middlewareManifest,
