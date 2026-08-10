@@ -15,7 +15,7 @@ describe('app-dir absolute assetPrefix', () => {
     for (const script of $('script').toArray()) {
       const { src } = script.attribs
       if (
-        src?.includes(
+        src?.startsWith(
           'https://example.vercel.sh/custom-asset-prefix/_next/static'
         )
       ) {

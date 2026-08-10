@@ -38,7 +38,7 @@ async fn test_graph_bug() {
     .unwrap()
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn test_graph_bug_operation(nonce: u32) -> Result<Vc<()>> {
     let _ = nonce; // ensure the nonce is part of our cache key
 
@@ -190,7 +190,7 @@ async fn test_graph_bug_operation(nonce: u32) -> Result<Vc<()>> {
     Ok(Vc::cell(()))
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(root)]
 async fn run_task(spec: Vc<TasksSpec>, task: u16) -> Result<Vc<()>> {
     let spec_ref = spec.await?;
     let task = &spec_ref[task as usize];

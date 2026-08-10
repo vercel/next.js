@@ -3,7 +3,7 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, State, Vc, mark_session_dependent};
+use turbo_tasks::{ResolvedVc, State, Vc};
 use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
@@ -12,7 +12,7 @@ static REGISTRATION: Registration = register!();
 async fn test_emptied_cells_session_dependent() {
     run(&REGISTRATION, || async {
         let input_op = get_state_operation();
-        let input_vc = input_op.resolve_strongly_consistent().await?;
+        let input_vc = input_op.resolve().strongly_consistent().await?;
         let input = input_op.read_strongly_consistent().await?;
         input.state.set(0);
 
@@ -45,7 +45,7 @@ async fn test_emptied_cells_session_dependent() {
     .unwrap();
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn get_state_operation() -> Vc<ChangingInput> {
     ChangingInput {
         state: State::new(0),
@@ -58,7 +58,7 @@ struct ChangingInput {
     state: State<u32>,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn compute_operation(input: ResolvedVc<ChangingInput>) -> Result<Vc<u32>> {
     println!("compute_operation()");
     let value = *inner_compute(*input).await?;
@@ -76,9 +76,8 @@ async fn inner_compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
     Ok(last.unwrap())
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(session_dependent)]
 async fn compute2(input: Vc<u32>) -> Result<Vc<u32>> {
-    mark_session_dependent();
     println!("compute2()");
     let value = *input.await?;
     Ok(Vc::cell(value))

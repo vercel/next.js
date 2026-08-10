@@ -1,26 +1,22 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import execa from 'execa'
 
 const appDir = path.join(__dirname, 'app')
 
 describe('next/jest image qualities config', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      skipStart: true,
-      files: {
-        'next.config.js': `
+  const { next } = nextTestSetup({
+    skipStart: true,
+    files: {
+      'next.config.js': `
 module.exports = {
   images: {
     qualities: [90, 100],
   },
 }
         `,
-        app: new FileRef(path.join(appDir, 'app')),
-        'jest.config.js': `
+      app: new FileRef(path.join(appDir, 'app')),
+      'jest.config.js': `
 const nextJest = require('next/jest')
 
 const createJestConfig = nextJest({
@@ -33,7 +29,7 @@ const customJestConfig = {
 
 module.exports = createJestConfig(customJestConfig)
         `,
-        [`tests/image.test.tsx`]: `
+      [`tests/image.test.tsx`]: `
 import Image from 'next/image'
 import { render, screen } from '@testing-library/react'
 
@@ -85,17 +81,14 @@ describe('Image quality config', () => {
   })
 })
         `,
-      },
-      dependencies: {
-        jest: '29.7.0',
-        'jest-environment-jsdom': '29.7.0',
-        '@testing-library/react': '15.0.2',
-        '@testing-library/jest-dom': '5.17.0',
-      },
-    })
+    },
+    dependencies: {
+      jest: '29.7.0',
+      'jest-environment-jsdom': '29.7.0',
+      '@testing-library/react': '15.0.2',
+      '@testing-library/jest-dom': '5.17.0',
+    },
   })
-
-  afterAll(() => next.destroy())
 
   it('should pass jest tests with custom image qualities', async () => {
     const result = await execa(

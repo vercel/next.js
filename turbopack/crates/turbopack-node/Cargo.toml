@@ -26,12 +26,12 @@ async-trait = { workspace = true }
 dashmap = { workspace = true }
 base64 = "0.21.0"
 bincode = { workspace = true }
+bytes = { workspace = true }
 const_format = { workspace = true }
 either = { workspace = true, features = ["serde"] }
 futures = { workspace = true }
 futures-retry = { workspace = true }
 indoc = { workspace = true }
-once_cell = { workspace = true }
 owo-colors = { workspace = true }
 parking_lot = { workspace = true }
 regex = { workspace = true }
@@ -47,6 +47,7 @@ turbo-tasks = { workspace = true }
 turbo-tasks-bytes = { workspace = true }
 turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
+turbo-tasks-hash = { workspace = true }
 turbopack-cli-utils = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-ecmascript = { workspace = true }

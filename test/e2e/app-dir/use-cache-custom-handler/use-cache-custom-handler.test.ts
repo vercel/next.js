@@ -27,12 +27,15 @@ describe('use-cache-custom-handler', () => {
 
     expect(cliOutput).toContain('ModernCustomCacheHandler::refreshTags')
 
+    // In development the cache key carries a trailing HMR refresh hash element
+    // (absent in production), so the args array may be followed by an optional
+    // quoted hash.
     expect(next.cliOutput.slice(outputIndex)).toMatch(
-      /ModernCustomCacheHandler::get \["(development|[A-Za-z0-9_-]+)","([0-9a-f]{2})+",\[\]\] \[ '_N_T_\/layout', '_N_T_\/page', '_N_T_\/', '_N_T_\/index' \]/
+      /ModernCustomCacheHandler::get \["(development|[A-Za-z0-9_-]+)","([0-9a-f]{2})+",\[\](,"[^"]+")?\] \[ '_N_T_\/layout', '_N_T_\/page', '_N_T_\/', '_N_T_\/index' \]/
     )
 
     expect(next.cliOutput.slice(outputIndex)).toMatch(
-      /ModernCustomCacheHandler::set \["(development|[A-Za-z0-9_-]+)","([0-9a-f]{2})+",\[\]\]/
+      /ModernCustomCacheHandler::set \["(development|[A-Za-z0-9_-]+)","([0-9a-f]{2})+",\[\](,"[^"]+")?\]/
     )
 
     // Since no existing cache entry was retrieved, we don't need to call
@@ -130,4 +133,50 @@ describe('use-cache-custom-handler', () => {
       )
     })
   }
+
+  it('should dedupe nested caches across different outer cache scopes, and still propagate cache life/tags correctly', async () => {
+    await next.fetch('/nested')
+
+    await retry(async () => {
+      const cliOutput = next.cliOutput.slice(outputIndex)
+
+      expect(cliOutput).toIncludeRepeated(
+        `ModernCustomCacheHandler::set-resolved-entry revalidate: 180, expire: 300, tags: inner`,
+        1
+      )
+
+      expect(cliOutput).toIncludeRepeated(
+        `ModernCustomCacheHandler::set-resolved-entry revalidate: 180, expire: 300, tags: outer1,inner`,
+        1
+      )
+
+      expect(cliOutput).toIncludeRepeated(
+        `ModernCustomCacheHandler::set-resolved-entry revalidate: 180, expire: 300, tags: outer2,inner`,
+        1
+      )
+    })
+  })
+
+  it('should reach the cache handler only once for sequential calls in a request', async () => {
+    const $ = await next.render$('/sequential-dedupe')
+
+    expect($('#first').text()).toBe($('#second').text())
+
+    await retry(async () => {
+      const cliOutput = next.cliOutput.slice(outputIndex)
+
+      // The first call misses and fills. The second is served from the entry
+      // retained for this request, so it never reaches the handler, which for a
+      // registered handler can be a remote round trip.
+      expect(cliOutput).toIncludeRepeated(`ModernCustomCacheHandler::get`, 1)
+
+      // Matched up to the escaped opening bracket of the logged cache key,
+      // since `::set-resolved-entry` would otherwise count as another `::set`.
+      // The matcher compiles its argument as a regular expression.
+      expect(cliOutput).toIncludeRepeated(
+        `ModernCustomCacheHandler::set \\[`,
+        1
+      )
+    })
+  })
 })

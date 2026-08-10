@@ -12,9 +12,12 @@ import type {
 import type { ScriptProps } from '../client/script'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 
-import { getPageFiles } from '../server/get-page-files'
+import {
+  getPageFiles,
+  getTurbopackChunkGroupBootstrap,
+} from '../server/get-page-files'
 import type { BuildManifest } from '../server/get-page-files'
-import { htmlEscapeJsonString } from '../server/htmlescape'
+import { htmlEscapeJsonString } from '../shared/lib/htmlescape'
 import isError from '../lib/is-error'
 
 import {
@@ -128,6 +131,35 @@ function getDynamicChunks(
   })
 }
 
+// Builds one inline <script> seeding the runtime queue with the shared (`/_app`) and
+// current route's bootstrap params, before the shared runtime chunk drains it.
+function getInlineBootstrapScript(context: HtmlProps, props: OriginProps) {
+  const { buildManifest, __NEXT_DATA__, crossOrigin } = context
+  // Only Turbopack production builds populate these; nothing to inline otherwise.
+  if (
+    !buildManifest.pagesChunkGroupBootstrapParams ||
+    !buildManifest.chunkLoadingGlobal
+  ) {
+    return null
+  }
+  const bootstrap = getTurbopackChunkGroupBootstrap(
+    buildManifest.pagesChunkGroupBootstrapParams,
+    buildManifest.chunkLoadingGlobal,
+    ['/_app', __NEXT_DATA__.page]
+  )
+  if (!bootstrap) return null
+
+  const html = htmlEscapeJsonString(bootstrap)
+  return (
+    <script
+      key="turbopack-bootstrap"
+      nonce={props.nonce}
+      crossOrigin={props.crossOrigin || crossOrigin}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  )
+}
+
 function getScripts(
   context: HtmlProps,
   props: OriginProps,
@@ -148,10 +180,10 @@ function getScripts(
     file.endsWith('.js')
   )
 
-  return [...normalScripts, ...lowPriorityScripts].map((file) => {
-    // static/chunks/51e975e7b637a580.js should use the immutable id, while
+  const scripts = [...normalScripts, ...lowPriorityScripts].map((file) => {
+    // static/immutable/chunks/51e975e7b637a580.js should use the immutable id, while
     // static/Yj152X97rfGgF7NPcJEZs/_ssgManifest.js should use the deployment id
-    const query = file.startsWith('static/chunks')
+    const query = file.startsWith('static/immutable/chunks')
       ? assetQueryString
       : mutableAssetQueryString
     return (
@@ -165,6 +197,10 @@ function getScripts(
       />
     )
   })
+
+  // Emit the bootstrap before the chunk <script>s so the queue exists first.
+  const bootstrapScript = getInlineBootstrapScript(context, props)
+  return bootstrapScript ? [bootstrapScript, ...scripts] : scripts
 }
 
 function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
@@ -384,7 +420,7 @@ export class Head extends React.Component<HeadProps> {
   getCssLinks(files: DocumentFiles): JSX.Element[] | null {
     const {
       assetPrefix,
-      assetQueryString,
+      cssAssetQueryString,
       dynamicImports,
       dynamicCssManifest,
       crossOrigin,
@@ -422,7 +458,7 @@ export class Head extends React.Component<HeadProps> {
             rel="preload"
             href={`${assetPrefix}/_next/${encodeURIPath(
               file
-            )}${assetQueryString}`}
+            )}${cssAssetQueryString}`}
             as="style"
             crossOrigin={this.props.crossOrigin || crossOrigin}
           />
@@ -436,7 +472,7 @@ export class Head extends React.Component<HeadProps> {
           rel="stylesheet"
           href={`${assetPrefix}/_next/${encodeURIPath(
             file
-          )}${assetQueryString}`}
+          )}${cssAssetQueryString}`}
           crossOrigin={this.props.crossOrigin || crossOrigin}
           data-n-g={isUnmanagedFile ? undefined : isSharedFile ? '' : undefined}
           data-n-p={
@@ -589,7 +625,7 @@ export class Head extends React.Component<HeadProps> {
       optimizeCss,
       assetPrefix,
       nextFontManifest,
-      assetQueryString,
+      cssAssetQueryString,
     } = this.context
 
     const disableRuntimeJS = unstable_runtimeJS === false
@@ -659,7 +695,7 @@ export class Head extends React.Component<HeadProps> {
       nextFontManifest,
       dangerousAsPath,
       assetPrefix,
-      assetQueryString
+      cssAssetQueryString
     )
 
     const tracingMetadata = getTracedMetadata(

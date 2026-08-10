@@ -1,8 +1,9 @@
 use std::{
     borrow::Cow,
+    fs::{canonicalize, create_dir_all},
     io::Write,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, LazyLock},
     thread,
     time::Duration,
 };
@@ -34,34 +35,37 @@ use next_api::{
 };
 use next_core::{
     app_structure::find_app_dir,
+    next_config::DIST_PROFILES_DIR_NAME,
+    next_telemetry::ProjectFeatureUsageSummary,
     tracing_presets::{
         TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBO_TASKS_TARGETS,
         TRACING_NEXT_TURBOPACK_TARGETS,
     },
 };
-use once_cell::sync::Lazy;
-use rand::Rng;
+use rand::RngExt;
 use serde::Serialize;
 use tokio::{io::AsyncWriteExt, runtime::Handle, time::Instant};
 use tracing::Instrument;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Effects, FxIndexSet, NonLocalValue, OperationValue, OperationVc, PrettyPrintError, ReadRef,
-    ResolvedVc, TaskInput, TransientInstance, TryJoinIterExt, TurboTasksApi, TurboTasksCallApi,
-    UpdateInfo, Vc, get_effects,
+    Effects, FxIndexSet, OperationValue, OperationVc, PrettyPrintError, ReadRef, ResolvedVc,
+    TransientInstance, TryJoinIterExt, TurboTasksApi, TurboTasksCallApi, UpdateInfo, Vc,
+    mark_top_level_task,
     message_queue::{CompilationEvent, Severity},
+    read_strongly_consistent_and_apply_effects, take_effects,
     trace::TraceRawVcs,
+    unmark_top_level_task_may_leak_eventually_consistent_state,
 };
-use turbo_tasks_backend::{BackingStorage, db_invalidation::invalidation_reasons};
+use turbo_tasks_backend::db_invalidation::invalidation_reasons;
 use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileSystem, FileSystemPath, invalidation, util::uri_from_file,
+    DiskFileSystem, FileContent, FileSystem, FileSystemPath, canonicalize_to_rcstr, invalidation,
+    to_verbatim_with_case_folded_disk, util::uri_from_file,
 };
-use turbo_unix_path::{get_relative_path_to, sys_to_unix, unix_to_sys};
+use turbo_unix_path::{get_relative_path_to, unix_to_sys};
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
-    diagnostics::PlainDiagnostic,
-    issue::{IssueFilter, PlainIssue},
+    issue::PlainIssue,
     output::{OutputAsset, OutputAssets},
     source_map::{SourceMap, Token},
     version::{PartialUpdate, TotalUpdate, Update, VersionState},
@@ -80,12 +84,12 @@ use crate::{
         analyze::{WriteAnalyzeResult, write_analyze_data_with_issues_operation},
         endpoint::ExternalEndpoint,
         turbopack_ctx::{
-            NapiNextTurbopackCallbacks, NapiNextTurbopackCallbacksJsObject, NextTurboTasks,
-            NextTurbopackContext, create_turbo_tasks,
+            MemoryEvictionMode, NapiNextTurbopackCallbacks, NapiNextTurbopackCallbacksJsObject,
+            NextTurboTasks, NextTurbopackContext, create_turbo_tasks,
         },
         utils::{
-            DetachedVc, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult, get_diagnostics,
-            get_issues, strongly_consistent_catch_collectables, subscribe,
+            DetachedVc, NapiIssue, NapiUsedFeature, RootTask, TurbopackResult, get_issues,
+            strongly_consistent_catch_collectables, subscribe,
         },
     },
     util::DhatProfilerGuard,
@@ -94,14 +98,9 @@ use crate::{
 /// Used by [`benchmark_file_io`]. This is a noisy benchmark, so set the
 /// threshold high.
 const SLOW_FILESYSTEM_THRESHOLD: Duration = Duration::from_millis(200);
-static SOURCE_MAP_PREFIX: Lazy<String> = Lazy::new(|| format!("{SOURCE_URL_PROTOCOL}///"));
-static SOURCE_MAP_PREFIX_PROJECT: Lazy<String> =
-    Lazy::new(|| format!("{SOURCE_URL_PROTOCOL}///[{PROJECT_FILESYSTEM_NAME}]/"));
-
-/// Get the `Vc<IssueFilter>` for a `ProjectContainer`.
-fn issue_filter_from_container(container: ResolvedVc<ProjectContainer>) -> Vc<IssueFilter> {
-    container.project().issue_filter()
-}
+static SOURCE_MAP_PREFIX: LazyLock<String> = LazyLock::new(|| format!("{SOURCE_URL_PROTOCOL}///"));
+static SOURCE_MAP_PREFIX_PROJECT: LazyLock<String> =
+    LazyLock::new(|| format!("{SOURCE_URL_PROTOCOL}///[{PROJECT_FILESYSTEM_NAME}]/"));
 
 #[napi(object)]
 #[derive(Clone, Debug)]
@@ -211,6 +210,9 @@ pub struct NapiProjectOptions {
 
     /// The version of Next.js that is running.
     pub next_version: RcStr,
+
+    /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
+    pub server_hmr: Option<bool>,
 }
 
 /// [NapiProjectOptions] with all fields optional.
@@ -273,14 +275,16 @@ pub struct NapiDefineEnv {
 
 #[napi(object)]
 pub struct NapiTurboEngineOptions {
-    /// An upper bound of memory that turbopack will attempt to stay under.
-    pub memory_limit: Option<f64>,
     /// Track dependencies between tasks. If false, any change during build will error.
     pub dependency_tracking: Option<bool>,
     /// Whether the project is running in a CI environment.
     pub is_ci: Option<bool>,
     /// Whether the project is running in a short session.
     pub is_short_session: Option<bool>,
+    /// Whether to skip database compaction during shutdown.
+    pub skip_compaction: Option<bool>,
+    /// Turbopack memory eviction mode for the persistent cache.
+    pub turbopack_memory_eviction: MemoryEvictionMode,
 }
 
 impl From<NapiWatchOptions> for WatchOptions {
@@ -318,6 +322,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             deferred_entries,
             is_persistent_caching_enabled,
             next_version,
+            server_hmr,
         } = val;
         ProjectOptions {
             root_path,
@@ -341,6 +346,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             deferred_entries,
             is_persistent_caching_enabled,
             next_version,
+            server_hmr: server_hmr.unwrap_or(false),
         }
     }
 }
@@ -412,12 +418,25 @@ pub struct ProjectInstance {
 #[napi(ts_return_type = "Promise<{ __napiType: \"Project\" }>")]
 pub fn project_new(
     env: Env,
-    options: NapiProjectOptions,
+    mut options: NapiProjectOptions,
     turbo_engine_options: NapiTurboEngineOptions,
     napi_callbacks: NapiNextTurbopackCallbacksJsObject,
 ) -> napi::Result<JsObject> {
-    let napi_callbacks = NapiNextTurbopackCallbacks::from_js(napi_callbacks)?;
+    let napi_callbacks = NapiNextTurbopackCallbacks::from_js(&env, napi_callbacks)?;
     let (exit, exit_receiver) = ExitHandler::new_receiver();
+
+    // The root path must be canonicalized before DiskFileSystem is constructed, but do it early,
+    // before we use it for creating a trace file or anything else. The root path always exists.
+    options.root_path = canonicalize_to_rcstr(Path::new(&*options.root_path)).map_err(|e| {
+        napi::Error::from_reason(PrettyPrintError(&anyhow::Error::from(e)).to_string())
+    })?;
+    // The dist dir (e.g. `.next`) may not exist yet, and `canonicalize` requires an existing path.
+    create_dir_all(Path::new(&*options.dist_dir))
+        .with_context(|| format!("failed to create dist directory {:?}", options.dist_dir))
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+    options.dist_dir = canonicalize_to_rcstr(Path::new(&*options.dist_dir)).map_err(|e| {
+        napi::Error::from_reason(PrettyPrintError(&anyhow::Error::from(e)).to_string())
+    })?;
 
     if let Some(dhat_profiler) = DhatProfilerGuard::try_init() {
         exit.on_exit(async move {
@@ -445,10 +464,28 @@ pub fn project_new(
     }
     let mut compress = Compression::None;
     if let Some(mut trace) = trace {
-        let internal_dir = PathBuf::from(&options.root_path)
-            .join(&options.project_path)
-            .join(&options.dist_dir);
-        let trace_file = internal_dir.join("trace-turbopack");
+        let trace_path_override = std::env::var_os("NEXT_TURBOPACK_TRACING_PATH")
+            .filter(|v| !v.is_empty())
+            .map(PathBuf::from);
+        let trace_file = if let Some(path) = trace_path_override {
+            if path.is_absolute() {
+                path
+            } else {
+                std::env::current_dir()
+                    .context("Unable to read current working directory")
+                    .unwrap()
+                    .join(path)
+            }
+        } else {
+            Path::new(&options.root_path)
+                .join(&*unix_to_sys(&options.project_path))
+                .join(DIST_PROFILES_DIR_NAME)
+                // use a generic binary extension to hint to random tools not to read it.
+                .join("trace-turbopack.bin")
+        };
+        let trace_dir = trace_file
+            .parent()
+            .expect("Trace file path must have a parent directory");
 
         println!("Turbopack tracing enabled with targets: {trace}");
         println!("  Note that this might have a small performance impact.");
@@ -487,8 +524,16 @@ pub fn project_new(
 
         let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
 
-        std::fs::create_dir_all(&internal_dir)
-            .context("Unable to create .next directory")
+        // For the default `.next-profiles` location the JS CLI already created
+        // this directory (with its `.gitignore`) before invoking the binding; this
+        // is a safety net and also covers a `NEXT_TURBOPACK_TRACING_PATH` override.
+        create_dir_all(trace_dir)
+            .with_context(|| {
+                format!(
+                    "Unable to create trace output directory {}",
+                    trace_dir.display()
+                )
+            })
             .unwrap();
         let (trace_writer, trace_writer_guard) = match compress {
             Compression::None => {
@@ -527,20 +572,20 @@ pub fn project_new(
 
     env.spawn_future(
         async move {
-            let memory_limit = turbo_engine_options
-                .memory_limit
-                .map(|m| m as usize)
-                .unwrap_or(usize::MAX);
             let dependency_tracking = turbo_engine_options.dependency_tracking.unwrap_or(true);
             let is_ci = turbo_engine_options.is_ci.unwrap_or(false);
             let is_short_session = turbo_engine_options.is_short_session.unwrap_or(false);
+            let skip_compaction = turbo_engine_options.skip_compaction.unwrap_or(false);
+            let turbopack_memory_eviction = turbo_engine_options.turbopack_memory_eviction;
             let turbo_tasks = create_turbo_tasks(
                 PathBuf::from(&options.dist_dir),
+                &options.next_version,
                 options.is_persistent_caching_enabled,
-                memory_limit,
                 dependency_tracking,
                 is_ci,
                 is_short_session,
+                skip_compaction,
+                turbopack_memory_eviction,
             )?;
             let turbopack_ctx = NextTurbopackContext::new(turbo_tasks.clone(), napi_callbacks);
 
@@ -567,7 +612,7 @@ pub fn project_new(
                 .run(async move {
                     let container_op = ProjectContainer::new_operation(rcstr!("next.js"), is_dev);
                     ProjectContainer::initialize(container_op, options).await?;
-                    container_op.resolve_strongly_consistent().await
+                    container_op.resolve().strongly_consistent().await
                 })
                 .or_else(|e| turbopack_ctx.throw_turbopack_internal_result(&e.into()))
                 .await?;
@@ -580,7 +625,7 @@ pub fn project_new(
                         let result = tt
                             .clone()
                             .run(async move {
-                                #[turbo_tasks::function(operation)]
+                                #[turbo_tasks::function(operation, root)]
                                 fn project_node_root_path_operation(
                                     container: ResolvedVc<ProjectContainer>,
                                 ) -> Vc<FileSystemPath> {
@@ -722,8 +767,7 @@ pub async fn project_invalidate_file_system_cache(
             .turbopack_ctx
             .turbo_tasks()
             .backend()
-            .backing_storage()
-            .invalidate(invalidation_reasons::USER_REQUEST)
+            .invalidate_storage(invalidation_reasons::USER_REQUEST)
     })
     .await
     .context("panicked while invalidating filesystem cache")??;
@@ -770,14 +814,14 @@ pub struct AppPageNapiRoute {
     pub original_name: Option<RcStr>,
 
     pub html_endpoint: Option<External<ExternalEndpoint>>,
-    pub rsc_endpoint: Option<External<ExternalEndpoint>>,
+    pub rsc_hmr_endpoint: Option<External<ExternalEndpoint>>,
 }
 
 #[napi(object)]
 #[derive(Default)]
 pub struct NapiRoute {
     /// The router path
-    pub pathname: String,
+    pub pathname: RcStr,
     /// The relative path from project_path to the route file
     pub original_name: Option<RcStr>,
 
@@ -789,13 +833,13 @@ pub struct NapiRoute {
     // Different representations of the endpoint
     pub endpoint: Option<External<ExternalEndpoint>>,
     pub html_endpoint: Option<External<ExternalEndpoint>>,
-    pub rsc_endpoint: Option<External<ExternalEndpoint>>,
+    pub rsc_hmr_endpoint: Option<External<ExternalEndpoint>>,
     pub data_endpoint: Option<External<ExternalEndpoint>>,
 }
 
 impl NapiRoute {
     fn from_route(
-        pathname: String,
+        pathname: RcStr,
         value: RouteOperation,
         turbopack_ctx: &NextTurbopackContext,
     ) -> Self {
@@ -831,7 +875,7 @@ impl NapiRoute {
                         .map(|page_route| AppPageNapiRoute {
                             original_name: Some(page_route.original_name),
                             html_endpoint: convert_endpoint(page_route.html_endpoint),
-                            rsc_endpoint: convert_endpoint(page_route.rsc_endpoint),
+                            rsc_hmr_endpoint: convert_endpoint(page_route.rsc_hmr_endpoint),
                         })
                         .collect(),
                 ),
@@ -919,7 +963,7 @@ impl NapiEntrypoints {
         let routes = entrypoints
             .routes
             .iter()
-            .map(|(k, v)| NapiRoute::from_route(k.to_string(), v.clone(), turbopack_ctx))
+            .map(|(k, v)| NapiRoute::from_route(k.clone(), v.clone(), turbopack_ctx))
             .collect();
         let middleware = entrypoints
             .middleware
@@ -954,33 +998,31 @@ impl NapiEntrypoints {
     }
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 struct EntrypointsWithIssues {
     entrypoints: Option<ReadRef<EntrypointsOperation>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
-    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn get_entrypoints_with_issues_operation(
     container: ResolvedVc<ProjectContainer>,
 ) -> Result<Vc<EntrypointsWithIssues>> {
     let entrypoints_operation =
         EntrypointsOperation::new(project_container_entrypoints_operation(container));
-    let filter = issue_filter_from_container(container);
-    let (entrypoints, issues, diagnostics, effects) =
-        strongly_consistent_catch_collectables(entrypoints_operation, filter).await?;
+    let filter = container.project().issue_filter().await?;
+    let (entrypoints, issues, effects) =
+        strongly_consistent_catch_collectables(entrypoints_operation, &filter).await?;
     Ok(EntrypointsWithIssues {
         entrypoints,
         issues,
-        diagnostics,
         effects,
     }
     .cell())
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn project_container_entrypoints_operation(
     // the container is a long-lived object with internally mutable state, there's no risk of it
     // becoming stale
@@ -989,18 +1031,16 @@ fn project_container_entrypoints_operation(
     container.entrypoints()
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 struct OperationResult {
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
-    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 struct AllWrittenEntrypointsWithIssues {
     entrypoints: Option<ReadRef<EntrypointsOperation>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
-    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
 }
 
@@ -1011,20 +1051,8 @@ pub struct NapiDebugBuildPaths {
     pub pages: Vec<RcStr>,
 }
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    NonLocalValue,
-    OperationValue,
-    PartialEq,
-    TaskInput,
-    TraceRawVcs,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Copy, Debug, Eq, Hash, OperationValue, PartialEq, TraceRawVcs, Encode, Decode)]
 enum EntrypointsWritePhase {
     All,
     NonDeferred,
@@ -1177,7 +1205,7 @@ async fn invalidate_deferred_entry_source_dirs_after_callback(
     #[turbo_tasks::value(cell = "new", eq = "manual")]
     struct ProjectInfo(Option<FileSystemPath>, DiskFileSystem);
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn project_info_operation(
         container: ResolvedVc<ProjectContainer>,
     ) -> Result<Vc<ProjectInfo>> {
@@ -1195,7 +1223,10 @@ async fn invalidate_deferred_entry_source_dirs_after_callback(
     let Some(app_dir) = app_dir else {
         return Ok(());
     };
-    let app_dir_sys_path = project_fs.to_sys_path(app_dir);
+    // Use `to_sys_path_raw` (not `to_sys_path`): these paths are compared against the invalidator
+    // map keys inside `invalidate_path_and_children_with_reason`, which use the internal (verbatim
+    // on Windows) representation.
+    let app_dir_sys_path = project_fs.to_sys_path_raw(app_dir);
     let paths_to_invalidate = deferred_invalidation_dirs
         .into_iter()
         .map(|dir| {
@@ -1296,7 +1327,7 @@ pub async fn project_write_all_entrypoints_to_disk(
     let container = project.container;
     let tt = ctx.turbo_tasks();
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn has_deferred_entrypoints_operation(
         container: ResolvedVc<ProjectContainer>,
     ) -> Result<Vc<bool>> {
@@ -1333,10 +1364,10 @@ pub async fn project_write_all_entrypoints_to_disk(
     let phase_build_paths = if has_deferred_entrypoints {
         Some(
             tt.run(async move {
-                #[turbo_tasks::value]
+                #[turbo_tasks::value(serialization = "skip")]
                 struct DeferredEntrypointInfo(ReadRef<Entrypoints>, ReadRef<Vec<RcStr>>);
 
-                #[turbo_tasks::function(operation)]
+                #[turbo_tasks::function(operation, root)]
                 async fn deferred_entrypoint_info_operation(
                     container: ResolvedVc<ProjectContainer>,
                 ) -> Result<Vc<DeferredEntrypointInfo>> {
@@ -1386,7 +1417,7 @@ pub async fn project_write_all_entrypoints_to_disk(
         EntrypointsWritePhase::All
     };
 
-    let (mut entrypoints, mut issues, mut diags) = tt
+    let (mut entrypoints, mut issues) = tt
         .run(async move {
             let entrypoints_with_issues_op = get_all_written_entrypoints_with_issues_operation(
                 container,
@@ -1394,23 +1425,20 @@ pub async fn project_write_all_entrypoints_to_disk(
                 first_phase,
             );
 
-            // Read and compile the files
+            let read =
+                read_strongly_consistent_and_apply_effects(entrypoints_with_issues_op, |v| {
+                    &v.effects
+                })
+                .await?;
             let AllWrittenEntrypointsWithIssues {
                 entrypoints,
                 issues,
-                diagnostics,
-                effects,
-            } = &*entrypoints_with_issues_op
-                .read_strongly_consistent()
-                .await?;
-
-            // Apply phase side effects. Asset emission is performed once at the end.
-            effects.apply().await?;
+                ..
+            } = &*read;
 
             Ok((
                 entrypoints.clone(),
                 issues.iter().cloned().collect::<Vec<_>>(),
-                diagnostics.iter().cloned().collect::<Vec<_>>(),
             ))
         })
         .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
@@ -1453,7 +1481,7 @@ pub async fn project_write_all_entrypoints_to_disk(
             .await?;
         }
 
-        let (deferred_entrypoints, deferred_issues, deferred_diags) = tt
+        let (deferred_entrypoints, deferred_issues) = tt
             .run(async move {
                 let entrypoints_with_issues_op = get_all_written_entrypoints_with_issues_operation(
                     container,
@@ -1461,22 +1489,20 @@ pub async fn project_write_all_entrypoints_to_disk(
                     EntrypointsWritePhase::Deferred,
                 );
 
+                let read =
+                    read_strongly_consistent_and_apply_effects(entrypoints_with_issues_op, |v| {
+                        &v.effects
+                    })
+                    .await?;
                 let AllWrittenEntrypointsWithIssues {
                     entrypoints,
                     issues,
-                    diagnostics,
-                    effects,
-                } = &*entrypoints_with_issues_op
-                    .read_strongly_consistent()
-                    .await?;
-
-                // Apply phase side effects. Asset emission is performed once at the end.
-                effects.apply().await?;
+                    ..
+                } = &*read;
 
                 Ok((
                     entrypoints.clone(),
                     issues.iter().cloned().collect::<Vec<_>>(),
-                    diagnostics.iter().cloned().collect::<Vec<_>>(),
                 ))
             })
             .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
@@ -1486,34 +1512,25 @@ pub async fn project_write_all_entrypoints_to_disk(
             entrypoints = deferred_entrypoints;
         }
         issues.extend(deferred_issues);
-        diags.extend(deferred_diags);
     }
 
-    let (emit_issues, emit_diags) = tt
+    let emit_issues = tt
         .run(async move {
             let emit_result_op = emit_all_output_assets_once_with_issues_operation(
                 container,
                 app_dir_only,
                 has_deferred_entrypoints,
             );
-            let OperationResult {
-                issues,
-                diagnostics,
-                effects,
-            } = &*emit_result_op.read_strongly_consistent().await?;
+            let read =
+                read_strongly_consistent_and_apply_effects(emit_result_op, |v| &v.effects).await?;
+            let OperationResult { issues, .. } = &*read;
 
-            effects.apply().await?;
-
-            Ok((
-                issues.iter().cloned().collect::<Vec<_>>(),
-                diagnostics.iter().cloned().collect::<Vec<_>>(),
-            ))
+            Ok(issues.clone())
         })
         .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
         .await?;
 
-    issues.extend(emit_issues);
-    diags.extend(emit_diags);
+    issues.extend(emit_issues.iter().cloned());
 
     Ok(TurbopackResult {
         result: if let Some(entrypoints) = entrypoints {
@@ -1525,11 +1542,10 @@ pub async fn project_write_all_entrypoints_to_disk(
             None
         },
         issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
-        diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
     })
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn get_all_written_entrypoints_with_issues_operation(
     container: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
@@ -1540,19 +1556,18 @@ async fn get_all_written_entrypoints_with_issues_operation(
         app_dir_only,
         write_phase,
     ));
-    let filter = issue_filter_from_container(container);
-    let (entrypoints, issues, diagnostics, effects) =
-        strongly_consistent_catch_collectables(entrypoints_operation, filter).await?;
+    let filter = container.project().issue_filter().await?;
+    let (entrypoints, issues, effects) =
+        strongly_consistent_catch_collectables(entrypoints_operation, &filter).await?;
     Ok(AllWrittenEntrypointsWithIssues {
         entrypoints,
         issues,
-        diagnostics,
         effects,
     }
     .cell())
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 pub async fn all_entrypoints_write_to_disk_operation(
     project: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
@@ -1596,7 +1611,7 @@ async fn output_assets_for_single_emit_operation(
     Ok(Vc::cell(merged_output_assets.into_iter().collect()))
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn emit_all_output_assets_once_operation(
     container: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
@@ -1613,7 +1628,7 @@ async fn emit_all_output_assets_once_operation(
     Ok(container.entrypoints())
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn emit_all_output_assets_once_with_issues_operation(
     container: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
@@ -1624,16 +1639,11 @@ async fn emit_all_output_assets_once_with_issues_operation(
         app_dir_only,
         has_deferred_entrypoints,
     ));
-    let filter = issue_filter_from_container(container);
-    let (_, issues, diagnostics, effects) =
-        strongly_consistent_catch_collectables(entrypoints_operation, filter).await?;
+    let filter = container.project().issue_filter().await?;
+    let (_, issues, effects) =
+        strongly_consistent_catch_collectables(entrypoints_operation, &filter).await?;
 
-    Ok(OperationResult {
-        issues,
-        diagnostics,
-        effects,
-    }
-    .cell())
+    Ok(OperationResult { issues, effects }.cell())
 }
 
 #[turbo_tasks::function(operation)]
@@ -1679,12 +1689,13 @@ async fn output_assets_operation(
     }
 
     let whole_app_module_graphs = project.whole_app_module_graphs();
+    // This makes the trace file nicer to look at
+    whole_app_module_graphs.as_side_effect().await?;
+
     let nft = next_server_nft_assets(project).await?;
     let routes_hashes_manifest = routes_hashes_manifest_asset_if_enabled(project).await?;
     let immutable_hashes_manifest_asset =
         immutable_hashes_manifest_asset_if_enabled(project).await?;
-
-    whole_app_module_graphs.as_side_effect().await?;
 
     Ok(Vc::cell(
         output_assets
@@ -1703,7 +1714,7 @@ pub async fn project_entrypoints(
 ) -> napi::Result<TurbopackResult<Option<NapiEntrypoints>>> {
     let container = project.container;
 
-    let (entrypoints, issues, diags) = project
+    let (entrypoints, issues) = project
         .turbopack_ctx
         .turbo_tasks()
         .run_once(async move {
@@ -1713,13 +1724,12 @@ pub async fn project_entrypoints(
             let EntrypointsWithIssues {
                 entrypoints,
                 issues,
-                diagnostics,
                 effects: _,
             } = &*entrypoints_with_issues_op
                 .read_strongly_consistent()
                 .await?;
 
-            Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
+            Ok((entrypoints.clone(), issues.clone()))
         })
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
@@ -1735,7 +1745,6 @@ pub async fn project_entrypoints(
     Ok(TurbopackResult {
         result,
         issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
-        diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
     })
 }
 
@@ -1753,22 +1762,22 @@ pub fn project_entrypoints_subscribe(
         move || {
             async move {
                 let entrypoints_with_issues_op = get_entrypoints_with_issues_operation(container);
+                let read =
+                    read_strongly_consistent_and_apply_effects(entrypoints_with_issues_op, |v| {
+                        &v.effects
+                    })
+                    .await?;
                 let EntrypointsWithIssues {
                     entrypoints,
                     issues,
-                    diagnostics,
-                    effects,
-                } = &*entrypoints_with_issues_op
-                    .read_strongly_consistent()
-                    .await?;
-
-                effects.apply().await?;
-                Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
+                    ..
+                } = &*read;
+                Ok((entrypoints.clone(), issues.clone()))
             }
             .instrument(tracing::info_span!("entrypoints subscription"))
         },
         move |ctx| {
-            let (entrypoints, issues, diags) = ctx.value;
+            let (entrypoints, issues) = ctx.value;
             let result = match entrypoints {
                 Some(entrypoints) => Some(NapiEntrypoints::from_entrypoints_op(
                     &entrypoints,
@@ -1783,21 +1792,19 @@ pub fn project_entrypoints_subscribe(
                     .iter()
                     .map(|issue| NapiIssue::from(&**issue))
                     .collect(),
-                diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
             }])
         },
     )
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 struct HmrUpdateWithIssues {
     update: ReadRef<Update>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
-    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn project_hmr_update_operation(
     project: ResolvedVc<Project>,
     chunk_name: RcStr,
@@ -1807,29 +1814,166 @@ fn project_hmr_update_operation(
     project.hmr_update(chunk_name, target, *state)
 }
 
-#[turbo_tasks::function(operation)]
+#[tracing::instrument(
+    level = "info",
+    name = "hmr subscription",
+    skip_all,
+    fields(chunk_name = %chunk_name, target = %target),
+)]
+#[turbo_tasks::function(operation, root)]
 async fn hmr_update_with_issues_operation(
     project: ResolvedVc<Project>,
     chunk_name: RcStr,
     state: ResolvedVc<VersionState>,
     target: HmrTarget,
 ) -> Result<Vc<HmrUpdateWithIssues>> {
+    tracing::info!(chunk_name = %chunk_name, target = %target, "hmr subscription");
     let update_op = project_hmr_update_operation(project, chunk_name, target, state);
+    // NOTE: we do not use `strongly_consistent_catch_collectables` here. The JS HMR
+    // consumers in `hot-reloader-turbopack.ts` (`subscribeToServerHmr` and
+    // `subscribeToClientHmrEvents`) rely on this read *throwing* on build-graph
+    // failures to trigger their recovery paths
     let update = update_op.read_strongly_consistent().await?;
-    let filter = project.issue_filter();
-    let issues = get_issues(update_op, filter).await?;
-    let diagnostics = get_diagnostics(update_op).await?;
-    let effects = Arc::new(get_effects(update_op).await?);
+    let filter = project.issue_filter().await?;
+    let issues = get_issues(update_op, &filter).await?;
+    let effects = Arc::new(take_effects(update_op).await?);
     Ok(HmrUpdateWithIssues {
         update,
         issues,
-        diagnostics,
         effects,
     }
     .cell())
 }
 
-#[tracing::instrument(level = "info", name = "get HMR events", skip(project, func), fields(target = %target))]
+/// Aggregate counterpart to [`project_hmr_update_operation`].
+#[turbo_tasks::function(operation, root)]
+fn project_all_hmr_update_operation(
+    project: ResolvedVc<Project>,
+    target: HmrTarget,
+    state: ResolvedVc<VersionState>,
+) -> Vc<Update> {
+    project.all_hmr_update(target, *state)
+}
+
+/// Aggregate counterpart to [`hmr_update_with_issues_operation`].
+#[tracing::instrument(
+    level = "info",
+    name = "aggregate hmr subscription",
+    skip_all,
+    fields(target = %target),
+)]
+#[turbo_tasks::function(operation, root)]
+async fn all_hmr_update_with_issues_operation(
+    project: ResolvedVc<Project>,
+    state: ResolvedVc<VersionState>,
+    target: HmrTarget,
+) -> Result<Vc<HmrUpdateWithIssues>> {
+    tracing::info!(target = %target, "aggregate hmr subscription");
+    let update_op = project_all_hmr_update_operation(project, target, state);
+    // See `hmr_update_with_issues_operation`: the JS consumer relies on this
+    // read *throwing* on build-graph failures; don't swallow errors.
+    let update = update_op
+        .read_strongly_consistent()
+        .final_read_hint()
+        .await?;
+    let filter = project.issue_filter().await?;
+    let issues = get_issues(update_op, &filter).await?;
+    let effects = Arc::new(take_effects(update_op).await?);
+    Ok(HmrUpdateWithIssues {
+        update,
+        issues,
+        effects,
+    }
+    .cell())
+}
+
+#[tracing::instrument(level = "info", name = "get all HMR events", skip(project, func), fields(target = %target))]
+#[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
+pub fn project_all_hmr_events(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    target: String,
+    func: JsFunction,
+) -> napi::Result<External<RootTask>> {
+    let hmr_target = target
+        .parse::<HmrTarget>()
+        .map_err(napi::Error::from_reason)?;
+
+    let container = project.container;
+    // Sentinel resource id for the aggregated stream (no real chunk path).
+    let identifier_path: RcStr = rcstr!("__next_all_hmr__");
+    subscribe(
+        project.turbopack_ctx.clone(),
+        func,
+        move || async move {
+            // HACK(bgw): Remove this unmark call
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+
+            let project = container.project().to_resolved().await?;
+            let state = project
+                .all_hmr_version_state(hmr_target)
+                .to_resolved()
+                .await?;
+
+            let update_op = all_hmr_update_with_issues_operation(project, state, hmr_target);
+
+            // HACK(bgw): Remove this mark call
+            mark_top_level_task();
+
+            let read =
+                read_strongly_consistent_and_apply_effects(update_op, |v| &v.effects).await?;
+
+            // HACK(bgw): Remove this unmark call
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+
+            let HmrUpdateWithIssues { update, issues, .. } = &*read;
+            match &**update {
+                Update::Missing | Update::None => {}
+                Update::Total(TotalUpdate { to }) => {
+                    state.set(to.clone()).await?;
+                }
+                Update::Partial(PartialUpdate { to, .. }) => {
+                    state.set(to.clone()).await?;
+                }
+            }
+            Ok((Some(update.clone()), issues.clone()))
+        },
+        move |ctx| {
+            let (update, issues) = ctx.value;
+
+            let napi_issues = issues
+                .iter()
+                .map(|issue| NapiIssue::from(&**issue))
+                .collect();
+            let update_issues = issues
+                .iter()
+                .map(|issue| Issue::from(&**issue))
+                .collect::<Vec<_>>();
+
+            let identifier = ResourceIdentifier {
+                path: identifier_path.clone(),
+                headers: None,
+            };
+            let update = match update.as_deref() {
+                None | Some(Update::Missing) | Some(Update::Total(_)) => {
+                    ClientUpdateInstruction::restart(&identifier, &update_issues)
+                }
+                Some(Update::Partial(update)) => ClientUpdateInstruction::partial(
+                    &identifier,
+                    &update.instruction,
+                    &update_issues,
+                ),
+                Some(Update::None) => ClientUpdateInstruction::issues(&identifier, &update_issues),
+            };
+
+            Ok(vec![TurbopackResult {
+                result: ctx.env.to_js_value(&update)?,
+                issues: napi_issues,
+            }])
+        },
+    )
+}
+
+#[tracing::instrument(level = "info", name = "get HMR events", skip(project, func), fields(target = %target, chunk_name = %chunk_name))]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_hmr_events(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
@@ -1853,6 +1997,8 @@ pub fn project_hmr_events(
                 let chunk_name: RcStr = outer_chunk_name.clone();
                 let session = session.clone();
                 async move {
+                    // HACK(bgw): Remove this unmark call
+                    unmark_top_level_task_may_leak_eventually_consistent_state();
                     let project = container.project().to_resolved().await?;
                     let state = project
                         .hmr_version_state(chunk_name.clone(), hmr_target, session)
@@ -1865,14 +2011,14 @@ pub fn project_hmr_events(
                         state,
                         hmr_target,
                     );
-                    let update = update_op.read_strongly_consistent().await?;
-                    let HmrUpdateWithIssues {
-                        update,
-                        issues,
-                        diagnostics,
-                        effects,
-                    } = &*update;
-                    effects.apply().await?;
+                    // HACK(bgw): Remove this mark call
+                    mark_top_level_task();
+                    let read =
+                        read_strongly_consistent_and_apply_effects(update_op, |v| &v.effects)
+                            .await?;
+                    // HACK(bgw): Remove this unmark call
+                    unmark_top_level_task_may_leak_eventually_consistent_state();
+                    let HmrUpdateWithIssues { update, issues, .. } = &*read;
                     match &**update {
                         Update::Missing | Update::None => {}
                         Update::Total(TotalUpdate { to }) => {
@@ -1882,12 +2028,12 @@ pub fn project_hmr_events(
                             state.set(to.clone()).await?;
                         }
                     }
-                    Ok((Some(update.clone()), issues.clone(), diagnostics.clone()))
+                    Ok((Some(update.clone()), issues.clone()))
                 }
             }
         },
         move |ctx| {
-            let (update, issues, diags) = ctx.value;
+            let (update, issues) = ctx.value;
 
             let napi_issues = issues
                 .iter()
@@ -1917,7 +2063,6 @@ pub fn project_hmr_events(
             Ok(vec![TurbopackResult {
                 result: ctx.env.to_js_value(&update)?,
                 issues: napi_issues,
-                diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
             }])
         },
     )
@@ -1928,15 +2073,14 @@ struct HmrChunkNames {
     pub chunk_names: Vec<RcStr>,
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 struct HmrChunkNamesWithIssues {
     chunk_names: ReadRef<Vec<RcStr>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
-    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn project_hmr_chunk_names_operation(
     container: ResolvedVc<ProjectContainer>,
     target: HmrTarget,
@@ -1944,21 +2088,25 @@ fn project_hmr_chunk_names_operation(
     container.hmr_chunk_names(target)
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn get_hmr_chunk_names_with_issues_operation(
     container: ResolvedVc<ProjectContainer>,
     target: HmrTarget,
 ) -> Result<Vc<HmrChunkNamesWithIssues>> {
     let hmr_chunk_names_op = project_hmr_chunk_names_operation(container, target);
+    // Do NOT switch this to `strongly_consistent_catch_collectables`. The JS HMR
+    // chunk-names consumer in `hot-reloader-turbopack.ts` relies on this read
+    // *throwing* on build-graph failures so its outer `try` block exits the
+    // subscription loop. Swallowing the error and emitting an empty chunk-name
+    // list keeps the loop running but with stale state, and obscures the real
+    // failure from the dev server log.
     let hmr_chunk_names = hmr_chunk_names_op.read_strongly_consistent().await?;
-    let filter = issue_filter_from_container(container);
-    let issues = get_issues(hmr_chunk_names_op, filter).await?;
-    let diagnostics = get_diagnostics(hmr_chunk_names_op).await?;
-    let effects = Arc::new(get_effects(hmr_chunk_names_op).await?);
+    let filter = container.project().issue_filter().await?;
+    let issues = get_issues(hmr_chunk_names_op, &filter).await?;
+    let effects = Arc::new(take_effects(hmr_chunk_names_op).await?);
     Ok(HmrChunkNamesWithIssues {
         chunk_names: hmr_chunk_names,
         issues,
-        diagnostics,
         effects,
     }
     .cell())
@@ -1982,20 +2130,21 @@ pub fn project_hmr_chunk_names_subscribe(
         move || async move {
             let hmr_chunk_names_with_issues_op =
                 get_hmr_chunk_names_with_issues_operation(container, hmr_target);
+            let read =
+                read_strongly_consistent_and_apply_effects(hmr_chunk_names_with_issues_op, |v| {
+                    &v.effects
+                })
+                .await?;
             let HmrChunkNamesWithIssues {
                 chunk_names,
                 issues,
-                diagnostics,
-                effects,
-            } = &*hmr_chunk_names_with_issues_op
-                .read_strongly_consistent()
-                .await?;
-            effects.apply().await?;
+                ..
+            } = &*read;
 
-            Ok((chunk_names.clone(), issues.clone(), diagnostics.clone()))
+            Ok((chunk_names.clone(), issues.clone()))
         },
         move |ctx| {
-            let (chunk_names, issues, diagnostics) = ctx.value;
+            let (chunk_names, issues) = ctx.value;
 
             Ok(vec![TurbopackResult {
                 result: HmrChunkNames {
@@ -2004,10 +2153,6 @@ pub fn project_hmr_chunk_names_subscribe(
                 issues: issues
                     .iter()
                     .map(|issue| NapiIssue::from(&**issue))
-                    .collect(),
-                diagnostics: diagnostics
-                    .iter()
-                    .map(|d| NapiDiagnostic::from(d))
                     .collect(),
             }])
         },
@@ -2129,6 +2274,7 @@ pub fn project_compilation_events_subscribe(
             obj.set_named_property("typeName", event.type_name())?;
             obj.set_named_property("severity", event.severity().to_string())?;
             obj.set_named_property("message", event.message())?;
+            obj.set_named_property("eventJson", event.to_json())?;
 
             let external = env.create_external(event, None);
             obj.set_named_property("eventData", external)?;
@@ -2146,25 +2292,24 @@ pub fn project_compilation_events_subscribe(
                 break;
             }
         }
+        // Signal the JS side that the subscription has ended (e.g. after
+        // project shutdown drops all senders).  This allows the async
+        // iterator to exit promptly instead of hanging forever.
+        let _ = tsfn.call(
+            Err(napi::Error::new(
+                Status::Cancelled,
+                "compilation events subscription closed",
+            )),
+            ThreadsafeFunctionCallMode::Blocking,
+        );
     });
 
     Ok(())
 }
 
 #[napi(object)]
-#[derive(
-    Clone,
-    Debug,
-    Eq,
-    Hash,
-    NonLocalValue,
-    OperationValue,
-    PartialEq,
-    TaskInput,
-    TraceRawVcs,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Debug, Eq, Hash, OperationValue, PartialEq, TraceRawVcs, Encode, Decode)]
 pub struct StackFrame {
     pub is_server: bool,
     pub is_ignored: Option<bool>,
@@ -2181,19 +2326,22 @@ pub struct StackFrame {
 #[derive(Clone)]
 pub struct OptionStackFrame(Option<StackFrame>);
 
-#[turbo_tasks::function]
-pub async fn get_source_map_rope(
-    container: Vc<ProjectContainer>,
-    source_url: RcStr,
-) -> Result<Vc<FileContent>> {
-    let (file_path_sys, module) = match Url::parse(&source_url) {
+/// Parses a stack-frame source URL — either a `file://` URL (with an optional `id` query parameter
+/// identifying the module) or a raw system path — into a system path and an optional module id,
+/// for use with [`get_source_map_rope`].
+///
+/// The returned path is canonicalized (with a lexical fallback if the file no longer exists).
+/// Canonicalization (not just lexical normalization) is needed because the path is later compared
+/// against paths derived from the canonicalized project root, and two spellings of a path only
+/// compare equal once both are reduced to the same canonical form. Canonicalization performs
+/// untracked filesystem reads, so this must be called from the napi layer, outside of any (cached)
+/// turbo-tasks function.
+fn parse_and_canonicalize_source_url(source_url: &str) -> Result<(RcStr, Option<RcStr>)> {
+    let (path, module) = match Url::parse(source_url) {
         Ok(url) => match url.scheme() {
             "file" => {
-                let path = match url.to_file_path() {
-                    Ok(path) => path.to_string_lossy().into(),
-                    Err(_) => {
-                        bail!("Failed to convert file URL to file path: {url}");
-                    }
+                let Ok(path) = url.to_file_path() else {
+                    bail!("Failed to convert file URL to file path: {url}");
                 };
                 let module = url.query_pairs().find(|(k, _)| k == "id");
                 (
@@ -2206,62 +2354,125 @@ pub async fn get_source_map_rope(
             }
             _ => bail!("Unknown url scheme '{}'", url.scheme()),
         },
-        Err(_) => (source_url.to_string(), None),
+        Err(_) => (PathBuf::from(source_url), None),
     };
 
-    let chunk_base_unix =
-        match file_path_sys.strip_prefix(container.project().dist_dir_absolute().await?.as_str()) {
-            Some(relative_path) => sys_to_unix(relative_path),
-            None => {
-                // File doesn't exist within the dist dir
-                return Ok(FileContent::NotFound.cell());
+    // Canonicalization resolves symlinks and (on Windows) yields a verbatim path with a
+    // case-folded drive letter and on-disk casing, matching the canonicalized project root.
+    let path = match canonicalize(&path) {
+        Ok(canonical) => canonical,
+        Err(_) => {
+            // The file may not exist (e.g. a stale stack frame). Fall back to a purely lexical
+            // normalization that approximates the canonical format.
+            if cfg!(windows) {
+                to_verbatim_with_case_folded_disk(&path).unwrap_or(path)
+            } else {
+                path
             }
-        };
+        }
+    };
 
-    let server_path = container
-        .project()
-        .node_root()
+    let path = path
+        .into_string()
+        .map(RcStr::from)
+        .map_err(|p| anyhow!("path {p:?} is not valid unicode"))?;
+    Ok((path, module))
+}
+
+/// `file_path_sys` and `module` must be produced by [`parse_and_canonicalize_source_url`], which
+/// canonicalizes the path. That must happen in the napi layer: this is a cached turbo-tasks
+/// function, so it cannot perform untracked reads like canonicalization itself.
+#[turbo_tasks::function]
+async fn get_source_map_rope(
+    container: Vc<ProjectContainer>,
+    sys_path: RcStr,
+    module: Option<RcStr>,
+) -> Result<Vc<FileContent>> {
+    let sys_path = Path::new(&*sys_path);
+
+    let project = container.project();
+    let output_fs = project.output_fs().to_resolved().await?;
+    let Some(fs_path) = output_fs
         .await?
-        .join(&chunk_base_unix)?;
+        .try_from_sys_path(output_fs, sys_path, None)
+    else {
+        // The path is outside of the filesystem root
+        return Ok(FileContent::NotFound.cell());
+    };
 
-    let client_path = container
-        .project()
-        .client_relative_path()
-        .await?
-        .join(&chunk_base_unix)?;
+    let node_root = project.node_root().await?;
+    let Some(chunk_base_unix) = node_root.get_path_to(&fs_path).map(ToOwned::to_owned) else {
+        // The path is not within the dist dir
+        return Ok(FileContent::NotFound.cell());
+    };
 
-    let mut map = container.get_source_map(server_path, module.clone());
+    let client_relative_path = project.client_relative_path().await?;
+    let client_path = client_relative_path.join(&chunk_base_unix)?;
+
+    // `fs_path` is the server path: it's inside `node_root`, and `output_fs` is the filesystem
+    // that `node_root` uses.
+    let mut map = container.get_source_map(fs_path, module.clone());
 
     if !map.await?.is_content() {
         // If the chunk doesn't exist as a server chunk, try a client chunk.
         // TODO: Properly tag all server chunks and use the `isServer` query param.
         // Currently, this is inaccurate as it does not cover RSC server
         // chunks.
-        map = container.get_source_map(client_path, module);
+        map = container.get_source_map(client_path, module.clone());
         if !map.await?.is_content() {
-            bail!("chunk/module '{}' is missing a sourcemap", source_url);
+            // An older revision of a chunk's sourcemap may be requested by an HMR client. We
+            // remove stale entries from the VersionStateMap but a client may be holding onto a
+            // reference to a stale chunk and requesting its sourcmemap via the error
+            // overlay.
+            //
+            // This exists because we don't have logic for the server hmr client to mark which
+            // chunks it's no longer using.
+            //
+            // Fall back to reading from the filesystem.
+            let map_relative = format!("{chunk_base_unix}.map");
+            let server_map = node_root.join(&map_relative)?.read();
+            if server_map.await?.is_content() {
+                return Ok(server_map);
+            }
+            let client_map = client_relative_path.join(&map_relative)?.read();
+            if client_map.await?.is_content() {
+                return Ok(client_map);
+            }
+            bail!("chunk/module {sys_path:?} (module: {module:?}) is missing a sourcemap");
         }
     }
 
     Ok(map)
 }
 
-#[turbo_tasks::function(operation)]
-pub fn get_source_map_rope_operation(
+/// See [`get_source_map_rope`]: `file_path_sys` and `module` must be produced by
+/// [`parse_and_canonicalize_source_url`] in the napi layer.
+#[turbo_tasks::function(operation, root)]
+fn get_source_map_rope_operation(
     container: ResolvedVc<ProjectContainer>,
-    file_path: RcStr,
+    file_path_sys: RcStr,
+    module: Option<RcStr>,
 ) -> Vc<FileContent> {
-    get_source_map_rope(*container, file_path)
+    get_source_map_rope(*container, file_path_sys, module)
 }
 
-#[turbo_tasks::function(operation)]
-pub async fn project_trace_source_operation(
+/// `frame_file_path_sys` and `frame_module` are the normalized form of `frame.file`, and must be
+/// produced by [`parse_and_canonicalize_source_url`] in the napi layer (see
+/// [`get_source_map_rope`]).
+#[turbo_tasks::function(operation, root)]
+async fn project_trace_source_operation(
     container: ResolvedVc<ProjectContainer>,
     frame: StackFrame,
+    frame_file_path_sys: RcStr,
+    frame_module: Option<RcStr>,
     current_directory_file_url: RcStr,
 ) -> Result<Vc<OptionStackFrame>> {
-    let Some(map) =
-        &*SourceMap::new_from_rope_cached(get_source_map_rope(*container, frame.file)).await?
+    let Some(map) = &*SourceMap::new_from_rope_cached(get_source_map_rope(
+        *container,
+        frame_file_path_sys,
+        frame_module,
+    ))
+    .await?
     else {
         return Ok(Vc::cell(None));
     };
@@ -2277,10 +2488,8 @@ pub async fn project_trace_source_operation(
 
     let (original_file, line, column, method_name, is_ignored) = match token {
         Token::Original(token) => (
-            match urlencoding::decode(&token.original_file)? {
-                Cow::Borrowed(_) => token.original_file,
-                Cow::Owned(original_file) => RcStr::from(original_file),
-            },
+            // Still percent-encoded, like the URIs it's compared against.
+            token.original_file,
             // JS stack frames are 1-indexed, source map tokens are 0-indexed
             Some(token.original_line + 1),
             Some(token.original_column + 1),
@@ -2295,36 +2504,51 @@ pub async fn project_trace_source_operation(
         }
     };
 
+    // Turns a percent-encoded URI fragment back into a path for output.
+    fn decode_uri_fragment(value: &str) -> Result<RcStr> {
+        Ok(match urlencoding::decode(value)? {
+            Cow::Borrowed(borrowed) => RcStr::from(borrowed),
+            Cow::Owned(owned) => RcStr::from(owned),
+        })
+    }
+
     let project_root_uri =
         uri_from_file(container.project().project_root_path().owned().await?, None).await? + "/";
+    // Relative paths are computed on decoded inputs: they come from
+    // different encoders that disagree on characters like `[` vs `%5B`.
+    let current_directory_path = decode_uri_fragment(&current_directory_file_url)?;
     let (file, original_file) =
         if let Some(source_file) = original_file.strip_prefix(&project_root_uri) {
             // Client code uses file://
             (
                 RcStr::from(
-                    get_relative_path_to(&current_directory_file_url, &original_file)
-                        // TODO(sokra) remove this to include a ./ here to make it a relative path
-                        .trim_start_matches("./"),
-                ),
-                Some(RcStr::from(source_file)),
-            )
-        } else if let Some(source_file) = original_file.strip_prefix(&*SOURCE_MAP_PREFIX_PROJECT) {
-            // Server code uses turbopack:///[project]
-            // TODO should this also be file://?
-            (
-                RcStr::from(
                     get_relative_path_to(
-                        &current_directory_file_url,
-                        &format!("{project_root_uri}{source_file}"),
+                        &current_directory_path,
+                        &decode_uri_fragment(&original_file)?,
                     )
                     // TODO(sokra) remove this to include a ./ here to make it a relative path
                     .trim_start_matches("./"),
                 ),
-                Some(RcStr::from(source_file)),
+                Some(decode_uri_fragment(source_file)?),
+            )
+        } else if let Some(source_file) = original_file.strip_prefix(&*SOURCE_MAP_PREFIX_PROJECT) {
+            // Server code uses turbopack:///[project]
+            // TODO should this also be file://?
+            let source_file = decode_uri_fragment(source_file)?;
+            (
+                RcStr::from(
+                    get_relative_path_to(
+                        &current_directory_path,
+                        &format!("{}{}", decode_uri_fragment(&project_root_uri)?, source_file),
+                    )
+                    // TODO(sokra) remove this to include a ./ here to make it a relative path
+                    .trim_start_matches("./"),
+                ),
+                Some(source_file),
             )
         } else if let Some(source_file) = original_file.strip_prefix(&*SOURCE_MAP_PREFIX) {
             // TODO(veil): Should the protocol be preserved?
-            (RcStr::from(source_file), None)
+            (decode_uri_fragment(source_file)?, None)
         } else {
             bail!(
                 "Original file ({}) outside project ({})",
@@ -2353,11 +2577,17 @@ pub async fn project_trace_source(
 ) -> napi::Result<Option<StackFrame>> {
     let container = project.container;
     let ctx = &project.turbopack_ctx;
+    // Normalization canonicalizes (an untracked read), so it must happen here, outside of the
+    // cached turbo-tasks functions below.
+    let (frame_file_path_sys, frame_module) = parse_and_canonicalize_source_url(&frame.file)
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
     ctx.turbo_tasks()
         .run(async move {
             let traced_frame = project_trace_source_operation(
                 container,
                 frame,
+                frame_file_path_sys,
+                frame_module,
                 RcStr::from(current_directory_file_url),
             )
             .read_strongly_consistent()
@@ -2381,7 +2611,7 @@ pub async fn project_get_source_for_asset(
     let ctx = &project.turbopack_ctx;
     ctx.turbo_tasks()
         .run(async move {
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn source_content_operation(
                 container: ResolvedVc<ProjectContainer>,
                 file_path: RcStr,
@@ -2411,13 +2641,17 @@ pub async fn project_get_source_for_asset(
 #[napi]
 pub async fn project_get_source_map(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
-    file_path: RcStr,
+    source_map_url: RcStr,
 ) -> napi::Result<Option<String>> {
     let container = project.container;
     let ctx = &project.turbopack_ctx;
+    // Normalization canonicalizes (an untracked read), so it must happen here, outside of the
+    // cached turbo-tasks functions below.
+    let (file_path_sys, module) = parse_and_canonicalize_source_url(&source_map_url)
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
     ctx.turbo_tasks()
         .run(async move {
-            let source_map = get_source_map_rope_operation(container, file_path)
+            let source_map = get_source_map_rope_operation(container, file_path_sys, module)
                 .read_strongly_consistent()
                 .await?;
             let Some(map) = source_map.as_content() else {
@@ -2448,20 +2682,16 @@ pub async fn project_write_analyze_data(
     app_dir_only: bool,
 ) -> napi::Result<TurbopackResult<()>> {
     let container = project.container;
-    let (issues, diagnostics) = project
+    let issues = project
         .turbopack_ctx
         .turbo_tasks()
         .run_once(async move {
             let analyze_data_op = write_analyze_data_with_issues_operation(container, app_dir_only);
-            let WriteAnalyzeResult {
-                issues,
-                diagnostics,
-                effects,
-            } = &*analyze_data_op.read_strongly_consistent().await?;
-
             // Write the files to disk
-            effects.apply().await?;
-            Ok((issues.clone(), diagnostics.clone()))
+            let read =
+                read_strongly_consistent_and_apply_effects(analyze_data_op, |v| &v.effects).await?;
+            let WriteAnalyzeResult { issues, .. } = &*read;
+            Ok(issues.clone())
         })
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
@@ -2469,9 +2699,104 @@ pub async fn project_write_analyze_data(
     Ok(TurbopackResult {
         result: (),
         issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
-        diagnostics: diagnostics
-            .iter()
-            .map(|d| NapiDiagnostic::from(d))
-            .collect(),
     })
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn get_all_compilation_issues_inner_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Result<Vc<()>> {
+    let project = container.project();
+    // Build the whole app module graph without chunking, code gen, or disk emission.
+    // We use whole_app_module_graphs_without_dropping_issues() instead of
+    // whole_app_module_graphs() because the latter drops issues in development mode
+    // (to avoid duplicate per-route HMR noise). The non-dropping variant ensures issues
+    // like missing modules and transform errors are properly collected as collectables here.
+    project
+        .whole_app_module_graphs_without_dropping_issues()
+        .as_side_effect()
+        .await?;
+    Ok(Vc::cell(()))
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn get_all_compilation_issues_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Result<Vc<OperationResult>> {
+    let inner_op = get_all_compilation_issues_inner_operation(container);
+    let filter = container.project().issue_filter().await?;
+    let (_, issues, effects) = strongly_consistent_catch_collectables(inner_op, &filter).await?;
+    Ok(OperationResult { issues, effects }.cell())
+}
+
+/// Returns the build-feature-usage telemetry summary for this project — the set of
+/// `(featureName, invocationCount)` pairs reported to the Next.js telemetry service.
+///
+/// Intended to be called once at the end of a build, after `writeAllEntrypointsToDisk`. The
+/// summary is computed by walking the whole-app module graph and is cached by turbo-tasks, so the
+/// call is cheap when the graph is already materialized.
+#[tracing::instrument(level = "info", name = "get project feature usage", skip_all)]
+#[napi]
+pub async fn project_feature_usage(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) -> napi::Result<Vec<NapiUsedFeature>> {
+    let container = project.container;
+    let summary = project
+        .turbopack_ctx
+        .turbo_tasks()
+        .run_once(async move {
+            #[turbo_tasks::function(operation, root)]
+            async fn project_feature_usage_operation(
+                container: ResolvedVc<ProjectContainer>,
+            ) -> Result<Vc<ProjectFeatureUsageSummary>> {
+                Ok(container.project().project_feature_usage())
+            }
+            project_feature_usage_operation(container)
+                .read_strongly_consistent()
+                .await
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+
+    Ok(summary
+        .features
+        .iter()
+        .map(|(name, count)| NapiUsedFeature::new(name.clone(), *count))
+        .collect())
+}
+
+#[tracing::instrument(level = "info", name = "get all compilation issues", skip_all)]
+#[napi]
+pub async fn project_get_all_compilation_issues(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) -> napi::Result<TurbopackResult<()>> {
+    let container = project.container;
+    let issues = project
+        .turbopack_ctx
+        .turbo_tasks()
+        .run_once(async move {
+            let op = get_all_compilation_issues_operation(container);
+            let OperationResult { issues, effects: _ } = &*op.read_strongly_consistent().await?;
+            Ok(issues.clone())
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+
+    Ok(TurbopackResult {
+        result: (),
+        issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
+    })
+}
+
+/// Opens the Turbopack persistent cache database at the given path and performs a full compaction.
+///
+/// The `path` should point to the `<distDir>/cache/turbopack` directory.
+#[napi]
+pub async fn turbopack_database_compact(path: String, next_version: String) -> napi::Result<()> {
+    let describe = crate::next_api::turbopack_ctx::cache_describe(&next_version);
+    let version_info = crate::next_api::turbopack_ctx::git_version_info(&describe);
+    let is_ci = std::env::var("CI").is_ok_and(|v| !v.is_empty());
+    turbo_tasks_backend::compact_database(&PathBuf::from(path), &version_info, is_ci)
+        .map_err(|e| napi::Error::from_reason(format!("Database compaction failed: {e}")))?;
+    Ok(())
 }

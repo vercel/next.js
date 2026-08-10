@@ -1,0 +1,2 @@
+# Override root .gitignore to track .env*.local fixture files needed by this test
+!.env*.local

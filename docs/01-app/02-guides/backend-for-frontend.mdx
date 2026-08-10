@@ -351,9 +351,9 @@ export async function POST(request: Request) {
   try {
     const clonedRequest = request.clone()
 
-    await request.body()
-    await clonedRequest.body()
-    await request.body() // Throws error
+    await request.text()
+    await clonedRequest.text()
+    await request.text() // Throws error
 
     return new Response(null, { status: 204 })
   } catch {
@@ -367,9 +367,9 @@ export async function POST(request) {
   try {
     const clonedRequest = request.clone()
 
-    await request.body()
-    await clonedRequest.body()
-    await request.body() // Throws error
+    await request.text()
+    await clonedRequest.text()
+    await request.text() // Throws error
 
     return new Response(null, { status: 204 })
   } catch {
@@ -575,7 +575,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: false }, { status: 400 })
   }
 
-  revalidateTag(tag)
+  revalidateTag(tag, 'max')
 
   return NextResponse.json({ success: true })
 }
@@ -597,7 +597,7 @@ export async function GET(request) {
     return NextResponse.json({ success: false }, { status: 400 })
   }
 
-  revalidateTag(tag)
+  revalidateTag(tag, 'max')
 
   return NextResponse.json({ success: true })
 }
@@ -612,7 +612,13 @@ export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get('session_token')
   const redirectUrl = request.nextUrl.searchParams.get('redirect_url')
 
-  const response = NextResponse.redirect(new URL(redirectUrl, request.url))
+  const destination = new URL(redirectUrl ?? '/', request.url)
+  // Prevent open redirects: only allow same-origin destinations
+  if (destination.origin !== request.nextUrl.origin) {
+    return new Response('Invalid redirect', { status: 400 })
+  }
+
+  const response = NextResponse.redirect(destination)
 
   response.cookies.set({
     value: token,
@@ -634,7 +640,13 @@ export async function GET(request) {
   const token = request.nextUrl.searchParams.get('session_token')
   const redirectUrl = request.nextUrl.searchParams.get('redirect_url')
 
-  const response = NextResponse.redirect(new URL(redirectUrl, request.url))
+  const destination = new URL(redirectUrl ?? '/', request.url)
+  // Prevent open redirects: only allow same-origin destinations
+  if (destination.origin !== request.nextUrl.origin) {
+    return new Response('Invalid redirect', { status: 400 })
+  }
+
+  const response = NextResponse.redirect(destination)
 
   response.cookies.set({
     value: token,
@@ -866,7 +878,7 @@ These examples include, working with [Cookies](/docs/app/api-reference/file-conv
 
 Fetch data in Server Components directly from its source, not via Route Handlers.
 
-For Server Components pre-rendered at build time, using Route Handlers will fail the build step. This is because, while building there is no server listening for these requests.
+For Server Components prerendered at build time, using Route Handlers will fail the build step. This is because, while building there is no server listening for these requests.
 
 For Server Components rendered on demand, fetching from Route Handlers is slower due to the extra HTTP round trip between the handler and the render process.
 
@@ -885,7 +897,7 @@ For these, use community libraries like [`swr`](https://swr.vercel.app/) or [`re
 
 ### Server Actions
 
-Server Actions let you run server-side code from the client. Their primary purpose is to mutate data from your frontend client.
+[Server Actions](/docs/app/guides/server-actions) let you run server-side code from the client. Their primary purpose is to mutate data from your frontend client.
 
 Server Actions are queued. Using them for data fetching introduces sequential execution.
 
@@ -893,7 +905,7 @@ Server Actions are queued. Using them for data fetching introduces sequential ex
 
 `export` mode outputs a static site without a runtime server. Features that require the Next.js runtime are [not supported](/docs/app/guides/static-exports#unsupported-features), because this mode produces a static site, and no runtime server.
 
-In `export mode`, only `GET` Route Handlers are supported, in combination with the [`dynamic`](/docs/app/api-reference/file-conventions/route-segment-config#dynamic) route segment config, set to `'force-static'`.
+In `export mode`, only `GET` Route Handlers are supported, in combination with the [`dynamic`](/docs/app/guides/caching-without-cache-components#dynamic) route segment config, set to `'force-static'`.
 
 This can be used to generate static HTML, JSON, TXT, or other files.
 

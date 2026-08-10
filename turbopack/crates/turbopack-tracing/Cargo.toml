@@ -21,6 +21,7 @@ turbopack = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
+rustc-hash = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -33,9 +34,11 @@ turbo-tasks-backend = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-resolve = { workspace = true }
 turbopack-ecmascript = { workspace = true }
+turbopack-node = { workspace = true, default-features = false, features = ["process_pool"]}
 
 criterion = { workspace = true, features = ["async_tokio"] }
 difference = "2.0"
+similar = "2.2.0"
 rstest = { workspace = true }
 rstest_reuse = "0.5.0"
 tokio = { workspace = true }

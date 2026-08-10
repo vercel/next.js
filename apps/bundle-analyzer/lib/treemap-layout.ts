@@ -15,6 +15,7 @@ export interface LayoutNodeInfo {
   size: number
   server?: boolean
   client?: boolean
+  traced?: boolean
 }
 
 export interface LayoutNode extends LayoutNodeInfo {
@@ -25,7 +26,6 @@ export interface LayoutNode extends LayoutNodeInfo {
   titleBarHeight?: number
   children?: LayoutNode[]
   itemCount?: number
-  traced?: boolean
   js?: boolean
   css?: boolean
   json?: boolean
@@ -112,7 +112,6 @@ function computeTreemapLayoutFromAnalyzeInternal(
   foldedPath: string,
   rect: LayoutRect,
   metadata: SourceMetadata[],
-  filterSource: ((sourceIndex: SourceIndex) => boolean) | undefined,
   sizeMode: SizeMode
 ): LayoutNode {
   const source = analyzeData.source(sourceIndex)
@@ -139,7 +138,6 @@ function computeTreemapLayoutFromAnalyzeInternal(
         foldedPath + source.path,
         rect,
         metadata,
-        filterSource,
         sizeMode
       )
     }
@@ -253,7 +251,6 @@ function computeTreemapLayoutFromAnalyzeInternal(
       '',
       childRects[i],
       metadata,
-      filterSource,
       sizeMode
     )
   )
@@ -288,7 +285,6 @@ export function computeTreemapLayoutFromAnalyze(
     '',
     rect,
     metadata,
-    filterSource,
     sizeMode
   )
 }

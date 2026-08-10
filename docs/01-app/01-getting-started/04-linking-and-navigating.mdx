@@ -27,7 +27,7 @@ In Next.js, [Layouts and Pages](/docs/app/getting-started/layouts-and-pages) are
 
 There are two types of server rendering, based on _when_ it happens:
 
-- **Static Rendering (or Prerendering)** happens at build time or during [revalidation](/docs/app/getting-started/caching-and-revalidating) and the result is cached.
+- **Prerendering** happens at build time or during [revalidation](/docs/app/getting-started/revalidating) and the result is cached.
 - **Dynamic Rendering** happens at request time in response to a client request.
 
 The trade-off of server rendering is that the client must wait for the server to respond before the new route can be shown. Next.js addresses this delay by [prefetching](#prefetching) routes the user is likely to visit and performing [client-side transitions](#client-side-transitions).
@@ -63,7 +63,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 ```jsx filename="app/layout.js" switcher
 import Link from 'next/link'
 
-export default function Layout() {
+export default function Layout({ children }) {
   return (
     <html>
       <body>
@@ -95,11 +95,13 @@ By skipping or partially prefetching dynamic routes, Next.js avoids unnecessary 
   height="748"
 />
 
+> **Good to know:** See the [Prefetching guide](/docs/app/guides/prefetching) for the full behavior, including how to control prefetching per link and how it changes when you adopt [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching).
+
 To improve the navigation experience to dynamic routes, you can use [streaming](#streaming).
 
 ### Streaming
 
-Streaming allows the server to send parts of a dynamic route to the client as soon as they're ready, rather than waiting for the entire route to be rendered. This means users see something sooner, even if parts of the page are still loading.
+Streaming allows the server to send parts of a dynamic route to the client as soon as they're ready, rather than waiting for the entire route to be rendered. This means users see something sooner, even if parts of the page are still loading. See the [Streaming guide](/docs/app/guides/streaming) for a deep dive into how streaming works in Next.js.
 
 For dynamic routes, it means they can be **partially prefetched**. That is, shared layouts and loading skeletons can be requested ahead of time.
 
@@ -216,6 +218,7 @@ export async function generateStaticParams() {
   return posts.map((post) => ({
     slug: post.slug,
   }))
+}
 
 export default async function Page({ params }) {
   const { slug } = await params
@@ -256,6 +259,8 @@ export default function LoadingIndicator() {
 ```
 
 You can "debounce" the hint by adding an initial animation delay (e.g. 100ms) and starting as invisible (e.g. `opacity: 0`). This means the loading indicator will only be shown if the navigation takes longer than the specified delay. See the [`useLinkStatus` reference](/docs/app/api-reference/functions/use-link-status#gracefully-handling-fast-navigation) for a CSS example.
+
+> **Good to know**: An **experimental** [`useOffline`](/docs/app/api-reference/config/next-config-js/useOffline) hook can keep prefetched routes navigable during connectivity drops. See the [offline support guide](/docs/app/guides/offline-support).
 
 > **Good to know**: You can use other visual feedback patterns like a progress bar. View an example [here](https://github.com/vercel/react-transition-progress).
 

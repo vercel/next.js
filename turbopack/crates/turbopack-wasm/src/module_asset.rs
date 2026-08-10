@@ -1,19 +1,19 @@
 use anyhow::{Result, bail};
 use turbo_rcstr::rcstr;
-use turbo_tasks::{IntoTraitRef, ResolvedVc, Vc, fxindexmap};
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
+use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
-    chunk::{
-        AsyncModuleInfo, ChunkableModule, ChunkingContext, chunk_group::references_to_output_assets,
-    },
+    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext},
     context::AssetContext,
+    environment::ChunkLoading,
+    file_source::FileSource,
     ident::AssetIdent,
-    module::{Module, ModuleSideEffects, OptionModule},
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     output::OutputAssetsWithReferenced,
     reference::{ModuleReferences, SingleChunkableModuleReference},
     reference_type::ReferenceType,
-    resolve::{ExportUsage, origin::ResolveOrigin, parse::Request},
+    resolve::{ExportUsage, origin::ResolveOrigin},
     source::{OptionSource, Source},
 };
 use turbopack_ecmascript::{
@@ -25,6 +25,7 @@ use turbopack_ecmascript::{
 };
 
 use crate::{
+    embed,
     loader::{compiling_loader_source, instantiating_loader_source},
     output_asset::WebAssemblyAsset,
     raw::RawWebAssemblyModuleAsset,
@@ -38,19 +39,22 @@ use crate::{
 pub struct WebAssemblyModuleAsset {
     source: ResolvedVc<WebAssemblySource>,
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    /// The path of `source`, precomputed so that `ResolveOrigin::origin_path` is synchronous.
+    origin_path: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
 impl WebAssemblyModuleAsset {
     #[turbo_tasks::function]
-    pub fn new(
+    pub async fn new(
         source: ResolvedVc<WebAssemblySource>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
-    ) -> Vc<Self> {
-        Self::cell(WebAssemblyModuleAsset {
+    ) -> Result<Vc<Self>> {
+        Ok(Self::cell(WebAssemblyModuleAsset {
+            origin_path: source.ident().await?.path.clone(),
             source,
             asset_context,
-        })
+        }))
     }
 
     #[turbo_tasks::function]
@@ -62,16 +66,53 @@ impl WebAssemblyModuleAsset {
     async fn loader_as_module(&self) -> Result<Vc<Box<dyn Module>>> {
         let query = &self.source.ident().await?.query;
 
+        let chunk_loading = self
+            .asset_context
+            .compile_time_info()
+            .environment()
+            .chunk_loading()
+            .await?;
+
+        let is_edge = matches!(*chunk_loading, ChunkLoading::Edge);
+
         let loader_source = if query == "?module" {
-            compiling_loader_source(*self.source)
+            compiling_loader_source(*self.source, is_edge)
         } else {
-            instantiating_loader_source(*self.source)
+            instantiating_loader_source(*self.source, is_edge)
         };
+
+        let helper_path = match *chunk_loading {
+            ChunkLoading::Edge => rcstr!("edge/loadWasm.ts"),
+            ChunkLoading::NodeJs => rcstr!("node/loadWasm.ts"),
+            ChunkLoading::Dom => rcstr!("browser/loadWasm.ts"),
+            ChunkLoading::SingleChunk => unreachable!(
+                "Environment::chunk_loading never returns SingleChunk; single-chunk WASM is \
+                 rejected in chunk_item_content"
+            ),
+        };
+
+        let helper = self
+            .asset_context
+            .process(
+                Vc::upcast(FileSource::new(
+                    embed::embed_fs().root().await?.join(&helper_path)?,
+                )),
+                /*
+                   TODO (@sampoder): ideally, we would have some sort of hint
+                   here that suggests whether we are using `compileModule()` or
+                   `instantiate()` to avoid loading the other unused function.
+                */
+                ReferenceType::Runtime,
+            )
+            .module()
+            .to_resolved()
+            .await?;
 
         let module = self.asset_context.process(
             loader_source,
             ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
                 rcstr!("WASM_PATH") => ResolvedVc::upcast(RawWebAssemblyModuleAsset::new(*self.source, *self.asset_context).to_resolved().await?),
+                rcstr!("WASM_HELPER") => helper,
             })),
         ).module();
 
@@ -124,8 +165,11 @@ impl Module for WebAssemblyModuleAsset {
         Ok(self
             .source
             .ident()
+            .owned()
+            .await?
             .with_modifier(rcstr!("wasm module"))
-            .with_layer(self.asset_context.into_trait_ref().await?.layer()))
+            .with_layer(self.asset_context.into_trait_ref().await?.layer())
+            .into_vc())
     }
 
     #[turbo_tasks::function]
@@ -184,6 +228,16 @@ impl EcmascriptChunkPlaceable for WebAssemblyModuleAsset {
         async_module_info: Option<Vc<AsyncModuleInfo>>,
         estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        if matches!(
+            *chunking_context.chunk_loading().await?,
+            ChunkLoading::SingleChunk
+        ) {
+            bail!(
+                "WebAssembly imports are not supported in single-chunk (service-worker) \
+                 entrypoints"
+            );
+        }
+
         // Delegate to the loader's chunk item content
         Ok(self.loader().chunk_item_content(
             chunking_context,
@@ -196,28 +250,23 @@ impl EcmascriptChunkPlaceable for WebAssemblyModuleAsset {
     #[turbo_tasks::function]
     async fn chunk_item_output_assets(
         self: Vc<Self>,
-        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         _module_graph: Vc<ModuleGraph>,
     ) -> Result<Vc<OutputAssetsWithReferenced>> {
-        let loader_references = self.loader().references().await?;
-        references_to_output_assets(&*loader_references).await
+        let wasm_asset = self.wasm_asset(chunking_context).to_resolved().await?;
+        Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(vec![
+            ResolvedVc::upcast(wasm_asset),
+        ])))
     }
 }
 
 #[turbo_tasks::value_impl]
 impl ResolveOrigin for WebAssemblyModuleAsset {
-    #[turbo_tasks::function]
-    fn origin_path(&self) -> Vc<FileSystemPath> {
-        self.source.ident().path()
+    fn origin_path(&self) -> FileSystemPath {
+        self.origin_path.clone()
     }
 
-    #[turbo_tasks::function]
-    fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
-        *self.asset_context
-    }
-
-    #[turbo_tasks::function]
-    fn get_inner_asset(self: Vc<Self>, request: Vc<Request>) -> Vc<OptionModule> {
-        self.loader_as_resolve_origin().get_inner_asset(request)
+    fn asset_context(&self) -> ResolvedVc<Box<dyn AssetContext>> {
+        self.asset_context
     }
 }

@@ -5,7 +5,6 @@ import { retry } from 'next-test-utils'
 describe('get-logs MCP tool', () => {
   const { next, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'log-file-app'),
-    skipDeployment: true,
   })
 
   if (skipped) {

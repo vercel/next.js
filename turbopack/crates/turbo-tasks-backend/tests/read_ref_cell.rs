@@ -56,7 +56,7 @@ async fn test_read_ref() {
 #[turbo_tasks::value(transparent)]
 struct CounterValue(usize);
 
-#[turbo_tasks::value(serialization = "none", cell = "new", eq = "manual")]
+#[turbo_tasks::value(serialization = "skip", evict = "never", cell = "new", eq = "manual")]
 struct Counter {
     #[turbo_tasks(debug_ignore, trace_ignore)]
     value: Mutex<(usize, HashSet<Invalidator>)>,
@@ -77,7 +77,7 @@ impl Counter {
 
 #[turbo_tasks::value_impl]
 impl Counter {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     fn get_value(&self) -> Result<Vc<CounterValue>> {
         let mut lock = self.value.lock().unwrap();
         lock.1.insert(get_invalidator().unwrap());
@@ -87,7 +87,7 @@ impl Counter {
 
 #[turbo_tasks::value_impl]
 impl CounterValue {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     fn get_value(self: Vc<Self>) -> Vc<Self> {
         self
     }

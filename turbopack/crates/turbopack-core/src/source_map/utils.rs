@@ -1,26 +1,23 @@
-use std::{borrow::Cow, collections::HashSet, iter};
+use std::{borrow::Cow, collections::HashSet, iter, sync::LazyLock};
 
 use anyhow::{Context, Result};
 use const_format::concatcp;
-use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, ValueToString};
-use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileSystemPath, rope::Rope, util::uri_from_path_buf,
-};
+use turbo_tasks::{ResolvedVc, turbofmt};
+use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystemPath, rope::Rope};
 use url::Url;
 
-use crate::SOURCE_URL_PROTOCOL;
+use crate::{SOURCE_URL_PROTOCOL_STR, source_map::structured::StructuredSourceMap};
 
 pub fn add_default_ignore_list(map: &mut swc_sourcemap::SourceMap) {
     let mut ignored_ids = HashSet::new();
 
     for (source_id, source) in map.sources().enumerate() {
-        if source.starts_with(concatcp!(SOURCE_URL_PROTOCOL, "///[next]"))
-            || source.starts_with(concatcp!(SOURCE_URL_PROTOCOL, "///[turbopack]"))
+        if source.starts_with(concatcp!(SOURCE_URL_PROTOCOL_STR, "///[next]"))
+            || source.starts_with(concatcp!(SOURCE_URL_PROTOCOL_STR, "///[turbopack]"))
             || source.contains("/node_modules/")
             || source.ends_with("__nextjs-internal-proxy.cjs")
             || source.ends_with("__nextjs-internal-proxy.mjs")
@@ -86,7 +83,7 @@ pub async fn resolve_source_map_sources(
     origin: &FileSystemPath,
 ) -> Result<Option<Rope>> {
     let fs_vc = origin.fs().to_resolved().await?;
-    let fs_str = &*format!("[{}]", fs_vc.to_string().await?);
+    let fs_str = &*turbofmt!("[{fs_vc}]").await?;
 
     let disk_fs = if let Some(fs_vc) = ResolvedVc::try_downcast_type::<DiskFileSystem>(fs_vc) {
         Some((fs_vc, fs_vc.await?))
@@ -138,7 +135,7 @@ pub async fn resolve_source_map_sources(
                 // valid URLs. However, `project_trace_source_operation` (and `uri_from_file`) need
                 // to handle percent encoding correctly first.
                 let fs_path_str = &fs_path.path;
-                *source_url = format!("{SOURCE_URL_PROTOCOL}///{fs_str}/{fs_path_str}");
+                *source_url = format!("{SOURCE_URL_PROTOCOL_STR}///{fs_str}/{fs_path_str}");
 
                 if let Some(source_content) = source_content
                     && source_content.is_none()
@@ -163,11 +160,11 @@ pub async fn resolve_source_map_sources(
                          filesystem root)"
                     )));
                 }
-                static INVALID_REGEX: Lazy<Regex> =
-                    Lazy::new(|| Regex::new(r#"(?:^|/)(?:\.\.?(?:/|$))+"#).unwrap());
+                static INVALID_REGEX: LazyLock<Regex> =
+                    LazyLock::new(|| Regex::new(r#"(?:^|/)(?:\.\.?(?:/|$))+"#).unwrap());
                 let source = INVALID_REGEX
                     .replace_all(source_url, |s: &regex::Captures<'_>| s[0].replace('.', "_"));
-                *source_url = format!("{SOURCE_URL_PROTOCOL}///{fs_str}/{origin_str}/{source}");
+                *source_url = format!("{SOURCE_URL_PROTOCOL_STR}///{fs_str}/{origin_str}/{source}");
             }
             anyhow::Ok(())
         };
@@ -226,80 +223,69 @@ fn unencoded_str_to_raw_value(unencoded: &str) -> Box<RawValue> {
     .expect("serde_json::to_string should produce valid JSON")
 }
 
-/// Helper function to transform turbopack:/// file references in a sourcemap.
-/// Handles parsing the sourcemap, resolving the filesystem, applying transformations, and
-/// serializing back.
-/// The transform function is given the source string as found in the sourcemap (i.e. a URI).
-async fn transform_relative_files<F>(
-    map: Option<&Rope>,
-    context_path: &FileSystemPath,
-    mut transform: F,
-) -> Result<Option<Rope>>
-where
-    F: FnMut(&DiskFileSystem, &str) -> Result<String>,
-{
-    let Some(map) = map else {
-        return Ok(None);
-    };
-
-    let Ok(mut map): serde_json::Result<SourceMapJson> = serde_json::from_reader(map.read()) else {
-        // Silently ignore invalid sourcemaps
-        return Ok(None);
-    };
-
-    let context_fs = context_path.fs;
-    let context_fs = &*ResolvedVc::try_downcast_type::<DiskFileSystem>(context_fs)
-        .context("Expected the chunking context to have a DiskFileSystem")?
-        .await?;
-
-    let prefix = format!("{}///[{}]/", SOURCE_URL_PROTOCOL, context_fs.name());
-
-    let mut apply_transform = |src: &mut String| -> Result<()> {
-        if let Some(src_rest) = src.strip_prefix(&prefix) {
-            *src = transform(context_fs, src_rest)?;
-        }
-        Ok(())
-    };
-
-    for src in map.sources.iter_mut().flatten().flatten() {
-        apply_transform(src)?;
-    }
-    for section in map.sections.iter_mut().flatten() {
-        for src in section.map.sources.iter_mut().flatten().flatten() {
-            apply_transform(src)?;
-        }
-    }
-
-    Ok(Some(Rope::from(serde_json::to_vec(&map)?)))
-}
-
-/// Turns `turbopack:///[project]` references in sourcemap sources into absolute `file://` uris. This
-/// is useful for debugging environments.
-pub async fn absolute_fileify_source_map(
-    map: Option<&Rope>,
-    context_path: FileSystemPath,
-) -> Result<Option<Rope>> {
-    transform_relative_files(map, &context_path, |context_fs, src_rest| {
-        let path = context_path.join(src_rest)?;
-
-        Ok(uri_from_path_buf(context_fs.to_sys_path(&path)))
-    })
-    .await
-}
-
 fn uri_encode_path(path: &str) -> String {
     path.split('/')
         .map(|s| urlencoding::encode(s))
         .collect::<Vec<_>>()
         .join("/")
 }
-/// Turns `turbopack:///[project]` references in sourcemap sources into relative './' prefixed uris.
+
+/// Applies the standard `turbopack:///[fs]/` source-URL transform to a structured map,
+/// sharing every other field (notably `sourcesContent`) with the input. `transform` is given
+/// the source string as found in the map (i.e. a URI) with the `turbopack:///[fs]/` prefix
+/// stripped.
+async fn transform_relative_files<F>(
+    map: &StructuredSourceMap,
+    context_path: &FileSystemPath,
+    mut transform: F,
+) -> Result<StructuredSourceMap>
+where
+    F: FnMut(&DiskFileSystem, &str) -> Result<String>,
+{
+    let context_fs = context_path.fs;
+    let context_fs = &*ResolvedVc::try_downcast_type::<DiskFileSystem>(context_fs)
+        .context("Expected the chunking context to have a DiskFileSystem")?
+        .await?;
+
+    let prefix = format!("{}///[{}]/", SOURCE_URL_PROTOCOL_STR, context_fs.name());
+
+    map.rewrite_sources(|src| {
+        if let Some(src_rest) = src.strip_prefix(&prefix) {
+            Ok(Some(transform(context_fs, src_rest)?))
+        } else {
+            Ok(None)
+        }
+    })
+}
+
+/// Turns `turbopack:///[project]` references in the map's sources into absolute `file://` uris.
+/// This is useful for debugging environments.
+pub async fn absolute_fileify_source_map(
+    map: &StructuredSourceMap,
+    context_path: FileSystemPath,
+) -> Result<StructuredSourceMap> {
+    transform_relative_files(map, &context_path.clone(), |context_fs, src_rest| {
+        let path = context_path.join(src_rest)?;
+
+        // `to_sys_path` returns a win32 path on Windows. `Url::from_file_path` can also handle
+        // verbatim (`\\?\`-prefixed) disk and UNC paths, in case that conversion failed.
+        let sys_path = context_fs.to_sys_path(&path);
+        Ok(Url::from_file_path(&sys_path)
+            .map_err(|()| {
+                anyhow::anyhow!("path {sys_path:?} cannot be converted to a file:// URI")
+            })?
+            .into())
+    })
+    .await
+}
+
+/// Turns `turbopack:///[project]` references in the map's sources into `./`-relative uris.
 /// This is useful in server environments and especially build environments.
 pub async fn relative_fileify_source_map(
-    map: Option<&Rope>,
+    map: &StructuredSourceMap,
     context_path: FileSystemPath,
     relative_path_to_output_root: RcStr,
-) -> Result<Option<Rope>> {
+) -> Result<StructuredSourceMap> {
     let relative_path_to_output_root = relative_path_to_output_root
         .split('/')
         .map(|s| urlencoding::encode(s))
@@ -316,7 +302,7 @@ pub async fn relative_fileify_source_map(
         if relative_path_to_output_root.is_empty() {
             Ok(src_rest.to_string())
         } else {
-            Ok(format!("{relative_path_to_output_root}/{src_rest}",))
+            Ok(format!("{relative_path_to_output_root}/{src_rest}"))
         }
     })
     .await
@@ -364,7 +350,7 @@ mod tests {
                 rooted_sources: Vec<Option<String>>,
             }
 
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn resolve_source_map_sources_operation()
             -> anyhow::Result<Vc<SourceMapSourcesOutput>> {
                 let sys_root = if cfg!(windows) {
@@ -374,10 +360,12 @@ mod tests {
                 };
                 let url_root = Url::from_directory_path(sys_root).unwrap();
 
-                let fs_root_path =
-                    DiskFileSystem::new(rcstr!("mock"), RcStr::from(sys_root.to_str().unwrap()))
-                        .root()
-                        .await?;
+                let fs_root_path = DiskFileSystem::new(
+                    rcstr!("mock"),
+                    Vc::cell(RcStr::from(sys_root.to_str().unwrap())),
+                )
+                .root()
+                .await?;
 
                 let resolved_source_map: SourceMapJson = serde_json::from_str(
                     &resolve_source_map_sources(
@@ -437,7 +425,7 @@ mod tests {
                 .read_strongly_consistent()
                 .await?;
 
-            let prefix = format!("{SOURCE_URL_PROTOCOL}///[mock]");
+            let prefix = format!("{SOURCE_URL_PROTOCOL_STR}///[mock]");
             assert_eq!(
                 resolved_source_maps.resolved_sources,
                 vec![

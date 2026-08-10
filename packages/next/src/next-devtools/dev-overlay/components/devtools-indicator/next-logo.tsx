@@ -6,28 +6,82 @@ import { Warning } from '../../icons/warning'
 import { css } from '../../utils/css'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import { useRenderErrorContext } from '../../dev-overlay'
-import { useDelayedRender } from '../../hooks/use-delayed-render'
+import { useIndicatorDisplay } from '../../hooks/use-indicator-display'
 import {
   ACTION_ERROR_OVERLAY_CLOSE,
   ACTION_ERROR_OVERLAY_OPEN,
 } from '../../shared'
 import { usePanelRouterContext } from '../../menu/context'
+import { getIssueBucketState } from '../../menu/issue-bucket-state'
 import { BASE_LOGO_SIZE } from '../../utils/indicator-metrics'
-import { StatusIndicator, Status, getCurrentStatus } from './status-indicator'
+import { StatusIndicator, Status } from './status-indicator'
 
 const SHORT_DURATION_MS = 150
+
+function Plural({ count, animate }: { count: number; animate: boolean }) {
+  if (count <= 1) return null
+  return (
+    <span aria-hidden data-issues-count-plural data-animate={animate}>
+      s
+    </span>
+  )
+}
+
+function PillLabel({
+  normalCount,
+  instantCount,
+  normalCountAnimating,
+  instantCountAnimating,
+}: {
+  normalCount: number
+  instantCount: number
+  normalCountAnimating: boolean
+  instantCountAnimating: boolean
+}) {
+  const hasNormal = normalCount > 0
+  const hasInstant = instantCount > 0
+  return (
+    <>
+      {hasNormal && (
+        <>
+          Issue
+          <Plural
+            count={normalCount}
+            animate={normalCountAnimating && normalCount === 2}
+          />
+        </>
+      )}
+      {hasNormal && hasInstant && ' · '}
+      {hasInstant && (
+        <>
+          {hasNormal && <>{instantCount} </>}
+          Insight
+          <Plural
+            count={instantCount}
+            animate={instantCountAnimating && instantCount === 2}
+          />
+        </>
+      )}
+    </>
+  )
+}
 
 export function NextLogo({
   onTriggerClick,
   ...buttonProps
 }: { onTriggerClick: () => void } & React.ComponentProps<'button'>) {
   const { state, dispatch } = useDevOverlayContext()
-  const { totalErrorCount } = useRenderErrorContext()
+  const { totalErrorCount, normalErrorCount, instantErrorCount } =
+    useRenderErrorContext()
   const SIZE = BASE_LOGO_SIZE / state.scale
   const { panel, triggerRef, setPanel } = usePanelRouterContext()
   const isMenuOpen = panel === 'panel-selector'
 
   const hasError = totalErrorCount > 0
+  const { insightsOnly } = getIssueBucketState(
+    normalErrorCount,
+    instantErrorCount
+  )
   const [isErrorExpanded, setIsErrorExpanded] = useState(hasError)
   const [previousHasError, setPreviousHasError] = useState(hasError)
   if (previousHasError !== hasError) {
@@ -36,49 +90,37 @@ export function NextLogo({
     setIsErrorExpanded(hasError)
   }
   const [dismissed, setDismissed] = useState(false)
-  const newErrorDetected = useUpdateAnimation(
-    totalErrorCount,
+  const normalErrorAnimating = useUpdateAnimation(
+    normalErrorCount,
     SHORT_DURATION_MS
   )
-
-  // Cache indicator state management
-  const isCacheFilling = state.cacheIndicator === 'filling'
-  const isCacheBypassing = state.cacheIndicator === 'bypass'
-
-  // Determine if we should show any transient status (excluding cache bypass)
-  const shouldShowTransientStatus =
-    state.buildingIndicator || state.renderingIndicator || isCacheFilling
-
-  // Delay showing for 400ms to catch fast operations,
-  // and keep visible for minimum time (longer for warnings)
-  const { rendered: showTransientStatusIndicator } = useDelayedRender(
-    shouldShowTransientStatus,
-    {
-      enterDelay: 400,
-      exitDelay: 500,
-    }
+  const instantErrorAnimating = useUpdateAnimation(
+    instantErrorCount,
+    SHORT_DURATION_MS
   )
+  const newErrorDetected = normalErrorAnimating || instantErrorAnimating
+  const leadingCount =
+    normalErrorCount > 0 ? normalErrorCount : instantErrorCount
+  const leadingCountAnimating =
+    normalErrorCount > 0 ? normalErrorAnimating : instantErrorAnimating
 
-  // Instant mode shows immediately (no delay) since it's a persistent user-toggled state
-  const isCacheOnly = state.cacheOnly
-  const showStatusIndicator = showTransientStatusIndicator || isCacheOnly
+  // The status pill and the persistent cache badge are owned by a single state
+  // machine that handles all the show/hide timing and the atomic handoff
+  // between the two (so the indicator never blanks to the bare logo between
+  // them). The two are mutually exclusive.
+  const { status: displayStatus, cacheBadge } = useIndicatorDisplay(
+    state.buildingIndicator,
+    state.renderingIndicator,
+    state.cacheIndicator
+  )
+  const showStatusIndicator = displayStatus !== Status.None
 
   const ref = useRef<HTMLDivElement | null>(null)
   const measuredWidth = useMeasureWidth(ref)
 
-  // Get the current status from the state
-  const currentStatus = getCurrentStatus(
-    state.buildingIndicator,
-    state.renderingIndicator,
-    state.cacheIndicator,
-    state.cacheOnly
-  )
-
-  const displayStatus = showStatusIndicator ? currentStatus : Status.None
-
   const isExpanded =
     isErrorExpanded ||
-    isCacheBypassing ||
+    cacheBadge !== null ||
     showStatusIndicator ||
     state.disableDevIndicator
   const width = measuredWidth === 0 ? 'auto' : measuredWidth
@@ -183,7 +225,7 @@ export function NextLogo({
               }
             }
 
-            &[data-cache-bypassing='true']:not([data-error='true']) {
+            &[data-cache-badge]:not([data-error='true']) {
               background: rgba(217, 119, 6, 0.95);
               --color-inner-border: rgba(245, 158, 11, 0.9);
 
@@ -192,11 +234,9 @@ export function NextLogo({
               }
             }
 
-            &[data-cache-only='true']:not([data-error='true']):not(
-                [data-cache-bypassing='true']
-              ) {
-              background: rgba(59, 130, 246, 0.95);
-              --color-inner-border: rgba(96, 165, 250, 0.9);
+            &[data-insights-only='true']:not([data-error='true']) {
+              background: rgba(217, 119, 6, 0.95);
+              --color-inner-border: rgba(245, 158, 11, 0.9);
 
               [data-issues-open] {
                 color: white;
@@ -216,7 +256,7 @@ export function NextLogo({
             outline: var(--focus-ring);
           }
 
-          [data-issues]:has([data-issues-open]:focus-visible) {
+          [data-toast-pill]:has([data-issues-open]:focus-visible) {
             outline: var(--focus-ring);
             outline-offset: -1px;
           }
@@ -237,7 +277,10 @@ export function NextLogo({
             transition-delay: var(--duration-short);
           }
 
-          [data-issues] {
+          /* Shared pill layout for the errors toast and the cache badge. Keyed
+             on data-toast-pill rather than data-issues so it applies to both,
+             while data-issues stays exclusive to the errors toast. */
+          [data-toast-pill] {
             --padding-left: 8px;
             display: flex;
             gap: 2px;
@@ -394,11 +437,11 @@ export function NextLogo({
       </style>
       <div
         data-next-badge
-        data-error={hasError}
+        data-error={hasError && !insightsOnly}
+        data-insights-only={insightsOnly}
         data-error-expanded={isExpanded}
-        data-status={hasError || isCacheBypassing ? Status.None : currentStatus}
-        data-cache-bypassing={isCacheBypassing}
-        data-cache-only={isCacheOnly}
+        data-status={hasError ? Status.None : displayStatus}
+        data-cache-badge={cacheBadge ?? undefined}
         data-animate={newErrorDetected}
         style={{ width }}
       >
@@ -417,10 +460,7 @@ export function NextLogo({
               aria-label={`${isMenuOpen ? 'Close' : 'Open'} Next.js Dev Tools`}
               data-nextjs-dev-tools-button
               style={{
-                display:
-                  showStatusIndicator && !hasError && !isCacheBypassing
-                    ? 'none'
-                    : 'flex',
+                display: showStatusIndicator && !hasError ? 'none' : 'flex',
               }}
               {...buttonProps}
             >
@@ -431,7 +471,7 @@ export function NextLogo({
             <>
               {/* Error badge has priority over cache indicator */}
               {(isErrorExpanded || state.disableDevIndicator) && (
-                <div data-issues>
+                <div data-issues data-toast-pill>
                   <button
                     data-issues-open
                     aria-label="Open issues overlay"
@@ -443,7 +483,12 @@ export function NextLogo({
                         return
                       }
                       dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
-                      setPanel(null)
+                      // Keep the instant navigation panel mounted so its capture
+                      // survives and it stays behind the error overlay backdrop.
+                      // Other panels still close when the overlay opens.
+                      if (panel !== 'instant-navs') {
+                        setPanel(null)
+                      }
                     }}
                   >
                     {state.disableDevIndicator && (
@@ -453,27 +498,19 @@ export function NextLogo({
                     )}
                     <AnimateCount
                       // Used the key to force a re-render when the count changes.
-                      key={totalErrorCount}
-                      animate={newErrorDetected}
+                      key={leadingCount}
+                      animate={leadingCountAnimating}
                       data-issues-count-animation
                     >
-                      {totalErrorCount}
+                      {leadingCount}
                     </AnimateCount>{' '}
                     <div>
-                      Issue
-                      {totalErrorCount > 1 && (
-                        <span
-                          aria-hidden
-                          data-issues-count-plural
-                          // This only needs to animate once the count changes from 1 -> 2,
-                          // otherwise it should stay static between re-renders.
-                          data-animate={
-                            newErrorDetected && totalErrorCount === 2
-                          }
-                        >
-                          s
-                        </span>
-                      )}
+                      <PillLabel
+                        normalCount={normalErrorCount}
+                        instantCount={instantErrorCount}
+                        normalCountAnimating={normalErrorAnimating}
+                        instantCountAnimating={instantErrorAnimating}
+                      />
                     </div>
                   </button>
                   {!state.buildError && (
@@ -495,34 +532,22 @@ export function NextLogo({
                   )}
                 </div>
               )}
-              {/* Cache bypass badge shown when cache is being bypassed */}
-              {isCacheBypassing && !hasError && !state.disableDevIndicator && (
-                <CacheBypassBadge
+              {/* Persistent cache badge shown when a load bypassed caches or
+                  rendered with a cold cache and nothing is actively rendering */}
+              {cacheBadge && !hasError && !state.disableDevIndicator && (
+                <CacheStatusBadge
+                  kind={cacheBadge}
                   onTriggerClick={onTriggerClick}
                   triggerRef={triggerRef}
                 />
               )}
-              {/* Status indicator shown when no errors and no cache bypass */}
+              {/* Status indicator shown while rendering or compiling */}
               {showStatusIndicator &&
                 !hasError &&
-                !isCacheBypassing &&
                 !state.disableDevIndicator && (
                   <StatusIndicator
                     status={displayStatus}
-                    title={
-                      displayStatus === Status.Instant
-                        ? 'Unblock dynamic data'
-                        : undefined
-                    }
-                    onClick={
-                      displayStatus === Status.Instant
-                        ? () => {
-                            document.cookie =
-                              'next-instant-navigation-testing=; path=/; max-age=0'
-                            window.location.reload()
-                          }
-                        : onTriggerClick
-                    }
+                    onClick={onTriggerClick}
                   />
                 )}
             </>
@@ -554,10 +579,12 @@ function AnimateCount({
   )
 }
 
-function CacheBypassBadge({
+function CacheStatusBadge({
+  kind,
   onTriggerClick,
   triggerRef,
 }: {
+  kind: 'cold' | 'bypass'
   onTriggerClick: () => void
   triggerRef: React.RefObject<HTMLButtonElement | null>
 }) {
@@ -567,19 +594,30 @@ function CacheBypassBadge({
     return null
   }
 
+  const label = kind === 'bypass' ? 'Cache disabled' : 'Cold cache'
+
   return (
-    <div data-issues data-cache-bypass-badge>
+    // Reuses the errors toast pill styling (data-toast-pill) but is
+    // deliberately not data-issues: that attribute marks the errors toast,
+    // which test utilities click to open the redbox. A cold or cache-disabled
+    // load can also surface a validation error, so a shared data-issues would
+    // let those helpers grab this badge instead of the real toast.
+    <div
+      data-toast-pill
+      data-cache-bypass-badge={kind === 'bypass' ? true : undefined}
+      data-cold-cache-badge={kind === 'cold' ? true : undefined}
+    >
       <button
         data-issues-open
         data-nextjs-dev-tools-button
         aria-label="Open Next.js Dev Tools"
         onClick={onTriggerClick}
       >
-        Cache disabled
+        {label}
       </button>
       <button
         data-issues-collapse
-        aria-label="Collapse cache bypass badge"
+        aria-label={`Collapse ${label} badge`}
         onClick={() => {
           setDismissed(true)
           // Move focus to the trigger to prevent having it stuck on this element

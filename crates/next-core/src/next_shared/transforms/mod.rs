@@ -6,6 +6,7 @@ pub(crate) mod next_debug_instant_stack;
 pub(crate) mod next_disallow_re_export_all_in_page;
 pub(crate) mod next_dynamic;
 pub(crate) mod next_edge_node_api_assert;
+pub(crate) mod next_empty_gsp;
 pub(crate) mod next_font;
 pub(crate) mod next_lint;
 pub(crate) mod next_middleware_dynamic_assert;
@@ -26,6 +27,7 @@ use anyhow::Result;
 pub use modularize_imports::{ModularizeImportPackageConfig, get_next_modularize_imports_rule};
 pub use next_debug_instant_stack::get_next_debug_instant_stack_rule;
 pub use next_dynamic::get_next_dynamic_transform_rule;
+pub use next_empty_gsp::get_next_empty_gsp_rule;
 pub use next_font::get_next_font_transform_rule;
 pub use next_lint::get_next_lint_transform_rule;
 pub use next_strip_page_exports::get_next_pages_transforms_rule;
@@ -34,8 +36,8 @@ pub use server_actions::get_server_actions_transform_rule;
 use turbo_tasks::ResolvedVc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect, ModuleType, RuleCondition};
-use turbopack_core::reference_type::{ReferenceType, UrlReferenceSubType};
-use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform};
+use turbopack_core::reference_type::ReferenceTypeCondition;
+use turbopack_ecmascript::{EcmascriptInputTransform, TransformPlugin};
 
 use crate::next_image::{StructuredImageModuleType, module::BlurPlaceholderMode};
 
@@ -44,8 +46,8 @@ pub async fn get_next_image_rule() -> Result<ModuleRule> {
         RuleCondition::All(vec![
             // avoid urlAssetReference to be affected by this rule, since urlAssetReference
             // requires raw module to have its paths in the export
-            RuleCondition::not(RuleCondition::ReferenceType(ReferenceType::Url(
-                UrlReferenceSubType::Undefined,
+            RuleCondition::not(RuleCondition::ReferenceType(ReferenceTypeCondition::Url(
+                None,
             ))),
             RuleCondition::any(vec![
                 RuleCondition::ResourcePathEndsWith(".jpg".to_string()),
@@ -108,8 +110,8 @@ fn match_js_extension(enable_mdx_rs: bool) -> RuleCondition {
 /// condition for custom ecma specific transforms.
 pub(crate) fn module_rule_match_js_no_url(enable_mdx_rs: bool) -> RuleCondition {
     RuleCondition::all(vec![
-        RuleCondition::not(RuleCondition::ReferenceType(ReferenceType::Url(
-            UrlReferenceSubType::Undefined,
+        RuleCondition::not(RuleCondition::ReferenceType(ReferenceTypeCondition::Url(
+            None,
         ))),
         match_js_extension(enable_mdx_rs),
     ])
@@ -134,11 +136,11 @@ pub(crate) enum EcmascriptTransformStage {
 /// Create a new module rule for the given ecmatransform, runs against
 /// any ecmascript (with mdx if enabled) except url reference type
 pub(crate) fn get_ecma_transform_rule(
-    transformer: Box<dyn CustomTransformer + Send + Sync>,
+    transformer: ResolvedVc<TransformPlugin>,
     enable_mdx_rs: bool,
     stage: EcmascriptTransformStage,
 ) -> ModuleRule {
-    let transformer = EcmascriptInputTransform::Plugin(ResolvedVc::cell(transformer as _));
+    let transformer = EcmascriptInputTransform::Plugin(transformer);
     let (preprocess, main, postprocess) = match stage {
         EcmascriptTransformStage::Preprocess => (vec![transformer], vec![], vec![]),
         EcmascriptTransformStage::Main => (vec![], vec![transformer], vec![]),

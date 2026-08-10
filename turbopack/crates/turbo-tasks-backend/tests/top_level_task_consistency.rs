@@ -16,7 +16,7 @@ struct Value {
     value: u32,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn returns_value_operation() -> Result<Vc<Value>> {
     Ok(Value { value: 42 }.cell())
 }
@@ -36,13 +36,14 @@ async fn test_eventual_read_in_top_level_task_fails() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[should_panic]
-async fn test_cell_read_in_top_level_task_fails() {
+async fn test_cell_read_in_top_level_task_succeeds() {
     run_once(&REGISTRATION, || async {
         let cell = returns_value_operation()
-            .resolve_strongly_consistent()
+            .resolve()
+            .strongly_consistent()
             .await?;
-        let _ = cell.await?;
+        let value = cell.await?;
+        assert_eq!(value.value, 42);
         Ok(())
     })
     .await
@@ -71,7 +72,7 @@ async fn test_manual_mark_unmark_top_level_task() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[should_panic]
 async fn test_manual_mark_top_level_task_causes_error() {
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn operation() -> Result<Vc<Value>> {
         // Manually mark as top-level task
         mark_top_level_task();

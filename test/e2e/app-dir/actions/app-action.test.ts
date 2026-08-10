@@ -4,14 +4,14 @@ import {
   retry,
   waitFor,
   getRedboxSource,
-  getDistDir,
+  listClientChunks,
 } from 'next-test-utils'
 import type { Request, Response } from 'playwright'
 import fs from 'node:fs/promises'
 import { join } from 'node:path'
 
 const GENERIC_RSC_ERROR =
-  'Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+  'Error: Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
 
 describe('app-dir action handling', () => {
   const { next, isNextDev, isNextStart, isNextDeploy, isTurbopack } =
@@ -31,7 +31,7 @@ describe('app-dir action handling', () => {
   if (isNextStart) {
     it('should output exportName and filename info in manifest', async () => {
       const referenceManifest = await next.readJSON(
-        `${getDistDir()}/server/server-reference-manifest.json`
+        `${next.distDir}/server/server-reference-manifest.json`
       )
       let foundExportNames = []
 
@@ -523,22 +523,26 @@ describe('app-dir action handling', () => {
     })
   })
 
-  it('should support importing the same action module instance in both server and action layers', async () => {
-    const browser = await next.browser('/shared')
+  // Skip in deployment mode: there might be multiple function instances with their own
+  // app/shared/action.js and thus multiple instances of the counter.
+  if (!isNextDeploy) {
+    it('should support importing the same action module instance in both server and action layers', async () => {
+      const browser = await next.browser('/shared')
 
-    const v = await browser.elementByCss('#value').text()
-    expect(v).toBe('Value = 0')
+      const v = await browser.elementByCss('#value').text()
+      expect(v).toBe('Value = 0')
 
-    await browser.elementByCss('#server-inc').click()
-    await retry(async () => {
-      expect(await browser.elementByCss('#value').text()).toBe('Value = 1')
+      await browser.elementByCss('#server-inc').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#value').text()).toBe('Value = 1')
+      })
+
+      await browser.elementByCss('#client-inc').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#value').text()).toBe('Value = 2')
+      })
     })
-
-    await browser.elementByCss('#client-inc').click()
-    await retry(async () => {
-      expect(await browser.elementByCss('#value').text()).toBe('Value = 2')
-    })
-  })
+  }
 
   it('should not block navigation events while a server action is in flight', async () => {
     let browser = await next.browser('/client')
@@ -973,22 +977,19 @@ describe('app-dir action handling', () => {
   if (isNextStart) {
     it('should not expose action content in sourcemaps', async () => {
       // We check all sourcemaps in the `static` folder for sensitive information given that chunking
-      const sourcemaps = await fs
-        .readdir(join(next.testDir, getDistDir(), 'static'), {
-          recursive: true,
-          encoding: 'utf8',
-        })
-        .then((files) =>
-          Promise.all(
-            files
-              .filter((f) => f.endsWith('.js.map'))
-              .map((f) =>
-                fs.readFile(join(next.testDir, getDistDir(), 'static', f), {
-                  encoding: 'utf8',
-                })
-              )
-          )
+      const sourcemaps = await listClientChunks(
+        join(next.testDir, next.distDir)
+      ).then((files) =>
+        Promise.all(
+          files
+            .filter((f) => f.endsWith('.js.map'))
+            .map((f) =>
+              fs.readFile(join(next.testDir, next.distDir, f), {
+                encoding: 'utf8',
+              })
+            )
         )
+      )
 
       expect(sourcemaps).not.toBeEmpty()
 
@@ -1061,14 +1062,14 @@ describe('app-dir action handling', () => {
     it('should bundle external libraries if they are on the action layer', async () => {
       await next.fetch('/client')
       const pageBundle = await fs.readFile(
-        join(next.testDir, getDistDir(), 'server', 'app', 'client', 'page.js'),
+        join(next.testDir, next.distDir, 'server', 'app', 'client', 'page.js'),
         { encoding: 'utf8' }
       )
       if (isTurbopack) {
         const chunkPaths = pageBundle.matchAll(/R\.c\("([^"]*)"\)/g)
         const reads = [...chunkPaths].map(async (match) => {
           const bundle = await fs.readFile(
-            join(next.testDir, getDistDir(), ...match[1].split(/[\\/]/g)),
+            join(next.testDir, next.distDir, ...match[1].split(/[\\/]/g)),
             { encoding: 'utf8' }
           )
           return bundle.includes('node_modules/nanoid/index.js')
@@ -1188,7 +1189,12 @@ describe('app-dir action handling', () => {
 
         expect(request.url()).toEqual(`${next.url}${initialPagePath}`)
         expect(request.method()).toEqual('POST')
-        expect(response.status()).toEqual(303)
+        expect(response.status()).toEqual(200)
+
+        const headers = await response.allHeaders()
+        expect(headers['x-action-redirect']).toBeDefined()
+        expect(headers.location).toBeUndefined()
+        expect(headers['content-type']).toContain('text/x-component')
       }
     )
 
@@ -1301,7 +1307,12 @@ describe('app-dir action handling', () => {
 
         expect(request.url()).toEqual(`${next.url}${initialPagePath}`)
         expect(request.method()).toEqual('POST')
-        expect(response.status()).toEqual(303)
+        expect(response.status()).toEqual(200)
+
+        const headers = await response.allHeaders()
+        expect(headers['x-action-redirect']).toBeDefined()
+        expect(headers.location).toBeUndefined()
+        expect(headers['content-type']).toContain('text/x-component')
       }
     )
 
@@ -1335,7 +1346,7 @@ describe('app-dir action handling', () => {
         )
         expect(await browser.url()).toBe(`${next.url}/pages-dir`)
         expect(mpaTriggered).toBe(true)
-      }, 5000)
+      }, 10_000)
     })
 
     it('should handle revalidatePath', async () => {
@@ -1610,7 +1621,7 @@ describe('app-dir action handling', () => {
       expect(await browser.elementById('modal-data').text()).toContain(
         'in "modal"'
       )
-    })
+    }, 10_000)
 
     // Submit the action
     await browser.elementById('submit-intercept-action').click()

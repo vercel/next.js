@@ -11,7 +11,7 @@ pub use module_options_context::*;
 pub use module_rule::*;
 pub use rule_condition::*;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{IntoTraitRef, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{
     FileSystemPath,
     glob::{Glob, GlobOptions},
@@ -20,15 +20,17 @@ use turbopack_core::{
     chunk::SourceMapsType,
     ident::Layer,
     reference_type::{
-        CssReferenceSubType, EcmaScriptModulesReferenceSubType, ReferenceType, UrlReferenceSubType,
+        CssReferenceSubType, EcmaScriptModulesReferenceSubType, ReferenceTypeCondition,
+        UrlReferenceSubType,
     },
     resolve::options::{ImportMap, ImportMapping},
 };
-use turbopack_css::CssModuleAssetType;
+use turbopack_css::CssModuleType;
 use turbopack_ecmascript::{
     AnalyzeMode, EcmascriptInputTransform, EcmascriptInputTransforms, EcmascriptOptions,
     SpecifiedModuleType, bytes_source_transform::BytesSourceTransform,
     json_source_transform::JsonSourceTransform, text_source_transform::TextSourceTransform,
+    transform::PresetEnvConfig,
 };
 use turbopack_mdx::MdxTransform;
 use turbopack_node::{
@@ -230,6 +232,8 @@ impl ModuleOptions {
             ecmascript:
                 EcmascriptOptionsContext {
                     enable_jsx,
+                    enable_rust_react_compiler,
+                    rust_react_compiler_target,
                     enable_types,
                     ref enable_typescript_transform,
                     ref enable_decorators,
@@ -239,10 +243,11 @@ impl ModuleOptions {
                     enable_typeof_window_inlining,
                     enable_exports_info_inlining,
                     enable_import_as_bytes,
-                    enable_import_as_text,
                     source_maps: ecmascript_source_maps,
                     inline_helpers,
                     infer_module_side_effects,
+                    cjs_tree_shaking,
+                    ref preset_env_config,
                     ..
                 },
             enable_mdx,
@@ -252,6 +257,7 @@ impl ModuleOptions {
                     enable_raw_css,
                     source_maps: css_source_maps,
                     ref module_css_condition,
+                    lightningcss_features,
                     ..
                 },
             ref static_url_tag,
@@ -260,7 +266,8 @@ impl ModuleOptions {
             environment,
             ref module_rules,
             execution_context,
-            tree_shaking_mode,
+            follow_reexports,
+            module_fragments_enabled,
             keep_last_successful_parse,
             analyze_mode,
             ..
@@ -286,12 +293,23 @@ impl ModuleOptions {
         // So only if this is not a CSS module, or one of the special reference type constraints.
         let module_css_external_transform_conditions = RuleCondition::Any(vec![
             RuleCondition::not(module_css_condition.clone()),
-            RuleCondition::ReferenceType(ReferenceType::Css(CssReferenceSubType::Inner)),
-            RuleCondition::ReferenceType(ReferenceType::Css(CssReferenceSubType::Analyze)),
+            RuleCondition::ReferenceType(ReferenceTypeCondition::Css(Some(
+                CssReferenceSubType::Inner,
+            ))),
+            RuleCondition::ReferenceType(ReferenceTypeCondition::Css(Some(
+                CssReferenceSubType::Analyze,
+            ))),
         ]);
 
         let mut ecma_preprocess = vec![];
         let mut postprocess = vec![];
+
+        if let Some(compilation_mode) = enable_rust_react_compiler {
+            ecma_preprocess.push(EcmascriptInputTransform::ReactCompilerRust {
+                compilation_mode,
+                target: rust_react_compiler_target,
+            });
+        }
 
         // Order of transforms is important. e.g. if the React transform occurs before
         // Styled JSX, there won't be JSX nodes for Styled JSX to transform.
@@ -309,7 +327,8 @@ impl ModuleOptions {
         }
 
         let ecmascript_options = EcmascriptOptions {
-            tree_shaking_mode,
+            follow_reexports,
+            module_fragments_enabled,
             url_rewrite_behavior: esm_url_rewrite_behavior,
             import_externals,
             ignore_dynamic_requests,
@@ -320,12 +339,17 @@ impl ModuleOptions {
             enable_exports_info_inlining,
             inline_helpers,
             infer_module_side_effects,
+            cjs_tree_shaking,
             ..Default::default()
         };
         let ecmascript_options_vc = ecmascript_options.resolved_cell();
 
         if let Some(environment) = environment {
-            postprocess.push(EcmascriptInputTransform::PresetEnv(environment));
+            let env_config = match preset_env_config {
+                Some(c) => *c,
+                None => PresetEnvConfig::default().resolved_cell(),
+            };
+            postprocess.push(EcmascriptInputTransform::PresetEnv(environment, env_config));
         }
 
         let decorators_transform = if let Some(options) = &enable_decorators {
@@ -343,6 +367,9 @@ impl ModuleOptions {
             None
         };
 
+        // Snapshot before decorators so the TypeScript chain also includes e.g. ReactCompilerRust.
+        let extra_preprocess = ecma_preprocess.clone();
+
         if let Some(decorators_transform) = &decorators_transform {
             // Apply decorators transform for the ModuleType::Ecmascript as well after
             // constructing ts_app_transforms. Ecmascript can have decorators for
@@ -352,7 +379,9 @@ impl ModuleOptions {
             // Since typescript transform (`ts_app_transforms`) needs to apply decorators
             // _before_ stripping types, we create ts_app_transforms first in a
             // specific order with typescript, then apply decorators to app_transforms.
-            ecma_preprocess.splice(0..0, [decorators_transform.clone()]);
+            //
+            // Append so ReactCompilerRust (needs original source text) runs before decorators.
+            ecma_preprocess.push(decorators_transform.clone());
         }
 
         let ecma_preprocess = ResolvedVc::cell(ecma_preprocess);
@@ -374,9 +403,9 @@ impl ModuleOptions {
         // and should override any file-pattern-based config rules.
         if enable_import_as_bytes {
             rules.push(ModuleRule::new(
-                RuleCondition::ReferenceType(ReferenceType::EcmaScriptModules(
+                RuleCondition::ReferenceType(ReferenceTypeCondition::EcmaScriptModules(Some(
                     EcmaScriptModulesReferenceSubType::ImportWithType("bytes".into()),
-                )),
+                ))),
                 if is_tracing {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
                 } else {
@@ -387,20 +416,18 @@ impl ModuleOptions {
             ));
         }
 
-        if enable_import_as_text {
-            rules.push(ModuleRule::new(
-                RuleCondition::ReferenceType(ReferenceType::EcmaScriptModules(
-                    EcmaScriptModulesReferenceSubType::ImportWithType("text".into()),
-                )),
-                if is_tracing {
-                    vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
-                } else {
-                    vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
-                        ResolvedVc::upcast(TextSourceTransform::new().to_resolved().await?),
-                    ]))]
-                },
-            ));
-        }
+        rules.push(ModuleRule::new(
+            RuleCondition::ReferenceType(ReferenceTypeCondition::EcmaScriptModules(Some(
+                EcmaScriptModulesReferenceSubType::ImportWithType("text".into()),
+            ))),
+            if is_tracing {
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
+            } else {
+                vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
+                    ResolvedVc::upcast(TextSourceTransform::new().to_resolved().await?),
+                ]))]
+            },
+        ));
 
         if let Some(webpack_loaders_options) = enable_webpack_loaders {
             let webpack_loaders_options = webpack_loaders_options.await?;
@@ -486,6 +513,7 @@ impl ModuleOptions {
                                     postprocess,
                                     ecmascript_options_vc,
                                     environment,
+                                    lightningcss_features,
                                 )
                                 .await?,
                         )
@@ -545,29 +573,33 @@ impl ModuleOptions {
         // Rules that apply for certains references
         rules.extend([
             ModuleRule::new(
-                RuleCondition::ReferenceType(ReferenceType::Url(UrlReferenceSubType::CssUrl)),
+                RuleCondition::ReferenceType(ReferenceTypeCondition::Url(Some(
+                    UrlReferenceSubType::CssUrl,
+                ))),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlCss {
                     tag: static_url_tag.clone(),
                 })],
             ),
             ModuleRule::new(
-                RuleCondition::ReferenceType(ReferenceType::Url(UrlReferenceSubType::Undefined)),
+                RuleCondition::ReferenceType(ReferenceTypeCondition::Url(Some(
+                    UrlReferenceSubType::Undefined,
+                ))),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs {
                     tag: static_url_tag.clone(),
                 })],
             ),
             ModuleRule::new(
-                RuleCondition::ReferenceType(ReferenceType::Url(
+                RuleCondition::ReferenceType(ReferenceTypeCondition::Url(Some(
                     UrlReferenceSubType::EcmaScriptNewUrl,
-                )),
+                ))),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs {
                     tag: static_url_tag.clone(),
                 })],
             ),
             ModuleRule::new(
-                RuleCondition::ReferenceType(ReferenceType::EcmaScriptModules(
+                RuleCondition::ReferenceType(ReferenceTypeCondition::EcmaScriptModules(Some(
                     EcmaScriptModulesReferenceSubType::ImportWithType("json".into()),
-                )),
+                ))),
                 if is_tracing {
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
                 } else {
@@ -705,12 +737,16 @@ impl ModuleOptions {
         ]);
 
         if let Some(options) = enable_typescript_transform {
+            let options = options.await?;
+            // Prepend extra_preprocess (e.g. ReactCompilerRust) so it runs before decorators and
+            // TypeScript.
             let ts_preprocess = ResolvedVc::cell(
-                decorators_transform
-                    .clone()
+                extra_preprocess
                     .into_iter()
+                    .chain(decorators_transform.clone())
                     .chain(std::iter::once(EcmascriptInputTransform::TypeScript {
-                        use_define_for_class_fields: options.await?.use_define_for_class_fields,
+                        use_define_for_class_fields: options.use_define_for_class_fields,
+                        verbatim_module_syntax: options.verbatim_module_syntax,
                     }))
                     .collect(),
             );
@@ -806,8 +842,9 @@ impl ModuleOptions {
                 ModuleRule::new(
                     module_css_condition.clone(),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
-                        ty: CssModuleAssetType::Module,
+                        ty: CssModuleType::Module,
                         environment,
+                        lightningcss_features,
                     })],
                 ),
                 ModuleRule::new(
@@ -816,8 +853,9 @@ impl ModuleOptions {
                         RuleCondition::ContentTypeStartsWith("text/css".to_string()),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
-                        ty: CssModuleAssetType::Default,
+                        ty: CssModuleType::Default,
                         environment,
+                        lightningcss_features,
                     })],
                 ),
             ]);
@@ -874,39 +912,42 @@ impl ModuleOptions {
                     RuleCondition::all(vec![
                         module_css_condition.clone(),
                         // Create a normal CSS asset if `@import`ed from CSS already.
-                        RuleCondition::ReferenceType(ReferenceType::Css(
+                        RuleCondition::ReferenceType(ReferenceTypeCondition::Css(Some(
                             CssReferenceSubType::AtImport(None),
-                        )),
+                        ))),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
-                        ty: CssModuleAssetType::Module,
+                        ty: CssModuleType::Module,
                         environment,
+                        lightningcss_features,
                     })],
                 ),
                 // Ecmascript CSS Modules referencing the actual CSS module to include it
                 ModuleRule::new(
                     RuleCondition::all(vec![
                         module_css_condition.clone(),
-                        RuleCondition::ReferenceType(ReferenceType::Css(
+                        RuleCondition::ReferenceType(ReferenceTypeCondition::Css(Some(
                             CssReferenceSubType::Inner,
-                        )),
+                        ))),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
-                        ty: CssModuleAssetType::Module,
+                        ty: CssModuleType::Module,
                         environment,
+                        lightningcss_features,
                     })],
                 ),
                 // Ecmascript CSS Modules referencing the actual CSS module to list the classes
                 ModuleRule::new(
                     RuleCondition::all(vec![
                         module_css_condition.clone(),
-                        RuleCondition::ReferenceType(ReferenceType::Css(
+                        RuleCondition::ReferenceType(ReferenceTypeCondition::Css(Some(
                             CssReferenceSubType::Analyze,
-                        )),
+                        ))),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
-                        ty: CssModuleAssetType::Module,
+                        ty: CssModuleType::Module,
                         environment,
+                        lightningcss_features,
                     })],
                 ),
                 ModuleRule::new(
@@ -919,8 +960,9 @@ impl ModuleOptions {
                         RuleCondition::ContentTypeStartsWith("text/css".to_string()),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
-                        ty: CssModuleAssetType::Default,
+                        ty: CssModuleType::Default,
                         environment,
+                        lightningcss_features,
                     })],
                 ),
             ]);

@@ -27,7 +27,8 @@ import _pkg from 'next/package.json'
 import type { SpawnOptions, ChildProcess } from 'child_process'
 import type { RequestInit, Response } from 'node-fetch'
 import type { NextServer } from 'next/dist/server/next'
-import { Playwright } from 'next-webdriver'
+import type { Playwright } from './browsers/playwright'
+import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 
 import { shouldUseTurbopack } from './turbo'
 import stripAnsi from 'strip-ansi'
@@ -38,6 +39,7 @@ import escapeRegex from 'escape-string-regexp'
 import './add-redbox-matchers'
 import { NextInstance } from 'e2e-utils'
 import { ClientReferenceManifest } from 'next/dist/build/webpack/plugins/flight-manifest-plugin'
+import { RequiredServerFilesManifest } from 'next/dist/build'
 
 export { shouldUseTurbopack }
 
@@ -142,11 +144,16 @@ export function getFullUrl(
 
   if (typeof appPortOrUrl === 'string' && url) {
     const parsedUrl = new URL(fullUrl)
-    const parsedPathQuery = new URL(url, fullUrl)
 
-    parsedUrl.hash = parsedPathQuery.hash
-    parsedUrl.search = parsedPathQuery.search
-    parsedUrl.pathname = parsedPathQuery.pathname
+    // Handle '//' as a special case since it's not a valid relative URL for URL constructor
+    if (url === '//') {
+      parsedUrl.pathname = '//'
+    } else {
+      const parsedPathQuery = new URL(url, fullUrl)
+      parsedUrl.hash = parsedPathQuery.hash
+      parsedUrl.search = parsedPathQuery.search
+      parsedUrl.pathname = parsedPathQuery.pathname
+    }
 
     if (hostname && parsedUrl.hostname === 'localhost') {
       parsedUrl.hostname = hostname
@@ -198,6 +205,22 @@ export function fetchViaHTTP(
 ): Promise<Response> {
   const url = query ? withQuery(pathname, query) : pathname
   return fetch(getFullUrl(appPort, url), opts)
+}
+
+export function expectVaryHeaderToContain(
+  varyHeader: string | null,
+  expectedFields: string[]
+) {
+  const varyFields = new Set(
+    (varyHeader ?? '')
+      .split(',')
+      .map((field) => field.trim().toLowerCase())
+      .filter(Boolean)
+  )
+
+  for (const expectedField of expectedFields) {
+    expect(varyFields.has(expectedField.toLowerCase())).toBe(true)
+  }
 }
 
 /**
@@ -522,7 +545,7 @@ export function nextBuild(
   if (!opts.disableAutoSkewProtection && shouldUseTurbopack() && !opts.env) {
     opts.env ??= {}
     opts.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
-    opts.env.__NEXT_IMMUTABLE_ASSET_TOKEN = 'test-immutable-tkn-7890'
+    opts.env.__NEXT_SUPPORTS_IMMUTABLE_ASSETS = '1'
   }
 
   return runNextCommand(['build', dir, ...args], opts)
@@ -550,7 +573,7 @@ export function nextStart(
   if (!opts.disableAutoSkewProtection && shouldUseTurbopack() && !opts.env) {
     opts.env ??= {}
     opts.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
-    opts.env.__NEXT_IMMUTABLE_ASSET_TOKEN = 'test-immutable-tkn-7890'
+    opts.env.__NEXT_SUPPORTS_IMMUTABLE_ASSETS = '1'
   }
 
   return runNextCommandDev(
@@ -834,21 +857,22 @@ export async function retry<T>(
   interval: number = 500,
   description: string = fn.name
 ): Promise<T> {
-  if (duration % interval !== 0) {
-    throw new Error(
-      `invalid duration ${duration} and interval ${interval} mix, duration must be evenly divisible by interval`
-    )
+  if (duration < 0) {
+    throw new Error('Duration cannot be less than 0.')
   }
 
-  for (let i = duration; i >= 0; i -= interval) {
+  const started = performance.now()
+
+  while (true) {
     try {
       return await fn()
     } catch (err) {
-      if (i === 0) {
+      const waited = performance.now() - started
+      if (waited + interval > duration) {
         console.error(
           `Failed to retry${
             description ? ` ${description}` : ''
-          } within ${duration}ms`
+          } within ${duration}ms (waited ${Math.round(waited)}ms)`
         )
         throw err
       }
@@ -858,8 +882,6 @@ export async function retry<T>(
       await waitFor(interval)
     }
   }
-
-  throw new Error('Duration cannot be less than 0.')
 }
 
 export async function waitForRedbox(browser: Playwright) {
@@ -1160,7 +1182,7 @@ export function getRedboxTitle(browser: Playwright): Promise<string | null> {
     const root = portal.shadowRoot
     return (
       root.querySelector(
-        '[data-nextjs-dialog-header] .nextjs__container_errors__error_title'
+        '[data-nextjs-dialog-header] [data-nextjs-error-label-group]'
       )?.innerText ?? null
     )
   })
@@ -1519,13 +1541,12 @@ const nextjsClientComponentNames = [
   'HTTPAccessFallbackBoundary',
   'HTTPAccessFallbackErrorBoundary',
   'InnerLayoutRouter',
-  'InnerScrollAndFocusHandlerOld',
-  'InnerScrollHandlerNew',
+  'InnerScrollHandler',
   'RedirectBoundary',
   'RedirectErrorBoundary',
   'RenderFromTemplateContext',
   'Root',
-  'ScrollAndMaybeFocusHandler',
+  'ScrollHandler',
   'SegmentViewNode',
   'SegmentTrieNode',
   // These are added due to user actions e.g. loading.js -> LoadingBoundary
@@ -1633,6 +1654,49 @@ export async function getRedboxCause(
   })
 }
 
+export async function getRedboxAggregateErrors(
+  browser: Playwright
+): Promise<RedboxCauseEntry[] | null> {
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
+    const root = portal?.shadowRoot
+    const aggregateElements = root?.querySelectorAll(
+      '[data-nextjs-error-aggregate-error]'
+    )
+    if (!aggregateElements || aggregateElements.length === 0) return null
+
+    const entries: {
+      label: string | null
+      message: string | null
+      source: string | null
+      stack: string[]
+    }[] = []
+    for (const el of aggregateElements) {
+      const stackFrameElements = el.querySelectorAll(
+        ':scope > [data-nextjs-call-stack-container] > [data-nextjs-call-stack-frame]'
+      )
+      const stack: string[] = []
+      for (const frameEl of stackFrameElements) {
+        stack.push(frameEl.innerText.replace(/\n+/g, ' '))
+      }
+
+      entries.push({
+        label:
+          el.querySelector('.error-aggregate-error-label')?.innerText ?? null,
+        message:
+          el.querySelector('.error-aggregate-error-message')?.innerText ?? null,
+        source:
+          el.querySelector(':scope > [data-nextjs-codeframe]')?.innerText ??
+          null,
+        stack,
+      })
+    }
+    return entries
+  })
+}
+
 export async function getRedboxCallStack(
   browser: Playwright
 ): Promise<string[] | null> {
@@ -1649,8 +1713,11 @@ export async function getRedboxCallStack(
     if (frameElements !== undefined) {
       let foundInternalFrame = false
       for (const frameElement of frameElements) {
-        // Skip frames that belong to an Error.cause section
-        if (frameElement.closest('[data-nextjs-error-cause]')) {
+        // Skip frames that belong to an Error.cause or AggregateError section
+        if (
+          frameElement.closest('[data-nextjs-error-cause]') ||
+          frameElement.closest('[data-nextjs-error-aggregate-error]')
+        ) {
           continue
         }
         // `innerText` will be "${methodName}\n${location}".
@@ -2056,7 +2123,7 @@ export const getCacheHeader = (curRes: Response) =>
   curRes.headers.get('x-nextjs-cache') || curRes.headers.get('x-vercel-cache')
 
 export function getDeploymentId(appDir: string, isDev: boolean) {
-  let requiredServerFiles
+  let requiredServerFiles: RequiredServerFilesManifest | undefined
   if (!isDev) {
     // File isn't written in dev, but it might still exist because it was created by a prior
     // production build.
@@ -2072,9 +2139,11 @@ export function getDeploymentId(appDir: string, isDev: boolean) {
 
   const deploymentId: string | undefined =
     requiredServerFiles?.config?.deploymentId
-  const immutableAssetToken: string | undefined =
-    requiredServerFiles?.config?.experimental?.immutableAssetToken
-  const assetToken: string | undefined = immutableAssetToken || deploymentId
+
+  const assetToken: string | undefined = requiredServerFiles?.config
+    ?.supportsImmutableAssets
+    ? undefined
+    : deploymentId
 
   return {
     deploymentId,
@@ -2086,4 +2155,12 @@ export function getDeploymentId(appDir: string, isDev: boolean) {
       return assetToken ? `${ampersand ? '&' : '?'}dpl=${assetToken}` : ''
     },
   }
+}
+
+export async function listClientChunks(distDir: string) {
+  return (
+    await recursiveReadDir(path.join(distDir, 'static'), {
+      relativePathnames: false,
+    })
+  ).map((f) => path.relative(distDir, f))
 }

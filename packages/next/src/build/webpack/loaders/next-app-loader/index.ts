@@ -427,11 +427,10 @@ async function createTreeCodeFromPath(
       // earlier logic (such as children$ and page$). These should never appear in the loader tree, and
       // should instead be the corresponding segment keys (ie `__PAGE__`) or the `children` parallel route.
       parallelSegmentKey =
-        parallelSegmentKey === PARALLEL_VIRTUAL_SEGMENT
-          ? '(slot)'
-          : parallelSegmentKey === PAGE_SEGMENT
-            ? PAGE_SEGMENT_KEY
-            : parallelSegmentKey
+        parallelSegmentKey === PARALLEL_VIRTUAL_SEGMENT ||
+        parallelSegmentKey === PAGE_SEGMENT
+          ? '(__SLOT__)'
+          : parallelSegmentKey
 
       const normalizedParallelKey = normalizeParallelKey(parallelKey)
       let subtreeCode: string | undefined
@@ -1109,13 +1108,15 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   )
 
   // Lazily evaluate the imported modules in the generated code
-  const header = collectedDeclarations
-    .map(([varName, modulePath]) => {
-      return `const ${varName} = () => import(/* webpackMode: "eager" */ ${JSON.stringify(
-        modulePath
-      )});\n`
-    })
-    .join('')
+  const header =
+    `import { instrumentModuleGetter } from 'next/dist/server/app-render/module-loading/instrument-module-getter'\n` +
+    collectedDeclarations
+      .map(([varName, modulePath]) => {
+        return `const ${varName} = instrumentModuleGetter(() => import(/* webpackMode: "eager" */ ${JSON.stringify(
+          modulePath
+        )}));\n`
+      })
+      .join('')
 
   return header + code
 }

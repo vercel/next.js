@@ -1,3 +1,5 @@
+import { step } from './step'
+
 /**
  * Minimal interfaces for Playwright's Page and BrowserContext. We use
  * structural types rather than importing from a specific Playwright package
@@ -12,9 +14,12 @@ interface PlaywrightBrowserContext {
       url?: string
       domain?: string
       path?: string
+      expires?: number
     }>
   ): Promise<void>
-  clearCookies(options?: { name?: string }): Promise<void>
+  cookies(): Promise<
+    Array<{ name: string; value: string; domain: string; path: string }>
+  >
 }
 
 interface PlaywrightPage {
@@ -23,6 +28,23 @@ interface PlaywrightPage {
 }
 
 const INSTANT_COOKIE = 'next-instant-navigation-testing'
+
+// Browser contexts that currently have an instant() scope executing. The
+// instant cookie is scoped to the browser context, so the context is the
+// natural granularity for the scope: two concurrent instant() calls on the same
+// context share one cookie and genuinely conflict, whereas calls on different
+// contexts (or different browsers) are independent and must not. Keying on the
+// context object preserves that isolation while giving a race-free nesting
+// signal.
+//
+// We track this in-process rather than inferring nesting from the cookie's
+// presence: a locked page asynchronously re-writes the instant cookie on every
+// MPA load (see navigation-testing-lock.ts), and that write can land right
+// after a prior scope's release deletes it, resurrecting the cookie once the
+// scope has already ended. Treating such a leftover as an active scope would
+// turn a benign residue into a cascading failure across every later test that
+// shares the browser context.
+const contextsWithActiveScope = new WeakSet<PlaywrightBrowserContext>()
 
 /**
  * Runs a function with instant navigation enabled. Within this scope,
@@ -41,30 +63,104 @@ const INSTANT_COOKIE = 'next-instant-navigation-testing'
  *     await page.goto(url)
  *     // ...
  *   }, { baseURL: 'http://localhost:3000' })
+ *
+ * When `@playwright/test` is installed, acquire/release actions appear
+ * as labeled steps in the Playwright UI.
  */
 export async function instant<T>(
   page: PlaywrightPage,
   fn: () => Promise<T>,
   options?: { baseURL?: string }
 ): Promise<T> {
-  // Acquire the lock by setting the cookie via the browser context. This
-  // ensures the cookie is present even on the very first navigation.
-  // The cookie triggers the CookieStore change event in
-  // navigation-testing-lock.ts, which acquires the in-memory navigation lock.
+  const context = page.context()
+  if (contextsWithActiveScope.has(context)) {
+    throw new Error(
+      'An instant() scope is already active. Nesting instant() ' +
+        'calls is not supported. Did you forget to await the ' +
+        'previous instant() call?'
+    )
+  }
+
+  // Resolve the cookie's scope before touching any browser state, so misuse on
+  // a fresh page (no baseURL and no prior navigation) fails with the
+  // descriptive error from resolveURL rather than half-entering a scope.
   const { hostname } = new URL(resolveURL(page, options))
-  await page
-    .context()
-    .addCookies([
-      { name: INSTANT_COOKIE, value: '1', domain: hostname, path: '/' },
-    ])
+
+  contextsWithActiveScope.add(context)
   try {
-    return await fn()
+    // A completed prior scope on this context can leave the cookie behind (its
+    // client-side release races an in-flight captured-cookie write from a
+    // locked MPA page load; see the note above). No scope is active for this
+    // context, so a present cookie is always stale here — clear it before
+    // acquiring so a completed prior scope never blocks this one.
+    await releaseInstantCookie(context)
+
+    // Acquire the lock by setting the cookie via the browser context. This
+    // ensures the cookie is present even on the very first navigation. The
+    // cookie triggers the CookieStore change event in
+    // navigation-testing-lock.ts, which acquires the in-memory navigation lock.
+    await step('Acquire Instant Lock', () =>
+      context.addCookies([
+        {
+          name: INSTANT_COOKIE,
+          value: JSON.stringify([0, `p${Math.random()}`]),
+          domain: hostname,
+          path: '/',
+        },
+      ])
+    )
+    try {
+      return await fn()
+    } finally {
+      await step('Release Instant Lock', () => releaseInstantCookie(context))
+    }
   } finally {
-    // Release the lock by clearing the cookie. For SPA navigations, this
-    // triggers the CookieStore change event which resolves the in-memory
-    // lock. For MPA navigations (reload, plain anchor), the listener in
-    // app-bootstrap.ts triggers a page reload to fetch dynamic data.
-    await page.context().clearCookies({ name: INSTANT_COOKIE })
+    contextsWithActiveScope.delete(context)
+  }
+}
+
+/**
+ * Deletes the instant cookie, leaving every other cookie untouched.
+ *
+ * We must NOT use `context.clearCookies({ name: INSTANT_COOKIE })` here.
+ * Playwright implements a filtered `clearCookies` by clearing the ENTIRE cookie
+ * jar and then re-adding the cookies that don't match the filter. That briefly
+ * removes the application's own cookies too. Next.js reacts to the instant
+ * cookie's deletion by immediately re-rendering, and if that render's request
+ * races the empty window it observes none of the app's cookies (e.g. a
+ * navigated page renders as if no cookies were set).
+ *
+ * Instead we read the instant cookie's stored entries (Next.js may have updated
+ * the value, e.g. from [0] to [1,null], but preserves the domain and path) and
+ * re-add each with a past expiry, which deletes only those entries without
+ * disturbing the rest of the jar.
+ *
+ * A locked MPA page load can asynchronously re-write (resurrect) the cookie
+ * just after we delete it: the client only stops writing once it observes the
+ * deletion, an event that races the pending write. We therefore re-read and
+ * re-delete until the cookie stays gone, bounded so a cookie that some other
+ * actor keeps re-setting can't loop forever.
+ */
+async function releaseInstantCookie(
+  context: PlaywrightBrowserContext
+): Promise<void> {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const instantCookies = (await context.cookies()).filter(
+      (cookie) => cookie.name === INSTANT_COOKIE
+    )
+    if (instantCookies.length === 0) {
+      return
+    }
+    await context.addCookies(
+      instantCookies.map((cookie) => ({
+        name: cookie.name,
+        value: cookie.value,
+        domain: cookie.domain,
+        path: cookie.path,
+        // A past expiry (Unix epoch seconds) deletes the cookie.
+        expires: 1,
+      }))
+    )
   }
 }
 

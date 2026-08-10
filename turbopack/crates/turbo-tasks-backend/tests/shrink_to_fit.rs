@@ -14,7 +14,7 @@ struct Wrapper(Vec<u32>);
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_shrink_to_fit() -> Result<()> {
     run_once(&REGISTRATION, || async {
-        #[turbo_tasks::function(operation)]
+        #[turbo_tasks::function(operation, root)]
         async fn capacity_operation(wrapper: ResolvedVc<Wrapper>) -> Result<Vc<usize>> {
             Ok(Vc::cell(wrapper.await?.capacity()))
         }

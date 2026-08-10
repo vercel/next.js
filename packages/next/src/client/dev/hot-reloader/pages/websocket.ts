@@ -74,7 +74,7 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
       source.onclose = null
       source.close()
       reconnections++
-      // After 25 reconnects we'll want to reload the page as it indicates the dev server is no longer running.
+      // After WEB_SOCKET_MAX_RECONNECTIONS reconnects we'll want to reload the page as it indicates the dev server is no longer running.
       if (reconnections > WEB_SOCKET_MAX_RECONNECTIONS) {
         reloading = true
         window.location.reload()
@@ -94,6 +94,28 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
     source.onclose = handleDisconnect
     source.onmessage = handleMessage
   }
+
+  function handleVisibilityChange() {
+    if (
+      document.visibilityState === 'visible' &&
+      source.readyState !== WebSocket.OPEN
+    ) {
+      reconnections = 0
+      clearTimeout(timer)
+      init()
+    }
+  }
+
+  function handleOnlineEvent() {
+    if (source.readyState !== WebSocket.OPEN) {
+      reconnections = 0
+      clearTimeout(timer)
+      init()
+    }
+  }
+
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+  window.addEventListener('online', handleOnlineEvent)
 
   init()
 }

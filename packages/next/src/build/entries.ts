@@ -43,7 +43,10 @@ import {
 } from './utils'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import type { ServerRuntime } from '../types'
-import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import {
+  normalizeAppPath,
+  compareAppPaths,
+} from '../shared/lib/router/utils/app-paths'
 import { encodeMatchers } from './webpack/loaders/next-middleware-loader'
 import type { EdgeFunctionLoaderOptions } from './webpack/loaders/next-edge-function-loader'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
@@ -163,6 +166,8 @@ export function getEdgeServerEntry(opts: {
   preferredRegion: string | string[] | undefined
   middlewareConfig?: ProxyConfig
 }) {
+  const cacheHandler = opts.config.cacheHandler || undefined
+
   if (
     opts.pagesType === 'app' &&
     isAppRouteRoute(opts.page) &&
@@ -177,6 +182,7 @@ export function getEdgeServerEntry(opts: {
         JSON.stringify(opts.middlewareConfig || {})
       ).toString('base64'),
       cacheHandlers: JSON.stringify(opts.config.cacheHandlers || {}),
+      ...(cacheHandler ? { cacheHandler } : {}),
     }
 
     return {
@@ -197,6 +203,7 @@ export function getEdgeServerEntry(opts: {
       middlewareConfig: Buffer.from(
         JSON.stringify(opts.middlewareConfig || {})
       ).toString('base64'),
+      ...(cacheHandler ? { cacheHandler } : {}),
     }
 
     return {
@@ -215,6 +222,7 @@ export function getEdgeServerEntry(opts: {
       middlewareConfig: Buffer.from(
         JSON.stringify(opts.middlewareConfig || {})
       ).toString('base64'),
+      ...(cacheHandler ? { cacheHandler } : {}),
     }
 
     return {
@@ -235,13 +243,13 @@ export function getEdgeServerEntry(opts: {
     pagesType: opts.pagesType,
     appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
     sriEnabled: !opts.isDev && !!opts.config.experimental.sri?.algorithm,
-    cacheHandler: opts.config.cacheHandler,
     preferredRegion: opts.preferredRegion,
     middlewareConfig: Buffer.from(
       JSON.stringify(opts.middlewareConfig || {})
     ).toString('base64'),
     serverActions: opts.config.experimental.serverActions,
     cacheHandlers: JSON.stringify(opts.config.cacheHandlers || {}),
+    ...(cacheHandler ? { cacheHandler } : {}),
   }
 
   return {
@@ -417,7 +425,10 @@ export async function createEntrypoints(
 
     // Make sure to sort parallel routes to make the result deterministic.
     appPathsPerRoute = Object.fromEntries(
-      Object.entries(appPathsPerRoute).map(([k, v]) => [k, v.sort()])
+      Object.entries(appPathsPerRoute).map(([k, v]) => [
+        k,
+        v.sort(compareAppPaths),
+      ])
     )
   }
 

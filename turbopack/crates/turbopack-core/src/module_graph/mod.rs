@@ -1,6 +1,7 @@
 use std::{
     collections::{BinaryHeap, VecDeque},
     future::Future,
+    iter::FusedIterator,
     ops::Deref,
 };
 
@@ -17,7 +18,7 @@ use tracing::{Instrument, Level, Span};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     CollectiblesSource, FxIndexMap, NonLocalValue, OperationVc, ReadRef, ResolvedVc,
-    TryJoinIterExt, ValueToString, Vc,
+    TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
     trace::TraceRawVcs,
@@ -25,7 +26,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
-    chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType},
+    chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType, TracedMode},
     issue::{ImportTracer, ImportTraces, Issue},
     module::Module,
     module_graph::{
@@ -34,10 +35,15 @@ use crate::{
         chunk_group_info::{ChunkGroupEntry, ChunkGroupInfo, compute_chunk_group_info},
         merged_modules::{MergedModuleInfo, compute_merged_modules},
         module_batches::{ModuleBatchesGraph, compute_module_batches},
-        style_groups::{StyleGroups, StyleGroupsConfig, compute_style_groups},
+        style_groups::{StyleGroups, StyleGroupsAlgorithm, StyleGroupsConfig},
+        style_groups_graph::compute_style_groups_graph,
+        style_groups_loose::compute_style_groups,
         traced_di_graph::TracedDiGraph,
     },
-    reference::{ModuleReference, primary_chunkable_referenced_modules},
+    reference::{
+        ModuleReference, primary_chunkable_referenced_modules,
+        referenced_modules_and_affecting_sources,
+    },
     resolve::BindingUsage,
 };
 
@@ -48,7 +54,9 @@ pub mod merged_modules;
 pub mod module_batch;
 pub(crate) mod module_batches;
 mod side_effect_module_info;
-pub(crate) mod style_groups;
+pub mod style_groups;
+pub mod style_groups_graph;
+pub mod style_groups_loose;
 mod traced_di_graph;
 
 pub use self::module_batches::BatchingConfig;
@@ -211,16 +219,73 @@ impl VisitedModules {
     }
 }
 
-pub type GraphEntriesT = Vec<ChunkGroupEntry>;
-
-#[turbo_tasks::value(transparent)]
-pub struct GraphEntries(GraphEntriesT);
+#[turbo_tasks::value(shared, task_input)]
+#[derive(Debug, Clone, Hash, Default)]
+pub struct GraphEntries {
+    /// The bundled chunk groups (listing their entry modules)
+    chunk_groups: Vec<ChunkGroupEntry>,
+    /// Traced top-level modules, which are not referenced by chunk_groups but should still be
+    /// considered as part of the graph.
+    traced_modules: Vec<ResolvedVc<Box<dyn Module>>>,
+}
 
 #[turbo_tasks::value_impl]
 impl GraphEntries {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
-        Vc::cell(Vec::new())
+        Self::default().cell()
+    }
+}
+
+impl GraphEntries {
+    pub fn new(
+        chunk_groups: Vec<ChunkGroupEntry>,
+        traced_modules: Vec<ResolvedVc<Box<dyn Module>>>,
+    ) -> Self {
+        Self {
+            chunk_groups,
+            traced_modules,
+        }
+    }
+    pub fn from_chunk_groups(chunk_groups: Vec<ChunkGroupEntry>) -> Self {
+        Self {
+            chunk_groups,
+            traced_modules: vec![],
+        }
+    }
+
+    pub fn concatenate(entries: impl IntoIterator<Item = GraphEntries>) -> Self {
+        let (chunk_groups, traced_modules): (Vec<_>, Vec<_>) = entries
+            .into_iter()
+            .map(|e| (e.chunk_groups, e.traced_modules))
+            .unzip();
+        Self {
+            chunk_groups: chunk_groups.into_iter().flatten().collect(),
+            traced_modules: traced_modules.into_iter().flatten().collect(),
+        }
+    }
+
+    /// Returns both chunk group modules and traced modules.
+    pub fn all_modules(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
+        self.chunk_groups
+            .iter()
+            .flat_map(|e| e.entries())
+            .chain(self.traced_modules.iter().cloned())
+    }
+
+    /// Like all_modules, but with a boolean whether the module came from `traced_modules`
+    pub fn all_modules_with_is_traced(
+        &self,
+    ) -> impl Iterator<Item = (ResolvedVc<Box<dyn Module>>, bool)> + '_ {
+        self.chunk_groups
+            .iter()
+            .flat_map(|e| e.entries().map(|m| (m, false)))
+            .chain(self.traced_modules.iter().cloned().map(|m| (m, true)))
+    }
+
+    /// Returns only the bundled modules, not the traced modules.
+    pub fn chunk_group_modules(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
+        self.chunk_groups.iter().flat_map(|e| e.entries())
     }
 }
 
@@ -243,7 +308,7 @@ pub struct SingleModuleGraph {
     modules: FxHashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
 
     #[turbo_tasks(trace_ignore)]
-    pub entries: GraphEntriesT,
+    pub entries: GraphEntries,
 }
 
 #[derive(
@@ -269,16 +334,17 @@ impl SingleModuleGraph {
     /// nodes listed in `visited_modules`
     /// The resulting graph's outgoing edges are in reverse order.
     async fn new_inner(
-        entries: Vec<ChunkGroupEntry>,
+        entries: &GraphEntries,
         visited_modules: &FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
         include_traced: bool,
         include_binding_usage: bool,
     ) -> Result<Vc<Self>> {
         let emit_spans = tracing::enabled!(Level::INFO);
         let root_nodes = entries
-            .iter()
-            .flat_map(|e| e.entries())
-            .map(|e| SingleModuleGraphBuilderNode::new_module(emit_spans, e))
+            .all_modules_with_is_traced()
+            .map(|(e, is_traced)| {
+                SingleModuleGraphBuilderNode::new_module(emit_spans, e, is_traced)
+            })
             .try_join()
             .await?;
 
@@ -310,9 +376,11 @@ impl SingleModuleGraph {
             let _span = tracing::info_span!("build module graph").entered();
             for (parent, current) in children_nodes_iter.into_breadth_first_edges() {
                 let (module, graph_node, count) = match current {
-                    SingleModuleGraphBuilderNode::Module { module, ident: _ } => {
-                        (module, SingleModuleGraphNode::Module(module), 1)
-                    }
+                    SingleModuleGraphBuilderNode::Module {
+                        module,
+                        is_traced: _,
+                        ident: _,
+                    } => (module, SingleModuleGraphNode::Module(module), 1),
                     SingleModuleGraphBuilderNode::VisitedModule { module, idx } => (
                         module,
                         SingleModuleGraphNode::VisitedModule { idx, module },
@@ -343,8 +411,8 @@ impl SingleModuleGraph {
 
         #[cfg(debug_assertions)]
         {
-            use once_cell::sync::Lazy;
-            static CHECK_FOR_DUPLICATE_MODULES: Lazy<bool> = Lazy::new(|| {
+            use std::sync::LazyLock;
+            static CHECK_FOR_DUPLICATE_MODULES: LazyLock<bool> = LazyLock::new(|| {
                 match std::env::var_os("TURBOPACK_TEMP_DISABLE_DUPLICATE_MODULES_CHECK") {
                     Some(v) => v != "1" && v != "true",
                     None => true,
@@ -406,7 +474,21 @@ impl SingleModuleGraph {
                     for (key, debug, parents) in duplicate_modules {
                         map.entry(key).or_default().push((debug, parents));
                     }
-                    panic!("Duplicate module idents in graph: {map:#?}",);
+                    let result = map
+                        .into_iter()
+                        .map(|(ident, modules)| {
+                            let modules = modules
+                                .into_iter()
+                                .map(|(debug, parents)| {
+                                    format!("Module: {debug}, Parents: {parents:?}")
+                                })
+                                .collect::<Vec<_>>()
+                                .join("\n");
+                            format!("Ident: {ident}\n{modules}")
+                        })
+                        .collect::<Vec<_>>()
+                        .join("\n\n");
+                    bail!("Duplicate module idents in graph: {result}");
                 }
             }
         }
@@ -425,7 +507,8 @@ impl SingleModuleGraph {
         Ok(graph)
     }
 
-    /// Iterate over all nodes in the graph
+    /// WARNING: using this is discouraged, as it doesn't filter out unused or traced references.
+    /// Use iter_reachable_modules or one of the .traverse_* functions instead.
     pub fn iter_nodes(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
         self.graph.node_weights().filter_map(|n| match n {
             SingleModuleGraphNode::Module(node) => Some(*node),
@@ -446,11 +529,12 @@ impl SingleModuleGraph {
     }
 
     /// Iterate over graph entry points
-    pub fn entry_modules(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
-        self.entries.iter().flat_map(|e| e.entries())
+    pub fn chunk_group_modules(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
+        self.entries.chunk_group_modules()
     }
 
-    /// Enumerate all nodes in the graph
+    /// WARNING: using this is discouraged, as it doesn't filter out unused or traced references.
+    /// Use iter_reachable_modules or one of the .traverse_* functions instead.
     pub fn enumerate_nodes(
         &self,
     ) -> impl Iterator<Item = (NodeIndex, &'_ SingleModuleGraphNode)> + '_ {
@@ -599,7 +683,7 @@ impl ModuleGraphImportTracer {
             .await?
             .modules
             .iter()
-            .map(|(&module, _)| async move { Ok((module.ident().path().owned().await?, module)) })
+            .map(|(&module, _)| async move { Ok((module.ident().await?.path.clone(), module)) })
             .try_join()
             .await?;
         let mut map: FxHashMap<FileSystemPath, Vec<ResolvedVc<Box<dyn Module>>>> =
@@ -688,7 +772,7 @@ impl ImportTracer for ModuleGraphImportTracer {
 
 /// The ReadRef version of ModuleGraphBase. This is better for eventual consistency, as the graphs
 /// aren't awaited multiple times within the same task.
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
+#[turbo_tasks::value(shared, serialization = "skip", eq = "manual", cell = "new")]
 pub struct ModuleGraph {
     input_graphs: Vec<OperationVc<SingleModuleGraph>>,
     input_binding_usage: Option<OperationVc<BindingUsageInfo>>,
@@ -698,56 +782,21 @@ pub struct ModuleGraph {
 
 #[turbo_tasks::value_impl]
 impl ModuleGraph {
+    /// Analyze the module graph and potentially remove unused references (by determining the used
+    /// exports and removing unused imports).
     #[turbo_tasks::function(operation)]
-    pub async fn from_single_graph(graph: OperationVc<SingleModuleGraph>) -> Result<Vc<Self>> {
-        let graph = Self::create(vec![graph], None)
-            .read_strongly_consistent()
-            .await?;
-        Ok(ReadRef::cell(graph))
-    }
-
-    #[turbo_tasks::function(operation)]
-    pub async fn from_graphs(graphs: Vec<OperationVc<SingleModuleGraph>>) -> Result<Vc<Self>> {
-        let graph = Self::create(graphs, None)
-            .read_strongly_consistent()
-            .await?;
-        Ok(ReadRef::cell(graph))
-    }
-
-    /// Analyze the module graph and remove unused references (by determining the used exports and
-    /// removing unused imports).
-    ///
-    /// In particular, this removes ModuleReference-s that list only unused exports in the
-    /// `import_usage()`
-    #[turbo_tasks::function(operation)]
-    pub async fn from_single_graph_without_unused_references(
-        graph: OperationVc<SingleModuleGraph>,
-        binding_usage: OperationVc<BindingUsageInfo>,
-    ) -> Result<Vc<Self>> {
-        let graph = Self::create(vec![graph], Some(binding_usage))
-            .read_strongly_consistent()
-            .await?;
-        Ok(ReadRef::cell(graph))
-    }
-
-    /// Analyze the module graph and remove unused references (by determining the used exports and
-    /// removing unused imports).
-    ///
-    /// In particular, this removes ModuleReference-s that list only unused exports in the
-    /// `import_usage()`
-    #[turbo_tasks::function(operation)]
-    pub async fn from_graphs_without_unused_references(
+    pub async fn from_graphs(
         graphs: Vec<OperationVc<SingleModuleGraph>>,
-        binding_usage: OperationVc<BindingUsageInfo>,
+        binding_usage: Option<OperationVc<BindingUsageInfo>>,
     ) -> Result<Vc<Self>> {
-        let graph = Self::create(graphs, Some(binding_usage))
+        let graph = Self::from_graphs_inner(graphs, binding_usage)
             .read_strongly_consistent()
             .await?;
         Ok(ReadRef::cell(graph))
     }
 
-    #[turbo_tasks::function(operation)]
-    async fn create(
+    #[turbo_tasks::function(operation, root)]
+    async fn from_graphs_inner(
         graphs: Vec<OperationVc<SingleModuleGraph>>,
         binding_usage: Option<OperationVc<BindingUsageInfo>>,
     ) -> Result<Vc<ModuleGraph>> {
@@ -792,16 +841,33 @@ impl ModuleGraph {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         config: StyleGroupsConfig,
     ) -> Result<Vc<StyleGroups>> {
-        compute_style_groups(self, chunking_context, &config).await
+        match &config.algorithm {
+            StyleGroupsAlgorithm::Default => {
+                compute_style_groups(self, chunking_context, &config).await
+            }
+            StyleGroupsAlgorithm::Graph {
+                weight_distribution,
+                request_cost,
+            } => {
+                compute_style_groups_graph(
+                    self,
+                    chunking_context,
+                    request_cost.get(),
+                    weight_distribution.get(),
+                    config.max_chunk_size as u64,
+                )
+                .await
+            }
+        }
     }
 
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     pub async fn async_module_info(self: Vc<Self>) -> Result<Vc<AsyncModulesInfo>> {
         // `compute_async_module_info` calls `module.is_self_async()`, so we need to again ignore
         // all issues such that they aren't emitted multiple times.
         async move {
             let result_op = compute_async_module_info(self.to_resolved().await?);
-            let result_vc = result_op.resolve_strongly_consistent().await?;
+            let result_vc = result_op.resolve().strongly_consistent().await?;
             result_op.drop_collectibles::<Box<dyn Issue>>();
             anyhow::Ok(*result_vc)
         }
@@ -815,11 +881,11 @@ impl ModuleGraph {
         module: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<AsyncModuleInfo>> {
         let graph_ref = self.await?;
-        let async_modules_info = self.async_module_info().await?;
+        let async_module_info = self.async_module_info();
 
         let entry = graph_ref.get_entry(module)?;
         let referenced_modules = graph_ref
-            .iter_graphs_neighbors_rev(entry, Direction::Outgoing)
+            .iter_graphs_neighbors_rev(entry, Direction::Outgoing, false)
             .filter(|(edge_idx, _)| {
                 let ty = graph_ref.get_edge(*edge_idx).unwrap();
                 ty.chunking_type.is_inherit_async()
@@ -828,9 +894,9 @@ impl ModuleGraph {
             .collect::<Result<Vec<_>>>()?
             .into_iter()
             .rev()
-            .filter(|m| async_modules_info.contains(m))
-            .map(|m| *m)
-            .collect();
+            .map(async |m| Ok(async_module_info.is_async(m).await?.then_some(*m)))
+            .try_flat_join()
+            .await?;
 
         Ok(AsyncModuleInfo::new(referenced_modules))
     }
@@ -858,14 +924,14 @@ impl Deref for ModuleGraph {
     }
 }
 
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
+#[turbo_tasks::value(shared, serialization = "skip", eq = "manual", cell = "new")]
 pub struct ModuleGraphLayer {
     snapshot: ModuleGraphSnapshot,
 }
 
 #[turbo_tasks::value_impl]
 impl ModuleGraphLayer {
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn new(
         graph: OperationVc<SingleModuleGraph>,
         graph_idx: u32,
@@ -898,16 +964,27 @@ impl Deref for ModuleGraphLayer {
 #[turbo_tasks::value(transparent)]
 pub struct ModuleGraphLayers(Vec<OperationVc<ModuleGraphLayer>>);
 
+/// This struct provides traversal functionality for the module graph.
+///
+/// Some edges might be ignored during traversal: unused references listed in binding_usage are
+/// always skipped, and references with ChunkingType::Traced are skipped by default (can be
+/// overridden in some functions via the include_traced parameter).
+///
+/// The API across the functions is pretty consistent, apart from:
+/// - traverse_edges_fixed_point_with_priority additionally provides the GraphEdgeIndex
+/// - traverse_edges_dfs is the only function with include_traced
 #[derive(TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub struct ModuleGraphSnapshot {
+    // TODO make this non-public
     pub graphs: Vec<ReadRef<SingleModuleGraph>>,
-    // Whether to simply ignore SingleModuleGraphNode::VisitedModule during traversals. For single
-    // module graph usecases, this is what you want. For the whole graph, there should be an error.
+    /// Whether to simply ignore SingleModuleGraphNode::VisitedModule during traversals. For single
+    /// module graph usecases, this is what you want. For the whole graph, there should be an
+    /// error.
     skip_visited_module_children: bool,
 
-    pub graph_idx_override: Option<u32>,
+    graph_idx_override: Option<u32>,
 
-    pub binding_usage: Option<ReadRef<BindingUsageInfo>>,
+    binding_usage: Option<ReadRef<BindingUsageInfo>>,
 }
 
 impl ModuleGraphSnapshot {
@@ -932,8 +1009,25 @@ impl ModuleGraphSnapshot {
         Ok(idx)
     }
 
-    pub fn entries(&self) -> impl Iterator<Item = ChunkGroupEntry> + '_ {
-        self.graphs.iter().flat_map(|g| g.entries.iter().cloned())
+    /// The entry modules of all chunk groups of all graphs.
+    pub fn all_chunk_group_entries(&self) -> impl Iterator<Item = &ChunkGroupEntry> + '_ {
+        self.graphs
+            .iter()
+            .flat_map(|g| g.entries.chunk_groups.iter())
+    }
+
+    /// The entry modules of all chunk groups of all graphs.
+    pub fn all_chunk_group_entry_modules(
+        &self,
+    ) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
+        self.graphs
+            .iter()
+            .flat_map(|g| g.entries.chunk_group_modules())
+    }
+
+    /// The entry modules of all chunk groups of all graphs. Includes traced entry modules
+    pub fn all_entry_modules(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
+        self.graphs.iter().flat_map(|g| g.entries.all_modules())
     }
 
     fn get_graph(&self, graph_idx: u32) -> &ReadRef<SingleModuleGraph> {
@@ -968,12 +1062,16 @@ impl ModuleGraphSnapshot {
         }
     }
 
+    /// WARNING: using this is discouraged, as it doesn't filter out unused or traced references.
+    /// Use iter_reachable_modules or one of the .traverse_* functions instead.
     pub fn enumerate_nodes(
         &self,
     ) -> impl Iterator<Item = (NodeIndex, &'_ SingleModuleGraphNode)> + '_ {
         self.graphs.iter().flat_map(|g| g.enumerate_nodes())
     }
 
+    /// WARNING: using this is discouraged, as it doesn't filter out unused or traced references.
+    /// Use iter_reachable_modules or one of the .traverse_* functions instead.
     pub fn iter_nodes(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
         self.graphs.iter().flat_map(|g| g.iter_nodes())
     }
@@ -983,6 +1081,7 @@ impl ModuleGraphSnapshot {
         &'a self,
         node: GraphNodeIndex,
         direction: Direction,
+        include_traced: bool,
     ) -> impl Iterator<Item = (GraphEdgeIndex, GraphNodeIndex)> + 'a {
         let graph = &*self.get_graph(node.graph_idx).graph;
 
@@ -1006,6 +1105,10 @@ impl ModuleGraphSnapshot {
                     continue;
                 }
 
+                if !include_traced && self.get_edge(edge_idx).unwrap().chunking_type.is_traced() {
+                    continue;
+                }
+
                 return Some((edge_idx, GraphNodeIndex::new(node.graph_idx, succ_idx)));
             }
             None
@@ -1016,9 +1119,7 @@ impl ModuleGraphSnapshot {
     /// This is primarily useful for debugging.
     pub async fn get_ids(&self) -> Result<FxHashMap<ResolvedVc<Box<dyn Module>>, ReadRef<RcStr>>> {
         Ok(self
-            .graphs
-            .iter()
-            .flat_map(|g| g.iter_nodes())
+            .iter_nodes()
             .map(async |n| Ok((n, n.ident().to_string().await?)))
             .try_join()
             .await?
@@ -1074,7 +1175,7 @@ impl ModuleGraphSnapshot {
                             .target_idx(Direction::Outgoing)
                             .unwrap_or(current);
                         stack.extend(
-                            self.iter_graphs_neighbors_rev(current, Direction::Outgoing)
+                            self.iter_graphs_neighbors_rev(current, Direction::Outgoing, false)
                                 .map(|(_, child)| (Pass::ExpandAndVisit, child)),
                         );
                     }
@@ -1116,7 +1217,8 @@ impl ModuleGraphSnapshot {
         while let Some(node) = queue.pop_front() {
             if visited.insert(node) {
                 let node_weight = self.get_node(node)?;
-                for (edge, succ) in self.iter_graphs_neighbors_rev(node, Direction::Outgoing) {
+                for (edge, succ) in self.iter_graphs_neighbors_rev(node, Direction::Outgoing, false)
+                {
                     let succ_weight = self.get_node(succ)?;
                     let action = visitor(
                         Some((node_weight.module(), self.get_edge(edge)?)),
@@ -1151,18 +1253,17 @@ impl ModuleGraphSnapshot {
             ResolvedVc<Box<dyn Module>>,
         ) -> Result<()>,
     ) -> Result<()> {
-        let entries = self.graphs.iter().flat_map(|g| g.entry_modules());
-
         // Despite the name we need to do a DFS to respect 'reachability' if an edge was trimmed we
         // should not follow it, and this is a reasonable way to do that.
         self.traverse_edges_dfs(
-            entries,
+            self.all_chunk_group_entry_modules(),
             &mut (),
             |parent, target, _| {
                 visitor(parent, target)?;
                 Ok(GraphTraversalAction::Continue)
             },
             |_, _, _| Ok(()),
+            false,
         )
     }
 
@@ -1198,6 +1299,7 @@ impl ModuleGraphSnapshot {
             ResolvedVc<Box<dyn Module>>,
             &mut S,
         ) -> Result<()>,
+        include_traced: bool,
     ) -> Result<()> {
         self.traverse_edges_dfs_impl::<S>(
             entries,
@@ -1205,6 +1307,7 @@ impl ModuleGraphSnapshot {
             visit_preorder,
             visit_postorder,
             Direction::Outgoing,
+            include_traced,
         )
     }
 
@@ -1245,6 +1348,7 @@ impl ModuleGraphSnapshot {
             visit_preorder,
             visit_postorder,
             Direction::Incoming,
+            false,
         )
     }
 
@@ -1263,6 +1367,7 @@ impl ModuleGraphSnapshot {
             &mut S,
         ) -> Result<()>,
         direction: Direction,
+        include_traced: bool,
     ) -> Result<()> {
         if direction == Direction::Incoming {
             debug_assert!(
@@ -1311,9 +1416,12 @@ impl ModuleGraphSnapshot {
                         && self.should_visit_node(current_node, direction)
                     {
                         let current = current_node.target_idx(direction).unwrap_or(current);
-                        stack.extend(self.iter_graphs_neighbors_rev(current, direction).map(
-                            |(edge, child)| (Pass::ExpandAndVisit, Some((current, edge)), child),
-                        ));
+                        stack.extend(
+                            self.iter_graphs_neighbors_rev(current, direction, include_traced)
+                                .map(|(edge, child)| {
+                                    (Pass::ExpandAndVisit, Some((current, edge)), child)
+                                }),
+                        );
                     }
                 }
             }
@@ -1434,7 +1542,7 @@ impl ModuleGraphSnapshot {
 
             visit_count += 1;
 
-            for (edge, succ) in self.iter_graphs_neighbors_rev(node, Direction::Outgoing) {
+            for (edge, succ) in self.iter_graphs_neighbors_rev(node, Direction::Outgoing, false) {
                 let succ_weight = self.get_node(succ)?;
 
                 let action = visit(
@@ -1456,7 +1564,76 @@ impl ModuleGraphSnapshot {
 
         Ok(visit_count)
     }
+
+    /// Iterates all reachable modules in the graph, ignoring unused and traced references.
+    pub fn iter_reachable_modules(
+        &self,
+    ) -> Result<impl Iterator<Item = ResolvedVc<Box<dyn Module>>>> {
+        Ok(self.iter_reachable_nodes()?.filter_map(|n| match n {
+            SingleModuleGraphNode::Module(m) => Some(*m),
+            SingleModuleGraphNode::VisitedModule { .. } => None,
+        }))
+    }
+
+    /// Iterates all reachable nodes in the graph, ignoring unused and traced references.
+    /// This includes VisitedModule nodes (which means that some modules are returned twice).
+    pub fn iter_reachable_nodes<'a>(
+        &'a self,
+    ) -> Result<impl Iterator<Item = &'a SingleModuleGraphNode> + 'a> {
+        ModuleGraphSnapshotNodeIterator::new(self)
+    }
 }
+
+struct ModuleGraphSnapshotNodeIterator<'a> {
+    graph: &'a ModuleGraphSnapshot,
+    visited: FxHashSet<GraphNodeIndex>,
+    visit_queue: VecDeque<GraphNodeIndex>,
+}
+
+impl<'a> ModuleGraphSnapshotNodeIterator<'a> {
+    fn new(graph: &'a ModuleGraphSnapshot) -> Result<Self> {
+        let entries = graph
+            .graphs
+            .iter()
+            .flat_map(|g| g.chunk_group_modules())
+            .map(|e| graph.get_entry(e))
+            .collect::<Result<VecDeque<_>>>()?;
+
+        Ok(Self {
+            graph,
+            visited: FxHashSet::default(),
+            visit_queue: entries,
+        })
+    }
+}
+impl<'a> Iterator for ModuleGraphSnapshotNodeIterator<'a> {
+    type Item = &'a SingleModuleGraphNode;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(node_idx) = self.visit_queue.pop_front() {
+            if self.visited.insert(node_idx) {
+                let node_weight = self.graph.get_node(node_idx).unwrap();
+                if self
+                    .graph
+                    .should_visit_node(node_weight, Direction::Outgoing)
+                {
+                    let node = node_weight
+                        .target_idx(Direction::Outgoing)
+                        .unwrap_or(node_idx);
+                    self.visit_queue.extend(
+                        self.graph
+                            .iter_graphs_neighbors_rev(node, Direction::Outgoing, false)
+                            .map(|(_, succ)| succ)
+                            .filter(|succ| !self.visited.contains(succ)),
+                    );
+                }
+                return Some(node_weight);
+            }
+        }
+        None
+    }
+}
+impl FusedIterator for ModuleGraphSnapshotNodeIterator<'_> {}
 
 #[turbo_tasks::value_impl]
 impl SingleModuleGraph {
@@ -1467,7 +1644,7 @@ impl SingleModuleGraph {
         include_binding_usage: bool,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(
-            vec![entry],
+            &GraphEntries::from_chunk_groups(vec![entry]),
             &Default::default(),
             include_traced,
             include_binding_usage,
@@ -1482,7 +1659,7 @@ impl SingleModuleGraph {
         include_binding_usage: bool,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(
-            entries.owned().await?,
+            &*entries.await?,
             &Default::default(),
             include_traced,
             include_binding_usage,
@@ -1498,7 +1675,7 @@ impl SingleModuleGraph {
         include_binding_usage: bool,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(
-            entries.owned().await?,
+            &*entries.await?,
             &visited_modules.connect().await?.modules,
             include_traced,
             include_binding_usage,
@@ -1509,18 +1686,28 @@ impl SingleModuleGraph {
     #[turbo_tasks::function(operation)]
     pub async fn new_with_entries_visited_intern(
         // This must not be a Vc<Vec<_>> to ensure layout segment optimization hits the cache
-        entries: GraphEntriesT,
+        entries: GraphEntries,
         visited_modules: OperationVc<VisitedModules>,
         include_traced: bool,
         include_binding_usage: bool,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(
-            entries,
+            &entries,
             &visited_modules.connect().await?.modules,
             include_traced,
             include_binding_usage,
         )
         .await
+    }
+
+    #[turbo_tasks::function]
+    pub async fn module_count(&self) -> Vc<u64> {
+        Vc::cell(self.number_of_modules as u64)
+    }
+
+    #[turbo_tasks::function]
+    pub async fn edge_count(&self) -> Vc<u64> {
+        Vc::cell(self.graph.edge_count() as u64)
     }
 }
 
@@ -1569,8 +1756,10 @@ enum SingleModuleGraphBuilderNode {
     /// A regular module
     Module {
         module: ResolvedVc<Box<dyn Module>>,
-        // module.ident().to_string(), eagerly computed for tracing
+        /// module.ident().to_string(), eagerly computed for tracing, otherwise None
         ident: Option<ReadRef<RcStr>>,
+        /// whether this module is a tracing context
+        is_traced: bool,
     },
     /// A reference to a module that is already listed in visited_modules
     VisitedModule {
@@ -1580,7 +1769,11 @@ enum SingleModuleGraphBuilderNode {
 }
 
 impl SingleModuleGraphBuilderNode {
-    async fn new_module(emit_spans: bool, module: ResolvedVc<Box<dyn Module>>) -> Result<Self> {
+    async fn new_module(
+        emit_spans: bool,
+        module: ResolvedVc<Box<dyn Module>>,
+        is_traced: bool,
+    ) -> Result<Self> {
         Ok(Self::Module {
             module,
             ident: if emit_spans {
@@ -1589,6 +1782,7 @@ impl SingleModuleGraphBuilderNode {
             } else {
                 None
             },
+            is_traced,
         })
     }
     fn new_visited_module(module: ResolvedVc<Box<dyn Module>>, idx: GraphNodeIndex) -> Self {
@@ -1614,14 +1808,8 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
     fn visit(
         &mut self,
         node: &SingleModuleGraphBuilderNode,
-        edge: Option<&RefData>,
+        _edge: Option<&RefData>,
     ) -> VisitControlFlow {
-        if let Some(edge) = edge
-            && matches!(edge.chunking_type, ChunkingType::Traced)
-        {
-            // The graph behind traced references is not part of the module graph traversal
-            return VisitControlFlow::Skip;
-        }
         match node {
             SingleModuleGraphBuilderNode::Module { .. } => VisitControlFlow::Continue,
             // Module was already visited previously
@@ -1629,14 +1817,12 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
         }
     }
 
-    fn edges(
-        &mut self,
-        // The `skip_duplicates_with_key()` above ensures only a single `edges()` call per module
-        // (and not per `(module, export)` pair), so the export must not be read here!
-        node: &SingleModuleGraphBuilderNode,
-    ) -> Self::EdgesFuture {
+    fn edges(&mut self, node: &SingleModuleGraphBuilderNode) -> Self::EdgesFuture {
         // Destructure beforehand to not have to clone the whole node when entering the async block
-        let &SingleModuleGraphBuilderNode::Module { module, .. } = node else {
+        let &SingleModuleGraphBuilderNode::Module {
+            module, is_traced, ..
+        } = node
+        else {
             // These are always skipped in `visit()`
             unreachable!()
         };
@@ -1645,11 +1831,12 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
         let include_traced = self.include_traced;
         let include_binding_usage = self.include_binding_usage;
         async move {
-            let refs_cell = primary_chunkable_referenced_modules(
-                *module,
-                include_traced,
-                include_binding_usage,
-            );
+            let refs_cell = if !is_traced {
+                primary_chunkable_referenced_modules(*module, include_traced, include_binding_usage)
+            } else {
+                // Currently we don't care about the binding usage of traced references
+                referenced_modules_and_affecting_sources(*module, false)
+            };
             let refs = match refs_cell.await {
                 Ok(refs) => refs,
                 Err(e) => {
@@ -1668,11 +1855,32 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
                         )
                     })
                 })
+                .filter(|(_, ty, _, _)| {
+                    // Ignore non-entry traced reference if not already in tracing mode.
+                    //
+                    // ChunkingType::Traced{TracedMode::Entry}
+                    // ==> target is always traced
+                    // ChunkingType::Traced{TracedMode::Transitive}
+                    // ==> target only traced if parent is traced
+                    // ChunkingType::*
+                    // ==> target only traced if parent is traced
+                    !matches!(
+                        ty,
+                        ChunkingType::Traced {
+                            mode: TracedMode::Transitive
+                        }
+                    ) || is_traced
+                })
                 .map(async |(reference, ty, binding_usage, target)| {
                     let to = if let Some(idx) = visited_modules.get(&target) {
                         SingleModuleGraphBuilderNode::new_visited_module(target, *idx)
                     } else {
-                        SingleModuleGraphBuilderNode::new_module(emit_spans, target).await?
+                        SingleModuleGraphBuilderNode::new_module(
+                            emit_spans,
+                            target,
+                            is_traced || ty.is_traced(),
+                        )
+                        .await?
                     };
                     Ok((
                         to,
@@ -1715,7 +1923,7 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
                     inherit_async: _,
                     hoisted: _,
                 } => {}
-                ChunkingType::Traced => {
+                ChunkingType::Traced { .. } => {
                     let _span = span.entered();
                     span = tracing::info_span!("traced reference");
                 }
@@ -1759,8 +1967,9 @@ pub mod tests {
         asset::{Asset, AssetContent},
         ident::AssetIdent,
         module::{Module, ModuleSideEffects},
-        reference::{ModuleReference, ModuleReferences, SingleChunkableModuleReference},
-        resolve::ExportUsage,
+        module_graph::chunk_group_info::EntryHeuristics,
+        reference::{ModuleReference, ModuleReferences},
+        resolve::ModuleResolveResult,
     };
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -1796,6 +2005,7 @@ pub mod tests {
                         ));
                         Ok(())
                     },
+                    false,
                 )?;
                 assert_eq!(
                     vec![
@@ -1856,6 +2066,7 @@ pub mod tests {
                         ));
                         Ok(())
                     },
+                    false,
                 )?;
                 assert_eq!(
                     vec![
@@ -2059,32 +2270,17 @@ pub mod tests {
                 reverse_from_b: Vec<RcStr>,
             }
 
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn reverse_traversal_results_operation() -> Result<Vc<ReverseTraversalResults>> {
                 let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
                 let root = fs.root().await?;
 
                 // a simple linear graph a -> b ->c
                 // but b->c is in a parent graph and a is in the child
-                let graph = {
-                    let mut deps = FxHashMap::default();
-
-                    deps.insert(rcstr!("a.js"), vec![rcstr!("b.js"), rcstr!("d.js")]);
-                    deps.insert(rcstr!("b.js"), vec![rcstr!("c.js")]);
-                    deps
-                };
-                let repo = TestRepo {
-                    repo: graph
-                        .iter()
-                        .map(|(k, v)| {
-                            (
-                                root.join(k).unwrap(),
-                                v.iter().map(|f| root.join(f).unwrap()).collect(),
-                            )
-                        })
-                        .collect(),
-                }
-                .cell();
+                let repo = TestRepo::new(
+                    &root,
+                    [("a.js", vec!["b.js", "d.js"]), ("b.js", vec!["c.js"])],
+                );
                 let make_module = |name| {
                     Vc::upcast::<Box<dyn Module>>(MockModule::new(root.join(name).unwrap(), repo))
                         .to_resolved()
@@ -2093,20 +2289,31 @@ pub mod tests {
                 let b_module = make_module("b.js").await?;
 
                 let parent_graph = SingleModuleGraph::new_with_entries(
-                    ResolvedVc::cell(vec![ChunkGroupEntry::Entry(vec![b_module])]),
+                    GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                        modules: vec![b_module],
+                        heuristics: EntryHeuristics::default(),
+                    }])
+                    .resolved_cell(),
                     false,
                     false,
                 );
 
-                let module_graph = ModuleGraph::from_graphs(vec![
-                    parent_graph,
-                    SingleModuleGraph::new_with_entries_visited(
-                        ResolvedVc::cell(vec![ChunkGroupEntry::Entry(vec![a_module])]),
-                        VisitedModules::from_graph(parent_graph),
-                        false,
-                        false,
-                    ),
-                ])
+                let module_graph = ModuleGraph::from_graphs(
+                    vec![
+                        parent_graph,
+                        SingleModuleGraph::new_with_entries_visited(
+                            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                                modules: vec![a_module],
+                                heuristics: EntryHeuristics::default(),
+                            }])
+                            .resolved_cell(),
+                            VisitedModules::from_graph(parent_graph),
+                            false,
+                            false,
+                        ),
+                    ],
+                    None,
+                )
                 .connect();
                 let child_graph = module_graph
                     .iter_graphs()
@@ -2126,6 +2333,7 @@ pub mod tests {
                         Ok(GraphTraversalAction::Continue)
                     },
                     |_, _, _| Ok(()),
+                    false,
                 )?;
                 let forward = visited_forward
                     .iter()
@@ -2214,10 +2422,264 @@ pub mod tests {
         .unwrap();
     }
 
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_iter_nodes_modules_through_layered_graph() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            #[turbo_tasks::value]
+            struct Results {
+                iter_nodes: Vec<RcStr>,
+                iter_modules: Vec<RcStr>,
+                iter_nodes_single: Vec<Vec<RcStr>>,
+                iter_modules_single: Vec<Vec<RcStr>>,
+            }
+
+            #[turbo_tasks::function(operation, root)]
+            async fn reverse_traversal_results_operation() -> Result<Vc<Results>> {
+                let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
+                let root = fs.root().await?;
+
+                // a simple linear graph a -> b -> c -> x -> y -> z
+                // but x -> y -> z is in a parent graph
+
+                let repo = TestRepo::new_with_chunking_types(
+                    &root,
+                    [
+                        ("a.js", vec!["b.js"]),
+                        ("b.js", vec!["c.js"]),
+                        ("c.js", vec!["x.js"]),
+                        ("x.js", vec!["y.js", "traced.js"]),
+                        ("y.js", vec!["z.js"]),
+                    ],
+                    [(
+                        "x.js",
+                        "traced.js",
+                        ChunkingType::Traced {
+                            mode: TracedMode::Entry,
+                        },
+                    )],
+                );
+                let make_module = |name| {
+                    Vc::upcast::<Box<dyn Module>>(MockModule::new(root.join(name).unwrap(), repo))
+                        .to_resolved()
+                };
+                let x_module = make_module("x.js").await?;
+                let a_module = make_module("a.js").await?;
+
+                let parent_graph = SingleModuleGraph::new_with_entries(
+                    GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                        modules: vec![x_module],
+                        heuristics: EntryHeuristics::default(),
+                    }])
+                    .resolved_cell(),
+                    true,
+                    false,
+                );
+
+                let module_graph = ModuleGraph::from_graphs(
+                    vec![
+                        parent_graph,
+                        SingleModuleGraph::new_with_entries_visited(
+                            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                                modules: vec![a_module],
+                                heuristics: EntryHeuristics::default(),
+                            }])
+                            .resolved_cell(),
+                            VisitedModules::from_graph(parent_graph),
+                            true,
+                            false,
+                        ),
+                    ],
+                    None,
+                )
+                .connect();
+                let graph_layers = module_graph.iter_graphs().await?;
+
+                Ok(Results {
+                    iter_nodes: module_graph
+                        .await?
+                        .iter_reachable_nodes()?
+                        .map(async |node| {
+                            Ok(match node {
+                                SingleModuleGraphNode::Module(module) => {
+                                    module.ident_string().owned().await?
+                                }
+                                SingleModuleGraphNode::VisitedModule { module, .. } => {
+                                    format!("visited {}", module.ident_string().owned().await?)
+                                        .into()
+                                }
+                            })
+                        })
+                        .try_join()
+                        .await?,
+                    iter_modules: module_graph
+                        .await?
+                        .iter_reachable_modules()?
+                        .map(|m| m.ident_string().owned())
+                        .try_join()
+                        .await?,
+                    iter_nodes_single: graph_layers
+                        .iter()
+                        .map(async |layer| {
+                            layer
+                                .connect()
+                                .await?
+                                .iter_reachable_nodes()?
+                                .map(async |node| {
+                                    Ok(match node {
+                                        SingleModuleGraphNode::Module(module) => {
+                                            module.ident_string().owned().await?
+                                        }
+                                        SingleModuleGraphNode::VisitedModule { module, .. } => {
+                                            format!(
+                                                "visited {}",
+                                                module.ident_string().owned().await?
+                                            )
+                                            .into()
+                                        }
+                                    })
+                                })
+                                .try_join()
+                                .await
+                        })
+                        .try_join()
+                        .await?,
+                    iter_modules_single: graph_layers
+                        .iter()
+                        .map(async |layer| {
+                            layer
+                                .connect()
+                                .await?
+                                .iter_reachable_modules()?
+                                .map(|m| m.ident_string().owned())
+                                .try_join()
+                                .await
+                        })
+                        .try_join()
+                        .await?,
+                }
+                .cell())
+            }
+
+            let traversal_results = reverse_traversal_results_operation()
+                .read_strongly_consistent()
+                .await?;
+
+            assert_eq!(
+                traversal_results.iter_nodes,
+                vec![
+                    rcstr!("[test]/x.js"),
+                    rcstr!("[test]/a.js"),
+                    rcstr!("[test]/y.js"),
+                    rcstr!("[test]/b.js"),
+                    rcstr!("[test]/z.js"),
+                    rcstr!("[test]/c.js"),
+                    rcstr!("visited [test]/x.js")
+                ]
+            );
+            assert_eq!(
+                traversal_results.iter_modules,
+                vec![
+                    rcstr!("[test]/x.js"),
+                    rcstr!("[test]/a.js"),
+                    rcstr!("[test]/y.js"),
+                    rcstr!("[test]/b.js"),
+                    rcstr!("[test]/z.js"),
+                    rcstr!("[test]/c.js")
+                ]
+            );
+            assert_eq!(
+                traversal_results.iter_nodes_single,
+                vec![
+                    vec![
+                        rcstr!("[test]/x.js"),
+                        rcstr!("[test]/y.js"),
+                        rcstr!("[test]/z.js")
+                    ],
+                    vec![
+                        rcstr!("[test]/a.js"),
+                        rcstr!("[test]/b.js"),
+                        rcstr!("[test]/c.js"),
+                        rcstr!("visited [test]/x.js")
+                    ]
+                ]
+            );
+            assert_eq!(
+                traversal_results.iter_modules_single,
+                vec![
+                    vec![
+                        rcstr!("[test]/x.js"),
+                        rcstr!("[test]/y.js"),
+                        rcstr!("[test]/z.js")
+                    ],
+                    vec![
+                        rcstr!("[test]/a.js"),
+                        rcstr!("[test]/b.js"),
+                        rcstr!("[test]/c.js")
+                    ]
+                ]
+            );
+
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
     #[turbo_tasks::value(shared)]
     struct TestRepo {
         repo: FxHashMap<FileSystemPath, Vec<FileSystemPath>>,
+        chunking_types: FxHashMap<(FileSystemPath, FileSystemPath), ChunkingType>,
     }
+
+    impl TestRepo {
+        fn new(
+            root: &FileSystemPath,
+            dependencies: impl IntoIterator<Item = (impl AsRef<str>, Vec<impl AsRef<str>>)>,
+        ) -> Vc<Self> {
+            Self::new_with_chunking_types(
+                root,
+                dependencies,
+                std::iter::empty::<(RcStr, RcStr, ChunkingType)>(),
+            )
+        }
+
+        fn new_with_chunking_types(
+            root: &FileSystemPath,
+            dependencies: impl IntoIterator<Item = (impl AsRef<str>, Vec<impl AsRef<str>>)>,
+            chunking_types: impl IntoIterator<Item = (impl AsRef<str>, impl AsRef<str>, ChunkingType)>,
+        ) -> Vc<Self> {
+            let chunking_types = chunking_types
+                .into_iter()
+                .map(|(from, to, ty)| {
+                    (
+                        (
+                            root.join(from.as_ref()).unwrap(),
+                            root.join(to.as_ref()).unwrap(),
+                        ),
+                        ty,
+                    )
+                })
+                .collect::<FxHashMap<_, _>>();
+            Self {
+                repo: dependencies
+                    .into_iter()
+                    .map(|(k, v)| {
+                        (
+                            root.join(k.as_ref()).unwrap(),
+                            v.iter().map(|f| root.join(f.as_ref()).unwrap()).collect(),
+                        )
+                    })
+                    .collect(),
+                chunking_types,
+            }
+            .cell()
+        }
+    }
+
     #[turbo_tasks::value]
     struct MockModule {
         path: FileSystemPath,
@@ -2243,7 +2705,7 @@ pub mod tests {
     impl Module for MockModule {
         #[turbo_tasks::function]
         fn ident(&self) -> Vc<AssetIdent> {
-            AssetIdent::from_path(self.path.clone())
+            AssetIdent::from_path(self.path.clone()).into_vc()
         }
 
         #[turbo_tasks::function]
@@ -2257,15 +2719,22 @@ pub mod tests {
             let references = match repo.repo.get(&self.path) {
                 Some(deps) => {
                     deps.iter()
-                        .map(|p| {
-                            Vc::upcast::<Box<dyn ModuleReference>>(
-                                SingleChunkableModuleReference::new(
-                                    Vc::upcast(MockModule::new(p.clone(), *self.repo)),
-                                    rcstr!("normal-dep"),
-                                    ExportUsage::all(),
+                        .map(async |p| {
+                            Vc::upcast::<Box<dyn ModuleReference>>(MockModuleReference::new(
+                                ResolvedVc::upcast(
+                                    MockModule::new(p.clone(), *self.repo).to_resolved().await?,
                                 ),
-                            )
+                                rcstr!("normal-dep"),
+                                repo.chunking_types
+                                    .get(&(self.path.clone(), p.clone()))
+                                    .cloned()
+                                    .unwrap_or(ChunkingType::Parallel {
+                                        inherit_async: true,
+                                        hoisted: false,
+                                    }),
+                            ))
                             .to_resolved()
+                            .await
                         })
                         .try_join()
                         .await?
@@ -2278,6 +2747,42 @@ pub mod tests {
         #[turbo_tasks::function]
         fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
             ModuleSideEffects::SideEffectful.cell()
+        }
+    }
+
+    #[turbo_tasks::value]
+    #[derive(ValueToString)]
+    #[value_to_string(self.description)]
+    struct MockModuleReference {
+        asset: ResolvedVc<Box<dyn Module>>,
+        description: RcStr,
+        chunking_type: ChunkingType,
+    }
+
+    impl MockModuleReference {
+        pub fn new(
+            asset: ResolvedVc<Box<dyn Module>>,
+            description: RcStr,
+            chunking_type: ChunkingType,
+        ) -> Vc<Self> {
+            MockModuleReference {
+                asset,
+                description,
+                chunking_type,
+            }
+            .cell()
+        }
+    }
+
+    #[turbo_tasks::value_impl]
+    impl ModuleReference for MockModuleReference {
+        #[turbo_tasks::function]
+        fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+            *ModuleResolveResult::module(self.asset)
+        }
+
+        fn chunking_type(&self) -> Option<ChunkingType> {
+            Some(self.chunking_type.clone())
         }
     }
 
@@ -2305,14 +2810,14 @@ pub mod tests {
         + Send
         + 'static,
     ) {
-        #[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new")]
+        #[turbo_tasks::value(serialization = "skip", eq = "manual", cell = "new")]
         struct SetupGraph {
             module_graph: ReadRef<ModuleGraph>,
             entry_modules: Vec<ResolvedVc<Box<dyn Module>>>,
             module_to_name: FxHashMap<ResolvedVc<Box<dyn Module>>, RcStr>,
         }
 
-        #[turbo_tasks::function(operation)]
+        #[turbo_tasks::function(operation, root)]
         async fn setup_graph(
             entries: Vec<RcStr>,
             graph_entries: Vec<(RcStr, Vec<RcStr>)>,
@@ -2320,18 +2825,7 @@ pub mod tests {
             let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
             let root = fs.root().await?;
 
-            let repo = TestRepo {
-                repo: graph_entries
-                    .iter()
-                    .map(|(k, v)| {
-                        (
-                            root.join(k).unwrap(),
-                            v.iter().map(|f| root.join(f).unwrap()).collect(),
-                        )
-                    })
-                    .collect(),
-            }
-            .cell();
+            let repo = TestRepo::new(&root, graph_entries);
             let entry_modules = entries
                 .iter()
                 .map(|e| {
@@ -2341,9 +2835,13 @@ pub mod tests {
                 .try_join()
                 .await?;
             let graph = SingleModuleGraph::new_with_entries(
-                GraphEntries::resolved_cell(GraphEntries(vec![ChunkGroupEntry::Entry(
-                    entry_modules.clone(),
-                )])),
+                GraphEntries::resolved_cell(GraphEntries::new(
+                    vec![ChunkGroupEntry::Entry {
+                        modules: entry_modules.clone(),
+                        heuristics: EntryHeuristics::default(),
+                    }],
+                    vec![],
+                )),
                 false,
                 false,
             );
@@ -2361,7 +2859,9 @@ pub mod tests {
                 .await?
                 .into_iter()
                 .collect();
-            let module_graph = ModuleGraph::from_single_graph(graph).connect().await?;
+            let module_graph = ModuleGraph::from_graphs(vec![graph], None)
+                .connect()
+                .await?;
 
             Ok(SetupGraph {
                 module_graph,

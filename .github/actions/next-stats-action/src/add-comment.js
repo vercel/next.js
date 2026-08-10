@@ -55,6 +55,7 @@ const METRIC_LABELS = {
   buildDurationCachedTurbo: 'Turbo Build Time (cached)',
   // General metrics
   nodeModulesSize: 'node_modules Size',
+  swcBinarySize: 'SWC Binary Size',
 }
 
 // Group configuration for organizing the comment
@@ -208,6 +209,10 @@ const METRIC_THRESHOLDS = {
   // node_modules (~450MB): deterministic, huge baseline
   // <10KB AND <1%, OR <0.01%
   nodeModulesSize: { absoluteMin: 10240, percentMin: 1, percentOnly: 0.01 },
+
+  // SWC native binary (~tens of MB): deterministic, but smaller baseline
+  // <10KB AND <0.5%, OR <0.05%
+  swcBinarySize: { absoluteMin: 10240, percentMin: 0.5, percentOnly: 0.05 },
 
   // Bundle sizes (KB-MB): deterministic
   // <2KB AND <1%, OR <0.1%
@@ -973,14 +978,65 @@ function generateDiffsSection(result) {
   return content
 }
 
+// Find the most recent value for a metric in the KV history.
+function getLatestHistoricalValue(history, metricKey) {
+  if (!history?.entries?.length) return undefined
+  for (let i = history.entries.length - 1; i >= 0; i--) {
+    const val = history.entries[i].metrics?.[metricKey]
+    if (typeof val === 'number') return val
+  }
+  return undefined
+}
+
+// Generate the dedicated Native Binary section shown after Bundle Sizes.
+function generateNativeBinarySection(mainStats, diffStats, history) {
+  const mainGeneral = mainStats?.General || {}
+  const diffGeneral = diffStats?.General || {}
+
+  const mainVal = mainGeneral.swcBinarySize
+  const diffVal = diffGeneral.swcBinarySize
+
+  // Nothing to show if we don't have any measurement
+  if (typeof mainVal !== 'number' && typeof diffVal !== 'number') return ''
+
+  const mainStr = prettify(mainVal, 'bytes')
+  const diffStr = prettify(diffVal, 'bytes')
+  const change = formatChange(mainVal, diffVal, 'bytes', 'swcBinarySize')
+  const histValues = getHistoricalValues(history, 'swcBinarySize')
+  const sparkline = generateTrendBar(histValues)
+
+  const hasTrend = Boolean(sparkline)
+  const header = hasTrend
+    ? `| Metric | Canary | PR | Change | Trend |
+|:-------|-------:|---:|-------:|:-----:|`
+    : `| Metric | Canary | PR | Change |
+|:-------|-------:|---:|-------:|`
+
+  const row = hasTrend
+    ? `| SWC Binary Size | ${mainStr} | ${diffStr} | ${change.text} | ${sparkline} |`
+    : `| SWC Binary Size | ${mainStr} | ${diffStr} | ${change.text} |`
+
+  return `<details>
+<summary><strong>🦀 Native Binary</strong></summary>
+
+Size of the native SWC binary (\`packages/next-swc/native/*.node\`). The Canary column is the most recent value recorded on the canary branch.
+
+${header}
+${row}
+
+</details>
+
+`
+}
+
 function generatePrTarballSection(actionInfo) {
-  if (actionInfo.isRelease || !actionInfo.githubHeadSha) return ''
+  if (actionInfo.isRelease || !actionInfo.commitId) return ''
 
   return `<details>
 <summary><strong>📎 Tarball URL</strong></summary>
 
 \`\`\`
-https://vercel-packages.vercel.app/next/commits/${actionInfo.githubHeadSha}/next
+${actionInfo.previewBuildsBaseUrl}/commits/${actionInfo.commitId}/next
 \`\`\`
 
 </details>
@@ -995,10 +1051,42 @@ https://vercel-packages.vercel.app/next/commits/${actionInfo.githubHeadSha}/next
 // Hidden marker to identify stats comments (invisible in rendered markdown)
 const STATS_COMMENT_MARKER = '<!-- __NEXT_STATS_COMMENT__ -->'
 
+// Warn when one or more bundlers didn't produce stats because their job failed,
+// was cancelled, or timed out. A cancelled job is treated the same as a failed
+// one since neither can produce results; we still post whatever we collected and
+// call out which bundlers are missing so the numbers below aren't misread as
+// complete.
+function generateMissingBundlersWarning(
+  missingBundlers = [],
+  { hasResults = true } = {}
+) {
+  if (missingBundlers.length === 0) return ''
+
+  const names = missingBundlers.map((b) => `**${b}**`)
+  const list =
+    names.length === 1
+      ? names[0]
+      : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+  const isSingular = names.length === 1
+  const subject = isSingular ? 'its stats job' : 'their stats jobs'
+  const reason = isSingular
+    ? 'it failed, was cancelled, or timed out'
+    : 'they failed, were cancelled, or timed out'
+  const trailer = hasResults
+    ? ' The results below only cover the bundlers that finished.'
+    : ' No stats are available for this commit.'
+
+  return `> [!WARNING]
+> No stats were collected for ${list} because ${subject} did not complete (${reason}).${trailer}
+
+`
+}
+
 module.exports = async function addComment(
   results = [],
   actionInfo,
-  statsConfig
+  statsConfig,
+  { missingBundlers = [] } = {}
 ) {
   // Load historical data
   const history = await loadHistory()
@@ -1010,11 +1098,33 @@ module.exports = async function addComment(
       : statsConfig.commentHeading || 'Stats from current PR'
   }\n\n`
 
+  comment += generateMissingBundlersWarning(missingBundlers, {
+    hasResults: results.length > 0,
+  })
+
   const tableHead = `| | Canary | PR | Change |\n|:--|--:|--:|--:|\n`
 
   for (let i = 0; i < results.length; i++) {
     const result = results[i]
     const isLastResult = i === results.length - 1
+
+    // The native SWC binary is shared between the canary and PR checkouts in
+    // a single run (the workflow downloads it once and copies it into both),
+    // so the in-run "canary" value is identical to the PR value. Override the
+    // canary baseline with the last recorded value from KV history so the
+    // diff is meaningful. Canary runs skip this and keep the measured value.
+    if (!actionInfo.isRelease && result.mainRepoStats?.General) {
+      const historicalSwcSize = getLatestHistoricalValue(
+        history,
+        'swcBinarySize'
+      )
+      if (typeof historicalSwcSize === 'number') {
+        result.mainRepoStats.General.swcBinarySize = historicalSwcSize
+      } else {
+        // No history yet — hide the canary value so the table renders N/A
+        delete result.mainRepoStats.General.swcBinarySize
+      }
+    }
 
     // Add summary showing only significant changes (not collapsed)
     if (i === 0) {
@@ -1040,6 +1150,13 @@ module.exports = async function addComment(
     if (bundleSection) {
       comment += `<details>\n<summary><strong>📦 Bundle Sizes</strong></summary>\n\n${bundleSection}</details>\n\n`
     }
+
+    // Add native binary size section (not collapsed, small)
+    comment += generateNativeBinarySection(
+      result.mainRepoStats,
+      result.diffRepoStats,
+      history
+    )
 
     // Add diffs (already collapsed)
     comment += generateDiffsSection(result)

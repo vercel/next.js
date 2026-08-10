@@ -1,13 +1,12 @@
-#![feature(str_split_remainder)]
 #![feature(impl_trait_in_assoc_type)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
-#![feature(iter_intersperse)]
 
 mod app_page_loader_tree;
 pub mod app_structure;
 mod base_loader_tree;
 mod bootstrap;
+mod browser_variant_modules;
 mod embed_js;
 mod emit;
 pub mod hmr_entry;

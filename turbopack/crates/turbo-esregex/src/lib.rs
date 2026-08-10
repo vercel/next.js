@@ -122,6 +122,16 @@ impl EsRegex {
         }
     }
 
+    /// Returns the normalized `regex`-crate source (with inline flags already applied) if this
+    /// regex is backed by the `regex` crate, or `None` if it falls back to `regress` (e.g. it uses
+    /// lookahead/backreferences). Useful for combining several patterns into a [`regex::RegexSet`].
+    pub fn as_regex_str(&self) -> Option<&str> {
+        match &self.delegate {
+            EsRegexImpl::Regex(r) => Some(r.as_str()),
+            EsRegexImpl::Regress(_) => None,
+        }
+    }
+
     /// Searches for the first match of the regex in the `haystack`, and iterates over the capture
     /// groups within that first match.
     ///

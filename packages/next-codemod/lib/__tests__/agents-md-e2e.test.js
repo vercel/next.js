@@ -293,6 +293,123 @@ This is my project documentation.
     }
   }, 30000) // Increase timeout for git clone
 
+  describe('bundled docs (Next.js >= 16.2.0)', () => {
+    // Simulate an install of a Next.js version that ships docs inside the
+    // published package at node_modules/next/dist/docs.
+    function setupBundledNext(projectDir, version) {
+      const nextDir = path.join(projectDir, 'node_modules', 'next')
+      const gettingStartedDir = path.join(
+        nextDir,
+        'dist',
+        'docs',
+        '01-app',
+        '01-getting-started'
+      )
+      fs.mkdirSync(gettingStartedDir, { recursive: true })
+      fs.writeFileSync(
+        path.join(nextDir, 'package.json'),
+        JSON.stringify({ name: 'next', version })
+      )
+      fs.writeFileSync(
+        path.join(nextDir, 'dist', 'docs', 'index.md'),
+        '# Next.js Docs'
+      )
+      fs.writeFileSync(
+        path.join(gettingStartedDir, '01-installation.md'),
+        '# Installation'
+      )
+      fs.writeFileSync(
+        path.join(gettingStartedDir, '02-project-structure.md'),
+        '# Project Structure'
+      )
+    }
+
+    it('indexes bundled docs instead of downloading when installed Next.js ships them', async () => {
+      setupBundledNext(testProjectDir, '16.2.0')
+
+      const originalCwd = process.cwd()
+      process.chdir(testProjectDir)
+
+      try {
+        await runAgentsMd({ output: 'CLAUDE.md' })
+
+        // No .next-docs copy and no .gitignore entry for it
+        expect(fs.existsSync(path.join(testProjectDir, '.next-docs'))).toBe(
+          false
+        )
+        expect(fs.existsSync(path.join(testProjectDir, '.gitignore'))).toBe(
+          false
+        )
+
+        const claudeMdContent = fs.readFileSync(
+          path.join(testProjectDir, 'CLAUDE.md'),
+          'utf-8'
+        )
+        expect(claudeMdContent).toContain(
+          'root: ./node_modules/next/dist/docs'
+        )
+        expect(claudeMdContent).toContain('01-installation.md')
+
+        const output = consoleOutput.join('\n')
+        expect(output).toContain('bundled with Next.js')
+        expect(output).not.toContain('Downloading')
+      } finally {
+        process.chdir(originalCwd)
+      }
+    })
+
+    it('uses bundled docs when --version matches the installed version', async () => {
+      setupBundledNext(testProjectDir, '16.2.0')
+
+      const originalCwd = process.cwd()
+      process.chdir(testProjectDir)
+
+      try {
+        await runAgentsMd({ version: '16.2.0', output: 'AGENTS.md' })
+
+        expect(fs.existsSync(path.join(testProjectDir, '.next-docs'))).toBe(
+          false
+        )
+
+        const agentsMdContent = fs.readFileSync(
+          path.join(testProjectDir, 'AGENTS.md'),
+          'utf-8'
+        )
+        expect(agentsMdContent).toContain(
+          'root: ./node_modules/next/dist/docs'
+        )
+      } finally {
+        process.chdir(originalCwd)
+      }
+    })
+
+    it('falls back to downloading when --version differs from the installed version', async () => {
+      setupBundledNext(testProjectDir, '16.2.0')
+
+      const originalCwd = process.cwd()
+      process.chdir(testProjectDir)
+
+      try {
+        await runAgentsMd({ version: '15.0.0', output: 'CLAUDE.md' })
+
+        expect(fs.existsSync(path.join(testProjectDir, '.next-docs'))).toBe(
+          true
+        )
+
+        const claudeMdContent = fs.readFileSync(
+          path.join(testProjectDir, 'CLAUDE.md'),
+          'utf-8'
+        )
+        expect(claudeMdContent).toContain('root: ./.next-docs')
+
+        const output = consoleOutput.join('\n')
+        expect(output).toContain('Downloading')
+      } finally {
+        process.chdir(originalCwd)
+      }
+    }, 30000) // Increase timeout for git clone
+  })
+
   describe('getNextjsVersion', () => {
     const fixturesDir = path.join(__dirname, 'fixtures/agents-md')
 

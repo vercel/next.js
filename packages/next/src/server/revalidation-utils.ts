@@ -149,7 +149,7 @@ async function revalidateTags(
         cacheLife = profile
       } else if (typeof profile === 'string') {
         // Profile is a string key, look it up in workStore
-        cacheLife = workStore?.cacheLifeProfiles?.[profile]
+        cacheLife = workStore?.cacheLifeProfiles[profile]
 
         if (!cacheLife) {
           throw new Error(

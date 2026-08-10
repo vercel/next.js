@@ -2,7 +2,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::rcstr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, ValueToString, Vc, trace::TraceRawVcs};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -77,13 +77,16 @@ impl OutputAsset for EcmascriptDevChunkList {
     #[turbo_tasks::function]
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
-        let mut ident = this.ident.owned().await?;
-        ident.add_modifier(rcstr!("ecmascript dev chunk list"));
+        let mut ident = this
+            .ident
+            .owned()
+            .await?
+            .with_modifier(rcstr!("ecmascript dev chunk list"));
 
         match this.source {
             EcmascriptDevChunkListSource::Entry => {}
             EcmascriptDevChunkListSource::Dynamic => {
-                ident.add_modifier(rcstr!("dynamic"));
+                ident = ident.with_modifier(rcstr!("dynamic"));
             }
         }
 
@@ -91,7 +94,7 @@ impl OutputAsset for EcmascriptDevChunkList {
         // ident, because it must remain stable whenever a chunk is added or
         // removed from the list.
 
-        let ident = AssetIdent::new(ident);
+        let ident = ident.into_vc();
         Ok(this
             .chunking_context
             .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".js")))
@@ -111,20 +114,9 @@ impl Asset for EcmascriptDevChunkList {
     }
 }
 
+#[turbo_tasks::task_input]
 #[derive(
-    Eq,
-    PartialEq,
-    Debug,
-    Clone,
-    Copy,
-    Hash,
-    TaskInput,
-    NonLocalValue,
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    Encode,
-    Decode,
+    Eq, PartialEq, Debug, Clone, Copy, Hash, TraceRawVcs, Serialize, Deserialize, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub enum EcmascriptDevChunkListSource {

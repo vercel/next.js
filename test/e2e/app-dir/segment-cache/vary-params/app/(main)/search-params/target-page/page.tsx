@@ -14,10 +14,10 @@ import { Suspense } from 'react'
  * - Prefetching /target?foo=1 fetches the segment with foo=1 content
  * - Prefetching /target?foo=2 fetches the segment AGAIN (no cache hit)
  */
-export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [{ searchParams: { foo: '1' } }],
+export const instant = {
+  unstable_samples: [{ searchParams: { foo: '1' } }],
 }
+export const prefetch = 'partial'
 
 type SearchParams = { foo?: string }
 

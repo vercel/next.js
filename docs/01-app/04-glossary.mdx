@@ -10,6 +10,10 @@ description: A glossary of common terms used in Next.js.
 
 The Next.js router introduced in version 13, built on top of React Server Components. It uses file-system based routing and supports layouts, nested routing, loading states, error handling, and more. Learn more in the [App Router documentation](/docs/app).
 
+## App Shell
+
+A per-route prerender containing the parts of a page that don't depend on URL data. Cached content is included when its [`stale`](/docs/app/api-reference/functions/cacheLife#stale) time is at least 5 minutes, since the shell is reused for longer than shorter-lived content stays fresh. Routes that read `cookies()` or `headers()` produce one that also includes session data, cached per session on the client. Used as the default prefetch payload during client navigations, the loading state when a [per-link prefetch](/docs/app/guides/optimizing-prefetching) is not ready, and the fallback for [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components).
+
 # B
 
 ## Build time
@@ -20,7 +24,7 @@ The stage when your application is being compiled. During build time, Next.js tr
 
 ## Cache Components
 
-A feature that enables component and function-level caching using the [`"use cache"` directive](/docs/app/api-reference/directives/use-cache). Cache Components allows you to mix static, cached, and dynamic content within a single route by prerendering a static HTML shell that's served immediately, while dynamic content streams in when ready. Configure cache duration with [`cacheLife()`](/docs/app/api-reference/functions/cacheLife), tag cached data with [`cacheTag()`](/docs/app/api-reference/functions/cacheTag), and invalidate on-demand with [`updateTag()`](/docs/app/api-reference/functions/updateTag). Learn more in the [Cache Components guide](/docs/app/getting-started/cache-components).
+A feature that enables component and function-level caching using the [`"use cache"` directive](/docs/app/api-reference/directives/use-cache). Cache Components allows you to mix static, cached, and dynamic content within a single route by prerendering a static HTML shell that's served immediately, while dynamic content streams in when ready. Configure cache duration with [`cacheLife()`](/docs/app/api-reference/functions/cacheLife), tag cached data with [`cacheTag()`](/docs/app/api-reference/functions/cacheTag), and invalidate on-demand with [`updateTag()`](/docs/app/api-reference/functions/updateTag). Learn more in the [Cache Components guide](/docs/app/getting-started/caching).
 
 ## Catch-all Segments
 
@@ -38,6 +42,14 @@ A React component that runs in the browser. In Next.js, Client Components can al
 
 A navigation technique where the page content updates dynamically without a full page reload. Next.js uses client-side navigation with the [`<Link>` component](/docs/app/api-reference/components/link), keeping shared layouts interactive and preserving browser state. Learn more in [Linking and Navigating](/docs/app/getting-started/linking-and-navigating#client-side-transitions).
 
+## Client Cache
+
+An in-memory cache in the browser that stores [RSC Payload](#rsc-payload) for visited and prefetched routes. During [client-side navigation](#client-side-navigation), Next.js serves cached [layouts](#layout) and [loading states](#loading-ui) instantly without a server request. Pages are not cached by default but are reused during browser back/forward navigation.
+
+The client cache is cleared on page refresh. It can be invalidated programmatically with [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag), [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath), [`updateTag`](/docs/app/api-reference/functions/updateTag), [`router.refresh`](/docs/app/api-reference/functions/use-router), [`cookies.set`](/docs/app/api-reference/functions/cookies), or [`cookies.delete`](/docs/app/api-reference/functions/cookies).
+
+You can configure the client cache duration with [`staleTimes`](/docs/app/api-reference/config/next-config-js/staleTimes) globally, or per-route via the `stale` property in [`cacheLife`](/docs/app/api-reference/functions/cacheLife#client-cache-behavior) (recommended).
+
 ## Code Splitting
 
 The process of dividing your application into smaller JavaScript chunks based on routes. Instead of loading all code upfront, only the code needed for the current route is loaded, reducing initial load time. Next.js automatically performs code splitting based on routes. Learn more in the [Package Bundling guide](/docs/app/guides/package-bundling).
@@ -46,7 +58,7 @@ The process of dividing your application into smaller JavaScript chunks based on
 
 ## Dynamic rendering
 
-See [Request-time rendering](#request-time-rendering).
+When a component is rendered at request time rather than [build time](#build-time). A component becomes dynamic when it uses [Request-time APIs](#request-time-apis).
 
 ## Dynamic route segments
 
@@ -86,7 +98,7 @@ Custom path mappings that provide shorthand references for frequently used direc
 
 ## Incremental Static Regeneration (ISR)
 
-A technique that allows you to update static content without rebuilding the entire site. ISR enables you to use static generation on a per-page basis while revalidating pages in the background as traffic comes in. Learn more in the [ISR guide](/docs/app/guides/incremental-static-regeneration).
+A technique that allows you to update static content without rebuilding the entire site. ISR enables you to use static generation on a per-page basis while revalidating pages in the background as traffic comes in. Learn more in the [ISR guide](/docs/app/guides/incremental-static-regeneration) or, when using Cache Components, [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components).
 
 > **Good to know**: In Next.js, ISR is also known as [Revalidation](#revalidation).
 
@@ -120,7 +132,9 @@ Information about a page used by browsers and search engines, such as title, des
 
 ## Memoization
 
-Caching the return value of a function so that calling the same function multiple times during a render pass (request) only executes it once. In Next.js, fetch requests with the same URL and options are automatically memoized. Learn more about [React Cache](https://react.dev/reference/react/cache).
+Caching the return value of a function so that calling the same function multiple times during a render pass (request) only executes it once. In Next.js, `fetch` `GET` requests with the same URL and options are automatically memoized across Server Components, layouts, pages, and `generateMetadata`/`generateStaticParams` (but not [Route Handlers](/docs/app/api-reference/file-conventions/route) since they are not part of the React component tree).
+
+For non-`fetch` operations, use the React [`cache`](https://react.dev/reference/react/cache) function. Learn more in the [`fetch` API reference](/docs/app/api-reference/functions/fetch).
 
 ## Middleware
 
@@ -146,9 +160,13 @@ UI that is unique to a route. Defined by exporting a React component from a [`pa
 
 A pattern that allows simultaneously or conditionally rendering multiple pages within the same layout. Created using named slots with the `@folder` convention, useful for dashboards, modals, and complex layouts. Learn more in [Parallel Routes](/docs/app/api-reference/file-conventions/parallel-routes).
 
+## Partial Prefetching
+
+A prefetching strategy for [Cache Components](#cache-components) routes where a `<Link>` prefetches a per-route [App Shell](#app-shell) by default instead of the full page. Enable it with [`partialPrefetching: true`](/docs/app/api-reference/config/next-config-js/partialPrefetching) in `next.config.ts`. Learn more in the [Adopting Partial Prefetching guide](/docs/app/guides/adopting-partial-prefetching).
+
 ## Partial Prerendering (PPR)
 
-A rendering optimization that combines static and dynamic rendering in a single route. The static shell is served immediately while dynamic content streams in when ready, providing the best of both rendering strategies. Learn more in [Cache Components](/docs/app/getting-started/cache-components).
+A rendering optimization that combines prerendering and dynamic rendering in a single route. The static shell is served immediately while dynamic content streams in when ready, providing the best of both rendering strategies. Learn more in [Cache Components](/docs/app/getting-started/caching).
 
 ## Prefetching
 
@@ -168,26 +186,22 @@ A file ([`proxy.js`](/docs/app/api-reference/file-conventions/proxy)) that runs 
 
 Sending users from one URL to another. In Next.js, redirects can be configured in [`next.config.js`](/docs/app/api-reference/config/next-config-js/redirects), returned from [Proxy](/docs/app/api-reference/file-conventions/proxy), or triggered programmatically with the [`redirect()` function](/docs/app/api-reference/functions/redirect). Learn more in [Redirecting](/docs/app/guides/redirecting).
 
-## Request time
-
-The time when a user makes a request to your application. At request time, dynamic routes are rendered, cookies and headers are accessible, and request-specific data can be used.
-
 ## Request-time APIs
 
-Functions that access request-specific data, causing a component to opt into [request-time rendering](#request-time-rendering). These include:
+Functions that access request-specific data, causing a component to opt into [dynamic rendering](#dynamic-rendering). These include:
 
 - [`cookies()`](/docs/app/api-reference/functions/cookies) - Access request cookies
 - [`headers()`](/docs/app/api-reference/functions/headers) - Access request headers
 - [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) - Access URL query parameters
 - [`draftMode()`](/docs/app/api-reference/functions/draft-mode) - Enable or check draft mode
 
-## Request-time rendering
+## Runtime rendering
 
-When a component is rendered at [request time](#request-time) rather than [build time](#build-time). A component becomes dynamic when it uses [Request-time APIs](#request-time-apis).
+See [Dynamic rendering](#dynamic-rendering).
 
 ## Revalidation
 
-The process of updating cached data. Can be time-based (using [`cacheLife()`](/docs/app/api-reference/functions/cacheLife) to set cache duration) or on-demand (using [`cacheTag()`](/docs/app/api-reference/functions/cacheTag) to tag data, then [`updateTag()`](/docs/app/api-reference/functions/updateTag) to invalidate). Learn more in [Caching and Revalidating](/docs/app/getting-started/caching-and-revalidating).
+The process of updating cached data. Can be time-based (using [`cacheLife()`](/docs/app/api-reference/functions/cacheLife) to set cache duration) or on-demand (using [`cacheTag()`](/docs/app/api-reference/functions/cacheTag) to tag data, then [`updateTag()`](/docs/app/api-reference/functions/updateTag) to invalidate). Learn more in [Caching and Revalidating](/docs/app/getting-started/caching).
 
 ## Rewrite
 
@@ -207,7 +221,7 @@ A part of the URL path (between two slashes) defined by a folder in the `app` di
 
 ## RSC Payload
 
-The React Server Component Payload—a compact binary representation of the rendered React Server Components tree. Contains the rendered result of Server Components, placeholders for Client Components, and props passed between them. Learn more in [Server and Client Components](/docs/app/getting-started/server-and-client-components#how-do-server-and-client-components-work-in-nextjs).
+The React Server Component Payload is a compact binary representation of the rendered React Server Components tree. It contains the rendered result of Server Components, placeholders for Client Components, and props passed between them. Learn more in [Server and Client Components](/docs/app/getting-started/server-and-client-components#how-do-server-and-client-components-work-in-nextjs).
 
 # S
 
@@ -217,7 +231,7 @@ The default component type in the App Router. Server Components render on the se
 
 ## Server Action
 
-A [Server Function](#server-function) that is passed to a Client Component as a prop or bound to a form action. Server Actions are commonly used for form submissions and data mutations. Learn more in [Server Actions and Mutations](/docs/app/getting-started/updating-data).
+A [Server Function](#server-function) that is passed to a Client Component as a prop or bound to a form action. Server Actions are commonly used for form submissions and data mutations. Learn more in [Server Actions and Mutations](/docs/app/guides/server-actions).
 
 ## Server Function
 
@@ -241,7 +255,7 @@ The prerendered HTML structure of a page that's served immediately to the browse
 
 ## Streaming
 
-A technique that allows the server to send parts of a page to the client as they become ready, rather than waiting for the entire page to render. Enabled automatically with [`loading.js`](/docs/app/api-reference/file-conventions/loading) or manual `<Suspense>` boundaries. Learn more in [Linking and Navigating - Streaming](/docs/app/getting-started/linking-and-navigating#streaming).
+A technique that allows the server to send parts of a page to the client as they become ready, rather than waiting for the entire page to render. Enabled automatically with [`loading.js`](/docs/app/api-reference/file-conventions/loading) or manual `<Suspense>` boundaries. Learn more in the [Streaming guide](/docs/app/guides/streaming).
 
 ## Suspense boundary
 
@@ -258,6 +272,10 @@ A fast, Rust-based bundler built for Next.js. Turbopack is the default bundler f
 The process of removing unused code from your JavaScript bundles during the build process. Next.js automatically tree-shakes your code to reduce bundle sizes. Learn more in the [Package Bundling guide](/docs/app/guides/package-bundling).
 
 # U
+
+## URL data
+
+Data that identifies a specific URL, such as the pathname and query parameters. In the App Router this means [`params`](/docs/app/api-reference/file-conventions/page#params-optional) and [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional), and the client hooks that read them like [`usePathname`](/docs/app/api-reference/functions/use-pathname) and [`useSearchParams`](/docs/app/api-reference/functions/use-search-params). URL data varies per link, not per session, so it can't be part of a shared [App Shell](#app-shell).
 
 ## `"use cache"` Directive
 

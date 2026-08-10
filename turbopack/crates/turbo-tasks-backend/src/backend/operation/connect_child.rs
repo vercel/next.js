@@ -1,19 +1,18 @@
-use std::sync::Arc;
-
 use bincode::{Decode, Encode};
-use turbo_tasks::{TaskExecutionReason, TaskId, backend::CachedTaskType, event::EventDescription};
+use turbo_tasks::{TaskExecutionReason, TaskId, event::EventDescription};
 
 use crate::{
     backend::{
         TaskDataCategory,
         operation::{
             ExecuteContext, Operation, TaskGuard,
-            aggregation_update::{AggregationUpdateJob, AggregationUpdateQueue},
+            aggregation_update::{
+                AggregationUpdateJob, AggregationUpdateQueue, get_aggregation_number, is_root_node,
+            },
         },
         storage_schema::TaskStorageAccessors,
     },
     data::{InProgressState, InProgressStateInner},
-    utils::arc_or_owned::ArcOrOwned,
 };
 
 #[derive(Encode, Decode, Clone, Default)]
@@ -30,7 +29,6 @@ impl ConnectChildOperation {
     pub fn run(
         parent_task_id: Option<TaskId>,
         child_task_id: TaskId,
-        child_task_type: Option<ArcOrOwned<CachedTaskType>>,
         mut ctx: impl ExecuteContext<'_>,
     ) {
         if let Some(parent_task_id) = parent_task_id {
@@ -43,8 +41,7 @@ impl ConnectChildOperation {
             };
 
             // Quick skip if the child was already connected before
-            // We can't call insert here as this would skip the mandatory task type update below
-            // Instead we only add it after updating the child task type
+            // We defer the insert until after the aggregation queue is processed.
             if new_children.contains(&child_task_id) {
                 return;
             }
@@ -67,28 +64,39 @@ impl ConnectChildOperation {
         let mut queue = AggregationUpdateQueue::new();
 
         // Handle the transient to persistent boundary by making the persistent task a root task
-        if parent_task_id.is_none_or(|id| id.is_transient() && !child_task_id.is_transient()) {
-            queue.push(AggregationUpdateJob::UpdateAggregationNumber {
-                task_id: child_task_id,
-                base_aggregation_number: u32::MAX,
-                distance: None,
-            });
-        }
+        let should_make_root =
+            parent_task_id.is_none_or(|id| id.is_transient() && !child_task_id.is_transient());
 
         if ctx.should_track_activeness() && parent_task_id.is_some() {
+            if should_make_root {
+                queue.push(AggregationUpdateJob::UpdateAggregationNumber {
+                    task_id: child_task_id,
+                    base_aggregation_number: u32::MAX,
+                    distance: None,
+                });
+            }
             queue.push(AggregationUpdateJob::IncreaseActiveCount {
                 task: child_task_id,
-                task_type: child_task_type.map(Arc::from),
             });
         } else {
-            let mut child_task = ctx.task(child_task_id, TaskDataCategory::All);
-            if let Some(child_task_type) = child_task_type
-                && !child_task.has_persistent_task_type()
-            {
-                child_task.set_persistent_task_type(child_task_type.into());
+            let mut child_task = ctx.task(child_task_id, TaskDataCategory::Meta);
+            let has_output = child_task.has_output();
+            // An already constructed top-level task was made a root when it was first connected.
+            // It may still be dirty and need to run; this only avoids repeating the idempotent
+            // aggregation update.
+            let is_already_constructed_root = parent_task_id.is_none()
+                && has_output
+                && is_root_node(get_aggregation_number(&child_task));
+
+            if should_make_root && !is_already_constructed_root {
+                queue.push(AggregationUpdateJob::UpdateAggregationNumber {
+                    task_id: child_task_id,
+                    base_aggregation_number: u32::MAX,
+                    distance: None,
+                });
             }
 
-            if !child_task.has_output()
+            if !has_output
                 && child_task.add_scheduled(
                     TaskExecutionReason::Connect,
                     EventDescription::new(|| child_task.get_task_desc_fn()),
@@ -98,10 +106,12 @@ impl ConnectChildOperation {
             }
         }
 
-        ConnectChildOperation::UpdateAggregation {
-            aggregation_update: queue,
+        if !queue.is_empty() {
+            ConnectChildOperation::UpdateAggregation {
+                aggregation_update: queue,
+            }
+            .execute(&mut ctx);
         }
-        .execute(&mut ctx);
 
         if let Some(parent_task_id) = parent_task_id {
             let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::Meta);

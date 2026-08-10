@@ -2,16 +2,29 @@ import os from 'os'
 import path from 'path'
 import execa from 'execa'
 import fs from 'fs-extra'
-import { NextInstance } from './base'
+import { NextInstance, type NextInstanceOpts } from './base'
 import * as projectEnv from '../../../scripts/reset-project.mjs'
 import { Span } from 'next/dist/trace'
+import { setTimeout } from 'timers/promises'
+import { FileRef } from '../e2e-utils'
 
 export class NextDeployInstance extends NextInstance {
   private _cliOutput: string
   private _buildId: string
   private _deploymentId: string | undefined
-  private _immutableAssetToken: string | undefined
+  private _supportsImmutableAssets: boolean = false
   private _writtenHostsLine: string | null = null
+
+  constructor(opts: NextInstanceOpts) {
+    super(opts)
+
+    if (typeof opts.files === 'string' || opts.files instanceof FileRef) {
+      this.env = {
+        NEXT_PRIVATE_LOCAL_DEV: '1',
+        ...this.env,
+      }
+    }
+  }
 
   protected throwIfUnavailable(): void | never {
     if (this.isStopping !== null) {
@@ -39,8 +52,8 @@ export class NextDeployInstance extends NextInstance {
     return this._deploymentId
   }
 
-  public get immutableAssetToken() {
-    return process.env.IS_TURBOPACK_TEST ? this._immutableAssetToken : undefined
+  public get supportsImmutableAssets() {
+    return process.env.IS_TURBOPACK_TEST ? this._supportsImmutableAssets : false
   }
 
   private async deployUsingCustomScript(): Promise<{ url: string }> {
@@ -137,16 +150,21 @@ export class NextDeployInstance extends NextInstance {
       ...this.env,
     }
 
-    const cleanupRes = await execa(cleanupScriptPath, [], {
+    const cleanupChild = execa(cleanupScriptPath, [], {
       cwd: this.testDir,
       env: scriptEnv,
       reject: false,
       stderr: 'inherit',
     })
 
-    if (cleanupRes.exitCode !== 0) {
+    cleanupChild.stdout?.pipe(process.stdout)
+    cleanupChild.stderr?.pipe(process.stderr)
+
+    const { exitCode } = await cleanupChild
+
+    if (exitCode !== 0) {
       throw new Error(
-        `Custom cleanup script failed: ${cleanupRes.stdout} ${cleanupRes.stderr} (${cleanupRes.exitCode})`
+        `Custom cleanup script failed with exit code: ${exitCode}`
       )
     }
   }
@@ -164,25 +182,75 @@ export class NextDeployInstance extends NextInstance {
       throw new Error(`Failed to get deploymentId from logs ${this._cliOutput}`)
     }
     this._deploymentId = deploymentId
-    const immutableAssetToken = this._cliOutput
-      .match(/IMMUTABLE_ASSET_TOKEN: (.+)/)?.[1]
+    const supportsImmutableAssets = this._cliOutput
+      .match(/NEXT_SUPPORTS_IMMUTABLE_ASSETS: (.+)/)?.[1]
       ?.trim()
-    if (!immutableAssetToken) {
+    if (!supportsImmutableAssets) {
       throw new Error(
-        `Failed to get immutableAssetToken from logs ${this._cliOutput}`
+        `Failed to get supportsImmutableAssets from logs ${this._cliOutput}`
       )
     }
-    this._immutableAssetToken =
-      immutableAssetToken === 'undefined' ? undefined : immutableAssetToken
+    this._supportsImmutableAssets =
+      supportsImmutableAssets === '1' ? true : false
 
     require('console').log(
-      `Got buildId: ${this._buildId}, deploymentId: ${this._deploymentId}, immutableAssetToken: ${this._immutableAssetToken}`
+      `Got buildId: ${this._buildId}, deploymentId: ${this._deploymentId}, supportsImmutableAssets: ${this._supportsImmutableAssets}`
     )
+  }
+
+  private async fetchBuildLogsUntilComplete(
+    url: string,
+    vercelEnv: NodeJS.ProcessEnv,
+    vercelFlags: string[]
+  ): Promise<string> {
+    // The fixture's `post-build` script prints the BUILD_ID, DEPLOYMENT_ID and
+    // NEXT_SUPPORTS_IMMUTABLE_ASSETS markers (in that order) as the final lines
+    // of the build (see `base.ts`). A deployment can report `Ready` before that
+    // tail has propagated to the log query API, so `vercel inspect --logs` can
+    // return a truncated prefix that stops before the markers. Gate on the
+    // last-printed marker so a partial read can't slip into the parser, and
+    // re-query until it appears.
+    const maxAttempts = 20
+    const retryDelayMs = 3000
+    let output = ''
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const buildLogs = await execa(
+        'vercel',
+        ['inspect', '--logs', url, ...vercelFlags],
+        {
+          env: vercelEnv,
+          reject: false,
+        }
+      )
+      if (buildLogs.exitCode !== 0) {
+        throw new Error(`Failed to get build output logs: ${buildLogs.stderr}`)
+      }
+      // Build logs are piped to stderr, so combine both streams.
+      output = buildLogs.stdout + buildLogs.stderr
+
+      if (/NEXT_SUPPORTS_IMMUTABLE_ASSETS: (.+)/.test(output)) {
+        return output
+      }
+
+      if (attempt < maxAttempts) {
+        require('console').log(
+          `Build log markers not yet propagated for ${url} (attempt ${attempt}/${maxAttempts}); the build log tail likely hasn't propagated yet. Retrying in ${retryDelayMs}ms...`
+        )
+        await setTimeout(retryDelayMs)
+      }
+    }
+
+    // The markers never appeared within the retry window; return the last
+    // output so `parseIdsFromCliOuput` throws a descriptive error including it.
+    return output
   }
 
   public async setup(parentSpan: Span) {
     super.setup(parentSpan)
     await super.createTestDir({ parentSpan, skipInstall: true })
+
+    await this.writeMirrorNpmrcIfNecessary()
 
     const existingDeployUrl = process.env.NEXT_TEST_DEPLOY_URL?.trim()
     const customDeployScriptPath =
@@ -269,7 +337,7 @@ export class NextDeployInstance extends NextInstance {
     }
 
     const vercelFlags: string[] = []
-    const NEXT_ENABLE_ADAPTER = process.env.NEXT_ENABLE_ADAPTER
+    const NEXT_ENABLE_ADAPTER = process.env.NEXT_ENABLE_ADAPTER === '1'
     const IS_TURBOPACK_TEST = process.env.IS_TURBOPACK_TEST
 
     const TEST_TEAM_NAME = NEXT_ENABLE_ADAPTER
@@ -289,6 +357,16 @@ export class NextDeployInstance extends NextInstance {
       vercelFlags.push('--scope', TEST_TEAM_NAME)
     }
     const vercelEnv = { ...process.env }
+
+    // The Vercel CLI uses @vercel/detect-agent to detect when it's running
+    // under an AI coding agent (Claude Code, Cursor, Codex, …) and, when it
+    // does, switches `vercel deploy` stdout from a plain URL to a JSON
+    // manifest intended for AI consumption — which breaks
+    // `new URL(deployRes.stdout)` below. The CLI honors an explicit
+    // `--non-interactive=false` as an override of the agent default, and the
+    // JSON-vs-plain decision keys off `client.nonInteractive`, so passing
+    // the flag is enough to force plain-URL output for both link and deploy.
+    vercelFlags.push('--non-interactive=false')
 
     // If the token is available in the environment, use it as the token in the
     // environment.
@@ -350,9 +428,9 @@ export class NextDeployInstance extends NextInstance {
         `NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS=${process.env.__NEXT_CACHE_COMPONENTS}`
       )
     }
-    if (process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER) {
+    if (process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS) {
       additionalEnv.push(
-        `NEXT_PRIVATE_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=${process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER}`
+        `NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS=${process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS}`
       )
     }
     if (process.env.IS_TURBOPACK_TEST) {
@@ -361,7 +439,7 @@ export class NextDeployInstance extends NextInstance {
     if (process.env.IS_WEBPACK_TEST) {
       additionalEnv.push(`IS_WEBPACK_TEST=1`)
     }
-    if (process.env.NEXT_ENABLE_ADAPTER) {
+    if (NEXT_ENABLE_ADAPTER) {
       additionalEnv.push(`NEXT_ENABLE_ADAPTER=1`)
     } else {
       additionalEnv.push(`NEXT_ENABLE_ADAPTER=0`)
@@ -412,25 +490,49 @@ export class NextDeployInstance extends NextInstance {
 
     require('console').log(`Deployment URL: ${this._url}`)
 
-    // Use the vercel inspect command to get the CLI output from the build.
-    const buildLogs = await execa(
-      'vercel',
-      ['inspect', '--logs', this._url, ...vercelFlags],
-      {
-        env: vercelEnv,
-        reject: false,
-      }
+    // Fetch the build logs to extract the build/deployment id markers that the
+    // fixture's `post-build` script prints. The deployment can report `Ready`
+    // (and `vercel deploy` can return) before its full build-log tail has
+    // propagated to the log query API, so re-query until the markers appear
+    // rather than failing on the first incomplete read. TODO: Combine with
+    // runtime logs (via `vercel logs`)
+    this._cliOutput = await this.fetchBuildLogsUntilComplete(
+      this._url,
+      vercelEnv,
+      vercelFlags
     )
-    if (buildLogs.exitCode !== 0) {
-      throw new Error(`Failed to get build output logs: ${buildLogs.stderr}`)
-    }
-    // TODO: Combine with runtime logs (via `vercel logs`)
-    // Build logs seem to be piped to stderr, so we'll combine them to make sure we get all the logs.
-    this._cliOutput = buildLogs.stdout + buildLogs.stderr
 
     this.parseIdsFromCliOuput()
-    // Use the stdout from the logs command as the CLI output. The CLI will
-    // output other unrelated logs to stderr.
+  }
+
+  // When the preview-builds npm mirror is auth-protected, the deploy build
+  // installs Next.js artifacts from it and needs credentials. We write an
+  // `.npmrc` with a read token (provided as a CI secret) so the remote install
+  // can authenticate. Only written when the token is set, so unprotected and
+  // local deploy runs are unaffected.
+  private async writeMirrorNpmrcIfNecessary(): Promise<void> {
+    const token = process.env.PREVIEW_BUILDS_READ_TOKEN
+    const baseUrlRaw = process.env.NEXT_TEST_PREVIEW_BUILDS_BASE_URL
+
+    if (!token || !baseUrlRaw) {
+      require('console').log(
+        `Skipping .npmrc write for preview-builds mirror: missing token or base URL`
+      )
+      return
+    }
+
+    const baseUrl = new URL(baseUrlRaw)
+    // Derive the npmrc auth key from the mirror base URL: strip the scheme and
+    // ensure a trailing slash so it matches requests to that registry path.
+    const registryKey = `//${baseUrl.host}${baseUrl.pathname.replace(/\/?$/, '/')}`
+
+    require('console').log(
+      `Writing .npmrc for preview-builds mirror: ${registryKey}`
+    )
+    await fs.writeFile(
+      path.join(this.testDir, '.npmrc'),
+      `${registryKey}:_authToken=${token}\n`
+    )
   }
 
   private async configureProxyAddress(): Promise<void> {
@@ -531,5 +633,11 @@ export class NextDeployInstance extends NextInstance {
     newFilename: string
   ): Promise<void> {
     throw new Error('renameFile is not available in deploy test mode')
+  }
+  public async readFileBuffer(filename: string): Promise<Buffer> {
+    throw new Error('readFileBuffer is not available in deploy test mode')
+  }
+  public async writeFileBuffer(filename: string, data: Buffer): Promise<void> {
+    throw new Error('writeFileBuffer is not available in deploy test mode')
   }
 }

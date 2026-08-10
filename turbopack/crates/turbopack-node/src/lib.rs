@@ -46,7 +46,7 @@ async fn emit(
         let _ = asset
             .content()
             .write(asset.path().owned().await?)
-            .resolve()
+            .to_resolved()
             .await?;
     }
     Ok(())

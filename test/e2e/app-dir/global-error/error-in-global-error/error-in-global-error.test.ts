@@ -32,9 +32,9 @@ describe('app dir - global-error - error-in-global-error', () => {
   it('should render fallback UI when error occurs in global-error', async () => {
     const browser = await next.browser('/?error-in-global-error=1')
     // When the custom global-error throws, it falls back to the default global-error
-    // Client errors show "This page crashed"
+    // Client errors show "This page couldn\u2019t load"
     const title = await browser.elementByCss('h1').text()
-    expect(title).toBe('This page crashed')
+    expect(title).toBe('This page couldn\u2019t load')
 
     if (isNextDev) {
       await waitForRedbox(browser)

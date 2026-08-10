@@ -113,20 +113,26 @@ function FilePill({
   fileName: string
 }) {
   return (
-    <span
+    <button
+      type="button"
       className={cx(
         'segment-explorer-file-label',
         `segment-explorer-file-label--${type}`,
         isBuiltin && 'segment-explorer-file-label--builtin',
         isOverridden && 'segment-explorer-file-label--overridden'
       )}
+      aria-label={`Open ${fileName} in editor`}
       onClick={() => {
         openInEditor({ filePath })
       }}
     >
       <span className="segment-explorer-file-label-text">{fileName}</span>
-      {isBuiltin ? <InfoIcon /> : <CodeIcon className="code-icon" />}
-    </span>
+      {isBuiltin ? (
+        <InfoIcon aria-hidden />
+      ) : (
+        <CodeIcon className="code-icon" aria-hidden />
+      )}
+    </button>
   )
 }
 

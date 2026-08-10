@@ -8,6 +8,10 @@ const execa = require('execa')
 const { Octokit } = require('octokit')
 const SemVer = require('semver')
 const yargs = require('yargs')
+const {
+  replayLocalCommitsAsSigned,
+  upsertBranchRef,
+} = require('./github-utils/signed-commit')
 
 // Use this script to update Next's vendored copy of React and related packages:
 //
@@ -305,7 +309,7 @@ async function main() {
     .options('actor', {
       type: 'string',
       description:
-        'Required with `--create-pull`. The actor (GitHub username) that runs this script. Will be used for notifications but not commit attribution.',
+        'Required with `--create-pull`. The actor (GitHub username) that runs this script. Will be assigned to the Pull Request for notifications, but neither the commits nor the Pull Request are attributed to them.',
     })
     .options('create-pull', {
       default: false,
@@ -352,11 +356,32 @@ async function main() {
         'Pass an actor via `--actor "some-actor"`.'
     )
   }
-  const githubToken = process.env.GITHUB_TOKEN
-  if (createPull && !githubToken) {
-    throw new Error(
-      `Environment variable 'GITHUB_TOKEN' not specified but required when --create-pull is specified.`
-    )
+  const releaseGithubToken = process.env.RELEASE_GITHUB_TOKEN
+  const releaseAppSlug = process.env.RELEASE_GITHUB_APP_SLUG
+  const releaseAppUserId = process.env.RELEASE_GITHUB_APP_USER_ID
+  if (createPull) {
+    if (!releaseGithubToken) {
+      throw new Error(
+        `Environment variable 'RELEASE_GITHUB_TOKEN' not specified but required when --create-pull is specified.`
+      )
+    }
+    if (!releaseAppSlug || !releaseAppUserId) {
+      throw new Error(
+        `Environment variables 'RELEASE_GITHUB_APP_SLUG' and 'RELEASE_GITHUB_APP_USER_ID' must be set when --create-pull is specified.`
+      )
+    }
+
+    // Set the git author up-front so all subsequent local commits made by
+    // this script (intermediate `--commit` steps and the final PR commit)
+    // succeed even on CI runners that don't have a default git identity.
+    // The values themselves are discarded by the GitHub REST API: the
+    // GPG-signed commits on the remote are attributed to the app token's
+    // identity regardless of local git config. The same app token opens the
+    // Pull Request, so the PR author matches the commit author.
+    const botUserName = `${releaseAppSlug}[bot]`
+    const botUserEmail = `${releaseAppUserId}+${releaseAppSlug}[bot]@users.noreply.github.com`
+    await execa('git', ['config', 'user.name', botUserName])
+    await execa('git', ['config', 'user.email', botUserEmail])
   }
 
   let newVersionStr = version
@@ -634,15 +659,44 @@ Or run this command again without the --no-install flag to do both automatically
   }
 
   if (createPull) {
-    const octokit = new Octokit({ auth: githubToken })
+    const octokit = new Octokit({ auth: releaseGithubToken })
     const prTitle = `Upgrade React from \`${baseSha}-${baseDateString}\` to \`${newSha}-${newDateString}\``
 
     await execa('git', ['checkout', '-b', branchName])
     // We didn't commit intermediate steps yet so now we need to commit to create a PR.
     if (!commit) {
-      commitEverything(prTitle)
+      await commitEverything(prTitle)
     }
-    await execa('git', ['push', 'origin', branchName])
+
+    // Branch protection on canary requires signed commits. Push each local
+    // commit to the remote as a GitHub-signed commit via the REST API
+    // instead of `git push` (which would push unsigned commits).
+    const baseRef = process.env.GITHUB_REF_NAME || 'canary'
+    const remoteBaseSha = (
+      await execa('git', ['rev-parse', `origin/${baseRef}`])
+    ).stdout.trim()
+    const localCommitSha = (
+      await execa('git', ['rev-parse', 'HEAD'])
+    ).stdout.trim()
+
+    const { headSha: finalSignedSha } = await replayLocalCommitsAsSigned({
+      token: releaseGithubToken,
+      owner: repoOwner,
+      repo: repoName,
+      fromBaseSha: remoteBaseSha,
+      toLocalSha: localCommitSha,
+      // commitEverything uses --allow-empty for steps that didn't change
+      // any files (e.g. when Pages Router doesn't need a sync); preserve
+      // that on the remote signed commits.
+      allowEmpty: true,
+    })
+    await upsertBranchRef({
+      token: releaseGithubToken,
+      owner: repoOwner,
+      repo: repoName,
+      branch: branchName,
+      sha: finalSignedSha,
+    })
     const pullRequest = await octokit.rest.pulls.create({
       owner: repoOwner,
       repo: repoName,
@@ -653,6 +707,31 @@ Or run this command again without the --no-install flag to do both automatically
       body: prDescription,
     })
     console.log('Created pull request %s', pullRequest.data.html_url)
+
+    // Enable GitHub auto-merge with the squash method so the PR merges
+    // automatically once required checks pass. GitHub has no REST field for
+    // this, so it must be enabled via the GraphQL mutation on the PR node id.
+    // The commit title is left to GitHub's default (the PR title with the PR
+    // number), while an explicit empty commitBody keeps the squash commit
+    // description empty regardless of the repo's squash message setting.
+    await octokit.graphql(
+      `mutation ($pullRequestId: ID!) {
+         enablePullRequestAutoMerge(
+           input: {
+             pullRequestId: $pullRequestId
+             mergeMethod: SQUASH
+             commitBody: ""
+           }
+         ) {
+           pullRequest {
+             autoMergeRequest {
+               enabledAt
+             }
+           }
+         }
+       }`,
+      { pullRequestId: pullRequest.data.node_id }
+    )
 
     await Promise.all([
       actor

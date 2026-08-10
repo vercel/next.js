@@ -20,7 +20,7 @@ use turbopack_core::{
     asset::AssetContent,
     context::AssetContext,
     ident::Layer,
-    issue::{IssueExt, IssueSeverity, StyledString},
+    issue::{IssueExt, IssueSeverity},
     module_graph::{ModuleGraph, SingleModuleGraph},
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
@@ -49,7 +49,7 @@ use crate::{
             stylesheet::build_stylesheet,
             util::{get_font_axes, get_stylesheet_url},
         },
-        issue::NextFontIssue,
+        issue::GoogleFontsFetchIssue,
         util::{
             FontCssProperties, FontFamilyType, can_use_next_font, get_request_hash, get_request_id,
             get_scoped_font_family,
@@ -68,13 +68,15 @@ pub const GOOGLE_FONTS_STYLESHEET_URL: &str = "https://fonts.googleapis.com/css2
 // Always sending this user agent ensures consistent results from Google Fonts.
 // Google Fonts will vary responses based on user agent, e.g. only returning
 // references to certain font types for certain browsers.
-pub const USER_AGENT_FOR_GOOGLE_FONTS: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) \
-                                               AppleWebKit/537.36 (KHTML, like Gecko) \
-                                               Chrome/104.0.0.0 Safari/537.36";
+pub const USER_AGENT_FOR_GOOGLE_FONTS: RcStr = rcstr!(
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) \
+     Chrome/104.0.0.0 Safari/537.36"
+);
 
 /// The google fonts plugin downloads fonts locally and transforms the url in the css into a
 /// specific format that is then intercepted later. This is the prefix we use for the new url.
-pub const GOOGLE_FONTS_INTERNAL_PREFIX: &str = "@vercel/turbopack-next/internal/font/google/font";
+pub const GOOGLE_FONTS_INTERNAL_PREFIX: RcStr =
+    rcstr!("@vercel/turbopack-next/internal/font/google/font");
 
 #[turbo_tasks::value(transparent)]
 #[derive(Deserialize)]
@@ -266,56 +268,14 @@ impl NextFontGoogleCssModuleReplacer {
                 .await?,
             ),
             None => {
-                match *self.next_mode.await? {
-                    // If we're in production mode, we want to fail the build to ensure proper font
-                    // rendering.
-                    NextMode::Build => {
-                        NextFontIssue {
-                            path: css_virtual_path.clone(),
-                            title: StyledString::Line(vec![
-                                StyledString::Code(rcstr!("next/font:")),
-                                StyledString::Text(rcstr!(" error:")),
-                            ])
-                            .resolved_cell(),
-                            description: StyledString::Text(
-                                format!(
-                                    "Failed to fetch `{}` from Google Fonts.",
-                                    options.await?.font_family
-                                )
-                                .into(),
-                            )
-                            .resolved_cell(),
-                            severity: IssueSeverity::Error,
-                        }
-                        .resolved_cell()
-                        .emit();
-                    }
-                    // Inform the user of the failure to retrieve the stylesheet / font, but don't
-                    // propagate this error. We don't want e.g. offline connections to prevent page
-                    // renders during development.
-                    NextMode::Development => {
-                        NextFontIssue {
-                            path: css_virtual_path.clone(),
-                            title: StyledString::Line(vec![
-                                StyledString::Code(rcstr!("next/font:")),
-                                StyledString::Text(rcstr!(" warning:")),
-                            ])
-                            .resolved_cell(),
-                            description: StyledString::Text(
-                                format!(
-                                    "Failed to download `{}` from Google Fonts. Using fallback \
-                                     font instead.",
-                                    options.await?.font_family
-                                )
-                                .into(),
-                            )
-                            .resolved_cell(),
-                            severity: IssueSeverity::Warning,
-                        }
-                        .resolved_cell()
-                        .emit();
-                    }
+                let is_dev = matches!(*self.next_mode.await?, NextMode::Development);
+                GoogleFontsFetchIssue {
+                    path: css_virtual_path.clone(),
+                    font_family: options.await?.font_family.clone(),
+                    is_dev,
                 }
+                .resolved_cell()
+                .emit();
 
                 None
             }
@@ -439,7 +399,7 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
         } = font_file_options_from_query_map(query)?;
 
         let (filename, ext) = split_extension(&url);
-        let ext = ext.with_context(|| format!("font url {} is missing an extension", &url))?;
+        let ext = ext.with_context(|| format!("font url {} is missing an extension", url))?;
 
         // remove dashes and dots as they might be used for the markers below.
         let mut name = format!("{:016x}", hash_xxh3_hash64(filename.as_bytes()));
@@ -504,7 +464,7 @@ async fn update_google_stylesheet(
     // Update font-family definitions to the scoped name
     // TODO: Do this more resiliently, e.g. transforming an swc ast
     let mut stylesheet = stylesheet.await?.replace(
-        &format!("font-family: '{}';", &options.font_family),
+        &format!("font-family: '{}';", options.font_family),
         &format!("font-family: '{scoped_font_family}';"),
     );
 
@@ -705,7 +665,7 @@ async fn fetch_from_google_fonts(
     virtual_path: FileSystemPath,
 ) -> Result<Option<Vc<HttpResponseBody>>> {
     let result = fetch_client
-        .fetch(url, Some(rcstr!(USER_AGENT_FOR_GOOGLE_FONTS)))
+        .fetch(url, Some(USER_AGENT_FOR_GOOGLE_FONTS))
         .await?;
 
     Ok(match *result {
@@ -729,12 +689,14 @@ async fn get_mock_stylesheet(
     let response_path = Path::new(&mocked_responses_path);
     let mock_fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(
         rcstr!("mock"),
-        response_path
-            .parent()
-            .context("Must be valid path")?
-            .to_str()
-            .context("Must exist")?
-            .into(),
+        Vc::cell(
+            response_path
+                .parent()
+                .context("Must be valid path")?
+                .to_str()
+                .context("Must exist")?
+                .into(),
+        ),
     ));
 
     let ExecutionContext {
@@ -772,11 +734,14 @@ async fn get_mock_stylesheet(
         .module();
 
     let entries = get_evaluate_entries(mocked_response_asset, asset_context, *node_backend, None);
-    let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
-        entries.graph_entries().to_resolved().await?,
-        false,
-        false,
-    ));
+    let module_graph = ModuleGraph::from_graphs(
+        vec![SingleModuleGraph::new_with_entries(
+            entries.graph_entries().to_resolved().await?,
+            false,
+            false,
+        )],
+        None,
+    );
     let module_graph = module_graph.connect();
 
     let root = mock_fs.root().owned().await?;

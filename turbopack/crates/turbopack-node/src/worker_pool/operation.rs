@@ -4,6 +4,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
+use bytes::Bytes;
 use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
 use tokio::sync::{
@@ -41,6 +42,14 @@ impl<T: Send + Sync + 'static> MessageChannel<T> {
             .map_err(|_| anyhow::anyhow!("failed to send message"))
     }
 
+    /// Synchronous, non-blocking send (the channel is unbounded). Lets callers
+    /// on the napi env thread enqueue without going async.
+    pub(crate) fn send_sync(&self, message: T) -> Result<()> {
+        self.sender
+            .send(message)
+            .map_err(|_| anyhow::anyhow!("failed to send message"))
+    }
+
     pub(crate) async fn recv(&self) -> Result<T> {
         let mut rx = self.receiver.lock().await;
         rx.recv()
@@ -56,7 +65,7 @@ pub(crate) struct PoolState {
     pub(crate) waiters: Mutex<Vec<oneshot::Sender<u32>>>,
 }
 
-#[turbo_tasks::value(cell = "new", serialization = "none", eq = "manual", shared)]
+#[turbo_tasks::value(cell = "new", serialization = "skip", eq = "manual", shared)]
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub(super) struct WorkerOptions {
     pub(super) filename: RcStr,
@@ -67,15 +76,15 @@ pub(super) struct WorkerOptions {
 #[allow(dead_code)]
 pub(super) struct TaskMessage {
     pub task_id: u32,
-    pub data: Vec<u8>,
+    pub data: Bytes,
 }
 
 #[derive(Default)]
 pub(crate) struct WorkerPoolOperation {
     #[allow(clippy::type_complexity)]
-    worker_routed_channel: Mutex<FxHashMap<u32, Arc<MessageChannel<(u32, Vec<u8>)>>>>,
+    worker_routed_channel: Mutex<FxHashMap<u32, Arc<MessageChannel<(u32, Bytes)>>>>,
     #[allow(clippy::type_complexity)]
-    task_routed_channel: Mutex<FxHashMap<u32, Arc<MessageChannel<Vec<u8>>>>>,
+    task_routed_channel: Mutex<FxHashMap<u32, Arc<MessageChannel<Bytes>>>>,
     pub(crate) pools: Mutex<FxHashMap<Arc<WorkerOptions>, Arc<PoolState>>>,
 }
 
@@ -151,10 +160,7 @@ impl WorkerPoolOperation {
         self.worker_routed_channel.lock().remove(&worker_id);
     }
 
-    pub(crate) async fn recv_task_message_in_worker(
-        &self,
-        worker_id: u32,
-    ) -> Result<(u32, Vec<u8>)> {
+    pub(crate) async fn recv_task_message_in_worker(&self, worker_id: u32) -> Result<(u32, Bytes)> {
         let channel = {
             let mut map = self.worker_routed_channel.lock();
             map.entry(worker_id)
@@ -167,7 +173,7 @@ impl WorkerPoolOperation {
             .with_context(|| format!("failed to recv message in worker {worker_id}"))
     }
 
-    pub(crate) async fn send_task_message(&self, message: TaskMessage) -> Result<()> {
+    pub(crate) fn send_task_message(&self, message: TaskMessage) -> Result<()> {
         let channel = {
             let mut map = self.task_routed_channel.lock();
             map.entry(message.task_id)
@@ -175,9 +181,8 @@ impl WorkerPoolOperation {
                 .clone()
         };
         channel
-            .send(message.data)
-            .await
-            .with_context(|| format!("failed to send  response for task {}", message.task_id))
+            .send_sync(message.data)
+            .with_context(|| format!("failed to send response for task {}", message.task_id))
     }
 }
 
@@ -196,9 +201,9 @@ pub(crate) async fn get_pool_state(worker_options: Arc<WorkerOptions>) -> Arc<Po
 /// Holds Arc references to avoid HashMap lookups during send/recv.
 pub(crate) struct TaskChannels {
     /// Channel for Rust -> Worker communication (task_id, data)
-    worker_channel: Arc<MessageChannel<(u32, Vec<u8>)>>,
+    worker_channel: Arc<MessageChannel<(u32, Bytes)>>,
     /// Channel for Worker -> Rust communication (data)
-    task_channel: Arc<MessageChannel<Vec<u8>>>,
+    task_channel: Arc<MessageChannel<Bytes>>,
     task_id: u32,
 }
 
@@ -228,7 +233,7 @@ impl TaskChannels {
     }
 
     /// Send message to worker (Rust -> JS Worker)
-    pub(crate) async fn send_to_worker(&self, message: Vec<u8>) -> Result<()> {
+    pub(crate) async fn send_to_worker(&self, message: Bytes) -> Result<()> {
         self.worker_channel
             .send((self.task_id, message))
             .await
@@ -236,7 +241,7 @@ impl TaskChannels {
     }
 
     /// Receive message from worker (JS Worker -> Rust)
-    pub(crate) async fn recv_from_worker(&self) -> Result<Vec<u8>> {
+    pub(crate) async fn recv_from_worker(&self) -> Result<Bytes> {
         self.task_channel
             .recv()
             .await
@@ -275,11 +280,11 @@ impl Drop for WorkerOperation {
 
 #[async_trait::async_trait]
 impl Operation for WorkerOperation {
-    async fn recv(&mut self) -> Result<Vec<u8>> {
+    async fn recv(&mut self) -> Result<Bytes> {
         self.channels.recv_from_worker().await
     }
 
-    async fn send(&mut self, message: Vec<u8>) -> Result<()> {
+    async fn send(&mut self, message: Bytes) -> Result<()> {
         self.channels.send_to_worker(message).await
     }
 
@@ -296,6 +301,8 @@ impl Operation for WorkerOperation {
         if self.on_drop.is_some() {
             self.state.stats.lock().remove_worker();
             self.on_drop = None;
+            // Clearing the return-to-pool callback does not stop the underlying Node.js worker.
+            let _ = terminate_worker(self.worker_options.clone(), self.worker_id);
         }
     }
 }

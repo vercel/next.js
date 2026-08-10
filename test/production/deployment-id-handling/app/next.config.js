@@ -1,12 +1,18 @@
 /** @type {import('next').NextConfig} */
 module.exports = {
   deploymentId:
-    process.env.IMMUTABLE_ASSET_TOKEN ?? process.env.CUSTOM_DEPLOYMENT_ID,
+    process.env.NEXT_DEPLOYMENT_ID_IMMUTABLE ??
+    process.env.CUSTOM_DEPLOYMENT_ID,
   experimental: {
     useSkewCookie: Boolean(process.env.COOKIE_SKEW),
     runtimeServerDeploymentId: !!process.env.RUNTIME_SERVER_DEPLOYMENT_ID,
-    immutableAssetToken: process.env.IMMUTABLE_ASSET_TOKEN
-      ? `imm-${process.env.IMMUTABLE_ASSET_TOKEN}`
-      : undefined,
+    supportsImmutableAssets: process.env.NEXT_DEPLOYMENT_ID_IMMUTABLE
+      ? true
+      : false,
+    serverSourceMaps: true,
   },
+  adapterPath:
+    process.env.NEXT_ADAPTER_PATH ?? require.resolve('./my-adapter.mjs'),
+  // To generate all sourcemaps and ensure that they are content hashed
+  productionBrowserSourceMaps: true,
 }

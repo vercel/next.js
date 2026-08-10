@@ -13,18 +13,14 @@ export function replaceDestination(
   if (regexMatches) {
     // Replace numbered groups (skip index 0 which is the full match)
     for (let i = 1; i < regexMatches.length; i++) {
-      const value = regexMatches[i]
-      if (value !== undefined) {
-        result = result.replace(new RegExp(`\\$${i}`, 'g'), value)
-      }
+      const value = regexMatches[i] ?? ''
+      result = result.replace(new RegExp(`\\$${i}`, 'g'), value)
     }
 
     // Replace named groups ($name)
     if (regexMatches.groups) {
       for (const [name, value] of Object.entries(regexMatches.groups)) {
-        if (value !== undefined) {
-          result = result.replace(new RegExp(`\\$${name}`, 'g'), value)
-        }
+        result = result.replace(new RegExp(`\\$${name}`, 'g'), value ?? '')
       }
     }
   }
