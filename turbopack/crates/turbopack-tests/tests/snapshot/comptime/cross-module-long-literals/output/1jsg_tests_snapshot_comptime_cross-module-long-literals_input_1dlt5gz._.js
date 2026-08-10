@@ -1,22 +1,4 @@
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_comptime_cross-module-long-literals_input_1dlt5gz._.js",
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-long-literals/input/other.js [test] (ecmascript)", ((__turbopack_context__) => {
-"use strict";
-
-__turbopack_context__.s([
-    "LONG_BIG_NUMBER",
-    ()=>LONG_BIG_NUMBER,
-    "LONG_NUMBER",
-    ()=>LONG_NUMBER,
-    "LONG_STRING",
-    ()=>LONG_STRING,
-    "REGEX",
-    ()=>REGEX
-]);
-const LONG_STRING = 'abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789';
-const LONG_NUMBER = 21345672345678345678901234567890;
-const LONG_BIG_NUMBER = 21345672345678345678901234567890n;
-const REGEX = /ab/i;
-}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-long-literals/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
@@ -35,6 +17,24 @@ if (__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
         throw e;
     })();
 }
+}),
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-long-literals/input/other.js [test] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "LONG_BIG_NUMBER",
+    ()=>LONG_BIG_NUMBER,
+    "LONG_NUMBER",
+    ()=>LONG_NUMBER,
+    "LONG_STRING",
+    ()=>LONG_STRING,
+    "REGEX",
+    ()=>REGEX
+]);
+const LONG_STRING = 'abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789';
+const LONG_NUMBER = 21345672345678345678901234567890;
+const LONG_BIG_NUMBER = 21345672345678345678901234567890n;
+const REGEX = /ab/i;
 }),
 ]);
 
