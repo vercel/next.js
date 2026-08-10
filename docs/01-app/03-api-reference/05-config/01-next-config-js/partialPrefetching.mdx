@@ -52,6 +52,8 @@ The pattern is similar to per-route code splitting in single-page apps: one arti
 
 > **Good to know**: Routes that read `cookies()` or `headers()` produce an App Shell that includes session data. The framework auto-detects this and caches the shell per session on the client.
 
+An App Shell also includes the result of synchronous branches that run during prerendering. Reading a server-only environment variable does not by itself make a branch request-bound. If build-time and runtime values can differ, call [`io()`](/docs/app/api-reference/functions/io) before the branch so the shell does not capture the build-time result. Use [`connection()`](/docs/app/api-reference/functions/connection) instead when evaluation must wait for an actual user navigation. An uncached branch after either function remains a hole during runtime prefetching and is evaluated during a full dynamic render. This is especially important when the branch calls `notFound()` or `redirect()`. See [Runtime environment variables](/docs/app/guides/migrating-to-cache-components#runtime-environment-variables).
+
 A link can ask for more than the App Shell with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch). The prefetch also resolves per-link runtime data like `params`, `searchParams`, and the full URL. See [Runtime prefetching](/docs/app/guides/runtime-prefetching).
 
 > **Good to know**: If you use `<Link prefetch={true}>` to a route that hasn't opted into Partial Prefetching, a dev console error suggests enabling `partialPrefetching` app-wide or `prefetch = 'partial'` on the segment. The [dev warning Insight](/docs/messages/instant-link-prefetch-partial) covers each fix in detail.

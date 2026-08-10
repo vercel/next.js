@@ -46,7 +46,7 @@ To read runtime environment variables, we recommend using `getServerSideProps` o
 
 <AppOnly>
 
-You safely read environment variables on the server during dynamic rendering.
+You can safely read environment variables on the server during dynamic rendering.
 
 ```tsx filename="app/page.ts" switcher
 import { connection } from 'next/server'
@@ -73,6 +73,10 @@ export default async function Component() {
   // ...
 }
 ```
+
+Server-only environment variables are read when your server code executes, but reading `process.env` does not by itself opt a route into dynamic rendering. If an environment-dependent branch runs during `next build`, its rendered result can become part of the prerendered output. This includes conditional UI and calls to [`notFound()`](/docs/app/api-reference/functions/not-found) or [`redirect()`](/docs/app/api-reference/functions/redirect).
+
+Place the dynamic marker **before every branch** that must use the runtime value. For example, making `generateMetadata` dynamic does not also make the page component dynamic. With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), use [`io()`](/docs/app/api-reference/functions/io) to mark synchronous, uncached runtime I/O. Use `connection()` when evaluation must wait for an actual user request. See the [runtime environment variable migration guidance](/docs/app/guides/migrating-to-cache-components#runtime-environment-variables) for the Suspense, runtime prefetch, and status-code tradeoffs.
 
 </AppOnly>
 

@@ -553,6 +553,104 @@ export default async function Page() {
 }
 ```
 
+## Runtime environment variables
+
+**Defer the branch to runtime.** Server-only environment variables are available when server code executes, but reading `process.env` is not a [Request-time API](/docs/app/glossary#request-time-apis). A synchronous environment-dependent branch can therefore run while Next.js prerenders the static shell. Its result, including conditional UI, [`notFound()`](/docs/app/api-reference/functions/not-found), or [`redirect()`](/docs/app/api-reference/functions/redirect), can become part of the build output.
+
+This matters when you build one Docker image and promote it through environments with different values:
+
+```tsx filename="app/music/page.tsx" switcher
+import { notFound } from 'next/navigation'
+
+// Before - this branch can run during next build
+export default function Page() {
+  if (process.env.SHOW_MUSIC !== 'true') {
+    notFound()
+  }
+
+  return <main>Music</main>
+}
+```
+
+```jsx filename="app/music/page.js" switcher
+import { notFound } from 'next/navigation'
+
+// Before - this branch can run during next build
+export default function Page() {
+  if (process.env.SHOW_MUSIC !== 'true') {
+    notFound()
+  }
+
+  return <main>Music</main>
+}
+```
+
+A build-time `notFound()` can bake both the not-found UI and a `404` status into the prerendered response. Starting the same image with a different value does not regenerate that output.
+
+When a user-authored route is prerendered with a non-`200` status, `next build` annotates it in the route tree:
+
+```text filename="Terminal"
+○ /music [status: 404]
+```
+
+This annotation is informational because a prerendered error response can be intentional. If it is unexpected, check for environment-dependent branches that ran with build-time values.
+
+Move the branch into a component that runs after [`io()`](/docs/app/api-reference/functions/io), and wrap it in `<Suspense>`. This keeps the branch out of the build-time shell so it is evaluated during a dynamic render:
+
+```tsx filename="app/music/page.tsx" switcher
+import { Suspense } from 'react'
+import { notFound } from 'next/navigation'
+import { io } from 'next/cache'
+
+export default function Page() {
+  return (
+    <Suspense fallback={<p>Loading...</p>}>
+      <RuntimeGate />
+    </Suspense>
+  )
+}
+
+async function RuntimeGate() {
+  await io()
+
+  if (process.env.SHOW_MUSIC !== 'true') {
+    notFound()
+  }
+
+  return <main>Music</main>
+}
+```
+
+```jsx filename="app/music/page.js" switcher
+import { Suspense } from 'react'
+import { notFound } from 'next/navigation'
+import { io } from 'next/cache'
+
+export default function Page() {
+  return (
+    <Suspense fallback={<p>Loading...</p>}>
+      <RuntimeGate />
+    </Suspense>
+  )
+}
+
+async function RuntimeGate() {
+  await io()
+
+  if (process.env.SHOW_MUSIC !== 'true') {
+    notFound()
+  }
+
+  return <main>Music</main>
+}
+```
+
+Call [`connection()`](/docs/app/api-reference/functions/connection) instead when the code must wait for an actual user navigation. Unlike `connection()`, `io()` can also be used in cache scopes and Client Components. In the uncached Server Component above, both functions leave a hole in runtime prefetches and evaluate the branch during a full dynamic render. Inside a cache scope, `io()` resolves immediately and the cache captures the value at fill time, so keep this environment gate outside cached scopes.
+
+The marker must come before each environment-dependent branch, including branches in nested routes. Deferring only `generateMetadata` does not defer the page component.
+
+Because this gate runs inside `<Suspense>`, its fallback is part of the static shell. If the gate calls `notFound()`, the streamed response remains `200` and Next.js adds a `noindex` tag. With Cache Components, use [`proxy`](/docs/app/api-reference/file-conventions/proxy) for a lightweight request-time check when the HTTP response itself must be `404`. See [Status Codes](/docs/app/api-reference/file-conventions/loading#status-codes) and the [self-hosting environment variable guide](/docs/app/guides/self-hosting#environment-variables).
+
 ## `generateStaticParams` and `dynamicParams`
 
 Cache Components changes how [dynamic routes](/docs/app/api-reference/file-conventions/dynamic-routes) handle params.
