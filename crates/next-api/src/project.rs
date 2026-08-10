@@ -2609,7 +2609,7 @@ impl Project {
                 bail!("must be in dev mode to hmr")
             };
             let root = this.aggregate_hmr_root_path(target).owned().await?;
-            AggregateHmrVersion::from_map(*map, &root).await
+            AggregateHmrVersion::from_map(*map, root).await
         }
         let version_op = aggregate_hmr_version_operation(self, target);
 
@@ -2651,7 +2651,7 @@ impl Project {
             bail!("must be in dev mode to hmr")
         };
         let root = self.aggregate_hmr_root_path(target).owned().await?;
-        let chunks_versioned_content = map.hmr_chunks_in_path(&root).await?;
+        let chunks_versioned_content = map.hmr_chunks_in_path(root).await?;
 
         // No chunks to diff yet (e.g. before any endpoints have been written).
         if chunks_versioned_content.is_empty() {
