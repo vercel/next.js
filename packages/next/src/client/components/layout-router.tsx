@@ -100,31 +100,32 @@ function isFixedOrStickyElement(element: Element): boolean {
 }
 
 /**
- * Enumerate host Element children of a FragmentInstance.
+ * Whether `node` is a host descendant of the FragmentInstance.
  *
- * FragmentInstance has no children getter; `observeUsing` is the public API
- * that visits each host child. Use a duck-typed observer so we do not attach a
- * real IntersectionObserver/ResizeObserver.
+ * Prefer this over `observeUsing`: React logs a dev `console.error` when
+ * `observeUsing` is called on a text-only Fragment. `compareDocumentPosition`
+ * exists on FragmentInstance at runtime but is missing from current React
+ * type definitions.
  */
-function forEachFragmentHostElement(
+function isFragmentHostDescendant(
   instance: FragmentInstance,
-  callback: (element: Element) => void
-): void {
-  const observer = {
-    observe(target: Element) {
-      callback(target)
-    },
-    unobserve() {},
-  } as unknown as IntersectionObserver
-  instance.observeUsing(observer)
-  instance.unobserveUsing(observer)
+  node: Node
+): boolean {
+  const position = (
+    instance as FragmentInstance & {
+      compareDocumentPosition(other: Node): number
+    }
+  ).compareDocumentPosition(node)
+  return (position & Node.DOCUMENT_POSITION_CONTAINED_BY) !== 0
 }
 
 /**
  * Client rects that should participate in scroll-target selection.
  *
- * For Fragments, skip fixed/sticky host children. If every host child is
- * skipped, return no rects so the segment does not claim scroll ownership.
+ * If a Fragment's in-fragment host geometry is only from fixed/sticky
+ * elements, return no rects so the segment does not claim scroll ownership
+ * (e.g. a parallel slot that only renders a fixed header). Text-only
+ * Fragments have no in-fragment host Elements, so their rects are kept.
  */
 function getScrollRelevantClientRects(
   instance: HTMLElement | FragmentInstance
@@ -133,32 +134,53 @@ function getScrollRelevantClientRects(
     return instance.getClientRects()
   }
 
-  const rects: DOMRect[] = []
-  let hostElementCount = 0
-  let skippedHostElementCount = 0
-
-  forEachFragmentHostElement(instance, (element) => {
-    hostElementCount++
-    if (isFixedOrStickyElement(element)) {
-      skippedHostElementCount++
-      return
-    }
-    const elementRects = element.getClientRects()
-    for (let i = 0; i < elementRects.length; i++) {
-      rects.push(elementRects[i])
-    }
-  })
-
-  if (hostElementCount > 0 && hostElementCount === skippedHostElementCount) {
-    return []
-  }
-
-  if (rects.length > 0 || hostElementCount > skippedHostElementCount) {
+  const rects = instance.getClientRects()
+  if (rects.length === 0) {
     return rects
   }
 
-  // No host elements (empty or text-only): preserve Fragment getClientRects.
-  return instance.getClientRects()
+  let sawFixedOrStickyHost = false
+  let sawScrollRelevantHost = false
+
+  for (let i = 0; i < rects.length; i++) {
+    const rect = rects[i]
+    if (rect.width <= 0 && rect.height <= 0) {
+      continue
+    }
+
+    // Off-viewport geometry is document content, not fixed chrome.
+    if (rect.bottom < 0 || rect.top > window.innerHeight) {
+      sawScrollRelevantHost = true
+      break
+    }
+
+    const x = Math.min(
+      Math.max(rect.left + rect.width / 2, 0),
+      Math.max(window.innerWidth - 1, 0)
+    )
+    const y = Math.min(
+      Math.max(rect.top + rect.height / 2, 0),
+      Math.max(window.innerHeight - 1, 0)
+    )
+    const el = document.elementFromPoint(x, y)
+    // Text-only Fragments resolve to an ancestor outside the Fragment.
+    if (el == null || !isFragmentHostDescendant(instance, el)) {
+      continue
+    }
+
+    if (isFixedOrStickyElement(el)) {
+      sawFixedOrStickyHost = true
+    } else {
+      sawScrollRelevantHost = true
+      break
+    }
+  }
+
+  if (sawFixedOrStickyHost && !sawScrollRelevantHost) {
+    return []
+  }
+
+  return rects
 }
 
 /**
