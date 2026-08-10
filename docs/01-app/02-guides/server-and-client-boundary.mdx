@@ -14,7 +14,7 @@ related:
 
 Before React Server Components (RSC), there was just one kind of React component, written for the browser, where it held state, ran effects, responded to events, and reached for `window` and `document`.
 
-Putting anything on screen meant shipping JavaScript to the browser. Many apps were an empty shell with one node to mount into, rendered entirely on the client. React could also render to HTML on the server first, so the first response was not blank, but that HTML was inert markup until the JavaScript arrived and [hydrated](https://react.dev/reference/react-dom/client/hydrateRoot#hydrating-server-rendered-html) it. The same component had to render in both environments, which is what hydration depends on.
+Putting anything on screen meant shipping JavaScript to the browser. Many apps were an empty shell with one node to mount into, rendered entirely on the client. React could also render to HTML on the server first, so the first response was not blank. But that HTML was inert markup until the JavaScript arrived and [hydrated](https://react.dev/reference/react-dom/client/hydrateRoot#hydrating-server-rendered-html) it. The same component had to render in both environments, which is what hydration depends on.
 
 React Server Components gave that original kind of component a name, the Client Component, and introduced the Server Component, which runs exclusively on the server. Unlike a Client Component, a Server Component ships no JavaScript to the browser.
 
@@ -27,7 +27,7 @@ Server Component
    └─ Client Component
 ```
 
-Each component in this tree belongs to either the server [module graph](/docs/app/glossary#module-graph) or the client module graph. A module shared by both is compiled into each, one copy per graph. 
+Each component in this tree belongs to either the server [module graph](/docs/app/glossary#module-graph) or the client module graph. A module shared by both is compiled into each, one copy per graph.
 
 The server graph holds the references to the Client Components and the data it passes them at the boundary. The client graph has no knowledge of the server graph, only the data it receives at the server-client boundary.
 
@@ -94,9 +94,9 @@ Getting the data is no longer a separate step that passes initial props to the c
 
 > **Good to know:** Because a Server Component can read secrets and server-only data directly, be deliberate about what you pass to Client Components, props are serialized and sent to the browser. See [Data Security](/docs/app/guides/data-security#passing-data-from-server-to-client).
 
-A Server Component can start a fetch during its own render without awaiting it, then pass the pending promise to a Client Component as a prop. The Client Component reads that promise as a resource with [`use`](https://react.dev/reference/react/use#streaming-data-from-server-to-client). It suspends while the promise is pending, the nearest [Suspense](/docs/app/glossary#suspense-boundary) boundary shows its fallback, and it renders once the promise resolves. Because the request is already in flight before the client runs, the Client Component does not need to start its own fetch after mount, in an effect or a data library. Some cases still need the fetch to start from the client, though. 
+A Server Component can start a fetch during its own render without awaiting it, then pass the pending promise to a Client Component as a prop. The Client Component reads that promise as a resource with [`use`](https://react.dev/reference/react/use#streaming-data-from-server-to-client). It suspends while the promise is pending, the nearest [Suspense](/docs/app/glossary#suspense-boundary) boundary shows its fallback, and it renders once the promise resolves. Because the request is already in flight before the client runs, the Client Component does not need to start its own fetch after mount, in an effect or a data library. Some cases still need the fetch to start from the client, though.
 
-Because fetching happens during a Server Component's render, the framework can optimize around it. It dedupes identical fetches in a single render, and it can cache a fetch, a function's output, or a component's output, and revalidate each on its own. With enough help from the bundler, it can even see which data feeds a component, which is what [Cache Components](/docs/app/getting-started/caching) builds on to revalidate at the granularity of the data itself, not the whole page. This starts with [fetching data](/docs/app/getting-started/fetching-data).
+Because fetching happens during a Server Component's render, the framework can optimize around it. It dedupes identical fetches in a single render, and it can cache a fetch, a function's output, or a component's output, and revalidate each on its own. With help from the bundler, it can see which data feeds a component. [Cache Components](/docs/app/getting-started/caching) builds on this to revalidate the data itself instead of the whole page. This starts with [fetching data](/docs/app/getting-started/fetching-data).
 
 ## State and interactivity
 

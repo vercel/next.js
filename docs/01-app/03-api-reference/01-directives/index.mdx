@@ -3,7 +3,7 @@ title: Directives
 description: Directives are used to modify the behavior of your Next.js application.
 ---
 
-Directives are string literals that tell the compiler and bundler how to treat the code around them. On their own they look like a plain string, but Next.js and React read them as an instruction to transform the code they cover: into a client entry point, a server function, or a cached function.
+Directives are string literals that tell the compiler and bundler how to treat the code around them. On their own they look like plain strings, but Next.js and React read them as instructions to transform the code they cover into a client entry point, a server function, or a cached function.
 
 | Directive      | Defined by | Marks the code it covers to...                              | Reference                                                     |
 | -------------- | ---------- | ----------------------------------------------------------- | ------------------------------------------------------------- |
@@ -17,7 +17,7 @@ Directives are string literals that tell the compiler and bundler how to treat t
 
 ## Where to place a directive
 
-The `'use client'` directive set the original shape: it sits at the top of a file, before any imports, and applies to the entire module. It only goes there. The module is bundled and shipped to the browser, so the boundary is drawn at the file, not partway through it, and there is no inline `'use client'`.
+The `'use client'` directive set the original shape. It sits at the top of a file, before any imports, applies to the entire module, and only goes there. The module is bundled and shipped to the browser, so the boundary is drawn at the file rather than partway through it. There is no inline `'use client'`.
 
 `'use server'` and `'use cache'` can be placed the same way, at the top of a file, where they apply to every export. They can also be placed inline, at the top of a single function, so they apply to just that one function.
 
@@ -40,7 +40,7 @@ A module sits on one side of the boundary. You define `'use server'` and `'use c
 
 For `'use server'` and `'use cache'`, add the directive to the function or component that needs it. From there you can move it up to a parent or down into a utility function as your code changes.
 
-When you find yourself repeating the same directive across many functions in one module, hoist it to the top of the file. This is a convenience, not a separate feature: a file-level directive applies its rules to every export, so each one has to satisfy them. For `'use server'` and `'use cache'`, that means every export must be `async`.
+When the same directive appears across many functions in one module, hoist it to the top of the file. This is a convenience, not a separate feature. A file-level directive applies its rules to every export, so each one has to satisfy them. For `'use server'` and `'use cache'`, every export must be `async`.
 
 ## What each directive requires
 
