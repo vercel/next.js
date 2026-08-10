@@ -43,7 +43,9 @@ const REACT_FUNCTION_SERIALIZATION_ERROR =
 const USE_CACHE_FUNCTION_DOCS_URL =
   'https://nextjs.org/docs/app/api-reference/directives/use-cache'
 
-const USE_CACHE_FUNCTION_SERIALIZATION_HINT = `Inside \`"use cache"\`, return JSX or data — not a function or component. See ${USE_CACHE_FUNCTION_DOCS_URL}`
+// Docs: return values may include JSX; bare functions are unsupported (except
+// pass-through args). See /docs/app/api-reference/directives/use-cache.
+const USE_CACHE_FUNCTION_SERIALIZATION_HINT = `Inside \`"use cache"\`, return JSX or serializable data — not a function (including a component reference). See ${USE_CACHE_FUNCTION_DOCS_URL}`
 
 export function annotateUseCacheFunctionSerializationError(
   error: unknown

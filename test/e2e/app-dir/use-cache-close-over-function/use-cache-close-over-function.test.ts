@@ -108,6 +108,7 @@ describe('use-cache-close-over-function', () => {
       expect(errorDescription).toContain(useCacheFunctionDocs)
       // Stronger wording when the failure is definitely inside the cache fill.
       expect(errorDescription).toContain('Inside `"use cache"`')
+      expect(errorDescription).toContain('component reference')
     })
   } else {
     it('should fail the build with an error', async () => {

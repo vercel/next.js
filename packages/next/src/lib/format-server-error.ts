@@ -76,7 +76,7 @@ const REACT_FUNCTION_SERIALIZATION_ERROR =
 const USE_CACHE_FUNCTION_DOCS_URL =
   'https://nextjs.org/docs/app/api-reference/directives/use-cache'
 
-const USE_CACHE_FUNCTION_SERIALIZATION_HINT = `If this is from \`"use cache"\`, return JSX or data instead of a function. See ${USE_CACHE_FUNCTION_DOCS_URL}`
+const USE_CACHE_FUNCTION_SERIALIZATION_HINT = `If this is from \`"use cache"\`, return JSX or serializable data — not a function (including a component reference). See ${USE_CACHE_FUNCTION_DOCS_URL}`
 
 export function formatServerError(error: Error): void {
   if (typeof error?.message !== 'string') return
