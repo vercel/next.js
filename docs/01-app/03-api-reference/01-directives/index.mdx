@@ -11,15 +11,15 @@ Directives are string literals that tell the compiler and bundler how to treat t
 | `'use server'` | React      | run on the server, exposed as Server Functions              | [`use server`](/docs/app/api-reference/directives/use-server) |
 | `'use cache'`  | Next.js    | be cached and reused based on its inputs                    | [`use cache`](/docs/app/api-reference/directives/use-cache)   |
 
-`'use cache'` also has [`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote) and [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) variants, and you can control where cached entries are stored by configuring your own [cache handlers](/docs/app/api-reference/config/next-config-js/cacheHandlers).
+The `'use cache'` directive also has [`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote) and [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) variants, and you can control where cached entries are stored by configuring your own [cache handlers](/docs/app/api-reference/config/next-config-js/cacheHandlers).
 
 > **Good to know:** Directives transform your code when it compiles, in development and in production alike. The error overlay, indicators, and stack traces still point at the file and line you wrote, not the generated output.
 
 ## Where to place a directive
 
-The `'use client'` directive set the original shape. It sits at the top of a file, before any imports, applies to the entire module, and only goes there. The module is bundled and shipped to the browser, so the boundary is drawn at the file rather than partway through it. There is no inline `'use client'`.
+The `'use client'` directive sits at the top of a file, before any imports, and applies to the entire module. Because the module is bundled and shipped to the browser, the directive defines a file-wide boundary and cannot be used inline.
 
-`'use server'` and `'use cache'` can be placed the same way, at the top of a file, where they apply to every export. They can also be placed inline, at the top of a single function, so they apply to just that one function.
+Both `'use server'` and `'use cache'` can be placed at the top of a file, where they apply to every export. They can also be placed inline, at the top of a single function, so they apply to just that one function.
 
 ```tsx
 // File level: applies to every export
@@ -38,9 +38,9 @@ export async function getUsers() {
 
 A module sits on one side of the boundary. You define `'use server'` and `'use cache'` functions in server modules, never inside a `'use client'` module. A Client Component can import and call them, but it cannot declare them.
 
-For `'use server'` and `'use cache'`, add the directive to the function or component that needs it. From there you can move it up to a parent or down into a utility function as your code changes.
+For `'use server'` and `'use cache'`, add the directive to the function or component that needs it. You can move it up to a parent or down into a utility function as your code changes.
 
-When the same directive appears across many functions in one module, hoist it to the top of the file. This is a convenience, not a separate feature. A file-level directive applies its rules to every export, so each one has to satisfy them. For `'use server'` and `'use cache'`, every export must be `async`.
+When the same directive appears across many functions in one module, hoist it to the top of the file. The file-level form is shorthand for applying the same rules to every export. For `'use server'` and `'use cache'`, every export must be `async`.
 
 ## What each directive requires
 
@@ -50,10 +50,10 @@ A directive imposes rules on the code it covers:
 - **`'use server'`** marks its exports as [Server Functions](/docs/app/glossary#server-function). They must be `async`, and their arguments and return values are serialized across the network. A Client Component never receives the function's code, only a reference it uses to invoke the server.
 - **`'use cache'`** marks its exports as cacheable by their inputs. They must be `async`, their arguments and return values must be serializable, and they cannot read request-time APIs like `cookies()`, `headers()`, or `searchParams` directly.
 
-At the file level the rules reach framework exports too, not just the ones you wrote. A `'use cache'` at the top of a `page` or `layout`, for example, requires `generateMetadata`, `generateStaticParams`, and any other exports to be `async` as well, even the ones that would otherwise be synchronous.
+At the file level, the rules also apply to framework exports. A `'use cache'` at the top of a `page` or `layout`, for example, requires `generateMetadata`, `generateStaticParams`, and any other exports to be `async`, including exports that would otherwise be synchronous.
 
 ## Placement decides what you cache
 
 With `'use cache'`, placement also decides how much you store. The directive on a page caches everything the page renders. The same directive on a single data function caches only that function's result. When the expensive part is one small request, cache that function instead of the whole page.
 
-This matters most with [`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote), where entries are stored on a platform cache handler and larger outputs can cost more.
+With [`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote), entries are stored on a platform cache handler and larger outputs can cost more.

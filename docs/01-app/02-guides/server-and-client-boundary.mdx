@@ -33,9 +33,7 @@ The server graph holds the references to the Client Components and the data it p
 
 ## Rendering environments
 
-It is tempting to sort each component onto one side, Server Components on the server, Client Components in the browser. That is not the right model.
-
-Rendering happens in both places. On the server, the Server Component tree produces the RSC Payload, the Client Components render too, and together they become the page's HTML. This pass runs at build time or per request.
+The component names suggest a clean split between server and browser, but rendering happens in both places. On the server, the Server Component tree produces the RSC Payload, the Client Components render too, and together they become the page's HTML. This pass runs at build time or per request.
 
 So "where does it run" is really two questions, and each kind answers them differently:
 
@@ -44,7 +42,7 @@ So "where does it run" is really two questions, and each kind answers them diffe
 | **Server Component** | Yes           | No             |
 | **Client Component** | Yes           | Yes            |
 
-A Client Component runs on the server _and_ in the browser. This is where the name misleads: "Client" does not mean "browser only," it means "the browser too."
+The word "Client" indicates that the component also runs in the browser, alongside its server render.
 
 On a direct visit this component logs once on the server (in your terminal) and again in the browser when React hydrates. On a client-side navigation the server sends only the RSC Payload, so this component logs only in the browser.
 
@@ -59,13 +57,13 @@ export default function Hello() {
 
 A Client Component rendering on the server is server-side rendering (SSR), not RSC.
 
-SSR turns components into HTML. It predates RSC and applies to Client Components too, and [SSG](/docs/app/glossary#prerendering) and [ISR](/docs/app/glossary#incremental-static-regeneration-isr) are flavors of it. RSC is the other mechanism: it keeps a component's code on the server and emits the RSC Payload instead of shipping it. So a Client Component is server-rendered to HTML, but it is not a Server Component. "Rendered on the server" and "is a Server Component" are different claims.
+SSR turns components into HTML. It predates RSC and applies to Client Components too. [SSG](/docs/app/glossary#prerendering) and [ISR](/docs/app/glossary#incremental-static-regeneration-isr) are flavors of it. RSC keeps a component's code on the server and emits the RSC Payload instead of shipping it. A Client Component can therefore be server-rendered to HTML without becoming a Server Component. "Rendered on the server" and "is a Server Component" are different claims.
 
 > **Do Server Components help SEO?**
 >
 > A crawler that reads only HTML sees the first response and runs none of your JavaScript. Both Server and Client Components are server-rendered into that first response, so the choice between them is not an SEO decision. What matters is that the content is reached during the server render, not gated behind user interaction or an event, so it lands in the HTML the crawler reads.
 
-_When_ a component renders, at build time or per request, statically or dynamically is covered in [Rendering Philosophy](/docs/app/guides/rendering-philosophy).
+See [Rendering Philosophy](/docs/app/guides/rendering-philosophy) for details about when a component renders, whether at build time or per request, statically or dynamically.
 
 ## How data enters the tree
 
@@ -94,9 +92,9 @@ Getting the data is no longer a separate step that passes initial props to the c
 
 > **Good to know:** Because a Server Component can read secrets and server-only data directly, be deliberate about what you pass to Client Components, props are serialized and sent to the browser. See [Data Security](/docs/app/guides/data-security#passing-data-from-server-to-client).
 
-A Server Component can start a fetch during its own render without awaiting it, then pass the pending promise to a Client Component as a prop. The Client Component reads that promise as a resource with [`use`](https://react.dev/reference/react/use#streaming-data-from-server-to-client). It suspends while the promise is pending, the nearest [Suspense](/docs/app/glossary#suspense-boundary) boundary shows its fallback, and it renders once the promise resolves. Because the request is already in flight before the client runs, the Client Component does not need to start its own fetch after mount, in an effect or a data library. Some cases still need the fetch to start from the client, though.
+A Server Component can start a fetch during its own render without awaiting it, then pass the pending promise to a Client Component as a prop. The Client Component reads that promise as a resource with [`use`](https://react.dev/reference/react/use#streaming-data-from-server-to-client). It suspends while the promise is pending, the nearest [Suspense](/docs/app/glossary#suspense-boundary) boundary shows its fallback, and it renders once the promise resolves. Because the request is already in flight before the client runs, the Client Component does not need to start its own fetch after mount, in an effect or a data library. Some fetches still need to start from the client.
 
-Because fetching happens during a Server Component's render, the framework can optimize around it. It dedupes identical fetches in a single render, and it can cache a fetch, a function's output, or a component's output, and revalidate each on its own. With help from the bundler, it can see which data feeds a component. [Cache Components](/docs/app/getting-started/caching) builds on this to revalidate the data itself instead of the whole page. This starts with [fetching data](/docs/app/getting-started/fetching-data).
+Because fetching happens during a Server Component's render, the framework can optimize around it. It dedupes identical fetches in a single render, and it can cache a fetch, a function's output, or a component's output, and revalidate each on its own. With help from the bundler, it can see which data feeds a component. [Cache Components](/docs/app/getting-started/caching) builds on this to revalidate the data itself instead of the whole page. Start with [fetching data](/docs/app/getting-started/fetching-data).
 
 ## State and interactivity
 
@@ -106,7 +104,7 @@ A Client Component's code does reach the browser. React hydrates it, and from th
 
 > **Good to know:** Even though a Server Component never runs on the client, its output is not yours to mutate directly. The RSC Payload ships inside the HTML, and React keeps the DOM in sync with it, so hand-editing server-rendered nodes puts them out of sync and React reconciles them away. See [Streaming](/docs/app/guides/streaming#the-component-payload).
 
-Seen this way, the rules about where you can use `useState`, `useEffect`, or an `onClick` handler are not arbitrary restrictions. Each needs code running in the browser that can react and re-render over time. A Server Component never runs there, so there is nothing for them to attach to.
+These restrictions follow from where the code runs. `useState`, `useEffect`, and event handlers each need code running in the browser that can react and re-render over time. A Server Component never runs there, so there is nothing for them to attach to.
 
 Interactivity does not always need a Client Component. A lot of it comes from the browser and from HTML: a `<details>` opens and closes, a `<form>` submits to a [Server Function](/docs/app/guides/server-actions), a `<video controls>` plays and pauses, none of which needs a Client Component. Reach for a Client Component when the behavior needs state in the browser that changes over time, a controlled input, a live filter, a drag handle, not for every button or form.
 
@@ -121,11 +119,11 @@ You mark a Client Component with the [`'use client'`](/docs/app/api-reference/di
 
 > **Good to know:**
 >
-> Passing a function as a prop from a Server Component to a Client Component throws. An event handler like `onClick` cannot cross. The exception is a [Server Function](/docs/app/guides/server-actions): marked with `'use server'`, it crosses as a reference.
+> Passing a function as a prop from a Server Component to a Client Component throws. An event handler like `onClick` cannot cross. A [Server Function](/docs/app/guides/server-actions) marked with `'use server'` crosses as a reference.
 >
-> A Server Function is not distinguishable from a plain function by its type. The TypeScript plugin uses a naming convention: a Client Component prop typed as a function is allowed when it is called `action` or ends in `Action`, and flagged otherwise.
+> A Server Function is not distinguishable from a plain function by its type. The TypeScript plugin handles this with a naming convention. A Client Component prop typed as a function is allowed when it is called `action` or ends in `Action`, and flagged otherwise.
 
-This is what lets the two compose: a rendered React element is serializable data, so a Server Component's output can cross as `children` and nest inside a Client Component, even though its code could never be imported there.
+A rendered React element can cross the boundary because it is serializable data. That is how a Server Component's output can nest inside a Client Component as `children`, even though its code could never be imported there.
 
 ```tsx filename="app/page.tsx"
 // Page and Cart are Server Components. Modal is a Client Component
@@ -138,7 +136,7 @@ export default function Page() {
 }
 ```
 
-`children` is just a prop. `Modal` receives a `title` element and a `children` element, both serialized data, and places them wherever it likes.
+The `children` prop behaves like any other prop. `Modal` receives a `title` element and a `children` element, both serialized data, and places them wherever it likes.
 
 ```tsx filename="app/ui/modal.tsx"
 'use client'
@@ -161,12 +159,12 @@ export function Modal({ title, children }) {
 }
 ```
 
-`Cart` runs on the server, and `Modal` only ever sees its output, never its code.
+Here, `Cart` runs on the server, and `Modal` only ever sees its output, never its code.
 
 <details>
   <summary>Owner and parent</summary>
 
-`Page` shows two roles React keeps separate:
+In this example, `Page` shows two roles React keeps separate:
 
 - The **owner** wrote the JSX and renders the child. `Page` is the owner of both `Modal` and `Cart`.
 - The **parent** is whoever the child sits inside at render time. `Modal` is the parent of `Cart`.
@@ -178,13 +176,13 @@ Because `Cart`'s owner is a Server Component, `Cart` renders on the server. `Mod
 <details>
   <summary>Compound components across the boundary</summary>
 
-Adding subcomponents to a parent as static properties, like `Menu.Item` or `Tabs.Panel`, works fine within one graph, whether the pieces are all Server Components or all Client Components. It breaks only when the static member has to cross the boundary: a Server Component that imports a Client Component receives a client reference, not the function, so `Menu.Item` is `undefined` and React itself throws "Element type is invalid."
+Adding subcomponents to a parent as static properties, like `Menu.Item` or `Tabs.Panel`, works fine within one graph, whether the pieces are all Server Components or all Client Components. It breaks only when the static member has to cross the boundary. A Server Component that imports a Client Component receives a client reference, not the function, so `Menu.Item` is `undefined` and React itself throws "Element type is invalid."
 
 Consume a client compound from a Client Component, or export the pieces as named exports so what crosses the boundary is a real export, not a static property.
 
 </details>
 
-You only need `'use client'` at the entry to a client subtree, not on every file inside it. Everything below the entry is already client, so a component that calls `useState` or `useEffect` does not need its own directive, you can add it at the import site instead. That lets you leave a shared primitive untouched and put the boundary on a module closer to your application code. If client code ends up in the server graph without a boundary, the compiler tells you, so you can add the directive where it is needed rather than everywhere.
+You only need `'use client'` at the entry to a client subtree, not on every file inside it. Everything below the entry is already client, so you can add the directive at the import site instead of to every component that calls `useState` or `useEffect`. That lets you leave a shared primitive untouched and put the boundary on a module closer to your application code. If client code ends up in the server graph without a boundary, the compiler tells you, so you can add the directive where it is needed rather than everywhere.
 
 For more patterns, see [Interleaving Server and Client Components](/docs/app/getting-started/server-and-client-components#interleaving-server-and-client-components).
 
