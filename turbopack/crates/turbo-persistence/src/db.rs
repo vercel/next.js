@@ -421,7 +421,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             parallel_scheduler,
             config,
         });
-        db.open_directory(false)?;
+        db.open_directory()?;
         Ok(db)
     }
 
@@ -438,16 +438,17 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             parallel_scheduler,
             config,
         });
-        db.open_directory(false)?;
+        db.open_directory()?;
         Ok(db)
     }
 
     /// Performs the initial check on the database directory.
-    fn open_directory(&mut self, read_only: bool) -> Result<()> {
+    fn open_directory(&mut self) -> Result<()> {
+        let read_only = self.read_only;
         match fs::read_dir(&self.path) {
             Ok(entries) => {
                 if !self
-                    .load_directory(entries, read_only)
+                    .load_directory(entries)
                     .context("Loading persistence directory failed")?
                 {
                     if read_only {
@@ -477,7 +478,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     }
 
     /// Loads an existing database directory and performs cleanup if necessary.
-    fn load_directory(&mut self, entries: ReadDir, read_only: bool) -> Result<bool> {
+    fn load_directory(&mut self, entries: ReadDir) -> Result<bool> {
+        let read_only = self.read_only;
         let mut meta_files = Vec::new();
         let mut current_file = match File::open(self.path.join("CURRENT")) {
             Ok(file) => file,
