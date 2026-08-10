@@ -2698,7 +2698,10 @@ async function prepareAppPageRender(
     req.originalRequest.on('end', () => {
       if ('performance' in globalThis) {
         const metrics = getClientComponentLoaderMetrics({ reset: true })
-        if (metrics) {
+        if (
+          metrics &&
+          metrics.clientComponentLoadEnd >= metrics.clientComponentLoadStart
+        ) {
           getTracer()
             .startSpan(NextNodeServerSpan.clientComponentLoading, {
               startTime: metrics.clientComponentLoadStart,
@@ -2708,10 +2711,7 @@ async function prepareAppPageRender(
                 'next.span_type': NextNodeServerSpan.clientComponentLoading,
               },
             })
-            .end(
-              metrics.clientComponentLoadStart +
-                metrics.clientComponentLoadTimes
-            )
+            .end(metrics.clientComponentLoadEnd)
         }
       }
     })
