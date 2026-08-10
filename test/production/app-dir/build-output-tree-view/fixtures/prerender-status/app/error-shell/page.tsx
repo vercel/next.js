@@ -7,5 +7,5 @@ export async function generateMetadata() {
 }
 
 export default function ErrorShellPage() {
-  notFound()
+  return notFound()
 }
