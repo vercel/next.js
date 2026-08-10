@@ -51,6 +51,7 @@ pub mod minify;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod next_api;
 pub mod parse;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod react_compiler;
 pub mod rspack;
 pub mod transform;
