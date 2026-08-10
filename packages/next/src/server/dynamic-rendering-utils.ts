@@ -8,6 +8,7 @@ import type {
 } from './app-render/work-unit-async-storage.external'
 import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
 import { getServerReact, getClientReact } from './runtime-reacts.external'
+import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
 
 export function isHangingPromiseRejectionError(
   err: unknown
@@ -291,6 +292,10 @@ function trackRuntimeDataAccessedImpl(
   }
 }
 
+export function trackIncompatibleShellContent(workUnitStore: RequestStore) {
+  workUnitStore.hasIncompatibleShellContent = true
+}
+
 export function makeClientHookHangingPromise<T>(
   signal: AbortSignal,
   error: ClientHookDynamicError
@@ -369,6 +374,40 @@ export function makeDevtoolsIOAwarePromise<T>(
     setTimeout(() => {
       resolve(underlying)
     }, 0)
+  })
+}
+
+/** Invokes `onUse` whenever `then()/catch()/finally()` are called on the promise. */
+export function trackPromiseUsed<T>(promise: Promise<T>, onUse: () => void) {
+  const methodCache: Record<string, (...args: any[]) => any> = {}
+  return new Proxy(promise, {
+    get(target, prop, receiver) {
+      if (prop === 'then' || prop === 'catch' || prop === 'finally') {
+        let patchedMethod = methodCache[prop]
+        if (patchedMethod !== undefined) {
+          return patchedMethod
+        }
+
+        const originalMethod = ReflectAdapter.get(target, prop, receiver)
+        patchedMethod = {
+          [prop]: (...args: unknown[]) => {
+            try {
+              onUse()
+            } catch (err) {
+              // We don't want to break the method even if our tracking errored.
+              console.error(err)
+            }
+
+            return originalMethod.apply(target, args)
+          },
+        }[prop]
+
+        methodCache[prop] = patchedMethod
+        return patchedMethod
+      }
+
+      return ReflectAdapter.get(target, prop, receiver)
+    },
   })
 }
 

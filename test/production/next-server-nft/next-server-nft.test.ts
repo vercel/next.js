@@ -705,6 +705,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/server/route-modules/app-page/vendored/contexts/router-context.js",
            "/node_modules/next/dist/server/route-modules/app-page/vendored/contexts/server-inserted-html.js",
            "/node_modules/next/dist/server/runtime-reacts.external.js",
+           "/node_modules/next/dist/server/web/spec-extension/adapters/reflect.js",
            "/node_modules/next/dist/shared/lib/deep-freeze.js",
            "/node_modules/next/dist/shared/lib/instant-messages.js",
            "/node_modules/next/dist/shared/lib/invariant-error.js",

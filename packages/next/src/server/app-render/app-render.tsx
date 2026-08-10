@@ -336,7 +336,6 @@ import { isInstantValidationError } from './instant-validation/instant-validatio
 import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import { RENDER_STAGES_BY_DATA_KIND } from '../dynamic-rendering-utils'
 import type { StageEndTimes } from './instant-validation/instant-validation'
-import { hasNonRootStaticParams } from '../lib/params-utils'
 
 export type GetDynamicParamFromSegment = (
   // The LoaderTree to extract the dynamic param from
@@ -5081,13 +5080,12 @@ async function prepareValidationInputsInPartialPrefetching(
   const needsInstantValidation =
     await anySegmentNeedsInstantValidationInDev(loaderTree)
 
-  // If we have static params that aren't root params, then the static stages are incompatible
-  // between the Static shell and the App Shell, and we can't use the same render for both.
-  const areStagesCompatible = !hasNonRootStaticParams(
-    ctx.interpolatedParams,
-    requestStore.rootParams,
-    requestStore.fallbackParams
-  )
+  // Certain APIs (static `params`, `unstable_navigation()`, `unstable_prefetch()`) resolve
+  // in either static or runtime stages depending on the context (see `needsAppShell`).
+  // If one of these APIs is used, the render can't be used for both Instant Validation and
+  // Static Shell Validation and we'll need to perform a secondary render.
+  // All relevant uses are tracked on the request store.
+  const areStagesCompatible = !requestStore.hasIncompatibleShellContent
 
   const LAZY_FULL_RENDER = createLazyDevValidationInputs(async () => {
     const shouldRenderWithAppShell = true
@@ -5343,7 +5341,8 @@ function setUpStagedDevRender(
   })
   requestStore.resumeDataCache = prerenderResumeDataCache
   requestStore.stagedRendering = stageController
-  requestStore.needsSessionShell = shouldRenderWithAppShell
+  requestStore.needsAppShell = shouldRenderWithAppShell
+  requestStore.hasIncompatibleShellContent = false
   requestStore.asyncApiPromises = createAsyncApiPromises(
     stageController,
     requestStore.cookies,
@@ -5702,7 +5701,8 @@ async function renderWithWarmCachesForValidationInDev(
     prerenderResumeDataCache
   )
   requestStore.stagedRendering = stageController
-  requestStore.needsSessionShell = shouldRenderWithAppShell
+  requestStore.needsAppShell = shouldRenderWithAppShell
+  requestStore.hasIncompatibleShellContent = false
   requestStore.cacheSignal = null
   requestStore.asyncApiPromises = createAsyncApiPromises(
     stageController,
@@ -5811,7 +5811,8 @@ async function prerenderWithWarmCachesForStaticValidationInDev(
     prerenderResumeDataCache
   )
   requestStore.stagedRendering = stageController
-  requestStore.needsSessionShell = false
+  requestStore.needsAppShell = false
+  requestStore.hasIncompatibleShellContent = false
   requestStore.cacheSignal = null
   requestStore.asyncApiPromises = createAsyncApiPromises(
     stageController,
@@ -7747,7 +7748,8 @@ async function renderWithRestartOnCacheMissInValidation(
 
   requestStore.resumeDataCache = prerenderResumeDataCache
   requestStore.stagedRendering = initialStageController
-  requestStore.needsSessionShell = shouldRenderAppShell
+  requestStore.needsAppShell = shouldRenderAppShell
+  requestStore.hasIncompatibleShellContent = false
   requestStore.cacheSignal = cacheSignal
   requestStore.asyncApiPromises = createAsyncApiPromises(
     initialStageController,
@@ -7864,7 +7866,8 @@ async function renderWithRestartOnCacheMissInValidation(
     prerenderResumeDataCache
   )
   requestStore.stagedRendering = finalStageController
-  requestStore.needsSessionShell = shouldRenderAppShell
+  requestStore.needsAppShell = shouldRenderAppShell
+  requestStore.hasIncompatibleShellContent = false
   requestStore.cacheSignal = null
   requestStore.asyncApiPromises = createAsyncApiPromises(
     finalStageController,
