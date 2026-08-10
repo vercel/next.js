@@ -41,6 +41,10 @@ import { debounce } from '../utils'
 import { clearManifestCache } from '../load-manifest.external'
 import { deleteCache } from './require-cache'
 import {
+  dropDevValidationWorker,
+  mirrorModuleStateToDevValidationWorker,
+} from './dev-validation-worker-pool'
+import {
   clearAllModuleContexts,
   clearModuleContext,
 } from '../lib/render-server'
@@ -261,6 +265,9 @@ function setupServerHmr(
       if (typeof __turbopack_server_hmr_apply__ === 'function') {
         try {
           __turbopack_server_hmr_apply__(update)
+          // The validation worker keeps its own copy of the module graph, and
+          // applies the same update to it.
+          mirrorModuleStateToDevValidationWorker({ type: 'apply', update })
         } catch {
           // A matching runtime tried the apply and threw. Evict require.cache
           // so the next request loads fresh, then skip onApplied. (A no-match
@@ -2142,6 +2149,11 @@ export async function createHotReloaderTurbopack(
 
         resetFetch()
 
+        // This thread gave up on repairing its module graph in place. The
+        // validation worker cannot repair its own either, so it is dropped and
+        // the next validation loads the build output afresh.
+        dropDevValidationWorker()
+
         notifyServerComponentChanges()
       },
       onApplied: (chunkPaths: string[]) => {
@@ -2149,9 +2161,22 @@ export async function createHotReloaderTurbopack(
         // next RSC render picks up the HMR-applied module changes. Unlike
         // a full restart, this does NOT clear require.cache — the HMR-applied
         // modules in devModuleCache must persist for dep preservation.
-        for (const chunkPath of chunkPaths) {
-          clearManifestCache(join(distDir, chunkPath))
+        const manifestPaths = chunkPaths.map((chunkPath) =>
+          join(distDir, chunkPath)
+        )
+
+        for (const manifestPath of manifestPaths) {
+          clearManifestCache(manifestPath)
         }
+
+        // This path clears the manifest cache without going through
+        // `deleteCache`, so `onCacheInvalidation` does not report it to the
+        // validation worker. Report it here instead.
+        mirrorModuleStateToDevValidationWorker({
+          type: 'invalidate',
+          filePaths: manifestPaths,
+          evictModules: false,
+        })
 
         notifyServerComponentChanges()
       },
