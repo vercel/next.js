@@ -10,7 +10,7 @@ related:
     - app/getting-started/caching
     - app/api-reference/directives/use-cache
     - app/api-reference/file-conventions/route
-    - app/api-reference/functions/revalidateTag
+    - app/api-reference/functions/updateTag
 ---
 
 Use [TanStack Query](https://tanstack.com/query) to fetch data in Client Components, provide initial data from Server Components, and coordinate browser mutations with cached server data. See [Client-side data fetching](/docs/app/guides/client-side-data-fetching) to choose a pattern.
@@ -57,7 +57,7 @@ See the [complete provider setup in the demo source](https://github.com/vercel-l
 
 ## Fetch data on the client
 
-TanStack Query can fetch entirely in the browser when the server-rendered response does not need the result. Choose an [inline or Suspense loading state](/docs/app/guides/client-side-data-fetching#choose-a-client-fetching-pattern) based on which UI should stay visible. In these examples, `query` starts empty and updates from client state after hydration.
+TanStack Query can fetch entirely in the browser when the server-rendered response does not need the result. Choose an [inline or Suspense loading state](/docs/app/guides/client-side-data-fetching#choose-a-client-fetching-pattern) based on where the loading UI should appear. In these examples, `query` starts empty and updates from client state after hydration.
 
 Use `useQuery` when the component should render its own loading and error states. The `enabled` option delays the request until the interaction provides an input:
 
@@ -105,7 +105,7 @@ Learn more: [TanStack Query queries](https://tanstack.com/query/latest/docs/fram
 
 ## Use Suspense for client data
 
-Use `useSuspenseQuery` when the nearest Suspense boundary should own the loading state. Keep the interactive shell outside the boundary so it remains available while the results load:
+Use `useSuspenseQuery` when the nearest Suspense boundary should define the loading UI. Keep the interactive shell outside the boundary so it remains available while the results load:
 
 ```tsx filename="app/product-autocomplete.tsx"
 'use client'
@@ -151,7 +151,9 @@ function ProductResults({ query }: { query: string }) {
 
 If the initial request fails, `useSuspenseQuery` propagates the error to the nearest [error boundary](/docs/app/getting-started/error-handling#nested-error-boundaries).
 
-Suspense queries work well when the request starts after a client interaction. If the initial server render needs the data, provide it from a Server Component as shown below.
+After a query has data, later refetches for the same query keep the cached data rendered instead of showing the Suspense fallback again. Use `isFetching` to provide background refresh feedback.
+
+If the initial server render needs the data, provide it from a Server Component as shown below.
 
 > **Good to know:** Multiple `useSuspenseQuery` calls in one component run sequentially. Put independent queries in sibling components, or use [`useSuspenseQueries`](https://tanstack.com/query/latest/docs/framework/react/reference/useSuspenseQueries). Learn more about [request waterfalls](https://tanstack.com/query/latest/docs/framework/react/guides/request-waterfalls).
 
@@ -402,24 +404,21 @@ export const activityCache = {
 }
 ```
 
-On mutation, use `useMutation`'s [`onMutate`](https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates) callback to update the cache immediately, restore the previous value in `onError` if the write fails, and commit the value returned by the write:
+On mutation, use `useMutation`'s [`onMutate`](https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates) callback to update the cache immediately and restore the previous value in `onError` if the write fails. This example keeps the optimistic value after the action succeeds because the final value is known:
 
-```tsx filename="app/activity/mark-read.tsx" switcher
+```tsx filename="app/activity/mark-read-button.tsx" switcher
 'use client'
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { markActivityReadAction } from './actions'
 import { activityCache } from './activity-cache'
 
-export function useMarkActivityRead() {
+export function MarkReadButton() {
   const queryClient = useQueryClient()
   const queryKey = activityCache.key
 
-  return useMutation({
-    mutationFn: async () => {
-      const response = await fetch('/api/activity/read', { method: 'POST' })
-      if (!response.ok) throw new Error('Failed to mark activity as read')
-      return response.json()
-    },
+  const markRead = useMutation({
+    mutationFn: markActivityReadAction,
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey })
       const previous = queryClient.getQueryData(queryKey)
@@ -429,29 +428,25 @@ export function useMarkActivityRead() {
     onError: (_error, _variables, context) => {
       queryClient.setQueryData(queryKey, context?.previous)
     },
-    onSuccess: (activity) => {
-      queryClient.setQueryData(queryKey, activity)
-    },
   })
+
+  return <button onClick={() => markRead.mutate()}>Mark read</button>
 }
 ```
 
-```jsx filename="app/activity/mark-read.js" switcher
+```jsx filename="app/activity/mark-read-button.js" switcher
 'use client'
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { markActivityReadAction } from './actions'
 import { activityCache } from './activity-cache'
 
-export function useMarkActivityRead() {
+export function MarkReadButton() {
   const queryClient = useQueryClient()
   const queryKey = activityCache.key
 
-  return useMutation({
-    mutationFn: async () => {
-      const response = await fetch('/api/activity/read', { method: 'POST' })
-      if (!response.ok) throw new Error('Failed to mark activity as read')
-      return response.json()
-    },
+  const markRead = useMutation({
+    mutationFn: markActivityReadAction,
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey })
       const previous = queryClient.getQueryData(queryKey)
@@ -461,44 +456,51 @@ export function useMarkActivityRead() {
     onError: (_error, _variables, context) => {
       queryClient.setQueryData(queryKey, context?.previous)
     },
-    onSuccess: (activity) => {
-      queryClient.setQueryData(queryKey, activity)
-    },
   })
+
+  return <button onClick={() => markRead.mutate()}>Mark read</button>
 }
 ```
 
-The Route Handler writes to the database and revalidates the tagged server data with [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag). Tag the cached server query with [`cacheTag`](/docs/app/api-reference/functions/cacheTag) so the tag matches:
+The Server Action writes to the database and expires the tagged server data with [`updateTag`](/docs/app/api-reference/functions/updateTag). Tag the cached server query with [`cacheTag`](/docs/app/api-reference/functions/cacheTag) so the tag matches:
 
-```ts filename="app/api/activity/read/route.ts" switcher
-import { revalidateTag } from 'next/cache'
-import { markActivityRead, getCurrentUserId } from '../../../activity/data'
-import { activityCache } from '../../../activity/activity-cache'
+```ts filename="app/activity/actions.ts" switcher
+'use server'
 
-export async function POST() {
+import { updateTag } from 'next/cache'
+import {
+  getCurrentUserId,
+  markActivityRead as markActivityReadInDatabase,
+} from './data'
+import { activityCache } from './activity-cache'
+
+export async function markActivityReadAction() {
   const userId = await getCurrentUserId()
-  await markActivityRead(userId)
-  revalidateTag(activityCache.tag(userId), { expire: 0 })
-  return Response.json({ count: 0 })
+  await markActivityReadInDatabase(userId)
+  updateTag(activityCache.tag(userId))
 }
 ```
 
-```js filename="app/api/activity/read/route.js" switcher
-import { revalidateTag } from 'next/cache'
-import { markActivityRead, getCurrentUserId } from '../../../activity/data'
-import { activityCache } from '../../../activity/activity-cache'
+```js filename="app/activity/actions.js" switcher
+'use server'
 
-export async function POST() {
+import { updateTag } from 'next/cache'
+import {
+  getCurrentUserId,
+  markActivityRead as markActivityReadInDatabase,
+} from './data'
+import { activityCache } from './activity-cache'
+
+export async function markActivityReadAction() {
   const userId = await getCurrentUserId()
-  await markActivityRead(userId)
-  revalidateTag(activityCache.tag(userId), { expire: 0 })
-  return Response.json({ count: 0 })
+  await markActivityReadInDatabase(userId)
+  updateTag(activityCache.tag(userId))
 }
 ```
 
-The optimistic query value updates the current screen. The `{ expire: 0 }` option ensures the next cached server read returns fresh activity.
+The optimistic query value updates the current screen. `updateTag` ensures the next cached server read returns fresh activity.
 
-> **Good to know:** Use `revalidateTag` when the server read that provides the initial data uses [`use cache`](/docs/app/api-reference/directives/use-cache) and `cacheTag`. Omit `revalidateTag` for an uncached read because each server render already reads fresh data. See [Client-side data fetching](/docs/app/guides/client-side-data-fetching#coordinate-mutations) to choose an invalidation behavior.
+> **Good to know:** Call `updateTag` when a Server Action changes a cached read that must reflect the write immediately. An uncached read does not have a server tag to update. See [Client-side data fetching](/docs/app/guides/client-side-data-fetching#coordinate-mutations) for other invalidation behaviors.
 
 ## Build a prerenderable hydration state
 

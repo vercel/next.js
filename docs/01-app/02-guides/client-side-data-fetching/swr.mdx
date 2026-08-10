@@ -10,14 +10,14 @@ related:
     - app/getting-started/caching
     - app/api-reference/directives/use-cache
     - app/api-reference/file-conventions/route
-    - app/api-reference/functions/revalidateTag
+    - app/api-reference/functions/updateTag
 ---
 
 Use [SWR](https://swr.vercel.app) to fetch data in Client Components, provide initial data from Server Components, and coordinate browser mutations with cached server data. See [Client-side data fetching](/docs/app/guides/client-side-data-fetching) to choose a pattern.
 
 ## Fetch data on the client
 
-SWR can fetch entirely in the browser when the server-rendered response does not need the result. Choose an [inline or Suspense loading state](/docs/app/guides/client-side-data-fetching#choose-a-client-fetching-pattern) based on which UI should stay visible. In these examples, `query` starts empty and updates from client state after hydration.
+SWR can fetch entirely in the browser when the server-rendered response does not need the result. Choose an [inline or Suspense loading state](/docs/app/guides/client-side-data-fetching#choose-a-client-fetching-pattern) based on where the loading UI should appear. In these examples, `query` starts empty and updates from client state after hydration.
 
 Use `useSWR` when the component should render its own loading and error states. A conditional key delays the request until the interaction provides an input:
 
@@ -60,7 +60,7 @@ export function ProductAutocomplete({ query }: { query: string }) {
 
 ## Use Suspense for client data
 
-Use `suspense: true` when the nearest Suspense boundary should own the loading state. Keep the interactive shell outside the boundary so it remains available while the results load:
+Use `suspense: true` when the nearest Suspense boundary should define the loading UI. Keep the interactive shell outside the boundary so it remains available while the results load:
 
 ```tsx filename="app/product-autocomplete.tsx"
 'use client'
@@ -105,11 +105,13 @@ function ProductResults({ query }: { query: string }) {
 
 With an unconditional key, SWR defines `data` after Suspense resolves. Handle request errors with the nearest [error boundary](/docs/app/getting-started/error-handling#nested-error-boundaries).
 
-The `isLoading` value is `true` when a request is running and there is no loaded data to display. The `isValidating` value is `true` whenever a request is running, including background revalidation. With `suspense: true`, Suspense handles the no-data loading state, while `isValidating` can still provide background refresh feedback. Learn more about [SWR loading states](https://swr.vercel.app/docs/advanced/understanding#combining-with-isloading-and-isvalidating-for-better-ux).
+The `isLoading` value is `true` when a request is running and there is no loaded data to display. The `isValidating` value is `true` whenever a request is running, including background revalidation.
+
+With `suspense: true`, Suspense handles the initial no-data state. Later revalidation for the same key keeps the current data rendered instead of showing the Suspense fallback again. Use `isValidating` to provide background refresh feedback. Learn more about [SWR loading states](https://swr.vercel.app/docs/advanced/understanding#combining-with-isloading-and-isvalidating-for-better-ux).
 
 Learn more: [SWR data fetching](https://swr.vercel.app/docs/data-fetching).
 
-> **Good to know:** Suspense reads in one component run sequentially. Put independent reads in sibling components. Learn more about [network waterfalls](/docs/app/guides/migrating/from-create-react-app#network-waterfalls) and [SWR Suspense](https://swr.vercel.app/docs/suspense).
+> **Good to know:** Independent Suspense reads can start in parallel when they render in sibling components. Multiple Suspense reads in one component run sequentially. Learn more about [network waterfalls](/docs/app/guides/migrating/from-create-react-app#network-waterfalls) and [SWR Suspense](https://swr.vercel.app/docs/suspense).
 
 ## Provide initial data from a Server Component
 
@@ -327,24 +329,24 @@ export const activityCache = {
 }
 ```
 
-Use the same key for the fallback, the Client Component read, and the mutation. With SWR, pass the write to [`mutate`](https://swr.vercel.app/docs/mutation) and provide `optimisticData`. SWR shows the optimistic value immediately, replaces it with the response, and rolls it back if the write fails:
+Use the same key for the fallback, the Client Component read, and the mutation. With SWR, pass the write to [`mutate`](https://swr.vercel.app/docs/mutation) and provide `optimisticData`. SWR shows the optimistic value immediately and rolls it back if the write fails. This example keeps the optimistic value after the action succeeds because the final value is known:
 
-```tsx filename="app/activity/mark-read.tsx" switcher
+```tsx filename="app/activity/mark-read-button.tsx" switcher
 'use client'
 
 import { useSWRConfig } from 'swr'
+import { markActivityReadAction } from './actions'
 import { activityCache } from './activity-cache'
 
-export function useMarkActivityRead() {
+export function MarkReadButton() {
   const { mutate } = useSWRConfig()
 
-  return () =>
-    mutate(
+  function markRead() {
+    return mutate(
       activityCache.key,
       async () => {
-        const response = await fetch('/api/activity/read', { method: 'POST' })
-        if (!response.ok) throw new Error('Failed to mark activity as read')
-        return response.json()
+        await markActivityReadAction()
+        return { count: 0 }
       },
       {
         optimisticData: { count: 0 },
@@ -352,25 +354,28 @@ export function useMarkActivityRead() {
         rollbackOnError: true,
       }
     )
+  }
+
+  return <button onClick={markRead}>Mark read</button>
 }
 ```
 
-```jsx filename="app/activity/mark-read.js" switcher
+```jsx filename="app/activity/mark-read-button.js" switcher
 'use client'
 
 import { useSWRConfig } from 'swr'
+import { markActivityReadAction } from './actions'
 import { activityCache } from './activity-cache'
 
-export function useMarkActivityRead() {
+export function MarkReadButton() {
   const { mutate } = useSWRConfig()
 
-  return () =>
-    mutate(
+  function markRead() {
+    return mutate(
       activityCache.key,
       async () => {
-        const response = await fetch('/api/activity/read', { method: 'POST' })
-        if (!response.ok) throw new Error('Failed to mark activity as read')
-        return response.json()
+        await markActivityReadAction()
+        return { count: 0 }
       },
       {
         optimisticData: { count: 0 },
@@ -378,39 +383,50 @@ export function useMarkActivityRead() {
         rollbackOnError: true,
       }
     )
+  }
+
+  return <button onClick={markRead}>Mark read</button>
 }
 ```
 
-The Route Handler writes to the database and revalidates the tagged server data with [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag). Tag the cached server query with [`cacheTag`](/docs/app/api-reference/functions/cacheTag) so the tag matches:
+The Server Action writes to the database and expires the tagged server data with [`updateTag`](/docs/app/api-reference/functions/updateTag). Tag the cached server query with [`cacheTag`](/docs/app/api-reference/functions/cacheTag) so the tag matches:
 
-```ts filename="app/api/activity/read/route.ts" switcher
-import { revalidateTag } from 'next/cache'
-import { markActivityRead, getCurrentUserId } from '../../../activity/data'
-import { activityCache } from '../../../activity/activity-cache'
+```ts filename="app/activity/actions.ts" switcher
+'use server'
 
-export async function POST() {
+import { updateTag } from 'next/cache'
+import {
+  getCurrentUserId,
+  markActivityRead as markActivityReadInDatabase,
+} from './data'
+import { activityCache } from './activity-cache'
+
+export async function markActivityReadAction() {
   const userId = await getCurrentUserId()
-  await markActivityRead(userId)
-  revalidateTag(activityCache.tag(userId), { expire: 0 })
-  return Response.json({ count: 0 })
+  await markActivityReadInDatabase(userId)
+  updateTag(activityCache.tag(userId))
 }
 ```
 
-```js filename="app/api/activity/read/route.js" switcher
-import { revalidateTag } from 'next/cache'
-import { markActivityRead, getCurrentUserId } from '../../../activity/data'
-import { activityCache } from '../../../activity/activity-cache'
+```js filename="app/activity/actions.js" switcher
+'use server'
 
-export async function POST() {
+import { updateTag } from 'next/cache'
+import {
+  getCurrentUserId,
+  markActivityRead as markActivityReadInDatabase,
+} from './data'
+import { activityCache } from './activity-cache'
+
+export async function markActivityReadAction() {
   const userId = await getCurrentUserId()
-  await markActivityRead(userId)
-  revalidateTag(activityCache.tag(userId), { expire: 0 })
-  return Response.json({ count: 0 })
+  await markActivityReadInDatabase(userId)
+  updateTag(activityCache.tag(userId))
 }
 ```
 
-The optimistic SWR value updates the current screen. The `{ expire: 0 }` option ensures the next cached server read returns fresh activity.
+The optimistic SWR value updates the current screen. `updateTag` ensures the next cached server read returns fresh activity.
 
-> **Good to know:** Use `revalidateTag` when the server read that provides the fallback uses [`use cache`](/docs/app/api-reference/directives/use-cache) and `cacheTag`. Omit `revalidateTag` for an uncached read because each server render already reads fresh data. See [Client-side data fetching](/docs/app/guides/client-side-data-fetching#coordinate-mutations) to choose an invalidation behavior.
+> **Good to know:** Call `updateTag` when a Server Action changes a cached read that must reflect the write immediately. An uncached read does not have a server tag to update. See [Client-side data fetching](/docs/app/guides/client-side-data-fetching#coordinate-mutations) for other invalidation behaviors.
 
 See the [live `next-spa-patterns` demo](https://next-spa-patterns.labs.vercel.dev/swr) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/swr). Learn more about [SWR mutation and optimistic updates](https://swr.vercel.app/docs/mutation) and the [SWR documentation](https://swr.vercel.app/docs/getting-started).

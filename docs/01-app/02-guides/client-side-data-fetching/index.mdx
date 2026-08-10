@@ -10,36 +10,27 @@ related:
     - app/getting-started/caching
 ---
 
-Many apps can provide responsive interactions without a client data-fetching library. See [Building interactive apps](/docs/app/guides/interactive-apps) for patterns using Server Functions, transitions, optimistic UI, and pending feedback.
+Many apps can provide responsive interactions without a client data-fetching library. If a Client Component only needs to read server data once, [pass it a Promise and unwrap it with React's `use()`](/docs/app/getting-started/fetching-data#streaming-data-with-the-use-api).
 
-Use a client data-fetching library such as [SWR](https://swr.vercel.app), [TanStack Query](https://tanstack.com/query), or [Apollo Client](https://www.apollographql.com/docs/react) when a Client Component needs features such as focus revalidation, interval polling, mutations, or request deduplication.
+This avoids adding a library for data that never revalidates on the client. See [Building interactive apps](/docs/app/guides/interactive-apps) for patterns using Server Functions, transitions, optimistic UI, and pending feedback.
+
+Use a client data-fetching library such as [SWR](https://swr.vercel.app), [TanStack Query](https://tanstack.com/query), or [Apollo Client](https://www.apollographql.com/docs/react) when Client Components need a shared browser cache. These libraries can add focus revalidation, interval polling, request deduplication, or optimistic updates across components.
 
 ## Choose a client fetching pattern
 
-Client data-fetching libraries support three common patterns:
+First decide whether the initial view needs data from the server or can wait for a browser request after hydration. Client data-fetching libraries support three common patterns:
 
-| Pattern                 | SWR                            | TanStack Query        | Initial data                                   |
-| ----------------------- | ------------------------------ | --------------------- | ---------------------------------------------- |
-| Inline loading states   | `useSWR`                       | `useQuery`            | Fetched in the browser after hydration         |
-| Suspense loading states | `useSWR` with `suspense: true` | `useSuspenseQuery`    | Fetched in the browser after hydration         |
-| Provided by the server  | `<SWRConfig fallback>`         | `<HydrationBoundary>` | Included in the React Server Component payload |
+| Pattern                 | SWR                            | TanStack Query        | When data becomes available            |
+| ----------------------- | ------------------------------ | --------------------- | -------------------------------------- |
+| Inline loading states   | `useSWR`                       | `useQuery`            | Browser request after hydration        |
+| Suspense loading states | `useSWR` with `suspense: true` | `useSuspenseQuery`    | Browser request after hydration        |
+| Provided by the server  | `<SWRConfig fallback>`         | `<HydrationBoundary>` | Initial render or streamed from server |
 
-Use inline loading states when the component should stay rendered while it fetches, or when several independent queries in one component should start together. Use [Suspense](/docs/app/getting-started/fetching-data#streaming) when the surrounding UI has a suitable fallback and [error boundary](/docs/app/getting-started/error-handling#nested-error-boundaries).
+Use inline loading states when each component should render its own loading UI. Use [Suspense](/docs/app/getting-started/fetching-data#streaming) to define loading UI at a boundary and coordinate which parts of the interface reveal together or progressively. For client-only fetching, choose the pattern that matches the loading experience you want. Suspense coordinates rendering, while the data library and component structure determine when requests start.
 
 For browser-driven interactions such as autocomplete, you can use either client-only pattern. The initial result waits for hydration and a browser request, which is often the right tradeoff for data that is not needed until an interaction.
 
-Provide initial data from a [Server Component](/docs/app/getting-started/server-and-client-components) when the server knows what the initial render needs. The library receives that value in the React Server Component payload and can continue managing it in the browser.
-
-Choose a pattern based on whether the Client Component needs server-rendered data, streaming, or client-side cache features:
-
-| Capability            | Client-only library | Server Component    | Server data + client library |
-| --------------------- | ------------------- | ------------------- | ---------------------------- |
-| Server-rendered data  | <Cross size={18} /> | <Check size={18} /> | <Check size={18} />          |
-| Streaming             | <Cross size={18} /> | <Check size={18} /> | <Check size={18} />          |
-| Request deduplication | <Check size={18} /> | <Check size={18} /> | <Check size={18} />          |
-| Client cache features | <Check size={18} /> | <Cross size={18} /> | <Check size={18} />          |
-
-If a Client Component only needs to read server data once, pass it a Promise and unwrap it with React's [`use()`](https://react.dev/reference/react/use). This avoids adding a data-fetching library for data that never revalidates on the client.
+Provide initial data from a [Server Component](/docs/app/getting-started/server-and-client-components) when the server knows what the initial render needs. The value can be included in the initial render or streamed through Suspense. The library receives it in the React Server Component payload and can continue managing it in the browser.
 
 ## Cache server data with Cache Components (optional)
 
