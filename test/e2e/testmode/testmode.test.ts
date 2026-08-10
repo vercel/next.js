@@ -1,3 +1,5 @@
+import net from 'node:net'
+import type { AddressInfo } from 'node:net'
 import { nextTestSetup } from 'e2e-utils'
 import { createProxyServer } from 'next/experimental/testmode/proxy'
 
@@ -92,6 +94,29 @@ describe('testmode', () => {
     it('should handle API with fetch in edge function', async () => {
       const json = await (await fetchForTest('/api/fetch-edge')).json()
       expect(json.text).toEqual('test1')
+    })
+
+    it('should allow raw TCP sockets while testProxy is enabled', async () => {
+      const echo = net.createServer((socket) => {
+        socket.on('data', (data) => {
+          socket.write(data)
+        })
+      })
+      await new Promise<void>((resolve) => {
+        echo.listen(0, '127.0.0.1', resolve)
+      })
+      const port = (echo.address() as AddressInfo).port
+
+      try {
+        const json = await (
+          await next.fetch(`/api/raw-tcp?port=${port}`)
+        ).json()
+        expect(json.reply).toEqual('ping')
+      } finally {
+        await new Promise<void>((resolve, reject) => {
+          echo.close((error) => (error ? reject(error) : resolve()))
+        })
+      }
     })
   })
 
