@@ -432,16 +432,21 @@ function useDrag(options: UseDragOptions) {
   function onPointerUp() {
     const velocity = calculateVelocity(velocities.current)
 
+    const wasDragging = machine.current.state === 'drag'
+
     cancel()
 
-    // Suppress the synthetic click that follows a touch drag to prevent
-    // accidental activation of the indicator's toggle.
-    if (postDragCooldown.current !== null) {
-      clearTimeout(postDragCooldown.current)
+    // Suppress the synthetic click that follows a drag to prevent accidental
+    // activation of the indicator's toggle. Only do this when an actual drag
+    // occurred, otherwise a plain click/tap would be swallowed by `onClick`.
+    if (wasDragging) {
+      if (postDragCooldown.current !== null) {
+        clearTimeout(postDragCooldown.current)
+      }
+      postDragCooldown.current = setTimeout(() => {
+        postDragCooldown.current = null
+      }, 300)
     }
-    postDragCooldown.current = setTimeout(() => {
-      postDragCooldown.current = null
-    }, 300)
 
     // TODO: This is the onDragEnd when the pointerdown event was fired not the onDragEnd when the pointerup event was fired
     options.onDragEnd?.(translation.current, velocity)
