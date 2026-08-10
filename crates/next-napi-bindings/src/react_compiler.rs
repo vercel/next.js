@@ -24,7 +24,7 @@ impl Task for CheckTask {
             //
             let cm = Arc::new(SourceMap::default());
             let Ok(fm) = cm.load_file(&self.filename) else {
-                return Ok(true);
+                return Ok(false);
             };
             let mut errors = vec![];
             let Ok(program) = parse_file_as_program(
@@ -37,9 +37,11 @@ impl Task for CheckTask {
                 None,
                 &mut errors,
             ) else {
-                return Ok(true);
+                return Ok(false);
             };
             if !errors.is_empty() {
+                // SWC recovered an AST, so the source may still be accepted by Babel. Keep the
+                // compiler enabled rather than turning a parser difference into a false negative.
                 return Ok(true);
             }
 

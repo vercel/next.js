@@ -8,7 +8,10 @@ use swc_core::{
     base::SwcComments,
     common::{Mark, SourceMap, comments::Comments},
     ecma::{
-        ast::{ExprStmt, ModuleItem, Pass, Program, Stmt},
+        ast::{
+            ArrowExpr, BlockStmtOrExpr, Expr, ExprStmt, Function, Lit, ModuleItem, Pass, Program,
+            Stmt,
+        },
         preset_env::{self, Feature, FeatureOrModule, Targets},
         transforms::{
             base::{
@@ -19,6 +22,7 @@ use swc_core::{
             typescript::{Config, typescript},
         },
         utils::IsDirective,
+        visit::{Visit, VisitWith},
     },
     quote,
 };
@@ -447,12 +451,87 @@ impl Issue for ReactCompilerIssue {
     }
 }
 
+// Keep this in sync with React Compiler's annotation-mode opt-ins. Next.js does not configure
+// `dynamic_gating`, so only the standard `use memo` and legacy `use forget` directives enable a
+// function.
+fn has_react_compiler_opt_in_directive(statements: &[Stmt]) -> bool {
+    for statement in statements {
+        if !statement.directive_continue() {
+            break;
+        }
+
+        let Stmt::Expr(expression) = statement else {
+            continue;
+        };
+        let Expr::Lit(Lit::Str(value)) = &*expression.expr else {
+            continue;
+        };
+        if value
+            .value
+            .as_str()
+            .is_some_and(|value| matches!(value, "use memo" | "use forget"))
+        {
+            return true;
+        }
+    }
+
+    false
+}
+
+#[derive(Default)]
+struct ReactCompilerAnnotationFinder {
+    found: bool,
+}
+
+impl Visit for ReactCompilerAnnotationFinder {
+    fn visit_arrow_expr(&mut self, node: &ArrowExpr) {
+        if self.found {
+            return;
+        }
+        if let BlockStmtOrExpr::BlockStmt(body) = &*node.body
+            && has_react_compiler_opt_in_directive(&body.stmts)
+        {
+            self.found = true;
+            return;
+        }
+
+        node.visit_children_with(self);
+    }
+
+    fn visit_function(&mut self, node: &Function) {
+        if self.found {
+            return;
+        }
+        if node
+            .body
+            .as_ref()
+            .is_some_and(|body| has_react_compiler_opt_in_directive(&body.stmts))
+        {
+            self.found = true;
+            return;
+        }
+
+        node.visit_children_with(self);
+    }
+}
+
+fn has_react_compiler_annotation(program: &Program) -> bool {
+    let mut finder = ReactCompilerAnnotationFinder::default();
+    finder.visit_program(program);
+    finder.found
+}
+
 fn should_run_rust_react_compiler(
     program: &Program,
     compilation_mode: ReactCompilerCompilationMode,
 ) -> bool {
-    !matches!(compilation_mode, ReactCompilerCompilationMode::Infer)
-        || swc_ecma_react_compiler::fast_check::is_required(program)
+    match compilation_mode {
+        ReactCompilerCompilationMode::Infer => {
+            swc_ecma_react_compiler::fast_check::is_required(program)
+        }
+        ReactCompilerCompilationMode::Annotation => has_react_compiler_annotation(program),
+        ReactCompilerCompilationMode::All => true,
+    }
 }
 
 async fn apply_rust_react_compiler(
@@ -466,9 +545,9 @@ async fn apply_rust_react_compiler(
         return Ok(helpers);
     };
 
-    // Match the legacy React Compiler loader: in infer mode, avoid invoking the compiler for
-    // modules that cannot contain a component or hook. The detector runs on the SWC AST we
-    // already parsed, so this is cheaper than converting every module to the compiler AST.
+    // Avoid invoking the compiler when the selected mode cannot change this module. These checks
+    // run on the SWC AST we already parsed, before converting it to the compiler AST. `All` mode
+    // remains unconditional because every function is eligible.
     if !should_run_rust_react_compiler(program, compilation_mode) {
         return Ok(helpers);
     }
@@ -636,24 +715,22 @@ mod react_compiler_tests {
     }
 
     #[test]
-    fn infer_mode_skips_ineligible_modules_without_affecting_explicit_modes() {
+    fn compilation_modes_use_their_respective_fast_checks() {
         let program = Program::Module(Module {
             span: DUMMY_SP,
             body: Vec::new(),
             shebang: None,
         });
 
-        assert!(!should_run_rust_react_compiler(
-            &program,
-            ReactCompilerCompilationMode::Infer
-        ));
+        for mode in [
+            ReactCompilerCompilationMode::Infer,
+            ReactCompilerCompilationMode::Annotation,
+        ] {
+            assert!(!should_run_rust_react_compiler(&program, mode));
+        }
         assert!(should_run_rust_react_compiler(
             &program,
-            ReactCompilerCompilationMode::Annotation
-        ));
-        assert!(should_run_rust_react_compiler(
-            &program,
-            ReactCompilerCompilationMode::All
+            ReactCompilerCompilationMode::All,
         ));
     }
 
@@ -678,6 +755,47 @@ mod react_compiler_tests {
             assert!(!should_run_rust_react_compiler(
                 &parse_program(source),
                 ReactCompilerCompilationMode::Infer
+            ));
+        }
+    }
+
+    #[test]
+    fn annotation_mode_only_runs_for_function_opt_in_directives() {
+        for source in [
+            "function helper() { 'use memo'; return 1; }",
+            "const helper = () => { 'use forget'; return 1; };",
+            "function outer() { function inner() { 'use memo'; return 1; } }",
+        ] {
+            assert!(should_run_rust_react_compiler(
+                &parse_program(source),
+                ReactCompilerCompilationMode::Annotation,
+            ));
+        }
+
+        for source in [
+            "function Component() { return <div />; }",
+            "function useCounter() { return useState(0); }",
+            "function helper() { log(); 'use memo'; }",
+            "'use memo'; export const answer = 42;",
+            "function helper() { 'use memo if(featureFlag)'; return 1; }",
+            "function helper() { 'use no memo'; return 1; }",
+        ] {
+            assert!(!should_run_rust_react_compiler(
+                &parse_program(source),
+                ReactCompilerCompilationMode::Annotation,
+            ));
+        }
+    }
+
+    #[test]
+    fn all_mode_remains_unconditional() {
+        for source in [
+            "export const answer = 42;",
+            "function helper() { return 1; }",
+        ] {
+            assert!(should_run_rust_react_compiler(
+                &parse_program(source),
+                ReactCompilerCompilationMode::All,
             ));
         }
     }
