@@ -9,6 +9,7 @@ import type { MiddlewareManifest } from '../../../build/webpack/plugins/middlewa
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
 import type { PatchMatcher } from '../../../shared/lib/router/utils/path-match'
 import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/middleware-route-matcher'
+import type { __ApiPreviewProps } from '../../api-utils'
 
 import path from 'path'
 import fs from 'fs/promises'
@@ -105,6 +106,27 @@ export const buildCustomRoute = <T>(
   }
 }
 
+// Measured retained cost of a cache entry beyond its strings (LRUNode,
+// Map slot, string header): ~120 bytes. Counting it keeps the entry count
+// bounded even when keys are short, so the budget approximates retained
+// bytes.
+const FS_LRU_ENTRY_OVERHEAD = 128
+const FS_LRU_MAX_SIZE = 8 * 1024 * 1024
+
+// The pathname passed to getItem is usually a V8 slice of the full request
+// URL, and a sliced string retains its parent — including the query string —
+// for as long as the cache holds the key. Store a flat copy instead.
+// The JSON round-trip returns an equal string for every input (unlike a
+// Buffer round-trip, which replaces lone surrogates), so distinct keys can
+// never collide on the stored copy.
+function flatKeyCopy(key: string): string {
+  return JSON.parse(JSON.stringify(key))
+}
+
+// Cached result for paths that resolve to nothing. Not null, so that a
+// cached miss can't be conflated with an uncached key (undefined).
+const notFound = Symbol('not-found')
+
 export async function setupFsCheck(opts: {
   dir: string
   dev: boolean
@@ -112,9 +134,17 @@ export async function setupFsCheck(opts: {
   config: NextConfigRuntime
 }) {
   const getItemsLru = !opts.dev
-    ? new LRUCache<FsOutput | null>(1024 * 1024, function length(value) {
-        if (!value) return 0
+    ? new LRUCache<FsOutput | typeof notFound>(FS_LRU_MAX_SIZE, function length(
+        value,
+        key
+      ) {
+        const size = FS_LRU_ENTRY_OVERHEAD + key.length
+        if (value === notFound) {
+          // Negative cache entries only retain their key.
+          return size
+        }
         return (
+          size +
           (value.fsPath || '').length +
           value.itemPath.length +
           value.type.length
@@ -156,10 +186,11 @@ export async function setupFsCheck(opts: {
       afterFiles: [],
       fallback: [],
     },
+    onMatchHeaders: [],
     headers: [],
   }
   let buildId = 'development'
-  let prerenderManifest: PrerenderManifest
+  let previewProps: __ApiPreviewProps
 
   if (!opts.dev) {
     const buildIdPath = path.join(opts.dir, opts.config.distDir, BUILD_ID_FILE)
@@ -230,9 +261,11 @@ export async function setupFsCheck(opts: {
       await fs.readFile(routesManifestPath, 'utf8')
     ) as RoutesManifest
 
-    prerenderManifest = JSON.parse(
-      await fs.readFile(prerenderManifestPath, 'utf8')
-    ) as PrerenderManifest
+    previewProps = (
+      JSON.parse(
+        await fs.readFile(prerenderManifestPath, 'utf8')
+      ) as PrerenderManifest
+    ).preview
 
     const middlewareManifest = JSON.parse(
       await fs.readFile(middlewareManifestPath, 'utf8').catch(() => '{}')
@@ -334,31 +367,34 @@ export async function setupFsCheck(opts: {
             fallback: [],
           },
       headers: routesManifest.headers,
+      onMatchHeaders: routesManifest.onMatchHeaders,
     }
   } else {
     // dev handling
     customRoutes = await loadCustomRoutes(opts.config)
 
-    prerenderManifest = {
-      version: 4,
-      routes: {},
-      dynamicRoutes: {},
-      notFoundRoutes: [],
-      preview: {
-        previewModeId: (require('crypto') as typeof import('crypto'))
-          .randomBytes(16)
-          .toString('hex'),
-        previewModeSigningKey: (require('crypto') as typeof import('crypto'))
-          .randomBytes(32)
-          .toString('hex'),
-        previewModeEncryptionKey: (require('crypto') as typeof import('crypto'))
-          .randomBytes(32)
-          .toString('hex'),
-      },
+    previewProps = {
+      previewModeId: (require('crypto') as typeof import('crypto'))
+        .randomBytes(16)
+        .toString('hex'),
+      previewModeSigningKey: (require('crypto') as typeof import('crypto'))
+        .randomBytes(32)
+        .toString('hex'),
+      previewModeEncryptionKey: (require('crypto') as typeof import('crypto'))
+        .randomBytes(32)
+        .toString('hex'),
     }
   }
 
   const headers = customRoutes.headers.map((item) =>
+    buildCustomRoute(
+      'header',
+      item,
+      opts.config.basePath,
+      opts.config.experimental.caseSensitiveRoutes
+    )
+  )
+  const onMatchHeaders = customRoutes.onMatchHeaders.map((item) =>
     buildCustomRoute(
       'header',
       item,
@@ -428,6 +464,7 @@ export async function setupFsCheck(opts: {
 
   return {
     headers,
+    onMatchHeaders,
     rewrites,
     redirects,
 
@@ -446,7 +483,7 @@ export async function setupFsCheck(opts: {
 
     devVirtualFsItems: new Set<string>(),
 
-    prerenderManifest,
+    previewProps,
     middlewareMatcher: middlewareMatcher as MiddlewareRouteMatch | undefined,
 
     ensureCallback(fn: typeof ensureFn) {
@@ -458,8 +495,8 @@ export async function setupFsCheck(opts: {
       const itemKey = originalItemPath
       const lruResult = getItemsLru?.get(itemKey)
 
-      if (lruResult) {
-        return lruResult
+      if (lruResult !== undefined) {
+        return lruResult === notFound ? null : lruResult
       }
 
       const { basePath } = opts.config
@@ -712,15 +749,17 @@ export async function setupFsCheck(opts: {
             fsPath,
             locale,
             itemsRoot,
-            itemPath: curItemPath,
+            // itemPath is usually a slice of the request URL too; keep a
+            // flat copy so the cached value doesn't retain the full URL.
+            itemPath: flatKeyCopy(curItemPath),
           }
 
-          getItemsLru?.set(itemKey, itemResult)
+          getItemsLru?.set(flatKeyCopy(itemKey), itemResult)
           return itemResult
         }
       }
 
-      getItemsLru?.set(itemKey, null)
+      getItemsLru?.set(flatKeyCopy(itemKey), notFound)
       return null
     },
     getDynamicRoutes() {

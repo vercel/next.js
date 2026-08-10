@@ -41,11 +41,11 @@ describe('parse line numbers', () => {
       isErroredLine: true,
     })
 
-    // Line of ^ marker
+    // Line of ^ marker — no line number on this line, return undefined.
     expect(
       parseLineNumberFromCodeFrameLine(decodedLines[2], input.stackFrame)
     ).toEqual({
-      lineNumber: '',
+      lineNumber: undefined,
       isErroredLine: false,
     })
   })

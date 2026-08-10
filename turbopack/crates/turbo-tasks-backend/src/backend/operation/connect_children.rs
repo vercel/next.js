@@ -6,13 +6,10 @@ use turbo_tasks::{
     util::{good_chunk_size, into_chunks},
 };
 
-use crate::{
-    backend::operation::{
-        AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext, ExecuteContext,
-        Operation, TaskGuard, aggregation_update::InnerOfUppersHasNewFollowersJob,
-        get_aggregation_number, get_uppers, is_aggregating_node,
-    },
-    data::{CachedDataItem, CachedDataItemType},
+use crate::backend::operation::{
+    AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext, ExecuteContext, Operation,
+    TaskGuard, aggregation_update::InnerOfUppersHasNewFollowersJob, get_aggregation_number,
+    get_uppers, is_aggregating_node,
 };
 
 pub fn connect_children(
@@ -27,12 +24,13 @@ pub fn connect_children(
 
     let parent_aggregation = get_aggregation_number(&parent_task);
 
-    parent_task.extend_new(
-        CachedDataItemType::Child,
-        new_children.iter().map(|&new_child| CachedDataItem::Child {
-            task: new_child,
-            value: (),
-        }),
+    let old_children = parent_task.children_len();
+    parent_task.extend_children(new_children.iter().copied());
+    debug_assert!(
+        old_children + new_children.len() == parent_task.children_len(),
+        "Attempted to connect {len} new children, but some of them were already present in \
+         {parent_task_id}",
+        len = new_children.len()
     );
 
     let new_follower_ids: SmallVec<_> = new_children.into_iter().collect();
@@ -111,8 +109,18 @@ pub fn connect_children(
         }
 
         {
-            #[cfg(feature = "trace_task_completion")]
-            let _span = tracing::trace_span!("connect new children").entered();
+            #[cfg(any(
+                feature = "trace_task_completion",
+                feature = "trace_aggregation_update_stats"
+            ))]
+            let _span = tracing::trace_span!("connect new children", stats = tracing::field::Empty)
+                .entered();
+            #[cfg(feature = "trace_aggregation_update_stats")]
+            {
+                let stats = queue.execute_with_stats(ctx);
+                _span.record("stats", tracing::field::debug(stats));
+            }
+            #[cfg(not(feature = "trace_aggregation_update_stats"))]
             queue.execute(ctx);
         }
     }
@@ -125,10 +133,10 @@ pub fn connect_children(
     // This avoids long pauses of more than 30µs * 10k = 300ms.
     // We don't want to parallelize too eagerly as spawning tasks and the temporary allocations have
     // a cost as well.
-    const MIN_CHILDREN_FOR_PARALLEL: usize = 10000;
+    const CONNECT_CHILDREN_PARALLIZATION_THRESHOLD: usize = 10000;
 
     let len = new_follower_ids.len();
-    if len >= MIN_CHILDREN_FOR_PARALLEL {
+    if len >= CONNECT_CHILDREN_PARALLIZATION_THRESHOLD {
         let new_follower_ids = new_follower_ids.into_vec();
         let chunk_size = good_chunk_size(len);
         let _ = scope_and_block(len.div_ceil(chunk_size), |scope| {

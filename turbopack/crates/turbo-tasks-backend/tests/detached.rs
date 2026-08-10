@@ -9,7 +9,7 @@ use tokio::{
 use turbo_tasks::{
     State, TransientInstance, Vc, prevent_gc,
     trace::{TraceRawVcs, TraceRawVcsContext},
-    turbo_tasks,
+    turbo_tasks, unmark_top_level_task_may_leak_eventually_consistent_state,
 };
 use turbo_tasks_testing::{Registration, register, run_once};
 
@@ -68,26 +68,26 @@ impl<T: TraceRawVcs> TraceRawVcs for WatchSenderTaskInput<T> {
     }
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(root)]
 async fn spawns_detached(
     notify: TransientInstance<NotifyTaskInput>,
     sender: TransientInstance<WatchSenderTaskInput<Option<Vc<u32>>>>,
 ) -> Vc<()> {
-    tokio::spawn(turbo_tasks().detached_for_testing(Box::pin(async move {
+    turbo_tasks().spawn_detached_for_testing(Box::pin(async move {
         println!("spawns_detached: waiting for notify");
         notify.0.notified().await;
         println!("spawns_detached: notified, sending value");
         // creating cells after the normal lifetime of the task should be okay, as the parent task
         // is waiting on us before exiting!
         sender.0.send(Some(Vc::cell(42))).unwrap();
-        Ok(())
-    })));
+    }));
     Vc::cell(())
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_spawns_detached_changing() -> anyhow::Result<()> {
     run_once(&REGISTRATION, || async {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
         // HACK: The watch channel we use has an incorrect implementation of `TraceRawVcs`
         prevent_gc();
         // timeout: prevent the test from hanging, and fail instead if this is broken
@@ -138,17 +138,17 @@ struct ChangingInput {
     state: State<u32>,
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(root)]
 async fn spawns_detached_changing(
     sender: TransientInstance<WatchSenderTaskInput<Option<Vc<u32>>>>,
     changing_input_detached: Vc<ChangingInput>,
     changing_input_outer: Vc<ChangingInput>,
 ) -> Vc<u32> {
     let tt = turbo_tasks();
-    tokio::spawn(tt.clone().detached_for_testing(Box::pin(async move {
+    tt.clone().spawn_detached_for_testing(Box::pin(async move {
         sleep(Duration::from_millis(100)).await;
-        // nested detached_for_testing calls should work
-        tokio::spawn(tt.clone().detached_for_testing(Box::pin(async move {
+        // nested spawn_detached_for_testing calls should work
+        tt.clone().spawn_detached_for_testing(Box::pin(async move {
             sleep(Duration::from_millis(100)).await;
             // creating cells after the normal lifetime of the task should be okay, as the parent
             // task is waiting on us before exiting!
@@ -158,10 +158,8 @@ async fn spawns_detached_changing(
                     *read_changing_input(changing_input_detached).await.unwrap(),
                 )))
                 .unwrap();
-            Ok(())
-        })));
-        Ok(())
-    })));
+        }));
+    }));
     Vc::cell(*read_changing_input(changing_input_outer).await.unwrap())
 }
 

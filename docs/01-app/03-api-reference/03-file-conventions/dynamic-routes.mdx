@@ -1,7 +1,7 @@
 ---
 title: Dynamic Route Segments
 nav_title: Dynamic Segments
-description: Dynamic Route Segments can be used to programmatically generate route segments from dynamic data.
+description: Use Dynamic Segments to read URL path params and generate routes from dynamic data.
 related:
   title: Next Steps
   description: For more information on what to do next, we recommend the following sections
@@ -9,7 +9,9 @@ related:
     - app/api-reference/functions/generate-static-params
 ---
 
-When you don't know the exact route segment names ahead of time and want to create routes from dynamic data, you can use Dynamic Segments that are filled in at request time or prerendered at build time.
+A URL path is a sequence of path segments. In the App Router, a segment may be **static** (a literal value matched exactly) or **dynamic** (a placeholder that captures a value from the URL). When you don't know a segment's value ahead of time, define a Dynamic Segment to create routes from dynamic data. Next.js passes the captured values to your page via the path `params` prop, either filled in at request time or prerendered at build time.
+
+> **Good to know**: Dynamic Segments are often referred to as path params, route params, or URL params.
 
 ## Convention
 
@@ -41,9 +43,11 @@ Dynamic Segments are passed as the `params` prop to [`layout`](/docs/app/api-ref
 | `app/blog/[slug]/page.js` | `/blog/b`   | `{ slug: 'b' }` |
 | `app/blog/[slug]/page.js` | `/blog/c`   | `{ slug: 'c' }` |
 
+Dynamic segments that appear before the [root layout](/docs/app/api-reference/file-conventions/layout#root-layout) are **root parameters**, which can additionally be read from any Server Component with [`next/root-params`](/docs/app/api-reference/functions/next-root-params).
+
 ### In Client Components
 
-In a Client Component **page**, dynamic segments from props can be accessed using the [`use`](https://react.dev/reference/react/use) hook.
+In a Client Component **page**, dynamic segments from props can be accessed using the [`use`](https://react.dev/reference/react/use) API.
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
 'use client'
@@ -146,7 +150,7 @@ export default async function Page(props: PageProps<'/[locale]'>) {
 
 ### With Cache Components
 
-When using [Cache Components](/docs/app/getting-started/cache-components) with dynamic route segments, how you handle params depends on whether you use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params).
+When using [Cache Components](/docs/app/getting-started/caching) with dynamic route segments, how you handle params depends on whether you use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params).
 
 Without `generateStaticParams`, param values are unknown during prerendering, making params runtime data. You must wrap param access in `<Suspense>` boundaries to provide fallback UI.
 
@@ -158,7 +162,10 @@ The sections below demonstrate both patterns.
 
 All params are runtime data. Param access must be wrapped by Suspense fallback UI. Next.js generates a static shell at build time, and content loads on each request.
 
-> **Good to know**: You can also use [`loading.tsx`](/docs/app/api-reference/file-conventions/loading) for page-level fallback UI.
+> **Good to know**:
+>
+> - You can also use [`loading.tsx`](/docs/app/api-reference/file-conventions/loading) for page-level fallback UI.
+> - In layouts, avoid awaiting `params` at the top level. Doing so prevents the layout from being prerendered. Instead, pass the params promise down to the component that needs it and await there. See [Maximizing the static shell](/docs/app/getting-started/caching#maximizing-the-static-shell) for examples.
 
 ```tsx filename="app/blog/[slug]/page.tsx"
 import { Suspense } from 'react'
@@ -293,7 +300,7 @@ async function PrivatePost({ slug }: { slug: string }) {
 
 ### With `generateStaticParams`
 
-The [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) function can be used to [statically generate](/docs/app/guides/caching#static-rendering) routes at build time instead of on-demand at request time.
+The [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) function can be used to [statically generate](/docs/app/glossary#prerendering) routes at build time instead of on-demand at request time.
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
 export async function generateStaticParams() {
@@ -315,7 +322,7 @@ export async function generateStaticParams() {
 }
 ```
 
-When using `fetch` inside the `generateStaticParams` function, the requests are [automatically deduplicated](/docs/app/guides/caching#request-memoization). This avoids multiple network calls for the same data Layouts, Pages, and other `generateStaticParams` functions, speeding up build time.
+When using `fetch` inside the `generateStaticParams` function, the requests are [automatically deduplicated](/docs/app/glossary#memoization). This avoids multiple network calls for the same data Layouts, Pages, and other `generateStaticParams` functions, speeding up build time.
 
 ### Dynamic GET Route Handlers with `generateStaticParams`
 

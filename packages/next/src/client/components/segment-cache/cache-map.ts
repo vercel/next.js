@@ -65,15 +65,31 @@ import { lruPut, updateLruSize, deleteFromLru } from './lru'
  * should prefer to put it in cache.ts.
  */
 
-// The protocol that values must implement. In practice, the only two types that
-// we ever actually deal with in this module are RouteCacheEntry and
-// SegmentCacheEntry; this is just to keep track of the coupling so we don't
-// leak concerns between the modules unnecessarily.
+/**
+ * Tracks the status of a cache entry as it progresses from no data (Empty),
+ * waiting for server data (Pending), and finished (either Fulfilled or
+ * Rejected depending on the response from the server.
+ *
+ * This is defined here, rather than in cache.ts, because cache-map.ts needs to
+ * inspect the status when performing a `onlyMatchFulfilled` lookup.
+ */
+export const enum EntryStatus {
+  Empty = 0,
+  Pending = 1,
+  Fulfilled = 2,
+  Rejected = 3,
+}
+
+// The protocol that values must implement. In practice, the only types that
+// we ever actually deal with in this module are RouteCacheEntry,
+// SegmentCacheEntry, and BFCacheEntry; this is just to keep track of the
+// coupling so we don't leak concerns between the modules unnecessarily.
 export interface MapValue {
   ref: UnknownMapEntry | null
   size: number
   staleAt: number
   version: number
+  status: EntryStatus
 }
 
 /**
@@ -215,7 +231,14 @@ export function getFromCacheMap<V extends MapValue>(
   currentCacheVersion: number,
   rootEntry: CacheMap<V>,
   keys: VaryPath,
-  isRevalidation: boolean
+  isRevalidation: boolean,
+  // When true, terminal entries whose status is not Fulfilled are skipped, so
+  // the lookup falls through to a less-specific Fallback entry. Use this
+  // during a navigation to prefer a Fulfilled shell entry over a more-specific
+  // Pending entry that may still be in-flight. Callers that want to also
+  // accept non-Fulfilled entries should perform a second lookup with this set
+  // to false.
+  onlyMatchFulfilled: boolean
 ): V | null {
   const entry = getEntryWithFallbackImpl(
     now,
@@ -223,7 +246,8 @@ export function getFromCacheMap<V extends MapValue>(
     rootEntry,
     keys,
     isRevalidation,
-    0
+    0,
+    onlyMatchFulfilled
   )
   if (entry === null || entry.value === null) {
     return null
@@ -244,7 +268,8 @@ export function isValueExpired(
 function lazilyEvictIfNeeded<V extends MapValue>(
   now: number,
   currentCacheVersion: number,
-  entry: MapEntry<V>
+  entry: MapEntry<V>,
+  onlyMatchFulfilled: boolean
 ) {
   // We have a matching entry, but before we can return it, we need to check if
   // it's still fresh. Otherwise it should be treated the same as a cache miss.
@@ -262,6 +287,12 @@ function lazilyEvictIfNeeded<V extends MapValue>(
     return null
   }
 
+  if (onlyMatchFulfilled && value.status !== EntryStatus.Fulfilled) {
+    // The entry is fresh but is not Fulfilled. Treat as a non-match so the
+    // recursion can continue and try a Fallback entry.
+    return null
+  }
+
   // The matched entry has not expired. Return it.
   return entry
 }
@@ -272,7 +303,8 @@ function getEntryWithFallbackImpl<V extends MapValue>(
   entry: MapEntry<V>,
   keys: VaryPath | null,
   isRevalidation: boolean,
-  previousKey: unknown | null
+  previousKey: unknown | null,
+  onlyMatchFulfilled: boolean
 ): MapEntry<V> | null {
   // This is similar to getExactEntry, but if an exact match is not found for
   // a key, it will return the fallback entry instead. This is recursive at
@@ -280,6 +312,10 @@ function getEntryWithFallbackImpl<V extends MapValue>(
   // valid match for [a, b, c, d].
   //
   // It will return the most specific match available.
+  //
+  // When `onlyMatchFulfilled` is true, terminal entries that aren't Fulfilled
+  // are treated as non-matches, so the recursion will continue searching for
+  // a Fallback match. See getFromCacheMap for the rationale.
   let key
   let remainingKeys: VaryPath | null
   if (keys !== null) {
@@ -292,14 +328,12 @@ function getEntryWithFallbackImpl<V extends MapValue>(
     remainingKeys = null
   } else {
     // There are no more keys. This is the terminal entry.
-
-    // TODO: When performing a lookup during a navigation, as opposed to a
-    // prefetch, we may want to skip entries that are Pending if there's also
-    // a Fulfilled fallback entry. Tricky to say, though, since if it's
-    // already pending, it's likely to stream in soon. Maybe we could do this
-    // just on slow connections and offline mode.
-
-    return lazilyEvictIfNeeded(now, currentCacheVersion, entry)
+    return lazilyEvictIfNeeded(
+      now,
+      currentCacheVersion,
+      entry,
+      onlyMatchFulfilled
+    )
   }
   const map = entry.map
   if (map !== null) {
@@ -312,7 +346,8 @@ function getEntryWithFallbackImpl<V extends MapValue>(
         existingEntry,
         remainingKeys,
         isRevalidation,
-        key
+        key,
+        onlyMatchFulfilled
       )
       if (result !== null) {
         return result
@@ -328,7 +363,8 @@ function getEntryWithFallbackImpl<V extends MapValue>(
         fallbackEntry,
         remainingKeys,
         isRevalidation,
-        key
+        key,
+        onlyMatchFulfilled
       )
     }
   }

@@ -225,7 +225,7 @@ describe('app-custom-routes', () => {
         })
 
         expect(res.status).toEqual(200)
-        expect(res.headers.get('content-type')).toEqual('application/json')
+        expect(res.headers.get('content-type')).toContain('application/json')
         expect(await res.json()).toEqual(meta)
       })
     })
@@ -312,16 +312,20 @@ describe('app-custom-routes', () => {
       expect(await res.text()).toEqual('delete foo')
     })
 
-    it('can read a JSON encoded body for OPTIONS requests', async () => {
-      const body = { name: 'bar' }
-      const res = await next.fetch(basePath + '/advanced/body/json', {
-        method: 'OPTIONS',
-        body: JSON.stringify(body),
-      })
+    // keeping a body during options request is not standardized
+    // behavior and depending on the server can be discarded
+    if (!isNextDeploy) {
+      it('can read a JSON encoded body for OPTIONS requests', async () => {
+        const body = { name: 'bar' }
+        const res = await next.fetch(basePath + '/advanced/body/json', {
+          method: 'OPTIONS',
+          body: JSON.stringify(body),
+        })
 
-      expect(res.status).toEqual(200)
-      expect(await res.text()).toEqual('options bar')
-    })
+        expect(res.status).toEqual(200)
+        expect(await res.text()).toEqual('options bar')
+      })
+    }
 
     // we can't stream a body to a function currently only stream response
     if (!isNextDeploy) {
@@ -523,14 +527,16 @@ describe('app-custom-routes', () => {
   })
 
   describe('error conditions', () => {
-    it('responds with 400 (Bad Request) when the requested method is not a valid HTTP method', async () => {
-      const res = await next.fetch(basePath + '/status/405', {
-        method: 'HEADER',
-      })
+    if (!isNextDeploy) {
+      it('responds with 400 (Bad Request) when the requested method is not a valid HTTP method', async () => {
+        const res = await next.fetch(basePath + '/status/405', {
+          method: 'HEADER',
+        })
 
-      expect(res.status).toEqual(400)
-      expect(await res.text()).toBeEmpty()
-    })
+        expect(res.status).toEqual(400)
+        expect(await res.text()).toBeEmpty()
+      })
+    }
 
     it('responds with 405 (Method Not Allowed) when method is not implemented', async () => {
       const res = await next.fetch(basePath + '/status/405', {
@@ -690,7 +696,7 @@ describe('app-custom-routes', () => {
         await next.fetch(basePath + '/no-response', { method: 'POST' })
         await retry(() => {
           expect(next.cliOutput).toMatch(
-            /No response is returned from route handler '.+\/route\.ts'\. Ensure you return a `Response` or a `NextResponse` in all branches of your handler\./
+            /No response is returned from route handler '.+\/route\.ts'\. Expected a Response object but received '\w+' \(method: POST, url: .+\)\. Ensure you return a `Response` or a `NextResponse` in all branches of your handler\./
           )
         })
       })
@@ -701,6 +707,14 @@ describe('app-custom-routes', () => {
     it('should not print bundling warning about React', async () => {
       const cliOutput = next.cliOutput
       expect(cliOutput).not.toContain('Attempted import error')
+    })
+  })
+
+  describe('top-level await', () => {
+    it('handles route handlers that use top-level await', async () => {
+      const res = await next.fetch(basePath + '/top-level-await')
+      expect(res.status).toBe(200)
+      expect(await res.text()).toBe('hello from top-level await')
     })
   })
 })

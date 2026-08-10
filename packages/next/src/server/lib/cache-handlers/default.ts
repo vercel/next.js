@@ -5,6 +5,11 @@
  * likely going to get evicted before we get to use it anyway. However, we also
  * don't want to reuse a stale entry for too long so stale entries should be
  * considered expired/missing in such cache handlers.
+ *
+ * The dev server (`next dev`) is the exception: to keep reloads fast it serves
+ * stale entries until they expire, relying on the wrapper's
+ * stale-while-revalidate path to warm a fresh entry in the background. See
+ * `get` for where this branches.
  */
 
 import { LRUCache } from '../lru-cache'
@@ -15,6 +20,7 @@ import {
   tagsManifest,
   type TagManifestEntry,
 } from '../incremental-cache/tags-manifest.external'
+import { MIN_PRERENDERABLE_EXPIRE } from '../../use-cache/constants'
 
 type PrivateCacheEntry = {
   entry: CacheEntry
@@ -52,7 +58,7 @@ export function createDefaultCacheHandler(maxSize: number): CacheHandler {
 
   const memoryCache = new LRUCache<PrivateCacheEntry>(
     maxSize,
-    (entry) => entry.size
+    (entry, cacheKey) => entry.size + cacheKey.length
   )
   const pendingSets = new Map<string, Promise<void>>()
 
@@ -77,13 +83,37 @@ export function createDefaultCacheHandler(maxSize: number): CacheHandler {
       }
 
       const entry = privateEntry.entry
+
+      // A negative `expire` is an eviction sentinel: the tiered cache handler
+      // (dev-only) marks a front entry for deletion by overwriting it with a
+      // negative `expire`, since the cache-handler interface has no per-key
+      // delete. Treat it as missing here, independently of the minimum
+      // retention below (which would otherwise keep it alive). This is distinct
+      // from `revalidate = -1` below, which keeps serving the entry but forces
+      // a revalidation.
+      if (entry.expire < 0) {
+        debug?.('get', cacheKey, 'evicted')
+        return undefined
+      }
+
+      // The dev server serves stale entries until they expire (see the file
+      // overview); production drops them once past the revalidate time. In dev,
+      // an entry is retained for at least `MIN_PRERENDERABLE_EXPIRE` so that
+      // entries with a short `expire` (for example a `cacheLife({ expire: 0 })`
+      // client-only cache) still linger long enough that a reload hits the
+      // cache. That minimum is the same threshold below which the "use cache"
+      // wrapper treats an entry as dynamic, so it only extends the retention of
+      // entries that are dynamic anyway. It affects retention only; the
+      // returned entry keeps its real `expire`, so staging decisions are
+      // unchanged.
+      const maxAgeSeconds = process.env.__NEXT_DEV_SERVER
+        ? Math.max(entry.expire, MIN_PRERENDERABLE_EXPIRE)
+        : entry.revalidate
+
       if (
         performance.timeOrigin + performance.now() >
-        entry.timestamp + entry.revalidate * 1000
+        entry.timestamp + maxAgeSeconds * 1000
       ) {
-        // In-memory caches should expire after revalidate time because it is
-        // unlikely that a new entry will be able to be used before it is dropped
-        // from the cache.
         debug?.('get', cacheKey, 'expired')
 
         return undefined
@@ -132,6 +162,18 @@ export function createDefaultCacheHandler(maxSize: number): CacheHandler {
       let size = 0
 
       try {
+        // In production an `expire: 0` entry is dynamic: the "use cache"
+        // wrapper regenerates it on every read instead of serving the stored
+        // copy, so persisting it would be a wasted write of a value that is
+        // never served back. Skip storing it so the next read is a plain miss.
+        // The dev server keeps it, because its minimum retention serves the
+        // previously cached value across reloads. The `finally` below still
+        // resolves the pending set.
+        if (!process.env.__NEXT_DEV_SERVER && entry.expire === 0) {
+          debug?.('set', cacheKey, 'skipped dynamic entry')
+          return
+        }
+
         const [value, clonedValue] = entry.value.tee()
         entry.value = value
         const reader = clonedValue.getReader()

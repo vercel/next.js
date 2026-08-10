@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
@@ -17,6 +17,8 @@ use crate::{BrowserChunkingContext, ecmascript::content::EcmascriptBrowserChunkC
 
 /// Development Ecmascript chunk.
 #[turbo_tasks::value(shared)]
+#[derive(ValueToString)]
+#[value_to_string("Ecmascript Dev Chunk")]
 pub struct EcmascriptBrowserChunk {
     chunking_context: ResolvedVc<BrowserChunkingContext>,
     chunk: ResolvedVc<EcmascriptChunk>,
@@ -42,25 +44,36 @@ impl EcmascriptBrowserChunk {
         let this = self.await?;
         Ok(SourceMapAsset::new(
             Vc::upcast(*this.chunking_context),
-            this.ident_for_path(),
+            this.ident_for_path().await?,
             Vc::upcast(self),
         ))
     }
 }
 
 impl EcmascriptBrowserChunk {
-    fn ident_for_path(&self) -> Vc<AssetIdent> {
-        self.chunk
-            .ident()
-            .with_modifier(rcstr!("ecmascript dev chunk"))
+    async fn component_chunk_assets(&self) -> Result<Vec<ResolvedVc<Box<dyn OutputAsset>>>> {
+        let component_chunks = self.chunk.component_chunks().await?;
+        let mut assets = Vec::with_capacity(component_chunks.len());
+        for &component in component_chunks.iter() {
+            let component_chunk = ResolvedVc::try_downcast_type::<EcmascriptChunk>(component)
+                .context("merged chunk component_chunks must be ecmascript chunks")?;
+            assets.push(ResolvedVc::upcast(
+                EcmascriptBrowserChunk::new(*self.chunking_context, *component_chunk)
+                    .to_resolved()
+                    .await?,
+            ));
+        }
+        Ok(assets)
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ValueToString for EcmascriptBrowserChunk {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("Ecmascript Dev Chunk"))
+    async fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .chunk
+            .ident()
+            .owned()
+            .await?
+            .with_modifier(rcstr!("ecmascript dev chunk"))
+            .into_vc())
     }
 }
 
@@ -68,8 +81,15 @@ impl ValueToString for EcmascriptBrowserChunk {
 impl OutputChunk for EcmascriptBrowserChunk {
     #[turbo_tasks::function]
     async fn runtime_info(&self) -> Result<Vc<OutputChunkRuntimeInfo>> {
+        let component_assets = self.component_chunk_assets().await?;
+        let module_chunks = if component_assets.is_empty() {
+            None
+        } else {
+            Some(ResolvedVc::cell(component_assets))
+        };
         Ok(OutputChunkRuntimeInfo {
             included_ids: Some(self.chunk.entry_ids().to_resolved().await?),
+            module_chunks,
             ..Default::default()
         }
         .cell())
@@ -79,7 +99,7 @@ impl OutputChunk for EcmascriptBrowserChunk {
 #[turbo_tasks::value_impl]
 impl EcmascriptBrowserChunk {
     #[turbo_tasks::function]
-    async fn own_content(self: Vc<Self>) -> Result<Vc<EcmascriptBrowserChunkContent>> {
+    pub(crate) async fn own_content(self: Vc<Self>) -> Result<Vc<EcmascriptBrowserChunkContent>> {
         let this = self.await?;
         Ok(EcmascriptBrowserChunkContent::new(
             *this.chunking_context,
@@ -115,9 +135,26 @@ impl OutputAssetsReference for EcmascriptBrowserChunk {
             assets.push(ResolvedVc::upcast(self.source_map().to_resolved().await?));
         }
 
+        // Constituent component chunks of a merged chunk are emitted as referenced assets
+        // so the runtime can fetch an individual component when it's already cached, without
+        // them being eagerly loaded as primary chunks.
+        let component_assets = this.component_chunk_assets().await?;
+        let referenced_assets = if component_assets.is_empty() {
+            chunk_references.referenced_assets
+        } else {
+            let mut referenced: Vec<_> = chunk_references
+                .referenced_assets
+                .await?
+                .iter()
+                .copied()
+                .collect();
+            referenced.extend(component_assets);
+            ResolvedVc::cell(referenced)
+        };
+
         Ok(OutputAssetsWithReferenced {
             assets: ResolvedVc::cell(assets),
-            referenced_assets: chunk_references.referenced_assets,
+            referenced_assets,
             references: chunk_references.references,
         }
         .cell())
@@ -129,15 +166,10 @@ impl OutputAsset for EcmascriptBrowserChunk {
     #[turbo_tasks::function]
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
-        let ident = this.ident_for_path();
+        let ident = this.ident_for_path().await?;
         Ok(this
             .chunking_context
             .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".js")))
-    }
-
-    #[turbo_tasks::function]
-    fn size_bytes(self: Vc<Self>) -> Vc<Option<u64>> {
-        self.own_content().content().len()
     }
 }
 

@@ -557,9 +557,9 @@ interface Metadata extends DeprecatedMetadataFields {
    * ```
    */
   other?:
-    | ({
+    | {
         [name: string]: string | number | Array<string | number>
-      } & DeprecatedMetadataFields)
+      }
     | undefined
 }
 
@@ -567,7 +567,7 @@ interface Metadata extends DeprecatedMetadataFields {
  * ResolvedMetadataWithURLs represents the fully processed metadata after
  * defaults are applied and relative URLs are composed with `metadataBase`.
  */
-interface ResolvedMetadataWithURLs extends DeprecatedMetadataFields {
+interface ResolvedMetadataWithURLs {
   // origin and base path for absolute urls for various metadata links such as
   // opengraph-image
   metadataBase: string | null | URL
@@ -657,11 +657,9 @@ interface ResolvedMetadataWithURLs extends DeprecatedMetadataFields {
   // meta name properties
   category: null | string
   classification: null | string
-  other:
-    | null
-    | ({
-        [name: string]: string | number | Array<string | number>
-      } & DeprecatedMetadataFields)
+  other: null | {
+    [name: string]: string | number | Array<string | number>
+  }
 }
 
 export type WithStringifiedURLs<T> = T extends URL
@@ -676,22 +674,40 @@ export type WithStringifiedURLs<T> = T extends URL
  */
 type ResolvedMetadata = WithStringifiedURLs<ResolvedMetadataWithURLs>
 
+type RobotsRuleBase = {
+  allow?: string | string[] | undefined
+  disallow?: string | string[] | undefined
+  crawlDelay?: number | undefined
+  /**
+   * Non-standard per-user-agent directives passed through verbatim to the
+   * generated `robots.txt`. Keys preserve their casing and array values emit
+   * one line per entry.
+   *
+   * @example
+   * ```ts
+   * // Seznam rate-limiting
+   * // https://o-seznam.cz/napoveda/vyhledavani/en/crawling-control/
+   * other: { 'Request-Rate': '10/1m' }
+   *
+   * // Yandex Clean-param (multiple values)
+   * other: { 'Clean-param': ['ref /articles/', 'utm_source /'] }
+   * ```
+   */
+  other?: Record<string, string | number | Array<string | number>> | undefined
+}
+
 type RobotsFile = {
   // Apply rules for all
   rules:
-    | {
+    | (RobotsRuleBase & {
         userAgent?: string | string[] | undefined
-        allow?: string | string[] | undefined
-        disallow?: string | string[] | undefined
-        crawlDelay?: number | undefined
-      }
+      })
     // Apply rules for specific user agents
-    | Array<{
-        userAgent: string | string[]
-        allow?: string | string[] | undefined
-        disallow?: string | string[] | undefined
-        crawlDelay?: number | undefined
-      }>
+    | Array<
+        RobotsRuleBase & {
+          userAgent: string | string[]
+        }
+      >
   sitemap?: string | string[] | undefined
   host?: string | undefined
 }

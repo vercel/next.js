@@ -13,11 +13,42 @@ describe('use-cache-metadata-route-handler', () => {
     if (isNextStart) {
       const [buildStatus] = next.cliOutput.match(/. \/opengraph-image/)
 
-      // TODO: Should always be `○ /opengraph-image`.
-      expect(buildStatus).toBeOneOf([
-        '○ /opengraph-image',
-        'ƒ /opengraph-image',
-      ])
+      expect(buildStatus).toBe('○ /opengraph-image')
+    }
+  })
+
+  it('should generate an opengraph image with a custom (local) font', async () => {
+    const res = await next.fetch('/custom-font/opengraph-image')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('image/png')
+
+    if (isNextStart) {
+      const [buildStatus] = next.cliOutput.match(
+        /. \/custom-font\/opengraph-image/
+      )
+
+      expect(buildStatus).toBe('○ /custom-font/opengraph-image')
+    }
+  })
+
+  it('should prerender a page that shares a segment with an opengraph image that uses a custom font', async () => {
+    const res = await next.fetch('/first-post')
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('First Post')
+
+    const imageRes = await next.fetch('/first-post/opengraph-image')
+    expect(imageRes.status).toBe(200)
+    expect(imageRes.headers.get('content-type')).toBe('image/png')
+
+    expect(next.cliOutput).not.toContain(
+      'Unexpected cache miss after cache warming phase'
+    )
+
+    if (isNextStart) {
+      // The image route uses generateStaticParams, so the build is expected
+      // to prerender it for each param.
+      expect(next.cliOutput).toMatch(/● \/first-post\/opengraph-image/)
+      expect(next.cliOutput).toMatch(/● \/second-post\/opengraph-image/)
     }
   })
 
@@ -29,8 +60,31 @@ describe('use-cache-metadata-route-handler', () => {
     if (isNextStart) {
       const [buildStatus] = next.cliOutput.match(/. \/icon/)
 
-      // TODO: Should always be `○ /icon`.
-      expect(buildStatus).toBeOneOf(['○ /icon', 'ƒ /icon'])
+      expect(buildStatus).toBe('○ /icon')
+    }
+  })
+
+  it('should statically prerender an image whose component uses "use cache" directly', async () => {
+    const res = await next.fetch('/apple-icon')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('image/png')
+
+    if (isNextStart) {
+      const [buildStatus] = next.cliOutput.match(/. \/apple-icon/)
+
+      expect(buildStatus).toBe('○ /apple-icon')
+    }
+  })
+
+  it('should treat a twitter image that reads request data as dynamic', async () => {
+    const res = await next.fetch('/twitter-image')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('image/png')
+
+    if (isNextStart) {
+      const [buildStatus] = next.cliOutput.match(/. \/twitter-image/)
+
+      expect(buildStatus).toBe('ƒ /twitter-image')
     }
   })
 
@@ -97,7 +151,7 @@ describe('use-cache-metadata-route-handler', () => {
   it('should generate robots.txt with a metadata route handler that uses "use cache"', async () => {
     const res = await next.fetch('/robots.txt')
     expect(res.status).toBe(200)
-    expect(res.headers.get('content-type')).toBe('text/plain')
+    expect(res.headers.get('content-type')).toContain('text/plain')
 
     const body = await res.text()
 
@@ -121,7 +175,9 @@ describe('use-cache-metadata-route-handler', () => {
   it('should generate manifest.json with a metadata route handler that uses "use cache"', async () => {
     const res = await next.fetch('/manifest.webmanifest')
     expect(res.status).toBe(200)
-    expect(res.headers.get('content-type')).toBe('application/manifest+json')
+    expect(res.headers.get('content-type')).toContain(
+      'application/manifest+json'
+    )
 
     const body = await res.json()
 

@@ -1,10 +1,11 @@
 use std::fmt::Display;
 
 use bincode::{Decode, Encode};
-use turbo_tasks::{NonLocalValue, Vc, trace::TraceRawVcs};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{NonLocalValue, ValueToString, Vc, trace::TraceRawVcs};
 
 #[turbo_tasks::value(shared)]
-#[derive(Hash, Debug, Copy, Clone)]
+#[derive(Hash, Debug, Copy, Clone, ValueToString)]
 pub struct CompileTarget {
     /// <https://nodejs.org/api/os.html#osarch>
     pub arch: Arch,
@@ -241,6 +242,13 @@ impl Platform {
             Self::Sunos => "sunos",
             Self::Win32 => "win32",
             Self::Unknown => "unknown",
+        }
+    }
+
+    pub fn path_separator(&self) -> RcStr {
+        match self {
+            Self::Win32 => rcstr!("\\"),
+            _ => rcstr!("/"),
         }
     }
 }

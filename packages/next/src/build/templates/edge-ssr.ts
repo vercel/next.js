@@ -5,7 +5,7 @@ import {
   type NextRequestHint,
 } from '../../server/web/adapter'
 import { IncrementalCache } from '../../server/lib/incremental-cache'
-import { initializeCacheHandlers } from '../../server/use-cache/handlers'
+import * as cacheHandlers from '../../server/use-cache/handlers'
 
 import Document from 'VAR_MODULE_DOCUMENT'
 import * as appMod from 'VAR_MODULE_APP'
@@ -25,9 +25,16 @@ import { WebNextRequest, WebNextResponse } from '../../server/base-http/web'
 import type { NextFetchEvent } from '../../server/web/spec-extension/fetch-event'
 import type RenderResult from '../../server/render-result'
 import type { RenderResultMetadata } from '../../server/render-result'
-import { getTracer, SpanKind, type Span } from '../../server/lib/trace/tracer'
+import {
+  getTracer,
+  SpanKind,
+  SpanStatusCode,
+  type Span,
+} from '../../server/lib/trace/tracer'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { HTML_CONTENT_TYPE_HEADER } from '../../lib/constants'
+import type { RequestMeta } from '../../server/request-meta'
+import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
 
 // injected by the loader afterwards.
 declare const pageRouteModuleOptions: any
@@ -36,6 +43,7 @@ declare const user500RouteModuleOptions: any
 // INJECT:pageRouteModuleOptions
 // INJECT:errorRouteModuleOptions
 // INJECT:user500RouteModuleOptions
+// INJECT_RAW:cacheHandlerImports
 
 const pageMod = {
   ...userlandPage,
@@ -108,16 +116,18 @@ async function requestHandler(
     params,
     buildId,
     nextConfig,
+    deploymentId,
     isNextDataRequest,
     buildManifest,
     prerenderManifest,
     reactLoadableManifest,
-    clientReferenceManifest,
     subresourceIntegrityManifest,
     dynamicCssManifest,
+    clientAssetToken,
   } = prepareResult
 
-  initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
+  cacheHandlers.initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
+  // INJECT_RAW:cacheHandlerRegistration
 
   const renderContext: PagesRouteHandlerContext = {
     page: srcPage,
@@ -126,7 +136,8 @@ async function requestHandler(
 
     sharedContext: {
       buildId,
-      deploymentId: process.env.NEXT_DEPLOYMENT_ID,
+      deploymentId,
+      clientAssetToken,
       customServer: undefined,
     },
 
@@ -166,7 +177,6 @@ async function requestHandler(
       buildManifest,
       subresourceIntegrityManifest,
       reactLoadableManifest,
-      clientReferenceManifest,
       dynamicCssManifest,
     },
   }
@@ -261,6 +271,16 @@ async function requestHandler(
             'http.status_code': finalStatus,
             'next.rsc': false,
           })
+
+          if (finalStatus && finalStatus >= 500) {
+            // For 5xx status codes: SHOULD be set to 'Error' span status.
+            // x-ref: https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+            span.setStatus({
+              code: SpanStatusCode.ERROR,
+            })
+            // For span status 'Error', SHOULD set 'error.type' attribute.
+            span.setAttribute('error.type', finalStatus.toString())
+          }
 
           const rootSpanAttributes = tracer.getRootSpanAttributes()
           // We were unable to get attributes, probably OTEL is not enabled
@@ -357,7 +377,7 @@ async function requestHandler(
   )
 }
 
-const handler: EdgeHandler = (opts) => {
+const internalHandler: EdgeHandler = (opts) => {
   return adapter({
     ...opts,
     IncrementalCache,
@@ -367,4 +387,50 @@ const handler: EdgeHandler = (opts) => {
     page: 'VAR_DEFINITION_PATHNAME',
   })
 }
-export default handler
+
+export async function handler(
+  request: Request,
+  ctx: {
+    waitUntil?: (prom: Promise<void>) => void
+    signal?: AbortSignal
+    requestMeta?: RequestMeta
+  }
+): Promise<Response> {
+  const result = await internalHandler({
+    request: {
+      url: request.url,
+      method: request.method,
+      headers: toNodeOutgoingHttpHeaders(request.headers),
+      nextConfig: {
+        basePath: process.env.__NEXT_BASE_PATH,
+        i18n: process.env.__NEXT_I18N_CONFIG as any,
+        trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
+        experimental: {
+          cacheLife: process.env.__NEXT_CACHE_LIFE as any,
+          authInterrupts: Boolean(
+            process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS
+          ),
+          clientParamParsingOrigins: process.env
+            .__NEXT_CLIENT_PARAM_PARSING_ORIGINS as any,
+        },
+      },
+      page: {
+        name: 'VAR_DEFINITION_PATHNAME',
+      },
+      body:
+        request.method !== 'GET' && request.method !== 'HEAD'
+          ? (request.body ?? undefined)
+          : undefined,
+      waitUntil: ctx.waitUntil,
+      requestMeta: ctx.requestMeta,
+      signal: ctx.signal || new AbortController().signal,
+    },
+  })
+
+  ctx.waitUntil?.(result.waitUntil)
+
+  return result.response
+}
+
+// backwards compat
+export default internalHandler

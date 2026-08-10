@@ -39,6 +39,44 @@ describe('app-dir - errors', () => {
       expect(pageErrors).toEqual([])
     })
 
+    it('should trigger error component when undefined is thrown from a client component in the browser', async () => {
+      const pageErrors: unknown[] = []
+      const browser = await next.browser('/client-component/throw-undefined', {
+        beforePageLoad: (page) => {
+          page.on('pageerror', (error: unknown) => {
+            pageErrors.push(error)
+          })
+        },
+      })
+      await browser.elementByCss('#error-trigger-button').click()
+
+      expect(
+        await browser.waitForElementByCss('#error-boundary-message').text()
+      ).toBe('An error occurred: undefined')
+
+      // Handled by custom error boundary.
+      expect(pageErrors).toEqual([])
+    })
+
+    it('should trigger error component when null is thrown from a client component in the browser', async () => {
+      const pageErrors: unknown[] = []
+      const browser = await next.browser('/client-component/throw-null', {
+        beforePageLoad: (page) => {
+          page.on('pageerror', (error: unknown) => {
+            pageErrors.push(error)
+          })
+        },
+      })
+      await browser.elementByCss('#error-trigger-button').click()
+
+      expect(
+        await browser.waitForElementByCss('#error-boundary-message').text()
+      ).toBe('An error occurred: null')
+
+      // Handled by custom error boundary.
+      expect(pageErrors).toEqual([])
+    })
+
     it('should trigger error component when an error happens during server components rendering', async () => {
       const pageErrors: unknown[] = []
       const browser = await next.browser('/server-component', {
@@ -54,7 +92,7 @@ describe('app-dir - errors', () => {
       ).toBe(
         isNextDev
           ? 'this is a test'
-          : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+          : 'Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
       )
       expect(
         await browser.waitForElementByCss('#error-boundary-digest').text()
@@ -79,7 +117,7 @@ describe('app-dir - errors', () => {
       ).toBe(
         isNextDev
           ? 'this is a test'
-          : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+          : 'Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
       )
       expect(
         await browser.waitForElementByCss('#error-boundary-digest').text()
@@ -94,52 +132,82 @@ describe('app-dir - errors', () => {
     })
 
     it('should trigger error component when undefined is thrown during server components rendering', async () => {
+      const outputIndex = next.cliOutput.length
       const browser = await next.browser('/server-component/throw-undefined')
 
+      // Non-error values thrown during rendering get wrapped in an Error when transported over RSC,
+      // so we expect an error object with a digest.
       expect(
         await browser.waitForElementByCss('#error-boundary-message').text()
       ).toBe(
         isNextDev
-          ? 'undefined'
-          : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+          ? 'An error occurred: Error: undefined'
+          : 'An error occurred: Error: Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
       )
       expect(
         await browser.waitForElementByCss('#error-boundary-digest').text()
         // Digest of the error message should be stable.
       ).not.toBe('')
-      expect(stripAnsi(next.cliOutput)).toEqual(
-        expect.stringMatching(
-          isNextDev
-            ? /Error: An undefined error was thrown.*digest: '\d+@E\d+'/s
-            : /Error: undefined.*digest: '\d+@E\d+'/s
+      const cleanCliOutput = stripAnsi(
+        next.cliOutput.slice(outputIndex)
+      ).replaceAll(/digest: '\d+(@E\d+)'/g, "digest: '<digest>$1'")
+      if (isNextDev) {
+        expect(cleanCliOutput).toEqual(
+          expect.stringMatching(
+            /Error: An undefined error was thrown.*digest: '<digest>@E98'/s
+          )
         )
-      )
+      } else {
+        expect(cleanCliOutput).toMatchInlineSnapshot(`
+         "⨯ Error: undefined
+             at ignore-listed frames {
+           digest: '<digest>@E394'
+         }
+         "
+        `)
+      }
     })
 
     it('should trigger error component when null is thrown during server components rendering', async () => {
+      const outputIndex = next.cliOutput.length
       const browser = await next.browser('/server-component/throw-null')
+
+      // Non-error values thrown during rendering get wrapped in an Error when transported over RSC,
+      // so we expect an error object with a digest.
 
       expect(
         await browser.waitForElementByCss('#error-boundary-message').text()
       ).toBe(
         isNextDev
-          ? 'null'
-          : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+          ? 'An error occurred: Error: null'
+          : 'An error occurred: Error: Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
       )
       expect(
         await browser.waitForElementByCss('#error-boundary-digest').text()
         // Digest of the error message should be stable.
       ).not.toBe('')
-      expect(stripAnsi(next.cliOutput)).toEqual(
-        expect.stringMatching(
-          isNextDev
-            ? /Error: A null error was thrown.*digest: '\d+@E\d+'/s
-            : /Error: null.*digest: '\d+@E\d+'/s
+      const cleanCliOutput = stripAnsi(
+        next.cliOutput.slice(outputIndex)
+      ).replaceAll(/digest: '\d+(@E\d+)'/g, "digest: '<digest>$1'")
+      if (isNextDev) {
+        expect(cleanCliOutput).toEqual(
+          expect.stringMatching(
+            /Error: A null error was thrown.*digest: '<digest>@E336'/s
+          )
         )
-      )
+      } else {
+        expect(cleanCliOutput).toMatchInlineSnapshot(`
+         "⨯ Error: null
+             at ignore-listed frames {
+           digest: '<digest>@E394'
+         }
+         "
+        `)
+      }
     })
 
     it('should trigger error component when a string is thrown during server components rendering', async () => {
+      const outputIndex = next.cliOutput.length
       const browser = await next.browser('/server-component/throw-string')
 
       expect(
@@ -147,19 +215,28 @@ describe('app-dir - errors', () => {
       ).toBe(
         isNextDev
           ? 'this is a test'
-          : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+          : 'Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
       )
       expect(
         await browser.waitForElementByCss('#error-boundary-digest').text()
         // Digest of the error message should be stable.
       ).not.toBe('')
-      expect(stripAnsi(next.cliOutput)).toEqual(
-        expect.stringMatching(
-          isNextDev
-            ? /Error: this is a test.*digest: '\d+'/s
-            : /Error: An error occurred in the Server Components render.*digest: '\d+'/s
+      const cleanCliOutput = stripAnsi(
+        next.cliOutput.slice(outputIndex)
+      ).replaceAll(/digest: '\d+'/g, "digest: '<digest>'")
+      if (isNextDev) {
+        expect(cleanCliOutput).toEqual(
+          expect.stringMatching(/Error: this is a test.*digest: '<digest>'/s)
         )
-      )
+      } else {
+        expect(cleanCliOutput).toMatchInlineSnapshot(`
+         "⨯ Error: this is a test
+             at ignore-listed frames {
+           digest: '<digest>'
+         }
+         "
+        `)
+      }
     })
 
     it('should use default error boundary for prod and overlay for dev when no error component specified', async () => {
@@ -189,10 +266,8 @@ describe('app-dir - errors', () => {
         `)
       } else {
         expect(
-          await browser.waitForElementByCss('body').elementByCss('h2').text()
-        ).toBe(
-          'Application error: a client-side exception has occurred while loading localhost (see the browser console for more information).'
-        )
+          await browser.waitForElementByCss('body').elementByCss('h1').text()
+        ).toBe('This page couldn\u2019t load')
       }
 
       expect(pageErrors).toEqual([
@@ -228,22 +303,18 @@ describe('app-dir - errors', () => {
         `)
       } else {
         expect(
-          await browser.waitForElementByCss('body').elementByCss('h2').text()
-        ).toBe(
-          'Application error: a server-side exception has occurred while loading localhost (see the server logs for more information).'
-        )
-        expect(
-          await browser.waitForElementByCss('body').elementByCss('p').text()
-        ).toMatch(/Digest: \w+/)
+          await browser.waitForElementByCss('body').elementByCss('h1').text()
+        ).toBe('This page couldn\u2019t load')
+        // Check digest is displayed
+        const bodyText = await browser.waitForElementByCss('body').text()
+        expect(bodyText).toMatch(/ERROR \w+/)
       }
 
       expect(pageErrors).toEqual([
         expect.objectContaining({
           message: isNextDev
             ? 'custom server error'
-            : 'An error occurred in the Server Components render. ' +
-              'The specific message is omitted in production builds to avoid leaking sensitive details. ' +
-              'A digest property is included on this error instance which may provide additional details about the nature of the error.',
+            : 'Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.',
         }),
       ])
     })
@@ -329,5 +400,59 @@ describe('app-dir - errors', () => {
         expect(output).toContain(`digest: '${digest}'`)
       })
     }
+
+    describe('retry', () => {
+      afterEach(async () => {
+        // Always restore __nextTestRecover so it doesn't leak between tests
+        await next.fetch('/server-component/recover/set-recover?enabled=false')
+      })
+
+      it('should recover Server Component error after retry', async () => {
+        const browser = await next.browser('/server-component/recover')
+
+        expect(
+          await browser.elementByCss('#error-boundary-message').text()
+        ).toBe(
+          isNextDev
+            ? 'this is a test'
+            : 'Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
+        )
+
+        // Enable recovery via globalThis.__nextTestRecover
+        await next.fetch('/server-component/recover/set-recover')
+
+        await browser
+          .elementByCss('#retry')
+          .click()
+          .waitForElementByCss('#recover')
+
+        expect(await browser.elementByCss('#recover').text()).toBe('Recovered')
+      })
+
+      it('should recover Client Component error after retry', async () => {
+        const browser = await next.browser('/client-component')
+
+        // Try triggering and retrying a few times in a row
+        for (let i = 0; i < 5; i++) {
+          await browser
+            .elementByCss('#error-trigger-button')
+            .click()
+            .waitForElementByCss('#error-boundary-message')
+
+          expect(
+            await browser.elementByCss('#error-boundary-message').text()
+          ).toBe('An error occurred: this is a test')
+
+          await browser
+            .elementByCss('#retry')
+            .click()
+            .waitForElementByCss('#error-trigger-button')
+
+          expect(
+            await browser.elementByCss('#error-trigger-button').text()
+          ).toBe('Trigger Error!')
+        }
+      })
+    })
   })
 })

@@ -30,6 +30,11 @@ type Matcher = {
   route: DeepReadonly<DynamicPrerenderManifestRoute>
 }
 
+export type PrerenderManifestMatch = {
+  source: string
+  route: DeepReadonly<DynamicPrerenderManifestRoute>
+}
+
 /**
  * A matcher for the prerender manifest.
  *
@@ -57,9 +62,7 @@ export class PrerenderManifestMatcher {
    * @param pathname - The pathname to match.
    * @returns The dynamic route that matches the pathname.
    */
-  public match(
-    pathname: string
-  ): DeepReadonly<DynamicPrerenderManifestRoute> | null {
+  public match(pathname: string): PrerenderManifestMatch | null {
     // Iterate over the matchers. They're already in the correct order of
     // specificity as they were inserted into the prerender manifest that way
     // and iterating over them with Object.entries guarantees that.
@@ -71,7 +74,10 @@ export class PrerenderManifestMatcher {
 
       const match = matcher.matcher(pathname)
       if (match) {
-        return matcher.route
+        return {
+          source: matcher.source,
+          route: matcher.route,
+        }
       }
     }
 

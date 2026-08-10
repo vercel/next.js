@@ -29,17 +29,20 @@ export async function createComponentStylesAndScripts({
 
   const styles = renderCssResource(entryCssFiles, ctx)
 
-  const scripts = jsHrefs
-    ? jsHrefs.map((href, index) =>
-        createElement('script', {
-          src: `${ctx.assetPrefix}/_next/${encodeURIPath(href)}${getAssetQueryString(ctx, true)}`,
-          async: true,
-          key: `script-${index}`,
-        })
-      )
-    : null
+  const scripts: React.ReactNode[] = []
+  let scriptIndex = 0
+  for (const href of jsHrefs) {
+    scripts.push(
+      createElement('script', {
+        src: `${ctx.assetPrefix}/_next/${encodeURIPath(href)}${getAssetQueryString(ctx, true)}`,
+        async: true,
+        key: `script-${scriptIndex}`,
+      })
+    )
+    scriptIndex++
+  }
 
   const Comp = interopDefault(await getComponent())
 
-  return [Comp, styles, scripts]
+  return [Comp, styles, scripts.length ? scripts : null]
 }

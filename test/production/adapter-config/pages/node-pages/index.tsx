@@ -1,3 +1,7 @@
+export const config = {
+  maxDuration: 50,
+}
+
 export function getServerSideProps() {
   return {
     props: {

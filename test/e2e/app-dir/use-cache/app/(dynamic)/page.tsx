@@ -13,9 +13,9 @@ async function getCachedRandom(x: number, children: React.ReactNode) {
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ n: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
-  const n = +(await searchParams).n
+  const n = +(await searchParams).n!
   const values = await getCachedRandom(
     n,
     <p id="r">rnd{Math.random()}</p> // This should not invalidate the cache

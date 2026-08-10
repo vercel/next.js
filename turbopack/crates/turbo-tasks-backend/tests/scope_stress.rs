@@ -1,5 +1,4 @@
 #![feature(arbitrary_self_types)]
-#![feature(arbitrary_self_types_pointers)]
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::Result;
@@ -36,7 +35,7 @@ async fn rectangle_stress() -> Result<()> {
 
 /// This fills a rectagle from (0, 0) to (a, b) by
 /// first filling (0, 0) to (a - 1, b) and then (0, 0) to (a, b - 1) recursively
-#[turbo_tasks::function]
+#[turbo_tasks::function(root)]
 async fn rectangle(a: u32, b: u32) -> Result<Vc<Completion>> {
     if a > 0 {
         rectangle(a - 1, b).await?;

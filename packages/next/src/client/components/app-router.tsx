@@ -25,13 +25,17 @@ import {
   type NavigationPromises,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { dispatchAppRouterAction, useActionQueue } from './use-action-queue'
+import { setLastCommittedTree } from './router-reducer/reducers/committed-state'
 import { AppRouterAnnouncer } from './app-router-announcer'
 import { RedirectBoundary } from './redirect-boundary'
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
 import { unresolvedThenable } from './unresolved-thenable'
 import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
-import { getSelectedParams } from './router-reducer/compute-changed-path'
+import {
+  extractSourcePageFromFlightRouterState,
+  getSelectedParams,
+} from './router-reducer/compute-changed-path'
 import { useNavFailureHandler } from './nav-failure-handler'
 import {
   dispatchTraverseAction,
@@ -40,17 +44,70 @@ import {
   type GlobalErrorState,
 } from './app-router-instance'
 import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
-import { isRedirectError, RedirectType } from './redirect-error'
+import { isRedirectError } from './redirect-error'
 import { pingVisibleLinks } from './links'
 import RootErrorBoundary from './errors/root-error-boundary'
 import DefaultGlobalError from './builtin/global-error'
 import { RootLayoutBoundary } from '../../lib/framework/boundary-components'
 import type { StaticIndicatorState } from '../dev/hot-reloader/app/hot-reloader-app'
-import { getDeploymentIdQueryOrEmptyString } from '../../shared/lib/deployment-id'
+import { getAssetTokenQuery } from '../../shared/lib/deployment-id'
 
 const globalMutable: {
   pendingMpaPath?: string
 } = {}
+
+// A Back/Forward press before the router's popstate listener exists moves the
+// browser to a different history entry than the one the document was activated
+// on, and the resulting popstate fires with nobody listening. The activation
+// entry is fixed for the document's lifetime and entry keys are stable across
+// replaceState, so until the listener is installed a key mismatch means a
+// traversal went unobserved.
+function hasMissedTraversal(): boolean {
+  if (typeof window.navigation === 'undefined') {
+    return false
+  }
+  const activationEntry = window.navigation.activation?.entry
+  const currentEntry = window.navigation.currentEntry
+  return (
+    activationEntry != null &&
+    currentEntry != null &&
+    activationEntry.key !== currentEntry.key &&
+    // Only entries written by the app router can be restored; on any other
+    // entry the traversal is left unhandled, as before.
+    window.history.state?.__NA === true
+  )
+}
+
+let checkedMissedTraversalBeforeHistoryWrite = false
+let checkedMissedTraversalBeforeReplay = false
+
+/**
+ * Handles a popstate event (or one that was missed before hydration).
+ * By default dispatches ACTION_RESTORE, however if the history entry was not
+ * pushed/replaced by app-router it will reload the page.
+ * That case can happen when the old router injected the history entry.
+ */
+function handlePopState(state: PopStateEvent['state']): void {
+  if (!state) {
+    // TODO-APP: this case only happens when pushState/replaceState was called outside of Next.js. It should probably reload the page in this case.
+    return
+  }
+
+  // This case happens when the history entry was pushed by the `pages` router.
+  if (!state.__NA) {
+    window.location.reload()
+    return
+  }
+
+  // TODO-APP: Ideally the back button should not use startTransition as it should apply the updates synchronously
+  // Without startTransition works if the cache is there for this path
+  startTransition(() => {
+    dispatchTraverseAction(
+      window.location.href,
+      state.__PRIVATE_NEXTJS_INTERNALS_TREE
+    )
+  })
+}
 
 function HistoryUpdater({
   appRouterState,
@@ -65,6 +122,16 @@ function HistoryUpdater({
     }
 
     const { tree, pushRef, canonicalUrl, renderedSearch } = appRouterState
+
+    if (!checkedMissedTraversalBeforeHistoryWrite) {
+      checkedMissedTraversalBeforeHistoryWrite = true
+      if (hasMissedTraversal()) {
+        // Skip the write: it would overwrite the traversed-to entry's state.
+        // The tree was rendered even though the history write is skipped.
+        setLastCommittedTree(tree)
+        return
+      }
+    }
 
     const appHistoryState: AppHistoryState = {
       tree,
@@ -92,6 +159,8 @@ function HistoryUpdater({
     } else {
       window.history.replaceState(historyState, '', canonicalUrl)
     }
+
+    setLastCommittedTree(tree)
   }, [appRouterState])
 
   useEffect(() => {
@@ -192,6 +261,16 @@ function Router({
   }
 
   useEffect(() => {
+    const sourcePage = extractSourcePageFromFlightRouterState(state.tree)
+
+    if (sourcePage !== undefined) {
+      window.next.__internal_src_page = sourcePage
+    } else {
+      delete window.next.__internal_src_page
+    }
+  }, [state.tree])
+
+  useEffect(() => {
     // If the app is restored from bfcache, it's possible that
     // pushRef.mpaNavigation is true, which would mean that any re-render of this component
     // would trigger the mpa navigation logic again from the lines below.
@@ -236,7 +315,7 @@ function Router({
         const redirectType = getRedirectTypeFromError(error)
         // TODO: This should access the router methods directly, rather than
         // go through the public interface.
-        if (redirectType === RedirectType.push) {
+        if (redirectType === 'push') {
           publicAppRouterInstance.push(url, {})
         } else {
           publicAppRouterInstance.replace(url, {})
@@ -355,35 +434,17 @@ function Router({
       return originalReplaceState(data, _unused, url)
     }
 
-    /**
-     * Handle popstate event, this is used to handle back/forward in the browser.
-     * By default dispatches ACTION_RESTORE, however if the history entry was not pushed/replaced by app-router it will reload the page.
-     * That case can happen when the old router injected the history entry.
-     */
-    const onPopState = (event: PopStateEvent) => {
-      if (!event.state) {
-        // TODO-APP: this case only happens when pushState/replaceState was called outside of Next.js. It should probably reload the page in this case.
-        return
-      }
+    const onPopState = (event: PopStateEvent) => handlePopState(event.state)
 
-      // This case happens when the history entry was pushed by the `pages` router.
-      if (!event.state.__NA) {
-        window.location.reload()
-        return
-      }
+    window.addEventListener('popstate', onPopState)
 
-      // TODO-APP: Ideally the back button should not use startTransition as it should apply the updates synchronously
-      // Without startTransition works if the cache is there for this path
-      startTransition(() => {
-        dispatchTraverseAction(
-          window.location.href,
-          event.state.__PRIVATE_NEXTJS_INTERNALS_TREE
-        )
-      })
+    if (!checkedMissedTraversalBeforeReplay) {
+      checkedMissedTraversalBeforeReplay = true
+      if (hasMissedTraversal()) {
+        handlePopState(window.history.state)
+      }
     }
 
-    // Register popstate event to call onPopstate.
-    window.addEventListener('popstate', onPopState)
     return () => {
       window.history.pushState = originalPushState
       window.history.replaceState = originalReplaceState
@@ -391,7 +452,7 @@ function Router({
     }
   }, [])
 
-  const { cache, tree, nextUrl, focusAndScrollRef, previousNextUrl } = state
+  const { cache, tree, nextUrl, scrollRef, previousNextUrl } = state
 
   const matchingHead = useMemo(() => {
     return findHeadInCache(cache, tree[1])
@@ -424,6 +485,7 @@ function Router({
       parentCacheNode: cache,
       parentSegmentPath: null,
       parentParams: {},
+      parentLoadingData: null,
       // This is the <Activity> "name" that shows up in the Suspense DevTools.
       // It represents the root of the app.
       debugNameContext: '/',
@@ -438,11 +500,11 @@ function Router({
   const globalLayoutRouterContext = useMemo(() => {
     return {
       tree,
-      focusAndScrollRef,
+      scrollRef,
       nextUrl,
       previousNextUrl,
     }
-  }, [tree, focusAndScrollRef, nextUrl, previousNextUrl])
+  }, [tree, scrollRef, nextUrl, previousNextUrl])
 
   let head
   if (matchingHead !== null) {
@@ -478,7 +540,7 @@ function Router({
     </RedirectBoundary>
   )
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.__NEXT_DEV_SERVER) {
     // In development, we apply few error boundaries and hot-reloader:
     // - DevRootHTTPAccessFallbackBoundary: avoid using navigation API like notFound() in root layout
     // - HotReloader:
@@ -487,6 +549,8 @@ function Router({
     //  - catch runtime errors and display global-error when necessary
     if (typeof window !== 'undefined') {
       const { DevRootHTTPAccessFallbackBoundary } =
+        // TODO(browser-variant): migrate to a .ts/.browser.ts split so the browser bundle drops the server branch; see scripts/generate-browser-variant-aliases.mjs
+        // ast-grep-ignore: no-typeof-window-require-tsx
         require('./dev-root-http-access-fallback-boundary') as typeof import('./dev-root-http-access-fallback-boundary')
       content = (
         <DevRootHTTPAccessFallbackBoundary>
@@ -519,10 +583,16 @@ function Router({
     )
   }
 
+  if (process.env.__NEXT_USE_OFFLINE) {
+    const { OfflineProvider } =
+      require('./use-offline') as typeof import('./use-offline')
+    content = <OfflineProvider>{content}</OfflineProvider>
+  }
+
   return (
     <>
       <HistoryUpdater appRouterState={state} />
-      <RuntimeStyles />
+      {process.env.TURBOPACK ? null : <RuntimeStylesForWebpack />}
       <NavigationPromisesContext.Provider
         value={instrumentedNavigationPromises}
       >
@@ -582,24 +652,30 @@ export default function AppRouter({
   )
 }
 
-const runtimeStyles = new Set<string>()
-let runtimeStyleChanged = new Set<() => void>()
+let runtimeStyles: Set<string> | undefined
+let runtimeStyleChanged: Set<() => void> | undefined
+if (!process.env.TURBOPACK && typeof window !== 'undefined') {
+  runtimeStyles = new Set<string>()
+  runtimeStyleChanged = new Set<() => void>()
 
-globalThis._N_E_STYLE_LOAD = function (href: string) {
-  let len = runtimeStyles.size
-  runtimeStyles.add(href)
-  if (runtimeStyles.size !== len) {
-    runtimeStyleChanged.forEach((cb) => cb())
+  globalThis._N_E_STYLE_LOAD = function (href: string) {
+    if (!runtimeStyles || !runtimeStyleChanged) return Promise.resolve()
+    let len = runtimeStyles.size
+    runtimeStyles.add(href)
+    if (runtimeStyles.size !== len) {
+      runtimeStyleChanged.forEach((cb) => cb())
+    }
+    // TODO figure out how to get a promise here
+    // But maybe it's not necessary as react would block rendering until it's loaded
+    return Promise.resolve()
   }
-  // TODO figure out how to get a promise here
-  // But maybe it's not necessary as react would block rendering until it's loaded
-  return Promise.resolve()
 }
 
-function RuntimeStyles() {
+function RuntimeStylesForWebpack() {
   const [, forceUpdate] = React.useState(0)
-  const renderedStylesSize = runtimeStyles.size
+  const renderedStylesSize = runtimeStyles?.size ?? 0
   useEffect(() => {
+    if (!runtimeStyles || !runtimeStyleChanged) return
     const changed = () => forceUpdate((c) => c + 1)
     runtimeStyleChanged.add(changed)
     if (renderedStylesSize !== runtimeStyles.size) {
@@ -610,12 +686,12 @@ function RuntimeStyles() {
     }
   }, [renderedStylesSize, forceUpdate])
 
-  const dplId = getDeploymentIdQueryOrEmptyString()
-  return [...runtimeStyles].map((href, i) => (
+  const query = getAssetTokenQuery()
+  return [...(runtimeStyles || [])].map((href, i) => (
     <link
       key={i}
       rel="stylesheet"
-      href={`${href}${dplId}`}
+      href={`${href}${query}`}
       // @ts-ignore
       precedence="next"
       // TODO figure out crossOrigin and nonce

@@ -1,4 +1,3 @@
-import { createHrefFromUrl } from '../create-href-from-url'
 import type {
   ReadonlyReducerState,
   ReducerState,
@@ -7,13 +6,18 @@ import type {
 import { extractPathFromFlightRouterState } from '../compute-changed-path'
 import {
   FreshnessPolicy,
+  resetNavigationLockToPending,
   spawnDynamicRequests,
   startPPRNavigation,
   type NavigationRequestAccumulation,
 } from '../ppr-navigations'
 import type { FlightRouterState } from '../../../../shared/lib/app-router-types'
-import { handleExternalUrl } from './navigate-reducer'
-import type { Mutable } from '../router-reducer-types'
+import {
+  completeHardNavigation,
+  completeTraverseNavigation,
+} from '../../segment-cache/navigation'
+import { convertServerPatchToFullTree } from '../../segment-cache/decode-server-response'
+import { UnknownDynamicStaleTime } from '../../segment-cache/bfcache'
 
 export function restoreReducer(
   state: ReadonlyReducerState,
@@ -38,66 +42,74 @@ export function restoreReducer(
 
   const currentUrl = new URL(state.canonicalUrl, location.origin)
   const restoredUrl = action.url
-  const restoredCanonicalUrl = createHrefFromUrl(restoredUrl)
   const restoredNextUrl =
     extractPathFromFlightRouterState(treeToRestore) ?? restoredUrl.pathname
 
   const now = Date.now()
+  // TODO: Store the dynamic stale time on the top-level state so it's known
+  // during restores and refreshes.
   const accumulation: NavigationRequestAccumulation = {
-    scrollableSegments: null,
     separateRefreshUrls: null,
+    scrollRef: null,
   }
+  const restoreSeed = convertServerPatchToFullTree(
+    now,
+    treeToRestore,
+    null,
+    renderedSearch,
+    UnknownDynamicStaleTime
+  )
   const task = startPPRNavigation(
     now,
     currentUrl,
+    state.renderedSearch,
     state.cache,
     state.tree,
-    treeToRestore,
+    restoreSeed.routeTree,
+    restoreSeed.metadataVaryPath,
     FreshnessPolicy.HistoryTraversal,
     null,
-    null,
-    null,
-    null,
+    restoreSeed.dynamicStaleAt,
     false,
-    false,
-    accumulation
+    accumulation,
+    // A history-traversal restore never restricts to the shell.
+    false
   )
 
   if (task === null) {
-    const mutable: Mutable = {
-      preserveCustomHistoryState: true,
-    }
-    return handleExternalUrl(state, mutable, restoredCanonicalUrl, false)
+    return completeHardNavigation(state, restoredUrl, 'replace')
   }
-
   spawnDynamicRequests(
     task,
     restoredUrl,
     restoredNextUrl,
     FreshnessPolicy.HistoryTraversal,
-    accumulation
+    accumulation,
+    // History traversal doesn't use route prediction, so there's no route
+    // cache entry to mark as having a dynamic rewrite on mismatch. If a
+    // mismatch occurs, the retry handler will traverse the known route tree
+    // to find and mark the entry.
+    null,
+    // History traversal always uses 'replace'.
+    'replace',
+    // Instant Navigation Testing API: a traversal is not a capture. Spawn its
+    // dynamic requests ungated (null lock) so they render from cache or fetch
+    // normally rather than being withheld behind the lock.
+    null,
+    // Not an HMR refresh, so there's no request generation to cancel.
+    undefined
   )
-
-  return {
-    // Set canonical url
-    canonicalUrl: restoredCanonicalUrl,
+  // Instant Navigation Testing API: a traversal resets the lock to a fresh
+  // pending scope — releasing any data withheld by prior forward navigations and
+  // returning the panel to "awaiting" — without ending the testing session.
+  // No-op when the testing API is disabled or no lock is held.
+  resetNavigationLockToPending()
+  return completeTraverseNavigation(
+    state,
+    restoredUrl,
     renderedSearch,
-    pushRef: {
-      pendingPush: false,
-      mpaNavigation: false,
-      // Ensures that the custom history state that was set is preserved when applying this update.
-      preserveCustomHistoryState: true,
-    },
-    focusAndScrollRef: state.focusAndScrollRef,
-    cache: task.node,
-    // Restore provided tree
-    tree: treeToRestore,
-
-    nextUrl: restoredNextUrl,
-    // TODO: We need to restore previousNextUrl, too, which represents the
-    // Next-Url that was used to fetch the data. Anywhere we fetch using the
-    // canonical URL, there should be a corresponding Next-Url.
-    previousNextUrl: null,
-    debugInfo: null,
-  }
+    task.node,
+    task.route,
+    restoredNextUrl
+  )
 }

@@ -1,12 +1,11 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use swc_core::quote;
-use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
-    chunk::{ChunkableModuleReference, ChunkingContext, ChunkingTypeOption, ModuleChunkItemIdExt},
+    chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
     reference::ModuleReference,
     resolve::ModuleResolveResult,
 };
@@ -22,14 +21,19 @@ use crate::{
 };
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("module id of {inner}")]
 pub struct EsmModuleIdAssetReference {
     inner: ResolvedVc<EsmAssetReference>,
+    chunking_type: Option<ChunkingType>,
 }
 
 impl EsmModuleIdAssetReference {
-    pub fn new(inner: ResolvedVc<EsmAssetReference>) -> Self {
-        EsmModuleIdAssetReference { inner }
+    pub fn new(inner: ResolvedVc<EsmAssetReference>, chunking_type: Option<ChunkingType>) -> Self {
+        EsmModuleIdAssetReference {
+            inner,
+            chunking_type,
+        }
     }
 }
 
@@ -39,23 +43,9 @@ impl ModuleReference for EsmModuleIdAssetReference {
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         self.inner.resolve_reference()
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ValueToString for EsmModuleIdAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("module id of {}", self.inner.to_string().await?,).into(),
-        ))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for EsmModuleIdAssetReference {
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        self.inner.chunking_type()
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        self.chunking_type.clone()
     }
 }
 
@@ -91,7 +81,7 @@ impl EsmModuleIdAssetReferenceCodeGen {
         let mut visitors = Vec::new();
 
         if let ReferencedAsset::Some(asset) =
-            &*self.reference.await?.inner.get_referenced_asset().await?
+            self.reference.await?.inner.get_referenced_asset().await?
         {
             let id = asset.chunk_item_id(chunking_context).await?;
             let id = module_id_to_lit(&id);

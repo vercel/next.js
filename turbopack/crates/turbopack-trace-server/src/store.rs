@@ -6,22 +6,39 @@ use std::{
 };
 
 use rustc_hash::FxHashSet;
+use turbo_rcstr::{RcStr, rcstr};
 
 use crate::{
+    chunked_vec::ChunkedVec,
     self_time_tree::SelfTimeTree,
-    span::{Span, SpanEvent, SpanIndex},
+    span::{Span, SpanArgs, SpanEvent, SpanIndex, SpanTimeData},
     span_ref::SpanRef,
     timestamp::Timestamp,
 };
 
 pub type SpanId = NonZeroUsize;
 
-const CUT_OFF_DEPTH: u32 = 150;
+/// This max depth is used to avoid deep recursion in the span tree,
+/// which can lead to stack overflows and performance issues.
+/// Spans deeper than this depth will be re-parented to an ancestor
+/// at the cut-off depth (Flattening).
+const CUT_OFF_DEPTH: u32 = 80;
+
+/// A single memory usage sample: (timestamp, memory_bytes, memory_pressure).
+/// Sorted by timestamp. `memory_pressure` is an OS-reported pressure value in
+/// the range `0..=100`; `0` is used when the reporter platform did not expose
+/// a pressure signal.
+type MemorySample = (Timestamp, u64, u8);
+
+/// Maximum number of memory samples returned in a query result.
+const MAX_MEMORY_SAMPLES: usize = 200;
 
 pub struct Store {
-    pub(crate) spans: Vec<Span>,
+    pub(crate) spans: ChunkedVec<Span>,
     pub(crate) self_time_tree: Option<SelfTimeTree<SpanIndex>>,
     max_self_time_lookup_time: AtomicU64,
+    /// Global sorted list of memory samples (timestamp, memory_bytes).
+    memory_samples: Vec<MemorySample>,
 }
 
 fn new_root_span() -> Span {
@@ -29,22 +46,20 @@ fn new_root_span() -> Span {
         parent: None,
         depth: 0,
         start: Timestamp::MAX,
-        category: "".into(),
-        name: "(root)".into(),
-        args: vec![],
-        events: vec![],
+        category: RcStr::default(),
+        name: rcstr!("(root)"),
+        args: SpanArgs::new(),
+        events: Default::default(),
         is_complete: true,
-        max_depth: OnceLock::new(),
         self_allocations: 0,
         self_allocation_count: 0,
         self_deallocations: 0,
         self_deallocation_count: 0,
-        total_allocations: OnceLock::new(),
-        total_deallocations: OnceLock::new(),
-        total_persistent_allocations: OnceLock::new(),
-        total_allocation_count: OnceLock::new(),
-        total_span_count: OnceLock::new(),
-        time_data: OnceLock::new(),
+        totals: OnceLock::new(),
+        time_data: SpanTimeData {
+            self_end: Timestamp::MAX,
+            ..Default::default()
+        },
         extra: OnceLock::new(),
         names: OnceLock::new(),
     }
@@ -52,23 +67,33 @@ fn new_root_span() -> Span {
 
 impl Store {
     pub fn new() -> Self {
+        let mut spans = ChunkedVec::new();
+        spans.push(new_root_span());
         Self {
-            spans: vec![new_root_span()],
+            spans,
             self_time_tree: env::var("NO_CORRECTED_TIME")
                 .ok()
                 .is_none()
                 .then(SelfTimeTree::new),
             max_self_time_lookup_time: AtomicU64::new(0),
+            memory_samples: Vec::new(),
         }
     }
 
     pub fn reset(&mut self) {
-        self.spans.truncate(1);
-        self.spans[0] = new_root_span();
+        self.spans = ChunkedVec::new();
+        self.spans.push(new_root_span());
         if let Some(tree) = self.self_time_tree.as_mut() {
             *tree = SelfTimeTree::new();
         }
         *self.max_self_time_lookup_time.get_mut() = 0;
+        self.memory_samples.clear();
+    }
+
+    pub fn optimize(&mut self) {
+        if let Some(tree) = self.self_time_tree.as_mut() {
+            tree.optimize();
+        }
     }
 
     pub fn has_time_info(&self) -> bool {
@@ -81,12 +106,13 @@ impl Store {
         &mut self,
         parent: Option<SpanIndex>,
         start: Timestamp,
-        category: String,
-        name: String,
-        args: Vec<(String, String)>,
+        category: RcStr,
+        name: RcStr,
+        args: SpanArgs,
         outdated_spans: &mut FxHashSet<SpanIndex>,
     ) -> SpanIndex {
         let id = SpanIndex::new(self.spans.len()).unwrap();
+        let ignore_self_time = &name == "thread" || &name == "blocking";
         self.spans.push(Span {
             parent,
             depth: 0,
@@ -94,33 +120,40 @@ impl Store {
             category,
             name,
             args,
-            events: vec![],
+            events: Default::default(),
             is_complete: false,
-            max_depth: OnceLock::new(),
             self_allocations: 0,
             self_allocation_count: 0,
             self_deallocations: 0,
             self_deallocation_count: 0,
-            total_allocations: OnceLock::new(),
-            total_deallocations: OnceLock::new(),
-            total_persistent_allocations: OnceLock::new(),
-            total_allocation_count: OnceLock::new(),
-            total_span_count: OnceLock::new(),
-            time_data: OnceLock::new(),
+            totals: OnceLock::new(),
+            time_data: SpanTimeData {
+                self_end: start,
+                ignore_self_time,
+                ..Default::default()
+            },
             extra: OnceLock::new(),
             names: OnceLock::new(),
         });
-        let parent = if let Some(parent) = parent {
+        let mut parent = if let Some(parent) = parent {
             outdated_spans.insert(parent);
             &mut self.spans[parent.get()]
         } else {
             &mut self.spans[0]
         };
-        parent.start = min(parent.start, start);
-        let depth = parent.depth + 1;
-        if depth < CUT_OFF_DEPTH {
-            parent.events.push(SpanEvent::Child { index: id });
+        let mut depth = parent.depth + 1;
+        if depth >= CUT_OFF_DEPTH
+            && let Some(parent_of_parent) = parent.parent
+        {
+            outdated_spans.insert(parent_of_parent);
+            self.spans[id.get()].parent = Some(parent_of_parent);
+            parent = &mut self.spans[parent_of_parent.get()];
+            depth = CUT_OFF_DEPTH - 1;
         }
+        if depth < CUT_OFF_DEPTH {
+            parent.events.push(SpanEvent::Child { start, index: id });
+        }
+        parent.start = min(parent.start, start);
         let span = &mut self.spans[id.get()];
         span.depth = depth;
         id
@@ -129,7 +162,7 @@ impl Store {
     pub fn add_args(
         &mut self,
         span_index: SpanIndex,
-        args: Vec<(String, String)>,
+        args: SpanArgs,
         outdated_spans: &mut FxHashSet<SpanIndex>,
     ) {
         let span = &mut self.spans[span_index.get()];
@@ -164,7 +197,7 @@ impl Store {
     ) {
         if let Some(tree) = self.self_time_tree.as_mut() {
             if Timestamp::from_value(*self.max_self_time_lookup_time.get_mut()) >= start {
-                tree.for_each_in_range(start, end, |_, _, span| {
+                tree.for_each_in_range_optimize(start, end, &mut |_, _, span| {
                     outdated_spans.insert(*span);
                 });
             }
@@ -179,16 +212,19 @@ impl Store {
         end: Timestamp,
         outdated_spans: &mut FxHashSet<SpanIndex>,
     ) {
+        let event = SpanEvent::self_time(start, end);
         let span = &mut self.spans[span_index.get()];
-        let time_data = span.time_data_mut();
+        let time_data = &mut span.time_data;
         if time_data.ignore_self_time {
             return;
         }
         outdated_spans.insert(span_index);
         time_data.self_time += end - start;
         time_data.self_end = max(time_data.self_end, end);
-        span.events.push(SpanEvent::SelfTime { start, end });
-        self.insert_self_time(start, end, span_index, outdated_spans);
+        if let Some(event) = event {
+            span.events.push(event);
+            self.insert_self_time(start, end, span_index, outdated_spans);
+        }
     }
 
     pub fn set_total_time(
@@ -205,7 +241,7 @@ impl Store {
         };
         let mut children = span
             .children()
-            .map(|c| (c.span.start, c.span.time_data().self_end, c.index()))
+            .map(|c| (c.span.start, c.span.time_data.self_end, c.index()))
             .collect::<Vec<_>>();
         children.sort();
         let self_end = start_time + total_time;
@@ -215,44 +251,38 @@ impl Store {
         for (start, end, index) in children {
             if start > current {
                 if start > self_end {
-                    events.push(SpanEvent::SelfTime {
-                        start: current,
-                        end: self_end,
-                    });
-                    self.insert_self_time(current, self_end, span_index, outdated_spans);
-                    self_time += self_end - current;
+                    if let Some(event) = SpanEvent::self_time(current, self_end) {
+                        events.push(event);
+                        self.insert_self_time(current, self_end, span_index, outdated_spans);
+                        self_time += self_end - current;
+                    }
                     break;
                 }
-                events.push(SpanEvent::SelfTime {
-                    start: current,
-                    end: start,
-                });
-                self.insert_self_time(current, start, span_index, outdated_spans);
-                self_time += start - current;
+                if let Some(event) = SpanEvent::self_time(current, start) {
+                    events.push(event);
+                    self.insert_self_time(current, start, span_index, outdated_spans);
+                    self_time += start - current;
+                }
             }
-            events.push(SpanEvent::Child { index });
+            events.push(SpanEvent::Child { start, index });
             current = max(current, end);
         }
         current -= start_time;
         if current < total_time {
             self_time += total_time - current;
-            events.push(SpanEvent::SelfTime {
-                start: current + start_time,
-                end: start_time + total_time,
-            });
-            self.insert_self_time(
-                current + start_time,
-                start_time + total_time,
-                span_index,
-                outdated_spans,
-            );
+            let st = current + start_time;
+            let en = start_time + total_time;
+            if let Some(event) = SpanEvent::self_time(st, en) {
+                events.push(event);
+                self.insert_self_time(st, en, span_index, outdated_spans);
+            }
         }
         let span = &mut self.spans[span_index.get()];
         outdated_spans.insert(span_index);
-        let time_data = span.time_data_mut();
+        let time_data = &mut span.time_data;
         time_data.self_time = self_time;
         time_data.self_end = self_end;
-        span.events = events;
+        span.events = events.into();
         span.start = start_time;
     }
 
@@ -264,6 +294,7 @@ impl Store {
     ) {
         outdated_spans.insert(span_index);
         let span = &mut self.spans[span_index.get()];
+        let span_start = span.start;
 
         let old_parent = span.parent.replace(parent);
         let old_parent = if let Some(parent) = old_parent {
@@ -272,17 +303,16 @@ impl Store {
         } else {
             &mut self.spans[0]
         };
-        if let Some(index) = old_parent
-            .events
-            .iter()
-            .position(|event| *event == SpanEvent::Child { index: span_index })
-        {
-            old_parent.events.remove(index);
-        }
+        old_parent.events.retain_unordered(
+            |event: &SpanEvent| !matches!(event, SpanEvent::Child { index, .. } if *index == span_index),
+        );
 
         outdated_spans.insert(parent);
         let parent = &mut self.spans[parent.get()];
-        parent.events.push(SpanEvent::Child { index: span_index });
+        parent.events.push(SpanEvent::Child {
+            start: span_start,
+            index: span_index,
+        });
     }
 
     pub fn add_allocation(
@@ -311,6 +341,91 @@ impl Store {
         span.self_deallocation_count += count;
     }
 
+    pub fn add_memory_sample(&mut self, ts: Timestamp, memory: u64, memory_pressure: u8) {
+        // Samples arrive nearly sorted (roughly chronological from the trace
+        // writer), so an insertion-sort step is efficient: push to the end
+        // then swap backward until the timestamp ordering is restored.
+        self.memory_samples.push((ts, memory, memory_pressure));
+        let mut i = self.memory_samples.len() - 1;
+        while i > 0 && self.memory_samples[i - 1].0 > ts {
+            self.memory_samples.swap(i, i - 1);
+            i -= 1;
+        }
+    }
+
+    /// Returns up to `MAX_MEMORY_SAMPLES` memory samples in the range
+    /// `[start, end]`. When more samples exist, groups of N consecutive
+    /// samples are merged by taking the maximum memory value in each group.
+    pub fn memory_samples_for_range(&self, start: Timestamp, end: Timestamp) -> Vec<u64> {
+        self.memory_samples_for_range_with_ts(start, end)
+            .into_iter()
+            .map(|(_, mem, _)| mem)
+            .collect()
+    }
+
+    /// Like `memory_samples_for_range` but keeps the timestamps and the
+    /// memory-pressure byte. Timestamps are absolute store timestamps (same
+    /// reference frame as span start/end). When the raw slice exceeds
+    /// `MAX_MEMORY_SAMPLES`, each merged group is represented by the sample
+    /// whose memory value was the group's max (its timestamp and pressure
+    /// byte are kept alongside it).
+    pub fn memory_samples_for_range_with_ts(
+        &self,
+        start: Timestamp,
+        end: Timestamp,
+    ) -> Vec<MemorySample> {
+        let slice = self.memory_samples_slice(start, end);
+        let count = slice.len();
+        if count == 0 {
+            return Vec::new();
+        }
+
+        if count <= MAX_MEMORY_SAMPLES {
+            return slice.to_vec();
+        }
+
+        // Merge groups of N samples, taking the max memory in each group and
+        // keeping the timestamp and pressure of that max sample.
+        let n = count.div_ceil(MAX_MEMORY_SAMPLES);
+        slice
+            .chunks(n)
+            .map(|chunk| *chunk.iter().max_by_key(|(_, mem, _)| *mem).unwrap())
+            .collect()
+    }
+
+    /// Returns up to `MAX_MEMORY_SAMPLES` memory pressure values in the range
+    /// `[start, end]`. The returned slice has the same length and group
+    /// boundaries as [`Self::memory_samples_for_range`] so that the two
+    /// results can be rendered in parallel. Each group is downsampled by
+    /// taking the maximum pressure value.
+    pub fn memory_pressure_samples_for_range(&self, start: Timestamp, end: Timestamp) -> Vec<u8> {
+        let slice = self.memory_samples_slice(start, end);
+        let count = slice.len();
+        if count == 0 {
+            return Vec::new();
+        }
+
+        if count <= MAX_MEMORY_SAMPLES {
+            return slice.iter().map(|(_, _, p)| *p).collect();
+        }
+
+        let n = count.div_ceil(MAX_MEMORY_SAMPLES);
+        slice
+            .chunks(n)
+            .map(|chunk| chunk.iter().map(|(_, _, p)| *p).max().unwrap())
+            .collect()
+    }
+
+    fn memory_samples_slice(&self, start: Timestamp, end: Timestamp) -> &[MemorySample] {
+        // Binary search for the first sample >= start
+        let lo = self
+            .memory_samples
+            .partition_point(|(ts, _, _)| *ts < start);
+        // Binary search for the first sample > end
+        let hi = self.memory_samples.partition_point(|(ts, _, _)| *ts <= end);
+        &self.memory_samples[lo..hi]
+    }
+
     pub fn complete_span(&mut self, span_index: SpanIndex) {
         let span = &mut self.spans[span_index.get()];
         span.is_complete = true;
@@ -318,17 +433,16 @@ impl Store {
 
     pub fn invalidate_outdated_spans(&mut self, outdated_spans: &FxHashSet<SpanId>) {
         fn invalidate_span(span: &mut Span) {
-            if let Some(time_data) = span.time_data.get_mut() {
-                time_data.end.take();
-                time_data.total_time.take();
-                time_data.corrected_self_time.take();
-                time_data.corrected_total_time.take();
+            span.time_data.end.take();
+            span.time_data.total_time.take();
+            span.time_data.corrected_self_time.take();
+            span.time_data.corrected_total_time.take();
+            for event in span.events.iter_mut_unordered() {
+                if let SpanEvent::SelfTime(self_time) = event {
+                    self_time.corrected_self_time.take();
+                }
             }
-            span.total_allocations.take();
-            span.total_deallocations.take();
-            span.total_persistent_allocations.take();
-            span.total_allocation_count.take();
-            span.total_span_count.take();
+            span.totals.take();
             span.extra.take();
         }
 
@@ -351,7 +465,7 @@ impl Store {
 
     pub fn root_spans(&self) -> impl Iterator<Item = SpanRef<'_>> {
         self.spans[0].events.iter().filter_map(|event| match event {
-            &SpanEvent::Child { index: id } => Some(SpanRef {
+            &SpanEvent::Child { index: id, .. } => Some(SpanRef {
                 span: &self.spans[id.get()],
                 store: self,
                 index: id.get(),

@@ -104,16 +104,16 @@ Routing requests through [`rewrites`](/docs/app/api-reference/config/next-config
 
 ```js filename="proxy.js"
 export async function proxy(request) {
-  const { pathname, search } = req.nextUrl;
+  const { pathname, search } = request.nextUrl
   if (pathname === '/your-path' && myFeatureFlag.isEnabled()) {
-    return NextResponse.rewrite(`${rewriteDomain}${pathname}${search});
+    return NextResponse.rewrite(`${rewriteDomain}${pathname}${search}`)
   }
 }
 ```
 
 ## Linking between zones
 
-Links to paths in a different zone should use an `a` tag instead of the Next.js [`<Link>`](/docs/pages/api-reference/components/link) component. This is because Next.js will try to prefetch and soft navigate to any relative path in `<Link>` component, which will not work across zones.
+Links to paths in a different zone should use an `a` tag instead of the Next.js [`<Link>`](/docs/app/api-reference/components/link) component. This is because Next.js will try to prefetch and soft navigate to any relative path in `<Link>` component, which will not work across zones.
 
 ## Sharing code
 
@@ -125,7 +125,7 @@ Since the pages in different zones may be released at different times, feature f
 
 ## Server Actions
 
-When using [Server Actions](/docs/app/getting-started/updating-data) with Multi-Zones, you must explicitly allow the user-facing origin since your user facing domain may serve multiple applications. In your `next.config.js` file, add the following lines:
+When using [Server Actions](/docs/app/getting-started/mutating-data) with Multi-Zones, you must explicitly allow the user-facing origin since your user facing domain may serve multiple applications. In your `next.config.js` file, add the following lines:
 
 ```js filename="next.config.js"
 const nextConfig = {
