@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server'
+import { connection, NextResponse } from 'next/server'
 
-export const dynamic = 'force-dynamic'
+export async function GET() {
+  await connection()
 
-export function GET() {
   if (process.env.NEXT_TEST_MANUAL_UPGRADE_OWNER === '1') {
     console.log('[manual-upgrade-owner] Next.js route raced')
   }

@@ -14,9 +14,24 @@ const webSocketHeaders = {
 
 const describeWithoutCacheComponents =
   process.env.__NEXT_CACHE_COMPONENTS === 'true' ? describe.skip : describe
+const isCacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
-describeWithoutCacheComponents('WebSocket Route Handlers', () => {
-  const { next } = nextTestSetup({ files: __dirname })
+describe('WebSocket Route Handlers', () => {
+  const { next, skipped } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+  })
+
+  if (skipped) return
+
+  beforeAll(async () => {
+    if (isCacheComponentsEnabled) {
+      // Cache Components does not support explicit route runtime config. The
+      // Edge-specific contract remains covered by every regular test mode.
+      await next.deleteFile('app/edge/route.ts')
+    }
+    await next.start()
+  })
 
   function requestUpgrade(
     requestPath: string,
@@ -391,16 +406,19 @@ describeWithoutCacheComponents('WebSocket Route Handlers', () => {
       'This route only accepts WebSocket upgrade requests.'
     )
 
-    const edgeResponse = await next.fetch('/edge')
-    expect(await edgeResponse.text()).toBe('edge route')
+    if (!isCacheComponentsEnabled) {
+      const edgeResponse = await next.fetch('/edge')
+      expect(await edgeResponse.text()).toBe('edge route')
+    }
   })
+  describeWithoutCacheComponents('Edge Route contract', () => {
+    it('keeps the Edge route functional without claiming its upgrades', async () => {
+      const upgradeResponse = await requestUpgrade('/edge')
+      expect(upgradeResponse).toMatchObject({ status: 404, body: 'Not Found' })
 
-  it('keeps the Edge route functional without claiming its upgrades', async () => {
-    const upgradeResponse = await requestUpgrade('/edge')
-    expect(upgradeResponse).toMatchObject({ status: 404, body: 'Not Found' })
-
-    const response = await next.fetch('/edge')
-    expect(await response.text()).toBe('edge route')
+      const response = await next.fetch('/edge')
+      expect(await response.text()).toBe('edge route')
+    })
   })
 })
 

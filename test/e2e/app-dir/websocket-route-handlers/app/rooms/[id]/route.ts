@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server'
 
-export const dynamic = 'force-dynamic'
-
 function getRequestSnapshot(request: Request, id: string) {
   const url = new URL(request.url)
   return {

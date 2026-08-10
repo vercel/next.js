@@ -11,8 +11,6 @@ const state = globalThis as typeof globalThis & {
 }
 const sharedResponses = new Map<string, NextResponse<null>>()
 
-export const dynamic = 'force-dynamic'
-
 export async function GET(request: Request) {
   const url = new URL(request.url)
   const executionKey = url.searchParams.get('execution-key') || 'default'

@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server'
-
-export const dynamic = 'force-dynamic'
+import { connection, NextResponse } from 'next/server'
 
 export async function GET() {
+  await connection()
+
   console.log('[slow-websocket-upgrade] started')
   const gate = (
     globalThis as typeof globalThis & {
