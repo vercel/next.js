@@ -1,6 +1,24 @@
 import { formatServerError } from './format-server-error'
 
 describe('formatServerError', () => {
+  it('should hint about use cache when a function fails to serialize', () => {
+    const err = new Error(
+      'Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.\n  [function fn]\n   ^^^^^^^^^^^'
+    )
+
+    formatServerError(err)
+
+    expect(err.message).toContain('"use cache"')
+    expect(err.message).toContain(
+      'https://nextjs.org/docs/messages/use-cache-function'
+    )
+    expect(err.message).toContain('[function fn]')
+
+    const once = err.message
+    formatServerError(err)
+    expect(err.message).toBe(once)
+  })
+
   it('should not append message several times', () => {
     const err = new Error(
       'Class extends value undefined is not a constructor or null'

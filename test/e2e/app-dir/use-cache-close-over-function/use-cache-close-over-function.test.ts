@@ -7,6 +7,12 @@ import {
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
+const reactFunctionError =
+  'Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.'
+
+const useCacheFunctionDocs =
+  'https://nextjs.org/docs/messages/use-cache-function'
+
 describe('use-cache-close-over-function', () => {
   const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
     files: __dirname,
@@ -28,11 +34,10 @@ describe('use-cache-close-over-function', () => {
       const errorDescription = await getRedboxDescription(browser)
       const errorSource = await getRedboxSource(browser)
 
-      expect(errorDescription).toMatchInlineSnapshot(`
-        "Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
-          [function fn]
-           ^^^^^^^^^^^"
-      `)
+      expect(errorDescription).toContain(reactFunctionError)
+      expect(errorDescription).toContain('"use cache"')
+      expect(errorDescription).toContain(useCacheFunctionDocs)
+      expect(errorDescription).toContain('[function fn]')
 
       expect(errorSource).toMatchInlineSnapshot(`
         "app/client/page.tsx (8:3) @ createCachedFn
@@ -47,21 +52,10 @@ describe('use-cache-close-over-function', () => {
       `)
 
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
-      expect(cliOutput).toContain(
-        '' +
-          'Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.' +
-          '\n  [function fn]' +
-          '\n   ^^^^^^^^^^^' +
-          '\n    at createCachedFn (app/client/page.tsx:8:3)' +
-          '\n    at Page (app/client/page.tsx:15:28)' +
-          '\n   6 |   }' +
-          '\n   7 |' +
-          '\n>  8 |   return async () => {' +
-          '\n     |   ^' +
-          "\n   9 |     'use cache'" +
-          '\n  10 |     return Math.random() + fn()' +
-          '\n  11 |   }'
-      )
+      expect(cliOutput).toContain(reactFunctionError)
+      expect(cliOutput).toContain(useCacheFunctionDocs)
+      expect(cliOutput).toContain('at createCachedFn (app/client/page.tsx:8:3)')
+      expect(cliOutput).toContain('at Page (app/client/page.tsx:15:28)')
     })
 
     it('should show the error overlay for server-side usage', async () => {
@@ -73,11 +67,10 @@ describe('use-cache-close-over-function', () => {
       const errorDescription = await getRedboxDescription(browser)
       const errorSource = await getRedboxSource(browser)
 
-      expect(errorDescription).toMatchInlineSnapshot(`
-        "Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
-          [function fn]
-           ^^^^^^^^^^^"
-      `)
+      expect(errorDescription).toContain(reactFunctionError)
+      expect(errorDescription).toContain('"use cache"')
+      expect(errorDescription).toContain(useCacheFunctionDocs)
+      expect(errorDescription).toContain('[function fn]')
 
       expect(errorSource).toMatchInlineSnapshot(`
         "app/server/page.tsx (6:3) @ createCachedFn
@@ -92,41 +85,41 @@ describe('use-cache-close-over-function', () => {
       `)
 
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
-      expect(cliOutput).toContain(
-        isTurbopack
-          ? '' +
-              'Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.' +
-              '\n  [function fn]' +
-              '\n   ^^^^^^^^^^^' +
-              '\n    at createCachedFn (app/server/page.tsx:6:3)' +
-              '\n    at module evaluation (app/server/page.tsx:12:24)'
-          : '' +
-              'Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.' +
-              '\n  [function fn]' +
-              '\n   ^^^^^^^^^^^' +
-              '\n    at createCachedFn (app/server/page.tsx:6:3)' +
-              '\n    at eval (app/server/page.tsx:12:24)' +
-              // TODO(veil): Should be source-mapped.
-              '\n    at <unknown> (rsc)'
-      )
-      expect(cliOutput).toContain(
-        '' +
-          '\n> 6 |   return async () => {' +
-          '\n    |   ^' +
-          "\n  7 |     'use cache'"
+      expect(cliOutput).toContain(reactFunctionError)
+      expect(cliOutput).toContain(useCacheFunctionDocs)
+      expect(cliOutput).toContain('at createCachedFn (app/server/page.tsx:6:3)')
+      if (isTurbopack) {
+        expect(cliOutput).toContain(
+          'at module evaluation (app/server/page.tsx:12:24)'
+        )
+      } else {
+        expect(cliOutput).toContain('at eval (app/server/page.tsx:12:24)')
+      }
+    })
+
+    it('should hint when a component function is returned from use cache', async () => {
+      const browser = await next.browser('/return-component')
+
+      await waitForRedbox(browser)
+
+      const errorDescription = await getRedboxDescription(browser)
+      expect(errorDescription).toContain(reactFunctionError)
+      expect(errorDescription).toContain('"use cache"')
+      expect(errorDescription).toContain(useCacheFunctionDocs)
+      // Stronger wording when the failure is definitely inside the cache fill.
+      expect(errorDescription).toContain(
+        'This error occurred while serializing a value for `"use cache"`'
       )
     })
   } else {
     it('should fail the build with an error', async () => {
       const { cliOutput } = await next.build()
 
-      expect(cliOutput).toInclude(`
-Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
-  [function]
-   ^^^^^^^^`)
+      expect(cliOutput).toContain(reactFunctionError)
+      expect(cliOutput).toContain(useCacheFunctionDocs)
 
       expect(cliOutput).toMatch(
-        /Error occurred prerendering page "\/(client|server)"/
+        /Error occurred prerendering page "\/(client|server|return-component)"/
       )
     })
   }

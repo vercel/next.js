@@ -89,6 +89,7 @@ import {
   type ReadonlyHeaders,
 } from '../web/spec-extension/adapters/headers'
 import {
+  annotateUseCacheFunctionSerializationError,
   NestedDynamicUseCacheError,
   UseCacheDeadlockError,
   UseCacheTimeoutError,
@@ -1356,7 +1357,7 @@ async function generateCacheEntryImpl(
   // digests are handled correctly. Error formatting and reporting is not
   // necessary here; the errors are encoded in the stream, and will be reported
   // in the "Server" environment.
-  const handleError = createReactServerErrorHandler(
+  const reactServerHandleError = createReactServerErrorHandler(
     process.env.NODE_ENV === 'development',
     workStore.isBuildTimePrerendering ?? false,
     workStore.reactServerErrorsByDigest,
@@ -1373,6 +1374,14 @@ async function generateCacheEntryImpl(
       errors.push(error)
     }
   )
+
+  // React's default function-serialization error talks about Client Components.
+  // Inside `"use cache"` that framing is misleading — annotate before the error
+  // is digested/encoded so the Cache stream carries a clearer hint.
+  const handleError = (error: unknown) => {
+    annotateUseCacheFunctionSerializationError(error)
+    return reactServerHandleError(error)
+  }
 
   let stream: ReadableStream<Uint8Array>
   let devTimeoutAbortController: AbortController | undefined
@@ -2171,11 +2180,19 @@ export async function cache(
     ? [buildId, id, args, hmrRefreshHash]
     : [buildId, id, args]
 
-  const encodeCacheKeyParts = () =>
-    encodeReply(cacheKeyParts, {
-      temporaryReferences,
-      signal: hangingInputAbortSignal,
-    })
+  const encodeCacheKeyParts = async () => {
+    try {
+      return await encodeReply(cacheKeyParts, {
+        temporaryReferences,
+        signal: hangingInputAbortSignal,
+      })
+    } catch (error) {
+      // Closed-over or argument functions fail while encoding the cache key,
+      // outside the Flight `onError` path used for return-value serialization.
+      annotateUseCacheFunctionSerializationError(error)
+      throw error
+    }
+  }
 
   let encodedCacheKeyParts: FormData | string
 

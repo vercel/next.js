@@ -1,0 +1,63 @@
+---
+title: Functions cannot be passed into or returned from `"use cache"`
+---
+
+## Why This Error Occurred
+
+A function (including a React component) was passed into or returned from a `"use cache"` function.
+
+`"use cache"` is a serialization boundary. Cached arguments and return values must be serializable so they can be stored and reused later. Plain functions are not serializable, so React rejects them. The underlying error often mentions Client Components, which is confusing in this context — the failure is the cache boundary, not a Client Component prop.
+
+Common cases:
+
+- Returning an MDX or Server Component function from a cached helper, then rendering it as `<Content />`
+- Closing over a local function and calling it inside `"use cache"`
+
+## Possible Ways to Fix It
+
+### Return JSX or data instead of a component function
+
+Before:
+
+```jsx filename="app/lib/post.js"
+export async function getPostContent(slug) {
+  'use cache'
+  const { default: Post } = await import(`../content/${slug}.mdx`)
+  return Post // ❌ function — not serializable
+}
+```
+
+```jsx filename="app/blog/[slug]/page.js"
+export default async function Page({ params }) {
+  const { slug } = await params
+  const Content = await getPostContent(slug)
+  return <Content />
+}
+```
+
+After:
+
+```jsx filename="app/lib/post.js"
+export async function getPostContent(slug) {
+  'use cache'
+  const { default: Post } = await import(`../content/${slug}.mdx`)
+  return <Post /> // ✅ cache the rendered output
+}
+```
+
+```jsx filename="app/blog/[slug]/page.js"
+export default async function Page({ params }) {
+  const { slug } = await params
+  const content = await getPostContent(slug)
+  return <>{content}</>
+}
+```
+
+### Avoid closing over non-serializable functions
+
+Move helper logic into the cached function, or pass serializable data instead of a function reference. If you need a callable that crosses the boundary, use a Server Action (`"use server"`).
+
+## Useful Links
+
+- [`use cache` directive](/docs/app/api-reference/directives/use-cache)
+- [Caching in Next.js](/docs/app/getting-started/caching)
