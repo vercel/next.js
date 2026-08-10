@@ -45,6 +45,13 @@ RUN HOST_ARCH=$(dpkg --print-architecture) && \
       "deb [arch=${FOREIGN_ARCH}] ${FOREIGN_MIRROR} focal-security main universe" \
       > /etc/apt/sources.list
   
+# Every download below retries with a backoff. Fetches from CI runners fail
+# intermittently at the connection level (the canary.10 build got "OpenSSL
+# SSL_connect: Connection reset by peer" from sh.rustup.rs), and a single lost
+# download costs a whole canary release. curl's own --retry does not cover
+# connection-level errors, and --retry-all-errors needs curl 7.71 while Ubuntu
+# 20.04 ships 7.68, so the retry is an explicit loop.
+
 # Core build tools + GNU cross-compilation sysroots.
 # crossbuild-essential installs headers + libs in the multiarch layout
 # that clang finds via --target. Both archs installed so the image
@@ -68,8 +75,12 @@ RUN case "$(dpkg --print-architecture)" in \
       arm64) NODE_ARCH=arm64 ;; \
       *) echo "unsupported host architecture: $(dpkg --print-architecture)" >&2; exit 1 ;; \
     esac && \
-    curl -fsSLo /tmp/node.tar.xz \
-      "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz" && \
+    for attempt in 1 2 3 4 5; do \
+      curl -fsSLo /tmp/node.tar.xz \
+        "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz" && break; \
+      if [ "$attempt" = 5 ]; then echo "node: download failed after 5 attempts" >&2; exit 1; fi; \
+      sleep $((attempt * 3)); \
+    done && \
     tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
       --exclude CHANGELOG.md --exclude LICENSE --exclude README.md && \
     rm /tmp/node.tar.xz && \
@@ -92,11 +103,22 @@ RUN ln -s x86_64-unknown-linux-musl /opt/x86_64-linux-musl-cross/x86_64-linux-mu
 
 # Install Rust — pinned nightly from rust-toolchain.toml
 # The COPY of rust-toolchain.toml ensures the image rebuilds when the toolchain changes.
+# The installer is downloaded to a file and then run, rather than piped straight
+# into sh. A pipeline reports the exit status of its last command, so when the
+# download failed the layer still succeeded and produced an image with no Rust
+# toolchain; the build then failed one layer later on `rustup target add` with a
+# misleading "rustup: not found". That is what broke the v16.3.1-canary.10
+# publish. `rustup --version` below asserts the install actually happened.
 COPY rust-toolchain.toml /tmp/rust-toolchain.toml
 RUN TOOLCHAIN=$(grep 'channel' /tmp/rust-toolchain.toml | sed 's/.*"\(.*\)".*/\1/') && \
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
-      sh -s -- -y --default-toolchain "$TOOLCHAIN" --profile minimal && \
-    rm /tmp/rust-toolchain.toml
+    for attempt in 1 2 3 4 5; do \
+      curl --proto '=https' --tlsv1.2 -fsSL -o /tmp/rustup-init.sh https://sh.rustup.rs && break; \
+      if [ "$attempt" = 5 ]; then echo "rustup: download failed after 5 attempts" >&2; exit 1; fi; \
+      sleep $((attempt * 3)); \
+    done && \
+    sh /tmp/rustup-init.sh -y --default-toolchain "$TOOLCHAIN" --profile minimal && \
+    /root/.cargo/bin/rustup --version && \
+    rm /tmp/rustup-init.sh /tmp/rust-toolchain.toml
 
 ENV PATH="/root/.cargo/bin:${PATH}"
 
@@ -110,8 +132,14 @@ RUN rustup target add \
 # Install cargo-binstall, then use it for Rust tools.
 ARG CARGO_BINSTALL_VERSION=1.18.1
 RUN ARCH=$(uname -m) && \
-    curl -fsSL "https://github.com/cargo-bins/cargo-binstall/releases/download/v${CARGO_BINSTALL_VERSION}/cargo-binstall-${ARCH}-unknown-linux-musl.tgz" \
-      | tar xz -C /root/.cargo/bin && \
+    for attempt in 1 2 3 4 5; do \
+      curl -fsSL -o /tmp/cargo-binstall.tgz \
+        "https://github.com/cargo-bins/cargo-binstall/releases/download/v${CARGO_BINSTALL_VERSION}/cargo-binstall-${ARCH}-unknown-linux-musl.tgz" && break; \
+      if [ "$attempt" = 5 ]; then echo "cargo-binstall: download failed after 5 attempts" >&2; exit 1; fi; \
+      sleep $((attempt * 3)); \
+    done && \
+    tar xzf /tmp/cargo-binstall.tgz -C /root/.cargo/bin && \
+    rm /tmp/cargo-binstall.tgz && \
     npm i -g @napi-rs/cli@2.18.4 && \
     cargo binstall --no-confirm --targets "${ARCH}-unknown-linux-musl" cargo-rustflags@0.4.0 && \
     cargo binstall --no-confirm --git https://github.com/vercel/sccache sccache && \
