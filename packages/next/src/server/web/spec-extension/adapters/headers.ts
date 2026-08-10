@@ -117,8 +117,22 @@ export class HeadersAdapter extends Headers {
   /**
    * Seals a Headers instance to prevent modification by throwing an error when
    * any mutating method is called.
+   *
+   * When `hidden` is provided, those header names are omitted from read
+   * operations (`get`/`has`/iteration) without copying or mutating the
+   * underlying headers. That keeps the sealed view live (mutations to the
+   * shared request headers remain visible) while still hiding internal
+   * Next.js headers from userland `headers()`.
    */
-  public static seal(headers: Headers): ReadonlyHeaders {
+  public static seal(
+    headers: Headers,
+    hidden?: ReadonlySet<string>
+  ): ReadonlyHeaders {
+    const isHidden =
+      hidden && hidden.size > 0
+        ? (name: string) => hidden.has(name.toLowerCase())
+        : null
+
     return new Proxy<ReadonlyHeaders>(headers, {
       get(target, prop, receiver) {
         switch (prop) {
@@ -126,6 +140,68 @@ export class HeadersAdapter extends Headers {
           case 'delete':
           case 'set':
             return ReadonlyHeadersError.callable
+          case 'get':
+            if (!isHidden) {
+              return ReflectAdapter.get(target, prop, receiver)
+            }
+            return (name: string) => (isHidden(name) ? null : target.get(name))
+          case 'has':
+            if (!isHidden) {
+              return ReflectAdapter.get(target, prop, receiver)
+            }
+            return (name: string) => (isHidden(name) ? false : target.has(name))
+          case 'entries':
+          case Symbol.iterator:
+            if (!isHidden) {
+              return ReflectAdapter.get(target, prop, receiver)
+            }
+            return function* (): HeadersIterator<[string, string]> {
+              for (const entry of target.entries()) {
+                if (!isHidden(entry[0])) {
+                  yield entry
+                }
+              }
+            }
+          case 'keys':
+            if (!isHidden) {
+              return ReflectAdapter.get(target, prop, receiver)
+            }
+            return function* (): HeadersIterator<string> {
+              for (const name of target.keys()) {
+                if (!isHidden(name)) {
+                  yield name
+                }
+              }
+            }
+          case 'values':
+            if (!isHidden) {
+              return ReflectAdapter.get(target, prop, receiver)
+            }
+            return function* (): HeadersIterator<string> {
+              for (const [name, value] of target.entries()) {
+                if (!isHidden(name)) {
+                  yield value
+                }
+              }
+            }
+          case 'forEach':
+            if (!isHidden) {
+              return ReflectAdapter.get(target, prop, receiver)
+            }
+            return (
+              callbackfn: (
+                value: string,
+                name: string,
+                parent: Headers
+              ) => void,
+              thisArg?: any
+            ) => {
+              for (const [name, value] of target.entries()) {
+                if (!isHidden(name)) {
+                  callbackfn.call(thisArg, value, name, receiver)
+                }
+              }
+            }
           default:
             return ReflectAdapter.get(target, prop, receiver)
         }

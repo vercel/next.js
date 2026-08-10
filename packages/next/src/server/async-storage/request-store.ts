@@ -30,29 +30,31 @@ import type { Params } from '../request/params'
 import type { ImplicitTags } from '../lib/implicit-tags'
 import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 
+const HIDDEN_REQUEST_HEADERS: ReadonlySet<string> = new Set(
+  [
+    ...FLIGHT_HEADERS,
+    // The client sends these dev-only request IDs so the server can route debug
+    // information back to the originating request. Like the flight headers, they
+    // are internal plumbing and must not be exposed to userland `headers()`.
+    NEXT_REQUEST_ID_HEADER,
+    NEXT_HTML_REQUEST_ID_HEADER,
+  ].map((header) => header.toLowerCase())
+)
+
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
-  // `HeadersAdapter.from` wraps `IncomingHttpHeaders` (and returns a `Headers`
-  // instance unchanged) without copying, so the `delete` calls below would
-  // otherwise mutate the caller's underlying request headers. We copy first so
-  // that stripping internal headers only affects the sealed userland view, not
-  // the shared `req.headers`. The latter matters because the dev server reads
-  // the request-id headers from the raw request again (e.g. when rendering a
-  // redirect target after a server action), and mutating them there would break
-  // the dev debug channel routing.
-  const cleaned = HeadersAdapter.from(
-    headers instanceof Headers ? new Headers(headers) : { ...headers }
+  // Seal a live view over the shared request headers. Internal Next.js headers
+  // are hidden on read instead of being deleted from a copy:
+  //
+  // - Avoid mutating `IncomingHttpHeaders` / `NextRequest.headers` when
+  //   stripping internals (see #95116 — deleting request-id headers from the
+  //   shared object broke the dev debug channel after server-action redirects).
+  // - Keep Proxy/Middleware mutations to `NextRequest.headers` visible through
+  //   subsequent `headers()` reads (see #97049 — copying before seal made
+  //   `headers()` return a stale snapshot).
+  return HeadersAdapter.seal(
+    HeadersAdapter.from(headers),
+    HIDDEN_REQUEST_HEADERS
   )
-  for (const header of FLIGHT_HEADERS) {
-    cleaned.delete(header)
-  }
-
-  // The client sends these dev-only request IDs so the server can route debug
-  // information back to the originating request. Like the flight headers, they
-  // are internal plumbing and must not be exposed to userland `headers()`.
-  cleaned.delete(NEXT_REQUEST_ID_HEADER)
-  cleaned.delete(NEXT_HTML_REQUEST_ID_HEADER)
-
-  return HeadersAdapter.seal(cleaned)
 }
 
 function getMutableCookies(

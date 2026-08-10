@@ -318,5 +318,35 @@ describe('HeadersAdapter', () => {
       expect(headers.get('x-custom-header')).toBe('custom3')
       expect(sealed.get('x-custom-header')).toBe('custom3')
     })
+
+    it('should hide selected headers without copying or mutating the original', () => {
+      const headers = new Headers({
+        'content-type': 'application/json',
+        'x-nextjs-request-id': 'req-1',
+        rsc: '1',
+      })
+      const sealed = HeadersAdapter.seal(
+        headers,
+        new Set(['x-nextjs-request-id', 'rsc'])
+      )
+
+      expect(sealed.get('content-type')).toBe('application/json')
+      expect(sealed.get('x-nextjs-request-id')).toBeNull()
+      expect(sealed.get('rsc')).toBeNull()
+      expect(sealed.has('x-nextjs-request-id')).toBe(false)
+      expect(sealed.has('rsc')).toBe(false)
+      expect([...sealed.keys()]).toEqual(['content-type'])
+      expect([...sealed.entries()]).toEqual([
+        ['content-type', 'application/json'],
+      ])
+
+      // Underlying headers stay intact for framework plumbing.
+      expect(headers.get('x-nextjs-request-id')).toBe('req-1')
+      expect(headers.get('rsc')).toBe('1')
+
+      // Later mutations on the shared Headers remain visible through the seal.
+      headers.set('x-added-after-seal', 'live')
+      expect(sealed.get('x-added-after-seal')).toBe('live')
+    })
   })
 })
