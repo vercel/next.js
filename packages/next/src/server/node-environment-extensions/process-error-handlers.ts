@@ -40,9 +40,9 @@ export function isUnhandledRejectionListenerRegistered(): boolean {
 
 /**
  * Registers the Next.js unhandled rejection listener, which logs unhandled
- * rejections (except React postpones) and prevents them from crashing the
- * process. Safe to call unconditionally: if the listener is already attached,
- * this is a no-op, so it never registers a duplicate.
+ * rejections and prevents them from crashing the process. Safe to call
+ * unconditionally: if the listener is already attached, this is a no-op, so it
+ * never registers a duplicate.
  */
 export function registerUnhandledRejectionListener(): void {
   if (isUnhandledRejectionListenerRegistered()) {
