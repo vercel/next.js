@@ -710,6 +710,74 @@ describe('instant-nav-panel', () => {
       await expectTargetPageSpaShellWithRuntimeData(browser)
     })
 
+    // Regression for https://github.com/vercel/next.js/issues/96611:
+    // after Resume re-arms the lock, a second <Link prefetch={true}> click
+    // must not loop forever on RuntimeShell (next-router-prefetch: 3) requests.
+    it('should capture a second prefetch={true} navigation after resume without looping shell requests', async () => {
+      const browser = await openHomeWithTargetPageWarmup()
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+
+      await browser.eval(() => {
+        document
+          .querySelector<HTMLAnchorElement>('#link-to-target-prefetch')!
+          .click()
+      })
+      await expectSpaPanel(browser)
+      await expectTargetPageSpaShellWithRuntimeData(browser)
+
+      await clickLink(browser, '/')
+      await expectSpaPanel(browser)
+      await browser.waitForElementByCss('[data-testid="home-title"]')
+
+      await clickResume(browser)
+      await expectPendingPanel(browser)
+      await waitForInstantModeCookie(browser)
+
+      await browser.eval(() => {
+        const w = window as Window & {
+          __nextShellPrefetchCount?: number
+        }
+        w.__nextShellPrefetchCount = 0
+        const originalFetch = window.fetch.bind(window)
+        window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+          const headers = new Headers(
+            input instanceof Request ? input.headers : init?.headers
+          )
+          if (headers.get('next-router-prefetch') === '3') {
+            w.__nextShellPrefetchCount = (w.__nextShellPrefetchCount ?? 0) + 1
+          }
+          return originalFetch(input, init)
+        }
+      })
+
+      await browser.eval(() => {
+        document
+          .querySelector<HTMLAnchorElement>('#link-to-target-prefetch')!
+          .click()
+      })
+
+      // The bug left the URL on `/` and flooded RuntimeShell requests. Assert
+      // the navigation commits and the shell-request count stays bounded; do
+      // not require a pristine suspended shell — prior locked navigations may
+      // have already streamed dynamic holes into reused cache nodes.
+      await expectSpaPanel(browser)
+      await retry(async () => {
+        expect(await browser.url()).toContain('/target-page/my-post')
+      }, 10000)
+
+      const shellCount = await browser.eval(() => {
+        return (
+          (window as Window & { __nextShellPrefetchCount?: number })
+            .__nextShellPrefetchCount ?? 0
+        )
+      })
+      // A healthy second capture issues a small number of App Shell runtime
+      // requests. The bug flooded dozens per second without ever committing.
+      expect(shellCount).toBeLessThan(20)
+    })
+
     it('should restart capture and return to awaiting navigation after resuming from SPA state', async () => {
       const browser = await openHomeWithTargetPageWarmup()
 

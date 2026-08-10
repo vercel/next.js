@@ -935,6 +935,7 @@ export function readOrCreateSegmentCacheEntry(
   // Navigation Testing API only; always null in production). See below.
   navigationLockPrefetch: NavigationLockPrefetch | null
 ): SegmentCacheEntry {
+  const varyPathForRequest = getSegmentVaryPathForRequest(fetchStrategy, tree)
   const existingEntry = readSegmentCacheEntry(now, tree.varyPath)
   if (existingEntry !== null) {
     if (
@@ -973,6 +974,34 @@ export function readOrCreateSegmentCacheEntry(
         }
         return existingEntry
       }
+
+      // The concrete-path match predates this lock (or is otherwise unowned).
+      // Shell strategies (StaticShell / RuntimeShell) store entries at the
+      // shell vary path, which is less specific than `tree.varyPath`. A
+      // leftover pre-lock concrete entry therefore shadows the owned shell
+      // entry on every `readSegmentCacheEntry(tree.varyPath)` — so without
+      // this second lookup we would keep creating a new Empty at the shell
+      // path, spawning RuntimeShell forever (Navigation Inspector +
+      // prefetch={true} after Resume). Prefer an already-owned entry at the
+      // request vary path when one exists.
+      if (lock !== null && varyPathForRequest !== tree.varyPath) {
+        const ownedRequestPathEntry = readSegmentCacheEntry(
+          now,
+          varyPathForRequest
+        )
+        if (
+          ownedRequestPathEntry !== null &&
+          lock.ownedEntries.has(ownedRequestPathEntry)
+        ) {
+          if (ownedRequestPathEntry.status === EntryStatus.Pending) {
+            trackNavigationLockPrefetchEntry(
+              navigationLockPrefetch,
+              ownedRequestPathEntry
+            )
+          }
+          return ownedRequestPathEntry
+        }
+      }
     } else {
       return existingEntry
     }
@@ -981,7 +1010,6 @@ export function readOrCreateSegmentCacheEntry(
   // Create a pending entry and add it to the cache. The stale time is set to a
   // default value; the actual stale time will be set when the entry is
   // fulfilled with data from the server response.
-  const varyPathForRequest = getSegmentVaryPathForRequest(fetchStrategy, tree)
   const pendingEntry = createDetachedSegmentCacheEntry(now)
   const isRevalidation = false
   setInCacheMap(
