@@ -1624,9 +1624,10 @@ const handlers = globalThis.__turbopack_server_hmr_handlers__ ?? new Map();
 // Normalize to forward slashes so it matches the virtual chunk paths in
 // `update.instruction.chunks`, which always use `/` regardless of OS.
 const chunkPrefix = path.relative(RUNTIME_ROOT, path.dirname(__filename)).replaceAll(path.sep, '/');
+const runtimeRoot = path.resolve(RUNTIME_ROOT);
 if (handlers.size === 0) {
     // First registration in this generation: install the routing dispatcher.
-    globalThis.__turbopack_server_hmr_apply__ = (update)=>{
+    globalThis.__turbopack_server_hmr_apply__ = (targetRuntimeRoot, update)=>{
         const registry = globalThis.__turbopack_server_hmr_handlers__ ?? new Map();
         // Chunk paths can appear either directly on the instruction (single-chunk
         // updates) or nested inside `merged` entries (chunks covered by a
@@ -1638,13 +1639,15 @@ if (handlers.size === 0) {
         ]);
         const toCall = [];
         if (updateChunkPaths.size === 0) {
-            for (const entry of registry.values())toCall.push(entry);
+            for (const entry of registry.values()){
+                if (entry.runtimeRoot === targetRuntimeRoot) toCall.push(entry);
+            }
         } else {
             const seen = new Set();
             for (const chunkPath of updateChunkPaths){
                 const dir = path.dirname(chunkPath);
                 for (const [key, entry] of registry){
-                    if (dir === entry.chunkPrefix && !seen.has(key)) {
+                    if (entry.runtimeRoot === targetRuntimeRoot && dir === entry.chunkPrefix && !seen.has(key)) {
                         seen.add(key);
                         toCall.push(entry);
                     }
@@ -1662,6 +1665,8 @@ if (handlers.size === 0) {
 globalThis.__turbopack_server_hmr_handlers__ = handlers;
 handlers.set(__filename, {
     handler: __turbopack_server_hmr_apply__,
+    clearChunkCache,
+    runtimeRoot,
     chunkPrefix
 });
 
