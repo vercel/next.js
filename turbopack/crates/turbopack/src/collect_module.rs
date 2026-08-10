@@ -23,6 +23,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
     },
+    references::esm::{EsmExport, EsmExports, Liveness},
     runtime_functions::{TURBOPACK_ESM, TURBOPACK_IMPORT},
     utils::StringifyJs,
 };
@@ -213,7 +214,18 @@ impl ChunkableModule for CollectModuleWithChunkGroup {
 impl EcmascriptChunkPlaceable for CollectModuleWithChunkGroup {
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
-        EcmascriptExports::Value.cell()
+        EcmascriptExports::EsmExports(
+            EsmExports {
+                exports: [(
+                    "getList".into(),
+                    EsmExport::LocalBinding(rcstr!("getList"), Liveness::Constant),
+                )]
+                .into(),
+                star_exports: vec![],
+            }
+            .resolved_cell(),
+        )
+        .cell()
     }
 
     #[turbo_tasks::function]
