@@ -998,8 +998,8 @@ export async function initialize(opts: {
     development?.bundler?.ensureMiddleware
   )
 
-  let webSocketHmrPath: string | undefined
-  if (opts.dev && development) {
+  const isWebSocketHMRRequest = (requestUrl: string | undefined): boolean => {
+    if (!opts.dev || !development) return false
     const { basePath, assetPrefix } = config
     let hmrPrefix = basePath
     if (assetPrefix) {
@@ -1008,13 +1008,12 @@ export async function initialize(opts: {
         hmrPrefix = new URL(hmrPrefix).pathname.replace(/\/$/, '')
       }
     }
-    webSocketHmrPath = ensureLeadingSlash(`${hmrPrefix}/_next/hmr`)
+    const hmrPath = ensureLeadingSlash(`${hmrPrefix}/_next/hmr`)
+    return isNextHMRUpgradeRequest(requestUrl, hmrPath)
   }
 
   const upgradeHandler: WorkerUpgradeHandler = async (req, socket, head) => {
-    const isHMRRequest = Boolean(
-      webSocketHmrPath && isNextHMRUpgradeRequest(req.url, webSocketHmrPath)
-    )
+    const isHMRRequest = isWebSocketHMRRequest(req.url)
 
     const webSocketUpgradeOwnership =
       getRequestMeta(req, 'webSocketUpgradeOwnership') ?? 'shared'
@@ -1318,6 +1317,6 @@ export async function initialize(opts: {
     webSocketRouteHandlersEnabled: Boolean(
       config.experimental.webSocketRouteHandlers
     ),
-    webSocketHmrPath,
+    isWebSocketHMRRequest,
   }
 }

@@ -46,7 +46,6 @@ import {
   createWebSocketUpgradeListenerOwnershipTracker,
   hasEnabledNextOwnedWebSocketUpgradeListener,
   hasMatchingNextOwnedWebSocketHMRListener,
-  isNextHMRUpgradeRequest,
   markNextOwnedWebSocketUpgradeListener,
   type WebSocketUpgradeListenerOwnershipTracker,
 } from './websocket-upgrade-listener'
@@ -925,10 +924,7 @@ class NextCustomServer implements NextWrapperServer {
       const isWebSocketRouteHandlersEnabled = () =>
         Boolean(this.init?.webSocketRouteHandlersEnabled)
       const isHMRRequest = (url: string | undefined) =>
-        Boolean(
-          this.init?.webSocketHmrPath &&
-            isNextHMRUpgradeRequest(url, this.init.webSocketHmrPath)
-        )
+        Boolean(this.init?.isWebSocketHMRRequest?.(url))
       publicUpgradeListener = markNextOwnedWebSocketUpgradeListener(
         (req, socket, head) =>
           dispatchUpgrade(

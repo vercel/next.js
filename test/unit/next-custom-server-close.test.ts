@@ -36,7 +36,7 @@ type Stage = () => void | Promise<void>
 function createCustomServer({
   enabled,
   dev = false,
-  webSocketHmrPath,
+  isWebSocketHMRRequest,
   closeUpgraded = () => {},
   closePending = () => {},
   closeServer = () => {},
@@ -44,7 +44,7 @@ function createCustomServer({
 }: {
   enabled: boolean
   dev?: boolean
-  webSocketHmrPath?: string
+  isWebSocketHMRRequest?: (url: string | undefined) => boolean
   closeUpgraded?: Stage
   closePending?: Stage
   closeServer?: Stage
@@ -60,7 +60,7 @@ function createCustomServer({
     closeUpgraded,
     server: { close: closeServer },
     webSocketRouteHandlersEnabled: enabled,
-    webSocketHmrPath,
+    isWebSocketHMRRequest,
   }
   app.pendingUpgrades = {
     closePending() {
@@ -455,15 +455,17 @@ describe('NextCustomServer WebSocket shutdown evidence', () => {
   })
 
   it('dispatches one HMR request to sibling Next.js listeners', async () => {
+    let firstHmrPath = '/_next/hmr'
     const firstApp = createCustomServer({
       enabled: true,
       dev: true,
-      webSocketHmrPath: '/_next/hmr',
+      isWebSocketHMRRequest: (url) => url?.startsWith(firstHmrPath) ?? false,
     }) as any
     const secondApp = createCustomServer({
       enabled: true,
       dev: true,
-      webSocketHmrPath: '/guest/_next/hmr',
+      isWebSocketHMRRequest: (url) =>
+        url?.startsWith('/guest/_next/hmr') ?? false,
     }) as any
     for (const app of [firstApp, secondApp]) {
       const pendingUpgrades = new PendingWebSocketUpgradeTracker()
@@ -490,6 +492,18 @@ describe('NextCustomServer WebSocket shutdown evidence', () => {
 
     expect(firstApp.init.upgradeHandler).toHaveBeenCalledTimes(1)
     expect(secondApp.init.upgradeHandler).toHaveBeenCalledTimes(1)
+
+    firstHmrPath = '/assets/_next/hmr'
+    const updatedRequest = {
+      headers: { upgrade: 'websocket' },
+      method: 'GET',
+      socket,
+      url: '/assets/_next/hmr',
+    }
+    server.emit('upgrade', updatedRequest, socket, Buffer.alloc(0))
+    await new Promise<void>((resolve) => setImmediate(resolve))
+    expect(firstApp.init.upgradeHandler).toHaveBeenCalledTimes(2)
+    expect(secondApp.init.upgradeHandler).toHaveBeenCalledTimes(2)
     expect(getRequestMeta(request, 'webSocketUpgradeOwnership')).toBe('sibling')
 
     const unmatchedSocket = new PassThrough() as PassThrough & {
@@ -518,8 +532,8 @@ describe('NextCustomServer WebSocket shutdown evidence', () => {
     expect(Buffer.concat(unmatchedResponse).toString()).toContain(
       'HTTP/1.1 501'
     )
-    expect(firstApp.init.upgradeHandler).toHaveBeenCalledTimes(1)
-    expect(secondApp.init.upgradeHandler).toHaveBeenCalledTimes(1)
+    expect(firstApp.init.upgradeHandler).toHaveBeenCalledTimes(2)
+    expect(secondApp.init.upgradeHandler).toHaveBeenCalledTimes(2)
     socket.destroy()
     await Promise.all([firstApp.close(), secondApp.close()])
   })

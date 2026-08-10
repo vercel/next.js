@@ -38,8 +38,8 @@ export type ServerInitResult = {
   devMemoryThresholdRestart: boolean
   // Whether public custom-server close() callers own WebSocket failures.
   webSocketRouteHandlersEnabled: boolean
-  // The exact development HMR prefix used to coordinate sibling Next apps.
-  webSocketHmrPath?: string
+  // Matches the live development HMR prefix for sibling Next apps.
+  isWebSocketHMRRequest?: (url: string | undefined) => boolean
 }
 
 let initializations: Record<string, Promise<ServerInitResult> | undefined> = {}
