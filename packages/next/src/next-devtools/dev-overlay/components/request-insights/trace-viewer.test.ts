@@ -11,6 +11,7 @@ function createRequest(
 ): RequestInsight {
   return {
     requestId: 'request-1',
+    source: 'unknown',
     htmlRequestId: 'html-1',
     startTime: 100,
     durationMs: 100,

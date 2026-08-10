@@ -32,7 +32,7 @@ import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-p
 import { NextDataPathnameNormalizer } from '../../normalizers/request/next-data'
 import { BasePathPathnameNormalizer } from '../../normalizers/request/base-path'
 
-import { addRequestMeta } from '../../request-meta'
+import { addRequestMeta, getRequestMeta } from '../../request-meta'
 import { isRSCRequestHeader } from '../is-rsc-request'
 import {
   compileNonPath,
@@ -573,7 +573,7 @@ export function getResolveRoutes(
             /* non-fatal we can't decode so can't match it */
           }
 
-          if (
+          const matchesMiddleware =
             // @ts-expect-error BaseNextRequest stuff
             match?.(parsedUrl.pathname, req, parsedUrl.query) ||
             match?.(
@@ -582,7 +582,17 @@ export function getResolveRoutes(
               req,
               parsedUrl.query
             )
-          ) {
+          const requestInsightsIdentity = getRequestMeta(
+            req,
+            'requestInsightsIdentity'
+          )
+          if (requestInsightsIdentity && match) {
+            requestInsightsIdentity.proxyStatus = matchesMiddleware
+              ? 'matched'
+              : 'bypassed'
+          }
+
+          if (matchesMiddleware) {
             if (ensureMiddleware) {
               await ensureMiddleware(req.url)
             }
