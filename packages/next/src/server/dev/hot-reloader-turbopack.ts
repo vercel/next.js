@@ -1,3 +1,4 @@
+import { wait } from '../../lib/wait'
 import type { Socket } from 'net'
 import { mkdir, writeFile } from 'fs/promises'
 import { realpathSync } from 'fs'
@@ -301,7 +302,7 @@ function setupServerHmr(
       } catch (err) {
         console.error('[Server HMR] Subscription error, resubscribing:', err)
         await reEvaluateAllModulesExpensive()
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+        await wait(1000)
       }
     }
   })()

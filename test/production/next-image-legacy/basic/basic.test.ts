@@ -1,5 +1,5 @@
 import { nextTestSetup, type Playwright } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { waitFor, retry } from 'next-test-utils'
 
 const emptyImage =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
@@ -199,7 +199,7 @@ describe('Image Component Tests', () => {
       await b.eval(
         `window.scrollTo(0, ${topOfBottomImage - (viewportHeight + buffer)})`
       )
-      await new Promise((r) => setTimeout(r, 200))
+      await waitFor(200)
       expect(await b.elementById('lazy-bottom').getAttribute('src')).toBe(
         'https://www.otherhost.com/lazy3.jpg'
       )
@@ -223,7 +223,7 @@ describe('Image Component Tests', () => {
       await b.eval(
         `window.scrollTo(0, ${topOfBottomImage - (viewportHeight + buffer)})`
       )
-      await new Promise((r) => setTimeout(r, 200))
+      await waitFor(200)
       expect(
         await b.elementById('lazy-without-attribute').getAttribute('src')
       ).toBe(
@@ -412,7 +412,7 @@ describe('Image Component Tests', () => {
     beforeAll(async () => {
       browser = await next.browser('/')
       await browser.waitForElementByCss('#lazylink').click()
-      await new Promise((r) => setTimeout(r, 500))
+      await waitFor(500)
     })
     lazyLoadingTests(() => browser)
   })

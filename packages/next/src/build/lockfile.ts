@@ -1,3 +1,4 @@
+import { wait } from '../lib/wait'
 import fs from 'fs'
 import nodePath from 'path'
 import { bold, cyan } from '../lib/picocolors'
@@ -176,7 +177,7 @@ export class Lockfile {
     while (Date.now() - startMs < MAX_RETRY_MS) {
       lockfile = Lockfile.tryAcquire(path, unlockOnExit, content)
       if (lockfile !== undefined) break
-      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
+      await wait(RETRY_DELAY_MS)
     }
     if (lockfile === undefined) {
       const isDev = processName === 'next dev'
