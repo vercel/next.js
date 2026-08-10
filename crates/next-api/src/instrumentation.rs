@@ -1,5 +1,6 @@
-use anyhow::{Result, bail};
+use anyhow::Result;
 use next_core::{
+    app_structure::FileSystemPathVec,
     next_edge::entry::wrap_edge_entry,
     next_manifests::{InstrumentationDefinition, MiddlewaresManifestV2},
 };
@@ -17,7 +18,7 @@ use turbopack_core::{
     module::Module,
     module_graph::{
         GraphEntries,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -26,9 +27,10 @@ use turbopack_core::{
 };
 
 use crate::{
+    nft::{EndpointTraceResult, trace_endpoint},
     nft_json::NftJsonAsset,
     paths::{
-        all_server_paths, get_js_paths_from_root, get_wasm_paths_from_root, wasm_paths_to_bindings,
+        all_asset_paths, get_js_paths_from_root, get_wasm_paths_from_root, wasm_paths_to_bindings,
     },
     project::Project,
     route::{Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs},
@@ -107,6 +109,7 @@ impl InstrumentationEndpoint {
             module.ident(),
             ChunkGroup::Entry(vec![module]),
             module_graph,
+            OutputAssets::empty(),
             AvailabilityInfo::root(),
         ))
     }
@@ -120,17 +123,13 @@ impl InstrumentationEndpoint {
         let userland_module = self.entry_module().to_resolved().await?;
         let module_graph = this.project.module_graph(*userland_module);
 
-        let Some(module) = ResolvedVc::try_downcast(userland_module) else {
-            bail!("Entry module must be evaluatable");
-        };
-
         let EntryChunkGroupResult { asset: chunk, .. } = *chunking_context
             .entry_chunk_group(
                 this.project
                     .node_root()
                     .await?
                     .join("server/instrumentation.js")?,
-                Vc::cell(vec![module]),
+                ChunkGroup::Entry(vec![userland_module]),
                 module_graph,
                 OutputAssets::empty(),
                 OutputAssets::empty(),
@@ -152,7 +151,7 @@ impl InstrumentationEndpoint {
             let node_root_value = node_root.clone();
 
             let file_paths_from_root =
-                get_js_paths_from_root(&node_root_value, &edge_chunk_group.await?.assets.await?)
+                get_js_paths_from_root(&node_root_value, edge_chunk_group.await?.assets.await?)
                     .await?;
 
             let mut output_assets = edge_chunk_group.all_assets().owned().await?;
@@ -187,15 +186,28 @@ impl InstrumentationEndpoint {
         } else {
             let chunk = self.node_chunk().to_resolved().await?;
             let mut output_assets = vec![chunk];
-            if this.project.next_mode().await?.is_production() {
+            if *this.project.should_write_nft_manifests().await? {
                 output_assets.push(ResolvedVc::upcast(
-                    NftJsonAsset::new(*this.project, None, *chunk, vec![])
+                    NftJsonAsset::new(*this.project, None, *chunk, vec![], self.trace_result())
                         .to_resolved()
                         .await?,
                 ));
             }
             Ok(Vc::cell(output_assets))
         }
+    }
+
+    #[turbo_tasks::function]
+    async fn trace_result(self: Vc<Self>) -> Result<Vc<EndpointTraceResult>> {
+        let this = self.await?;
+        let userland_module = self.entry_module().to_resolved().await?;
+        Ok(trace_endpoint(
+            *this.project,
+            None,
+            this.project.module_graph(*userland_module),
+            Vc::cell(vec![userland_module]),
+            this.project.additional_traced_modules(),
+        ))
     }
 }
 
@@ -210,7 +222,9 @@ impl Endpoint for InstrumentationEndpoint {
 
             let server_paths = if this.project.next_mode().await?.is_development() {
                 let node_root = this.project.node_root().owned().await?;
-                all_server_paths(output_assets, node_root).owned().await?
+                all_asset_paths(output_assets, node_root, None)
+                    .owned()
+                    .await?
             } else {
                 vec![]
             };
@@ -243,7 +257,13 @@ impl Endpoint for InstrumentationEndpoint {
     #[turbo_tasks::function]
     async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let entry_module = self.entry_module().to_resolved().await?;
-        Ok(Vc::cell(vec![ChunkGroupEntry::Entry(vec![entry_module])]))
+        Ok(
+            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                modules: vec![entry_module],
+                heuristics: EntryHeuristics::high_priority(),
+            }])
+            .cell(),
+        )
     }
 
     #[turbo_tasks::function]
@@ -252,5 +272,15 @@ impl Endpoint for InstrumentationEndpoint {
         let module = self.entry_module();
         let module_graph = this.project.module_graph(module).to_resolved().await?;
         Ok(Vc::cell(vec![module_graph]))
+    }
+
+    #[turbo_tasks::function]
+    fn project(&self) -> Vc<Project> {
+        *self.project
+    }
+
+    #[turbo_tasks::function]
+    fn traced_files(self: Vc<Self>) -> Vc<FileSystemPathVec> {
+        self.trace_result().all_files()
     }
 }

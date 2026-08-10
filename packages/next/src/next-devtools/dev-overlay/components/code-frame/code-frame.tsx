@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
 import { HotlinkedText } from '../hot-linked-text'
-import { getFrameSource, type StackFrame } from '../../../shared/stack-frame'
+import { getStackFrameFile, type StackFrame } from '../../../shared/stack-frame'
 import { useOpenInEditor } from '../../utils/use-open-in-editor'
-import { ExternalIcon } from '../../icons/external'
 import { FileIcon } from '../../icons/file'
+import { CodeFrameShell } from './code-frame-shell'
 import {
   formatCodeFrame,
   groupCodeFrameLines,
@@ -34,90 +34,73 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
   })
 
   const fileExtension = stackFrame?.file?.split('.').pop()
-
-  // TODO: make the caret absolute
   return (
-    <div data-nextjs-codeframe>
-      <div className="code-frame-header">
-        {/* TODO: This is <div> in `Terminal` component.
-        Changing now will require multiple test snapshots updates.
-        Leaving as <div> as is trivial and does not affect the UI.
-        Change when the new redbox matcher `toDisplayRedbox` is used.
-        */}
-        <p className="code-frame-link">
+    <CodeFrameShell
+      header={
+        <>
           <span className="code-frame-icon">
             <FileIcon lang={fileExtension} />
           </span>
           <span data-text>
-            {getFrameSource(stackFrame)} @{' '}
+            {getStackFrameFile(stackFrame)} @{' '}
             <HotlinkedText text={stackFrame.methodName} />
           </span>
-          <button
-            aria-label="Open in editor"
-            data-with-open-in-editor-link-source-file
-            onClick={open}
-          >
-            <span className="code-frame-icon" data-icon="right">
-              <ExternalIcon width={16} height={16} />
-            </span>
-          </button>
-        </p>
-      </div>
-      <pre className="code-frame-pre">
-        <div className="code-frame-lines">
-          {parsedLineStates.map(({ line, parsedLine }, lineIndex) => {
-            const { lineNumber, isErroredLine } = parsedLine
+        </>
+      }
+      onOpen={open}
+    >
+      {parsedLineStates.map(({ line, parsedLine }, lineIndex) => {
+        const { lineNumber, isErroredLine } = parsedLine
 
-            const lineNumberProps: Record<string, string | boolean> = {}
-            if (lineNumber) {
-              lineNumberProps['data-nextjs-codeframe-line'] = lineNumber
-            }
-            if (isErroredLine) {
-              lineNumberProps['data-nextjs-codeframe-line--errored'] = true
-            }
+        const lineNumberProps: Record<string, string | boolean> = {}
+        if (lineNumber) {
+          lineNumberProps['data-nextjs-codeframe-line'] = lineNumber
+        }
+        if (isErroredLine) {
+          lineNumberProps['data-nextjs-codeframe-line--errored'] = true
+        }
 
-            return (
-              <div key={`line-${lineIndex}`} {...lineNumberProps}>
-                {line.map((entry, entryIndex) => (
-                  <span
-                    key={`frame-${entryIndex}`}
-                    style={{
-                      color: entry.fg ? `var(--color-${entry.fg})` : undefined,
-                      ...(entry.decoration === 'bold'
-                        ? // TODO(jiwon): This used to be 800, but the symbols like `─┬─` are
-                          // having longer width than expected on Geist Mono font-weight
-                          // above 600, hence a temporary fix is to use 500 for bold.
-                          { fontWeight: 500 }
-                        : entry.decoration === 'italic'
-                          ? { fontStyle: 'italic' }
-                          : undefined),
-                    }}
-                  >
-                    {entry.content}
-                  </span>
-                ))}
-              </div>
-            )
-          })}
-        </div>
-      </pre>
-    </div>
+        return (
+          <div key={`line-${lineIndex}`} {...lineNumberProps}>
+            {line.map((entry, entryIndex) => (
+              <span
+                key={`frame-${entryIndex}`}
+                style={{
+                  color: entry.fg ? `var(--color-${entry.fg})` : undefined,
+                  ...(entry.decoration === 'bold'
+                    ? // TODO(jiwon): This used to be 800, but the symbols like `─┬─` are
+                      // having longer width than expected on Geist Mono font-weight
+                      // above 600, hence a temporary fix is to use 500 for bold.
+                      { fontWeight: 500 }
+                    : entry.decoration === 'italic'
+                      ? { fontStyle: 'italic' }
+                      : undefined),
+                }}
+              >
+                {entry.content}
+              </span>
+            ))}
+          </div>
+        )
+      })}
+    </CodeFrameShell>
   )
 }
 
 export const CODE_FRAME_STYLES = `
   [data-nextjs-codeframe] {
     --code-frame-padding: 12px;
-    --code-frame-line-height: var(--size-16);
+    --code-frame-line-height: var(--size-20);
     background-color: var(--color-background-200);
     color: var(--color-gray-1000);
     text-overflow: ellipsis;
     border: 1px solid var(--color-gray-400);
-    border-radius: 8px;
+    border-radius: var(--rounded-xl);
     font-family: var(--font-stack-monospace);
-    font-size: var(--size-12);
+    font-size: var(--size-13);
     line-height: var(--code-frame-line-height);
-    margin: 8px 0;
+    margin: 0;
+    overflow: hidden;
 
     svg {
       width: var(--size-16);
@@ -130,8 +113,24 @@ export const CODE_FRAME_STYLES = `
     padding: var(--code-frame-padding);
   }
 
+  .code-frame-pre {
+    background: var(--color-background-100) !important;
+    border: 1px solid var(--color-gray-200);
+    border-radius: var(--rounded-xl);
+    border-bottom: none;
+    margin-left: -1px !important;
+    width: calc(100% + 2px);
+    max-width: calc(100% + 2px) !important;
+  }
+
   .code-frame-link svg {
+    display: block;
     flex-shrink: 0;
+  }
+
+  [data-with-open-in-editor-link-source-file] svg {
+    width: var(--size-14);
+    height: var(--size-14);
   }
 
   .code-frame-lines {
@@ -139,22 +138,25 @@ export const CODE_FRAME_STYLES = `
   }
 
   .code-frame-link [data-text] {
+    font-size: var(--size-12);
     text-align: left;
-    margin: auto 6px;
   }
 
   .code-frame-header {
     width: 100%;
     transition: background 100ms ease-out;
-    border-radius: 8px 8px 0 0;
-    border-bottom: 1px solid var(--color-gray-400);
+    border-radius: var(--rounded-lg) var(--rounded-lg) 0 0;
   }
 
   [data-with-open-in-editor-link-source-file] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--size-24);
+    height: var(--size-24);
     padding: 4px;
-    margin: -4px 0 -4px auto;
-    border-radius: var(--rounded-full);
     margin-left: auto;
+    border-radius: var(--rounded-full);
 
     &:focus-visible {
       outline: var(--focus-ring);
@@ -162,7 +164,11 @@ export const CODE_FRAME_STYLES = `
     }
 
     &:hover {
-      background: var(--color-gray-100);
+      background: var(--color-gray-alpha-100);
+    }
+
+    &:active {
+      background: var(--color-gray-alpha-200);
     }
   }
 
@@ -197,6 +203,15 @@ export const CODE_FRAME_STYLES = `
     }
   }
 
+  [data-nextjs-codeframe-line] > span:first-child {
+    color: var(--color-gray-alpha-500) !important;
+  }
+
+  [data-nextjs-codeframe-line][data-nextjs-codeframe-line--errored="true"]
+    > span:first-child {
+    color: var(--color-gray-alpha-1000) !important;
+  }
+
 
   [data-nextjs-codeframe] > * {
     margin: 0;
@@ -204,16 +219,19 @@ export const CODE_FRAME_STYLES = `
 
   .code-frame-link {
     display: flex;
+    align-items: center;
+    gap: 6px;
     margin: 0;
     outline: 0;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    padding-right: 8px;
   }
-  .code-frame-link [data-icon='right'] {
-    margin-left: auto;
-  }
-
-  [data-nextjs-codeframe] div > pre {
-    overflow: hidden;
-    display: inline-block;
+  .code-frame-pre {
+    overflow-x: auto;
+    overflow-y: hidden;
+    display: block;
+    max-width: 100%;
   }
 
   [data-nextjs-codeframe] svg {

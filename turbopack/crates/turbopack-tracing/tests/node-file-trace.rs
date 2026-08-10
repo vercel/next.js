@@ -16,7 +16,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result};
 use difference::Changeset;
 use helpers::print_changeset;
 use regex::Regex;
@@ -28,10 +28,11 @@ use serde::Serialize;
 use tokio::{process::Command, time::timeout};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    ResolvedVc, TurboTasks, ValueToString, Vc, apply_effects, backend::Backend, trace::TraceRawVcs,
+    Effects, ResolvedVc, TurboTasks, ValueToString, Vc, backend::Backend,
+    read_strongly_consistent_and_apply_effects, take_effects, trace::TraceRawVcs,
 };
 use turbo_tasks_backend::TurboTasksBackend;
-use turbo_tasks_fs::{DiskFileSystem, FileSystem};
+use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
 use turbopack::{
     ModuleAssetContext, emit_assets_into_dir_operation,
     module_options::{
@@ -50,6 +51,7 @@ use turbopack_core::{
     rebase::RebasedAsset,
     reference::all_assets_from_entry,
     reference_type::ReferenceType,
+    resolve::options::ConditionValue,
 };
 use turbopack_ecmascript::AnalyzeMode;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
@@ -64,8 +66,8 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::apollo("integration/apollo.js")]
 #[case::argon2("integration/argon2.js")]
 #[case::auth0("integration/auth0.js")]
+#[case::aws_sdk_old("integration/aws-sdk-old.js")]
 #[case::aws_sdk("integration/aws-sdk.js")]
-#[case::aws_sdk3("integration/aws-sdk3.js")]
 #[case::axios("integration/axios.js")]
 #[case::azure_cosmos("integration/azure-cosmos.js")]
 #[case::azure_storage("integration/azure-storage.js")]
@@ -147,7 +149,7 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::passport("integration/passport.js")]
 #[case::path_platform("integration/path-platform.js")]
 #[case::pixelmatch("integration/pixelmatch.js")]
-#[case::pdf2json("integration/pdf2json.mjs")]
+#[case::pdf2json("integration/pdf2json.js")]
 #[case::pdfkit("integration/pdfkit.js")]
 #[case::pg("integration/pg.js")]
 #[case::pino("integration/pino.js")]
@@ -180,9 +182,24 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[cfg_attr(
     target_os = "windows",
     should_panic(expected = "Something went wrong installing the \"sharp\" module"),
+    case::sharp034("integration/sharp034.js")
+)]
+#[cfg_attr(not(target_os = "windows"), case::sharp034("integration/sharp034.js"))]
+#[cfg_attr(
+    target_os = "windows",
+    should_panic(expected = "Something went wrong installing the \"sharp\" module"),
     case::sharp("integration/sharp.js")
 )]
 #[cfg_attr(not(target_os = "windows"), case::sharp("integration/sharp.js"))]
+#[cfg_attr(
+    target_os = "windows",
+    should_panic(expected = "Something went wrong installing the \"sharp\" module"),
+    case::sharp_pnpm("integration/sharp-pnpm.js")
+)]
+#[cfg_attr(
+    not(target_os = "windows"),
+    case::sharp_pnpm("integration/sharp-pnpm.js")
+)]
 #[case::shiki("integration/shiki.js")]
 #[case::simple("integration/simple.js")]
 #[case::socket_io("integration/socket.io.js")]
@@ -293,7 +310,11 @@ fn test_cases() {}
 fn node_file_trace_noop_backing_storage(#[case] input: CaseInput) {
     node_file_trace(input, "noop_backing_storage", 1, 120, |_| {
         TurboTasks::new(TurboTasksBackend::new(
-            turbo_tasks_backend::BackendOptions::default(),
+            turbo_tasks_backend::BackendOptions {
+                storage_mode: None,
+                dependency_tracking: false,
+                ..Default::default()
+            },
             turbo_tasks_backend::noop_backing_storage(),
         ))
     });
@@ -304,7 +325,7 @@ fn node_file_trace_persistent(#[case] input: CaseInput) {
     node_file_trace(input, "persistent_cache", 2, 240, |directory_path| {
         TurboTasks::new(TurboTasksBackend::new(
             turbo_tasks_backend::BackendOptions::default(),
-            turbo_tasks_backend::default_backing_storage(
+            turbo_tasks_backend::turbo_backing_storage(
                 &directory_path.join(".cache"),
                 &turbo_tasks_backend::GitVersionInfo {
                     describe: "test-unversioned",
@@ -312,6 +333,7 @@ fn node_file_trace_persistent(#[case] input: CaseInput) {
                 },
                 false,
                 true,
+                false,
             )
             .unwrap()
             .0,
@@ -335,20 +357,26 @@ fn bench_against_node_nft_inner(input: CaseInput) {
     });
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::value(serialization = "skip", evict = "never")]
+struct NodeFileTraceResult {
+    rebased: ResolvedVc<RebasedAsset>,
+    effects: Effects,
+}
+
+#[turbo_tasks::function(operation, root)]
 async fn node_file_trace_operation(
     package_root: RcStr,
     input: RcStr,
     directory: RcStr,
-) -> Result<Vc<RebasedAsset>> {
+) -> Result<Vc<NodeFileTraceResult>> {
     let workspace_fs: Vc<Box<dyn FileSystem>> = Vc::upcast(DiskFileSystem::new(
         rcstr!("workspace"),
-        package_root.clone(),
+        Vc::cell(package_root.clone()),
     ));
     let input_dir = workspace_fs.root().owned().await?;
     let input = input_dir.join(&format!("tests/{input}"))?;
 
-    let output_fs = DiskFileSystem::new(rcstr!("output"), directory.clone());
+    let output_fs = DiskFileSystem::new(rcstr!("output"), Vc::cell(directory.clone()));
     let output_dir = output_fs.root().owned().await?;
 
     let source = FileSource::new(input);
@@ -389,7 +417,8 @@ async fn node_file_trace_operation(
             analyze_mode: AnalyzeMode::Tracing,
             // Disable tree shaking. Even side-effect-free imports need to be traced, as they will
             // execute at runtime.
-            tree_shaking_mode: None,
+            follow_reexports: false,
+            module_fragments_enabled: false,
             ..Default::default()
         }
         .cell(),
@@ -397,6 +426,7 @@ async fn node_file_trace_operation(
             enable_node_native_modules: true,
             enable_node_modules: Some(input_dir.clone()),
             custom_conditions: vec![rcstr!("node")],
+            module_sync: ConditionValue::Unknown,
             collect_affecting_sources: true,
             ..Default::default()
         }
@@ -416,9 +446,9 @@ async fn node_file_trace_operation(
 
     let emit_op = emit_assets_into_dir_operation(assets, output_dir.clone());
     emit_op.read_strongly_consistent().await?;
-    apply_effects(emit_op).await?;
+    let effects = take_effects(emit_op).await?;
 
-    Ok(*rebased)
+    Ok(NodeFileTraceResult { rebased, effects }.cell())
 }
 
 fn node_file_trace<B: Backend + 'static>(
@@ -459,7 +489,7 @@ fn node_file_trace<B: Backend + 'static>(
                     Err(err)
                 }
             })
-            .context(format!("Failed to remove directory: {directory}"))
+            .with_context(|| format!("Failed to remove directory: {directory}"))
             .unwrap();
 
         for _ in 0..run_count {
@@ -469,22 +499,22 @@ fn node_file_trace<B: Backend + 'static>(
             let input = input.clone();
             let directory = directory.clone();
             let task = async move {
-                #[allow(unused)]
-                let bench_suites = bench_suites.clone();
                 let before_start = Instant::now();
-
-                let rebased = node_file_trace_operation(
+                let trace_op = node_file_trace_operation(
                     package_root.clone(),
                     input.clone(),
                     directory.clone(),
-                )
-                .resolve_strongly_consistent()
-                .await?;
+                );
+                let trace_result =
+                    read_strongly_consistent_and_apply_effects(trace_op, |v| &v.effects).await?;
+                let rebased = trace_result.rebased;
+                let duration = before_start.elapsed();
 
-                print_graph(ResolvedVc::upcast(rebased)).await?;
+                print_graph_operation(ResolvedVc::upcast(rebased))
+                    .read_strongly_consistent()
+                    .await?;
 
                 if cfg!(feature = "bench_against_node_nft") {
-                    let duration = before_start.elapsed();
                     let node_start = Instant::now();
                     exec_node(&package_root, &input).await?;
                     let node_duration = node_start.elapsed();
@@ -517,7 +547,10 @@ fn node_file_trace<B: Backend + 'static>(
                         stderr: String::new(),
                     })
                 } else {
-                    let output_path = &rebased.path().await?.path;
+                    let output_path = &asset_path_operation(ResolvedVc::upcast(rebased))
+                        .read_strongly_consistent()
+                        .await?
+                        .path;
                     let original_output =
                         exec_node(&package_root, &format!("{package_root}/tests/{input}")).await?;
                     let output = exec_node(&directory, output_path).await?;
@@ -591,7 +624,7 @@ impl Display for CommandOutput {
         write!(
             f,
             "---------- Stdout ----------\n{}\n---------- Stderr ----------\n{}",
-            &self.stdout, &self.stderr,
+            self.stdout, self.stderr,
         )
     }
 }
@@ -645,8 +678,8 @@ async fn exec_node(directory: &str, path: &str) -> Result<CommandOutput> {
 
     let output = timeout(Duration::from_secs(100), cmd.output())
         .await
-        .with_context(|| anyhow!("node execution of {path} is hanging"))?
-        .with_context(|| anyhow!("failed to spawn node process of {path}"))?;
+        .with_context(|| format!("node execution of {path} is hanging"))?
+        .with_context(|| format!("failed to spawn node process of {path}"))?;
 
     let output = CommandOutput {
         stdout: String::from_utf8_lossy(&output.stdout).to_string(),
@@ -747,7 +780,13 @@ impl std::str::FromStr for CaseInput {
     }
 }
 
-async fn print_graph(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<()> {
+#[turbo_tasks::function(operation, root)]
+async fn asset_path_operation(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Vc<FileSystemPath> {
+    asset.path()
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn print_graph_operation(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<()> {
     let mut visited = HashSet::new();
     let mut queue = Vec::new();
     queue.push((0, asset));

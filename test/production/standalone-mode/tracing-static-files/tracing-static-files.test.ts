@@ -6,7 +6,6 @@ describe('standalone mode - tracing-static-files', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     dependencies,
-    skipDeployment: true,
     skipStart: true,
   })
 

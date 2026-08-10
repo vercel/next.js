@@ -10,64 +10,84 @@ import isError from '../lib/is-error'
 import { hrtimeDurationToString } from './duration-to-string'
 
 /**
- * typescript will be loaded in "next/lib/verify-typescript-setup" and
- * then passed to "next/lib/typescript/runTypeCheck" as a parameter.
+ * TypeScript setup and type checking run in a worker so the compiler's memory
+ * can be released before the rest of the build continues.
  *
  * Since it is impossible to pass a function from main thread to a worker,
  * instead of running "next/lib/typescript/runTypeCheck" in a worker,
  * we will run entire "next/lib/verify-typescript-setup" in a worker instead.
  */
-function verifyTypeScriptSetup(
+function verifyAndRunTypeScript(
   dir: string,
   distDir: string,
-  typeCheckPreflight: boolean,
+  strictRouteTypes: boolean,
+  shouldRunTypeCheck: boolean,
   tsconfigPath: string | undefined,
+  typedRoutes: boolean,
   disableStaticImages: boolean,
   cacheDir: string | undefined,
   enableWorkerThreads: boolean | undefined,
   hasAppDir: boolean,
   hasPagesDir: boolean,
-  isolatedDevBuild: boolean | undefined,
   appDir: string | undefined,
   pagesDir: string | undefined,
-  debugBuildPaths: { app?: string[]; pages?: string[] } | undefined
+  debugBuildPaths: { app: string[]; pages: string[] } | undefined,
+  useTypeScriptCli: boolean,
+  onFirstCliOutput?: () => void
 ) {
-  const typeCheckWorker = new Worker(
-    require.resolve('../lib/verify-typescript-setup'),
-    {
-      exposedMethods: ['verifyTypeScriptSetup'],
-      debuggerPortOffset: -1,
-      isolatedMemory: false,
-      numWorkers: 1,
-      enableWorkerThreads,
-      maxRetries: 0,
-    }
-  ) as Worker & {
-    verifyTypeScriptSetup: typeof import('../lib/verify-typescript-setup').verifyTypeScriptSetup
+  let impl: typeof import('../lib/verify-typescript-setup').verifyAndRunTypeScript
+  let typeCheckWorker:
+    | (Worker & {
+        verifyAndRunTypeScriptInWorker: typeof impl
+      })
+    | undefined
+  if (shouldRunTypeCheck && !useTypeScriptCli) {
+    typeCheckWorker = new Worker(
+      require.resolve('../lib/verify-typescript-setup'),
+      {
+        exposedMethods: ['verifyAndRunTypeScriptInWorker'],
+        debuggerPortOffset: -1,
+        isolatedMemory: false,
+        numWorkers: 1,
+        enableWorkerThreads,
+        maxRetries: 0,
+      }
+    ) as typeof typeCheckWorker
+    impl = typeCheckWorker!.verifyAndRunTypeScriptInWorker
+  } else {
+    // No worker: either we are not type-checking (just writing setup files), or
+    // the CLI checker runs `tsc` in-process. Avoid the worker overhead.
+    impl = (
+      require('../lib/verify-typescript-setup') as typeof import('../lib/verify-typescript-setup')
+    ).verifyAndRunTypeScript
   }
 
-  return typeCheckWorker
-    .verifyTypeScriptSetup({
-      dir,
-      distDir,
-      typeCheckPreflight,
-      tsconfigPath,
-      disableStaticImages,
-      cacheDir,
-      hasAppDir,
-      hasPagesDir,
-      isolatedDevBuild,
-      appDir,
-      pagesDir,
-      debugBuildPaths,
-    })
+  return impl({
+    dir,
+    distDir,
+    strictRouteTypes,
+    shouldRunTypeCheck,
+    tsconfigPath,
+    typedRoutes,
+    disableStaticImages,
+    cacheDir,
+    hasAppDir,
+    hasPagesDir,
+    appDir,
+    pagesDir,
+    debugBuildPaths,
+    useTypeScriptCli,
+    onFirstCliOutput,
+  })
     .then((result) => {
-      typeCheckWorker.end()
+      typeCheckWorker?.end()
       return result
     })
     .catch(() => {
-      // The error is already logged in the worker, we simply exit the main thread to prevent the
-      // `Jest worker encountered 1 child process exceptions, exceeding retry limit` from showing up
+      // The error is already logged (in the worker for the API checker, or
+      // directly for the in-process CLI checker); we simply exit to prevent the
+      // `Jest worker encountered 1 child process exceptions, exceeding retry
+      // limit` message from showing up.
       process.exit(1)
     })
 }
@@ -89,9 +109,10 @@ export async function startTypeChecking({
   pagesDir?: string
   telemetry: Telemetry
   appDir?: string
-  debugBuildPaths?: { app?: string[]; pages?: string[] }
+  debugBuildPaths: { app: string[]; pages: string[] } | undefined
 }) {
   const ignoreTypeScriptErrors = Boolean(config.typescript.ignoreBuildErrors)
+  const useTypeScriptCli = Boolean(config.experimental.useTypeScriptCli)
 
   if (ignoreTypeScriptErrors) {
     Log.info('Skipping validation of types')
@@ -114,20 +135,26 @@ export async function startTypeChecking({
     const [verifyResult, typeCheckEnd] = await nextBuildSpan
       .traceChild('run-typescript')
       .traceAsyncFn(() =>
-        verifyTypeScriptSetup(
+        verifyAndRunTypeScript(
           dir,
           config.distDir,
+          Boolean(config.experimental.strictRouteTypes),
           !ignoreTypeScriptErrors,
           config.typescript.tsconfigPath,
+          Boolean(config.typedRoutes),
           config.images.disableStaticImages,
           cacheDir,
           config.experimental.workerThreads,
           !!appDir,
           !!pagesDir,
-          config.experimental.isolatedDevBuild,
           appDir,
           pagesDir,
-          debugBuildPaths
+          debugBuildPaths,
+          useTypeScriptCli,
+          // Stop the spinner before as soon as the subprocess reports output.
+          useTypeScriptCli && typeCheckingSpinner
+            ? () => typeCheckingSpinner.stop()
+            : undefined
         ).then((resolved) => {
           const checkEnd = process.hrtime(typeCheckAndLintStart)
           return [resolved, checkEnd] as const
@@ -136,11 +163,11 @@ export async function startTypeChecking({
 
     if (typeCheckingSpinner) {
       typeCheckingSpinner.stop()
-
-      createSpinner(
-        `Finished TypeScript${ignoreTypeScriptErrors ? ' config validation' : ''} in ${hrtimeDurationToString(typeCheckEnd)}`
-      )?.stopAndPersist()
     }
+
+    createSpinner(
+      `Finished TypeScript${ignoreTypeScriptErrors ? ' config validation' : ''} in ${hrtimeDurationToString(typeCheckEnd)}`
+    )?.stopAndPersist()
 
     if (!ignoreTypeScriptErrors && verifyResult) {
       telemetry.record(
@@ -150,6 +177,7 @@ export async function startTypeChecking({
           inputFilesCount: verifyResult.result?.inputFilesCount,
           totalFilesCount: verifyResult.result?.totalFilesCount,
           incremental: verifyResult.result?.incremental,
+          typeCheckMode: verifyResult.typeCheckMode,
         })
       )
     }

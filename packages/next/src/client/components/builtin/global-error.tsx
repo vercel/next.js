@@ -1,48 +1,61 @@
 'use client'
 
-import { HandleISRError } from '../handle-isr-error'
-
-const styles = {
-  error: {
-    // https://github.com/sindresorhus/modern-normalize/blob/main/modern-normalize.css#L38-L52
-    fontFamily:
-      'system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
-    height: '100vh',
-    textAlign: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  text: {
-    fontSize: '14px',
-    fontWeight: 400,
-    lineHeight: '28px',
-    margin: '0 8px',
-  },
-} as const
+import React from 'react'
+import { handleISRError } from '../handle-isr-error'
+import { errorStyles, errorThemeCss, WarningIcon } from './error-styles'
 
 export type GlobalErrorComponent = React.ComponentType<{
   error: any
+  reset: () => void
+  retry: () => void
 }>
+
 function DefaultGlobalError({ error }: { error: any }) {
   const digest: string | undefined = error?.digest
+  const isServerError = !!digest
+
+  const message = isServerError
+    ? 'A server error occurred. Reload to try again.'
+    : 'Reload to try again, or go back.'
+
+  handleISRError({ error })
+
   return (
     <html id="__next_error__">
-      <head></head>
+      <head>
+        <style dangerouslySetInnerHTML={{ __html: errorThemeCss }} />
+      </head>
       <body>
-        <HandleISRError error={error} />
-        <div style={styles.error}>
-          <div>
-            <h2 style={styles.text}>
-              Application error: a {digest ? 'server' : 'client'}-side exception
-              has occurred while loading {window.location.hostname} (see the{' '}
-              {digest ? 'server logs' : 'browser console'} for more
-              information).
-            </h2>
-            {digest ? <p style={styles.text}>{`Digest: ${digest}`}</p> : null}
+        <div style={errorStyles.container}>
+          <div style={errorStyles.card}>
+            <WarningIcon />
+            <h1 style={errorStyles.title}>This page couldn&#x2019;t load</h1>
+            <p style={errorStyles.message}>{message}</p>
+            <div style={errorStyles.buttonGroup}>
+              <form style={errorStyles.form}>
+                <button type="submit" style={errorStyles.button}>
+                  Reload
+                </button>
+              </form>
+              {!isServerError && (
+                <button
+                  type="button"
+                  style={errorStyles.buttonSecondary}
+                  onClick={() => {
+                    if (window.history.length > 1) {
+                      window.history.back()
+                    } else {
+                      window.location.href = '/'
+                    }
+                  }}
+                >
+                  Back
+                </button>
+              )}
+            </div>
           </div>
         </div>
+        {digest && <p style={errorStyles.digestFooter}>ERROR {digest}</p>}
       </body>
     </html>
   )

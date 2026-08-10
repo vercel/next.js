@@ -2,6 +2,7 @@ import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import type { Params } from '../../server/request/params'
 import {
   createDevToolsInstrumentedPromise,
+  ReadonlyURLSearchParams,
   type InstrumentedPromise,
   type NavigationPromises,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
@@ -9,7 +10,6 @@ import {
   computeSelectedLayoutSegment,
   getSelectedLayoutSegmentPath,
 } from '../../shared/lib/segment'
-import { ReadonlyURLSearchParams } from './readonly-url-search-params'
 
 /**
  * Promises are cached by tree to ensure stability across suspense retries.
@@ -28,7 +28,7 @@ const layoutSegmentPromisesCache = new WeakMap<
  * Creates instrumented promises for layout segment hooks at a given tree level.
  * This is dev-only code for React Suspense DevTools instrumentation.
  */
-export function createLayoutSegmentPromises(
+function createLayoutSegmentPromises(
   tree: FlightRouterState
 ): LayoutSegmentPromisesCache | null {
   if (process.env.NODE_ENV === 'production') {

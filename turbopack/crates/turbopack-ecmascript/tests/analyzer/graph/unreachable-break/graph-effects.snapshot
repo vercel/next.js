@@ -60,9 +60,7 @@
             Module(
                 ModuleValue {
                     module: "foo",
-                    annotations: ImportAnnotations {
-                        map: {},
-                    },
+                    annotations: None,
                 },
             ),
             Constant(
@@ -227,9 +225,7 @@
             Module(
                 ModuleValue {
                     module: "foo",
-                    annotations: ImportAnnotations {
-                        map: {},
-                    },
+                    annotations: None,
                 },
             ),
             Constant(
@@ -359,9 +355,7 @@
             Module(
                 ModuleValue {
                     module: "foo",
-                    annotations: ImportAnnotations {
-                        map: {},
-                    },
+                    annotations: None,
                 },
             ),
             Constant(
@@ -540,9 +534,7 @@
             Module(
                 ModuleValue {
                     module: "foo",
-                    annotations: ImportAnnotations {
-                        map: {},
-                    },
+                    annotations: None,
                 },
             ),
             Constant(
@@ -672,9 +664,7 @@
             Module(
                 ModuleValue {
                     module: "foo",
-                    annotations: ImportAnnotations {
-                        map: {},
-                    },
+                    annotations: None,
                 },
             ),
             Constant(
@@ -853,9 +843,7 @@
             Module(
                 ModuleValue {
                     module: "foo",
-                    annotations: ImportAnnotations {
-                        map: {},
-                    },
+                    annotations: None,
                 },
             ),
             Constant(

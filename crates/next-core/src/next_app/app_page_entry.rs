@@ -8,6 +8,7 @@ use turbopack::ModuleAssetContext;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     context::AssetContext,
+    file_source::FileSource,
     module::Module,
     reference_type::ReferenceType,
     source::Source,
@@ -16,7 +17,7 @@ use turbopack_core::{
 use turbopack_ecmascript::runtime_functions::{TURBOPACK_LOAD, TURBOPACK_REQUIRE};
 
 use crate::{
-    app_page_loader_tree::{AppPageLoaderTreeModule, GLOBAL_ERROR},
+    app_page_loader_tree::AppPageLoaderTreeModule,
     app_structure::AppPageLoaderTree,
     next_app::{AppPage, AppPath, app_entry::AppEntry},
     next_config::NextConfig,
@@ -78,14 +79,6 @@ pub async fn get_app_page_entry(
         [
             ("VAR_DEFINITION_PAGE", &*page.to_string()),
             ("VAR_DEFINITION_PATHNAME", &pathname),
-            (
-                "VAR_MODULE_GLOBAL_ERROR",
-                if inner_assets.contains_key(GLOBAL_ERROR) {
-                    GLOBAL_ERROR
-                } else {
-                    "next/dist/client/components/builtin/global-error"
-                },
-            ),
         ],
         [
             ("tree", &*loader_tree_code),
@@ -104,7 +97,12 @@ pub async fn get_app_page_entry(
 
     let file = File::from(result.build());
     let source = VirtualSource::new_with_ident(
-        source.ident().with_query(RcStr::from(format!("?{query}"))),
+        source
+            .ident()
+            .owned()
+            .await?
+            .with_query(RcStr::from(format!("?{query}")))
+            .into_vc(),
         AssetContent::file(FileContent::Content(file).cell()),
     );
 
@@ -121,6 +119,7 @@ pub async fn get_app_page_entry(
             project_root.clone(),
             rsc_entry,
             page,
+            next_config,
         );
     };
 
@@ -139,21 +138,78 @@ async fn wrap_edge_page(
     project_root: FileSystemPath,
     entry: ResolvedVc<Box<dyn Module>>,
     page: AppPage,
+    next_config: Vc<NextConfig>,
 ) -> Result<Vc<Box<dyn Module>>> {
     const INNER: &str = "INNER_PAGE_ENTRY";
+    let mut cache_handler_imports = String::new();
+    let mut cache_handler_registration = String::new();
+    let mut incremental_cache_handler_import = None;
+    let mut cache_handler_inner_assets = fxindexmap! {};
+
+    let cache_handlers = next_config.cache_handlers_map().owned().await?;
+    for (index, (kind, handler_path)) in cache_handlers.iter().enumerate() {
+        let cache_handler_inner: RcStr = format!("INNER_CACHE_HANDLER_{index}").into();
+        let cache_handler_var = format!("cacheHandler{index}");
+        cache_handler_imports.push_str(&format!(
+            "import {cache_handler_var} from {};\n",
+            serde_json::to_string(&*cache_handler_inner)?
+        ));
+        cache_handler_registration.push_str(&format!(
+            "  cacheHandlers.setCacheHandler({}, {cache_handler_var});\n",
+            serde_json::to_string(kind.as_str())?
+        ));
+
+        let cache_handler_module = asset_context
+            .process(
+                Vc::upcast(FileSource::new(project_root.join(handler_path)?)),
+                ReferenceType::Undefined,
+            )
+            .module()
+            .to_resolved()
+            .await?;
+        cache_handler_inner_assets.insert(cache_handler_inner, cache_handler_module);
+    }
+
+    for cache_handler_path in next_config
+        .cache_handler(project_root.clone())
+        .await?
+        .into_iter()
+    {
+        let cache_handler_inner: RcStr = "INNER_INCREMENTAL_CACHE_HANDLER".into();
+        incremental_cache_handler_import = Some(cache_handler_inner.clone());
+        let cache_handler_module = asset_context
+            .process(
+                Vc::upcast(FileSource::new(cache_handler_path.clone())),
+                ReferenceType::Undefined,
+            )
+            .module()
+            .to_resolved()
+            .await?;
+        cache_handler_inner_assets.insert(cache_handler_inner, cache_handler_module);
+    }
 
     let source = load_next_js_template(
         "edge-ssr-app.js",
         project_root.clone(),
         [("VAR_USERLAND", INNER), ("VAR_PAGE", &page.to_string())],
-        [],
-        [("incrementalCacheHandler", None)],
+        [
+            ("cacheHandlerImports", cache_handler_imports.as_str()),
+            (
+                "cacheHandlerRegistration",
+                cache_handler_registration.as_str(),
+            ),
+        ],
+        [(
+            "incrementalCacheHandler",
+            incremental_cache_handler_import.as_deref(),
+        )],
     )
     .await?;
 
-    let inner_assets = fxindexmap! {
+    let mut inner_assets = fxindexmap! {
         INNER.into() => entry
     };
+    inner_assets.extend(cache_handler_inner_assets);
 
     let wrapped = asset_context
         .process(

@@ -24,7 +24,7 @@ const_format = { workspace = true }
 data-encoding = { workspace = true }
 either = { workspace = true }
 indexmap = { workspace = true }
-once_cell = { workspace = true }
+num-bigint = "0.4"
 patricia_tree = { version = "0.10.1", features = ["serde"] }
 petgraph = { workspace = true, features = ["serde-1"] }
 roaring = { workspace = true, features = ["serde"] }
@@ -38,6 +38,7 @@ swc_sourcemap = { workspace = true }
 swc_core = { workspace = true, features = ["ecma_preset_env", "common"] }
 tracing = { workspace = true }
 turbo-bincode = { workspace = true }
+turbo-esregex = { workspace = true }
 turbo-frozenmap = { workspace = true }
 turbo-prehash = { workspace = true }
 turbo-rcstr = { workspace = true }
@@ -46,7 +47,6 @@ turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 turbo-unix-path = { workspace = true }
-twox-hash = { workspace = true }
 url = { workspace = true }
 urlencoding = { workspace = true }
 uuid = { workspace = true}

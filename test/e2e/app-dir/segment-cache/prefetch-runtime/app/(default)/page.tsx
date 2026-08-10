@@ -11,7 +11,7 @@ export default async function Page() {
           cookies + dynamic content
           <ul>
             <li>
-              <DebugLinkAccordion href="/in-page/cookies" />
+              <DebugLinkAccordion href="/in-page/cookies" prefetch />
             </li>
           </ul>
         </li>
@@ -20,7 +20,7 @@ export default async function Page() {
           headers + dynamic content
           <ul>
             <li>
-              <DebugLinkAccordion href="/in-page/headers" />
+              <DebugLinkAccordion href="/in-page/headers" prefetch />
             </li>
           </ul>
         </li>
@@ -29,10 +29,16 @@ export default async function Page() {
           search params + dynamic content
           <ul>
             <li>
-              <DebugLinkAccordion href="/in-page/search-params?searchParam=123" />
+              <DebugLinkAccordion
+                href="/in-page/search-params?searchParam=123"
+                prefetch
+              />
             </li>
             <li>
-              <DebugLinkAccordion href="/in-page/search-params?searchParam=456" />
+              <DebugLinkAccordion
+                href="/in-page/search-params?searchParam=456"
+                prefetch
+              />
             </li>
           </ul>
         </li>
@@ -40,10 +46,10 @@ export default async function Page() {
           dynamic params + dynamic content
           <ul>
             <li>
-              <DebugLinkAccordion href="/in-page/dynamic-params/123" />
+              <DebugLinkAccordion href="/in-page/dynamic-params/123" prefetch />
             </li>
             <li>
-              <DebugLinkAccordion href="/in-page/dynamic-params/456" />
+              <DebugLinkAccordion href="/in-page/dynamic-params/456" prefetch />
             </li>
           </ul>
         </li>
@@ -51,7 +57,7 @@ export default async function Page() {
           only cookies
           <ul>
             <li>
-              <DebugLinkAccordion href="/in-page/cookies-only" />
+              <DebugLinkAccordion href="/in-page/cookies-only" prefetch />
             </li>
           </ul>
         </li>
@@ -65,7 +71,7 @@ export default async function Page() {
           cookies in private cache + dynamic content
           <ul>
             <li>
-              <DebugLinkAccordion href="/in-private-cache/cookies" />
+              <DebugLinkAccordion href="/in-private-cache/cookies" prefetch />
             </li>
           </ul>
         </li>
@@ -73,7 +79,7 @@ export default async function Page() {
           headers in private cache + dynamic content
           <ul>
             <li>
-              <DebugLinkAccordion href="/in-private-cache/headers" />
+              <DebugLinkAccordion href="/in-private-cache/headers" prefetch />
             </li>
           </ul>
         </li>
@@ -81,10 +87,16 @@ export default async function Page() {
           dynamic params in private cache + dynamic content
           <ul>
             <li>
-              <DebugLinkAccordion href="/in-private-cache/dynamic-params/123" />
+              <DebugLinkAccordion
+                href="/in-private-cache/dynamic-params/123"
+                prefetch
+              />
             </li>
             <li>
-              <DebugLinkAccordion href="/in-private-cache/dynamic-params/456" />
+              <DebugLinkAccordion
+                href="/in-private-cache/dynamic-params/456"
+                prefetch
+              />
             </li>
           </ul>
         </li>
@@ -92,10 +104,16 @@ export default async function Page() {
           search params in private cache + dynamic content
           <ul>
             <li>
-              <DebugLinkAccordion href="/in-private-cache/search-params?searchParam=123" />
+              <DebugLinkAccordion
+                href="/in-private-cache/search-params?searchParam=123"
+                prefetch
+              />
             </li>
             <li>
-              <DebugLinkAccordion href="/in-private-cache/search-params?searchParam=456" />
+              <DebugLinkAccordion
+                href="/in-private-cache/search-params?searchParam=456"
+                prefetch
+              />
             </li>
           </ul>
         </li>
@@ -103,7 +121,10 @@ export default async function Page() {
           only cookies in private cache
           <ul>
             <li>
-              <DebugLinkAccordion href="/in-private-cache/cookies-only" />
+              <DebugLinkAccordion
+                href="/in-private-cache/cookies-only"
+                prefetch
+              />
             </li>
           </ul>
         </li>
@@ -111,7 +132,7 @@ export default async function Page() {
           Date.now() in private cache
           <ul>
             <li>
-              <DebugLinkAccordion href="/in-private-cache/date-now" />
+              <DebugLinkAccordion href="/in-private-cache/date-now" prefetch />
             </li>
           </ul>
         </li>
@@ -125,7 +146,10 @@ export default async function Page() {
           cookies() promise passed to public cache + dynamic content
           <ul>
             <li>
-              <DebugLinkAccordion href="/passed-to-public-cache/cookies" />
+              <DebugLinkAccordion
+                href="/passed-to-public-cache/cookies"
+                prefetch
+              />
             </li>
           </ul>
         </li>
@@ -133,7 +157,10 @@ export default async function Page() {
           headers() promise passed to public cache + dynamic content
           <ul>
             <li>
-              <DebugLinkAccordion href="/passed-to-public-cache/headers" />
+              <DebugLinkAccordion
+                href="/passed-to-public-cache/headers"
+                prefetch
+              />
             </li>
           </ul>
         </li>
@@ -141,10 +168,16 @@ export default async function Page() {
           dynamic params promise passed to public cache + dynamic content
           <ul>
             <li>
-              <DebugLinkAccordion href="/passed-to-public-cache/dynamic-params/123" />
+              <DebugLinkAccordion
+                href="/passed-to-public-cache/dynamic-params/123"
+                prefetch
+              />
             </li>
             <li>
-              <DebugLinkAccordion href="/passed-to-public-cache/dynamic-params/456" />
+              <DebugLinkAccordion
+                href="/passed-to-public-cache/dynamic-params/456"
+                prefetch
+              />
             </li>
           </ul>
         </li>
@@ -152,10 +185,16 @@ export default async function Page() {
           search params promise passed to public cache + dynamic content
           <ul>
             <li>
-              <DebugLinkAccordion href="/passed-to-public-cache/search-params?searchParam=123" />
+              <DebugLinkAccordion
+                href="/passed-to-public-cache/search-params?searchParam=123"
+                prefetch
+              />
             </li>
             <li>
-              <DebugLinkAccordion href="/passed-to-public-cache/search-params?searchParam=456" />
+              <DebugLinkAccordion
+                href="/passed-to-public-cache/search-params?searchParam=456"
+                prefetch
+              />
             </li>
           </ul>
         </li>
@@ -163,7 +202,10 @@ export default async function Page() {
           only cookies passed to public cache (no dynamic content)
           <ul>
             <li>
-              <DebugLinkAccordion href="/passed-to-public-cache/cookies-only" />
+              <DebugLinkAccordion
+                href="/passed-to-public-cache/cookies-only"
+                prefetch
+              />
             </li>
           </ul>
         </li>
@@ -175,7 +217,7 @@ export default async function Page() {
           private, short stale
           <ul>
             <li>
-              <DebugLinkAccordion href="/caches/private-short-stale" />
+              <DebugLinkAccordion href="/caches/private-short-stale" prefetch />
             </li>
           </ul>
         </li>
@@ -183,7 +225,10 @@ export default async function Page() {
           public, short expire, long enough stale
           <ul>
             <li>
-              <DebugLinkAccordion href="/caches/public-short-expire-long-stale" />
+              <DebugLinkAccordion
+                href="/caches/public-short-expire-long-stale"
+                prefetch
+              />
             </li>
           </ul>
         </li>
@@ -191,7 +236,10 @@ export default async function Page() {
           public, short expire, short stale
           <ul>
             <li>
-              <DebugLinkAccordion href="/caches/public-short-expire-short-stale" />
+              <DebugLinkAccordion
+                href="/caches/public-short-expire-short-stale"
+                prefetch
+              />
             </li>
           </ul>
         </li>
@@ -199,7 +247,7 @@ export default async function Page() {
           public, cacheLife("seconds")
           <ul>
             <li>
-              <DebugLinkAccordion href="/caches/public-seconds" />
+              <DebugLinkAccordion href="/caches/public-seconds" prefetch />
             </li>
           </ul>
         </li>
@@ -207,7 +255,7 @@ export default async function Page() {
           private, cacheLife("seconds")
           <ul>
             <li>
-              <DebugLinkAccordion href="/caches/private-seconds" />
+              <DebugLinkAccordion href="/caches/private-seconds" prefetch />
             </li>
           </ul>
         </li>
@@ -216,7 +264,7 @@ export default async function Page() {
       <h2>misc</h2>
       <ul>
         <li>
-          <DebugLinkAccordion href="/fully-static" />
+          <DebugLinkAccordion href="/fully-static" prefetch />
         </li>
       </ul>
     </main>

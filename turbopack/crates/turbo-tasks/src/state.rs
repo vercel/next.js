@@ -1,5 +1,4 @@
 use std::{
-    any::type_name,
     fmt::Debug,
     mem::take,
     ops::{Deref, DerefMut},
@@ -11,8 +10,8 @@ use parking_lot::{Mutex, MutexGuard};
 use tracing::trace_span;
 
 use crate::{
-    Invalidator, OperationValue, SerializationInvalidator, get_invalidator, mark_session_dependent,
-    mark_stateful, trace::TraceRawVcs,
+    Invalidator, OperationValue, SerializationInvalidator, get_invalidator,
+    get_serialization_invalidator, manager::with_turbo_tasks, trace::TraceRawVcs,
 };
 
 #[derive(Encode, Decode)]
@@ -33,76 +32,132 @@ impl<T> StateInner<T> {
         self.invalidators.insert(invalidator);
     }
 
-    pub fn set_unconditionally(&mut self, value: T) {
+    /// Sets the value and returns the drained invalidators. The caller MUST
+    /// run them via [`run_invalidators`] *after* dropping the [`Mutex`] guard
+    /// — calling [`Invalidator::invalidate`] may grab locks in the backend which can lead to cycles
+    #[must_use]
+    fn set_unconditionally(&mut self, value: T) -> AutoSet<Invalidator> {
         self.value = value;
-        let _span = trace_span!("state value changed", value_type = type_name::<T>()).entered();
-        for invalidator in take(&mut self.invalidators) {
-            invalidator.invalidate();
-        }
+        take(&mut self.invalidators)
     }
 
-    pub fn update_conditionally(&mut self, update: impl FnOnce(&mut T) -> bool) -> bool {
+    /// See [`Self::set_unconditionally`] for the locking contract on the
+    /// returned invalidators.
+    #[must_use]
+    fn update_conditionally(
+        &mut self,
+        update: impl FnOnce(&mut T) -> bool,
+    ) -> Option<AutoSet<Invalidator>> {
         if !update(&mut self.value) {
-            return false;
+            return None;
         }
-        let _span = trace_span!("state value changed", value_type = type_name::<T>()).entered();
-        for invalidator in take(&mut self.invalidators) {
-            invalidator.invalidate();
-        }
-        true
+        Some(take(&mut self.invalidators))
     }
 }
 
 impl<T: PartialEq> StateInner<T> {
-    pub fn set(&mut self, value: T) -> bool {
+    /// See [`Self::set_unconditionally`] for the locking contract on the
+    /// returned invalidators.
+    #[must_use]
+    fn set(&mut self, value: T) -> Option<AutoSet<Invalidator>> {
         if self.value == value {
-            return false;
+            return None;
         }
-        let _span = trace_span!("state value changed", value_type = type_name::<T>()).entered();
         self.value = value;
-        for invalidator in take(&mut self.invalidators) {
-            invalidator.invalidate();
-        }
-        true
+        Some(take(&mut self.invalidators))
     }
+}
+
+/// Notifies the backend that the [`State`] has been mutated: runs every
+/// dependent [`Invalidator`] and invalidates the serialized state. Must be
+/// called *outside* the [`StateInner`] mutex guard; see
+/// [`StateInner::set_unconditionally`] for why.
+///
+/// Both notifications resolve `TURBO_TASKS` from a task-local, so we do them
+/// inside a single [`with_turbo_tasks`] call to amortize that lookup.
+fn notify_mutated(
+    invalidators: AutoSet<Invalidator>,
+    serialization_invalidator: Option<&SerializationInvalidator>,
+) {
+    if invalidators.is_empty() && serialization_invalidator.is_none() {
+        return;
+    }
+    let _span = trace_span!("state value changed").entered();
+    with_turbo_tasks(|tt| {
+        for invalidator in invalidators {
+            invalidator.invalidate(&**tt);
+        }
+        if let Some(serialization_invalidator) = serialization_invalidator {
+            tt.invalidate_serialization(serialization_invalidator.task());
+        }
+    });
 }
 
 pub struct StateRef<'a, T> {
     serialization_invalidator: Option<&'a SerializationInvalidator>,
-    inner: MutexGuard<'a, StateInner<T>>,
+    // `Option` so `Drop` can `take()` the guard and release it before running
+    // invalidators. Always `Some` for the lifetime of the `StateRef` outside
+    // of `Drop`.
+    inner: Option<MutexGuard<'a, StateInner<T>>>,
     mutated: bool,
+}
+
+impl<'a, T> StateRef<'a, T> {
+    fn new(
+        inner: MutexGuard<'a, StateInner<T>>,
+        serialization_invalidator: Option<&'a SerializationInvalidator>,
+    ) -> Self {
+        Self {
+            serialization_invalidator,
+            inner: Some(inner),
+            mutated: false,
+        }
+    }
+
+    fn inner(&self) -> &StateInner<T> {
+        self.inner.as_deref().expect("inner only None during Drop")
+    }
+
+    fn inner_mut(&mut self) -> &mut StateInner<T> {
+        self.inner
+            .as_deref_mut()
+            .expect("inner only None during Drop")
+    }
 }
 
 impl<T> Deref for StateRef<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        &self.inner.value
+        &self.inner().value
     }
 }
 
 impl<T> DerefMut for StateRef<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.mutated = true;
-        &mut self.inner.value
+        &mut self.inner_mut().value
     }
 }
 
 impl<T> Drop for StateRef<'_, T> {
     fn drop(&mut self) {
-        if self.mutated {
-            let _span = trace_span!("state value changed", value_type = type_name::<T>()).entered();
-            for invalidator in take(&mut self.inner.invalidators) {
-                invalidator.invalidate();
-            }
-            if let Some(serialization_invalidator) = self.serialization_invalidator {
-                serialization_invalidator.invalidate();
-            }
+        if !self.mutated {
+            return;
         }
+        // Drain invalidators while we still hold the guard, then drop the
+        // guard before running them. Running invalidators reaches into the
+        // backend and acquires task-storage shard locks, and the snapshot
+        // path takes the State mutex while holding such a shard lock — so
+        // running them under the guard is a lock-order inversion.
+        let mut guard = self.inner.take().expect("Drop only called once");
+        let invalidators = take(&mut guard.invalidators);
+        drop(guard);
+        notify_mutated(invalidators, self.serialization_invalidator);
     }
 }
 
-mod parking_lot_mutex_bincode {
+pub mod parking_lot_mutex_bincode {
     use bincode::{
         BorrowDecode,
         de::{BorrowDecoder, Decoder},
@@ -201,7 +256,7 @@ impl<T> State<T> {
         T: OperationValue,
     {
         Self {
-            serialization_invalidator: mark_stateful(),
+            serialization_invalidator: get_serialization_invalidator(),
             inner: Mutex::new(StateInner::new(value)),
         }
     }
@@ -215,31 +270,23 @@ impl<T> State<T> {
         if let Some(invalidator) = invalidator {
             inner.add_invalidator(invalidator);
         }
-        StateRef {
-            serialization_invalidator: Some(&self.serialization_invalidator),
-            inner,
-            mutated: false,
-        }
+        StateRef::new(inner, Some(&self.serialization_invalidator))
     }
 
     /// Gets the current value of the state. Untracked.
     pub fn get_untracked(&self) -> StateRef<'_, T> {
         let inner = self.inner.lock();
-        StateRef {
-            serialization_invalidator: Some(&self.serialization_invalidator),
-            inner,
-            mutated: false,
-        }
+        StateRef::new(inner, Some(&self.serialization_invalidator))
     }
 
     /// Sets the current state without comparing it with the old value. This
     /// should only be used if one is sure that the value has changed.
     pub fn set_unconditionally(&self, value: T) {
-        {
+        let invalidators = {
             let mut inner = self.inner.lock();
-            inner.set_unconditionally(value);
-        }
-        self.serialization_invalidator.invalidate();
+            inner.set_unconditionally(value)
+        };
+        notify_mutated(invalidators, Some(&self.serialization_invalidator));
     }
 
     /// Updates the current state with the `update` function. The `update`
@@ -247,13 +294,13 @@ impl<T> State<T> {
     /// the current value from the `update` function is not allowed and will
     /// result in incorrect cache invalidation.
     pub fn update_conditionally(&self, update: impl FnOnce(&mut T) -> bool) {
-        {
+        let Some(invalidators) = ({
             let mut inner = self.inner.lock();
-            if !inner.update_conditionally(update) {
-                return;
-            }
-        }
-        self.serialization_invalidator.invalidate();
+            inner.update_conditionally(update)
+        }) else {
+            return;
+        };
+        notify_mutated(invalidators, Some(&self.serialization_invalidator));
     }
 }
 
@@ -261,125 +308,12 @@ impl<T: PartialEq> State<T> {
     /// Update the current state when the `value` is different from the current
     /// value. `T` must implement [PartialEq] for this to work.
     pub fn set(&self, value: T) {
-        {
+        let Some(invalidators) = ({
             let mut inner = self.inner.lock();
-            if !inner.set(value) {
-                return;
-            }
-        }
-        self.serialization_invalidator.invalidate();
-    }
-}
-
-#[derive(Encode, Decode)]
-#[bincode(bounds = "")]
-pub struct TransientState<T> {
-    #[bincode(skip, default = "default_transient_state_inner")]
-    inner: Mutex<StateInner<Option<T>>>,
-}
-
-fn default_transient_state_inner<T>() -> Mutex<StateInner<Option<T>>> {
-    Mutex::new(StateInner::new(None))
-}
-
-impl<T: Debug> Debug for TransientState<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("TransientState")
-            .field("value", &self.inner.lock().value)
-            .finish()
-    }
-}
-
-impl<T: TraceRawVcs> TraceRawVcs for TransientState<T> {
-    fn trace_raw_vcs(&self, trace_context: &mut crate::trace::TraceRawVcsContext) {
-        self.inner.lock().value.trace_raw_vcs(trace_context);
-    }
-}
-
-impl<T> Default for TransientState<T> {
-    fn default() -> Self {
-        // Need to be explicit to ensure marking as stateful.
-        Self::new()
-    }
-}
-
-impl<T> PartialEq for TransientState<T> {
-    fn eq(&self, _other: &Self) -> bool {
-        false
-    }
-}
-impl<T> Eq for TransientState<T> {}
-
-impl<T> TransientState<T> {
-    pub fn new() -> Self {
-        mark_stateful();
-        Self {
-            inner: Mutex::new(StateInner::new(None)),
-        }
-    }
-
-    /// Gets the current value of the state. The current task will be registered
-    /// as dependency of the state and will be invalidated when the state
-    /// changes.
-    pub fn get(&self) -> StateRef<'_, Option<T>> {
-        mark_session_dependent();
-        let invalidator = get_invalidator();
-        let mut inner = self.inner.lock();
-        if let Some(invalidator) = invalidator {
-            inner.add_invalidator(invalidator);
-        }
-        StateRef {
-            serialization_invalidator: None,
-            inner,
-            mutated: false,
-        }
-    }
-
-    /// Gets the current value of the state. Untracked.
-    pub fn get_untracked(&self) -> StateRef<'_, Option<T>> {
-        let inner = self.inner.lock();
-        StateRef {
-            serialization_invalidator: None,
-            inner,
-            mutated: false,
-        }
-    }
-
-    /// Sets the current state without comparing it with the old value. This
-    /// should only be used if one is sure that the value has changed.
-    pub fn set_unconditionally(&self, value: T) {
-        let mut inner = self.inner.lock();
-        inner.set_unconditionally(Some(value));
-    }
-
-    /// Unset the current value without comparing it with the old value. This
-    /// should only be used if one is sure that the value has changed.
-    pub fn unset_unconditionally(&self) {
-        let mut inner = self.inner.lock();
-        inner.set_unconditionally(None);
-    }
-
-    /// Updates the current state with the `update` function. The `update`
-    /// function need to return `true` when the value was modified. Exposing
-    /// the current value from the `update` function is not allowed and will
-    /// result in incorrect cache invalidation.
-    pub fn update_conditionally(&self, update: impl FnOnce(&mut Option<T>) -> bool) {
-        let mut inner = self.inner.lock();
-        inner.update_conditionally(update);
-    }
-}
-
-impl<T: PartialEq> TransientState<T> {
-    /// Update the current state when the `value` is different from the current
-    /// value. `T` must implement [PartialEq] for this to work.
-    pub fn set(&self, value: T) {
-        let mut inner = self.inner.lock();
-        inner.set(Some(value));
-    }
-
-    /// Unset the current value.
-    pub fn unset(&self) {
-        let mut inner = self.inner.lock();
-        inner.set(None);
+            inner.set(value)
+        }) else {
+            return;
+        };
+        notify_mutated(invalidators, Some(&self.serialization_invalidator));
     }
 }

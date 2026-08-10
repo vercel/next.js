@@ -2,20 +2,19 @@ use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
-    chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
+    chunk::{AssetSuffix, AsyncModuleInfo, ChunkableModule, ChunkingContext},
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
-    output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
+    output::{OutputAsset, OutputAssetsWithReferenced},
     source::Source,
 };
 use turbopack_ecmascript::{
     chunk::{
-        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
-        EcmascriptChunkType, EcmascriptExports,
+        EcmascriptChunkItemContent, EcmascriptChunkItemOptions, EcmascriptChunkPlaceable,
+        EcmascriptExports, ecmascript_chunk_item,
     },
-    runtime_functions::TURBOPACK_EXPORT_VALUE,
+    runtime_functions::{TURBOPACK_EXPORT_URL, TURBOPACK_EXPORT_VALUE},
     utils::StringifyJs,
 };
 
@@ -47,15 +46,17 @@ impl StaticUrlJsModule {
 #[turbo_tasks::value_impl]
 impl Module for StaticUrlJsModule {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let mut ident = self
             .source
             .ident()
+            .owned()
+            .await?
             .with_modifier(rcstr!("static in ecmascript"));
         if let Some(tag) = &self.tag {
             ident = ident.with_modifier(format!("tag {}", tag).into());
         }
-        ident
+        Ok(ident.into_vc())
     }
 
     #[turbo_tasks::function]
@@ -70,32 +71,14 @@ impl Module for StaticUrlJsModule {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for StaticUrlJsModule {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl ChunkableModule for StaticUrlJsModule {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
+    fn as_chunk_item(
         self: ResolvedVc<Self>,
-        _module_graph: Vc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        Ok(Vc::upcast(StaticUrlJsChunkItem::cell(
-            StaticUrlJsChunkItem {
-                module: self,
-                chunking_context,
-                static_asset: self
-                    .static_output_asset(*chunking_context)
-                    .to_resolved()
-                    .await?,
-                tag: self.await?.tag.clone(),
-            },
-        )))
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
     }
 }
 
@@ -105,68 +88,88 @@ impl EcmascriptChunkPlaceable for StaticUrlJsModule {
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         EcmascriptExports::Value.cell()
     }
-}
-
-#[turbo_tasks::value]
-struct StaticUrlJsChunkItem {
-    module: ResolvedVc<StaticUrlJsModule>,
-    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    static_asset: ResolvedVc<StaticOutputAsset>,
-    tag: Option<RcStr>,
-}
-
-#[turbo_tasks::value_impl]
-impl OutputAssetsReference for StaticUrlJsChunkItem {
-    #[turbo_tasks::function]
-    fn references(&self) -> Vc<OutputAssetsWithReferenced> {
-        OutputAssetsWithReferenced::from_assets(Vc::cell(vec![ResolvedVc::upcast(
-            self.static_asset,
-        )]))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkItem for StaticUrlJsChunkItem {
-    #[turbo_tasks::function]
-    fn asset_ident(&self) -> Vc<AssetIdent> {
-        self.module.ident()
-    }
 
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
+    async fn chunk_item_content(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+        _async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
+    ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        let this = self.await?;
+        let static_asset = self.static_output_asset(chunking_context);
+        let url = chunking_context
+            .asset_url(static_asset.path().owned().await?, this.tag.clone())
+            .await?;
 
-    #[turbo_tasks::function]
-    async fn ty(&self) -> Result<Vc<Box<dyn ChunkType>>> {
-        Ok(Vc::upcast(
-            Vc::<EcmascriptChunkType>::default().resolve().await?,
-        ))
-    }
+        let url_behavior = chunking_context.url_behavior(this.tag.clone()).await?;
 
-    #[turbo_tasks::function]
-    fn module(&self) -> Vc<Box<dyn Module>> {
-        *ResolvedVc::upcast(self.module)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl EcmascriptChunkItem for StaticUrlJsChunkItem {
-    #[turbo_tasks::function]
-    async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
-        Ok(EcmascriptChunkItemContent {
-            inner_code: format!(
-                "{TURBOPACK_EXPORT_VALUE}({path});",
-                path = StringifyJs(
-                    &self
-                        .chunking_context
-                        .asset_url(self.static_asset.path().owned().await?, self.tag.clone())
-                        .await?
+        let inner_code = match &url_behavior.suffix {
+            AssetSuffix::None => {
+                // No suffix, export as-is
+                format!(
+                    "{TURBOPACK_EXPORT_VALUE}({path});",
+                    path = StringifyJs(&url)
                 )
-            )
-            .into(),
+            }
+            AssetSuffix::Constant(suffix) => {
+                // Append constant suffix
+                format!(
+                    "{TURBOPACK_EXPORT_VALUE}({path} + {suffix});",
+                    path = StringifyJs(&url),
+                    suffix = StringifyJs(suffix.as_str())
+                )
+            }
+            AssetSuffix::Inferred => {
+                // The runtime logic will infer the suffix
+                format!("{TURBOPACK_EXPORT_URL}({path});", path = StringifyJs(&url))
+            }
+            AssetSuffix::FromGlobal(global_name) => {
+                // Read suffix from global at runtime
+                format!(
+                    "{TURBOPACK_EXPORT_VALUE}({path} + (globalThis[{global}] || ''));",
+                    path = StringifyJs(&url),
+                    global = StringifyJs(global_name)
+                )
+            }
+        };
+
+        Ok(EcmascriptChunkItemContent {
+            inner_code: inner_code.into(),
+            options: EcmascriptChunkItemOptions {
+                supports_arrow_functions: *chunking_context
+                    .environment()
+                    .runtime_versions()
+                    .supports_arrow_functions()
+                    .await?,
+                ..Default::default()
+            },
             ..Default::default()
         }
         .cell())
     }
+
+    #[turbo_tasks::function]
+    fn chunk_item_output_assets(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+    ) -> Vc<OutputAssetsWithReferenced> {
+        static_url_js_output_assets(self, chunking_context)
+    }
+}
+
+#[turbo_tasks::function]
+async fn static_url_js_output_assets(
+    module: Vc<StaticUrlJsModule>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
+) -> Result<Vc<OutputAssetsWithReferenced>> {
+    let static_asset = module
+        .static_output_asset(chunking_context)
+        .to_resolved()
+        .await?;
+    Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(vec![
+        ResolvedVc::upcast(static_asset),
+    ])))
 }

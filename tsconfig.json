@@ -8,7 +8,7 @@
     "jsx": "react-jsx",
     "module": "ESNext",
     "target": "ESNext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "types": ["react", "jest", "node", "trusted-types", "jest-extended"],
     "paths": {
       "development-sandbox": ["./test/lib/development-sandbox"],
@@ -18,10 +18,12 @@
       "e2e-utils/*": ["./test/lib/e2e-utils/*"],
       "test-data-service/*": ["./test/lib/test-data-service/*"],
       "test-log": ["./test/lib/test-log"],
-      "router-act": ["./test/lib/router-act"]
+      "router-act": ["./test/lib/router-act"],
+      "@next/playwright": ["./packages/next-playwright/src/index.ts"]
     }
   },
   "include": [
+    "run-tests.js",
     "test/**/*.test.ts",
     "test/**/*.test.tsx",
     "test/**/*.util.ts",

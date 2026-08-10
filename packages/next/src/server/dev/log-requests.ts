@@ -13,7 +13,8 @@ import { stripNextRscUnionQuery } from '../../lib/url'
 import type { FetchMetric } from '../base-http'
 import type { NodeNextRequest, NodeNextResponse } from '../base-http/node'
 import type { LoggingConfig } from '../config-shared'
-import { getRequestMeta } from '../request-meta'
+import { getRequestMeta, removeRequestMeta } from '../request-meta'
+import { formatArgs } from './server-action-logger'
 
 /**
  * Returns true if the incoming request should be ignored for logging.
@@ -61,6 +62,16 @@ export function logRequests(
       devRequestTimingInternalsEnd,
       devGenerateStaticParamsDuration
     )
+
+    // Log server action after the request log
+    const serverActionLog = getRequestMeta(request, 'devServerActionLog')
+    if (serverActionLog) {
+      const argsStr = formatArgs(serverActionLog.args)
+      process.stdout.write(
+        `  └─ ƒ ${serverActionLog.functionName}(${argsStr}) in ${serverActionLog.duration}ms ${dim(serverActionLog.location)}\n`
+      )
+      removeRequestMeta(request, 'devServerActionLog')
+    }
   }
 
   if (request.fetchMetrics) {
@@ -114,8 +125,11 @@ function logIncomingRequests(
     if (middlewareTime) {
       frameworkTime -= middlewareTime
     }
+    if (devGenerateStaticParamsDuration) {
+      frameworkTime -= devGenerateStaticParamsDuration
+    }
     // Insert as the first item to be rendered in the list
-    times.unshift(['compile', frameworkTime])
+    times.unshift(['next.js', frameworkTime])
 
     // Insert after compile, before render based on the execution order.
     if (devGenerateStaticParamsDuration) {
@@ -123,7 +137,10 @@ function logIncomingRequests(
       times.push(['generate-params', devGenerateStaticParamsDuration])
     }
 
-    times.push(['render', requestEndTime - devRequestTimingInternalsEnd])
+    times.push([
+      'application-code',
+      requestEndTime - devRequestTimingInternalsEnd,
+    ])
   }
 
   return writeLine(

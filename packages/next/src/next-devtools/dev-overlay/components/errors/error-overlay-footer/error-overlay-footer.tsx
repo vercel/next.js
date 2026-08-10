@@ -22,9 +22,7 @@ export const styles = `
     justify-content: space-between;
 
     gap: 8px;
-    padding: 12px;
-    background: var(--color-background-200);
-    border-top: 1px solid var(--color-gray-400);
+    padding: 12px 12px 8px 12px;
   }
 
   .error-feedback {

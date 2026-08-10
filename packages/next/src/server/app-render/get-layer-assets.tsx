@@ -5,6 +5,7 @@ import { getAssetQueryString } from './get-asset-query-string'
 import { encodeURIPath } from '../../shared/lib/encode-uri-path'
 import type { PreloadCallbacks } from './types'
 import { renderCssResource } from './render-css-resource'
+const EMPTY_SET: ReadonlySet<never> = new Set()
 
 export function getLayerAssets({
   ctx,
@@ -31,7 +32,7 @@ export function getLayerAssets({
         injectedJSWithCurrentLayout,
         true
       )
-    : { styles: [], scripts: [] }
+    : { styles: EMPTY_SET, scripts: EMPTY_SET }
 
   const preloadedFontFiles = layoutOrPagePath
     ? getPreloadableFonts(
@@ -47,7 +48,7 @@ export function getLayerAssets({
         const fontFilename = preloadedFontFiles[i]
         const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFilename)![1]
         const type = `font/${ext}`
-        const href = `${ctx.assetPrefix}/_next/${encodeURIPath(fontFilename)}`
+        const href = `${ctx.assetPrefix}/_next/${encodeURIPath(fontFilename)}${getAssetQueryString(ctx, true)}`
 
         preloadCallbacks.push(() => {
           ctx.componentMod.preloadFont(
@@ -76,20 +77,23 @@ export function getLayerAssets({
 
   const styles = renderCssResource(styleTags, ctx, preloadCallbacks)
 
-  const scripts = scriptTags
-    ? scriptTags.map((href, index) => {
-        const fullSrc = `${ctx.assetPrefix}/_next/${encodeURIPath(
-          href
-        )}${getAssetQueryString(ctx, true)}`
+  const scripts: React.ReactNode[] = []
+  let scriptIndex = 0
+  for (const href of scriptTags) {
+    const fullSrc = `${ctx.assetPrefix}/_next/${encodeURIPath(
+      href
+    )}${getAssetQueryString(ctx, true)}`
 
-        return createElement('script', {
-          src: fullSrc,
-          async: true,
-          key: `script-${index}`,
-          nonce: ctx.nonce,
-        })
+    scripts.push(
+      createElement('script', {
+        src: fullSrc,
+        async: true,
+        key: `script-${scriptIndex}`,
+        nonce: ctx.nonce,
       })
-    : []
+    )
+    scriptIndex++
+  }
 
   return styles.length || scripts.length ? [...styles, ...scripts] : null
 }

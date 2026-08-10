@@ -4,7 +4,7 @@ import type {
   NormalizedSearch,
   NormalizedNextUrl,
 } from './cache-key'
-import type { RouteTree } from './cache'
+import type { RouteTree, RSCSegmentData } from './cache'
 import { Fallback, type FallbackType } from './cache-map'
 import { HEAD_REQUEST_KEY } from '../../../shared/lib/segment-cache/segment-value-encoding'
 
@@ -26,7 +26,28 @@ type Opaque<T, K> = T & { __brand: K }
  * string, and Next-URL header.
  */
 export type VaryPath = {
+  /**
+   * Identifies which param this vary path node corresponds to. Used by
+   * getFulfilledSegmentVaryPath to determine which params to replace with
+   * Fallback based on the varyParams set from the server.
+   *
+   * - For path params: the param name (e.g., 'slug')
+   * - For search params: '?'
+   * - For non-param nodes (request keys, etc.): null
+   */
+  id: string | null
   value: string | null | FallbackType
+  /**
+   * Whether this node corresponds to a root param — a path param at or above
+   * the application's root layout. Root params may appear in the App Shell, so
+   * the shell vary path keeps their concrete value instead of replacing it with
+   * Fallback. See getShellSegmentVaryPath. Only ever true on path param nodes;
+   * false for structural and search param nodes.
+   *
+   * Always a boolean (never undefined) so that every VaryPath node shares a
+   * single hidden class, keeping the cache hot paths monomorphic.
+   */
+  isRootParam: boolean
   parent: VaryPath | null
 }
 
@@ -37,11 +58,17 @@ export type VaryPath = {
 // requestKey -> searchParams -> nextUrl
 export type RouteVaryPath = Opaque<
   {
+    id: null
     value: NormalizedPathname
+    isRootParam: false
     parent: {
+      id: '?'
       value: NormalizedSearch
+      isRootParam: false
       parent: {
+        id: null
         value: NormalizedNextUrl | null | FallbackType
+        isRootParam: false
         parent: null
       }
     }
@@ -52,7 +79,9 @@ export type RouteVaryPath = Opaque<
 // requestKey -> pathParams
 export type LayoutVaryPath = Opaque<
   {
+    id: null
     value: string
+    isRootParam: false
     parent: PartialSegmentVaryPath | null
   },
   'LayoutVaryPath'
@@ -61,9 +90,13 @@ export type LayoutVaryPath = Opaque<
 // requestKey -> searchParams -> pathParams
 export type PageVaryPath = Opaque<
   {
+    id: null
     value: string
+    isRootParam: false
     parent: {
+      id: '?'
       value: NormalizedSearch | FallbackType
+      isRootParam: false
       parent: PartialSegmentVaryPath | null
     }
   },
@@ -83,11 +116,17 @@ export function getRouteVaryPath(
 ): RouteVaryPath {
   // requestKey -> searchParams -> nextUrl
   const varyPath: VaryPath = {
+    id: null,
     value: pathname,
+    isRootParam: false,
     parent: {
+      id: '?',
       value: search,
+      isRootParam: false,
       parent: {
+        id: null,
         value: nextUrl,
+        isRootParam: false,
         parent: null,
       },
     },
@@ -105,11 +144,17 @@ export function getFulfilledRouteVaryPath(
   // re-keyed based on which inputs the response varies by.
   // requestKey -> searchParams -> nextUrl
   const varyPath: VaryPath = {
+    id: null,
     value: pathname,
+    isRootParam: false,
     parent: {
+      id: '?',
       value: search,
+      isRootParam: false,
       parent: {
+        id: null,
         value: couldBeIntercepted ? nextUrl : Fallback,
+        isRootParam: false,
         parent: null,
       },
     },
@@ -119,10 +164,14 @@ export function getFulfilledRouteVaryPath(
 
 export function appendLayoutVaryPath(
   parentPath: PartialSegmentVaryPath | null,
-  cacheKey: string
+  cacheKey: string,
+  paramName: string,
+  isRootParam: boolean
 ): PartialSegmentVaryPath {
   const varyPathPart: VaryPath = {
+    id: paramName,
     value: cacheKey,
+    isRootParam,
     parent: parentPath,
   }
   return varyPathPart as PartialSegmentVaryPath
@@ -133,10 +182,19 @@ export function finalizeLayoutVaryPath(
   varyPath: PartialSegmentVaryPath | null
 ): LayoutVaryPath {
   const layoutVaryPath: VaryPath = {
+    id: null,
     value: requestKey,
+    isRootParam: false,
     parent: varyPath,
   }
   return layoutVaryPath as LayoutVaryPath
+}
+
+export function getPartialLayoutVaryPath(
+  finalizedVaryPath: LayoutVaryPath
+): PartialSegmentVaryPath | null {
+  // This is the inverse of finalizeLayoutVaryPath.
+  return finalizedVaryPath.parent
 }
 
 export function finalizePageVaryPath(
@@ -147,13 +205,24 @@ export function finalizePageVaryPath(
   // Unlike layouts, a page segment's vary path also includes the search string.
   // requestKey -> searchParams -> pathParams
   const pageVaryPath: VaryPath = {
+    id: null,
     value: requestKey,
+    isRootParam: false,
     parent: {
+      id: '?',
       value: renderedSearch,
+      isRootParam: false,
       parent: varyPath,
     },
   }
   return pageVaryPath as PageVaryPath
+}
+
+export function getPartialPageVaryPath(
+  finalizedVaryPath: PageVaryPath
+): PartialSegmentVaryPath | null {
+  // This is the inverse of finalizePageVaryPath.
+  return finalizedVaryPath.parent.parent
 }
 
 export function finalizeMetadataVaryPath(
@@ -187,12 +256,16 @@ export function finalizeMetadataVaryPath(
   // different parallel pages are things like route groups and parallel
   // route slots. As long as it's always the same one, it doesn't matter.
   const pageVaryPath: VaryPath = {
+    id: null,
     // Append the actual metadata request key to the page request key. Note
     // that we're not using a separate vary path part; it's unnecessary because
     // these are not conceptually separate inputs.
     value: pageRequestKey + HEAD_REQUEST_KEY,
+    isRootParam: false,
     parent: {
+      id: '?',
       value: renderedSearch,
+      isRootParam: false,
       parent: varyPath,
     },
   }
@@ -201,7 +274,7 @@ export function finalizeMetadataVaryPath(
 
 export function getSegmentVaryPathForRequest(
   fetchStrategy: FetchStrategy,
-  tree: RouteTree
+  tree: RouteTree<RSCSegmentData | null>
 ): SegmentVaryPath {
   // This is used for storing pending requests in the cache. We want to choose
   // the most generic vary path based on the strategy used to fetch it, i.e.
@@ -226,6 +299,20 @@ export function getSegmentVaryPathForRequest(
   // params that can be treated as Fallback. (Or perhaps the inverse.)
   const originalVaryPath = tree.varyPath
 
+  if (
+    fetchStrategy === FetchStrategy.RuntimeShell ||
+    fetchStrategy === FetchStrategy.StaticShell
+  ) {
+    // Both shell strategies produce the App Shell variant of a segment —
+    // RuntimeShell via a runtime render with non-root params omitted,
+    // StaticShell by truncating a static per-segment response at the shell
+    // byte boundary. Either way, the resulting entry is reusable across all
+    // concrete values of the non-root params, so we key it at the precomputed
+    // shell vary path (every non-root param substituted with Fallback; root
+    // params keep their concrete value).
+    return tree.shellVaryPath
+  }
+
   // Only page segments (and the special "metadata" segment, which is treated
   // like a page segment for the purposes of caching) may contain search
   // params. There's no reason to include them in the vary path otherwise.
@@ -247,9 +334,13 @@ export function getSegmentVaryPathForRequest(
       const searchParamsVaryPath = (originalVaryPath as PageVaryPath).parent
       const pathParamsVaryPath = searchParamsVaryPath.parent
       const patchedVaryPath: VaryPath = {
+        id: null,
         value: originalVaryPath.value,
+        isRootParam: false,
         parent: {
+          id: '?',
           value: Fallback,
+          isRootParam: false,
           parent: pathParamsVaryPath,
         },
       }
@@ -269,11 +360,78 @@ export function clonePageVaryPathWithNewSearchParams(
   //               ^ This part gets replaced with newSearch
   const searchParamsVaryPath = originalVaryPath.parent
   const clonedVaryPath: VaryPath = {
+    id: null,
     value: originalVaryPath.value,
+    isRootParam: false,
     parent: {
+      id: '?',
       value: newSearch,
+      isRootParam: false,
       parent: searchParamsVaryPath.parent,
     },
   }
   return clonedVaryPath as PageVaryPath
+}
+
+export function getRenderedSearchFromVaryPath(
+  varyPath: PageVaryPath
+): NormalizedSearch | null {
+  const searchParams = varyPath.parent.value
+  return typeof searchParams === 'string'
+    ? (searchParams as NormalizedSearch)
+    : null
+}
+
+export function getFulfilledSegmentVaryPath(
+  original: VaryPath,
+  varyParams: Set<string>
+): SegmentVaryPath {
+  // Re-keys a segment's vary path based on which params the segment actually
+  // depends on. Params that are NOT in the varyParams set are replaced with
+  // Fallback, allowing the cache entry to be reused across different values of
+  // those params.
+
+  // This is called when a segment is fulfilled with data from the server. The
+  // varyParams set comes from the server and indicates which params were
+  // accessed during rendering.
+  const clone: VaryPath = {
+    id: original.id,
+    // If the id is null, this node is not a param (e.g., it's a request key).
+    // If the id is in the varyParams set, keep the original value.
+    // Otherwise, replace with Fallback to make it reusable.
+    value:
+      original.id === null || varyParams.has(original.id)
+        ? original.value
+        : Fallback,
+    isRootParam: original.isRootParam,
+    parent:
+      original.parent === null
+        ? null
+        : getFulfilledSegmentVaryPath(original.parent, varyParams),
+  }
+  return clone as SegmentVaryPath
+}
+
+export function getShellSegmentVaryPath(original: VaryPath): SegmentVaryPath {
+  // Re-keys a segment's vary path to identify the "App Shell" entry for this
+  // segment position — a reusable loading state that can be served for any
+  // concrete navigation to this segment. The shell is rendered with params
+  // omitted, with one exception: root params (path params at or above the root
+  // layout) may be accessed during the shell render, so the shell varies on
+  // them. Accordingly, we keep the concrete value of structural nodes (request
+  // keys, etc.) and root param nodes, and replace every other param node (non-
+  // root path params and search params) with Fallback.
+  const clone: VaryPath = {
+    id: original.id,
+    value:
+      original.id === null || original.isRootParam === true
+        ? original.value
+        : Fallback,
+    isRootParam: original.isRootParam,
+    parent:
+      original.parent === null
+        ? null
+        : getShellSegmentVaryPath(original.parent),
+  }
+  return clone as SegmentVaryPath
 }

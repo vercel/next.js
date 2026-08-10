@@ -1,4 +1,11 @@
-use std::{fmt::Debug, hash::Hash, marker::PhantomData};
+use std::{
+    fmt::Debug,
+    future::Future,
+    hash::Hash,
+    marker::PhantomData,
+    pin::Pin,
+    task::{Context, Poll},
+};
 
 use anyhow::Result;
 use auto_hash_map::AutoSet;
@@ -7,9 +14,45 @@ use serde::{Deserialize, Serialize};
 pub use turbo_tasks_macros::OperationValue;
 
 use crate::{
-    CollectiblesSource, RawVc, ReadVcFuture, ResolvedVc, TaskInput, UpcastStrict, Vc, VcValueTrait,
-    VcValueType, marker_trait::impl_auto_marker_trait, trace::TraceRawVcs,
+    CollectiblesSource, RawVc, ReadVcFuture, ResolvedVc, TaskId, TaskInput, UpcastStrict, Vc,
+    VcValueTrait, VcValueTraitCast, VcValueType, marker_trait::impl_auto_marker_trait,
+    trace::TraceRawVcs, turbo_tasks,
 };
+
+/// A future returned by [`OperationVc::resolve`] that connects an [`OperationVc<T>`] and resolves
+/// it to a [`ResolvedVc<T>`].
+///
+/// Use [`.strongly_consistent()`][Self::strongly_consistent] to opt into strong consistency.
+#[must_use]
+pub struct ResolveOperationVcFuture<T>
+where
+    T: ?Sized,
+{
+    inner: super::ResolveVcFuture<T>,
+}
+
+impl<T: ?Sized> ResolveOperationVcFuture<T> {
+    /// Make the resolution strongly consistent.
+    pub fn strongly_consistent(mut self) -> Self {
+        self.inner.inner = self.inner.inner.strongly_consistent();
+        self
+    }
+}
+
+impl<T: ?Sized> Future for ResolveOperationVcFuture<T> {
+    type Output = anyhow::Result<ResolvedVc<T>>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        // SAFETY: we are not moving self
+        let this = unsafe { self.get_unchecked_mut() };
+        // ResolveVcFuture: Unpin, so Pin::new is safe
+        Pin::new(&mut this.inner)
+            .poll(cx)
+            .map(|r| r.map(|node| ResolvedVc { node }))
+    }
+}
+
+impl<T: ?Sized> Unpin for ResolveOperationVcFuture<T> {}
 
 /// A "subtype" (can be converted via [`.connect()`]) of [`Vc`] that
 /// represents a specific call (with arguments) to [a task][macro@crate::function].
@@ -50,14 +93,14 @@ use crate::{
 /// [`ReadRef`]: crate::ReadRef
 #[must_use]
 #[derive(Serialize, Deserialize, Encode, Decode)]
-#[serde(transparent, bound = "")]
 #[bincode(bounds = "T: ?Sized")]
-#[repr(transparent)]
 pub struct OperationVc<T>
 where
     T: ?Sized,
 {
-    pub(crate) node: Vc<T>,
+    task: TaskId,
+
+    _t: PhantomData<T>,
 }
 
 impl<T: ?Sized> OperationVc<T> {
@@ -67,12 +110,15 @@ impl<T: ?Sized> OperationVc<T> {
     #[doc(hidden)]
     #[deprecated = "This is an internal function. Use #[turbo_tasks::function(operation)] instead."]
     pub fn cell_private(node: Vc<T>) -> Self {
-        debug_assert!(
-            matches!(node.node, RawVc::TaskOutput(..)),
+        let task = node.node.as_task_output().expect(
             "OperationVc::cell_private must be called on the immediate return value of a task \
-             function"
+             function",
         );
-        Self { node }
+
+        Self {
+            task,
+            _t: PhantomData,
+        }
     }
 
     /// Marks this operation's underlying function call as a child of the current task, and returns
@@ -83,13 +129,15 @@ impl<T: ?Sized> OperationVc<T> {
     /// operation is needed as `OperationVc` types can be stored outside of the call graph as part
     /// of [`State`][crate::State]s.
     pub fn connect(self) -> Vc<T> {
-        self.node.node.connect();
-        self.node
+        let tt = turbo_tasks();
+        tt.connect_task(self.task);
+        Self::into_raw(self).into()
     }
 
-    /// Returns the `RawVc` corresponding to this `Vc`.
-    pub fn into_raw(vc: Self) -> RawVc {
-        vc.node.node
+    /// Returns the `RawVc` corresponding to this `OperationVc`.
+    /// inverse of [`RawVc::as_task_output`]
+    fn into_raw(vc: Self) -> RawVc {
+        RawVc::task_output(vc.task)
     }
 
     /// Upcasts the given `OperationVc<T>` to a `OperationVc<Box<dyn K>>`.
@@ -102,43 +150,47 @@ impl<T: ?Sized> OperationVc<T> {
         K: VcValueTrait + ?Sized,
     {
         OperationVc {
-            node: Vc::upcast(vc.node),
+            task: vc.task,
+            _t: PhantomData,
         }
     }
 
-    /// [Connects the `OperationVc`][Self::connect] and [resolves][Vc::to_resolved] the reference
-    /// until it points to a cell directly in a [strongly
-    /// consistent][crate::ReadConsistency::Strong] way.
+    /// [Connects the `OperationVc`][Self::connect] and resolves the reference until it points to a
+    /// cell directly.
     ///
     /// Resolving will wait for task execution to be finished, so that the returned [`ResolvedVc`]
     /// points to a cell that stores a value.
     ///
     /// Resolving is necessary to compare identities of [`Vc`]s.
     ///
-    /// This is async and will rethrow any fatal error that happened during task execution.
-    pub async fn resolve_strongly_consistent(self) -> Result<ResolvedVc<T>> {
-        Ok(ResolvedVc {
-            node: Vc {
-                node: self.connect().node.resolve_strongly_consistent().await?,
-                _t: PhantomData,
-            },
-        })
+    /// Use [`.strongly_consistent()`][ResolveOperationVcFuture::strongly_consistent] to opt into
+    /// strong consistency.
+    pub fn resolve(self) -> ResolveOperationVcFuture<T> {
+        ResolveOperationVcFuture {
+            inner: self.connect().resolve(),
+        }
     }
 
     /// [Connects the `OperationVc`][Self::connect] and returns a [strongly
     /// consistent][crate::ReadConsistency::Strong] read of the value.
     ///
     /// This ensures that all internal tasks are finished before the read is returned.
-    #[must_use]
     pub fn read_strongly_consistent(self) -> ReadVcFuture<T>
     where
         T: VcValueType,
     {
-        self.connect()
-            .node
-            .into_read(T::has_serialization())
-            .strongly_consistent()
-            .into()
+        self.connect().node.into_read().strongly_consistent().into()
+    }
+
+    /// [Connects the `OperationVc`][Self::connect] and returns a [strongly
+    /// consistent][crate::ReadConsistency::Strong] read of the value.
+    ///
+    /// This ensures that all internal tasks are finished before the read is returned.
+    pub fn read_trait_strongly_consistent(self) -> ReadVcFuture<T, VcValueTraitCast<T>>
+    where
+        T: VcValueTrait,
+    {
+        self.connect().into_trait_ref().strongly_consistent()
     }
 }
 
@@ -158,7 +210,7 @@ where
     T: ?Sized,
 {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.node.hash(state);
+        self.task.hash(state);
     }
 }
 
@@ -167,7 +219,7 @@ where
     T: ?Sized,
 {
     fn eq(&self, other: &Self) -> bool {
-        self.node == other.node
+        self.task == other.task
     }
 }
 
@@ -179,7 +231,7 @@ where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("OperationVc")
-            .field("node", &self.node.node)
+            .field("task", &self.task)
             .finish()
     }
 }
@@ -191,7 +243,7 @@ where
     T: ?Sized + Send + Sync,
 {
     fn is_transient(&self) -> bool {
-        self.node.is_transient()
+        self.task.is_transient()
     }
 }
 
@@ -202,11 +254,12 @@ where
     type Error = anyhow::Error;
 
     fn try_from(raw: RawVc) -> Result<Self> {
-        if !matches!(raw, RawVc::TaskOutput(..)) {
+        let Some(task) = raw.as_task_output() else {
             anyhow::bail!("Given RawVc {raw:?} is not a TaskOutput");
-        }
+        };
         Ok(Self {
-            node: Vc::from(raw),
+            task,
+            _t: PhantomData,
         })
     }
 }
@@ -216,7 +269,7 @@ where
     T: ?Sized,
 {
     fn trace_raw_vcs(&self, trace_context: &mut crate::trace::TraceRawVcsContext) {
-        self.node.trace_raw_vcs(trace_context);
+        Self::into_raw(*self).trace_raw_vcs(trace_context);
     }
 }
 
@@ -225,15 +278,26 @@ where
     T: ?Sized,
 {
     fn drop_collectibles<Vt: VcValueTrait>(self) {
-        self.node.node.drop_collectibles::<Vt>();
+        let tt = turbo_tasks();
+        let map = tt.read_task_collectibles(self.task, Vt::get_trait_type_id());
+        tt.unemit_collectibles(Vt::get_trait_type_id(), &map);
     }
 
     fn take_collectibles<Vt: VcValueTrait>(self) -> AutoSet<ResolvedVc<Vt>> {
-        self.node.node.take_collectibles()
+        let tt = turbo_tasks();
+        let map = tt.read_task_collectibles(self.task, Vt::get_trait_type_id());
+        tt.unemit_collectibles(Vt::get_trait_type_id(), &map);
+        map.into_iter()
+            .filter_map(|(raw, count)| (count > 0).then_some(raw.try_into().unwrap()))
+            .collect()
     }
 
     fn peek_collectibles<Vt: VcValueTrait>(self) -> AutoSet<ResolvedVc<Vt>> {
-        self.node.node.peek_collectibles()
+        let tt = turbo_tasks();
+        let map = tt.read_task_collectibles(self.task, Vt::get_trait_type_id());
+        map.into_iter()
+            .filter_map(|(raw, count)| (count > 0).then_some(raw.try_into().unwrap()))
+            .collect()
     }
 }
 

@@ -14,13 +14,13 @@ There are a few ways you can handle redirects in Next.js. This page will go thro
 
 <AppOnly>
 
-| API                                                           | Purpose                                           | Where                                             | Status Code                            |
-| ------------------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------- | -------------------------------------- |
-| [`redirect`](#redirect-function)                              | Redirect user after a mutation or event           | Server Components, Server Actions, Route Handlers | 307 (Temporary) or 303 (Server Action) |
-| [`permanentRedirect`](#permanentredirect-function)            | Redirect user after a mutation or event           | Server Components, Server Actions, Route Handlers | 308 (Permanent)                        |
-| [`useRouter`](#userouter-hook)                                | Perform a client-side navigation                  | Event Handlers in Client Components               | N/A                                    |
-| [`redirects` in `next.config.js`](#redirects-in-nextconfigjs) | Redirect an incoming request based on a path      | `next.config.js` file                             | 307 (Temporary) or 308 (Permanent)     |
-| [`NextResponse.redirect`](#nextresponseredirect-in-proxy)     | Redirect an incoming request based on a condition | Proxy                                             | Any                                    |
+| API                                                           | Purpose                                           | Where                                               | Status Code                            |
+| ------------------------------------------------------------- | ------------------------------------------------- | --------------------------------------------------- | -------------------------------------- |
+| [`redirect`](#redirect-function)                              | Redirect user after a mutation or event           | Server Components, Server Functions, Route Handlers | 307 (Temporary) or 303 (Server Action) |
+| [`permanentRedirect`](#permanentredirect-function)            | Redirect user after a mutation or event           | Server Components, Server Functions, Route Handlers | 308 (Permanent)                        |
+| [`useRouter`](#userouter-hook)                                | Perform a client-side navigation                  | Event Handlers in Client Components                 | N/A                                    |
+| [`redirects` in `next.config.js`](#redirects-in-nextconfigjs) | Redirect an incoming request based on a path      | `next.config.js` file                               | 307 (Temporary) or 308 (Permanent)     |
+| [`NextResponse.redirect`](#nextresponseredirect-in-proxy)     | Redirect an incoming request based on a condition | Proxy                                               | Any                                    |
 
 </AppOnly>
 
@@ -38,7 +38,7 @@ There are a few ways you can handle redirects in Next.js. This page will go thro
 
 ## `redirect` function
 
-The `redirect` function allows you to redirect the user to another URL. You can call `redirect` in [Server Components](/docs/app/getting-started/server-and-client-components), [Route Handlers](/docs/app/api-reference/file-conventions/route), and [Server Actions](/docs/app/getting-started/updating-data).
+The `redirect` function allows you to redirect the user to another URL. You can call `redirect` in [Server Components](/docs/app/getting-started/server-and-client-components), [Route Handlers](/docs/app/api-reference/file-conventions/route), and [Server Functions](/docs/app/getting-started/mutating-data).
 
 `redirect` is often used after a mutation or event. For example, creating a post:
 
@@ -80,7 +80,7 @@ export async function createPost(id) {
 
 > **Good to know**:
 >
-> - `redirect` returns a 307 (Temporary Redirect) status code by default. When used in a Server Action, it returns a 303 (See Other), which is commonly used for redirecting to a success page as a result of a POST request.
+> - In a Server Action, `redirect` performs a client-side navigation when JavaScript is available. Without JavaScript, the form submission uses a 303 (See Other). In other contexts, `redirect` uses a 307 (Temporary Redirect).
 > - `redirect` throws an error so it should be called **outside** the `try` block when using `try/catch` statements.
 > - `redirect` can be called in Client Components during the rendering process but not in event handlers. You can use the [`useRouter` hook](#userouter-hook) instead.
 > - `redirect` also accepts absolute URLs and can be used to redirect to external links.
@@ -90,7 +90,7 @@ See the [`redirect` API reference](/docs/app/api-reference/functions/redirect) f
 
 ## `permanentRedirect` function
 
-The `permanentRedirect` function allows you to **permanently** redirect the user to another URL. You can call `permanentRedirect` in [Server Components](/docs/app/getting-started/server-and-client-components), [Route Handlers](/docs/app/api-reference/file-conventions/route), and [Server Actions](/docs/app/getting-started/updating-data).
+The `permanentRedirect` function allows you to **permanently** redirect the user to another URL. You can call `permanentRedirect` in [Server Components](/docs/app/getting-started/server-and-client-components), [Route Handlers](/docs/app/api-reference/file-conventions/route), and [Server Functions](/docs/app/getting-started/mutating-data).
 
 `permanentRedirect` is often used after a mutation or event that changes an entity's canonical URL, such as updating a user's profile URL after they change their username:
 
@@ -107,7 +107,7 @@ export async function updateUsername(username: string, formData: FormData) {
     // Handle errors
   }
 
-  revalidateTag('username') // Update all references to the username
+  revalidateTag('username', 'max') // Update all references to the username
   permanentRedirect(`/profile/${username}`) // Navigate to the new user profile
 }
 ```
@@ -125,14 +125,14 @@ export async function updateUsername(username, formData) {
     // Handle errors
   }
 
-  revalidateTag('username') // Update all references to the username
+  revalidateTag('username', 'max') // Update all references to the username
   permanentRedirect(`/profile/${username}`) // Navigate to the new user profile
 }
 ```
 
 > **Good to know**:
 >
-> - `permanentRedirect` returns a 308 (permanent redirect) status code by default.
+> - In a Server Action, `permanentRedirect` performs a client-side navigation when JavaScript is available. Without JavaScript, the form submission uses a 303 (See Other). In other contexts, `permanentRedirect` uses a 308 (Permanent Redirect).
 > - `permanentRedirect` also accepts absolute URLs and can be used to redirect to external links.
 > - If you'd like to redirect before the render process, use [`next.config.js`](#redirects-in-nextconfigjs) or [Proxy](#nextresponseredirect-in-proxy).
 
@@ -376,7 +376,7 @@ Consider the following data structure:
 }
 ```
 
-In [Proxy](/docs/app/api-reference/file-conventions/proxy), you can read from a database such as Vercel's [Edge Config](https://vercel.com/docs/edge-config/get-started) or [Redis](https://vercel.com/docs/redis), and redirect the user based on the incoming request:
+In [Proxy](/docs/app/api-reference/file-conventions/proxy), you can read from a database such as Vercel's [Edge Config](https://vercel.com/docs/global-config/get-started) or [Redis](https://vercel.com/docs/redis), and redirect the user based on the incoming request:
 
 ```ts filename="proxy.ts" switcher
 import { NextResponse, NextRequest } from 'next/server'

@@ -4,7 +4,7 @@ use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{
     module::{Module, ModuleSideEffects},
-    module_graph::{GraphTraversalAction, ModuleGraph, SingleModuleGraphWithBindingUsage},
+    module_graph::{GraphTraversalAction, ModuleGraph, ModuleGraphLayer, SingleModuleGraphNode},
 };
 
 /// This lists all the modules that are side effect free
@@ -29,32 +29,30 @@ pub async fn compute_side_effect_free_module_info(
     // Layout segment optimization, we can individually compute the side effect free modules for
     // each graph.
     let mut result: Vc<SideEffectFreeModules> = Vc::cell(Default::default());
-    let graphs = graphs.await?;
-    for graph in graphs.iter_graphs() {
-        result = compute_side_effect_free_module_info_single(graph, result);
+    for graph in graphs.iter_graphs().await? {
+        result = compute_side_effect_free_module_info_single(graph.connect(), result);
     }
     Ok(result)
 }
 
 #[turbo_tasks::function]
 async fn compute_side_effect_free_module_info_single(
-    graph: SingleModuleGraphWithBindingUsage,
+    graph: ResolvedVc<ModuleGraphLayer>,
     parent_side_effect_free_modules: Vc<SideEffectFreeModules>,
 ) -> Result<Vc<SideEffectFreeModules>> {
     let parent_side_effect_free_modules = parent_side_effect_free_modules.await?;
-    let graph = graph.read().await?;
-
+    let graph = graph.await?;
     let module_side_effects = graph
-        .enumerate_nodes()
-        .map(async |(_, node)| {
+        .iter_reachable_nodes()?
+        .map(async |node| {
             Ok(match node {
-                super::SingleModuleGraphNode::Module(module) => {
+                SingleModuleGraphNode::Module(module) => {
                     // This turbo task always has a cache hit since it is called when building the
                     // module graph. we could consider moving this information
                     // into to the module graph, but then changes would invalidate the whole graph.
                     (*module, *module.side_effects().await?)
                 }
-                super::SingleModuleGraphNode::VisitedModule { idx: _, module } => (
+                SingleModuleGraphNode::VisitedModule { idx: _, module } => (
                     *module,
                     if parent_side_effect_free_modules.contains(module) {
                         ModuleSideEffects::SideEffectFree
@@ -77,28 +75,29 @@ async fn compute_side_effect_free_module_info_single(
     let mut locally_side_effect_free_modules_that_have_side_effects = FxHashSet::default();
     graph.traverse_edges_reverse_dfs(
         // Start from all the side effectful nodes
-        module_side_effects.iter().filter_map(|(m, e)| {
-            if *e == ModuleSideEffects::SideEffectful {
-                Some(*m)
-            } else {
-                None
-            }
-        }),
+        module_side_effects
+            .iter()
+            .filter_map(|(m, e)| (*e == ModuleSideEffects::SideEffectful).then_some(*m)),
         &mut (),
         // child is a previously visited module that we know is side effectful
         // parent is a module that depends on it.
         |child, parent, _s| {
             Ok(if child.is_some() {
-                match module_side_effects.get(&parent).unwrap() {
-                    ModuleSideEffects::SideEffectful | ModuleSideEffects::SideEffectFree => {
+                match module_side_effects.get(&parent) {
+                    Some(ModuleSideEffects::SideEffectful | ModuleSideEffects::SideEffectFree) => {
                         // We have either already seen this or don't want to follow it
                         GraphTraversalAction::Exclude
                     }
-                    ModuleSideEffects::ModuleEvaluationIsSideEffectFree => {
+                    Some(ModuleSideEffects::ModuleEvaluationIsSideEffectFree) => {
                         // this module is side effect free locally but depends on `child` which is
                         // effectful so it too is effectful
                         locally_side_effect_free_modules_that_have_side_effects.insert(parent);
                         GraphTraversalAction::Continue
+                    }
+                    None => {
+                        // The reverse traversal might end up visiting nodes that were excluded in
+                        // the iter_reachable_nodes traversal above. So ignore them.
+                        GraphTraversalAction::Exclude
                     }
                 }
             } else {
@@ -108,6 +107,46 @@ async fn compute_side_effect_free_module_info_single(
         },
         |_, _, _| Ok(()),
     )?;
+
+    #[cfg(debug_assertions)]
+    {
+        use std::sync::LazyLock;
+
+        static PRINT_SIDE_EFFECT_INFO: LazyLock<bool> = LazyLock::new(|| {
+            std::env::var_os("TURBOPACK_PRINT_SIDE_EFFECT_INFO")
+                .is_some_and(|v| v == "1" || v == "true")
+        });
+        if *PRINT_SIDE_EFFECT_INFO {
+            use turbo_tasks::TryJoinIterExt;
+            println!(
+                "side effect free modules: {:#?}",
+                module_side_effects
+                    .iter()
+                    .filter_map(|(m, e)| match e {
+                        ModuleSideEffects::SideEffectful => None,
+                        ModuleSideEffects::SideEffectFree => Some((m, false)),
+                        ModuleSideEffects::ModuleEvaluationIsSideEffectFree => {
+                            if locally_side_effect_free_modules_that_have_side_effects.contains(m) {
+                                None
+                            } else {
+                                Some((m, true))
+                            }
+                        }
+                    })
+                    .map(async |(m, locally)| Ok((
+                        m.ident_string().await?,
+                        if locally {
+                            "inferred locally"
+                        } else {
+                            "declared"
+                        }
+                    )))
+                    .try_join()
+                    .await?
+            );
+        }
+    }
+
     let side_effect_free_modules = module_side_effects
         .into_iter()
         .filter_map(|(m, e)| match e {

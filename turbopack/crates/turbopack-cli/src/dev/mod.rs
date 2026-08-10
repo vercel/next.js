@@ -18,7 +18,8 @@ use turbo_tasks::{
     util::{FormatBytes, FormatDuration},
 };
 use turbo_tasks_backend::{
-    BackendOptions, NoopBackingStorage, TurboTasksBackend, noop_backing_storage,
+    BackendOptions, GitVersionInfo, StartupCacheState, StorageMode, TurboTasksBackend,
+    noop_backing_storage, turbo_backing_storage,
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_malloc::TurboMalloc;
@@ -40,7 +41,7 @@ use turbopack_dev_server::{
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::dotenv::load_env;
-use turbopack_node::execution_context::ExecutionContext;
+use turbopack_node::{child_process_backend, execution_context::ExecutionContext};
 use turbopack_nodejs::NodeJsChunkingContext;
 
 use self::web_entry_source::create_web_entry_source;
@@ -54,10 +55,8 @@ use crate::{
 
 pub(crate) mod web_entry_source;
 
-type Backend = TurboTasksBackend<NoopBackingStorage>;
-
 pub struct TurbopackDevServerBuilder {
-    turbo_tasks: Arc<TurboTasks<Backend>>,
+    turbo_tasks: Arc<TurboTasks<TurboTasksBackend>>,
     project_dir: RcStr,
     root_dir: RcStr,
     entry_requests: Vec<EntryRequest>,
@@ -74,7 +73,7 @@ pub struct TurbopackDevServerBuilder {
 
 impl TurbopackDevServerBuilder {
     pub fn new(
-        turbo_tasks: Arc<TurboTasks<Backend>>,
+        turbo_tasks: Arc<TurboTasks<TurboTasksBackend>>,
         project_dir: RcStr,
         root_dir: RcStr,
     ) -> TurbopackDevServerBuilder {
@@ -250,7 +249,7 @@ impl TurbopackDevServerBuilder {
     }
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn source(
     root_dir: RcStr,
     project_dir: RcStr,
@@ -296,10 +295,18 @@ async fn source(
         node_build_environment().to_resolved().await?,
         RuntimeType::Development,
     )
+    // Shared by every build-time JS evaluation, each with its own module graph but all emitting
+    // the same runtime chunk.
+    .shared_runtime_chunk(true)
     .build();
 
-    let execution_context =
-        ExecutionContext::new(root_path.clone(), Vc::upcast(build_chunking_context), env);
+    let node_backend = child_process_backend();
+    let execution_context = ExecutionContext::new(
+        root_path.clone(),
+        Vc::upcast(build_chunking_context),
+        env,
+        node_backend,
+    );
 
     let server_fs = Vc::upcast::<Box<dyn FileSystem>>(ServerFileSystem::new());
     let server_root = server_fs.root().owned().await?;
@@ -369,13 +376,56 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
         root_dir,
     } = normalize_dirs(&args.common.dir, &args.common.root)?;
 
-    let tt = TurboTasks::new(TurboTasksBackend::new(
-        BackendOptions {
-            storage_mode: None,
-            ..Default::default()
-        },
-        noop_backing_storage(),
-    ));
+    let is_ci = std::env::var("CI").is_ok_and(|v| !v.is_empty());
+    let is_short_session = is_ci;
+
+    let tt = if args.common.persistent_caching {
+        let version_info = GitVersionInfo {
+            describe: env!("VERGEN_GIT_DESCRIBE"),
+            dirty: option_env!("CI").is_none_or(|v| v.is_empty())
+                && env!("VERGEN_GIT_DIRTY") == "true",
+        };
+        let cache_dir = args
+            .common
+            .cache_dir
+            .clone()
+            .unwrap_or_else(|| PathBuf::from(&*project_dir).join(".turbopack/cache"));
+        let (backing_storage, cache_state) =
+            turbo_backing_storage(&cache_dir, &version_info, is_ci, is_short_session, false)?;
+        let storage_mode = if std::env::var("TURBO_ENGINE_READ_ONLY").is_ok() {
+            StorageMode::ReadOnly
+        } else if is_ci || is_short_session {
+            StorageMode::ReadWriteOnShutdown
+        } else {
+            StorageMode::ReadWrite
+        };
+        let tt = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions {
+                storage_mode: Some(storage_mode),
+                ..Default::default()
+            },
+            backing_storage,
+        ));
+        if let StartupCacheState::Invalidated { reason_code } = cache_state {
+            eprintln!(
+                "{} - Turbopack cache was invalidated{}",
+                "warn ".yellow(),
+                reason_code
+                    .as_deref()
+                    .map(|r| format!(": {r}"))
+                    .unwrap_or_default()
+            );
+        }
+        tt
+    } else {
+        TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions {
+                storage_mode: None,
+                ..Default::default()
+            },
+            noop_backing_storage(),
+        ))
+    };
 
     let tt_clone = tt.clone();
 
@@ -518,7 +568,10 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
 #[cfg(feature = "profile")]
 // When profiling, exits the process when no new updates have been received for
 // a given timeout and there are no more tasks in progress.
-async fn profile_timeout<T>(tt: &TurboTasks<Backend>, future: impl Future<Output = T>) -> T {
+async fn profile_timeout<T>(
+    tt: &TurboTasks<TurboTasksBackend>,
+    future: impl Future<Output = T>,
+) -> T {
     /// How long to wait in between updates before force-exiting the process
     /// during profiling.
     const PROFILE_EXIT_TIMEOUT: Duration = Duration::from_secs(5);
@@ -538,7 +591,7 @@ async fn profile_timeout<T>(tt: &TurboTasks<Backend>, future: impl Future<Output
 
 #[cfg(not(feature = "profile"))]
 fn profile_timeout<T>(
-    _tt: &TurboTasks<Backend>,
+    _tt: &TurboTasks<TurboTasksBackend>,
     future: impl Future<Output = T>,
 ) -> impl Future<Output = T> {
     future

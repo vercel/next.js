@@ -1,7 +1,8 @@
 //! The following code was mostly generated using GTP-4 from
 //! next.js/packages/next/src/shared/lib/router/utils/route-regex.ts
 
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
+
 use regex::Regex;
 use regress;
 use rustc_hash::FxHashMap;
@@ -81,7 +82,8 @@ fn remove_trailing_slash(route: &str) -> &str {
     }
 }
 
-static PARAM_MATCH_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\[((?:\[.*\])|.+)\]").unwrap());
+static PARAM_MATCH_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\[((?:\[.*\])|.+)\]").unwrap());
 
 fn get_parametrized_route(route: &str) -> (String, FxHashMap<String, Group>) {
     let segments: Vec<&str> = remove_trailing_slash(route)[1..].split('/').collect();
@@ -230,7 +232,8 @@ fn get_named_parametrized_route(
             } else {
                 None
             };
-            static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\[((?:\[.*\])|.+)\]").unwrap());
+            static RE: LazyLock<Regex> =
+                LazyLock::new(|| Regex::new(r"\[((?:\[.*\])|.+)\]").unwrap());
             let param_matches = RE.captures(segment);
             if let Some(matches) = param_matches {
                 return get_safe_key_from_segment(
@@ -246,23 +249,6 @@ fn get_named_parametrized_route(
         .collect::<Vec<String>>()
         .join("");
     (parameterized_route, route_keys)
-}
-
-/// This function extends `getRouteRegex` generating also a named regexp where
-/// each group is named along with a routeKeys object that indexes the assigned
-/// named group with its corresponding key.
-///
-/// When the routeKeys need to be prefixed to uniquely identify internally the
-/// "prefixRouteKey" arg should be "true" currently this is only the case when
-/// creating the routes-manifest during the build
-pub fn get_named_route_regex(normalized_route: &str) -> NamedRouteRegex {
-    let (parameterized_route, route_keys) = get_named_parametrized_route(normalized_route, false);
-    let regex = get_route_regex(normalized_route);
-    NamedRouteRegex {
-        regex,
-        named_regex: format!("^{parameterized_route}(?:/)?$"),
-        route_keys,
-    }
 }
 
 /// Generates a named regexp.

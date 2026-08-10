@@ -1,17 +1,58 @@
 import { nextTestSetup } from 'e2e-utils'
+import { NextAdapter } from 'next'
 import { retry } from 'next-test-utils'
 import { join } from 'node:path'
 
-describe.each(['NEXT_DEPLOYMENT_ID', 'CUSTOM_DEPLOYMENT_ID'])(
-  'deployment-id-handling enabled with %s',
-  (envKey) => {
+const immutableAssetsFilter = (p) =>
+  p.includes('/_next/static/') &&
+  !(
+    p.includes('/_buildManifest.js') ||
+    p.includes('/_clientMiddlewareManifest.js') ||
+    p.includes('/_ssgManifest.js')
+  )
+
+describe.each([
+  ['NEXT_DEPLOYMENT_ID', ''],
+  ['CUSTOM_DEPLOYMENT_ID', ''],
+  ['NEXT_DEPLOYMENT_ID', ' and runtimeServerDeploymentId'],
+  ['NEXT_DEPLOYMENT_ID_IMMUTABLE', ''],
+])(
+  'deployment-id-handling enabled with %s%s',
+  (envKey, runtimeServerDeploymentId) => {
+    const usesImmutableAssets = envKey === 'NEXT_DEPLOYMENT_ID_IMMUTABLE'
+
+    if (usesImmutableAssets && !process.env.IS_TURBOPACK_TEST) {
+      it.skip('skip for webpack', () => {})
+      return
+    }
+
     const deploymentId = Date.now() + ''
+    const immutableAssetToken = usesImmutableAssets ? '' : deploymentId
+
     const { next } = nextTestSetup({
       files: join(__dirname, 'app'),
       env: {
         [envKey]: deploymentId,
+        RUNTIME_SERVER_DEPLOYMENT_ID: runtimeServerDeploymentId
+          ? '1'
+          : undefined,
       },
+      disableAutoSkewProtection: true,
     })
+
+    const validateTokenForRequest = (url: string) => {
+      const token =
+        usesImmutableAssets && immutableAssetsFilter(url)
+          ? // Turbopack-emitted chunks
+            immutableAssetToken
+          : // e.g. /_next/static/build-id/_ssgManifest.js
+            deploymentId
+      if (token) {
+        expect(url).toContain('dpl=' + token)
+      } else {
+        expect(url).not.toContain('dpl=')
+      }
+    }
 
     it.each([
       { urlPath: '/' },
@@ -21,6 +62,7 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'CUSTOM_DEPLOYMENT_ID'])(
     ])(
       'should append dpl query to all assets correctly for $urlPath',
       async ({ urlPath }) => {
+        // Validate SSR response
         const $ = await next.render$(urlPath)
 
         expect($('#deploymentId').text()).toBe(deploymentId)
@@ -30,7 +72,7 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'CUSTOM_DEPLOYMENT_ID'])(
 
         for (const script of scripts) {
           if (script.attribs.src) {
-            expect(script.attribs.src).toContain('dpl=' + deploymentId)
+            validateTokenForRequest(script.attribs.src)
           }
         }
 
@@ -39,33 +81,47 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'CUSTOM_DEPLOYMENT_ID'])(
 
         for (const link of links) {
           if (link.attribs.href && link.attribs.rel !== 'expect') {
-            if (link.attribs.as === 'font') {
-              expect(link.attribs.href).not.toContain('dpl=' + deploymentId)
-            } else {
-              expect(link.attribs.href).toContain('dpl=' + deploymentId)
-            }
+            validateTokenForRequest(link.attribs.href)
           }
         }
 
-        const browser = await next.browser(urlPath)
-        const requests = []
+        // Validate all requests ever performed by a browser
 
-        browser.on('request', (req) => {
-          if (req.url().includes('/_next/static')) {
-            requests.push(req.url())
-          }
+        const clientRequests = []
+
+        const browser = await next.browser(urlPath, {
+          beforePageLoad(page) {
+            page.on('request', async (req) => {
+              // TODO this currently exclude _next/image
+              if (req.url().includes('/_next/static')) {
+                clientRequests.push(req.url())
+              }
+            })
+          },
         })
 
+        const dynamicImportRequests = []
+        browser.on('request', (req) => {
+          if (req.url().includes('/_next/static')) {
+            dynamicImportRequests.push(req.url())
+          }
+        })
         await browser.elementByCss('#dynamic-import').click()
-
-        await retry(() => expect(requests).not.toBeEmpty())
+        await retry(() => expect(dynamicImportRequests).not.toBeEmpty())
 
         try {
-          expect(
-            requests.every((item) => item.includes('dpl=' + deploymentId))
-          ).toBe(true)
+          dynamicImportRequests.forEach((item) => validateTokenForRequest(item))
         } finally {
-          require('console').error('requests', requests)
+          require('console').error(
+            'dynamicImportRequests',
+            dynamicImportRequests
+          )
+        }
+
+        try {
+          clientRequests.forEach((item) => validateTokenForRequest(item))
+        } finally {
+          require('console').error('clientRequests', clientRequests)
         }
       }
     )
@@ -86,7 +142,7 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'CUSTOM_DEPLOYMENT_ID'])(
       const browser = await next.browser('/', {
         beforePageLoad(page) {
           page.on('request', async (req) => {
-            const headers = await req.allHeaders()
+            const headers = req.headers()
             if (headers['x-nextjs-data']) {
               dataHeaders.push(headers)
             }
@@ -114,7 +170,7 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'CUSTOM_DEPLOYMENT_ID'])(
       const browser = await next.browser('/from-app', {
         beforePageLoad(page) {
           page.on('request', async (req) => {
-            const headers = await req.allHeaders()
+            const headers = req.headers()
             if (headers['rsc']) {
               rscHeaders.push(headers)
             }
@@ -130,12 +186,32 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'CUSTOM_DEPLOYMENT_ID'])(
         expect(rscHeaders.length).toBeGreaterThan(0)
       })
 
-      expect(
-        rscHeaders.every(
-          (headers) => headers['x-deployment-id'] === deploymentId
-        )
-      ).toBe(true)
+      expect(rscHeaders).toSatisfyAll(
+        (headers) => headers['x-deployment-id'] === deploymentId
+      )
     })
+
+    if (usesImmutableAssets) {
+      it('should emit hashes to adapter', async () => {
+        const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
+          await next.readJSON('build-complete.json')
+
+        const immutableAssets = outputs.staticFiles.filter((p) =>
+          immutableAssetsFilter(p.pathname)
+        )
+        expect(immutableAssets).not.toBeEmpty()
+        expect(immutableAssets).toSatisfyAll(
+          (f) =>
+            // Should be same hash as in the filename, for better build performance.
+            // This check also ensure that we don't accidentally forget to content hash sourcemap
+            // files (i.e. 0cz1d0mv5g_q7.js is content hashed, but 0cz1d0mv5g_q7.js.map is not a
+            // content hash of itself)..
+            f.immutableHash &&
+            f.pathname.includes(f.immutableHash.slice(0, 13)) &&
+            f.pathname.startsWith('/_next/static/immutable')
+        )
+      })
+    }
   }
 )
 
@@ -143,6 +219,7 @@ describe('deployment-id-handling disabled', () => {
   const deploymentId = Date.now() + ''
   const { next } = nextTestSetup({
     files: join(__dirname, 'app'),
+    disableAutoSkewProtection: true,
   })
   it.each([
     { urlPath: '/' },
@@ -170,11 +247,7 @@ describe('deployment-id-handling disabled', () => {
 
       for (const link of links) {
         if (link.attribs.href) {
-          if (link.attribs.as === 'font') {
-            expect(link.attribs.href).not.toContain('dpl=' + deploymentId)
-          } else {
-            expect(link.attribs.href).not.toContain('dpl=' + deploymentId)
-          }
+          expect(link.attribs.href).not.toContain('dpl=' + deploymentId)
         }
       }
 
@@ -190,9 +263,9 @@ describe('deployment-id-handling disabled', () => {
       await retry(() => expect(requests).not.toBeEmpty())
 
       try {
-        expect(
-          requests.every((item) => !item.includes('dpl=' + deploymentId))
-        ).toBe(true)
+        expect(requests).toSatisfyAll(
+          (item) => !item.includes('dpl=' + deploymentId)
+        )
       } finally {
         require('console').error('requests', requests)
       }

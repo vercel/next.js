@@ -2,7 +2,7 @@ import type { OriginalStackFrame } from '../../../shared/stack-frame'
 
 import { HotlinkedText } from '../hot-linked-text'
 import { ExternalIcon, SourceMappingErrorIcon } from '../../icons/external'
-import { getFrameSource } from '../../../shared/stack-frame'
+import { getStackFrameFile } from '../../../shared/stack-frame'
 import { useOpenInEditor } from '../../utils/use-open-in-editor'
 
 export const CallStackFrame: React.FC<{
@@ -11,9 +11,9 @@ export const CallStackFrame: React.FC<{
   // TODO: ability to expand resolved frames
 
   const f = frame.originalStackFrame ?? frame.sourceStackFrame
-  const hasSource = Boolean(frame.originalCodeFrame)
+  const hasOriginalCodeFrame = Boolean(frame.originalCodeFrame)
   const open = useOpenInEditor(
-    hasSource
+    hasOriginalCodeFrame
       ? {
           file: f.file,
           line1: f.line1 ?? 1,
@@ -24,21 +24,21 @@ export const CallStackFrame: React.FC<{
 
   // Formatted file source could be empty. e.g. <anonymous> will be formatted to empty string,
   // we'll skip rendering the frame in this case.
-  const fileSource = getFrameSource(f)
+  const stackFrameFile = getStackFrameFile(f)
 
-  if (!fileSource) {
+  if (!stackFrameFile) {
     return null
   }
 
   return (
     <div
       data-nextjs-call-stack-frame
-      data-nextjs-call-stack-frame-no-source={!hasSource}
+      data-nextjs-call-stack-frame-no-source={!hasOriginalCodeFrame}
       data-nextjs-call-stack-frame-ignored={frame.ignored}
     >
       <div className="call-stack-frame-method-name">
         <HotlinkedText text={f.methodName} />
-        {hasSource && (
+        {hasOriginalCodeFrame && (
           <button
             onClick={open}
             className="open-in-editor-button"
@@ -58,10 +58,10 @@ export const CallStackFrame: React.FC<{
         ) : null}
       </div>
       <span
-        className="call-stack-frame-file-source"
-        data-has-source={hasSource}
+        className="call-stack-frame-file"
+        data-has-original-code-frame={hasOriginalCodeFrame}
       >
-        {fileSource}
+        {stackFrameFile}
       </span>
     </div>
   )
@@ -70,13 +70,8 @@ export const CallStackFrame: React.FC<{
 export const CALL_STACK_FRAME_STYLES = `
   [data-nextjs-call-stack-frame-no-source] {
     padding: 6px 8px;
-    margin-bottom: 4px;
 
     border-radius: var(--rounded-lg);
-  }
-
-  [data-nextjs-call-stack-frame-no-source]:last-child {
-    margin-bottom: 0;
   }
 
   [data-nextjs-call-stack-frame-ignored="true"] {
@@ -93,7 +88,7 @@ export const CALL_STACK_FRAME_STYLES = `
     -moz-user-select: text;
     -ms-user-select: text;
 
-    padding: 6px 8px;
+    padding: 0;
 
     border-radius: var(--rounded-lg);
   }
@@ -103,7 +98,7 @@ export const CALL_STACK_FRAME_STYLES = `
     align-items: center;
     gap: 4px;
 
-    margin-bottom: 4px;
+    margin: 0;
     font-family: var(--font-stack-monospace);
 
     color: var(--color-gray-1000);
@@ -112,8 +107,8 @@ export const CALL_STACK_FRAME_STYLES = `
     line-height: var(--size-20);
 
     svg {
-      width: var(--size-16px);
-      height: var(--size-16px);
+      width: var(--size-16);
+      height: var(--size-16);
     }
   }
 
@@ -136,13 +131,18 @@ export const CALL_STACK_FRAME_STYLES = `
     }
 
     &:hover {
-      background: var(--color-gray-100);
+      background: var(--color-gray-alpha-100);
+    }
+
+    &:active {
+      background: var(--color-gray-alpha-200);
     }
   }
 
-  .call-stack-frame-file-source {
+  .call-stack-frame-file {
     color: var(--color-gray-900);
-    font-size: var(--size-14);
+    font-size: var(--size-13);
     line-height: var(--size-20);
+    word-wrap: break-word;
   }
 `
