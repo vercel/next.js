@@ -191,6 +191,26 @@ pub struct StaticSortedFileMetaData {
     pub block_count: u16,
 }
 
+/// Validates that the block offset table of `block_count` u32 offsets fits in
+/// an SST file of `sst_len` bytes. The block count comes from the (potentially
+/// corrupt) meta file — without this check `block_offsets_start` would
+/// underflow and panic.
+fn ensure_block_offsets_fit(
+    path: &Path,
+    meta: &StaticSortedFileMetaData,
+    sst_len: usize,
+) -> Result<()> {
+    if (meta.block_count as usize) * size_of::<u32>() > sst_len {
+        bail!(
+            "SST file {} ({} bytes) is too small for its meta file's block count {}",
+            path.display(),
+            sst_len,
+            meta.block_count
+        );
+    }
+    Ok(())
+}
+
 impl StaticSortedFileMetaData {
     pub fn block_offsets_start(&self, sst_len: usize) -> usize {
         let bc: usize = self.block_count.into();
@@ -227,6 +247,7 @@ impl StaticSortedFile {
                 file.metadata().map(|m| m.len()).unwrap_or(0)
             )
         })?;
+        ensure_block_offsets_fit(&path, &meta, mmap.len())?;
         #[cfg(unix)]
         {
             mmap.advise(memmap2::Advice::Random)?;
@@ -541,7 +562,8 @@ fn get_raw_block_slice<'a>(
     meta: &StaticSortedFileMetaData,
     block_index: u16,
 ) -> Result<(u32, u32, &'a [u8])> {
-    #[cfg(feature = "strict_checks")]
+    // Unconditional (not strict_checks-gated): the block count and offset
+    // table come from the meta file, which may be corrupt.
     if block_index >= meta.block_count {
         bail!(
             "Corrupted file seq:{} block:{} > number of blocks {} (block_offsets: {:x})",
@@ -552,7 +574,6 @@ fn get_raw_block_slice<'a>(
         );
     }
     let offset = meta.block_offsets_start(mmap.len()) + block_index as usize * 4;
-    #[cfg(feature = "strict_checks")]
     if offset + 4 > mmap.len() {
         bail!(
             "Corrupted file seq:{} block:{} block offset locations {} + 4 bytes > file end {} \
@@ -570,7 +591,6 @@ fn get_raw_block_slice<'a>(
         be::read_u32(&mmap[offset - 4..]) as usize
     };
     let block_end = be::read_u32(&mmap[offset..]) as usize;
-    #[cfg(feature = "strict_checks")]
     if block_end > mmap.len() || block_start > mmap.len() {
         bail!(
             "Corrupted file seq:{} block:{} block {} - {} > file end {} (block_offsets: {:x})",
@@ -788,6 +808,7 @@ impl StaticSortedFileIter {
                 file.metadata().map(|m| m.len()).unwrap_or(0)
             )
         })?;
+        ensure_block_offsets_fit(&path, &meta, mmap.len())?;
         #[cfg(unix)]
         mmap.advise(memmap2::Advice::Sequential)?;
         advise_mmap_for_persistence(&mmap)?;

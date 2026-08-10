@@ -281,6 +281,12 @@ impl MetaFile {
         }
         let family = reader.read_u32::<BE>()?;
         let obsolete_count = reader.read_u32::<BE>()?;
+        // The count is file-derived: validate it against the remaining mapped
+        // length (each entry is a u32) before allocating, so a corrupt value
+        // can't trigger a huge allocation.
+        if (obsolete_count as u64) * 4 > reader.len() as u64 {
+            bail!("Obsolete SST count {obsolete_count} out of bounds in {sequence_number:08}.meta");
+        }
         let mut obsolete_sst_files = Vec::with_capacity(obsolete_count as usize);
         for _ in 0..obsolete_count {
             obsolete_sst_files.push(reader.read_u32::<BE>()?);
@@ -291,9 +297,22 @@ impl MetaFile {
         // Compute where the AMQF data region starts so we can deserialize filters inline.
         // Remaining header: count * ENTRY_HEADER_SIZE + used_keys_end_offset.
         let header_so_far = (mmap.len() - reader.len()) as u32;
-        let amqf_data_start =
-            header_so_far + count * (size_of::<EntryHeader>() as u32) + size_of::<u32>() as u32;
-        let amqf_data = &mmap[amqf_data_start as usize..];
+        // All of count and the offsets come from the file — validate the
+        // arithmetic and the slice bounds instead of panicking on a corrupt
+        // or truncated file.
+        let amqf_data_start = count
+            .checked_mul(size_of::<EntryHeader>() as u32)
+            .and_then(|v| v.checked_add(header_so_far))
+            .and_then(|v| v.checked_add(size_of::<u32>() as u32))
+            .context("AMQF data offset overflow")?;
+        let amqf_data = mmap
+            .get(amqf_data_start as usize..)
+            .context("AMQF data region out of bounds")?;
+
+        // Same for the entry count: every entry header must fit in the file.
+        if (count as u64) * (size_of::<EntryHeader>() as u64) > reader.len() as u64 {
+            bail!("Entry count {count} out of bounds in {sequence_number:08}.meta");
+        }
 
         // Parse entries and eagerly deserialize AMQF filters as zero-copy FilterRefs.
         let mut entries = Vec::with_capacity(count as usize);
@@ -303,9 +322,19 @@ impl MetaFile {
                 .ok()
                 .context("Entry header out of bounds")?;
             reader = rest;
+            let block_count = header.block_count.get();
+            // A present SST always has at least one block; a zero here is
+            // file corruption that would underflow block_count - 1 in the
+            // SST lookup path later.
+            if block_count == 0 {
+                bail!(
+                    "Invalid block count 0 in {sequence_number:08}.meta entry {}",
+                    header.sequence_number.get()
+                );
+            }
             let sst_data = StaticSortedFileMetaData {
                 sequence_number: header.sequence_number.get(),
-                block_count: header.block_count.get(),
+                block_count,
             };
             let min_hash = header.min_hash.get();
             let max_hash = header.max_hash.get();
@@ -313,9 +342,20 @@ impl MetaFile {
             let flags = MetaEntryFlags(header.flags.get());
             let end_of_amqf_data_offset = header.amqf_end_offset.get();
 
+            // Validate the file-derived offsets before use: they must be
+            // monotonic and within the AMQF data region.
+            if start_of_amqf_data_offset > end_of_amqf_data_offset
+                || end_of_amqf_data_offset as usize > amqf_data.len()
+            {
+                bail!(
+                    "Invalid AMQF offsets {start_of_amqf_data_offset}..{end_of_amqf_data_offset} \
+                     (region size {}) in {sequence_number:08}.meta",
+                    amqf_data.len()
+                );
+            }
             let amqf_bytes = amqf_data
                 .get(start_of_amqf_data_offset as usize..end_of_amqf_data_offset as usize)
-                .expect("AMQF data out of bounds");
+                .context("AMQF data out of bounds")?;
             // Deserialize the filter borrowing from the mmap, then erase the lifetime.
             let amqf: qfilter::FilterRef<'_> =
                 postcard::from_bytes(amqf_bytes).with_context(|| {
@@ -344,6 +384,20 @@ impl MetaFile {
 
         let start_of_used_keys_amqf_data_offset = start_of_amqf_data_offset;
         let end_of_used_keys_amqf_data_offset = reader.read_u32::<BE>()?;
+
+        // Validate the used-keys offsets as well — they are dereferenced much
+        // later (during compaction, on a rayon worker thread), where a panic
+        // would crash mid-commit instead of failing the open cleanly.
+        if end_of_used_keys_amqf_data_offset < start_of_used_keys_amqf_data_offset
+            || end_of_used_keys_amqf_data_offset as usize > amqf_data.len()
+        {
+            bail!(
+                "Invalid used-keys AMQF offsets \
+                 {start_of_used_keys_amqf_data_offset}..{end_of_used_keys_amqf_data_offset} \
+                 (region size {}) in {sequence_number:08}.meta",
+                amqf_data.len()
+            );
+        }
 
         Ok(Self {
             db_path,
