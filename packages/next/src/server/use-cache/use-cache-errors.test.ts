@@ -8,6 +8,8 @@ describe('annotateUseCacheFunctionSerializationError', () => {
     const error = new Error(
       REACT_MESSAGE + '\n  [function PostContent]\n   ^^^^^^^^^^^'
     )
+    // Simulate V8's multi-line message prefix in the stack.
+    error.stack = `${error.name}: ${error.message}\n    at getCachedComponent (app/page.tsx:3:1)`
 
     annotateUseCacheFunctionSerializationError(error)
 
@@ -17,6 +19,12 @@ describe('annotateUseCacheFunctionSerializationError', () => {
       'https://nextjs.org/docs/messages/use-cache-function'
     )
     expect(error.message).toContain('[function PostContent]')
+
+    // React's annotation must appear once in the stack, not duplicated by a
+    // first-line-only message rewrite.
+    expect(error.stack?.match(/\[function PostContent\]/g)).toHaveLength(1)
+    expect(error.stack?.match(/^\s+\^\^\^/gm)).toHaveLength(1)
+    expect(error.stack).toContain('at getCachedComponent (app/page.tsx:3:1)')
   })
 
   it('does not annotate unrelated errors', () => {

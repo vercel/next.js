@@ -5,6 +5,7 @@ describe('formatServerError', () => {
     const err = new Error(
       'Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.\n  [function fn]\n   ^^^^^^^^^^^'
     )
+    err.stack = `${err.name}: ${err.message}\n    at createCachedFn (app/page.tsx:8:3)`
 
     formatServerError(err)
 
@@ -13,6 +14,9 @@ describe('formatServerError', () => {
       'https://nextjs.org/docs/messages/use-cache-function'
     )
     expect(err.message).toContain('[function fn]')
+    expect(err.stack?.match(/\[function fn\]/g)).toHaveLength(1)
+    expect(err.stack?.match(/^\s+\^\^\^/gm)).toHaveLength(1)
+    expect(err.stack).toContain('at createCachedFn (app/page.tsx:8:3)')
 
     const once = err.message
     formatServerError(err)

@@ -14,12 +14,35 @@ const invalidServerComponentReactHooks = [
   'useOptimistic',
 ]
 
-function setMessage(error: Error, message: string): void {
+/**
+ * Updates `error.message` and keeps `error.stack` in sync.
+ *
+ * React function-serialization errors put the `[function …]` / `^^^`
+ * annotation in the message (and therefore in the stack prefix). Replacing only
+ * the first stack line would leave those annotation lines in place and
+ * duplicate them when the new message already includes them.
+ */
+export function setErrorMessage(error: Error, message: string): void {
+  const previousMessage = error.message
   error.message = message
-  if (error.stack) {
-    const lines = error.stack.split('\n')
-    lines[0] = message
-    error.stack = lines.join('\n')
+
+  if (!error.stack) return
+
+  const previousPrefix = `${error.name}: ${previousMessage}`
+  const nextPrefix = `${error.name}: ${message}`
+
+  if (error.stack.startsWith(previousPrefix)) {
+    error.stack = nextPrefix + error.stack.slice(previousPrefix.length)
+    return
+  }
+
+  // Fallback when the engine omitted the usual `Name: message` prefix: keep
+  // only call-site frames.
+  const frameIndex = error.stack.search(/\n\s+at /)
+  if (frameIndex === -1) {
+    error.stack = nextPrefix
+  } else {
+    error.stack = nextPrefix + error.stack.slice(frameIndex)
   }
 }
 
@@ -36,6 +59,14 @@ function setMessage(error: Error, message: string): void {
 export function getStackWithoutErrorMessage(error: Error): string {
   const stack = error.stack
   if (!stack) return ''
+
+  // Prefer stripping a multi-line message prefix when present (e.g. React's
+  // function-serialization annotation), then fall back to the first line.
+  const messagePrefix = `${error.name}: ${error.message}`
+  if (stack.startsWith(messagePrefix)) {
+    return stack.slice(messagePrefix.length).replace(/^\n/, '')
+  }
+
   return stack.replace(/^[^\n]*\n/, '')
 }
 
@@ -54,7 +85,7 @@ export function formatServerError(error: Error): void {
       'https://nextjs.org/docs/messages/use-cache-function'
     )
   ) {
-    setMessage(
+    setErrorMessage(
       error,
       `${error.message}
 
@@ -74,7 +105,7 @@ ${USE_CACHE_FUNCTION_SERIALIZATION_HINT}`
     // If this error instance already has the message, don't add it again
     if (error.message.includes(addedMessage)) return
 
-    setMessage(
+    setErrorMessage(
       error,
       `${error.message}
 
@@ -84,7 +115,7 @@ ${addedMessage}`
   }
 
   if (error.message.includes('createContext is not a function')) {
-    setMessage(
+    setErrorMessage(
       error,
       'createContext only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/context-in-server-component'
     )
@@ -94,7 +125,7 @@ ${addedMessage}`
   for (const clientHook of invalidServerComponentReactHooks) {
     const regex = new RegExp(`\\b${clientHook}\\b.*is not a function`)
     if (regex.test(error.message)) {
-      setMessage(
+      setErrorMessage(
         error,
         `${clientHook} only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component`
       )
