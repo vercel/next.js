@@ -60,7 +60,7 @@ export function unstable_navigation(): Promise<void> {
       } else {
         // Final prerender
         return stagedRendering.delayUntilStage(
-          RenderStage.Static,
+          RenderStage.NavigationStatic,
           'unstable_navigation',
           undefined
         )
@@ -92,7 +92,7 @@ export function unstable_navigation(): Promise<void> {
         trackIncompatibleShellContent(workUnitStore)
         const stage = workUnitStore.needsAppShell
           ? RenderStage.NavigationRuntime // Match the timing of 'prerender-runtime'.
-          : RenderStage.Static // Match the timing of 'prerender'.
+          : RenderStage.NavigationStatic // Match the timing of 'prerender'.
 
         return stagedRendering.delayUntilStage(
           stage,
