@@ -452,7 +452,7 @@ fn should_run_rust_react_compiler(
     compilation_mode: ReactCompilerCompilationMode,
 ) -> bool {
     !matches!(compilation_mode, ReactCompilerCompilationMode::Infer)
-        || next_custom_transforms::react_compiler::may_require(program)
+        || swc_ecma_react_compiler::fast_check::is_required(program)
 }
 
 async fn apply_rust_react_compiler(
@@ -601,9 +601,39 @@ pub fn remove_directives(program: &mut Program) {
 
 #[cfg(test)]
 mod react_compiler_tests {
-    use swc_core::{common::DUMMY_SP, ecma::ast::Module};
+    use swc_core::{
+        common::{DUMMY_SP, FileName, GLOBALS, SourceMap},
+        ecma::{
+            ast::{EsVersion, Module},
+            parser::{Syntax, TsSyntax, parse_file_as_program},
+        },
+    };
 
     use super::*;
+
+    fn parse_program(source: &str) -> Program {
+        GLOBALS.set(&Default::default(), || {
+            let cm = SourceMap::default();
+            let fm = cm.new_source_file(
+                FileName::Custom("test.tsx".into()).into(),
+                source.to_owned(),
+            );
+            let mut errors = Vec::new();
+            let program = parse_file_as_program(
+                &fm,
+                Syntax::Typescript(TsSyntax {
+                    tsx: true,
+                    ..Default::default()
+                }),
+                EsVersion::EsNext,
+                None,
+                &mut errors,
+            )
+            .expect("test fixture should parse");
+            assert!(errors.is_empty(), "test fixture should not recover errors");
+            program
+        })
+    }
 
     #[test]
     fn infer_mode_skips_ineligible_modules_without_affecting_explicit_modes() {
@@ -625,5 +655,30 @@ mod react_compiler_tests {
             &program,
             ReactCompilerCompilationMode::All
         ));
+    }
+
+    #[test]
+    fn infer_mode_uses_upstream_conservative_fast_check() {
+        for source in [
+            "const Button = React.forwardRef((props, ref) => <button ref={ref} />);",
+            "function useCounter() { return React.useState(0); }",
+            "function helper() { 'use memo'; return 1; }",
+        ] {
+            assert!(should_run_rust_react_compiler(
+                &parse_program(source),
+                ReactCompilerCompilationMode::Infer
+            ));
+        }
+
+        for source in [
+            "export const answer = 42;",
+            "const user = getUser();",
+            "function helper() { log(); 'use memo'; }",
+        ] {
+            assert!(!should_run_rust_react_compiler(
+                &parse_program(source),
+                ReactCompilerCompilationMode::Infer
+            ));
+        }
     }
 }

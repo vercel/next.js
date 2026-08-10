@@ -249,7 +249,7 @@ importers:
         version: 2.3.2(patch_hash=cb53bfa5effb15b3a361e176003df667cadf757b27b7c9b458c2f0fce86ea893)
       '@vercel/devlow-bench':
         specifier: workspace:*
-        version: link:turbopack/packages/devlow-bench
+        version: link:packages/devlow-bench
       '@vercel/kv':
         specifier: 3.0.0
         version: 3.0.0
@@ -975,10 +975,56 @@ importers:
         specifier: 5.0.1
         version: 5.0.1
 
+  packages/devlow-bench:
+    dependencies:
+      '@datadog/datadog-api-client':
+        specifier: ^1.13.0
+        version: 1.25.0(encoding@0.1.13)
+      inquirer:
+        specifier: ^9.2.7
+        version: 9.2.23
+      jstat:
+        specifier: ^1.9.6
+        version: 1.9.6
+      minimist:
+        specifier: ^1.2.8
+        version: 1.2.8
+      picocolors:
+        specifier: 1.0.1
+        version: 1.0.1
+      pidusage-tree:
+        specifier: ^2.0.5
+        version: 2.0.5
+      playwright-chromium:
+        specifier: 1.61.0
+        version: 1.61.0
+      split2:
+        specifier: ^4.2.0
+        version: 4.2.0
+      tree-kill:
+        specifier: ^1.2.2
+        version: 1.2.2
+    devDependencies:
+      '@types/inquirer':
+        specifier: ^9.0.3
+        version: 9.0.7
+      '@types/minimist':
+        specifier: ^1.2.2
+        version: 1.2.5
+      '@types/node':
+        specifier: 20.17.7
+        version: 20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab)
+      '@types/split2':
+        specifier: ^4.2.0
+        version: 4.2.3
+      tsx:
+        specifier: 4.19.2
+        version: 4.19.2
+
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 16.3.1-canary.4
+        specifier: 16.3.1-canary.10
         version: link:../eslint-plugin-next
       eslint:
         specifier: '>=9.0.0'
@@ -1061,7 +1107,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 16.3.1-canary.4
+        specifier: 16.3.1-canary.10
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.23
@@ -1182,19 +1228,19 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/font':
-        specifier: 16.3.1-canary.4
+        specifier: 16.3.1-canary.10
         version: link:../font
       '@next/polyfill-module':
-        specifier: 16.3.1-canary.4
+        specifier: 16.3.1-canary.10
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 16.3.1-canary.4
+        specifier: 16.3.1-canary.10
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 16.3.1-canary.4
+        specifier: 16.3.1-canary.10
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 16.3.1-canary.4
+        specifier: 16.3.1-canary.10
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1937,7 +1983,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 16.3.1-canary.4
+        specifier: 16.3.1-canary.10
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -2002,77 +2048,6 @@ importers:
       styled-jsx:
         specifier: ^5.1.2
         version: 5.1.6(@babel/core@7.26.10)(babel-plugin-macros@3.1.0)(react@19.3.0-canary-11eddecd-20260805)
-
-  turbopack/packages/devlow-bench:
-    dependencies:
-      '@datadog/datadog-api-client':
-        specifier: ^1.13.0
-        version: 1.25.0(encoding@0.1.13)
-      inquirer:
-        specifier: ^9.2.7
-        version: 9.2.23
-      jstat:
-        specifier: ^1.9.6
-        version: 1.9.6
-      minimist:
-        specifier: ^1.2.8
-        version: 1.2.8
-      picocolors:
-        specifier: 1.0.1
-        version: 1.0.1
-      pidusage-tree:
-        specifier: ^2.0.5
-        version: 2.0.5
-      playwright-chromium:
-        specifier: 1.61.0
-        version: 1.61.0
-      split2:
-        specifier: ^4.2.0
-        version: 4.2.0
-      tree-kill:
-        specifier: ^1.2.2
-        version: 1.2.2
-    devDependencies:
-      '@types/inquirer':
-        specifier: ^9.0.3
-        version: 9.0.7
-      '@types/minimist':
-        specifier: ^1.2.2
-        version: 1.2.5
-      '@types/node':
-        specifier: 20.17.7
-        version: 20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab)
-      '@types/split2':
-        specifier: ^4.2.0
-        version: 4.2.3
-      tsx:
-        specifier: 4.19.2
-        version: 4.19.2
-
-  turbopack/packages/node-module-trace: {}
-
-  turbopack/packages/turbo-tracing-next-plugin:
-    dependencies:
-      '@vercel/webpack-nft':
-        specifier: workspace:*
-        version: link:../webpack-nmt
-    devDependencies:
-      next:
-        specifier: workspace:*
-        version: link:../../../packages/next
-
-  turbopack/packages/webpack-nmt:
-    dependencies:
-      '@vercel/experimental-nft':
-        specifier: workspace:*
-        version: link:../node-module-trace
-    devDependencies:
-      '@types/webpack':
-        specifier: ^5.28.0
-        version: 5.28.5(@swc/core@1.11.24(@swc/helpers@0.5.23))
-      webpack:
-        specifier: 5.98.0
-        version: 5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.23))
 
 packages:
 
@@ -6929,9 +6904,6 @@ packages:
 
   '@types/webpack-sources@0.1.5':
     resolution: {integrity: sha512-zfvjpp7jiafSmrzJ2/i3LqOyTYTuJ7u1KOXlKgDlvsj9Rr0x7ZiYu5lZbXwobL7lmsRNtPXlBfmaUD8eU2Hu8w==}
-
-  '@types/webpack@5.28.5':
-    resolution: {integrity: sha512-wR87cgvxj3p6D0Crt1r5avwqffqPXUkNlnQ1mjU93G7gCuFjufZR4I6j8cz5g1F1tTYpfOOFvly+cmIQwL9wvw==}
 
   '@types/wrap-ansi@3.0.0':
     resolution: {integrity: sha512-ltIpx+kM7g/MLRZfkbL7EsCEjfzCcScLpkg37eXEtx5kmrAKBkTJwd1GIAjDSL8wTpM6Hzn5YO4pSb91BEwu1g==}
@@ -16936,10 +16908,6 @@ packages:
   tailwindcss@4.1.13:
     resolution: {integrity: sha512-i+zidfmTqtwquj4hMEwdjshYYgMbOrPzb9a0M3ZgNa0JMoZeFC6bxZvO8yr8ozS6ix2SDz0+mvryPeBs2TFE+w==}
 
-  tapable@2.2.0:
-    resolution: {integrity: sha512-FBk4IesMV1rBxX2tfiK8RAmogtWn53puLOQlvO8XuwlgxcYbP4mVPS9Ph4aeamSyyVjOl24aYWAuc8U5kCVwMw==}
-    engines: {node: '>=6'}
-
   tapable@2.2.1:
     resolution: {integrity: sha512-GNzQvQTOIP6RyTfE2Qxb8ZVlNmw0n88vp1szwWRimP02mnTsx3Wtn5qRdqY9w2XduFNUgvOwhNnQsjwCp+kqaQ==}
     engines: {node: '>=6'}
@@ -23733,17 +23701,6 @@ snapshots:
       '@types/node': 20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab)
       '@types/source-list-map': 0.1.2
       source-map: 0.6.1
-
-  '@types/webpack@5.28.5(@swc/core@1.11.24(@swc/helpers@0.5.23))':
-    dependencies:
-      '@types/node': 20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab)
-      tapable: 2.2.0
-      webpack: 5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.23))
-    transitivePeerDependencies:
-      - '@swc/core'
-      - esbuild
-      - uglify-js
-      - webpack-cli
 
   '@types/wrap-ansi@3.0.0': {}
 
@@ -36301,8 +36258,6 @@ snapshots:
       - ts-node
 
   tailwindcss@4.1.13: {}
-
-  tapable@2.2.0: {}
 
   tapable@2.2.1: {}
 

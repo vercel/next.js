@@ -2,7 +2,6 @@ use std::{path::PathBuf, sync::Arc};
 
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
-use next_custom_transforms::react_compiler;
 use swc_core::{
     common::{GLOBALS, SourceMap},
     ecma::{
@@ -25,7 +24,7 @@ impl Task for CheckTask {
             //
             let cm = Arc::new(SourceMap::default());
             let Ok(fm) = cm.load_file(&self.filename) else {
-                return Ok(false);
+                return Ok(true);
             };
             let mut errors = vec![];
             let Ok(program) = parse_file_as_program(
@@ -38,13 +37,13 @@ impl Task for CheckTask {
                 None,
                 &mut errors,
             ) else {
-                return Ok(false);
+                return Ok(true);
             };
             if !errors.is_empty() {
-                return Ok(false);
+                return Ok(true);
             }
 
-            Ok(react_compiler::is_required(&program))
+            Ok(swc_ecma_react_compiler::fast_check::is_required(&program))
         })
     }
 

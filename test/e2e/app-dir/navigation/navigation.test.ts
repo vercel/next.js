@@ -1,6 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { getTitle, retry, waitFor } from 'next-test-utils'
 
+// bump this every time you want to validate flakiness: 1
+
 describe('app dir - navigation', () => {
   const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
     files: __dirname,

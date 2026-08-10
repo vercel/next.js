@@ -4,7 +4,7 @@ import type {
   NormalizedSearch,
   NormalizedNextUrl,
 } from './cache-key'
-import type { RouteTree } from './cache'
+import type { RouteTree, RSCSegmentData } from './cache'
 import { Fallback, type FallbackType } from './cache-map'
 import { HEAD_REQUEST_KEY } from '../../../shared/lib/segment-cache/segment-value-encoding'
 
@@ -274,7 +274,7 @@ export function finalizeMetadataVaryPath(
 
 export function getSegmentVaryPathForRequest(
   fetchStrategy: FetchStrategy,
-  tree: RouteTree
+  tree: RouteTree<RSCSegmentData | null>
 ): SegmentVaryPath {
   // This is used for storing pending requests in the cache. We want to choose
   // the most generic vary path based on the strategy used to fetch it, i.e.

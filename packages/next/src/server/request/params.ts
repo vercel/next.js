@@ -37,6 +37,8 @@ import {
   makePromiseFromTrigger,
   trackFallbackParamsAccessed,
   RENDER_STAGES_BY_DATA_KIND,
+  trackPromiseUsed,
+  trackIncompatibleShellContent,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
@@ -597,15 +599,25 @@ function createStagedRenderParamsImpl(
     // so static params can resolve in the static stage, because session
     // shells are handled with a separate render.
     // However, in dev we might need to recover a session shell for instant validation.
-    // This is indicated by `needsSessionShell`.
-    const staticParamsStage = workUnitStore.needsSessionShell
+    // This is indicated by `needsAppShell`.
+    const staticParamsStage = workUnitStore.needsAppShell
       ? RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
       : RENDER_STAGES_BY_DATA_KIND.staticLinkData
-    return stagedRendering.delayUntilStage(
+
+    const promise = stagedRendering.delayUntilStage(
       staticParamsStage,
       'params',
       userspaceParams
     )
+    if (process.env.__NEXT_DEV_SERVER) {
+      // If static params are accessed, we can recover a static shell or a session shell, but not both.
+      return trackPromiseUsed(
+        promise,
+        trackIncompatibleShellContent.bind(null, workUnitStore)
+      )
+    } else {
+      return promise
+    }
   }
 
   return makeUntrackedParams(userspaceParams)

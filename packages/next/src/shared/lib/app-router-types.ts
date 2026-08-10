@@ -12,6 +12,7 @@ export type LoadingModuleData =
   | null
 
 import type { VaryParamsIterable } from './segment-cache/vary-params-decoding'
+import type { FullTransportData, PartialTransportData } from './rsc-transport'
 
 /** viewport metadata node */
 export type HeadData = React.ReactNode
@@ -320,7 +321,7 @@ export const SubtreePrefetchHints =
  * root segment ends up reflecting the entire subtree.
  *
  * Used wherever a route tree is assembled bottom-up: on the server when building
- * a prefetch tree (createFlightRouterStateFromLoaderTree) and on the client when
+ * a transport tree (createTransportTreeFromLoaderTree) and on the client when
  * merging a navigation patch into the existing tree (convertServerPatchToFullTree).
  * Keep these in sync by routing both through this helper.
  */
@@ -354,7 +355,9 @@ export function propagateSubtreeBits(
 }
 
 /**
- * Individual Flight response path
+ * A path through the segment tree: a repeating sequence of segment and
+ * parallel route key. Used by the client to address positions in the
+ * CacheNode tree (see layout-router).
  */
 export type FlightSegmentPath =
   // Uses `any` as repeating pattern can't be typed.
@@ -368,64 +371,6 @@ export type FlightSegmentPath =
       segment: Segment,
       parallelRouterKey: string,
     ]
-
-/**
- * Represents a tree of segments and the Flight data (i.e. React nodes) that
- * correspond to each one. The tree is isomorphic to the FlightRouterState;
- * however in the future we want to be able to fetch arbitrary partial segments
- * without having to fetch all its children. So this response format will
- * likely change.
- */
-export type CacheNodeSeedData = [
-  node: React.ReactNode | null,
-  parallelRoutes: {
-    [parallelRouterKey: string]: CacheNodeSeedData | null
-  },
-  // TODO: This field is no longer used. Remove it.
-  loading: null,
-  isPartial: boolean,
-  /**
-   * An AsyncIterable that yields the route params this segment accessed during
-   * server rendering (one name per yield, deduped). Used by the client router
-   * to determine cache key specificity - segments that only access certain
-   * params can be reused across navigations where unaccessed params change.
-   *
-   * Does NOT include root params; those are emitted once at the top level of
-   * the response (see `r` on the payload) and unioned in by the consumer.
-   *
-   * - null: tracking was not enabled for this render (e.g., not a prerender).
-   *   Treat conservatively - assume all params vary.
-   * - Drains to empty Set: segment accesses no params (e.g., client components,
-   *   or server components that don't read params). Can be shared across all
-   *   param values.
-   * - Drains to non-empty Set: segment depends on those params. Can only reuse
-   *   when those specific params match.
-   */
-  varyParams: VaryParamsIterable | null,
-]
-
-export type FlightDataSegment = [
-  /* segment of the rendered slice: */ Segment,
-  /* treePatch */ FlightRouterState,
-  /* cacheNodeSeedData */ CacheNodeSeedData | null, // Can be null during prefetch if there's no loading component
-  /* head: viewport */ HeadData,
-  /* isHeadPartial */ boolean,
-]
-
-export type FlightDataPath =
-  // Uses `any` as repeating pattern can't be typed.
-  | any[]
-  // Looks somewhat like this
-  | [
-      // Holds full path to the segment.
-      ...FlightSegmentPath[],
-      ...FlightDataSegment,
-    ]
-
-/**
- * The Flight response data
- */
-export type FlightData = Array<FlightDataPath> | string
 
 /**
  * Per-route prefetch hints computed at build time. Mirrors the shape of the
@@ -455,19 +400,14 @@ export type InitialRSCPayload = {
   q: string
   /** couldBeIntercepted */
   i: boolean
-  /** initialFlightData */
-  f: FlightDataPath[]
+  /** initial transport data — the tree + head for hydration */
+  t: FullTransportData
   /** missingSlots */
   m: Set<string> | undefined
   /** GlobalError */
   G: [React.ComponentType<any>, React.ReactNode | undefined]
   /** supportsPerSegmentPrefetching */
   S: boolean
-  /**
-   * headVaryParams - vary params for the head (metadata) of the response.
-   * Does not include root params (see `r`).
-   */
-  h: VaryParamsIterable | null
   /**
    * rootVaryParams - the root params accessed anywhere in the response, emitted
    * once. The client unions these into the head and every segment's vary
@@ -532,8 +472,18 @@ export type InitialRSCPayload = {
 export type NavigationFlightResponse = {
   /** buildId, can be empty if the x-nextjs-build-id header is set */
   b?: string
-  /** flightData */
-  f: FlightData
+  /**
+   * transport data — present iff the response carries a SPA payload.
+   * Absent when the response renders nothing (see `n` for MPA navigations).
+   */
+  t?: PartialTransportData
+  /**
+   * MPA navigation URL — present iff the client should hard-navigate to
+   * this URL instead of applying a SPA payload. Reserved: no server path
+   * emits it today (hard navigations are signaled by non-RSC content types
+   * or a build-id mismatch), but the client honors it.
+   */
+  n?: string
   /** supportsPerSegmentPrefetching */
   S: boolean
   /** renderedSearch */
@@ -556,8 +506,6 @@ export type NavigationFlightResponse = {
    * where we have a proper session shell.
    * */
   u?: Promise<boolean>
-  /** headVaryParams. Does not include root params (see `r`). */
-  h: VaryParamsIterable | null
   /**
    * rootVaryParams - the root params accessed anywhere in the response, emitted
    * once. The client unions these into the head and every segment's vary
@@ -588,14 +536,23 @@ export type NavigationFlightResponse = {
   _revealAfter?: Promise<void>
 }
 
-// Response from `createFromFetch` for server actions. Action's flight data can be null
+// Response from `createFromFetch` for server actions.
 export type ActionFlightResponse = {
   /** actionResult */
   a: ActionResult
   /** buildId, can be empty if the x-nextjs-build-id header is set */
   b?: string
-  /** flightData */
-  f: FlightData
+  /**
+   * transport data — present iff the action response re-rendered the page.
+   * Absent when the action rendered nothing (see `n` for MPA navigations).
+   */
+  t?: PartialTransportData
+  /**
+   * MPA navigation URL — present iff the client should hard-navigate to
+   * this URL instead of applying a SPA payload. Reserved: no server path
+   * emits it today, but the client honors it.
+   */
+  n?: string
   /** renderedSearch */
   q: string
   /** couldBeIntercepted */

@@ -220,11 +220,10 @@ const setups = import.meta.glob('./dir/*.js', { import: 'setup', eager: true })
 
 ### Query strings
 
-Use the `query` option to append a query string to every import request. This is useful for loading files as raw strings or URLs:
+Use the `query` option to append a query string to every import request:
 
 ```js
 const rawFiles = import.meta.glob('./dir/*.txt', { query: '?raw' })
-const urls = import.meta.glob('./dir/*.png', { query: '?url' })
 ```
 
 The `query` option also accepts an object. Keys and values are URL-encoded and joined into a query string:
@@ -234,6 +233,23 @@ const modules = import.meta.glob('./*.ts', {
   query: { bar: 'foo', raw: true },
 })
 // equivalent to: { query: '?bar=foo&raw=true' }
+```
+
+The query is passed through to the module rules, it has no meaning on its own. Unlike Vite, Turbopack has no built-in `?raw` or `?url` handling, so match the query with a [rule](/docs/app/api-reference/config/next-config-js/turbopack#module-types) to decide how those files are loaded:
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  turbopack: {
+    rules: {
+      // `import.meta.glob('./dir/*.txt', { query: '?raw' })` returns the file contents as strings
+      '*.txt': { condition: { query: '?raw' }, type: 'text' },
+    },
+  },
+}
+
+export default nextConfig
 ```
 
 ### Multiple patterns and negation
@@ -272,7 +288,7 @@ const eager = import.meta.glob('./dir/*.ts', { eager: true })
 | `base`          | `string`                                      | `undefined` | Override the base path used for resolving patterns and keying results.     |
 | `caseSensitive` | `boolean`                                     | `true`      | Match glob patterns case-sensitively. Set to `false` to ignore ASCII case. |
 
-> **Note:** The `as` option (deprecated in Vite 5) is not supported. Use `query: '?raw'` or `query: '?url'` instead. The legacy `import.meta.globEager()` API is also not supported — use `import.meta.glob('...', { eager: true })` instead.
+> **Note:** The `as` option (deprecated in Vite 5) is not supported. Use `query` together with a matching rule instead, as shown in [Query strings](#query-strings). The legacy `import.meta.globEager()` API is also not supported — use `import.meta.glob('...', { eager: true })` instead.
 
 ## Known gaps with webpack
 
@@ -395,7 +411,7 @@ Additionally, the following experimental options are available under `experiment
 | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ----------------------------- |
 | [`turbopackFileSystemCacheForDev`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache)   | Enable filesystem cache for the dev server.                                                                                                  | `true`        | N/A                           |
 | [`turbopackFileSystemCacheForBuild`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache) | Enable filesystem cache for builds.                                                                                                          | N/A           | `true`<sup>1</sup>            |
-| `turbopackMinify`                                                                                            | Enable minification.                                                                                                                         | `false`       | `true`                        |
+| `turbopackMinify`                                                                                            | Enable minification. Accepts a boolean, or `{ server, client, edge }` to configure each environment separately.                              | `false`       | `true`                        |
 | `turbopackSourceMaps`                                                                                        | Enable source maps.                                                                                                                          | `true`        | `productionBrowserSourceMaps` |
 | `turbopackInputSourceMaps`                                                                                   | Enable extraction of source maps from input files.                                                                                           | `true`        | `true`                        |
 | `turbopackModuleFragments`                                                                                   | Currently in active development. This splits modules into fragments and chunks only import the used fragments of the modules.                | `false`       | `false`                       |

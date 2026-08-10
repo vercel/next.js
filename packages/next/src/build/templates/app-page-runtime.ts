@@ -433,8 +433,9 @@ export function createAppPageEntrypoint({
 
     // Whether the testing API is exposed (dev mode or explicit flag)
     const exposeTestingApi =
-      routeModule.isDev === true ||
-      nextConfig.experimental.exposeTestingApiInProductionBuild === true
+      nextConfig.cacheComponents === true &&
+      (routeModule.isDev === true ||
+        nextConfig.experimental.exposeTestingApiInProductionBuild === true)
 
     // Enable the Instant Navigation Testing API. Renders only the prefetched
     // portion of the page, excluding dynamic content. This allows tests to
@@ -457,11 +458,7 @@ export function createAppPageEntrypoint({
     // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
     // prerender manifest and this is an app page.
     const isRoutePPREnabled: boolean =
-      // When the instant navigation testing API is active, enable the PPR
-      // prerender path even without Cache Components. In dev mode without CC,
-      // static pages need this path to produce buffered segment data (the
-      // legacy prerender path hangs in dev mode).
-      (couldSupportPPR || isInstantNavigationTest) &&
+      couldSupportPPR &&
       ((
         prerenderManifest.routes[normalizedSrcPage] ??
         prerenderManifest.dynamicRoutes[normalizedSrcPage]
@@ -905,7 +902,6 @@ export function createAppPageEntrypoint({
             images: nextConfig.images,
             previewProps: prerenderManifest.preview,
             enableTainting: nextConfig.experimental.taint,
-            htmlLimitedBots: nextConfig.htmlLimitedBots,
             reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
 
             multiZoneDraftMode,
