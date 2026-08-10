@@ -221,7 +221,7 @@ export function createTurbopackSubscription<T, TTask>(
 
       const finalized = await finalization
       if (returnError !== undefined) throw returnError
-      if (!finalized.success) throw finalized.error
+      if (finalized.success === false) throw finalized.error
       return result
     })()
     return returnPromise

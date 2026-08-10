@@ -1,12 +1,12 @@
-import { LazyModule } from '../../../../packages/next/src/server/lib/lazy-module'
+import { LazyModule } from 'next/dist/server/lib/lazy-module'
 import {
   AppRouteRouteModule,
   type AppRouteHandlerFn,
   type AppRouteRouteHandlerContext,
   type AppRouteUserlandModule,
-} from '../../../../packages/next/src/server/route-modules/app-route/module'
-import { RouteKind } from '../../../../packages/next/src/server/route-kind'
-import { NextRequest } from '../../../../packages/next/src/server/web/spec-extension/request'
+} from 'next/dist/server/route-modules/app-route/module'
+import { RouteKind } from 'next/dist/server/route-kind'
+import { NextRequest } from 'next/dist/server/web/spec-extension/request'
 
 type PreparedExecution = {
   handler: AppRouteHandlerFn
@@ -91,6 +91,7 @@ describe('App Route live userland snapshots', () => {
       GET: () => new Response('first'),
       dynamic: 'force-static',
       fetchCache: 'force-no-store',
+      generateStaticParams: undefined,
       revalidate: 11,
     }
     const secondGeneration: AppRouteUserlandModule = {
@@ -98,6 +99,7 @@ describe('App Route live userland snapshots', () => {
       POST: () => new Response('second-post'),
       dynamic: 'force-dynamic',
       fetchCache: 'force-cache',
+      generateStaticParams: undefined,
       revalidate: 22,
     }
     const firstGenerationGate = createDeferred<AppRouteUserlandModule>()
@@ -141,6 +143,7 @@ describe('App Route live userland snapshots', () => {
       GET: () => new Response('recovered'),
       dynamic: 'force-static',
       fetchCache: 'only-no-store',
+      generateStaticParams: undefined,
       revalidate: 33,
     }
     const load = jest.fn(() => {
@@ -169,6 +172,7 @@ describe('App Route live userland snapshots', () => {
     const userland: AppRouteUserlandModule & { then: typeof then } = {
       GET: () => new Response('not-thenable'),
       dynamic: 'force-static',
+      generateStaticParams: undefined,
       then,
     }
     const getUserland = jest.fn(() => userland)
@@ -189,7 +193,7 @@ describe('LazyModule.initializeIfNeeded', () => {
   it('initializes an unloaded module without invoking its loader', () => {
     const load = jest.fn(() => 'loaded')
     const onLoad = jest.fn()
-    const lazy = new LazyModule(load, onLoad)
+    const lazy = new LazyModule<string>(load, onLoad)
 
     lazy.initializeIfNeeded('snapshot')
     lazy.initializeIfNeeded('later')
@@ -217,7 +221,7 @@ describe('LazyModule.initializeIfNeeded', () => {
 
   it('does not replace an earlier rejection', async () => {
     const reason = new Error('load failed')
-    const lazy = new LazyModule(
+    const lazy = new LazyModule<string>(
       () => Promise.reject(reason),
       () => {}
     )
